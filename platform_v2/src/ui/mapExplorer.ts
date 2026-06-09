@@ -1452,8 +1452,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
   var MAPLIBRE_JS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-  var GUIDE_BADGE_FULL_ZOOM = 13.2;
+  var GUIDE_BADGE_LABEL_ZOOM = 12.6;
+  var GUIDE_BADGE_FULL_ZOOM = 13.4;
   var GUIDE_BADGE_DENSE_LIMIT = 8;
+  var GUIDE_SPOT_LABEL_ZOOM = 12.6;
+  var GUIDE_SPOT_FULL_ZOOM = 13.8;
+  var GUIDE_SPOT_DENSE_LIMIT = 10;
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
@@ -2363,11 +2367,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       })
       .slice(0, 80);
     var guideBadgeCount = features.filter(function (item) { return !!item.guideStop; }).length;
-    var useCompactGuideBadges = zoom < GUIDE_BADGE_FULL_ZOOM || guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT;
+    var useGuidePinBadges = zoom < GUIDE_BADGE_LABEL_ZOOM || guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT;
+    var useCompactGuideBadges = !useGuidePinBadges && zoom < GUIDE_BADGE_FULL_ZOOM;
     features.forEach(function (item) {
       var props = item.feature && item.feature.properties ? item.feature.properties : {};
       var name = String(props.name || COPY.selectedFieldLabel);
       var fieldId = String(props.field_id || '');
+      var isGuidePinBadge = !!item.guideStop && useGuidePinBadges;
       var isCompactGuideBadge = !!item.guideStop && useCompactGuideBadges;
       var eventHref = fieldId && eventsNewHrefTemplate
         ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
@@ -2389,9 +2395,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (item.guideStop) ariaBits.unshift(COPY.areaBadgeGuideLabel);
       el.className = 'me-area-badge-marker' +
         (item.guideStop ? ' has-guide-stop' : '') +
+        (isGuidePinBadge ? ' is-guide-pin' : '') +
         (isCompactGuideBadge ? ' is-guide-compact' : '');
       el.setAttribute('aria-label', name + ' ' + ariaBits.join(' '));
-      el.innerHTML = isCompactGuideBadge
+      el.innerHTML = isGuidePinBadge
+        ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+            '<span class="me-guide-dot" aria-hidden="true"></span>' +
+          '</button>'
+        : isCompactGuideBadge
         ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
             '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
           '</button>'
@@ -5235,16 +5246,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .catch(function (err) { if (err && err.name === 'AbortError') return; });
   }
 
-  function renderGuideSpotMarker(feature) {
+  function renderGuideSpotMarker(feature, guideSpotCount) {
     var center = guideSpotCenter(feature);
     var spot = feature && feature.properties ? feature.properties : {};
     if (!center || !spot.title) return null;
     var zoom = state.map && state.map.getZoom ? state.map.getZoom() : 12;
-    var compact = !Number.isFinite(zoom) || zoom < 13.4;
+    var pin = !Number.isFinite(zoom) || zoom < GUIDE_SPOT_LABEL_ZOOM || guideSpotCount > GUIDE_SPOT_DENSE_LIMIT;
+    var compact = !pin && zoom < GUIDE_SPOT_FULL_ZOOM;
     var el = document.createElement('div');
-    el.className = 'me-guide-spot-marker' + (compact ? ' is-compact' : '');
+    el.className = 'me-guide-spot-marker' + (pin ? ' is-pin' : '') + (compact ? ' is-compact' : '');
     el.setAttribute('aria-label', String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel);
-    el.innerHTML = compact
+    el.innerHTML = pin
+      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+          '<span class="me-guide-dot" aria-hidden="true"></span>' +
+        '</button>'
+      : compact
       ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
           '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
         '</button>'
@@ -5266,8 +5282,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     clearGuideSpotMarkers();
     if (!state.map || !window.maplibregl || !collection || !Array.isArray(collection.features)) return;
     if (state.tab !== 'markers' && state.tab !== 'places') return;
+    var guideSpotCount = collection.features.length;
     collection.features.slice(0, 80).forEach(function (feature) {
-      var marker = renderGuideSpotMarker(feature);
+      var marker = renderGuideSpotMarker(feature, guideSpotCount);
       if (marker) state.guideSpotMarkers.push(marker);
     });
   }
@@ -7138,6 +7155,37 @@ export const MAP_EXPLORER_STYLES = `
     border: 2px solid rgba(255,255,255,.88);
     box-shadow: 0 0 0 1px rgba(15,23,42,.16);
   }
+  .me-area-badge-marker.is-guide-pin {
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .me-area-badge-marker.is-guide-pin .me-area-badge-main,
+  .me-guide-spot-marker.is-pin .me-guide-spot-main {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0;
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,.92);
+    background: #0f172a;
+    box-shadow: 0 10px 20px rgba(15,23,42,.20);
+  }
+  .me-guide-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #2dd4bf;
+    box-shadow: 0 0 0 4px rgba(45,212,191,.24);
+  }
   .me-guide-spot-marker {
     color: #0f172a;
     transform-origin: bottom center;
@@ -7322,16 +7370,20 @@ export const MAP_EXPLORER_STYLES = `
     /* MapLibre の OpenStreetMap attribution の上、確実に被らない位置に。
        attribution は実測で ~24-28px、上に 12px 余白を取って bottom:42px。 */
     position: absolute; right: 8px; bottom: 42px; z-index: 4;
+    max-width: min(520px, calc(100% - 24px));
+    box-sizing: border-box;
     padding: 5px 10px; border-radius: 8px;
     background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08);
     box-shadow: 0 4px 10px rgba(15,23,42,.08);
-    display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 10px; font-weight: 700;
   }
   .me-legend-gradient { width: 96px; height: 6px; }
   .me-legend.is-hidden { display: none; }
   .me-legend-label { color: #475569; letter-spacing: .1em; text-transform: uppercase; }
-  .me-legend-gradient { width: 140px; height: 10px; border-radius: 999px; display: inline-block; }
-  .me-legend-range { display: inline-flex; gap: 10px; color: #64748b; font-weight: 700; }
+  .me-legend-gradient { flex: 0 1 140px; min-width: 92px; height: 10px; border-radius: 999px; display: inline-block; }
+  .me-legend-range { display: inline-flex; flex: 1 1 190px; min-width: 0; flex-wrap: wrap; gap: 6px 10px; color: #64748b; font-weight: 700; }
+  #me-legend-low,
+  #me-legend-high { min-width: 0; overflow-wrap: anywhere; }
   .me-search-area-btn {
     position: absolute;
     top: 14px;
