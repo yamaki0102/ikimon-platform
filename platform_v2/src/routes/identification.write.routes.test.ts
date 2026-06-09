@@ -119,6 +119,19 @@ test("dispute write route accepts reference evidence payloads", async () => {
   assert.match(source, /openObservationDispute\(\{[\s\S]*referenceSourceIds: Array\.isArray\(request\.body\?\.referenceSourceIds\)/);
 });
 
+test("public observation write routes apply per-user rate limits", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
+
+  assert.match(source, /function assertMutationRateLimit/);
+  assert.match(source, /assertAuthRateLimit\(\[scope, userId, request\.ip\]/);
+  assert.match(source, /"observation-upsert"/);
+  assert.match(source, /"observation-photo-upload"/);
+  assert.match(source, /"observation-identification"/);
+  assert.match(source, /"observation-dispute"/);
+  assert.match(source, /"video-direct-upload"/);
+  assert.match(source, /"video-finalize"/);
+});
+
 test("reference duplicate merge preserves evidence before marking duplicate", async () => {
   const serviceSource = await readFile(path.join(process.cwd(), "src", "services", "referenceLibrary.ts"), "utf8");
   const routeSource = await readFile(path.join(process.cwd(), "src", "routes", "references.ts"), "utf8");

@@ -27,11 +27,13 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /observation_photo_original/);
   assert.match(source, /privacy_processing_status: "pending"/);
   assert.match(source, /original_relative_path: originalRelativePath/);
-  assert.match(source, /set public_visibility = 'public'/);
-  assert.match(source, /quality_review_status = 'accepted'/);
+  assert.match(source, /set public_visibility = case[\s\S]*else 'public'[\s\S]*end/);
+  assert.match(source, /quality_review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
+  assert.match(source, /visit_id like 'prod-media-smoke-%'[\s\S]*then 'hidden'/);
+  assert.match(source, /coalesce\(source_payload->>'source', ''\) = 'prod_media_smoke'[\s\S]*then 'archived'/);
   assert.match(source, /reason <> 'missing_photo'/);
   assert.match(source, /reason_code = 'native_no_photo'/);
-  assert.match(source, /review_status = 'accepted'/);
+  assert.match(source, /review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
   assert.match(source, /enqueueMediaProcessingJobsStandalone/);
   assert.match(source, /photo_ready_reassess/);
 

@@ -156,7 +156,7 @@
   ],
   "requiredChecks": [
     "php tools/lint.php",
-    "cd platform_v2 && npm ci && npm run typecheck && npm run build",
+    "cd platform_v2 && npm ci && npm run typecheck && npm run build && npm run test:node",
     "cd platform_v2 && npm run e2e:production-smoke",
     "composer test",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1"

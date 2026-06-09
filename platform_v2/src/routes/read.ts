@@ -133,6 +133,7 @@ import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
+import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -12403,6 +12404,8 @@ const RECORDS_WORKBENCH_STYLES = `
 `;
 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
+  await registerSpecialistReadApiRoutes(app);
+
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
@@ -18473,109 +18476,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       PROFILE_HUB_STYLES,
     );
-  });
-
-  app.get("/api/v1/specialist/me/authorities", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        reply.code(401);
-        return {
-          ok: false,
-          error: "session_required",
-        };
-      }
-
-      const access = await getReviewerAccessContext(session.userId, session.roleName, session.rankLabel);
-      return {
-        ok: true,
-        globalRole: access.globalRole,
-        hasSpecialistAccess: access.hasSpecialistAccess,
-        authorities: access.activeAuthorities,
-      };
-    } catch (error) {
-      reply.code(400);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_authorities_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/authority/recommendations/me", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        reply.code(401);
-        return {
-          ok: false,
-          error: "session_required",
-        };
-      }
-
-      const recommendations = await listAuthorityRecommendationsForUser(session.userId);
-      return {
-        ok: true,
-        recommendations,
-      };
-    } catch (error) {
-      reply.code(400);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "authority_recommendations_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/specialist/recommendations/pending", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      const resolvedSession = await assertSpecialistSession(session, session?.userId ?? "");
-      const recommendations = await listPendingAuthorityRecommendationsForReviewer({
-        actorUserId: resolvedSession.userId,
-        actorRoleName: resolvedSession.roleName,
-        actorRankLabel: resolvedSession.rankLabel,
-      });
-      return {
-        ok: true,
-        recommendations,
-      };
-    } catch (error) {
-      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_recommendations_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/specialist/authorities/audit", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      assertSpecialistAdminSession(session, session?.userId ?? "");
-      const query = (typeof request.query === "object" && request.query ? request.query : {}) as Record<string, unknown>;
-      const rawAction = typeof query.action === "string" ? query.action.trim() : "";
-      const rawStatus = typeof query.status === "string" ? query.status.trim() : "";
-      const recommendations = await listReviewerAuthorityAudit({
-        subjectUserId: typeof query.subjectUserId === "string" ? query.subjectUserId.trim() : null,
-        scopeTaxonName: typeof query.scopeTaxonName === "string" ? query.scopeTaxonName.trim() : null,
-        action: (rawAction === "grant" || rawAction === "revoke" || rawAction === "update")
-          ? rawAction as ReviewerAuthorityAuditAction
-          : null,
-        status: rawStatus === "active" || rawStatus === "revoked" ? rawStatus : null,
-        limit: typeof query.limit === "string" ? Number(query.limit) : undefined,
-      });
-      return {
-        ok: true,
-        audit: recommendations,
-      };
-    } catch (error) {
-      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_authority_audit_lookup_failed",
-      };
-    }
   });
 
   app.get("/authority/recommendations", async (request, reply) => {
