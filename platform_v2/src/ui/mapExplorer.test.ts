@@ -38,6 +38,60 @@ test("map explorer localizes English fallback and failure chrome", () => {
   assert.doesNotMatch(html, /詳細を広げる/);
 });
 
+test("selected place and cell details replace static story with site brief", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const selectedPlaceBody = script.slice(
+    script.indexOf("if (context.kind === 'place')"),
+    script.indexOf("if (context.kind === 'cell')"),
+  );
+  const selectedCellBody = script.slice(
+    script.indexOf("if (context.kind === 'cell')"),
+    script.indexOf("var record = context.record"),
+  );
+  const openCellBody = script.slice(
+    script.indexOf("function openCellSheet"),
+    script.indexOf("function buildPlaceMemoryRecordHref"),
+  );
+  const openPlaceBody = script.slice(
+    script.indexOf("function openPlaceSheet"),
+    script.indexOf("function isTransientAreaFeature"),
+  );
+
+  assert.match(script, /function renderSiteBriefSlot\(slotId, context\)/);
+  assert.match(selectedPlaceBody, /renderSiteBriefSlot\('me-selected-brief-slot', context\)/);
+  assert.match(selectedCellBody, /renderSiteBriefSlot\('me-selected-brief-slot', context\)/);
+  assert.match(openCellBody, /renderSiteBriefSlot\('me-site-brief-slot', detailContext\)/);
+  assert.match(openPlaceBody, /renderSiteBriefSlot\('me-site-brief-slot', detailContext\)/);
+  assert.doesNotMatch(openPlaceBody, /renderDetailVisitReasons\(detailContext\)[\s\S]{0,500}me-site-brief-slot/);
+  assert.match(script, /data-brief-fallback/);
+  assert.match(script, /target\.removeAttribute\('data-brief-fallback'\)/);
+});
+
+test("public place actions prioritize area circulation over personal record CTA", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const actionBody = script.slice(
+    script.indexOf("function renderPlaceDetailActions"),
+    script.indexOf("function renderSelectedCard"),
+  );
+
+  assert.match(actionBody, /COPY\.areaEventCreateLabel/);
+  assert.match(actionBody, /COPY\.areaPublicPageLabel/);
+  assert.match(actionBody, /COPY\.placeActionNearby/);
+  assert.match(actionBody, /nearbyHref/);
+  assert.doesNotMatch(actionBody, /COPY\.placeActionRecord/);
+});
+
+test("mobile place detail peek keeps the map visible", () => {
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\]\s*\{\s*height: min\(35dvh, 320px\);\s*max-height: min\(35dvh, 320px\);/);
+  assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\] \.me-detail-visit div:nth-child\(n\+2\)/);
+  assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\] \.me-site-brief-head/);
+  assert.match(styles, /\.me-bottom-detail \.me-detail-hero\.me-detail-hero-compact\s*\{\s*min-height: 92px;/);
+  assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\] \.me-detail-action-icon/);
+  assert.match(styles, /\.me-detail-hero-compact \.me-detail-hero-copy/);
+});
+
 test("area sheet includes contribution feedback surface", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
