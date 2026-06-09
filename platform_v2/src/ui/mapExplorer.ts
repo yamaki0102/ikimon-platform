@@ -1561,6 +1561,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var areaGuideWatchId = null;
   var activeGuideStopContext = null;
   var activeGuideSpeech = null;
+  var activeGuideAudio = null;
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
@@ -2183,6 +2184,61 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     '</div>';
   }
 
+  var GUIDE_LANG_ORDER = ['ja', 'en', 'zh-TW', 'zh-CN'];
+  var GUIDE_LANG_LABELS = { ja: '日本語', en: 'English', 'zh-TW': '繁體', 'zh-CN': '简体' };
+  var GUIDE_LANG_STORAGE_KEY = 'ikimon:map-guide-lang';
+
+  function guideVariantKeys(stop) {
+    var variants = stop && stop.variants && typeof stop.variants === 'object' ? stop.variants : null;
+    if (!variants) return [];
+    return GUIDE_LANG_ORDER.filter(function (lang) { return !!variants[lang]; });
+  }
+
+  function readPreferredGuideLang(stop) {
+    var keys = guideVariantKeys(stop);
+    if (!keys.length) return '';
+    var paramLang = '';
+    try { paramLang = new URLSearchParams(window.location.search || '').get('guideLang') || ''; } catch (_) {}
+    if (keys.indexOf(paramLang) >= 0) return paramLang;
+    var storedLang = '';
+    try { storedLang = window.localStorage ? window.localStorage.getItem(GUIDE_LANG_STORAGE_KEY) || '' : ''; } catch (_) {}
+    if (keys.indexOf(storedLang) >= 0) return storedLang;
+    if (SEARCH_LANG === 'en' && keys.indexOf('en') >= 0) return 'en';
+    return keys.indexOf('ja') >= 0 ? 'ja' : keys[0];
+  }
+
+  function localizedGuideStop(stop) {
+    if (!stop) return null;
+    var lang = readPreferredGuideLang(stop);
+    var variant = lang && stop.variants ? stop.variants[lang] : null;
+    if (!variant) return stop;
+    var merged = {};
+    Object.keys(stop).forEach(function (key) { merged[key] = stop[key]; });
+    Object.keys(variant).forEach(function (key) { merged[key] = variant[key]; });
+    merged.variants = stop.variants;
+    merged.source_links = stop.source_links || [];
+    merged.trigger_radius_m = stop.trigger_radius_m;
+    merged.unlocked_radius_m = stop.unlocked_radius_m;
+    merged.approved_by = stop.approved_by || '';
+    merged.approval_state = stop.approval_state || '';
+    merged.content_version = stop.content_version || '';
+    merged._guide_lang = lang;
+    return merged;
+  }
+
+  function renderGuideLanguageSelector(stop, activeLang) {
+    var keys = guideVariantKeys(stop);
+    if (keys.length <= 1) return '';
+    return '<div class="me-area-guide-langs" role="group" aria-label="Guide language">' +
+      keys.map(function (lang) {
+        var selected = lang === activeLang;
+        return '<button type="button" data-guide-lang-option="' + escapeHtml(lang) + '"' +
+          (selected ? ' aria-pressed="true"' : ' aria-pressed="false"') +
+          ' class="' + (selected ? 'is-active' : '') + '">' + escapeHtml(GUIDE_LANG_LABELS[lang] || lang) + '</button>';
+      }).join('') +
+    '</div>';
+  }
+
   function renderGuideSpotContent(spot) {
     var radius = Number(spot.unlockedRadiusM || spot.unlocked_radius_m || 90);
     if (!Number.isFinite(radius)) radius = 90;
@@ -2748,13 +2804,41 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var raw = source && (source.guideStop || source.guide_stop || source.guideStopJson || source.guide_stop_json);
     var item = parseGuideStopValue(raw);
     if (!item || item.enabled !== true) return null;
-    var title = String(item.title || '').trim();
+    var variants = {};
+    if (item.variants && typeof item.variants === 'object' && !Array.isArray(item.variants)) {
+      GUIDE_LANG_ORDER.forEach(function (lang) {
+        var variant = item.variants[lang];
+        if (!variant || typeof variant !== 'object') return;
+        var variantTitle = String(variant.title || '').trim();
+        var variantPreview = String(variant.preview || '').trim();
+        var variantScript = String(variant.script || '').trim();
+        var variantPoints = Array.isArray(variant.story_points)
+          ? variant.story_points.map(function (point) { return String(point || '').trim(); }).filter(Boolean).slice(0, 6)
+          : [];
+        if (!variantTitle || (!variantPreview && !variantScript && !variantPoints.length)) return;
+        variants[lang] = {
+          language: String(variant.language || lang).trim(),
+          title: variantTitle,
+          subtitle: String(variant.subtitle || '').trim(),
+          preview: variantPreview,
+          script: variantScript,
+          tts_script: String(variant.tts_script || '').trim(),
+          audio_url: String(variant.audio_url || '').trim(),
+          audio_provider: String(variant.audio_provider || '').trim(),
+          audio_voice: String(variant.audio_voice || '').trim(),
+          audio_generated_at: String(variant.audio_generated_at || '').trim(),
+          story_points: variantPoints,
+        };
+      });
+    }
+    var fallbackVariant = variants.ja || variants.en || variants['zh-TW'] || variants['zh-CN'] || null;
+    var title = String(item.title || (fallbackVariant && fallbackVariant.title) || '').trim();
     if (!title) return null;
     var points = Array.isArray(item.story_points)
       ? item.story_points.map(function (point) { return String(point || '').trim(); }).filter(Boolean).slice(0, 5)
       : [];
-    var preview = String(item.preview || '').trim();
-    var script = String(item.script || '').trim();
+    var preview = String(item.preview || (fallbackVariant && fallbackVariant.preview) || '').trim();
+    var script = String(item.script || (fallbackVariant && fallbackVariant.script) || '').trim();
     var sourceLinks = guideStopSourceLinks(item);
     if (!preview && !script && !points.length) return null;
     var triggerRadius = Number(item.trigger_radius_m || item.triggerRadiusM || 90);
@@ -2766,11 +2850,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return {
       enabled: true,
       title: title,
-      subtitle: String(item.subtitle || '').trim(),
-      language: String(item.language || SEARCH_LANG || 'ja').trim(),
+      subtitle: String(item.subtitle || (fallbackVariant && fallbackVariant.subtitle) || '').trim(),
+      language: String(item.language || (fallbackVariant && fallbackVariant.language) || SEARCH_LANG || 'ja').trim(),
       preview: preview,
       script: script,
+      tts_script: String(item.tts_script || (fallbackVariant && fallbackVariant.tts_script) || '').trim(),
+      audio_url: String(item.audio_url || (fallbackVariant && fallbackVariant.audio_url) || '').trim(),
+      audio_provider: String(item.audio_provider || (fallbackVariant && fallbackVariant.audio_provider) || '').trim(),
+      audio_voice: String(item.audio_voice || (fallbackVariant && fallbackVariant.audio_voice) || '').trim(),
+      audio_generated_at: String(item.audio_generated_at || (fallbackVariant && fallbackVariant.audio_generated_at) || '').trim(),
       story_points: points,
+      variants: Object.keys(variants).length ? variants : undefined,
       trigger_radius_m: triggerRadius,
       unlocked_radius_m: unlockRadius,
       approved_by: String(item.approved_by || item.approvedBy || '').trim(),
@@ -2788,7 +2878,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderAreaGuideStop(source, center) {
-    var stop = areaGuideStopFrom(source);
+    var baseStop = areaGuideStopFrom(source);
+    var stop = localizedGuideStop(baseStop);
     if (!stop || !center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng)) return '';
     var points = stop.story_points.length
       ? '<ul class="me-area-guide-points">' + stop.story_points.map(function (point) { return '<li>' + escapeHtml(point) + '</li>'; }).join('') + '</ul>'
@@ -2805,6 +2896,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +     '<span>' + escapeHtml(COPY.guideStopEyebrow) + '</span>'
       +     '<strong>' + escapeHtml(stop.title) + '</strong>'
       +   '</div>'
+      +   renderGuideLanguageSelector(baseStop, stop._guide_lang || stop.language)
       +   (body ? '<p class="me-area-guide-lead">' + escapeHtml(body) + '</p>' : '')
       +   points
       +   '<div class="me-area-guide-status">'
@@ -2851,7 +2943,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var source = feature && feature.properties
       ? feature.properties
       : (selected && selected.areaSnapshot && selected.areaSnapshot.field ? selected.areaSnapshot.field : null);
-    var stop = areaGuideStopFrom(source);
+    var stop = localizedGuideStop(areaGuideStopFrom(source));
     if (!stop) return null;
     var center = feature
       ? areaFeatureCenter(feature, selected && selected.lat, selected && selected.lng)
@@ -2876,7 +2968,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function stopAreaGuideSpeech() {
-    if (!activeGuideSpeech) return;
+    if (!activeGuideSpeech && !activeGuideAudio) return;
+    if (activeGuideAudio) {
+      try {
+        activeGuideAudio.pause();
+        activeGuideAudio.currentTime = 0;
+      } catch (_) {}
+      activeGuideAudio = null;
+    }
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {}
     activeGuideSpeech = null;
     setGuideStopPlaying(activeGuideStopContext && activeGuideStopContext.panel, false);
@@ -2946,8 +3045,35 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function speakAreaGuideStop() {
     var context = activeGuideStopContext;
     if (!context || !context.panel || !context.unlocked) return;
-    if (activeGuideSpeech) {
+    if (activeGuideSpeech || activeGuideAudio) {
       stopAreaGuideSpeech();
+      return;
+    }
+    var stop = context.stop;
+    if (stop.audio_url) {
+      if (!window.Audio) {
+        var unsupportedEl = context.panel.querySelector('[data-area-guide-status]');
+        if (unsupportedEl) unsupportedEl.textContent = COPY.guideStopUnsupported;
+        return;
+      }
+      var audio = new window.Audio(stop.audio_url);
+      audio.preload = 'auto';
+      audio.onended = function () {
+        if (activeGuideAudio === audio) activeGuideAudio = null;
+        setGuideStopPlaying(context.panel, false);
+      };
+      audio.onerror = function () {
+        if (activeGuideAudio === audio) activeGuideAudio = null;
+        setGuideStopPlaying(context.panel, false);
+        var statusEl = context.panel.querySelector('[data-area-guide-status]');
+        if (statusEl) statusEl.textContent = COPY.guideStopUnsupported;
+      };
+      activeGuideAudio = audio;
+      setGuideStopPlaying(context.panel, true);
+      var playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(function () { audio.onerror(); });
+      }
       return;
     }
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
@@ -2955,7 +3081,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (statusEl) statusEl.textContent = COPY.guideStopUnsupported;
       return;
     }
-    var stop = context.stop;
     var text = [stop.title, stop.script || stop.preview].concat(stop.story_points || []).filter(Boolean).join('。');
     if (!text) return;
     var utterance = new window.SpeechSynthesisUtterance(text);
@@ -2992,6 +3117,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     updateAreaGuideStopStatus(null);
     var locateBtn = panel.querySelector('[data-area-guide-locate]');
     var playBtn = panel.querySelector('[data-area-guide-play]');
+    panel.querySelectorAll('[data-guide-lang-option]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var lang = btn.getAttribute('data-guide-lang-option') || '';
+        if (!lang) return;
+        try { if (window.localStorage) window.localStorage.setItem(GUIDE_LANG_STORAGE_KEY, lang); } catch (_) {}
+        stopAreaGuideSpeech();
+        if (shouldUseBottomSheet() && sheetInnerEl && state.selectedPoint && state.selectedPoint.areaSnapshot) {
+          sheetInnerEl.innerHTML = renderAreaSheet(state.selectedPoint.areaSnapshot);
+          hydrateAreaGuideStopControls(sheetInnerEl);
+        } else {
+          renderSelectedCard();
+        }
+      });
+    });
     if (locateBtn) locateBtn.addEventListener('click', function () { startAreaGuideStopWatch(); });
     if (playBtn) playBtn.addEventListener('click', function () { speakAreaGuideStop(); });
   }
@@ -8525,6 +8664,9 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-guide-head { display: grid; gap: 3px; }
   .me-area-guide-head span { color: #7dd3fc; font-size: 10px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
   .me-area-guide-head strong { font-size: 15px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+  .me-area-guide-langs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .me-area-guide-langs button { min-height: 30px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); padding: 5px 9px; background: rgba(255,255,255,.08); color: rgba(224,242,254,.86); font-size: 11px; line-height: 1.1; font-weight: 900; cursor: pointer; }
+  .me-area-guide-langs button.is-active { background: #f8fafc; border-color: #f8fafc; color: #0f172a; }
   .me-area-guide-lead { margin: 0; color: rgba(248,250,252,.86); font-size: 12px; line-height: 1.65; font-weight: 760; }
   .me-area-guide-points { display: grid; gap: 5px; margin: 0; padding-left: 18px; color: rgba(224,242,254,.94); font-size: 11.5px; line-height: 1.55; font-weight: 760; }
   .me-area-guide-status { display: grid; gap: 3px; padding: 9px 10px; border-radius: 10px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10); }

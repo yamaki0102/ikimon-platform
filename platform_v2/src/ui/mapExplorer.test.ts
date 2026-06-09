@@ -134,6 +134,9 @@ test("area sheet exposes on-site guide stops with geolocation-gated playback", (
   assert.match(script, /近づくと聞けます/);
   assert.match(script, /この場所で聞く/);
   assert.match(script, /watchPosition/);
+  assert.match(script, /new window\.Audio\(stop\.audio_url\)/);
+  assert.match(script, /data-guide-lang-option/);
+  assert.match(script, /GUIDE_LANG_ORDER = \['ja', 'en', 'zh-TW', 'zh-CN'\]/);
   assert.match(script, /SpeechSynthesisUtterance/);
   assert.match(script, /hydrateAreaGuideStopControls\(sheetInnerEl\)/);
   assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml/);

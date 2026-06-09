@@ -1,0 +1,42 @@
+[
+  {
+    "lang": "ja",
+    "file": "/assets/audio/guides/lenri/lenri-guide-ja.mp3",
+    "chunks": 2,
+    "duration": 44.884,
+    "bytes": 539468,
+    "provider": "irodori-tts",
+    "checkpoint": "Aratako/Irodori-TTS-600M-v3-VoiceDesign",
+    "reference_voice": "job-expo-2026/irodori-test.wav"
+  },
+  {
+    "lang": "en",
+    "file": "/assets/audio/guides/lenri/lenri-guide-en.mp3",
+    "chunks": 4,
+    "duration": 106.076,
+    "bytes": 1273580,
+    "provider": "irodori-tts",
+    "checkpoint": "Aratako/Irodori-TTS-600M-v3-VoiceDesign",
+    "reference_voice": "job-expo-2026/irodori-test.wav"
+  },
+  {
+    "lang": "zh-TW",
+    "file": "/assets/audio/guides/lenri/lenri-guide-zh-TW.mp3",
+    "chunks": 2,
+    "duration": 34.402,
+    "bytes": 413612,
+    "provider": "irodori-tts",
+    "checkpoint": "Aratako/Irodori-TTS-600M-v3-VoiceDesign",
+    "reference_voice": "job-expo-2026/irodori-test.wav"
+  },
+  {
+    "lang": "zh-CN",
+    "file": "/assets/audio/guides/lenri/lenri-guide-zh-CN.mp3",
+    "chunks": 2,
+    "duration": 34.404,
+    "bytes": 413612,
+    "provider": "irodori-tts",
+    "checkpoint": "Aratako/Irodori-TTS-600M-v3-VoiceDesign",
+    "reference_voice": "job-expo-2026/irodori-test.wav"
+  }
+]
