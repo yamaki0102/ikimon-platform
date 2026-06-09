@@ -1,12 +1,14 @@
 param(
     [string]$BaseRef = "origin/main",
     [string]$Reason = $env:IKIMON_LEGACY_ENTRYPOINT_REASON,
+    [string]$ReasonFile = "ops/deploy/legacy_entrypoint_reasons.json",
     [switch]$WarningOnly
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$reasonFileFullPath = if ([System.IO.Path]::IsPathRooted($ReasonFile)) { $ReasonFile } else { Join-Path $repoRoot $ReasonFile }
 
 function Get-GitLines {
     param([string[]]$GitArgs)
@@ -79,11 +81,44 @@ if (-not [string]::IsNullOrWhiteSpace($Reason)) {
     $normalizedReason = $Reason.Trim()
 }
 if ($normalizedReason.Length -lt 15) {
+    $reasonMap = @{}
+    if (Test-Path -LiteralPath $reasonFileFullPath) {
+        $reasonObject = Get-Content -Raw -LiteralPath $reasonFileFullPath | ConvertFrom-Json
+        foreach ($property in $reasonObject.PSObject.Properties) {
+            $path = [string]$property.Name
+            $value = [string]$property.Value
+            if (-not [string]::IsNullOrWhiteSpace($path) -and -not [string]::IsNullOrWhiteSpace($value)) {
+                $reasonMap[$path.Replace('\', '/')] = $value.Trim()
+            }
+        }
+    }
+
+    $missingReasonPaths = @(
+        $legacyHits | Where-Object {
+            -not $reasonMap.ContainsKey($_) -or ([string]$reasonMap[$_]).Trim().Length -lt 15
+        }
+    )
+
+    if ($missingReasonPaths.Count -eq 0) {
+        Write-Output "Legacy entrypoint reason accepted from $ReasonFile"
+        Write-Output "Changed legacy entrypoint paths:"
+        foreach ($path in $legacyHits) {
+            Write-Output "  - $path : $($reasonMap[$path])"
+        }
+        exit 0
+    }
+
     $message = @(
         "Legacy entrypoint changes require a reason.",
-        "Set IKIMON_LEGACY_ENTRYPOINT_REASON or pass -Reason with the compatibility/deploy/rollback/data-preservation rationale.",
+        "Set IKIMON_LEGACY_ENTRYPOINT_REASON, pass -Reason, or add path-specific reasons to $ReasonFile.",
         "Changed legacy entrypoint paths:",
-        ($legacyHits | ForEach-Object { "  - $_" })
+        ($legacyHits | ForEach-Object {
+            if ($missingReasonPaths -contains $_) {
+                "  - $_"
+            } else {
+                "  - $_ (reason file ok)"
+            }
+        })
     ) -join [Environment]::NewLine
 
     if ($WarningOnly) {

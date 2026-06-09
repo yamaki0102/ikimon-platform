@@ -489,7 +489,7 @@ type LandingContentWallSubject = {
 };
 
 const LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT = 12;
-const LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT = 18;
+const LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT = 12;
 
 function landingContentWallGroupKey(obs: LandingContentWallItem): string {
   return obs.visitId

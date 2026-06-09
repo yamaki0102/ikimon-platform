@@ -8,10 +8,12 @@ test("video finalize promotes video-only observations out of native no-photo rev
   const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0094_publish_valid_video_observations.sql"), "utf8");
 
   assert.match(source, /'observation_video'/);
-  assert.match(source, /public_visibility = 'public'/);
-  assert.match(source, /quality_review_status = 'accepted'/);
+  assert.match(source, /set public_visibility = case[\s\S]*else 'public'[\s\S]*end/);
+  assert.match(source, /quality_review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
+  assert.match(source, /visit_id like 'prod-media-smoke-%'[\s\S]*then 'hidden'/);
+  assert.match(source, /coalesce\(source_payload->>'source', ''\) = 'prod_media_smoke'[\s\S]*then 'archived'/);
   assert.match(source, /reason_code = 'native_no_photo'/);
-  assert.match(source, /review_status = 'accepted'/);
+  assert.match(source, /review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
   assert.match(source, /handleStreamWebhook/);
   assert.match(source, /upsertObservationVideoAsset\(client, record, target, mediaRole, sourcePayload\)/);
   assert.match(source, /promoteObservationVideoTarget\(client, target\.visitId\)/);
