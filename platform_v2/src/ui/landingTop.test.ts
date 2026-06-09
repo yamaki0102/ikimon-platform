@@ -425,6 +425,30 @@ test("landing top gives signed-in own and community posts two desktop rows each"
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
 });
 
+test("landing top keeps guest community posts to two desktop rows", () => {
+  const makeObservation = (index: number): LandingObservation => ({
+    ...photoObservation,
+    occurrenceId: `occ-guest-balanced-${index}`,
+    visitId: `visit-guest-balanced-${index}`,
+    displayName: `みんなの投稿${index}`,
+    observedAt: `2026-04-${String(20 - index).padStart(2, "0")}T09:00:00.000Z`,
+    observerUserId: `user-${index + 1}`,
+    observerName: `みんな${index}`,
+    photoUrl: `/uploads/guest-balanced-${index}.jpg`,
+  });
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: null,
+    myFeed: [],
+    feed: Array.from({ length: 18 }, (_, index) => makeObservation(index)),
+  });
+
+  assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
+  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?<h3>みんなの記録<\/h3>/);
+  assert.doesNotMatch(html, /みんなの投稿12/);
+  assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
+});
+
 test("landing top keeps signed-in fallback records split by owner", () => {
   const ownObservation: LandingObservation = {
     ...photoObservation,
