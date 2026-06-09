@@ -17207,6 +17207,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Observation not found", stateCard("対象が見つかりません", "この観察の subject を表示できません", "subject 情報がまだ同期中の可能性があります。"), "みつける");
     }
 
+    const insightCandidateName = observationDetailUiName(
+      currentSubject.aiAssessment?.recommendedTaxonName || currentSubject.displayName || snapshot.displayName || "",
+    );
+    // renderAiTaxonStory と同じ優先順で学名を引く。AI候補のみの記録は
+    // occurrences.scientific_name が空なので、recommendedScientificName まで見ないと
+    // insight が空のままになり「◯◯を知る」の中身が永遠に生成されない。
+    const insightScientificName = currentSubject.scientificName
+      || snapshot.scientificName
+      || currentSubject.aiAssessment?.recommendedScientificName
+      || lookupLocalTaxonName(insightCandidateName)?.scientificName
+      || "";
     const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult, consensus, civicContext] = await Promise.all([
       getObservationContext(bundle.canonicalSubjectId, snapshot.visitId ?? null, null).catch(() => null),
       getObservationDetailHeavy(bundle.canonicalSubjectId, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
@@ -17214,10 +17225,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       viewerUserId
         ? getObserverStats(viewerUserId, snapshot.placeId ?? null, bundle.canonicalSubjectId).catch(() => null)
         : Promise.resolve(null),
-      snapshot.scientificName || snapshot.displayName
+      insightScientificName || snapshot.displayName
         ? getTaxonInsight({
-            scientificName: snapshot.scientificName ?? "",
-            vernacularName: snapshot.displayName,
+            scientificName: insightScientificName,
+            vernacularName: insightCandidateName || snapshot.displayName,
             lat: snapshot.latitude ?? undefined,
             lng: snapshot.longitude ?? undefined,
             season: seasonFromDate(snapshot.observedAt),
