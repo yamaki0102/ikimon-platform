@@ -56,13 +56,33 @@ export interface AreaGuideStop {
   language: string;
   preview: string;
   script: string;
+  tts_script?: string;
+  audio_url?: string;
+  audio_provider?: string;
+  audio_voice?: string;
+  audio_generated_at?: string;
   story_points: string[];
+  variants?: Record<string, AreaGuideStopVariant>;
   source_links: Array<{ label: string; url: string }>;
   trigger_radius_m: number;
   unlocked_radius_m: number;
   approved_by: string;
   approval_state: string;
   content_version: string;
+}
+
+export interface AreaGuideStopVariant {
+  language: string;
+  title: string;
+  subtitle: string;
+  preview: string;
+  script: string;
+  tts_script?: string;
+  audio_url?: string;
+  audio_provider?: string;
+  audio_voice?: string;
+  audio_generated_at?: string;
+  story_points: string[];
 }
 
 export interface AreaBiodiversityGroup {
@@ -159,28 +179,83 @@ function cleanGuideStopSourceLinks(value: unknown): Array<{ label: string; url: 
     .slice(0, 4);
 }
 
+function cleanGuideStopAudioUrl(value: unknown): string {
+  const url = cleanGuideStopString(value, 240);
+  if (!url) return "";
+  if (/^\/assets\/audio\/guides\/[a-z0-9/_-]+\.(mp3|wav|m4a|aac|opus)$/i.test(url)) return url;
+  if (/^https:\/\/[^\s]+$/i.test(url)) return url;
+  return "";
+}
+
+function normalizeGuideStopVariant(raw: unknown, lang: string): AreaGuideStopVariant | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const record = raw as Record<string, unknown>;
+  const title = cleanGuideStopString(record.title, 100);
+  const storyPoints = Array.isArray(record.story_points)
+    ? record.story_points.map((item) => cleanGuideStopString(item, 180)).filter(Boolean).slice(0, 6)
+    : [];
+  const preview = cleanGuideStopString(record.preview, 280);
+  const script = cleanGuideStopString(record.script, 1800);
+  if (!title || (!preview && !script && storyPoints.length === 0)) return undefined;
+  return {
+    language: cleanGuideStopString(record.language, 16) || lang,
+    title,
+    subtitle: cleanGuideStopString(record.subtitle, 180),
+    preview,
+    script,
+    tts_script: cleanGuideStopString(record.tts_script, 2000) || undefined,
+    audio_url: cleanGuideStopAudioUrl(record.audio_url) || undefined,
+    audio_provider: cleanGuideStopString(record.audio_provider, 48) || undefined,
+    audio_voice: cleanGuideStopString(record.audio_voice, 80) || undefined,
+    audio_generated_at: cleanGuideStopString(record.audio_generated_at, 32) || undefined,
+    story_points: storyPoints,
+  };
+}
+
+function normalizeGuideStopVariants(value: unknown): Record<string, AreaGuideStopVariant> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const entries = Object.entries(record)
+    .map(([lang, raw]) => {
+      const key = cleanGuideStopString(lang, 16);
+      if (!/^(ja|en|zh-TW|zh-CN)$/.test(key)) return undefined;
+      const variant = normalizeGuideStopVariant(raw, key);
+      return variant ? [key, variant] as const : undefined;
+    })
+    .filter((item): item is readonly [string, AreaGuideStopVariant] => Boolean(item));
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
 function normalizeGuideStop(raw: unknown): AreaGuideStop | undefined {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const record = raw as Record<string, unknown>;
   if (record.enabled !== true) return undefined;
+  const variants = normalizeGuideStopVariants(record.variants);
   const title = cleanGuideStopString(record.title, 80);
-  if (!title) return undefined;
+  if (!title && !variants) return undefined;
   const storyPoints = Array.isArray(record.story_points)
     ? record.story_points.map((item) => cleanGuideStopString(item, 160)).filter(Boolean).slice(0, 5)
     : [];
   const preview = cleanGuideStopString(record.preview, 220);
   const script = cleanGuideStopString(record.script, 1200);
-  if (!preview && !script && storyPoints.length === 0) return undefined;
+  if (!preview && !script && storyPoints.length === 0 && !variants) return undefined;
+  const fallback = variants?.ja ?? Object.values(variants ?? {})[0];
   const triggerRadius = cleanGuideStopRadius(record.trigger_radius_m, 90);
   const unlockRadius = Math.min(triggerRadius, cleanGuideStopRadius(record.unlocked_radius_m, triggerRadius));
   return {
     enabled: true,
-    title,
-    subtitle: cleanGuideStopString(record.subtitle, 140),
-    language: cleanGuideStopString(record.language, 16) || "ja",
-    preview,
-    script,
-    story_points: storyPoints,
+    title: title || fallback?.title || "",
+    subtitle: cleanGuideStopString(record.subtitle, 140) || fallback?.subtitle || "",
+    language: cleanGuideStopString(record.language, 16) || fallback?.language || "ja",
+    preview: preview || fallback?.preview || "",
+    script: script || fallback?.script || "",
+    tts_script: cleanGuideStopString(record.tts_script, 1400) || fallback?.tts_script,
+    audio_url: cleanGuideStopAudioUrl(record.audio_url) || fallback?.audio_url,
+    audio_provider: cleanGuideStopString(record.audio_provider, 48) || fallback?.audio_provider,
+    audio_voice: cleanGuideStopString(record.audio_voice, 80) || fallback?.audio_voice,
+    audio_generated_at: cleanGuideStopString(record.audio_generated_at, 32) || fallback?.audio_generated_at,
+    story_points: storyPoints.length ? storyPoints : fallback?.story_points ?? [],
+    variants,
     source_links: cleanGuideStopSourceLinks(record.source_links),
     trigger_radius_m: triggerRadius,
     unlocked_radius_m: unlockRadius,
