@@ -155,7 +155,7 @@ must remove repeated deterministic work, not safety checks.
   remain in GitHub Actions pre-flight for the same SHA.
 - Fixed static imports are skipped only when their marker/hash under
   `${APP_ROOT}/deploy_state/static_imports` matches the current source. Set
-  `FORCE_STATIC_IMPORTS=1` for recovery, DB rebuilds, or intentional full reseeding.
+  `FORCE_STATIC_IMPORTS=1` for recovery, DB recreation, or intentional full reseeding.
 - The N03 Shizuoka ZIP is cached under `${APP_ROOT}/cache/ksj`; changing the publish-date/version
   marker forces a fresh import.
 
