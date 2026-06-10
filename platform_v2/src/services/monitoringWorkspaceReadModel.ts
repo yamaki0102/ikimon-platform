@@ -17,6 +17,8 @@ export type MonitoringDetectionStatus =
   | "confirmed"
   | "candidate"
   | "observed_not_confirmed"
+  | "non_detection"
+  | "absence_candidate"
   | "insufficient_coverage"
   | "not_evaluated";
 
@@ -87,6 +89,7 @@ export type MonitoringWorkspaceGridCell = {
   recordCount: number;
   confirmedCount: number;
   candidateCount: number;
+  nonDetectionCount: number;
   monitoringReadyCount: number;
   exportReadyCount: number;
   effortMinutes: number;
@@ -137,6 +140,7 @@ export type MonitoringWorkspaceReadModel = {
     excludedRecordCount: number;
     confirmedCount: number;
     candidateCount: number;
+    nonDetectionCount: number;
     monitoringReadyCount: number;
     exportReadyCount: number;
     meshCoverageRate: number;
@@ -237,6 +241,7 @@ function emptyGrid(area: MonitoringWorkspaceArea, step: number): Map<string, Mon
         recordCount: 0,
         confirmedCount: 0,
         candidateCount: 0,
+        nonDetectionCount: 0,
         monitoringReadyCount: 0,
         exportReadyCount: 0,
         effortMinutes: 0,
@@ -259,6 +264,10 @@ function isCandidate(state: MonitoringVerificationState): boolean {
 }
 
 function detectionStatus(record: MonitoringWorkspaceRecordInput): MonitoringDetectionStatus {
+  const semantic = record.contract.effortDenominator.detectionSemantic;
+  if (semantic === "non_detection") return "non_detection";
+  if (semantic === "absence_candidate" || semantic === "absence") return "absence_candidate";
+  if (semantic === "insufficient_coverage") return "insufficient_coverage";
   const state = record.contract.verificationState.state;
   if (isConfirmed(state)) return "confirmed";
   if (isCandidate(state)) return "candidate";
@@ -323,6 +332,7 @@ function finalizeCell(cell: MonitoringWorkspaceGridCell): MonitoringWorkspaceGri
   let detection: MonitoringDetectionStatus = "insufficient_coverage";
   if (cell.confirmedCount > 0) detection = "confirmed";
   else if (cell.candidateCount > 0) detection = "candidate";
+  else if (cell.nonDetectionCount > 0) detection = "non_detection";
   else if (cell.recordCount > 0) detection = "observed_not_confirmed";
 
   const coveredSeasonCount = Object.values(season).filter(Boolean).length;
@@ -449,6 +459,7 @@ export function buildMonitoringWorkspaceReadModel(input: MonitoringWorkspaceInpu
       cell.recordCount += 1;
       if (status === "confirmed") cell.confirmedCount += 1;
       if (status === "candidate") cell.candidateCount += 1;
+      if (status === "non_detection" || status === "absence_candidate") cell.nonDetectionCount += 1;
       if (summary.monitoringReady) cell.monitoringReadyCount += 1;
       if (summary.exportReady) cell.exportReadyCount += 1;
       cell.effortMinutes += recordEffortMinutes(record.contract);
@@ -481,6 +492,7 @@ export function buildMonitoringWorkspaceReadModel(input: MonitoringWorkspaceInpu
 
   const confirmedCount = records.filter((record) => record.detectionStatus === "confirmed").length;
   const candidateCount = records.filter((record) => record.detectionStatus === "candidate").length;
+  const nonDetectionCount = records.filter((record) => record.detectionStatus === "non_detection" || record.detectionStatus === "absence_candidate").length;
   const monitoringReadyCount = records.filter((record) => record.monitoringReady).length;
   const exportReadyCount = records.filter((record) => record.exportReady).length;
   const activeCells = grid.filter((cell) => cell.recordCount > 0).length;
@@ -500,6 +512,7 @@ export function buildMonitoringWorkspaceReadModel(input: MonitoringWorkspaceInpu
       excludedRecordCount: excludedRecords.length,
       confirmedCount,
       candidateCount,
+      nonDetectionCount,
       monitoringReadyCount,
       exportReadyCount,
       meshCoverageRate: roundRatio(activeCells, grid.length),

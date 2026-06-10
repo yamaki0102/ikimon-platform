@@ -90,3 +90,45 @@ test("QA report blocks AI-only and method-incomplete export candidates", () => {
   assert.match(blockers.join(","), /missing_method_contract/);
   assert.match(blockers.join(","), /missing_effort_denominator/);
 });
+
+test("QA report blocks non-detection exports without scope, effort, checklist, and claim boundary", () => {
+  const report = buildResearchExportQaReport([
+    record({
+      occurrenceID: "thin-non-detection",
+      readiness: {
+        exportReady: false,
+        detectionSemantic: "non_detection",
+        targetTaxaScope: null,
+        effortMinutes: null,
+        completeChecklistFlag: false,
+        detectionClaimBoundary: null,
+      },
+    }),
+  ], "2026-06-11T00:00:00.000Z");
+
+  const blockers = report.records[0]?.blockers ?? [];
+  assert.match(blockers.join(","), /missing_non_detection_target_scope/);
+  assert.match(blockers.join(","), /missing_non_detection_effort/);
+  assert.match(blockers.join(","), /missing_complete_checklist_for_non_detection/);
+  assert.match(blockers.join(","), /missing_detection_claim_boundary/);
+});
+
+test("QA report requires expert verification before reviewed absence export", () => {
+  const report = buildResearchExportQaReport([
+    record({
+      occurrenceID: "absence-without-expert-review",
+      readiness: {
+        exportReady: false,
+        verificationState: "plain_reviewed",
+        detectionSemantic: "absence",
+        targetTaxaScope: "frogs",
+        effortMinutes: 30,
+        completeChecklistFlag: true,
+        detectionClaimBoundary: "限定条件内のレビュー済み不在扱いです。",
+      },
+    }),
+  ], "2026-06-11T00:00:00.000Z");
+
+  const blockers = report.records[0]?.blockers ?? [];
+  assert.match(blockers.join(","), /reviewed_absence_requires_expert_verification/);
+});

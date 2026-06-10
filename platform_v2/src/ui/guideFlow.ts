@@ -1112,8 +1112,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         cellsLabel: '10m cells',
         aiLabel: 'AI runs',
         nonDetection: 'Passed, no AI detection',
-        searched: 'Searched, not found',
-        candidate: 'Absence candidate',
+        searched: 'Searched, not detected',
+        candidate: 'Scoped non-detection',
         weakGps: 'GPS is wider than 10m, so coverage is estimated.',
         defaultHint: 'Device-side coverage uses 10m cells; exact route stays private.',
         thinPrefix: 'Thin next: '
@@ -1129,7 +1129,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       aiLabel: 'AI解析',
       nonDetection: '通過・AI未検出',
       searched: '探したが未検出',
-      candidate: '不在候補',
+      candidate: '条件つき未確認',
       weakGps: 'GPS精度が10mより粗いので、カバー率は推定です。',
       defaultHint: '端末内では10mセルで見た範囲を推定し、exact routeは公開しません。',
       thinPrefix: '次に薄いところ: '

@@ -16,6 +16,12 @@ export type ResearchExportRecord = {
   license: string | null;
   readiness: {
     exportReady: boolean;
+    detectionSemantic?: string;
+    targetTaxaScope?: string | null;
+    effortMinutes?: number | null;
+    distanceMeters?: number | null;
+    completeChecklistFlag?: boolean;
+    detectionClaimBoundary?: string | null;
     [key: string]: unknown;
   };
   dataGeneralizations: { location: string };
@@ -60,6 +66,8 @@ function csvCell(value: unknown): string {
 export function exportReadinessBlockers(record: ResearchExportRecord): string[] {
   const blockers: string[] = [];
   const verificationState = typeof record.readiness.verificationState === "string" ? record.readiness.verificationState : null;
+  const detectionSemantic = typeof record.readiness.detectionSemantic === "string" ? record.readiness.detectionSemantic : null;
+  const isNonDetection = detectionSemantic === "non_detection" || detectionSemantic === "absence_candidate" || detectionSemantic === "absence";
   if (!record.licenseStatus.externalExportAllowed) blockers.push("external_export_not_allowed");
   if (record.licenseStatus.withdrawalStatus !== "active") blockers.push("rights_withdrawn_or_missing");
   if (!record.licenseStatus.datasetLicense) blockers.push("missing_dataset_license");
@@ -74,6 +82,15 @@ export function exportReadinessBlockers(record: ResearchExportRecord): string[] 
   if (verificationState === "unverified" || verificationState === "needs_more_evidence") blockers.push("verification_required_for_export");
   if (verificationState === "sensitive_hidden") blockers.push("sensitive_record_requires_policy_review");
   if (verificationState === "rejected") blockers.push("rejected_record_not_exportable");
+  if (isNonDetection) {
+    const hasEffort = typeof record.readiness.effortMinutes === "number" && record.readiness.effortMinutes > 0
+      || typeof record.readiness.distanceMeters === "number" && record.readiness.distanceMeters > 0;
+    if (!record.readiness.targetTaxaScope) blockers.push("missing_non_detection_target_scope");
+    if (!hasEffort) blockers.push("missing_non_detection_effort");
+    if (record.readiness.completeChecklistFlag !== true) blockers.push("missing_complete_checklist_for_non_detection");
+    if (!record.readiness.detectionClaimBoundary) blockers.push("missing_detection_claim_boundary");
+    if (detectionSemantic === "absence" && verificationState !== "expert_verified") blockers.push("reviewed_absence_requires_expert_verification");
+  }
   if (!record.readiness.exportReady) blockers.push("record_not_export_ready");
   return [...new Set(blockers)];
 }

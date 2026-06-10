@@ -8,6 +8,11 @@ import type {
   TrendAbundancePolicy,
 } from "./observationPackageDataChain.js";
 import type { WaterRecordExtension } from "./waterRecordExtension.js";
+import {
+  deriveDetectionSemantic,
+  detectionSemanticAllowsNoDetectionClaim,
+  detectionSemanticDataGapReasons,
+} from "./absenceSemantics.js";
 
 export type ReadinessGate = {
   ready: boolean;
@@ -134,8 +139,19 @@ function buildMonitoringReady(input: MonitoringReadinessInput): ReadinessGate {
   const hasEffort = typeof effortMinutes === "number" && effortMinutes > 0;
   const hasTarget = Boolean(targetTaxaScope?.trim());
   const hasProtocol = input.visit.visitMode === "survey" || Boolean(input.waterRecord);
-  const hasOutcome = Boolean(input.waterRecord?.catchOutcome)
-    || input.occurrences.some((occurrence) => Boolean(occurrence.occurrenceStatus));
+  const detectionSemantic = deriveDetectionSemantic({
+    occurrenceStatuses: input.occurrences.map((occurrence) => occurrence.occurrenceStatus),
+    effortMinutes,
+    targetTaxaScope,
+    completeChecklistFlag: input.visit.completeChecklistFlag,
+    reviewStatus: input.reviewState.reviewStatus,
+  });
+  const hasDetectionOutcome = input.occurrences.some((occurrence) => {
+    const status = String(occurrence.occurrenceStatus ?? "").trim().toLowerCase();
+    return Boolean(status && status !== "absent");
+  });
+  const hasNonDetectionOutcome = detectionSemanticAllowsNoDetectionClaim(detectionSemantic);
+  const hasOutcome = Boolean(input.waterRecord?.catchOutcome) || hasDetectionOutcome || hasNonDetectionOutcome;
   const hasSite = Boolean(input.visit.placeId || input.civicContext?.fieldId || input.civicContext?.plotId || input.waterRecord?.waterbodyId || input.waterRecord?.publicWaterbodyLabel);
 
   if (hasEffort) reasons.push("has_effort");
@@ -146,6 +162,8 @@ function buildMonitoringReady(input: MonitoringReadinessInput): ReadinessGate {
   else blockers.push("missing_sampling_protocol");
   if (hasOutcome) reasons.push("has_detection_or_capture_outcome");
   else blockers.push("missing_detection_or_capture_outcome");
+  if (hasNonDetectionOutcome) reasons.push(`detection_semantic_${detectionSemantic}`);
+  else blockers.push(...detectionSemanticDataGapReasons(detectionSemantic));
   if (hasSite) reasons.push("has_site_or_waterbody");
   else blockers.push("missing_site_or_waterbody");
   if (input.waterRecord?.catchOutcome === "no_catch") reasons.push("no_catch_kept_as_capture_attempt");

@@ -120,6 +120,71 @@ test("export readiness requires consent, licenses, generalization, and review", 
   assert.equal(ready.exportReady.ready, true);
 });
 
+test("monitoring readiness blocks absent status without scoped effort denominator", () => {
+  const readiness = buildMonitoringReadiness({
+    visit: {
+      locationPrecision: "point_medium",
+      visitMode: "manual",
+      effortMinutes: null,
+      targetTaxaScope: null,
+      completeChecklistFlag: false,
+      placeId: "place-1",
+    },
+    occurrences: [{
+      scientificName: null,
+      taxonRank: null,
+      evidenceTier: 0,
+      occurrenceStatus: "absent",
+      riskLane: "normal",
+      safePublicRank: "unknown",
+    }],
+    evidenceAssets: [{}],
+    reviewState: {
+      reviewStatus: "unreviewed",
+      blockingIssues: [],
+    },
+    civicContext: null,
+    dataRights: null,
+    waterRecord: null,
+  });
+
+  assert.equal(readiness.monitoringReady.ready, false);
+  assert.ok(readiness.monitoringReady.blockers.includes("missing_detection_or_capture_outcome"));
+  assert.ok(readiness.monitoringReady.blockers.includes("non_detection_requires_effort_target_scope_and_complete_checklist"));
+});
+
+test("monitoring readiness accepts scoped non-detection as an outcome", () => {
+  const readiness = buildMonitoringReadiness({
+    visit: {
+      locationPrecision: "point_medium",
+      visitMode: "survey",
+      effortMinutes: 12,
+      targetTaxaScope: "birds",
+      completeChecklistFlag: true,
+      placeId: "place-1",
+    },
+    occurrences: [{
+      scientificName: null,
+      taxonRank: null,
+      evidenceTier: 0,
+      occurrenceStatus: "absent",
+      riskLane: "normal",
+      safePublicRank: "unknown",
+    }],
+    evidenceAssets: [{}],
+    reviewState: {
+      reviewStatus: "unreviewed",
+      blockingIssues: [],
+    },
+    civicContext: null,
+    dataRights: null,
+    waterRecord: null,
+  });
+
+  assert.equal(readiness.monitoringReady.ready, true);
+  assert.ok(readiness.monitoringReady.reasons.includes("detection_semantic_non_detection"));
+});
+
 test("machine observations remain AI candidates until reviewer verification", () => {
   const readiness = buildMonitoringReadiness({
     visit: {

@@ -211,7 +211,7 @@ export function buildRegionalHypothesesForMesh(source: RegionalHypothesisMeshSou
     source.guideRecordCount < 3 || source.contributorCount < 2 ? "sampling_gap" : "effort_bias",
     `この100mメッシュは「${featureSummary}」の手がかりが出始めているが、現時点では調査努力量の偏りを先に確認すべき。`,
     `ガイド記録${source.guideRecordCount}件、投稿/訪問${source.visitCount}件、寄与者${source.contributorCount}人相当の集約がある。これは地域の状態を断言する量ではなく、次に集めるべき観察軸を決める材料。`,
-    "同じメッシュで、日時を変えて10-15分の再訪を行い、complete_checklist_flag と target_taxa_scope を付けた記録を残す。見つからなかった分類群も occurrence_status=absent で明示する。",
+    "同じメッシュで、日時を変えて10-15分の再訪を行い、complete_checklist_flag と target_taxa_scope を付けた記録を残す。見つからなかった分類群は条件つき未確認として、対象範囲と探索時間を添えて残す。",
     { featureSummary },
     0.42,
   ));

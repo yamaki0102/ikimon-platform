@@ -1,4 +1,12 @@
 import type { ObservationPackage } from "./observationPackage.js";
+import {
+  deriveDetectionSemantic,
+  detectionClaimBoundary,
+  detectionSemanticAllowsNoDetectionClaim,
+  detectionSemanticDataGapReasons,
+  detectionSemanticLabel,
+  type DetectionSemantic,
+} from "./absenceSemantics.js";
 
 export type MonitoringRecordObservationMethod =
   | "casual_photo"
@@ -59,6 +67,9 @@ export type MonitoringRecordContractV0 = {
     observerCount: number | null;
     targetTaxaScope: string | null;
     completeChecklistFlag: boolean;
+    detectionSemantic: DetectionSemantic;
+    detectionSemanticLabel: string;
+    detectionClaimBoundary: string;
     noDetection: boolean;
     noCatch: boolean;
     repeatVisit: boolean;
@@ -223,6 +234,17 @@ export function buildMonitoringRecordContract(pkg: ObservationPackage): Monitori
   const target = pkg.occurrences[0] ?? null;
   const waterRecord = pkg.extensions?.waterRecord ?? null;
   const state = verificationState(pkg);
+  const effortMinutes = typeof pkg.methodContext?.effortMinutes === "number" ? pkg.methodContext.effortMinutes : pkg.visit.effortMinutes;
+  const targetTaxaScope = pkg.methodContext?.targetTaxaScope ?? pkg.visit.targetTaxaScope;
+  const completeChecklistFlag = Boolean(pkg.methodContext?.completeChecklistFlag ?? pkg.visit.completeChecklistFlag);
+  const detectionSemantic = deriveDetectionSemantic({
+    occurrenceStatuses: pkg.occurrences.map((occurrence) => occurrence.occurrenceStatus),
+    effortMinutes,
+    distanceMeters: pkg.visit.distanceMeters,
+    targetTaxaScope,
+    completeChecklistFlag,
+    reviewStatus: pkg.reviewState.reviewStatus,
+  });
   const humanIdentifications = pkg.identifications.filter((identification) => identification.actorKind === "human");
   const currentHumanIdentifications = humanIdentifications.filter((identification) => identification.isCurrent);
   const readinessBlockers = [
@@ -280,17 +302,21 @@ export function buildMonitoringRecordContract(pkg: ObservationPackage): Monitori
       },
     },
     effortDenominator: {
-      durationSeconds: typeof pkg.methodContext?.effortMinutes === "number" ? Math.round(pkg.methodContext.effortMinutes * 60) : null,
+      durationSeconds: typeof effortMinutes === "number" ? Math.round(effortMinutes * 60) : null,
       distanceMeters: pkg.visit.distanceMeters ?? null,
       observerCount: waterRecord?.participantCount ?? null,
-      targetTaxaScope: pkg.methodContext?.targetTaxaScope ?? pkg.visit.targetTaxaScope,
-      completeChecklistFlag: Boolean(pkg.methodContext?.completeChecklistFlag ?? pkg.visit.completeChecklistFlag),
-      noDetection: target?.occurrenceStatus === "absent",
+      targetTaxaScope,
+      completeChecklistFlag,
+      detectionSemantic,
+      detectionSemanticLabel: detectionSemanticLabel(detectionSemantic),
+      detectionClaimBoundary: detectionClaimBoundary(detectionSemantic),
+      noDetection: detectionSemanticAllowsNoDetectionClaim(detectionSemantic),
       noCatch: waterRecord?.catchOutcome === "no_catch",
       repeatVisit: Boolean(pkg.civicContext?.revisitOfVisitId),
       dataGapReasons: [...new Set([
         ...(pkg.readiness?.monitoringReady.blockers ?? []),
         ...(pkg.readiness?.indicatorReady?.blockers ?? []),
+        ...detectionSemanticDataGapReasons(detectionSemantic),
       ])],
     },
     verificationState: {
@@ -363,6 +389,7 @@ export function summarizeMonitoringRecordContractForPrompt(contract: MonitoringR
     `monitoring_contract=${contract.schemaVersion}`,
     `record_core=${contract.recordCore.visitId}/${contract.recordCore.occurrenceId ?? "no_occurrence"}`,
     `method=${contract.methodExtension.observationMethod}`,
+    `detection=${contract.effortDenominator.detectionSemantic}/${contract.effortDenominator.detectionSemanticLabel}`,
     `verification=${contract.verificationState.state}/${contract.verificationState.label}`,
     `ai_provenance=${contract.aiProvenance.status}`,
     `trend_claim=${contract.aggregationExport.trendClaimLevel}`,

@@ -173,6 +173,8 @@ test("contract separates casual observations from protocol-ready records", () =>
 
   assert.equal(result.methodExtension.observationMethod, "casual_photo");
   assert.equal(result.effortDenominator.durationSeconds, null);
+  assert.equal(result.effortDenominator.detectionSemantic, "not_evaluated");
+  assert.equal(result.effortDenominator.noDetection, false);
   assert.equal(result.verificationState.state, "unverified");
   assert.equal(result.aggregationExport.trendClaimLevel, "presence_only");
 });
@@ -210,6 +212,49 @@ test("contract keeps guided survey effort and denominator fields explicit", () =
   assert.equal(result.effortDenominator.distanceMeters, 440);
   assert.equal(result.effortDenominator.targetTaxaScope, "plants");
   assert.equal(result.effortDenominator.completeChecklistFlag, true);
+  assert.equal(result.effortDenominator.detectionSemantic, "not_evaluated");
+});
+
+test("contract does not turn absent occurrence status into non-detection without denominator", () => {
+  const result = contract({
+    occurrences: [{
+      ...basePackage().occurrences[0]!,
+      occurrenceStatus: "absent",
+    }],
+  });
+
+  assert.equal(result.effortDenominator.detectionSemantic, "insufficient_coverage");
+  assert.equal(result.effortDenominator.detectionSemanticLabel, "記録がまだ薄い");
+  assert.equal(result.effortDenominator.noDetection, false);
+  assert.ok(result.effortDenominator.dataGapReasons.includes("non_detection_requires_effort_target_scope_and_complete_checklist"));
+});
+
+test("contract exposes scoped non-detection only when target scope, effort, and checklist are present", () => {
+  const result = contract({
+    actionMode: "guide_survey",
+    visit: {
+      ...basePackage().visit,
+      effortMinutes: 15,
+      targetTaxaScope: "birds",
+      visitMode: "survey",
+      completeChecklistFlag: true,
+    },
+    methodContext: {
+      ...basePackage().methodContext!,
+      methodKind: "guided_survey",
+      effortMinutes: 15,
+      targetTaxaScope: "birds",
+      completeChecklistFlag: true,
+    },
+    occurrences: [{
+      ...basePackage().occurrences[0]!,
+      occurrenceStatus: "absent",
+    }],
+  });
+
+  assert.equal(result.effortDenominator.detectionSemantic, "non_detection");
+  assert.equal(result.effortDenominator.noDetection, true);
+  assert.match(result.effortDenominator.detectionClaimBoundary, /不在証明ではありません/);
 });
 
 test("contract does not mix water no-catch with absence records", () => {
