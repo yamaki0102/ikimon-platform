@@ -33,7 +33,7 @@
     }
   },
   "shell": {
-    "brandTagline": "生きものを楽しみ、記録から観察レコードを育てる",
+    "brandTagline": "生きものを手がかりに、場所の今を残す",
     "skipToContent": "本文へスキップ",
     "searchPlaceholder": "生きものや場所を探す",
     "searchLabel": "サイト内検索",
@@ -48,7 +48,7 @@
     },
     "record": "記録する",
     "footer": {
-      "tagline": "生きものを楽しむ。暮らしを楽しむ。",
+      "tagline": "歩いて、見つけて、場所の今を残す。",
       "start": "はじめる",
       "startLinks": {
         "discover": "見つける",

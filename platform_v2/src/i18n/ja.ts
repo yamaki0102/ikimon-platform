@@ -6,8 +6,8 @@ export const ja: AppStrings = {
   landing: {
     title: "ikimon | 生きものを手がかりに、この場所の今を残す",
     heroEyebrow: "Enjoy Life",
-    heroHeading: "生きものを楽しむ。<br><span class=\"hero-emphasis\">暮らしと地球のいのちを楽しむ。</span>",
-    heroHeadingPlain: "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
+    heroHeading: "生きものを手がかりに、<br><span class=\"hero-emphasis\">この場所の今を残す。</span>",
+    heroHeadingPlain: "生きものを手がかりに、この場所の今を残す。",
     heroLead: "いつもの道で見つけた小さな発見も、音だけの記録も、見つからなかった条件も、場所の今を知る手がかりになる。身近な生きものを入口に、自然を記録し、学び、地域や企業の活動に活かす。",
     heroPromiseChips: [
       "小さな発見が残る",
