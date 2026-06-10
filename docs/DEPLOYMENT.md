@@ -26,12 +26,15 @@ runner からの browser smoke が通った場合だけ nginx を promote する
 - staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
 - production workflow: `.github/workflows/deploy.yml`
 - staging workflow: `.github/workflows/deploy-staging.yml`
+- production deploy timing: `docs/PRODUCTION_DEPLOY_TIMING.md`
 - branch hygiene audit workflow: `.github/workflows/branch-hygiene-audit.yml`
 - CI guardrail: `scripts/check_deploy_guardrails.ps1`
 - platform_v2 migration guardrail: `scripts/check_platform_v2_migration_guardrails.ps1`
 - manifest/workflow sync check: `scripts/check_deploy_manifest_sync.ps1`
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
+- deploy timing summary: `scripts/summarize_deploy_timing.ps1`
+- VPS prepare timing summary: `scripts/summarize_prepare_timing.ps1`
 - branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
 
 ## Persistent Paths
@@ -143,6 +146,21 @@ repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を r
 `platform_v2` の本番 runtime は blue/green systemd unit と
 `/etc/ikimon/production-v2.env` を正本にする。旧 `pm2 ikimon-v2-production-api` は
 既存 env の移行元であり、通常 deploy の実行単位ではない。
+
+## Deploy Speed Guardrails
+
+Production deploy keeps rollback, readiness, and browser smoke checks intact. Speed improvements
+must remove repeated deterministic work, not safety checks.
+
+- VPS-side `npm ci` uses `${APP_ROOT}/cache/npm` with `--prefer-offline`. Lockfile validation still
+  runs through `npm ci`; the cache only avoids repeated package downloads.
+- Production candidate build uses `npm run build:server`. The full `npm run build` quality checks
+  remain in GitHub Actions pre-flight for the same SHA.
+- Fixed static imports are skipped only when their marker/hash under
+  `${APP_ROOT}/deploy_state/static_imports` matches the current source. Set
+  `FORCE_STATIC_IMPORTS=1` for recovery, DB recreation, or intentional full reseeding.
+- The N03 Shizuoka ZIP is cached under `${APP_ROOT}/cache/ksj`; changing the publish-date/version
+  marker forces a fresh import.
 
 ## Legacy Routes
 
