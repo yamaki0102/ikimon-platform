@@ -129,8 +129,8 @@ Write-Output "# Deploy Timing Summary"
 Write-Output ""
 Write-Output "Workflow: ``$Workflow``"
 Write-Output ""
-Write-Output "| Run | Result | Total min | Queue wait min | Active span min | Pre-flight min | Prepare min | Legacy deploy sec | v2 prepare sec | Candidate smoke min | Promote min | Verify min |"
-Write-Output "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+Write-Output "| Run | Result | Total min | Queue wait min | Active span min | Pre-flight min | Prepare min | Repo sync sec | Legacy deploy sec | v2 prepare sec | Candidate smoke min | Promote min | Verify min |"
+Write-Output "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
 
 foreach ($run in $runs) {
     $runStart = Convert-ToDateTime $run.createdAt
@@ -156,12 +156,13 @@ foreach ($run in $runs) {
     $promote = Get-JobByName -Run $run -Name "Promote Production Candidate"
     $verify = Get-JobByName -Run $run -Name "Post-deploy Verification"
 
+    $repoSyncStep = Get-StepByName -Job $prepare -Name "Sync production repo via SSH"
     $legacyStep = Get-StepByName -Job $prepare -Name "Deploy legacy lane via SSH"
     $v2PrepareStep = Get-StepByName -Job $prepare -Name "Prepare inactive platform_v2 candidate"
 
     $result = if ($run.status -eq "completed") { $run.conclusion } else { $run.status }
     $runLabel = "[$($run.databaseId)]($($run.url))"
-    Write-Output ("| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11} |" -f `
+    Write-Output ("| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11} | {12} |" -f `
         $runLabel,
         $result,
         (Format-Number (Get-DurationMinutes $runStart $runEnd)),
@@ -169,6 +170,7 @@ foreach ($run in $runs) {
         (Format-Number (Get-DurationMinutes $firstJobStart $lastJobEnd)),
         (Format-Number (Get-DurationMinutes (Convert-ToDateTime $preflight.startedAt) (Convert-ToDateTime $preflight.completedAt))),
         (Format-Number (Get-DurationMinutes (Convert-ToDateTime $prepare.startedAt) (Convert-ToDateTime $prepare.completedAt))),
+        (Format-Number (Get-DurationSeconds (Convert-ToDateTime $repoSyncStep.startedAt) (Convert-ToDateTime $repoSyncStep.completedAt))),
         (Format-Number (Get-DurationSeconds (Convert-ToDateTime $legacyStep.startedAt) (Convert-ToDateTime $legacyStep.completedAt))),
         (Format-Number (Get-DurationSeconds (Convert-ToDateTime $v2PrepareStep.startedAt) (Convert-ToDateTime $v2PrepareStep.completedAt))),
         (Format-Number (Get-DurationMinutes (Convert-ToDateTime $candidateSmoke.startedAt) (Convert-ToDateTime $candidateSmoke.completedAt))),

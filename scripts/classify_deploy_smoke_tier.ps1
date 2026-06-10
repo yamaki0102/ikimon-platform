@@ -40,6 +40,20 @@ function Test-TargetedSmokeAllowedPath {
     }
 }
 
+function Test-LegacyLaneFullRequiredPath {
+    param([string]$Path)
+
+    $normalized = Normalize-RepoPath $Path
+    switch -Regex ($normalized) {
+        "^upload_package/" { return $true }
+        "\.php$" { return $true }
+        "(^|/)\.htaccess$" { return $true }
+        "^composer\.(json|lock)$" { return $true }
+        "^ops/deploy/(production_deploy_reference\.sh|runtime_persistent_allowlist\.txt|legacy_entrypoint_reasons\.json)$" { return $true }
+        default { return $false }
+    }
+}
+
 function Write-GitHubOutputValue {
     param(
         [string]$Name,
@@ -61,6 +75,9 @@ if ($ChangedFiles.Count -eq 0) {
             changedCount = 0
             changedFiles = @()
             fullTriggerFiles = @()
+            legacyLaneMode = "full"
+            legacyLaneReason = "missing_base_ref"
+            legacyLaneFullTriggerFiles = @()
         }
     } else {
         $rawChangedFiles = & git -C $RepoRoot diff --name-only $BaseRef $HeadRef
@@ -80,9 +97,15 @@ if (-not $classification) {
             changedCount = 0
             changedFiles = @()
             fullTriggerFiles = @()
+            legacyLaneMode = "full"
+            legacyLaneReason = "no_changed_files"
+            legacyLaneFullTriggerFiles = @()
         }
     } else {
         $fullTriggerFiles = @($normalizedFiles | Where-Object { -not (Test-TargetedSmokeAllowedPath $_) })
+        $legacyLaneFullTriggerFiles = @($normalizedFiles | Where-Object { Test-LegacyLaneFullRequiredPath $_ })
+        $legacyLaneMode = if ($legacyLaneFullTriggerFiles.Count -gt 0) { "full" } else { "sync_only" }
+        $legacyLaneReason = if ($legacyLaneFullTriggerFiles.Count -gt 0) { "legacy_php_or_upload_package_changed" } else { "no_legacy_php_or_upload_package_changes" }
         if ($fullTriggerFiles.Count -gt 0) {
             $classification = [ordered]@{
                 smokeTier = "full"
@@ -90,6 +113,9 @@ if (-not $classification) {
                 changedCount = $normalizedFiles.Count
                 changedFiles = $normalizedFiles
                 fullTriggerFiles = $fullTriggerFiles
+                legacyLaneMode = $legacyLaneMode
+                legacyLaneReason = $legacyLaneReason
+                legacyLaneFullTriggerFiles = $legacyLaneFullTriggerFiles
             }
         } else {
             $classification = [ordered]@{
@@ -98,6 +124,9 @@ if (-not $classification) {
                 changedCount = $normalizedFiles.Count
                 changedFiles = $normalizedFiles
                 fullTriggerFiles = @()
+                legacyLaneMode = $legacyLaneMode
+                legacyLaneReason = $legacyLaneReason
+                legacyLaneFullTriggerFiles = $legacyLaneFullTriggerFiles
             }
         }
     }
@@ -109,3 +138,5 @@ Write-Output $json
 Write-GitHubOutputValue -Name "smoke_tier" -Value $classification.smokeTier
 Write-GitHubOutputValue -Name "reason" -Value $classification.reason
 Write-GitHubOutputValue -Name "changed_count" -Value ([string]$classification.changedCount)
+Write-GitHubOutputValue -Name "legacy_lane_mode" -Value $classification.legacyLaneMode
+Write-GitHubOutputValue -Name "legacy_lane_reason" -Value $classification.legacyLaneReason

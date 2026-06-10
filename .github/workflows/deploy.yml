@@ -17,6 +17,8 @@ jobs:
       smoke_tier: ${{ steps.classify.outputs.smoke_tier }}
       reason: ${{ steps.classify.outputs.reason }}
       changed_count: ${{ steps.classify.outputs.changed_count }}
+      legacy_lane_mode: ${{ steps.classify.outputs.legacy_lane_mode }}
+      legacy_lane_reason: ${{ steps.classify.outputs.legacy_lane_reason }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -36,6 +38,8 @@ jobs:
           - Tier: `${{ steps.classify.outputs.smoke_tier }}`
           - Reason: `${{ steps.classify.outputs.reason }}`
           - Changed files: `${{ steps.classify.outputs.changed_count }}`
+          - Legacy lane: `${{ steps.classify.outputs.legacy_lane_mode }}`
+          - Legacy lane reason: `${{ steps.classify.outputs.legacy_lane_reason }}`
           '@
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
 
@@ -94,8 +98,10 @@ jobs:
   prepare-candidate:
     name: Prepare Production Candidate
     runs-on: ubuntu-latest
-    needs: pre-flight
-    if: ${{ needs.pre-flight.result == 'success' }}
+    needs:
+      - pre-flight
+      - classify-deploy-change
+    if: ${{ needs.pre-flight.result == 'success' && needs['classify-deploy-change'].result == 'success' }}
     environment: production
     outputs:
       candidate_port: ${{ steps.candidate-port.outputs.candidate_port }}
@@ -115,7 +121,20 @@ jobs:
           ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
             "git -C /var/www/ikimon.life/repo remote set-url origin '${repo_url}'"
 
+      - name: Sync production repo via SSH
+        if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode == 'sync_only' }}
+        run: |
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 "RELEASE_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /var/www/ikimon.life/repo
+          git fetch origin main >/dev/null
+          git checkout main >/dev/null 2>&1 || git checkout -f main >/dev/null 2>&1
+          git reset --hard "$RELEASE_SHA"
+          echo "Production repo synced to $(git rev-parse --short HEAD)"
+          REMOTE
+
       - name: Deploy legacy lane via SSH
+        if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode != 'sync_only' }}
         run: ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 /var/www/ikimon.life/deploy.sh
 
       - name: Prepare inactive platform_v2 candidate
