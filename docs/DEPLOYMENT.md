@@ -13,7 +13,9 @@ ikimon.life の本番 deploy は `main` マージ起点の GitHub Actions に一
 
 本番 deploy は legacy PHP だけでは完了ではない。`deploy.sh` の git reset 後に
 `platform_v2` を blue/green の inactive runtime へ配置し、内部 health/readiness と
-runner からの browser smoke が通った場合だけ nginx を promote する。
+runner からの candidate smoke が通った場合だけ nginx を promote する。UI / route /
+runtime surface の変更は full browser smoke、deploy / import / docs だけの変更は targeted
+smoke を通す。
 
 ## Source of Truth
 
@@ -149,12 +151,16 @@ repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を r
 
 ## Deploy Speed Guardrails
 
-Production deploy keeps rollback, readiness, and browser smoke checks intact. Speed improvements
+Production deploy keeps rollback, readiness, and candidate smoke checks intact. Speed improvements
 must remove repeated deterministic work, not safety checks.
 
 - The production workflow is serialized with `concurrency.group: production-deploy` and
   `cancel-in-progress: false`. A running production deploy must finish or fail before a later
   push/manual dispatch starts; do not cancel an in-flight promote path for speed.
+- Production candidate smoke is tiered by changed files. UI, route, content, runtime, dependency,
+  or unknown path changes run the full Playwright browser smoke. Deploy, import, and docs-only
+  changes run targeted candidate smoke against `/healthz`, `/readyz`, `/ops/readiness`, `/`,
+  `/explore`, `/map`, `/learn`, and `/contact`.
 - VPS-side `npm ci` uses `${APP_ROOT}/cache/npm` with `--prefer-offline`. Lockfile validation still
   runs through `npm ci`; the cache only avoids repeated package downloads.
 - Production candidate build uses `npm run build:server`. The full `npm run build` quality checks

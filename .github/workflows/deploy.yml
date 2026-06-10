@@ -10,6 +10,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  classify-deploy-change:
+    name: Classify Deploy Change
+    runs-on: ubuntu-latest
+    outputs:
+      smoke_tier: ${{ steps.classify.outputs.smoke_tier }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify production smoke tier
+        id: classify
+        shell: pwsh
+        run: ./scripts/classify_deploy_smoke_tier.ps1 -BaseRef '${{ github.event.before }}' -HeadRef '${{ github.sha }}'
+
+      - name: Write deploy smoke tier summary
+        shell: pwsh
+        run: |
+          $summary = @'
+          ## Deploy Smoke Tier
+
+          - Tier: `${{ steps.classify.outputs.smoke_tier }}`
+          - Reason: `${{ steps.classify.outputs.reason }}`
+          - Changed files: `${{ steps.classify.outputs.changed_count }}`
+          '@
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+
   pre-flight:
     name: Pre-flight Checks
     runs-on: ubuntu-latest
@@ -107,12 +136,15 @@ jobs:
   candidate-smoke:
     name: Smoke Production Candidate
     runs-on: ubuntu-latest
-    needs: prepare-candidate
+    needs:
+      - prepare-candidate
+      - classify-deploy-change
     environment: production
     steps:
       - uses: actions/checkout@v5
 
       - name: Setup platform_v2 browser smoke runtime
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         uses: ./.github/actions/setup-platform-v2-browser
         with:
           install-with-deps: "false"
@@ -142,10 +174,12 @@ jobs:
           exit 1
 
       - name: Generate UI smoke fixture prefix
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         id: ui-smoke
         run: echo "fixture_prefix=smoke-ui-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
       - name: Cleanup stale public UI smoke fixtures
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         run: |
           set -euo pipefail
           html="$(curl -fsS http://127.0.0.1:13202/ja/observations || true)"
@@ -161,7 +195,25 @@ jobs:
               "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --silent --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}" >/dev/null
           done <<< "$prefixes"
 
+      - name: Run targeted production candidate smoke
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier == 'targeted' }}
+        id: targeted-smoke
+        env:
+          PRODUCTION_SMOKE_BASE_URL: http://127.0.0.1:13202
+          DEPLOY_SMOKE_TIER_REASON: ${{ needs['classify-deploy-change'].outputs.reason }}
+          DEPLOY_SMOKE_CHANGED_COUNT: ${{ needs['classify-deploy-change'].outputs.changed_count }}
+        run: |
+          set -euo pipefail
+          mkdir -p platform_v2/test-results
+          node scripts/run_targeted_candidate_smoke.mjs \
+            --base-url="${PRODUCTION_SMOKE_BASE_URL}" \
+            --output=platform_v2/test-results/production-targeted-smoke.json \
+            --summary="${GITHUB_STEP_SUMMARY}" \
+            --reason="${DEPLOY_SMOKE_TIER_REASON}" \
+            --changed-count="${DEPLOY_SMOKE_CHANGED_COUNT}"
+
       - name: Run production candidate browser smoke
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         id: browser-smoke
         working-directory: platform_v2
         env:
@@ -172,7 +224,7 @@ jobs:
 
       - name: Cleanup production candidate UI smoke data
         id: cleanup-smoke
-        if: always() && steps.ui-smoke.outputs.fixture_prefix != ''
+        if: ${{ always() && needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' && steps.ui-smoke.outputs.fixture_prefix != '' }}
         run: |
           mkdir -p platform_v2/test-results
           prefix="${{ steps.ui-smoke.outputs.fixture_prefix }}"
@@ -181,7 +233,7 @@ jobs:
             | tee platform_v2/test-results/production-ui-smoke-cleanup.json
 
       - name: Write production candidate smoke summary
-        if: always()
+        if: ${{ always() && needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         env:
           BROWSER_SMOKE_OUTCOME: ${{ steps.browser-smoke.outcome }}
           CLEANUP_SMOKE_OUTCOME: ${{ steps.cleanup-smoke.outcome }}
