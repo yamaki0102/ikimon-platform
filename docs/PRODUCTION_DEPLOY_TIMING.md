@@ -96,9 +96,9 @@ After PR #715 is merged and the first production deploy finishes:
 ## Next Improvement Candidates
 
 1. Legacy sync now passes changed file paths to the importer. If `sync_legacy` remains dominant,
-   inspect changed-file counts and whether the deploy fell back to full import before considering
-   a broader architecture change. Use `FORCE_LEGACY_SYNC=1` only for recovery, cursor repair, or
-   an intentional full re-import.
+   inspect changed-file counts, root `observations.json` fallback, and changed observation batch
+   size before considering a broader architecture change. Use `FORCE_LEGACY_SYNC=1` only for
+   recovery, cursor repair, or an intentional full re-import.
 2. Candidate browser smoke is the largest remaining fixed safety cost after warm-path prepare.
    Any fast lane should add a separate reduced smoke contract instead of weakening the normal
    production deploy.

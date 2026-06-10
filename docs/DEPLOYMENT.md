@@ -166,10 +166,11 @@ must remove repeated deterministic work, not safety checks.
   marker forces a fresh import.
 - Legacy shadow sync runs in cursor-based delta mode during deploy and passes changed legacy
   file paths to the importer. Partitioned `observations/*.json` and
-  `tracks/<user>/<session>.json` files are imported in scoped mode. Global files such as
-  `users.json`, `auth_tokens.json`, `invites.json`, and root `observations.json` fall back to a
-  full import. It still executes the production shadow verify and drift report gates after sync.
-  Set `FORCE_LEGACY_SYNC=1` for recovery, cursor repair, or an intentional full legacy re-import.
+  `tracks/<user>/<session>.json` files are imported in scoped mode. `users.json`,
+  `auth_tokens.json`, and `invites.json` update only their user/auth/invite lanes. Root
+  `observations.json` and unknown files fall back to a full import. It still executes the
+  production shadow verify and drift report gates after sync. Set `FORCE_LEGACY_SYNC=1` for
+  recovery, cursor repair, or an intentional full legacy re-import.
 
 ## Legacy Routes
 

@@ -53,9 +53,12 @@ test("legacy bootstrap can scope delta imports to changed observation and track 
 
   assert.match(source, /--changed-files-manifest=/);
   assert.match(source, /global_legacy_file_changed/);
+  assert.match(source, /authTokensChanged/);
+  assert.match(source, /invitesChanged/);
   assert.match(source, /\^observations\\\/\[\^\/\]\+\\\.json\$/);
   assert.match(source, /\^tracks\\\/\[\^\/\]\+\\\/\[\^\/\]\+\\\.json\$/);
   assert.match(source, /metadata->>'source_observation_id' = any\(\$2::text\[\]\)/);
   assert.match(source, /delete from visit_track_points where visit_id = any\(\$1::text\[\]\)/);
-  assert.match(source, /if \(importScope\.mode === "full"\)[\s\S]*importRememberTokens/);
+  assert.match(source, /importScope\.mode === "full" \|\| importScope\.authTokensChanged[\s\S]*importRememberTokens/);
+  assert.match(source, /importScope\.mode === "full" \|\| importScope\.invitesChanged[\s\S]*importInvites/);
 });
