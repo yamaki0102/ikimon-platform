@@ -172,8 +172,14 @@ function actorNameMap(actors: AreaActor[]): Map<string, string> {
 }
 
 function renderAreaHeroStats(metrics: Array<{ value: number; label: string }>): string {
+  const visibleMetrics = metrics.filter((item) => item.value > 0);
+  if (visibleMetrics.length === 0) {
+    return `<div class="field-map-hero-stats field-map-hero-stats-empty" aria-label="エリア図鑑の公開記録">
+      <span>この図鑑はこれから</span>
+    </div>`;
+  }
   return `<div class="field-map-hero-stats" aria-label="エリア図鑑の公開記録">
-    ${metrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
+    ${visibleMetrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
   </div>`;
 }
 
@@ -222,14 +228,13 @@ function renderSpotCard(spot: AreaEncyclopediaSpot, actors: Map<string, string>)
 function renderAreaSpots(encyclopedia: AreaEncyclopediaPayload): string {
   const actors = actorNameMap(encyclopedia.actors);
   const hasSpots = encyclopedia.spots.length > 0;
-  const sectionLabel = hasSpots ? "近くのスポット" : "園内の見どころ";
-  const spotCards = hasSpots
-    ? encyclopedia.spots.map((spot) => renderSpotCard(spot, actors)).join("")
-    : `<article class="evt-card field-empty-card"><h3 class="evt-heading">園内の見どころはこれから</h3><p class="evt-lead">花壇、木の根元、水たまり、ベンチまわりなど、記録が増えた場所から見どころを育てます。まずは上の1分ガイドから歩き出せます。</p></article>`;
+  if (!hasSpots) return "";
+  const sectionLabel = "近くのスポット";
+  const spotCards = encyclopedia.spots.map((spot) => renderSpotCard(spot, actors)).join("");
   return `<section class="field-area-spots" aria-label="${sectionLabel}">
     <header>
-      <div><span class="evt-eyebrow">${hasSpots ? "Area Spots" : "Park Points"}</span><h2 class="evt-heading">${sectionLabel}</h2></div>
-      ${hasSpots ? renderSpotFilters() : ""}
+      <div><span class="evt-eyebrow">Area Spots</span><h2 class="evt-heading">${sectionLabel}</h2></div>
+      ${renderSpotFilters()}
     </header>
     <div class="field-spot-grid" data-spot-list>${spotCards}</div>
   </section>`;
@@ -303,9 +308,8 @@ function renderActorCard(actor: AreaActor): string {
 }
 
 function renderAreaActors(encyclopedia: AreaEncyclopediaPayload): string {
-  const actorCards = encyclopedia.actors.length > 0
-    ? encyclopedia.actors.map(renderActorCard).join("")
-    : `<article class="evt-card field-empty-card"><h3 class="evt-heading">関連する企業・団体はまだありません</h3><p class="evt-lead">管理主体や協力団体が見えてきたら、ここに並びます。</p></article>`;
+  if (encyclopedia.actors.length === 0 && encyclopedia.externalLinks.length === 0) return "";
+  const actorCards = encyclopedia.actors.map(renderActorCard).join("");
   const links = encyclopedia.externalLinks.length > 0
     ? `<div class="field-external-links">${encyclopedia.externalLinks.map((link) => `<a href="${escapeHtml(link.url)}" target="_blank" rel="noopener">${escapeHtml(link.label)} ↗</a>`).join("")}</div>`
     : "";
@@ -313,6 +317,16 @@ function renderAreaActors(encyclopedia: AreaEncyclopediaPayload): string {
     <header><span class="evt-eyebrow">Actors</span><h2 class="evt-heading">関連する企業・団体</h2></header>
     <div class="field-actor-grid">${actorCards}</div>
     ${links}
+  </section>`;
+}
+
+function renderAreaGrowthEmpty(encyclopedia: AreaEncyclopediaPayload): string {
+  if (encyclopedia.spots.length > 0 || encyclopedia.actors.length > 0 || encyclopedia.externalLinks.length > 0) return "";
+  return `<section class="field-area-growth-empty" aria-label="この図鑑はこれから育つ">
+    <span class="evt-eyebrow">Growing Area</span>
+    <h2 class="evt-heading">この図鑑はこれから育つ</h2>
+    <p class="evt-lead">見どころ、関わる人や団体、近くの入口は、記録や観察会が増えたらここにまとまります。まずは1分ガイドから歩き出せます。</p>
+    <a class="evt-btn evt-btn-primary" href="#field-local-guides">現地で見る入口へ</a>
   </section>`;
 }
 
@@ -482,6 +496,8 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
 
   ${renderAreaActors(encyclopedia)}
 
+  ${renderAreaGrowthEmpty(encyclopedia)}
+
   ${snapshot ? renderPlaceSnapshotTeaser(snapshot) : ""}
 
   <section class="field-detail-metrics" aria-label="記録の厚み">
@@ -610,10 +626,16 @@ export function fieldDetailScript(): string {
       if (polyFeature) {
         map.addSource("evt-field", { type: "geojson", data: polyFeature });
         map.addLayer({
+          id: "evt-field-fill",
+          type: "fill",
+          source: "evt-field",
+          paint: { "fill-color": "#0f766e", "fill-opacity": 0.18 },
+        });
+        map.addLayer({
           id: "evt-field-line",
           type: "line",
           source: "evt-field",
-          paint: { "line-color": "#0f172a", "line-opacity": 0.34, "line-width": 1.6 },
+          paint: { "line-color": "#0f766e", "line-opacity": 0.92, "line-width": 2.4 },
         });
         collect(polyFeature.geometry.coordinates);
       }
@@ -736,6 +758,11 @@ ${RECORD_CARD_SIZING_TOKENS}
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
+.field-map-hero-stats-empty {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+}
 .field-map-hero-stats div {
   min-width: 0;
   padding: 10px;
@@ -759,6 +786,14 @@ ${RECORD_CARD_SIZING_TOKENS}
   font-size: 11px;
   line-height: 1.2;
   font-weight: 850;
+}
+.field-map-hero-stats-empty span {
+  margin-top: 0;
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.12);
 }
 .field-map-hero-tags,
 .field-map-signals {
@@ -1045,13 +1080,24 @@ ${RECORD_CARD_SIZING_TOKENS}
 }
 .field-area-spots,
 .field-local-guides,
-.field-area-actors {
+.field-area-actors,
+.field-area-growth-empty {
   display: grid;
   gap: 14px;
   padding: 18px;
   border-radius: 14px;
   background: rgba(255,255,255,.94);
   border: 1px solid rgba(15,23,42,.08);
+}
+.field-area-growth-empty {
+  background: linear-gradient(135deg, rgba(248,250,252,.98), rgba(240,253,250,.90));
+  border-style: dashed;
+}
+.field-area-growth-empty .evt-heading {
+  margin: 0;
+}
+.field-area-growth-empty .evt-btn {
+  justify-self: start;
 }
 .field-local-guides {
   gap: 16px;
@@ -1313,7 +1359,26 @@ ${RECORD_CARD_SIZING_TOKENS}
     font-size: clamp(24px, 7.5vw, 31px);
   }
   .field-map-hero-stats {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .field-map-hero-stats div {
+    width: fit-content;
+    padding: 6px 9px;
+    border-radius: 999px;
+  }
+  .field-map-hero-stats strong,
+  .field-map-hero-stats span {
+    display: inline;
+  }
+  .field-map-hero-stats strong {
+    margin-right: 4px;
+    font-size: 14px;
+  }
+  .field-map-hero-stats span {
+    margin-top: 0;
+    font-size: 11px;
   }
   .field-spot-grid,
   .field-guide-grid,
