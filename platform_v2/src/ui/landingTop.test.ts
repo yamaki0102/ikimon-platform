@@ -162,8 +162,8 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /prototype-content-wall-heading/);
   assert.doesNotMatch(html, /WATCH/);
   assert.doesNotMatch(html, /すべて見る/);
-  assert.match(html, /<h3>みんなの記録<\/h3>/);
-  assert.match(html, />EVERYONE&#39;S RECORDS<\/span>/);
+  assert.match(html, /<h3>場所の今を残す記録<\/h3>/);
+  assert.match(html, />PLACE MEMORY<\/span>/);
   assert.doesNotMatch(html, /<h3>自分の記録<\/h3>/);
   assert.match(html, /prototype-content-grid/);
   assert.doesNotMatch(html, /音の標本棚/);
@@ -378,11 +378,11 @@ test("landing top renders signed-in own and community posts as thumbnail content
   assert.match(html, /prototype-content-lane is-mine/);
   assert.match(html, /prototype-content-lane is-community/);
   assert.match(html, /<h3>自分の記録<\/h3>/);
-  assert.match(html, /<h3>みんなの記録<\/h3>/);
+  assert.match(html, /<h3>場所の今を残す記録<\/h3>/);
   assert.match(html, />MY RECORDS<\/span>/);
-  assert.match(html, />EVERYONE&#39;S RECORDS<\/span>/);
+  assert.match(html, />PLACE MEMORY<\/span>/);
   assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=mine" aria-label="自分の記録をもっと見る"/);
-  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=public" aria-label="みんなの記録をもっと見る"/);
+  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=public" aria-label="場所の今を残す記録をもっと見る"/);
   assert.match(html, /data-kpi-action="landing:content_wall:mine:more"/);
   assert.match(html, /data-kpi-action="landing:content_wall:community:more"/);
   assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
@@ -419,7 +419,7 @@ test("landing top gives signed-in own and community posts two desktop rows each"
   assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 12);
   assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
   assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<h3>自分の記録<\/h3>/);
-  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?<h3>みんなの記録<\/h3>/);
+  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<h3>場所の今を残す記録<\/h3>/);
   assert.doesNotMatch(html, /prototype-content-lane-title">[\s\S]*?<span>\d+<\/span>/);
   assert.match(html, /href="\/ja\/records\?view=mine"[^>]*>もっと見る<\/a>/);
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
@@ -444,7 +444,7 @@ test("landing top keeps guest community posts to two desktop rows", () => {
   });
 
   assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
-  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?<h3>みんなの記録<\/h3>/);
+  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<h3>場所の今を残す記録<\/h3>/);
   assert.doesNotMatch(html, /みんなの投稿12/);
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
 });
@@ -477,8 +477,8 @@ test("landing top keeps signed-in fallback records split by owner", () => {
 
   assert.match(html, /prototype-content-lanes is-split/);
   assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?自分のfallback記録/);
-  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?みんなのfallback記録/);
-  assert.doesNotMatch(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?自分のfallback記録/);
+  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?みんなのfallback記録/);
+  assert.doesNotMatch(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?自分のfallback記録/);
 });
 
 test("landing top groups multiple occurrences from the same visit into one content card", () => {
