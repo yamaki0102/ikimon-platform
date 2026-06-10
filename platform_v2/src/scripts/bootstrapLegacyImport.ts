@@ -30,6 +30,9 @@ type ImportScope =
       mode: "partial";
       observationFiles: string[];
       trackFiles: string[];
+      usersChanged: boolean;
+      authTokensChanged: boolean;
+      invitesChanged: boolean;
       changedFileCount: number;
     };
 
@@ -241,12 +244,23 @@ async function resolveImportScope(options: ImportOptions): Promise<ImportScope> 
 
   const changedFiles = manifest.filter((item): item is string => typeof item === "string" && item.trim() !== "");
   if (changedFiles.length === 0) {
-    return { mode: "partial", observationFiles: [], trackFiles: [], changedFileCount: 0 };
+    return {
+      mode: "partial",
+      observationFiles: [],
+      trackFiles: [],
+      usersChanged: false,
+      authTokensChanged: false,
+      invitesChanged: false,
+      changedFileCount: 0,
+    };
   }
 
   const observationFiles: string[] = [];
   const trackFiles: string[] = [];
-  const fullImportFiles = new Set(["users.json", "auth_tokens.json", "invites.json", "observations.json"]);
+  let usersChanged = false;
+  let authTokensChanged = false;
+  let invitesChanged = false;
+  const fullImportFiles = new Set(["observations.json"]);
 
   for (const filePath of changedFiles) {
     const relative = toLegacyRelativePath(filePath, options.legacyDataRoot);
@@ -255,6 +269,18 @@ async function resolveImportScope(options: ImportOptions): Promise<ImportScope> 
     }
     if (fullImportFiles.has(relative)) {
       return { mode: "full", reason: `global_legacy_file_changed:${relative}` };
+    }
+    if (relative === "users.json") {
+      usersChanged = true;
+      continue;
+    }
+    if (relative === "auth_tokens.json") {
+      authTokensChanged = true;
+      continue;
+    }
+    if (relative === "invites.json") {
+      invitesChanged = true;
+      continue;
     }
     if (/^observations\/[^/]+\.json$/.test(relative)) {
       observationFiles.push(path.resolve(filePath));
@@ -271,6 +297,9 @@ async function resolveImportScope(options: ImportOptions): Promise<ImportScope> 
     mode: "partial",
     observationFiles: [...new Set(observationFiles)].sort(),
     trackFiles: [...new Set(trackFiles)].sort(),
+    usersChanged,
+    authTokensChanged,
+    invitesChanged,
     changedFileCount: changedFiles.length,
   };
 }
@@ -775,7 +804,14 @@ function filterUsersForPartialImport(
   legacyUsers: Map<string, LegacyUser>,
   observations: LegacyObservation[],
   tracks: LegacyTrackSession[],
+  tokens: LegacyAuthToken[],
+  invites: LegacyInvite[],
+  scope: ImportScope,
 ): Map<string, LegacyUser> {
+  if (scope.mode === "partial" && scope.usersChanged) {
+    return legacyUsers;
+  }
+
   const userIds = new Set<string>();
   for (const observation of observations) {
     if (typeof observation.user_id === "string" && observation.user_id !== "") {
@@ -785,6 +821,16 @@ function filterUsersForPartialImport(
   for (const session of tracks) {
     if (typeof session.user_id === "string" && session.user_id !== "") {
       userIds.add(session.user_id);
+    }
+  }
+  for (const token of tokens) {
+    if (typeof token.user_id === "string" && token.user_id !== "") {
+      userIds.add(token.user_id);
+    }
+  }
+  for (const invite of invites) {
+    if (typeof invite.user_id === "string" && invite.user_id !== "") {
+      userIds.add(invite.user_id);
     }
   }
 
@@ -1583,15 +1629,28 @@ async function main() {
   const legacyUsers = await loadLegacyUsers(options);
   const legacyObservations = await loadLegacyObservations(options, importScope);
   const legacyTracks = await loadLegacyTracks(options, importScope);
-  const legacyTokens = importScope.mode === "full" ? await loadLegacyAuthTokens(options) : [];
-  const legacyInvites = importScope.mode === "full" ? await loadLegacyInvites(options) : [];
+  const legacyTokens =
+    importScope.mode === "full" || importScope.authTokensChanged
+      ? await loadLegacyAuthTokens(options)
+      : [];
+  const legacyInvites =
+    importScope.mode === "full" || importScope.invitesChanged
+      ? await loadLegacyInvites(options)
+      : [];
 
   supplementUsersFromAuthTokens(legacyUsers, legacyTokens);
   supplementUsersFromInvites(legacyUsers, legacyInvites);
   supplementUsersFromTracks(legacyUsers, legacyTracks);
   const usersToImport =
     importScope.mode === "partial"
-      ? filterUsersForPartialImport(legacyUsers, legacyObservations, legacyTracks)
+      ? filterUsersForPartialImport(
+          legacyUsers,
+          legacyObservations,
+          legacyTracks,
+          legacyTokens,
+          legacyInvites,
+          importScope,
+        )
       : legacyUsers;
 
   if (!options.dryRun) {
@@ -1600,8 +1659,10 @@ async function main() {
 
   await withLegacyImportLock(options, async () => {
     await importUsers(options, usersToImport, legacyObservations);
-    if (importScope.mode === "full") {
+    if (importScope.mode === "full" || importScope.authTokensChanged) {
       await importRememberTokens(options, legacyTokens);
+    }
+    if (importScope.mode === "full" || importScope.invitesChanged) {
       await importInvites(options, legacyInvites);
     }
     await importObservations(options, legacyObservations, importScope);
