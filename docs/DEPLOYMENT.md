@@ -26,12 +26,14 @@ runner からの browser smoke が通った場合だけ nginx を promote する
 - staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
 - production workflow: `.github/workflows/deploy.yml`
 - staging workflow: `.github/workflows/deploy-staging.yml`
+- production deploy timing: `docs/PRODUCTION_DEPLOY_TIMING.md`
 - branch hygiene audit workflow: `.github/workflows/branch-hygiene-audit.yml`
 - CI guardrail: `scripts/check_deploy_guardrails.ps1`
 - platform_v2 migration guardrail: `scripts/check_platform_v2_migration_guardrails.ps1`
 - manifest/workflow sync check: `scripts/check_deploy_manifest_sync.ps1`
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
+- deploy timing summary: `scripts/summarize_deploy_timing.ps1`
 - branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
 
 ## Persistent Paths
