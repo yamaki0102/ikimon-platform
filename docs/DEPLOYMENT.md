@@ -34,6 +34,7 @@ runner からの browser smoke が通った場合だけ nginx を promote する
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
 - deploy timing summary: `scripts/summarize_deploy_timing.ps1`
+- VPS prepare timing summary: `scripts/summarize_prepare_timing.ps1`
 - branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
 
 ## Persistent Paths

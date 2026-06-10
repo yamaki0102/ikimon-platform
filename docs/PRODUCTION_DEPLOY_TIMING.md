@@ -28,6 +28,18 @@ The VPS prepare script also emits `deploy_timing ...` lines and writes JSONL to:
 - `/var/www/ikimon.life/deploy_state/prepare_timing_<release-id>.jsonl`
 - `/var/www/ikimon.life/deploy_state/prepare_timing_latest.jsonl`
 
+Rank the VPS-side prepare stages from a downloaded JSONL file:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\summarize_prepare_timing.ps1 -Path .\prepare_timing_latest.jsonl
+```
+
+Or read it directly over SSH when the deploy host alias is available:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\summarize_prepare_timing.ps1 -HostAlias <ssh-alias>
+```
+
 ## Baseline Before PR #715
 
 Sample: latest 7 completed successful production deploy runs before PR #715.
@@ -78,7 +90,7 @@ After PR #715 is merged and the first production deploy finishes:
    - knowledge navigation compile
    - guide environment postdeploy
    - legacy sync / parity / drift report
-4. Use the VPS `prepare_timing_latest.jsonl` log to rank the remaining prepare bottlenecks.
+4. Use `scripts/summarize_prepare_timing.ps1` with the VPS `prepare_timing_latest.jsonl` log to rank the remaining prepare bottlenecks.
 5. If total wall time is high but active span is low, treat it as GitHub queue/environment pressure rather than deploy script work.
 
 ## Next Improvement Candidates
