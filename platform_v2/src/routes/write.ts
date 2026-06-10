@@ -153,6 +153,35 @@ function organismOriginLabel(value: OrganismOriginValue): string {
   return ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === value)?.label ?? "不明";
 }
 
+function normalizeObservationObservedAt(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const parsed = new Date(raw);
+  if (!raw || !Number.isFinite(parsed.getTime())) {
+    throw new Error("invalid_observed_at");
+  }
+  const now = Date.now();
+  if (parsed.getTime() > now + 24 * 60 * 60 * 1000) {
+    throw new Error("invalid_observed_at");
+  }
+  return parsed.toISOString();
+}
+
+function normalizeObservationLatitude(value: unknown): number {
+  const latitude = Number(value);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw new Error("invalid_latitude");
+  }
+  return Number(latitude.toFixed(6));
+}
+
+function normalizeObservationLongitude(value: unknown): number {
+  const longitude = Number(value);
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new Error("invalid_longitude");
+  }
+  return Number(longitude.toFixed(6));
+}
+
 const ENVIRONMENT_RECORD_FIELDS = [
   {
     field: "place_type",
@@ -633,6 +662,125 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return {
           ok: false,
           error: error instanceof Error ? error.message : "occurrence_origin_update_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { observedAt?: unknown } }>(
+    "/api/v1/occurrences/:id/observed-at",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-observed-at-update", session.userId, 30);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const observedAt = normalizeObservationObservedAt(request.body?.observedAt);
+        const result = await getPool().query<{ occurrence_id: string; visit_id: string; observed_at: string }>(
+          `update visits v
+              set observed_at = $2::timestamptz,
+                  source_payload = coalesce(v.source_payload, '{}'::jsonb) || $3::jsonb,
+                  updated_at = now()
+             from occurrences o
+            where o.occurrence_id = $1
+              and o.visit_id = v.visit_id
+            returning o.occurrence_id::text as occurrence_id,
+                      v.visit_id::text as visit_id,
+                      v.observed_at::text as observed_at`,
+          [
+            request.params.id,
+            observedAt,
+            JSON.stringify({
+              observation_detail_edit: {
+                field: "observed_at",
+                updated_by: session.userId,
+                updated_at: new Date().toISOString(),
+              },
+            }),
+          ],
+        );
+        const row = result.rows[0];
+        if (!row) {
+          throw new Error("observation_not_found");
+        }
+        return {
+          ok: true,
+          occurrenceId: row.occurrence_id,
+          visitId: row.visit_id,
+          observedAt: row.observed_at,
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_observed_at_update_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { latitude?: unknown; longitude?: unknown } }>(
+    "/api/v1/occurrences/:id/location",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-location-update", session.userId, 30);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const latitude = normalizeObservationLatitude(request.body?.latitude);
+        const longitude = normalizeObservationLongitude(request.body?.longitude);
+        const result = await getPool().query<{
+          occurrence_id: string;
+          visit_id: string;
+          latitude: number;
+          longitude: number;
+        }>(
+          `update visits v
+              set point_latitude = $2,
+                  point_longitude = $3,
+                  source_payload = coalesce(v.source_payload, '{}'::jsonb) || $4::jsonb,
+                  updated_at = now()
+             from occurrences o
+            where o.occurrence_id = $1
+              and o.visit_id = v.visit_id
+            returning o.occurrence_id::text as occurrence_id,
+                      v.visit_id::text as visit_id,
+                      v.point_latitude as latitude,
+                      v.point_longitude as longitude`,
+          [
+            request.params.id,
+            latitude,
+            longitude,
+            JSON.stringify({
+              observation_detail_edit: {
+                field: "location",
+                updated_by: session.userId,
+                updated_at: new Date().toISOString(),
+              },
+            }),
+          ],
+        );
+        const row = result.rows[0];
+        if (!row) {
+          throw new Error("observation_not_found");
+        }
+        return {
+          ok: true,
+          occurrenceId: row.occurrence_id,
+          visitId: row.visit_id,
+          latitude: Number(row.latitude),
+          longitude: Number(row.longitude),
+          label: `${Number(row.latitude).toFixed(6)}, ${Number(row.longitude).toFixed(6)}`,
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_location_update_failed",
         };
       }
     },

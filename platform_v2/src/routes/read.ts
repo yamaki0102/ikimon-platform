@@ -1732,6 +1732,15 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-origin-choice.is-selected { background: #ccfbf1; border-color: rgba(15,118,110,.34); color: #0f766e; box-shadow: inset 0 0 0 1px rgba(15,118,110,.12); }
   .obs-origin-save { min-height: 42px; border-radius: 999px; border: 0; background: #0f172a; color: #fff; font-size: 13px; line-height: 1; font-weight: 950; cursor: pointer; }
   .obs-origin-save:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .obs-edit-fields { display: grid; gap: 9px; }
+  .obs-edit-field { display: grid; gap: 5px; color: #334155; font-size: 11.5px; font-weight: 900; }
+  .obs-edit-field input { min-height: 42px; width: 100%; padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; }
+  .obs-name-search { width: 100%; min-height: 40px; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,118,110,.14); background: #fff; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; }
+  .obs-location-map { position: relative; min-height: 190px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(15,118,110,.18); background: linear-gradient(135deg, #ecfdf5 0 35%, #e0f2fe 35% 52%, #f8fafc 52% 100%); cursor: crosshair; touch-action: none; }
+  .obs-location-map::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(15,23,42,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.07) 1px, transparent 1px); background-size: 32px 32px; opacity: .55; }
+  .obs-location-pin { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%, -86%) rotate(45deg); border-radius: 50% 50% 50% 4px; background: #ef4444; border: 3px solid #fff; box-shadow: 0 9px 24px rgba(15,23,42,.28); }
+  .obs-location-pin::after { content: ""; position: absolute; inset: 5px; border-radius: 999px; background: #fff; opacity: .92; }
+  .obs-location-map-note { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 7px 9px; border-radius: 12px; background: rgba(255,255,255,.86); color: #334155; font-size: 10.5px; line-height: 1.35; font-weight: 850; }
   .obs-origin-toast { position: fixed; left: 50%; bottom: 18px; z-index: 260; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; width: min(480px, calc(100vw - 24px)); padding: 10px 12px; border-radius: 14px; background: #0f172a; color: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.24); font-size: 12px; line-height: 1.35; font-weight: 850; }
   .obs-origin-toast button { margin-left: auto; border: 0; background: transparent; color: #99f6e4; font: inherit; font-weight: 950; cursor: pointer; white-space: nowrap; }
   .obs-ai-review { display: grid; gap: 12px; margin: 0 0 16px; padding: 14px; border-radius: 16px; background: linear-gradient(135deg, rgba(239,246,255,.92), rgba(240,253,244,.72)); border: 1px solid rgba(59,130,246,.18); }
@@ -7150,9 +7159,82 @@ function environmentRecordLabel(field: EnvironmentRecordField, value: string): s
   return field.options.find((option) => option.value === value)?.label ?? "不明";
 }
 
+type QualityNameCandidate = {
+  name: string;
+  rank: string;
+  source: string;
+  searchText: string;
+};
+
+function qualityCandidateKey(name: string): string {
+  return observationDetailUiName(name).trim().toLowerCase();
+}
+
+function observationLocalDateTimeValue(value: string | null | undefined): string {
+  const date = new Date(String(value ?? ""));
+  if (!Number.isFinite(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function qualityLocationLabel(snapshot: ObservationDetailSnapshot): string {
+  return typeof snapshot.latitude === "number" && typeof snapshot.longitude === "number"
+    ? `${snapshot.latitude.toFixed(6)}, ${snapshot.longitude.toFixed(6)}`
+    : "地点未入力";
+}
+
+function collectQualityNameCandidates(options: {
+  snapshot: ObservationDetailSnapshot;
+  subject: ObservationVisitSubject;
+  bundle?: ObservationVisitBundle | null;
+  nearby?: NearbyObservation[];
+}): QualityNameCandidate[] {
+  const candidates: QualityNameCandidate[] = [];
+  const seen = new Set<string>();
+  const add = (name: string | null | undefined, rank: string | null | undefined, source: string) => {
+    const display = observationDetailUiName(name);
+    if (!display || isWeakIdentificationCandidateName(display)) return;
+    const key = qualityCandidateKey(display);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    const rankLabel = rank ? publicRankHint(rank) || rankLabelJa(rank) : "";
+    candidates.push({
+      name: display,
+      rank: rank ?? "",
+      source: [source, rankLabel].filter(Boolean).join(" / "),
+      searchText: [display, rankLabel, source].filter(Boolean).join(" "),
+    });
+  };
+
+  add(options.subject.aiAssessment?.recommendedTaxonName, options.subject.aiAssessment?.recommendedRank, "AI候補");
+  add(options.subject.aiAssessment?.recommendedScientificName, options.subject.aiAssessment?.recommendedRank, "AI学名");
+  add(options.subject.displayName, options.subject.rank, "表示中");
+  for (const reading of options.subject.aiAssessment?.candidateReadings ?? []) {
+    add(reading.name, reading.rank, "候補読み");
+    add(reading.scientificName, reading.rank, "候補読み");
+  }
+  for (const candidate of options.bundle?.aiCandidates ?? []) {
+    add(candidate.displayName, candidate.rank, "AI候補");
+    add(candidate.scientificName, candidate.rank, "AI学名");
+  }
+  for (const subject of options.bundle?.subjects ?? []) {
+    add(subject.vernacularName || subject.displayName, subject.rank, "同じ記録");
+    add(subject.scientificName, subject.rank, "同じ記録");
+  }
+  for (const item of options.nearby ?? []) {
+    add(item.displayName, null, "近い公開記録");
+  }
+  add(options.snapshot.vernacularName || options.snapshot.displayName, null, "現在名");
+  add(options.snapshot.scientificName, null, "現在学名");
+
+  return candidates.slice(0, 18);
+}
+
 function renderObservationQualityCard(options: {
   snapshot: ObservationDetailSnapshot;
   subject: ObservationVisitSubject;
+  bundle?: ObservationVisitBundle | null;
+  nearby?: NearbyObservation[];
   consensus: IdentificationConsensusResult | null;
   placeLabel: string;
   mediaContext: ObservationMediaCopyContext;
@@ -7184,6 +7266,22 @@ function renderObservationQualityCard(options: {
     : options.canEditOrigin
       ? "この記録の由来区分を選んで保存します。"
       : "由来区分は投稿者だけが変更できます。";
+  const editSheetMessage = (field: string) => !options.isLoggedIn
+    ? `ログインすると、自分の記録の${field}を保存できます。`
+    : options.canEditOrigin
+      ? `${field}を確認して保存します。`
+      : `${field}は投稿者だけが変更できます。`;
+  const qualityNameCandidates = collectQualityNameCandidates({
+    snapshot: options.snapshot,
+    subject: options.subject,
+    bundle: options.bundle,
+    nearby: options.nearby,
+  });
+  const defaultNameCandidate = qualityNameCandidates[0]?.name || subjectName;
+  const defaultRankCandidate = qualityNameCandidates[0]?.rank || options.subject.aiAssessment?.recommendedRank || options.subject.rank || "";
+  const observedAtInputValue = observationLocalDateTimeValue(options.snapshot.observedAt);
+  const observedAtLabel = formatAbsolute(options.snapshot.observedAt);
+  const locationLabel = qualityLocationLabel(options.snapshot);
   const environmentRecord = options.snapshot.environmentRecord ?? {};
   const environmentFieldCards = ENVIRONMENT_RECORD_FIELDS.map((field) => {
     const value = environmentRecordValue(environmentRecord, field);
@@ -7193,7 +7291,7 @@ function renderObservationQualityCard(options: {
       <div class="obs-local-quality-chip-value-row"><em data-env-field-label>${escapeHtml(label)}</em><button class="obs-local-quality-field-edit" type="button" data-env-edit="${escapeHtml(field.field)}">変更</button></div>
     </div>`;
   }).join("");
-  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}">
+  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
     <div class="obs-local-quality-head">
       <div>
         <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
@@ -7203,7 +7301,8 @@ function renderObservationQualityCard(options: {
     <div class="obs-local-quality-checks">
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
-        <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em>記録済み</em></div>
+        <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em><span data-date-current-label>${escapeHtml(observedAtLabel)}</span> / <span data-location-current-label>${escapeHtml(locationLabel)}</span></em></div>
+        <span><button class="obs-local-quality-change" type="button" data-quality-action="date">日時</button> <button class="obs-local-quality-change" type="button" data-quality-action="location">場所</button></span>
       </div>
       <div class="obs-local-quality-check${hasEvidence ? "" : " is-warn"}">
         <i class="obs-local-quality-mark">${hasEvidence ? "✓" : "!"}</i>
@@ -7213,7 +7312,7 @@ function renderObservationQualityCard(options: {
       <div class="obs-local-quality-check${hasHumanSupport ? "" : " is-next"}">
         <i class="obs-local-quality-mark">${hasHumanSupport ? "✓" : "!"}</i>
         <div><strong>名前の支持</strong><span>AI候補に人の確認が加わっているか。</span><em>${hasHumanSupport ? "確認あり" : "人の確認待ち"}</em></div>
-        <button class="obs-local-quality-change" type="button" data-quality-action="identification">確認</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="identification">変更</button>
       </div>
       <div class="obs-local-quality-check${originStateClass}">
         <i class="obs-local-quality-mark">${originValue === "unknown" ? "!" : "✓"}</i>
@@ -7239,6 +7338,71 @@ function renderObservationQualityCard(options: {
         ${environmentFieldCards}
       </div>
     </div>
+    <div class="obs-origin-sheet" data-name-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-name-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-name-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">IDENTIFICATION</div>
+            <h4 id="obs-name-sheet-title">名前を確認する</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-name-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message" data-name-message>${escapeHtml(editSheetMessage("名前"))}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <input class="obs-name-search" type="search" autocomplete="off" placeholder="候補名で絞り込み" data-name-search>
+        <div class="obs-origin-choice-list" data-name-choice-list>
+          ${qualityNameCandidates.map((candidate, index) => `<button class="obs-origin-choice${index === 0 ? " is-selected" : ""}" type="button" data-name-choice="${escapeHtml(candidate.name)}" data-name-rank="${escapeHtml(candidate.rank)}" data-name-search-text="${escapeHtml(candidate.searchText)}" aria-pressed="${index === 0 ? "true" : "false"}">${escapeHtml(candidate.name)}${candidate.source ? ` <small>${escapeHtml(candidate.source)}</small>` : ""}</button>`).join("")}
+        </div>
+        <details class="obs-local-origin-hint"><summary>候補にない名前を使う</summary><div class="obs-edit-fields"><label class="obs-edit-field"><span>名前</span><input type="text" data-name-manual placeholder="例: モンシロチョウ"></label></div></details>
+        <button class="obs-origin-save" type="button" data-name-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-name-toast hidden><span data-name-toast-text></span><button type="button" data-name-undo>元に戻す</button></div>
+    <div class="obs-origin-sheet" data-date-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-date-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-date-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">DATE</div>
+            <h4 id="obs-date-sheet-title">観察日時</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-date-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message">${escapeHtml(editSheetMessage("観察日時"))}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-edit-fields"><label class="obs-edit-field"><span>観察日時</span><input type="datetime-local" data-date-input value="${escapeHtml(observedAtInputValue)}"></label></div>
+        <button class="obs-origin-save" type="button" data-date-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-date-toast hidden><span data-date-toast-text></span><button type="button" data-date-undo>元に戻す</button></div>
+    <div class="obs-origin-sheet" data-location-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-location-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-location-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">LOCATION</div>
+            <h4 id="obs-location-sheet-title">観察地点</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-location-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message">${escapeHtml(editSheetMessage("観察地点"))}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-location-map" data-location-map aria-label="観察地点のピン">
+          <span class="obs-location-pin" data-location-pin></span>
+          <span class="obs-location-map-note">ピンを動かして地点を微調整します。</span>
+        </div>
+        <div class="obs-edit-fields">
+          <label class="obs-edit-field"><span>緯度</span><input type="number" step="0.000001" data-location-lat-input value="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}"></label>
+          <label class="obs-edit-field"><span>経度</span><input type="number" step="0.000001" data-location-lng-input value="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}"></label>
+        </div>
+        <button class="obs-origin-save" type="button" data-location-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-location-toast hidden><span data-location-toast-text></span><button type="button" data-location-undo>元に戻す</button></div>
     <div class="obs-origin-sheet" data-env-sheet hidden>
       <div class="obs-origin-sheet-scrim" data-env-close></div>
       <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-env-sheet-title">
@@ -7638,6 +7802,206 @@ export function renderLocalObservationPolishScript(): string {
       var selectedEnvField = '';
       var selectedEnvValue = '';
       var envUndoTimer = null;
+      var selectedName = card.getAttribute('data-name-current') || '';
+      var selectedNameRank = card.getAttribute('data-name-rank-current') || '';
+      var nameUndoTimer = null;
+      var dateUndoTimer = null;
+      var locationUndoTimer = null;
+      function occurrenceEndpoint(path){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return '/api/v1/occurrences/' + encodeURIComponent(occurrenceId) + path;
+      }
+      function postJson(url, body){
+        return fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }).then(function(response){
+          return response.json().catch(function(){ return {}; }).then(function(payload){
+            if (!response.ok || !payload || payload.ok !== true) {
+              throw new Error((payload && payload.error) || 'save_failed');
+            }
+            return payload;
+          });
+        });
+      }
+      function nameSheet(){ return card.querySelector('[data-name-sheet]'); }
+      function nameToast(){ return card.querySelector('[data-name-toast]'); }
+      function dateSheet(){ return card.querySelector('[data-date-sheet]'); }
+      function dateToast(){ return card.querySelector('[data-date-toast]'); }
+      function locationSheet(){ return card.querySelector('[data-location-sheet]'); }
+      function locationToast(){ return card.querySelector('[data-location-toast]'); }
+      function setNameChoice(name, rank){
+        selectedName = String(name || '').trim();
+        selectedNameRank = String(rank || '').trim();
+        Array.prototype.forEach.call(card.querySelectorAll('[data-name-choice]'), function(choice){
+          var active = choice.getAttribute('data-name-choice') === selectedName;
+          choice.classList.toggle('is-selected', active);
+          choice.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+      }
+      function openNameSheet(){
+        var sheet = nameSheet();
+        if (!sheet) return false;
+        setNameChoice(card.getAttribute('data-name-current') || selectedName, card.getAttribute('data-name-rank-current') || selectedNameRank);
+        sheet.hidden = false;
+        var first = sheet.querySelector('[data-name-choice].is-selected') || sheet.querySelector('[data-name-choice]') || sheet.querySelector('[data-name-close]');
+        if (first && typeof first.focus === 'function') window.setTimeout(function(){ first.focus(); }, 30);
+        return true;
+      }
+      function closeNameSheet(){ var sheet = nameSheet(); if (sheet) sheet.hidden = true; }
+      function filterNameChoices(){
+        var input = card.querySelector('[data-name-search]');
+        var query = String(input && input.value || '').trim().toLowerCase();
+        Array.prototype.forEach.call(card.querySelectorAll('[data-name-choice]'), function(choice){
+          var text = String(choice.getAttribute('data-name-search-text') || choice.textContent || '').toLowerCase();
+          choice.hidden = Boolean(query) && text.indexOf(query) === -1;
+        });
+      }
+      function postName(name, rank){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return postJson('/api/v1/observations/' + encodeURIComponent(occurrenceId) + '/identifications', {
+          proposedName: name,
+          proposedRank: rank || null,
+          notes: '観察レコードの品質カードから確認',
+          stance: 'support'
+        });
+      }
+      function setNameValue(name, rank){
+        card.setAttribute('data-name-current', name || '');
+        card.setAttribute('data-name-rank-current', rank || '');
+        var nameCheck = card.querySelector('[data-quality-action="identification"]');
+        nameCheck = nameCheck && nameCheck.closest ? nameCheck.closest('.obs-local-quality-check') : null;
+        if (nameCheck) {
+          nameCheck.classList.remove('is-next');
+          var mark = nameCheck.querySelector('.obs-local-quality-mark');
+          if (mark) mark.textContent = '✓';
+          var value = nameCheck.querySelector('em');
+          if (value) value.textContent = '確認あり';
+        }
+      }
+      function showNameToast(text, previousName, previousRank){
+        var toast = nameToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-name-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (nameUndoTimer) window.clearTimeout(nameUndoTimer);
+        nameUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-name-undo-value', previousName || '');
+        toast.setAttribute('data-name-undo-rank', previousRank || '');
+      }
+      function localDateTimeString(value){
+        var date = new Date(String(value || ''));
+        if (!isFinite(date.getTime())) return '';
+        return date.toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+      }
+      function openDateSheet(){
+        var sheet = dateSheet();
+        if (!sheet) return false;
+        sheet.hidden = false;
+        var input = sheet.querySelector('[data-date-input]');
+        if (input && typeof input.focus === 'function') window.setTimeout(function(){ input.focus(); }, 30);
+        return true;
+      }
+      function closeDateSheet(){ var sheet = dateSheet(); if (sheet) sheet.hidden = true; }
+      function postDate(value){ return postJson(occurrenceEndpoint('/observed-at'), { observedAt: value }); }
+      function setDateValue(value){
+        card.setAttribute('data-date-current', value || '');
+        var label = card.querySelector('[data-date-current-label]');
+        if (label) label.textContent = localDateTimeString(value) || value || '日時未入力';
+      }
+      function showDateToast(text, previousValue){
+        var toast = dateToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-date-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (dateUndoTimer) window.clearTimeout(dateUndoTimer);
+        dateUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-date-undo-value', previousValue || '');
+      }
+      function locationLabel(lat, lng){
+        var latNum = Number(lat);
+        var lngNum = Number(lng);
+        if (!isFinite(latNum) || !isFinite(lngNum)) return '地点未入力';
+        return latNum.toFixed(6) + ', ' + lngNum.toFixed(6);
+      }
+      function locationInputs(){
+        return {
+          lat: card.querySelector('[data-location-lat-input]'),
+          lng: card.querySelector('[data-location-lng-input]')
+        };
+      }
+      function setLocationInputs(lat, lng){
+        var inputs = locationInputs();
+        if (inputs.lat) inputs.lat.value = isFinite(Number(lat)) ? Number(lat).toFixed(6) : '';
+        if (inputs.lng) inputs.lng.value = isFinite(Number(lng)) ? Number(lng).toFixed(6) : '';
+        updateLocationPin();
+      }
+      function updateLocationPin(){
+        var map = card.querySelector('[data-location-map]');
+        var pin = card.querySelector('[data-location-pin]');
+        if (!map || !pin) return;
+        var inputs = locationInputs();
+        var baseLat = Number(card.getAttribute('data-location-lat') || (inputs.lat && inputs.lat.value) || 0);
+        var baseLng = Number(card.getAttribute('data-location-lng') || (inputs.lng && inputs.lng.value) || 0);
+        var lat = Number(inputs.lat && inputs.lat.value);
+        var lng = Number(inputs.lng && inputs.lng.value);
+        if (!isFinite(baseLat) || !isFinite(baseLng) || !isFinite(lat) || !isFinite(lng)) {
+          pin.style.left = '50%';
+          pin.style.top = '50%';
+          return;
+        }
+        var span = 0.002;
+        var x = Math.max(6, Math.min(94, 50 + ((lng - baseLng) / span) * 50));
+        var y = Math.max(6, Math.min(94, 50 - ((lat - baseLat) / span) * 50));
+        pin.style.left = x + '%';
+        pin.style.top = y + '%';
+      }
+      function setLocationFromMap(event){
+        var map = card.querySelector('[data-location-map]');
+        if (!map || !event) return;
+        var rect = map.getBoundingClientRect();
+        var x = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
+        var y = Math.max(0, Math.min(1, (event.clientY - rect.top) / Math.max(1, rect.height)));
+        var inputs = locationInputs();
+        var baseLat = Number(card.getAttribute('data-location-lat') || (inputs.lat && inputs.lat.value) || 35);
+        var baseLng = Number(card.getAttribute('data-location-lng') || (inputs.lng && inputs.lng.value) || 139);
+        var span = 0.002;
+        setLocationInputs(baseLat + (0.5 - y) * span, baseLng + (x - 0.5) * span);
+      }
+      function openLocationSheet(){
+        var sheet = locationSheet();
+        if (!sheet) return false;
+        setLocationInputs(card.getAttribute('data-location-lat'), card.getAttribute('data-location-lng'));
+        sheet.hidden = false;
+        updateLocationPin();
+        var map = sheet.querySelector('[data-location-map]');
+        if (map && typeof map.focus === 'function') window.setTimeout(function(){ map.focus(); }, 30);
+        return true;
+      }
+      function closeLocationSheet(){ var sheet = locationSheet(); if (sheet) sheet.hidden = true; }
+      function postLocation(lat, lng){ return postJson(occurrenceEndpoint('/location'), { latitude: lat, longitude: lng }); }
+      function setLocationValue(lat, lng){
+        card.setAttribute('data-location-lat', isFinite(Number(lat)) ? Number(lat).toFixed(6) : '');
+        card.setAttribute('data-location-lng', isFinite(Number(lng)) ? Number(lng).toFixed(6) : '');
+        setLocationInputs(lat, lng);
+        var label = card.querySelector('[data-location-current-label]');
+        if (label) label.textContent = locationLabel(lat, lng);
+      }
+      function showLocationToast(text, previousLat, previousLng){
+        var toast = locationToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-location-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (locationUndoTimer) window.clearTimeout(locationUndoTimer);
+        locationUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-location-undo-lat', previousLat || '');
+        toast.setAttribute('data-location-undo-lng', previousLng || '');
+      }
       function originLabel(value){ return ORIGIN_LABELS[value] || ORIGIN_LABELS.unknown; }
       function originSheet(){ return card.querySelector('[data-origin-sheet]'); }
       function originToast(){ return card.querySelector('[data-origin-toast]'); }
@@ -7801,14 +8165,16 @@ export function renderLocalObservationPolishScript(): string {
       }
       function handleQualityAction(action, button){
         if (action === 'identification') {
-          addHistory('名前の支持を確認: 同定入力へ移動');
-          var openedIdentify = openIdentify('support');
-          var hasIdentifyForm = Boolean(document.querySelector('#identify [data-identify-form]'));
-          setActionStatus(openedIdentify
-            ? hasIdentifyForm
-              ? '名前の確認欄を開きました。名前と理由を入れて保存できます。'
-              : '名前の確認欄へ移動しました。保存するにはログインが必要です。'
-            : '同定欄を見つけられませんでした。', !openedIdentify);
+          var openedName = openNameSheet();
+          if (card.getAttribute('data-name-login-required') === '1') {
+            setActionStatus(openedName ? 'ログインすると名前の確認を保存できます。' : '名前の確認欄を開けませんでした。', !openedName);
+            return;
+          }
+          if (card.getAttribute('data-name-can-edit') !== '1') {
+            setActionStatus('名前の変更は投稿者だけがこのカードから保存できます。', false);
+            return;
+          }
+          setActionStatus(openedName ? '候補を選んで保存できます。' : '名前の確認欄を開けませんでした。', !openedName);
           return;
         }
         if (action === 'origin') {
@@ -7843,13 +8209,180 @@ export function renderLocalObservationPolishScript(): string {
           focusElement(document.querySelector('[data-observation-media]') || document.querySelector('.obs-media-ledger'));
           return;
         }
-        if (action === 'date_place') {
-          addHistory('日時・場所を確認: 記録概要へ移動');
-          setActionStatus('日時・場所は記録概要で確認できます。直接編集欄がない場合は、新しい記録として残すのが安全です。', false);
-          focusElement(document.querySelector('.obs-reading-hero') || document.querySelector('main') || document.body);
+        if (action === 'date') {
+          var openedDate = openDateSheet();
+          if (card.getAttribute('data-date-login-required') === '1') {
+            setActionStatus(openedDate ? 'ログインすると観察日時を保存できます。' : '観察日時の編集欄を開けませんでした。', !openedDate);
+            return;
+          }
+          if (card.getAttribute('data-date-can-edit') !== '1') {
+            setActionStatus('観察日時は投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedDate ? '観察日時を保存できます。' : '観察日時の編集欄を開けませんでした。', !openedDate);
+          return;
+        }
+        if (action === 'location') {
+          var openedLocation = openLocationSheet();
+          if (card.getAttribute('data-location-login-required') === '1') {
+            setActionStatus(openedLocation ? 'ログインすると観察地点を保存できます。' : '観察地点の編集欄を開けませんでした。', !openedLocation);
+            return;
+          }
+          if (card.getAttribute('data-location-can-edit') !== '1') {
+            setActionStatus('観察地点は投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedLocation ? 'ピンを動かして観察地点を保存できます。' : '観察地点の編集欄を開けませんでした。', !openedLocation);
         }
       }
       card.addEventListener('click', function(event){
+        var nameClose = event.target && event.target.closest ? event.target.closest('[data-name-close]') : null;
+        if (nameClose) {
+          closeNameSheet();
+          return;
+        }
+        var nameChoice = event.target && event.target.closest ? event.target.closest('[data-name-choice]') : null;
+        if (nameChoice) {
+          if (card.getAttribute('data-name-can-edit') === '1') setNameChoice(nameChoice.getAttribute('data-name-choice') || '', nameChoice.getAttribute('data-name-rank') || '');
+          return;
+        }
+        var nameSave = event.target && event.target.closest ? event.target.closest('[data-name-save]') : null;
+        if (nameSave) {
+          if (card.getAttribute('data-name-can-edit') !== '1') return;
+          var manual = card.querySelector('[data-name-manual]');
+          var manualName = manual ? String(manual.value || '').trim() : '';
+          var nextName = manualName || selectedName;
+          var nextRank = manualName ? '' : selectedNameRank;
+          if (!nextName) {
+            setActionStatus('保存する名前を選んでください。', true);
+            return;
+          }
+          var previousName = card.getAttribute('data-name-current') || '';
+          var previousRank = card.getAttribute('data-name-rank-current') || '';
+          nameSave.disabled = true;
+          setActionStatus('名前の確認を保存しています。', false);
+          postName(nextName, nextRank).then(function(){
+            setNameValue(nextName, nextRank);
+            closeNameSheet();
+            addHistory('名前を確認: ' + nextName);
+            setActionStatus('名前の確認を保存しました。', false);
+            showNameToast('名前を「' + nextName + '」で確認しました。', previousName, previousRank);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。時間をおいて再度お試しください。', true);
+          }).finally(function(){
+            nameSave.disabled = false;
+          });
+          return;
+        }
+        var nameUndo = event.target && event.target.closest ? event.target.closest('[data-name-undo]') : null;
+        if (nameUndo) {
+          var nToast = nameToast();
+          var undoName = nToast ? nToast.getAttribute('data-name-undo-value') || '' : '';
+          var undoRank = nToast ? nToast.getAttribute('data-name-undo-rank') || '' : '';
+          if (!undoName) return;
+          postName(undoName, undoRank).then(function(){
+            setNameValue(undoName, undoRank);
+            addHistory('名前を元に戻しました: ' + undoName);
+            setActionStatus('名前の確認を元に戻しました。', false);
+            if (nToast) nToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
+        var dateClose = event.target && event.target.closest ? event.target.closest('[data-date-close]') : null;
+        if (dateClose) {
+          closeDateSheet();
+          return;
+        }
+        var dateSave = event.target && event.target.closest ? event.target.closest('[data-date-save]') : null;
+        if (dateSave) {
+          if (card.getAttribute('data-date-can-edit') !== '1') return;
+          var dateInput = card.querySelector('[data-date-input]');
+          var dateValue = dateInput ? String(dateInput.value || '').trim() : '';
+          if (!dateValue) {
+            setActionStatus('観察日時を選んでください。', true);
+            return;
+          }
+          var previousDate = card.getAttribute('data-date-current') || '';
+          dateSave.disabled = true;
+          setActionStatus('観察日時を保存しています。', false);
+          postDate(dateValue).then(function(payload){
+            var savedDate = payload.observedAt || dateValue;
+            setDateValue(savedDate);
+            closeDateSheet();
+            addHistory('観察日時を変更: ' + (localDateTimeString(savedDate) || savedDate));
+            setActionStatus('観察日時を保存しました。', false);
+            showDateToast('観察日時を保存しました。', previousDate);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。日時を確認してください。', true);
+          }).finally(function(){
+            dateSave.disabled = false;
+          });
+          return;
+        }
+        var dateUndo = event.target && event.target.closest ? event.target.closest('[data-date-undo]') : null;
+        if (dateUndo) {
+          var dToast = dateToast();
+          var undoDate = dToast ? dToast.getAttribute('data-date-undo-value') || '' : '';
+          if (!undoDate) return;
+          postDate(undoDate).then(function(payload){
+            var restoredDate = payload.observedAt || undoDate;
+            setDateValue(restoredDate);
+            addHistory('観察日時を元に戻しました: ' + (localDateTimeString(restoredDate) || restoredDate));
+            setActionStatus('観察日時を元に戻しました。', false);
+            if (dToast) dToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
+        var locationClose = event.target && event.target.closest ? event.target.closest('[data-location-close]') : null;
+        if (locationClose) {
+          closeLocationSheet();
+          return;
+        }
+        var locationSave = event.target && event.target.closest ? event.target.closest('[data-location-save]') : null;
+        if (locationSave) {
+          if (card.getAttribute('data-location-can-edit') !== '1') return;
+          var locInputs = locationInputs();
+          var latValue = locInputs.lat ? locInputs.lat.value : '';
+          var lngValue = locInputs.lng ? locInputs.lng.value : '';
+          var previousLat = card.getAttribute('data-location-lat') || '';
+          var previousLng = card.getAttribute('data-location-lng') || '';
+          locationSave.disabled = true;
+          setActionStatus('観察地点を保存しています。', false);
+          postLocation(latValue, lngValue).then(function(payload){
+            var savedLat = payload.latitude;
+            var savedLng = payload.longitude;
+            setLocationValue(savedLat, savedLng);
+            closeLocationSheet();
+            addHistory('観察地点を変更: ' + locationLabel(savedLat, savedLng));
+            setActionStatus('観察地点を保存しました。', false);
+            showLocationToast('観察地点を保存しました。', previousLat, previousLng);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。地点を確認してください。', true);
+          }).finally(function(){
+            locationSave.disabled = false;
+          });
+          return;
+        }
+        var locationUndo = event.target && event.target.closest ? event.target.closest('[data-location-undo]') : null;
+        if (locationUndo) {
+          var lToast = locationToast();
+          var undoLat = lToast ? lToast.getAttribute('data-location-undo-lat') || '' : '';
+          var undoLng = lToast ? lToast.getAttribute('data-location-undo-lng') || '' : '';
+          if (!undoLat || !undoLng) return;
+          postLocation(undoLat, undoLng).then(function(payload){
+            setLocationValue(payload.latitude, payload.longitude);
+            addHistory('観察地点を元に戻しました: ' + locationLabel(payload.latitude, payload.longitude));
+            setActionStatus('観察地点を元に戻しました。', false);
+            if (lToast) lToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
         var envClose = event.target && event.target.closest ? event.target.closest('[data-env-close]') : null;
         if (envClose) {
           closeEnvSheet();
@@ -7967,6 +8500,35 @@ export function renderLocalObservationPolishScript(): string {
           return;
         }
       });
+      card.addEventListener('input', function(event){
+        var target = event.target;
+        if (!target) return;
+        if (target.matches && target.matches('[data-name-search]')) {
+          filterNameChoices();
+          return;
+        }
+        if (target.matches && (target.matches('[data-location-lat-input]') || target.matches('[data-location-lng-input]'))) {
+          updateLocationPin();
+        }
+      });
+      var locationMap = card.querySelector('[data-location-map]');
+      if (locationMap && locationMap.addEventListener) {
+        var draggingLocation = false;
+        locationMap.addEventListener('pointerdown', function(event){
+          draggingLocation = true;
+          if (locationMap.setPointerCapture && event.pointerId != null) locationMap.setPointerCapture(event.pointerId);
+          setLocationFromMap(event);
+        });
+        locationMap.addEventListener('pointermove', function(event){
+          if (draggingLocation) setLocationFromMap(event);
+        });
+        locationMap.addEventListener('pointerup', function(){
+          draggingLocation = false;
+        });
+        locationMap.addEventListener('pointercancel', function(){
+          draggingLocation = false;
+        });
+      }
       updateCount();
     }
     function pickJapaneseVoice(){
@@ -18046,6 +18608,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       qualityBlock: renderObservationQualityCard({
         snapshot,
         subject: currentSubject,
+        bundle,
+        nearby: heavy?.nearby ?? [],
         consensus,
         placeLabel: heroPlaceLabel,
         mediaContext,
