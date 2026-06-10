@@ -153,6 +153,101 @@ function organismOriginLabel(value: OrganismOriginValue): string {
   return ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === value)?.label ?? "不明";
 }
 
+const ENVIRONMENT_RECORD_FIELDS = [
+  {
+    field: "place_type",
+    label: "場所の型",
+    options: [
+      { value: "grassland_urban_edge", label: "草地と市街地の縁" },
+      { value: "urban", label: "市街地" },
+      { value: "woodland", label: "林内" },
+      { value: "water_edge", label: "水辺" },
+      { value: "wetland", label: "湿地" },
+      { value: "coast", label: "海岸" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "contact_surface",
+    label: "接している面",
+    options: [
+      { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
+      { value: "soil", label: "土" },
+      { value: "plant", label: "植物上" },
+      { value: "water", label: "水面・水中" },
+      { value: "rock", label: "岩・石" },
+      { value: "artificial", label: "人工物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "surrounding_cover",
+    label: "周辺の被覆",
+    options: [
+      { value: "low_grass", label: "低い草地" },
+      { value: "trees_shrubs", label: "樹木・低木" },
+      { value: "bare_ground", label: "裸地" },
+      { value: "water", label: "水" },
+      { value: "snow", label: "雪" },
+      { value: "built_surface", label: "舗装・構造物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "environment_condition",
+    label: "環境条件",
+    options: [
+      { value: "open_dry", label: "開けて乾き気味" },
+      { value: "sunny", label: "日当たり" },
+      { value: "shaded", label: "日陰" },
+      { value: "wet", label: "湿り気あり" },
+      { value: "flowing", label: "流れあり" },
+      { value: "windy", label: "風あり" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "human_change",
+    label: "人為・変化",
+    options: [
+      { value: "trampling_mowing", label: "踏圧・草刈り跡" },
+      { value: "mowing", label: "草刈り" },
+      { value: "trampling", label: "踏圧" },
+      { value: "planting", label: "植栽・管理" },
+      { value: "construction", label: "造成・工事" },
+      { value: "release", label: "放流・放逐" },
+      { value: "none_visible", label: "目立つ変化なし" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+] as const;
+
+type EnvironmentRecordField = typeof ENVIRONMENT_RECORD_FIELDS[number]["field"];
+
+function normalizeEnvironmentRecordField(value: unknown): EnvironmentRecordField {
+  const raw = String(value ?? "").trim();
+  const field = ENVIRONMENT_RECORD_FIELDS.find((item) => item.field === raw);
+  if (!field) {
+    throw new Error("invalid_environment_record_field");
+  }
+  return field.field;
+}
+
+function normalizeEnvironmentRecordValue(field: EnvironmentRecordField, value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const fieldDef = ENVIRONMENT_RECORD_FIELDS.find((item) => item.field === field);
+  const option = fieldDef?.options.find((item) => item.value === raw);
+  if (!option) {
+    throw new Error("invalid_environment_record_value");
+  }
+  return option.value;
+}
+
+function environmentRecordLabel(field: EnvironmentRecordField, value: string): string {
+  const fieldDef = ENVIRONMENT_RECORD_FIELDS.find((item) => item.field === field);
+  return fieldDef?.options.find((item) => item.value === value)?.label ?? "不明";
+}
+
 async function assertMutationRateLimit(
   request: FastifyRequest,
   scope: string,
@@ -538,6 +633,84 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return {
           ok: false,
           error: error instanceof Error ? error.message : "occurrence_origin_update_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { field?: unknown; value?: unknown } }>(
+    "/api/v1/occurrences/:id/environment-field",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-environment-field-update", session.userId, 60);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const field = normalizeEnvironmentRecordField(request.body?.field);
+        const value = normalizeEnvironmentRecordValue(field, request.body?.value);
+        const pool = getPool();
+        const current = await pool.query<{
+          occurrence_id: string;
+          lat: number | null;
+          lng: number | null;
+          structured: Record<string, unknown> | null;
+        }>(
+          `select o.occurrence_id,
+                  coalesce(v.point_latitude, p.center_latitude) as lat,
+                  coalesce(v.point_longitude, p.center_longitude) as lng,
+                  fc.structured
+             from occurrences o
+             join visits v on v.visit_id = o.visit_id
+             left join places p on p.place_id = v.place_id
+             left join lateral (
+               select structured
+                 from field_context fc
+                where fc.occurrence_id = o.occurrence_id
+                order by fc.created_at desc
+                limit 1
+             ) fc on true
+            where o.occurrence_id = $1
+            limit 1`,
+          [request.params.id],
+        );
+        const row = current.rows[0];
+        if (!row) {
+          throw new Error("observation_not_found");
+        }
+        const lat = row.lat == null ? NaN : Number(row.lat);
+        const lng = row.lng == null ? NaN : Number(row.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          throw new Error("occurrence_location_required");
+        }
+        const previous = row.structured && typeof row.structured === "object" && !Array.isArray(row.structured)
+          ? row.structured as Record<string, unknown>
+          : {};
+        const structured = {
+          ...previous,
+          [field]: value,
+          updated_by: "observation_detail_quality_card",
+          updated_at: new Date().toISOString(),
+        };
+        await pool.query(
+          `insert into field_context (
+             occurrence_id, lat, lng, structured, source_lang
+           ) values ($1, $2, $3, $4::jsonb, 'ja')`,
+          [request.params.id, lat, lng, JSON.stringify(structured)],
+        );
+        return {
+          ok: true,
+          occurrenceId: request.params.id,
+          field,
+          value,
+          label: environmentRecordLabel(field, value),
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_environment_field_update_failed",
         };
       }
     },

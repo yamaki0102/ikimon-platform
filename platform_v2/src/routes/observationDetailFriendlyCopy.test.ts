@@ -540,16 +540,22 @@ test("observation quality change buttons are wired to real page targets", () => 
   assert.match(qualitySource, /data-origin-toast/);
   assert.match(qualitySource, /data-quality-action="media"/);
   assert.match(qualitySource, /data-quality-action-status/);
-  assert.doesNotMatch(qualitySource, /obs-local-quality-field-edit/);
+  assert.match(qualitySource, /obs-local-quality-field-edit/);
+  assert.match(qualitySource, /data-env-edit="\$\{escapeHtml\(field\.field\)\}"/);
+  assert.match(qualitySource, /data-env-sheet/);
+  assert.match(qualitySource, /data-env-save/);
+  assert.match(qualitySource, /data-env-toast/);
   assert.match(polishSource, /function handleQualityAction/);
   assert.match(polishSource, /event\.target[\s\S]*?closest\('\.obs-local-quality-change\[data-quality-action\]'\)/);
   assert.match(polishSource, /openIdentify\('support'\)/);
   assert.match(polishSource, /function openOriginSheet/);
   assert.match(polishSource, /fetch\('\/api\/v1\/occurrences\/' \+ encodeURIComponent\(occurrenceId\) \+ '\/origin'/);
+  assert.match(polishSource, /function openEnvSheet/);
+  assert.match(polishSource, /fetch\('\/api\/v1\/occurrences\/' \+ encodeURIComponent\(occurrenceId\) \+ '\/environment-field'/);
+  assert.match(polishSource, /data-env-undo/);
   assert.match(polishSource, /data-origin-undo/);
   assert.match(polishSource, /querySelector\('\[data-photo-recovery\]'\)/);
   assert.doesNotMatch(polishSource, /由来メモ: /);
-  assert.doesNotMatch(polishSource, /環境レコードを変更/);
 });
 
 test("AI readout stays simple while the assessment is still being created", () => {
