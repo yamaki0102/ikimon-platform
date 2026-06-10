@@ -1704,8 +1704,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-chip { position: relative; display: grid; gap: 4px; min-height: 74px; padding: 9px 10px; border-radius: 11px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.07); color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 850; }
   .obs-local-quality-chip-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
   .obs-local-quality-chip strong { color: #0f172a; font-size: 11px; line-height: 1.22; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .obs-local-quality-chip-value-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 8px; }
+  .obs-local-quality-chip-value-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
   .obs-local-quality-chip em { min-width: 0; color: #0f172a; font-size: 10.8px; line-height: 1.42; font-style: normal; font-weight: 880; }
+  .obs-local-quality-field-edit { justify-self: end; align-self: center; padding: 2px 6px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #0369a1; font-size: 9.4px; line-height: 1.2; font-weight: 950; cursor: pointer; }
   .obs-local-quality-help { position: relative; display: inline-block; flex: 0 0 auto; }
   .obs-local-quality-help summary { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; min-height: 18px; padding: 0 5px; border-radius: 999px; background: rgba(248,250,252,.96); border: 1px solid rgba(15,23,42,.07); color: #64748b; font-size: 9.5px; line-height: 1.1; font-weight: 950; cursor: pointer; list-style: none; }
   .obs-local-quality-help summary::-webkit-details-marker { display: none; }
@@ -7059,6 +7060,96 @@ function observationOriginLabel(value: string | null | undefined): string {
   return OBSERVATION_ORIGIN_OPTIONS.find((option) => option.value === normalized)?.label ?? "不明";
 }
 
+const ENVIRONMENT_RECORD_FIELDS = [
+  {
+    field: "place_type",
+    title: "場所の型",
+    help: "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。",
+    fallback: "grassland_urban_edge",
+    options: [
+      { value: "grassland_urban_edge", label: "草地と市街地の縁" },
+      { value: "urban", label: "市街地" },
+      { value: "woodland", label: "林内" },
+      { value: "water_edge", label: "水辺" },
+      { value: "wetland", label: "湿地" },
+      { value: "coast", label: "海岸" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "contact_surface",
+    title: "接している面",
+    help: "対象が触れている・立っている・浮いている面を残す。",
+    fallback: "soil_gravel_litter",
+    options: [
+      { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
+      { value: "soil", label: "土" },
+      { value: "plant", label: "植物上" },
+      { value: "water", label: "水面・水中" },
+      { value: "rock", label: "岩・石" },
+      { value: "artificial", label: "人工物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "surrounding_cover",
+    title: "周辺の被覆",
+    help: "まわりを覆う植物、水、雪、岩、構造物などを残す。",
+    fallback: "low_grass",
+    options: [
+      { value: "low_grass", label: "低い草地" },
+      { value: "trees_shrubs", label: "樹木・低木" },
+      { value: "bare_ground", label: "裸地" },
+      { value: "water", label: "水" },
+      { value: "snow", label: "雪" },
+      { value: "built_surface", label: "舗装・構造物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "environment_condition",
+    title: "環境条件",
+    help: "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。",
+    fallback: "open_dry",
+    options: [
+      { value: "open_dry", label: "開けて乾き気味" },
+      { value: "sunny", label: "日当たり" },
+      { value: "shaded", label: "日陰" },
+      { value: "wet", label: "湿り気あり" },
+      { value: "flowing", label: "流れあり" },
+      { value: "windy", label: "風あり" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "human_change",
+    title: "人為・変化",
+    help: "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。",
+    fallback: "trampling_mowing",
+    options: [
+      { value: "trampling_mowing", label: "踏圧・草刈り跡" },
+      { value: "mowing", label: "草刈り" },
+      { value: "trampling", label: "踏圧" },
+      { value: "planting", label: "植栽・管理" },
+      { value: "construction", label: "造成・工事" },
+      { value: "release", label: "放流・放逐" },
+      { value: "none_visible", label: "目立つ変化なし" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+] as const;
+
+type EnvironmentRecordField = typeof ENVIRONMENT_RECORD_FIELDS[number];
+
+function environmentRecordValue(record: Record<string, string> | null | undefined, field: EnvironmentRecordField): string {
+  const raw = String(record?.[field.field] ?? "").trim();
+  return field.options.some((option) => option.value === raw) ? raw : field.fallback;
+}
+
+function environmentRecordLabel(field: EnvironmentRecordField, value: string): string {
+  return field.options.find((option) => option.value === value)?.label ?? "不明";
+}
+
 function renderObservationQualityCard(options: {
   snapshot: ObservationDetailSnapshot;
   subject: ObservationVisitSubject;
@@ -7093,7 +7184,16 @@ function renderObservationQualityCard(options: {
     : options.canEditOrigin
       ? "この記録の由来区分を選んで保存します。"
       : "由来区分は投稿者だけが変更できます。";
-  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}">
+  const environmentRecord = options.snapshot.environmentRecord ?? {};
+  const environmentFieldCards = ENVIRONMENT_RECORD_FIELDS.map((field) => {
+    const value = environmentRecordValue(environmentRecord, field);
+    const label = environmentRecordLabel(field, value);
+    return `<div class="obs-local-quality-chip" data-quality-chip data-env-field="${escapeHtml(field.field)}" data-env-current="${escapeHtml(value)}">
+      <div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(field.title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(field.help, glossaryTerms, 2)}</p></details></div>
+      <div class="obs-local-quality-chip-value-row"><em data-env-field-label>${escapeHtml(label)}</em><button class="obs-local-quality-field-edit" type="button" data-env-edit="${escapeHtml(field.field)}">変更</button></div>
+    </div>`;
+  }).join("");
+  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}">
     <div class="obs-local-quality-head">
       <div>
         <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
@@ -7136,15 +7236,27 @@ function renderObservationQualityCard(options: {
     <div class="obs-local-quality-draft" data-quality-draft>
       <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div>
       <div class="obs-local-quality-draft-grid">
-        ${([
-          ["場所の型", "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。", /鳥|カワラヒワ|イネ科|草/i.test(`${subjectName} ${options.subject.focusReason}`) ? "草地と市街地の縁" : "観察場所の周辺"],
-          ["接している面", "対象が触れている・立っている・浮いている面を残す。", "土、礫、枯れ草が混じる足元"],
-          ["周辺の被覆", "まわりを覆う植物、水、雪、岩、構造物などを残す。", isGreenfinchSnapshot ? "低い草地とイネ科らしい草本" : "低い草地と周辺の植生"],
-          ["環境条件", "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。", isGreenfinchSnapshot ? "乾きやすそうな開けた足元" : "開けた足元"],
-          ["人為・変化", "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。", isGreenfinchSnapshot ? "踏圧と草刈り後のような跡" : "踏圧や管理の跡"],
-        ] satisfies Array<[string, string, string]>).map(([title, help, value]) => `<div class="obs-local-quality-chip" data-quality-chip><div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(help, glossaryTerms, 2)}</p></details></div><div class="obs-local-quality-chip-value-row"><em>${renderGlossaryText(value, glossaryTerms, 2)}</em></div></div>`).join("")}
+        ${environmentFieldCards}
       </div>
     </div>
+    <div class="obs-origin-sheet" data-env-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-env-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-env-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">ENVIRONMENT</div>
+            <h4 id="obs-env-sheet-title" data-env-sheet-title>環境レコード</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-env-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message" data-env-message>${escapeHtml(options.isLoggedIn ? options.canEditOrigin ? "項目を選んで保存します。" : "環境レコードは投稿者だけが変更できます。" : "ログインすると、自分の記録に環境レコードを保存できます。")}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-origin-choice-list" data-env-choice-list></div>
+        <button class="obs-origin-save" type="button" data-env-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-env-toast hidden><span data-env-toast-text></span><button type="button" data-env-undo>元に戻す</button></div>
     <div class="obs-origin-sheet" data-origin-sheet hidden>
       <div class="obs-origin-sheet-scrim" data-origin-close></div>
       <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-origin-sheet-title">
@@ -7506,6 +7618,26 @@ export function renderLocalObservationPolishScript(): string {
       var ORIGIN_LABELS = { wild: '野生', planted: '植栽', captive: '飼育', released: '放流', unknown: '不明' };
       var selectedOrigin = card.getAttribute('data-origin-current') || 'unknown';
       var undoTimer = null;
+      var ENV_FIELDS = {
+        place_type: { title: '場所の型', options: [
+          ['grassland_urban_edge', '草地と市街地の縁'], ['urban', '市街地'], ['woodland', '林内'], ['water_edge', '水辺'], ['wetland', '湿地'], ['coast', '海岸'], ['unknown', '不明']
+        ] },
+        contact_surface: { title: '接している面', options: [
+          ['soil_gravel_litter', '土・礫・枯れ草'], ['soil', '土'], ['plant', '植物上'], ['water', '水面・水中'], ['rock', '岩・石'], ['artificial', '人工物'], ['unknown', '不明']
+        ] },
+        surrounding_cover: { title: '周辺の被覆', options: [
+          ['low_grass', '低い草地'], ['trees_shrubs', '樹木・低木'], ['bare_ground', '裸地'], ['water', '水'], ['snow', '雪'], ['built_surface', '舗装・構造物'], ['unknown', '不明']
+        ] },
+        environment_condition: { title: '環境条件', options: [
+          ['open_dry', '開けて乾き気味'], ['sunny', '日当たり'], ['shaded', '日陰'], ['wet', '湿り気あり'], ['flowing', '流れあり'], ['windy', '風あり'], ['unknown', '不明']
+        ] },
+        human_change: { title: '人為・変化', options: [
+          ['trampling_mowing', '踏圧・草刈り跡'], ['mowing', '草刈り'], ['trampling', '踏圧'], ['planting', '植栽・管理'], ['construction', '造成・工事'], ['release', '放流・放逐'], ['none_visible', '目立つ変化なし'], ['unknown', '不明']
+        ] }
+      };
+      var selectedEnvField = '';
+      var selectedEnvValue = '';
+      var envUndoTimer = null;
       function originLabel(value){ return ORIGIN_LABELS[value] || ORIGIN_LABELS.unknown; }
       function originSheet(){ return card.querySelector('[data-origin-sheet]'); }
       function originToast(){ return card.querySelector('[data-origin-toast]'); }
@@ -7570,6 +7702,93 @@ export function renderLocalObservationPolishScript(): string {
         undoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
         toast.setAttribute('data-origin-undo-value', previousValue || 'unknown');
       }
+      function envFieldDef(field){ return ENV_FIELDS[field] || null; }
+      function envLabel(field, value){
+        var def = envFieldDef(field);
+        if (!def) return '不明';
+        for (var i = 0; i < def.options.length; i += 1) {
+          if (def.options[i][0] === value) return def.options[i][1];
+        }
+        return '不明';
+      }
+      function envSheet(){ return card.querySelector('[data-env-sheet]'); }
+      function envToast(){ return card.querySelector('[data-env-toast]'); }
+      function setEnvChoice(value){
+        selectedEnvValue = value || 'unknown';
+        Array.prototype.forEach.call(card.querySelectorAll('[data-env-choice]'), function(choice){
+          var active = choice.getAttribute('data-env-choice') === selectedEnvValue;
+          choice.classList.toggle('is-selected', active);
+          choice.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+      }
+      function renderEnvChoices(field, currentValue){
+        var def = envFieldDef(field);
+        var list = card.querySelector('[data-env-choice-list]');
+        if (!def || !list) return;
+        while (list.firstChild) list.removeChild(list.firstChild);
+        def.options.forEach(function(option){
+          var button = document.createElement('button');
+          button.className = 'obs-origin-choice';
+          button.type = 'button';
+          button.setAttribute('data-env-choice', option[0]);
+          button.textContent = option[1];
+          list.appendChild(button);
+        });
+        setEnvChoice(currentValue || (def.options[0] && def.options[0][0]) || 'unknown');
+      }
+      function setEnvValue(field, value){
+        var chip = card.querySelector('[data-env-field="' + field + '"]');
+        if (!chip) return;
+        chip.setAttribute('data-env-current', value || 'unknown');
+        var label = chip.querySelector('[data-env-field-label]');
+        if (label) label.textContent = envLabel(field, value);
+      }
+      function openEnvSheet(field){
+        var def = envFieldDef(field);
+        var sheet = envSheet();
+        if (!def || !sheet) return false;
+        selectedEnvField = field;
+        var chip = card.querySelector('[data-env-field="' + field + '"]');
+        var current = chip ? chip.getAttribute('data-env-current') || '' : '';
+        var title = sheet.querySelector('[data-env-sheet-title]');
+        if (title) title.textContent = def.title;
+        renderEnvChoices(field, current);
+        sheet.hidden = false;
+        var first = sheet.querySelector('[data-env-choice].is-selected') || sheet.querySelector('[data-env-choice]') || sheet.querySelector('[data-env-close]');
+        if (first && typeof first.focus === 'function') window.setTimeout(function(){ first.focus(); }, 30);
+        return true;
+      }
+      function closeEnvSheet(){
+        var sheet = envSheet();
+        if (sheet) sheet.hidden = true;
+      }
+      function postEnvField(field, value){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return fetch('/api/v1/occurrences/' + encodeURIComponent(occurrenceId) + '/environment-field', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field: field, value: value })
+        }).then(function(response){
+          return response.json().catch(function(){ return {}; }).then(function(payload){
+            if (!response.ok || !payload || payload.ok !== true) {
+              throw new Error((payload && payload.error) || 'environment_field_save_failed');
+            }
+            return payload;
+          });
+        });
+      }
+      function showEnvToast(text, field, previousValue){
+        var toast = envToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-env-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (envUndoTimer) window.clearTimeout(envUndoTimer);
+        envUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-env-undo-field', field || '');
+        toast.setAttribute('data-env-undo-value', previousValue || 'unknown');
+      }
       function openIdentify(action){
         var identify = document.getElementById('identify');
         if (!identify) return false;
@@ -7631,6 +7850,72 @@ export function renderLocalObservationPolishScript(): string {
         }
       }
       card.addEventListener('click', function(event){
+        var envClose = event.target && event.target.closest ? event.target.closest('[data-env-close]') : null;
+        if (envClose) {
+          closeEnvSheet();
+          return;
+        }
+        var envEdit = event.target && event.target.closest ? event.target.closest('[data-env-edit]') : null;
+        if (envEdit) {
+          var field = envEdit.getAttribute('data-env-edit') || '';
+          var openedEnv = openEnvSheet(field);
+          if (card.getAttribute('data-env-login-required') === '1') {
+            setActionStatus(openedEnv ? 'ログインすると環境レコードを保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnv);
+            return;
+          }
+          if (card.getAttribute('data-env-can-edit') !== '1') {
+            setActionStatus('環境レコードは投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedEnv ? '環境レコードを選んで保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnv);
+          return;
+        }
+        var envChoice = event.target && event.target.closest ? event.target.closest('[data-env-choice]') : null;
+        if (envChoice) {
+          if (card.getAttribute('data-env-can-edit') === '1') setEnvChoice(envChoice.getAttribute('data-env-choice') || 'unknown');
+          return;
+        }
+        var envSave = event.target && event.target.closest ? event.target.closest('[data-env-save]') : null;
+        if (envSave) {
+          if (card.getAttribute('data-env-can-edit') !== '1' || !selectedEnvField) return;
+          var envChip = card.querySelector('[data-env-field="' + selectedEnvField + '"]');
+          var previousEnv = envChip ? envChip.getAttribute('data-env-current') || 'unknown' : 'unknown';
+          envSave.disabled = true;
+          setActionStatus('環境レコードを保存しています。', false);
+          postEnvField(selectedEnvField, selectedEnvValue).then(function(payload){
+            var savedField = payload.field || selectedEnvField;
+            var savedValue = payload.value || selectedEnvValue;
+            var savedLabel = payload.label || envLabel(savedField, savedValue);
+            setEnvValue(savedField, savedValue);
+            closeEnvSheet();
+            addHistory('環境レコードを変更: ' + envFieldDef(savedField).title + ' / ' + savedLabel);
+            setActionStatus('環境レコードを保存しました。', false);
+            showEnvToast(envFieldDef(savedField).title + 'を「' + savedLabel + '」にしました。', savedField, previousEnv);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。時間をおいて再度お試しください。', true);
+          }).finally(function(){
+            envSave.disabled = false;
+          });
+          return;
+        }
+        var envUndo = event.target && event.target.closest ? event.target.closest('[data-env-undo]') : null;
+        if (envUndo) {
+          var envUndoToast = envToast();
+          var undoField = envUndoToast ? envUndoToast.getAttribute('data-env-undo-field') || '' : '';
+          var undoValue = envUndoToast ? envUndoToast.getAttribute('data-env-undo-value') || 'unknown' : 'unknown';
+          if (!undoField) return;
+          postEnvField(undoField, undoValue).then(function(payload){
+            var restoredField = payload.field || undoField;
+            var restoredValue = payload.value || undoValue;
+            setEnvValue(restoredField, restoredValue);
+            addHistory('環境レコードを元に戻しました: ' + envFieldDef(restoredField).title + ' / ' + envLabel(restoredField, restoredValue));
+            setActionStatus('環境レコードを元に戻しました。', false);
+            if (envUndoToast) envUndoToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
         var originClose = event.target && event.target.closest ? event.target.closest('[data-origin-close]') : null;
         if (originClose) {
           closeOriginSheet();

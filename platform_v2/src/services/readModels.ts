@@ -144,6 +144,7 @@ export type ObservationDetailSnapshot = {
   scientificName: string | null;
   vernacularName: string | null;
   organismOrigin: string | null;
+  environmentRecord: Record<string, string> | null;
   aiAssessmentStatus: string | null;
   aiReviewAgreeCount: number;
   aiReviewDisagreeCount: number;
@@ -915,6 +916,7 @@ export async function getObservationDetailSnapshot(
     scientific_name: string | null;
     vernacular_name: string | null;
     organism_origin: string | null;
+    environment_record: Record<string, unknown> | null;
     ai_assessment_status: string | null;
     observed_at: string;
     note: string | null;
@@ -946,6 +948,7 @@ export async function getObservationDetailSnapshot(
         o.scientific_name,
         o.vernacular_name,
         o.organism_origin,
+        fc.structured as environment_record,
         o.ai_assessment_status,
         v.observed_at::text,
         v.note,
@@ -979,6 +982,13 @@ export async function getObservationDetailSnapshot(
        where ea.asset_id = u.avatar_asset_id
        limit 1
      ) avatar on true
+     left join lateral (
+       select structured
+         from field_context fc
+        where fc.occurrence_id = o.occurrence_id
+        order by fc.created_at desc
+        limit 1
+     ) fc on true
      where (o.occurrence_id = $1
         or v.visit_id = $1
         or o.legacy_observation_id = $1)
@@ -999,6 +1009,12 @@ export async function getObservationDetailSnapshot(
   const surveyResult = typeof visitPayload.survey_result === "string" ? visitPayload.survey_result : null;
   const absenceSemantics = typeof visitPayload.absence_semantics === "string" ? visitPayload.absence_semantics : null;
   const revisitReason = typeof visitPayload.revisit_reason === "string" ? visitPayload.revisit_reason : null;
+  const environmentRecord = base.environment_record && typeof base.environment_record === "object"
+    ? Object.fromEntries(
+        Object.entries(base.environment_record)
+          .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== ""),
+      )
+    : null;
 
   const photosResult = await pool.query<{
     asset_id: string;
@@ -1319,6 +1335,7 @@ export async function getObservationDetailSnapshot(
     scientificName: base.scientific_name,
     vernacularName: base.vernacular_name,
     organismOrigin: base.organism_origin,
+    environmentRecord,
     aiAssessmentStatus: base.ai_assessment_status,
     aiReviewAgreeCount,
     aiReviewDisagreeCount,
