@@ -141,8 +141,8 @@ test("home page uses the current content-first top surface", async () => {
     assert.match(response.body, /生きものを手がかりに、/);
     assert.match(response.body, /この場所の今を残す/);
     assert.match(response.body, /prototype-content-wall/);
-    assert.match(response.body, /EVERYONE&#39;S RECORDS/);
-    assert.match(response.body, /みんなの記録/);
+    assert.match(response.body, /PLACE MEMORY/);
+    assert.match(response.body, /場所の今を残す記録/);
     assert.match(response.body, /育つ観察エリア/);
     assert.match(response.body, /FIELD EVENTS/);
     assert.match(response.body, /近くの観察会/);
