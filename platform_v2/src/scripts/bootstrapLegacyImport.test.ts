@@ -47,3 +47,15 @@ test("legacy bootstrap preserves existing privileged user roles", async () => {
   assert.match(source, /role_name = case[\s\S]*lower\(coalesce\(users\.role_name, ''\)\) in \('admin', 'analyst'\)[\s\S]*then users\.role_name/);
   assert.match(source, /rank_label = case[\s\S]*coalesce\(users\.rank_label, ''\) in \('管理者', '分析担当'\)[\s\S]*then users\.rank_label/);
 });
+
+test("legacy bootstrap can scope delta imports to changed observation and track files", async () => {
+  const source = await readFile(path.join(process.cwd(), "src/scripts/bootstrapLegacyImport.ts"), "utf8");
+
+  assert.match(source, /--changed-files-manifest=/);
+  assert.match(source, /global_legacy_file_changed/);
+  assert.match(source, /\^observations\\\/\[\^\/\]\+\\\.json\$/);
+  assert.match(source, /\^tracks\\\/\[\^\/\]\+\\\/\[\^\/\]\+\\\.json\$/);
+  assert.match(source, /metadata->>'source_observation_id' = any\(\$2::text\[\]\)/);
+  assert.match(source, /delete from visit_track_points where visit_id = any\(\$1::text\[\]\)/);
+  assert.match(source, /if \(importScope\.mode === "full"\)[\s\S]*importRememberTokens/);
+});

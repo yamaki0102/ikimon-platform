@@ -1,6 +1,7 @@
-import { access, readdir, stat } from "node:fs/promises";
+import { access, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import { getPool } from "../db.js";
 import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
 
@@ -226,44 +227,62 @@ async function upsertCursor(sourceName: string, cursorValue: number, metadata: R
   );
 }
 
-function runImporter(options: SyncOptions): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "run",
-      "import:legacy",
-      "--",
-      `--legacy-data-root=${options.legacyDataRoot}`,
-      `--uploads-root=${options.uploadsRoot}`,
-    ];
+async function runImporterForChangedFiles(options: SyncOptions, changedFiles: WatchFile[]): Promise<void> {
+  const manifestPath =
+    options.force || changedFiles.length === 0
+      ? null
+      : path.join(await mkdtemp(path.join(tmpdir(), "ikimon-legacy-delta-")), "changed-files.json");
 
-    if (process.env.LEGACY_MIRROR_ROOT) {
-      args.push(`--mirror-root=${process.env.LEGACY_MIRROR_ROOT}`);
-    }
+  if (manifestPath) {
+    await writeFile(manifestPath, JSON.stringify(changedFiles.map((file) => file.filePath), null, 2), "utf8");
+  }
 
-    if (options.publicRoot) {
-      args.push(`--public-root=${options.publicRoot}`);
-    }
-    if (options.importVersion) {
-      args.push(`--import-version=${options.importVersion}`);
-    }
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const args = [
+        "run",
+        "import:legacy",
+        "--",
+        `--legacy-data-root=${options.legacyDataRoot}`,
+        `--uploads-root=${options.uploadsRoot}`,
+      ];
 
-    const child = spawn("npm", args, {
-      stdio: "inherit",
-      env: process.env,
-      cwd: process.cwd(),
-      shell: process.platform === "win32",
-    });
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
+      if (process.env.LEGACY_MIRROR_ROOT) {
+        args.push(`--mirror-root=${process.env.LEGACY_MIRROR_ROOT}`);
       }
 
-      reject(new Error(`import:legacy exited with code ${code ?? -1}`));
+      if (options.publicRoot) {
+        args.push(`--public-root=${options.publicRoot}`);
+      }
+      if (options.importVersion) {
+        args.push(`--import-version=${options.importVersion}`);
+      }
+      if (manifestPath) {
+        args.push(`--changed-files-manifest=${manifestPath}`);
+      }
+
+      const child = spawn("npm", args, {
+        stdio: "inherit",
+        env: process.env,
+        cwd: process.cwd(),
+        shell: process.platform === "win32",
+      });
+
+      child.on("error", reject);
+      child.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+
+        reject(new Error(`import:legacy exited with code ${code ?? -1}`));
+      });
     });
-  });
+  } finally {
+    if (manifestPath) {
+      await rm(path.dirname(manifestPath), { recursive: true, force: true });
+    }
+  }
 }
 
 async function main() {
@@ -313,7 +332,7 @@ async function main() {
   }
 
   try {
-    await runImporter(options);
+    await runImporterForChangedFiles(options, changedFiles);
     const nextCursor = Math.max(previousCursor, latestMtimeMs);
     await upsertCursor(options.sourceName, nextCursor, {
       changedFiles: changedFiles.length,
