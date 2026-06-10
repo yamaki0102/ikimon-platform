@@ -104,9 +104,9 @@ After PR #715 is merged and the first production deploy finishes:
    smoke. If deploy/import/docs-only files change, use targeted health/readiness/route smoke and
    compare the candidate-smoke job duration against the prior full-smoke baseline.
 3. Legacy lane is tiered by changed files. If no legacy PHP / `upload_package` / legacy runtime
-   boundary files changed, sync `/var/www/ikimon.life/repo` to the release SHA and skip the full
-   legacy `deploy.sh` backup/permission/PHP-FPM path. Compare `Repo sync sec` against the prior
-   `Legacy deploy over SSH` baseline.
+   boundary files changed, preserve runtime data/config while syncing `/var/www/ikimon.life/repo`
+   to the release SHA and skip the full legacy `deploy.sh` uploads/permission/PHP-FPM path.
+   Compare `Repo sync sec` against the prior `Legacy deploy over SSH` baseline.
 4. Split candidate packaging from server install only if repeated `npm ci` and build become
    dominant again after cache.
 5. Keep readiness gates and route smoke intact; do not trade rollback safety for speed.
