@@ -152,6 +152,9 @@ repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を r
 Production deploy keeps rollback, readiness, and browser smoke checks intact. Speed improvements
 must remove repeated deterministic work, not safety checks.
 
+- The production workflow is serialized with `concurrency.group: production-deploy` and
+  `cancel-in-progress: false`. A running production deploy must finish or fail before a later
+  push/manual dispatch starts; do not cancel an in-flight promote path for speed.
 - VPS-side `npm ci` uses `${APP_ROOT}/cache/npm` with `--prefer-offline`. Lockfile validation still
   runs through `npm ci`; the cache only avoids repeated package downloads.
 - Production candidate build uses `npm run build:server`. The full `npm run build` quality checks
