@@ -9,6 +9,7 @@ STATE_DIR="${STATE_DIR:-${APP_ROOT}/deploy_state}"
 CACHE_DIR="${CACHE_DIR:-${APP_ROOT}/cache}"
 STATIC_IMPORT_STATE_DIR="${STATIC_IMPORT_STATE_DIR:-${STATE_DIR}/static_imports}"
 FORCE_STATIC_IMPORTS="${FORCE_STATIC_IMPORTS:-0}"
+FORCE_LEGACY_SYNC="${FORCE_LEGACY_SYNC:-0}"
 ENV_DIR="${ENV_DIR:-/etc/ikimon}"
 ENV_FILE="${ENV_FILE:-/etc/ikimon/production-v2.env}"
 NGINX_TEMPLATE="${NGINX_TEMPLATE:-${REPO_DIR}/platform_v2/ops/nginx/ikimon.life-v2-cutover.conf}"
@@ -312,6 +313,19 @@ run_hashed_static_import() {
   write_marker "${marker}" "${hash}"
 }
 
+sync_legacy_delta() {
+  local args=(
+    --source-name=production_legacy_fs
+    --import-version=production_shadow_live
+  )
+
+  if [[ "${FORCE_LEGACY_SYNC}" == "1" ]]; then
+    args=(--force "${args[@]}")
+  fi
+
+  npm run sync:legacy -- "${args[@]}"
+}
+
 import_shizuoka_admin_areas() {
   local tmp zip geojson marker version existing
   version="N03-20250101_22_GML:2025-01-01"
@@ -399,7 +413,7 @@ prepare_release() {
   timed_step "restart_inactive_service" systemctl restart "ikimon-v2-${inactive}.service"
   timed_step "check_inactive_service" bash -c 'systemctl is-active "$1" >/dev/null' _ "ikimon-v2-${inactive}.service"
 
-  timed_step "sync_legacy" npm run sync:legacy -- --force --source-name=production_legacy_fs --import-version=production_shadow_live
+  timed_step "sync_legacy" sync_legacy_delta
   timed_step "repair_location_labels" npm run repair:location-labels
   timed_step "repair_hamamatsu_ward_labels" npm run repair:hamamatsu-ward-labels -- --apply
   timed_step "verify_production_shadow" npm run verify:production-shadow -- --import-version=production_shadow_live

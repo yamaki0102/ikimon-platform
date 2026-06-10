@@ -95,6 +95,12 @@ After PR #715 is merged and the first production deploy finishes:
 
 ## Next Improvement Candidates
 
-1. Add structured step timing logs in the VPS script if PR #715 does not reduce prepare time enough.
-2. Split candidate packaging from server install only if repeated `npm ci` and build remain dominant after cache.
-3. Keep candidate/browser smoke and readiness gates intact; do not trade rollback safety for speed.
+1. Keep legacy sync in cursor-based delta mode during deploy. If `sync_legacy` remains dominant,
+   inspect changed-file counts before considering a broader architecture change. Use
+   `FORCE_LEGACY_SYNC=1` only for recovery, cursor repair, or an intentional full re-import.
+2. Candidate browser smoke is the largest remaining fixed safety cost after warm-path prepare.
+   Any fast lane should add a separate reduced smoke contract instead of weakening the normal
+   production deploy.
+3. Split candidate packaging from server install only if repeated `npm ci` and build become
+   dominant again after cache.
+4. Keep candidate/browser smoke and readiness gates intact; do not trade rollback safety for speed.
