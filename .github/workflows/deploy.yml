@@ -122,17 +122,21 @@ jobs:
             "git -C /var/www/ikimon.life/repo remote set-url origin '${repo_url}'"
 
       - name: Sync production repo via SSH
+        id: repo-sync
         if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode == 'sync_only' }}
         run: |
-          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 "RELEASE_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
+          sync_output="$(ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 "RELEASE_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
           set -euo pipefail
           APP_ROOT="/var/www/ikimon.life"
           REPO_DIR="${APP_ROOT}/repo"
           DATA_DIR="${REPO_DIR}/upload_package/data"
           CONFIG_DIR="${REPO_DIR}/upload_package/config"
+          UPLOADS_DIR="${REPO_DIR}/upload_package/public_html/uploads"
+          PERSISTENT_UPLOADS="${APP_ROOT}/persistent/uploads"
           RUNTIME_ALLOWLIST="${REPO_DIR}/ops/deploy/runtime_persistent_allowlist.txt"
           BACKUP_DIR="$(mktemp -d /tmp/ikimon-repo-sync-XXXX)"
           CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
+          force_legacy_sync=0
 
           load_runtime_allowlist() {
             if [ ! -f "$RUNTIME_ALLOWLIST" ]; then
@@ -198,6 +202,11 @@ jobs:
 
           cd "$REPO_DIR"
           git fetch origin main >/dev/null
+          if [ ! -L "$UPLOADS_DIR" ] || [ "$(readlink -f "$UPLOADS_DIR" 2>/dev/null || true)" != "$PERSISTENT_UPLOADS" ]; then
+            force_legacy_sync=1
+            echo "Will force legacy sync once because uploads symlink is not aligned with persistent storage."
+          fi
+
           mkdir -p "$BACKUP_DIR/data" "$BACKUP_DIR/config"
           copy_runtime_allowlist "$DATA_DIR" "$BACKUP_DIR/data"
           for file_name in "${CONFIG_FILES[@]}"; do
@@ -215,17 +224,31 @@ jobs:
               cp -a "$BACKUP_DIR/config/$file_name" "$CONFIG_DIR/$file_name"
             fi
           done
+          mkdir -p "$PERSISTENT_UPLOADS"
+          rm -rf "$UPLOADS_DIR"
+          ln -sfn "$PERSISTENT_UPLOADS" "$UPLOADS_DIR"
+          chown -h www-data:www-data "$UPLOADS_DIR" 2>/dev/null || true
           echo "Production repo synced to $(git rev-parse --short HEAD)"
+          echo "force_legacy_sync=${force_legacy_sync}"
           REMOTE
+          )"
+          printf '%s\n' "$sync_output"
+          if printf '%s\n' "$sync_output" | grep -q '^force_legacy_sync=1$'; then
+            echo "force_legacy_sync=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "force_legacy_sync=0" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Deploy legacy lane via SSH
         if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode != 'sync_only' }}
         run: ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 /var/www/ikimon.life/deploy.sh
 
       - name: Prepare inactive platform_v2 candidate
+        env:
+          FORCE_LEGACY_SYNC: ${{ steps.repo-sync.outputs.force_legacy_sync }}
         run: |
           ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh prepare '${GITHUB_SHA}'"
+            "FORCE_LEGACY_SYNC='${FORCE_LEGACY_SYNC}' bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh prepare '${GITHUB_SHA}'"
 
       - name: Read candidate port
         id: candidate-port
