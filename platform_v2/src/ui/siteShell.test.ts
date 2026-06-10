@@ -29,6 +29,9 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /credentials: 'same-origin'/);
   assert.match(html, /マイページ/);
   assert.match(html, /rel="manifest" href="\/manifest\.webmanifest\?lang=ja"/);
+  assert.match(html, /rel="apple-touch-icon" href="\/assets\/brand\/apple-touch-icon\.png"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="32x32" href="\/assets\/brand\/favicon-32\.png"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="192x192" href="\/assets\/brand\/app-icon-192\.png"/);
   assert.match(html, /navigator\.languages/);
   assert.match(html, /beforeinstallprompt/);
   assert.match(html, /navigator\.serviceWorker\.register\('\/app-sw\.js'/);
@@ -87,9 +90,22 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
   assert.match(html, /<span class="brand-wordmark" aria-label="ikimon">/);
+  assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/ikimon-wordmark-black\.png" alt="" \/>/);
+  assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/app-icon-192\.png" alt="" \/><\/span>/);
+  assert.match(html, /\.brand-logo-lockup \{[\s\S]*align-items: center;[\s\S]*gap: 7px;/);
+  assert.match(html, /\.brand-wordmark \{[\s\S]*flex: 0 0 auto;[\s\S]*width: auto;[\s\S]*height: 16px;[\s\S]*aspect-ratio: 711 \/ 222;/);
+  assert.match(html, /\.brand-wordmark-img \{[\s\S]*width: auto;[\s\S]*height: 100%;[\s\S]*max-width: none;/);
+  assert.match(html, /--ikimon-header-brand-w: max\(var\(--ikimon-desktop-sidebar-w\), 154px\);/);
+  assert.match(html, /body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-header-brand-w: 154px;/);
+  assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) auto;/);
+  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: auto;[\s\S]*height: 15px;[\s\S]*aspect-ratio: 711 \/ 222;/);
+  assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ikimon" \/>/);
   assert.match(html, /<meta property="og:site_name" content="ikimon" \/>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
+  assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
+  assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
   assert.match(html, /<span>ikimon<\/span>\s*<span>Enjoy Life<\/span>/);
 });
 
@@ -405,6 +421,7 @@ test("subpages use centered width contracts instead of homepage width", () => {
   assert.match(readingHtml, /\.shell\.shell-layout-reading \{[^}]*--ikimon-shell-target-max: var\(--ikimon-reading-max\);/);
   assert.match(wideHtml, /--ikimon-shell-available-w: calc\(100% - var\(--ikimon-desktop-sidebar-w\)\);/);
   assert.doesNotMatch(wideHtml, /--ikimon-shell-available-w: calc\(100vw - var\(--ikimon-desktop-sidebar-w\)\);/);
+  assert.match(wideHtml, /--ikimon-shell-effective-w: min\(var\(--ikimon-shell-target-max\), calc\(var\(--ikimon-shell-available-w\) - 96px\), calc\(var\(--ikimon-shell-available-w\) - var\(--ikimon-page-inline\)\)\);/);
   assert.match(wideHtml, /--ikimon-shell-side-space: max\(48px, calc\(\(var\(--ikimon-shell-available-w\) - var\(--ikimon-shell-effective-w\)\) \/ 2\)\);/);
   assert.match(wideHtml, /margin-left: calc\(var\(--ikimon-desktop-sidebar-w\) \+ var\(--ikimon-shell-side-space\)\);/);
 });

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Readable } from "node:stream";
 import { loadConfig } from "../config.js";
+import { getPool } from "../db.js";
 import {
   getSessionFromCookie,
   issueSession,
@@ -59,6 +60,7 @@ import { confirmManagementActionCandidate } from "../services/managementActionCo
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
 import {
+  confirmReferenceDuplicateMerge,
   createKnowledgeSourceCorrection,
   createReferenceCaptureBatch,
   type KnowledgeSourceCorrectionInput,
@@ -126,6 +128,163 @@ function errorStatus(error: unknown, fallback = 400): number {
     return 400;
   }
   return fallback;
+}
+
+const ORGANISM_ORIGIN_OPTIONS = [
+  { value: "wild", label: "野生" },
+  { value: "planted", label: "植栽" },
+  { value: "captive", label: "飼育" },
+  { value: "released", label: "放流" },
+  { value: "unknown", label: "不明" },
+] as const;
+
+type OrganismOriginValue = typeof ORGANISM_ORIGIN_OPTIONS[number]["value"];
+
+function normalizeOrganismOrigin(value: unknown): OrganismOriginValue {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const option = ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === raw);
+  if (!option) {
+    throw new Error("invalid_organism_origin");
+  }
+  return option.value;
+}
+
+function organismOriginLabel(value: OrganismOriginValue): string {
+  return ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === value)?.label ?? "不明";
+}
+
+function normalizeObservationObservedAt(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const parsed = new Date(raw);
+  if (!raw || !Number.isFinite(parsed.getTime())) {
+    throw new Error("invalid_observed_at");
+  }
+  const now = Date.now();
+  if (parsed.getTime() > now + 24 * 60 * 60 * 1000) {
+    throw new Error("invalid_observed_at");
+  }
+  return parsed.toISOString();
+}
+
+function normalizeObservationLatitude(value: unknown): number {
+  const latitude = Number(value);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw new Error("invalid_latitude");
+  }
+  return Number(latitude.toFixed(6));
+}
+
+function normalizeObservationLongitude(value: unknown): number {
+  const longitude = Number(value);
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new Error("invalid_longitude");
+  }
+  return Number(longitude.toFixed(6));
+}
+
+const ENVIRONMENT_RECORD_FIELDS = [
+  {
+    field: "place_type",
+    label: "場所の型",
+    options: [
+      { value: "grassland_urban_edge", label: "草地と市街地の縁" },
+      { value: "urban", label: "市街地" },
+      { value: "woodland", label: "林内" },
+      { value: "water_edge", label: "水辺" },
+      { value: "wetland", label: "湿地" },
+      { value: "coast", label: "海岸" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "contact_surface",
+    label: "接している面",
+    options: [
+      { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
+      { value: "soil", label: "土" },
+      { value: "plant", label: "植物上" },
+      { value: "water", label: "水面・水中" },
+      { value: "rock", label: "岩・石" },
+      { value: "artificial", label: "人工物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "surrounding_cover",
+    label: "周辺の被覆",
+    options: [
+      { value: "low_grass", label: "低い草地" },
+      { value: "trees_shrubs", label: "樹木・低木" },
+      { value: "bare_ground", label: "裸地" },
+      { value: "water", label: "水" },
+      { value: "snow", label: "雪" },
+      { value: "built_surface", label: "舗装・構造物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "environment_condition",
+    label: "環境条件",
+    options: [
+      { value: "open_dry", label: "開けて乾き気味" },
+      { value: "sunny", label: "日当たり" },
+      { value: "shaded", label: "日陰" },
+      { value: "wet", label: "湿り気あり" },
+      { value: "flowing", label: "流れあり" },
+      { value: "windy", label: "風あり" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "human_change",
+    label: "人為・変化",
+    options: [
+      { value: "trampling_mowing", label: "踏圧・草刈り跡" },
+      { value: "mowing", label: "草刈り" },
+      { value: "trampling", label: "踏圧" },
+      { value: "planting", label: "植栽・管理" },
+      { value: "construction", label: "造成・工事" },
+      { value: "release", label: "放流・放逐" },
+      { value: "none_visible", label: "目立つ変化なし" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+] as const;
+
+type EnvironmentRecordField = typeof ENVIRONMENT_RECORD_FIELDS[number]["field"];
+
+function normalizeEnvironmentRecordField(value: unknown): EnvironmentRecordField {
+  const raw = String(value ?? "").trim();
+  const field = ENVIRONMENT_RECORD_FIELDS.find((item) => item.field === raw);
+  if (!field) {
+    throw new Error("invalid_environment_record_field");
+  }
+  return field.field;
+}
+
+function normalizeEnvironmentRecordValue(field: EnvironmentRecordField, value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const fieldDef = ENVIRONMENT_RECORD_FIELDS.find((item) => item.field === field);
+  const option = fieldDef?.options.find((item) => item.value === raw);
+  if (!option) {
+    throw new Error("invalid_environment_record_value");
+  }
+  return option.value;
+}
+
+function environmentRecordLabel(field: EnvironmentRecordField, value: string): string {
+  const fieldDef = ENVIRONMENT_RECORD_FIELDS.find((item) => item.field === field);
+  return fieldDef?.options.find((item) => item.value === value)?.label ?? "不明";
+}
+
+async function assertMutationRateLimit(
+  request: FastifyRequest,
+  scope: string,
+  userId: string,
+  maxAttempts = 30,
+  windowMs = 10 * 60 * 1000,
+): Promise<void> {
+  await assertAuthRateLimit([scope, userId, request.ip], maxAttempts, windowMs);
 }
 
 function summarizeUploadBody(body: Partial<Omit<ObservationPhotoUploadInput, "observationId">> | null | undefined): {
@@ -303,7 +462,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSessionUser(session, session?.userId ?? "");
-      assertAuthRateLimit(["record-photo-feedback", resolvedSession.userId, request.ip], 10, 10 * 60 * 1000);
+      await assertAuthRateLimit(["record-photo-feedback", resolvedSession.userId, request.ip], 10, 10 * 60 * 1000);
       const images = normalizeRecordPhotoFeedbackImages(request.body?.images);
       const context = normalizeRecordPhotoFeedbackContext(request.body?.context);
       const result = await generateRecordPhotoFeedback({
@@ -350,6 +509,38 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{
+    Body: {
+      canonicalSourceId?: string | null;
+      duplicateSourceId?: string | null;
+    };
+  }>("/api/v1/references/duplicates/merge", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      const canonicalSourceId = request.body?.canonicalSourceId?.trim();
+      const duplicateSourceId = request.body?.duplicateSourceId?.trim();
+      if (!canonicalSourceId || !duplicateSourceId) {
+        throw new Error("reference_source_id_required");
+      }
+      const result = await confirmReferenceDuplicateMerge({
+        canonicalSourceId,
+        duplicateSourceId,
+        actorUserId: resolvedSession.userId,
+      });
+      return {
+        ok: true,
+        result,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "reference_duplicate_merge_failed",
+      };
+    }
+  });
+
+  app.post<{
     Params: { sourceId: string };
     Body: Omit<KnowledgeSourceCorrectionInput, "sourceId" | "verifiedByUserId">;
   }>("/api/v1/references/:sourceId/corrections", async (request, reply) => {
@@ -358,9 +549,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
-      if (!/admin|analyst|specialist/i.test(session.roleName)) {
-        throw new Error("specialist_role_required");
-      }
+      await assertSpecialistSession(session, session.userId);
       return await createKnowledgeSourceCorrection({
         ...request.body,
         sourceId: request.params.sourceId,
@@ -378,7 +567,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Body: ObservationUpsertInput }>("/api/v1/observations/upsert", async (request, reply) => {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
-      assertSessionUser(session, request.body.userId);
+      const resolvedSession = assertSessionUser(session, request.body.userId);
+      await assertMutationRateLimit(request, "observation-upsert", resolvedSession.userId, 30);
       const result = await upsertObservation(request.body);
       const placeMemorySample = result.placeMemory
         ? await getPostSavePlaceMemorySample({ userId: request.body.userId, visitId: result.visitId, limit: 3 }).catch(() => [])
@@ -440,6 +630,240 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.post<{ Params: { id: string }; Body: { organismOrigin?: unknown } }>(
+    "/api/v1/occurrences/:id/origin",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-origin-update", session.userId, 30);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const organismOrigin = normalizeOrganismOrigin(request.body?.organismOrigin);
+        const result = await getPool().query<{ occurrence_id: string }>(
+          `update occurrences
+              set organism_origin = $2
+            where occurrence_id = $1
+            returning occurrence_id`,
+          [request.params.id, organismOrigin],
+        );
+        if (result.rows.length === 0) {
+          throw new Error("observation_not_found");
+        }
+        return {
+          ok: true,
+          occurrenceId: request.params.id,
+          organismOrigin,
+          label: organismOriginLabel(organismOrigin),
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_origin_update_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { observedAt?: unknown } }>(
+    "/api/v1/occurrences/:id/observed-at",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-observed-at-update", session.userId, 30);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const observedAt = normalizeObservationObservedAt(request.body?.observedAt);
+        const result = await getPool().query<{ occurrence_id: string; visit_id: string; observed_at: string }>(
+          `update visits v
+              set observed_at = $2::timestamptz,
+                  source_payload = coalesce(v.source_payload, '{}'::jsonb) || $3::jsonb,
+                  updated_at = now()
+             from occurrences o
+            where o.occurrence_id = $1
+              and o.visit_id = v.visit_id
+            returning o.occurrence_id::text as occurrence_id,
+                      v.visit_id::text as visit_id,
+                      v.observed_at::text as observed_at`,
+          [
+            request.params.id,
+            observedAt,
+            JSON.stringify({
+              observation_detail_edit: {
+                field: "observed_at",
+                updated_by: session.userId,
+                updated_at: new Date().toISOString(),
+              },
+            }),
+          ],
+        );
+        const row = result.rows[0];
+        if (!row) {
+          throw new Error("observation_not_found");
+        }
+        return {
+          ok: true,
+          occurrenceId: row.occurrence_id,
+          visitId: row.visit_id,
+          observedAt: row.observed_at,
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_observed_at_update_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { latitude?: unknown; longitude?: unknown } }>(
+    "/api/v1/occurrences/:id/location",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-location-update", session.userId, 30);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const latitude = normalizeObservationLatitude(request.body?.latitude);
+        const longitude = normalizeObservationLongitude(request.body?.longitude);
+        const result = await getPool().query<{
+          occurrence_id: string;
+          visit_id: string;
+          latitude: number;
+          longitude: number;
+        }>(
+          `update visits v
+              set point_latitude = $2,
+                  point_longitude = $3,
+                  source_payload = coalesce(v.source_payload, '{}'::jsonb) || $4::jsonb,
+                  updated_at = now()
+             from occurrences o
+            where o.occurrence_id = $1
+              and o.visit_id = v.visit_id
+            returning o.occurrence_id::text as occurrence_id,
+                      v.visit_id::text as visit_id,
+                      v.point_latitude as latitude,
+                      v.point_longitude as longitude`,
+          [
+            request.params.id,
+            latitude,
+            longitude,
+            JSON.stringify({
+              observation_detail_edit: {
+                field: "location",
+                updated_by: session.userId,
+                updated_at: new Date().toISOString(),
+              },
+            }),
+          ],
+        );
+        const row = result.rows[0];
+        if (!row) {
+          throw new Error("observation_not_found");
+        }
+        return {
+          ok: true,
+          occurrenceId: row.occurrence_id,
+          visitId: row.visit_id,
+          latitude: Number(row.latitude),
+          longitude: Number(row.longitude),
+          label: `${Number(row.latitude).toFixed(6)}, ${Number(row.longitude).toFixed(6)}`,
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_location_update_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { field?: unknown; value?: unknown } }>(
+    "/api/v1/occurrences/:id/environment-field",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-environment-field-update", session.userId, 60);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const field = normalizeEnvironmentRecordField(request.body?.field);
+        const value = normalizeEnvironmentRecordValue(field, request.body?.value);
+        const pool = getPool();
+        const current = await pool.query<{
+          occurrence_id: string;
+          lat: number | null;
+          lng: number | null;
+          structured: Record<string, unknown> | null;
+        }>(
+          `select o.occurrence_id,
+                  coalesce(v.point_latitude, p.center_latitude) as lat,
+                  coalesce(v.point_longitude, p.center_longitude) as lng,
+                  fc.structured
+             from occurrences o
+             join visits v on v.visit_id = o.visit_id
+             left join places p on p.place_id = v.place_id
+             left join lateral (
+               select structured
+                 from field_context fc
+                where fc.occurrence_id = o.occurrence_id
+                order by fc.created_at desc
+                limit 1
+             ) fc on true
+            where o.occurrence_id = $1
+            limit 1`,
+          [request.params.id],
+        );
+        const row = current.rows[0];
+        if (!row) {
+          throw new Error("observation_not_found");
+        }
+        const lat = row.lat == null ? NaN : Number(row.lat);
+        const lng = row.lng == null ? NaN : Number(row.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          throw new Error("occurrence_location_required");
+        }
+        const previous = row.structured && typeof row.structured === "object" && !Array.isArray(row.structured)
+          ? row.structured as Record<string, unknown>
+          : {};
+        const structured = {
+          ...previous,
+          [field]: value,
+          updated_by: "observation_detail_quality_card",
+          updated_at: new Date().toISOString(),
+        };
+        await pool.query(
+          `insert into field_context (
+             occurrence_id, lat, lng, structured, source_lang
+           ) values ($1, $2, $3, $4::jsonb, 'ja')`,
+          [request.params.id, lat, lng, JSON.stringify(structured)],
+        );
+        return {
+          ok: true,
+          occurrenceId: request.params.id,
+          field,
+          value,
+          label: environmentRecordLabel(field, value),
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_environment_field_update_failed",
+        };
+      }
+    },
+  );
+
   app.post<{ Params: { id: string }; Body: Omit<ObservationPhotoUploadInput, "observationId"> }>(
     "/api/v1/observations/:id/photos/upload",
     async (request, reply) => {
@@ -450,6 +874,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           throw new Error("session_required");
         }
         sessionUserId = session.userId;
+        await assertMutationRateLimit(request, "observation-photo-upload", session.userId, 24);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await uploadObservationPhoto({
           observationId: request.params.id,
@@ -497,6 +922,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-candidate-propose", session.userId, 30);
       const result = await proposeObservationSubjectFromCandidate({
         visitId: request.params.id,
         candidateId: request.params.candidateId,
@@ -524,6 +950,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-candidate-adopt", session.userId, 30);
       const result = await adoptObservationCandidate({
         visitId: request.params.id,
         candidateId: request.params.candidateId,
@@ -560,6 +987,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         if (!session) {
           throw new Error("session_required");
         }
+        await assertMutationRateLimit(request, "observation-hide", session.userId, 10);
         const result = await hideOwnObservation({
           observationId: request.params.id,
           actorUserId: session.userId,
@@ -591,6 +1019,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-identification", session.userId, 30);
       const stance = request.body?.stance === "alternative" ? "alternative" : "support";
       return await submitObservationIdentification({
         occurrenceId: request.params.id,
@@ -620,6 +1049,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       proposedName?: string | null;
       proposedRank?: string | null;
       reason?: string | null;
+      referenceSourceIds?: string[];
+      referenceLocator?: string | null;
     };
   }>("/api/v1/observations/:id/disputes", async (request, reply) => {
     try {
@@ -627,6 +1058,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-dispute", session.userId, 12);
       const kind = request.body?.kind ?? "alternative_id";
       return await openObservationDispute({
         occurrenceId: request.params.id,
@@ -635,6 +1067,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         proposedName: request.body?.proposedName ?? null,
         proposedRank: request.body?.proposedRank ?? null,
         reason: request.body?.reason ?? null,
+        referenceSourceIds: Array.isArray(request.body?.referenceSourceIds)
+          ? request.body.referenceSourceIds.map((value) => String(value))
+          : [],
+        referenceLocator: request.body?.referenceLocator ?? null,
       });
     } catch (error) {
       reply.code(errorStatus(error, 400));
@@ -648,7 +1084,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Body: TrackUpsertInput }>("/api/v1/tracks/upsert", async (request, reply) => {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
-      assertSessionUser(session, request.body.userId);
+      const resolvedSession = assertSessionUser(session, request.body.userId);
+      await assertMutationRateLimit(request, "track-upsert", resolvedSession.userId, 240);
       return await upsertTrack(request.body);
     } catch (error) {
       reply.code(errorStatus(error, 400));
@@ -670,6 +1107,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
+      await assertMutationRateLimit(request, "observation-ai-review", session.userId, 20);
       return await submitObservationRecordAiReview({
         occurrenceId: request.params.id,
         actorUserId: session.userId,
@@ -709,6 +1147,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       ) {
         throw new Error("forbidden_recommendation_subject");
       }
+      await assertMutationRateLimit(request, "authority-recommendation-create", session.userId, 12);
 
       const recommendation = await createAuthorityRecommendation({
         actorUserId: session.userId,
@@ -743,6 +1182,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = await assertSpecialistSession(session, request.body.actorUserId);
+      await assertMutationRateLimit(request, "authority-recommendation-grant", resolvedSession.userId, 30);
       const result = await grantAuthorityRecommendation({
         recommendationId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -772,6 +1212,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "authority-recommendation-reject", resolvedSession.userId, 30);
       const recommendation = await rejectAuthorityRecommendation({
         recommendationId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -804,6 +1245,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = await assertSpecialistSession(session, request.body.actorUserId);
+      await assertMutationRateLimit(request, "specialist-review", resolvedSession.userId, 60);
       return await recordSpecialistReview({
         occurrenceId: request.params.id,
         actorUserId: request.body.actorUserId,
@@ -836,6 +1278,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const session = await getSessionFromCookie(request.headers.cookie);
       const actorUserId = request.body.actorUserId ?? session?.userId ?? "";
       const resolvedSession = await assertSpecialistSession(session, actorUserId);
+      await assertMutationRateLimit(request, "specialist-dispute-resolve", resolvedSession.userId, 30);
       return await resolveIdentificationDispute({
         disputeId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -864,6 +1307,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "specialist-authority-grant", resolvedSession.userId, 30);
       const authority = await grantReviewerAuthority({
         subjectUserId: request.body.subjectUserId,
         grantedByUserId: resolvedSession.userId,
@@ -895,6 +1339,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "specialist-authority-revoke", resolvedSession.userId, 30);
       const authority = await revokeReviewerAuthority({
         authorityId: request.params.id,
         revokedByUserId: resolvedSession.userId,
@@ -920,6 +1365,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      await assertMutationRateLimit(request, "specialist-authority-evidence", resolvedSession.userId, 60);
       const authority = await addReviewerAuthorityEvidence({
         authorityId: request.params.id,
         actorUserId: resolvedSession.userId,
@@ -1075,6 +1521,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "video-direct-upload", session.userId, 12);
         const body = request.body ?? {};
         const observationId = typeof body.observationId === "string" ? body.observationId.trim() : "";
         if (observationId) {
@@ -1145,6 +1592,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "video-finalize", session.userId, 30);
         const observationId = typeof request.body?.observationId === "string"
           ? request.body.observationId.trim()
           : "";
@@ -1179,6 +1627,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "observation-reaction", session.userId, 120);
         const type = request.params.type as ReactionType;
         if (!isValidReactionType(type)) {
           reply.code(400);
@@ -1205,6 +1654,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "observation-reassess", session.userId, 10);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await reassessObservation(request.params.id);
         return { ok: true, ...result };
@@ -1227,6 +1677,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "record-reading-cards", session.userId, 10);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await generateRecordReadingCards({
           observationId: request.params.id,
@@ -1253,6 +1704,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "record-reading-card-hide", session.userId, 30);
         const result = await hideRecordReadingCard({
           cardId: request.params.cardId,
           actorUserId: session.userId,
@@ -1277,6 +1729,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "observation-reassess-video", session.userId, 10);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const result = await reassessFromVideoThumb(request.params.id);
         return { ok: true, ...result };
@@ -1300,6 +1753,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
+        await assertMutationRateLimit(request, "management-candidate-confirm", session.userId, 30);
         await assertObservationOwnedByUser(request.params.id, session.userId);
         const confirmState = request.body?.confirmState;
         if (confirmState !== "suggested" && confirmState !== "confirmed" && confirmState !== "rejected") {

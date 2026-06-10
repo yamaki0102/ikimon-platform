@@ -19,9 +19,22 @@ type ImportOptions = {
   publicRoot?: string;
   importVersion: string;
   dryRun: boolean;
+  changedFilesManifest?: string;
 };
 
 const LEGACY_IMPORT_ADVISORY_LOCK_KEY = "ikimon.bootstrap_legacy_import";
+
+type ImportScope =
+  | { mode: "full"; reason: string }
+  | {
+      mode: "partial";
+      observationFiles: string[];
+      trackFiles: string[];
+      usersChanged: boolean;
+      authTokensChanged: boolean;
+      invitesChanged: boolean;
+      changedFileCount: number;
+    };
 
 type LegacyUser = JsonRecord & {
   id: string;
@@ -176,6 +189,11 @@ function parseArgs(argv: string[]): ImportOptions {
       continue;
     }
 
+    if (arg.startsWith("--changed-files-manifest=")) {
+      options.changedFilesManifest = path.resolve(arg.slice("--changed-files-manifest=".length));
+      continue;
+    }
+
     if (arg.startsWith("--mirror-root=")) {
       const mirrorRoots = resolveLegacyRoots(process.cwd(), {
         mirrorRoot: arg.slice("--mirror-root=".length),
@@ -205,6 +223,85 @@ async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
 
   const content = await readFile(filePath, "utf8");
   return JSON.parse(content) as T;
+}
+
+function toLegacyRelativePath(filePath: string, legacyDataRoot: string): string {
+  const absolutePath = path.resolve(filePath);
+  const absoluteRoot = path.resolve(legacyDataRoot);
+  const relative = path.relative(absoluteRoot, absolutePath);
+  return normalizeRelativePath(relative);
+}
+
+async function resolveImportScope(options: ImportOptions): Promise<ImportScope> {
+  if (!options.changedFilesManifest) {
+    return { mode: "full", reason: "no_changed_files_manifest" };
+  }
+
+  const manifest = await readJsonFile<unknown>(options.changedFilesManifest, []);
+  if (!Array.isArray(manifest)) {
+    return { mode: "full", reason: "invalid_changed_files_manifest" };
+  }
+
+  const changedFiles = manifest.filter((item): item is string => typeof item === "string" && item.trim() !== "");
+  if (changedFiles.length === 0) {
+    return {
+      mode: "partial",
+      observationFiles: [],
+      trackFiles: [],
+      usersChanged: false,
+      authTokensChanged: false,
+      invitesChanged: false,
+      changedFileCount: 0,
+    };
+  }
+
+  const observationFiles: string[] = [];
+  const trackFiles: string[] = [];
+  let usersChanged = false;
+  let authTokensChanged = false;
+  let invitesChanged = false;
+  const fullImportFiles = new Set(["observations.json"]);
+
+  for (const filePath of changedFiles) {
+    const relative = toLegacyRelativePath(filePath, options.legacyDataRoot);
+    if (relative === ".." || relative.startsWith("../")) {
+      return { mode: "full", reason: `changed_file_outside_legacy_root:${relative}` };
+    }
+    if (fullImportFiles.has(relative)) {
+      return { mode: "full", reason: `global_legacy_file_changed:${relative}` };
+    }
+    if (relative === "users.json") {
+      usersChanged = true;
+      continue;
+    }
+    if (relative === "auth_tokens.json") {
+      authTokensChanged = true;
+      continue;
+    }
+    if (relative === "invites.json") {
+      invitesChanged = true;
+      continue;
+    }
+    if (/^observations\/[^/]+\.json$/.test(relative)) {
+      observationFiles.push(path.resolve(filePath));
+      continue;
+    }
+    if (/^tracks\/[^/]+\/[^/]+\.json$/.test(relative)) {
+      trackFiles.push(path.resolve(filePath));
+      continue;
+    }
+    return { mode: "full", reason: `unsupported_changed_file:${relative}` };
+  }
+
+  return {
+    mode: "partial",
+    observationFiles: [...new Set(observationFiles)].sort(),
+    trackFiles: [...new Set(trackFiles)].sort(),
+    usersChanged,
+    authTokensChanged,
+    invitesChanged,
+    changedFileCount: changedFiles.length,
+  };
 }
 
 function toIsoTimestamp(value: unknown): string | null {
@@ -513,7 +610,24 @@ async function loadLegacyUsers(options: ImportOptions): Promise<Map<string, Lega
   return map;
 }
 
-async function loadLegacyObservations(options: ImportOptions): Promise<LegacyObservation[]> {
+async function loadLegacyObservations(options: ImportOptions, scope: ImportScope): Promise<LegacyObservation[]> {
+  if (scope.mode === "partial") {
+    const deduped = new Map<string, LegacyObservation>();
+    for (const filePath of scope.observationFiles) {
+      const batch = await readJsonFile<LegacyObservation[]>(filePath, []);
+      for (const observation of batch) {
+        if (observation.id) {
+          deduped.set(observation.id, observation);
+        }
+      }
+    }
+    return [...deduped.values()].sort((left, right) => {
+      const leftTime = toIsoTimestamp(left.observed_at ?? left.created_at) ?? "";
+      const rightTime = toIsoTimestamp(right.observed_at ?? right.created_at) ?? "";
+      return leftTime.localeCompare(rightTime);
+    });
+  }
+
   const rootObservations = await readJsonFile<LegacyObservation[]>(
     path.join(options.legacyDataRoot, "observations.json"),
     [],
@@ -555,7 +669,18 @@ async function loadLegacyInvites(options: ImportOptions): Promise<LegacyInvite[]
   return readJsonFile<LegacyInvite[]>(path.join(options.legacyDataRoot, "invites.json"), []);
 }
 
-async function loadLegacyTracks(options: ImportOptions): Promise<LegacyTrackSession[]> {
+async function loadLegacyTracks(options: ImportOptions, scope: ImportScope): Promise<LegacyTrackSession[]> {
+  if (scope.mode === "partial") {
+    const sessions: LegacyTrackSession[] = [];
+    for (const filePath of scope.trackFiles) {
+      const session = await readJsonFile<LegacyTrackSession | null>(filePath, null);
+      if (session?.session_id) {
+        sessions.push(session);
+      }
+    }
+    return sessions.sort((left, right) => left.session_id.localeCompare(right.session_id));
+  }
+
   const tracksRoot = path.join(options.legacyDataRoot, "tracks");
   if (!(await exists(tracksRoot))) {
     return [];
@@ -673,6 +798,50 @@ function supplementUsersFromTracks(
 
     legacyUsers.set(userId, mergeLegacyUser(legacyUsers.get(userId), incoming));
   }
+}
+
+function filterUsersForPartialImport(
+  legacyUsers: Map<string, LegacyUser>,
+  observations: LegacyObservation[],
+  tracks: LegacyTrackSession[],
+  tokens: LegacyAuthToken[],
+  invites: LegacyInvite[],
+  scope: ImportScope,
+): Map<string, LegacyUser> {
+  if (scope.mode === "partial" && scope.usersChanged) {
+    return legacyUsers;
+  }
+
+  const userIds = new Set<string>();
+  for (const observation of observations) {
+    if (typeof observation.user_id === "string" && observation.user_id !== "") {
+      userIds.add(observation.user_id);
+    }
+  }
+  for (const session of tracks) {
+    if (typeof session.user_id === "string" && session.user_id !== "") {
+      userIds.add(session.user_id);
+    }
+  }
+  for (const token of tokens) {
+    if (typeof token.user_id === "string" && token.user_id !== "") {
+      userIds.add(token.user_id);
+    }
+  }
+  for (const invite of invites) {
+    if (typeof invite.user_id === "string" && invite.user_id !== "") {
+      userIds.add(invite.user_id);
+    }
+  }
+
+  const filtered = new Map<string, LegacyUser>();
+  for (const userId of userIds) {
+    const user = legacyUsers.get(userId);
+    if (user) {
+      filtered.set(userId, user);
+    }
+  }
+  return filtered;
 }
 
 async function importUsers(
@@ -953,18 +1122,31 @@ async function importInvites(options: ImportOptions, invites: LegacyInvite[]) {
   }
 }
 
-async function importObservations(options: ImportOptions, observations: LegacyObservation[]) {
+async function importObservations(options: ImportOptions, observations: LegacyObservation[], scope: ImportScope) {
   summary.observations = 0;
   summary.occurrences = 0;
   const pool = options.dryRun ? null : getPool();
 
   if (pool) {
-    await pool.query(
-      `delete from asset_ledger
-       where import_version = $1
-         and logical_asset_type = 'observation_photo'`,
-      [options.importVersion],
-    );
+    if (scope.mode === "partial") {
+      const observationIds = observations.map((observation) => observation.id).filter(Boolean);
+      if (observationIds.length > 0) {
+        await pool.query(
+          `delete from asset_ledger
+           where import_version = $1
+             and logical_asset_type = 'observation_photo'
+             and metadata->>'source_observation_id' = any($2::text[])`,
+          [options.importVersion, observationIds],
+        );
+      }
+    } else {
+      await pool.query(
+        `delete from asset_ledger
+         where import_version = $1
+           and logical_asset_type = 'observation_photo'`,
+        [options.importVersion],
+      );
+    }
   }
 
   for (const observation of observations) {
@@ -1301,7 +1483,7 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
   }
 }
 
-async function importTracks(options: ImportOptions, tracks: LegacyTrackSession[]) {
+async function importTracks(options: ImportOptions, tracks: LegacyTrackSession[], scope: ImportScope) {
   summary.trackVisits = tracks.length;
   if (options.dryRun) {
     summary.trackPoints = tracks.reduce((sum, session) => sum + (session.points?.length ?? 0), 0);
@@ -1309,14 +1491,21 @@ async function importTracks(options: ImportOptions, tracks: LegacyTrackSession[]
   }
 
   const pool = getPool();
-  await pool.query(
-    `delete from visit_track_points vtp
-     where exists (
-       select 1 from visits v
-       where v.visit_id = vtp.visit_id
-         and v.source_kind = 'legacy_track_session'
-     )`,
-  );
+  if (scope.mode === "partial") {
+    const visitIds = tracks.map((session) => `track:${session.session_id}`);
+    if (visitIds.length > 0) {
+      await pool.query(`delete from visit_track_points where visit_id = any($1::text[])`, [visitIds]);
+    }
+  } else {
+    await pool.query(
+      `delete from visit_track_points vtp
+       where exists (
+         select 1 from visits v
+         where v.visit_id = vtp.visit_id
+           and v.source_kind = 'legacy_track_session'
+       )`,
+    );
+  }
   for (const session of tracks) {
     const points = Array.isArray(session.points) ? session.points : [];
     const visitId = `track:${session.session_id}`;
@@ -1431,28 +1620,53 @@ async function withLegacyImportLock<T>(options: ImportOptions, task: () => Promi
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  console.log("bootstrapLegacyImport options", options);
+  const importScope = await resolveImportScope(options);
+  console.log("bootstrapLegacyImport options", {
+    ...options,
+    importScope,
+  });
 
   const legacyUsers = await loadLegacyUsers(options);
-  const legacyObservations = await loadLegacyObservations(options);
-  const legacyTokens = await loadLegacyAuthTokens(options);
-  const legacyInvites = await loadLegacyInvites(options);
-  const legacyTracks = await loadLegacyTracks(options);
+  const legacyObservations = await loadLegacyObservations(options, importScope);
+  const legacyTracks = await loadLegacyTracks(options, importScope);
+  const legacyTokens =
+    importScope.mode === "full" || importScope.authTokensChanged
+      ? await loadLegacyAuthTokens(options)
+      : [];
+  const legacyInvites =
+    importScope.mode === "full" || importScope.invitesChanged
+      ? await loadLegacyInvites(options)
+      : [];
 
   supplementUsersFromAuthTokens(legacyUsers, legacyTokens);
   supplementUsersFromInvites(legacyUsers, legacyInvites);
   supplementUsersFromTracks(legacyUsers, legacyTracks);
+  const usersToImport =
+    importScope.mode === "partial"
+      ? filterUsersForPartialImport(
+          legacyUsers,
+          legacyObservations,
+          legacyTracks,
+          legacyTokens,
+          legacyInvites,
+          importScope,
+        )
+      : legacyUsers;
 
   if (!options.dryRun) {
     await ensureDatabaseReady();
   }
 
   await withLegacyImportLock(options, async () => {
-    await importUsers(options, legacyUsers, legacyObservations);
-    await importRememberTokens(options, legacyTokens);
-    await importInvites(options, legacyInvites);
-    await importObservations(options, legacyObservations);
-    await importTracks(options, legacyTracks);
+    await importUsers(options, usersToImport, legacyObservations);
+    if (importScope.mode === "full" || importScope.authTokensChanged) {
+      await importRememberTokens(options, legacyTokens);
+    }
+    if (importScope.mode === "full" || importScope.invitesChanged) {
+      await importInvites(options, legacyInvites);
+    }
+    await importObservations(options, legacyObservations, importScope);
+    await importTracks(options, legacyTracks, importScope);
   });
 
   console.log(JSON.stringify(summary, null, 2));

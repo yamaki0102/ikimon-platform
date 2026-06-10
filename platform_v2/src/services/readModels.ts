@@ -27,6 +27,7 @@ import type { RegionalStoryCue } from "./regionalStory.js";
 import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
 import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 import { listPlaceMemoryVisits } from "./placeMemory.js";
+import { identificationReferencesFromJson, type IdentificationReferenceView } from "./identificationReferencesView.js";
 
 function publicMunicipalityLabel(input: {
   municipality?: string | null;
@@ -142,6 +143,8 @@ export type ObservationDetailSnapshot = {
   displayName: string;
   scientificName: string | null;
   vernacularName: string | null;
+  organismOrigin: string | null;
+  environmentRecord: Record<string, string> | null;
   aiAssessmentStatus: string | null;
   aiReviewAgreeCount: number;
   aiReviewDisagreeCount: number;
@@ -220,6 +223,7 @@ export type ObservationDetailSnapshot = {
     notes: string | null;
     actorName: string;
     createdAt: string;
+    references: IdentificationReferenceView[];
   }>;
   disputes: Array<{
     disputeId: string;
@@ -911,6 +915,8 @@ export async function getObservationDetailSnapshot(
     display_name: string | null;
     scientific_name: string | null;
     vernacular_name: string | null;
+    organism_origin: string | null;
+    environment_record: Record<string, unknown> | null;
     ai_assessment_status: string | null;
     observed_at: string;
     note: string | null;
@@ -941,6 +947,8 @@ export async function getObservationDetailSnapshot(
         ) as display_name,
         o.scientific_name,
         o.vernacular_name,
+        o.organism_origin,
+        fc.structured as environment_record,
         o.ai_assessment_status,
         v.observed_at::text,
         v.note,
@@ -974,6 +982,13 @@ export async function getObservationDetailSnapshot(
        where ea.asset_id = u.avatar_asset_id
        limit 1
      ) avatar on true
+     left join lateral (
+       select structured
+         from field_context fc
+        where fc.occurrence_id = o.occurrence_id
+        order by fc.created_at desc
+        limit 1
+     ) fc on true
      where (o.occurrence_id = $1
         or v.visit_id = $1
         or o.legacy_observation_id = $1)
@@ -994,6 +1009,12 @@ export async function getObservationDetailSnapshot(
   const surveyResult = typeof visitPayload.survey_result === "string" ? visitPayload.survey_result : null;
   const absenceSemantics = typeof visitPayload.absence_semantics === "string" ? visitPayload.absence_semantics : null;
   const revisitReason = typeof visitPayload.revisit_reason === "string" ? visitPayload.revisit_reason : null;
+  const environmentRecord = base.environment_record && typeof base.environment_record === "object"
+    ? Object.fromEntries(
+        Object.entries(base.environment_record)
+          .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== ""),
+      )
+    : null;
 
   const photosResult = await pool.query<{
     asset_id: string;
@@ -1189,6 +1210,7 @@ export async function getObservationDetailSnapshot(
     notes: string | null;
     actor_name: string | null;
     created_at: string;
+    reference_sources: unknown;
   }>(
     `select
         i.proposed_name,
@@ -1196,9 +1218,27 @@ export async function getObservationDetailSnapshot(
         i.accepted_rank,
         i.notes,
         ${IDENTIFICATION_ACTOR_NAME_SQL} as actor_name,
-        i.created_at::text
+        i.created_at::text,
+        coalesce(refs.reference_sources, '[]'::jsonb) as reference_sources
      from identifications i
      left join users u on u.user_id = i.actor_user_id
+     left join lateral (
+       select jsonb_agg(
+                jsonb_build_object(
+                  'sourceId', ks.source_id::text,
+                  'title', ks.title,
+                  'locator', coalesce(ir.locator, ''),
+                  'referenceRole', ir.reference_role,
+                  'citationText', coalesce(ks.citation_text, ''),
+                  'publisher', coalesce(ks.publisher, ''),
+                  'publicationYear', ks.publication_year
+                )
+                order by ir.created_at asc, ks.title asc
+              ) as reference_sources
+         from identification_references ir
+         join knowledge_sources ks on ks.source_id = ir.source_id
+        where ir.identification_id = i.identification_id
+     ) refs on true
      where i.occurrence_id = $1
      order by i.created_at desc
      limit 8`,
@@ -1294,6 +1334,8 @@ export async function getObservationDetailSnapshot(
     displayName: base.display_name ?? "同定待ち",
     scientificName: base.scientific_name,
     vernacularName: base.vernacular_name,
+    organismOrigin: base.organism_origin,
+    environmentRecord,
     aiAssessmentStatus: base.ai_assessment_status,
     aiReviewAgreeCount,
     aiReviewDisagreeCount,
@@ -1410,6 +1452,7 @@ export async function getObservationDetailSnapshot(
       notes: row.notes,
       actorName: row.actor_name ?? "Community",
       createdAt: row.created_at,
+      references: identificationReferencesFromJson(row.reference_sources),
     })),
     disputes: disputesResult.rows.map((row) => ({
       disputeId: row.dispute_id,

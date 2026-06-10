@@ -129,6 +129,11 @@ test("buildPublicLocationSummary infers other prefectures and overseas countries
   );
 
   assert.deepEqual(
+    resolvePublicLocalityLabel({ latitude: 34.8134, longitude: 137.7319 }),
+    { label: "静岡県", scope: "prefecture" },
+  );
+
+  assert.deepEqual(
     resolvePublicLocalityLabel({ latitude: 48.8566, longitude: 2.3522 }),
     { label: "フランス", scope: "country" },
   );

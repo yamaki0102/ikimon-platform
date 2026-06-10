@@ -4,18 +4,48 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      skip_preflight:
-        description: 'Skip PHP syntax check (use for hotfixes)'
-        required: false
-        default: 'false'
-        type: boolean
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
+  classify-deploy-change:
+    name: Classify Deploy Change
+    runs-on: ubuntu-latest
+    outputs:
+      smoke_tier: ${{ steps.classify.outputs.smoke_tier }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+      legacy_lane_mode: ${{ steps.classify.outputs.legacy_lane_mode }}
+      legacy_lane_reason: ${{ steps.classify.outputs.legacy_lane_reason }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify production smoke tier
+        id: classify
+        shell: pwsh
+        run: ./scripts/classify_deploy_smoke_tier.ps1 -BaseRef '${{ github.event.before }}' -HeadRef '${{ github.sha }}'
+
+      - name: Write deploy smoke tier summary
+        shell: pwsh
+        run: |
+          $summary = @'
+          ## Deploy Smoke Tier
+
+          - Tier: `${{ steps.classify.outputs.smoke_tier }}`
+          - Reason: `${{ steps.classify.outputs.reason }}`
+          - Changed files: `${{ steps.classify.outputs.changed_count }}`
+          - Legacy lane: `${{ steps.classify.outputs.legacy_lane_mode }}`
+          - Legacy lane reason: `${{ steps.classify.outputs.legacy_lane_reason }}`
+          '@
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+
   pre-flight:
     name: Pre-flight Checks
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.skip_preflight != 'true' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -57,6 +87,10 @@ jobs:
         working-directory: platform_v2
         run: npm run build
 
+      - name: Run platform_v2 node tests
+        working-directory: platform_v2
+        run: npm run test:node
+
       - name: Test platform_v2 curator validators
         working-directory: platform_v2
         run: npm run test:curator
@@ -64,8 +98,10 @@ jobs:
   prepare-candidate:
     name: Prepare Production Candidate
     runs-on: ubuntu-latest
-    needs: pre-flight
-    if: always() && (needs.pre-flight.result == 'success' || needs.pre-flight.result == 'skipped')
+    needs:
+      - pre-flight
+      - classify-deploy-change
+    if: ${{ needs.pre-flight.result == 'success' && needs['classify-deploy-change'].result == 'success' }}
     environment: production
     outputs:
       candidate_port: ${{ steps.candidate-port.outputs.candidate_port }}
@@ -85,13 +121,134 @@ jobs:
           ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
             "git -C /var/www/ikimon.life/repo remote set-url origin '${repo_url}'"
 
+      - name: Sync production repo via SSH
+        id: repo-sync
+        if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode == 'sync_only' }}
+        run: |
+          sync_output="$(ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 "RELEASE_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
+          set -euo pipefail
+          APP_ROOT="/var/www/ikimon.life"
+          REPO_DIR="${APP_ROOT}/repo"
+          DATA_DIR="${REPO_DIR}/upload_package/data"
+          CONFIG_DIR="${REPO_DIR}/upload_package/config"
+          UPLOADS_DIR="${REPO_DIR}/upload_package/public_html/uploads"
+          PERSISTENT_UPLOADS="${APP_ROOT}/persistent/uploads"
+          RUNTIME_ALLOWLIST="${REPO_DIR}/ops/deploy/runtime_persistent_allowlist.txt"
+          BACKUP_DIR="$(mktemp -d /tmp/ikimon-repo-sync-XXXX)"
+          CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
+          force_legacy_sync=0
+
+          load_runtime_allowlist() {
+            if [ ! -f "$RUNTIME_ALLOWLIST" ]; then
+              echo "Missing runtime allowlist: $RUNTIME_ALLOWLIST"
+              exit 1
+            fi
+            grep -v '^[[:space:]]*#' "$RUNTIME_ALLOWLIST" | sed '/^[[:space:]]*$/d'
+          }
+
+          rsync_runtime_copy() {
+            local source="$1"
+            local dest="$2"
+            local rc=0
+            rsync -a "$source" "$dest" || rc=$?
+            if [ "$rc" -eq 24 ]; then
+              echo "Warning: runtime file vanished during repo sync: $source"
+              return 0
+            fi
+            return "$rc"
+          }
+
+          copy_runtime_allowlist() {
+            local src_root="$1"
+            local dst_root="$2"
+            local pattern rel rel_dir match rel_match
+
+            while IFS= read -r pattern; do
+              if [[ "$pattern" != upload_package/data/* ]]; then
+                continue
+              fi
+
+              rel="${pattern#upload_package/data/}"
+              if [[ "$rel" == *"/**" ]]; then
+                rel_dir="${rel%/**}"
+                if [ -d "$src_root/$rel_dir" ]; then
+                  mkdir -p "$dst_root/$rel_dir"
+                  rsync_runtime_copy "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
+                fi
+                continue
+              fi
+
+              if [[ "$rel" == *"*"* || "$rel" == *"?"* || "$rel" == *"["* ]]; then
+                while IFS= read -r match; do
+                  [ -z "$match" ] && continue
+                  rel_match="${match#$src_root/}"
+                  mkdir -p "$dst_root/$(dirname "$rel_match")"
+                  rsync_runtime_copy "$match" "$dst_root/$rel_match"
+                done < <(compgen -G "$src_root/$rel" || true)
+                continue
+              fi
+
+              if [ -e "$src_root/$rel" ]; then
+                mkdir -p "$dst_root/$(dirname "$rel")"
+                rsync_runtime_copy "$src_root/$rel" "$dst_root/$rel"
+              fi
+            done < <(load_runtime_allowlist)
+          }
+
+          cleanup() {
+            rm -rf "$BACKUP_DIR"
+          }
+          trap cleanup EXIT
+
+          cd "$REPO_DIR"
+          git fetch origin main >/dev/null
+          if [ ! -L "$UPLOADS_DIR" ] || [ "$(readlink -f "$UPLOADS_DIR" 2>/dev/null || true)" != "$PERSISTENT_UPLOADS" ]; then
+            force_legacy_sync=1
+            echo "Will force legacy sync once because uploads symlink is not aligned with persistent storage."
+          fi
+
+          mkdir -p "$BACKUP_DIR/data" "$BACKUP_DIR/config"
+          copy_runtime_allowlist "$DATA_DIR" "$BACKUP_DIR/data"
+          for file_name in "${CONFIG_FILES[@]}"; do
+            if [ -f "$CONFIG_DIR/$file_name" ]; then
+              cp -a "$CONFIG_DIR/$file_name" "$BACKUP_DIR/config/$file_name"
+            fi
+          done
+
+          git checkout main >/dev/null 2>&1 || git checkout -f main >/dev/null 2>&1
+          git reset --hard "$RELEASE_SHA"
+          mkdir -p "$DATA_DIR" "$CONFIG_DIR"
+          copy_runtime_allowlist "$BACKUP_DIR/data" "$DATA_DIR"
+          for file_name in "${CONFIG_FILES[@]}"; do
+            if [ -f "$BACKUP_DIR/config/$file_name" ]; then
+              cp -a "$BACKUP_DIR/config/$file_name" "$CONFIG_DIR/$file_name"
+            fi
+          done
+          mkdir -p "$PERSISTENT_UPLOADS"
+          rm -rf "$UPLOADS_DIR"
+          ln -sfn "$PERSISTENT_UPLOADS" "$UPLOADS_DIR"
+          chown -h www-data:www-data "$UPLOADS_DIR" 2>/dev/null || true
+          echo "Production repo synced to $(git rev-parse --short HEAD)"
+          echo "force_legacy_sync=${force_legacy_sync}"
+          REMOTE
+          )"
+          printf '%s\n' "$sync_output"
+          if printf '%s\n' "$sync_output" | grep -q '^force_legacy_sync=1$'; then
+            echo "force_legacy_sync=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "force_legacy_sync=0" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy legacy lane via SSH
+        if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode != 'sync_only' }}
         run: ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 /var/www/ikimon.life/deploy.sh
 
       - name: Prepare inactive platform_v2 candidate
+        env:
+          FORCE_LEGACY_SYNC: ${{ steps.repo-sync.outputs.force_legacy_sync }}
         run: |
           ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh prepare '${GITHUB_SHA}'"
+            "FORCE_LEGACY_SYNC='${FORCE_LEGACY_SYNC}' bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh prepare '${GITHUB_SHA}'"
 
       - name: Read candidate port
         id: candidate-port
@@ -106,12 +263,15 @@ jobs:
   candidate-smoke:
     name: Smoke Production Candidate
     runs-on: ubuntu-latest
-    needs: prepare-candidate
+    needs:
+      - prepare-candidate
+      - classify-deploy-change
     environment: production
     steps:
       - uses: actions/checkout@v5
 
       - name: Setup platform_v2 browser smoke runtime
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         uses: ./.github/actions/setup-platform-v2-browser
         with:
           install-with-deps: "false"
@@ -141,10 +301,12 @@ jobs:
           exit 1
 
       - name: Generate UI smoke fixture prefix
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         id: ui-smoke
         run: echo "fixture_prefix=smoke-ui-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
       - name: Cleanup stale public UI smoke fixtures
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         run: |
           set -euo pipefail
           html="$(curl -fsS http://127.0.0.1:13202/ja/observations || true)"
@@ -160,7 +322,25 @@ jobs:
               "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --silent --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}" >/dev/null
           done <<< "$prefixes"
 
+      - name: Run targeted production candidate smoke
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier == 'targeted' }}
+        id: targeted-smoke
+        env:
+          PRODUCTION_SMOKE_BASE_URL: http://127.0.0.1:13202
+          DEPLOY_SMOKE_TIER_REASON: ${{ needs['classify-deploy-change'].outputs.reason }}
+          DEPLOY_SMOKE_CHANGED_COUNT: ${{ needs['classify-deploy-change'].outputs.changed_count }}
+        run: |
+          set -euo pipefail
+          mkdir -p platform_v2/test-results
+          node scripts/run_targeted_candidate_smoke.mjs \
+            --base-url="${PRODUCTION_SMOKE_BASE_URL}" \
+            --output=platform_v2/test-results/production-targeted-smoke.json \
+            --summary="${GITHUB_STEP_SUMMARY}" \
+            --reason="${DEPLOY_SMOKE_TIER_REASON}" \
+            --changed-count="${DEPLOY_SMOKE_CHANGED_COUNT}"
+
       - name: Run production candidate browser smoke
+        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         id: browser-smoke
         working-directory: platform_v2
         env:
@@ -171,7 +351,7 @@ jobs:
 
       - name: Cleanup production candidate UI smoke data
         id: cleanup-smoke
-        if: always() && steps.ui-smoke.outputs.fixture_prefix != ''
+        if: ${{ always() && needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' && steps.ui-smoke.outputs.fixture_prefix != '' }}
         run: |
           mkdir -p platform_v2/test-results
           prefix="${{ steps.ui-smoke.outputs.fixture_prefix }}"
@@ -180,7 +360,7 @@ jobs:
             | tee platform_v2/test-results/production-ui-smoke-cleanup.json
 
       - name: Write production candidate smoke summary
-        if: always()
+        if: ${{ always() && needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
         env:
           BROWSER_SMOKE_OUTCOME: ${{ steps.browser-smoke.outcome }}
           CLEANUP_SMOKE_OUTCOME: ${{ steps.cleanup-smoke.outcome }}
@@ -193,6 +373,7 @@ jobs:
           const cleanupPath = "platform_v2/test-results/production-ui-smoke-cleanup.json";
           const labels = {
             canonical_scene_ai_subject_records: "写真内AI対象の観測レコード化",
+            identification_workbench_reference_flow: "同定ワークベンチ資料根拠保存",
             photo_api_contract: "写真API契約 ok:true",
             photo_ui_post: "写真UI投稿",
             video_ui_post: "動画UI投稿",
@@ -221,6 +402,7 @@ jobs:
             return `| ${label} | ${passed.has(phase) ? "PASS" : "NOT COMPLETED"} |`;
           });
           const matchedVideos = cleanup?.matched?.videos ?? 0;
+          const matchedReferences = cleanup?.matched?.referenceSources ?? 0;
           const cloudflareResults = cleanup?.cloudflare ?? [];
           const cleanupPassed =
             process.env.CLEANUP_SMOKE_OUTCOME === "success" &&
@@ -229,12 +411,14 @@ jobs:
             (cleanup.matched?.users ?? 0) >= 1 &&
             (cleanup.deleted?.users ?? 0) >= 1 &&
             (cleanup.deleted?.visits ?? 0) >= 1 &&
+            matchedReferences >= 1 &&
+            (cleanup.deleted?.knowledgeSources ?? 0) >= 1 &&
             (cleanup.deleted?.videoRequests ?? 0) >= 1 &&
             cloudflareResults.length >= matchedVideos &&
             cloudflareResults.every((item) => item.status === 200 || item.status === 404);
           rows.push(`| cleanup成功 | ${cleanupPassed ? "PASS" : "NOT COMPLETED"} |`);
           const cleanupDetail = cleanup
-            ? `\n\nCleanup matched/deleted: users ${cleanup.matched?.users ?? 0}/${cleanup.deleted?.users ?? 0}, visits ${cleanup.matched?.visits ?? 0}/${cleanup.deleted?.visits ?? 0}, videos ${cleanup.matched?.videos ?? 0}/${cleanup.deleted?.videoRequests ?? 0}, files ${cleanup.matched?.files ?? 0}/${cleanup.deleted?.files ?? 0}.`
+            ? `\n\nCleanup matched/deleted: users ${cleanup.matched?.users ?? 0}/${cleanup.deleted?.users ?? 0}, visits ${cleanup.matched?.visits ?? 0}/${cleanup.deleted?.visits ?? 0}, references ${matchedReferences}/${cleanup.deleted?.knowledgeSources ?? 0}, videos ${cleanup.matched?.videos ?? 0}/${cleanup.deleted?.videoRequests ?? 0}, files ${cleanup.matched?.files ?? 0}/${cleanup.deleted?.files ?? 0}.`
             : "\n\nCleanup detail: cleanup JSON was not available.";
           fs.appendFileSync(summaryPath, [
             "## Production Candidate Media Smoke",

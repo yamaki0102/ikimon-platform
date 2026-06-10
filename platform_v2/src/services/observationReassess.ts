@@ -48,6 +48,7 @@ import {
 } from "./aiJudgementObservationRecords.js";
 import { lookupLocalTaxonName } from "./taxonNameNormalizer.js";
 import { normalizeBiologicalSubjectCandidate } from "./biologicalSubjectGate.js";
+import { logGlossaryTermCandidatesFromAiOutput } from "./glossaryTerms.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -294,6 +295,49 @@ type NormalizedShotSuggestion = {
   priority: "high" | "medium";
 };
 
+function normalizeShotSuggestionKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeShotSuggestionRationale(options: {
+  role: string;
+  target: string;
+  rationale: string;
+}): string {
+  const role = normalizeShotSuggestionKey(options.role);
+  const target = normalizeShotSuggestionKey(options.target);
+  const rationale = normalizeShotSuggestionKey(options.rationale);
+  const combined = `${role} ${target} ${rationale}`;
+  const isBoilerplate = !rationale || /詳細|文脈記録|記録するため|判断材料|識別に必須|同定に必須/.test(options.rationale);
+
+  if (!isBoilerplate && options.rationale.length >= 24) return options.rationale;
+  if (role.includes("habitat") || role.includes("広角") || rationale.includes("文脈")) {
+    return "周りの草、水辺、日当たりなどが残ると、その場所でどう現れていたかを季節や別地点の記録と比べやすくなります。";
+  }
+  if (role.includes("substrate") || combined.includes("土") || combined.includes("石") || combined.includes("樹皮")) {
+    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から読み返せます。";
+  }
+  if (role.includes("scale") || combined.includes("大きさ")) {
+    return "大きさの手がかりがあると、写真だけでは迷いやすいサイズ感を後から確認できます。";
+  }
+  if (role.includes("full_body") || combined.includes("全景") || combined.includes("全身")) {
+    return "全体の形と周りとの位置関係が残ると、アップだけでは分からない姿や広がりを見直せます。";
+  }
+  if (role.includes("close_up") || rationale.includes("詳細")) {
+    if (combined.includes("花") || combined.includes("花弁") || combined.includes("裂片") || combined.includes("萼")) {
+      return "花の形や割れ方を後から見比べられて、似た花との違いや季節ごとの姿を説明しやすくなります。";
+    }
+    if (combined.includes("葉") || combined.includes("茎") || combined.includes("毛")) {
+      return "葉や茎の付き方、毛の有無が残ると、同じ仲間の違いや成長段階を後から見直せます。";
+    }
+    if (combined.includes("翅") || combined.includes("触角") || combined.includes("脚") || combined.includes("昆虫")) {
+      return "細部の形を後から拡大して見直せるので、その場では気づかなかった手がかりを拾いやすくなります。";
+    }
+    return "細部が残ると、後から見直したときに何が写っていて何が足りないかを判断しやすくなります。";
+  }
+  return "その場の見え方がもう少し残ると、あとで読み返したときに場面や変化を思い出しやすくなります。";
+}
+
 function normalizeAreaCandidate(raw: unknown): NormalizedAreaCandidate | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as GeminiAreaCandidate;
@@ -346,7 +390,7 @@ function normalizeShotSuggestions(raw: GeminiShotSuggestion[] | undefined): Norm
     out.push({
       role,
       target: target.slice(0, 60),
-      rationale: rationale.slice(0, 120),
+      rationale: normalizeShotSuggestionRationale({ role, target, rationale }).slice(0, 140),
       priority,
     });
     if (out.length >= 5) break;
@@ -1032,6 +1076,7 @@ export function promoteCandidateReadingsToCoexistingTaxa(
 
 export const __test__ = {
   normalizeRectCandidate,
+  buildVisualInputParts,
 };
 
 function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[], audioInputs: LoadedAudioInput[] = []): string {
@@ -1062,7 +1107,34 @@ function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[], au
   return hash.digest("hex");
 }
 
+function buildVisualInputParts(photos: ReassessImageInput[]): AiRouterPart[] {
+  return photos.flatMap((photo, index) => {
+    const asset = photo.assetId ? ` asset_id=${photo.assetId}` : "";
+    const frame = typeof photo.frameTimeMs === "number" && Number.isFinite(photo.frameTimeMs)
+      ? ` frame_time_ms=${Math.round(photo.frameTimeMs)}`
+      : "";
+    const selection = typeof photo.selectionScore === "number" && Number.isFinite(photo.selectionScore)
+      ? ` selection_score=${photo.selectionScore.toFixed(2)}`
+      : "";
+    const reason = photo.selectionReason ? ` selection_reason=${photo.selectionReason}` : "";
+    return [
+      { text: `入力画像 asset_index=${index}${asset}${frame}${selection}${reason}` },
+      { inlineData: { mimeType: photo.mime, data: photo.b64 } },
+    ];
+  });
+}
+
 function formatInputMediaSummaryForPrompt(sourceTag: string, photos: LoadedPhotoInput[]): string {
+  if (photos.length === 0) return "";
+  const imageLines = photos.map((photo, index) => {
+    const frame = typeof photo.frameTimeMs === "number" && Number.isFinite(photo.frameTimeMs)
+      ? ` video_frame ${(Number(photo.frameTimeMs) / 1000).toFixed(1).replace(/\.0$/, "")}s`
+      : "photo";
+    const asset = photo.assetId ? ` asset_id=${photo.assetId}` : "";
+    const score = typeof photo.selectionScore === "number" ? ` score=${photo.selectionScore.toFixed(2)}` : "";
+    const reason = photo.selectionReason ? ` reason=${photo.selectionReason}` : "";
+    return `- asset_index ${index}: ${frame}${asset}${score}${reason}`;
+  });
   const videoFrames = photos
     .map((photo, index) => ({
       index,
@@ -1073,16 +1145,15 @@ function formatInputMediaSummaryForPrompt(sourceTag: string, photos: LoadedPhoto
       qualityScore: photo.qualityScore,
     }))
     .filter((item) => item.frameTimeMs != null && Number.isFinite(Number(item.frameTimeMs)));
-  if (!sourceTag.startsWith("video") || videoFrames.length === 0) {
-    return "";
-  }
+  const base = `\n\n入力画像メタデータ:\n${imageLines.join("\n")}\n領域を返す場合は、必ずこの 0 始まりの asset_index と対応させてください。複数写真では1枚目だけで決めず、各画像の主対象・周囲文脈・別対象候補を比較してください。`;
+  if (!sourceTag.startsWith("video") || videoFrames.length === 0) return base;
   const lines = videoFrames.map((item) => {
     const seconds = (Number(item.frameTimeMs) / 1000).toFixed(1).replace(/\.0$/, "");
     const score = typeof item.selectionScore === "number" ? ` score=${item.selectionScore.toFixed(2)}` : "";
     const reason = item.selectionReason ? ` reason=${item.selectionReason}` : "";
     return `- asset_index ${item.index}: video_frame ${seconds}s${score}${reason}`;
   });
-  return `\n\n入力画像メタデータ:\n${lines.join("\n")}\n動画由来の複数フレームです。フレームはAIなしの差分・明るさ・輪郭スコアで可変選抜されています。時間差で見える対象・動き・周辺環境を総合し、領域を返す場合は該当する asset_index と frame_time_ms を使ってください。`;
+  return `${base}\n動画由来の複数フレーム:\n${lines.join("\n")}\nフレームはAIなしの差分・明るさ・輪郭スコアで可変選抜されています。時間差で見える対象・動き・周辺環境を総合し、領域を返す場合は該当する asset_index と frame_time_ms を使ってください。`;
 }
 
 function formatAudioEvidenceSummaryForPrompt(audioInputs: LoadedAudioInput[]): string {
@@ -1419,9 +1490,7 @@ async function runSingleGeminiReassess(
   audioInputs: ReassessAudioInput[] = [],
   meta: GeminiCostMeta = {},
 ): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
-  const parts: AiRouterPart[] = photos.map((photo) => ({
-    inlineData: { mimeType: photo.mime, data: photo.b64 },
-  }));
+  const parts: AiRouterPart[] = buildVisualInputParts(photos);
   for (const audio of audioInputs) {
     parts.push({ inlineData: { mimeType: audio.mime, data: audio.b64 } });
   }
@@ -1449,9 +1518,7 @@ async function runVisualTwoStageGemini(
   audioInputs: ReassessAudioInput[] = [],
   meta: GeminiCostMeta = {},
 ): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
-  const parts: AiRouterPart[] = photos.map((photo) => ({
-    inlineData: { mimeType: photo.mime, data: photo.b64 },
-  }));
+  const parts: AiRouterPart[] = buildVisualInputParts(photos);
   for (const audio of audioInputs) {
     parts.push({ inlineData: { mimeType: audio.mime, data: audio.b64 } });
   }
@@ -1470,7 +1537,7 @@ async function runVisualTwoStageGemini(
 - area_inference は必ず次の5キーを持つJSONオブジェクトで返す: vegetation_structure_candidates / succession_stage_candidates / human_influence_candidates / moisture_regime_candidates / management_hint_candidates。各候補は label / confidence / why を持つ。
 - audio_events / heard_taxa は音声だけで得た証拠。画像に写る副対象 coexisting_taxa に混ぜない。
 - 音声入力がある場合は、何が聞こえたかを audio_events / heard_taxa に必ず入れる。聞き取れない場合も空配列を返す。鳥声・人声・環境音を区別し、人声や個人情報が疑われる場合は audio_privacy_risk を true にする。
-- narrative / observer_boost / next_step_text は空または最小限でよい。management_action_candidates は写真から読める管理・人為影響候補だけ短く残す。
+- observer_boost は、この記録ですでに良いところを1文で返す。励まし過剰にせず、写っている証拠・周囲文脈・比較しやすさのどれが良いかを具体的に書く。next_step_text は最小限でよい。
 - 各説明は短くする。diagnostic_features_seen / missing_evidence は各5件まで、candidate_readings / coexisting_taxa は各6件まで。
 - トップレベルキー名は既存スキーマに合わせ、recommended_taxon_name / recommended_scientific_name / recommended_rank / confidence_band / recommended_media_regions を必ず使う。別名の primary や taxon は使わない。
 JSONのみ出力。`,
@@ -1494,6 +1561,7 @@ AI単独で確定同定せず、根拠・保留点・次に撮るべき写真を
 recommended_media_regions と coexisting_taxa[].media_regions は、証拠JSONにある asset_index / frame_time_ms / rect を維持してください。
 証拠JSONに audio_events / heard_taxa がある場合、最終JSONにも必ず残してください。音声入力がある場合、missing_evidence に「音声データ不足」と書かないでください。
 保存用JSONは短くしてください。narrative は日本語160字以内、simple_summary は80字以内、diagnostic_features_seen / missing_evidence / distinguishing_tips / confirm_more は各5件以内、candidate_readings / coexisting_taxa は各6件以内。根拠領域以外の長文説明は増やさないでください。
+observer_boost は日本語70字以内で必ず1文。すでに残せている観察上の良さだけを書く。未不足・否定・説教・「素晴らしい」などの大げさな賞賛は禁止。
 
 証拠JSON:
 ${extract.text.slice(0, 18000)}
@@ -1582,9 +1650,7 @@ async function runVisualSubjectRescue(
   meta: GeminiCostMeta = {},
 ): Promise<{ candidates: GeminiCoexistingTaxon[]; modelUsed: string }> {
   if (photos.length === 0) return { candidates: [], modelUsed: "" };
-  const parts: AiRouterPart[] = photos.map((photo) => ({
-    inlineData: { mimeType: photo.mime, data: photo.b64 },
-  }));
+  const parts: AiRouterPart[] = buildVisualInputParts(photos);
   parts.push({ text: buildVisualSubjectRescuePrompt(primary) });
   const runRescue = (options: { liteFirst: boolean; escalationReasons?: string[] }): Promise<AiRouterGenerateResult | null> =>
     generateAiTextWithRoleChain({
@@ -1774,7 +1840,7 @@ export async function reassessObservation(
     // Skip when the caller forced a refresh via overridePhotos or explicit
     // sourceTag != "photo". Otherwise build the cache key from the canonical
     // inputs and try to short-circuit the Gemini call entirely.
-    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.5";
+    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.7";
     const sourceTag = options.sourceTag?.trim() || "photo";
     const cacheUserId = options.triggeredBy ?? null;
     const cacheAssetIds = photos
@@ -1852,7 +1918,7 @@ export async function reassessObservation(
       occurrenceId: target.primaryOccurrenceId,
       sourceTag,
     });
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.5";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.7";
 
     const band = normalizeBand(parsed.confidence_band);
     let rank = normalizeRank(parsed.recommended_rank);
@@ -1940,6 +2006,32 @@ export async function reassessObservation(
       parsed.candidate_readings = parsed.candidate_readings.map(enrichCandidateReadingName);
     }
     const candidateReadings = Array.isArray(parsed.candidate_readings) ? parsed.candidate_readings : [];
+    const glossaryCandidateTextBlocks = [
+      narrative,
+      simple,
+      String(parsed.observer_boost ?? "").trim(),
+      String(parsed.next_step_text ?? "").trim(),
+      String(parsed.stop_reason ?? "").trim(),
+      String(parsed.fun_fact ?? "").trim(),
+      String(parsed.geographic_context ?? "").trim(),
+      String(parsed.seasonal_context ?? "").trim(),
+      ...diagFeatures,
+      ...missing,
+      ...distinguishing,
+      ...confirmMore,
+      ...AREA_INFERENCE_KEYS.flatMap((key) => (areaInference[key] ?? []).flatMap((candidate) => [candidate.label, candidate.why])),
+      ...managementActionCandidates.flatMap((candidate) => [candidate.label, candidate.why]),
+      ...shotSuggestions.flatMap((suggestion) => [suggestion.target, suggestion.rationale]),
+      ...candidateReadings.flatMap((reading) => [
+        ...(Array.isArray(reading.visible_features) ? reading.visible_features : []),
+        ...(Array.isArray(reading.weak_points) ? reading.weak_points : []),
+        ...(Array.isArray(reading.shooting_tips) ? reading.shooting_tips : []),
+        String(reading.regional_read ?? "").trim(),
+        String(reading.size_assessment?.ranking_hint ?? "").trim(),
+        String(reading.size_assessment?.basis ?? "").trim(),
+        String(reading.size_assessment?.hedge ?? "").trim(),
+      ]),
+    ].filter((value) => typeof value === "string" && value.trim().length > 0);
     const candidateReadingByKey = new Map<string, GeminiCandidateReading>();
     const registerCandidateReading = (reading: GeminiCandidateReading): void => {
       const rank = normalizeRank(reading.rank);
@@ -2787,6 +2879,18 @@ export async function reassessObservation(
     }
 
     await client.query("commit");
+
+    await logGlossaryTermCandidatesFromAiOutput({
+      textBlocks: glossaryCandidateTextBlocks,
+      lang: "ja",
+      scopeTags: ["observation"],
+      sourceKind: "observation_reassess",
+      sourceId: assessmentId,
+      visitId: target.visitId,
+      occurrenceId: target.primaryOccurrenceId,
+      aiRunId: aiRun.aiRunId,
+      assessmentId,
+    }).catch(() => ({ candidateCount: 0, labels: [] }));
 
     const result: ReassessResult = {
       aiRunId: aiRun.aiRunId,

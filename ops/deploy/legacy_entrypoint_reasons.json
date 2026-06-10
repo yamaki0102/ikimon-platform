@@ -1,0 +1,3 @@
+{
+  "upload_package/libs/OmoikaneDB.php": "Test and runtime failure semantics fix: replace process-level die on optional OMOIKANE SQLite connection failure with an exception so callers and PHPUnit can handle the fallback path correctly."
+}

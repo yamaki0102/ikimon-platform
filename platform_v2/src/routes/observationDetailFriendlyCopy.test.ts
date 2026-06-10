@@ -74,6 +74,7 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "写真・動画",
     "写っているもの",
     "候補を確かめる材料",
+    "AI解説を作成中です",
     "見えている特徴",
     "弱い点",
     "地域との読み",
@@ -177,6 +178,7 @@ test("observation detail primary copy does not expose internal record terms", ()
     "映像フレームから拾えている手がかり",
     "名前の記録",
     "現場アドバイス",
+    "この記録のいいところ",
   ]) {
     assert.doesNotMatch(detailCopySource, new RegExp(term));
   }
@@ -243,31 +245,23 @@ test("observation detail hero readout keeps scene candidates out of identificati
   const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
 
   assert.match(readoutSource, /bundle: ObservationVisitBundle \| null = null/);
-  assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
-  assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle, groundingAssets\)/);
-  assert.match(readoutSource, /obs-ai-detail-box/);
-  assert.match(readoutSource, /candidateReadingMap\(bundle\)/);
-  assert.match(readoutSource, /findCandidateReading\(readingMap/);
-  assert.match(readoutSource, /fallbackCandidateReadingForSubject/);
-  assert.match(readoutSource, /obs-ai-merged-row/);
-  assert.match(readoutSource, /obs-ai-merged-label">根拠/);
-  assert.match(readoutSource, /sourceReading\.visibleFeatures/);
-  assert.match(readoutSource, /sourceReading\.weakPoints/);
-  assert.match(readoutSource, /sourceReading\.shootingTips/);
-  assert.match(readoutSource, /renderAiSizeSummary\(sourceReading\.sizeAssessment\)/);
-  assert.match(readoutSource, /renderAiTaxonStory\(null, candidateName, sourceReading\.scientificName \|\| subject\.scientificName\)/);
+  assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle, groundingAssets, glossaryTerms\)/);
+  assert.match(readoutSource, /AI解説を作成中です/);
+  assert.match(readoutSource, /写真・動画を読み込んでいます/);
+  assert.doesNotMatch(readoutSource, /candidateReadingMap\(bundle\)/);
+  assert.doesNotMatch(readoutSource, /findCandidateReading\(readingMap/);
+  assert.doesNotMatch(readoutSource, /fallbackCandidateReadingForSubject/);
+  assert.doesNotMatch(readoutSource, /obs-ai-detail-box/);
+  assert.doesNotMatch(readoutSource, /同じ場面内の名前候補として残っています/);
   assert.match(readoutSource, /subjectIdentificationName\(subject\)/);
   assert.match(readoutSource, /isWeakIdentificationCandidateName\(directCandidateName\) && identificationName \? identificationName : directCandidateName/);
   assert.match(readoutSource, /lookupLocalTaxonName\(candidateName\)\?\.scientificName/);
   assert.match(readoutSource, /renderAiTaxonStory\(insight, candidateName, subject\.scientificName \|\| aiAssessment\.recommendedScientificName \|\| fallbackScientificName\)/);
-  assert.match(readoutSource, /確かめる点/);
-  assert.match(readoutSource, /追加で見る点/);
   assert.match(readoutSource, /sceneTargets \|\| currentTarget/);
   assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
-  assert.match(readoutSource, /同じ場面内の名前候補として残っています/);
   assert.doesNotMatch(readoutSource, /<p class="obs-hint-eyebrow">名前のいま/);
-  assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle, groundingAssets\)/);
-  assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle, groundingAssets\)/);
+  assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle, groundingAssets, glossaryTerms\)/);
+  assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle, groundingAssets, glossaryTerms\)/);
 });
 
 test("vegetation care advice is cautious and grounded in management context", () => {
@@ -311,7 +305,7 @@ test("stored AI geographic hints are sanitized with the verified public place la
   assert.match(sanitizeSource, /静岡県静岡市/);
   assert.match(sanitizeSource, /静岡市/);
   assert.match(subjectHintSource, /sanitizeAiGeographicContext\(aiAssessment\.geographicContext, verifiedPlaceLabel\)/);
-  assert.match(registrationSource, /renderSubjectHint\(subject, siteBriefResult \?\? null, snapshot\.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel\)/);
+  assert.match(registrationSource, /renderSubjectHint\(subject, siteBriefResult \?\? null, snapshot\.photoAssets, basePath, mediaContext, glossaryTerms, fieldAdviceContext, heroPlaceLabel\)/);
 });
 
 test("identification candidate switch uses real bundle candidates instead of hardcoded 1 of 1", () => {
@@ -463,10 +457,39 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
   assert.match(html, /data-ai-candidate-index="2" data-ai-candidate-total="3"/);
   assert.match(html, /Ligustrum lucidum/);
   assert.match(html, /AIが主に見たところ/);
+  assert.doesNotMatch(html, /この記録のいいところ/);
+  assert.match(html, /つやのある緑色の葉が見えていて、次に比べる手がかりになります。/);
   assert.match(html, /data-ai-grounding-asset="asset-main-photo"/);
   assert.match(html, /画像1/);
   assert.match(html, /左上/);
   assert.match(html, /枠の確度 86%/);
+
+  const twoClueSubject = {
+    ...subject,
+    aiAssessment: {
+      ...(subject.aiAssessment as NonNullable<ObservationVisitSubject["aiAssessment"]>),
+      assessmentId: "assess-weak-two-clues",
+      diagnosticFeaturesSeen: ["つやのある緑色の葉", "明るい葉脈"],
+    },
+  } as ObservationVisitSubject;
+  const twoClueHtml = renderHeroAiReadout(twoClueSubject, false, null, bundle, [{ assetId: "asset-main-photo", label: "画像1" }]);
+
+  assert.match(twoClueHtml, /つやのある緑色の葉、明るい葉脈が写っていて、あとで比べる手がかりが残っています。/);
+  assert.doesNotMatch(twoClueHtml, /候補を確かめる材料/);
+
+  const mergedInsight = renderObservationRecordInsightText({
+    snapshot: {
+      observedAt: "2026-05-29T19:12:00.000Z",
+      municipality: "浜松市浜名区",
+      publicLocation: null,
+    } as never,
+    subject: twoClueSubject,
+    recordItems: [],
+    placeLabel: "浜松市浜名区",
+  });
+
+  assert.match(mergedInsight, /つやのある緑色の葉、明るい葉脈が写っていて、あとで比べる手がかりが残っています。/);
+  assert.doesNotMatch(mergedInsight, /この記録のいいところ/);
 });
 
 test("AI candidate tabs have synchronized hero and identification targets", () => {
@@ -476,7 +499,7 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   const polishSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
 
   assert.match(readoutSource, /data-ai-target="\$\{escapeHtml\(aiCandidatePanelKey\(candidate\)\)\}"/);
-  assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle, groundingAssets\)/);
+  assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle, groundingAssets, glossaryTerms\)/);
   assert.match(identifySource, /panelKey: occurrenceHref \? candidate\.suggestedOccurrenceId : aiCandidatePanelKey\(candidate\)/);
   assert.match(identifySource, /data-ai-candidate-meter-value/);
   assert.match(identifySource, /obs-frame-candidate-current/);
@@ -502,7 +525,60 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(polishSource, /setAttribute\('aria-current', 'true'\)/);
 });
 
-test("candidate tab status rank follows the visible candidate name", () => {
+test("observation quality change buttons are wired to real page targets", () => {
+  const qualitySource = sourceBetween("function renderObservationQualityCard", "type ObservationNextAction");
+  const polishSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
+
+  assert.doesNotMatch(qualitySource, /data-quality-action="date_place"/);
+  assert.match(qualitySource, /data-quality-action="date"/);
+  assert.match(qualitySource, /data-quality-action="location"/);
+  assert.match(qualitySource, /data-quality-action="evidence"/);
+  assert.match(qualitySource, />写真を追加<\/button>/);
+  assert.match(qualitySource, /data-quality-action="identification"/);
+  assert.match(qualitySource, /data-name-sheet/);
+  assert.match(qualitySource, /data-name-choice="\$\{escapeHtml\(candidate\.name\)\}"/);
+  assert.match(qualitySource, /data-name-save/);
+  assert.match(qualitySource, /data-date-sheet/);
+  assert.match(qualitySource, /data-date-save/);
+  assert.match(qualitySource, /data-location-sheet/);
+  assert.match(qualitySource, /data-location-map/);
+  assert.match(qualitySource, /data-location-save/);
+  assert.match(qualitySource, /data-quality-action="origin"/);
+  assert.match(qualitySource, /data-origin-sheet/);
+  assert.match(qualitySource, /data-origin-choice="\$\{escapeHtml\(option\.value\)\}"/);
+  assert.match(qualitySource, /data-origin-save/);
+  assert.match(qualitySource, /data-origin-toast/);
+  assert.match(qualitySource, /data-quality-action="media"/);
+  assert.match(qualitySource, /data-quality-action-status/);
+  assert.match(qualitySource, /obs-local-quality-field-edit/);
+  assert.match(qualitySource, /data-env-edit="\$\{escapeHtml\(field\.field\)\}"/);
+  assert.match(qualitySource, /data-env-sheet/);
+  assert.match(qualitySource, /data-env-save/);
+  assert.match(qualitySource, /data-env-toast/);
+  assert.match(polishSource, /function handleQualityAction/);
+  assert.match(polishSource, /event\.target[\s\S]*?closest\('\.obs-local-quality-change\[data-quality-action\]'\)/);
+  assert.match(polishSource, /function openNameSheet/);
+  assert.match(polishSource, /function postName/);
+  assert.match(polishSource, /\/identifications/);
+  assert.match(polishSource, /function openDateSheet/);
+  assert.match(polishSource, /occurrenceEndpoint\('\/observed-at'\)/);
+  assert.match(polishSource, /function openLocationSheet/);
+  assert.match(polishSource, /function setLocationFromMap/);
+  assert.match(polishSource, /occurrenceEndpoint\('\/location'\)/);
+  assert.match(polishSource, /function openOriginSheet/);
+  assert.match(polishSource, /\/origin/);
+  assert.match(polishSource, /function openEnvSheet/);
+  assert.match(polishSource, /\/environment-field/);
+  assert.match(polishSource, /data-name-undo/);
+  assert.match(polishSource, /data-date-undo/);
+  assert.match(polishSource, /data-location-undo/);
+  assert.match(polishSource, /data-env-undo/);
+  assert.match(polishSource, /data-origin-undo/);
+  assert.match(polishSource, /querySelector\('\[data-photo-recovery\]'\)/);
+  assert.doesNotMatch(polishSource, /由来メモ: /);
+});
+
+test("AI readout stays simple while the assessment is still being created", () => {
   const subject = {
     occurrenceId: "occ-millipede-class",
     displayName: "倍脚綱 (ヤスデ網)",
@@ -537,9 +613,11 @@ test("candidate tab status rank follows the visible candidate name", () => {
 
   const html = renderHeroAiReadout(subject, false, null, bundle);
 
-  assert.match(html, /倍脚綱 \(ヤスデ綱\)<\/span><span class="obs-ai-target-status">綱 \/ 確認待ち<\/span>/);
-  assert.match(html, /オビヤスデ目の一種<\/span><span class="obs-ai-target-status">目 \/ 確認待ち<\/span>/);
-  assert.doesNotMatch(html, /倍脚綱 \(ヤスデ綱\)<\/span><span class="obs-ai-target-status">目 \/ 確認待ち<\/span>/);
+  assert.match(html, /AI解説を作成中です/);
+  assert.match(html, /写真・動画を読み込んでいます/);
+  assert.doesNotMatch(html, /同じ場面内の名前候補として残っています/);
+  assert.doesNotMatch(html, /data-ai-target/);
+  assert.doesNotMatch(html, /obs-ai-detail-box/);
 });
 
 test("owner-only controls stay compact and avoid support-card copy", () => {
@@ -902,6 +980,28 @@ test("subject switching reserves panel height before replacing candidate content
   assert.match(routeSource, /restoreCandidateListScroll\(candidateListScroll\)/);
   assert.match(routeSource, /root\.style\.minHeight = maxHeight \+ 'px'/);
   assert.match(routeSource, /stabilizeSwitchHeights\(\);\s*renderSubject\(currentSubjectId, false\)/);
+  assert.doesNotMatch(routeSource, /templateAttr: 'data-subject-shot-feedback-template'/);
+});
+
+test("observation detail surfaces shot feedback outside hidden subject hints", () => {
+  assert.match(routeSource, /function renderObservationShotFeedbackSurface/);
+  assert.match(routeSource, /function collectObservationShotFeedbackGroups/);
+  assert.match(routeSource, /function shotFeedbackBenefitText/);
+  assert.match(routeSource, /obs-shot-group-list/);
+  assert.match(routeSource, /getGlossaryTermsForScope\(\{ lang, scopeTags: \["observation"\] \}\)/);
+  assert.match(routeSource, /renderGlossaryText/);
+  assert.match(routeSource, /term-hint-pop/);
+  assert.match(routeSource, /function renderGlossaryHintScript/);
+  assert.match(routeSource, /closeHints\(null\)/);
+  assert.match(routeSource, /term-hint\.is-open \.term-hint-pop/);
+  assert.doesNotMatch(routeSource, /term-hint:hover \.term-hint-pop/);
+  assert.match(routeSource, /candidateReadings/);
+  assert.match(routeSource, /renderObservationShotFeedbackSurface\(bundle,\s*mediaContext,\s*glossaryTerms\)/);
+  assert.match(routeSource, /季節や別地点の記録と比べやすくなります/);
+  assert.match(routeSource, /似た花との違いや季節ごとの姿を説明しやすくなります/);
+  assert.doesNotMatch(routeSource, /data-obs-switch-shot-feedback/);
+  assert.doesNotMatch(routeSource, /data-subject-shot-feedback-template/);
+  assert.match(routeSource, /\$\{heroBlock\}\$\{shotFeedbackBlock\}/);
 });
 
 test("AI activity ledger exposes the model used for auditability", () => {
@@ -1493,39 +1593,15 @@ test("AI readout rendered contract follows the snapshot-like candidate order", (
   assert.doesNotMatch(visibleTextFromHtml(primaryHtml), /Rubus parvifolius\s+Rubus parvifolius/);
 
   assertVisibleTermsInOrder(akamigashiwaHtml, [
-    "ナワシロイチゴ",
-    "確認待ち",
-    "アカメガシワ",
-    "確認待ち",
-    "カタバミ属",
-    "確認待ち",
-    "根拠",
-    "大きな葉の形状",
-    "アカメガシワを知る",
-    "Mallotus japonicus",
-    "端末の声で読む",
-    "確かめる点",
-    "全景が不明瞭",
-    "追加で見る点",
-    "葉の全体像と枝の付き方を撮る",
+    "AI解説を作成中です",
+    "写真・動画を読み込んでいます",
   ]);
   assertVisibleTermsInOrder(katabamiHtml, [
-    "ナワシロイチゴ",
-    "確認待ち",
-    "アカメガシワ",
-    "確認待ち",
-    "カタバミ属",
-    "確認待ち",
-    "根拠",
-    "地表の小さな3出複葉",
-    "カタバミ属を知る",
-    "Oxalis",
-    "端末の声で読む",
-    "確かめる点",
-    "花や果実の未確認",
-    "追加で見る点",
-    "花の色彩と形を近くからで撮る",
+    "AI解説を作成中です",
+    "写真・動画を読み込んでいます",
   ]);
+  assert.doesNotMatch(akamigashiwaHtml, /同じ場面内の名前候補として残っています|確かめる点|追加で見る点/);
+  assert.doesNotMatch(katabamiHtml, /同じ場面内の名前候補として残っています|確かめる点|追加で見る点/);
 });
 
 test("AI readout rendered contract covers the kawarahiwa video classification lane", () => {
@@ -1586,5 +1662,5 @@ test("identity evidence fallback keeps common planted-scene subjects specific", 
 test("open disputes pause assertive more-about copy", () => {
   assert.match(routeSource, /hasOpenNameDispute/);
   assert.match(routeSource, /確認中/);
-  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight,\s*bundle,\s*groundingAssets\)/s);
+  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight,\s*bundle,\s*groundingAssets,\s*glossaryTerms\)/s);
 });

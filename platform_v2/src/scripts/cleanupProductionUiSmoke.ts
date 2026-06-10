@@ -123,6 +123,36 @@ async function cleanupProductionUiSmoke(options: CleanupOptions): Promise<Cleanu
     const userIds = users.rows.map((row) => row.user_id);
     matched.users = userIds.length;
 
+    const referenceSources = await client.query<{ source_id: string }>(
+      `select distinct ks.source_id::text
+         from knowledge_sources ks
+         left join knowledge_source_reference_metadata krm on krm.source_id = ks.source_id
+        where ks.title like $1
+           or coalesce(ks.citation_text, '') like $1
+           or ks.source_payload::text like $1
+           or krm.ai_extract_payload::text like $1
+           or exists (
+                select 1
+                  from reference_capture_items rci
+                  left join reference_capture_batches rcb on rcb.batch_id = rci.batch_id
+                 where rci.source_id = ks.source_id
+                   and (
+                        rci.extracted_payload::text like $1
+                     or rci.classification_note like $1
+                     or rcb.ai_summary::text like $1
+                   )
+              )
+           or exists (
+                select 1
+                  from user_reference_access_proofs proof
+                 where proof.source_id = ks.source_id
+                   and proof.ai_check_payload::text like $1
+              )`,
+      [`%${options.fixturePrefix}%`],
+    );
+    const referenceSourceIds = referenceSources.rows.map((row) => row.source_id);
+    matched.referenceSources = referenceSourceIds.length;
+
     const visits = await client.query<{ visit_id: string; place_id: string | null }>(
       `select distinct visit_id, place_id
          from visits
@@ -268,6 +298,52 @@ async function cleanupProductionUiSmoke(options: CleanupOptions): Promise<Cleanu
             where occurrence_id = any($1::text[])
                or actor_user_id = any($2::text[])`,
           [occurrenceIds, userIds],
+        );
+        deleted.identificationReferences = await deleteCount(
+          client,
+          `delete from identification_references
+            where source_id = any($1::uuid[])
+               or selected_by_user_id = any($2::text[])`,
+          [referenceSourceIds, userIds],
+        );
+        deleted.referenceCaptureItems = await deleteCount(
+          client,
+          `delete from reference_capture_items
+            where user_id = any($1::text[])
+               or source_id = any($2::uuid[])
+               or extracted_payload::text like $3
+               or classification_note like $3`,
+          [userIds, referenceSourceIds, `%${options.fixturePrefix}%`],
+        );
+        deleted.referenceAccessProofs = await deleteCount(
+          client,
+          `delete from user_reference_access_proofs
+            where user_id = any($1::text[])
+               or source_id = any($2::uuid[])
+               or ai_check_payload::text like $3`,
+          [userIds, referenceSourceIds, `%${options.fixturePrefix}%`],
+        );
+        deleted.referenceCaptureBatches = await deleteCount(
+          client,
+          `delete from reference_capture_batches
+            where user_id = any($1::text[])
+               or ai_summary::text like $2`,
+          [userIds, `%${options.fixturePrefix}%`],
+        );
+        deleted.referenceTaxonLinks = await deleteCount(
+          client,
+          `delete from knowledge_source_taxon_links where source_id = any($1::uuid[])`,
+          [referenceSourceIds],
+        );
+        deleted.referenceMetadata = await deleteCount(
+          client,
+          `delete from knowledge_source_reference_metadata where source_id = any($1::uuid[])`,
+          [referenceSourceIds],
+        );
+        deleted.knowledgeSources = await deleteCount(
+          client,
+          `delete from knowledge_sources where source_id = any($1::uuid[])`,
+          [referenceSourceIds],
         );
         deleted.reactions = await deleteCount(
           client,

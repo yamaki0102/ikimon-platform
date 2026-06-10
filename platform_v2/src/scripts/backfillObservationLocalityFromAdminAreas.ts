@@ -11,6 +11,7 @@ type Options = {
 type CandidateRow = {
   visit_id: string;
   place_id: string | null;
+  observed_at: string;
   observed_prefecture: string | null;
   observed_municipality: string | null;
   point_latitude: string | number | null;
@@ -64,6 +65,7 @@ async function loadCandidates(options: Options): Promise<CandidateRow[]> {
   const result = await pool.query<CandidateRow>(
     `select v.visit_id,
             v.place_id,
+            v.observed_at::text as observed_at,
             v.observed_prefecture,
             v.observed_municipality,
             v.point_latitude::text as point_latitude,
@@ -93,7 +95,7 @@ export async function backfillObservationLocalityFromAdminAreas(options: Options
     for (const row of candidates) {
       const lat = Number(row.point_latitude);
       const lng = Number(row.point_longitude);
-      const locality = await resolveAdminLocalityForPoint(client, lat, lng);
+      const locality = await resolveAdminLocalityForPoint(client, lat, lng, { observedAt: row.observed_at });
       if (!locality?.municipality && !locality?.prefecture) continue;
       matched += 1;
       const nextPrefecture = clean(row.observed_prefecture) ?? locality.prefecture;
@@ -112,12 +114,26 @@ export async function backfillObservationLocalityFromAdminAreas(options: Options
                   jsonb_build_object(
                     'field_id', $4::text,
                     'name', $5::text,
+                    'entity_key', $6::text,
+                    'valid_from', $7::text,
+                    'valid_to', $8::text,
+                    'observed_at', $9::text,
                     'updated_at', now()
                   )
                 ),
                 updated_at = now()
           where visit_id = $1`,
-        [row.visit_id, nextPrefecture, nextMunicipality, locality.fieldId, locality.name],
+        [
+          row.visit_id,
+          nextPrefecture,
+          nextMunicipality,
+          locality.fieldId,
+          locality.name,
+          locality.entityKey,
+          locality.validFrom,
+          locality.validTo,
+          row.observed_at,
+        ],
       );
       if (row.place_id) {
         await client.query(

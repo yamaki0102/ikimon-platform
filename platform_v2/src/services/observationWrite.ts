@@ -55,6 +55,7 @@ import {
 } from "./observationPackageDataChain.js";
 import { resolveAdminLocalityForPoint } from "./adminLocalityResolver.js";
 import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
+import { encodeJisMeshCodes } from "./jisMesh.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -502,7 +503,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const publicVisibility = hasPhoto ? "public" : "review";
   const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
-  const adminLocality = await resolveAdminLocalityForPoint(client, input.latitude, input.longitude).catch((err) => {
+  const observedAt = normalizeTimestamp(input.observedAt);
+  const adminLocality = await resolveAdminLocalityForPoint(client, input.latitude, input.longitude, { observedAt }).catch((err) => {
     console.warn("[observationWrite] resolveAdminLocalityForPoint failed", err);
     return null;
   });
@@ -544,7 +546,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     municipality: locality.municipality,
     prefecture: locality.prefecture,
   });
-  const observedAt = normalizeTimestamp(input.observedAt);
+  const spatialMesh = encodeJisMeshCodes(input.latitude, input.longitude);
   const fingerprint = requestFingerprint(input, subjects, observedAt, locality);
   const eventSessionId = (input as unknown as { eventSessionId?: unknown }).eventSessionId;
   const eventCode = (input as unknown as { eventCode?: unknown }).eventCode;
@@ -660,9 +662,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     await client.query(
       `insert into places (
           place_id, legacy_place_key, legacy_site_id, canonical_name, locality_label,
-          source_kind, country_code, prefecture, municipality, center_latitude, center_longitude, metadata, created_at, updated_at
+          source_kind, country_code, prefecture, municipality, mesh3, mesh4, center_latitude, center_longitude, metadata, created_at, updated_at
        ) values (
-          $1, $2, $3, $4, $5, 'v2_observation', $6, $7, $8, $9, $10, $11::jsonb, $12, now()
+          $1, $2, $3, $4, $5, 'v2_observation', $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, now()
        )
        on conflict (place_id) do update set
           legacy_site_id = excluded.legacy_site_id,
@@ -671,6 +673,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           country_code = excluded.country_code,
           prefecture = excluded.prefecture,
           municipality = excluded.municipality,
+          mesh3 = coalesce(excluded.mesh3, places.mesh3),
+          mesh4 = coalesce(excluded.mesh4, places.mesh4),
           center_latitude = coalesce(excluded.center_latitude, places.center_latitude),
           center_longitude = coalesce(excluded.center_longitude, places.center_longitude),
           metadata = excluded.metadata,
@@ -688,6 +692,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         observedCountry,
         locality.prefecture,
         locality.municipality,
+        spatialMesh.mesh1km,
+        spatialMesh.mesh250m,
         input.latitude,
         input.longitude,
         JSON.stringify({
@@ -712,11 +718,12 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       `insert into visits (
           visit_id, legacy_observation_id, place_id, user_id, observed_at, session_mode, visit_mode,
           complete_checklist_flag, target_taxa_scope, effort_minutes, distance_meters, point_latitude, point_longitude,
+          jis_mesh_1km, jis_mesh_250m,
           observed_country, observed_prefecture, observed_municipality, locality_note, note,
           source_kind, source_payload, public_visibility, quality_review_status, quality_gate_reasons, created_at, updated_at
        ) values (
           $1, $2, $3, $4, $5, 'standard', $6, $7, $8, $9, $10, $11,
-          $12, $13, $14, $15, $16, $17, 'v2_observation', $18::jsonb, $19, $20, $21::jsonb, $22, now()
+          $12, $13, $14, $15, $16, $17, $18, $19, 'v2_observation', $20::jsonb, $21, $22, $23::jsonb, $24, now()
        )
        on conflict (visit_id) do update set
           legacy_observation_id = excluded.legacy_observation_id,
@@ -730,6 +737,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           distance_meters = excluded.distance_meters,
           point_latitude = excluded.point_latitude,
           point_longitude = excluded.point_longitude,
+          jis_mesh_1km = excluded.jis_mesh_1km,
+          jis_mesh_250m = excluded.jis_mesh_250m,
           observed_country = excluded.observed_country,
           observed_prefecture = excluded.observed_prefecture,
           observed_municipality = excluded.observed_municipality,
@@ -753,6 +762,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         distanceMeters,
         input.latitude,
         input.longitude,
+        spatialMesh.mesh1km,
+        spatialMesh.mesh250m,
         observedCountry,
         locality.prefecture,
         locality.municipality,

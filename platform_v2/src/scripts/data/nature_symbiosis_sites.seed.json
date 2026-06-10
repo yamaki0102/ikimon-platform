@@ -19,6 +19,111 @@
       "story_url": "https://ikimon.life/guide/aikan-renri-report.php",
       "certification_url": "https://www.env.go.jp/nature/biodic/30by30.html",
       "source_confidence": 1,
+      "payload": {
+        "guide_stop": {
+          "enabled": true,
+          "language": "ja",
+          "title": "Cafe & Restaurant LENRIと連理の木",
+          "subtitle": "近づくと、愛管の自然共生サイトとカフェアンドレストランレンリの背景を聞けます。",
+          "preview": "連理の木、れんり農園、Cafe & Restaurant LENRI、地中熱GXを、同じ場所で育ってきた地域の物語として紹介します。",
+          "script": "ここは、愛管株式会社が設備会社としての現場力を、食、農、自然共生、教育へ少しずつ結び直してきた場所です。連理の木の下で始まった活動は、れんり農園、Cafe & Restaurant LENRI、地域の素材を生かす食の場へ広がりました。カフェアンドレストランレンリは、料理を出すだけの店ではありません。水や熱を扱ってきた会社が、足元の土、木陰、地域の素材、人が集まる時間まで含めて、土地との関係をもう一度つくるための入口です。構想から形になるまでには、およそ三年の時間がかかりました。その時間は、建物を整えるだけでなく、この場所で何を大切にするのかを確かめる時間でもありました。訪れたら、看板や建物だけでなく、連理の木、農園、足元の草地、水や熱の使い方にも目を向けてください。",
+          "tts_script": "ここは、愛管株式会社が設備会社としての現場力を、食、農、自然共生、教育へ少しずつ結び直してきた場所です。連理の木の下で始まった活動は、れんり農園、カフェアンドレストランレンリ、地域の素材を生かす食の場へ広がりました。カフェアンドレストランレンリは、料理を出すだけの店ではありません。水や熱を扱ってきた会社が、足元の土、木陰、地域の素材、人が集まる時間まで含めて、土地との関係をもう一度つくるための入口です。構想から形になるまでには、およそ三年の時間がかかりました。その時間は、建物を整えるだけでなく、この場所で何を大切にするのかを確かめる時間でもありました。訪れたら、看板や建物だけでなく、連理の木、農園、足元の草地、水や熱の使い方にも目を向けてください。",
+          "story_points": [
+            "連理の木を中心に、食、農、自然共生、設備技術が同じ場所でつながっている。",
+            "Cafe & Restaurant LENRIは、地域素材や場づくりを通じて人と土地の関係を見せる入口。",
+            "地中熱GXや自然共生サイトの活動も、裏側でこの場所の思想を支えている。"
+          ],
+          "audio_url": "/assets/audio/guides/lenri/lenri-guide-ja.mp3",
+          "audio_provider": "irodori-tts",
+          "audio_voice": "job-expo-voice-design-ref",
+          "audio_generated_at": "2026-06-09",
+          "variants": {
+            "ja": {
+              "language": "ja",
+              "title": "Cafe & Restaurant LENRIと連理の木",
+              "subtitle": "近づくと、愛管の自然共生サイトとカフェアンドレストランレンリの背景を聞けます。",
+              "preview": "連理の木、れんり農園、Cafe & Restaurant LENRI、地中熱GXを、同じ場所で育ってきた地域の物語として紹介します。",
+              "script": "ここは、愛管株式会社が設備会社としての現場力を、食、農、自然共生、教育へ少しずつ結び直してきた場所です。連理の木の下で始まった活動は、れんり農園、Cafe & Restaurant LENRI、地域の素材を生かす食の場へ広がりました。カフェアンドレストランレンリは、料理を出すだけの店ではありません。水や熱を扱ってきた会社が、足元の土、木陰、地域の素材、人が集まる時間まで含めて、土地との関係をもう一度つくるための入口です。構想から形になるまでには、およそ三年の時間がかかりました。その時間は、建物を整えるだけでなく、この場所で何を大切にするのかを確かめる時間でもありました。訪れたら、看板や建物だけでなく、連理の木、農園、足元の草地、水や熱の使い方にも目を向けてください。",
+              "tts_script": "ここは、愛管株式会社が設備会社としての現場力を、食、農、自然共生、教育へ少しずつ結び直してきた場所です。連理の木の下で始まった活動は、れんり農園、カフェアンドレストランレンリ、地域の素材を生かす食の場へ広がりました。カフェアンドレストランレンリは、料理を出すだけの店ではありません。水や熱を扱ってきた会社が、足元の土、木陰、地域の素材、人が集まる時間まで含めて、土地との関係をもう一度つくるための入口です。構想から形になるまでには、およそ三年の時間がかかりました。その時間は、建物を整えるだけでなく、この場所で何を大切にするのかを確かめる時間でもありました。訪れたら、看板や建物だけでなく、連理の木、農園、足元の草地、水や熱の使い方にも目を向けてください。",
+              "story_points": [
+                "連理の木を中心に、食、農、自然共生、設備技術が同じ場所でつながっている。",
+                "Cafe & Restaurant LENRIは、地域素材や場づくりを通じて人と土地の関係を見せる入口。",
+                "地中熱GXや自然共生サイトの活動も、裏側でこの場所の思想を支えている。"
+              ],
+              "audio_url": "/assets/audio/guides/lenri/lenri-guide-ja.mp3",
+              "audio_provider": "irodori-tts",
+              "audio_voice": "job-expo-voice-design-ref",
+              "audio_generated_at": "2026-06-09"
+            },
+            "en": {
+              "language": "en",
+              "title": "Cafe & Restaurant LENRI and the Connected Tree",
+              "subtitle": "When you are nearby, listen to how Aikan connected this place with food, farming, and nature-positive work.",
+              "preview": "This guide links the connected tree, Renri Farm, Cafe & Restaurant LENRI, and geothermal GX as one local story.",
+              "script": "This is a place where Aikan Corporation has gradually reconnected its field knowledge as a facilities company with food, farming, nature-positive work, and learning. What began under the connected tree grew into Renri Farm, Cafe and Restaurant LENRI, and a dining place that uses local ingredients. LENRI is not just a restaurant. It is an entrance into a relationship with the land, shaped by a company that has long worked with water, heat, infrastructure, and everyday comfort. It took about three years for the idea to become a visible place. That time was not only for construction. It was also time to ask what this land should protect, what it should share, and how people should gather here. As you visit, look beyond the sign and the building. Notice the tree, the farm, the groundcover, the shade, and the quiet ways water and heat support this place.",
+              "tts_script": "This is a place where Aikan Corporation has gradually reconnected its field knowledge as a facilities company with food, farming, nature-positive work, and learning. What began under the connected tree grew into Renri Farm, Cafe and Restaurant LENRI, and a dining place that uses local ingredients. LENRI is not just a restaurant. It is an entrance into a relationship with the land, shaped by a company that has long worked with water, heat, infrastructure, and everyday comfort. It took about three years for the idea to become a visible place. That time was not only for construction. It was also time to ask what this land should protect, what it should share, and how people should gather here. As you visit, look beyond the sign and the building. Notice the tree, the farm, the groundcover, the shade, and the quiet ways water and heat support this place.",
+              "story_points": [
+                "Food, farming, nature-positive work, and facilities technology meet around the connected tree.",
+                "Cafe & Restaurant LENRI makes the relationship between local ingredients, people, and land visible.",
+                "The geothermal GX and nature symbiosis work support the same idea from behind the scenes."
+              ],
+              "audio_url": "/assets/audio/guides/lenri/lenri-guide-en.mp3",
+              "audio_provider": "irodori-tts",
+              "audio_voice": "job-expo-voice-design-ref",
+              "audio_generated_at": "2026-06-09"
+            },
+            "zh-TW": {
+              "language": "zh-TW",
+              "title": "Cafe & Restaurant LENRI 與連理木",
+              "subtitle": "靠近這裡時，可以聽見愛管如何把飲食、農園與自然共生連在一起。",
+              "preview": "這段導覽把連理木、Renri 農園、Cafe & Restaurant LENRI 與地中熱 GX 串成同一個地方故事。",
+              "script": "這裡是愛管株式會社把設備公司的現場經驗，慢慢連回飲食、農業、自然共生與學習的地方。從連理木下開始的活動，延伸成 Renri 農園、Cafe and Restaurant LENRI，以及使用在地食材的餐飲空間。LENRI 不只是餐廳。它是一個入口，讓人看見長年處理水、熱與生活基礎設施的公司，如何重新建立人與土地的關係。從構想到成形，大約花了三年的時間。那段時間不只是為了完成建築，也是為了確認這片土地要珍惜什麼、分享什麼，以及人們可以怎樣在這裡相聚。來到這裡時，請不要只看招牌和建物。也看看連理木、農園、腳下的草地、樹蔭，以及水與熱在背後支撐這個地方的方式。",
+              "tts_script": "這裡是愛管株式會社把設備公司的現場經驗，慢慢連回飲食、農業、自然共生與學習的地方。從連理木下開始的活動，延伸成 Renri 農園、Cafe and Restaurant LENRI，以及使用在地食材的餐飲空間。LENRI 不只是餐廳。它是一個入口，讓人看見長年處理水、熱與生活基礎設施的公司，如何重新建立人與土地的關係。從構想到成形，大約花了三年的時間。那段時間不只是為了完成建築，也是為了確認這片土地要珍惜什麼、分享什麼，以及人們可以怎樣在這裡相聚。來到這裡時，請不要只看招牌和建物。也看看連理木、農園、腳下的草地、樹蔭，以及水與熱在背後支撐這個地方的方式。",
+              "story_points": [
+                "連理木周圍，飲食、農業、自然共生與設備技術在同一個地方相連。",
+                "Cafe & Restaurant LENRI 讓在地食材、人與土地的關係變得看得見。",
+                "地中熱 GX 與自然共生網站的活動，也在背後支撐同一個理念。"
+              ],
+              "audio_url": "/assets/audio/guides/lenri/lenri-guide-zh-TW.mp3",
+              "audio_provider": "irodori-tts",
+              "audio_voice": "job-expo-voice-design-ref",
+              "audio_generated_at": "2026-06-09"
+            },
+            "zh-CN": {
+              "language": "zh-CN",
+              "title": "Cafe & Restaurant LENRI 与连理木",
+              "subtitle": "靠近这里时，可以听到爱管如何把餐饮、农园和自然共生连接起来。",
+              "preview": "这段导览把连理木、Renri 农园、Cafe & Restaurant LENRI 和地中热 GX 串成同一个地方故事。",
+              "script": "这里是爱管株式会社把设备公司的现场经验，慢慢连接到餐饮、农业、自然共生和学习的地方。从连理木下开始的活动，延伸成 Renri 农园、Cafe and Restaurant LENRI，以及使用本地食材的餐饮空间。LENRI 不只是餐厅。它是一个入口，让人看到一家长期处理水、热和生活基础设施的公司，如何重新建立人与土地的关系。从构想到成形，大约花了三年的时间。这段时间不只是为了完成建筑，也是为了确认这片土地要珍惜什么、分享什么，以及人们可以怎样在这里相聚。来到这里时，请不要只看招牌和建筑。也看看连理木、农园、脚下的草地、树荫，以及水与热在背后支撑这个地方的方式。",
+              "tts_script": "这里是爱管株式会社把设备公司的现场经验，慢慢连接到餐饮、农业、自然共生和学习的地方。从连理木下开始的活动，延伸成 Renri 农园、Cafe and Restaurant LENRI，以及使用本地食材的餐饮空间。LENRI 不只是餐厅。它是一个入口，让人看到一家长期处理水、热和生活基础设施的公司，如何重新建立人与土地的关系。从构想到成形，大约花了三年的时间。这段时间不只是为了完成建筑，也是为了确认这片土地要珍惜什么、分享什么，以及人们可以怎样在这里相聚。来到这里时，请不要只看招牌和建筑。也看看连理木、农园、脚下的草地、树荫，以及水与热在背后支撑这个地方的方式。",
+              "story_points": [
+                "围绕连理木，餐饮、农业、自然共生和设备技术在同一个地方连接起来。",
+                "Cafe & Restaurant LENRI 让本地食材、人和土地的关系变得可见。",
+                "地中热 GX 和自然共生网站的活动，也在背后支撑同一个理念。"
+              ],
+              "audio_url": "/assets/audio/guides/lenri/lenri-guide-zh-CN.mp3",
+              "audio_provider": "irodori-tts",
+              "audio_voice": "job-expo-voice-design-ref",
+              "audio_generated_at": "2026-06-09"
+            }
+          },
+          "source_links": [
+            {
+              "label": "愛管株式会社: 生物多様性",
+              "url": "https://i-kan.co.jp/company/biodiversity/"
+            },
+            {
+              "label": "浜松市: 地域遺産認定制度",
+              "url": "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html"
+            }
+          ],
+          "trigger_radius_m": 90,
+          "unlocked_radius_m": 45,
+          "approved_by": "愛管株式会社",
+          "approval_state": "owner_verified",
+          "content_version": "2026-06-09-lenri-irodori-v1"
+        }
+      },
       "polygon": {
         "type": "Polygon",
         "coordinates": [[

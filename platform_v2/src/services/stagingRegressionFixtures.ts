@@ -17,9 +17,18 @@ type RegressionFixtureSummary = {
   occurrenceId: string;
   placeId: string;
   subjectLabel: string;
+  scientificName: string;
   observedAt: string;
   sourceKind: string;
   expectedVisibility: "manual_only" | "all_research_artifacts_only" | "excluded";
+};
+
+type RegressionFixtureReferenceSummary = {
+  sourceId: string;
+  title: string;
+  taxonName: string;
+  taxonRank: string;
+  locator: string;
 };
 
 export type StagingRegressionFixtureSeedResult = {
@@ -32,6 +41,7 @@ export type StagingRegressionFixtureSeedResult = {
   historical: RegressionFixtureSummary;
   smoke: RegressionFixtureSummary;
   scene: RegressionFixtureSummary;
+  reference: RegressionFixtureReferenceSummary;
 };
 
 type FixturePhoto = {
@@ -466,6 +476,7 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
     occurrenceId,
     placeId,
     subjectLabel: input.subjectLabel,
+    scientificName: input.scientificName,
     observedAt,
     sourceKind: input.sourceKind,
     expectedVisibility:
@@ -476,6 +487,142 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
           : input.kind === "historical"
           ? "all_research_artifacts_only"
           : "excluded",
+  };
+}
+
+async function upsertFixtureReference(
+  client: PoolClient,
+  input: {
+    fixturePrefix: string;
+    userId: string;
+    taxonName: string;
+    taxonRank: string;
+  },
+): Promise<RegressionFixtureReferenceSummary> {
+  const title = `Regression Field Guide ${input.fixturePrefix}`;
+  const url = `https://staging.ikimon.life/fixtures/${encodeURIComponent(input.fixturePrefix)}/regression-field-guide`;
+  const sourcePayload = {
+    source: "staging_regression_reference",
+    fixture_prefix: input.fixturePrefix,
+    scenario: "identification_workbench",
+    no_page_text_stored: true,
+  };
+  const existingSource = await client.query<{ source_id: string }>(
+    `select source_id::text from knowledge_sources where url = $1 limit 1`,
+    [url],
+  );
+  const existingSourceId = existingSource.rows[0]?.source_id ?? null;
+  const sourceResult = existingSourceId
+    ? await client.query<{ source_id: string }>(
+        `update knowledge_sources
+            set source_kind = 'field_guide',
+                source_provider = 'staging_regression',
+                title = $2,
+                publisher = 'IKIMON QA',
+                publication_year = 2026,
+                license_label = 'metadata-only fixture',
+                access_policy = 'metadata_only',
+                citation_text = $3,
+                source_payload = $4::jsonb,
+                updated_at = now()
+          where source_id = $1::uuid
+          returning source_id::text`,
+        [
+          existingSourceId,
+          title,
+          `${title}. IKIMON QA, 2026.`,
+          JSON.stringify(sourcePayload),
+        ],
+      )
+    : await client.query<{ source_id: string }>(
+        `insert into knowledge_sources (
+            source_kind, source_provider, title, doi, url, publisher, publication_year,
+            license_label, access_policy, citation_text, source_payload, created_at, updated_at
+         ) values (
+            'field_guide', 'staging_regression', $1, null, $2, 'IKIMON QA', 2026,
+            'metadata-only fixture', 'metadata_only', $3, $4::jsonb, now(), now()
+         )
+         returning source_id::text`,
+        [
+          title,
+          url,
+          `${title}. IKIMON QA, 2026.`,
+          JSON.stringify(sourcePayload),
+        ],
+      );
+  const sourceId = sourceResult.rows[0]?.source_id;
+  if (!sourceId) {
+    throw new Error("fixture_reference_source_missing");
+  }
+
+  await client.query(
+    `insert into knowledge_source_reference_metadata (
+        source_id, isbn, ean, author_text, edition, source_language,
+        catalog_status, ai_extract_payload, created_at, updated_at
+     ) values (
+        $1::uuid, null, null, 'IKIMON QA', 'staging fixture', 'ja',
+        'active', $2::jsonb, now(), now()
+     )
+     on conflict (source_id) do update set
+        author_text = excluded.author_text,
+        edition = excluded.edition,
+        source_language = excluded.source_language,
+        catalog_status = excluded.catalog_status,
+        ai_extract_payload = excluded.ai_extract_payload,
+        updated_at = now()`,
+    [
+      sourceId,
+      JSON.stringify({
+        source: "staging_regression_reference",
+        fixture_prefix: input.fixturePrefix,
+      }),
+    ],
+  );
+
+  await client.query(
+    `insert into knowledge_source_taxon_links (
+        source_id, taxon_name, taxon_rank, link_type, confidence,
+        created_by_user_id, source_payload, created_at, updated_at
+     ) values (
+        $1::uuid, $2, $3, 'user_confirmed', 0.980,
+        $4, $5::jsonb, now(), now()
+     )
+     on conflict (source_id, lower(btrim(taxon_name)), lower(btrim(taxon_rank)), link_type) do update set
+        confidence = excluded.confidence,
+        created_by_user_id = excluded.created_by_user_id,
+        source_payload = excluded.source_payload,
+        updated_at = now()`,
+    [
+      sourceId,
+      input.taxonName,
+      input.taxonRank,
+      input.userId,
+      JSON.stringify(sourcePayload),
+    ],
+  );
+
+  await client.query(
+    `insert into user_reference_access_proofs (
+        user_id, source_id, proof_asset_id, batch_id, proof_kind, verification_status,
+        ai_check_payload, private_use_only, created_at, updated_at
+     ) values (
+        $1, $2::uuid, null, null, 'cover', 'user_confirmed',
+        $3::jsonb, true, now(), now()
+     )
+     on conflict do nothing`,
+    [
+      input.userId,
+      sourceId,
+      JSON.stringify(sourcePayload),
+    ],
+  );
+
+  return {
+    sourceId,
+    title,
+    taxonName: input.taxonName,
+    taxonRank: input.taxonRank,
+    locator: "p.12",
   };
 }
 
@@ -640,6 +787,13 @@ export async function seedStagingRegressionFixtures(
       ],
     });
 
+    const reference = await upsertFixtureReference(client, {
+      fixturePrefix,
+      userId,
+      taxonName: scene.scientificName,
+      taxonRank: "species",
+    });
+
     await client.query("commit");
 
     return {
@@ -652,6 +806,7 @@ export async function seedStagingRegressionFixtures(
       historical,
       smoke,
       scene,
+      reference,
     };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);

@@ -14,6 +14,7 @@ const {
   filterAreaFeaturesBySources,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
+  normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
   LIVE_OSM_EMPTY_TTL_HOURS,
@@ -183,6 +184,71 @@ test("stored school point-buffer rows render when the geometry is no longer a ge
       [137.39, 34.73],
     ]],
   }), true);
+});
+
+test("normalizeGuideStop keeps approved location guide stops bounded for map delivery", () => {
+  const stop = normalizeGuideStop({
+    enabled: true,
+    title: " 連理の木とLENRIの物語 ",
+    preview: " 現地で聞く場所ストーリー ",
+    script: " 連理の木、れんり農園、LENRIのつながりを紹介します。 ",
+    story_points: ["食と農", "", "自然共生", "設備技術"],
+    variants: {
+      ja: {
+        language: "ja",
+        title: "Cafe & Restaurant LENRIと連理の木",
+        preview: "現地で聞く場所ストーリー",
+        script: "カフェアンドレストランレンリの物語です。",
+        tts_script: "カフェアンドレストランレンリの物語です。",
+        audio_url: "/assets/audio/guides/lenri/lenri-guide-ja.mp3",
+        audio_provider: "irodori-tts",
+        audio_voice: "lenri-guide",
+        story_points: ["読み方を固定"],
+      },
+      "zh-TW": {
+        language: "zh-TW",
+        title: "Cafe & Restaurant LENRI 與連理木",
+        preview: "靠近時播放",
+        script: "這裡是連理木的故事。",
+        audio_url: "/assets/audio/guides/lenri/lenri-guide-zh-TW.mp3",
+        story_points: ["繁體中文"],
+      },
+      xx: {
+        language: "xx",
+        title: "drop",
+        preview: "drop",
+        script: "drop",
+        story_points: [],
+      },
+    },
+    source_links: [
+      { label: "愛管株式会社: 生物多様性", url: "https://i-kan.co.jp/company/biodiversity/" },
+      { label: "", url: "https://example.com/empty-label" },
+      { label: "不正なURL", url: "javascript:alert(1)" },
+    ],
+    trigger_radius_m: 900,
+    unlocked_radius_m: 3,
+    approved_by: "愛管株式会社",
+    approval_state: "owner_verified",
+  });
+
+  assert.equal(stop?.title, "連理の木とLENRIの物語");
+  assert.equal(stop?.approval_state, "owner_verified");
+  assert.equal(stop?.trigger_radius_m, 300);
+  assert.equal(stop?.unlocked_radius_m, 20);
+  assert.deepEqual(stop?.story_points, ["食と農", "自然共生", "設備技術"]);
+  assert.equal(stop?.variants?.ja?.audio_provider, "irodori-tts");
+  assert.equal(stop?.variants?.ja?.tts_script, "カフェアンドレストランレンリの物語です。");
+  assert.equal(stop?.variants?.["zh-TW"]?.audio_url, "/assets/audio/guides/lenri/lenri-guide-zh-TW.mp3");
+  assert.equal(stop?.variants?.xx, undefined);
+  assert.deepEqual(stop?.source_links, [
+    { label: "愛管株式会社: 生物多様性", url: "https://i-kan.co.jp/company/biodiversity/" },
+  ]);
+});
+
+test("normalizeGuideStop rejects disabled or content-empty guide stops", () => {
+  assert.equal(normalizeGuideStop({ enabled: false, title: "x", preview: "x" }), undefined);
+  assert.equal(normalizeGuideStop({ enabled: true, title: "x" }), undefined);
 });
 
 test("non-school stored polygons are unaffected by point-buffer payload metadata", () => {

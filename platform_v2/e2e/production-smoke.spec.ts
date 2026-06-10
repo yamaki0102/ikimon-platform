@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 
 const pages = [
   { path: "/", marker: /ikimon/i },
@@ -42,6 +42,10 @@ type PlaceMemorySmokeRecord = {
     hasPrivateNote: boolean;
   } | null;
   placeMemorySample?: JsonPayload[];
+};
+type ReferenceCaptureSmokeRecord = {
+  sourceId: string;
+  title: string;
 };
 
 function joinUrl(baseUrl: string, path: string): string {
@@ -142,6 +146,11 @@ function smokeVideoFile(prefix: string) {
   };
 }
 
+function smokeReferenceIsbn(prefix: string): string {
+  const digits = prefix.replace(/\D/g, "").padEnd(10, "0").slice(-10);
+  return `979${digits}`;
+}
+
 async function jsonFromResponse(response: import("@playwright/test").Response, label: string): Promise<JsonPayload> {
   const payload = (await response.json().catch(() => null)) as JsonPayload | null;
   expect(payload, `${label} should return JSON`).toBeTruthy();
@@ -152,6 +161,23 @@ function sessionCookieFromResponse(response: import("@playwright/test").APIRespo
   const setCookie = response.headers()["set-cookie"] ?? "";
   const match = setCookie.match(/(?:^|,\s*)(ikimon_v2_session=[^;,\s]+)/);
   return match?.[1] ?? "";
+}
+
+async function addSessionCookieToContext(context: BrowserContext, baseUrl: string, sessionCookie: string): Promise<void> {
+  const separatorIndex = sessionCookie.indexOf("=");
+  expect(separatorIndex, "session cookie should include a name/value separator").toBeGreaterThan(0);
+  const url = new URL(baseUrl);
+  await context.addCookies([
+    {
+      name: sessionCookie.slice(0, separatorIndex),
+      value: decodeURIComponent(sessionCookie.slice(separatorIndex + 1)),
+      domain: url.hostname,
+      path: "/",
+      httpOnly: true,
+      secure: url.protocol === "https:",
+      sameSite: "Lax",
+    },
+  ]);
 }
 
 function authHeaders(baseUrl: string, account?: SmokeAccount): Record<string, string> {
@@ -174,6 +200,7 @@ async function registerSmokeUser(
   baseUrl: string,
   prefix: string,
   suffix?: string,
+  options?: { displayName?: string },
 ): Promise<SmokeAccount> {
   const password = `IkimonUiSmoke${prefix.replace(/\W/g, "").slice(-16)}!`;
   const accountKey = suffix ? `${prefix}-${suffix}` : prefix;
@@ -185,7 +212,7 @@ async function registerSmokeUser(
       origin: baseUrl,
     },
     data: {
-      displayName: `候補UIスモーク ${accountKey}`,
+      displayName: options?.displayName ?? `候補UIスモーク ${accountKey}`,
       email,
       password,
       redirect: "/record",
@@ -265,12 +292,66 @@ async function postPlaceMemorySmokeRecord(
   return payload!;
 }
 
+async function captureIdentificationSmokeReference(
+  api: APIRequestContext,
+  baseUrl: string,
+  account: SmokeAccount,
+  prefix: string,
+  taxonHint: string,
+): Promise<ReferenceCaptureSmokeRecord> {
+  const title = `Production Smoke Field Guide ${prefix}`;
+  const response = await api.post(joinUrl(baseUrl, "/api/v1/references/capture-batches"), {
+    headers: jsonHeaders(baseUrl, account),
+    data: {
+      countryCode: "JP",
+      items: [{
+        title,
+        isbn: smokeReferenceIsbn(prefix),
+        authorText: "IKIMON QA",
+        publisher: "IKIMON",
+        publicationYear: 2026,
+        taxonHints: [taxonHint],
+        proofKind: "isbn",
+      }],
+    },
+  });
+  const payload = (await response.json().catch(() => null)) as {
+    ok?: boolean;
+    error?: string;
+    items?: Array<{ sourceId?: string; title?: string; verificationStatus?: string }>;
+  } | null;
+  expect(response.ok(), payload?.error ?? "reference_capture_failed").toBeTruthy();
+  expect(payload?.ok, payload?.error ?? "reference_capture_failed").toBeTruthy();
+  const item = payload?.items?.[0];
+  expect(item?.sourceId, "reference source id").toBeTruthy();
+  expect(item?.verificationStatus, "reference ownership should be verified for ISBN proof").toBe("ai_verified");
+  return {
+    sourceId: item!.sourceId!,
+    title: item!.title || title,
+  };
+}
+
 async function thumbUrlsOnPage(page: import("@playwright/test").Page): Promise<string[]> {
   return page.locator("img").evaluateAll((imgs) => {
     return Array.from(new Set(imgs
       .map((img) => (img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src || img.getAttribute("src") || "")
       .filter((src) => src.includes("/thumb/"))));
   });
+}
+
+function occurrenceIdFromIdentificationEndpoint(endpoint: string): string {
+  const match = endpoint.match(/\/api\/v1\/observations\/([^/]+)\/identifications(?:$|\?)/);
+  expect(match?.[1], "identification endpoint should include an encoded occurrence id").toBeTruthy();
+  return decodeURIComponent(match![1]!);
+}
+
+function visitIdFromObservationHref(baseUrl: string, href: string): string {
+  const url = new URL(href, baseUrl);
+  const segments = url.pathname.split("/").filter(Boolean);
+  const observationIndex = segments.lastIndexOf("observations");
+  const visitId = observationIndex >= 0 ? segments[observationIndex + 1] : "";
+  expect(visitId, "records card href should include an observation visit id").toBeTruthy();
+  return decodeURIComponent(visitId!);
 }
 
 test.describe("production candidate smoke", () => {
@@ -438,6 +519,77 @@ test.describe("production candidate smoke", () => {
       });
     } finally {
       await context.close();
+    }
+  });
+
+  test("identification workbench saves reference evidence against the production candidate", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+
+    const baseUrl = productionSmokeBaseUrl();
+    const prefix = productionSmokePrefix();
+    const identifierContext = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      viewport: { width: 1280, height: 860 },
+    });
+
+    try {
+      const identifier = await registerSmokeUser(identifierContext.request, baseUrl, prefix, "id-identifier", {
+        displayName: "同定確認担当",
+      });
+
+      await addSessionCookieToContext(identifierContext, baseUrl, identifier.sessionCookie);
+      const page = await identifierContext.newPage();
+      const recordsPath = joinUrl(baseUrl, "/records?view=needs_id&lang=ja");
+      await page.goto(recordsPath, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("[data-records-identify-workbench]")).toBeVisible();
+      const card = page.locator("[data-records-identify-card]").first();
+      await expect(card, "production needs_id workbench should expose an identification candidate").toBeVisible();
+      const candidateName = (
+        await card.getAttribute("data-identify-default-name") ||
+        await card.getAttribute("data-identify-title") ||
+        ""
+      ).trim();
+      expect(candidateName, "selected production candidate name").toBeTruthy();
+      const identifyEndpoint = await card.getAttribute("data-identify-endpoint");
+      expect(identifyEndpoint, "selected production candidate identify endpoint").toBeTruthy();
+      const occurrenceId = occurrenceIdFromIdentificationEndpoint(identifyEndpoint!);
+      const detailHref = await card.locator(".records-post-card-link").first().getAttribute("href");
+      expect(detailHref, "selected production candidate detail href").toBeTruthy();
+      const visitId = visitIdFromObservationHref(baseUrl, detailHref!);
+      const reference = await captureIdentificationSmokeReference(identifierContext.request, baseUrl, identifier, prefix, candidateName);
+      await card.locator(".records-post-card-link").click();
+
+      const referenceOption = page.locator(".records-identify-reference-option", { hasText: reference.title }).first();
+      await expect(referenceOption, "owned reference should be suggested for the target taxon").toBeVisible();
+      await expect(referenceOption.locator('input[name="referenceSourceIds"]')).toBeChecked();
+
+      const locator = "p.12 / fig. smoke";
+      await page.locator("[data-identify-panel-reference-locator]").fill(locator);
+      await page.locator('[data-identify-panel-action="support"]').click();
+      await expect(page.locator("[data-identify-panel-status]")).toContainText("保存しました");
+
+      await page.goto(
+        joinUrl(baseUrl, `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}&lang=ja`),
+        { waitUntil: "domcontentloaded" },
+      );
+      const idHistory = page.locator(".obs-local-name-activity-list").first();
+      await expect(idHistory).toContainText(candidateName);
+      await expect(idHistory).toContainText(reference.title);
+      await expect(idHistory).toContainText(locator);
+      await recordSmokeCheckpoint("identification_workbench_reference_flow", {
+        visitId,
+        occurrenceId,
+        sourceId: reference.sourceId,
+        identifierUserId: identifier.userId,
+        candidateName,
+      });
+    } finally {
+      await identifierContext.close();
     }
   });
 

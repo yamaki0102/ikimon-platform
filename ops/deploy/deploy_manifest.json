@@ -156,7 +156,7 @@
   ],
   "requiredChecks": [
     "php tools/lint.php",
-    "cd platform_v2 && npm ci && npm run typecheck && npm run build",
+    "cd platform_v2 && npm ci && npm run typecheck && npm run build && npm run test:node",
     "cd platform_v2 && npm run e2e:production-smoke",
     "composer test",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1"
@@ -166,6 +166,9 @@
     "Production platform_v2 uses blue/green deployment: prepare inactive runtime, browser-smoke candidate through an SSH tunnel, then promote nginx.",
     "Production v2 runtime uses ikimon-v2-blue.service / ikimon-v2-green.service with /etc/ikimon/production-v2.env; legacy pm2 is only a migration source for existing env values.",
     "Production v2 legacy roots must point to /var/www/ikimon.life/repo/upload_package/*, not the obsolete /var/www/ikimon.life/data snapshot.",
+    "Production candidate deploy caches npm downloads under /var/www/ikimon.life/cache/npm while preserving npm ci lockfile validation.",
+    "Production candidate deploy skips fixed static imports only when deploy_state/static_imports markers match current source hashes; FORCE_STATIC_IMPORTS=1 forces reseeding.",
+    "Production candidate deploy uses npm run build:server because full copy/prompt quality checks already run in the GitHub Actions pre-flight for the same SHA.",
     "Persistent paths must never be overwritten by repo sync or manual copy.",
     "Tracked static data under upload_package/data/.htaccess, config, dwca, ecology, and tracked redlists must stay deployable.",
     "Legacy deploy.json + deploy_wsl.php route is disabled for this repository."

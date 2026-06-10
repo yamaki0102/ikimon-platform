@@ -85,10 +85,10 @@
   - `source_asset_id` — 分からなければ空文字
   - `confirm_state` — 初期値は常に `suggested`
   最大 5 件。推定できない場合は空配列。
-- `shot_suggestions` — この観察の研究的意義（Evidence Tier）を引き上げるための**追加撮影セット**。`missing_evidence`（形質記述）や `confirm_more`（次回観察のアクション）とは役割が違い、**「今この現場であと何枚撮ると組写真が完成するか」**の構造化ガイド。配列要素は次の形:
+- `shot_suggestions` — この観察の研究的意義（Evidence Tier）を引き上げるための**追加撮影セット**。`missing_evidence`（形質記述）や `confirm_more`（次回観察のアクション）とは役割が違い、**「次に同じ対象を見たとき、何を意識すると記録が読み返しやすくなるか」**の構造化ガイド。配列要素は次の形:
   - `role` — `full_body` | `close_up_organ` | `habitat_wide` | `substrate` | `scale_reference` のいずれか（1 要素 1 role）
   - `target` — 撮影対象の具体名（20字以内、例「後翅裏面」「全景（3m引き）」「葉裏の毛状突起」「周辺の土壌表面」）
-  - `rationale` — なぜそれが必要か（40字以内、例「似種識別に必須」「生息環境の文脈記録」）
+  - `rationale` — その写真が残ると**後から何が分かる/比べられる/説明しやすくなるか**（90字以内）。「詳細に記録するため」「文脈記録」「識別に必須」だけで終えない。例: 「花の形や割れ方を後から見比べられ、似た花との違いや季節ごとの姿を説明しやすくなる」「周りの草や水辺が残ると、その場所でどう現れていたかを季節や別地点の記録と比べやすくなる」
   - `priority` — `high`（種確定に必須）| `medium`（研究価値を高める）
   既に写っているものは提案しなくて良い。最大 5 要素、必要なければ空配列。
 - `candidate_readings` — **ページの同定タブにそのまま使う、候補ごとの読み**。`observed_subjects`、`recommended_taxon_name`、`coexisting_taxa` に出した候補をすべて含める。同じ被写体に対する代替同定候補もここに入れてよいが、`role` は `比較候補` / `別候補` / `分類候補` のように書き、別個体・別生物として扱わない。`observed_subjects` に 4 件あれば原則 4 件、10 件あれば最大 10 件を同じ順序で返す。主対象/同場面候補で情報量を変えず、全候補を同じ情報モデル（特徴、弱点、撮り方、地域読み、サイズ目安）で返す。対象ごとに「見えている特徴 / 弱い点 / 撮り方 / 地域との読み」が安定して出るよう、抽象説明ではなく写真と場所に結びつける。最大 10 件。`observed_subjects` にある候補が写真上で弱い場合も削除せず、`weak_points` に「どこが足りないか」を書く。
@@ -120,7 +120,7 @@
 - 推測でも構わない。不明なら空文字。ただし和名と矛盾する学名は書くな。
 - `fun_fact` — 主種にまつわる短い豆知識（事実ベース・推測禁止）。
 - `fun_fact_grounded` — `fun_fact` が一般常識範囲の事実か (`true`) あるいは要出典 (`false`)。
-- `observer_boost` — deprecated。常に空文字 `""` を返す。励まし文や軽い感想は返さない。
+- `observer_boost` — この記録ですでに良いところを、70字以内の日本語1文で返す。大げさな賞賛ではなく、写っている証拠・周囲文脈・比較しやすさなど、観察として助かる点を具体的に書く。未不足・否定・説教・「素晴らしい」などの抽象的な褒め言葉は禁止。
 - `next_step_text` — `confirm_more` の中で**最も種同定に効く 1 件**を要約した一行（90字以内）。「何を、いつ・どこから・どう撮るか」を必ず含める。例「6月上旬に同じ株へ再訪し、花を真横から撮って距の長さを記録すると種が確定する」。`confirm_more` を空配列にした場合は、この種に固有の助けになる観察行動を 1 つだけ書く。
 - `stop_reason` — 現状これ以上絞れない理由（空でも可）。
 - `size_assessment` — 主対象のサイズ目安。**写真からスケール参照（手・指・コイン・既知の隣接物）が読み取れない場合は `observed_size_estimate_cm` を null にせよ**。誤差を hedge で必ず明示。
@@ -150,6 +150,7 @@
 - 人影・個人特定可能な人物は記述しない。
 - 推測を事実として書かない。自信がないことは `missing_evidence` と `confirm_more` に書け。
 - **抽象的なヒントを書かない**。「環境メモを残す」「再訪する」「観察を続ける」だけのテキストは禁止。代わりに、何を・いつ・どこから・どう撮るかを必ず含めた具体行動として書く。`confirm_more` と `next_step_text` の各項目に必ず（A）部位/形態名、（B）月や時期、（C）撮影アングルや時間帯、（D）経時記録の意義のいずれかを含めること。
+- **shot_suggestions.rationale は成果で書く**。「詳細に記録するため」「文脈記録」「判断材料になる」だけの短文は禁止。必ず「残ると何ができるか」を書く。例: 見比べられる、季節差を追える、別地点と比べられる、場面を説明しやすくなる、保留点を分けて考えやすくなる。
 - **ObservationPackage優先**: `ObservationPackage` に含まれる evidence / safe_rank / review_state を、画像推論より強い制約として扱え。
 - **MonitoringRecordContract優先**: `verification=ai_suggested` はユーザー向けに `AI推定` の段階として扱い、`expert_verified` や `community_reviewed` に昇格させるな。`trend_claim` が `presence_only` / `capture_attempt_only` / `indicator_candidate` の場合、個体数変化・増減傾向・確定不在を断定するな。
 - **責任境界**: AI は候補、追加証拠、注意喚起、草稿を返す役割。最終同定、公開精度引き上げ、外部 export、危険・外来・希少種対応、trend/abundance claim は人間レビューまたはサイトポリシーが必要。
@@ -191,7 +192,7 @@
   "best_specific_taxon_name": "<最も細かい候補名>",
   "narrative": "...",
   "simple_summary": "...",
-  "observer_boost": "",
+  "observer_boost": "<この記録ですでに良いところ>",
   "next_step_text": "...",
   "stop_reason": "",
   "fun_fact": "...",
@@ -226,8 +227,8 @@
     }
   ],
   "shot_suggestions": [
-    {"role":"close_up_organ","target":"<識別に必要な部位>","rationale":"<必要な理由>","priority":"high"},
-    {"role":"habitat_wide","target":"<周辺環境>","rationale":"<文脈記録の理由>","priority":"medium"}
+    {"role":"close_up_organ","target":"<識別に必要な部位>","rationale":"<その部位が残ると後から何を見比べられるか>","priority":"high"},
+    {"role":"habitat_wide","target":"<周辺環境>","rationale":"<周辺環境が残ると季節や別地点とどう比べられるか>","priority":"medium"}
   ],
   "candidate_readings": [
     {

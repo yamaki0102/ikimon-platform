@@ -37,9 +37,11 @@ test("legacy asset routes serve uploads from the legacy uploads root", async () 
   const publicRoot = path.join(sandboxRoot, "public");
   const uploadsRoot = path.join(sandboxRoot, "uploads");
   await mkdir(path.join(publicRoot, "assets"), { recursive: true });
+  await mkdir(path.join(publicRoot, "assets", "audio", "guides", "lenri"), { recursive: true });
   await mkdir(path.join(publicRoot, "assets", "face-privacy", "mediapipe", "wasm"), { recursive: true });
   await mkdir(path.join(uploadsRoot, "photos"), { recursive: true });
   await writeFile(path.join(publicRoot, "assets", "brand.txt"), "brand");
+  await writeFile(path.join(publicRoot, "assets", "audio", "guides", "lenri", "sample.mp3"), Buffer.from([0x49, 0x44, 0x33]));
   await writeFile(path.join(publicRoot, "assets", "face-privacy", "mediapipe", "vision_bundle.mjs"), "export default null;");
   await writeFile(path.join(publicRoot, "assets", "face-privacy", "mediapipe", "wasm", "vision_wasm_internal.wasm"), Buffer.from([0, 97, 115, 109]));
   await writeFile(path.join(publicRoot, "assets", "face-privacy", "blaze_face_short_range.tflite"), Buffer.from([1, 2, 3]));
@@ -61,6 +63,13 @@ test("legacy asset routes serve uploads from the legacy uploads root", async () 
           assert.equal(assetResponse.statusCode, 200);
           assert.match(String(assetResponse.headers["content-type"] ?? ""), /^text\/plain/);
           assert.equal(assetResponse.body, "brand");
+
+          const audioResponse = await app.inject({
+            method: "GET",
+            url: "/assets/audio/guides/lenri/sample.mp3",
+          });
+          assert.equal(audioResponse.statusCode, 200);
+          assert.equal(audioResponse.headers["content-type"], "audio/mpeg");
 
           const moduleResponse = await app.inject({
             method: "GET",
@@ -214,6 +223,11 @@ test("thumb route resizes image and blocks invalid preset / traversal", async ()
 
           const nonImageExt = await app.inject({ method: "GET", url: "/thumb/sm/photos/big.txt" });
           assert.equal(nonImageExt.statusCode, 404);
+
+          const missingImage = await app.inject({ method: "GET", url: "/thumb/md/photos/missing.jpg" });
+          assert.equal(missingImage.statusCode, 200);
+          assert.equal(missingImage.headers["content-type"], "image/webp");
+          assert.ok(missingImage.rawPayload.length > 512);
         } finally {
           await app.close();
         }

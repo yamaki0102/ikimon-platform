@@ -19,6 +19,22 @@ export type MapVisitedPlace = {
   currentSeasonVisited: boolean;
 };
 
+function isPrefectureOnlyLabel(value: string): boolean {
+  return /(?:都|道|府|県)$/.test(value.trim());
+}
+
+export function normalizeMapVisitedPlaceName(input: {
+  placeName?: string | null;
+  municipality?: string | null;
+}): string {
+  const placeName = String(input.placeName ?? "").trim();
+  const municipality = String(input.municipality ?? "").trim();
+  if (municipality && (!placeName || isPrefectureOnlyLabel(placeName))) {
+    return municipality;
+  }
+  return placeName || municipality;
+}
+
 export async function listMapVisitedPlaces(
   userId: string,
   options: { limit?: number; sort?: PlaceMemoryVisitSort } = {},
@@ -26,7 +42,10 @@ export async function listMapVisitedPlaces(
   return (await listPlaceMemoryVisits(userId, options))
     .map((row) => ({
       placeId: row.placeId,
-      placeName: row.placeName,
+      placeName: normalizeMapVisitedPlaceName({
+        placeName: row.placeName,
+        municipality: row.municipality,
+      }),
       municipality: row.municipality,
       lastObservedAt: row.lastObservedAt,
       visitCount: row.visitCount,

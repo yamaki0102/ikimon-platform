@@ -88,7 +88,8 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /data-tab="frontier"/);
     assert.match(html, /name="me-basemap" value="esri"/);
     assert.match(html, /\.me-map-panel-selection \{\s*top: 148px;/);
-    assert.match(html, /'repeatable', 0\.09/);
+    assert.match(html, /'repeatable', 0\.30/);
+    assert.match(html, /'fill-outline-color': 'rgba\(15,118,110,0\.30\)'/);
     assert.match(html, /data-api-area-follow="\/api\/v1\/me\/area-subscriptions"/);
     assert.match(html, /data-area-follow-button/);
     assert.match(html, /me-area-follow-btn/);

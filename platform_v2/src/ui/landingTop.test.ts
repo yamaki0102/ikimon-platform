@@ -291,6 +291,17 @@ test("landing top localizes the content-first shelves in English", () => {
   assert.doesNotMatch(html, /Photos and videos/);
 });
 
+test("landing top states the nature capital OS goal without overclaiming", () => {
+  const html = renderTop(photoSnapshot);
+
+  assert.match(html, /NATURE CAPITAL OS/);
+  assert.match(html, /自然資本を、地図で見て終わりにしない。/);
+  assert.match(html, /管理行為/);
+  assert.match(html, /効果検証/);
+  assert.match(html, /data-kpi-action="landing:nature-os:business"/);
+  assert.doesNotMatch(html, /TNFD準拠を証明|自然共生サイト認定を保証|保全効果を自動判定|Google Earth AIで確定/);
+});
+
 test("landing top renders real observation photos and detail CTAs", () => {
   const html = renderTop(photoSnapshot);
 
@@ -336,6 +347,14 @@ test("landing top uses public registered area labels in card metadata", () => {
   assert.doesNotMatch(html, /浜松城公園 共生エリア/);
 });
 
+test("landing top keeps observer avatar separate from long area metadata", () => {
+  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author \{[\s\S]*?grid-template-columns: 24px minmax\(0, 1fr\);/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author-copy \{[\s\S]*?display: grid;/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author-copy small \{[\s\S]*?display: block;[\s\S]*?max-width: 100%;/);
+  assert.doesNotMatch(LANDING_TOP_STYLES, /\.prototype-content-author-copy \{[\s\S]*?display: contents;/);
+  assert.doesNotMatch(LANDING_TOP_STYLES, /grid-template-columns: 24px minmax\(0, 1fr\) auto;/);
+});
+
 test("landing top renders signed-in own and community posts as thumbnail content", () => {
   const communityObservation: LandingObservation = {
     ...photoObservation,
@@ -379,7 +398,7 @@ test("landing top renders signed-in own and community posts as thumbnail content
   assert.match(html, /別の観察者/);
 });
 
-test("landing top balances signed-in own posts against twelve community posts", () => {
+test("landing top gives signed-in own and community posts two desktop rows each", () => {
   const makeObservation = (index: number, observerUserId: string): LandingObservation => ({
     ...photoObservation,
     occurrenceId: `occ-balanced-${observerUserId}-${index}`,
@@ -393,16 +412,40 @@ test("landing top balances signed-in own posts against twelve community posts", 
   const html = renderTop({
     ...photoSnapshot,
     viewerUserId: "user-1",
-    myFeed: Array.from({ length: 10 }, (_, index) => makeObservation(index, "user-1")),
+    myFeed: Array.from({ length: 14 }, (_, index) => makeObservation(index, "user-1")),
     feed: Array.from({ length: 12 }, (_, index) => makeObservation(index, `user-${index + 2}`)),
   });
 
-  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 6);
+  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 12);
   assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
   assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<h3>自分の記録<\/h3>/);
   assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?<h3>みんなの記録<\/h3>/);
   assert.doesNotMatch(html, /prototype-content-lane-title">[\s\S]*?<span>\d+<\/span>/);
   assert.match(html, /href="\/ja\/records\?view=mine"[^>]*>もっと見る<\/a>/);
+  assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
+});
+
+test("landing top keeps guest community posts to two desktop rows", () => {
+  const makeObservation = (index: number): LandingObservation => ({
+    ...photoObservation,
+    occurrenceId: `occ-guest-balanced-${index}`,
+    visitId: `visit-guest-balanced-${index}`,
+    displayName: `みんなの投稿${index}`,
+    observedAt: `2026-04-${String(20 - index).padStart(2, "0")}T09:00:00.000Z`,
+    observerUserId: `user-${index + 1}`,
+    observerName: `みんな${index}`,
+    photoUrl: `/uploads/guest-balanced-${index}.jpg`,
+  });
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: null,
+    myFeed: [],
+    feed: Array.from({ length: 18 }, (_, index) => makeObservation(index)),
+  });
+
+  assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
+  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?<h3>みんなの記録<\/h3>/);
+  assert.doesNotMatch(html, /みんなの投稿12/);
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
 });
 

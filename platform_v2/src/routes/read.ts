@@ -44,6 +44,7 @@ import { lookupLocalTaxonName } from "../services/taxonNameNormalizer.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getPlaceManagementPolicy, type PlaceManagementPolicy } from "../services/placeManagementPolicy.js";
 import { getPlaceVegetationTrend, type PlaceVegetationTrend } from "../services/placeVegetationTrend.js";
+import { getGlossaryTermsForScope, renderGlossaryText, type GlossaryTermHint } from "../services/glossaryTerms.js";
 import {
   civicContextLabel,
   getCivicObservationContext,
@@ -61,6 +62,7 @@ import {
   type InvasiveResponse,
   type ManagementActionCandidate,
   type NoveltyHint,
+  type ShotSuggestion,
   type SizeAssessment,
 } from "../services/observationAiAssessment.js";
 import {
@@ -131,6 +133,7 @@ import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
+import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -1144,6 +1147,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-grounding-shot small { color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 820; }
   .obs-ai-grounding.is-empty { background: rgba(248,250,252,.8); border-color: rgba(15,23,42,.08); }
   .obs-ai-grounding-empty { margin: 0; color: #64748b; font-size: 10.8px; line-height: 1.45; font-weight: 760; }
+  .obs-ai-pending { margin: 0; display: grid; gap: 3px; padding: 10px 11px; border-radius: 13px; background: rgba(248,250,252,.84); border: 1px solid rgba(15,23,42,.08); }
+  .obs-ai-pending strong { color: #0f766e; font-size: 11.5px; line-height: 1.25; font-weight: 950; }
+  .obs-ai-pending span { color: #475569; font-size: 12px; line-height: 1.55; font-weight: 760; }
   .obs-ai-detail { display: grid; gap: 8px; padding-top: 1px; }
   .obs-ai-detail[hidden] { display: none; }
   .obs-ai-detail-lead { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin: 0; color: #334155; font-size: 11.5px; line-height: 1.5; font-weight: 760; white-space: normal; }
@@ -1529,6 +1535,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-id-accepted { background: rgba(16,185,129,.14); color: #047857; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; border: 1px solid rgba(16,185,129,.3); }
   .obs-id-meta { font-size: 11.5px; color: #64748b; font-weight: 700; margin-top: 3px; }
   .obs-id-note { margin: 6px 0 0; color: #475569; font-size: 13px; line-height: 1.6; }
+  .obs-id-references { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .obs-id-reference-chip { display: inline-flex; align-items: center; max-width: 100%; min-height: 28px; padding: 5px 8px; border-radius: 999px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.22); color: #047857; font-size: 11px; line-height: 1.25; font-weight: 850; overflow-wrap: anywhere; }
   .obs-empty { color: #94a3b8; font-size: 13.5px; text-align: center; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px dashed rgba(15,23,42,.1); }
   .obs-identify-panel { grid-column: 1 / -1; border-color: rgba(14,165,233,.18); background: linear-gradient(180deg, #ffffff, #f8fafc); }
   .obs-identify-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -1679,6 +1687,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-check em::before, .obs-local-quality-chip em::before { content: "状態: "; color: #0f766e; font-size: 9.5px; font-weight: 950; }
   .obs-local-quality-chip em::before { content: "入力: "; }
   .obs-local-quality-change, button.obs-local-quality-change { align-self: center; padding: 0; border: 0; background: transparent; color: #0369a1; font: inherit; font-size: 10px; line-height: 1.2; font-weight: 950; text-decoration: none; white-space: nowrap; cursor: pointer; }
+  .obs-local-quality-action-status { min-height: 18px; color: #0369a1; font-size: 10px; line-height: 1.35; font-weight: 850; }
+  .obs-local-quality-action-status.is-error { color: #b91c1c; }
   .obs-local-origin-hint { grid-column: 2 / -1; margin-top: -3px; }
   .obs-local-origin-hint summary { cursor: pointer; color: #0369a1; font-size: 10px; line-height: 1.25; font-weight: 950; list-style: none; }
   .obs-local-origin-hint summary::-webkit-details-marker { display: none; }
@@ -1706,6 +1716,33 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-history-log { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .obs-local-quality-history-log li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; color: #475569; font-size: 10.2px; line-height: 1.35; font-weight: 760; }
   .obs-local-quality-history-log li::before { content: ""; width: 5px; height: 5px; margin-top: .55em; border-radius: 999px; background: #14b8a6; }
+  .obs-origin-sheet[hidden], .obs-origin-toast[hidden] { display: none !important; }
+  .obs-origin-sheet { position: fixed; inset: 0; z-index: 240; display: grid; align-items: end; }
+  .obs-origin-sheet-scrim { position: absolute; inset: 0; background: rgba(15,23,42,.38); backdrop-filter: blur(2px); }
+  .obs-origin-sheet-panel { position: relative; display: grid; gap: 12px; width: min(560px, calc(100vw - 18px)); margin: 0 auto 10px; padding: 10px 14px 14px; border-radius: 24px 24px 18px 18px; background: #fff; border: 1px solid rgba(15,23,42,.1); box-shadow: 0 -18px 48px rgba(15,23,42,.2); }
+  .obs-origin-sheet-grip { justify-self: center; width: 42px; height: 4px; border-radius: 999px; background: #cbd5e1; }
+  .obs-origin-sheet-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+  .obs-origin-sheet-eye { color: #0f766e; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .12em; }
+  .obs-origin-sheet h4 { margin: 2px 0 0; color: #0f172a; font-size: 18px; line-height: 1.25; font-weight: 950; }
+  .obs-origin-sheet-close { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #f8fafc; color: #0f172a; font-size: 18px; line-height: 1; font-weight: 900; cursor: pointer; }
+  .obs-origin-sheet-message { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 760; }
+  .obs-origin-login-link { display: inline-flex; justify-content: center; align-items: center; min-height: 38px; border-radius: 999px; background: #0f766e; color: #fff; text-decoration: none; font-size: 13px; font-weight: 950; }
+  .obs-origin-choice-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .obs-origin-choice { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; color: #334155; font-size: 13px; line-height: 1; font-weight: 920; cursor: pointer; }
+  .obs-origin-choice.is-selected { background: #ccfbf1; border-color: rgba(15,118,110,.34); color: #0f766e; box-shadow: inset 0 0 0 1px rgba(15,118,110,.12); }
+  .obs-origin-save { min-height: 42px; border-radius: 999px; border: 0; background: #0f172a; color: #fff; font-size: 13px; line-height: 1; font-weight: 950; cursor: pointer; }
+  .obs-origin-save:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .obs-edit-fields { display: grid; gap: 9px; }
+  .obs-edit-field { display: grid; gap: 5px; color: #334155; font-size: 11.5px; font-weight: 900; }
+  .obs-edit-field input { min-height: 42px; width: 100%; padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; }
+  .obs-name-search { width: 100%; min-height: 40px; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,118,110,.14); background: #fff; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; }
+  .obs-location-map { position: relative; min-height: 190px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(15,118,110,.18); background: linear-gradient(135deg, #ecfdf5 0 35%, #e0f2fe 35% 52%, #f8fafc 52% 100%); cursor: crosshair; touch-action: none; }
+  .obs-location-map::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(15,23,42,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.07) 1px, transparent 1px); background-size: 32px 32px; opacity: .55; }
+  .obs-location-pin { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%, -86%) rotate(45deg); border-radius: 50% 50% 50% 4px; background: #ef4444; border: 3px solid #fff; box-shadow: 0 9px 24px rgba(15,23,42,.28); }
+  .obs-location-pin::after { content: ""; position: absolute; inset: 5px; border-radius: 999px; background: #fff; opacity: .92; }
+  .obs-location-map-note { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 7px 9px; border-radius: 12px; background: rgba(255,255,255,.86); color: #334155; font-size: 10.5px; line-height: 1.35; font-weight: 850; }
+  .obs-origin-toast { position: fixed; left: 50%; bottom: 18px; z-index: 260; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; width: min(480px, calc(100vw - 24px)); padding: 10px 12px; border-radius: 14px; background: #0f172a; color: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.24); font-size: 12px; line-height: 1.35; font-weight: 850; }
+  .obs-origin-toast button { margin-left: auto; border: 0; background: transparent; color: #99f6e4; font: inherit; font-weight: 950; cursor: pointer; white-space: nowrap; }
   .obs-ai-review { display: grid; gap: 12px; margin: 0 0 16px; padding: 14px; border-radius: 16px; background: linear-gradient(135deg, rgba(239,246,255,.92), rgba(240,253,244,.72)); border: 1px solid rgba(59,130,246,.18); }
   .obs-ai-review-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
   .obs-ai-review-kicker { color: #0369a1; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
@@ -2025,6 +2062,11 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-shot-card { margin-top: 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(254,252,232,.85), rgba(255,237,213,.6)); border: 1px solid rgba(234,179,8,.24); display: flex; flex-direction: column; gap: 10px; }
   .obs-shot-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .obs-shot-head .obs-hint-reminder { margin: 4px 0 0; color: #713f12; }
+  .obs-shot-group-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .obs-shot-group { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .obs-shot-group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .obs-shot-group-name { color: #422006; font-size: 13px; font-weight: 900; }
+  .obs-shot-group-count { flex-shrink: 0; color: #713f12; font-size: 11px; font-weight: 800; }
   .obs-shot-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
   .obs-shot-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; background: rgba(255,255,255,.86); border-radius: 12px; border: 1px solid rgba(234,179,8,.2); }
   .obs-shot-role { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; font-size: 12.5px; color: #422006; min-width: 140px; }
@@ -2034,16 +2076,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-shot-pri { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 900; letter-spacing: .04em; flex-shrink: 0; }
   .obs-shot-pri-high { background: rgba(239,68,68,.12); color: #991b1b; }
   .obs-shot-pri-medium { background: rgba(234,179,8,.18); color: #713f12; }
-  .obs-role-cov { margin-bottom: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.78); border: 1px solid rgba(234,179,8,.22); display: flex; flex-direction: column; gap: 8px; }
-  .obs-role-cov-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .obs-role-cov-eye { font-size: 11.5px; font-weight: 900; color: #713f12; letter-spacing: .04em; text-transform: uppercase; }
-  .obs-role-cov-count { font-size: 11.5px; font-weight: 800; color: #64748b; }
-  .obs-role-cov-count.is-met { color: #065f46; background: rgba(16,185,129,.14); padding: 2px 9px; border-radius: 999px; }
-  .obs-role-cov-bar { position: relative; height: 6px; border-radius: 999px; background: rgba(234,179,8,.15); overflow: hidden; }
-  .obs-role-cov-bar span { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #f59e0b, #10b981); transition: width .3s ease; }
-  .obs-role-cov-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-  .obs-role-chip { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(148,163,184,.15); color: #64748b; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
-  .obs-role-chip.is-covered { background: rgba(16,185,129,.16); color: #065f46; font-weight: 900; }
+  .term-hint { position: relative; display: inline-flex; align-items: center; gap: 2px; color: #075985; font-weight: 900; text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help; outline: none; }
+  .term-hint::after { content: "?"; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 999px; background: rgba(14,165,233,.14); color: #0369a1; font-size: 10px; line-height: 1; font-weight: 900; }
+  .term-hint-pop { display: none; position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; width: min(260px, calc(100vw - 24px)); padding: 9px 10px; border-radius: 10px; background: #0f172a; color: #f8fafc; box-shadow: 0 14px 30px rgba(15,23,42,.2); font-size: 12px; line-height: 1.55; font-weight: 700; white-space: normal; pointer-events: none; }
+  .term-hint.is-open .term-hint-pop, .term-hint:focus-visible .term-hint-pop { display: block; }
+  @media (max-width: 480px) {
+    .term-hint-pop { position: fixed; left: 12px; right: 12px; bottom: 16px; width: auto; max-height: 42vh; overflow: auto; }
+  }
 
   .obs-fold { border-radius: 12px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); overflow: hidden; margin-bottom: 8px; }
   .obs-fold > summary { padding: 12px 16px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
@@ -2251,6 +2290,25 @@ function observationDetailUiName(value: string | null | undefined): string {
   if (name === ["イネ科", "植物"].join("")) return "イネ科";
   if (name === "倍脚綱 (ヤスデ網)") return "倍脚綱 (ヤスデ綱)";
   return name;
+}
+
+function buildTaxonInsightContext(subject: ObservationVisitSubject): string {
+  const ai = subject.aiAssessment;
+  if (!ai) return "";
+  const parts: string[] = [];
+  const rank = String(ai.recommendedRank ?? subject.rank ?? subject.aiCandidateRank ?? "").trim();
+  if (rank) parts.push(`rank=${rank}`);
+  const clues = (ai.diagnosticFeaturesSeen ?? [])
+    .map((item) => friendlyObservationText(item, 34))
+    .filter(Boolean)
+    .slice(0, 2);
+  if (clues.length > 0) parts.push(`根拠: ${clues.join(", ")}`);
+  const similar = (ai.similarTaxa ?? [])
+    .map((taxon) => observationDetailUiName(taxon.name))
+    .filter(Boolean)
+    .slice(0, 3);
+  if (similar.length > 0) parts.push(`似た候補: ${similar.join(", ")}`);
+  return parts.join(" / ").slice(0, 220);
 }
 
 const IDENTIFICATION_TAB_RANKS = new Set(["species", "subspecies", "variety", "form", "genus", "family", "order", "class"]);
@@ -3325,7 +3383,7 @@ function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackNa
   </div>`;
 }
 
-function renderAiCompareList(subject: ObservationVisitSubject): string {
+function renderAiCompareList(subject: ObservationVisitSubject, glossaryTerms: GlossaryTermHint[] = []): string {
   const ai = subject.aiAssessment;
   const nameText = `${subject.displayName} ${subject.vernacularName ?? ""} ${subject.scientificName ?? ""} ${ai?.recommendedTaxonName ?? ""}`;
   if (/カワラヒワ|Chloris sinica/i.test(nameText)) {
@@ -3342,8 +3400,8 @@ function renderAiCompareList(subject: ObservationVisitSubject): string {
   const tips = (ai?.distinguishingTips ?? ai?.confirmMore ?? []).map((item) => friendlyObservationText(item, 84)).filter(Boolean).slice(0, 3);
   if (similar.length === 0 && tips.length === 0) return "";
   const rows = similar.length > 0
-    ? similar.map((item, index) => `<li><span><strong>${escapeHtml(item.name)}と比べる</strong><br>${escapeHtml(tips[index] ?? "形・色・写っている部位を見比べると判断しやすくなります。")}</span></li>`).join("")
-    : tips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("");
+    ? similar.map((item, index) => `<li><span><strong>${escapeHtml(item.name)}と比べる</strong><br>${renderGlossaryText(tips[index] ?? "形・色・写っている部位を見比べると判断しやすくなります。", glossaryTerms)}</span></li>`).join("")
+    : tips.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("");
   return `<div class="obs-ai-detail-box">
     <div class="obs-ai-detail-label">似た仲間との見分け</div>
     <ul class="obs-ai-compare-list">${rows}</ul>
@@ -3473,7 +3531,12 @@ function renderAiVisualGrounding(options: {
   </div>`;
 }
 
-function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, readingMap: Map<string, CandidateReading>, groundingAssets: AiGroundingAsset[] = []): string {
+function renderAiCandidateDetailPanel(
+  candidate: ObservationVisitCandidate,
+  readingMap: Map<string, CandidateReading>,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
   const candidateName = observationDetailUiName(candidate.displayName);
   const sourceReading = findCandidateReading(readingMap, [candidate.displayName, candidateName, candidate.scientificName])
     ?? fallbackCandidateReadingForSubject({
@@ -3502,28 +3565,32 @@ function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, read
     : `${candidateName} は同じ対象を読むための別候補です。${rankHint}として、人の確認で扱います。`;
   const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || candidate.scientificName);
   return `<div class="obs-ai-detail" data-ai-panel="${escapeHtml(aiCandidatePanelKey(candidate))}" hidden>
-      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
+      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${renderGlossaryText(summary, glossaryTerms)}</span></p>
       ${renderAiVisualGrounding({ regions: candidate.regions, assets: groundingAssets, candidateId: candidate.candidateId })}
       ${renderAiSizeSummary(sourceReading.sizeAssessment)}
       ${story}
       <div class="obs-ai-detail-grid">
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">確かめる点</div>
-          <ul class="obs-ai-detail-list">${features.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+          <ul class="obs-ai-detail-list">${features.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
         </div>
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">弱い点</div>
-          <ul class="obs-ai-detail-list">${weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+          <ul class="obs-ai-detail-list">${weakPoints.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
         </div>
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">追加で見る点</div>
-          <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+          <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
         </div>
       </div>
     </div>`;
 }
 
-function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null, groundingAssets: AiGroundingAsset[] = []): string {
+function renderAiCandidateDetailPanels(
+  bundle: ObservationVisitBundle | null,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
   if (!bundle || bundle.aiCandidates.length === 0) return "";
   const subjectNames = new Set(bundle.subjects.map((subject) => observationDetailUiName(subject.displayName)));
   const readingMap = candidateReadingMap(bundle);
@@ -3538,84 +3605,24 @@ function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null, gr
       })
     )
     .slice(0, 4)
-    .map((candidate) => renderAiCandidateDetailPanel(candidate, readingMap, groundingAssets))
+    .map((candidate) => renderAiCandidateDetailPanel(candidate, readingMap, groundingAssets, glossaryTerms))
     .join("");
 }
 
-function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, hasOpenDispute: boolean, bundle: ObservationVisitBundle | null, groundingAssets: AiGroundingAsset[] = []): string {
-  const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle) || renderHeroAiCandidateTargets(bundle);
-  const candidateName = observationDetailUiName(subject.displayName || subject.vernacularName || subject.scientificName || "名前確認中");
-  const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
-  const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
-  const readingMap = bundle ? candidateReadingMap(bundle) : new Map<string, CandidateReading>();
-  const sourceReading = findCandidateReading(readingMap, [
-    candidateName,
-    subject.displayName,
-    subject.vernacularName,
-    subject.scientificName,
-    subject.aiCandidateName,
-  ]) ?? fallbackCandidateReadingForSubject({
-    name: candidateName,
-    roleLabel: subject.roleLabel,
-    rank: subject.rank ?? subject.aiCandidateRank,
-    focusReason: subject.focusReason,
-  });
-  const clues = (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [subject.focusReason || ""])
-    .map((feature) => friendlyObservationText(feature, 48))
-    .filter(Boolean)
-    .slice(0, 3);
-  const cluePills = clues.length > 0
-    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${escapeHtml(feature.replace(/（.*?）/gu, ""))}</span>`).join("")}</div></div>`
-    : "";
-  const weakPoints = (sourceReading.weakPoints ?? [])
-    .map((item) => friendlyObservationText(item, 92))
-    .filter(Boolean)
-    .slice(0, 3);
-  const shootingTips = (sourceReading.shootingTips ?? [])
-    .map((item) => friendlyObservationText(item, 72))
-    .filter(Boolean)
-    .slice(0, 3);
-  const sizeCard = renderAiSizeSummary(sourceReading.sizeAssessment);
-  const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || subject.scientificName);
-  const evidenceRows = weakPoints.length > 0
-    ? weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")
-    : `<li><span>${escapeHtml(candidateName)} は同じ場面内の名前候補として残っています。写真と人の確認で補います。</span></li>`;
-  const shootingRows = shootingTips.length > 0
-    ? `<div class="obs-ai-detail-box">
-        <div class="obs-ai-detail-label">追加で見る点</div>
-        <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
-      </div>`
-    : "";
-  const currentTarget = !sceneTargets && isIdentificationTabSubject(subject)
-    ? `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
-      <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
-        <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
-      </button>
-    </div>`
-    : "";
-  const summary = hasOpenDispute
-    ? "別の名前の提案があるため、候補が固まるまで断定しません。"
-    : sourceReading.regionalRead
-      ? friendlyObservationText(sourceReading.regionalRead, 96)
-      : `${candidateName} は同じ場面内の名前候補として残っています。詳しい根拠は写真と人の確認で補います。`;
+function renderNoAssessmentCandidateReadout(
+  subject: ObservationVisitSubject,
+  _hasOpenDispute: boolean,
+  bundle: ObservationVisitBundle | null,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
+  const candidatePanels = renderAiCandidateDetailPanels(bundle, groundingAssets, glossaryTerms);
   return `<section class="obs-ai-readout obs-ai-readout-merged is-tent">
-    ${sceneTargets || currentTarget}
-    ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
-      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
-      ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
-      ${sizeCard}
-      ${story}
-      <div class="obs-ai-detail-grid">
-        <div class="obs-ai-detail-box">
-          <div class="obs-ai-detail-label">確かめる点</div>
-          <ul class="obs-ai-detail-list">${evidenceRows}</ul>
-        </div>
-        ${shootingRows}
-      </div>
+      <p class="obs-ai-pending"><strong>AI解説を作成中です</strong><span>写真・動画を読み込んでいます。少し待つと、この記録の読みがここに出ます。</span></p>
     </div>
-    ${renderAiCandidateDetailPanels(bundle, groundingAssets)}
-  </section>${renderAiReadoutInteractionScript()}`;
+    ${candidatePanels}
+  </section>${candidatePanels ? renderAiReadoutInteractionScript() : ""}`;
 }
 
 function renderAiReadoutInteractionScript(): string {
@@ -3669,10 +3676,80 @@ function renderAiReadoutInteractionScript(): string {
   })();</script>`;
 }
 
-export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null, groundingAssets: AiGroundingAsset[] = []): string {
+function renderGlossaryHintScript(): string {
+  return `<script>(function(){
+    if (document.documentElement.getAttribute('data-term-hint-bound') === '1') return;
+    document.documentElement.setAttribute('data-term-hint-bound', '1');
+    var closeHints = function(except) {
+      document.querySelectorAll('.term-hint.is-open').forEach(function(node) {
+        if (except && node === except) return;
+        node.classList.remove('is-open');
+        node.setAttribute('aria-expanded', 'false');
+      });
+    };
+    document.addEventListener('click', function(event) {
+      var target = event.target && event.target.closest ? event.target.closest('.term-hint') : null;
+      if (!target) {
+        closeHints(null);
+        return;
+      }
+      event.preventDefault();
+      var willOpen = !target.classList.contains('is-open');
+      closeHints(target);
+      target.classList.toggle('is-open', willOpen);
+      target.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') closeHints(null);
+      if ((event.key === 'Enter' || event.key === ' ') && event.target && event.target.classList && event.target.classList.contains('term-hint')) {
+        event.preventDefault();
+        event.target.click();
+      }
+    });
+    window.addEventListener('scroll', function(){ closeHints(null); }, { passive: true });
+  })();</script>`;
+}
+
+function positiveObservationFeedbackText(subject: ObservationVisitSubject, aiAssessment: AiAssessment): string {
+  const explicit = friendlyObservationText(aiAssessment.observerBoost, 78);
+  if (explicit) return explicit;
+  const clues = (aiAssessment.diagnosticFeaturesSeen ?? [])
+    .map((feature) => friendlyObservationText(feature.replace(/（.*?）/gu, ""), 24))
+    .filter(Boolean)
+    .slice(0, 2);
+  if (clues.length >= 2) {
+    return `${clues.join("、")}が写っていて、あとで比べる手がかりが残っています。`;
+  }
+  if (clues.length === 1) {
+    return `${clues[0]}が見えていて、次に比べる手がかりになります。`;
+  }
+  const name = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "");
+  if (name && !isWeakIdentificationCandidateName(name)) {
+    return `${name}として読み始められる材料があり、同じ場所で比べ直しやすい記録です。`;
+  }
+  return "";
+}
+
+function appendPositiveObservationFeedback(baseText: string, positiveFeedback: string): string {
+  const base = baseText.trim();
+  const positive = positiveFeedback.trim();
+  if (!positive) return base;
+  if (!base) return positive;
+  if (base.includes(positive) || positive.includes(base)) return base;
+  return `${base}${/[。！？!?]$/u.test(base) ? "" : "。"}${positive}`;
+}
+
+export function renderHeroAiReadout(
+  subject: ObservationVisitSubject,
+  hasOpenDispute = false,
+  insight: TaxonInsight | null = null,
+  bundle: ObservationVisitBundle | null = null,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
-    return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle, groundingAssets);
+    return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle, groundingAssets, glossaryTerms);
   }
 
   const band = aiAssessment.confidenceBand;
@@ -3697,15 +3774,15 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
     .filter(Boolean)
     .slice(0, 3);
   const cluePills = clues.length > 0
-    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${escapeHtml(feature.replace(/（.*?）/gu, ""))}</span>`).join("")}</div></div>`
+    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${renderGlossaryText(feature.replace(/（.*?）/gu, ""), glossaryTerms, 2)}</span>`).join("")}</div></div>`
     : "";
   const leadSource = aiAssessment.simpleSummary || aiAssessment.narrative || clues[0] || "";
   const seasonal = aiAssessment.seasonalContext ? stripCandidateNameFromCopy(friendlyObservationText(aiAssessment.seasonalContext, 64), candidateName) : "";
-  const leadText = [
+  const leadText = appendPositiveObservationFeedback([
     stripCandidateNameFromCopy(friendlyObservationText(leadSource, 72), candidateName),
     seasonal && !/季節|繁殖|春|夏|秋|冬|月/.test(leadSource) ? seasonal : "",
-  ].filter(Boolean).join("。");
-  const compareList = renderAiCompareList(subject);
+  ].filter(Boolean).join("。"), positiveObservationFeedbackText(subject, aiAssessment));
+  const compareList = renderAiCompareList(subject, glossaryTerms);
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
   const fallbackScientificName = lookupLocalTaxonName(candidateName)?.scientificName || null;
   const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName || fallbackScientificName);
@@ -3718,14 +3795,14 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
     ${sceneTargets || currentTarget}
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
-      ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${escapeHtml(leadText)}</span></p>` : ""}
+      ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${renderGlossaryText(leadText, glossaryTerms)}</span></p>` : ""}
       ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
       ${compareList ? `<div class="obs-ai-detail-grid">${compareList}</div>` : ""}
       ${note}
     </div>
-    ${renderAiCandidateDetailPanels(bundle, groundingAssets)}
+    ${renderAiCandidateDetailPanels(bundle, groundingAssets, glossaryTerms)}
   </section><script>(function(){
     document.querySelectorAll('[data-obs-switch-ai-readout]').forEach(function(root){
       if (root.getAttribute('data-ai-readout-bound') === '1') return;
@@ -3826,12 +3903,12 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     return {
       clueHeading: "根拠",
       missingHeading: "この映像からは読み取れないもの",
-      nextEvidenceHeading: "あると助かる証拠カット",
+      nextEvidenceHeading: "次に意識すると記録が良くなる証拠カット",
       areaLabel: "映像フレームからのエリア推察",
       areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
-      shotAriaLabel: "名前の確認に役立つ証拠カット",
-      shotHeading: "あると助かる証拠カット",
-      shotReminder: "無理に揃える必要はありません。短い映像カットがあると、名前の確認が楽になります。",
+      shotAriaLabel: "記録を読み返しやすくする証拠カット",
+      shotHeading: "次に意識すると記録が良くなる証拠カット",
+      shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、動き・周囲・大きさの手がかりを残すと、あとで読み返しやすくなります。",
       focusLead: "映像フレームから読めている手がかりと、まだ止めている理由を先に確認できます。",
       contextHeading: "動画・音から拾えたこと",
       reassessHint: "動画をもう一度見て、見分けるメモを更新できます。",
@@ -3845,12 +3922,12 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     return {
       clueHeading: "根拠",
       missingHeading: "この記録のメディアからは読み取れないもの",
-      nextEvidenceHeading: "あると助かる写真・映像",
+      nextEvidenceHeading: "次に意識すると記録が良くなる写真・映像",
       areaLabel: "写真・映像フレームからのエリア推察",
       areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
       shotAriaLabel: "名前の確認に役立つ写真・映像",
-      shotHeading: "足せるなら便利な写真・映像",
-      shotReminder: "無理に揃えるものではありません。別角度があると名前を見やすくなります。",
+      shotHeading: "次に意識すると記録が良くなる写真・映像",
+      shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、別角度・周囲・大きさの手がかりを残すと、あとで読み返しやすくなります。",
       focusLead: "見えている特徴と、保留している点だけをまとめています。",
       contextHeading: "写真・動画・音から拾えたこと",
       reassessHint: "写真や動画をもう一度見て、見分けるメモを更新できます。",
@@ -3863,12 +3940,12 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
   return {
     clueHeading: "写真から拾えている手がかり",
     missingHeading: "この写真からは読み取れないもの",
-    nextEvidenceHeading: "あると助かる写真",
+    nextEvidenceHeading: "次に意識すると記録が良くなる写真",
     areaLabel: "この 1 枚からのエリア推察",
     areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
     shotAriaLabel: "名前の確認に役立つ写真",
-    shotHeading: "足せるなら便利な写真",
-    shotReminder: "無理に揃えるものではありません。別角度があると名前を見やすくなります。",
+    shotHeading: "次に意識すると記録が良くなる写真",
+    shotReminder: "今この記録に追加する前提ではありません。次に見つけたとき、別角度・周囲・大きさの手がかりを残すと、あとで読み返しやすくなります。",
     focusLead: "見えている特徴と、保留している点だけをまとめています。",
     contextHeading: "写真と音から拾えたこと",
     reassessHint: "写真をもう一度見て、見分けるメモを更新できます。",
@@ -3882,9 +3959,10 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
 function renderSubjectHint(
   subject: ObservationVisitSubject,
   siteBrief: SiteBrief | null = null,
-  photoAssets: { roleTag: string | null }[] | null = null,
+  _photoAssets: { roleTag: string | null }[] | null = null,
   basePath = "",
   mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+  glossaryTerms: GlossaryTermHint[] = [],
   fieldAdviceContext: {
     policy?: PlaceManagementPolicy | null;
     trend?: PlaceVegetationTrend | null;
@@ -3927,10 +4005,10 @@ function renderSubjectHint(
     : "";
   const mediaCopy = observationMediaCopy(mediaContext);
   const clues = !mediaContext.hasVideos && aiAssessment.diagnosticFeaturesSeen.length > 0
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.clueHeading)}</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${escapeHtml(friendlyObservationText(feature, 48))}</li>`).join("")}</ul></div>`
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.clueHeading)}</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${renderGlossaryText(friendlyObservationText(feature, 48), glossaryTerms, 2)}</li>`).join("")}</ul></div>`
     : "";
   const missingPhoto = aiAssessment.missingEvidence.length > 0
-    ? `<div class="obs-hint-sub obs-hint-missing"><div class="obs-hint-eye">${escapeHtml(mediaCopy.missingHeading)} <span class="obs-hint-eye-note">自動メモ</span></div><ul class="obs-hint-tags is-muted">${aiAssessment.missingEvidence.map((item) => `<li>${escapeHtml(friendlyObservationText(item, 48))}</li>`).join("")}</ul></div>`
+    ? `<div class="obs-hint-sub obs-hint-missing"><div class="obs-hint-eye">${escapeHtml(mediaCopy.missingHeading)} <span class="obs-hint-eye-note">自動メモ</span></div><ul class="obs-hint-tags is-muted">${aiAssessment.missingEvidence.map((item) => `<li>${renderGlossaryText(friendlyObservationText(item, 48), glossaryTerms, 2)}</li>`).join("")}</ul></div>`
     : "";
   const stop = aiAssessment.stopReason
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">まだ決めない理由</div><p>${escapeHtml(friendlyObservationText(aiAssessment.stopReason, 110))}</p></div>`
@@ -3945,15 +4023,17 @@ function renderSubjectHint(
     subject.occurrenceId,
     basePath,
   );
-  const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets, mediaContext);
   const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
-  const boost = "";
+  const boostText = positiveObservationFeedbackText(subject, aiAssessment);
+  const boost = boostText
+    ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">よく残っている点</div><p>${renderGlossaryText(boostText, glossaryTerms)}</p></div>`
+    : "";
   // 構造化された shotSuggestions カードがある時は、自由文 nextStep をたたみ重複を避ける
   const nextShotItems: string[] = [];
   if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);
   aiAssessment.confirmMore.forEach((tip) => { if (tip) nextShotItems.push(tip); });
   const nextStep = !hasShotSuggestionsCard && nextShotItems.length > 0
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.nextEvidenceHeading)}</div>${nextShotItems.length === 1 ? `<p>${escapeHtml(friendlyObservationText(nextShotItems[0], 90))}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${escapeHtml(friendlyObservationText(tip, 78))}</li>`).join("")}</ul>`}</div>`
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.nextEvidenceHeading)}</div>${nextShotItems.length === 1 ? `<p>${renderGlossaryText(friendlyObservationText(nextShotItems[0], 90), glossaryTerms)}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${renderGlossaryText(friendlyObservationText(tip, 78), glossaryTerms)}</li>`).join("")}</ul>`}</div>`
     : "";
   const funFact = aiAssessment.funFact
     ? `<div class="obs-hint-fun"><div class="obs-hint-eye">ちょっとした豆知識</div><p>${escapeHtml(friendlyObservationText(aiAssessment.funFact, 120))}</p></div>`
@@ -3964,7 +4044,7 @@ function renderSubjectHint(
     ? `<div class="obs-hint-similar">
          <div class="obs-hint-eye">まぎらわしい仲間 <span class="obs-hint-eye-note">自動メモ</span></div>
          ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((taxon) => `<li>${escapeHtml(taxon.name)}${taxon.rank ? ` <small>(${escapeHtml(publicRankHint(taxon.rank) || rankLabelJa(taxon.rank))})</small>` : ""}</li>`).join("")}</ul>` : ""}
-         ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((tip) => `<li>${escapeHtml(friendlyObservationText(tip, 78))}</li>`).join("")}</ul></div>` : ""}
+         ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((tip) => `<li>${renderGlossaryText(friendlyObservationText(tip, 78), glossaryTerms)}</li>`).join("")}</ul></div>` : ""}
          <p class="obs-hint-reminder">※ 自動メモです。図鑑や詳しい人の確認も合わせて見てください。</p>
        </div>`
     : "";
@@ -3991,7 +4071,6 @@ function renderSubjectHint(
     ${careAdvice}
     ${managementActions}
     ${areaInference}
-    ${shotSuggestions}
     ${funFact}
     ${similar}
     ${runMeta}
@@ -4391,36 +4470,6 @@ const SHOT_ROLE_META: Record<string, { icon: string; label: string }> = {
   substrate: { icon: "🪨", label: "基質 / 止まっている物" },
   scale_reference: { icon: "📏", label: "スケール参照" },
 };
-
-const SHOT_ROLE_ORDER: Array<{ key: string; label: string; icon: string }> = [
-  { key: "full_body", label: "全景/全身", icon: "🖼" },
-  { key: "close_up_organ", label: "部位アップ", icon: "🔍" },
-  { key: "habitat_wide", label: "生息環境", icon: "🌄" },
-  { key: "substrate", label: "基質", icon: "🪨" },
-  { key: "scale_reference", label: "スケール", icon: "📏" },
-];
-
-function renderRoleCoverageStrip(photoAssets: { roleTag: string | null }[] | null | undefined): string {
-  if (!photoAssets || photoAssets.length === 0) return "";
-  const covered = new Set<string>();
-  for (const p of photoAssets) if (p.roleTag && p.roleTag !== "unknown") covered.add(p.roleTag);
-  const chips = SHOT_ROLE_ORDER.map(({ key, label, icon }) => {
-    const hit = covered.has(key);
-    return `<span class="obs-role-chip${hit ? " is-covered" : ""}" title="${escapeHtml(label)}">${icon} ${escapeHtml(label)}${hit ? " ✓" : ""}</span>`;
-  }).join("");
-  const hitCount = covered.size;
-  const threshold = 3;
-  const pct = Math.min(100, Math.round((hitCount / SHOT_ROLE_ORDER.length) * 100));
-  const pastThreshold = hitCount >= threshold;
-  return `<div class="obs-role-cov">
-    <div class="obs-role-cov-head">
-      <div class="obs-role-cov-eye">組写真カバレッジ</div>
-      <div class="obs-role-cov-count ${pastThreshold ? "is-met" : ""}">${hitCount} / ${SHOT_ROLE_ORDER.length} role${pastThreshold ? " · Tier 1.5 条件OK" : ""}</div>
-    </div>
-    <div class="obs-role-cov-bar"><span style="width:${pct}%"></span></div>
-    <div class="obs-role-cov-chips">${chips}</div>
-    </div>`;
-}
 
 function renderObservationPhotoRecoveryPanel(options: {
   basePath: string;
@@ -5868,36 +5917,183 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
   });
 }
 
-function renderShotSuggestionsCard(
-  shotSuggestions: import("../services/observationAiAssessment.js").ShotSuggestion[] | null | undefined,
-  photoAssets: { roleTag: string | null }[] | null | undefined = null,
+type ObservationShotFeedbackItem = {
+  role: string;
+  icon: string;
+  target: string;
+  rationale: string;
+  priority: "high" | "medium" | null;
+};
+
+type ObservationShotFeedbackGroup = {
+  key: string;
+  name: string;
+  items: ObservationShotFeedbackItem[];
+};
+
+function shotFeedbackGroupName(subject: ObservationVisitSubject): string {
+  return observationDetailUiName(subject.aiAssessment?.recommendedTaxonName ?? subject.displayName ?? subject.scientificName ?? "この対象");
+}
+
+function normalizeShotFeedbackKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function shotFeedbackBenefitText(options: {
+  role: string;
+  target: string;
+  rationale?: string | null;
+}): string {
+  const role = normalizeShotFeedbackKey(options.role);
+  const target = normalizeShotFeedbackKey(options.target);
+  const rationale = normalizeShotFeedbackKey(options.rationale ?? "");
+  const combined = `${role} ${target} ${rationale}`;
+
+  if (role.includes("生息環境") || role.includes("広角") || role.includes("habitat") || rationale.includes("文脈")) {
+    return "周りの草、水辺、日当たりなどが残ると、その場所でどう現れていたかを季節や別地点の記録と比べやすくなります。";
+  }
+  if (role.includes("基質") || role.includes("substrate") || combined.includes("土") || combined.includes("石") || combined.includes("樹皮")) {
+    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から読み返せます。";
+  }
+  if (role.includes("スケール") || role.includes("scale") || combined.includes("大きさ")) {
+    return "大きさの手がかりがあると、写真だけでは迷いやすいサイズ感を後から確認できます。";
+  }
+  if (role.includes("全景") || role.includes("全身") || role.includes("full")) {
+    return "全体の形と周りとの位置関係が残ると、アップだけでは分からない姿や広がりを見直せます。";
+  }
+  if (role.includes("部位") || role.includes("close") || rationale.includes("詳細")) {
+    if (combined.includes("花") || combined.includes("花弁") || combined.includes("裂片") || combined.includes("萼")) {
+      return "花の形や割れ方を後から見比べられて、似た花との違いや季節ごとの姿を説明しやすくなります。";
+    }
+    if (combined.includes("葉") || combined.includes("茎") || combined.includes("毛")) {
+      return "葉や茎の付き方、毛の有無が残ると、同じ仲間の違いや成長段階を後から見直せます。";
+    }
+    if (combined.includes("翅") || combined.includes("触角") || combined.includes("脚") || combined.includes("昆虫")) {
+      return "細部の形を後から拡大して見直せるので、その場では気づかなかった手がかりを拾いやすくなります。";
+    }
+    return "細部が残ると、後から見直したときに何が写っていて何が足りないかを判断しやすくなります。";
+  }
+  if (rationale.includes("特定") || rationale.includes("同定")) {
+    return "後から見返す人が、見えている手がかりと保留すべき点を分けて考えやすくなります。";
+  }
+  if (options.rationale && !/詳細|文脈記録|記録するため/.test(options.rationale)) {
+    return friendlyObservationText(options.rationale, 86);
+  }
+  return "その場の見え方がもう少し残ると、あとで読み返したときに場面や変化を思い出しやすくなります。";
+}
+
+function shotSuggestionFeedbackItem(suggestion: ShotSuggestion): ObservationShotFeedbackItem {
+  const meta = SHOT_ROLE_META[suggestion.role] ?? { icon: "📸", label: suggestion.role };
+  return {
+    role: meta.label,
+    icon: meta.icon,
+    target: suggestion.target,
+    rationale: shotFeedbackBenefitText({
+      role: meta.label,
+      target: suggestion.target,
+      rationale: suggestion.rationale,
+    }),
+    priority: suggestion.priority,
+  };
+}
+
+function candidateReadingFeedbackItems(reading: CandidateReading): ObservationShotFeedbackItem[] {
+  const role = friendlyObservationText(reading.role || "次の見方", 22);
+  return reading.shootingTips.map((tip) => ({
+    role,
+    icon: "💡",
+    target: tip,
+    rationale: shotFeedbackBenefitText({ role, target: tip }),
+    priority: null,
+  }));
+}
+
+function collectObservationShotFeedbackGroups(bundle: ObservationVisitBundle): ObservationShotFeedbackGroup[] {
+  const groups: ObservationShotFeedbackGroup[] = [];
+  const itemKeys = new Set<string>();
+  const ensureGroup = (key: string, name: string): ObservationShotFeedbackGroup => {
+    const normalized = normalizeShotFeedbackKey(key || name);
+    const existing = groups.find((group) => group.key === normalized);
+    if (existing) return existing;
+    const group = { key: normalized, name: observationDetailUiName(name), items: [] };
+    groups.push(group);
+    return group;
+  };
+  const pushItem = (group: ObservationShotFeedbackGroup, item: ObservationShotFeedbackItem): void => {
+    const target = friendlyObservationText(item.target, 64);
+    if (!target) return;
+    const rationale = friendlyObservationText(item.rationale, 80);
+    const key = normalizeShotFeedbackKey(`${group.key}:${item.role}:${target}:${rationale}`);
+    if (itemKeys.has(key)) return;
+    itemKeys.add(key);
+    group.items.push({ ...item, target, rationale });
+  };
+
+  for (const subject of bundle.subjects) {
+    const group = ensureGroup(subject.occurrenceId, shotFeedbackGroupName(subject));
+    for (const suggestion of subject.aiAssessment?.shotSuggestions ?? []) {
+      pushItem(group, shotSuggestionFeedbackItem(suggestion));
+    }
+    for (const reading of subject.aiAssessment?.candidateReadings ?? []) {
+      const readingGroup = ensureGroup(reading.scientificName || reading.name, reading.name);
+      for (const item of candidateReadingFeedbackItems(reading)) {
+        pushItem(readingGroup, item);
+      }
+    }
+  }
+
+  const readings = candidateReadingMap(bundle);
+  for (const candidate of bundle.aiCandidates) {
+    const reading = findCandidateReading(readings, [candidate.displayName, candidate.scientificName]);
+    if (!reading || reading.shootingTips.length === 0) continue;
+    const group = ensureGroup(reading.scientificName || reading.name || candidate.displayName, candidate.displayName);
+    for (const item of candidateReadingFeedbackItems(reading)) {
+      pushItem(group, item);
+    }
+  }
+
+  return groups.filter((group) => group.items.length > 0);
+}
+
+function renderShotFeedbackItem(item: ObservationShotFeedbackItem, glossaryTerms: GlossaryTermHint[] = []): string {
+  const priorityBadge = item.priority === "high"
+    ? `<span class="obs-shot-pri obs-shot-pri-high">優先して残す</span>`
+    : item.priority === "medium"
+      ? `<span class="obs-shot-pri obs-shot-pri-medium">余裕があれば</span>`
+      : "";
+  return `<li class="obs-shot-item">
+    <span class="obs-shot-role"><span class="obs-shot-icon">${escapeHtml(item.icon)}</span>${escapeHtml(item.role)}</span>
+    <span class="obs-shot-target">${renderGlossaryText(item.target, glossaryTerms)}</span>
+    ${item.rationale ? `<span class="obs-shot-rationale">${renderGlossaryText(item.rationale, glossaryTerms)}</span>` : ""}
+    ${priorityBadge}
+  </li>`;
+}
+
+function renderObservationShotFeedbackSurface(
+  bundle: ObservationVisitBundle,
   mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+  glossaryTerms: GlossaryTermHint[] = [],
 ): string {
-  const hasSuggestions = shotSuggestions && shotSuggestions.length > 0;
-  const coverageStrip = renderRoleCoverageStrip(photoAssets);
-  if (!hasSuggestions && !coverageStrip) return "";
+  const groups = collectObservationShotFeedbackGroups(bundle);
+  if (groups.length === 0) return "";
   const mediaCopy = observationMediaCopy(mediaContext);
-  const items = hasSuggestions ? (shotSuggestions as import("../services/observationAiAssessment.js").ShotSuggestion[]).map((suggestion) => {
-    const meta = SHOT_ROLE_META[suggestion.role] ?? { icon: "📸", label: suggestion.role };
-    const priorityBadge = suggestion.priority === "high"
-      ? `<span class="obs-shot-pri obs-shot-pri-high">必須級</span>`
-      : `<span class="obs-shot-pri obs-shot-pri-medium">余裕があれば</span>`;
-    return `<li class="obs-shot-item">
-      <span class="obs-shot-role"><span class="obs-shot-icon">${meta.icon}</span>${escapeHtml(meta.label)}</span>
-      <span class="obs-shot-target">${escapeHtml(friendlyObservationText(suggestion.target, 38))}</span>
-      ${suggestion.rationale ? `<span class="obs-shot-rationale">${escapeHtml(friendlyObservationText(suggestion.rationale, 60))}</span>` : ""}
-      ${priorityBadge}
-    </li>`;
-  }).join("") : "";
-  return `<section class="obs-shot-card" aria-label="${escapeHtml(mediaCopy.shotAriaLabel)}">
-    <div class="obs-shot-head">
-      <div>
-        <div class="obs-hint-eyebrow">${escapeHtml(mediaCopy.shotHeading)}</div>
-        <p class="obs-hint-reminder">${escapeHtml(mediaCopy.shotReminder)}</p>
-      </div>
+  const groupList = groups.map((group) => `<li class="obs-shot-group">
+    <div class="obs-shot-group-head">
+      <span class="obs-shot-group-name">${escapeHtml(group.name)}</span>
+      <span class="obs-shot-group-count">${group.items.length}件</span>
     </div>
-    ${coverageStrip}
-    ${items ? `<ul class="obs-shot-list">${items}</ul>` : ""}
+    <ul class="obs-shot-list">${group.items.map((item) => renderShotFeedbackItem(item, glossaryTerms)).join("")}</ul>
+  </li>`).join("");
+  return `<section class="section obs-surface-shot-feedback" data-obs-section="shot-feedback">
+    <section class="obs-shot-card" aria-label="${escapeHtml(mediaCopy.shotAriaLabel)}">
+      <div class="obs-shot-head">
+        <div>
+          <div class="obs-hint-eyebrow">${escapeHtml(mediaCopy.shotHeading)}</div>
+          <p class="obs-hint-reminder">${escapeHtml(mediaCopy.shotReminder)}</p>
+        </div>
+      </div>
+      <ul class="obs-shot-group-list">${groupList}</ul>
+    </section>
   </section>`;
 }
 
@@ -6588,6 +6784,7 @@ function renderSubjectTaxonomy(
                </div>
                <div class="obs-id-meta">${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</div>
                ${item.notes ? `<p class="obs-id-note">${escapeHtml(item.notes)}</p>` : ""}
+               ${renderIdentificationReferenceChips(item.references)}
              </div>
            </li>`).join("")}
         </ul>`
@@ -6601,6 +6798,16 @@ function renderSubjectTaxonomy(
       ${renderSubjectComparison(bundle, subject)}
       ${renderAiCandidates(bundle)}
     </section>`;
+}
+
+function renderIdentificationReferenceChips(references: ObservationVisitSubject["identifications"][number]["references"]): string {
+  if (references.length === 0) return "";
+  return `<div class="obs-id-references" aria-label="同定で確認した資料">
+    ${references.map((reference) => {
+      const locator = reference.locator ? ` ${reference.locator}` : "";
+      return `<span class="obs-id-reference-chip">この資料で確認: ${escapeHtml(reference.title)}${escapeHtml(locator)}</span>`;
+    }).join("")}
+  </div>`;
 }
 
 function renderIdentificationParticipation(options: {
@@ -6659,6 +6866,7 @@ function renderIdentificationParticipation(options: {
   const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${endpointId}/disputes`);
   const aiReviewEndpoint = withBasePath(basePath, `/api/v1/observation-records/${endpointId}/ai-review`);
   const specialistHref = withBasePath(basePath, `/specialist/id-workbench?occurrenceId=${endpointId}`);
+  const referenceCaptureHref = withBasePath(basePath, `/references/capture?returnTo=${encodeURIComponent(buildObservationDetailPath(snapshot.visitId, snapshot.occurrenceId) + "#identify")}&taxonHint=${encodeURIComponent(defaultName || targetLabel)}`);
   const isAiJudgement = snapshot.aiAssessmentStatus === "ai_judgement";
   const aiReviewStateLabel = snapshot.aiReviewAgreeCount > 0 && snapshot.aiReviewDisagreeCount > 0
     ? "確認が割れています"
@@ -6711,8 +6919,8 @@ function renderIdentificationParticipation(options: {
   const referencePicker = viewerSession
     ? `<div class="obs-reference-picker">
         <div class="obs-reference-picker-head">
-          <strong>参照資料を選ぶ</strong>
-          <a href="${escapeHtml(withBasePath(basePath, "/references/capture"))}">資料を登録</a>
+          <strong>この資料で確認</strong>
+          <a href="${escapeHtml(referenceCaptureHref)}">資料を登録</a>
         </div>
         ${referenceCandidates.length > 0
           ? `<div class="obs-reference-options">
@@ -6730,7 +6938,7 @@ function renderIdentificationParticipation(options: {
               </label>`).join("")}
             </div>`
           : `<p class="obs-empty">この分類群の参照資料はまだありません。</p>`}
-        <label class="obs-reference-locator"><span>ページ・図版番号</span><input name="referenceLocator" type="text" maxlength="160" placeholder="例: p.42 / 図3 / 検索ページ" /></label>
+        <label class="obs-reference-locator"><span>ページ・図版番号</span><input name="referenceLocator" type="text" maxlength="160" placeholder="任意: p.42 / 図3 / 検索ページ" /></label>
       </div>`
     : "";
   const form = viewerSession
@@ -6786,7 +6994,7 @@ function renderIdentificationParticipation(options: {
       ].join("")
     : [
         `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>${escapeHtml(hasOnlyWeakCandidateName ? "候補名が不足" : "候補を下書き")}</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>${escapeHtml(aiActivityMeta)}</time></div></li>`,
-        ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time></div></li>`),
+        ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time>${renderIdentificationReferenceChips(item.references)}</div></li>`),
         `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
       ].join("");
   const activityBlock = `<div class="obs-local-name-ledger">
@@ -6839,12 +7047,201 @@ function renderIdentificationParticipation(options: {
   </section>`;
 }
 
+const OBSERVATION_ORIGIN_OPTIONS = [
+  { value: "wild", label: "野生" },
+  { value: "planted", label: "植栽" },
+  { value: "captive", label: "飼育" },
+  { value: "released", label: "放流" },
+  { value: "unknown", label: "不明" },
+] as const;
+
+type ObservationOriginValue = typeof OBSERVATION_ORIGIN_OPTIONS[number]["value"];
+
+function observationOriginValue(value: string | null | undefined): ObservationOriginValue {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return OBSERVATION_ORIGIN_OPTIONS.some((option) => option.value === raw)
+    ? raw as ObservationOriginValue
+    : "unknown";
+}
+
+function observationOriginLabel(value: string | null | undefined): string {
+  const normalized = observationOriginValue(value);
+  return OBSERVATION_ORIGIN_OPTIONS.find((option) => option.value === normalized)?.label ?? "不明";
+}
+
+const ENVIRONMENT_RECORD_FIELDS = [
+  {
+    field: "place_type",
+    title: "場所の型",
+    help: "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。",
+    fallback: "grassland_urban_edge",
+    options: [
+      { value: "grassland_urban_edge", label: "草地と市街地の縁" },
+      { value: "urban", label: "市街地" },
+      { value: "woodland", label: "林内" },
+      { value: "water_edge", label: "水辺" },
+      { value: "wetland", label: "湿地" },
+      { value: "coast", label: "海岸" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "contact_surface",
+    title: "接している面",
+    help: "対象が触れている・立っている・浮いている面を残す。",
+    fallback: "soil_gravel_litter",
+    options: [
+      { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
+      { value: "soil", label: "土" },
+      { value: "plant", label: "植物上" },
+      { value: "water", label: "水面・水中" },
+      { value: "rock", label: "岩・石" },
+      { value: "artificial", label: "人工物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "surrounding_cover",
+    title: "周辺の被覆",
+    help: "まわりを覆う植物、水、雪、岩、構造物などを残す。",
+    fallback: "low_grass",
+    options: [
+      { value: "low_grass", label: "低い草地" },
+      { value: "trees_shrubs", label: "樹木・低木" },
+      { value: "bare_ground", label: "裸地" },
+      { value: "water", label: "水" },
+      { value: "snow", label: "雪" },
+      { value: "built_surface", label: "舗装・構造物" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "environment_condition",
+    title: "環境条件",
+    help: "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。",
+    fallback: "open_dry",
+    options: [
+      { value: "open_dry", label: "開けて乾き気味" },
+      { value: "sunny", label: "日当たり" },
+      { value: "shaded", label: "日陰" },
+      { value: "wet", label: "湿り気あり" },
+      { value: "flowing", label: "流れあり" },
+      { value: "windy", label: "風あり" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+  {
+    field: "human_change",
+    title: "人為・変化",
+    help: "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。",
+    fallback: "trampling_mowing",
+    options: [
+      { value: "trampling_mowing", label: "踏圧・草刈り跡" },
+      { value: "mowing", label: "草刈り" },
+      { value: "trampling", label: "踏圧" },
+      { value: "planting", label: "植栽・管理" },
+      { value: "construction", label: "造成・工事" },
+      { value: "release", label: "放流・放逐" },
+      { value: "none_visible", label: "目立つ変化なし" },
+      { value: "unknown", label: "不明" },
+    ],
+  },
+] as const;
+
+type EnvironmentRecordField = typeof ENVIRONMENT_RECORD_FIELDS[number];
+
+function environmentRecordValue(record: Record<string, string> | null | undefined, field: EnvironmentRecordField): string {
+  const raw = String(record?.[field.field] ?? "").trim();
+  return field.options.some((option) => option.value === raw) ? raw : field.fallback;
+}
+
+function environmentRecordLabel(field: EnvironmentRecordField, value: string): string {
+  return field.options.find((option) => option.value === value)?.label ?? "不明";
+}
+
+type QualityNameCandidate = {
+  name: string;
+  rank: string;
+  source: string;
+  searchText: string;
+};
+
+function qualityCandidateKey(name: string): string {
+  return observationDetailUiName(name).trim().toLowerCase();
+}
+
+function observationLocalDateTimeValue(value: string | null | undefined): string {
+  const date = new Date(String(value ?? ""));
+  if (!Number.isFinite(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function qualityLocationLabel(snapshot: ObservationDetailSnapshot): string {
+  return typeof snapshot.latitude === "number" && typeof snapshot.longitude === "number"
+    ? `${snapshot.latitude.toFixed(6)}, ${snapshot.longitude.toFixed(6)}`
+    : "地点未入力";
+}
+
+function collectQualityNameCandidates(options: {
+  snapshot: ObservationDetailSnapshot;
+  subject: ObservationVisitSubject;
+  bundle?: ObservationVisitBundle | null;
+  nearby?: NearbyObservation[];
+}): QualityNameCandidate[] {
+  const candidates: QualityNameCandidate[] = [];
+  const seen = new Set<string>();
+  const add = (name: string | null | undefined, rank: string | null | undefined, source: string) => {
+    const display = observationDetailUiName(name);
+    if (!display || isWeakIdentificationCandidateName(display)) return;
+    const key = qualityCandidateKey(display);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    const rankLabel = rank ? publicRankHint(rank) || rankLabelJa(rank) : "";
+    candidates.push({
+      name: display,
+      rank: rank ?? "",
+      source: [source, rankLabel].filter(Boolean).join(" / "),
+      searchText: [display, rankLabel, source].filter(Boolean).join(" "),
+    });
+  };
+
+  add(options.subject.aiAssessment?.recommendedTaxonName, options.subject.aiAssessment?.recommendedRank, "AI候補");
+  add(options.subject.aiAssessment?.recommendedScientificName, options.subject.aiAssessment?.recommendedRank, "AI学名");
+  add(options.subject.displayName, options.subject.rank, "表示中");
+  for (const reading of options.subject.aiAssessment?.candidateReadings ?? []) {
+    add(reading.name, reading.rank, "候補読み");
+    add(reading.scientificName, reading.rank, "候補読み");
+  }
+  for (const candidate of options.bundle?.aiCandidates ?? []) {
+    add(candidate.displayName, candidate.rank, "AI候補");
+    add(candidate.scientificName, candidate.rank, "AI学名");
+  }
+  for (const subject of options.bundle?.subjects ?? []) {
+    add(subject.vernacularName || subject.displayName, subject.rank, "同じ記録");
+    add(subject.scientificName, subject.rank, "同じ記録");
+  }
+  for (const item of options.nearby ?? []) {
+    add(item.displayName, null, "近い公開記録");
+  }
+  add(options.snapshot.vernacularName || options.snapshot.displayName, null, "現在名");
+  add(options.snapshot.scientificName, null, "現在学名");
+
+  return candidates.slice(0, 18);
+}
+
 function renderObservationQualityCard(options: {
   snapshot: ObservationDetailSnapshot;
   subject: ObservationVisitSubject;
+  bundle?: ObservationVisitBundle | null;
+  nearby?: NearbyObservation[];
   consensus: IdentificationConsensusResult | null;
   placeLabel: string;
   mediaContext: ObservationMediaCopyContext;
+  canEditOrigin: boolean;
+  isLoggedIn: boolean;
+  originLoginHref: string;
+  glossaryTerms?: GlossaryTermHint[];
 }): string {
   const mediaCount = options.snapshot.photoAssets.length + options.snapshot.videoAssets.length + options.snapshot.audioAssets.length;
   const hasEvidence = mediaCount > 0;
@@ -6859,7 +7256,42 @@ function renderObservationQualityCard(options: {
         : "未追加";
   const sceneNoun = mediaSceneNoun(options.mediaContext);
   const isGreenfinchSnapshot = /カワラヒワ|Chloris sinica/i.test(`${subjectName} ${options.subject.scientificName ?? ""}`);
-  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質">
+  const glossaryTerms = options.glossaryTerms ?? [];
+  const originRaw = String(options.snapshot.organismOrigin ?? "").trim();
+  const originValue = observationOriginValue(originRaw);
+  const originLabel = originRaw ? observationOriginLabel(originValue) : "未入力";
+  const originStateClass = originValue === "unknown" ? " is-next" : "";
+  const originSheetMessage = !options.isLoggedIn
+    ? "ログインすると、自分の記録に由来区分を保存できます。"
+    : options.canEditOrigin
+      ? "この記録の由来区分を選んで保存します。"
+      : "由来区分は投稿者だけが変更できます。";
+  const editSheetMessage = (field: string) => !options.isLoggedIn
+    ? `ログインすると、自分の記録の${field}を保存できます。`
+    : options.canEditOrigin
+      ? `${field}を確認して保存します。`
+      : `${field}は投稿者だけが変更できます。`;
+  const qualityNameCandidates = collectQualityNameCandidates({
+    snapshot: options.snapshot,
+    subject: options.subject,
+    bundle: options.bundle,
+    nearby: options.nearby,
+  });
+  const defaultNameCandidate = qualityNameCandidates[0]?.name || subjectName;
+  const defaultRankCandidate = qualityNameCandidates[0]?.rank || options.subject.aiAssessment?.recommendedRank || options.subject.rank || "";
+  const observedAtInputValue = observationLocalDateTimeValue(options.snapshot.observedAt);
+  const observedAtLabel = formatAbsolute(options.snapshot.observedAt);
+  const locationLabel = qualityLocationLabel(options.snapshot);
+  const environmentRecord = options.snapshot.environmentRecord ?? {};
+  const environmentFieldCards = ENVIRONMENT_RECORD_FIELDS.map((field) => {
+    const value = environmentRecordValue(environmentRecord, field);
+    const label = environmentRecordLabel(field, value);
+    return `<div class="obs-local-quality-chip" data-quality-chip data-env-field="${escapeHtml(field.field)}" data-env-current="${escapeHtml(value)}">
+      <div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(field.title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(field.help, glossaryTerms, 2)}</p></details></div>
+      <div class="obs-local-quality-chip-value-row"><em data-env-field-label>${escapeHtml(label)}</em><button class="obs-local-quality-field-edit" type="button" data-env-edit="${escapeHtml(field.field)}">変更</button></div>
+    </div>`;
+  }).join("");
+  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
     <div class="obs-local-quality-head">
       <div>
         <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
@@ -6869,29 +7301,29 @@ function renderObservationQualityCard(options: {
     <div class="obs-local-quality-checks">
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
-        <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em>記録済み</em></div>
-        <button class="obs-local-quality-change" type="button">変更</button>
+        <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em><span data-date-current-label>${escapeHtml(observedAtLabel)}</span> / <span data-location-current-label>${escapeHtml(locationLabel)}</span></em></div>
+        <span><button class="obs-local-quality-change" type="button" data-quality-action="date">日時</button> <button class="obs-local-quality-change" type="button" data-quality-action="location">場所</button></span>
       </div>
       <div class="obs-local-quality-check${hasEvidence ? "" : " is-warn"}">
         <i class="obs-local-quality-mark">${hasEvidence ? "✓" : "!"}</i>
         <div><strong>証拠</strong><span>後から生物を確認できるメディアがあるか。</span><em>${escapeHtml(mediaState)}</em></div>
-        <button class="obs-local-quality-change" type="button">変更</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="evidence">写真を追加</button>
       </div>
       <div class="obs-local-quality-check${hasHumanSupport ? "" : " is-next"}">
         <i class="obs-local-quality-mark">${hasHumanSupport ? "✓" : "!"}</i>
         <div><strong>名前の支持</strong><span>AI候補に人の確認が加わっているか。</span><em>${hasHumanSupport ? "確認あり" : "人の確認待ち"}</em></div>
-        <button class="obs-local-quality-change" type="button">確認</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="identification">変更</button>
       </div>
-      <div class="obs-local-quality-check is-next">
-        <i class="obs-local-quality-mark">!</i>
-        <div><strong>生きものの由来</strong><span>人に植えられた・飼われた・放されたものか。</span><em>未入力</em></div>
-        <button class="obs-local-quality-change" type="button">変更</button>
+      <div class="obs-local-quality-check${originStateClass}">
+        <i class="obs-local-quality-mark">${originValue === "unknown" ? "!" : "✓"}</i>
+        <div><strong>生きものの由来</strong><span>人に植えられた・飼われた・放されたものか。</span><em data-origin-current-label>${escapeHtml(originLabel)}</em></div>
+        <button class="obs-local-quality-change" type="button" data-quality-action="origin">変更</button>
         <details class="obs-local-origin-hint"><summary>野生・植栽などの違い</summary><dl><dt>野生</dt><dd>人が置いた個体ではなく、その場所に自然にいた・生えたもの。</dd><dt>植栽</dt><dd>人が植えた植物。管理地に自然に生えた雑草とは分けて考えます。</dd><dt>飼育</dt><dd>人に飼われている動物。逃げ出しや放し飼いも確認します。</dd><dt>放流</dt><dd>人が意図して放した魚・昆虫・動物など。定着していても由来は別に残します。</dd></dl></details>
       </div>
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
         <div><strong>メディア整合</strong><span>関係ない画像や場面違いの証拠が混じっていないか。</span><em>${escapeHtml(isGreenfinchSnapshot ? "AI確認済み" : `${sceneNoun}確認済み`)}</em></div>
-        <button class="obs-local-quality-change" type="button">確認</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="media">確認</button>
       </div>
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
@@ -6899,18 +7331,116 @@ function renderObservationQualityCard(options: {
         <span class="obs-local-quality-change">自動</span>
       </div>
     </div>
+    <div class="obs-local-quality-action-status" data-quality-action-status aria-live="polite"></div>
     <div class="obs-local-quality-draft" data-quality-draft>
       <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div>
       <div class="obs-local-quality-draft-grid">
-        ${[
-          ["場所の型", "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。", /鳥|カワラヒワ|イネ科|草/i.test(`${subjectName} ${options.subject.focusReason}`) ? "草地と市街地の縁" : "観察場所の周辺"],
-          ["接している面", "対象が触れている・立っている・浮いている面を残す。", "土、礫、枯れ草が混じる足元"],
-          ["周辺の被覆", "まわりを覆う植物、水、雪、岩、構造物などを残す。", isGreenfinchSnapshot ? "低い草地とイネ科らしい草本" : "低い草地と周辺の植生"],
-          ["環境条件", "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。", isGreenfinchSnapshot ? "乾きやすそうな開けた足元" : "開けた足元"],
-          ["人為・変化", "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。", isGreenfinchSnapshot ? "踏圧と草刈り後のような跡" : "踏圧や管理の跡"],
-        ].map(([title, help, value]) => `<div class="obs-local-quality-chip" data-quality-chip><div class="obs-local-quality-chip-title"><strong>${escapeHtml(title)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${escapeHtml(help)}</p></details></div><div class="obs-local-quality-chip-value-row"><em>${escapeHtml(value)}</em><button class="obs-local-quality-field-edit" type="button">変更</button></div></div>`).join("")}
+        ${environmentFieldCards}
       </div>
     </div>
+    <div class="obs-origin-sheet" data-name-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-name-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-name-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">IDENTIFICATION</div>
+            <h4 id="obs-name-sheet-title">名前を確認する</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-name-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message" data-name-message>${escapeHtml(editSheetMessage("名前"))}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <input class="obs-name-search" type="search" autocomplete="off" placeholder="候補名で絞り込み" data-name-search>
+        <div class="obs-origin-choice-list" data-name-choice-list>
+          ${qualityNameCandidates.map((candidate, index) => `<button class="obs-origin-choice${index === 0 ? " is-selected" : ""}" type="button" data-name-choice="${escapeHtml(candidate.name)}" data-name-rank="${escapeHtml(candidate.rank)}" data-name-search-text="${escapeHtml(candidate.searchText)}" aria-pressed="${index === 0 ? "true" : "false"}">${escapeHtml(candidate.name)}${candidate.source ? ` <small>${escapeHtml(candidate.source)}</small>` : ""}</button>`).join("")}
+        </div>
+        <details class="obs-local-origin-hint"><summary>候補にない名前を使う</summary><div class="obs-edit-fields"><label class="obs-edit-field"><span>名前</span><input type="text" data-name-manual placeholder="例: モンシロチョウ"></label></div></details>
+        <button class="obs-origin-save" type="button" data-name-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-name-toast hidden><span data-name-toast-text></span><button type="button" data-name-undo>元に戻す</button></div>
+    <div class="obs-origin-sheet" data-date-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-date-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-date-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">DATE</div>
+            <h4 id="obs-date-sheet-title">観察日時</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-date-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message">${escapeHtml(editSheetMessage("観察日時"))}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-edit-fields"><label class="obs-edit-field"><span>観察日時</span><input type="datetime-local" data-date-input value="${escapeHtml(observedAtInputValue)}"></label></div>
+        <button class="obs-origin-save" type="button" data-date-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-date-toast hidden><span data-date-toast-text></span><button type="button" data-date-undo>元に戻す</button></div>
+    <div class="obs-origin-sheet" data-location-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-location-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-location-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">LOCATION</div>
+            <h4 id="obs-location-sheet-title">観察地点</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-location-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message">${escapeHtml(editSheetMessage("観察地点"))}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-location-map" data-location-map aria-label="観察地点のピン">
+          <span class="obs-location-pin" data-location-pin></span>
+          <span class="obs-location-map-note">ピンを動かして地点を微調整します。</span>
+        </div>
+        <div class="obs-edit-fields">
+          <label class="obs-edit-field"><span>緯度</span><input type="number" step="0.000001" data-location-lat-input value="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}"></label>
+          <label class="obs-edit-field"><span>経度</span><input type="number" step="0.000001" data-location-lng-input value="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}"></label>
+        </div>
+        <button class="obs-origin-save" type="button" data-location-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-location-toast hidden><span data-location-toast-text></span><button type="button" data-location-undo>元に戻す</button></div>
+    <div class="obs-origin-sheet" data-env-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-env-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-env-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">ENVIRONMENT</div>
+            <h4 id="obs-env-sheet-title" data-env-sheet-title>環境レコード</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-env-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message" data-env-message>${escapeHtml(options.isLoggedIn ? options.canEditOrigin ? "項目を選んで保存します。" : "環境レコードは投稿者だけが変更できます。" : "ログインすると、自分の記録に環境レコードを保存できます。")}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-origin-choice-list" data-env-choice-list></div>
+        <button class="obs-origin-save" type="button" data-env-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-env-toast hidden><span data-env-toast-text></span><button type="button" data-env-undo>元に戻す</button></div>
+    <div class="obs-origin-sheet" data-origin-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-origin-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-origin-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">ORIGIN</div>
+            <h4 id="obs-origin-sheet-title">生きものの由来</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-origin-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message" data-origin-message>${escapeHtml(originSheetMessage)}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-origin-choice-list" data-origin-choice-list>
+          ${OBSERVATION_ORIGIN_OPTIONS.map((option) => `<button class="obs-origin-choice${option.value === originValue ? " is-selected" : ""}" type="button" data-origin-choice="${escapeHtml(option.value)}" aria-pressed="${option.value === originValue ? "true" : "false"}">${escapeHtml(option.label)}</button>`).join("")}
+        </div>
+        <button class="obs-origin-save" type="button" data-origin-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-origin-toast hidden><span data-origin-toast-text></span><button type="button" data-origin-undo>元に戻す</button></div>
     <div class="obs-local-quality-history"><div class="obs-local-quality-history-head"><strong>編集履歴</strong></div><ul class="obs-local-quality-history-log" data-quality-history><li>AIが環境レコードを入力しました</li></ul></div>
   </section>`;
 }
@@ -7047,24 +7577,28 @@ export function renderObservationRecordInsightText(options: {
   const lifeform = recordInsightLifeform(options.subject, subjectName);
   const place = options.placeLabel || options.snapshot.municipality || options.snapshot.publicLocation?.label || "この場所";
   const season = seasonPhraseFromObservedAt(options.snapshot.observedAt);
+  const positiveFeedback = options.subject.aiAssessment
+    ? positiveObservationFeedbackText(options.subject, options.subject.aiAssessment)
+    : "";
   const hasLowGrass = /低い草丈|草地|草|イネ科|芝/.test(contextText);
   const envParts = [
     /裸地/.test(contextText) ? "裸地" : "",
     /礫|砂礫/.test(contextText) ? "礫" : "",
     /踏圧|踏まれ/.test(contextText) ? "踏圧" : "",
   ].filter(Boolean);
+  let text: string;
   if (lifeform === "bird" && (hasLowGrass || envParts.length > 0)) {
     const foot = [hasLowGrass ? "低い草丈" : "", envParts.length > 0 ? `${envParts.join("・")}が混じる足元` : "足元"].filter(Boolean).join("と");
-    return `${subjectName}らしい鳥が、${foot}の近くに写っています。周辺・環境としては${envParts.length > 0 ? envParts.join("・") : "草地の状態"}が読み取れ、${place}${season ? `の草地・${season}` : "の草地"}という条件も、分布や季節感として自然です。踏まれた感じのある草地を季節ごとに重ねて見ると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。`;
-  }
-  if (lifeform === "arthropod") {
+    text = `${subjectName}らしい鳥が、${foot}の近くに写っています。周辺・環境としては${envParts.length > 0 ? envParts.join("・") : "草地の状態"}が読み取れ、${place}${season ? `の草地・${season}` : "の草地"}という条件も、分布や季節感として自然です。踏まれた感じのある草地を季節ごとに重ねて見ると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。`;
+  } else if (lifeform === "arthropod") {
     const foot = [hasLowGrass ? "草地" : "", envParts.length > 0 ? `${envParts.join("・")}が混じる足元` : "足元"].filter(Boolean).join("と");
-    return `${subjectName}らしい小さな動物が、${foot}の状態と一緒に写っています。名前だけでなく、どの場所にいて、まわりの裸地や草地、礫、踏圧とどう接していたかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、足元の湿り気や草地管理の変化と、そこにいる小動物の出方を比べられます。`;
+    text = `${subjectName}らしい小さな動物が、${foot}の状態と一緒に写っています。名前だけでなく、どの場所にいて、まわりの裸地や草地、礫、踏圧とどう接していたかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、足元の湿り気や草地管理の変化と、そこにいる小動物の出方を比べられます。`;
+  } else if (lifeform === "plant") {
+    text = `${subjectName}らしい植物が、周囲の草や足元の状態と一緒に写っています。名前だけでなく、どこに生え、どのくらい広がり、まわりの裸地や草地とどう接しているかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、花の量や草地の保たれ方の変化を比べられます。`;
+  } else {
+    text = `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
   }
-  if (lifeform === "plant") {
-    return `${subjectName}らしい植物が、周囲の草や足元の状態と一緒に写っています。名前だけでなく、どこに生え、どのくらい広がり、まわりの裸地や草地とどう接しているかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、花の量や草地の保たれ方の変化を比べられます。`;
-  }
-  return `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
+  return appendPositiveObservationFeedback(text, positiveFeedback);
 }
 
 function recordReadingAxisLabel(axis: RecordReadingAxis): string {
@@ -7218,27 +7752,783 @@ export function renderLocalObservationPolishScript(): string {
       var draft = document.querySelector('[data-quality-draft]');
       if (!draft || draft.getAttribute('data-quality-bound') === '1') return;
       draft.setAttribute('data-quality-bound', '1');
+      var card = draft.closest('.obs-local-quality-card') || draft;
       var count = draft.querySelector('[data-quality-draft-count]');
       var history = document.querySelector('[data-quality-history]');
       function chips(){ return Array.prototype.slice.call(draft.querySelectorAll('[data-quality-chip]')); }
       function updateCount(){ if (count) count.textContent = chips().length + '項目'; }
-      function chipLabel(chip){
-        var name = (chip.querySelector('strong') && chip.querySelector('strong').textContent || '').trim() || '未入力';
-        var value = (chip.querySelector('em') && chip.querySelector('em').textContent || '').trim() || '区分なし';
-        return name + ' / ' + value;
-      }
       function addHistory(text){
         if (!history) return;
         var li = document.createElement('li');
         li.textContent = text;
         history.appendChild(li);
       }
-      draft.addEventListener('click', function(event){
-        var target = event.target && event.target.closest ? event.target.closest('.obs-local-quality-field-edit') : null;
-        if (!target) return;
-        var chip = target.closest('[data-quality-chip]');
-        if (chip) addHistory('環境レコードを変更: ' + chipLabel(chip));
+      function setActionStatus(text, isError){
+        var status = card.querySelector('[data-quality-action-status]');
+        if (!status) return;
+        status.textContent = text || '';
+        status.classList.toggle('is-error', Boolean(isError));
+      }
+      function focusElement(element){
+        if (!element) return false;
+        if (typeof element.scrollIntoView === 'function') {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (typeof element.focus === 'function') {
+          window.setTimeout(function(){ element.focus({ preventScroll: true }); }, 120);
+        }
+        return true;
+      }
+      var ORIGIN_LABELS = { wild: '野生', planted: '植栽', captive: '飼育', released: '放流', unknown: '不明' };
+      var selectedOrigin = card.getAttribute('data-origin-current') || 'unknown';
+      var undoTimer = null;
+      var ENV_FIELDS = {
+        place_type: { title: '場所の型', options: [
+          ['grassland_urban_edge', '草地と市街地の縁'], ['urban', '市街地'], ['woodland', '林内'], ['water_edge', '水辺'], ['wetland', '湿地'], ['coast', '海岸'], ['unknown', '不明']
+        ] },
+        contact_surface: { title: '接している面', options: [
+          ['soil_gravel_litter', '土・礫・枯れ草'], ['soil', '土'], ['plant', '植物上'], ['water', '水面・水中'], ['rock', '岩・石'], ['artificial', '人工物'], ['unknown', '不明']
+        ] },
+        surrounding_cover: { title: '周辺の被覆', options: [
+          ['low_grass', '低い草地'], ['trees_shrubs', '樹木・低木'], ['bare_ground', '裸地'], ['water', '水'], ['snow', '雪'], ['built_surface', '舗装・構造物'], ['unknown', '不明']
+        ] },
+        environment_condition: { title: '環境条件', options: [
+          ['open_dry', '開けて乾き気味'], ['sunny', '日当たり'], ['shaded', '日陰'], ['wet', '湿り気あり'], ['flowing', '流れあり'], ['windy', '風あり'], ['unknown', '不明']
+        ] },
+        human_change: { title: '人為・変化', options: [
+          ['trampling_mowing', '踏圧・草刈り跡'], ['mowing', '草刈り'], ['trampling', '踏圧'], ['planting', '植栽・管理'], ['construction', '造成・工事'], ['release', '放流・放逐'], ['none_visible', '目立つ変化なし'], ['unknown', '不明']
+        ] }
+      };
+      var selectedEnvField = '';
+      var selectedEnvValue = '';
+      var envUndoTimer = null;
+      var selectedName = card.getAttribute('data-name-current') || '';
+      var selectedNameRank = card.getAttribute('data-name-rank-current') || '';
+      var nameUndoTimer = null;
+      var dateUndoTimer = null;
+      var locationUndoTimer = null;
+      function occurrenceEndpoint(path){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return '/api/v1/occurrences/' + encodeURIComponent(occurrenceId) + path;
+      }
+      function postJson(url, body){
+        return fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }).then(function(response){
+          return response.json().catch(function(){ return {}; }).then(function(payload){
+            if (!response.ok || !payload || payload.ok !== true) {
+              throw new Error((payload && payload.error) || 'save_failed');
+            }
+            return payload;
+          });
+        });
+      }
+      function nameSheet(){ return card.querySelector('[data-name-sheet]'); }
+      function nameToast(){ return card.querySelector('[data-name-toast]'); }
+      function dateSheet(){ return card.querySelector('[data-date-sheet]'); }
+      function dateToast(){ return card.querySelector('[data-date-toast]'); }
+      function locationSheet(){ return card.querySelector('[data-location-sheet]'); }
+      function locationToast(){ return card.querySelector('[data-location-toast]'); }
+      function setNameChoice(name, rank){
+        selectedName = String(name || '').trim();
+        selectedNameRank = String(rank || '').trim();
+        Array.prototype.forEach.call(card.querySelectorAll('[data-name-choice]'), function(choice){
+          var active = choice.getAttribute('data-name-choice') === selectedName;
+          choice.classList.toggle('is-selected', active);
+          choice.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+      }
+      function openNameSheet(){
+        var sheet = nameSheet();
+        if (!sheet) return false;
+        setNameChoice(card.getAttribute('data-name-current') || selectedName, card.getAttribute('data-name-rank-current') || selectedNameRank);
+        sheet.hidden = false;
+        var first = sheet.querySelector('[data-name-choice].is-selected') || sheet.querySelector('[data-name-choice]') || sheet.querySelector('[data-name-close]');
+        if (first && typeof first.focus === 'function') window.setTimeout(function(){ first.focus(); }, 30);
+        return true;
+      }
+      function closeNameSheet(){ var sheet = nameSheet(); if (sheet) sheet.hidden = true; }
+      function filterNameChoices(){
+        var input = card.querySelector('[data-name-search]');
+        var query = String(input && input.value || '').trim().toLowerCase();
+        Array.prototype.forEach.call(card.querySelectorAll('[data-name-choice]'), function(choice){
+          var text = String(choice.getAttribute('data-name-search-text') || choice.textContent || '').toLowerCase();
+          choice.hidden = Boolean(query) && text.indexOf(query) === -1;
+        });
+      }
+      function postName(name, rank){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return postJson('/api/v1/observations/' + encodeURIComponent(occurrenceId) + '/identifications', {
+          proposedName: name,
+          proposedRank: rank || null,
+          notes: '観察レコードの品質カードから確認',
+          stance: 'support'
+        });
+      }
+      function setNameValue(name, rank){
+        card.setAttribute('data-name-current', name || '');
+        card.setAttribute('data-name-rank-current', rank || '');
+        var nameCheck = card.querySelector('[data-quality-action="identification"]');
+        nameCheck = nameCheck && nameCheck.closest ? nameCheck.closest('.obs-local-quality-check') : null;
+        if (nameCheck) {
+          nameCheck.classList.remove('is-next');
+          var mark = nameCheck.querySelector('.obs-local-quality-mark');
+          if (mark) mark.textContent = '✓';
+          var value = nameCheck.querySelector('em');
+          if (value) value.textContent = '確認あり';
+        }
+      }
+      function showNameToast(text, previousName, previousRank){
+        var toast = nameToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-name-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (nameUndoTimer) window.clearTimeout(nameUndoTimer);
+        nameUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-name-undo-value', previousName || '');
+        toast.setAttribute('data-name-undo-rank', previousRank || '');
+      }
+      function localDateTimeString(value){
+        var date = new Date(String(value || ''));
+        if (!isFinite(date.getTime())) return '';
+        return date.toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+      }
+      function openDateSheet(){
+        var sheet = dateSheet();
+        if (!sheet) return false;
+        sheet.hidden = false;
+        var input = sheet.querySelector('[data-date-input]');
+        if (input && typeof input.focus === 'function') window.setTimeout(function(){ input.focus(); }, 30);
+        return true;
+      }
+      function closeDateSheet(){ var sheet = dateSheet(); if (sheet) sheet.hidden = true; }
+      function postDate(value){ return postJson(occurrenceEndpoint('/observed-at'), { observedAt: value }); }
+      function setDateValue(value){
+        card.setAttribute('data-date-current', value || '');
+        var label = card.querySelector('[data-date-current-label]');
+        if (label) label.textContent = localDateTimeString(value) || value || '日時未入力';
+      }
+      function showDateToast(text, previousValue){
+        var toast = dateToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-date-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (dateUndoTimer) window.clearTimeout(dateUndoTimer);
+        dateUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-date-undo-value', previousValue || '');
+      }
+      function locationLabel(lat, lng){
+        var latNum = Number(lat);
+        var lngNum = Number(lng);
+        if (!isFinite(latNum) || !isFinite(lngNum)) return '地点未入力';
+        return latNum.toFixed(6) + ', ' + lngNum.toFixed(6);
+      }
+      function locationInputs(){
+        return {
+          lat: card.querySelector('[data-location-lat-input]'),
+          lng: card.querySelector('[data-location-lng-input]')
+        };
+      }
+      function setLocationInputs(lat, lng){
+        var inputs = locationInputs();
+        if (inputs.lat) inputs.lat.value = isFinite(Number(lat)) ? Number(lat).toFixed(6) : '';
+        if (inputs.lng) inputs.lng.value = isFinite(Number(lng)) ? Number(lng).toFixed(6) : '';
+        updateLocationPin();
+      }
+      function updateLocationPin(){
+        var map = card.querySelector('[data-location-map]');
+        var pin = card.querySelector('[data-location-pin]');
+        if (!map || !pin) return;
+        var inputs = locationInputs();
+        var baseLat = Number(card.getAttribute('data-location-lat') || (inputs.lat && inputs.lat.value) || 0);
+        var baseLng = Number(card.getAttribute('data-location-lng') || (inputs.lng && inputs.lng.value) || 0);
+        var lat = Number(inputs.lat && inputs.lat.value);
+        var lng = Number(inputs.lng && inputs.lng.value);
+        if (!isFinite(baseLat) || !isFinite(baseLng) || !isFinite(lat) || !isFinite(lng)) {
+          pin.style.left = '50%';
+          pin.style.top = '50%';
+          return;
+        }
+        var span = 0.002;
+        var x = Math.max(6, Math.min(94, 50 + ((lng - baseLng) / span) * 50));
+        var y = Math.max(6, Math.min(94, 50 - ((lat - baseLat) / span) * 50));
+        pin.style.left = x + '%';
+        pin.style.top = y + '%';
+      }
+      function setLocationFromMap(event){
+        var map = card.querySelector('[data-location-map]');
+        if (!map || !event) return;
+        var rect = map.getBoundingClientRect();
+        var x = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
+        var y = Math.max(0, Math.min(1, (event.clientY - rect.top) / Math.max(1, rect.height)));
+        var inputs = locationInputs();
+        var baseLat = Number(card.getAttribute('data-location-lat') || (inputs.lat && inputs.lat.value) || 35);
+        var baseLng = Number(card.getAttribute('data-location-lng') || (inputs.lng && inputs.lng.value) || 139);
+        var span = 0.002;
+        setLocationInputs(baseLat + (0.5 - y) * span, baseLng + (x - 0.5) * span);
+      }
+      function openLocationSheet(){
+        var sheet = locationSheet();
+        if (!sheet) return false;
+        setLocationInputs(card.getAttribute('data-location-lat'), card.getAttribute('data-location-lng'));
+        sheet.hidden = false;
+        updateLocationPin();
+        var map = sheet.querySelector('[data-location-map]');
+        if (map && typeof map.focus === 'function') window.setTimeout(function(){ map.focus(); }, 30);
+        return true;
+      }
+      function closeLocationSheet(){ var sheet = locationSheet(); if (sheet) sheet.hidden = true; }
+      function postLocation(lat, lng){ return postJson(occurrenceEndpoint('/location'), { latitude: lat, longitude: lng }); }
+      function setLocationValue(lat, lng){
+        card.setAttribute('data-location-lat', isFinite(Number(lat)) ? Number(lat).toFixed(6) : '');
+        card.setAttribute('data-location-lng', isFinite(Number(lng)) ? Number(lng).toFixed(6) : '');
+        setLocationInputs(lat, lng);
+        var label = card.querySelector('[data-location-current-label]');
+        if (label) label.textContent = locationLabel(lat, lng);
+      }
+      function showLocationToast(text, previousLat, previousLng){
+        var toast = locationToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-location-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (locationUndoTimer) window.clearTimeout(locationUndoTimer);
+        locationUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-location-undo-lat', previousLat || '');
+        toast.setAttribute('data-location-undo-lng', previousLng || '');
+      }
+      function originLabel(value){ return ORIGIN_LABELS[value] || ORIGIN_LABELS.unknown; }
+      function originSheet(){ return card.querySelector('[data-origin-sheet]'); }
+      function originToast(){ return card.querySelector('[data-origin-toast]'); }
+      function setOriginChoice(value){
+        selectedOrigin = ORIGIN_LABELS[value] ? value : 'unknown';
+        Array.prototype.forEach.call(card.querySelectorAll('[data-origin-choice]'), function(choice){
+          var active = choice.getAttribute('data-origin-choice') === selectedOrigin;
+          choice.classList.toggle('is-selected', active);
+          choice.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+      }
+      function setOriginValue(value){
+        var normalized = ORIGIN_LABELS[value] ? value : 'unknown';
+        card.setAttribute('data-origin-current', normalized);
+        setOriginChoice(normalized);
+        var label = card.querySelector('[data-origin-current-label]');
+        if (label) label.textContent = originLabel(normalized);
+        var originCheck = card.querySelector('[data-quality-action="origin"]');
+        originCheck = originCheck && originCheck.closest ? originCheck.closest('.obs-local-quality-check') : null;
+        if (originCheck) {
+          originCheck.classList.toggle('is-next', normalized === 'unknown');
+          var mark = originCheck.querySelector('.obs-local-quality-mark');
+          if (mark) mark.textContent = normalized === 'unknown' ? '!' : '✓';
+        }
+      }
+      function openOriginSheet(){
+        var sheet = originSheet();
+        if (!sheet) return false;
+        setOriginChoice(card.getAttribute('data-origin-current') || selectedOrigin || 'unknown');
+        sheet.hidden = false;
+        var first = sheet.querySelector('[data-origin-choice].is-selected') || sheet.querySelector('[data-origin-choice]') || sheet.querySelector('[data-origin-close]');
+        if (first && typeof first.focus === 'function') window.setTimeout(function(){ first.focus(); }, 30);
+        return true;
+      }
+      function closeOriginSheet(){
+        var sheet = originSheet();
+        if (sheet) sheet.hidden = true;
+      }
+      function postOrigin(value){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return fetch('/api/v1/occurrences/' + encodeURIComponent(occurrenceId) + '/origin', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organismOrigin: value })
+        }).then(function(response){
+          return response.json().catch(function(){ return {}; }).then(function(payload){
+            if (!response.ok || !payload || payload.ok !== true) {
+              throw new Error((payload && payload.error) || 'origin_save_failed');
+            }
+            return payload;
+          });
+        });
+      }
+      function showOriginToast(text, previousValue){
+        var toast = originToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-origin-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (undoTimer) window.clearTimeout(undoTimer);
+        undoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-origin-undo-value', previousValue || 'unknown');
+      }
+      function envFieldDef(field){ return ENV_FIELDS[field] || null; }
+      function envLabel(field, value){
+        var def = envFieldDef(field);
+        if (!def) return '不明';
+        for (var i = 0; i < def.options.length; i += 1) {
+          if (def.options[i][0] === value) return def.options[i][1];
+        }
+        return '不明';
+      }
+      function envSheet(){ return card.querySelector('[data-env-sheet]'); }
+      function envToast(){ return card.querySelector('[data-env-toast]'); }
+      function setEnvChoice(value){
+        selectedEnvValue = value || 'unknown';
+        Array.prototype.forEach.call(card.querySelectorAll('[data-env-choice]'), function(choice){
+          var active = choice.getAttribute('data-env-choice') === selectedEnvValue;
+          choice.classList.toggle('is-selected', active);
+          choice.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+      }
+      function renderEnvChoices(field, currentValue){
+        var def = envFieldDef(field);
+        var list = card.querySelector('[data-env-choice-list]');
+        if (!def || !list) return;
+        while (list.firstChild) list.removeChild(list.firstChild);
+        def.options.forEach(function(option){
+          var button = document.createElement('button');
+          button.className = 'obs-origin-choice';
+          button.type = 'button';
+          button.setAttribute('data-env-choice', option[0]);
+          button.textContent = option[1];
+          list.appendChild(button);
+        });
+        setEnvChoice(currentValue || (def.options[0] && def.options[0][0]) || 'unknown');
+      }
+      function setEnvValue(field, value){
+        var chip = card.querySelector('[data-env-field="' + field + '"]');
+        if (!chip) return;
+        chip.setAttribute('data-env-current', value || 'unknown');
+        var label = chip.querySelector('[data-env-field-label]');
+        if (label) label.textContent = envLabel(field, value);
+      }
+      function openEnvSheet(field){
+        var def = envFieldDef(field);
+        var sheet = envSheet();
+        if (!def || !sheet) return false;
+        selectedEnvField = field;
+        var chip = card.querySelector('[data-env-field="' + field + '"]');
+        var current = chip ? chip.getAttribute('data-env-current') || '' : '';
+        var title = sheet.querySelector('[data-env-sheet-title]');
+        if (title) title.textContent = def.title;
+        renderEnvChoices(field, current);
+        sheet.hidden = false;
+        var first = sheet.querySelector('[data-env-choice].is-selected') || sheet.querySelector('[data-env-choice]') || sheet.querySelector('[data-env-close]');
+        if (first && typeof first.focus === 'function') window.setTimeout(function(){ first.focus(); }, 30);
+        return true;
+      }
+      function closeEnvSheet(){
+        var sheet = envSheet();
+        if (sheet) sheet.hidden = true;
+      }
+      function postEnvField(field, value){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return fetch('/api/v1/occurrences/' + encodeURIComponent(occurrenceId) + '/environment-field', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field: field, value: value })
+        }).then(function(response){
+          return response.json().catch(function(){ return {}; }).then(function(payload){
+            if (!response.ok || !payload || payload.ok !== true) {
+              throw new Error((payload && payload.error) || 'environment_field_save_failed');
+            }
+            return payload;
+          });
+        });
+      }
+      function showEnvToast(text, field, previousValue){
+        var toast = envToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-env-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (envUndoTimer) window.clearTimeout(envUndoTimer);
+        envUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-env-undo-field', field || '');
+        toast.setAttribute('data-env-undo-value', previousValue || 'unknown');
+      }
+      function openIdentify(action){
+        var identify = document.getElementById('identify');
+        if (!identify) return false;
+        var fold = identify.querySelector('.obs-identify-fold');
+        if (fold) fold.setAttribute('open', 'open');
+        var target = action === 'needs_more_evidence'
+          ? identify.querySelector('textarea[name="notes"]')
+          : identify.querySelector('input[name="proposedName"]') || identify.querySelector('[data-proposal-focus]');
+        return focusElement(target || identify);
+      }
+      function handleQualityAction(action, button){
+        if (action === 'identification') {
+          var openedName = openNameSheet();
+          if (card.getAttribute('data-name-login-required') === '1') {
+            setActionStatus(openedName ? 'ログインすると名前の確認を保存できます。' : '名前の確認欄を開けませんでした。', !openedName);
+            return;
+          }
+          if (card.getAttribute('data-name-can-edit') !== '1') {
+            setActionStatus('名前の変更は投稿者だけがこのカードから保存できます。', false);
+            return;
+          }
+          setActionStatus(openedName ? '候補を選んで保存できます。' : '名前の確認欄を開けませんでした。', !openedName);
+          return;
+        }
+        if (action === 'origin') {
+          var openedOrigin = openOriginSheet();
+          if (card.getAttribute('data-origin-login-required') === '1') {
+            setActionStatus(openedOrigin ? 'ログインすると由来区分を保存できます。' : '由来区分の編集欄を開けませんでした。', !openedOrigin);
+            return;
+          }
+          if (card.getAttribute('data-origin-can-edit') !== '1') {
+            setActionStatus('由来区分は投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedOrigin ? '由来区分を選んで保存できます。' : '由来区分の編集欄を開けませんでした。', !openedOrigin);
+          return;
+        }
+        if (action === 'evidence') {
+          var recovery = document.querySelector('[data-photo-recovery]');
+          var fileInput = recovery && recovery.querySelector('input[type="file"]');
+          if (focusElement(fileInput || recovery)) {
+            addHistory('証拠を変更: 写真追加へ移動');
+            setActionStatus('投稿者用の写真追加欄を開きました。', false);
+            return;
+          }
+          addHistory('証拠を確認: メディア欄へ移動');
+          setActionStatus('この記録では投稿者用の写真追加欄が見つかりません。表示中のメディアを確認します。', true);
+          focusElement(document.querySelector('[data-observation-media]') || document.querySelector('.obs-media-ledger'));
+          return;
+        }
+        if (action === 'media') {
+          addHistory('メディア整合を確認: メディア欄へ移動');
+          setActionStatus('写真・動画・音の欄へ移動しました。関係ないメディアがあれば投稿者用ツールから差し替えます。', false);
+          focusElement(document.querySelector('[data-observation-media]') || document.querySelector('.obs-media-ledger'));
+          return;
+        }
+        if (action === 'date') {
+          var openedDate = openDateSheet();
+          if (card.getAttribute('data-date-login-required') === '1') {
+            setActionStatus(openedDate ? 'ログインすると観察日時を保存できます。' : '観察日時の編集欄を開けませんでした。', !openedDate);
+            return;
+          }
+          if (card.getAttribute('data-date-can-edit') !== '1') {
+            setActionStatus('観察日時は投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedDate ? '観察日時を保存できます。' : '観察日時の編集欄を開けませんでした。', !openedDate);
+          return;
+        }
+        if (action === 'location') {
+          var openedLocation = openLocationSheet();
+          if (card.getAttribute('data-location-login-required') === '1') {
+            setActionStatus(openedLocation ? 'ログインすると観察地点を保存できます。' : '観察地点の編集欄を開けませんでした。', !openedLocation);
+            return;
+          }
+          if (card.getAttribute('data-location-can-edit') !== '1') {
+            setActionStatus('観察地点は投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedLocation ? 'ピンを動かして観察地点を保存できます。' : '観察地点の編集欄を開けませんでした。', !openedLocation);
+        }
+      }
+      card.addEventListener('click', function(event){
+        var nameClose = event.target && event.target.closest ? event.target.closest('[data-name-close]') : null;
+        if (nameClose) {
+          closeNameSheet();
+          return;
+        }
+        var nameChoice = event.target && event.target.closest ? event.target.closest('[data-name-choice]') : null;
+        if (nameChoice) {
+          if (card.getAttribute('data-name-can-edit') === '1') setNameChoice(nameChoice.getAttribute('data-name-choice') || '', nameChoice.getAttribute('data-name-rank') || '');
+          return;
+        }
+        var nameSave = event.target && event.target.closest ? event.target.closest('[data-name-save]') : null;
+        if (nameSave) {
+          if (card.getAttribute('data-name-can-edit') !== '1') return;
+          var manual = card.querySelector('[data-name-manual]');
+          var manualName = manual ? String(manual.value || '').trim() : '';
+          var nextName = manualName || selectedName;
+          var nextRank = manualName ? '' : selectedNameRank;
+          if (!nextName) {
+            setActionStatus('保存する名前を選んでください。', true);
+            return;
+          }
+          var previousName = card.getAttribute('data-name-current') || '';
+          var previousRank = card.getAttribute('data-name-rank-current') || '';
+          nameSave.disabled = true;
+          setActionStatus('名前の確認を保存しています。', false);
+          postName(nextName, nextRank).then(function(){
+            setNameValue(nextName, nextRank);
+            closeNameSheet();
+            addHistory('名前を確認: ' + nextName);
+            setActionStatus('名前の確認を保存しました。', false);
+            showNameToast('名前を「' + nextName + '」で確認しました。', previousName, previousRank);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。時間をおいて再度お試しください。', true);
+          }).finally(function(){
+            nameSave.disabled = false;
+          });
+          return;
+        }
+        var nameUndo = event.target && event.target.closest ? event.target.closest('[data-name-undo]') : null;
+        if (nameUndo) {
+          var nToast = nameToast();
+          var undoName = nToast ? nToast.getAttribute('data-name-undo-value') || '' : '';
+          var undoRank = nToast ? nToast.getAttribute('data-name-undo-rank') || '' : '';
+          if (!undoName) return;
+          postName(undoName, undoRank).then(function(){
+            setNameValue(undoName, undoRank);
+            addHistory('名前を元に戻しました: ' + undoName);
+            setActionStatus('名前の確認を元に戻しました。', false);
+            if (nToast) nToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
+        var dateClose = event.target && event.target.closest ? event.target.closest('[data-date-close]') : null;
+        if (dateClose) {
+          closeDateSheet();
+          return;
+        }
+        var dateSave = event.target && event.target.closest ? event.target.closest('[data-date-save]') : null;
+        if (dateSave) {
+          if (card.getAttribute('data-date-can-edit') !== '1') return;
+          var dateInput = card.querySelector('[data-date-input]');
+          var dateValue = dateInput ? String(dateInput.value || '').trim() : '';
+          if (!dateValue) {
+            setActionStatus('観察日時を選んでください。', true);
+            return;
+          }
+          var previousDate = card.getAttribute('data-date-current') || '';
+          dateSave.disabled = true;
+          setActionStatus('観察日時を保存しています。', false);
+          postDate(dateValue).then(function(payload){
+            var savedDate = payload.observedAt || dateValue;
+            setDateValue(savedDate);
+            closeDateSheet();
+            addHistory('観察日時を変更: ' + (localDateTimeString(savedDate) || savedDate));
+            setActionStatus('観察日時を保存しました。', false);
+            showDateToast('観察日時を保存しました。', previousDate);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。日時を確認してください。', true);
+          }).finally(function(){
+            dateSave.disabled = false;
+          });
+          return;
+        }
+        var dateUndo = event.target && event.target.closest ? event.target.closest('[data-date-undo]') : null;
+        if (dateUndo) {
+          var dToast = dateToast();
+          var undoDate = dToast ? dToast.getAttribute('data-date-undo-value') || '' : '';
+          if (!undoDate) return;
+          postDate(undoDate).then(function(payload){
+            var restoredDate = payload.observedAt || undoDate;
+            setDateValue(restoredDate);
+            addHistory('観察日時を元に戻しました: ' + (localDateTimeString(restoredDate) || restoredDate));
+            setActionStatus('観察日時を元に戻しました。', false);
+            if (dToast) dToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
+        var locationClose = event.target && event.target.closest ? event.target.closest('[data-location-close]') : null;
+        if (locationClose) {
+          closeLocationSheet();
+          return;
+        }
+        var locationSave = event.target && event.target.closest ? event.target.closest('[data-location-save]') : null;
+        if (locationSave) {
+          if (card.getAttribute('data-location-can-edit') !== '1') return;
+          var locInputs = locationInputs();
+          var latValue = locInputs.lat ? locInputs.lat.value : '';
+          var lngValue = locInputs.lng ? locInputs.lng.value : '';
+          var previousLat = card.getAttribute('data-location-lat') || '';
+          var previousLng = card.getAttribute('data-location-lng') || '';
+          locationSave.disabled = true;
+          setActionStatus('観察地点を保存しています。', false);
+          postLocation(latValue, lngValue).then(function(payload){
+            var savedLat = payload.latitude;
+            var savedLng = payload.longitude;
+            setLocationValue(savedLat, savedLng);
+            closeLocationSheet();
+            addHistory('観察地点を変更: ' + locationLabel(savedLat, savedLng));
+            setActionStatus('観察地点を保存しました。', false);
+            showLocationToast('観察地点を保存しました。', previousLat, previousLng);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。地点を確認してください。', true);
+          }).finally(function(){
+            locationSave.disabled = false;
+          });
+          return;
+        }
+        var locationUndo = event.target && event.target.closest ? event.target.closest('[data-location-undo]') : null;
+        if (locationUndo) {
+          var lToast = locationToast();
+          var undoLat = lToast ? lToast.getAttribute('data-location-undo-lat') || '' : '';
+          var undoLng = lToast ? lToast.getAttribute('data-location-undo-lng') || '' : '';
+          if (!undoLat || !undoLng) return;
+          postLocation(undoLat, undoLng).then(function(payload){
+            setLocationValue(payload.latitude, payload.longitude);
+            addHistory('観察地点を元に戻しました: ' + locationLabel(payload.latitude, payload.longitude));
+            setActionStatus('観察地点を元に戻しました。', false);
+            if (lToast) lToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
+        var envClose = event.target && event.target.closest ? event.target.closest('[data-env-close]') : null;
+        if (envClose) {
+          closeEnvSheet();
+          return;
+        }
+        var envEdit = event.target && event.target.closest ? event.target.closest('[data-env-edit]') : null;
+        if (envEdit) {
+          var field = envEdit.getAttribute('data-env-edit') || '';
+          var openedEnv = openEnvSheet(field);
+          if (card.getAttribute('data-env-login-required') === '1') {
+            setActionStatus(openedEnv ? 'ログインすると環境レコードを保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnv);
+            return;
+          }
+          if (card.getAttribute('data-env-can-edit') !== '1') {
+            setActionStatus('環境レコードは投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedEnv ? '環境レコードを選んで保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnv);
+          return;
+        }
+        var envChoice = event.target && event.target.closest ? event.target.closest('[data-env-choice]') : null;
+        if (envChoice) {
+          if (card.getAttribute('data-env-can-edit') === '1') setEnvChoice(envChoice.getAttribute('data-env-choice') || 'unknown');
+          return;
+        }
+        var envSave = event.target && event.target.closest ? event.target.closest('[data-env-save]') : null;
+        if (envSave) {
+          if (card.getAttribute('data-env-can-edit') !== '1' || !selectedEnvField) return;
+          var envChip = card.querySelector('[data-env-field="' + selectedEnvField + '"]');
+          var previousEnv = envChip ? envChip.getAttribute('data-env-current') || 'unknown' : 'unknown';
+          envSave.disabled = true;
+          setActionStatus('環境レコードを保存しています。', false);
+          postEnvField(selectedEnvField, selectedEnvValue).then(function(payload){
+            var savedField = payload.field || selectedEnvField;
+            var savedValue = payload.value || selectedEnvValue;
+            var savedLabel = payload.label || envLabel(savedField, savedValue);
+            setEnvValue(savedField, savedValue);
+            closeEnvSheet();
+            addHistory('環境レコードを変更: ' + envFieldDef(savedField).title + ' / ' + savedLabel);
+            setActionStatus('環境レコードを保存しました。', false);
+            showEnvToast(envFieldDef(savedField).title + 'を「' + savedLabel + '」にしました。', savedField, previousEnv);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。時間をおいて再度お試しください。', true);
+          }).finally(function(){
+            envSave.disabled = false;
+          });
+          return;
+        }
+        var envUndo = event.target && event.target.closest ? event.target.closest('[data-env-undo]') : null;
+        if (envUndo) {
+          var envUndoToast = envToast();
+          var undoField = envUndoToast ? envUndoToast.getAttribute('data-env-undo-field') || '' : '';
+          var undoValue = envUndoToast ? envUndoToast.getAttribute('data-env-undo-value') || 'unknown' : 'unknown';
+          if (!undoField) return;
+          postEnvField(undoField, undoValue).then(function(payload){
+            var restoredField = payload.field || undoField;
+            var restoredValue = payload.value || undoValue;
+            setEnvValue(restoredField, restoredValue);
+            addHistory('環境レコードを元に戻しました: ' + envFieldDef(restoredField).title + ' / ' + envLabel(restoredField, restoredValue));
+            setActionStatus('環境レコードを元に戻しました。', false);
+            if (envUndoToast) envUndoToast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
+        var originClose = event.target && event.target.closest ? event.target.closest('[data-origin-close]') : null;
+        if (originClose) {
+          closeOriginSheet();
+          return;
+        }
+        var originChoice = event.target && event.target.closest ? event.target.closest('[data-origin-choice]') : null;
+        if (originChoice) {
+          if (card.getAttribute('data-origin-can-edit') === '1') setOriginChoice(originChoice.getAttribute('data-origin-choice') || 'unknown');
+          return;
+        }
+        var originSave = event.target && event.target.closest ? event.target.closest('[data-origin-save]') : null;
+        if (originSave) {
+          if (card.getAttribute('data-origin-can-edit') !== '1') return;
+          var previousOrigin = card.getAttribute('data-origin-current') || 'unknown';
+          originSave.disabled = true;
+          setActionStatus('由来区分を保存しています。', false);
+          postOrigin(selectedOrigin).then(function(payload){
+            var saved = payload.organismOrigin || selectedOrigin;
+            setOriginValue(saved);
+            closeOriginSheet();
+            addHistory('生きものの由来を変更: ' + originLabel(saved));
+            setActionStatus('由来区分を保存しました。', false);
+            showOriginToast('由来区分を「' + originLabel(saved) + '」にしました。', previousOrigin);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。時間をおいて再度お試しください。', true);
+          }).finally(function(){
+            originSave.disabled = false;
+          });
+          return;
+        }
+        var originUndo = event.target && event.target.closest ? event.target.closest('[data-origin-undo]') : null;
+        if (originUndo) {
+          var toast = originToast();
+          var undoValue = toast ? toast.getAttribute('data-origin-undo-value') || 'unknown' : 'unknown';
+          postOrigin(undoValue).then(function(payload){
+            var restored = payload.organismOrigin || undoValue;
+            setOriginValue(restored);
+            addHistory('生きものの由来を元に戻しました: ' + originLabel(restored));
+            setActionStatus('由来区分を元に戻しました。', false);
+            if (toast) toast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
+        var actionButton = event.target && event.target.closest ? event.target.closest('.obs-local-quality-change[data-quality-action]') : null;
+        if (actionButton) {
+          handleQualityAction(actionButton.getAttribute('data-quality-action') || '', actionButton);
+          return;
+        }
       });
+      card.addEventListener('input', function(event){
+        var target = event.target;
+        if (!target) return;
+        if (target.matches && target.matches('[data-name-search]')) {
+          filterNameChoices();
+          return;
+        }
+        if (target.matches && (target.matches('[data-location-lat-input]') || target.matches('[data-location-lng-input]'))) {
+          updateLocationPin();
+        }
+      });
+      var locationMap = card.querySelector('[data-location-map]');
+      if (locationMap && locationMap.addEventListener) {
+        var draggingLocation = false;
+        locationMap.addEventListener('pointerdown', function(event){
+          draggingLocation = true;
+          if (locationMap.setPointerCapture && event.pointerId != null) locationMap.setPointerCapture(event.pointerId);
+          setLocationFromMap(event);
+        });
+        locationMap.addEventListener('pointermove', function(event){
+          if (draggingLocation) setLocationFromMap(event);
+        });
+        locationMap.addEventListener('pointerup', function(){
+          draggingLocation = false;
+        });
+        locationMap.addEventListener('pointercancel', function(){
+          draggingLocation = false;
+        });
+      }
       updateCount();
     }
     function pickJapaneseVoice(){
@@ -10138,6 +11428,10 @@ function recordsViewHref(basePath: string, lang: SiteLang, view: RecordsWorkbenc
   return appendLangToHref(withBasePath(basePath, `/records?view=${view}`), lang);
 }
 
+export function recordsPostHrefForView(view: RecordsWorkbenchView, postNeedsId: boolean, detailHref: string): string {
+  return view === "needs_id" && postNeedsId ? `${detailHref}#identify` : detailHref;
+}
+
 function renderRecordsViewTabs(
   basePath: string,
   lang: SiteLang,
@@ -10277,7 +11571,8 @@ function renderRecordsPostCard(
   options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
 ): string {
   const copy = notesLibraryCopy(lang);
-  const href = notesDetailHref(basePath, lang, card);
+  const detailHref = notesDetailHref(basePath, lang, card);
+  const href = recordsPostHrefForView(view, card.postNeedsId, detailHref);
   const sourceKind = recordsPostSourceKind(card);
   const sourceLabel = notesLibrarySourceLabel(sourceKind, lang);
   const mediaUrl = recordsRepresentativeMediaUrl(card);
@@ -10297,6 +11592,18 @@ function renderRecordsPostCard(
   const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
   const metaLine = `${observerLine}${placeLine} · ${dateLabel}`;
   const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
+  const identifyActionLabel = lang === "ja" ? "同定する" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify";
+  const identifyAction = view === "needs_id" && card.postNeedsId
+    ? `<span class="records-post-action">${escapeHtml(identifyActionLabel)}</span>`
+    : "";
+  const identifyDefaultName = card.postCandidateName?.trim() || (isWeakIdentificationCandidateName(displayName) ? "" : displayName);
+  const identifyEndpointId = encodeURIComponent(card.occurrenceId);
+  const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identifications`);
+  const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/disputes`);
+  const referenceCandidatesEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/reference-candidates`);
+  const identifyCardAttrs = view === "needs_id" && card.postNeedsId
+    ? ` data-records-identify-card data-identify-title="${escapeHtml(displayName)}" data-identify-meta="${escapeHtml(metaLine)}" data-identify-source="${escapeHtml(sourceLabel)}" data-identify-candidate="${escapeHtml(card.postCandidateName ?? "")}" data-identify-default-name="${escapeHtml(identifyDefaultName)}" data-identify-default-rank="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-media="${escapeHtml(mediaUrl ?? "")}" data-identify-href="${escapeHtml(href)}" data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}" data-reference-candidates-endpoint="${escapeHtml(referenceCandidatesEndpoint)}"`
+    : "";
   const thumbHtml = mediaUrl
     ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.records-post-card').classList.add('is-media-missing');this.remove()" />`
     : `<span class="records-post-empty-thumb" aria-hidden="true"></span>`;
@@ -10311,7 +11618,7 @@ function renderRecordsPostCard(
         </div>
       </details>`
     : "";
-  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}" data-library-card data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}${identifyCardAttrs ? " is-identify-selectable" : ""}" data-library-card${identifyCardAttrs} data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
     <a class="records-post-card-link" href="${escapeHtml(href)}" aria-label="${escapeHtml(displayName)}">
       <span class="records-post-thumb">
         ${thumbHtml}
@@ -10324,6 +11631,7 @@ function renderRecordsPostCard(
           ${recordsPostSubjectsHtml(card)}
         </span>
         <span class="records-post-meta">${escapeHtml(metaLine)}</span>
+        ${identifyAction}
       </span>
     </a>
     ${ownerMenu}
@@ -10355,6 +11663,508 @@ function renderRecordsPostMonths(
       ${items.map((card) => renderRecordsPostCard(basePath, lang, view, card, options)).join("")}
     </div>
   </section>`).join("");
+}
+
+function recordsIdentifyPanelCopy(lang: SiteLang): {
+  kicker: string;
+  empty: string;
+  candidate: string;
+  open: string;
+  next: string;
+  note: string;
+  support: string;
+  alternative: string;
+  needsEvidence: string;
+  hold: string;
+  nameLabel: string;
+  noteLabel: string;
+  reference: string;
+  login: string;
+  noReferences: string;
+  loadingReferences: string;
+  locator: string;
+  ready: string;
+  saving: string;
+  saved: string;
+  held: string;
+  restore: string;
+  keepViewing: string;
+  nameRequired: string;
+} {
+  if (lang === "en") return {
+    kicker: "ID workbench",
+    empty: "No records are waiting for ID.",
+    candidate: "Candidate",
+    open: "Check details",
+    next: "Next",
+    note: "Review the media and candidate, then save the basis from the detail view.",
+    support: "Looks right",
+    alternative: "Other name",
+    needsEvidence: "Need evidence",
+    hold: "Hold",
+    nameLabel: "Name",
+    noteLabel: "Basis note",
+    reference: "Use a reference",
+    login: "Log in to save an ID.",
+    noReferences: "No matching references yet.",
+    loadingReferences: "Loading references...",
+    locator: "Page / figure",
+    ready: "Ready.",
+    saving: "Saving...",
+    saved: "Saved. Moved to the next record.",
+    held: "Held locally. Moved to the next record.",
+    restore: "Undo",
+    keepViewing: "Keep viewing",
+    nameRequired: "Add a name first, or use Need evidence.",
+  };
+  if (lang === "es") return {
+    kicker: "Mesa de identificacion",
+    empty: "No hay registros por revisar.",
+    candidate: "Candidato",
+    open: "Revisar detalle",
+    next: "Siguiente",
+    note: "Revisa el medio y el candidato, y guarda la base desde el detalle.",
+    support: "Parece correcto",
+    alternative: "Otro nombre",
+    needsEvidence: "Falta evidencia",
+    hold: "Pausar",
+    nameLabel: "Nombre",
+    noteLabel: "Nota",
+    reference: "Usar referencia",
+    login: "Inicia sesion para guardar.",
+    noReferences: "Aun no hay referencias.",
+    loadingReferences: "Cargando referencias...",
+    locator: "Pagina / figura",
+    ready: "Listo.",
+    saving: "Guardando...",
+    saved: "Guardado. Pasamos al siguiente.",
+    held: "Pausado aqui. Pasamos al siguiente.",
+    restore: "Volver",
+    keepViewing: "Seguir viendo",
+    nameRequired: "Anade un nombre, o usa Falta evidencia.",
+  };
+  if (lang === "pt-BR") return {
+    kicker: "Bancada de identificacao",
+    empty: "Nao ha registros para revisar.",
+    candidate: "Candidato",
+    open: "Ver detalhe",
+    next: "Proximo",
+    note: "Confira a midia e o candidato, depois salve a base no detalhe.",
+    support: "Parece certo",
+    alternative: "Outro nome",
+    needsEvidence: "Falta evidencia",
+    hold: "Segurar",
+    nameLabel: "Nome",
+    noteLabel: "Nota",
+    reference: "Usar referencia",
+    login: "Entre para salvar.",
+    noReferences: "Ainda nao ha referencias.",
+    loadingReferences: "Carregando referencias...",
+    locator: "Pagina / figura",
+    ready: "Pronto.",
+    saving: "Salvando...",
+    saved: "Salvo. Indo para o proximo.",
+    held: "Segurado aqui. Indo para o proximo.",
+    restore: "Voltar",
+    keepViewing: "Continuar vendo",
+    nameRequired: "Adicione um nome, ou use Falta evidencia.",
+  };
+  return {
+    kicker: "同定ワークベンチ",
+    empty: "確認待ちの記録はありません。",
+    candidate: "候補",
+    open: "詳細で確認",
+    next: "次へ",
+    note: "画像と候補を見て、根拠を選んで記録します。",
+    support: "この候補でよさそう",
+    alternative: "別の名前",
+    needsEvidence: "証拠不足",
+    hold: "保留",
+    nameLabel: "名前",
+    noteLabel: "理由メモ",
+    reference: "この資料で確認",
+    login: "ログインすると同定を記録できます。",
+    noReferences: "この分類群の参照資料はまだありません。",
+    loadingReferences: "資料を確認しています...",
+    locator: "ページ・図版番号",
+    ready: "Ready.",
+    saving: "保存中...",
+    saved: "保存しました。次の記録へ移動しました。",
+    held: "保留しました。次の記録へ移動しました。",
+    restore: "戻す",
+    keepViewing: "このまま見る",
+    nameRequired: "名前を入れてください。証拠だけ足りない場合は「証拠不足」を使えます。",
+  };
+}
+
+function renderRecordsIdentifyPanel(
+  basePath: string,
+  lang: SiteLang,
+  entries: LandingObservation[],
+  options: { locationMode: "owner" | "public"; canWrite: boolean; civicContexts?: Map<string, CivicObservationContext> },
+): string {
+  const copy = recordsIdentifyPanelCopy(lang);
+  const card = buildRecordsPostCards(entries, lang).find((item) => item.postNeedsId) ?? null;
+  if (!card) {
+    return `<aside class="records-identify-panel is-empty" data-records-identify-panel>
+      <div class="records-identify-head">
+        <span>${escapeHtml(copy.kicker)}</span>
+        <strong data-identify-panel-title>${escapeHtml(copy.empty)}</strong>
+      </div>
+    </aside>`;
+  }
+  const href = recordsPostHrefForView("needs_id", card.postNeedsId, notesDetailHref(basePath, lang, card));
+  const mediaUrl = recordsRepresentativeMediaUrl(card);
+  const displayName = recordsPostSubjectName(card, lang);
+  const sourceLabel = notesLibrarySourceLabel(recordsPostSourceKind(card), lang);
+  const placeLine = notesPlaceLine(card, lang, options.locationMode) || notesLibraryCopy(lang).card.fallbackPlace;
+  const dateLabel = notesLibraryDateLabel(card, lang);
+  const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
+  const metaLine = `${observerLine}${placeLine} · ${dateLabel}`;
+  const candidate = card.postCandidateName?.trim() ?? "";
+  const defaultName = candidate || (isWeakIdentificationCandidateName(displayName) ? "" : displayName);
+  const detailLinkLabel = defaultName ? copy.reference : copy.open;
+  return `<aside class="records-identify-panel" data-records-identify-panel>
+    <div class="records-identify-head">
+      <span>${escapeHtml(copy.kicker)}</span>
+      <strong data-identify-panel-title>${escapeHtml(displayName)}</strong>
+      <p data-identify-panel-meta>${escapeHtml(metaLine)}</p>
+    </div>
+    <a class="records-identify-media${mediaUrl ? "" : " is-empty"}" href="${escapeHtml(href)}" data-identify-panel-media-link>
+      ${mediaUrl
+        ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" data-identify-panel-media loading="lazy" decoding="async" />`
+        : `<span data-identify-panel-empty-media aria-hidden="true"></span>`}
+    </a>
+    <div class="records-identify-facts">
+      <span data-identify-panel-source>${escapeHtml(sourceLabel)}</span>
+      <span data-identify-panel-candidate-row${candidate ? "" : " hidden"}>${escapeHtml(copy.candidate)}: <b data-identify-panel-candidate>${escapeHtml(candidate)}</b></span>
+    </div>
+    ${options.canWrite
+      ? `<form class="records-identify-command" data-identify-panel-form>
+          <div class="records-identify-fields">
+            <label><span>${escapeHtml(copy.nameLabel)}</span><input name="proposedName" type="text" value="${escapeHtml(defaultName)}" data-identify-panel-name placeholder="${escapeHtml(copy.nameLabel)}" /></label>
+            <input name="proposedRank" type="hidden" value="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-panel-rank />
+            <label><span>${escapeHtml(copy.noteLabel)}</span><textarea name="notes" rows="2" data-identify-panel-notes placeholder="${escapeHtml(copy.noteLabel)}"></textarea></label>
+          </div>
+          <div class="records-identify-command-actions">
+            <button type="button" class="is-primary" data-identify-panel-action="support">${escapeHtml(copy.support)}</button>
+            <button type="button" data-identify-panel-action="alternative">${escapeHtml(copy.alternative)}</button>
+            <button type="button" data-identify-panel-action="needs_more_evidence">${escapeHtml(copy.needsEvidence)}</button>
+            <button type="button" data-identify-panel-action="hold">${escapeHtml(copy.hold)}</button>
+          </div>
+          <div class="records-identify-references" data-identify-panel-references hidden>
+            <div class="records-identify-references-head">
+              <strong>${escapeHtml(copy.reference)}</strong>
+              <a href="${escapeHtml(withBasePath(basePath, "/references/capture?returnTo=%2Frecords%3Fview%3Dneeds_id"))}" data-identify-panel-reference-capture data-reference-capture-base="${escapeHtml(withBasePath(basePath, "/references/capture"))}">資料を登録</a>
+            </div>
+            <div class="records-identify-reference-options" data-identify-panel-reference-options></div>
+            <label class="records-identify-reference-locator"><span>${escapeHtml(copy.locator)}</span><input name="referenceLocator" type="text" maxlength="160" data-identify-panel-reference-locator placeholder="${escapeHtml(copy.locator)}" /></label>
+          </div>
+        </form>`
+      : `<div class="records-identify-login">${escapeHtml(copy.login)}</div>`}
+    <div class="records-identify-followup" data-identify-panel-followup hidden>
+      <span data-identify-panel-status>${escapeHtml(copy.ready)}</span>
+      <button type="button" data-identify-panel-restore>${escapeHtml(copy.restore)}</button>
+      <button type="button" data-identify-panel-keep>${escapeHtml(copy.keepViewing)}</button>
+    </div>
+    <div class="records-identify-actions">
+      <a href="${escapeHtml(href)}" data-identify-panel-open>${escapeHtml(detailLinkLabel)}</a>
+      <button type="button" data-identify-panel-next>${escapeHtml(copy.next)}</button>
+    </div>
+    <p>${escapeHtml(copy.note)}</p>
+  </aside>`;
+}
+
+function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
+  const copy = recordsIdentifyPanelCopy(lang);
+  return `<script>
+(function () {
+  var copy = ${JSON.stringify(copy)};
+  var root = document.querySelector('[data-records-identify-workbench]');
+  if (!root) return;
+  var panel = root.querySelector('[data-records-identify-panel]');
+  if (!panel) return;
+  var cards = Array.prototype.slice.call(root.querySelectorAll('[data-records-identify-card]'));
+  if (!cards.length) return;
+  var title = panel.querySelector('[data-identify-panel-title]');
+  var meta = panel.querySelector('[data-identify-panel-meta]');
+  var source = panel.querySelector('[data-identify-panel-source]');
+  var candidateRow = panel.querySelector('[data-identify-panel-candidate-row]');
+  var candidate = panel.querySelector('[data-identify-panel-candidate]');
+  var mediaLink = panel.querySelector('[data-identify-panel-media-link]');
+  var media = panel.querySelector('[data-identify-panel-media]');
+  var open = panel.querySelector('[data-identify-panel-open]');
+  var next = panel.querySelector('[data-identify-panel-next]');
+  var emptyMedia = panel.querySelector('[data-identify-panel-empty-media]');
+  var form = panel.querySelector('[data-identify-panel-form]');
+  var nameInput = panel.querySelector('[data-identify-panel-name]');
+  var rankInput = panel.querySelector('[data-identify-panel-rank]');
+  var notesInput = panel.querySelector('[data-identify-panel-notes]');
+  var referenceBox = panel.querySelector('[data-identify-panel-references]');
+  var referenceOptions = panel.querySelector('[data-identify-panel-reference-options]');
+  var referenceLocator = panel.querySelector('[data-identify-panel-reference-locator]');
+  var referenceCapture = panel.querySelector('[data-identify-panel-reference-capture]');
+  var followup = panel.querySelector('[data-identify-panel-followup]');
+  var status = panel.querySelector('[data-identify-panel-status]');
+  var restore = panel.querySelector('[data-identify-panel-restore]');
+  var keep = panel.querySelector('[data-identify-panel-keep]');
+  var activeCard = null;
+  var lastActionCard = null;
+  var referenceRequestSerial = 0;
+  function selectableCards() {
+    return cards.filter(function (card) { return !card.hidden && card.getAttribute('data-identify-processed') !== '1'; });
+  }
+  function setStatus(message, isError) {
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('is-error', Boolean(isError));
+    if (followup) followup.hidden = false;
+  }
+  function ensureMediaElement() {
+    if (media) return media;
+    if (!mediaLink) return null;
+    media = document.createElement('img');
+    media.setAttribute('data-identify-panel-media', '');
+    media.loading = 'lazy';
+    media.decoding = 'async';
+    mediaLink.textContent = '';
+    mediaLink.appendChild(media);
+    return media;
+  }
+  function selectCard(card) {
+    if (!card) return;
+    activeCard = card;
+    cards.forEach(function (item) {
+      item.classList.toggle('is-identify-active', item === card);
+      if (item === card) item.setAttribute('aria-current', 'true');
+      else item.removeAttribute('aria-current');
+    });
+    var cardTitle = card.getAttribute('data-identify-title') || '';
+    var cardMeta = card.getAttribute('data-identify-meta') || '';
+    var cardSource = card.getAttribute('data-identify-source') || '';
+    var cardCandidate = card.getAttribute('data-identify-candidate') || '';
+    var cardDefaultName = card.getAttribute('data-identify-default-name') || cardCandidate || '';
+    var cardDefaultRank = card.getAttribute('data-identify-default-rank') || '';
+    var cardMedia = card.getAttribute('data-identify-media') || '';
+    var cardHref = card.getAttribute('data-identify-href') || '';
+    var identifyEndpoint = card.getAttribute('data-identify-endpoint') || '';
+    var disputeEndpoint = card.getAttribute('data-dispute-endpoint') || '';
+    if (title) title.textContent = cardTitle;
+    if (meta) meta.textContent = cardMeta;
+    if (source) source.textContent = cardSource;
+    if (candidate) candidate.textContent = cardCandidate;
+    if (candidateRow) candidateRow.hidden = !cardCandidate;
+    if (open && cardHref) open.setAttribute('href', cardHref);
+    if (mediaLink && cardHref) mediaLink.setAttribute('href', cardHref);
+    if (form) {
+      form.setAttribute('data-identify-endpoint', identifyEndpoint);
+      form.setAttribute('data-dispute-endpoint', disputeEndpoint);
+    }
+    if (nameInput) nameInput.value = cardDefaultName;
+    if (rankInput) rankInput.value = cardDefaultRank;
+    if (notesInput) notesInput.value = '';
+    if (referenceLocator) referenceLocator.value = '';
+    if (referenceCapture) {
+      var captureBase = referenceCapture.getAttribute('data-reference-capture-base') || referenceCapture.getAttribute('href') || '/references/capture';
+      var returnTo = window.location.pathname + window.location.search;
+      var query = '?returnTo=' + encodeURIComponent(returnTo);
+      if (cardDefaultName) query += '&taxonHint=' + encodeURIComponent(cardDefaultName);
+      referenceCapture.setAttribute('href', captureBase + query);
+    }
+    if (followup) followup.hidden = true;
+    loadReferencesForCard(card, cardDefaultName);
+    if (cardMedia) {
+      var image = ensureMediaElement();
+      if (image) {
+        image.src = cardMedia;
+        image.alt = cardTitle;
+      }
+      if (mediaLink) mediaLink.classList.remove('is-empty');
+      if (emptyMedia) emptyMedia.hidden = true;
+    } else {
+      if (media) media.removeAttribute('src');
+      if (mediaLink) mediaLink.classList.add('is-empty');
+      if (emptyMedia) emptyMedia.hidden = false;
+    }
+  }
+  function selectNextAfter(card) {
+    var list = selectableCards();
+    if (!list.length) return;
+    var current = list.indexOf(card);
+    if (current < 0) {
+      selectCard(list[0]);
+      return;
+    }
+    selectCard(list[(current + 1) % list.length]);
+  }
+  function markProcessed(card) {
+    if (!card) return;
+    card.setAttribute('data-identify-processed', '1');
+    card.classList.add('is-identify-processed');
+    lastActionCard = card;
+  }
+  function restoreLastAction(selectOnly) {
+    if (!lastActionCard) return;
+    if (!selectOnly) {
+      lastActionCard.removeAttribute('data-identify-processed');
+      lastActionCard.classList.remove('is-identify-processed');
+    }
+    selectCard(lastActionCard);
+  }
+  function postJson(endpoint, body) {
+    return fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (json) {
+        if (!response.ok || !json || json.ok === false) throw new Error(String((json && json.error) || response.status || 'save_failed'));
+        return json;
+      });
+    });
+  }
+  function clearReferences(message) {
+    if (!referenceBox || !referenceOptions) return;
+    referenceBox.hidden = false;
+    referenceOptions.textContent = message || '';
+    if (referenceLocator) referenceLocator.value = '';
+  }
+  function renderReferenceCandidates(candidates) {
+    if (!referenceBox || !referenceOptions) return;
+    referenceBox.hidden = false;
+    referenceOptions.textContent = '';
+    if (!Array.isArray(candidates) || candidates.length === 0) {
+      referenceOptions.textContent = copy.noReferences;
+      return;
+    }
+    candidates.slice(0, 6).forEach(function (candidate) {
+      var label = document.createElement('label');
+      label.className = 'records-identify-reference-option';
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'referenceSourceIds';
+      input.value = String(candidate.sourceId || '');
+      input.checked = Boolean(candidate.owned);
+      var span = document.createElement('span');
+      var strong = document.createElement('strong');
+      strong.textContent = String(candidate.title || '');
+      var small = document.createElement('small');
+      small.textContent = [
+        candidate.reason,
+        candidate.owned ? '所有確認済み' : '共有カタログ',
+        Array.isArray(candidate.taxonLabels) ? candidate.taxonLabels.slice(0, 3).join(' / ') : '',
+        Number(candidate.usedCount || 0) > 0 ? '過去に' + String(candidate.usedCount) + '回使用' : ''
+      ].filter(Boolean).join(' · ');
+      span.appendChild(strong);
+      span.appendChild(small);
+      label.appendChild(input);
+      label.appendChild(span);
+      referenceOptions.appendChild(label);
+    });
+  }
+  function loadReferencesForCard(card, proposedName) {
+    if (!referenceBox || !referenceOptions) return;
+    var endpoint = card.getAttribute('data-reference-candidates-endpoint') || '';
+    if (!endpoint) {
+      referenceBox.hidden = true;
+      return;
+    }
+    var serial = ++referenceRequestSerial;
+    clearReferences(copy.loadingReferences);
+    var url = endpoint + '?limit=6&proposedName=' + encodeURIComponent(proposedName || '');
+    fetch(url, { headers: { accept: 'application/json' }, credentials: 'same-origin' })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (json) {
+          if (!response.ok || !json || json.ok === false) throw new Error(String((json && json.error) || response.status || 'reference_load_failed'));
+          return json;
+        });
+      })
+      .then(function (json) {
+        if (serial !== referenceRequestSerial) return;
+        renderReferenceCandidates(json.candidates || []);
+      })
+      .catch(function () {
+        if (serial !== referenceRequestSerial) return;
+        renderReferenceCandidates([]);
+      });
+  }
+  function selectedReferenceIds() {
+    if (!referenceBox) return [];
+    return Array.prototype.slice.call(referenceBox.querySelectorAll('input[name="referenceSourceIds"]:checked'))
+      .map(function (input) { return String(input.value || '').trim(); })
+      .filter(Boolean);
+  }
+  function submitAction(action) {
+    if (!activeCard || !form) return;
+    if (action === 'hold') {
+      markProcessed(activeCard);
+      selectNextAfter(activeCard);
+      setStatus(copy.held, false);
+      return;
+    }
+    var proposedName = nameInput ? String(nameInput.value || '').trim() : '';
+    var proposedRank = rankInput ? String(rankInput.value || '').trim() : '';
+    var notes = notesInput ? String(notesInput.value || '').trim() : '';
+    var referenceSourceIds = selectedReferenceIds();
+    var locator = referenceLocator ? String(referenceLocator.value || '').trim() : '';
+    if (action !== 'needs_more_evidence' && !proposedName) {
+      setStatus(copy.nameRequired, true);
+      if (nameInput && typeof nameInput.focus === 'function') nameInput.focus({ preventScroll: true });
+      return;
+    }
+    var identifyEndpoint = form.getAttribute('data-identify-endpoint') || '';
+    var disputeEndpoint = form.getAttribute('data-dispute-endpoint') || '';
+    var endpoint = action === 'support' ? identifyEndpoint : disputeEndpoint;
+    if (!endpoint) return;
+    var body = action === 'support'
+      ? { proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support', referenceSourceIds: referenceSourceIds, referenceLocator: locator }
+      : action === 'alternative'
+        ? { kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes, referenceSourceIds: referenceSourceIds, referenceLocator: locator }
+        : { kind: 'needs_more_evidence', reason: notes || copy.needsEvidence };
+    setStatus(copy.saving, false);
+    postJson(endpoint, body)
+      .then(function () {
+        markProcessed(activeCard);
+        selectNextAfter(activeCard);
+        setStatus(copy.saved, false);
+      })
+      .catch(function (error) {
+        setStatus('保存できませんでした: ' + String(error && error.message || 'unknown_error'), true);
+      });
+  }
+  cards.forEach(function (card) {
+    var link = card.querySelector('.records-post-card-link');
+    if (!link) return;
+    link.addEventListener('click', function (event) {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      selectCard(card);
+      if (window.matchMedia && window.matchMedia('(max-width: 980px)').matches) {
+        panel.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      }
+    });
+  });
+  if (next) {
+    next.addEventListener('click', function () {
+      var list = selectableCards();
+      if (!list.length) return;
+      var current = list.findIndex(function (card) { return card.classList.contains('is-identify-active'); });
+      selectCard(list[(current + 1 + list.length) % list.length]);
+    });
+  }
+  if (form) {
+    Array.prototype.slice.call(form.querySelectorAll('[data-identify-panel-action]')).forEach(function (button) {
+      button.addEventListener('click', function () {
+        submitAction(button.getAttribute('data-identify-panel-action') || 'support');
+      });
+    });
+  }
+  if (restore) restore.addEventListener('click', function () { restoreLastAction(false); });
+  if (keep) keep.addEventListener('click', function () { restoreLastAction(true); });
+  selectCard(cards[0]);
+})();
+</script>`;
 }
 
 function renderRecordsPostMonthPayload(
@@ -10641,7 +12451,7 @@ function renderRecordsWorkbench(
   snapshot: LandingSnapshot,
   publicEntries: LandingObservation[],
   civicContexts: Map<string, CivicObservationContext>,
-  options: { ownPage?: LandingFeedPage | null } = {},
+  options: { ownPage?: LandingFeedPage | null; canWriteIdentification?: boolean } = {},
 ): string {
   const copy = recordsWorkbenchCopy(lang);
   const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
@@ -10649,7 +12459,9 @@ function renderRecordsWorkbench(
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
   const lazyEndpoint = withBasePath(basePath, "/api/v1/records/mine-page");
   const canLazyLoadMine = view === "mine" && Boolean(snapshot.viewerUserId);
-  return `<div class="records-workbench" data-testid="records-workbench">
+  const isIdentifyView = view === "needs_id";
+  const canWriteIdentification = Boolean(options.canWriteIdentification);
+  return `<div class="records-workbench${isIdentifyView ? " has-identify-panel" : ""}" data-testid="records-workbench"${isIdentifyView ? " data-records-identify-workbench" : ""}>
     <header class="records-topbar">
       <div class="records-topbar-brand">
         <strong>${escapeHtml(copy.activeNav)}</strong>
@@ -10660,7 +12472,7 @@ function renderRecordsWorkbench(
         <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="${escapeHtml(observationIndexCopy(lang).recordActionAria)}">${escapeHtml(copy.recordLabel)}</a>
       </div>
     </header>
-    <main class="records-main">
+    <main class="records-main${isIdentifyView ? " is-identify" : ""}">
       <section class="records-grid-panel" data-notes-library${canLazyLoadMine ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${renderRecordsCollapsedControls(lang)}
         ${entries.length > 0
@@ -10668,9 +12480,11 @@ function renderRecordsWorkbench(
           : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
         ${canLazyLoadMine ? renderRecordsLazyFooter(lang, options.ownPage?.nextCursor ?? null) : ""}
       </section>
+      ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts }) : ""}
     </main>
     ${renderNotesLibraryScript(lang)}
     ${canLazyLoadMine ? renderRecordsLazyScript(lang) : ""}
+    ${isIdentifyView ? renderRecordsIdentifyPanelScript(lang) : ""}
   </div>`;
 }
 
@@ -10749,6 +12563,10 @@ const RECORDS_WORKBENCH_STYLES = `
     gap: 10px;
     min-height: 0;
     padding: 10px 14px 14px;
+  }
+  .records-main.is-identify {
+    grid-template-columns: minmax(0, 1fr) minmax(310px, 390px);
+    align-items: start;
   }
   .records-story {
     display: grid;
@@ -10939,6 +12757,17 @@ const RECORDS_WORKBENCH_STYLES = `
     gap: var(--ikimon-record-card-inner-gap);
     color: inherit;
   }
+  .records-post-card.is-identify-selectable { cursor: pointer; }
+  .records-post-card.is-identify-active .records-post-thumb {
+    border-color: rgba(4,120,87,.9);
+    box-shadow: 0 0 0 3px rgba(16,185,129,.22), var(--ikimon-record-card-thumb-shadow);
+  }
+  .records-post-card.is-identify-processed {
+    opacity: .48;
+  }
+  .records-post-card.is-identify-processed .records-post-action {
+    background: #64748b;
+  }
   .records-post-card-link {
     min-width: 0;
     display: grid;
@@ -11102,6 +12931,20 @@ const RECORDS_WORKBENCH_STYLES = `
     line-height: var(--ikimon-record-card-meta-line-height);
     font-weight: 850;
   }
+  .records-post-action {
+    justify-self: start;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #047857;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: 0 8px 18px rgba(4,120,87,.16);
+  }
   .records-lazy-footer {
     display: flex;
     justify-content: center;
@@ -11127,6 +12970,317 @@ const RECORDS_WORKBENCH_STYLES = `
   .records-lazy-footer button[disabled] { cursor: progress; opacity: .72; }
   .records-lazy-footer span { color: #64748b; font-size: 12px; font-weight: 800; }
   .records-post-menu { top: 8px; right: 8px; }
+  .records-identify-panel {
+    position: sticky;
+    top: 128px;
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 14px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 20px 48px rgba(15,23,42,.1);
+  }
+  .records-identify-panel.is-empty { min-height: 120px; align-content: center; }
+  .records-identify-head {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+  .records-identify-head span {
+    color: #047857;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-identify-head strong {
+    min-width: 0;
+    color: #10251a;
+    font-size: 17px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .records-identify-head p,
+  .records-identify-panel > p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 780;
+  }
+  .records-identify-media {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 22px 22px, 22px 22px, auto;
+  }
+  .records-identify-media img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    background: #0f172a;
+  }
+  .records-identify-media.is-empty span {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #e7f5ef;
+  }
+  .records-identify-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .records-identify-facts span {
+    min-height: 25px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 900;
+  }
+  .records-identify-facts span[hidden] { display: none; }
+  .records-identify-facts b { color: #10251a; font-weight: 950; }
+  .records-identify-command {
+    display: grid;
+    gap: 9px;
+  }
+  .records-identify-fields {
+    display: grid;
+    gap: 7px;
+  }
+  .records-identify-fields label {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .records-identify-fields label span {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-identify-fields input,
+  .records-identify-fields textarea {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(15,23,42,.12);
+    border-radius: 10px;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 780;
+  }
+  .records-identify-fields input { min-height: 35px; padding: 0 10px; }
+  .records-identify-fields textarea {
+    min-height: 58px;
+    padding: 8px 10px;
+    resize: vertical;
+  }
+  .records-identify-command-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .records-identify-command-actions button {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.15;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .records-identify-command-actions button.is-primary {
+    background: #047857;
+    border-color: #047857;
+    color: #fff;
+  }
+  .records-identify-references {
+    display: grid;
+    gap: 7px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(14,165,233,.16);
+    background: rgba(240,249,255,.72);
+  }
+  .records-identify-references[hidden] { display: none; }
+  .records-identify-references-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+  .records-identify-references-head strong {
+    color: #0f172a;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .records-identify-references-head a {
+    color: #0369a1;
+    font-size: 10px;
+    font-weight: 950;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .records-identify-reference-options {
+    display: grid;
+    gap: 5px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 820;
+  }
+  .records-identify-reference-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 7px;
+    align-items: start;
+    padding: 7px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.78);
+    border: 1px solid rgba(15,23,42,.06);
+  }
+  .records-identify-reference-option input { margin-top: 2px; }
+  .records-identify-reference-option span {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .records-identify-reference-option strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .records-identify-reference-option small {
+    min-width: 0;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.35;
+    font-weight: 780;
+  }
+  .records-identify-reference-locator {
+    display: grid;
+    gap: 4px;
+  }
+  .records-identify-reference-locator span {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-identify-reference-locator input {
+    min-height: 32px;
+    width: 100%;
+    border: 1px solid rgba(15,23,42,.12);
+    border-radius: 9px;
+    background: #fff;
+    color: #0f172a;
+    padding: 0 9px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 780;
+  }
+  .records-identify-login {
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 820;
+  }
+  .records-identify-followup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px;
+    align-items: center;
+    padding: 7px;
+    border-radius: 10px;
+    background: #f0fdf4;
+    border: 1px solid rgba(16,185,129,.22);
+  }
+  .records-identify-followup[hidden] { display: none; }
+  .records-identify-followup span {
+    min-width: 0;
+    color: #065f46;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 900;
+  }
+  .records-identify-followup span.is-error {
+    color: #b91c1c;
+  }
+  .records-identify-followup button {
+    min-height: 29px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .records-identify-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .records-identify-actions a,
+  .records-identify-actions button {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    text-decoration: none;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .records-identify-actions a {
+    background: #047857;
+    border-color: #047857;
+    color: #fff;
+  }
   .records-workbench .notes-library-controls {
     margin-top: 8px;
     display: grid;
@@ -11177,6 +13331,30 @@ const RECORDS_WORKBENCH_STYLES = `
     .records-actions a { min-width: 34px; min-height: 34px; padding: 0 11px; font-size: 12px; }
     .records-actions a.is-primary { font-size: 21px; }
     .records-main { grid-template-columns: 1fr; padding: 6px 8px 10px; }
+    .records-main.is-identify { grid-template-columns: 1fr; padding-bottom: 232px; }
+    .records-identify-panel {
+      position: fixed;
+      left: max(8px, env(safe-area-inset-left));
+      right: max(8px, env(safe-area-inset-right));
+      bottom: calc(max(8px, env(safe-area-inset-bottom)) + 92px);
+      top: auto;
+      z-index: 30;
+      gap: 8px;
+      max-height: calc(100dvh - 184px);
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 14px;
+      box-shadow: 0 18px 48px rgba(15,23,42,.22);
+    }
+    .records-identify-media { display: none; }
+    .records-identify-head { gap: 3px; }
+    .records-identify-head span { font-size: 10px; }
+    .records-identify-head strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .records-identify-head p,
+    .records-identify-panel > p { display: none; }
+    .records-identify-actions { grid-template-columns: minmax(0, 1fr) auto; }
+    .records-identify-command-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .records-identify-reference-options { max-height: 118px; overflow-y: auto; }
     .records-tools {
       position: static;
       justify-self: start;
@@ -11263,6 +13441,8 @@ const RECORDS_WORKBENCH_STYLES = `
 `;
 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
+  await registerSpecialistReadApiRoutes(app);
+
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
@@ -15305,6 +17485,25 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  app.get<{
+    Params: { id: string };
+    Querystring: { proposedName?: string; limit?: string };
+  }>("/api/v1/observations/:id/reference-candidates", async (request, reply) => {
+    const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+    if (!session || session.banned) {
+      reply.code(401);
+      return { ok: false, error: "session_required" };
+    }
+    const limit = Number.parseInt(String(request.query.limit ?? "6"), 10);
+    const candidates = await listReferenceCandidatesForIdentification({
+      userId: session.userId,
+      occurrenceId: request.params.id,
+      proposedName: request.query.proposedName ?? null,
+      limit: Number.isFinite(limit) ? limit : 6,
+    }).catch(() => []);
+    return { ok: true, candidates };
+  });
+
   app.get<{ Querystring: { view?: string; filter?: string; userId?: string } }>("/records", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
@@ -15342,7 +17541,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
       hideFooter: true,
-      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage }),
+      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage, canWriteIdentification: Boolean(session) }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });
   });
@@ -16045,6 +18244,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Observation not found", stateCard("対象が見つかりません", "この観察の subject を表示できません", "subject 情報がまだ同期中の可能性があります。"), "みつける");
     }
 
+    const insightCandidateName = observationDetailUiName(
+      currentSubject.aiAssessment?.recommendedTaxonName || currentSubject.displayName || snapshot.displayName || "",
+    );
+    // renderAiTaxonStory と同じ優先順で学名を引く。AI候補のみの記録は
+    // occurrences.scientific_name が空なので、recommendedScientificName まで見ないと
+    // insight が空のままになり「◯◯を知る」の中身が永遠に生成されない。
+    const insightScientificName = currentSubject.scientificName
+      || snapshot.scientificName
+      || currentSubject.aiAssessment?.recommendedScientificName
+      || lookupLocalTaxonName(insightCandidateName)?.scientificName
+      || "";
+    const insightTaxonContext = buildTaxonInsightContext(currentSubject);
     const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult, consensus, civicContext] = await Promise.all([
       getObservationContext(bundle.canonicalSubjectId, snapshot.visitId ?? null, null).catch(() => null),
       getObservationDetailHeavy(bundle.canonicalSubjectId, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
@@ -16052,13 +18263,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       viewerUserId
         ? getObserverStats(viewerUserId, snapshot.placeId ?? null, bundle.canonicalSubjectId).catch(() => null)
         : Promise.resolve(null),
-      snapshot.scientificName || snapshot.displayName
+      insightScientificName || snapshot.displayName
         ? getTaxonInsight({
-            scientificName: snapshot.scientificName ?? "",
-            vernacularName: snapshot.displayName,
+            scientificName: insightScientificName,
+            vernacularName: insightCandidateName || snapshot.displayName,
             lat: snapshot.latitude ?? undefined,
             lng: snapshot.longitude ?? undefined,
             season: seasonFromDate(snapshot.observedAt),
+            taxonContext: insightTaxonContext,
             lang: "ja",
             cacheOnly: true,
           }).catch(() => null)
@@ -16364,6 +18576,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       visibleRecordItems,
       formatObservationRecordTitle(snapshot.observedAt, heroPlaceLabel),
     );
+    const glossaryTerms = await getGlossaryTermsForScope({ lang, scopeTags: ["observation"] });
     const identifyBlock = `<div data-obs-section="identify" data-obs-switch-identify>${renderIdentificationParticipation({
       basePath,
       lang,
@@ -16395,15 +18608,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       qualityBlock: renderObservationQualityCard({
         snapshot,
         subject: currentSubject,
+        bundle,
+        nearby: heavy?.nearby ?? [],
         consensus,
         placeLabel: heroPlaceLabel,
         mediaContext,
+        canEditOrigin: isOwner,
+        isLoggedIn: Boolean(viewerUserId),
+        originLoginHref: appendLangToHref(withBasePath(basePath, `/login?redirect=${encodeURIComponent(request.url)}`), lang),
+        glossaryTerms,
       }),
       visibleRecordCount: visibleRecordItems.length,
       summaryStrip: "",
       firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
       sceneOverviewBlock: "",
-      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight, bundle, groundingAssets),
+      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight, bundle, groundingAssets, glossaryTerms),
       nextActionRail,
       trustStageLabel,
       trustLead,
@@ -16412,6 +18631,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       recordModeLabel: observationRecordModeLabel(snapshot),
       mediaSceneLabel: mediaSceneNoun(mediaContext),
     });
+    const shotFeedbackBlock = renderObservationShotFeedbackSurface(bundle, mediaContext, glossaryTerms);
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
     const readProgressBlock = renderObservationReadProgress({
@@ -16538,8 +18758,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
-      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets)}</template>
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel)}</template>
+      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets, glossaryTerms)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, glossaryTerms, fieldAdviceContext, heroPlaceLabel)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,
@@ -16993,11 +19213,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               return;
             }
             var endpoint = isAlternative || isNeedsEvidence ? disputeEndpoint : identifyEndpoint;
+            var referencePayload = { referenceSourceIds: referenceSourceIds, referenceLocator: referenceLocator };
             var body = isAlternative
-              ? { kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes }
+              ? Object.assign({ kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes }, referencePayload)
               : isNeedsEvidence
                 ? { kind: 'needs_more_evidence', reason: notes || '証拠が足りない' }
-                : { proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support', referenceSourceIds: referenceSourceIds, referenceLocator: referenceLocator };
+                : Object.assign({ proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support' }, referencePayload);
             setStatus('保存中...', false);
             fetch(endpoint, {
               method: 'POST',
@@ -17074,7 +19295,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
+    const detailBody = `${heroBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
@@ -17310,109 +19531,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       PROFILE_HUB_STYLES,
     );
-  });
-
-  app.get("/api/v1/specialist/me/authorities", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        reply.code(401);
-        return {
-          ok: false,
-          error: "session_required",
-        };
-      }
-
-      const access = await getReviewerAccessContext(session.userId, session.roleName, session.rankLabel);
-      return {
-        ok: true,
-        globalRole: access.globalRole,
-        hasSpecialistAccess: access.hasSpecialistAccess,
-        authorities: access.activeAuthorities,
-      };
-    } catch (error) {
-      reply.code(400);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_authorities_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/authority/recommendations/me", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        reply.code(401);
-        return {
-          ok: false,
-          error: "session_required",
-        };
-      }
-
-      const recommendations = await listAuthorityRecommendationsForUser(session.userId);
-      return {
-        ok: true,
-        recommendations,
-      };
-    } catch (error) {
-      reply.code(400);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "authority_recommendations_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/specialist/recommendations/pending", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      const resolvedSession = await assertSpecialistSession(session, session?.userId ?? "");
-      const recommendations = await listPendingAuthorityRecommendationsForReviewer({
-        actorUserId: resolvedSession.userId,
-        actorRoleName: resolvedSession.roleName,
-        actorRankLabel: resolvedSession.rankLabel,
-      });
-      return {
-        ok: true,
-        recommendations,
-      };
-    } catch (error) {
-      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_recommendations_lookup_failed",
-      };
-    }
-  });
-
-  app.get("/api/v1/specialist/authorities/audit", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      assertSpecialistAdminSession(session, session?.userId ?? "");
-      const query = (typeof request.query === "object" && request.query ? request.query : {}) as Record<string, unknown>;
-      const rawAction = typeof query.action === "string" ? query.action.trim() : "";
-      const rawStatus = typeof query.status === "string" ? query.status.trim() : "";
-      const recommendations = await listReviewerAuthorityAudit({
-        subjectUserId: typeof query.subjectUserId === "string" ? query.subjectUserId.trim() : null,
-        scopeTaxonName: typeof query.scopeTaxonName === "string" ? query.scopeTaxonName.trim() : null,
-        action: (rawAction === "grant" || rawAction === "revoke" || rawAction === "update")
-          ? rawAction as ReviewerAuthorityAuditAction
-          : null,
-        status: rawStatus === "active" || rawStatus === "revoked" ? rawStatus : null,
-        limit: typeof query.limit === "string" ? Number(query.limit) : undefined,
-      });
-      return {
-        ok: true,
-        audit: recommendations,
-      };
-    } catch (error) {
-      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "specialist_authority_audit_lookup_failed",
-      };
-    }
   });
 
   app.get("/authority/recommendations", async (request, reply) => {

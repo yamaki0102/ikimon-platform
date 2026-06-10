@@ -73,8 +73,37 @@ function prefectureFromMunicipalityLikeValue(value: string | null | undefined): 
   const raw = clean(value);
   if (!raw) return null;
   const k = key(raw);
+  if (
+    k === "hamamatsu" ||
+    k === "hamamatsu city" ||
+    k === "hamamatsu-shi" ||
+    raw === "浜松" ||
+    raw.startsWith("浜松市")
+  ) {
+    return "静岡県";
+  }
+  if (
+    k === "shizuoka city" ||
+    k === "shizuoka-shi" ||
+    raw === "静岡" ||
+    raw.startsWith("静岡市")
+  ) {
+    return "静岡県";
+  }
   if (k === "shizuoka" || k === "shizuoka prefecture" || raw === "静岡県") {
     return "静岡県";
+  }
+  if (
+    k === "naha" ||
+    k === "naha city" ||
+    k === "naha-shi" ||
+    raw === "那覇" ||
+    raw.startsWith("那覇市") ||
+    k === "okinawa city" ||
+    k === "okinawa-shi" ||
+    raw.startsWith("沖縄市")
+  ) {
+    return "沖縄県";
   }
   if (k === "okinawa" || k === "okinawa prefecture" || raw === "沖縄県") {
     return "沖縄県";
@@ -92,8 +121,9 @@ function inferByCoordinate(input: LocalityInput): NormalizedObservationLocality 
 
 export function normalizeObservationLocality(input: LocalityInput): NormalizedObservationLocality {
   const inferred = inferByCoordinate(input);
-  const prefecture = normalizePrefecture(input.prefecture)
-    ?? prefectureFromMunicipalityLikeValue(input.municipality)
+  const municipalityPrefecture = prefectureFromMunicipalityLikeValue(input.municipality);
+  const prefecture = municipalityPrefecture
+    ?? normalizePrefecture(input.prefecture)
     ?? inferred?.prefecture
     ?? null;
   const municipality = normalizeMunicipality(input.municipality)

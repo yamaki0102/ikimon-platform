@@ -43,4 +43,27 @@ test("live event actions expose record, guide, and field scan entry points with 
   assert.match(script, /\/guide/);
   assert.match(script, /guide_scene_added/);
   assert.match(script, /field_scan_added/);
+  assert.match(script, /params\.set\("start", "photo"\)/);
+  assert.match(script, /radiusM <= 100 \? 18/);
+  assert.match(script, /fallbackLat = Number\(mapEl\?\.dataset\.centerLat\)/);
+});
+
+test("live page gives solo micro sessions a field cockpit", () => {
+  const html = renderObservationEventLiveBody({
+    session: {
+      ...session,
+      config: { solo_observation: true, place_event: { event_kind: "solo_micro_observation" } },
+      locationRadiusM: 80,
+    },
+    participantSelfId: null,
+    isOrganizer: false,
+    guestToken: null,
+  });
+
+  assert.match(html, /evt-solo-cockpit/);
+  assert.match(html, /data-solo-observation="true"/);
+  assert.match(html, /現地ループ/);
+  assert.match(html, /0 \/ 3 アクション/);
+  assert.match(html, /半径 80メートル/);
+  assert.match(html, /3分止まる/);
 });

@@ -2,6 +2,7 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
 import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, appInstallCopy } from "../appInstall.js";
+import { BRAND_ASSETS } from "../brandAssets.js";
 import {
   getSiteShellLayoutForPath,
   listPagesByLane,
@@ -691,7 +692,8 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
 function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[]): string {
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
-  const brandMarkSrc = "/assets/img/icon-192.png";
+  const brandMarkSrc = BRAND_ASSETS.mark192;
+  const brandWordmarkSrc = BRAND_ASSETS.wordmarkBlack;
   const navLinks = buildNavLinks(basePath, lang, activeNav);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop");
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile");
@@ -716,7 +718,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
           <span class="brand-logo-lockup">
             <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
             <span class="brand-wordmark" aria-label="ikimon">
-              <span class="brand-name">ikimon</span>
+              <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
             </span>
           </span>
         </a>
@@ -799,7 +801,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
         <div class="footer-brand-panel">
           <div>
           <div class="brand brand-footer">
-            <span class="brand-mark"><img src="/assets/img/icon-192.png" alt="ikimon icon" /></span>
+            <span class="brand-mark"><img src="${BRAND_ASSETS.mark192}" alt="ikimon icon" /></span>
             <span>
               <strong>ikimon</strong>
               <small>${escapeHtml(copy.footer.tagline)}</small>
@@ -3229,6 +3231,16 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const description = options.description ?? options.hero?.lead ?? options.footerNote ?? shellCopyFor(lang).brandTagline;
   const canonicalPath = stripFragment(appendLangToHref(options.canonicalPath ?? currentPath, "ja"));
   const canonicalUrl = absolutePublicUrl(canonicalPath);
+  const defaultOgpImageUrl = absolutePublicUrl(BRAND_ASSETS.ogpDefault);
+  const structuredDataHtml = options.structuredDataHtml ?? "";
+  const hasCustomOgImage = /property=["']og:image["']/.test(structuredDataHtml);
+  const hasCustomTwitterCard = /name=["']twitter:card["']/.test(structuredDataHtml);
+  const hasCustomTwitterImage = /name=["']twitter:image["']/.test(structuredDataHtml);
+  const ogImageMeta = hasCustomOgImage
+    ? ""
+    : `\n  <meta property="og:image" content="${escapeHtml(defaultOgpImageUrl)}" />\n  <meta property="og:image:alt" content="ikimon" />`;
+  const twitterCardMeta = hasCustomTwitterCard ? "" : `\n  <meta name="twitter:card" content="summary_large_image" />`;
+  const twitterImageMeta = hasCustomTwitterImage ? "" : `\n  <meta name="twitter:image" content="${escapeHtml(defaultOgpImageUrl)}" />`;
   const alternateLinks = seoAlternateLangs
     .map((alternateLang) => {
       const href = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, alternateLang)));
@@ -3254,7 +3266,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   </div>`;
   const appLaunchScreenHtml = `<div class="app-launch-screen" data-app-launch-screen aria-hidden="true">
     <div class="app-launch-mark">
-      <img src="/assets/img/icon-192-maskable-v2.png" alt="" loading="eager" decoding="async" />
+      <img src="${BRAND_ASSETS.mark192Maskable}" alt="" loading="eager" decoding="async" />
     </div>
   </div>`;
   const languageSuggestionHtml = `<div class="language-suggestion" data-language-suggestion hidden>
@@ -3739,10 +3751,10 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="ikimon" />
   <link rel="manifest" href="${escapeHtml(manifestHref)}" />
-  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" href="${BRAND_ASSETS.appleTouchIcon}" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="${BRAND_ASSETS.favicon32}" />
+  <link rel="icon" type="image/png" sizes="192x192" href="${BRAND_ASSETS.mark192}" />
   <title>${escapeHtml(pageTitle)}</title>
   <meta name="description" content="${escapeHtml(description)}" />${robotsMeta}
   <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
@@ -3753,11 +3765,10 @@ ${alternateLinks}
   <meta property="og:locale" content="${escapeHtml(ogLocale(lang))}" />
   <meta property="og:title" content="${escapeHtml(pageTitle)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
-  <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
-  <meta name="twitter:card" content="summary" />
+  <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />${ogImageMeta}${twitterCardMeta}
   <meta name="twitter:title" content="${escapeHtml(pageTitle)}" />
-  <meta name="twitter:description" content="${escapeHtml(description)}" />
-  ${options.structuredDataHtml ?? ""}
+  <meta name="twitter:description" content="${escapeHtml(description)}" />${twitterImageMeta}
+  ${structuredDataHtml}
   ${appLaunchHeadScript}
   ${appOutboxHeadScript}
   ${analyticsHeadScript}
@@ -3985,7 +3996,8 @@ ${alternateLinks}
       min-height: 44px;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      flex: 0 0 auto;
+      gap: 7px;
       padding: 3px 8px 3px 2px;
       border-radius: 999px;
       color: #0f172a;
@@ -4006,11 +4018,23 @@ ${alternateLinks}
     }
     .brand-wordmark {
       display: inline-flex;
-      align-items: baseline;
+      align-items: center;
+      flex: 0 0 auto;
       min-width: 0;
+      width: auto;
+      height: 16px;
+      aspect-ratio: 711 / 222;
       line-height: 1;
       white-space: nowrap;
       letter-spacing: 0;
+    }
+    .brand-wordmark-img {
+      display: block;
+      width: auto;
+      height: 100%;
+      max-width: none;
+      object-fit: contain;
+      object-position: left center;
     }
     .brand-name {
       font-size: 18px;
@@ -6092,11 +6116,13 @@ ${alternateLinks}
     @media (min-width: 1161px) {
       :root {
         --ikimon-desktop-sidebar-w: 204px;
+        --ikimon-header-brand-w: max(var(--ikimon-desktop-sidebar-w), 154px);
         --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
         --ikimon-shell-margin-right: 24px;
       }
       body.is-desktop-side-nav-collapsed {
         --ikimon-desktop-sidebar-w: 72px;
+        --ikimon-header-brand-w: 154px;
         --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
       }
       .site-header {
@@ -6108,12 +6134,12 @@ ${alternateLinks}
         margin: 0 16px;
         padding: 7px 0;
         display: grid;
-        grid-template-columns: var(--ikimon-desktop-sidebar-w) minmax(280px, 640px) auto;
+        grid-template-columns: var(--ikimon-header-brand-w) minmax(280px, 640px) auto;
         gap: 18px;
         justify-content: stretch;
       }
       .site-brand-cluster {
-        width: var(--ikimon-desktop-sidebar-w);
+        width: var(--ikimon-header-brand-w);
       }
       .desktop-side-nav-toggle {
         display: grid;
@@ -6198,7 +6224,7 @@ ${alternateLinks}
       .shell,
       .footer-inner {
         --ikimon-shell-available-w: calc(100% - var(--ikimon-desktop-sidebar-w));
-        --ikimon-shell-effective-w: min(var(--ikimon-shell-target-max), calc(var(--ikimon-shell-available-w) - var(--ikimon-page-inline)));
+        --ikimon-shell-effective-w: min(var(--ikimon-shell-target-max), calc(var(--ikimon-shell-available-w) - 96px), calc(var(--ikimon-shell-available-w) - var(--ikimon-page-inline)));
         --ikimon-shell-side-space: max(48px, calc((var(--ikimon-shell-available-w) - var(--ikimon-shell-effective-w)) / 2));
         width: var(--ikimon-shell-effective-w);
         margin-left: calc(var(--ikimon-desktop-sidebar-w) + var(--ikimon-shell-side-space));
@@ -6486,10 +6512,15 @@ ${alternateLinks}
         max-width: none;
       }
       .brand-logo-lockup {
-        gap: 7px;
+        gap: 6px;
         padding-right: 6px;
       }
       .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
+      .brand-wordmark {
+        width: auto;
+        height: 15px;
+        aspect-ratio: 711 / 222;
+      }
       .brand-name { font-size: 16px; }
       .brand-domain { font-size: 11px; }
     }

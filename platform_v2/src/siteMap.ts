@@ -892,10 +892,10 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "企業・地域で活用", en: "Group use" },
-    summary: { ja: "楽しんで続く観察を、企業・自治体・地域のアクションへつなげる入口。", en: "Entry point for schools and local groups." },
+    summary: { ja: "観察、管理行為、再訪の記録を、企業・自治体・地域の次の判断へつなげる入口。", en: "Entry point for schools and local groups." },
     marketing: { pageKey: "forBusiness" },
     legacyRedirects: ["/for-business.php", "/for-business/index.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "楽しんで続く観察を、地域のアクションへ" }, readySelector: "body", screenshot: { baselineName: "registry-for-business" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "自然資本を、現場から見直す" }, readySelector: "body", screenshot: { baselineName: "registry-for-business" } },
   },
   {
     path: "/impact",

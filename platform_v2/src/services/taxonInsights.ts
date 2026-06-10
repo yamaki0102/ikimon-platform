@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "../config.js";
@@ -74,6 +75,16 @@ function parseResponse(text: string): {
   }
 }
 
+function normalizeTaxonContext(value: string | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim().slice(0, 360);
+}
+
+function taxonContextKey(value: string | undefined): string {
+  const normalized = normalizeTaxonContext(value);
+  if (!normalized) return "";
+  return createHash("sha256").update(normalized.toLowerCase()).digest("hex").slice(0, 24);
+}
+
 const BACKGROUND_IN_FLIGHT = new Set<string>();
 
 function fireBackgroundInsightGeneration(opts: {
@@ -82,9 +93,10 @@ function fireBackgroundInsightGeneration(opts: {
   lat?: number;
   lng?: number;
   season?: string;
+  taxonContext?: string;
   lang?: "ja" | "en";
 }): void {
-  const key = `${opts.scientificName || opts.vernacularName || ""}|${opts.lang ?? "ja"}`;
+  const key = `${opts.scientificName || opts.vernacularName || ""}|${opts.lang ?? "ja"}|${taxonContextKey(opts.taxonContext)}`;
   if (BACKGROUND_IN_FLIGHT.has(key)) return;
   BACKGROUND_IN_FLIGHT.add(key);
   // kick off generation in background; errors are swallowed
@@ -101,6 +113,7 @@ export async function getTaxonInsight(opts: {
   lat?: number;
   lng?: number;
   season?: string;
+  taxonContext?: string;
   lang?: "ja" | "en";
   /** true = cache のみ参照し、キャッシュ miss なら empty を即返し + バックグラウンドで Gemini 生成を発火。SSR path で使う。 */
   cacheOnly?: boolean;
@@ -112,6 +125,8 @@ export async function getTaxonInsight(opts: {
 
   const pool = getPool();
   const cacheKey = sn || vn;
+  const context = normalizeTaxonContext(opts.taxonContext);
+  const contextKey = taxonContextKey(context);
 
   // 1. キャッシュ参照
   const cached = await pool.query<{
@@ -125,11 +140,11 @@ export async function getTaxonInsight(opts: {
   }>(
     `SELECT scientific_name, vernacular_name, etymology, ecology_note, look_alike_note, rarity_note,
             generated_at::text
-       FROM taxon_insights_cache
-      WHERE scientific_name = $1 AND lang = $2
-        AND generated_at > now() - ($3::text || ' days')::interval
+      FROM taxon_insights_cache
+      WHERE scientific_name = $1 AND lang = $2 AND context_key = $3
+        AND generated_at > now() - ($4::text || ' days')::interval
       LIMIT 1`,
-    [cacheKey, lang, String(CACHE_TTL_DAYS)],
+    [cacheKey, lang, contextKey, String(CACHE_TTL_DAYS)],
   );
   if (cached.rows.length > 0) {
     const r = cached.rows[0]!;
@@ -163,6 +178,8 @@ export async function getTaxonInsight(opts: {
     lat: opts.lat != null ? opts.lat.toFixed(4) : "不明",
     lng: opts.lng != null ? opts.lng.toFixed(4) : "不明",
     season: opts.season ?? "不明",
+    taxonContext: context || "不明",
+    profileDigestSummary: "",
   });
 
   let modelUsed: string = AI_MODEL_ROLES.taxonInsightPrimary;
@@ -197,9 +214,9 @@ export async function getTaxonInsight(opts: {
   await pool
     .query(
       `INSERT INTO taxon_insights_cache
-         (scientific_name, vernacular_name, lang, etymology, ecology_note, look_alike_note, rarity_note, model_used)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (scientific_name, lang) DO UPDATE SET
+         (scientific_name, vernacular_name, lang, context_key, etymology, ecology_note, look_alike_note, rarity_note, model_used)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (scientific_name, lang, context_key) DO UPDATE SET
          vernacular_name = EXCLUDED.vernacular_name,
          etymology = EXCLUDED.etymology,
          ecology_note = EXCLUDED.ecology_note,
@@ -207,7 +224,7 @@ export async function getTaxonInsight(opts: {
          rarity_note = EXCLUDED.rarity_note,
          generated_at = now(),
          model_used = EXCLUDED.model_used`,
-      [cacheKey, vn, lang, ins.etymology, ins.ecologyNote, ins.lookAlikeNote, ins.rarityNote, modelUsed],
+      [cacheKey, vn, lang, contextKey, ins.etymology, ins.ecologyNote, ins.lookAlikeNote, ins.rarityNote, modelUsed],
     )
     .catch(() => undefined);
 
