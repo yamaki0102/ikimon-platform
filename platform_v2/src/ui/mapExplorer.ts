@@ -59,6 +59,11 @@ export type MapExplorerCopy = {
   heatmapLegendHigh: string;
   areaTrustLegendLow: string;
   areaTrustLegendHigh: string;
+  layerHintPlaces: string;
+  layerHintFrontier: string;
+  layerHintHeatmap: string;
+  layerHintJump: string;
+  layerHintDismiss: string;
   loading: string;
   statsLabel: (returned: number, total: number) => string;
   empty: string;
@@ -191,6 +196,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "多い",
     areaTrustLegendLow: "公式確認待ち・立入不明",
     areaTrustLegendHigh: "確認済み範囲",
+    layerHintPlaces: "ズームするとエリア図鑑の範囲が見えます。",
+    layerHintFrontier: "ズームすると記録の余白が面で見えます。",
+    layerHintHeatmap: "ズームすると季節の気配の濃淡が見えます。",
+    layerHintJump: "見える場所へ",
+    layerHintDismiss: "閉じる",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "この範囲はまだこれから。季節や地域を少し広げると、行きたくなる場所が見つかるかもしれません。",
@@ -303,6 +313,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "High",
     areaTrustLegendLow: "Source/access pending",
     areaTrustLegendHigh: "Verified area",
+    layerHintPlaces: "Zoom in to see area encyclopedia boundaries.",
+    layerHintFrontier: "Zoom in to see recording gaps as areas.",
+    layerHintHeatmap: "Zoom in to see seasonal intensity.",
+    layerHintJump: "Show visible layer",
+    layerHintDismiss: "Close",
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
     empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
@@ -415,6 +430,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "Alta",
     areaTrustLegendLow: "Fuente/acceso pendiente",
     areaTrustLegendHigh: "Área verificada",
+    layerHintPlaces: "Acércate para ver los límites del álbum del área.",
+    layerHintFrontier: "Acércate para ver los huecos de registro como áreas.",
+    layerHintHeatmap: "Acércate para ver la intensidad de temporada.",
+    layerHintJump: "Ver capa",
+    layerHintDismiss: "Cerrar",
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
     empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
@@ -527,6 +547,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "Alta",
     areaTrustLegendLow: "Fonte/acesso pendente",
     areaTrustLegendHigh: "Área verificada",
+    layerHintPlaces: "Aproxime o zoom para ver os limites do álbum da área.",
+    layerHintFrontier: "Aproxime o zoom para ver os vazios de registro como áreas.",
+    layerHintHeatmap: "Aproxime o zoom para ver a intensidade da estação.",
+    layerHintJump: "Mostrar camada",
+    layerHintDismiss: "Fechar",
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
     empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
@@ -1127,6 +1152,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span class="me-legend-gradient" id="me-legend-gradient"></span>
           <span class="me-legend-range"><span id="me-legend-low">${escapeHtml(copy.heatmapLegendLow)}</span><span id="me-legend-high">${escapeHtml(copy.heatmapLegendHigh)}</span></span>
         </div>
+        <div class="me-layer-hint is-hidden" id="me-layer-hint" aria-hidden="true" role="status">
+          <span id="me-layer-hint-text"></span>
+          <button type="button" class="me-layer-hint-jump" id="me-layer-hint-jump">${escapeHtml(copy.layerHintJump)}</button>
+          <button type="button" class="me-layer-hint-close" id="me-layer-hint-close" aria-label="${escapeHtml(copy.layerHintDismiss)}">×</button>
+        </div>
         <div class="me-bottom-sheet" id="me-bottom-sheet" aria-hidden="true">
           <button type="button" class="me-bottom-close" id="me-bottom-close" aria-label="${escapeHtml(copy.bottomSheetCloseLabel)}">×</button>
           <button type="button" class="me-bottom-grip" id="me-bottom-grip" aria-label="${escapeHtml(copy.bottomSheetExpandLabel)}"></button>
@@ -1154,6 +1184,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var legendEl = document.getElementById('me-legend');
   var legendLowEl = document.getElementById('me-legend-low');
   var legendHighEl = document.getElementById('me-legend-high');
+  var layerHintEl = document.getElementById('me-layer-hint');
+  var layerHintTextEl = document.getElementById('me-layer-hint-text');
+  var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
+  var layerHintCloseEl = document.getElementById('me-layer-hint-close');
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -1242,6 +1276,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     heatmapLegendHigh: copy.heatmapLegendHigh,
     areaTrustLegendLow: copy.areaTrustLegendLow,
     areaTrustLegendHigh: copy.areaTrustLegendHigh,
+    layerHintPlaces: copy.layerHintPlaces,
+    layerHintFrontier: copy.layerHintFrontier,
+    layerHintHeatmap: copy.layerHintHeatmap,
+    layerHintJump: copy.layerHintJump,
     legendLabel: copy.legendLabel,
     popupOpenLabel: copy.popupOpenLabel,
     bottomSheetRecord: copy.bottomSheetRecord,
@@ -1668,6 +1706,79 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!legendEl) return;
     legendEl.classList.add('is-hidden');
     legendEl.setAttribute('aria-hidden', 'true');
+  }
+  function layerHintInfo(tab) {
+    if (tab === 'places') return { minZoom: 8.1, text: COPY.layerHintPlaces, maxZoom: 11.8 };
+    if (tab === 'frontier') return { minZoom: 10.2, text: COPY.layerHintFrontier, maxZoom: 12.2 };
+    if (tab === 'heatmap') return { minZoom: 8.4, text: COPY.layerHintHeatmap, maxZoom: 12.2 };
+    return null;
+  }
+  function hideLayerHint() {
+    if (!layerHintEl) return;
+    layerHintEl.classList.add('is-hidden');
+    layerHintEl.setAttribute('aria-hidden', 'true');
+    layerHintEl.removeAttribute('data-tab');
+  }
+  function maybeShowLayerHint(tab) {
+    var info = layerHintInfo(tab);
+    if (!info || !state.map || !layerHintEl || !layerHintTextEl) {
+      hideLayerHint();
+      return;
+    }
+    if (state.map.getZoom() >= info.minZoom) {
+      hideLayerHint();
+      return;
+    }
+    layerHintTextEl.textContent = info.text;
+    layerHintEl.setAttribute('data-tab', tab);
+    layerHintEl.classList.remove('is-hidden');
+    layerHintEl.setAttribute('aria-hidden', 'false');
+  }
+  function extendBoundsWithCoordinates(bounds, coords) {
+    if (!Array.isArray(coords)) return;
+    if (coords.length >= 2 && Number.isFinite(Number(coords[0])) && Number.isFinite(Number(coords[1]))) {
+      bounds.extend([Number(coords[0]), Number(coords[1])]);
+      return;
+    }
+    coords.forEach(function (child) { extendBoundsWithCoordinates(bounds, child); });
+  }
+  function fitFeatureBounds(features, maxZoom) {
+    if (!state.map || !window.maplibregl || !Array.isArray(features) || !features.length) return false;
+    var bounds = new window.maplibregl.LngLatBounds();
+    features.forEach(function (feature) {
+      if (!feature || !feature.geometry) return;
+      extendBoundsWithCoordinates(bounds, feature.geometry.coordinates);
+    });
+    if (bounds.isEmpty()) return false;
+    state.map.fitBounds(bounds, { padding: 56, maxZoom: maxZoom || 12.2, duration: 620 });
+    return true;
+  }
+  function fallbackRegionBounds() {
+    var regionBtns = Array.prototype.slice.call(document.querySelectorAll('.me-region-chip[data-bounds]'));
+    var preferred = regionBtns.find(function (btn) {
+      return /浜松|Hamamatsu/i.test((btn.textContent || '').trim());
+    }) || regionBtns[2] || regionBtns[1] || regionBtns[0];
+    if (!preferred) return null;
+    var bs = (preferred.getAttribute('data-bounds') || '').split(',').map(Number);
+    return bs.length === 4 && !bs.some(function (n) { return !Number.isFinite(n); }) ? bs : null;
+  }
+  function jumpToVisibleLayer(tab) {
+    if (!state.map) return;
+    var info = layerHintInfo(tab) || { maxZoom: 12.2 };
+    var features = tab === 'places'
+      ? state.areaPolygonFeatures
+      : tab === 'frontier'
+        ? (state.frontier && state.frontier.features)
+        : state.features;
+    if (fitFeatureBounds(features, info.maxZoom)) {
+      hideLayerHint();
+      return;
+    }
+    var bs = fallbackRegionBounds();
+    if (bs) {
+      state.map.fitBounds([[bs[0], bs[1]], [bs[2], bs[3]]], { padding: 48, maxZoom: info.maxZoom, duration: 650 });
+      hideLayerHint();
+    }
   }
 
   function parsePublicCellId(cellId) {
@@ -4813,7 +4924,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           6, 'rgba(245,158,11,0.42)',
           12, 'rgba(239,68,68,0.6)',
         ],
-        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 0, 0.08, 2, 0.14, 6, 0.26, 12, 0.36],
+        'fill-opacity': [
+          'interpolate', ['linear'], ['zoom'],
+          5, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 0, 0.04, 2, 0.08, 6, 0.16, 12, 0.24],
+          10, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 0, 0.08, 2, 0.16, 6, 0.34, 12, 0.52],
+          14, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 0, 0.12, 2, 0.22, 6, 0.44, 12, 0.64],
+        ],
       },
     });
     map.addLayer({
@@ -4931,22 +5047,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         id: fillId,
         type: 'fill',
         source: sourceId,
+        minzoom: 8,
         paint: {
           'fill-color': [
             'match', ['get', 'stage'],
-            'blank', 'rgba(100,116,139,0.12)',
-            'building', 'rgba(14,165,233,0.16)',
-            'repeatable', 'rgba(20,184,166,0.18)',
-            'rgba(5,150,105,0.22)',
+            'blank', 'rgba(100,116,139,0.30)',
+            'building', 'rgba(14,165,233,0.34)',
+            'repeatable', 'rgba(20,184,166,0.38)',
+            'rgba(5,150,105,0.44)',
           ],
           'fill-opacity': [
-            'match', ['get', 'stage'],
-            'blank', 0.04,
-            'building', 0.07,
-            'repeatable', 0.09,
-            0.12,
+            'interpolate', ['linear'], ['zoom'],
+            8, ['match', ['get', 'stage'], 'blank', 0.12, 'building', 0.16, 'repeatable', 0.19, 0.23],
+            12, ['match', ['get', 'stage'], 'blank', 0.18, 'building', 0.24, 'repeatable', 0.30, 0.36],
+            15, ['match', ['get', 'stage'], 'blank', 0.24, 'building', 0.32, 'repeatable', 0.40, 0.48],
           ],
-          'fill-outline-color': 'rgba(15,118,110,0.10)',
+          'fill-outline-color': 'rgba(15,118,110,0.30)',
         },
       });
       map.on('click', 'frontier-fill', function (e) {
@@ -5871,6 +5987,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       loadGuideSpots();
       loadVisitedPlaces();
       maybeAutoLocateOnFirstOpen();
+      maybeShowLayerHint(state.tab);
     });
     state.map.on('moveend', function () {
       if (state.ignoreNextMoveEnd) {
@@ -5889,6 +6006,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       loadGuideSpots();
       if (state.waterwayDebounce) clearTimeout(state.waterwayDebounce);
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
+      if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);
     });
     // Empty-point tap → Site Brief. Skip if the click hit an observation
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
@@ -6005,10 +6123,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (state.map) {
         applyTab(state.map, state.tab);
         if (state.tab === 'frontier') loadFrontier(state.map);
+        maybeShowLayerHint(state.tab);
       }
       saveMapState();
     });
   });
+  if (layerHintJumpEl) {
+    layerHintJumpEl.addEventListener('click', function () {
+      jumpToVisibleLayer(layerHintEl ? (layerHintEl.getAttribute('data-tab') || state.tab) : state.tab);
+    });
+  }
+  if (layerHintCloseEl) {
+    layerHintCloseEl.addEventListener('click', hideLayerHint);
+  }
   document.querySelectorAll('.me-role-chip').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var value = btn.getAttribute('data-role') || 'mixed';
@@ -7396,6 +7523,55 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-range { display: inline-flex; flex: 1 1 190px; min-width: 0; flex-wrap: wrap; gap: 6px 10px; color: #64748b; font-weight: 700; }
   #me-legend-low,
   #me-legend-high { min-width: 0; overflow-wrap: anywhere; }
+  .me-layer-hint {
+    position: absolute;
+    left: 12px;
+    bottom: 56px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: min(520px, calc(100% - 24px));
+    box-sizing: border-box;
+    padding: 9px 10px 9px 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(15,118,110,.16);
+    box-shadow: 0 10px 24px rgba(15,23,42,.14);
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 820;
+  }
+  .me-layer-hint.is-hidden { display: none; }
+  .me-layer-hint span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .me-layer-hint-jump,
+  .me-layer-hint-close {
+    flex: 0 0 auto;
+    border: 0;
+    cursor: pointer;
+    font-weight: 900;
+  }
+  .me-layer-hint-jump {
+    min-height: 32px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(15,118,110,.18);
+  }
+  .me-layer-hint-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: rgba(15,23,42,.06);
+    color: #475569;
+    font-size: 17px;
+    line-height: 1;
+  }
   .me-search-area-btn {
     position: absolute;
     top: 14px;
@@ -8773,6 +8949,21 @@ export const MAP_EXPLORER_STYLES = `
       font-size: 9.5px;
     }
     .me-locate-fab { bottom: 96px; }
+    .me-layer-hint {
+      left: 10px;
+      right: 10px;
+      bottom: 112px;
+      max-width: none;
+      flex-wrap: wrap;
+      padding: 9px 10px;
+    }
+    .me-layer-hint span {
+      flex: 1 1 100%;
+    }
+    .me-layer-hint-jump {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
     .me-bottom-sheet {
       display: block;
       border-radius: 22px 22px 0 0;
