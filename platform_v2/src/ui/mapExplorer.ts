@@ -1409,6 +1409,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     aiCandidateLabel: props.lang === "ja" ? "AI候補" : props.lang === "es" ? "Candidato IA" : props.lang === "pt-BR" ? "Candidato de IA" : "AI candidate",
     recentDiscoveryFallback: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgo reciente" : props.lang === "pt-BR" ? "Descoberta recente" : "Recent find",
     discoveryFallback: props.lang === "ja" ? "発見" : props.lang === "es" ? "Hallazgo" : props.lang === "pt-BR" ? "Descoberta" : "Find",
+    resultGroupedByDate: props.lang === "ja" ? "日付ごと" : props.lang === "es" ? "por fecha" : props.lang === "pt-BR" ? "por data" : "by date",
+    resultGroupUnknownDate: props.lang === "ja" ? "日付不明" : props.lang === "es" ? "Fecha desconocida" : props.lang === "pt-BR" ? "Data desconhecida" : "Unknown date",
+    searchGroupCurrent: props.lang === "ja" ? "この範囲" : props.lang === "es" ? "En esta zona" : props.lang === "pt-BR" ? "Nesta área" : "In this area",
+    searchGroupOther: props.lang === "ja" ? "他の地域" : props.lang === "es" ? "Otras zonas" : props.lang === "pt-BR" ? "Outras áreas" : "Other areas",
+    searchRecentPrefix: props.lang === "ja" ? "直近" : props.lang === "es" ? "Último" : props.lang === "pt-BR" ? "Recente" : "Latest",
     openDiscoverySuffix: props.lang === "ja" ? "を開く" : props.lang === "es" ? ": abrir" : props.lang === "pt-BR" ? ": abrir" : " - open",
     walkableFindsAria: props.lang === "ja" ? "徒歩5分圏の発見" : props.lang === "es" ? "Hallazgos a cinco minutos a pie" : props.lang === "pt-BR" ? "Descobertas a cinco minutos a pé" : "Finds within a five-minute walk",
     walkableFindsTitle: props.lang === "ja" ? "近くで見えたもの" : props.lang === "es" ? "Lo visto cerca" : props.lang === "pt-BR" ? "O que apareceu por perto" : "What appeared nearby",
@@ -1671,10 +1676,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function localizedDisplayName(value, fallback) {
     var text = String(value || '').trim();
     if (!text || text === '同定待ち' || /awaiting id|unknown|unresolved/i.test(text)) return fallback || COPY.awaitingIdLabel;
-    return text;
+    return friendlyTaxonLabel(text);
   }
   function recordDisplayName(record, fallback) {
     return localizedDisplayName(record && record.displayName, fallback);
+  }
+  var TAXON_GENUS_JA_FALLBACK = {
+    Chloris: 'カワラヒワ属',
+    Monticola: 'イソヒヨドリ属',
+    Gamochaeta: 'チチコグサモドキ属',
+    Oxalis: 'カタバミ属',
+    Abraxas: 'エダシャク属',
+    Spilosoma: 'ヒトリガ属',
+    Vicia: 'ソラマメ属',
+    Rubus: 'キイチゴ属',
+    Mallotus: 'アカメガシワ属',
+    Ligustrum: 'イボタノキ属',
+    Pittosporum: 'トベラ属',
+    Erigeron: 'ムカシヨモギ属',
+  };
+  function friendlyTaxonLabel(label) {
+    var text = String(label || '').trim();
+    if (SEARCH_LANG !== 'ja' || !text) return text;
+    var genusMatch = text.match(/^([A-Z][a-z-]+)属の一種$/);
+    if (genusMatch && TAXON_GENUS_JA_FALLBACK[genusMatch[1]]) {
+      return TAXON_GENUS_JA_FALLBACK[genusMatch[1]] + 'の一種';
+    }
+    var sciMatch = text.match(/^([A-Z][a-z-]+)(?:\\s+[a-z][a-z-]+)?$/);
+    if (sciMatch && TAXON_GENUS_JA_FALLBACK[sciMatch[1]]) {
+      return TAXON_GENUS_JA_FALLBACK[sciMatch[1]];
+    }
+    return text;
   }
   function maxZoomForGrid(gridM) {
     if (!isFinite(gridM) || gridM <= 1000) return 13.2;
@@ -2146,6 +2178,45 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return null;
   }
 
+  function resultGroupDate(record) {
+    return record && record.observedAt ? String(record.observedAt).slice(0, 10) : '';
+  }
+
+  function summarizeLocalities(records) {
+    var counts = {};
+    (records || []).forEach(function (record) {
+      var label = String(record && record.localityLabel || '').trim();
+      if (!label || label === '—') return;
+      counts[label] = (counts[label] || 0) + 1;
+    });
+    var ranked = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+    if (!ranked.length) return '';
+    var first = ranked[0];
+    return ranked.length > 1 ? first + ' +' + String(ranked.length - 1) : first;
+  }
+
+  function groupResultRecords(records) {
+    var groups = [];
+    var byDate = {};
+    (records || []).forEach(function (record) {
+      var date = resultGroupDate(record);
+      var key = date || 'unknown';
+      if (!byDate[key]) {
+        byDate[key] = { key: key, date: date, records: [] };
+        groups.push(byDate[key]);
+      }
+      byDate[key].records.push(record);
+    });
+    return groups;
+  }
+
+  function renderResultBadges(record) {
+    var badges = [];
+    if (record && record.isAwaitingId) badges.push('<span class="me-result-badge me-result-awaiting">' + escapeHtml(COPY.awaitingIdLabel) + '</span>');
+    else if (record && record.isAiCandidate) badges.push('<span class="me-result-badge me-result-ai">' + escapeHtml(COPY.aiCandidateLabel) + '</span>');
+    return badges.length ? '<span class="me-result-badges">' + badges.join('') + '</span>' : '';
+  }
+
   function renderResultList() {
     if (!resultsListEl || !sideStatusEl) return;
     var records = Array.isArray(state.records) ? state.records : [];
@@ -2156,27 +2227,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
       return;
     }
-    sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll;
-    resultsListEl.innerHTML = records.slice(0, 120).map(function (record) {
-      var active = record.occurrenceId === state.selectedOccurrenceId;
-      var date = record.observedAt ? String(record.observedAt).slice(0, 10) : '';
-      var thumb = record.photoUrl
-        ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="92" height="92" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
-        : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
-      var displayLabel = recordDisplayName(record);
-      var speciesBadge = record.isAwaitingId
-        ? '<span class="me-result-awaiting">' + escapeHtml(COPY.awaitingIdLabel) + '</span>'
-        : record.isAiCandidate
-          ? '<span class="me-result-ai">' + escapeHtml(COPY.aiCandidateLabel) + '</span><strong>' + escapeHtml(displayLabel) + '</strong>'
-          : '<strong>' + escapeHtml(displayLabel) + '</strong>';
-      return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
-        thumb +
-        '<span class="me-result-body">' +
-          speciesBadge +
-          '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
-          (date ? '<span>' + escapeHtml(date) + '</span>' : '') +
-        '</span>' +
-      '</button>';
+    sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll + ' · ' + COPY.resultGroupedByDate;
+    resultsListEl.innerHTML = groupResultRecords(records.slice(0, 120)).map(function (group) {
+      var locality = summarizeLocalities(group.records);
+      var label = group.date || COPY.resultGroupUnknownDate;
+      var meta = [locality, String(group.records.length) + ' ' + COPY.resultCountLabel].filter(Boolean).join(' · ');
+      var rows = group.records.map(function (record) {
+        var active = record.occurrenceId === state.selectedOccurrenceId;
+        var thumb = record.photoUrl
+          ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="64" height="64" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
+          : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
+        var displayLabel = recordDisplayName(record);
+        var titleMeta = [record.localityLabel || '', resultGroupDate(record)].filter(Boolean).join(' · ');
+        return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '" title="' + escapeHtml(titleMeta) + '">' +
+          thumb +
+          '<span class="me-result-body">' +
+            '<strong>' + escapeHtml(displayLabel) + '</strong>' +
+            renderResultBadges(record) +
+          '</span>' +
+        '</button>';
+      }).join('');
+      return '<section class="me-result-group">' +
+        '<div class="me-result-group-head"><strong>' + escapeHtml(label) + '</strong>' +
+        (meta ? '<span>' + escapeHtml(meta) + '</span>' : '') + '</div>' +
+        rows +
+      '</section>';
     }).join('');
     resultsListEl.querySelectorAll('.me-result-row').forEach(function (rowEl) {
       rowEl.addEventListener('click', function () {
@@ -6273,6 +6348,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     searchResultsEl.innerHTML = rows.map(function (row, idx) {
+      if (row.kind === 'heading') {
+        return '<div class="me-search-group-heading">' + escapeHtml(row.title) + '</div>';
+      }
       return '<button type="button" role="option" class="me-search-row" data-idx="' + idx + '">' +
         '<span class="me-search-badge me-search-badge-' + escapeHtml(row.kind) + '">' + escapeHtml(row.badge) + '</span>' +
         '<strong>' + escapeHtml(row.title) + '</strong>' +
@@ -6280,13 +6358,82 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '</button>';
     }).join('');
     searchResultsEl.classList.add('is-open');
-    searchResultsEl.querySelectorAll('.me-search-row').forEach(function (btn, i) {
+    searchResultsEl.querySelectorAll('.me-search-row').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        var i = Number(btn.getAttribute('data-idx'));
         var row = rows[i];
         if (!row || typeof row.onSelect !== 'function') return;
         row.onSelect();
       });
     });
+  }
+
+  function latestObservedDate(records) {
+    var latest = '';
+    (records || []).forEach(function (record) {
+      var date = resultGroupDate(record);
+      if (date && date > latest) latest = date;
+    });
+    return latest;
+  }
+
+  function searchHitLabel(count) {
+    return SEARCH_LANG === 'ja' ? String(count) + '件'
+      : SEARCH_LANG === 'es' ? String(count) + ' registros'
+      : SEARCH_LANG === 'pt-BR' ? String(count) + ' registros'
+      : String(count) + ' hits';
+  }
+
+  function placeTypeLabel(type) {
+    var key = String(type || '').trim().toLowerCase();
+    if (!key) return '';
+    var ja = {
+      park: '公園',
+      garden: '庭園',
+      forest: '森林',
+      nature_reserve: '自然保護区',
+      attraction: '名所',
+      artwork: '作品',
+      monument: '記念碑',
+      museum: '博物館',
+      school: '学校',
+      university: '大学',
+      river: '川',
+      water: '水辺',
+      peak: '山',
+      suburb: '地域',
+      village: '地域',
+      town: '地域',
+      city: '市区町村',
+      administrative: '行政区域',
+    };
+    if (SEARCH_LANG === 'ja') return ja[key] || '';
+    return key.replace(/_/g, ' ');
+  }
+
+  function placeRowInCurrentBounds(row) {
+    if (!state.map || !row) return false;
+    var lat = Number(row.lat);
+    var lng = Number(row.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !state.map.getBounds) return false;
+    var bounds = state.map.getBounds();
+    return !!(bounds && bounds.contains && bounds.contains([lng, lat]));
+  }
+
+  function groupSearchRows(localRows, placeRows) {
+    var current = [];
+    var other = [];
+    (localRows || []).forEach(function (row) { current.push(row); });
+    (placeRows || []).forEach(function (row) {
+      if (row.inCurrentBounds) current.push(row);
+      else other.push(row);
+    });
+    var out = [];
+    if (current.length) out.push({ kind: 'heading', title: COPY.searchGroupCurrent });
+    out = out.concat(current);
+    if (other.length) out.push({ kind: 'heading', title: COPY.searchGroupOther });
+    out = out.concat(other);
+    return out.slice(0, 10);
   }
 
   function buildSpeciesSearchRows(query) {
@@ -6306,11 +6453,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           title: recordDisplayName(record, variants[0]),
           subtitle: record.localityLabel || '',
           occurrenceIds: [],
+          records: [],
           cellIds: {},
           taxonGroup: record.taxonGroup || '',
         };
       }
       speciesMap[key].occurrenceIds.push(record.occurrenceId);
+      speciesMap[key].records.push(record);
       if (record.cellId) speciesMap[key].cellIds[record.cellId] = true;
     });
     return Object.keys(speciesMap)
@@ -6318,13 +6467,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .sort(function (a, b) { return b.occurrenceIds.length - a.occurrenceIds.length; })
       .slice(0, 5)
       .map(function (row) {
-        var hitLabel = SEARCH_LANG === 'ja' ? '件'
-          : SEARCH_LANG === 'es' ? ' registros'
-          : SEARCH_LANG === 'pt-BR' ? ' registros'
-          : ' hits';
+        var latest = latestObservedDate(row.records);
+        var parts = [];
+        if (row.subtitle) parts.push(row.subtitle);
+        parts.push(searchHitLabel(row.occurrenceIds.length));
+        if (latest) parts.push(COPY.searchRecentPrefix + ' ' + latest);
         row.subtitle = row.subtitle
-          ? row.subtitle + ' · ' + row.occurrenceIds.length + hitLabel
-          : row.occurrenceIds.length + hitLabel;
+          ? parts.join(' · ')
+          : parts.join(' · ');
         row.onSelect = function () {
           if (!state.map) return;
           state.tab = 'markers';
@@ -6357,12 +6507,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!Array.isArray(rows)) return [];
     return rows.slice(0, 5).map(function (row) {
       var name = row.display_name || row.name || '';
-      var cls = row.type || row.category || '';
+      var typeLabel = placeTypeLabel(row.type || row.category || row.class || '');
+      var inCurrentBounds = placeRowInCurrentBounds(row);
       return {
         kind: 'place',
         badge: COPY.searchResultPlace,
         title: name,
-        subtitle: cls,
+        subtitle: [typeLabel, inCurrentBounds ? COPY.searchGroupCurrent : COPY.searchGroupOther].filter(Boolean).join(' · '),
+        inCurrentBounds: inCurrentBounds,
         onSelect: function () {
           if (!row || !state.map) return;
           var lat = Number(row.lat);
@@ -6395,7 +6547,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeSearchResults();
       return;
     }
-    if (localRows.length) renderSearchRows(localRows);
+    if (localRows.length) renderSearchRows(groupSearchRows(localRows, []));
     else closeSearchResults();
 
     if (searchAbort) { try { searchAbort.abort(); } catch(_) {} }
@@ -6419,12 +6571,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('nominatim ' + r.status)); })
       .then(function (rows) {
         if (seq !== searchSeq) return;
-        var merged = localRows.concat(buildPlaceSearchRows(rows));
+        var placeRows = buildPlaceSearchRows(rows);
+        var merged = groupSearchRows(localRows, placeRows);
         if (!merged.length) {
           renderSearchRows([]);
           return;
         }
-        renderSearchRows(merged.slice(0, 8));
+        renderSearchRows(merged);
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
@@ -7478,6 +7631,16 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-search-row:last-child { border-bottom: 0; }
   .me-search-row:hover { background: rgba(236,253,245,.55); }
+  .me-search-group-heading {
+    padding: 9px 14px 5px;
+    color: #0f766e;
+    background: rgba(240,253,250,.78);
+    border-bottom: 1px solid rgba(15,23,42,.04);
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 950;
+    letter-spacing: .08em;
+  }
   .me-search-row .me-search-badge {
     display: inline-flex; align-items: center; justify-content: center;
     width: fit-content; margin-bottom: 4px; padding: 2px 8px; border-radius: 999px;
@@ -8724,39 +8887,81 @@ export const MAP_EXPLORER_STYLES = `
   .me-results-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     padding-right: 2px;
   }
+  .me-result-group {
+    display: grid;
+    gap: 6px;
+  }
+  .me-result-group-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 4px 4px;
+    background: rgba(255,255,255,.96);
+    border-bottom: 1px solid rgba(15,23,42,.05);
+  }
+  .me-result-group-head strong {
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .me-result-group-head span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 10.5px;
+    line-height: 1.25;
+    font-weight: 780;
+  }
   .me-result-row {
     display: grid;
-    grid-template-columns: 92px minmax(0,1fr);
-    gap: 12px;
+    grid-template-columns: 64px minmax(0,1fr);
+    gap: 10px;
     width: 100%;
-    padding: 10px;
+    min-height: 78px;
+    padding: 8px;
     border: 1px solid rgba(15,23,42,.06);
-    border-radius: 18px;
+    border-radius: 10px;
     background: rgba(255,255,255,.96);
-    box-shadow: 0 8px 20px rgba(15,23,42,.05);
     text-align: left;
     cursor: pointer;
   }
   .me-result-row.is-active { border-color: rgba(14,165,233,.28); box-shadow: 0 12px 28px rgba(14,165,233,.12); }
   .me-result-thumb {
-    width: 92px;
-    height: 92px;
+    width: 64px;
+    height: 64px;
     object-fit: cover;
-    border-radius: 14px;
+    border-radius: 8px;
     background: rgba(241,245,249,.9);
   }
-  .me-result-thumb-placeholder { display: grid; place-items: center; font-size: 28px; color: #64748b; }
-  .me-result-body { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; }
-  .me-result-body strong { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
+  .me-result-thumb-placeholder { display: grid; place-items: center; font-size: 22px; color: #64748b; }
+  .me-result-body { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 0; }
+  .me-result-body strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13.5px;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: -.01em;
+  }
   .me-result-body span { font-size: 12px; color: #64748b; line-height: 1.4; }
-  .me-result-ai { display: inline-block; padding: 1px 7px; border-radius: 999px; background: rgba(14,165,233,.14); color: #075985; font-size: 10px; font-weight: 900; letter-spacing: .04em; margin-right: 6px; vertical-align: middle; }
-  .me-result-awaiting { display: inline-block; padding: 2px 9px; border-radius: 999px; background: rgba(234,179,8,.18); color: #713f12; font-size: 11.5px; font-weight: 900; }
+  .me-result-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+  .me-result-badge { display: inline-flex; width: fit-content; padding: 2px 7px; border-radius: 999px; font-size: 10px; line-height: 1.2; font-weight: 900; letter-spacing: .04em; }
+  .me-result-ai { background: rgba(14,165,233,.14); color: #075985; }
+  .me-result-awaiting { background: rgba(234,179,8,.18); color: #713f12; }
   .me-map-card-ai { color: #075985; font-weight: 900; }
   .me-map-card-awaiting { color: #713f12; font-weight: 900; }
   .me-results-empty, .me-side-empty {

@@ -193,6 +193,44 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(styles, /\.me-layer-hint-jump \{/);
 });
 
+test("result side panel groups dense records by date and normalizes candidate labels", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /function friendlyTaxonLabel\(label\)/);
+  assert.match(script, /Chloris: 'カワラヒワ属'/);
+  assert.match(script, /Monticola: 'イソヒヨドリ属'/);
+  assert.match(script, /function groupResultRecords\(records\)/);
+  assert.match(script, /me-result-group-head/);
+  assert.match(script, /COPY\.resultGroupedByDate/);
+  assert.match(script, /renderResultBadges\(record\)/);
+  assert.match(script, /width="64" height="64"/);
+  const resultListBody = script.slice(
+    script.indexOf("function renderResultList()"),
+    script.indexOf("function clearDiscoveryPreviewMarkers()"),
+  );
+  assert.doesNotMatch(resultListBody, /'<span>' \+ escapeHtml\(record\.localityLabel/);
+  assert.match(styles, /\.me-result-group \{/);
+  assert.match(styles, /grid-template-columns: 64px minmax\(0,1fr\)/);
+  assert.match(styles, /\.me-result-badges/);
+});
+
+test("unified search separates current-area and other-area results", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /searchGroupCurrent/);
+  assert.match(script, /searchGroupOther/);
+  assert.match(script, /function groupSearchRows\(localRows, placeRows\)/);
+  assert.match(script, /function placeRowInCurrentBounds\(row\)/);
+  assert.match(script, /function placeTypeLabel\(type\)/);
+  assert.match(script, /attraction: '名所'/);
+  assert.match(script, /artwork: '作品'/);
+  assert.match(script, /COPY\.searchRecentPrefix/);
+  assert.match(script, /Number\(btn\.getAttribute\('data-idx'\)\)/);
+  assert.match(styles, /\.me-search-group-heading/);
+});
+
 test("frontier and heatmap layers gain stronger zoom-sensitive visual feedback", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
