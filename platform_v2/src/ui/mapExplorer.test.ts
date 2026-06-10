@@ -109,11 +109,16 @@ test("area sheet includes contribution feedback surface", () => {
 
 test("area biodiversity badges render as presence-only map markers", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /me-area-badge-marker/);
   assert.match(script, /biodiversity_groups/);
   assert.match(script, /function refreshAreaBadgeMarkers/);
+  assert.match(script, /function areaBadgeCountLabel\(item\)/);
+  assert.match(script, /me-area-badge-pill/);
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
+  assert.match(styles, /\.me-area-badge-pill/);
+  assert.match(styles, /\.me-area-badge-marker:hover \.me-area-badge-actions/);
 });
 
 test("guide-enabled areas advertise guide availability before tapping the area", () => {
@@ -253,18 +258,22 @@ test("area badge clicks reopen the side panel before showing selection", () => {
 
 test("area map labels and side cards expose event and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /areaBadgeEventLabel/);
   assert.match(script, /areaBadgeAlbumLabel/);
   assert.match(script, /観察会/);
   assert.match(script, /エリア図鑑/);
   assert.match(script, /me-area-badge-actions/);
+  assert.match(script, /me-area-badge-pill/);
   assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml\)/);
   assert.match(script, /me-area-primary-actions/);
   assert.match(script, /eventsNewHrefTemplate\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml/);
   assert.match(script, /event\.stopPropagation\(\);/);
+  assert.match(styles, /\.me-area-badge-marker:hover \.me-area-badge-chips/);
+  assert.match(styles, /\.me-area-badge-marker:focus-within \.me-area-badge-actions/);
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {

@@ -2543,6 +2543,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     '</span>';
   }
 
+  function areaBadgeCountLabel(item) {
+    var count = (item && item.groups ? item.groups.length : 0) + (item && item.guideStop ? 1 : 0);
+    return count > 0 ? String(count) + '件' : '';
+  }
+
   function refreshAreaBadgeMarkers() {
     clearAreaBadgeMarkers();
     if (!state.map || !window.maplibregl || (state.tab !== 'places' && state.tab !== 'markers')) return;
@@ -2580,6 +2585,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
             '<a href="' + escapeHtml(albumHref) + '">' + escapeHtml(COPY.areaBadgeAlbumLabel) + '</a>' +
           '</span>'
         : '';
+      var countLabel = areaBadgeCountLabel(item);
       var el = document.createElement('div');
       var badgeChipsHtml = (item.guideStop
         ? '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>'
@@ -2600,8 +2606,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
             '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
           '</button>'
         : '<button type="button" class="me-area-badge-main">' +
-            '<strong>' + escapeHtml(name) + '</strong>' +
-            '<span class="me-area-badge-chips">' + badgeChipsHtml + '</span>' +
+            '<span class="me-area-badge-pill">' +
+              '<strong>' + escapeHtml(name) + '</strong>' +
+              (countLabel ? '<em>' + escapeHtml(countLabel) + '</em>' : '') +
+            '</span>' +
+            (badgeChipsHtml ? '<span class="me-area-badge-chips">' + badgeChipsHtml + '</span>' : '') +
           '</button>' +
           actionsHtml;
       el.querySelector('.me-area-badge-main').addEventListener('click', function (event) {
@@ -7354,31 +7363,30 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
   }
   .me-area-badge-marker {
-    border: 1px solid rgba(13,148,136,.28);
-    background: rgba(255,255,255,.94);
+    border: 0;
+    background: transparent;
     color: #0f172a;
-    border-radius: 8px;
-    padding: 7px 9px 8px;
-    min-width: 126px;
+    min-width: 0;
     max-width: 188px;
-    box-shadow: 0 12px 30px rgba(15,23,42,.16);
-    backdrop-filter: blur(10px);
+    padding: 0;
+    box-shadow: none;
+    backdrop-filter: none;
     cursor: default;
     display: grid;
-    gap: 5px;
+    gap: 4px;
     text-align: left;
     transform-origin: bottom center;
     transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
-  .me-area-badge-marker:hover {
+  .me-area-badge-marker:hover,
+  .me-area-badge-marker:focus-within {
     transform: translateY(-2px);
-    box-shadow: 0 16px 34px rgba(15,23,42,.2);
-    border-color: rgba(13,148,136,.46);
   }
   .me-area-badge-main {
     display: grid;
-    gap: 5px;
-    width: 100%;
+    gap: 4px;
+    width: auto;
+    max-width: 188px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -7386,20 +7394,53 @@ export const MAP_EXPLORER_STYLES = `
     text-align: left;
     cursor: pointer;
   }
+  .me-area-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 188px;
+    min-height: 30px;
+    padding: 5px 9px;
+    border: 1px solid rgba(13,148,136,.26);
+    border-radius: 999px;
+    background: rgba(255,255,255,.95);
+    box-shadow: 0 10px 24px rgba(15,23,42,.14);
+    backdrop-filter: blur(10px);
+  }
   .me-area-badge-marker strong {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    display: block;
+    min-width: 0;
     overflow: hidden;
-    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
     line-height: 1.2;
     font-weight: 900;
     letter-spacing: 0;
   }
+  .me-area-badge-pill em {
+    flex: 0 0 auto;
+    font-style: normal;
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
   .me-area-badge-chips {
-    display: flex;
+    display: none;
     flex-wrap: wrap;
     gap: 3px;
+    max-width: 188px;
+    padding: 6px 7px 7px;
+    border-radius: 10px;
+    border: 1px solid rgba(15,23,42,.06);
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 12px 28px rgba(15,23,42,.13);
+  }
+  .me-area-badge-marker:hover .me-area-badge-chips,
+  .me-area-badge-marker:focus-within .me-area-badge-chips {
+    display: flex;
   }
   .me-area-badge-chip {
     display: inline-flex;
@@ -7422,7 +7463,40 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-badge-chip-fungi { background: rgba(217,119,6,.14); color: #78350f; }
   .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
   .me-area-badge-chip-guide { background: #0f172a; color: #f8fafc; }
-  .me-area-badge-marker.has-guide-stop .me-area-badge-main { border-color: rgba(15,23,42,.22); box-shadow: 0 12px 28px rgba(15,23,42,.16); }
+  .me-area-badge-marker.has-guide-stop .me-area-badge-pill { border-color: rgba(15,23,42,.22); }
+  .me-area-badge-actions {
+    display: none;
+    gap: 4px;
+    max-width: 188px;
+    padding: 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.95);
+    box-shadow: 0 12px 28px rgba(15,23,42,.12);
+  }
+  .me-area-badge-marker:hover .me-area-badge-actions,
+  .me-area-badge-marker:focus-within .me-area-badge-actions {
+    display: flex;
+  }
+  .me-area-badge-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 10px;
+    line-height: 1.1;
+    font-weight: 900;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .me-area-badge-actions a:nth-child(2) {
+    background: rgba(240,253,250,.96);
+    color: #0f766e;
+    border: 1px solid rgba(15,118,110,.18);
+  }
   .me-area-badge-marker.is-guide-compact {
     min-width: 0;
     max-width: none;
@@ -7571,44 +7645,6 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 850;
     text-decoration: none;
   }
-  .me-area-badge-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    padding-top: 1px;
-  }
-  .me-area-badge-actions a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 24px;
-    padding: 4px 6px;
-    border-radius: 7px;
-    border: 1px solid rgba(13,148,136,.18);
-    background: rgba(240,253,250,.92);
-    color: #0f766e;
-    font-size: 10px;
-    line-height: 1;
-    font-weight: 900;
-    letter-spacing: 0;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .me-area-badge-actions a:first-child {
-    background: #0f9f7a;
-    border-color: #0f9f7a;
-    color: #fff;
-  }
-  .me-area-badge-actions a:hover {
-    border-color: rgba(13,148,136,.42);
-    background: #ecfdf5;
-    color: #0f766e;
-  }
-  .me-area-badge-actions a:first-child:hover {
-    background: #0f766e;
-    color: #fff;
-  }
-
   .me-search-icon { font-size: 13px; color: #475569; }
   .me-search-input {
     flex: 1 1 auto; min-width: 0; border: 0; background: transparent;
@@ -9138,15 +9174,22 @@ export const MAP_EXPLORER_STYLES = `
       max-width: calc(100% - 96px);
     }
     .me-area-badge-marker {
-      min-width: 112px;
-      max-width: 154px;
-      padding: 6px 7px 7px;
+      max-width: 150px;
+    }
+    .me-area-badge-pill {
+      max-width: 150px;
+      min-height: 28px;
+      padding: 4px 8px;
     }
     .me-area-badge-marker strong { font-size: 10.5px; }
     .me-area-badge-chip {
       min-height: 17px;
       padding: 2px 5px;
       font-size: 9.5px;
+    }
+    .me-area-badge-chips,
+    .me-area-badge-actions {
+      max-width: 150px;
     }
     .me-area-badge-actions a {
       min-height: 22px;

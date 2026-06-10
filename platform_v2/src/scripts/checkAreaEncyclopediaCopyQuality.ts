@@ -112,28 +112,43 @@ function extractAreaSpotSection(html: string): string {
   return end < 0 ? html.slice(start) : html.slice(start, end + "</section>".length);
 }
 
+function extractAreaGrowthSection(html: string): string {
+  const start = html.indexOf('<section class="field-area-growth-empty"');
+  if (start < 0) return "";
+  const end = html.indexOf("</section>", start);
+  return end < 0 ? html.slice(start) : html.slice(start, end + "</section>".length);
+}
+
 const failures: string[] = [];
 
 const emptyHtml = renderFieldDetailBody({ field: parkField(), stats: stats(), snapshot: snapshot() });
 const emptySection = extractAreaSpotSection(emptyHtml);
+const emptyGrowthSection = extractAreaGrowthSection(emptyHtml);
 
-if (!emptySection) {
-  failures.push("area encyclopedia spot section is missing in empty-state render");
+if (emptySection) {
+  failures.push("area encyclopedia spot section must be omitted in empty-state render");
 }
 
-for (const required of ["Park Points", "園内の見どころ", "園内の見どころはこれから"]) {
-  if (!emptySection.includes(required)) {
+if (!emptyGrowthSection) {
+  failures.push("area encyclopedia empty-state render must include consolidated growth block");
+}
+
+for (const required of ["この図鑑はこれから育つ", "現地で見る入口へ", "field-local-guides"]) {
+  if (!emptyGrowthSection.includes(required)) {
     failures.push(`area empty-state copy must include: ${required}`);
   }
 }
 
 for (const forbidden of [
   "近くのスポットはまだありません",
+  "園内の見どころはこれから",
+  "関連する企業・団体はまだありません",
+  "<strong>0</strong><span>近くのスポット</span>",
   AREA_SPOT_TYPE_LABELS.park_land,
   "field-spot-filters",
   "data-spot-filter",
 ]) {
-  if (emptySection.includes(forbidden)) {
+  if (emptyHtml.includes(forbidden)) {
     failures.push(`area empty-state copy must not deny or filter parent spot categories: ${forbidden}`);
   }
 }

@@ -236,10 +236,11 @@ test("area encyclopedia renders ordinary park guide templates without payload", 
 
   assert.match(html, /エリア図鑑/);
   assert.match(html, /<strong>50<\/strong><span>公開記録<\/span>/);
-  assert.match(html, /<strong>0<\/strong><span>近くのスポット<\/span>/);
+  assert.doesNotMatch(html, /<strong>0<\/strong><span>近くのスポット<\/span>/);
   assert.match(html, /<strong>3<\/strong><span>ガイド候補<\/span>/);
-  assert.match(html, /園内の見どころ/);
-  assert.match(html, /園内の見どころはこれから/);
+  assert.match(html, /この図鑑はこれから育つ/);
+  assert.match(html, /現地で見る入口へ/);
+  assert.doesNotMatch(html, /園内の見どころ|園内の見どころはこれから/);
   assert.doesNotMatch(html, /近くのスポットはまだありません|公園・用地/);
   assert.match(html, /現地で聞けるガイド/);
   assert.match(html, /現地で見る入口/);
@@ -248,7 +249,7 @@ test("area encyclopedia renders ordinary park guide templates without payload", 
   assert.match(html, /はじめての1分ガイド/);
   assert.match(html, /季節の入口ガイド/);
   assert.match(html, /木のまわりガイド/);
-  assert.match(html, /関連する企業・団体はまだありません/);
+  assert.doesNotMatch(html, /関連する企業・団体はまだありません/);
 
   const localGuideIndex = html.indexOf('id="field-local-guides"');
   const albumIndex = html.indexOf('id="field-album"');
@@ -308,6 +309,9 @@ test("field detail map script uses only area spot coordinates for markers", () =
 
   assert.match(script, /areaSpots\.filter\(isPublicSpot\)\.forEach/);
   assert.match(script, /field-spot-map-pin/);
+  assert.match(script, /id: "evt-field-fill"/);
+  assert.match(script, /"fill-opacity": 0\.18/);
+  assert.match(script, /fitBounds\(bounds/);
   assert.doesNotMatch(script, /buildCircle/);
   assert.doesNotMatch(script, /field-map-pin/);
 });
@@ -324,6 +328,9 @@ test("field detail mobile hero splits map and place copy without taking the full
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 1020px\) \{[\s\S]*min-height: clamp\(420px, 58vw, 500px\);/);
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*min-height: 0;[\s\S]*grid-template-rows: clamp\(156px, 42vw, 208px\) auto;/);
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.field-map-hero-map \{[\s\S]*position: relative;/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.field-map-hero-stats \{[\s\S]*display: flex;/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-map-hero-stats-empty/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-area-growth-empty/);
   assert.doesNotMatch(FIELD_DETAIL_ALBUM_STYLES, /min-height: 680px;/);
   assert.doesNotMatch(FIELD_DETAIL_ALBUM_STYLES, /min-height: 620px;/);
 });
