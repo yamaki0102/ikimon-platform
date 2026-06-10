@@ -172,6 +172,39 @@ test("map legend stays within the map viewport", () => {
   assert.match(styles, /overflow-wrap: anywhere/);
 });
 
+test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(html, /id="me-layer-hint"/);
+  assert.match(html, /id="me-layer-hint-jump"[^>]*>見える場所へ<\/button>/);
+  assert.match(html, /aria-label="閉じる"/);
+  assert.match(script, /function layerHintInfo\(tab\)/);
+  assert.match(script, /ズームするとエリア図鑑の範囲が見えます。/);
+  assert.match(script, /ズームすると記録の余白が面で見えます。/);
+  assert.match(script, /ズームすると季節の気配の濃淡が見えます。/);
+  assert.match(script, /maybeShowLayerHint\(state\.tab\);/);
+  assert.match(script, /function jumpToVisibleLayer\(tab\)/);
+  assert.match(script, /fallbackRegionBounds/);
+  assert.match(script, /layerHintJumpEl\.addEventListener\('click'/);
+  assert.match(styles, /\.me-layer-hint \{/);
+  assert.match(styles, /\.me-layer-hint\.is-hidden \{ display: none; \}/);
+  assert.match(styles, /\.me-layer-hint-jump \{/);
+});
+
+test("frontier and heatmap layers gain stronger zoom-sensitive visual feedback", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /id: fillId,\s+type: 'fill',\s+source: sourceId,\s+minzoom: 8,/);
+  assert.match(script, /'blank', 'rgba\(100,116,139,0\.30\)'/);
+  assert.match(script, /'repeatable', 'rgba\(20,184,166,0\.38\)'/);
+  assert.match(script, /'fill-outline-color': 'rgba\(15,118,110,0\.30\)'/);
+  assert.match(script, /'fill-opacity': \[\s+'interpolate', \['linear'\], \['zoom'\],\s+5, \['interpolate'/);
+  assert.match(script, /10, \['interpolate', \['linear'\], \['coalesce', \['get', 'count'\], 0\]/);
+  assert.match(script, /14, \['interpolate', \['linear'\], \['coalesce', \['get', 'count'\], 0\]/);
+});
+
 test("area badge clicks reopen the side panel before showing selection", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const openAreaSheetBody = script.slice(script.indexOf("function openAreaSheet("), script.indexOf("function applyAreaSnapshot"));
