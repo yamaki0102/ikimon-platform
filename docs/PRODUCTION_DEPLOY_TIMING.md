@@ -20,7 +20,7 @@ The script separates:
 
 - GitHub Actions queue wait: run `createdAt` to first job `startedAt`.
 - Active deploy span: first job start to last completed job.
-- Job durations: pre-flight, prepare, candidate smoke, promote, post-deploy verification.
+- Job durations: pre-flight, prepare, candidate smoke tier/duration, promote, post-deploy verification.
 - Heavy prepare steps: legacy deploy over SSH and inactive `platform_v2` candidate prepare.
 
 The VPS prepare script also emits `deploy_timing ...` lines and writes JSONL to:
@@ -70,7 +70,7 @@ PR #715 targets only repeated deterministic work in the VPS prepare phase:
 Safety checks intentionally retained:
 
 - blue/green candidate runtime
-- candidate browser smoke
+- candidate full browser smoke or targeted smoke
 - readiness gates
 - nginx snapshot rollback
 - public smoke after promote
@@ -99,9 +99,9 @@ After PR #715 is merged and the first production deploy finishes:
    inspect changed-file counts, root `observations.json` fallback, and changed observation batch
    size before considering a broader architecture change. Use `FORCE_LEGACY_SYNC=1` only for
    recovery, cursor repair, or an intentional full re-import.
-2. Candidate browser smoke is the largest remaining fixed safety cost after warm-path prepare.
-   Any fast lane should add a separate reduced smoke contract instead of weakening the normal
-   production deploy.
+2. Candidate smoke is tiered by changed files. If UI/route/runtime files change, keep full browser
+   smoke. If deploy/import/docs-only files change, use targeted health/readiness/route smoke and
+   compare the candidate-smoke job duration against the prior full-smoke baseline.
 3. Split candidate packaging from server install only if repeated `npm ci` and build become
    dominant again after cache.
-4. Keep candidate/browser smoke and readiness gates intact; do not trade rollback safety for speed.
+4. Keep readiness gates and route smoke intact; do not trade rollback safety for speed.
