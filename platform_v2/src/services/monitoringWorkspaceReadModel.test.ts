@@ -15,9 +15,11 @@ function contract(options: {
   publicPrecision?: string;
   riskLane?: string;
   effortMinutes?: number;
+  detectionSemantic?: MonitoringRecordContractV0["effortDenominator"]["detectionSemantic"];
   blockers?: string[];
 } = {}): MonitoringRecordContractV0 {
   const state = options.state ?? "ai_suggested";
+  const detectionSemantic = options.detectionSemantic ?? "not_evaluated";
   return {
     schemaVersion: "monitoring_record_contract/v0",
     recordCore: {
@@ -58,7 +60,12 @@ function contract(options: {
       observerCount: null,
       targetTaxaScope: "plants",
       completeChecklistFlag: false,
-      noDetection: false,
+      detectionSemantic,
+      detectionSemanticLabel: detectionSemantic === "non_detection" ? "この条件では確認されず" : "未評価",
+      detectionClaimBoundary: detectionSemantic === "non_detection"
+        ? "対象範囲と努力量がある条件つき未確認です。不在証明ではありません。"
+        : "未確認を評価していません。",
+      noDetection: detectionSemantic === "non_detection" || detectionSemantic === "absence_candidate" || detectionSemantic === "absence",
       noCatch: false,
       repeatVisit: false,
       dataGapReasons: [],
@@ -117,6 +124,7 @@ function record(
     riskLane?: string;
     effortMinutes?: number;
     blockers?: string[];
+    detectionSemantic?: MonitoringRecordContractV0["effortDenominator"]["detectionSemantic"];
   } = {},
 ): MonitoringWorkspaceRecordInput {
   const point = Object.hasOwn(overrides, "point")
@@ -138,6 +146,7 @@ function record(
       publicPrecision: overrides.publicPrecision,
       riskLane: overrides.riskLane,
       effortMinutes: overrides.effortMinutes,
+      detectionSemantic: overrides.detectionSemantic,
       blockers: overrides.blockers,
     }),
   };
@@ -204,6 +213,29 @@ test("workspace read model separates area aggregation from formal export readine
   assert.equal(model.reportReadiness.ready, false);
   assert.ok(model.reportReadiness.checklist.some((item) => item.blockers.includes("export_ready_record_missing")));
   assert.equal(model.operationQueues.identification_waiting[0]?.targetId, "ai-candidate");
+});
+
+test("workspace read model keeps scoped non-detection out of presence candidate counts", () => {
+  const model = buildMonitoringWorkspaceReadModel({
+    workspaceId: "workspace-1",
+    label: "P0 workspace",
+    area,
+    term: { start: "2026-04-01T00:00:00.000Z", end: "2026-04-30T23:59:59.999Z" },
+    gridStepDegrees: 0.05,
+    records: [
+      record("scoped-non-detection", {
+        state: "unverified",
+        detectionSemantic: "non_detection",
+        blockers: [],
+        effortMinutes: 20,
+      }),
+    ],
+  });
+
+  assert.equal(model.summary.candidateCount, 0);
+  assert.equal(model.summary.nonDetectionCount, 1);
+  assert.equal(model.records[0]?.detectionStatus, "non_detection");
+  assert.equal(model.grid.find((cell) => cell.recordCount > 0)?.nonDetectionCount, 1);
 });
 
 test("workspace read model keeps mesh coverage and season coverage as operation KPIs", () => {

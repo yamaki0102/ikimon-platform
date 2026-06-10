@@ -151,14 +151,14 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /今日見つけた生きものを、名前が分からなくても残せる。/);
   assert.doesNotMatch(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
-  assert.match(html, /記録する/);
+  assert.match(html, /場所の手がかり/);
   assert.doesNotMatch(html, /名前を確かめる/);
   assert.doesNotMatch(html, /名前は後でいい/);
   assert.doesNotMatch(html, /AIは候補まで/);
   assert.doesNotMatch(html, /位置は安全側/);
   assert.match(html, /aria-label="育つ観察エリア"/);
   assert.doesNotMatch(html, /地域マップ/);
-  assert.match(html, /<section class="prototype-content-wall" aria-label="投稿一覧">/);
+  assert.match(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
   assert.doesNotMatch(html, /prototype-content-wall-heading/);
   assert.doesNotMatch(html, /WATCH/);
   assert.doesNotMatch(html, /すべて見る/);
@@ -281,7 +281,7 @@ test("landing top localizes the content-first shelves in English", () => {
   const html = renderTop(emptySnapshot, "en");
 
   assert.doesNotMatch(html, /Save what you found today/);
-  assert.match(html, /<section class="prototype-content-wall" aria-label="Posts">/);
+  assert.match(html, /<section class="prototype-content-wall" aria-label="Place records">/);
   assert.doesNotMatch(html, /WATCH/);
   assert.match(html, /<h3>Everyone&#39;s records<\/h3>/);
   assert.doesNotMatch(html, /Names can come later/);
@@ -302,7 +302,7 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.doesNotMatch(html, /prototype-content-icon is-globe/);
   assert.doesNotMatch(html, /prototype-content-icon is-user/);
   assert.doesNotMatch(html, /写真と動画/);
-  assert.match(html, /<section class="prototype-content-wall" aria-label="投稿一覧">/);
+  assert.match(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
   assert.match(html, /prototype-content-card/);
   assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
 });
@@ -354,7 +354,7 @@ test("landing top renders signed-in own and community posts as thumbnail content
     feed: [{ ...photoObservation, observerAvatarUrl: "/uploads/my-avatar.jpg" }, communityObservation],
   });
 
-  assert.match(html, /<section class="prototype-content-wall" aria-label="投稿一覧">/);
+  assert.match(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
   assert.match(html, /prototype-content-lanes is-split/);
   assert.match(html, /prototype-content-lane is-mine/);
   assert.match(html, /prototype-content-lane is-community/);
@@ -362,8 +362,8 @@ test("landing top renders signed-in own and community posts as thumbnail content
   assert.match(html, /<h3>みんなの記録<\/h3>/);
   assert.match(html, />MY RECORDS<\/span>/);
   assert.match(html, />EVERYONE&#39;S RECORDS<\/span>/);
-  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=mine" aria-label="自分の記録の投稿をもっと見る"/);
-  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=public" aria-label="みんなの記録の投稿をもっと見る"/);
+  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=mine" aria-label="自分の記録をもっと見る"/);
+  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=public" aria-label="みんなの記録をもっと見る"/);
   assert.match(html, /data-kpi-action="landing:content_wall:mine:more"/);
   assert.match(html, /data-kpi-action="landing:content_wall:community:more"/);
   assert.match(html, /data-kpi-action="landing:content_wall:mine"/);

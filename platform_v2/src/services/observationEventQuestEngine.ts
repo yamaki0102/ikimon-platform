@@ -139,9 +139,9 @@ function buildStaticFallbackQuests(ctx: QuestPromptContext): GeneratedQuest[] {
     out.push({
       team_name: "all",
       kind: "absence",
-      headline: "「いない」を確かめよう",
-      prompt: `この場所で 5 分、目に入る種類を絞って探してみる。見つからなかったら「いない」を残そう。`,
-      rationale: "Absence 記録は ZINB / Occupancy Model 入力として希少。研究貢献度が個人記録より高い。",
+      headline: "確認されなかった条件を残そう",
+      prompt: `この場所で 5 分、対象を絞って探してみる。見つからなかったら、対象と時間を添えて「この条件では確認されず」と残そう。`,
+      rationale: "条件つき未確認は、対象範囲と努力量がある場合だけ Coverage Debt や次回観察計画の材料になる。",
       expires_in_minutes: 12,
     });
   }

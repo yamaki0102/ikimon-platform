@@ -36,7 +36,7 @@ test("regional hypotheses produce hypothesis candidates, not ecological assertio
   assert.ok(drafts.every((draft) => draft.confidence <= 0.72));
   assert.ok(drafts.every((draft) => draft.biasWarnings.includes("guide_records_are_opportunistic")));
   assert.ok(drafts.some((draft) => draft.missingData.includes("complete_checklist")));
-  assert.ok(drafts.some((draft) => draft.nextSamplingProtocol.includes("occurrence_status=absent")));
+  assert.ok(drafts.some((draft) => draft.nextSamplingProtocol.includes("条件つき未確認")));
 });
 
 test("regional hypotheses keep effort and absence limitations visible even with stronger samples", () => {

@@ -1403,7 +1403,7 @@ function seasonalCheckForSubject(subjectKind: ObservationSubjectKind, season: Se
       spring: "成長期に入る時期。同じ場所で2-4週間後に再訪すると変化が大きい",
       summer: "活動・成長のピーク。早朝/夕方など時刻を変えて再訪すると違う姿が見える",
       autumn: "実り・色づきの時期。同じ角度で月1回撮ると変化を時系列で残せる",
-      winter: "在/不在が分かりやすい季節。残っているものこそ場所の特徴を語る",
+      winter: "確認できたものと確認されなかった条件が分かれやすい季節。残っているものこそ場所の特徴を語る",
     },
   };
   return map[subjectKind]?.[season] ?? null;

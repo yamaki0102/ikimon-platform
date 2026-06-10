@@ -192,8 +192,8 @@ type LandingHeroText = {
 function landingHeroText(lang: SiteLang): LandingHeroText {
   const localized: Record<SiteLang, LandingHeroText> = {
     ja: {
-      heading: "今日見つけた生きものを、名前が分からなくても残せる。",
-      lead: "散歩中でも旅先でも、写真・動画・音・場所・ひとことを先に残せます。名前や根拠は、AI候補と人の確認であとから観察レコードへ育てます。",
+      heading: "生きものを手がかりに、この場所の今を残す。",
+      lead: "散歩中でも旅先でも、写真・動画・音・場所・ひとことを先に残せます。名前が分からない記録も、見つからなかった条件も、あとから場所の記憶と観察レコードへ育てます。",
       searchLabel: "場所や生きものを検索",
       searchPlaceholder: "場所・生きものを探す",
       searchButton: "検索",
@@ -204,8 +204,8 @@ function landingHeroText(lang: SiteLang): LandingHeroText {
       ],
     },
     en: {
-      heading: "Save what you found today, even before you know the name.",
-      lead: "On a walk or a trip, keep the photo, video, sound, place, and short note first. AI hints and human review can help the record grow later.",
+      heading: "Use living things as clues to save what this place is like today.",
+      lead: "On a walk or a trip, keep the photo, video, sound, place, and short note first. Unknown records and scoped non-detections can later grow into place memory and observation records.",
       searchLabel: "Search species or places",
       searchPlaceholder: "Search species or places",
       searchButton: "Search",
@@ -246,25 +246,25 @@ function landingHeroText(lang: SiteLang): LandingHeroText {
 function landingDailyActionCopy(lang: SiteLang, kind: LandingDailyCardKind): LandingDailyActionCopy {
   const localized: Record<SiteLang, Record<LandingDailyCardKind, LandingDailyActionCopy>> = {
     ja: {
-      recordToday: { icon: "+", title: "記録する", fallbackBody: "名前が分からなくても始められます。" },
+      recordToday: { icon: "+", title: "場所の手がかり", fallbackBody: "名前が分からなくても、この場所の記録になります。" },
       revisitPlace: { icon: "↻", title: "前回の続き", fallbackBody: "同じ場所の変化を見る。" },
       nearbyPulse: { icon: "◎", title: "近くを見る", fallbackBody: "記録が増えた場所を開く。" },
       needsId: { icon: "?", title: "名前を確かめる", fallbackBody: "分からない記録を少し確かめる。" },
     },
     en: {
-      recordToday: { icon: "+", title: "Post", fallbackBody: "A record can start before you know the name." },
+      recordToday: { icon: "+", title: "Place clue", fallbackBody: "A place record can start before you know the name." },
       revisitPlace: { icon: "↻", title: "Revisit", fallbackBody: "Look for what changed in the same place." },
       nearbyPulse: { icon: "◎", title: "Nearby", fallbackBody: "Open places where records are growing." },
       needsId: { icon: "?", title: "Needs ID", fallbackBody: "Check one record that needs a name." },
     },
     es: {
-      recordToday: { icon: "+", title: "Guardar foto", fallbackBody: "Puedes registrar antes de saber el nombre." },
+      recordToday: { icon: "+", title: "Pista del lugar", fallbackBody: "El registro del lugar puede empezar antes del nombre." },
       revisitPlace: { icon: "↻", title: "Volver", fallbackBody: "Mira que cambio en el mismo lugar." },
       nearbyPulse: { icon: "◎", title: "Cerca", fallbackBody: "Abre lugares con mas registros." },
       needsId: { icon: "?", title: "Ayudar a nombrar", fallbackBody: "Revisa un registro sin nombre claro." },
     },
     "pt-BR": {
-      recordToday: { icon: "+", title: "Salvar foto", fallbackBody: "Voce pode registrar antes de saber o nome." },
+      recordToday: { icon: "+", title: "Pista do lugar", fallbackBody: "O registro do lugar pode começar antes do nome." },
       revisitPlace: { icon: "↻", title: "Voltar", fallbackBody: "Veja o que mudou no mesmo lugar." },
       nearbyPulse: { icon: "◎", title: "Perto", fallbackBody: "Abra lugares com mais registros." },
       needsId: { icon: "?", title: "Ajudar no nome", fallbackBody: "Revise um registro sem nome claro." },
@@ -416,35 +416,35 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
   const localized: Record<SiteLang, LandingContentWallCopy> = {
     ja: {
       eyebrow: "WATCH",
-      title: "投稿一覧",
+      title: "場所の記録",
       mineEyebrow: "MY RECORDS",
       mineTitle: "自分の記録",
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "みんなの記録",
-      emptyTitle: "表示できる投稿を準備中です",
-      emptyBody: "投稿が入ると、ここにサムネイルで並びます。",
-      mineEmptyTitle: "自分の投稿はまだありません",
-      communityEmptyTitle: "みんなの投稿を準備中です",
+      emptyTitle: "表示できる場所の記録を準備中です",
+      emptyBody: "場所の手がかりが残ると、ここにサムネイルで並びます。",
+      mineEmptyTitle: "自分の場所の記録はまだありません",
+      communityEmptyTitle: "みんなの場所の記録を準備中です",
       emptyCta: "記録する",
       allCta: "すべて見る",
     },
     en: {
       eyebrow: "WATCH",
-      title: "Posts",
+      title: "Place records",
       mineEyebrow: "MY RECORDS",
       mineTitle: "My records",
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "Everyone's records",
-      emptyTitle: "Posts are still warming up",
-      emptyBody: "New posts will appear here as thumbnails.",
-      mineEmptyTitle: "No posts from you yet",
-      communityEmptyTitle: "Everyone's posts are still warming up",
-      emptyCta: "Post a record",
+      emptyTitle: "Place records are still warming up",
+      emptyBody: "Place clues will appear here as thumbnails.",
+      mineEmptyTitle: "No place records from you yet",
+      communityEmptyTitle: "Everyone's place records are still warming up",
+      emptyCta: "Save a place record",
       allCta: "See all",
     },
     es: {
       eyebrow: "WATCH",
-      title: "Publicaciones",
+      title: "Registros del lugar",
       mineEyebrow: "MY RECORDS",
       mineTitle: "Mis registros",
       communityEyebrow: "EVERYONE'S RECORDS",
@@ -458,7 +458,7 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
     },
     "pt-BR": {
       eyebrow: "WATCH",
-      title: "Publicacoes",
+      title: "Registros do lugar",
       mineEyebrow: "MY RECORDS",
       mineTitle: "Meus registros",
       communityEyebrow: "EVERYONE'S RECORDS",
@@ -650,8 +650,8 @@ function renderLandingContentWallLane(
   const moreHref = landingHref(basePath, lang, source === "mine" ? "/records?view=mine" : "/records?view=public");
   const moreLabel = lang === "ja" ? "もっと見る" : lang === "en" ? "View more" : lang === "es" ? "Ver mas" : "Ver mais";
   const moreAria = lang === "ja"
-    ? `${title}の投稿をもっと見る`
-    : source === "mine" ? "View more of your posts" : "View more community posts";
+    ? `${title}をもっと見る`
+    : source === "mine" ? "View more of your place records" : "View more community place records";
   const cardsHtml = items.length > 0
     ? items.map((obs, index) => renderLandingContentWallCard(basePath, lang, copy, obs, index)).join("")
     : renderLandingContentWallEmpty(emptyTitle, wallCopy.emptyBody, recordHref, wallCopy.emptyCta);
