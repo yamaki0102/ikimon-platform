@@ -23,6 +23,11 @@ The script separates:
 - Job durations: pre-flight, prepare, candidate smoke, promote, post-deploy verification.
 - Heavy prepare steps: legacy deploy over SSH and inactive `platform_v2` candidate prepare.
 
+The VPS prepare script also emits `deploy_timing ...` lines and writes JSONL to:
+
+- `/var/www/ikimon.life/deploy_state/prepare_timing_<release-id>.jsonl`
+- `/var/www/ikimon.life/deploy_state/prepare_timing_latest.jsonl`
+
 ## Baseline Before PR #715
 
 Sample: latest 7 completed successful production deploy runs before PR #715.
@@ -64,7 +69,7 @@ After PR #715 is merged and the first production deploy finishes:
 
 1. Run the measurement command for the new production run.
 2. Compare `Prepare Production Candidate`, `Legacy deploy over SSH`, and `Inactive platform_v2 candidate prepare` against the baseline above.
-3. If `Inactive platform_v2 candidate prepare` remains over 180 seconds, add server-side timing markers inside `deploy_platform_v2_blue_green.sh` around:
+3. If `Inactive platform_v2 candidate prepare` remains over 180 seconds, inspect the server-side timing markers from `deploy_platform_v2_blue_green.sh` around:
    - `npm ci`
    - `npm run build:server`
    - migrations
@@ -73,7 +78,8 @@ After PR #715 is merged and the first production deploy finishes:
    - knowledge navigation compile
    - guide environment postdeploy
    - legacy sync / parity / drift report
-4. If total wall time is high but active span is low, treat it as GitHub queue/environment pressure rather than deploy script work.
+4. Use the VPS `prepare_timing_latest.jsonl` log to rank the remaining prepare bottlenecks.
+5. If total wall time is high but active span is low, treat it as GitHub queue/environment pressure rather than deploy script work.
 
 ## Next Improvement Candidates
 

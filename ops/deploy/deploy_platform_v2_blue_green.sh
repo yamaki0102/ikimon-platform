@@ -257,6 +257,43 @@ write_marker() {
   mv "${marker}.tmp" "${marker}"
 }
 
+log_deploy_timing() {
+  local stage="$1"
+  local seconds="$2"
+  local status="$3"
+  local log_path="${DEPLOY_TIMING_LOG:-}"
+
+  printf 'deploy_timing stage=%s seconds=%s status=%s release=%s\n' \
+    "${stage}" "${seconds}" "${status}" "${DEPLOY_TIMING_RELEASE:-unknown}"
+
+  if [[ -n "${log_path}" ]]; then
+    mkdir -p "$(dirname "${log_path}")"
+    printf '{"event":"deploy_timing","stage":"%s","seconds":%s,"status":"%s","release":"%s"}\n' \
+      "${stage}" "${seconds}" "${status}" "${DEPLOY_TIMING_RELEASE:-unknown}" >> "${log_path}"
+  fi
+}
+
+timed_step() {
+  local stage="$1"
+  shift
+
+  local start end rc status
+  start="$(date +%s)"
+  printf 'deploy_timing_start stage=%s release=%s\n' "${stage}" "${DEPLOY_TIMING_RELEASE:-unknown}"
+  set +e
+  "$@"
+  rc=$?
+  set -e
+  end="$(date +%s)"
+  if [[ "${rc}" -eq 0 ]]; then
+    status="success"
+  else
+    status="failure"
+  fi
+  log_deploy_timing "${stage}" "$((end - start))" "${status}"
+  return "${rc}"
+}
+
 run_hashed_static_import() {
   local name="$1"
   local source_file="$2"
@@ -309,12 +346,17 @@ prepare_release() {
   local release_id="$1"
   local active inactive port release_root release_platform
 
-  materialize_env
-  install_units
-  ensure_private_uploads_dir
-  stop_legacy_pm2
-
   mkdir -p "${RELEASES_DIR}" "${RUNTIME_DIR}" "${STATE_DIR}"
+  DEPLOY_TIMING_RELEASE="${release_id}"
+  DEPLOY_TIMING_LOG="${STATE_DIR}/prepare_timing_${release_id}.jsonl"
+  : > "${DEPLOY_TIMING_LOG}"
+  ln -sfn "$(basename "${DEPLOY_TIMING_LOG}")" "${STATE_DIR}/prepare_timing_latest.jsonl"
+
+  timed_step "materialize_env" materialize_env
+  timed_step "install_units" install_units
+  timed_step "ensure_private_uploads_dir" ensure_private_uploads_dir
+  timed_step "stop_legacy_pm2" stop_legacy_pm2
+
   active="$(infer_active_color)"
   inactive="$(other_color "${active}")"
   port="$(port_for_color "${inactive}")"
@@ -322,7 +364,7 @@ prepare_release() {
   release_platform="${release_root}/platform_v2"
 
   mkdir -p "${release_root}"
-  rsync -a --delete \
+  timed_step "rsync_platform_v2" rsync -a --delete \
     --exclude node_modules \
     --exclude dist \
     --exclude test-results \
@@ -331,39 +373,39 @@ prepare_release() {
 
   cd "${release_platform}"
   mkdir -p "${CACHE_DIR}/npm"
-  npm_config_cache="${CACHE_DIR}/npm" npm ci --prefer-offline --silent
-  npm run build:server
-  export_runtime_env
+  timed_step "npm_ci" env npm_config_cache="${CACHE_DIR}/npm" npm ci --prefer-offline --silent
+  timed_step "build_server" npm run build:server
+  timed_step "export_runtime_env" export_runtime_env
   export IKIMON_MIGRATION_REPAIR_CHECKSUMS="${IKIMON_MIGRATION_REPAIR_CHECKSUMS:-0012_contact_submissions.sql,0013_video_upload_requests.sql,0014_audio_segments.sql,0015_observation_reactions_and_insights.sql,0016_observation_ai_assessments.sql,0075_normalize_shizuoka_locality_labels.sql}"
-  npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
-  npm run migrate
-  import_shizuoka_admin_areas
-  run_hashed_static_import \
+  timed_step "repair_observation_field_source_policy" npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
+  timed_step "migrate" npm run migrate
+  timed_step "static_import_n03_shizuoka_admin" import_shizuoka_admin_areas
+  timed_step "static_import_observation_fields_aikan_renri" run_hashed_static_import \
     "observation_fields_aikan_renri" \
     "src/scripts/data/nature_symbiosis_sites.seed.json" \
     npm run import:observation-fields:aikan-renri
-  run_hashed_static_import \
+  timed_step "static_import_invasive_reporting_shizuoka" run_hashed_static_import \
     "invasive_reporting_shizuoka" \
     "db/seeds/invasive_reporting_contacts.shizuoka_2026-05-16.json" \
     npm run import:invasive-reporting:shizuoka
-  npm run compile:knowledge-navigation
-  npm run postdeploy:guide-environment
+  timed_step "compile_knowledge_navigation" npm run compile:knowledge-navigation
+  timed_step "postdeploy_guide_environment" npm run postdeploy:guide-environment
 
-  ln -sfn "${release_platform}" "${RUNTIME_DIR}/${inactive}"
-  chown -h www-data:www-data "${RUNTIME_DIR}/${inactive}" 2>/dev/null || true
-  chown -R www-data:www-data "${release_root}"
+  timed_step "link_inactive_runtime" ln -sfn "${release_platform}" "${RUNTIME_DIR}/${inactive}"
+  timed_step "chown_runtime_symlink" bash -c 'chown -h www-data:www-data "$1" 2>/dev/null || true' _ "${RUNTIME_DIR}/${inactive}"
+  timed_step "chown_release_root" chown -R www-data:www-data "${release_root}"
 
-  systemctl enable --now "ikimon-v2-${inactive}.service"
-  systemctl restart "ikimon-v2-${inactive}.service"
-  systemctl is-active "ikimon-v2-${inactive}.service" >/dev/null
+  timed_step "enable_inactive_service" systemctl enable --now "ikimon-v2-${inactive}.service"
+  timed_step "restart_inactive_service" systemctl restart "ikimon-v2-${inactive}.service"
+  timed_step "check_inactive_service" bash -c 'systemctl is-active "$1" >/dev/null' _ "ikimon-v2-${inactive}.service"
 
-  npm run sync:legacy -- --force --source-name=production_legacy_fs --import-version=production_shadow_live
-  npm run repair:location-labels
-  npm run repair:hamamatsu-ward-labels -- --apply
-  npm run verify:production-shadow -- --import-version=production_shadow_live
-  npm run report:legacy-drift -- --json
-  npm run smoke:v2-lane -- --base-url="http://127.0.0.1:${port}"
-  IKIMON_SCENE_READ_SMOKE=required npm run smoke:v2-read-lane -- --base-url="http://127.0.0.1:${port}"
+  timed_step "sync_legacy" npm run sync:legacy -- --force --source-name=production_legacy_fs --import-version=production_shadow_live
+  timed_step "repair_location_labels" npm run repair:location-labels
+  timed_step "repair_hamamatsu_ward_labels" npm run repair:hamamatsu-ward-labels -- --apply
+  timed_step "verify_production_shadow" npm run verify:production-shadow -- --import-version=production_shadow_live
+  timed_step "report_legacy_drift" npm run report:legacy-drift -- --json
+  timed_step "smoke_v2_lane_candidate" npm run smoke:v2-lane -- --base-url="http://127.0.0.1:${port}"
+  timed_step "smoke_v2_read_lane_candidate" env IKIMON_SCENE_READ_SMOKE=required npm run smoke:v2-read-lane -- --base-url="http://127.0.0.1:${port}"
 
   printf '%s\n' "${active}" > "${STATE_DIR}/previous_color"
   printf '%s\n' "${inactive}" > "${STATE_DIR}/candidate_color"
