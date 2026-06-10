@@ -144,6 +144,21 @@ repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を r
 `/etc/ikimon/production-v2.env` を正本にする。旧 `pm2 ikimon-v2-production-api` は
 既存 env の移行元であり、通常 deploy の実行単位ではない。
 
+## Deploy Speed Guardrails
+
+Production deploy keeps rollback, readiness, and browser smoke checks intact. Speed improvements
+must remove repeated deterministic work, not safety checks.
+
+- VPS-side `npm ci` uses `${APP_ROOT}/cache/npm` with `--prefer-offline`. Lockfile validation still
+  runs through `npm ci`; the cache only avoids repeated package downloads.
+- Production candidate build uses `npm run build:server`. The full `npm run build` quality checks
+  remain in GitHub Actions pre-flight for the same SHA.
+- Fixed static imports are skipped only when their marker/hash under
+  `${APP_ROOT}/deploy_state/static_imports` matches the current source. Set
+  `FORCE_STATIC_IMPORTS=1` for recovery, DB rebuilds, or intentional full reseeding.
+- The N03 Shizuoka ZIP is cached under `${APP_ROOT}/cache/ksj`; changing the publish-date/version
+  marker forces a fresh import.
+
 ## Legacy Routes
 
 - `deploy.json` + `.agent/workflows/deploy_wsl.php`

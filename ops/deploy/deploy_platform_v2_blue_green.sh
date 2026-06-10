@@ -6,6 +6,9 @@ REPO_DIR="${REPO_DIR:-${APP_ROOT}/repo}"
 RELEASES_DIR="${RELEASES_DIR:-${APP_ROOT}/releases}"
 RUNTIME_DIR="${RUNTIME_DIR:-${APP_ROOT}/runtime}"
 STATE_DIR="${STATE_DIR:-${APP_ROOT}/deploy_state}"
+CACHE_DIR="${CACHE_DIR:-${APP_ROOT}/cache}"
+STATIC_IMPORT_STATE_DIR="${STATIC_IMPORT_STATE_DIR:-${STATE_DIR}/static_imports}"
+FORCE_STATIC_IMPORTS="${FORCE_STATIC_IMPORTS:-0}"
 ENV_DIR="${ENV_DIR:-/etc/ikimon}"
 ENV_FILE="${ENV_FILE:-/etc/ikimon/production-v2.env}"
 NGINX_TEMPLATE="${NGINX_TEMPLATE:-${REPO_DIR}/platform_v2/ops/nginx/ikimon.life-v2-cutover.conf}"
@@ -242,13 +245,54 @@ stop_legacy_pm2() {
   fi
 }
 
+file_sha256() {
+  sha256sum "$1" | awk '{print $1}'
+}
+
+write_marker() {
+  local marker="$1"
+  local value="$2"
+  mkdir -p "$(dirname "${marker}")"
+  printf '%s\n' "${value}" > "${marker}.tmp"
+  mv "${marker}.tmp" "${marker}"
+}
+
+run_hashed_static_import() {
+  local name="$1"
+  local source_file="$2"
+  shift 2
+
+  local marker hash existing
+  marker="${STATIC_IMPORT_STATE_DIR}/${name}.sha256"
+  hash="$(file_sha256 "${source_file}")"
+  existing="$(cat "${marker}" 2>/dev/null || true)"
+  if [[ "${FORCE_STATIC_IMPORTS}" != "1" && "${existing}" == "${hash}" ]]; then
+    echo "Skipping unchanged static import: ${name}"
+    return
+  fi
+
+  "$@"
+  write_marker "${marker}" "${hash}"
+}
+
 import_shizuoka_admin_areas() {
-  local tmp zip geojson
+  local tmp zip geojson marker version existing
+  version="N03-20250101_22_GML:2025-01-01"
+  marker="${STATIC_IMPORT_STATE_DIR}/n03_shizuoka_admin.version"
+  existing="$(cat "${marker}" 2>/dev/null || true)"
+  if [[ "${FORCE_STATIC_IMPORTS}" != "1" && "${existing}" == "${version}" ]]; then
+    echo "Skipping unchanged static import: n03_shizuoka_admin"
+    return
+  fi
+
+  mkdir -p "${CACHE_DIR}/ksj"
   tmp="$(mktemp -d)"
-  zip="${tmp}/N03-20250101_22_GML.zip"
-  curl -fsSL --retry 3 --connect-timeout 20 \
-    "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2025/N03-20250101_22_GML.zip" \
-    -o "${zip}"
+  zip="${CACHE_DIR}/ksj/N03-20250101_22_GML.zip"
+  if [[ ! -s "${zip}" ]]; then
+    curl -fsSL --retry 3 --connect-timeout 20 \
+      "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2025/N03-20250101_22_GML.zip" \
+      -o "${zip}"
+  fi
   python3 -m zipfile -e "${zip}" "${tmp}"
   geojson="$(find "${tmp}" -maxdepth 2 -type f -name "*.geojson" | head -n 1)"
   if [[ -z "${geojson}" ]]; then
@@ -257,6 +301,7 @@ import_shizuoka_admin_areas() {
     exit 1
   fi
   npm run import:n03-admin -- --geojson "${geojson}" --publish-date 2025-01-01
+  write_marker "${marker}" "${version}"
   rm -rf "${tmp}"
 }
 
@@ -285,15 +330,22 @@ prepare_release() {
     "${REPO_DIR}/platform_v2/" "${release_platform}/"
 
   cd "${release_platform}"
-  npm ci --silent
-  npm run build
+  mkdir -p "${CACHE_DIR}/npm"
+  npm_config_cache="${CACHE_DIR}/npm" npm ci --prefer-offline --silent
+  npm run build:server
   export_runtime_env
   export IKIMON_MIGRATION_REPAIR_CHECKSUMS="${IKIMON_MIGRATION_REPAIR_CHECKSUMS:-0012_contact_submissions.sql,0013_video_upload_requests.sql,0014_audio_segments.sql,0015_observation_reactions_and_insights.sql,0016_observation_ai_assessments.sql,0075_normalize_shizuoka_locality_labels.sql}"
   npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
   npm run migrate
   import_shizuoka_admin_areas
-  npm run import:observation-fields:aikan-renri
-  npm run import:invasive-reporting:shizuoka
+  run_hashed_static_import \
+    "observation_fields_aikan_renri" \
+    "src/scripts/data/nature_symbiosis_sites.seed.json" \
+    npm run import:observation-fields:aikan-renri
+  run_hashed_static_import \
+    "invasive_reporting_shizuoka" \
+    "db/seeds/invasive_reporting_contacts.shizuoka_2026-05-16.json" \
+    npm run import:invasive-reporting:shizuoka
   npm run compile:knowledge-navigation
   npm run postdeploy:guide-environment
 
