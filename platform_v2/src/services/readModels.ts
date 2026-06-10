@@ -143,6 +143,7 @@ export type ObservationDetailSnapshot = {
   displayName: string;
   scientificName: string | null;
   vernacularName: string | null;
+  organismOrigin: string | null;
   aiAssessmentStatus: string | null;
   aiReviewAgreeCount: number;
   aiReviewDisagreeCount: number;
@@ -913,6 +914,7 @@ export async function getObservationDetailSnapshot(
     display_name: string | null;
     scientific_name: string | null;
     vernacular_name: string | null;
+    organism_origin: string | null;
     ai_assessment_status: string | null;
     observed_at: string;
     note: string | null;
@@ -943,6 +945,7 @@ export async function getObservationDetailSnapshot(
         ) as display_name,
         o.scientific_name,
         o.vernacular_name,
+        o.organism_origin,
         o.ai_assessment_status,
         v.observed_at::text,
         v.note,
@@ -1315,6 +1318,7 @@ export async function getObservationDetailSnapshot(
     displayName: base.display_name ?? "同定待ち",
     scientificName: base.scientific_name,
     vernacularName: base.vernacular_name,
+    organismOrigin: base.organism_origin,
     aiAssessmentStatus: base.ai_assessment_status,
     aiReviewAgreeCount,
     aiReviewDisagreeCount,

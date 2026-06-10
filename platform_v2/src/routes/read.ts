@@ -1704,9 +1704,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-chip { position: relative; display: grid; gap: 4px; min-height: 74px; padding: 9px 10px; border-radius: 11px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.07); color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 850; }
   .obs-local-quality-chip-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
   .obs-local-quality-chip strong { color: #0f172a; font-size: 11px; line-height: 1.22; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .obs-local-quality-chip-value-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+  .obs-local-quality-chip-value-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 8px; }
   .obs-local-quality-chip em { min-width: 0; color: #0f172a; font-size: 10.8px; line-height: 1.42; font-style: normal; font-weight: 880; }
-  .obs-local-quality-field-edit { justify-self: end; align-self: center; padding: 2px 6px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #0369a1; font-size: 9.4px; line-height: 1.2; font-weight: 950; cursor: pointer; }
   .obs-local-quality-help { position: relative; display: inline-block; flex: 0 0 auto; }
   .obs-local-quality-help summary { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; min-height: 18px; padding: 0 5px; border-radius: 999px; background: rgba(248,250,252,.96); border: 1px solid rgba(15,23,42,.07); color: #64748b; font-size: 9.5px; line-height: 1.1; font-weight: 950; cursor: pointer; list-style: none; }
   .obs-local-quality-help summary::-webkit-details-marker { display: none; }
@@ -1716,6 +1715,24 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-history-log { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
   .obs-local-quality-history-log li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; color: #475569; font-size: 10.2px; line-height: 1.35; font-weight: 760; }
   .obs-local-quality-history-log li::before { content: ""; width: 5px; height: 5px; margin-top: .55em; border-radius: 999px; background: #14b8a6; }
+  .obs-origin-sheet[hidden], .obs-origin-toast[hidden] { display: none !important; }
+  .obs-origin-sheet { position: fixed; inset: 0; z-index: 240; display: grid; align-items: end; }
+  .obs-origin-sheet-scrim { position: absolute; inset: 0; background: rgba(15,23,42,.38); backdrop-filter: blur(2px); }
+  .obs-origin-sheet-panel { position: relative; display: grid; gap: 12px; width: min(560px, calc(100vw - 18px)); margin: 0 auto 10px; padding: 10px 14px 14px; border-radius: 24px 24px 18px 18px; background: #fff; border: 1px solid rgba(15,23,42,.1); box-shadow: 0 -18px 48px rgba(15,23,42,.2); }
+  .obs-origin-sheet-grip { justify-self: center; width: 42px; height: 4px; border-radius: 999px; background: #cbd5e1; }
+  .obs-origin-sheet-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+  .obs-origin-sheet-eye { color: #0f766e; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .12em; }
+  .obs-origin-sheet h4 { margin: 2px 0 0; color: #0f172a; font-size: 18px; line-height: 1.25; font-weight: 950; }
+  .obs-origin-sheet-close { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #f8fafc; color: #0f172a; font-size: 18px; line-height: 1; font-weight: 900; cursor: pointer; }
+  .obs-origin-sheet-message { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 760; }
+  .obs-origin-login-link { display: inline-flex; justify-content: center; align-items: center; min-height: 38px; border-radius: 999px; background: #0f766e; color: #fff; text-decoration: none; font-size: 13px; font-weight: 950; }
+  .obs-origin-choice-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .obs-origin-choice { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; color: #334155; font-size: 13px; line-height: 1; font-weight: 920; cursor: pointer; }
+  .obs-origin-choice.is-selected { background: #ccfbf1; border-color: rgba(15,118,110,.34); color: #0f766e; box-shadow: inset 0 0 0 1px rgba(15,118,110,.12); }
+  .obs-origin-save { min-height: 42px; border-radius: 999px; border: 0; background: #0f172a; color: #fff; font-size: 13px; line-height: 1; font-weight: 950; cursor: pointer; }
+  .obs-origin-save:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .obs-origin-toast { position: fixed; left: 50%; bottom: 18px; z-index: 260; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; width: min(480px, calc(100vw - 24px)); padding: 10px 12px; border-radius: 14px; background: #0f172a; color: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.24); font-size: 12px; line-height: 1.35; font-weight: 850; }
+  .obs-origin-toast button { margin-left: auto; border: 0; background: transparent; color: #99f6e4; font: inherit; font-weight: 950; cursor: pointer; white-space: nowrap; }
   .obs-ai-review { display: grid; gap: 12px; margin: 0 0 16px; padding: 14px; border-radius: 16px; background: linear-gradient(135deg, rgba(239,246,255,.92), rgba(240,253,244,.72)); border: 1px solid rgba(59,130,246,.18); }
   .obs-ai-review-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
   .obs-ai-review-kicker { color: #0369a1; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
@@ -2263,6 +2280,25 @@ function observationDetailUiName(value: string | null | undefined): string {
   if (name === ["イネ科", "植物"].join("")) return "イネ科";
   if (name === "倍脚綱 (ヤスデ網)") return "倍脚綱 (ヤスデ綱)";
   return name;
+}
+
+function buildTaxonInsightContext(subject: ObservationVisitSubject): string {
+  const ai = subject.aiAssessment;
+  if (!ai) return "";
+  const parts: string[] = [];
+  const rank = String(ai.recommendedRank ?? subject.rank ?? subject.aiCandidateRank ?? "").trim();
+  if (rank) parts.push(`rank=${rank}`);
+  const clues = (ai.diagnosticFeaturesSeen ?? [])
+    .map((item) => friendlyObservationText(item, 34))
+    .filter(Boolean)
+    .slice(0, 2);
+  if (clues.length > 0) parts.push(`根拠: ${clues.join(", ")}`);
+  const similar = (ai.similarTaxa ?? [])
+    .map((taxon) => observationDetailUiName(taxon.name))
+    .filter(Boolean)
+    .slice(0, 3);
+  if (similar.length > 0) parts.push(`似た候補: ${similar.join(", ")}`);
+  return parts.join(" / ").slice(0, 220);
 }
 
 const IDENTIFICATION_TAB_RANKS = new Set(["species", "subspecies", "variety", "form", "genus", "family", "order", "class"]);
@@ -7001,12 +7037,37 @@ function renderIdentificationParticipation(options: {
   </section>`;
 }
 
+const OBSERVATION_ORIGIN_OPTIONS = [
+  { value: "wild", label: "野生" },
+  { value: "planted", label: "植栽" },
+  { value: "captive", label: "飼育" },
+  { value: "released", label: "放流" },
+  { value: "unknown", label: "不明" },
+] as const;
+
+type ObservationOriginValue = typeof OBSERVATION_ORIGIN_OPTIONS[number]["value"];
+
+function observationOriginValue(value: string | null | undefined): ObservationOriginValue {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return OBSERVATION_ORIGIN_OPTIONS.some((option) => option.value === raw)
+    ? raw as ObservationOriginValue
+    : "unknown";
+}
+
+function observationOriginLabel(value: string | null | undefined): string {
+  const normalized = observationOriginValue(value);
+  return OBSERVATION_ORIGIN_OPTIONS.find((option) => option.value === normalized)?.label ?? "不明";
+}
+
 function renderObservationQualityCard(options: {
   snapshot: ObservationDetailSnapshot;
   subject: ObservationVisitSubject;
   consensus: IdentificationConsensusResult | null;
   placeLabel: string;
   mediaContext: ObservationMediaCopyContext;
+  canEditOrigin: boolean;
+  isLoggedIn: boolean;
+  originLoginHref: string;
   glossaryTerms?: GlossaryTermHint[];
 }): string {
   const mediaCount = options.snapshot.photoAssets.length + options.snapshot.videoAssets.length + options.snapshot.audioAssets.length;
@@ -7023,7 +7084,16 @@ function renderObservationQualityCard(options: {
   const sceneNoun = mediaSceneNoun(options.mediaContext);
   const isGreenfinchSnapshot = /カワラヒワ|Chloris sinica/i.test(`${subjectName} ${options.subject.scientificName ?? ""}`);
   const glossaryTerms = options.glossaryTerms ?? [];
-  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質">
+  const originRaw = String(options.snapshot.organismOrigin ?? "").trim();
+  const originValue = observationOriginValue(originRaw);
+  const originLabel = originRaw ? observationOriginLabel(originValue) : "未入力";
+  const originStateClass = originValue === "unknown" ? " is-next" : "";
+  const originSheetMessage = !options.isLoggedIn
+    ? "ログインすると、自分の記録に由来区分を保存できます。"
+    : options.canEditOrigin
+      ? "この記録の由来区分を選んで保存します。"
+      : "由来区分は投稿者だけが変更できます。";
+  return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}">
     <div class="obs-local-quality-head">
       <div>
         <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
@@ -7034,21 +7104,20 @@ function renderObservationQualityCard(options: {
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
         <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em>記録済み</em></div>
-        <button class="obs-local-quality-change" type="button" data-quality-action="date_place">変更</button>
       </div>
       <div class="obs-local-quality-check${hasEvidence ? "" : " is-warn"}">
         <i class="obs-local-quality-mark">${hasEvidence ? "✓" : "!"}</i>
         <div><strong>証拠</strong><span>後から生物を確認できるメディアがあるか。</span><em>${escapeHtml(mediaState)}</em></div>
-        <button class="obs-local-quality-change" type="button" data-quality-action="evidence">変更</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="evidence">写真を追加</button>
       </div>
       <div class="obs-local-quality-check${hasHumanSupport ? "" : " is-next"}">
         <i class="obs-local-quality-mark">${hasHumanSupport ? "✓" : "!"}</i>
         <div><strong>名前の支持</strong><span>AI候補に人の確認が加わっているか。</span><em>${hasHumanSupport ? "確認あり" : "人の確認待ち"}</em></div>
         <button class="obs-local-quality-change" type="button" data-quality-action="identification">確認</button>
       </div>
-      <div class="obs-local-quality-check is-next">
-        <i class="obs-local-quality-mark">!</i>
-        <div><strong>生きものの由来</strong><span>人に植えられた・飼われた・放されたものか。</span><em>未入力</em></div>
+      <div class="obs-local-quality-check${originStateClass}">
+        <i class="obs-local-quality-mark">${originValue === "unknown" ? "!" : "✓"}</i>
+        <div><strong>生きものの由来</strong><span>人に植えられた・飼われた・放されたものか。</span><em data-origin-current-label>${escapeHtml(originLabel)}</em></div>
         <button class="obs-local-quality-change" type="button" data-quality-action="origin">変更</button>
         <details class="obs-local-origin-hint"><summary>野生・植栽などの違い</summary><dl><dt>野生</dt><dd>人が置いた個体ではなく、その場所に自然にいた・生えたもの。</dd><dt>植栽</dt><dd>人が植えた植物。管理地に自然に生えた雑草とは分けて考えます。</dd><dt>飼育</dt><dd>人に飼われている動物。逃げ出しや放し飼いも確認します。</dd><dt>放流</dt><dd>人が意図して放した魚・昆虫・動物など。定着していても由来は別に残します。</dd></dl></details>
       </div>
@@ -7073,9 +7142,29 @@ function renderObservationQualityCard(options: {
           ["周辺の被覆", "まわりを覆う植物、水、雪、岩、構造物などを残す。", isGreenfinchSnapshot ? "低い草地とイネ科らしい草本" : "低い草地と周辺の植生"],
           ["環境条件", "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。", isGreenfinchSnapshot ? "乾きやすそうな開けた足元" : "開けた足元"],
           ["人為・変化", "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。", isGreenfinchSnapshot ? "踏圧と草刈り後のような跡" : "踏圧や管理の跡"],
-        ] satisfies Array<[string, string, string]>).map(([title, help, value]) => `<div class="obs-local-quality-chip" data-quality-chip><div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(help, glossaryTerms, 2)}</p></details></div><div class="obs-local-quality-chip-value-row"><em>${renderGlossaryText(value, glossaryTerms, 2)}</em><button class="obs-local-quality-field-edit" type="button">変更</button></div></div>`).join("")}
+        ] satisfies Array<[string, string, string]>).map(([title, help, value]) => `<div class="obs-local-quality-chip" data-quality-chip><div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(help, glossaryTerms, 2)}</p></details></div><div class="obs-local-quality-chip-value-row"><em>${renderGlossaryText(value, glossaryTerms, 2)}</em></div></div>`).join("")}
       </div>
     </div>
+    <div class="obs-origin-sheet" data-origin-sheet hidden>
+      <div class="obs-origin-sheet-scrim" data-origin-close></div>
+      <div class="obs-origin-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="obs-origin-sheet-title">
+        <div class="obs-origin-sheet-grip"></div>
+        <div class="obs-origin-sheet-head">
+          <div>
+            <div class="obs-origin-sheet-eye">ORIGIN</div>
+            <h4 id="obs-origin-sheet-title">生きものの由来</h4>
+          </div>
+          <button class="obs-origin-sheet-close" type="button" data-origin-close aria-label="閉じる">×</button>
+        </div>
+        <p class="obs-origin-sheet-message" data-origin-message>${escapeHtml(originSheetMessage)}</p>
+        ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
+        <div class="obs-origin-choice-list" data-origin-choice-list>
+          ${OBSERVATION_ORIGIN_OPTIONS.map((option) => `<button class="obs-origin-choice${option.value === originValue ? " is-selected" : ""}" type="button" data-origin-choice="${escapeHtml(option.value)}" aria-pressed="${option.value === originValue ? "true" : "false"}">${escapeHtml(option.label)}</button>`).join("")}
+        </div>
+        <button class="obs-origin-save" type="button" data-origin-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+      </div>
+    </div>
+    <div class="obs-origin-toast" data-origin-toast hidden><span data-origin-toast-text></span><button type="button" data-origin-undo>元に戻す</button></div>
     <div class="obs-local-quality-history"><div class="obs-local-quality-history-head"><strong>編集履歴</strong></div><ul class="obs-local-quality-history-log" data-quality-history><li>AIが環境レコードを入力しました</li></ul></div>
   </section>`;
 }
@@ -7392,11 +7481,6 @@ export function renderLocalObservationPolishScript(): string {
       var history = document.querySelector('[data-quality-history]');
       function chips(){ return Array.prototype.slice.call(draft.querySelectorAll('[data-quality-chip]')); }
       function updateCount(){ if (count) count.textContent = chips().length + '項目'; }
-      function chipLabel(chip){
-        var name = (chip.querySelector('strong') && chip.querySelector('strong').textContent || '').trim() || '未入力';
-        var value = (chip.querySelector('em') && chip.querySelector('em').textContent || '').trim() || '区分なし';
-        return name + ' / ' + value;
-      }
       function addHistory(text){
         if (!history) return;
         var li = document.createElement('li');
@@ -7418,6 +7502,73 @@ export function renderLocalObservationPolishScript(): string {
           window.setTimeout(function(){ element.focus({ preventScroll: true }); }, 120);
         }
         return true;
+      }
+      var ORIGIN_LABELS = { wild: '野生', planted: '植栽', captive: '飼育', released: '放流', unknown: '不明' };
+      var selectedOrigin = card.getAttribute('data-origin-current') || 'unknown';
+      var undoTimer = null;
+      function originLabel(value){ return ORIGIN_LABELS[value] || ORIGIN_LABELS.unknown; }
+      function originSheet(){ return card.querySelector('[data-origin-sheet]'); }
+      function originToast(){ return card.querySelector('[data-origin-toast]'); }
+      function setOriginChoice(value){
+        selectedOrigin = ORIGIN_LABELS[value] ? value : 'unknown';
+        Array.prototype.forEach.call(card.querySelectorAll('[data-origin-choice]'), function(choice){
+          var active = choice.getAttribute('data-origin-choice') === selectedOrigin;
+          choice.classList.toggle('is-selected', active);
+          choice.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+      }
+      function setOriginValue(value){
+        var normalized = ORIGIN_LABELS[value] ? value : 'unknown';
+        card.setAttribute('data-origin-current', normalized);
+        setOriginChoice(normalized);
+        var label = card.querySelector('[data-origin-current-label]');
+        if (label) label.textContent = originLabel(normalized);
+        var originCheck = card.querySelector('[data-quality-action="origin"]');
+        originCheck = originCheck && originCheck.closest ? originCheck.closest('.obs-local-quality-check') : null;
+        if (originCheck) {
+          originCheck.classList.toggle('is-next', normalized === 'unknown');
+          var mark = originCheck.querySelector('.obs-local-quality-mark');
+          if (mark) mark.textContent = normalized === 'unknown' ? '!' : '✓';
+        }
+      }
+      function openOriginSheet(){
+        var sheet = originSheet();
+        if (!sheet) return false;
+        setOriginChoice(card.getAttribute('data-origin-current') || selectedOrigin || 'unknown');
+        sheet.hidden = false;
+        var first = sheet.querySelector('[data-origin-choice].is-selected') || sheet.querySelector('[data-origin-choice]') || sheet.querySelector('[data-origin-close]');
+        if (first && typeof first.focus === 'function') window.setTimeout(function(){ first.focus(); }, 30);
+        return true;
+      }
+      function closeOriginSheet(){
+        var sheet = originSheet();
+        if (sheet) sheet.hidden = true;
+      }
+      function postOrigin(value){
+        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
+        return fetch('/api/v1/occurrences/' + encodeURIComponent(occurrenceId) + '/origin', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organismOrigin: value })
+        }).then(function(response){
+          return response.json().catch(function(){ return {}; }).then(function(payload){
+            if (!response.ok || !payload || payload.ok !== true) {
+              throw new Error((payload && payload.error) || 'origin_save_failed');
+            }
+            return payload;
+          });
+        });
+      }
+      function showOriginToast(text, previousValue){
+        var toast = originToast();
+        if (!toast) return;
+        var label = toast.querySelector('[data-origin-toast-text]');
+        if (label) label.textContent = text;
+        toast.hidden = false;
+        if (undoTimer) window.clearTimeout(undoTimer);
+        undoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
+        toast.setAttribute('data-origin-undo-value', previousValue || 'unknown');
       }
       function openIdentify(action){
         var identify = document.getElementById('identify');
@@ -7442,15 +7593,16 @@ export function renderLocalObservationPolishScript(): string {
           return;
         }
         if (action === 'origin') {
-          var details = button.closest('.obs-local-quality-check') && button.closest('.obs-local-quality-check').querySelector('.obs-local-origin-hint');
-          if (details) details.setAttribute('open', 'open');
-          openIdentify('needs_more_evidence');
-          var notes = document.querySelector('#identify textarea[name="notes"]');
-          if (notes && !String(notes.value || '').trim()) notes.value = '由来メモ: ';
-          addHistory('生きものの由来を変更: 由来メモ入力へ移動');
-          setActionStatus(notes
-            ? '野生・植栽・飼育・放流などの由来を、理由メモとして残せます。'
-            : '由来の説明を開きました。保存するにはログインが必要です。', false);
+          var openedOrigin = openOriginSheet();
+          if (card.getAttribute('data-origin-login-required') === '1') {
+            setActionStatus(openedOrigin ? 'ログインすると由来区分を保存できます。' : '由来区分の編集欄を開けませんでした。', !openedOrigin);
+            return;
+          }
+          if (card.getAttribute('data-origin-can-edit') !== '1') {
+            setActionStatus('由来区分は投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedOrigin ? '由来区分を選んで保存できます。' : '由来区分の編集欄を開けませんでした。', !openedOrigin);
           return;
         }
         if (action === 'evidence') {
@@ -7479,17 +7631,55 @@ export function renderLocalObservationPolishScript(): string {
         }
       }
       card.addEventListener('click', function(event){
+        var originClose = event.target && event.target.closest ? event.target.closest('[data-origin-close]') : null;
+        if (originClose) {
+          closeOriginSheet();
+          return;
+        }
+        var originChoice = event.target && event.target.closest ? event.target.closest('[data-origin-choice]') : null;
+        if (originChoice) {
+          if (card.getAttribute('data-origin-can-edit') === '1') setOriginChoice(originChoice.getAttribute('data-origin-choice') || 'unknown');
+          return;
+        }
+        var originSave = event.target && event.target.closest ? event.target.closest('[data-origin-save]') : null;
+        if (originSave) {
+          if (card.getAttribute('data-origin-can-edit') !== '1') return;
+          var previousOrigin = card.getAttribute('data-origin-current') || 'unknown';
+          originSave.disabled = true;
+          setActionStatus('由来区分を保存しています。', false);
+          postOrigin(selectedOrigin).then(function(payload){
+            var saved = payload.organismOrigin || selectedOrigin;
+            setOriginValue(saved);
+            closeOriginSheet();
+            addHistory('生きものの由来を変更: ' + originLabel(saved));
+            setActionStatus('由来区分を保存しました。', false);
+            showOriginToast('由来区分を「' + originLabel(saved) + '」にしました。', previousOrigin);
+          }).catch(function(error){
+            setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。時間をおいて再度お試しください。', true);
+          }).finally(function(){
+            originSave.disabled = false;
+          });
+          return;
+        }
+        var originUndo = event.target && event.target.closest ? event.target.closest('[data-origin-undo]') : null;
+        if (originUndo) {
+          var toast = originToast();
+          var undoValue = toast ? toast.getAttribute('data-origin-undo-value') || 'unknown' : 'unknown';
+          postOrigin(undoValue).then(function(payload){
+            var restored = payload.organismOrigin || undoValue;
+            setOriginValue(restored);
+            addHistory('生きものの由来を元に戻しました: ' + originLabel(restored));
+            setActionStatus('由来区分を元に戻しました。', false);
+            if (toast) toast.hidden = true;
+          }).catch(function(){
+            setActionStatus('元に戻せませんでした。ページを更新して確認してください。', true);
+          });
+          return;
+        }
         var actionButton = event.target && event.target.closest ? event.target.closest('.obs-local-quality-change[data-quality-action]') : null;
         if (actionButton) {
           handleQualityAction(actionButton.getAttribute('data-quality-action') || '', actionButton);
           return;
-        }
-        var target = event.target && event.target.closest ? event.target.closest('.obs-local-quality-field-edit') : null;
-        if (!target) return;
-        var chip = target.closest('[data-quality-chip]');
-        if (chip) {
-          addHistory('環境レコードを変更: ' + chipLabel(chip));
-          setActionStatus('環境レコードの下書きを確認しました。', false);
         }
       });
       updateCount();
@@ -17218,6 +17408,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       || currentSubject.aiAssessment?.recommendedScientificName
       || lookupLocalTaxonName(insightCandidateName)?.scientificName
       || "";
+    const insightTaxonContext = buildTaxonInsightContext(currentSubject);
     const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult, consensus, civicContext] = await Promise.all([
       getObservationContext(bundle.canonicalSubjectId, snapshot.visitId ?? null, null).catch(() => null),
       getObservationDetailHeavy(bundle.canonicalSubjectId, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
@@ -17232,6 +17423,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             lat: snapshot.latitude ?? undefined,
             lng: snapshot.longitude ?? undefined,
             season: seasonFromDate(snapshot.observedAt),
+            taxonContext: insightTaxonContext,
             lang: "ja",
             cacheOnly: true,
           }).catch(() => null)
@@ -17572,6 +17764,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         consensus,
         placeLabel: heroPlaceLabel,
         mediaContext,
+        canEditOrigin: isOwner,
+        isLoggedIn: Boolean(viewerUserId),
+        originLoginHref: appendLangToHref(withBasePath(basePath, `/login?redirect=${encodeURIComponent(request.url)}`), lang),
         glossaryTerms,
       }),
       visibleRecordCount: visibleRecordItems.length,

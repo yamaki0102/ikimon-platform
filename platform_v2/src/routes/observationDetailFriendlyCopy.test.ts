@@ -529,17 +529,27 @@ test("observation quality change buttons are wired to real page targets", () => 
   const qualitySource = sourceBetween("function renderObservationQualityCard", "type ObservationNextAction");
   const polishSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
 
-  assert.match(qualitySource, /data-quality-action="date_place"/);
+  assert.doesNotMatch(qualitySource, /data-quality-action="date_place"/);
   assert.match(qualitySource, /data-quality-action="evidence"/);
+  assert.match(qualitySource, />写真を追加<\/button>/);
   assert.match(qualitySource, /data-quality-action="identification"/);
   assert.match(qualitySource, /data-quality-action="origin"/);
+  assert.match(qualitySource, /data-origin-sheet/);
+  assert.match(qualitySource, /data-origin-choice="\$\{escapeHtml\(option\.value\)\}"/);
+  assert.match(qualitySource, /data-origin-save/);
+  assert.match(qualitySource, /data-origin-toast/);
   assert.match(qualitySource, /data-quality-action="media"/);
   assert.match(qualitySource, /data-quality-action-status/);
+  assert.doesNotMatch(qualitySource, /obs-local-quality-field-edit/);
   assert.match(polishSource, /function handleQualityAction/);
   assert.match(polishSource, /event\.target[\s\S]*?closest\('\.obs-local-quality-change\[data-quality-action\]'\)/);
   assert.match(polishSource, /openIdentify\('support'\)/);
-  assert.match(polishSource, /openIdentify\('needs_more_evidence'\)/);
+  assert.match(polishSource, /function openOriginSheet/);
+  assert.match(polishSource, /fetch\('\/api\/v1\/occurrences\/' \+ encodeURIComponent\(occurrenceId\) \+ '\/origin'/);
+  assert.match(polishSource, /data-origin-undo/);
   assert.match(polishSource, /querySelector\('\[data-photo-recovery\]'\)/);
+  assert.doesNotMatch(polishSource, /由来メモ: /);
+  assert.doesNotMatch(polishSource, /環境レコードを変更/);
 });
 
 test("AI readout stays simple while the assessment is still being created", () => {

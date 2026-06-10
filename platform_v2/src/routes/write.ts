@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Readable } from "node:stream";
 import { loadConfig } from "../config.js";
+import { getPool } from "../db.js";
 import {
   getSessionFromCookie,
   issueSession,
@@ -127,6 +128,29 @@ function errorStatus(error: unknown, fallback = 400): number {
     return 400;
   }
   return fallback;
+}
+
+const ORGANISM_ORIGIN_OPTIONS = [
+  { value: "wild", label: "野生" },
+  { value: "planted", label: "植栽" },
+  { value: "captive", label: "飼育" },
+  { value: "released", label: "放流" },
+  { value: "unknown", label: "不明" },
+] as const;
+
+type OrganismOriginValue = typeof ORGANISM_ORIGIN_OPTIONS[number]["value"];
+
+function normalizeOrganismOrigin(value: unknown): OrganismOriginValue {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const option = ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === raw);
+  if (!option) {
+    throw new Error("invalid_organism_origin");
+  }
+  return option.value;
+}
+
+function organismOriginLabel(value: OrganismOriginValue): string {
+  return ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === value)?.label ?? "不明";
 }
 
 async function assertMutationRateLimit(
@@ -481,6 +505,43 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       };
     }
   });
+
+  app.post<{ Params: { id: string }; Body: { organismOrigin?: unknown } }>(
+    "/api/v1/occurrences/:id/origin",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertMutationRateLimit(request, "occurrence-origin-update", session.userId, 30);
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const organismOrigin = normalizeOrganismOrigin(request.body?.organismOrigin);
+        const result = await getPool().query<{ occurrence_id: string }>(
+          `update occurrences
+              set organism_origin = $2
+            where occurrence_id = $1
+            returning occurrence_id`,
+          [request.params.id, organismOrigin],
+        );
+        if (result.rows.length === 0) {
+          throw new Error("observation_not_found");
+        }
+        return {
+          ok: true,
+          occurrenceId: request.params.id,
+          organismOrigin,
+          label: organismOriginLabel(organismOrigin),
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "occurrence_origin_update_failed",
+        };
+      }
+    },
+  );
 
   app.post<{ Params: { id: string }; Body: Omit<ObservationPhotoUploadInput, "observationId"> }>(
     "/api/v1/observations/:id/photos/upload",
