@@ -13485,10 +13485,26 @@ const MY_GUIDES_STYLES = `
   .guide-program-spot strong { display: block; color: #0f172a; font-size: 14px; line-height: 1.35; }
   .guide-program-spot p { margin: 3px 0 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 700; }
   .guide-program-next { padding: 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.20); color: #064e3b; font-weight: 800; line-height: 1.65; }
+  .guide-program-map { position: relative; min-height: 280px; overflow: hidden; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: linear-gradient(145deg,#ecfeff,#f8fafc 54%,#ecfdf5); box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+  .guide-program-map::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(0deg, rgba(15,23,42,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.045) 1px, transparent 1px); background-size: 34px 34px; }
+  .guide-program-map::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 26% 28%, rgba(20,184,166,.18), transparent 32%), radial-gradient(circle at 74% 70%, rgba(14,165,233,.17), transparent 36%); }
+  .guide-program-map-head { position: absolute; left: 14px; top: 14px; right: 14px; z-index: 2; display: flex; justify-content: space-between; gap: 10px; align-items: start; pointer-events: none; }
+  .guide-program-map-head strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
+  .guide-program-map-head span { display: block; margin-top: 2px; color: #475569; font-size: 11px; font-weight: 800; }
+  .guide-program-map-head a { pointer-events: auto; flex: 0 0 auto; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; border-radius: 8px; background: rgba(15,23,42,.88); color: #fff; font-size: 11px; font-weight: 900; text-decoration: none; }
+  .guide-program-map-pin { position: absolute; z-index: 3; left: var(--pin-x); top: var(--pin-y); transform: translate(-50%, -50%); display: grid; gap: 5px; justify-items: center; max-width: 190px; text-decoration: none; color: #0f172a; }
+  .guide-program-map-pin i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: #0f766e; color: #fff; font-style: normal; font-size: 12px; font-weight: 950; box-shadow: 0 12px 24px rgba(15,118,110,.28); border: 2px solid #fff; }
+  .guide-program-map-pin span { display: block; max-width: 190px; padding: 6px 9px; border-radius: 8px; background: rgba(255,255,255,.94); box-shadow: 0 10px 22px rgba(15,23,42,.10); font-size: 11px; font-weight: 900; line-height: 1.35; text-align: center; }
+  .guide-program-map-pin[data-unlocked="true"] i { background: #047857; }
+  .guide-program-map-note { position: absolute; left: 14px; bottom: 14px; z-index: 2; max-width: min(520px, calc(100% - 28px)); padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.9); color: #475569; font-size: 11px; font-weight: 820; line-height: 1.45; }
   @media (max-width: 620px) {
     .my-guides-page { width: min(100% - 20px, 1040px); padding-top: 12px; }
     .my-guides-hero h1 { font-size: 25px; }
     .my-guides-grid { grid-template-columns: 1fr; }
+    .guide-program-map { min-height: 250px; }
+    .guide-program-map-head { display: flex; }
+    .guide-program-map-pin span { max-width: 150px; }
+    .guide-program-map-note { top: 64px; right: 14px; bottom: auto; max-width: none; }
   }
 `;
 
@@ -13579,6 +13595,65 @@ function renderProgramSpot(spot: GuideProgramPublicSpot, index: number): string 
   </article>`;
 }
 
+function guideProgramMapHref(basePath: string, program: GuideProgramPublicDetail): string {
+  const first = program.spots.find((spot) => Number.isFinite(spot.displayLat) && Number.isFinite(spot.displayLng));
+  const mapBase = withBasePath(basePath, "/map");
+  if (!first) return mapBase;
+  const params = new URLSearchParams({
+    lat: first.displayLat.toFixed(6),
+    lng: first.displayLng.toFixed(6),
+    z: "15",
+    guideProgram: program.slug,
+  });
+  return `${mapBase}?${params.toString()}`;
+}
+
+function projectProgramSpots(spots: GuideProgramPublicSpot[]): Array<GuideProgramPublicSpot & { xPct: number; yPct: number }> {
+  const valid = spots.filter((spot) => Number.isFinite(spot.displayLat) && Number.isFinite(spot.displayLng));
+  if (!valid.length) return [];
+  if (valid.length === 1) {
+    return valid.map((spot) => ({ ...spot, xPct: 50, yPct: 56 }));
+  }
+  const lats = valid.map((spot) => spot.displayLat);
+  const lngs = valid.map((spot) => spot.displayLng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const latSpan = Math.max(maxLat - minLat, 0.00035);
+  const lngSpan = Math.max(maxLng - minLng, 0.00035);
+  return valid.map((spot) => ({
+    ...spot,
+    xPct: 14 + ((spot.displayLng - minLng) / lngSpan) * 72,
+    yPct: 86 - ((spot.displayLat - minLat) / latSpan) * 72,
+  }));
+}
+
+function renderGuideProgramMap(basePath: string, program: GuideProgramPublicDetail): string {
+  const spots = projectProgramSpots(program.spots);
+  if (!spots.length) return "";
+  const mapHref = guideProgramMapHref(basePath, program);
+  const pins = spots.map((spot, index) => `<a class="guide-program-map-pin"
+      href="${escapeHtml(mapHref)}"
+      data-unlocked="${spot.unlocked ? "true" : "false"}"
+      style="--pin-x:${spot.xPct.toFixed(2)}%;--pin-y:${spot.yPct.toFixed(2)}%;"
+      aria-label="${escapeHtml(`${spot.title} の概略位置をマップで見る`)}">
+      <i>${spot.unlocked ? "済" : String(index + 1)}</i>
+      <span>${escapeHtml(spot.title)}</span>
+    </a>`).join("");
+  return `<section class="guide-program-map" aria-label="ガイドスポットの概略位置">
+    <div class="guide-program-map-head">
+      <div>
+        <strong>ガイドの位置</strong>
+        <span>${escapeHtml(program.spots.length === 1 ? "概略位置を表示しています" : "企画内のガイドスポットを概略位置で表示しています")}</span>
+      </div>
+      <a href="${escapeHtml(mapHref)}">大きいマップ</a>
+    </div>
+    ${pins}
+    <div class="guide-program-map-note">表示は公開ガイドスポットの概略位置です。あなたの記録位置や解放地点は公開しません。</div>
+  </section>`;
+}
+
 function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail): string {
   const next = program.nextSpot
     ? `<section class="guide-program-next">次に解放しやすいガイド: ${escapeHtml(program.nextSpot.title)}。近くで観察記録を残すと、本人用に保存されます。</section>`
@@ -13605,6 +13680,7 @@ function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail
       </div>
     </section>
     ${next}
+    ${renderGuideProgramMap(basePath, program)}
     <section class="guide-program-spot-list">${program.spots.map(renderProgramSpot).join("")}</section>
   </main>`;
 }

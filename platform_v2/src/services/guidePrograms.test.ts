@@ -70,6 +70,9 @@ test("guide program public detail reads progress without copying coordinates", (
   assert.match(source, /publicSpotIdsFromRows/);
   assert.match(source, /gp\.owner_type != 'school'/);
   assert.match(source, /totalRequired === 0/);
+  assert.match(source, /displayLat: spot\.lat/);
+  assert.match(source, /displayLng: spot\.lng/);
+  assert.match(source, /locationPrecision: spot\.locationPrecision/);
   assert.match(source, /guide_unlocks/);
   assert.match(source, /state: "signed_out" \| "not_started" \| "in_progress" \| "complete"/);
   assert.doesNotMatch(source, /guide_programs[\s\S]*latitude/);
