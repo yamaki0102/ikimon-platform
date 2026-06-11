@@ -192,6 +192,7 @@ export async function ensureAreaWatchParticipationForVisit(
                  9 as priority
             from new_visit nv
            where nv.place_id is not null
+             and nv.place_id not like 'place:unlocated:%'
              and not exists (select 1 from field_targets)
         ),
         targets as (

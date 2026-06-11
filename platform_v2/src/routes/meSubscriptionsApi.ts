@@ -368,6 +368,7 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
            LEFT JOIN places p
              ON s.target_type = 'place' AND p.place_id = s.target_id
           WHERE s.user_id = $1 AND s.is_active = true
+            AND NOT (s.target_type = 'place' AND s.target_id LIKE 'place:unlocated:%')
           ORDER BY s.updated_at DESC
           LIMIT 8`,
         [userId],
