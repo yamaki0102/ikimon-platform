@@ -56,6 +56,7 @@ function timelineLabel(entry: RecapTimelineEntry): string {
 export function renderRecapBody(recap: ObservationEventRecap): string {
   const { session, permissions, highlights, effort, teams, timeline, impacts, myContribution } = recap;
   const headerDate = formatDate(highlights.startedAt);
+  const canAccessOfficialOutputs = session.plan === "public" || permissions.canManage;
   const heroStats = `
     <div><strong>${highlights.observationCount}</strong><span>観察</span></div>
     <div><strong>${highlights.uniqueSpeciesCount}</strong><span>種</span></div>
@@ -133,6 +134,8 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">
       <a class="evt-btn evt-btn-primary" href="/community/events/new?template_from=${escapeHtml(session.sessionId)}">🔁 もう一度開催する</a>
+      ${canAccessOfficialOutputs ? `<a class="evt-btn evt-btn-on-dark" href="/events/${escapeHtml(session.sessionId)}/report">公式レポート</a>` : ""}
+      ${canAccessOfficialOutputs ? `<a class="evt-btn evt-btn-on-dark" href="/api/v1/observation-events/${escapeHtml(session.sessionId)}/species.csv">CSV</a>` : ""}
       <button type="button" class="evt-btn evt-btn-on-dark" data-share="x">𝕏 で共有</button>
       <button type="button" class="evt-btn evt-btn-on-dark" data-share="line">LINE で共有</button>
       <button type="button" class="evt-btn evt-btn-on-dark" data-share="copy">🔗 URL をコピー</button>

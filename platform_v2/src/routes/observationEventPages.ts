@@ -9,6 +9,10 @@ import {
   type ObservationEventSessionRow,
 } from "../services/observationEventModeManager.js";
 import { buildRecap } from "../services/observationEventRecap.js";
+import {
+  buildOfficialEventReport,
+  canAccessOfficialEventOutputs,
+} from "../services/observationEventOfficialReport.js";
 import { renderSiteDocument } from "../ui/siteShell.js";
 import {
   OBSERVATION_EVENT_STYLES,
@@ -34,6 +38,7 @@ import {
   renderRecapBody,
   recapScript,
 } from "../ui/observationEventRecap.js";
+import { renderObservationEventOfficialReportBody } from "../ui/observationEventOfficialReport.js";
 import { renderEventListBody } from "../ui/observationEventList.js";
 import {
   renderEventCreateBody,
@@ -552,6 +557,49 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       });
       reply.type("text/html; charset=utf-8");
       return html;
+    },
+  );
+
+  // /events/:sessionId/report  --- 企業・自治体提出前の公式出力
+  app.get<{ Params: { sessionId: string } }>(
+    "/events/:sessionId/report",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const report = await buildOfficialEventReport(request.params.sessionId).catch(() => null);
+      if (!report) {
+        reply.code(404);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察会 — 公式出力なし",
+          currentPath: currentPathOf(request),
+          body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">公式出力が見つかりません</h1></article></section>`,
+        });
+      }
+      if (!canAccessOfficialEventOutputs(report.session, auth?.userId ?? null)) {
+        reply.code(403);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察会 — 権限がありません",
+          currentPath: currentPathOf(request),
+          body: `<section class="evt-recap-shell">
+            <article class="evt-card">
+              <span class="evt-eyebrow">権限が必要です</span>
+              <h1 class="evt-heading">公式出力は public プランか主催者だけが閲覧できます</h1>
+              <p class="evt-lead">公開提出に使う前の境界確認を含むため、主催者アカウントでログインしてください。</p>
+              <a class="evt-btn evt-btn-primary" href="/auth">ログインへ</a>
+            </article>
+          </section>`,
+        });
+      }
+      reply.type("text/html; charset=utf-8");
+      return pageDocument({
+        basePath: "",
+        title: `${report.session.title || "観察会"} 公式出力 — ikimon.life`,
+        currentPath: currentPathOf(request),
+        body: renderObservationEventOfficialReportBody(report),
+      });
     },
   );
 }
