@@ -3,6 +3,7 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { loadConfig } from "./config.js";
 import { getPool } from "./db.js";
+import { registerSnapshotInvalidator } from "./services/snapshotInvalidation.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, rewriteLangPrefixToQuery, type SiteLang } from "./i18n.js";
 import { getShortCopy } from "./content/index.js";
@@ -113,6 +114,7 @@ const LANDING_SNAPSHOT_CACHE_TTL_MS = 300_000;
 const LANDING_SNAPSHOT_TIMEOUT_MS = 1_800;
 const LANDING_PUBLIC_CACHE_KEY = "__public__";
 const landingSnapshotCache = new Map<string, { expiresAt: number; snapshot: LandingSnapshot }>();
+registerSnapshotInvalidator(() => landingSnapshotCache.clear());
 const landingSnapshotInflight = new Map<string, Promise<LandingSnapshot>>();
 
 function requestUrl(request: { url?: string; raw?: { url?: string; originalUrl?: string } }): string {

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { registerSnapshotInvalidator } from "../services/snapshotInvalidation.js";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
@@ -87,6 +88,7 @@ import { buildPublicMapCellHref } from "../services/publicLocation.js";
 import {
   getHomeSnapshot,
   getObservationDetailSnapshot,
+  getObservationListPage,
   getObservationListSnapshot,
   getProfileSnapshot,
   getSpecialistSnapshot,
@@ -183,6 +185,7 @@ type ObservationsHtmlCacheEntry = {
 const OBSERVATIONS_HTML_CACHE_TTL_MS = 120_000;
 const OBSERVATIONS_HTML_CACHE_MAX_ENTRIES = 32;
 const observationsHtmlCache = new Map<string, ObservationsHtmlCacheEntry>();
+registerSnapshotInvalidator(() => observationsHtmlCache.clear());
 
 function layout(
   basePath: string,
@@ -5145,7 +5148,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       dockVideo: "動画",
       dockGallery: "選ぶ",
       captureResultLabel: "自動下書き",
-      captureResultTitle: "未選択",
+      captureResultTitle: "まだ選んでいません",
       captureResultHelp: "写真・日時・地点だけで保存できます。周囲や気づきはあとで足して、記録の解像度を上げられます。",
       captureChange: "選び直す",
       locationTitle: "写真に場所も入れる",
@@ -9286,7 +9289,7 @@ function renderPlaceRows(
     return `<div class="row row-place-revisit">
       <div>
         <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
-        <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · ${place.visitCount} 回</div>
+        <div class="meta">${escapeHtml(place.municipality ? `${place.municipality} · ` : "")}${place.visitCount} 回</div>
         <div class="meta">${escapeHtml(buildPlaceCompareLine(place))}</div>
         <div class="meta">${escapeHtml(buildPlaceNextLine(place))}</div>
       </div>
@@ -10083,7 +10086,7 @@ function renderProfileSnapshotBody(
   return `${guestIntro}
       ${mode === "registered" ? renderProfileIntro(basePath, snapshot) : ""}
       <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の場所</h2></div></div><div class="list">${places || `<div class="row"><div><strong>まだ場所の記録はありません。</strong><p class="meta" style="margin:4px 0 0">最初の記録を残すと、よく歩く場所としてここにまとまります。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a></div>`}</div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div></div><div class="list">${observations || `<div class="row"><div><strong>まだ観察はありません。</strong><p class="meta" style="margin:4px 0 0">写真なしのメモでも始められます。あとから写真や名前を足せます。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record?start=note"))}">メモを残す</a></div>`}</div></section>`;
+      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div></div><div class="list">${observations || `<div class="row"><div><strong>写真つきの観察はまだありません。</strong><p class="meta" style="margin:4px 0 0">ここには写真つきの記録が並びます。写真なしのメモでも始められて、あとから写真や名前を足せます。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record?start=note"))}">メモを残す</a></div>`}</div></section>`;
 }
 
 function notesEntryDate(obs: LandingObservation): string {
@@ -11025,6 +11028,8 @@ const NOTES_LIBRARY_STYLES = `
   .notes-source-badge.is-source-scan { color: #0f766e; }
   .notes-source-badge.is-source-note { color: #475569; }
   .notes-library-empty { padding: 20px; border-radius: 8px; border: 1px solid rgba(16,185,129,.14); background: rgba(255,255,255,.82); color: #64748b; font-weight: 720; line-height: 1.75; }
+  .notes-library-empty-cta { display: inline-flex; align-items: center; margin-left: 10px; min-height: 36px; padding: 6px 16px; border-radius: 999px; background: #059669; color: #ffffff; font-weight: 850; font-size: 13px; }
+  .notes-library-empty-cta:hover { background: #047857; }
   .notes-nearby-library { opacity: .9; }
   .notes-nearby-library .notes-library-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
   .notes-nearby-library .notes-library-card { min-height: 150px; }
@@ -12579,17 +12584,27 @@ function renderRecordsWorkbench(
   snapshot: LandingSnapshot,
   publicEntries: LandingObservation[],
   civicContexts: Map<string, CivicObservationContext>,
-  options: { ownPage?: LandingFeedPage | null; canWriteIdentification?: boolean; searchQuery?: string } = {},
+  options: {
+    ownPage?: LandingFeedPage | null;
+    publicPage?: { nextCursor: string | null } | null;
+    canWriteIdentification?: boolean;
+    searchQuery?: string;
+  } = {},
 ): string {
   const copy = recordsWorkbenchCopy(lang);
   const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
   const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
-  const lazyEndpoint = withBasePath(basePath, "/api/v1/records/mine-page");
+  const searchQuery = (options.searchQuery ?? "").trim().slice(0, 80);
   const canLazyLoadMine = view === "mine" && Boolean(snapshot.viewerUserId);
+  const canLazyLoadPublic = view === "public" && Boolean(options.publicPage);
+  const lazyEndpoint = canLazyLoadPublic
+    ? withBasePath(basePath, `/api/v1/records/public-page${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ""}`)
+    : withBasePath(basePath, "/api/v1/records/mine-page");
+  const canLazyLoad = canLazyLoadMine || canLazyLoadPublic;
+  const lazyNextCursor = canLazyLoadPublic ? options.publicPage?.nextCursor ?? null : options.ownPage?.nextCursor ?? null;
   const isIdentifyView = view === "needs_id";
   const canWriteIdentification = Boolean(options.canWriteIdentification);
-  const searchQuery = (options.searchQuery ?? "").trim().slice(0, 80);
   return `<div class="records-workbench${isIdentifyView ? " has-identify-panel" : ""}" data-testid="records-workbench"${isIdentifyView ? " data-records-identify-workbench" : ""}>
     <header class="records-topbar">
       <div class="records-topbar-brand">
@@ -12602,18 +12617,18 @@ function renderRecordsWorkbench(
       </div>
     </header>
     <main class="records-main${isIdentifyView ? " is-identify" : ""}">
-      <section class="records-grid-panel" data-notes-library${canLazyLoadMine ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
+      <section class="records-grid-panel" data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${renderRecordsCollapsedControls(lang, searchQuery)}
         ${entries.length > 0
           ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
-          : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
+          : `<div class="notes-library-empty">${escapeHtml(searchQuery ? recordsSearchEmptyCopy(lang, searchQuery) : copy.empty)}${searchQuery ? "" : ` <a class="notes-library-empty-cta" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.recordLabel)}</a>`}</div>`}
         <div class="notes-library-empty notes-library-search-empty" data-library-search-empty hidden>${escapeHtml(recordsSearchEmptyCopy(lang, searchQuery))}</div>
-        ${canLazyLoadMine ? renderRecordsLazyFooter(lang, options.ownPage?.nextCursor ?? null) : ""}
+        ${canLazyLoad ? renderRecordsLazyFooter(lang, lazyNextCursor) : ""}
       </section>
       ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts }) : ""}
     </main>
     ${renderNotesLibraryScript(lang)}
-    ${canLazyLoadMine ? renderRecordsLazyScript(lang) : ""}
+    ${canLazyLoad ? renderRecordsLazyScript(lang) : ""}
     ${isIdentifyView ? renderRecordsIdentifyPanelScript(lang) : ""}
   </div>`;
 }
@@ -16232,7 +16247,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ].filter(Boolean).join(' / ');
           if (captureResultTitle) captureResultTitle.textContent = hasDraft
             ? (hasMedia ? '下書き作成済み - ' + mediaSummary : label.title)
-            : '未選択';
+            : 'まだ選んでいません';
           const noticeText = [...(notices || []), ...normalized.notices].filter(Boolean).join(' ');
           currentCaptureNoticeText = noticeText;
           if (captureResultHelp) captureResultHelp.textContent = hasDraft
@@ -17932,6 +17947,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  app.get<{ Querystring: { cursor?: string; limit?: string; lang?: string; q?: string } }>("/api/v1/records/public-page", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String(request.query.lang ? `?lang=${request.query.lang}` : (request as unknown as { url?: string }).url ?? ""));
+    const parsedLimit = Number.parseInt(request.query.limit ?? "36", 10);
+    const q = String(request.query.q ?? "").trim().slice(0, 80);
+    try {
+      const page = await getObservationListPage({
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : 36,
+        q: q || null,
+        cursor: request.query.cursor,
+      });
+      const entries = page.observations.map(publicObservationToLandingObservation);
+      const civicContexts = await listCivicObservationContexts(entries.map((obs) => obs.visitId));
+      return {
+        ok: true,
+        nextCursor: page.nextCursor,
+        hasMore: page.hasMore,
+        months: renderRecordsPostMonthPayload(basePath, lang, "public", entries, {
+          locationMode: "public",
+          civicContexts,
+        }),
+      };
+    } catch (error) {
+      request.log.warn({ err: error }, "records public page failed");
+      reply.code(500);
+      return { ok: false, error: "public_page_failed" };
+    }
+  });
+
   app.get<{
     Params: { id: string };
     Querystring: { proposedName?: string; limit?: string };
@@ -17958,22 +18002,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const { viewerUserId } = resolveViewer(request.query, session);
     const view = normalizeRecordsView(request.query.view, Boolean(viewerUserId));
     const searchQuery = String(request.query.q ?? "").trim().slice(0, 80);
-    const [snapshot, observationSnapshot] = await Promise.all([
+    const emptyObservationSnapshot = {
+      observations: [],
+      summary: {
+        shownCount: 0,
+        awaitingIdCount: 0,
+        identifiedCount: 0,
+        multiSubjectCount: 0,
+      },
+    } satisfies ObservationListSnapshot;
+    const needsUnionSnapshot = view === "needs_id" || view === "media" || view === "places";
+    const [snapshot, observationSnapshot, publicPage] = await Promise.all([
       getLandingSnapshot(viewerUserId),
-      getObservationListSnapshot(96).catch(() => ({
-        observations: [],
-        summary: {
-          shownCount: 0,
-          awaitingIdCount: 0,
-          identifiedCount: 0,
-          multiSubjectCount: 0,
-        },
-      } satisfies ObservationListSnapshot)),
+      needsUnionSnapshot
+        ? getObservationListSnapshot(96).catch(() => emptyObservationSnapshot)
+        : Promise.resolve(emptyObservationSnapshot),
+      view === "public"
+        ? getObservationListPage({ limit: 36, q: searchQuery || null }).catch(() => null)
+        : Promise.resolve(null),
     ]);
     const ownPage = view === "mine" && snapshot.viewerUserId
       ? await getLandingOwnFeedPage(snapshot.viewerUserId, { limit: 36 }).catch(() => null)
       : null;
-    const publicEntries = observationSnapshot.observations.map(publicObservationToLandingObservation);
+    const publicEntries = (view === "public"
+      ? (publicPage?.observations ?? [])
+      : observationSnapshot.observations
+    ).map(publicObservationToLandingObservation);
     const ownEntries = snapshot.viewerUserId ? (ownPage?.entries ?? snapshot.myFeed) : [];
     const activeEntries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
     const civicContexts = await listCivicObservationContexts(activeEntries.map((obs) => obs.visitId));
@@ -17989,7 +18043,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
       hideFooter: true,
-      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage, canWriteIdentification: Boolean(session), searchQuery }),
+      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, {
+        ownPage,
+        publicPage: publicPage ? { nextCursor: publicPage.nextCursor } : null,
+        canWriteIdentification: Boolean(session),
+        searchQuery,
+      }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });
   });

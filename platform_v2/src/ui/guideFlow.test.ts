@@ -169,10 +169,10 @@ test("guide start sheet explains Japanese camera and audio choices gently", () =
   assert.match(html, /ポケットに入れて音だけ集めるときはOFF/);
   assert.match(html, /外を歩いたり自転車で移動する場合/);
   assert.match(html, /人の声らしい音は保存しないよう除外します/);
-  assert.match(html, /音声ONで、発見が4つの棚につながります/);
-  assert.match(html, /自然音候補、似た音のまとまり、レビュー待ち、研究利用候補/);
-  assert.match(html, /bundle \/ cluster/);
-  assert.match(html, /BioMonWeek 型の観測データ/);
+  assert.match(html, /音声ONで、録った音が研究まで届きます/);
+  assert.match(html, /残す → 整理する → 人が確かめる → 研究に渡す/);
+  assert.doesNotMatch(html, /bundle \/ cluster/);
+  assert.doesNotMatch(html, /BioMonWeek 型の観測データ/);
   assert.match(html, /音声だけで記録中/);
   assert.match(html, /カメラ映像は取得していません/);
   assert.match(html, /カメラか音声のどちらかをONにすると開始できます/);
