@@ -85,6 +85,9 @@ export type GuideProgramPublicSpot = {
   subtitle: string;
   preview: string;
   storyPoints: string[];
+  displayLat: number;
+  displayLng: number;
+  locationPrecision: "exact" | "approximate";
   sortOrder: number;
   requiredForCompletion: boolean;
   unlocked: boolean;
@@ -301,6 +304,9 @@ function parsePublicSpotRows(value: unknown, unlockedIds: Set<string>): GuidePro
       subtitle: spot.subtitle,
       preview: spot.preview,
       storyPoints: spot.storyPoints,
+      displayLat: spot.lat,
+      displayLng: spot.lng,
+      locationPrecision: spot.locationPrecision,
       sortOrder: Number(row.sort_order ?? 0),
       requiredForCompletion: row.required_for_completion !== false,
       unlocked: unlockedIds.has(spot.id),
