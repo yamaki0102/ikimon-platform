@@ -4,8 +4,8 @@ require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../libs/EventManager.php';
 require_once __DIR__ . '/../libs/DataStore.php';
-require_once __DIR__ . '/../libs/GeoUtils.php';
 require_once __DIR__ . '/../libs/RedListManager.php';
+require_once __DIR__ . '/../libs/EventObservationQuery.php';
 
 Auth::init();
 
@@ -42,35 +42,14 @@ if (!$isOrganizer && !$isAdmin) {
 $eventDate = $event['event_date'] ?? date('Y-m-d');
 $startTime = $event['start_time'] ?? '09:00';
 $endTime = $event['end_time'] ?? '12:00';
-$bufferMin = 30;
-
-$rangeStart = (new DateTime("{$eventDate} {$startTime}"))->modify("-{$bufferMin} minutes");
-$rangeEnd = (new DateTime("{$eventDate} {$endTime}"))->modify("+{$bufferMin} minutes");
-$evtLat = (float)($event['location']['lat'] ?? 0);
-$evtLng = (float)($event['location']['lng'] ?? 0);
-$radiusM = (int)($event['location']['radius_m'] ?? 500);
-$eventCode = $event['event_code'] ?? '';
 $grantId = $event['grant_id'] ?? '指定なし';
-
-$linkedIds = $event['linked_observations'] ?? [];
-$finalObservations = [];
-$touchedObsIds = [];
-
-$dateKey = str_replace('-', '', $eventDate);
-$partitionFile = "observations/{$dateKey}";
-$dayObservations = DataStore::get($partitionFile);
-$candidates = $dayObservations ? $dayObservations : DataStore::getLatest('observations', 2000);
+$finalObservations = EventObservationQuery::collect($event, EventObservationQuery::MODE_OFFICIAL);
 
 $speciesSet = [];
 $contributors = [];
 $totalObsCount = 0;
 
-$addObs = function ($obs) use (&$finalObservations, &$speciesSet, &$contributors, &$touchedObsIds, &$totalObsCount) {
-    if (!isset($obs['id'])) return;
-    $id = $obs['id'];
-    if (isset($touchedObsIds[$id])) return;
-    $touchedObsIds[$id] = true;
-
+foreach ($finalObservations as $obs) {
     $taxonName = $obs['taxon']['name'] ?? ($obs['identifications'][0]['taxon_name'] ?? '不明');
     $scientificName = $obs['taxon']['scientific_name'] ?? '';
     
@@ -91,28 +70,7 @@ $addObs = function ($obs) use (&$finalObservations, &$speciesSet, &$contributors
         $speciesSet[$taxonName]['count']++;
     }
 
-    $finalObservations[] = $obs;
     $totalObsCount++;
-};
-
-foreach ($candidates as $obs) {
-    $obsId = $obs['id'] ?? '';
-    $obsTag = $obs['event_tag'] ?? '';
-    if (in_array($obsId, $linkedIds) || ($eventCode && $obsTag === $eventCode)) {
-        $addObs($obs);
-        continue;
-    }
-    $obsTime = $obs['observed_at'] ?? $obs['created_at'] ?? '';
-    if (!$obsTime || strpos($obsTime, $eventDate) !== 0) continue;
-
-    $obsDateTime = new DateTime($obsTime);
-    if ($obsDateTime >= $rangeStart && $obsDateTime <= $rangeEnd) {
-        $obsLat = (float)($obs['lat'] ?? 0);
-        $obsLng = (float)($obs['lng'] ?? 0);
-        if ($obsLat && $obsLng && $evtLat && $evtLng && GeoUtils::distance($evtLat, $evtLng, $obsLat, $obsLng) <= $radiusM) {
-            $addObs($obs);
-        }
-    }
 }
 
 // 2. レッドリスト判定
