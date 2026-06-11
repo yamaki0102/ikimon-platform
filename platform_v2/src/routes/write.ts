@@ -13,6 +13,7 @@ import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../ser
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
 import { refreshProfileNoteDigestForObservation } from "../services/profileNoteDigest.js";
 import { buildContributionReceipts } from "../services/contributionReceipts.js";
+import { recordGuideUnlocksForObservation } from "../services/guideUnlocks.js";
 import { hookObservationToEvent } from "../services/observationEventDualWrite.js";
 import {
   addReviewerAuthorityEvidence,
@@ -573,9 +574,21 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const placeMemorySample = result.placeMemory
         ? await getPostSavePlaceMemorySample({ userId: request.body.userId, visitId: result.visitId, limit: 3 }).catch(() => [])
         : [];
+      const guideUnlocks = await recordGuideUnlocksForObservation({
+        userId: request.body.userId,
+        visitId: result.visitId,
+        occurrenceId: result.occurrenceId,
+        latitude: request.body.latitude,
+        longitude: request.body.longitude,
+        sourcePayload: request.body.sourcePayload ?? null,
+      }).catch((error) => {
+        request.log.warn({ err: error, visitId: result.visitId }, "guide unlock write failed");
+        return [];
+      });
       const contributionReceipts = buildContributionReceipts({
         input: request.body,
         result,
+        guideUnlocks,
       });
       void recordUiKpiEvent({
         eventName: "task_completion",
@@ -592,6 +605,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           compatibilityAttempted: result.compatibility?.attempted ?? false,
           compatibilitySucceeded: result.compatibility?.succeeded ?? false,
           contributionReceiptKinds: contributionReceipts.map((item) => item.kind),
+          guideUnlockCount: guideUnlocks.length,
         },
       }).catch(() => undefined);
       void refreshProfileNoteDigestForObservation({
@@ -620,6 +634,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         ...result,
         placeMemorySample,
         contributionReceipts,
+        guideUnlocks,
       };
     } catch (error) {
       reply.code(errorStatus(error, 400));

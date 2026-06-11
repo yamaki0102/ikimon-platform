@@ -1,4 +1,5 @@
 import type { ObservationUpsertInput, ObservationWriteResult } from "./observationWrite.js";
+import type { GuideUnlockSummary } from "./guideUnlocks.js";
 
 export type ContributionReceiptKind =
   | "record_body_saved"
@@ -6,7 +7,8 @@ export type ContributionReceiptKind =
   | "identification_context_saved"
   | "uncertainty_preserved"
   | "absence_context_saved"
-  | "revisit_seeded";
+  | "revisit_seeded"
+  | "guide_unlocked";
 
 export type ContributionReceipt = {
   kind: ContributionReceiptKind;
@@ -23,6 +25,7 @@ export type ContributionReceipt = {
 export type ContributionReceiptInput = {
   input: ObservationUpsertInput;
   result: ObservationWriteResult;
+  guideUnlocks?: GuideUnlockSummary[];
 };
 
 function sourcePayload(input: ObservationUpsertInput): Record<string, unknown> {
@@ -49,7 +52,7 @@ function receipt(input: Omit<ContributionReceipt, "claimLevel">): ContributionRe
   };
 }
 
-export function buildContributionReceipts({ input, result }: ContributionReceiptInput): ContributionReceipt[] {
+export function buildContributionReceipts({ input, result, guideUnlocks = [] }: ContributionReceiptInput): ContributionReceipt[] {
   const payload = sourcePayload(input);
   const quickCaptureState = text(payload.quick_capture_state) || result.impact.captureState || "";
   const surveyResult = text(payload.survey_result);
@@ -103,7 +106,19 @@ export function buildContributionReceipts({ input, result }: ContributionReceipt
     }));
   }
 
-  if (isAbsenceRecord) {
+  const guideUnlock = guideUnlocks[0] ?? null;
+  if (guideUnlock) {
+    receipts.push(receipt({
+      kind: "guide_unlocked",
+      title: "近くの現地ガイドが聞けるようになりました",
+      body: `${guideUnlock.guideTitle} をマイガイドに保存しました。公開投稿や正確な位置共有をしなくても、本人用にあとから聞けます。`,
+      nextAction: {
+        label: "マイガイドを開く",
+        href: guideUnlock.href,
+        actionKey: "open_my_guides",
+      },
+    }));
+  } else if (isAbsenceRecord) {
     receipts.push(receipt({
       kind: "absence_context_saved",
       title: "見なかった状況も比較材料です",

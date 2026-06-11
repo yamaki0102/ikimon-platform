@@ -130,6 +130,7 @@ import {
   type ObservationMediaAnnotationTarget,
 } from "../ui/observationMedia.js";
 import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
+import { listMyGuideUnlocks, type GuideUnlockListItem } from "../services/guideUnlocks.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
@@ -13440,6 +13441,98 @@ const RECORDS_WORKBENCH_STYLES = `
   }
 `;
 
+const MY_GUIDES_STYLES = `
+  .my-guides-page { display: grid; gap: 18px; width: min(1040px, calc(100vw - 28px)); margin: 0 auto; padding: 26px 0 54px; }
+  .my-guides-hero { display: grid; gap: 10px; padding: 18px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+  .my-guides-hero span { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .my-guides-hero h1 { margin: 0; color: #0f172a; font-size: clamp(24px, 4vw, 38px); line-height: 1.12; letter-spacing: 0; }
+  .my-guides-hero p { max-width: 760px; margin: 0; color: #475569; font-size: 14px; line-height: 1.8; font-weight: 720; }
+  .my-guides-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .my-guides-actions a,
+  .my-guide-card button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(15,23,42,.10); background: #fff; color: #0f172a; font: inherit; font-size: 12px; font-weight: 900; text-decoration: none; cursor: pointer; }
+  .my-guides-actions a:first-child,
+  .my-guide-card button { background: #0f766e; color: #fff; border-color: #0f766e; }
+  .my-guides-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .my-guide-card { display: grid; gap: 11px; padding: 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+  .my-guide-card header { display: grid; gap: 5px; }
+  .my-guide-card header span { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .my-guide-card h2 { margin: 0; color: #0f172a; font-size: 17px; line-height: 1.35; letter-spacing: 0; }
+  .my-guide-card p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 700; }
+  .my-guide-card ul { margin: 0; padding-left: 18px; color: #334155; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+  .my-guide-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .my-guide-meta span { display: inline-flex; min-height: 24px; align-items: center; padding: 3px 8px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 10.5px; font-weight: 950; }
+  .my-guide-sources { display: flex; flex-wrap: wrap; gap: 6px; }
+  .my-guide-sources a { color: #0f766e; font-size: 11px; font-weight: 850; text-decoration: none; }
+  .my-guide-empty { padding: 18px; border-radius: 8px; background: #fff7ed; border: 1px solid rgba(245,158,11,.18); color: #7c2d12; font-weight: 800; line-height: 1.7; }
+  @media (max-width: 620px) {
+    .my-guides-page { width: min(100% - 20px, 1040px); padding-top: 12px; }
+    .my-guides-hero h1 { font-size: 25px; }
+    .my-guides-grid { grid-template-columns: 1fr; }
+  }
+`;
+
+function guideDistanceBandLabel(band: GuideUnlockListItem["distanceBand"]): string {
+  if (band === "same_place") return "すぐ近くで解放";
+  if (band === "nearby") return "近くで解放";
+  return "エリア内で解放";
+}
+
+function renderMyGuideCard(basePath: string, guide: GuideUnlockListItem): string {
+  const points = guide.storyPoints.length
+    ? `<ul>${guide.storyPoints.slice(0, 3).map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>`
+    : "";
+  const sources = guide.sourceLinks.length
+    ? `<div class="my-guide-sources">${guide.sourceLinks.slice(0, 3).map((link) =>
+        `<a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer noopener">${escapeHtml(link.label)}</a>`,
+      ).join("")}</div>`
+    : "";
+  return `<article class="my-guide-card" id="guide-${escapeHtml(guide.guideSpotId)}" data-guide-script="${escapeHtml(guide.script)}" data-guide-spot-id="${escapeHtml(guide.guideSpotId)}">
+    <header>
+      <span>${escapeHtml(guide.programTitle ?? "マイガイド")}</span>
+      <h2>${escapeHtml(guide.guideTitle)}</h2>
+      <p>${escapeHtml(guide.guideSubtitle || guide.preview)}</p>
+    </header>
+    <div class="my-guide-meta">
+      <span>${escapeHtml(guideDistanceBandLabel(guide.distanceBand))}</span>
+      <span>本人用</span>
+      <span>後から再生可</span>
+    </div>
+    <p>${escapeHtml(guide.preview)}</p>
+    ${points}
+    <div class="my-guides-actions">
+      <button type="button" data-my-guide-play>聞く</button>
+      <a href="${escapeHtml(withBasePath(basePath, "/map"))}">マップで見る</a>
+    </div>
+    ${sources}
+  </article>`;
+}
+
+function myGuidesBootScript(basePath: string): string {
+  const listenedApi = withBasePath(basePath, "/api/v1/guides/unlocks/__GUIDE_SPOT_ID__/listened");
+  return `<script>
+(() => {
+  const listenedApi = ${JSON.stringify(listenedApi)};
+  function postListened(id) {
+    const url = listenedApi.replace('__GUIDE_SPOT_ID__', encodeURIComponent(id));
+    fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+  }
+  document.querySelectorAll('[data-my-guide-play]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const card = button.closest('[data-guide-script]');
+      const script = card ? String(card.getAttribute('data-guide-script') || '') : '';
+      const id = card ? String(card.getAttribute('data-guide-spot-id') || '') : '';
+      if (!script || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(script);
+      utterance.lang = 'ja-JP';
+      window.speechSynthesis.speak(utterance);
+      if (id) postListened(id);
+    });
+  });
+})();
+</script>`;
+}
+
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   await registerSpecialistReadApiRoutes(app);
 
@@ -20620,6 +20713,40 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       body: `${renderMapExplorer({ basePath, lang, years })}
 ${mapExplorerBootScript({ basePath, lang })}`,
       footerNote: mapPageCopy.footerNote,
+    });
+  });
+
+  app.get("/my-guides", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const guides = session?.userId ? await listMyGuideUnlocks(session.userId).catch(() => []) : [];
+    const body = `<main class="my-guides-page">
+      <section class="my-guides-hero">
+        <span>My guides</span>
+        <h1>解放した現地ガイド</h1>
+        <p>近くで記録を残した時に解放されたガイドだけを、本人用に保存します。公開投稿や正確な位置共有を条件にしないので、あとから落ち着いて聞き直せます。</p>
+        <div class="my-guides-actions">
+          <a href="${escapeHtml(withBasePath(basePath, "/map"))}">マップを開く</a>
+          <a href="${escapeHtml(withBasePath(basePath, "/record"))}">近くで記録する</a>
+        </div>
+      </section>
+      ${!session?.userId
+        ? `<section class="my-guide-empty">ログインすると、記録で解放されたガイドがここに保存されます。</section>`
+        : guides.length
+          ? `<section class="my-guides-grid">${guides.map((guide) => renderMyGuideCard(basePath, guide)).join("")}</section>`
+          : `<section class="my-guide-empty">まだ解放済みガイドはありません。ガイドのあるエリアの近くで観察記録を残すと、ここに保存されます。</section>`}
+    </main>${myGuidesBootScript(basePath)}`;
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: "マイガイド | ikimon.life",
+      activeNav: "guide",
+      lang,
+      currentPath: appendLangToHref(withBasePath(basePath, "/my-guides"), lang),
+      extraStyles: MY_GUIDES_STYLES,
+      body,
+      footerNote: "解放済みガイドは本人用の台帳です。",
     });
   });
 

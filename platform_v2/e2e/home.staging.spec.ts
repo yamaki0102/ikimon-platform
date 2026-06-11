@@ -65,7 +65,7 @@ async function gotoLoggedInHomeUntilGuideShelf(page: Page, fixtureSuffix: string
   await expect(async () => {
     await page.goto(`/?lang=ja&guideSmoke=${encodeURIComponent(fixtureSuffix)}`, { waitUntil: "networkidle" });
     await expect(page.locator(".prototype-content-lane").filter({ hasText: "自分の記録" })).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator(".prototype-content-lane").filter({ hasText: "みんなの記録" })).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator(".prototype-content-lane").filter({ hasText: "場所の今を残す記録" })).toBeVisible({ timeout: 5_000 });
     const guideShelf = page.locator("#topa-guide");
     await expect(guideShelf).toBeVisible({ timeout: 5_000 });
     await expect(guideShelf).toContainText("ガイドの記録", { timeout: 5_000 });
@@ -88,7 +88,7 @@ for (const profile of HOME_VIEWPORTS) {
       await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
       await expect(page.locator(".prototype-content-wall")).toBeVisible();
       await expect(page.locator(".prototype-content-lane").first()).toBeVisible();
-      await expect(page.locator(".prototype-content-lane").filter({ hasText: "みんなの記録" })).toBeVisible();
+      await expect(page.locator(".prototype-content-lane").filter({ hasText: "場所の今を残す記録" })).toBeVisible();
       await expect(page.locator("#topa-local-map")).toBeVisible();
       await expect(page.locator(".prototype-local-panel.is-invasive")).toBeVisible();
       await expect(page.locator(".prototype-local-panel.is-events")).toBeVisible();

@@ -86,3 +86,35 @@ test("survey and absence observations receive follow-up receipts without overcla
   assert.match(receipts[1]!.body, /次回の観察と比べやすく/);
   assert.match(receipts[2]!.body, /見なかったこと/);
 });
+
+test("guide unlock receipts route to private my guides without exact location pressure", () => {
+  const receipts = buildContributionReceipts({
+    input: baseInput({
+      latitude: 34.81436,
+      longitude: 137.73271,
+      sourcePayload: {
+        source: "test",
+        public_visibility: "private",
+      },
+    }),
+    result: baseResult(),
+    guideUnlocks: [{
+      guideSpotId: "aikan-renri-lenri-tree",
+      guideTitle: "Cafe & Restaurant LENRIと連理の木",
+      guideSubtitle: "愛管の自然共生サイトで聞く",
+      programId: "aikan-renri-guide-relay",
+      programTitle: "連理の木 自然共生ガイドリレー",
+      distanceBand: "same_place",
+      unlockedAt: "2026-06-11T10:00:00.000Z",
+      href: "/my-guides?guide=aikan-renri-lenri-tree",
+    }],
+  });
+
+  assert.deepEqual(
+    receipts.map((receipt) => receipt.kind),
+    ["record_body_saved", "place_comparison_seeded", "guide_unlocked"],
+  );
+  assert.equal(receipts[2]!.nextAction.href, "/my-guides?guide=aikan-renri-lenri-tree");
+  assert.match(receipts[2]!.body, /公開投稿や正確な位置共有をしなくても/);
+  assert.doesNotMatch(JSON.stringify(receipts), /あと\\s*\\d+m|ポイント|ランキング/);
+});

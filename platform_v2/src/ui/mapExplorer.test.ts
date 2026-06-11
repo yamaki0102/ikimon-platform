@@ -159,13 +159,18 @@ test("map guide spots render independently from area polygons", () => {
   assert.match(html, /data-api-guide-spots="\/api\/v1\/map\/guide-spots"/);
   assert.match(script, /function loadGuideSpots\(\)/);
   assert.match(script, /openGuideSpotSheet\(feature\)/);
+  assert.match(script, /openGuideSpotGroupSheet\(features\)/);
   assert.match(script, /kind: 'guide_spot'/);
   assert.match(script, /renderGuideSourceLinks/);
+  assert.match(script, /groupGuideSpotFeatures/);
+  assert.match(script, /guideSpotClusterKey/);
   assert.match(script, /GUIDE_SPOT_LABEL_ZOOM = 12\.6/);
   assert.match(script, /GUIDE_SPOT_DENSE_LIMIT = 10/);
   assert.match(script, /guideSpotCount > GUIDE_SPOT_DENSE_LIMIT/);
   assert.match(script, /is-pin/);
   assert.match(styles, /me-guide-spot-marker/);
+  assert.match(styles, /me-guide-spot-marker\.is-cluster/);
+  assert.doesNotMatch(script, /あと __DISTANCE__|formatGuideDistance|radius \+ 'm'/);
 });
 
 test("map legend stays within the map viewport", () => {
