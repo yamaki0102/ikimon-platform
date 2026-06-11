@@ -131,6 +131,12 @@ import {
 } from "../ui/observationMedia.js";
 import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 import { listMyGuideUnlocks, type GuideUnlockListItem } from "../services/guideUnlocks.js";
+import {
+  getPublishedGuideProgramDetail,
+  listPublishedGuideProgramsForPublic,
+  type GuideProgramPublicDetail,
+  type GuideProgramPublicSpot,
+} from "../services/guidePrograms.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
@@ -13464,6 +13470,21 @@ const MY_GUIDES_STYLES = `
   .my-guide-sources { display: flex; flex-wrap: wrap; gap: 6px; }
   .my-guide-sources a { color: #0f766e; font-size: 11px; font-weight: 850; text-decoration: none; }
   .my-guide-empty { padding: 18px; border-radius: 8px; background: #fff7ed; border: 1px solid rgba(245,158,11,.18); color: #7c2d12; font-weight: 800; line-height: 1.7; }
+  .guide-program-list { display: grid; gap: 12px; }
+  .guide-program-card { display: grid; gap: 10px; padding: 15px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+  .guide-program-card h2 { margin: 0; color: #0f172a; font-size: 18px; line-height: 1.35; letter-spacing: 0; }
+  .guide-program-card p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 720; }
+  .guide-program-progress { display: grid; gap: 6px; }
+  .guide-program-progress-row { display: flex; justify-content: space-between; gap: 10px; color: #334155; font-size: 12px; font-weight: 900; }
+  .guide-program-progress-track { height: 9px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+  .guide-program-progress-track span { display: block; height: 100%; background: #0f766e; border-radius: inherit; }
+  .guide-program-spot-list { display: grid; gap: 9px; }
+  .guide-program-spot { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+  .guide-program-spot b { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 12px; }
+  .guide-program-spot[data-unlocked="true"] b { background: #0f766e; color: #fff; }
+  .guide-program-spot strong { display: block; color: #0f172a; font-size: 14px; line-height: 1.35; }
+  .guide-program-spot p { margin: 3px 0 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 700; }
+  .guide-program-next { padding: 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.20); color: #064e3b; font-weight: 800; line-height: 1.65; }
   @media (max-width: 620px) {
     .my-guides-page { width: min(100% - 20px, 1040px); padding-top: 12px; }
     .my-guides-hero h1 { font-size: 25px; }
@@ -13501,10 +13522,91 @@ function renderMyGuideCard(basePath: string, guide: GuideUnlockListItem): string
     ${points}
     <div class="my-guides-actions">
       <button type="button" data-my-guide-play>聞く</button>
+      ${guide.programSlug ? `<a href="${escapeHtml(withBasePath(basePath, `/guide-programs/${guide.programSlug}`))}">企画を見る</a>` : ""}
       <a href="${escapeHtml(withBasePath(basePath, "/map"))}">マップで見る</a>
     </div>
     ${sources}
   </article>`;
+}
+
+function programProgressLabel(program: GuideProgramPublicDetail): string {
+  const progress = program.progress;
+  if (progress.state === "signed_out") return "ログインすると自分の進捗が表示されます";
+  if (progress.totalRequired === 0) return "自由参加";
+  if (progress.state === "complete") return "完了";
+  if (progress.state === "not_started") return "未開始";
+  return "進行中";
+}
+
+function renderProgramProgress(program: GuideProgramPublicDetail): string {
+  const progress = program.progress;
+  const countLabel = progress.totalRequired === 0
+    ? `${progress.unlockedSpots}/${progress.totalSpots} 任意`
+    : `${progress.unlockedRequired}/${progress.totalRequired} 解放`;
+  return `<div class="guide-program-progress" aria-label="ガイドリレー進捗">
+    <div class="guide-program-progress-row">
+      <span>${escapeHtml(programProgressLabel(program))}</span>
+      <strong>${escapeHtml(countLabel)}</strong>
+    </div>
+    <div class="guide-program-progress-track" aria-hidden="true"><span style="width:${Math.max(0, Math.min(100, progress.percent))}%"></span></div>
+  </div>`;
+}
+
+function renderProgramCard(basePath: string, program: GuideProgramPublicDetail): string {
+  return `<article class="guide-program-card">
+    <h2>${escapeHtml(program.title)}</h2>
+    <p>${escapeHtml(program.publicSummary ?? "近くで記録を残すと、現地ガイドが本人用に解放される企画です。")}</p>
+    ${renderProgramProgress(program)}
+    <div class="my-guide-meta">
+      <span>${program.spots.length}ガイド</span>
+      <span>${program.participationMode === "ordered" ? "順番あり" : "どこからでも"}</span>
+      <span>位置は本人用</span>
+    </div>
+    <div class="my-guides-actions">
+      <a href="${escapeHtml(withBasePath(basePath, `/guide-programs/${program.slug}`))}">詳細を見る</a>
+      <a href="${escapeHtml(withBasePath(basePath, "/record"))}">近くで記録する</a>
+    </div>
+  </article>`;
+}
+
+function renderProgramSpot(spot: GuideProgramPublicSpot, index: number): string {
+  return `<article class="guide-program-spot" data-unlocked="${spot.unlocked ? "true" : "false"}">
+    <b>${spot.unlocked ? "済" : String(index + 1)}</b>
+    <div>
+      <strong>${escapeHtml(spot.title)}</strong>
+      <p>${escapeHtml(spot.subtitle || spot.preview)}</p>
+    </div>
+  </article>`;
+}
+
+function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail): string {
+  const next = program.nextSpot
+    ? `<section class="guide-program-next">次に解放しやすいガイド: ${escapeHtml(program.nextSpot.title)}。近くで観察記録を残すと、本人用に保存されます。</section>`
+    : program.progress.state === "complete"
+      ? `<section class="guide-program-next">この企画の必須ガイドはすべて解放済みです。あとから何度でも聞き直せます。</section>`
+      : `<section class="guide-program-next">ログインして近くで記録すると、自分の進捗がここに表示されます。</section>`;
+  return `<main class="my-guides-page">
+    <section class="my-guides-hero">
+      <span>Guide relay</span>
+      <h1>${escapeHtml(program.title)}</h1>
+      <p>${escapeHtml(program.publicSummary ?? "近くで記録を残すと、現地ガイドが本人用に解放される企画です。")}</p>
+      <div class="my-guides-actions">
+        <a href="${escapeHtml(withBasePath(basePath, "/record"))}">近くで記録する</a>
+        <a href="${escapeHtml(withBasePath(basePath, "/map"))}">マップで見る</a>
+        <a href="${escapeHtml(withBasePath(basePath, "/my-guides"))}">マイガイド</a>
+      </div>
+    </section>
+    <section class="guide-program-card">
+      ${renderProgramProgress(program)}
+      <div class="my-guide-meta">
+        <span>${program.spots.length}ガイド</span>
+        <span>${program.participationMode === "ordered" ? "順番あり" : "どこからでも"}</span>
+        <span>公開投稿不要</span>
+      </div>
+    </section>
+    ${next}
+    <section class="guide-program-spot-list">${program.spots.map(renderProgramSpot).join("")}</section>
+  </main>`;
 }
 
 function myGuidesBootScript(basePath: string): string {
@@ -20713,6 +20815,69 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       body: `${renderMapExplorer({ basePath, lang, years })}
 ${mapExplorerBootScript({ basePath, lang })}`,
       footerNote: mapPageCopy.footerNote,
+    });
+  });
+
+  app.get("/guide-programs", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const programs = await listPublishedGuideProgramsForPublic(session?.userId ?? null).catch(() => []);
+    const body = `<main class="my-guides-page">
+      <section class="my-guides-hero">
+        <span>Guide relay</span>
+        <h1>ガイドリレー企画</h1>
+        <p>ガイドのあるエリアの近くで記録を残すと、本人用に現地ガイドが解放されます。企画ごとの進み具合を見ながら、次に歩く場所を選べます。</p>
+        <div class="my-guides-actions">
+          <a href="${escapeHtml(withBasePath(basePath, "/record"))}">近くで記録する</a>
+          <a href="${escapeHtml(withBasePath(basePath, "/my-guides"))}">マイガイド</a>
+        </div>
+      </section>
+      ${programs.length
+        ? `<section class="guide-program-list">${programs.map((program) => renderProgramCard(basePath, program)).join("")}</section>`
+        : `<section class="my-guide-empty">公開中のガイドリレー企画はまだありません。</section>`}
+    </main>`;
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: "ガイドリレー企画 | ikimon.life",
+      activeNav: "guide",
+      lang,
+      currentPath: appendLangToHref(withBasePath(basePath, "/guide-programs"), lang),
+      extraStyles: MY_GUIDES_STYLES,
+      body,
+      footerNote: "ガイドリレー企画は、記録をきっかけに本人用ガイドを解放します。",
+    });
+  });
+
+  app.get<{ Params: { slug: string } }>("/guide-programs/:slug", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const program = await getPublishedGuideProgramDetail(request.params.slug, session?.userId ?? null).catch(() => null);
+    if (!program) {
+      reply.code(404).type("text/html; charset=utf-8");
+      return renderSiteDocument({
+        basePath,
+        title: "ガイドリレー企画が見つかりません | ikimon.life",
+        activeNav: "guide",
+        lang,
+        currentPath: appendLangToHref(withBasePath(basePath, "/guide-programs"), lang),
+        extraStyles: MY_GUIDES_STYLES,
+        body: `<main class="my-guides-page"><section class="my-guide-empty">このガイドリレー企画は公開されていないか、期間外です。</section></main>`,
+        footerNote: "公開中の企画だけを表示します。",
+      });
+    }
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: `${program.title} | ikimon.life`,
+      activeNav: "guide",
+      lang,
+      currentPath: appendLangToHref(withBasePath(basePath, `/guide-programs/${program.slug}`), lang),
+      extraStyles: MY_GUIDES_STYLES,
+      body: renderProgramDetail(basePath, program),
+      footerNote: "進捗は本人用です。正確な記録位置は公開しません。",
     });
   });
 

@@ -36,7 +36,8 @@ test("unlock candidate matching uses a capped GPS accuracy buffer", () => {
 test("guide unlock runtime resolves DB-authored programs without duplicating coordinates", () => {
   const source = readFileSync(join(process.cwd(), "src", "services", "guideUnlocks.ts"), "utf8");
   assert.match(source, /findActiveGuideProgramForSpot/);
-  assert.match(source, /listGuideProgramTitles/);
+  assert.match(source, /listGuideProgramRefs/);
+  assert.match(source, /programSlug/);
   assert.match(source, /runtimeProgram\?\.id/);
   assert.doesNotMatch(source, /guide_unlocks[\s\S]*latitude/);
   assert.doesNotMatch(source, /guide_unlocks[\s\S]*longitude/);

@@ -73,6 +73,47 @@ export type RuntimeGuideProgram = {
   status: GuideProgramStatus;
 };
 
+export type GuideProgramRef = {
+  id: string;
+  slug: string;
+  title: string;
+};
+
+export type GuideProgramPublicSpot = {
+  id: string;
+  title: string;
+  subtitle: string;
+  preview: string;
+  storyPoints: string[];
+  sortOrder: number;
+  requiredForCompletion: boolean;
+  unlocked: boolean;
+  href: string;
+};
+
+export type GuideProgramProgress = {
+  state: "signed_out" | "not_started" | "in_progress" | "complete";
+  totalRequired: number;
+  unlockedRequired: number;
+  totalSpots: number;
+  unlockedSpots: number;
+  percent: number;
+};
+
+export type GuideProgramPublicDetail = {
+  programId: string;
+  slug: string;
+  title: string;
+  ownerType: GuideProgramOwnerType;
+  participationMode: GuideProgramParticipationMode;
+  publicSummary: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  spots: GuideProgramPublicSpot[];
+  progress: GuideProgramProgress;
+  nextSpot: GuideProgramPublicSpot | null;
+};
+
 type ProgramRow = QueryResultRow & {
   program_id: string;
   slug: string;
@@ -95,6 +136,12 @@ type RuntimeProgramRow = QueryResultRow & {
   title: string;
   participation_mode: GuideProgramParticipationMode;
   status: GuideProgramStatus;
+};
+
+type GuideProgramRefRow = QueryResultRow & {
+  program_id: string;
+  slug: string;
+  title: string;
 };
 
 export const SAFE_GUIDE_PROGRAM_POLICY = {
@@ -241,6 +288,39 @@ function parseSpotRows(value: unknown): GuideProgramAdminSpot[] {
   }).filter((item): item is GuideProgramAdminSpot => Boolean(item));
 }
 
+function parsePublicSpotRows(value: unknown, unlockedIds: Set<string>): GuideProgramPublicSpot[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const spotId = stringValue(row.guide_spot_id);
+    const spot = MAP_GUIDE_SPOTS.find((candidate) => candidate.id === spotId);
+    if (!spot || !guideSpotIsAssignableToProgram(spot)) return null;
+    return {
+      id: spot.id,
+      title: spot.title,
+      subtitle: spot.subtitle,
+      preview: spot.preview,
+      storyPoints: spot.storyPoints,
+      sortOrder: Number(row.sort_order ?? 0),
+      requiredForCompletion: row.required_for_completion !== false,
+      unlocked: unlockedIds.has(spot.id),
+      href: `/my-guides?guide=${encodeURIComponent(spot.id)}`,
+    };
+  }).filter((item): item is GuideProgramPublicSpot => Boolean(item))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, "ja"));
+}
+
+function publicSpotIdsFromRows(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.map((item) => {
+    const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const spotId = stringValue(row.guide_spot_id);
+    const spot = MAP_GUIDE_SPOTS.find((candidate) => candidate.id === spotId);
+    return spot && guideSpotIsAssignableToProgram(spot) ? spot.id : null;
+  }).filter((id): id is string => Boolean(id));
+  return [...new Set(ids)];
+}
+
 function toAdminItem(row: ProgramRow): GuideProgramAdminItem {
   return {
     programId: row.program_id,
@@ -256,6 +336,57 @@ function toAdminItem(row: ProgramRow): GuideProgramAdminItem {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     spots: parseSpotRows(row.spots),
+  };
+}
+
+function publicProgress(spots: GuideProgramPublicSpot[], signedIn: boolean): GuideProgramProgress {
+  const required = spots.filter((spot) => spot.requiredForCompletion);
+  const totalRequired = required.length;
+  const unlockedRequired = required.filter((spot) => spot.unlocked).length;
+  const unlockedSpots = spots.filter((spot) => spot.unlocked).length;
+  const percent = totalRequired > 0
+    ? Math.round((unlockedRequired / totalRequired) * 100)
+    : spots.length > 0
+      ? Math.round((unlockedSpots / spots.length) * 100)
+      : 0;
+  return {
+    state: !signedIn
+      ? "signed_out"
+      : totalRequired === 0
+        ? unlockedSpots === 0
+          ? "not_started"
+          : unlockedSpots >= spots.length
+            ? "complete"
+            : "in_progress"
+      : unlockedRequired === 0
+        ? "not_started"
+        : unlockedRequired >= totalRequired
+          ? "complete"
+          : "in_progress",
+    totalRequired,
+    unlockedRequired,
+    totalSpots: spots.length,
+    unlockedSpots,
+    percent,
+  };
+}
+
+function toPublicDetail(row: ProgramRow, unlockedIds: Set<string>, signedIn: boolean): GuideProgramPublicDetail {
+  const spots = parsePublicSpotRows(row.spots, unlockedIds);
+  const progress = publicProgress(spots, signedIn);
+  const nextSpot = spots.find((spot) => spot.requiredForCompletion && !spot.unlocked) ?? null;
+  return {
+    programId: row.program_id,
+    slug: row.slug,
+    title: row.title,
+    ownerType: row.owner_type,
+    participationMode: row.participation_mode,
+    publicSummary: row.public_summary,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    spots,
+    progress,
+    nextSpot,
   };
 }
 
@@ -326,6 +457,85 @@ export async function getGuideProgramEditorState(): Promise<{
     programs,
     guideSpots: listAssignableGuideSpots(),
   };
+}
+
+async function loadUnlockedGuideSpotIds(userId: string | null, guideSpotIds: string[]): Promise<Set<string>> {
+  if (!userId || guideSpotIds.length === 0) return new Set();
+  const result = await getPool().query<{ guide_spot_id: string }>(
+    `SELECT guide_spot_id
+       FROM guide_unlocks
+      WHERE user_id = $1
+        AND guide_spot_id = ANY($2::text[])`,
+    [userId, guideSpotIds],
+  );
+  return new Set(result.rows.map((row) => row.guide_spot_id));
+}
+
+export async function getPublishedGuideProgramDetail(slug: string, userId: string | null = null): Promise<GuideProgramPublicDetail | null> {
+  const normalizedSlug = stringValue(slug).toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{2,95}$/.test(normalizedSlug)) return null;
+  const result = await getPool().query<ProgramRow>(
+    `SELECT gp.program_id, gp.slug, gp.title, gp.owner_type, gp.participation_mode, gp.status,
+            gp.starts_at::text, gp.ends_at::text, gp.public_summary, gp.safety_policy,
+            gp.created_at::text, gp.updated_at::text,
+            COALESCE(
+              jsonb_agg(
+                jsonb_build_object(
+                  'guide_spot_id', gps.guide_spot_id,
+                  'sort_order', gps.sort_order,
+                  'required_for_completion', gps.required_for_completion
+                )
+                ORDER BY gps.sort_order, gps.guide_spot_id
+              ) FILTER (WHERE gps.guide_spot_id IS NOT NULL),
+              '[]'::jsonb
+            ) AS spots
+      FROM guide_programs gp
+       LEFT JOIN guide_program_spots gps ON gps.program_id = gp.program_id
+      WHERE gp.slug = $1
+        AND gp.status = 'published'
+        AND gp.owner_type != 'school'
+        AND (gp.starts_at IS NULL OR gp.starts_at <= now())
+        AND (gp.ends_at IS NULL OR gp.ends_at >= now())
+      GROUP BY gp.program_id
+      LIMIT 1`,
+    [normalizedSlug],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  const spotIds = publicSpotIdsFromRows(row.spots);
+  const unlockedIds = await loadUnlockedGuideSpotIds(userId, spotIds).catch(() => new Set<string>());
+  return toPublicDetail(row, unlockedIds, Boolean(userId));
+}
+
+export async function listPublishedGuideProgramsForPublic(userId: string | null = null): Promise<GuideProgramPublicDetail[]> {
+  const result = await getPool().query<ProgramRow>(
+    `SELECT gp.program_id, gp.slug, gp.title, gp.owner_type, gp.participation_mode, gp.status,
+            gp.starts_at::text, gp.ends_at::text, gp.public_summary, gp.safety_policy,
+            gp.created_at::text, gp.updated_at::text,
+            COALESCE(
+              jsonb_agg(
+                jsonb_build_object(
+                  'guide_spot_id', gps.guide_spot_id,
+                  'sort_order', gps.sort_order,
+                  'required_for_completion', gps.required_for_completion
+                )
+                ORDER BY gps.sort_order, gps.guide_spot_id
+              ) FILTER (WHERE gps.guide_spot_id IS NOT NULL),
+              '[]'::jsonb
+            ) AS spots
+       FROM guide_programs gp
+       LEFT JOIN guide_program_spots gps ON gps.program_id = gp.program_id
+      WHERE gp.status = 'published'
+        AND gp.owner_type != 'school'
+        AND (gp.starts_at IS NULL OR gp.starts_at <= now())
+        AND (gp.ends_at IS NULL OR gp.ends_at >= now())
+      GROUP BY gp.program_id
+      ORDER BY gp.updated_at DESC
+      LIMIT 50`,
+  );
+  const allSpotIds = [...new Set(result.rows.flatMap((row) => publicSpotIdsFromRows(row.spots)))];
+  const unlockedIds = await loadUnlockedGuideSpotIds(userId, allSpotIds).catch(() => new Set<string>());
+  return result.rows.map((row) => toPublicDetail(row, unlockedIds, Boolean(userId)));
 }
 
 export async function upsertGuideProgram(input: GuideProgramEditorInput, actorUserId: string | null): Promise<GuideProgramAdminItem> {
@@ -438,4 +648,20 @@ export async function listGuideProgramTitles(programIds: string[]): Promise<Map<
     [ids],
   );
   return new Map(result.rows.map((row) => [row.program_id, row.title]));
+}
+
+export async function listGuideProgramRefs(programIds: string[]): Promise<Map<string, GuideProgramRef>> {
+  const ids = [...new Set(programIds.filter(Boolean))];
+  if (ids.length === 0) return new Map();
+  const result = await getPool().query<GuideProgramRefRow>(
+    `SELECT program_id, slug, title
+       FROM guide_programs
+      WHERE program_id = ANY($1::text[])`,
+    [ids],
+  );
+  return new Map(result.rows.map((row) => [row.program_id, {
+    id: row.program_id,
+    slug: row.slug,
+    title: row.title,
+  }]));
 }

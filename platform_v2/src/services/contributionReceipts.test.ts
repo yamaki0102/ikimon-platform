@@ -104,6 +104,7 @@ test("guide unlock receipts route to private my guides without exact location pr
       guideSubtitle: "愛管の自然共生サイトで聞く",
       programId: "aikan-renri-guide-relay",
       programTitle: "連理の木 自然共生ガイドリレー",
+      programSlug: "aikan-renri-guide-relay",
       distanceBand: "same_place",
       unlockedAt: "2026-06-11T10:00:00.000Z",
       href: "/my-guides?guide=aikan-renri-lenri-tree",

@@ -8,7 +8,7 @@ import {
 } from "./mapGuideSpots.js";
 import {
   findActiveGuideProgramForSpot,
-  listGuideProgramTitles,
+  listGuideProgramRefs,
   type RuntimeGuideProgram,
 } from "./guidePrograms.js";
 
@@ -26,6 +26,7 @@ export type GuideUnlockSummary = {
   guideSubtitle: string;
   programId: string | null;
   programTitle: string | null;
+  programSlug: string | null;
   distanceBand: "same_place" | "nearby" | "area";
   unlockedAt: string;
   href: string;
@@ -158,6 +159,7 @@ function toSummary(row: UnlockRow, spot: MapGuideSpot, runtimeProgram?: RuntimeG
     guideSubtitle: spot.subtitle,
     programId: program?.id ?? null,
     programTitle: program?.title ?? null,
+    programSlug: program?.slug ?? null,
     distanceBand: row.distance_band,
     unlockedAt: row.last_unlocked_at,
     href: unlockHref(spot.id),
@@ -231,15 +233,17 @@ export async function listMyGuideUnlocks(userId: string): Promise<GuideUnlockLis
       LIMIT 100`,
     [userId],
   );
-  const dbTitles = await listGuideProgramTitles(result.rows.map((row) => row.program_id).filter((id): id is string => Boolean(id))).catch(() => new Map<string, string>());
+  const dbPrograms = await listGuideProgramRefs(result.rows.map((row) => row.program_id).filter((id): id is string => Boolean(id))).catch(() => new Map());
   return result.rows
     .map((row) => {
       const spot = MAP_GUIDE_SPOTS.find((item) => item.id === row.guide_spot_id);
       if (!spot) return null;
       const summary = toSummary(row, spot);
+      const dbProgram = row.program_id ? dbPrograms.get(row.program_id) : null;
       return {
         ...summary,
-        programTitle: row.program_id ? dbTitles.get(row.program_id) ?? summary.programTitle : summary.programTitle,
+        programTitle: dbProgram?.title ?? summary.programTitle,
+        programSlug: dbProgram?.slug ?? summary.programSlug,
         preview: spot.preview,
         script: spot.script,
         storyPoints: spot.storyPoints,
