@@ -209,7 +209,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     navVisibility: ["qa"],
     title: { ja: "プロフィール", en: "Profile" },
     summary: { ja: "一人の観察と場所の履歴を見る。", en: "Read one observer's observations and places." },
-    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "最近の My places" }, requires: "user", allowStatus: [200], screenshot: { baselineName: "registry-profile" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "最近の場所" }, requires: "user", allowStatus: [200], screenshot: { baselineName: "registry-profile" } },
   },
   {
     path: "/observations/:id",

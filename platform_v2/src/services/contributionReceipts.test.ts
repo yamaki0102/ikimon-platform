@@ -87,6 +87,36 @@ test("survey and absence observations receive follow-up receipts without overcla
   assert.match(receipts[2]!.body, /見なかったこと/);
 });
 
+test("unlocated note receipts do not invite same-place continuation", () => {
+  const receipts = buildContributionReceipts({
+    input: baseInput({
+      latitude: null,
+      longitude: null,
+      municipality: null,
+      prefecture: null,
+      localityNote: null,
+    }),
+    result: baseResult({
+      placeId: "place:unlocated:visit-1",
+      impact: {
+        placeName: "地点未指定の記録",
+        visitCount: 1,
+        previousObservedAt: null,
+        focusLabel: null,
+        captureState: "unknown",
+      },
+    }),
+  });
+
+  assert.deepEqual(
+    receipts.map((receipt) => receipt.kind),
+    ["record_body_saved", "place_comparison_seeded", "uncertainty_preserved"],
+  );
+  assert.match(receipts[1]!.title, /地点なし/);
+  assert.equal(receipts[1]!.nextAction.actionKey, "view_unlocated_observation");
+  assert.doesNotMatch(receipts[1]!.body, /同じ場所/);
+});
+
 test("guide unlock receipts route to private my guides without exact location pressure", () => {
   const receipts = buildContributionReceipts({
     input: baseInput({

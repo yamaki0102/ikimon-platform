@@ -17,8 +17,11 @@ export type StagingFixtureColumns = {
   visitIdColumn?: string;
   occurrenceIdColumn?: string;
   placeIdColumn?: string;
+  eventCodeColumn?: string;
+  titleColumn?: string;
   visitSourceColumn?: string;
   occurrenceSourceColumn?: string;
+  configColumn?: string;
 };
 
 function unique(values: Array<string | null | undefined>): string[] {
@@ -35,7 +38,7 @@ function escapeSqlLiteral(value: string): string {
 
 function buildRegexSql(column: string, regex: string, caseInsensitive = false): string {
   const operator = caseInsensitive ? "~*" : "~";
-  return `coalesce(${column}, '') ${operator} '${escapeSqlLiteral(regex)}'`;
+  return `coalesce((${column})::text, '') ${operator} '${escapeSqlLiteral(regex)}'`;
 }
 
 export function getStagingFixturePrefixes(fixturePrefix?: string | null): string[] {
@@ -72,10 +75,19 @@ export function buildStagingFixturePredicate(
   if (columns.placeIdColumn) {
     clauses.push(buildRegexSql(columns.placeIdColumn, `^(site:)?(${prefixBody})`));
   }
+  if (columns.eventCodeColumn) {
+    clauses.push(buildRegexSql(columns.eventCodeColumn, `^(${prefixBody})`));
+  }
 
   // Global cleanup/exclusion also needs to catch rows whose ids drifted but still
   // carry smoke provenance in source_payload.source.
   if (!fixturePrefix) {
+    if (columns.titleColumn) {
+      clauses.push(buildRegexSql(columns.titleColumn, GLOBAL_STAGING_FIXTURE_SOURCE_REGEX, true));
+    }
+    if (columns.configColumn) {
+      clauses.push(buildRegexSql(columns.configColumn, GLOBAL_STAGING_FIXTURE_SOURCE_REGEX, true));
+    }
     if (columns.visitSourceColumn) {
       clauses.push(buildRegexSql(columns.visitSourceColumn, GLOBAL_STAGING_FIXTURE_SOURCE_REGEX, true));
     }

@@ -223,7 +223,8 @@ export async function getObservationDetailHeavy(
       const rows = await pool.query<{ m: string; n: string }>(
         `SELECT extract(month from observed_at)::text AS m, count(*)::text AS n
            FROM visits WHERE place_id = $1
-           GROUP BY m ORDER BY m::int`,
+           GROUP BY extract(month from observed_at)
+           ORDER BY extract(month from observed_at)::int`,
         [placeId],
       );
       for (const r of rows.rows) {

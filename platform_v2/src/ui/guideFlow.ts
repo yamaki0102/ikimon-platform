@@ -824,7 +824,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <button class="guide-stop-btn" id="guide-stop-btn">${escapeHtml(c.stopBtn)}</button>
   </div>
 
-  <div class="guide-permission-msg" id="guide-permission-msg" hidden>${escapeHtml(c.permissionDenied)}</div>
+  <div class="guide-permission-msg" id="guide-permission-msg" tabindex="-1" hidden>${escapeHtml(c.permissionDenied)}</div>
   <div class="guide-photo-fallback" id="guide-photo-fallback" hidden>
     <p>${escapeHtml(c.photoFallbackHint)}</p>
     <button class="guide-photo-btn" id="guide-photo-btn" type="button">${escapeHtml(c.choosePhotoBtn)}</button>
@@ -3314,6 +3314,17 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       stopLocationWatch();
       permMsg.hidden = false;
       if (photoFallback) photoFallback.hidden = false;
+      window.requestAnimationFrame(() => {
+        const target = photoFallback || permMsg;
+        if (target && typeof target.scrollIntoView === 'function') {
+          target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+        if (photoBtn && typeof photoBtn.focus === 'function') {
+          photoBtn.focus({ preventScroll: true });
+        } else if (permMsg && typeof permMsg.focus === 'function') {
+          permMsg.focus({ preventScroll: true });
+        }
+      });
       console.error('Guide camera unavailable', err);
     }
   }

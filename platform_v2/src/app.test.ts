@@ -28,14 +28,52 @@ test("app sends browser security headers on every response", async () => {
     const csp = String(response.headers["content-security-policy"] ?? "");
     assert.match(csp, /default-src 'self'/);
     assert.match(csp, /script-src 'self' 'unsafe-inline' https:\/\/cdn\.jsdelivr\.net https:\/\/unpkg\.com/);
+    assert.match(csp, /script-src[\s\S]*https:\/\/scripts\.clarity\.ms/);
     assert.match(csp, /object-src 'none'/);
     assert.match(csp, /frame-ancestors 'none'/);
     assert.match(csp, /form-action 'self'/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/nominatim\.openstreetmap\.org/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/www\.google\.com/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/\*\.google-analytics\.com/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/\*\.analytics\.google\.com/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/upload\.videodelivery\.net/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/upload\.cloudflarestream\.com/);
     assert.match(csp, /frame-src 'self' https:\/\/iframe\.videodelivery\.net/);
     assert.equal(response.headers["strict-transport-security"], undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("app returns the site shell 404 for browser navigations", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/settings",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
+    assert.match(response.body, /ページが見つかりません/);
+    assert.doesNotMatch(response.body, /"error":"not_found"/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("app keeps JSON 404 for API clients", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/not-a-route",
+      headers: { accept: "application/json" },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(response.json(), { ok: false, error: "not_found" });
   } finally {
     await app.close();
   }

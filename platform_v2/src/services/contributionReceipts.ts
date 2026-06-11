@@ -1,4 +1,5 @@
 import type { ObservationUpsertInput, ObservationWriteResult } from "./observationWrite.js";
+import { hasUsableObservationCoordinates } from "./localityNormalization.js";
 import type { GuideUnlockSummary } from "./guideUnlocks.js";
 
 export type ContributionReceiptKind =
@@ -45,6 +46,14 @@ function hasIdentificationHint(input: ObservationUpsertInput): boolean {
   );
 }
 
+function hasPlaceAnchor(input: ObservationUpsertInput): boolean {
+  return hasUsableObservationCoordinates(input.latitude, input.longitude)
+    || Boolean(text(input.siteId))
+    || Boolean(text(input.siteName))
+    || Boolean(text(input.prefecture))
+    || Boolean(text(input.municipality));
+}
+
 function receipt(input: Omit<ContributionReceipt, "claimLevel">): ContributionReceipt {
   return {
     ...input,
@@ -60,6 +69,7 @@ export function buildContributionReceipts({ input, result, guideUnlocks = [] }: 
   const isAbsenceRecord = quickCaptureState === "no_detection_note" || surveyResult === "no_detection_note";
   const isUnknownRecord = quickCaptureState === "unknown" || !hasIdentification;
   const hasRevisitFrame = input.visitMode === "survey" || Boolean(text(input.revisitReason) || text(input.targetTaxaScope));
+  const hasLocationAnchor = hasPlaceAnchor(input);
   const observationHref = `/observations/${encodeURIComponent(result.occurrenceId)}`;
   const revisitHref = `/record?start=gallery&revisitObservationId=${encodeURIComponent(result.visitId)}`;
   const placeName = text(result.impact.placeName);
@@ -78,7 +88,18 @@ export function buildContributionReceipts({ input, result, guideUnlocks = [] }: 
     }),
   ];
 
-  if (hasRevisitFrame) {
+  if (!hasLocationAnchor) {
+    receipts.push(receipt({
+      kind: "place_comparison_seeded",
+      title: "地点なしのメモとして保存しました",
+      body: "場所を決めずに、日時・メモ・名前の手がかりをあとから確認できる状態で残しました。",
+      nextAction: {
+        label: "記録を見る",
+        href: observationHref,
+        actionKey: "view_unlocated_observation",
+      },
+    }));
+  } else if (hasRevisitFrame) {
     receipts.push(receipt({
       kind: "revisit_seeded",
       title: "同じ条件で見返す起点ができました",

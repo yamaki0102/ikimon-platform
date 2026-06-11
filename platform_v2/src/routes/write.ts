@@ -574,17 +574,25 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const placeMemorySample = result.placeMemory
         ? await getPostSavePlaceMemorySample({ userId: request.body.userId, visitId: result.visitId, limit: 3 }).catch(() => [])
         : [];
-      const guideUnlocks = await recordGuideUnlocksForObservation({
-        userId: request.body.userId,
-        visitId: result.visitId,
-        occurrenceId: result.occurrenceId,
-        latitude: request.body.latitude,
-        longitude: request.body.longitude,
-        sourcePayload: request.body.sourcePayload ?? null,
-      }).catch((error) => {
-        request.log.warn({ err: error, visitId: result.visitId }, "guide unlock write failed");
-        return [];
-      });
+      const latitude = typeof request.body.latitude === "number" && Number.isFinite(request.body.latitude)
+        ? request.body.latitude
+        : null;
+      const longitude = typeof request.body.longitude === "number" && Number.isFinite(request.body.longitude)
+        ? request.body.longitude
+        : null;
+      const guideUnlocks = latitude !== null && longitude !== null
+        ? await recordGuideUnlocksForObservation({
+            userId: request.body.userId,
+            visitId: result.visitId,
+            occurrenceId: result.occurrenceId,
+            latitude,
+            longitude,
+            sourcePayload: request.body.sourcePayload ?? null,
+          }).catch((error) => {
+            request.log.warn({ err: error, visitId: result.visitId }, "guide unlock write failed");
+            return [];
+          })
+        : [];
       const contributionReceipts = buildContributionReceipts({
         input: request.body,
         result,

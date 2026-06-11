@@ -14,6 +14,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.doesNotMatch(html, /class="btn btn-ghost site-login-link"/);
   assert.doesNotMatch(html, /class="desktop-side-nav-link site-login-link/);
   assert.match(html, /class="site-mobile-menu-account site-login-link"/);
+  assert.match(html, /class="site-mobile-account-row"/);
+  assert.match(html, /class="site-mobile-account-actions"/);
   assert.match(html, /class="site-account-icons"/);
   assert.match(html, /data-account-profile/);
   assert.match(html, /data-account-alerts/);
@@ -26,6 +28,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /data-notification-panel/);
   assert.match(html, /data-notification-toggle/);
   assert.match(html, /data-notification-read-all/);
+  assert.match(html, /\.site-notification-badge\[hidden\] \{ display: none; \}/);
   assert.match(html, /credentials: 'same-origin'/);
   assert.match(html, /マイページ/);
   assert.match(html, /rel="manifest" href="\/manifest\.webmanifest\?lang=ja"/);
@@ -107,6 +110,19 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
   assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
   assert.match(html, /<span>ikimon<\/span>\s*<span>Enjoy Life<\/span>/);
+});
+
+test("site shell keeps records search query and view in header search", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Test",
+    body: "<p>body</p>",
+    lang: "ja",
+    currentPath: "/ja/records?view=needs_id&q=%E3%82%AB%E3%83%A9%E3%82%B9",
+  });
+
+  assert.match(html, /<input type="hidden" name="view" value="needs_id" \/>/);
+  assert.match(html, /name="q" placeholder="[^"]*" value="カラス"/);
 });
 
 test("mobile menu panel can render outside the sticky header", () => {

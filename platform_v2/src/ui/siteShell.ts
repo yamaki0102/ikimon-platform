@@ -115,15 +115,32 @@ function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): st
     .join("");
 }
 
-function renderSearchForm(basePath: string, lang: SiteLang, copy: ShellCopy, className = ""): string {
+function recordsSearchState(currentPath: string): { query: string; view: string } {
+  try {
+    const url = new URL(currentPath || "/", "https://ikimon.local");
+    if (!url.pathname.replace(/\/+$/, "").endsWith("/records")) {
+      return { query: "", view: "" };
+    }
+    return {
+      query: (url.searchParams.get("q") ?? "").trim().slice(0, 80),
+      view: (url.searchParams.get("view") ?? "").trim().slice(0, 40),
+    };
+  } catch {
+    return { query: "", view: "" };
+  }
+}
+
+function renderSearchForm(basePath: string, lang: SiteLang, copy: ShellCopy, className = "", currentPath = ""): string {
   const classes = ["site-search"];
   if (className) {
     classes.push(className);
   }
+  const searchState = recordsSearchState(currentPath);
 
   return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records"), lang))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
     <span class="site-search-icon" aria-hidden="true">🔍</span>
-    <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" aria-label="${escapeHtml(copy.searchLabel)}" />
+    ${searchState.view ? `<input type="hidden" name="view" value="${escapeHtml(searchState.view)}" />` : ""}
+    <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" value="${escapeHtml(searchState.query)}" aria-label="${escapeHtml(copy.searchLabel)}" />
   </form>`;
 }
 
@@ -695,8 +712,8 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const brandMarkSrc = BRAND_ASSETS.mark192;
   const brandWordmarkSrc = BRAND_ASSETS.wordmarkBlack;
   const navLinks = buildNavLinks(basePath, lang, activeNav);
-  const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop");
-  const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile");
+  const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop", currentPath);
+  const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile", currentPath);
   const desktopLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-desktop");
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
@@ -738,9 +755,12 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
           </summary>
           <div class="site-mobile-menu-panel">
             ${mobileSearch}
+            <div class="site-mobile-account-row">
+              <a class="site-mobile-menu-account site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
+              <nav class="site-mobile-account-actions" aria-label="${escapeHtml(accountCopy.accountNav)}">${profileIcon}${notificationIcon}${settingsIcon}</nav>
+            </div>
             <nav class="site-nav site-nav-mobile">${mobileSideNav}</nav>
             <div class="site-mobile-menu-meta">
-              <a class="site-mobile-menu-account site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
               ${mobileLangSwitch}
             </div>
           </div>
@@ -4115,6 +4135,7 @@ ${alternateLinks}
       font-weight: 950;
       border: 2px solid #fff;
     }
+    .site-notification-badge[hidden] { display: none; }
     .site-notification-panel {
       position: absolute;
       z-index: 120;
@@ -4555,6 +4576,29 @@ ${alternateLinks}
       color: #047857;
       font-size: 13px;
       font-weight: 900;
+    }
+    .site-mobile-account-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+    .site-mobile-account-actions {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,.24);
+      background: #ffffff;
+    }
+    .site-mobile-account-actions .site-account-icon {
+      width: 34px;
+      height: 34px;
+    }
+    .site-mobile-account-actions .site-notification-panel {
+      right: -6px;
     }
     .site-mobile-menu-toggle { list-style: none; }
     .site-mobile-menu-toggle::-webkit-details-marker { display: none; }

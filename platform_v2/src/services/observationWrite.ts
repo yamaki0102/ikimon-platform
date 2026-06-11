@@ -95,8 +95,8 @@ export type ObservationUpsertInput = {
   clientSubmissionId?: string | null;
   userId: string;
   observedAt: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   country?: string | null;
   prefecture?: string | null;
   municipality?: string | null;
@@ -212,17 +212,84 @@ function assertObservationInput(input: ObservationUpsertInput): void {
     throw new Error("userId is required");
   }
 
-  if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
-    throw new Error("latitude and longitude are required");
-  }
-
-  if (!hasUsableObservationCoordinates(input.latitude, input.longitude)) {
-    throw new Error("valid latitude and longitude are required");
-  }
-
   if (!input.observedAt || input.observedAt.trim() === "") {
     throw new Error("observedAt is required");
   }
+}
+
+function normalizeObservationCoordinates(input: ObservationUpsertInput): {
+  latitude: number | null;
+  longitude: number | null;
+  hasLocation: boolean;
+} {
+  const hasLatitude = input.latitude !== null && input.latitude !== undefined;
+  const hasLongitude = input.longitude !== null && input.longitude !== undefined;
+  if (!hasLatitude && !hasLongitude) {
+    return { latitude: null, longitude: null, hasLocation: false };
+  }
+  if (hasLatitude !== hasLongitude) {
+    throw new Error("latitude and longitude must be provided together");
+  }
+  if (typeof input.latitude !== "number" || !Number.isFinite(input.latitude) || input.latitude < -90 || input.latitude > 90) {
+    throw new Error("invalid_latitude");
+  }
+  if (typeof input.longitude !== "number" || !Number.isFinite(input.longitude) || input.longitude < -180 || input.longitude > 180) {
+    throw new Error("invalid_longitude");
+  }
+  if (!hasUsableObservationCoordinates(input.latitude, input.longitude)) {
+    throw new Error("invalid_location");
+  }
+  return {
+    latitude: Number(input.latitude.toFixed(6)),
+    longitude: Number(input.longitude.toFixed(6)),
+    hasLocation: true,
+  };
+}
+
+function hasObservationPlaceAnchor(
+  input: ObservationUpsertInput,
+  locality: NormalizedObservationLocality,
+  hasLocation: boolean,
+): boolean {
+  return hasLocation
+    || Boolean(normalizeOptionalText(input.siteId))
+    || Boolean(normalizeOptionalText(input.siteName))
+    || Boolean(locality.prefecture)
+    || Boolean(locality.municipality);
+}
+
+function buildObservationPlaceName(
+  input: ObservationUpsertInput,
+  locality: NormalizedObservationLocality,
+  hasPlaceAnchor: boolean,
+): string {
+  if (!hasPlaceAnchor) {
+    return "地点未指定の記録";
+  }
+  return buildPlaceName({
+    siteName: input.siteName,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
+  });
+}
+
+function buildObservationPlaceId(
+  input: ObservationUpsertInput,
+  locality: NormalizedObservationLocality,
+  visitId: string,
+  hasLocation: boolean,
+  hasPlaceAnchor: boolean,
+): string {
+  if (!hasPlaceAnchor) {
+    return `place:unlocated:${visitId}`;
+  }
+  return buildPlaceId({
+    siteId: input.siteId,
+    latitude: hasLocation ? input.latitude : null,
+    longitude: hasLocation ? input.longitude : null,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
+  });
 }
 
 function normalizeOptionalText(value: string | null | undefined): string | null {
@@ -296,6 +363,8 @@ async function buildObservationImpact(input: ObservationUpsertInput, placeId: st
     latitude: input.latitude,
     longitude: input.longitude,
   });
+  const hasLocation = hasUsableObservationCoordinates(input.latitude, input.longitude);
+  const hasPlaceAnchor = hasObservationPlaceAnchor(input, locality, hasLocation);
   const impactResult = await getPool().query<{
     place_name: string | null;
     visit_count: string;
@@ -348,11 +417,7 @@ async function buildObservationImpact(input: ObservationUpsertInput, placeId: st
   );
   const impactRow = impactResult.rows[0];
   return {
-    placeName: impactRow?.place_name ?? buildPlaceName({
-      siteName: input.siteName,
-      municipality: locality.municipality,
-      prefecture: locality.prefecture,
-    }),
+    placeName: impactRow?.place_name ?? buildObservationPlaceName(input, locality, hasPlaceAnchor),
     visitCount: Number(impactRow?.visit_count ?? "1"),
     previousObservedAt: impactRow?.previous_observed_at ?? null,
     focusLabel,
@@ -410,13 +475,9 @@ async function existingObservationResult(input: ObservationUpsertInput, clientSu
     latitude: input.latitude,
     longitude: input.longitude,
   });
-  const placeId = row.place_id ?? buildPlaceId({
-    siteId: input.siteId,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    municipality: locality.municipality,
-    prefecture: locality.prefecture,
-  });
+  const hasLocation = hasUsableObservationCoordinates(input.latitude, input.longitude);
+  const hasPlaceAnchor = hasObservationPlaceAnchor(input, locality, hasLocation);
+  const placeId = row.place_id ?? buildObservationPlaceId(input, locality, visitId, hasLocation, hasPlaceAnchor);
   return {
     visitId: row.visit_id,
     occurrenceId: row.occurrence_id,
@@ -473,6 +534,10 @@ function buildServerLocationAuditPayload(
 
 export async function upsertObservation(input: ObservationUpsertInput): Promise<ObservationWriteResult> {
   assertObservationInput(input);
+  const coordinates = normalizeObservationCoordinates(input);
+  input.latitude = coordinates.latitude;
+  input.longitude = coordinates.longitude;
+  const hasLocation = coordinates.hasLocation;
 
   const pool = getPool();
   const client = await pool.connect();
@@ -486,7 +551,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const qualitySignals: ObservationQualitySignals = {
     hasPhoto,
     hasAudio: false,
-    hasLocation: hasUsableObservationCoordinates(input.latitude, input.longitude),
+    hasLocation,
     hasIdentification: subjects.some((subject) =>
       Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
     ),
@@ -494,7 +559,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     gateReasons: [
       hasPhoto ? null : "missing_photo",
       "missing_audio",
-      hasUsableObservationCoordinates(input.latitude, input.longitude) ? null : "missing_location",
+      hasLocation ? null : "missing_location",
       subjects.some((subject) =>
         Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
       ) ? null : "missing_identification",
@@ -504,10 +569,12 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
   const observedAt = normalizeTimestamp(input.observedAt);
-  const adminLocality = await resolveAdminLocalityForPoint(client, input.latitude, input.longitude, { observedAt }).catch((err) => {
-    console.warn("[observationWrite] resolveAdminLocalityForPoint failed", err);
-    return null;
-  });
+  const adminLocality = hasLocation
+    ? await resolveAdminLocalityForPoint(client, input.latitude!, input.longitude!, { observedAt }).catch((err) => {
+        console.warn("[observationWrite] resolveAdminLocalityForPoint failed", err);
+        return null;
+      })
+    : null;
   const locality = normalizeObservationLocality({
     prefecture: input.prefecture ?? adminLocality?.prefecture,
     municipality: input.municipality ?? adminLocality?.municipality,
@@ -539,14 +606,12 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     ?? normalizeOptionalText(subjects[0]?.vernacularName)
     ?? normalizeOptionalText(subjects[0]?.scientificName)
     ?? null;
-  const placeId = buildPlaceId({
-    siteId: input.siteId,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    municipality: locality.municipality,
-    prefecture: locality.prefecture,
-  });
-  const spatialMesh = encodeJisMeshCodes(input.latitude, input.longitude);
+  const hasPlaceAnchor = hasObservationPlaceAnchor(input, locality, hasLocation);
+  const placeId = buildObservationPlaceId(input, locality, visitId, hasLocation, hasPlaceAnchor);
+  const placeName = buildObservationPlaceName(input, locality, hasPlaceAnchor);
+  const spatialMesh = hasLocation
+    ? encodeJisMeshCodes(input.latitude!, input.longitude!)
+    : { mesh1km: null, mesh250m: null };
   const fingerprint = requestFingerprint(input, subjects, observedAt, locality);
   const eventSessionId = (input as unknown as { eventSessionId?: unknown }).eventSessionId;
   const eventCode = (input as unknown as { eventCode?: unknown }).eventCode;
@@ -683,24 +748,21 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         placeId,
         placeId,
         input.siteId ?? null,
-        buildPlaceName({
-          siteName: input.siteName,
-          municipality: locality.municipality,
-          prefecture: locality.prefecture,
-        }),
+        placeName,
         input.siteName ?? input.localityNote ?? null,
         observedCountry,
         locality.prefecture,
         locality.municipality,
         spatialMesh.mesh1km,
         spatialMesh.mesh250m,
-        input.latitude,
-        input.longitude,
+        hasLocation ? input.latitude : null,
+        hasLocation ? input.longitude : null,
         JSON.stringify({
           source: "v2_write_api",
           site_id: input.siteId ?? null,
           site_name: input.siteName ?? null,
           record_mode: visitMode,
+          location_anchor: hasPlaceAnchor ? "place" : "unlocated",
         }),
         observedAt,
       ],
@@ -780,9 +842,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     // Resolve which observation_fields (parks/admin/OECM/symbiosis/...) contain
     // this point so area-snapshot aggregations can use a fast UUID[] join later.
     // Failure here is non-fatal — the bbox+JSONB fallback in placeSnapshot still works.
-    if (Number.isFinite(input.latitude) && Number.isFinite(input.longitude)) {
+    if (hasLocation) {
       try {
-        const resolvedFieldIds = await resolveFieldsForPoint(input.latitude, input.longitude);
+        const resolvedFieldIds = await resolveFieldsForPoint(input.latitude!, input.longitude!);
         await client.query(
           `update visits set resolved_field_ids = $2::uuid[] where visit_id = $1`,
           [visitId, resolvedFieldIds],
@@ -1061,15 +1123,17 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       }, client);
     }
 
-    placeMemory = await upsertPlaceMemoryForVisit(client, {
-      visitId,
-      occurrenceId,
-      userId: input.userId,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      placeMemory: input.placeMemory,
-      source: "v2_observation_write",
-    });
+    if (hasLocation) {
+      placeMemory = await upsertPlaceMemoryForVisit(client, {
+        visitId,
+        occurrenceId,
+        userId: input.userId,
+        latitude: input.latitude!,
+        longitude: input.longitude!,
+        placeMemory: input.placeMemory,
+        source: "v2_observation_write",
+      });
+    }
 
     if (pendingFieldScan?.scanMode) {
       await upsertFieldScanContext({
@@ -1142,9 +1206,10 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
 
   // Non-blocking: capture Site Brief snapshot at observation time.
   // Failures silently drop — never block the observation write path.
-  void (async () => {
-    try {
-      const signals = await fetchSiteSignals(input.latitude, input.longitude);
+  if (hasLocation) {
+    void (async () => {
+      try {
+        const signals = await fetchSiteSignals(input.latitude!, input.longitude!);
       const brief = composeSiteBrief(signals, "ja");
       const fcPool = getPool();
       const fcClient = await fcPool.connect();
@@ -1167,10 +1232,11 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       } finally {
         fcClient.release();
       }
-    } catch {
-      // intentionally swallowed
-    }
-  })();
+      } catch {
+        // intentionally swallowed
+      }
+    })();
+  }
 
   // Non-blocking: try Tier 1 → 1.5 auto-promotion (AI conf ≥ 0.8 × regional record)
   void tryAutoPromoteToTier1_5(occurrenceId).catch(() => undefined);
