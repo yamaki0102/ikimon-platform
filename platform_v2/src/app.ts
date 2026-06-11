@@ -34,6 +34,7 @@ import { registerAdminLenriAreaIntelligenceRoutes } from "./routes/adminLenriAre
 import { registerAdminSiteEvidenceRoutes } from "./routes/adminSiteEvidence.js";
 import { registerAdminRegionalKnowledgeRoutes } from "./routes/adminRegionalKnowledge.js";
 import { registerAdminGuidePromptImprovementRoutes } from "./routes/adminGuidePromptImprovements.js";
+import { registerAdminGuideProgramRoutes } from "./routes/adminGuidePrograms.js";
 import { registerKnowledgeNavigationApiRoutes } from "./routes/knowledgeNavigationApi.js";
 import { registerCuratorProposalsRoutes } from "./routes/curatorProposalsApi.js";
 import { registerObservationEventApiRoutes } from "./routes/observationEventApi.js";
@@ -774,6 +775,7 @@ export function buildApp() {
   void registerAdminSiteEvidenceRoutes(app);
   void registerAdminRegionalKnowledgeRoutes(app);
   void registerAdminGuidePromptImprovementRoutes(app);
+  void registerAdminGuideProgramRoutes(app);
   void registerKnowledgeNavigationApiRoutes(app);
   void registerCuratorProposalsRoutes(app);
   void registerObservationEventApiRoutes(app);

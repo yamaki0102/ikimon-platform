@@ -6,6 +6,11 @@ import {
   type MapGuideProgram,
   type MapGuideSpot,
 } from "./mapGuideSpots.js";
+import {
+  findActiveGuideProgramForSpot,
+  listGuideProgramTitles,
+  type RuntimeGuideProgram,
+} from "./guidePrograms.js";
 
 export type GuideUnlockCandidate = {
   spot: MapGuideSpot;
@@ -141,10 +146,12 @@ function unlockHref(guideSpotId: string): string {
   return `/my-guides?guide=${encodeURIComponent(guideSpotId)}`;
 }
 
-function toSummary(row: UnlockRow, spot: MapGuideSpot): GuideUnlockSummary {
-  const program = row.program_id
-    ? MAP_GUIDE_PROGRAMS.find((item) => item.id === row.program_id) ?? null
-    : primaryProgramForSpot(spot);
+function staticProgramForId(programId: string | null): MapGuideProgram | null {
+  return programId ? MAP_GUIDE_PROGRAMS.find((item) => item.id === programId) ?? null : null;
+}
+
+function toSummary(row: UnlockRow, spot: MapGuideSpot, runtimeProgram?: RuntimeGuideProgram | null): GuideUnlockSummary {
+  const program = runtimeProgram ?? staticProgramForId(row.program_id) ?? primaryProgramForSpot(spot);
   return {
     guideSpotId: spot.id,
     guideTitle: spot.title,
@@ -171,6 +178,7 @@ export async function recordGuideUnlocksForObservation(input: {
   const pool = getPool();
   const rows: GuideUnlockSummary[] = [];
   for (const candidate of candidates) {
+    const runtimeProgram = await findActiveGuideProgramForSpot(candidate.spot.id).catch(() => candidate.program);
     const result = await pool.query<UnlockRow>(
       `INSERT INTO guide_unlocks (
           user_id, guide_spot_id, program_id, source_visit_id, source_occurrence_id,
@@ -194,7 +202,7 @@ export async function recordGuideUnlocksForObservation(input: {
       [
         input.userId,
         candidate.spot.id,
-        candidate.program?.id ?? null,
+        runtimeProgram?.id ?? candidate.program?.id ?? null,
         input.visitId,
         input.occurrenceId,
         candidate.captureAccuracyM,
@@ -208,7 +216,7 @@ export async function recordGuideUnlocksForObservation(input: {
       ],
     );
     const row = result.rows[0];
-    if (row) rows.push(toSummary(row, candidate.spot));
+    if (row) rows.push(toSummary(row, candidate.spot, runtimeProgram));
   }
   return rows;
 }
@@ -223,12 +231,15 @@ export async function listMyGuideUnlocks(userId: string): Promise<GuideUnlockLis
       LIMIT 100`,
     [userId],
   );
+  const dbTitles = await listGuideProgramTitles(result.rows.map((row) => row.program_id).filter((id): id is string => Boolean(id))).catch(() => new Map<string, string>());
   return result.rows
     .map((row) => {
       const spot = MAP_GUIDE_SPOTS.find((item) => item.id === row.guide_spot_id);
       if (!spot) return null;
+      const summary = toSummary(row, spot);
       return {
-        ...toSummary(row, spot),
+        ...summary,
+        programTitle: row.program_id ? dbTitles.get(row.program_id) ?? summary.programTitle : summary.programTitle,
         preview: spot.preview,
         script: spot.script,
         storyPoints: spot.storyPoints,

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { findGuideUnlockCandidatesForPoint, parseCaptureAccuracyM } from "./guideUnlocks.js";
 
 test("nearby records unlock the owner-verified Lenri guide without requiring public posting", () => {
@@ -29,4 +31,13 @@ test("unlock candidate matching uses a capped GPS accuracy buffer", () => {
 
   assert.ok(nearWithCoarseGps.some((candidate) => candidate.spot.id === "aikan-renri-lenri-tree"));
   assert.equal(parseCaptureAccuracyM({ locationAccuracyM: "42" }), 42);
+});
+
+test("guide unlock runtime resolves DB-authored programs without duplicating coordinates", () => {
+  const source = readFileSync(join(process.cwd(), "src", "services", "guideUnlocks.ts"), "utf8");
+  assert.match(source, /findActiveGuideProgramForSpot/);
+  assert.match(source, /listGuideProgramTitles/);
+  assert.match(source, /runtimeProgram\?\.id/);
+  assert.doesNotMatch(source, /guide_unlocks[\s\S]*latitude/);
+  assert.doesNotMatch(source, /guide_unlocks[\s\S]*longitude/);
 });
