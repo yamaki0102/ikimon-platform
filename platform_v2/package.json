@@ -60,6 +60,7 @@
     "smoke:v2-write-lane": "tsx src/scripts/smokeV2WriteLane.ts",
     "smoke:production-media": "tsx src/scripts/smokeProductionMediaUpload.ts",
     "cleanup:production-ui-smoke": "tsx src/scripts/cleanupProductionUiSmoke.ts",
+    "monitor:production-smoke-cleanup": "tsx src/scripts/monitorProductionSmokeCleanup.ts",
     "smoke:audio-archive": "tsx src/scripts/smokeAudioArchive.ts",
     "smoke:audio-embedding": "tsx src/scripts/smokeAudioEmbedding.ts",
     "smoke:manual-occurrence-map": "tsx src/scripts/smokeManualOccurrenceMap.ts",
