@@ -434,7 +434,7 @@ test.describe("landing top visual regression", () => {
       });
 
       await expect(page.locator(".prototype-content-wall")).toBeVisible();
-      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("みんなの記録");
+      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("場所の今を残す記録");
       await expect(page.locator("#topa-local-map")).toBeVisible();
       expect(await page.locator(".prototype-content-card").count(), "fixture keeps production-like card volume").toBeGreaterThanOrEqual(8);
 
@@ -500,7 +500,7 @@ test.describe("landing top visual regression", () => {
       });
 
       await expect(page.locator(".prototype-content-wall")).toBeVisible();
-      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("みんなの記録");
+      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("場所の今を残す記録");
       expect(await page.locator(".prototype-content-card").count(), "live production card volume").toBeGreaterThanOrEqual(8);
       await page.waitForFunction(() => {
         return Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-content-card img"))

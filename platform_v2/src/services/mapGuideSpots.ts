@@ -17,7 +17,27 @@ export type MapGuideSpot = {
   storyPoints: string[];
   triggerRadiusM: number;
   unlockedRadiusM: number;
+  guideAreaId?: string;
+  guideProgramIds?: string[];
+  ownerType?: "owner" | "community" | "municipality" | "school";
+  visibilityStatus?: "published" | "paused" | "hidden";
+  safetyStatus?: "active" | "caution" | "closed";
+  landownerConsent?: boolean;
+  availableTimePolicy?: "anytime_public" | "business_hours" | "event_only";
+  distanceDisplayPolicy?: "coarse";
+  requiredAccuracyM?: number;
+  accuracyBufferCapM?: number;
   sourceLinks: MapGuideSourceLink[];
+};
+
+export type MapGuideProgram = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  participationMode: "any_order" | "ordered";
+  status: "published" | "draft" | "paused" | "closed";
+  guideSpotIds: string[];
 };
 
 type Bbox = [number, number, number, number];
@@ -38,7 +58,70 @@ export type MapGuideSpotFeatureCollection = {
 
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
 
+export const MAP_GUIDE_PROGRAMS: MapGuideProgram[] = [
+  {
+    id: "aikan-renri-guide-relay",
+    slug: "aikan-renri-guide-relay",
+    title: "連理の木 自然共生ガイドリレー",
+    summary: "愛管株式会社の自然共生サイト周辺で、記録を残すと現地ガイドがあとから聞ける企画です。",
+    participationMode: "any_order",
+    status: "published",
+    guideSpotIds: ["aikan-renri-lenri-tree"],
+  },
+  {
+    id: "hamamatsu-heritage-guide-relay",
+    slug: "hamamatsu-heritage-guide-relay",
+    title: "浜松地域遺産ガイドリレー",
+    summary: "地域遺産の近くで記録を残しながら、現地で聞ける短いガイドをつないでいく企画です。",
+    participationMode: "any_order",
+    status: "published",
+    guideSpotIds: [
+      "hamamatsu-shijimizuka-site",
+      "hamamatsu-nakamurake-house",
+      "hamamatsu-maisaka-wakihonjin",
+      "hamamatsu-castle-ruins",
+      "hamamatsu-ryotanji-garden",
+      "hamamatsu-makaya-temple-garden",
+      "hamamatsu-hourinji-temple",
+      "hamamatsu-heritage-system",
+    ],
+  },
+];
+
 export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
+  {
+    id: "aikan-renri-lenri-tree",
+    title: "Cafe & Restaurant LENRIと連理の木",
+    subtitle: "愛管の自然共生サイトで、食・農・設備技術と土地の関係を聞く",
+    lat: 34.81435,
+    lng: 137.7327,
+    locationPrecision: "approximate",
+    category: "owner",
+    approvalState: "owner_verified",
+    preview: "連理の木、れんり農園、Cafe & Restaurant LENRI、地中熱GXを、同じ場所で育ってきた地域の物語として紹介します。",
+    script: "ここは、愛管株式会社が設備会社としての現場力を、食、農、自然共生、教育へ少しずつ結び直してきた場所です。連理の木の下で始まった活動は、れんり農園、Cafe & Restaurant LENRI、地域の素材を生かす食の場へ広がりました。訪れたら、看板や建物だけでなく、連理の木、農園、足元の草地、水や熱の使い方にも目を向けてください。",
+    storyPoints: [
+      "連理の木を中心に、食、農、自然共生、設備技術が同じ場所でつながっている。",
+      "Cafe & Restaurant LENRIは、地域素材や場づくりを通じて人と土地の関係を見せる入口。",
+      "地中熱GXや自然共生サイトの活動も、裏側でこの場所の思想を支えている。",
+    ],
+    triggerRadiusM: 120,
+    unlockedRadiusM: 45,
+    guideAreaId: "aikan-renri-ikan-hq",
+    guideProgramIds: ["aikan-renri-guide-relay"],
+    ownerType: "owner",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 120,
+    accuracyBufferCapM: 80,
+    sourceLinks: [
+      { label: "愛管株式会社: 生物多様性", url: "https://i-kan.co.jp/company/biodiversity/" },
+      { label: "浜松市: 地域遺産認定制度", url: HAMAMATSU_CITY_HERITAGE_URL },
+    ],
+  },
   {
     id: "hamamatsu-shijimizuka-site",
     title: "蜆塚遺跡",
@@ -57,6 +140,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 220,
     unlockedRadiusM: 90,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 蜆塚遺跡", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamatsu/hamatsu/shizimizuka.html" },
     ],
@@ -79,6 +171,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 220,
     unlockedRadiusM: 90,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 中村家住宅", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/yuto/yuto/nakamurake.html" },
     ],
@@ -101,6 +202,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 220,
     unlockedRadiusM: 90,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 旧舞坂脇本陣", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/maisaka/maisaka/wakihonjin.html" },
     ],
@@ -123,6 +233,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 260,
     unlockedRadiusM: 110,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 浜松城跡", url: "https://www.city.hamamatsu.shizuoka.jp/kouen/siro/hamamatujou.html" },
     ],
@@ -145,6 +264,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 240,
     unlockedRadiusM: 100,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 名勝", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/meisho.html" },
       { label: "浜松市: 地域遺産センター", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/maibun/index.html" },
@@ -168,6 +296,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 240,
     unlockedRadiusM: 100,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 摩訶耶寺庭園", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/info/bunkazaijyoho77.html" },
     ],
@@ -190,6 +327,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 240,
     unlockedRadiusM: 100,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 浜松にもたらされた黄檗文化", url: "https://www.city.hamamatsu.shizuoka.jp/hamahaku/02tenji/tokubetu/oubaku.html" },
       { label: "浜松市: 文化財情報vol.1", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/info/info_01.html" },
@@ -213,6 +359,15 @@ export const MAP_GUIDE_SPOTS: MapGuideSpot[] = [
     ],
     triggerRadiusM: 300,
     unlockedRadiusM: 120,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
     sourceLinks: [
       { label: "浜松市: 浜松地域遺産認定制度", url: HAMAMATSU_CITY_HERITAGE_URL },
     ],

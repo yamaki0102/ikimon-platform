@@ -10,6 +10,7 @@ import { createGuideLiveToken } from "../services/guideLiveToken.js";
 import { promoteGuideRecordToObservation } from "../services/guideRecordPromotion.js";
 import { recordGuideRoutePoint } from "../services/guideRouteTrack.js";
 import { analyzeScene, saveGuideRecord, type GuideFrameInput, type GuideMode, type SceneResult } from "../services/guideSession.js";
+import { listMyGuideUnlocks, markGuideUnlockListened } from "../services/guideUnlocks.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
 import { meshKey100m } from "../services/observationEventEffort.js";
 import { hookGuideSceneToEvent, type ObservationEventSourcePayload } from "../services/observationEventDualWrite.js";
@@ -567,6 +568,43 @@ async function applyGuideAutoSave(input: {
 }
 
 export function registerGuideApiRoutes(app: FastifyInstance): void {
+  app.get("/api/v1/guides/unlocks", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session?.userId) {
+        reply.code(401);
+        return { ok: false, error: "unauthorized" };
+      }
+      const guides = await listMyGuideUnlocks(session.userId);
+      return { ok: true, guides };
+    } catch (error) {
+      reply.code(500);
+      return { ok: false, error: error instanceof Error ? error.message : "guide_unlocks_failed" };
+    }
+  });
+
+  app.post<{ Params: { guideSpotId: string } }>("/api/v1/guides/unlocks/:guideSpotId/listened", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session?.userId) {
+        reply.code(401);
+        return { ok: false, error: "unauthorized" };
+      }
+      await assertAuthRateLimit(["guide-unlock-listened", session.userId, request.ip], 120, 60_000);
+      assertSameOriginRequest(request);
+      const ok = await markGuideUnlockListened({ userId: session.userId, guideSpotId: request.params.guideSpotId });
+      if (!ok) {
+        reply.code(404);
+        return { ok: false, error: "guide_unlock_not_found" };
+      }
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "guide_unlock_listened_failed";
+      reply.code(message === "same_origin_required" ? 403 : message === "rate_limited" ? 429 : 500);
+      return { ok: false, error: message };
+    }
+  });
+
   /**
    * POST /api/v1/guide/scene
    * Queue video frame (+ optional privacy-filtered natural audio) analysis and immediately return a scene_id.

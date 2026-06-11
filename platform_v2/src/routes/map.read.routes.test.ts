@@ -108,3 +108,14 @@ test("record upload flow lets 60 second videos continue when browser duration me
   assert.match(source, /サーバー側の上限で確認します/);
   assert.match(source, /端末で秒数を読めませんでした。60秒以内の動画ならこのまま記録できます。/);
 });
+
+test("my guides page exposes unlocked guide replay and map return", () => {
+  const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+
+  assert.match(source, /app\.get\("\/my-guides"/);
+  assert.match(source, /listMyGuideUnlocks\(session\.userId\)/);
+  assert.match(source, /解放した現地ガイド/);
+  assert.match(source, /公開投稿や正確な位置共有を条件にしない/);
+  assert.match(source, /data-my-guide-play/);
+  assert.match(source, /\/api\/v1\/guides\/unlocks\/__GUIDE_SPOT_ID__\/listened/);
+});

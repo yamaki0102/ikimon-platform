@@ -36,6 +36,9 @@ test("guide scene analysis auto-saves only after the field-observation quality g
   assert.match(source, /promoteGuideRecordToObservation\(/);
   assert.match(source, /nextAction: guidePromotionNextAction\(message\)/);
   assert.match(source, /app\.post\("\/api\/v1\/guide\/telemetry"/);
+  assert.match(source, /app\.get\("\/api\/v1\/guides\/unlocks"/);
+  assert.match(source, /listMyGuideUnlocks\(session\.userId\)/);
+  assert.match(source, /app\.post<\{ Params: \{ guideSpotId: string \} \}>\("\/api\/v1\/guides\/unlocks\/:guideSpotId\/listened"/);
   assert.match(source, /pointKind: "telemetry"/);
   assert.match(source, /liveCoverageCellSizeM: 10/);
   assert.match(source, /geometry: row\.polygon/);

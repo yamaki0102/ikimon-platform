@@ -1434,8 +1434,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     guideStopPlay: props.lang === "ja" ? "この場所で聞く" : props.lang === "es" ? "Escuchar aquí" : props.lang === "pt-BR" ? "Ouvir aqui" : "Listen here",
     guideStopStop: props.lang === "ja" ? "停止" : props.lang === "es" ? "Detener" : props.lang === "pt-BR" ? "Parar" : "Stop",
     guideStopPermissionPrompt: props.lang === "ja" ? "現在地を許可すると、再生できる距離か確認します。" : props.lang === "es" ? "Permite la ubicación para saber si puedes reproducirlo." : props.lang === "pt-BR" ? "Permita a localização para saber se já pode reproduzir." : "Allow location to check whether this can play.",
-    guideStopDistanceTemplate: props.lang === "ja" ? "現在地から __DISTANCE__ / __RADIUS__以内で再生" : props.lang === "es" ? "A __DISTANCE__ / se reproduce dentro de __RADIUS__" : props.lang === "pt-BR" ? "A __DISTANCE__ / toca dentro de __RADIUS__" : "__DISTANCE__ away / plays within __RADIUS__",
-    guideStopFarTemplate: props.lang === "ja" ? "あと __DISTANCE__ 近づくと聞けます。" : props.lang === "es" ? "Acércate __DISTANCE__ más para escucharlo." : props.lang === "pt-BR" ? "Aproxime-se mais __DISTANCE__ para ouvir." : "Move __DISTANCE__ closer to listen.",
+    guideStopDistanceTemplate: props.lang === "ja" ? "近さを粗く確認して、再生できる状態だけ表示します。" : props.lang === "es" ? "La cercanía se comprueba de forma aproximada." : props.lang === "pt-BR" ? "A proximidade é verificada de forma aproximada." : "Nearby access is checked approximately.",
+    guideStopFarTemplate: props.lang === "ja" ? "もう少し近づくと聞けます。" : props.lang === "es" ? "Acércate un poco más para escucharlo." : props.lang === "pt-BR" ? "Aproxime-se um pouco mais para ouvir." : "Move a little closer to listen.",
+    guideStopVeryNearLabel: props.lang === "ja" ? "すぐ近くです" : props.lang === "es" ? "Muy cerca" : props.lang === "pt-BR" ? "Bem perto" : "Very nearby",
+    guideSpotClusterLabel: props.lang === "ja" ? "この周辺のガイド" : props.lang === "es" ? "Guías cercanas" : props.lang === "pt-BR" ? "Guias próximos" : "Nearby guides",
     guideStopApprovalOwner: props.lang === "ja" ? "管理者承認済み" : props.lang === "es" ? "Aprobado por el gestor" : props.lang === "pt-BR" ? "Aprovado pelo gestor" : "Manager approved",
     guideStopUnsupported: props.lang === "ja" ? "このブラウザでは音声再生に対応していません。" : props.lang === "es" ? "Este navegador no admite reproducción por voz." : props.lang === "pt-BR" ? "Este navegador não oferece reprodução por voz." : "This browser does not support speech playback.",
     areaBadgeGuideLabel: props.lang === "ja" ? "ガイド" : props.lang === "es" ? "Guía" : props.lang === "pt-BR" ? "Guia" : "Guide",
@@ -2437,8 +2439,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderGuideSpotContent(spot) {
-    var radius = Number(spot.unlockedRadiusM || spot.unlocked_radius_m || 90);
-    if (!Number.isFinite(radius)) radius = 90;
     var sourceHtml = renderGuideSourceLinks(spot);
     var points = Array.isArray(spot.storyPoints) ? spot.storyPoints : [];
     var pointsHtml = points.length
@@ -2456,7 +2456,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '<div class="me-area-guide-stop" data-area-guide-stop data-guide-state="unknown">' +
           '<div class="me-area-guide-status">' +
             '<span data-area-guide-status>' + escapeHtml(COPY.guideStopPermissionPrompt) + '</span>' +
-            '<small>' + escapeHtml(COPY.guideStopDistanceTemplate.replace('__DISTANCE__', COPY.guideStopFarLabel).replace('__RADIUS__', radius + 'm')) + '</small>' +
+            '<small>' + escapeHtml(COPY.guideStopDistanceTemplate) + '</small>' +
           '</div>' +
           '<div class="me-area-guide-actions">' +
             '<button type="button" class="me-area-guide-locate" data-area-guide-locate>' + escapeHtml(COPY.guideStopLocate) + '</button>' +
@@ -2465,6 +2465,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '</div>' +
         sourceHtml +
       '</section>' +
+    '</article>';
+  }
+
+  function renderGuideSpotGroupContent(features) {
+    var items = (Array.isArray(features) ? features : [])
+      .map(function (feature, index) {
+        var spot = feature && feature.properties ? feature.properties : {};
+        return '<button type="button" class="me-guide-spot-list-item" data-guide-spot-index="' + index + '">' +
+          '<strong>' + escapeHtml(String(spot.title || COPY.guideStopEyebrow)) + '</strong>' +
+          '<span>' + escapeHtml(String(spot.subtitle || COPY.guideStopFarLabel)) + '</span>' +
+        '</button>';
+      })
+      .join('');
+    return '<article class="me-guide-spot-detail me-guide-spot-cluster-detail">' +
+      renderDetailHero({
+        title: COPY.guideSpotClusterLabel,
+        meta: String((features || []).length) + ' ' + COPY.areaBadgeGuideLabel,
+        badge: COPY.areaBadgeGuideLabel,
+      }) +
+      '<section class="me-detail-section me-guide-spot-list">' + items + '</section>' +
     '</article>';
   }
 
@@ -2500,6 +2520,45 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!sheetEl || !sheetInnerEl) return;
     sheetInnerEl.innerHTML = renderGuideSpotContent(spot);
     hydrateAreaGuideStopControls(sheetInnerEl);
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.add('is-open');
+    sheetEl.classList.remove('me-bottom-sheet--detail');
+    sheetEl.removeAttribute('data-snap');
+    sheetEl.classList.add('me-bottom-sheet--area');
+    renderSidePanels();
+    saveMapState();
+  }
+
+  function openGuideSpotGroupSheet(features) {
+    var list = Array.isArray(features) ? features.filter(Boolean) : [];
+    if (list.length === 1) {
+      openGuideSpotSheet(list[0]);
+      return;
+    }
+    var firstCenter = guideSpotCenter(list[0]);
+    if (!firstCenter) return;
+    if (!shouldUseBottomSheet()) {
+      openGuideSpotSheet(list[0]);
+      return;
+    }
+    if (!sheetEl || !sheetInnerEl) return;
+    closeOverlapChoice();
+    resetAreaGuideStopSession();
+    state.selectedOccurrenceId = null;
+    state.selectedCellId = null;
+    state.selectedPoint = {
+      lat: firstCenter.lat,
+      lng: firstCenter.lng,
+      kind: 'guide_spot_cluster',
+      guideSpots: list.map(function (feature) { return feature && feature.properties ? feature.properties : {}; }),
+    };
+    sheetInnerEl.innerHTML = renderGuideSpotGroupContent(list);
+    sheetInnerEl.querySelectorAll('[data-guide-spot-index]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.getAttribute('data-guide-spot-index'));
+        if (Number.isFinite(index) && list[index]) openGuideSpotSheet(list[index]);
+      });
+    });
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
     sheetEl.classList.remove('me-bottom-sheet--detail');
@@ -3084,13 +3143,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     };
   }
 
-  function formatGuideDistance(meters) {
-    if (!Number.isFinite(meters)) return '';
-    if (meters < 10) return COPY.nearDistanceImmediate;
-    if (meters < 1000) return COPY.nearDistanceApproxPrefix + Math.round(meters) + 'm';
-    return COPY.nearDistanceApproxPrefix + (meters / 1000).toFixed(1) + 'km';
-  }
-
   function renderAreaGuideStop(source, center) {
     var baseStop = areaGuideStopFrom(source);
     var stop = localizedGuideStop(baseStop);
@@ -3099,7 +3151,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? '<ul class="me-area-guide-points">' + stop.story_points.map(function (point) { return '<li>' + escapeHtml(point) + '</li>'; }).join('') + '</ul>'
       : '';
     var body = stop.subtitle || stop.preview;
-    var radiusLabel = stop.unlocked_radius_m + 'm';
     var approval = stop.approval_state === 'owner_verified'
       ? COPY.guideStopApprovalOwner
       : (stop.approval_state || COPY.guideStopFarLabel);
@@ -3115,7 +3166,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   points
       +   '<div class="me-area-guide-status">'
       +     '<span data-area-guide-status>' + escapeHtml(COPY.guideStopPermissionPrompt) + '</span>'
-      +     '<small>' + escapeHtml(COPY.guideStopDistanceTemplate.replace('__DISTANCE__', COPY.guideStopFarLabel).replace('__RADIUS__', radiusLabel)) + '</small>'
+      +     '<small>' + escapeHtml(COPY.guideStopDistanceTemplate) + '</small>'
       +   '</div>'
       +   '<div class="me-area-guide-actions">'
       +     '<button type="button" class="me-area-guide-locate" data-area-guide-locate>' + escapeHtml(COPY.guideStopLocate) + '</button>'
@@ -3214,7 +3265,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       context.unlocked = false;
       panel.setAttribute('data-guide-state', 'unknown');
       if (statusEl) statusEl.textContent = COPY.guideStopPermissionPrompt;
-      if (hintEl) hintEl.textContent = COPY.guideStopDistanceTemplate.replace('__DISTANCE__', COPY.guideStopFarLabel).replace('__RADIUS__', radius + 'm');
+      if (hintEl) hintEl.textContent = COPY.guideStopDistanceTemplate;
       if (playBtn) playBtn.setAttribute('disabled', 'disabled');
       return;
     }
@@ -3227,10 +3278,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (unlocked) {
         statusEl.textContent = COPY.guideStopNearLabel;
       } else {
-        statusEl.textContent = COPY.guideStopFarTemplate.replace('__DISTANCE__', formatGuideDistance(Math.max(0, distance - radius)));
+        statusEl.textContent = distance <= radius * 2 ? COPY.guideStopVeryNearLabel : COPY.guideStopFarTemplate;
       }
     }
-    if (hintEl) hintEl.textContent = COPY.guideStopDistanceTemplate.replace('__DISTANCE__', formatGuideDistance(distance)).replace('__RADIUS__', radius + 'm');
+    if (hintEl) hintEl.textContent = COPY.guideStopDistanceTemplate;
     if (playBtn) {
       if (unlocked) playBtn.removeAttribute('disabled');
       else playBtn.setAttribute('disabled', 'disabled');
@@ -5490,13 +5541,59 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .addTo(state.map);
   }
 
+  function guideSpotClusterKey(feature) {
+    var center = guideSpotCenter(feature);
+    var spot = feature && feature.properties ? feature.properties : {};
+    var areaId = String(spot.guideAreaId || spot.guide_area_id || '').trim();
+    if (areaId) return 'area:' + areaId;
+    if (!center) return 'unknown';
+    return 'grid:' + Math.round(center.lat / 0.002) + ':' + Math.round(center.lng / 0.002);
+  }
+
+  function groupGuideSpotFeatures(features) {
+    var groups = {};
+    (Array.isArray(features) ? features : []).forEach(function (feature) {
+      var key = guideSpotClusterKey(feature);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(feature);
+    });
+    return Object.keys(groups).map(function (key) { return groups[key]; });
+  }
+
+  function renderGuideSpotGroupMarker(features, guideSpotCount) {
+    var list = Array.isArray(features) ? features : [];
+    if (list.length <= 1) return renderGuideSpotMarker(list[0], guideSpotCount);
+    var centers = list.map(guideSpotCenter).filter(Boolean);
+    if (!centers.length) return null;
+    var center = centers.reduce(function (acc, item) {
+      acc.lat += item.lat / centers.length;
+      acc.lng += item.lng / centers.length;
+      return acc;
+    }, { lat: 0, lng: 0 });
+    var el = document.createElement('div');
+    el.className = 'me-guide-spot-marker is-cluster';
+    el.setAttribute('aria-label', COPY.guideSpotClusterLabel + ' ' + String(list.length));
+    el.innerHTML = '<button type="button" class="me-guide-spot-main">' +
+      '<strong>' + escapeHtml(COPY.guideSpotClusterLabel) + '</strong>' +
+      '<span>' + escapeHtml(String(list.length) + ' ' + COPY.areaBadgeGuideLabel) + '</span>' +
+    '</button>';
+    el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      openGuideSpotGroupSheet(list);
+    });
+    return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
+      .setLngLat([center.lng, center.lat])
+      .addTo(state.map);
+  }
+
   function refreshGuideSpotMarkers(collection) {
     clearGuideSpotMarkers();
     if (!state.map || !window.maplibregl || !collection || !Array.isArray(collection.features)) return;
     if (state.tab !== 'markers' && state.tab !== 'places') return;
     var guideSpotCount = collection.features.length;
-    collection.features.slice(0, 80).forEach(function (feature) {
-      var marker = renderGuideSpotMarker(feature, guideSpotCount);
+    groupGuideSpotFeatures(collection.features.slice(0, 80)).forEach(function (features) {
+      var marker = renderGuideSpotGroupMarker(features, guideSpotCount);
       if (marker) state.guideSpotMarkers.push(marker);
     });
   }
@@ -7585,6 +7682,14 @@ export const MAP_EXPLORER_STYLES = `
     line-height: 1.25;
     font-weight: 800;
   }
+  .me-guide-spot-marker.is-cluster .me-guide-spot-main {
+    border-color: rgba(15,118,110,.26);
+    background: rgba(240,253,250,.98);
+    box-shadow: 0 14px 30px rgba(15,118,110,.18);
+  }
+  .me-guide-spot-marker.is-cluster .me-guide-spot-main strong {
+    color: #0f766e;
+  }
   .me-guide-spot-marker.is-compact .me-guide-spot-main {
     display: inline-flex;
     max-width: none;
@@ -7604,6 +7709,34 @@ export const MAP_EXPLORER_STYLES = `
   .me-guide-spot-body {
     display: grid;
     gap: 12px;
+  }
+  .me-guide-spot-list {
+    display: grid;
+    gap: 8px;
+  }
+  .me-guide-spot-list-item {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    min-height: 54px;
+    padding: 10px 12px;
+    border: 1px solid rgba(15,23,42,.10);
+    border-radius: 8px;
+    background: #fff;
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-guide-spot-list-item strong {
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 950;
+  }
+  .me-guide-spot-list-item span {
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.45;
+    font-weight: 760;
   }
   .me-guide-spot-body p {
     margin: 0;

@@ -510,6 +510,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: V2_PRIVILEGED_WRITE_API_KEY,STAGING_MIGRATION_REPAIR_CHECKSUMS
           script: |
+            set -euo pipefail
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
             STAGING_MIGRATION_REPAIR_CHECKSUMS="${{ github.event.inputs.migration_repair_checksums || '' }}"
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
