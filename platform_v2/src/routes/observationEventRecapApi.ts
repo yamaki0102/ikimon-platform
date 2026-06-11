@@ -9,6 +9,11 @@ import {
 } from "../services/observationEventCapsule.js";
 import { buildRecap } from "../services/observationEventRecap.js";
 import { getSessionByEventCode, getSessionById } from "../services/observationEventModeManager.js";
+import {
+  buildOfficialEventReport,
+  canAccessOfficialEventOutputs,
+  officialSpeciesCsv,
+} from "../services/observationEventOfficialReport.js";
 import { runQuestGeneration } from "../services/observationEventQuestEngine.js";
 import { decideQuest } from "../services/observationEventQuestEngine.js";
 
@@ -64,6 +69,24 @@ export async function registerObservationEventRecapRoutes(app: FastifyInstance):
       });
       if (!recap) return reply.status(404).send({ error: "recap not built" });
       return reply.send(recap);
+    },
+  );
+
+  // GET /api/v1/observation-events/:sessionId/species.csv
+  app.get<{ Params: { sessionId: string } }>(
+    "/api/v1/observation-events/:sessionId/species.csv",
+    async (request, reply) => {
+      const report = await buildOfficialEventReport(request.params.sessionId);
+      if (!report) return reply.status(404).send({ error: "session not found" });
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!canAccessOfficialEventOutputs(report.session, auth?.userId ?? null)) {
+        return reply.status(403).send({ error: "public plan or organizer required" });
+      }
+      const filename = `ikimon-event-${report.session.sessionId}-species.csv`;
+      reply
+        .header("Content-Type", "text/csv; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${filename}"`);
+      return officialSpeciesCsv(report);
     },
   );
 

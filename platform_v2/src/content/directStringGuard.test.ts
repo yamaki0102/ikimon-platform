@@ -56,6 +56,7 @@ const explicitAllowlist = [
   "platform_v2/src/ui/observationEventEdit.ts",
   "platform_v2/src/ui/observationEventList.ts",
   "platform_v2/src/ui/observationEventLive.ts",
+  "platform_v2/src/ui/observationEventOfficialReport.ts",
   "platform_v2/src/ui/observationEventOrganizerConsole.ts",
   "platform_v2/src/ui/observationEventRecap.ts",
   "platform_v2/src/ui/observationEventStyles.ts",
