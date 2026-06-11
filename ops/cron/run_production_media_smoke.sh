@@ -31,4 +31,21 @@ fi
 
 export SMOKE_VIDEO_FILE="${VIDEO_FILE}"
 export SMOKE_LOG_DIR="${LOG_DIR}"
-exec "${RUNNER}" smokeProductionMediaUpload --base-url=https://ikimon.life
+FIXTURE_PREFIX="prod-media-smoke-$(date -u +%Y%m%d%H%M%S)"
+
+set +e
+"${RUNNER}" smokeProductionMediaUpload --base-url=https://ikimon.life --fixture-prefix="${FIXTURE_PREFIX}"
+SMOKE_STATUS=$?
+"${RUNNER}" monitorProductionSmokeCleanup --fixture-prefix="${FIXTURE_PREFIX}" --max-age-minutes=0
+CLEANUP_STATUS=$?
+set -e
+
+if [[ "${CLEANUP_STATUS}" -ne 0 ]]; then
+  echo "production media smoke cleanup monitor failed for ${FIXTURE_PREFIX}" >&2
+  exit "${CLEANUP_STATUS}"
+fi
+
+if [[ "${SMOKE_STATUS}" -ne 0 ]]; then
+  echo "production media smoke failed for ${FIXTURE_PREFIX}; cleanup monitor completed" >&2
+  exit "${SMOKE_STATUS}"
+fi
