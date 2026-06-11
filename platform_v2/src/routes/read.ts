@@ -7342,6 +7342,8 @@ function renderObservationQualityCard(options: {
       <small class="obs-local-quality-source">${sourceLabel}</small>
     </div>`;
   }).join("");
+  const hasAnyEnvironmentValue = ENVIRONMENT_RECORD_FIELDS.some((field) => environmentRecordHasStoredValue(environmentRecord, field));
+  const environmentHistorySeed = hasAnyEnvironmentValue ? "環境レコードに入力があります" : "まだ編集はありません";
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
     <div class="obs-local-quality-head">
       <div>
@@ -7494,7 +7496,7 @@ function renderObservationQualityCard(options: {
       </div>
     </div>
     <div class="obs-origin-toast" data-origin-toast hidden><span data-origin-toast-text></span><button type="button" data-origin-undo>元に戻す</button></div>
-    <div class="obs-local-quality-history"><div class="obs-local-quality-history-head"><strong>編集履歴</strong></div><ul class="obs-local-quality-history-log" data-quality-history><li>AIが環境レコードを入力しました</li></ul></div>
+    <div class="obs-local-quality-history"><div class="obs-local-quality-history-head"><strong>編集履歴</strong></div><ul class="obs-local-quality-history-log" data-quality-history><li>${escapeHtml(environmentHistorySeed)}</li></ul></div>
   </section>`;
 }
 
