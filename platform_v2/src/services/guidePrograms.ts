@@ -88,6 +88,9 @@ export type GuideProgramPublicSpot = {
   displayLat: number;
   displayLng: number;
   locationPrecision: "exact" | "approximate";
+  visitAnchorLabel: string;
+  publicLocationMode: MapGuideSpot["publicLocationMode"];
+  subjectLocationMode: MapGuideSpot["subjectLocationMode"];
   sortOrder: number;
   requiredForCompletion: boolean;
   unlocked: boolean;
@@ -307,6 +310,9 @@ function parsePublicSpotRows(value: unknown, unlockedIds: Set<string>): GuidePro
       displayLat: spot.lat,
       displayLng: spot.lng,
       locationPrecision: spot.locationPrecision,
+      visitAnchorLabel: spot.visitAnchorLabel,
+      publicLocationMode: spot.publicLocationMode,
+      subjectLocationMode: spot.subjectLocationMode,
       sortOrder: Number(row.sort_order ?? 0),
       requiredForCompletion: row.required_for_completion !== false,
       unlocked: unlockedIds.has(spot.id),

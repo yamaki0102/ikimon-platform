@@ -240,6 +240,17 @@ test("observation detail visible order stays aligned with the canonical snapshot
   assert.match(registrationSource, /const layer2 = ""/);
 });
 
+test("observation detail keeps nearby guide cards owner-scoped and capped", () => {
+  const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
+
+  assert.match(routeSource, /function renderRecordPageNearbyGuideShelf/);
+  assert.match(routeSource, /この記録の近くに現地ガイドがあります/);
+  assert.match(routeSource, /最大2件表示/);
+  assert.match(registrationSource, /canSeeCanonicalLocation && snapshot\.latitude != null && snapshot\.longitude != null/);
+  assert.match(registrationSource, /maxCards: 2/);
+  assert.match(registrationSource, /heroBlock\}\$\{recordPageNearbyGuideBlock\}/);
+});
+
 test("observation detail hero readout keeps scene candidates out of identification tabs", () => {
   const readoutSource = sourceBetween("function renderNoAssessmentCandidateReadout", "type ObservationMediaCopyContext");
   const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
@@ -1001,7 +1012,7 @@ test("observation detail surfaces shot feedback outside hidden subject hints", (
   assert.match(routeSource, /似た花との違いや季節ごとの姿を説明しやすくなります/);
   assert.doesNotMatch(routeSource, /data-obs-switch-shot-feedback/);
   assert.doesNotMatch(routeSource, /data-subject-shot-feedback-template/);
-  assert.match(routeSource, /\$\{heroBlock\}\$\{shotFeedbackBlock\}/);
+  assert.match(routeSource, /\$\{heroBlock\}\$\{recordPageNearbyGuideBlock\}\$\{shotFeedbackBlock\}/);
 });
 
 test("AI activity ledger exposes the model used for auditability", () => {

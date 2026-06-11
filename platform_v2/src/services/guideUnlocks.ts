@@ -40,6 +40,31 @@ export type GuideUnlockListItem = GuideUnlockSummary & {
   lastListenedAt: string | null;
 };
 
+export type RecordPageNearbyGuideCard = {
+  guideSpotId: string;
+  guideTitle: string;
+  guideSubtitle: string;
+  programId: string | null;
+  programTitle: string | null;
+  programSlug: string | null;
+  distanceBand: "same_place" | "nearby" | "area";
+  approximateDistanceM: number;
+  href: string;
+  actionLabel: string;
+  locationPrecision: MapGuideSpot["locationPrecision"];
+  visitAnchorLabel: string;
+  publicLocationMode: MapGuideSpot["publicLocationMode"];
+  subjectLocationMode: MapGuideSpot["subjectLocationMode"];
+};
+
+export type RecordPageNearbyGuideShelf = {
+  cards: RecordPageNearbyGuideCard[];
+  totalCandidateCount: number;
+  overflowCount: number;
+  areaHref: string;
+  areaLabel: string;
+};
+
 type UnlockRow = QueryResultRow & {
   guide_spot_id: string;
   program_id: string | null;
@@ -149,6 +174,66 @@ function unlockHref(guideSpotId: string): string {
 
 function staticProgramForId(programId: string | null): MapGuideProgram | null {
   return programId ? MAP_GUIDE_PROGRAMS.find((item) => item.id === programId) ?? null : null;
+}
+
+function guideProgramHref(program: MapGuideProgram | null, spot: MapGuideSpot): string {
+  if (program?.slug) return `/guide-programs/${encodeURIComponent(program.slug)}`;
+  const params = new URLSearchParams({
+    lat: spot.lat.toFixed(6),
+    lng: spot.lng.toFixed(6),
+    z: "15",
+    guideSpot: spot.id,
+  });
+  return `/map?${params.toString()}`;
+}
+
+export function buildRecordPageNearbyGuideShelf(input: {
+  latitude: number | null | undefined;
+  longitude: number | null | undefined;
+  sourcePayload?: Record<string, unknown> | null;
+  maxCards?: number;
+}): RecordPageNearbyGuideShelf | null {
+  if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) return null;
+  const candidates = findGuideUnlockCandidatesForPoint({
+    latitude: input.latitude as number,
+    longitude: input.longitude as number,
+    sourcePayload: input.sourcePayload,
+    limit: 5,
+  });
+  if (!candidates.length) return null;
+
+  const cardLimit = Math.max(1, Math.min(2, input.maxCards ?? 2));
+  const firstProgram = candidates[0]?.program ?? null;
+  const firstSpot = candidates[0]?.spot ?? null;
+  const areaHref = firstSpot ? guideProgramHref(firstProgram, firstSpot) : "/guide-programs";
+
+  const cards = candidates.slice(0, cardLimit).map((candidate): RecordPageNearbyGuideCard => {
+    const program = candidate.program ?? primaryProgramForSpot(candidate.spot);
+    return {
+      guideSpotId: candidate.spot.id,
+      guideTitle: candidate.spot.title,
+      guideSubtitle: candidate.spot.subtitle,
+      programId: program?.id ?? null,
+      programTitle: program?.title ?? null,
+      programSlug: program?.slug ?? null,
+      distanceBand: candidate.distanceBand,
+      approximateDistanceM: Math.max(10, Math.round(candidate.distanceM / 10) * 10),
+      href: guideProgramHref(program, candidate.spot),
+      actionLabel: program ? "企画を見る" : "マップで見る",
+      locationPrecision: candidate.spot.locationPrecision,
+      visitAnchorLabel: candidate.spot.visitAnchorLabel,
+      publicLocationMode: candidate.spot.publicLocationMode,
+      subjectLocationMode: candidate.spot.subjectLocationMode,
+    };
+  });
+
+  return {
+    cards,
+    totalCandidateCount: candidates.length,
+    overflowCount: Math.max(0, candidates.length - cards.length),
+    areaHref,
+    areaLabel: candidates.length > cards.length ? "このエリアのガイドを見る" : "ガイド企画を見る",
+  };
 }
 
 function toSummary(row: UnlockRow, spot: MapGuideSpot, runtimeProgram?: RuntimeGuideProgram | null): GuideUnlockSummary {

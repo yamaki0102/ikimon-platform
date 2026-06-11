@@ -130,7 +130,12 @@ import {
   type ObservationMediaAnnotationTarget,
 } from "../ui/observationMedia.js";
 import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
-import { listMyGuideUnlocks, type GuideUnlockListItem } from "../services/guideUnlocks.js";
+import {
+  buildRecordPageNearbyGuideShelf,
+  listMyGuideUnlocks,
+  type GuideUnlockListItem,
+  type RecordPageNearbyGuideShelf,
+} from "../services/guideUnlocks.js";
 import {
   getPublishedGuideProgramDetail,
   listPublishedGuideProgramsForPublic,
@@ -1241,6 +1246,25 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-next-action.is-primary { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.25); box-shadow: 0 10px 24px rgba(16,185,129,.08); }
   .obs-next-action-label { font-size: 14px; font-weight: 950; line-height: 1.3; }
   .obs-next-action-body { color: inherit; opacity: .72; font-size: 12px; line-height: 1.45; font-weight: 760; }
+  .obs-nearby-guide-shelf { display: grid; gap: 12px; width: min(var(--ikimon-content-max), calc(100vw - 28px)); margin: 0 auto 18px; }
+  .obs-nearby-guide-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; padding: 0 2px; }
+  .obs-nearby-guide-head span { display: block; color: #047857; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-nearby-guide-head h2 { margin: 3px 0 0; color: #0f172a; font-size: 18px; line-height: 1.3; letter-spacing: 0; }
+  .obs-nearby-guide-head p { margin: 4px 0 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 720; }
+  .obs-nearby-guide-head a,
+  .obs-nearby-guide-card a { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 11px; border-radius: 8px; background: #0f766e; color: #fff; font-size: 12px; font-weight: 900; text-decoration: none; }
+  .obs-nearby-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .obs-nearby-guide-card { display: grid; gap: 9px; padding: 13px; border-radius: 8px; border: 1px solid rgba(15,23,42,.09); background: #fff; box-shadow: 0 8px 22px rgba(15,23,42,.04); }
+  .obs-nearby-guide-card strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; }
+  .obs-nearby-guide-card p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 720; }
+  .obs-nearby-guide-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .obs-nearby-guide-meta span { display: inline-flex; align-items: center; min-height: 22px; padding: 3px 7px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 10.5px; font-weight: 900; }
+  .obs-nearby-guide-overflow { color: #475569; font-size: 12px; line-height: 1.5; font-weight: 760; }
+  @media (max-width: 720px) {
+    .obs-nearby-guide-head { display: grid; align-items: start; }
+    .obs-nearby-guide-head a { width: 100%; }
+    .obs-nearby-guide-grid { grid-template-columns: 1fr; }
+  }
   .obs-read-progress { position: sticky; top: 56px; z-index: 20; display: none; gap: 6px; overflow-x: auto; margin: 4px 0 10px; padding: 5px 4px; background: rgba(255,255,255,.88); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(15,23,42,.06); scrollbar-width: none; }
   .obs-read-progress::-webkit-scrollbar { display: none; }
   .obs-read-progress a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 32px; padding: 6px 10px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11.5px; line-height: 1; font-weight: 900; text-decoration: none; }
@@ -8962,6 +8986,44 @@ function renderObservationNextActionRail(actions: ObservationNextAction[]): stri
   </div>`;
 }
 
+function nearbyGuideDistanceLabel(card: RecordPageNearbyGuideShelf["cards"][number]): string {
+  if (card.distanceBand === "same_place") return "すぐ近く";
+  if (card.distanceBand === "nearby") return "近く";
+  return "同じエリア";
+}
+
+function renderRecordPageNearbyGuideShelf(basePath: string, shelf: RecordPageNearbyGuideShelf | null): string {
+  if (!shelf || shelf.cards.length === 0) return "";
+  const areaHref = withBasePath(basePath, shelf.areaHref);
+  const overflow = shelf.overflowCount > 0
+    ? `<p class="obs-nearby-guide-overflow">ほか${escapeHtml(String(shelf.overflowCount))}件はエリア側でまとめて見られます。</p>`
+    : "";
+  return `<section class="obs-nearby-guide-shelf" aria-label="近くの現地ガイド">
+    <header class="obs-nearby-guide-head">
+      <div>
+        <span>Local guide</span>
+        <h2>この記録の近くに現地ガイドがあります</h2>
+        <p>記録本文を主役にしたまま、次に歩けるガイドだけを最大2件表示しています。</p>
+      </div>
+      <a href="${escapeHtml(areaHref)}" data-kpi-action="record_page_guide_card:open_area">${escapeHtml(shelf.areaLabel)}</a>
+    </header>
+    <div class="obs-nearby-guide-grid">
+      ${shelf.cards.map((card) => `<article class="obs-nearby-guide-card">
+        <div class="obs-nearby-guide-meta">
+          <span>${escapeHtml(card.programTitle ?? "現地ガイド")}</span>
+          <span>${escapeHtml(nearbyGuideDistanceLabel(card))}</span>
+          <span>${card.publicLocationMode === "exact" ? "来訪地点あり" : "エリア表示"}</span>
+        </div>
+        <strong>${escapeHtml(card.guideTitle)}</strong>
+        <p>${escapeHtml(card.guideSubtitle)}</p>
+        <p>${escapeHtml(card.visitAnchorLabel)}</p>
+        <a href="${escapeHtml(withBasePath(basePath, card.href))}" data-kpi-action="record_page_guide_card:open_spot">${escapeHtml(card.actionLabel)}</a>
+      </article>`).join("")}
+    </div>
+    ${overflow}
+  </section>`;
+}
+
 function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot): string {
   if (snapshot.nextCaptureSuggestions.length === 0) return "";
   const suggestions = snapshot.nextCaptureSuggestions
@@ -13652,6 +13714,7 @@ function renderProgramSpot(spot: GuideProgramPublicSpot, index: number): string 
     <div>
       <strong>${escapeHtml(spot.title)}</strong>
       <p>${escapeHtml(spot.subtitle || spot.preview)}</p>
+      <p>${escapeHtml(spot.visitAnchorLabel)}</p>
     </div>
   </article>`;
 }
@@ -13698,20 +13761,20 @@ function renderGuideProgramMap(basePath: string, program: GuideProgramPublicDeta
       href="${escapeHtml(mapHref)}"
       data-unlocked="${spot.unlocked ? "true" : "false"}"
       style="--pin-x:${spot.xPct.toFixed(2)}%;--pin-y:${spot.yPct.toFixed(2)}%;"
-      aria-label="${escapeHtml(`${spot.title} の概略位置をマップで見る`)}">
+      aria-label="${escapeHtml(`${spot.title} の来訪地点をマップで見る`)}">
       <i>${spot.unlocked ? "済" : String(index + 1)}</i>
       <span>${escapeHtml(spot.title)}</span>
     </a>`).join("");
-  return `<section class="guide-program-map" aria-label="ガイドスポットの概略位置">
+  return `<section class="guide-program-map" aria-label="ガイドスポットの来訪地点">
     <div class="guide-program-map-head">
       <div>
-        <strong>ガイドの位置</strong>
-        <span>${escapeHtml(program.spots.length === 1 ? "概略位置を表示しています" : "企画内のガイドスポットを概略位置で表示しています")}</span>
+        <strong>ガイドの来訪地点</strong>
+        <span>${escapeHtml(program.spots.length === 1 ? "来訪できる地点を表示しています" : "企画内のガイドスポットを表示しています")}</span>
       </div>
       <a href="${escapeHtml(mapHref)}">大きいマップ</a>
     </div>
     ${pins}
-    <div class="guide-program-map-note">表示は公開ガイドスポットの概略位置です。あなたの記録位置や解放地点は公開しません。</div>
+    <div class="guide-program-map-note">表示は来訪承諾または公開情報で案内できるガイド地点です。あなたの記録位置や解放地点は公開しません。</div>
   </section>`;
 }
 
@@ -18784,6 +18847,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? formatPlaceDisplay(snapshot, lang, "owner")
       : formatPlaceDisplay(snapshot, lang, "public");
     const heroPlaceLabel = observationRelatedPlaceLabel(snapshot, baseHeroPlaceLabel);
+    const recordPageNearbyGuideShelf = canSeeCanonicalLocation && snapshot.latitude != null && snapshot.longitude != null
+      ? buildRecordPageNearbyGuideShelf({
+          latitude: snapshot.latitude,
+          longitude: snapshot.longitude,
+          maxCards: 2,
+        })
+      : null;
+    const recordPageNearbyGuideBlock = renderRecordPageNearbyGuideShelf(basePath, recordPageNearbyGuideShelf);
     const recordInsightText = renderObservationRecordInsightText({
       snapshot,
       subject: currentSubject,
@@ -19680,7 +19751,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
+    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
