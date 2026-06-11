@@ -18,7 +18,7 @@ require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/CorporateManager.php';
 require_once __DIR__ . '/../../libs/RedListManager.php';
 require_once __DIR__ . '/../../libs/PrivacyFilter.php';
-require_once __DIR__ . '/../../libs/GeoUtils.php';
+require_once __DIR__ . '/../../libs/EventObservationQuery.php';
 
 // --- ZipArchive availability check ---
 if (!extension_loaded('zip')) {
@@ -75,56 +75,8 @@ if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
     exit;
 }
 
-// --- Observation Collection (same logic as CSV export / generate_grant_report.php) ---
-$eventDate = $event['event_date'] ?? date('Y-m-d');
-$startTime = $event['start_time'] ?? '09:00';
-$endTime = $event['end_time'] ?? '12:00';
-$bufferMin = 30;
-
-$rangeStart = (new DateTime("{$eventDate} {$startTime}"))->modify("-{$bufferMin} minutes");
-$rangeEnd = (new DateTime("{$eventDate} {$endTime}"))->modify("+{$bufferMin} minutes");
-$evtLat = (float)($event['location']['lat'] ?? 0);
-$evtLng = (float)($event['location']['lng'] ?? 0);
-$radiusM = (int)($event['location']['radius_m'] ?? 500);
-$eventCode = $event['event_code'] ?? '';
-
-$linkedIds = $event['linked_observations'] ?? [];
-$touchedObsIds = [];
-$matchedObs = [];
-
-$dateKey = str_replace('-', '', $eventDate);
-$partitionFile = "observations/{$dateKey}";
-$dayObservations = DataStore::get($partitionFile);
-$candidates = $dayObservations ? $dayObservations : DataStore::getLatest('observations', 2000);
-
-foreach ($candidates as $obs) {
-    $obsId = $obs['id'] ?? '';
-    if (isset($touchedObsIds[$obsId])) {
-        continue;
-    }
-
-    $obsTag = $obs['event_tag'] ?? '';
-    if (in_array($obsId, $linkedIds) || ($eventCode && $obsTag === $eventCode)) {
-        $touchedObsIds[$obsId] = true;
-        $matchedObs[] = $obs;
-        continue;
-    }
-
-    $obsTime = $obs['observed_at'] ?? $obs['created_at'] ?? '';
-    if (!$obsTime || strpos($obsTime, $eventDate) !== 0) {
-        continue;
-    }
-
-    $obsDateTime = new DateTime($obsTime);
-    if ($obsDateTime >= $rangeStart && $obsDateTime <= $rangeEnd) {
-        $obsLat = (float)($obs['lat'] ?? 0);
-        $obsLng = (float)($obs['lng'] ?? 0);
-        if ($obsLat && $obsLng && $evtLat && $evtLng && GeoUtils::distance($evtLat, $evtLng, $obsLat, $obsLng) <= $radiusM) {
-            $touchedObsIds[$obsId] = true;
-            $matchedObs[] = $obs;
-        }
-    }
-}
+// --- Observation Collection ---
+$matchedObs = EventObservationQuery::collect($event, EventObservationQuery::MODE_OFFICIAL);
 
 // --- Species Aggregation ---
 $speciesAgg = [];

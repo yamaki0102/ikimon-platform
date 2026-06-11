@@ -108,10 +108,16 @@ $difficultyLabels = ['beginner' => '初心者OK', 'intermediate' => '中級', 'a
             </span>
             <div class="flex items-center gap-2">
                 <?php if (($isOrganizer || $isAdmin) && $canUseAdvancedOutputs): ?>
-                    <a href="generate_grant_report.php?event_id=<?php echo urlencode($eventId); ?>"
+                    <a href="generate_event_report.php?event_id=<?php echo urlencode($eventId); ?>"
                         class="size-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition" title="レポート出力">
                         <i data-lucide="file-text" class="w-4 h-4"></i>
                     </a>
+                    <?php if (!empty($event['grant_id'])): ?>
+                        <a href="generate_grant_report.php?event_id=<?php echo urlencode($eventId); ?>"
+                            class="size-9 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 hover:bg-amber-100 transition" title="助成金レポート">
+                            <i data-lucide="award" class="w-4 h-4"></i>
+                        </a>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <?php if ($isOrganizer || $isAdmin): ?>
                     <a href="edit_event.php?id=<?php echo urlencode($eventId); ?>"

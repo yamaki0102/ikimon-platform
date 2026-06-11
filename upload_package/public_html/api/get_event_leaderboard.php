@@ -5,110 +5,8 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/EventManager.php';
-require_once __DIR__ . '/../../libs/GeoUtils.php';
 require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
-require_once __DIR__ . '/../../libs/SiteManager.php';
-
-function event_range(array $event): array
-{
-    $eventDate = $event['event_date'] ?? date('Y-m-d');
-    $startTime = $event['start_time'] ?? '09:00';
-    $endTime = $event['end_time'] ?? '12:00';
-
-    $start = new DateTime("{$eventDate} {$startTime}");
-    $end = new DateTime("{$eventDate} {$endTime}");
-    $start->modify('-30 minutes');
-    $end->modify('+30 minutes');
-
-    return [$start, $end];
-}
-
-function event_observation_candidates(DateTime $start, DateTime $end): array
-{
-    $months = [];
-    $cursor = (clone $start)->modify('first day of this month')->setTime(0, 0);
-    $last = (clone $end)->modify('first day of this month')->setTime(0, 0);
-
-    while ($cursor <= $last) {
-        $months[] = $cursor->format('Y-m');
-        $cursor->modify('+1 month');
-    }
-
-    $candidates = [];
-    $seen = [];
-    foreach ($months as $month) {
-        foreach (DataStore::get('observations/' . $month, 60) as $obs) {
-            $obsId = $obs['id'] ?? null;
-            if ($obsId && isset($seen[$obsId])) {
-                continue;
-            }
-            if ($obsId) {
-                $seen[$obsId] = true;
-            }
-            $candidates[] = $obs;
-        }
-    }
-
-    if (!empty($candidates)) {
-        return $candidates;
-    }
-
-    return DataStore::getLatest('observations', 2000);
-}
-
-function event_matches_observation(array $event, array $obs, DateTime $rangeStart, DateTime $rangeEnd): bool
-{
-    $obsTime = $obs['observed_at'] ?? $obs['created_at'] ?? '';
-    if ($obsTime === '') {
-        return false;
-    }
-
-    try {
-        $obsDateTime = new DateTime($obsTime);
-    } catch (Throwable $e) {
-        return false;
-    }
-
-    if ($obsDateTime < $rangeStart || $obsDateTime > $rangeEnd) {
-        return false;
-    }
-
-    $eventCode = trim((string)($event['event_code'] ?? ''));
-    if ($eventCode !== '' && ($obs['event_tag'] ?? '') === $eventCode) {
-        return true;
-    }
-
-    $linkedIds = $event['linked_observations'] ?? [];
-    if (in_array($obs['id'] ?? '', $linkedIds, true)) {
-        return true;
-    }
-
-    $siteId = $event['location']['site_id'] ?? ($event['site_id'] ?? '');
-    if ($siteId !== '') {
-        $obsSiteId = $obs['site_id'] ?? '';
-        if ($obsSiteId === $siteId) {
-            return true;
-        }
-        $lat = (float)($obs['lat'] ?? 0);
-        $lng = (float)($obs['lng'] ?? 0);
-        if ($lat && $lng && SiteManager::isPointInSite($lat, $lng, $siteId)) {
-            return true;
-        }
-        return false;
-    }
-
-    $evtLat = (float)($event['location']['lat'] ?? 0);
-    $evtLng = (float)($event['location']['lng'] ?? 0);
-    $radiusM = (int)($event['location']['radius_m'] ?? 500);
-    $obsLat = (float)($obs['lat'] ?? 0);
-    $obsLng = (float)($obs['lng'] ?? 0);
-
-    if (!$evtLat || !$evtLng || !$obsLat || !$obsLng) {
-        return false;
-    }
-
-    return GeoUtils::distance($evtLat, $evtLng, $obsLat, $obsLng) <= $radiusM;
-}
+require_once __DIR__ . '/../../libs/EventObservationQuery.php';
 
 function observation_species(array $obs): array
 {
@@ -137,7 +35,7 @@ if (!$event) {
 $corporation = CorporatePlanGate::resolveCorporationForEvent($event);
 $canRevealSpeciesDetails = CorporatePlanGate::canRevealSpeciesDetails($corporation);
 
-[$rangeStart, $rangeEnd] = event_range($event);
+[$rangeStart, $rangeEnd] = EventObservationQuery::range($event);
 $participantMap = [];
 foreach (($event['participants'] ?? []) as $participant) {
     if (is_array($participant)) {
@@ -169,11 +67,7 @@ $topPhotos = [];
 $leaderboardMap = [];
 $totalSpeciesSet = [];
 
-foreach (event_observation_candidates($rangeStart, $rangeEnd) as $obs) {
-    if (!event_matches_observation($event, $obs, $rangeStart, $rangeEnd)) {
-        continue;
-    }
-
+foreach (EventObservationQuery::collect($event, EventObservationQuery::MODE_SUMMARY) as $obs) {
     $obsUserId = (string)($obs['user_id'] ?? '');
     if (!empty($participantMap) && $obsUserId !== '' && !isset($participantMap[$obsUserId])) {
         continue;
