@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { findGuideUnlockCandidatesForPoint, parseCaptureAccuracyM } from "./guideUnlocks.js";
+import { buildRecordPageNearbyGuideShelf, findGuideUnlockCandidatesForPoint, parseCaptureAccuracyM } from "./guideUnlocks.js";
 
 test("nearby records unlock the owner-verified Lenri guide without requiring public posting", () => {
   const candidates = findGuideUnlockCandidatesForPoint({
@@ -41,4 +41,20 @@ test("guide unlock runtime resolves DB-authored programs without duplicating coo
   assert.match(source, /runtimeProgram\?\.id/);
   assert.doesNotMatch(source, /guide_unlocks[\s\S]*latitude/);
   assert.doesNotMatch(source, /guide_unlocks[\s\S]*longitude/);
+});
+
+test("record pages can surface nearby guide cards without exposing source coordinates", () => {
+  const shelf = buildRecordPageNearbyGuideShelf({
+    latitude: 34.81436,
+    longitude: 137.73271,
+    sourcePayload: { public_visibility: "private" },
+  });
+
+  assert.ok(shelf);
+  assert.ok(shelf.cards.length <= 2);
+  assert.equal(shelf.cards[0]?.guideSpotId, "aikan-renri-lenri-tree");
+  assert.equal(shelf.cards[0]?.href, "/guide-programs/aikan-renri-guide-relay");
+  assert.equal(shelf.cards[0]?.publicLocationMode, "exact");
+  assert.equal(shelf.cards[0]?.subjectLocationMode, "same_as_visit_anchor");
+  assert.doesNotMatch(JSON.stringify(shelf), /34\.81436|137\.73271/);
 });

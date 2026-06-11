@@ -29,7 +29,14 @@ test("guide spots carry P0 unlock safety and relay program metadata", () => {
   assert.equal(lenri.safetyStatus, "active");
   assert.equal(lenri.landownerConsent, true);
   assert.equal(lenri.distanceDisplayPolicy, "coarse");
+  assert.equal(lenri.locationPrecision, "exact");
+  assert.equal(lenri.publicLocationMode, "exact");
+  assert.equal(lenri.subjectLocationMode, "same_as_visit_anchor");
+  assert.equal(lenri.sensitiveReviewStatus, "cleared");
+  assert.ok(lenri.visitAnchorLabel.includes("来訪地点"));
   assert.ok(lenri.guideProgramIds?.includes("aikan-renri-guide-relay"));
+  assert.ok(MAP_GUIDE_SPOTS.every((spot) => spot.publicLocationMode !== "hidden" || spot.locationPrecision !== "exact"));
+  assert.ok(MAP_GUIDE_SPOTS.every((spot) => spot.subjectLocationMode !== "hidden" || spot.locationPrecision !== "exact"));
 
   const program = MAP_GUIDE_PROGRAMS.find((item) => item.id === "aikan-renri-guide-relay");
   assert.ok(program);
