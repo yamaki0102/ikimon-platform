@@ -61,3 +61,17 @@ test("guide program editor migration records reversible admin audit", () => {
   assert.match(migration, /after_payload JSONB NOT NULL/);
   assert.match(migration, /idx_guide_program_audit_program_recent/);
 });
+
+test("guide program public detail reads progress without copying coordinates", () => {
+  const source = readFileSync(join(process.cwd(), "src", "services", "guidePrograms.ts"), "utf8");
+  assert.match(source, /getPublishedGuideProgramDetail/);
+  assert.match(source, /listPublishedGuideProgramsForPublic/);
+  assert.match(source, /loadUnlockedGuideSpotIds/);
+  assert.match(source, /publicSpotIdsFromRows/);
+  assert.match(source, /gp\.owner_type != 'school'/);
+  assert.match(source, /totalRequired === 0/);
+  assert.match(source, /guide_unlocks/);
+  assert.match(source, /state: "signed_out" \| "not_started" \| "in_progress" \| "complete"/);
+  assert.doesNotMatch(source, /guide_programs[\s\S]*latitude/);
+  assert.doesNotMatch(source, /guide_programs[\s\S]*longitude/);
+});

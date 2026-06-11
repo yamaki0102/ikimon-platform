@@ -118,4 +118,18 @@ test("my guides page exposes unlocked guide replay and map return", () => {
   assert.match(source, /公開投稿や正確な位置共有を条件にしない/);
   assert.match(source, /data-my-guide-play/);
   assert.match(source, /\/api\/v1\/guides\/unlocks\/__GUIDE_SPOT_ID__\/listened/);
+  assert.match(source, /\/guide-programs\/\$\{guide\.programSlug\}/);
+});
+
+test("guide relay program pages expose public detail and private progress", () => {
+  const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+
+  assert.match(source, /app\.get\("\/guide-programs"/);
+  assert.match(source, /app\.get<\{ Params: \{ slug: string \} \}>\("\/guide-programs\/:slug"/);
+  assert.match(source, /listPublishedGuideProgramsForPublic\(session\?\.userId \?\? null\)/);
+  assert.match(source, /getPublishedGuideProgramDetail\(request\.params\.slug, session\?\.userId \?\? null\)/);
+  assert.match(source, /guide-program-progress/);
+  assert.match(source, /自由参加/);
+  assert.match(source, /任意/);
+  assert.match(source, /進捗は本人用です。正確な記録位置は公開しません。/);
 });
