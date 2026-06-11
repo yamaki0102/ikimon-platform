@@ -34,9 +34,20 @@ export type VisibleRecordItem = {
   proposalKind: "none" | "community_subject" | "ai_candidate";
 };
 
+const PLACEHOLDER_PLACE_LABELS = new Set([
+  "場所未設定",
+  "位置をぼかしています",
+  "Location generalized",
+  "地点未指定",
+  "地点未指定の記録",
+  "地点未入力",
+  "Place not set",
+]);
+
 export function formatObservationRecordTitle(dateStr: string | null | undefined, placeLabel: string): string {
   void dateStr;
-  const place = placeLabel && placeLabel !== "場所未設定" ? placeLabel : "この場所";
+  const normalized = typeof placeLabel === "string" ? placeLabel.trim() : "";
+  const place = normalized && !PLACEHOLDER_PLACE_LABELS.has(normalized) ? normalized : "この場所";
   return `${place}で見つけた記録`;
 }
 

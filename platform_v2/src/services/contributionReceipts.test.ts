@@ -28,6 +28,7 @@ function baseResult(overrides: Partial<ObservationWriteResult> = {}): Observatio
     placeId: "place-1",
     impact: {
       placeName: "天竜川",
+      placeAnchored: true,
       visitCount: 1,
       previousObservedAt: null,
       focusLabel: null,
@@ -71,6 +72,7 @@ test("survey and absence observations receive follow-up receipts without overcla
     result: baseResult({
       impact: {
         placeName: "天竜川",
+        placeAnchored: true,
         visitCount: 2,
         previousObservedAt: "2026-05-01T10:00:00.000Z",
         focusLabel: "トンボ",
@@ -100,6 +102,7 @@ test("unlocated note receipts do not invite same-place continuation", () => {
       placeId: "place:unlocated:visit-1",
       impact: {
         placeName: "地点未指定の記録",
+        placeAnchored: false,
         visitCount: 1,
         previousObservedAt: null,
         focusLabel: null,

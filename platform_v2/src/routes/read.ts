@@ -1682,6 +1682,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .obs-local-quality-eye { color: #2563eb; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .1em; }
   .obs-local-quality-title { margin: 2px 0 0; color: #0f172a; font-size: 15px; line-height: 1.25; font-weight: 950; }
+  .obs-local-quality-lead { margin: 4px 0 0; color: #64748b; font-size: 11.5px; line-height: 1.55; font-weight: 600; }
   .obs-local-quality-status { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border-radius: 999px; background: #eff6ff; border: 1px solid rgba(37,99,235,.18); color: #1d4ed8; font-size: 10px; line-height: 1; font-weight: 950; white-space: nowrap; }
   .obs-local-quality-checks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .obs-local-quality-check { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; align-items: start; min-height: 68px; padding: 8px 9px; border-radius: 12px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.07); }
@@ -4994,7 +4995,7 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       heroLead: "記録は、写真・動画・音声・場所・時刻・メモをまとめて残したものです。1件の記録から、あとで複数の対象ごとの記録を作れます。",
       photoAction: "ログインして写真で記録する",
       registerAction: "新しく登録して記録する",
-      panelEyebrow: "sign in required",
+      panelEyebrow: "ログインが必要",
       panelHeading: "記録画面はログイン後に開きます。",
       panelBody: "写真・動画・音声・場所・時刻・メモを自分の記録ライブラリに保存するため、記録前にログインします。",
       noteAction: "メモで始める",
@@ -7107,7 +7108,6 @@ const ENVIRONMENT_RECORD_FIELDS = [
     field: "place_type",
     title: "場所の型",
     help: "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。",
-    fallback: "grassland_urban_edge",
     options: [
       { value: "grassland_urban_edge", label: "草地と市街地の縁" },
       { value: "urban", label: "市街地" },
@@ -7122,7 +7122,6 @@ const ENVIRONMENT_RECORD_FIELDS = [
     field: "contact_surface",
     title: "接している面",
     help: "対象が触れている・立っている・浮いている面を残す。",
-    fallback: "soil_gravel_litter",
     options: [
       { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
       { value: "soil", label: "土" },
@@ -7137,7 +7136,6 @@ const ENVIRONMENT_RECORD_FIELDS = [
     field: "surrounding_cover",
     title: "周辺の被覆",
     help: "まわりを覆う植物、水、雪、岩、構造物などを残す。",
-    fallback: "low_grass",
     options: [
       { value: "low_grass", label: "低い草地" },
       { value: "trees_shrubs", label: "樹木・低木" },
@@ -7152,7 +7150,6 @@ const ENVIRONMENT_RECORD_FIELDS = [
     field: "environment_condition",
     title: "環境条件",
     help: "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。",
-    fallback: "open_dry",
     options: [
       { value: "open_dry", label: "開けて乾き気味" },
       { value: "sunny", label: "日当たり" },
@@ -7167,7 +7164,6 @@ const ENVIRONMENT_RECORD_FIELDS = [
     field: "human_change",
     title: "人為・変化",
     help: "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。",
-    fallback: "trampling_mowing",
     options: [
       { value: "trampling_mowing", label: "踏圧・草刈り跡" },
       { value: "mowing", label: "草刈り" },
@@ -7183,9 +7179,14 @@ const ENVIRONMENT_RECORD_FIELDS = [
 
 type EnvironmentRecordField = typeof ENVIRONMENT_RECORD_FIELDS[number];
 
+function environmentRecordHasStoredValue(record: Record<string, string> | null | undefined, field: EnvironmentRecordField): boolean {
+  const raw = String(record?.[field.field] ?? "").trim();
+  return field.options.some((option) => option.value === raw);
+}
+
 function environmentRecordValue(record: Record<string, string> | null | undefined, field: EnvironmentRecordField): string {
   const raw = String(record?.[field.field] ?? "").trim();
-  return field.options.some((option) => option.value === raw) ? raw : field.fallback;
+  return field.options.some((option) => option.value === raw) ? raw : "unknown";
 }
 
 function environmentRecordLabel(field: EnvironmentRecordField, value: string): string {
@@ -7331,12 +7332,14 @@ function renderObservationQualityCard(options: {
     : "対象外";
   const environmentRecord = options.snapshot.environmentRecord ?? {};
   const environmentFieldCards = ENVIRONMENT_RECORD_FIELDS.map((field) => {
+    const hasStoredValue = environmentRecordHasStoredValue(environmentRecord, field);
     const value = environmentRecordValue(environmentRecord, field);
     const label = environmentRecordLabel(field, value);
+    const sourceLabel = hasStoredValue ? "入力済み" : "未入力";
     return `<div class="obs-local-quality-chip" data-quality-chip data-env-field="${escapeHtml(field.field)}" data-env-current="${escapeHtml(value)}">
       <div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(field.title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(field.help, glossaryTerms, 2)}</p></details></div>
       <div class="obs-local-quality-chip-value-row"><em data-env-field-label>${escapeHtml(label)}</em><button class="obs-local-quality-field-edit" type="button" data-env-edit="${escapeHtml(field.field)}">変更</button></div>
-      <small class="obs-local-quality-source">AI推定</small>
+      <small class="obs-local-quality-source">${sourceLabel}</small>
     </div>`;
   }).join("");
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
@@ -7344,6 +7347,7 @@ function renderObservationQualityCard(options: {
       <div>
         <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
         <h3 class="obs-local-quality-title">観察レコードとして育てる</h3>
+        <p class="obs-local-quality-lead">観察レコードは、この記録に付く同定情報です。1つの記録に複数付けられます。</p>
       </div>
     </div>
     <div class="obs-local-quality-checks">
@@ -7382,6 +7386,7 @@ function renderObservationQualityCard(options: {
     <div class="obs-local-quality-action-status" data-quality-action-status aria-live="polite"></div>
     <div class="obs-local-quality-draft" data-quality-draft>
       <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div>
+      <p class="obs-local-quality-lead">環境情報はこの記録に1枠。その場の状態を5項目でまとめて残します。</p>
       <div class="obs-local-quality-draft-grid">
         ${environmentFieldCards}
       </div>
@@ -15338,12 +15343,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const buildImpactHtml = (impact, extraStatus) => {
           const notes = [];
-          if (impact && impact.placeName) {
+          const placeAnchored = !impact || impact.placeAnchored !== false;
+          if (impact && impact.placeName && placeAnchored) {
             notes.push(impact.placeName + ' の記録が ' + String(impact.visitCount || 1) + ' 件目になりました。');
+          } else if (impact && !placeAnchored) {
+            notes.push('場所なしの記録として保存しました。あとから地点を足せます。');
           }
           if (impact && impact.previousObservedAt) {
             notes.push('前回は ' + formatObservedDate(impact.previousObservedAt) + ' の記録があります。同じ場所で比べる解像度が上がりました。');
-          } else if (impact && impact.placeName) {
+          } else if (impact && impact.placeName && placeAnchored) {
             notes.push('この場所の時間・環境・気づきを比べる起点ができました。');
           }
           if (impact && impact.focusLabel) {
@@ -15381,8 +15389,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const actionHtml = href
               ? '<a href="' + escapeHtmlText(href) + '" data-record-success-cta="contribution_receipt_' + escapeHtmlText(actionKey) + '">' + escapeHtmlText(label) + '</a>'
               : '';
-            return '<article class="record-impact-receipt" data-contribution-receipt-kind="' + escapeHtmlText(kind) + '" data-claim-level="' + escapeHtmlText(receipt.claimLevel || 'immediate') + '">' +
-              '<span>immediate</span>' +
+            const claimLevel = String(receipt.claimLevel || 'immediate');
+            const claimLabel = claimLevel === 'immediate' ? 'すぐ反映' : claimLevel;
+            return '<article class="record-impact-receipt" data-contribution-receipt-kind="' + escapeHtmlText(kind) + '" data-claim-level="' + escapeHtmlText(claimLevel) + '">' +
+              '<span>' + escapeHtmlText(claimLabel) + '</span>' +
               '<strong>' + escapeHtmlText(receipt.title || '記録の手がかり') + '</strong>' +
               '<p>' + escapeHtmlText(receipt.body || '') + '</p>' +
               actionHtml +
@@ -17401,7 +17411,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 .filter(Boolean);
               const uploadFeedback = buildRecordFeedbackSentence();
               const uploadFeedbackHtml = uploadFeedback
-                ? '<div class="record-upload-feedback"><strong>次の撮り方</strong><span>' + escapeHtmlText(uploadFeedback) + '</span></div>'
+                ? '<div class="record-upload-feedback"><strong>次のヒント</strong><span>' + escapeHtmlText(uploadFeedback) + '</span></div>'
                 : '';
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');

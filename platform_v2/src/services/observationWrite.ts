@@ -146,6 +146,8 @@ export type ObservationWriteResult = {
   placeId: string;
   impact: {
     placeName: string;
+    /** false のとき場所の手がかりが無い記録（placeName は表示用フォールバック）。 */
+    placeAnchored: boolean;
     visitCount: number;
     previousObservedAt: string | null;
     focusLabel: string | null;
@@ -418,6 +420,7 @@ async function buildObservationImpact(input: ObservationUpsertInput, placeId: st
   const impactRow = impactResult.rows[0];
   return {
     placeName: impactRow?.place_name ?? buildObservationPlaceName(input, locality, hasPlaceAnchor),
+    placeAnchored: hasPlaceAnchor,
     visitCount: Number(impactRow?.visit_count ?? "1"),
     previousObservedAt: impactRow?.previous_observed_at ?? null,
     focusLabel,
