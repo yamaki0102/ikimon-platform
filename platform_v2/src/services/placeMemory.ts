@@ -1080,6 +1080,8 @@ export async function listPlaceMemoryVisits(
         from visits v
         where v.user_id = $1
           and v.place_id is not null
+          and v.place_id not like 'place:unlocated:%'
+          and coalesce(v.public_visibility, 'public') <> 'hidden'
       ),
       visit_windows as (
         select
@@ -1172,6 +1174,7 @@ export async function listPlaceMemoryVisits(
         from visits v
         where v.user_id = $1
           and v.place_id = stats.place_id
+          and coalesce(v.public_visibility, 'public') <> 'hidden'
         order by v.observed_at desc, v.visit_id desc
         limit 1
       ) latest_visit on true

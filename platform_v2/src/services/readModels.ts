@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import { registerSnapshotInvalidator } from "./snapshotInvalidation.js";
 import { buildObserverNameSql } from "./observerNameSql.js";
 import {
   buildPublicLocationSummary,
@@ -295,6 +296,7 @@ const observationListSnapshotCache = new Map<string, {
   expiresAt: number;
   snapshot: ObservationListSnapshot;
 }>();
+registerSnapshotInvalidator(() => observationListSnapshotCache.clear());
 
 export type SpecialistSnapshot = {
   lane: "default" | "public-claim" | "expert-lane" | "review-queue";
@@ -1671,15 +1673,64 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
   };
 }
 
-async function loadObservationListCards(limit: number): Promise<RecentObservation[]> {
+export type ObservationListQueryOptions = {
+  /** 種名・場所・自治体に対する部分一致検索。 */
+  q?: string | null;
+  /** カーソル: この (observed_at, visit_id) より古い記録だけ返す。 */
+  before?: { observedAt: string; visitId: string } | null;
+};
+
+function escapeSqlLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+async function loadObservationListCards(limit: number, options: ObservationListQueryOptions = {}): Promise<RecentObservation[]> {
   const pool = getPool();
   const candidateLimit = Math.max(limit * OBSERVATION_LIST_CANDIDATE_MULTIPLIER, OBSERVATION_LIST_MIN_CANDIDATE_VISITS);
+  const params: unknown[] = [limit, candidateLimit];
+  const visitFilters: string[] = [];
+  const q = String(options.q ?? "").trim();
+  if (q) {
+    params.push(`%${escapeSqlLikePattern(q)}%`);
+    const qParam = `$${params.length}`;
+    visitFilters.push(`AND (
+            v.observed_municipality ILIKE ${qParam}
+            OR v.observed_prefecture ILIKE ${qParam}
+            OR EXISTS (
+              SELECT 1 FROM places pq
+               WHERE pq.place_id = v.place_id
+                 AND pq.canonical_name ILIKE ${qParam}
+            )
+            OR EXISTS (
+              SELECT 1 FROM occurrences oq
+               WHERE oq.visit_id = v.visit_id
+                 AND coalesce(oq.occurrence_status, 'present') <> 'absent'
+                 AND (
+                   oq.vernacular_name ILIKE ${qParam}
+                   OR oq.scientific_name ILIKE ${qParam}
+                   OR EXISTS (
+                     SELECT 1 FROM observation_ai_assessments aq
+                      WHERE aq.occurrence_id = oq.occurrence_id
+                        AND aq.recommended_taxon_name ILIKE ${qParam}
+                   )
+                 )
+            )
+          )`);
+  }
+  if (options.before) {
+    params.push(options.before.observedAt);
+    const observedParam = `$${params.length}`;
+    params.push(options.before.visitId);
+    const visitParam = `$${params.length}`;
+    visitFilters.push(`AND (v.observed_at, v.visit_id) < (${observedParam}::timestamptz, ${visitParam})`);
+  }
   const result = await pool.query<ObservationListCardRow>(
     `WITH recent_public_visits AS MATERIALIZED (
        SELECT v.visit_id,
               v.observed_at AS observed_at_sort
          FROM visits v
         WHERE ${PUBLIC_OBSERVATION_QUALITY_SQL}
+          ${visitFilters.join("\n          ")}
         ORDER BY v.observed_at DESC, v.visit_id DESC
         LIMIT $2
      ),
@@ -1833,7 +1884,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
        ) ids ON true
        LEFT JOIN field_refs_by_visit fields ON fields.visit_id = v.visit_id
       ORDER BY cv.observed_at_sort DESC, v.visit_id DESC`,
-    [limit, candidateLimit],
+    params,
   );
 
   const wardFields = await safeLoadHamamatsuWardFields(pool);
@@ -1884,14 +1935,17 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
   });
 }
 
-export async function getObservationListSnapshot(limit = 48): Promise<ObservationListSnapshot> {
+export async function getObservationListSnapshot(limit = 48, q?: string | null): Promise<ObservationListSnapshot> {
+  const query = String(q ?? "").trim();
   const cacheKey = `limit:${limit}`;
   const now = Date.now();
-  const cached = observationListSnapshotCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
-    return cached.snapshot;
+  if (!query) {
+    const cached = observationListSnapshotCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.snapshot;
+    }
   }
-  const observations = await loadObservationListCards(limit);
+  const observations = await loadObservationListCards(limit, { q: query || null });
   const awaitingIdCount = observations.filter((item) =>
     item.displayName === "同定待ち" || item.isAiCandidate,
   ).length;
@@ -1905,11 +1959,58 @@ export async function getObservationListSnapshot(limit = 48): Promise<Observatio
       multiSubjectCount,
     },
   };
-  observationListSnapshotCache.set(cacheKey, {
-    expiresAt: now + OBSERVATION_LIST_SNAPSHOT_TTL_MS,
-    snapshot,
-  });
+  if (!query) {
+    observationListSnapshotCache.set(cacheKey, {
+      expiresAt: now + OBSERVATION_LIST_SNAPSHOT_TTL_MS,
+      snapshot,
+    });
+  }
   return snapshot;
+}
+
+export type ObservationListPage = {
+  observations: RecentObservation[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export function encodeObservationListCursor(entry: { observedAt: string; visitId: string }): string {
+  return Buffer.from(JSON.stringify([entry.observedAt, entry.visitId]), "utf-8").toString("base64url");
+}
+
+export function decodeObservationListCursor(cursor: string | null | undefined): { observedAt: string; visitId: string } | null {
+  const raw = String(cursor ?? "").trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf-8")) as unknown;
+    if (!Array.isArray(parsed) || parsed.length !== 2) return null;
+    const [observedAt, visitId] = parsed;
+    if (typeof observedAt !== "string" || typeof visitId !== "string" || !observedAt || !visitId) return null;
+    return { observedAt, visitId };
+  } catch {
+    return null;
+  }
+}
+
+export async function getObservationListPage(options: {
+  limit?: number;
+  q?: string | null;
+  cursor?: string | null;
+} = {}): Promise<ObservationListPage> {
+  const limit = Math.min(Math.max(Number(options.limit ?? 36) || 36, 1), 96);
+  const before = decodeObservationListCursor(options.cursor);
+  const observations = await loadObservationListCards(limit + 1, {
+    q: options.q ?? null,
+    before,
+  });
+  const hasMore = observations.length > limit;
+  const pageEntries = hasMore ? observations.slice(0, limit) : observations;
+  const last = pageEntries[pageEntries.length - 1];
+  return {
+    observations: pageEntries,
+    nextCursor: hasMore && last ? encodeObservationListCursor({ observedAt: last.observedAt, visitId: last.visitId }) : null,
+    hasMore,
+  };
 }
 
 export async function getSpecialistSnapshot(

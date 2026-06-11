@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { invalidateUserVisibleSnapshots } from "../services/snapshotInvalidation.js";
 import { Readable } from "node:stream";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
@@ -571,6 +572,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const resolvedSession = assertSessionUser(session, request.body.userId);
       await assertMutationRateLimit(request, "observation-upsert", resolvedSession.userId, 30);
       const result = await upsertObservation(request.body);
+      invalidateUserVisibleSnapshots();
       const placeMemorySample = result.placeMemory
         ? await getPostSavePlaceMemorySample({ userId: request.body.userId, visitId: result.visitId, limit: 3 }).catch(() => [])
         : [];
@@ -1015,6 +1017,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           observationId: request.params.id,
           actorUserId: session.userId,
         });
+        invalidateUserVisibleSnapshots();
         return { ok: true, ...result };
       } catch (error) {
         reply.code(errorStatus(error, 400));

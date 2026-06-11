@@ -139,7 +139,7 @@ function renderSearchForm(basePath: string, lang: SiteLang, copy: ShellCopy, cla
 
   return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records"), lang))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
     <span class="site-search-icon" aria-hidden="true">🔍</span>
-    ${searchState.view ? `<input type="hidden" name="view" value="${escapeHtml(searchState.view)}" />` : ""}
+    <input type="hidden" name="view" value="${escapeHtml(searchState.view || "public")}" />
     <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" value="${escapeHtml(searchState.query)}" aria-label="${escapeHtml(copy.searchLabel)}" />
   </form>`;
 }
@@ -306,6 +306,8 @@ type SideNavGroup = {
   items: SideNavTextItem[];
   className?: string;
   afterHtml?: string;
+  /** true のとき低頻度グループとして折りたたみ表示（現在ページを含む場合は開く）。 */
+  collapsible?: boolean;
 };
 
 type SideNavDirectoryCopy = {
@@ -634,6 +636,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     },
     {
       title: directoryCopy.groups.learn,
+      collapsible: true,
       items: sideNavSelectedPageItems(
         "learn",
         ["/learn", "/learn/field-loop", "/learn/identification-basics", "/learn/glossary", "/learn/wellbeing"],
@@ -643,6 +646,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     { title: directoryCopy.groups.local, items: sideNavPageItems(["group"], lang, 3) },
     {
       title: directoryCopy.groups.updates,
+      collapsible: true,
       items: [
         { href: "/learn/updates", label: directoryCopy.links.updates, match: ["/learn/updates"] },
         ...sideNavPageItems(["trust"], lang, 8),
@@ -658,13 +662,29 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
           .join("")}
       </section>`;
   const secondary = groups
-    .map(
-      (group) => `<section class="${secondaryClass}${group.className ? ` ${group.className}` : ""}">
+    .map((group) => {
+      const linksHtml = group.items.length
+        ? `<div class="desktop-side-nav-text-links">${renderSideNavTextLinks(basePath, lang, currentPath, normalizedPath, group.items)}</div>`
+        : "";
+      if (group.collapsible) {
+        const containsCurrent = group.items.some((item) => {
+          const match = item.match ?? [normalizeSitePath(item.href)];
+          return match.some((path) => siteNavMatch(currentPath, normalizedPath, path));
+        });
+        return `<section class="${secondaryClass}${group.className ? ` ${group.className}` : ""}">
+        <details class="side-nav-collapsible"${containsCurrent ? " open" : ""}>
+          <summary class="desktop-side-nav-section-title side-nav-collapsible-summary">${escapeHtml(group.title)}</summary>
+          ${linksHtml}
+          ${group.afterHtml ?? ""}
+        </details>
+      </section>`;
+      }
+      return `<section class="${secondaryClass}${group.className ? ` ${group.className}` : ""}">
         <h2 class="desktop-side-nav-section-title">${escapeHtml(group.title)}</h2>
-        ${group.items.length ? `<div class="desktop-side-nav-text-links">${renderSideNavTextLinks(basePath, lang, currentPath, normalizedPath, group.items)}</div>` : ""}
+        ${linksHtml}
         ${group.afterHtml ?? ""}
-      </section>`,
-    )
+      </section>`;
+    })
     .join("");
   const legal = `<div class="desktop-side-nav-legal">
     <span>ikimon</span>
@@ -3307,7 +3327,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const shouldRenderFooter = false;
   const isReadingPage = isReadingSurface(currentPath);
   const prefersCollapsedSideNav = isReadingPage || isImmersiveSurface || /\bshell-records-workbench\b/.test(shellClassName);
-  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}`;
+  const isMapSurface = /\bshell-map\b/.test(shellClassName);
+  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}${isMapSurface ? " is-map-surface" : ""}`;
   const appLaunchHeadScript = `<script>
 (function () {
   try {
@@ -4392,6 +4413,27 @@ ${alternateLinks}
       padding-top: 4px;
       color: #047857;
     }
+    .side-nav-collapsible-summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    .side-nav-collapsible-summary::-webkit-details-marker { display: none; }
+    .side-nav-collapsible-summary::after {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid #94a3b8;
+      border-bottom: 2px solid #94a3b8;
+      transform: rotate(-45deg);
+      transition: transform .15s ease;
+      flex-shrink: 0;
+    }
+    .side-nav-collapsible[open] > .side-nav-collapsible-summary::after { transform: rotate(45deg); }
+    .side-nav-collapsible-summary:hover { color: #0f172a; }
     .desktop-side-nav-link {
       min-height: 42px;
       display: flex;
@@ -4789,6 +4831,8 @@ ${alternateLinks}
       transition: top .15s ease;
     }
     .skip-link:focus-visible { top: 10px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .site-shell.is-map-surface .site-search-desktop { display: none; }
     a:focus-visible,
     button:focus-visible,
     input:focus-visible,
@@ -6668,6 +6712,7 @@ ${alternateLinks}
     ${nav(options.basePath, lang, currentPath, options.activeNav, uiLangs)}
     <main id="main-content" class="${mainClassName}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
+      ${!options.hero && !/<h1[\s>]/.test(`${options.belowHeroHtml ?? ""}${options.body}`) ? `<h1 class="sr-only">${escapeHtml(pageTitle.replace(/\s*\|\s*ikimon\s*$/i, ""))}</h1>` : ""}
       ${options.belowHeroHtml ?? ""}
       ${options.body}
     </main>
