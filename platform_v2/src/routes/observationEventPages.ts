@@ -39,6 +39,7 @@ import {
   renderEventCreateBody,
   eventCreateScript,
 } from "../ui/observationEventCreate.js";
+import { buildStagingFixtureExclusionSql } from "../services/stagingFixtureGuard.js";
 import {
   renderEventEditBody,
   eventEditScript,
@@ -128,6 +129,13 @@ async function loadRecentSessions(limit = 24): Promise<ObservationEventSessionRo
     const result = await pool.query<{ session_id: string }>(
       `SELECT session_id
        FROM observation_event_sessions
+       WHERE ${buildStagingFixtureExclusionSql({
+         userIdColumn: "organizer_user_id",
+         visitIdColumn: "session_id",
+         eventCodeColumn: "event_code",
+         titleColumn: "title",
+         configColumn: "config::text",
+       })}
        ORDER BY started_at DESC
        LIMIT $1`,
       [limit],

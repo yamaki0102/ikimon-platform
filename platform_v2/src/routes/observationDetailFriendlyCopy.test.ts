@@ -613,8 +613,8 @@ test("AI readout stays simple while the assessment is still being created", () =
 
   const html = renderHeroAiReadout(subject, false, null, bundle);
 
-  assert.match(html, /AI解説を作成中です/);
-  assert.match(html, /写真・動画を読み込んでいます/);
+  assert.match(html, /写真を追加すると解説を作れます/);
+  assert.match(html, /メモは保存済みです/);
   assert.doesNotMatch(html, /同じ場面内の名前候補として残っています/);
   assert.doesNotMatch(html, /data-ai-target/);
   assert.doesNotMatch(html, /obs-ai-detail-box/);
@@ -1593,12 +1593,12 @@ test("AI readout rendered contract follows the snapshot-like candidate order", (
   assert.doesNotMatch(visibleTextFromHtml(primaryHtml), /Rubus parvifolius\s+Rubus parvifolius/);
 
   assertVisibleTermsInOrder(akamigashiwaHtml, [
-    "AI解説を作成中です",
-    "写真・動画を読み込んでいます",
+    "写真を追加すると解説を作れます",
+    "メモは保存済みです",
   ]);
   assertVisibleTermsInOrder(katabamiHtml, [
-    "AI解説を作成中です",
-    "写真・動画を読み込んでいます",
+    "写真を追加すると解説を作れます",
+    "メモは保存済みです",
   ]);
   assert.doesNotMatch(akamigashiwaHtml, /同じ場面内の名前候補として残っています|確かめる点|追加で見る点/);
   assert.doesNotMatch(katabamiHtml, /同じ場面内の名前候補として残っています|確かめる点|追加で見る点/);

@@ -822,7 +822,7 @@ async function loadVisitSummaryObservations(
 }
 
 export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapshot> {
-  const recentObservations = await loadVisitSummaryObservations(12);
+  const recentObservations = await loadVisitSummaryObservations(12, userId ? { userId } : {});
 
   let myPlaces: HomePlace[] = [];
   if (userId) {
@@ -1529,14 +1529,16 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
           max(v.observed_at)::text as latest_observed_at
          from visits v
          left join occurrences o on o.visit_id = v.visit_id
-        where v.user_id = $1`,
+        where v.user_id = $1
+          and ${PUBLIC_OBSERVATION_QUALITY_SQL}`,
       [userId],
     ),
     pool.query<{ streak: string }>(
       `with days as (
           select distinct date_trunc('day', observed_at)::date as d
-            from visits
-           where user_id = $1
+            from visits v
+           where v.user_id = $1
+             and ${PUBLIC_OBSERVATION_QUALITY_SQL}
            order by d desc
            limit 60
         ),
@@ -1566,6 +1568,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
           from occurrences o
           join visits v on v.visit_id = o.visit_id
           where v.user_id = $1
+            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
             and coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is not null
         ),
         taxa as (

@@ -67,3 +67,26 @@ test("record form coordinate fallback does not guess Shizuoka municipalities fro
   assert.doesNotMatch(localityFallback, /municipality: '静岡市'/);
   assert.doesNotMatch(localityFallback, /municipality: '浜松市'/);
 });
+
+test("home snapshot recent observations stay scoped to the signed-in user", async () => {
+  const readModels = await readFile(path.join(process.cwd(), "src", "services", "readModels.ts"), "utf8");
+  const homeSnapshot = readModels.slice(
+    readModels.indexOf("export async function getHomeSnapshot"),
+    readModels.indexOf("export async function getExploreSnapshot"),
+  );
+
+  assert.match(homeSnapshot, /loadVisitSummaryObservations\(12, userId \? \{ userId \} : \{\}\)/);
+  assert.doesNotMatch(homeSnapshot, /loadVisitSummaryObservations\(12\);/);
+});
+
+test("profile snapshot stats reuse the public quality gate so hidden records do not linger", async () => {
+  const readModels = await readFile(path.join(process.cwd(), "src", "services", "readModels.ts"), "utf8");
+  const profileSnapshot = readModels.slice(
+    readModels.indexOf("export async function getProfileSnapshot"),
+    readModels.indexOf("export async function getObservationListSnapshot"),
+  );
+
+  assert.match(profileSnapshot, /where v\.user_id = \$1\s+and \$\{PUBLIC_OBSERVATION_QUALITY_SQL\}/);
+  assert.match(profileSnapshot, /from visits v\s+where v\.user_id = \$1\s+and \$\{PUBLIC_OBSERVATION_QUALITY_SQL\}/);
+  assert.match(profileSnapshot, /where v\.user_id = \$1\s+and \$\{PUBLIC_OBSERVATION_QUALITY_SQL\}\s+and coalesce/);
+});

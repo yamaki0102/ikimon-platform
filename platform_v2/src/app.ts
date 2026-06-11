@@ -4,7 +4,7 @@ import rateLimit from "@fastify/rate-limit";
 import { loadConfig } from "./config.js";
 import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
-import { detectLangFromUrl, rewriteLangPrefixToQuery, type SiteLang } from "./i18n.js";
+import { appendLangToHref, detectLangFromUrl, rewriteLangPrefixToQuery, type SiteLang } from "./i18n.js";
 import { getShortCopy } from "./content/index.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -279,12 +279,12 @@ function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms https://scripts.clarity.ms",
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -785,6 +785,42 @@ export function buildApp() {
   void registerObservationPackageApiRoutes(app);
   void registerPlaceManagementPolicyApiRoutes(app);
   void registerMeSubscriptionsApiRoutes(app);
+
+  app.setNotFoundHandler(async (request, reply) => {
+    const accept = String(request.headers.accept ?? "");
+    const rawUrl = requestUrl(request);
+    const wantsHtml = accept.includes("text/html");
+    if (!wantsHtml || rawUrl.startsWith("/api/")) {
+      reply.code(404);
+      return { ok: false, error: "not_found" };
+    }
+    const basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
+    const lang = detectLangFromUrl(rawUrl);
+    const title = lang === "en"
+      ? "Page not found"
+      : lang === "es"
+        ? "Pagina no encontrada"
+        : lang === "pt-BR"
+          ? "Pagina nao encontrada"
+          : "ページが見つかりません";
+    const lead = lang === "en"
+      ? "The page may have moved. Use search or return to your home."
+      : lang === "es"
+        ? "La pagina pudo haberse movido. Usa la busqueda o vuelve al inicio."
+        : lang === "pt-BR"
+          ? "A pagina pode ter mudado. Use a busca ou volte ao inicio."
+          : "ページが移動した可能性があります。検索するか、ホームへ戻ってください。";
+    reply.code(404).type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title,
+      lang,
+      currentPath: requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      noindex: true,
+      shellClassName: "shell-layout-narrow",
+      body: `<section class="section"><div class="section-header"><div><div class="eyebrow">404</div><h1>${escapeHtml(title)}</h1></div><p>${escapeHtml(lead)}</p></div><div class="section-actions"><a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/home"), lang))}">${escapeHtml(lang === "ja" ? "ホームへ戻る" : "Home")}</a><a class="btn btn-ghost" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records"), lang))}">${escapeHtml(lang === "ja" ? "記録を探す" : "Search records")}</a></div></section>`,
+    });
+  });
 
   // 5 分周期の AI Quest cron(activity ありのセッションのみ)
   startQuestScheduler();

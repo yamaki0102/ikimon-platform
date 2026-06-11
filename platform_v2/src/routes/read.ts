@@ -1693,6 +1693,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-check em { display: block; margin-top: 4px; color: #0f172a; font-size: 10.5px; line-height: 1.35; font-style: normal; font-weight: 900; }
   .obs-local-quality-check em::before, .obs-local-quality-chip em::before { content: "状態: "; color: #0f766e; font-size: 9.5px; font-weight: 950; }
   .obs-local-quality-chip em::before { content: "入力: "; }
+  .obs-local-quality-source { display: inline-flex; width: fit-content; margin-top: 5px; padding: 2px 6px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 9px; line-height: 1.2; font-weight: 950; }
   .obs-local-quality-change, button.obs-local-quality-change { align-self: center; padding: 0; border: 0; background: transparent; color: #0369a1; font: inherit; font-size: 10px; line-height: 1.2; font-weight: 950; text-decoration: none; white-space: nowrap; cursor: pointer; }
   .obs-local-quality-action-status { min-height: 18px; color: #0369a1; font-size: 10px; line-height: 1.35; font-weight: 850; }
   .obs-local-quality-action-status.is-error { color: #b91c1c; }
@@ -3624,9 +3625,19 @@ function renderNoAssessmentCandidateReadout(
   glossaryTerms: GlossaryTermHint[] = [],
 ): string {
   const candidatePanels = renderAiCandidateDetailPanels(bundle, groundingAssets, glossaryTerms);
+  const hasMedia = groundingAssets.length > 0;
+  const pendingCopy = hasMedia
+    ? {
+      title: "AI解説を作成中です",
+      body: "写真・動画を読み込んでいます。少し待つと、この記録の読みがここに出ます。",
+    }
+    : {
+      title: "写真を追加すると解説を作れます",
+      body: "この記録にはまだメディアがありません。メモは保存済みです。写真や音を足すと、AI解説と確認ポイントを作れます。",
+    };
   return `<section class="obs-ai-readout obs-ai-readout-merged is-tent">
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
-      <p class="obs-ai-pending"><strong>AI解説を作成中です</strong><span>写真・動画を読み込んでいます。少し待つと、この記録の読みがここに出ます。</span></p>
+      <p class="obs-ai-pending"><strong>${escapeHtml(pendingCopy.title)}</strong><span>${escapeHtml(pendingCopy.body)}</span></p>
     </div>
     ${candidatePanels}
   </section>${candidatePanels ? renderAiReadoutInteractionScript() : ""}`;
@@ -4729,6 +4740,8 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
     var status = root.querySelector('[data-owner-delete-status]');
     var endpoint = root.getAttribute('data-delete-endpoint') || '';
     var nextHref = root.getAttribute('data-after-delete-href') || '/records?view=mine';
+    var confirmDelete = false;
+    var confirmTimer = null;
     var setStatus = function(message, isError) {
       if (!status) return;
       status.textContent = message;
@@ -4736,12 +4749,25 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
     };
     if (!button || !endpoint) return;
     button.addEventListener('click', function() {
-      if (!window.confirm('この記録を一覧と公開ページから削除します。よろしいですか？')) return;
+      if (!confirmDelete) {
+        confirmDelete = true;
+        button.textContent = 'もう一度押して削除';
+        setStatus('一覧と公開ページから外します。取り消す場合はそのまま待ってください。', false);
+        if (confirmTimer) window.clearTimeout(confirmTimer);
+        confirmTimer = window.setTimeout(function(){
+          confirmDelete = false;
+          button.textContent = '削除';
+          setStatus('', false);
+        }, 5200);
+        return;
+      }
+      if (confirmTimer) window.clearTimeout(confirmTimer);
       button.disabled = true;
       setStatus('削除中...', false);
       fetch(endpoint, {
         method: 'POST',
         headers: { accept: 'application/json' },
+        cache: 'no-store',
         credentials: 'same-origin'
       }).then(function(response) {
         return response.json().catch(function(){ return {}; }).then(function(json) {
@@ -7289,6 +7315,20 @@ function renderObservationQualityCard(options: {
   const observedAtInputValue = observationLocalDateTimeValue(options.snapshot.observedAt);
   const observedAtLabel = formatAbsolute(options.snapshot.observedAt);
   const locationLabel = qualityLocationLabel(options.snapshot);
+  const hasRecordLocation = typeof options.snapshot.latitude === "number" && typeof options.snapshot.longitude === "number";
+  const dateLocationStateClass = hasRecordLocation ? "" : " is-warn";
+  const dateLocationMark = hasRecordLocation ? "✓" : "!";
+  const dateLocationHelp = hasRecordLocation
+    ? "撮影日時と観察場所が入っているか。"
+    : "場所なしで保存済み。必要なら後から地点を足せます。";
+  const mediaConsistencyClass = hasEvidence ? "" : " is-next";
+  const mediaConsistencyMark = hasEvidence ? "✓" : "!";
+  const mediaConsistencyHelp = hasEvidence
+    ? "関係ない画像や場面違いの証拠が混じっていないか。"
+    : "写真・動画・音はまだありません。メディア整合の確認は対象外です。";
+  const mediaConsistencyState = hasEvidence
+    ? (isGreenfinchSnapshot ? "AI確認済み" : `${sceneNoun}確認済み`)
+    : "対象外";
   const environmentRecord = options.snapshot.environmentRecord ?? {};
   const environmentFieldCards = ENVIRONMENT_RECORD_FIELDS.map((field) => {
     const value = environmentRecordValue(environmentRecord, field);
@@ -7296,6 +7336,7 @@ function renderObservationQualityCard(options: {
     return `<div class="obs-local-quality-chip" data-quality-chip data-env-field="${escapeHtml(field.field)}" data-env-current="${escapeHtml(value)}">
       <div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(field.title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(field.help, glossaryTerms, 2)}</p></details></div>
       <div class="obs-local-quality-chip-value-row"><em data-env-field-label>${escapeHtml(label)}</em><button class="obs-local-quality-field-edit" type="button" data-env-edit="${escapeHtml(field.field)}">変更</button></div>
+      <small class="obs-local-quality-source">AI推定</small>
     </div>`;
   }).join("");
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
@@ -7306,9 +7347,9 @@ function renderObservationQualityCard(options: {
       </div>
     </div>
     <div class="obs-local-quality-checks">
-      <div class="obs-local-quality-check">
-        <i class="obs-local-quality-mark">✓</i>
-        <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em><span data-date-current-label>${escapeHtml(observedAtLabel)}</span> / <span data-location-current-label>${escapeHtml(locationLabel)}</span></em></div>
+      <div class="obs-local-quality-check${dateLocationStateClass}">
+        <i class="obs-local-quality-mark">${dateLocationMark}</i>
+        <div><strong>日時・場所</strong><span>${dateLocationHelp}</span><em><span data-date-current-label>${escapeHtml(observedAtLabel)}</span> / <span data-location-current-label>${escapeHtml(locationLabel)}</span></em></div>
         <span><button class="obs-local-quality-change" type="button" data-quality-action="date">日時</button> <button class="obs-local-quality-change" type="button" data-quality-action="location">場所</button></span>
       </div>
       <div class="obs-local-quality-check${hasEvidence ? "" : " is-warn"}">
@@ -7327,9 +7368,9 @@ function renderObservationQualityCard(options: {
         <button class="obs-local-quality-change" type="button" data-quality-action="origin">変更</button>
         <details class="obs-local-origin-hint"><summary>野生・植栽などの違い</summary><dl><dt>野生</dt><dd>人が置いた個体ではなく、その場所に自然にいた・生えたもの。</dd><dt>植栽</dt><dd>人が植えた植物。管理地に自然に生えた雑草とは分けて考えます。</dd><dt>飼育</dt><dd>人に飼われている動物。逃げ出しや放し飼いも確認します。</dd><dt>放流</dt><dd>人が意図して放した魚・昆虫・動物など。定着していても由来は別に残します。</dd></dl></details>
       </div>
-      <div class="obs-local-quality-check">
-        <i class="obs-local-quality-mark">✓</i>
-        <div><strong>メディア整合</strong><span>関係ない画像や場面違いの証拠が混じっていないか。</span><em>${escapeHtml(isGreenfinchSnapshot ? "AI確認済み" : `${sceneNoun}確認済み`)}</em></div>
+      <div class="obs-local-quality-check${mediaConsistencyClass}">
+        <i class="obs-local-quality-mark">${mediaConsistencyMark}</i>
+        <div><strong>メディア整合</strong><span>${mediaConsistencyHelp}</span><em>${escapeHtml(mediaConsistencyState)}</em></div>
         <button class="obs-local-quality-change" type="button" data-quality-action="media">確認</button>
       </div>
       <div class="obs-local-quality-check">
@@ -9322,7 +9363,8 @@ const PROFILE_HUB_STYLES = `
   .profile-settings-avatar-preview { width: 76px; height: 76px; border-radius: 999px; overflow: hidden; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-size: 24px; font-weight: 950; flex: 0 0 auto; }
   .profile-settings-avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .profile-settings-avatar-control { display: grid; gap: 8px; min-width: min(260px, 100%); flex: 1; }
-  .profile-settings-avatar-control input { min-height: auto; padding: 10px; }
+  .profile-settings-file-picker { position: relative; display: inline-flex; width: fit-content; max-width: 100%; min-height: 44px; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 999px; background: #10251a; color: #fff; font-weight: 950; cursor: pointer; overflow: hidden; }
+  .profile-settings-file-picker input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .profile-settings-field textarea { min-height: 148px; resize: vertical; }
   .profile-settings-help { margin: 0; color: #64748b; font-size: 13px; line-height: 1.65; }
   .profile-settings-status { min-height: 24px; color: #475569; font-weight: 800; }
@@ -9796,7 +9838,7 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
     <div class="profile-settings-card">
       <form class="profile-settings-form" data-profile-settings data-endpoint="${escapeHtml(endpoint)}">
         <div>
-          <div class="eyebrow">Profile settings</div>
+          <div class="eyebrow">プロフィール設定</div>
           <h2 style="margin:8px 0 0">プロフィール編集</h2>
           <p class="profile-settings-help" style="margin-top:8px">公開プロフィールとマイページの表示名、アイコン、自己紹介を更新します。</p>
         </div>
@@ -9807,7 +9849,7 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
               ${snapshot.avatarUrl ? `<img src="${escapeHtml(snapshot.avatarUrl)}" alt="" onerror="this.remove();this.parentElement.textContent=${escapeHtml(JSON.stringify(avatarFallback))}" />` : escapeHtml(avatarFallback)}
             </div>
             <div class="profile-settings-avatar-control">
-              <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" />
+              <label class="profile-settings-file-picker"><span>画像を選ぶ</span><input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" /></label>
               <p class="profile-settings-help">5MBまで。JPG / PNG / WebP を使えます。</p>
             </div>
           </div>
@@ -9971,8 +10013,8 @@ function renderProfileSnapshotBody(
 
   return `${guestIntro}
       ${mode === "registered" ? renderProfileIntro(basePath, snapshot) : ""}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`;
+      <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の場所</h2></div></div><div class="list">${places || `<div class="row"><div><strong>まだ場所の記録はありません。</strong><p class="meta" style="margin:4px 0 0">最初の記録を残すと、よく歩く場所としてここにまとまります。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a></div>`}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div></div><div class="list">${observations || `<div class="row"><div><strong>まだ観察はありません。</strong><p class="meta" style="margin:4px 0 0">写真なしのメモでも始められます。あとから写真や名前を足せます。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record?start=note"))}">メモを残す</a></div>`}</div></section>`;
 }
 
 function notesEntryDate(obs: LandingObservation): string {
@@ -10230,13 +10272,13 @@ function renderNotesLibraryMonths(
   </section>`).join("");
 }
 
-function renderNotesLibraryControls(lang: SiteLang): string {
+function renderNotesLibraryControls(lang: SiteLang, initialSearch = ""): string {
   const copy = notesLibraryCopy(lang);
   const filterToggleLabel = lang === "ja" ? "絞る" : lang === "en" ? "Filter" : lang === "es" ? "Filtrar" : "Filtrar";
   return `<section class="notes-library-controls" aria-label="${escapeHtml(copy.controls.aria)}">
     <div class="notes-library-search">
       <span aria-hidden="true">⌕</span>
-      <input type="search" placeholder="${escapeHtml(copy.controls.searchPlaceholder)}" data-library-search />
+      <input type="search" placeholder="${escapeHtml(copy.controls.searchPlaceholder)}" value="${escapeHtml(initialSearch)}" data-library-search />
     </div>
     <input class="notes-library-filter-toggle" type="checkbox" id="notes-library-filter-toggle" aria-label="${escapeHtml(copy.controls.filterAria)}" />
     <label class="notes-library-filter-label" for="notes-library-filter-toggle">${escapeHtml(filterToggleLabel)}</label>
@@ -10303,6 +10345,7 @@ function renderNotesLibraryScript(lang: SiteLang): string {
   const root = document.querySelector('[data-notes-library]');
   if (!root) return;
   const search = root.querySelector('[data-library-search]');
+  const searchEmpty = root.querySelector('[data-library-search-empty]');
   const count = root.querySelector('[data-library-visible-count]');
   const filterButtons = Array.from(root.querySelectorAll('[data-library-filter]'));
   let activeFilter = 'all';
@@ -10324,6 +10367,7 @@ function renderNotesLibraryScript(lang: SiteLang): string {
       month.hidden = !month.querySelector('[data-library-card]:not([hidden])');
     });
     if (count) count.textContent = String(visible);
+    if (searchEmpty) searchEmpty.hidden = !(query && visible === 0);
   }
   filterButtons.forEach(function (button) {
     button.addEventListener('click', function () {
@@ -12332,12 +12376,20 @@ function renderRecordsLazyScript(lang: SiteLang): string {
 </script>`;
 }
 
-function renderRecordsCollapsedControls(lang: SiteLang): string {
+function renderRecordsCollapsedControls(lang: SiteLang, initialSearch = ""): string {
   const label = lang === "ja" ? "探す/絞る" : lang === "es" ? "Buscar/filtrar" : lang === "pt-BR" ? "Buscar/filtrar" : "Search/filter";
   return `<details class="records-tools">
     <summary>${escapeHtml(label)}</summary>
-    ${renderNotesLibraryControls(lang)}
+    ${renderNotesLibraryControls(lang, initialSearch)}
   </details>`;
+}
+
+function recordsSearchEmptyCopy(lang: SiteLang, query: string): string {
+  const safeQuery = query.trim();
+  if (lang === "en") return safeQuery ? `No records match "${safeQuery}".` : "No matching records.";
+  if (lang === "es") return safeQuery ? `No hay registros para "${safeQuery}".` : "No hay registros coincidentes.";
+  if (lang === "pt-BR") return safeQuery ? `Nenhum registro corresponde a "${safeQuery}".` : "Nenhum registro correspondente.";
+  return safeQuery ? `「${safeQuery}」に一致する記録はありません。` : "一致する記録はありません。";
 }
 
 function recordsStoryCopy(lang: SiteLang): {
@@ -12458,7 +12510,7 @@ function renderRecordsWorkbench(
   snapshot: LandingSnapshot,
   publicEntries: LandingObservation[],
   civicContexts: Map<string, CivicObservationContext>,
-  options: { ownPage?: LandingFeedPage | null; canWriteIdentification?: boolean } = {},
+  options: { ownPage?: LandingFeedPage | null; canWriteIdentification?: boolean; searchQuery?: string } = {},
 ): string {
   const copy = recordsWorkbenchCopy(lang);
   const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
@@ -12468,6 +12520,7 @@ function renderRecordsWorkbench(
   const canLazyLoadMine = view === "mine" && Boolean(snapshot.viewerUserId);
   const isIdentifyView = view === "needs_id";
   const canWriteIdentification = Boolean(options.canWriteIdentification);
+  const searchQuery = (options.searchQuery ?? "").trim().slice(0, 80);
   return `<div class="records-workbench${isIdentifyView ? " has-identify-panel" : ""}" data-testid="records-workbench"${isIdentifyView ? " data-records-identify-workbench" : ""}>
     <header class="records-topbar">
       <div class="records-topbar-brand">
@@ -12481,10 +12534,11 @@ function renderRecordsWorkbench(
     </header>
     <main class="records-main${isIdentifyView ? " is-identify" : ""}">
       <section class="records-grid-panel" data-notes-library${canLazyLoadMine ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
-        ${renderRecordsCollapsedControls(lang)}
+        ${renderRecordsCollapsedControls(lang, searchQuery)}
         ${entries.length > 0
           ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
           : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
+        <div class="notes-library-empty notes-library-search-empty" data-library-search-empty hidden>${escapeHtml(recordsSearchEmptyCopy(lang, searchQuery))}</div>
         ${canLazyLoadMine ? renderRecordsLazyFooter(lang, options.ownPage?.nextCursor ?? null) : ""}
       </section>
       ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts }) : ""}
@@ -13732,6 +13786,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const recordLearnHref = appendLangToHref(withBasePath(basePath, "/learn"), lang);
     const recordLandingSnapshot = await getLandingSnapshot(viewerUserId).catch(() => null);
     const firstRecordCandidate = recordLandingSnapshot ? recordLandingSnapshot.myFeed.length === 0 : false;
+    const recordSessionDisplayName = session?.userId === viewerUserId && session.displayName
+      ? session.displayName
+      : (lang === "ja" ? "テストユーザー" : "Test user");
     return renderSiteDocument({
       basePath,
       title: recordCopy.title,
@@ -13750,7 +13807,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
               <div class="record-session-pill">
                 <span class="record-session-label">${escapeHtml(recordCopy.sessionLabel)}</span>
-                <strong>${escapeHtml(viewerUserId)}</strong>
+                <strong>${escapeHtml(recordSessionDisplayName)}</strong>
               </div>
             </div>
             ${renderRecordConfidenceStrip(lang)}
@@ -13916,8 +13973,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   <details class="record-coordinate-details">
                     <summary>${escapeHtml(recordForm.coordinateSummary)}</summary>
                     <div class="record-gps-inputs">
-                      <label class="record-field"><span class="record-label">${escapeHtml(recordForm.latitudeLabel)}</span><input name="latitude" type="number" step="0.000001" placeholder="${escapeHtml(recordForm.coordinatePlaceholder)}" required /></label>
-                      <label class="record-field"><span class="record-label">${escapeHtml(recordForm.longitudeLabel)}</span><input name="longitude" type="number" step="0.000001" placeholder="${escapeHtml(recordForm.coordinatePlaceholder)}" required /></label>
+                      <label class="record-field"><span class="record-label">${escapeHtml(recordForm.latitudeLabel)}</span><input name="latitude" type="number" step="0.000001" placeholder="${escapeHtml(recordForm.coordinatePlaceholder)}" /></label>
+                      <label class="record-field"><span class="record-label">${escapeHtml(recordForm.longitudeLabel)}</span><input name="longitude" type="number" step="0.000001" placeholder="${escapeHtml(recordForm.coordinatePlaceholder)}" /></label>
                     </div>
                   </details>
                 </div>
@@ -14615,6 +14672,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (!recordMapMarker) recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).addTo(recordMap);
             recordMapMarker.setLngLat([Number(lng), Number(lat)]);
           }
+        };
+
+        const clearRecordLocation = () => {
+          if (!form) return;
+          const latField = form.elements.namedItem('latitude');
+          const lngField = form.elements.namedItem('longitude');
+          if (latField && 'value' in latField) latField.value = '';
+          if (lngField && 'value' in lngField) lngField.value = '';
+          recordLocationProvenance = null;
+          localityLookupSequence += 1;
+          if (localityLookupAbort) {
+            localityLookupAbort.abort();
+            localityLookupAbort = null;
+          }
+          if (recordMapMarker && typeof recordMapMarker.remove === 'function') {
+            recordMapMarker.remove();
+            recordMapMarker = null;
+          }
+          updateLocationText('');
+          syncPreview();
+          syncLocationNudge();
         };
 
         const setAutofillStatus = (items) => {
@@ -16984,16 +17062,34 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 clientPhotoHashes.push(item.hash);
               });
               const observedAtIso = new Date(String(data.get('observedAt'))).toISOString();
-              const latitude = Number(data.get('latitude'));
-              const longitude = Number(data.get('longitude'));
+              const parseRecordCoordinate = (name) => {
+                const raw = String(data.get(name) || '').trim();
+                if (!raw) return null;
+                const value = Number(raw);
+                if (!Number.isFinite(value)) {
+                  throw new Error(name === 'latitude' ? 'invalid_latitude' : 'invalid_longitude');
+                }
+                if (name === 'latitude' && (value < -90 || value > 90)) throw new Error('invalid_latitude');
+                if (name === 'longitude' && (value < -180 || value > 180)) throw new Error('invalid_longitude');
+                return Number(value.toFixed(6));
+              };
+              const latitude = parseRecordCoordinate('latitude');
+              const longitude = parseRecordCoordinate('longitude');
+              const hasRecordCoordinates = latitude !== null && longitude !== null;
+              if ((latitude === null) !== (longitude === null)) {
+                throw new Error('record_location_pair_required');
+              }
+              if (hasRecordCoordinates && latitude === 0 && longitude === 0) {
+                throw new Error('invalid_location');
+              }
               const videoFingerprint = selectedVideoFile instanceof File
                 ? ['video', selectedVideoFile.name || '', String(selectedVideoFile.size || 0), String(selectedVideoFile.lastModified || 0)].join(':')
                 : '';
               const clientSubmissionSeed = [
                 userId,
                 observedAtIso,
-                Number.isFinite(latitude) ? latitude.toFixed(6) : '',
-                Number.isFinite(longitude) ? longitude.toFixed(6) : '',
+                latitude !== null ? latitude.toFixed(6) : '',
+                longitude !== null ? longitude.toFixed(6) : '',
                 clientPhotoHashes.join(','),
                 videoFingerprint,
               ].join('|');
@@ -17034,7 +17130,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   place_id_hint: placeIdHint || null,
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
-                  location_provenance: recordLocationProvenance,
+                  location_provenance: hasRecordCoordinates ? recordLocationProvenance : null,
                   field_scan_requested: Boolean(fieldScanMode),
                   absence_semantics: recordMode === 'survey'
                     ? (surveyResult === 'no_detection_note' ? 'protocol_note_only' : null)
@@ -17329,6 +17425,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               });
               pendingMediaRetryObservationId = '';
               form.reset();
+              clearRecordLocation();
               if (modeInput) modeInput.value = 'quick';
               if (observedAt) {
                 const now = new Date();
@@ -17375,6 +17472,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (message === 'survey_target_scope_required') userMessage = 'しっかり記録では、何を見たかったかを入力してください。';
               if (message === 'survey_effort_required') userMessage = 'しっかり記録では、見た時間を入力してください。';
               if (message === 'survey_revisit_reason_required') userMessage = 'しっかり記録では、また見に行きたい理由を入力してください。';
+              if (message === 'record_location_pair_required') userMessage = '緯度と経度は両方入力するか、両方空にしてください。';
+              if (message === 'invalid_latitude') userMessage = '緯度は -90 から 90 の範囲で入力してください。';
+              if (message === 'invalid_longitude') userMessage = '経度は -180 から 180 の範囲で入力してください。';
+              if (message === 'invalid_location') userMessage = 'この座標は記録に使えません。位置を指定し直すか、場所なしで保存してください。';
               const partialLink = savedDetailId
                 ? '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(savedDetailId)) + '">保存済みの見つけたものを見る</a> · メディアだけ再試行する場合はこの画面のまま再送信してください。</div>'
                 : '';
@@ -17775,12 +17876,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true, candidates };
   });
 
-  app.get<{ Querystring: { view?: string; filter?: string; userId?: string } }>("/records", async (request, reply) => {
+  app.get<{ Querystring: { view?: string; filter?: string; userId?: string; q?: string } }>("/records", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
     const view = normalizeRecordsView(request.query.view, Boolean(viewerUserId));
+    const searchQuery = String(request.query.q ?? "").trim().slice(0, 80);
     const [snapshot, observationSnapshot] = await Promise.all([
       getLandingSnapshot(viewerUserId),
       getObservationListSnapshot(96).catch(() => ({
@@ -17808,11 +17910,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       title: copy.title,
       activeNav: copy.activeNav,
       lang,
-      currentPath: appendLangToHref(withBasePath(basePath, `/records?view=${view}`), lang),
+      currentPath: appendLangToHref(withBasePath(basePath, `/records?view=${view}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`), lang),
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
       hideFooter: true,
-      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage, canWriteIdentification: Boolean(session) }),
+      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage, canWriteIdentification: Boolean(session), searchQuery }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });
   });
@@ -19640,6 +19742,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古い、または非公開の可能性があります。"), "ホーム");
     }
     const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const isOwnProfile = viewerSession?.userId === snapshot.userId;
+    const profileHomeHref = isOwnProfile ? "/home" : `/home?userId=${encodeURIComponent(snapshot.userId)}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -19651,9 +19755,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: `この人の記録 — 最近の場所と観察を追う。`,
+        lead: isOwnProfile ? "自分の記録 — 最近の場所と観察を読み返す。" : "この人の記録 — 最近の場所と観察を追う。",
         actions: [
-          { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このユーザーのホームを見る" },
+          { href: profileHomeHref, label: isOwnProfile ? "マイページを見る" : "このユーザーのホームを見る" },
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
