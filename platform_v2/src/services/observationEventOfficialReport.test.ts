@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildOfficialEventReport,
   canAccessOfficialEventOutputs,
   officialSpeciesCsv,
   speciesRecordsFromOfficialEvents,
@@ -106,4 +107,9 @@ test("official CSV omits exact coordinates and keeps explicit match source", () 
   assert.match(csv, /observed_at,taxon_name,team_id,record_kind,match_source,evidence_ref/);
   assert.match(csv, /explicit_session_event/);
   assert.doesNotMatch(csv, /35\.1|137\.1|lat|lng/);
+});
+
+test("official event report rejects non UUID ids before database lookup", async () => {
+  const result = await buildOfficialEventReport("not-real");
+  assert.equal(result, null);
 });

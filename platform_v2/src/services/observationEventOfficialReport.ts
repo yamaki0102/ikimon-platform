@@ -54,6 +54,10 @@ function firstString(payload: Record<string, unknown>, keys: string[]): string |
   return null;
 }
 
+export function isObservationEventSessionId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 export function speciesRecordsFromOfficialEvents(rows: OfficialEventSourceRow[]): OfficialSpeciesRecord[] {
   return rows
     .filter((row) => row.type === "observation_added")
@@ -93,6 +97,7 @@ export function canAccessOfficialEventOutputs(
 }
 
 export async function buildOfficialEventReport(sessionId: string): Promise<ObservationEventOfficialReport | null> {
+  if (!isObservationEventSessionId(sessionId)) return null;
   const session = await getSessionById(sessionId);
   if (!session) return null;
 
