@@ -36,6 +36,18 @@ test("guide flow keeps the live guide plumbing while simplifying the entry UI", 
   assert.match(html, /let cameraOptIn = true/);
   assert.match(html, /const OFFLINE_DB_NAME = 'ikimon-guide-offline-v1'/);
   assert.match(html, /const OFFLINE_STORE = 'queue'/);
+  assert.match(html, /const OFFLINE_MEDIA_TTL_MS = 72 \* 60 \* 60 \* 1000/);
+  assert.match(html, /const OFFLINE_TELEMETRY_TTL_MS = 24 \* 60 \* 60 \* 1000/);
+  assert.match(html, /function captureGuideConsentSnapshot\(\)/);
+  assert.match(html, /function hasActiveCurrentConsent\(\)/);
+  assert.match(html, /capturedConsentSnapshot: captureGuideConsentSnapshot\(\)/);
+  assert.match(html, /return 'deferred'/);
+  assert.match(html, /canReplayWithCurrentConsent\(item, 'audio'\)/);
+  assert.match(html, /canReplayWithCurrentConsent\(item, 'camera'\)/);
+  assert.match(html, /canReplayWithCurrentConsent\(item, 'location'\)/);
+  assert.match(html, /window\.addEventListener\('ikimon-guide-consent-reset'/);
+  assert.match(html, /window\.addEventListener\('ikimon-auth-logout'/);
+  assert.match(html, /rawAudioPolicy: 'analysis_only_delete_after_detection'/);
   assert.match(html, /mirrorAppOutboxItem\(item, 'queued'\)/);
   assert.match(html, /window\.addEventListener\('online'/);
   assert.match(html, /window\.addEventListener\('offline'/);

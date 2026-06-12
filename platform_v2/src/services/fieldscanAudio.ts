@@ -46,6 +46,8 @@ export type AudioSegmentMeta = Record<string, unknown> & {
   audioFingerprint?: AudioFingerprintSummary;
   captureProfile?: string;
   clientVadResult?: ClientVadResult;
+  rawAudioPolicy?: string;
+  rawAudioPolicyReason?: string;
 };
 
 export type AudioSegmentSubmitInput = {
@@ -152,6 +154,7 @@ type AudioSegmentRow = {
   blob_id: string | null;
   privacy_status: AudioPrivacyStatus;
   fingerprint: Record<string, unknown> | null;
+  meta: Record<string, unknown> | null;
 };
 
 type PendingDeletion = {
@@ -560,7 +563,7 @@ async function findSegment(
   if (clauses.length === 0) return null;
   const result = await client.query<AudioSegmentRow>(
     `select segment_id, session_id, user_id, visit_id, place_id, recorded_at::text as recorded_at,
-            duration_sec, storage_path, storage_provider, mime_type, bytes, blob_id, privacy_status, fingerprint
+            duration_sec, storage_path, storage_provider, mime_type, bytes, blob_id, privacy_status, fingerprint, meta
        from audio_segments
       where ${clauses.join(" or ")}
       order by created_at desc
@@ -568,6 +571,11 @@ async function findSegment(
     params,
   );
   return result.rows[0] ?? null;
+}
+
+function isAnalysisOnlyRawAudio(row: Pick<AudioSegmentRow, "meta">): boolean {
+  const meta = row.meta && typeof row.meta === "object" ? row.meta : {};
+  return meta.rawAudioPolicy === "analysis_only_delete_after_detection";
 }
 
 async function deletePendingFiles(paths: PendingDeletion[]): Promise<void> {
@@ -650,6 +658,42 @@ async function markSegmentDeleted(
             updated_at = now()
       where segment_id = $1`,
     [segmentId, reason, payload],
+  );
+  return pendingDeletions;
+}
+
+async function markAnalysisOnlyRawAudioDeleted(
+  client: PoolClient,
+  segment: AudioSegmentRow,
+): Promise<PendingDeletion[]> {
+  if (!isAnalysisOnlyRawAudio(segment)) return [];
+  if (!segment.blob_id && !segment.storage_path) return [];
+
+  const pendingDeletions: PendingDeletion[] = [];
+  if (segment.storage_provider === AUDIO_STORAGE_BACKEND && segment.storage_path) {
+    pendingDeletions.push({ storagePath: segment.storage_path });
+  }
+  if (segment.blob_id) {
+    await client.query(`delete from asset_blobs where blob_id = $1`, [segment.blob_id]);
+  }
+
+  const payload = JSON.stringify({
+    rawAudioLifecycle: {
+      rawAudioStored: false,
+      rawAudioDeletedAt: new Date().toISOString(),
+      reason: "analysis_only_delete_after_detection",
+    },
+  });
+  await client.query(
+    `update audio_segments
+        set blob_id = null,
+            storage_path = '',
+            storage_provider = 'analysis_deleted',
+            bytes = 0,
+            meta = coalesce(meta, '{}'::jsonb) || $2::jsonb,
+            updated_at = now()
+      where segment_id = $1`,
+    [segment.segment_id, payload],
   );
   return pendingDeletions;
 }
@@ -981,6 +1025,8 @@ export async function recordAudioDetections(input: AudioDetectionCallbackInput):
 
   const pool = getPool();
   const client = await pool.connect();
+  const commitDeletions: PendingDeletion[] = [];
+  let committed = false;
   try {
     await client.query("begin");
     const segment = await findSegment(client, input);
@@ -1057,11 +1103,14 @@ export async function recordAudioDetections(input: AudioDetectionCallbackInput):
         where segment_id = $1`,
       [segment.segment_id],
     );
+    commitDeletions.push(...await markAnalysisOnlyRawAudioDeleted(client, segment));
     await rebuildSessionBundles(client, segment.session_id);
     await client.query("commit");
+    committed = true;
+    await deletePendingFiles(commitDeletions);
     return { inserted, skipped: 0, embeddingsInserted, embeddingsSkipped };
   } catch (error) {
-    await client.query("rollback").catch(() => undefined);
+    if (!committed) await client.query("rollback").catch(() => undefined);
     throw error;
   } finally {
     client.release();
