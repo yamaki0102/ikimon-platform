@@ -140,6 +140,8 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /data-guide-program-map/);
   assert.match(source, /guideProgramMapBootScript/);
   assert.match(source, /maplibre-gl@4\.7\.1/);
+  assert.match(source, /cyberjapandata\.gsi\.go\.jp\/xyz\/std/);
+  assert.match(source, /map\.once\('idle', revealMap\)/);
   assert.match(source, /tile\.openstreetmap\.org/);
   assert.match(source, /isAdminOrAnalystRole/);
   assert.match(source, /運営recap/);
