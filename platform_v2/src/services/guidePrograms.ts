@@ -120,6 +120,41 @@ export type GuideProgramPublicDetail = {
   nextSpot: GuideProgramPublicSpot | null;
 };
 
+export type GuideProgramRecap = {
+  schemaVersion: "guide_program_recap/v1";
+  generatedAt: string;
+  program: GuideProgramAdminItem;
+  kAnonymityThreshold: number;
+  suppressedBreakdownReasons: string[];
+  privacyBoundary: {
+    exactCoordinatesIncluded: false;
+    userLevelRowsIncluded: false;
+    smallCohortSuppressionApplied: boolean;
+  };
+  claimBoundary: {
+    canSay: string[];
+    cannotSay: string[];
+  };
+  stats: {
+    guideSpotCount: number;
+    requiredGuideSpotCount: number;
+    guideUnlockCount: number | null;
+    guidePlayCount: number | null;
+    participantsCountRounded: number | null;
+    completionRateBucket: GuideProgramRateBucket;
+    playRateBucket: GuideProgramRateBucket;
+  };
+  nextActions: Array<{ label: string; body: string; href: string }>;
+};
+
+export type GuideProgramRateBucket =
+  | "suppressed"
+  | "not_applicable"
+  | "none"
+  | "starting"
+  | "building"
+  | "strong";
+
 type ProgramRow = QueryResultRow & {
   program_id: string;
   slug: string;
@@ -155,6 +190,8 @@ export const SAFE_GUIDE_PROGRAM_POLICY = {
   unlock_visibility: "private",
   requires_public_post: false,
 } as const;
+
+export const GUIDE_PROGRAM_RECAP_K_ANONYMITY_THRESHOLD = 5;
 
 const OWNER_TYPES: GuideProgramOwnerType[] = ["owner", "community", "municipality", "school"];
 const PARTICIPATION_MODES: GuideProgramParticipationMode[] = ["any_order", "ordered"];
@@ -402,6 +439,30 @@ function toPublicDetail(row: ProgramRow, unlockedIds: Set<string>, signedIn: boo
   };
 }
 
+export function roundedGuideParticipantCount(
+  count: number,
+  threshold = GUIDE_PROGRAM_RECAP_K_ANONYMITY_THRESHOLD,
+): number | null {
+  if (!Number.isFinite(count) || count < threshold) return null;
+  return Math.max(threshold, Math.floor(count / 5) * 5 || threshold);
+}
+
+export function guideProgramRateBucket(input: {
+  numerator: number;
+  denominator: number;
+  participants: number;
+  threshold?: number;
+}): GuideProgramRateBucket {
+  const threshold = input.threshold ?? GUIDE_PROGRAM_RECAP_K_ANONYMITY_THRESHOLD;
+  if (!Number.isFinite(input.participants) || input.participants < threshold) return "suppressed";
+  if (!Number.isFinite(input.denominator) || input.denominator <= 0) return "not_applicable";
+  if (!Number.isFinite(input.numerator) || input.numerator <= 0) return "none";
+  const rate = input.numerator / input.denominator;
+  if (rate < 0.25) return "starting";
+  if (rate < 0.6) return "building";
+  return "strong";
+}
+
 async function loadProgramSnapshot(client: PoolClient, programId: string): Promise<GuideProgramAdminItem | null> {
   const result = await client.query<ProgramRow>(
     `SELECT gp.program_id, gp.slug, gp.title, gp.owner_type, gp.participation_mode, gp.status,
@@ -468,6 +529,138 @@ export async function getGuideProgramEditorState(): Promise<{
   return {
     programs,
     guideSpots: listAssignableGuideSpots(),
+  };
+}
+
+export async function buildGuideProgramRecap(programId: string): Promise<GuideProgramRecap | null> {
+  const normalizedProgramId = stringValue(programId).toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{2,95}$/.test(normalizedProgramId)) return null;
+
+  const pool = getPool();
+  const programResult = await pool.query<ProgramRow>(
+    `SELECT gp.program_id, gp.slug, gp.title, gp.owner_type, gp.participation_mode, gp.status,
+            gp.starts_at::text, gp.ends_at::text, gp.public_summary, gp.safety_policy,
+            gp.created_at::text, gp.updated_at::text,
+            COALESCE(
+              jsonb_agg(
+                jsonb_build_object(
+                  'guide_spot_id', gps.guide_spot_id,
+                  'sort_order', gps.sort_order,
+                  'required_for_completion', gps.required_for_completion
+                )
+                ORDER BY gps.sort_order, gps.guide_spot_id
+              ) FILTER (WHERE gps.guide_spot_id IS NOT NULL),
+              '[]'::jsonb
+            ) AS spots
+       FROM guide_programs gp
+       LEFT JOIN guide_program_spots gps ON gps.program_id = gp.program_id
+      WHERE gp.program_id = $1
+      GROUP BY gp.program_id
+      LIMIT 1`,
+    [normalizedProgramId],
+  );
+  const programRow = programResult.rows[0];
+  if (!programRow) return null;
+  const program = toAdminItem(programRow);
+  const requiredGuideSpotCount = program.spots.filter((spot) => spot.requiredForCompletion).length;
+  const completionDenominator = requiredGuideSpotCount > 0 ? requiredGuideSpotCount : program.spots.length;
+
+  const summaryResult = await pool.query<{
+    unlock_count: string;
+    play_count: string;
+    participants: string;
+  }>(
+    `SELECT
+        COUNT(*)::text AS unlock_count,
+        COUNT(last_listened_at)::text AS play_count,
+        COUNT(DISTINCT user_id)::text AS participants
+       FROM guide_unlocks
+      WHERE program_id = $1`,
+    [normalizedProgramId],
+  );
+  const summary = summaryResult.rows[0];
+  const guideUnlockCount = Number(summary?.unlock_count ?? 0);
+  const guidePlayCount = Number(summary?.play_count ?? 0);
+  const participants = Number(summary?.participants ?? 0);
+
+  const completionResult = await pool.query<{ completed: string }>(
+    `WITH per_user AS (
+        SELECT user_id, COUNT(DISTINCT guide_spot_id)::int AS unlocked_spots
+          FROM guide_unlocks
+         WHERE program_id = $1
+         GROUP BY user_id
+      )
+      SELECT COUNT(*)::text AS completed
+        FROM per_user
+       WHERE $2::int > 0
+         AND unlocked_spots >= $2::int`,
+    [normalizedProgramId, completionDenominator],
+  );
+  const completedParticipants = Number(completionResult.rows[0]?.completed ?? 0);
+  const participantsCountRounded = roundedGuideParticipantCount(participants);
+  const smallCohortSuppressed = participantsCountRounded === null;
+  const suppressedBreakdownReasons = participantsCountRounded === null
+    ? ["participant_count_below_k_anonymity_threshold", "spot_window_breakdown_disabled_in_p0"]
+    : ["spot_window_breakdown_disabled_in_p0"];
+
+  return {
+    schemaVersion: "guide_program_recap/v1",
+    generatedAt: new Date().toISOString(),
+    program,
+    kAnonymityThreshold: GUIDE_PROGRAM_RECAP_K_ANONYMITY_THRESHOLD,
+    suppressedBreakdownReasons,
+    privacyBoundary: {
+      exactCoordinatesIncluded: false,
+      userLevelRowsIncluded: false,
+      smallCohortSuppressionApplied: smallCohortSuppressed,
+    },
+    claimBoundary: {
+      canSay: [
+        "このガイド企画で本人用に解放されたガイド数",
+        "解放後に再生されたガイド数",
+        "次回のガイド追加や観察会化を考えるための匿名集計",
+      ],
+      cannotSay: [
+        "参加者ごとの行動履歴",
+        "正確な来訪経路や投稿位置",
+        "生物多様性の改善や公式調査結果",
+        "ガイド個人の評価",
+      ],
+    },
+    stats: {
+      guideSpotCount: program.spots.length,
+      requiredGuideSpotCount,
+      guideUnlockCount: smallCohortSuppressed ? null : guideUnlockCount,
+      guidePlayCount: smallCohortSuppressed ? null : guidePlayCount,
+      participantsCountRounded,
+      completionRateBucket: guideProgramRateBucket({
+        numerator: completedParticipants,
+        denominator: participants,
+        participants,
+      }),
+      playRateBucket: guideProgramRateBucket({
+        numerator: guidePlayCount,
+        denominator: guideUnlockCount,
+        participants,
+      }),
+    },
+    nextActions: [
+      {
+        label: "観察会として実施",
+        body: "同じ場所で人を集める日は、Observation Eventにしてrecapと公式レポートへつなぐ。",
+        href: "/community/events/new",
+      },
+      {
+        label: "ガイドを増やす",
+        body: "解放数に対して再生が少ない場合は、入口ガイドの短さ、題名、現地導線を見直す。",
+        href: "/admin/guide-programs",
+      },
+      {
+        label: "季節企画化",
+        body: "同じ場所で季節差が出るなら、期間を切ったguide_programや観察会へ分ける。",
+        href: "/guide-programs",
+      },
+    ],
   };
 }
 

@@ -130,6 +130,9 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /getPublishedGuideProgramDetail\(request\.params\.slug, session\?\.userId \?\? null\)/);
   assert.match(source, /guide-program-progress/);
   assert.match(source, /renderGuideProgramMap/);
+  assert.match(source, /isAdminOrAnalystRole/);
+  assert.match(source, /運営recap/);
+  assert.match(source, /\/admin\/guide-programs\/\$\{program\.programId\}\/recap/);
   assert.match(source, /ガイドの来訪地点/);
   assert.match(source, /あなたの記録位置や解放地点は公開しません。/);
   assert.match(source, /自由参加/);

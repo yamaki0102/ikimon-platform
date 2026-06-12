@@ -8,6 +8,7 @@ import { getSessionFromCookie, type SessionSnapshot } from "../services/authSess
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import {
   getReviewerAccessContext,
+  isAdminOrAnalystRole,
   listRecentReviewerAuthorities,
   listReviewerAuthorityAudit,
   type ReviewerAuthority,
@@ -13793,7 +13794,7 @@ function renderGuideProgramMap(basePath: string, program: GuideProgramPublicDeta
   </section>`;
 }
 
-function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail): string {
+function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail, canManage = false): string {
   const next = program.nextSpot
     ? `<section class="guide-program-next">次に解放しやすいガイド: ${escapeHtml(program.nextSpot.title)}。近くで観察記録を残すと、本人用に保存されます。</section>`
     : program.progress.state === "complete"
@@ -13808,6 +13809,7 @@ function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail
         <a href="${escapeHtml(withBasePath(basePath, "/record"))}">近くで記録する</a>
         <a href="${escapeHtml(withBasePath(basePath, "/map"))}">マップで見る</a>
         <a href="${escapeHtml(withBasePath(basePath, "/my-guides"))}">マイガイド</a>
+        ${canManage ? `<a href="${escapeHtml(withBasePath(basePath, `/admin/guide-programs/${program.programId}/recap`))}">運営recap</a>` : ""}
       </div>
     </section>
     <section class="guide-program-card">
@@ -21191,6 +21193,7 @@ ${mapExplorerBootScript({ basePath, lang })}`,
       });
     }
     reply.type("text/html; charset=utf-8");
+    const canManage = Boolean(session && !session.banned && isAdminOrAnalystRole(session.roleName, session.rankLabel));
     return renderSiteDocument({
       basePath,
       title: `${program.title} | ikimon.life`,
@@ -21198,7 +21201,7 @@ ${mapExplorerBootScript({ basePath, lang })}`,
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, `/guide-programs/${program.slug}`), lang),
       extraStyles: MY_GUIDES_STYLES,
-      body: renderProgramDetail(basePath, program),
+      body: renderProgramDetail(basePath, program, canManage),
       footerNote: "進捗は本人用です。正確な記録位置は公開しません。",
     });
   });
