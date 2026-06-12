@@ -28,8 +28,8 @@ const representativeSceneReadMarkers = [
   "別レコードを追加",
   "IDENTIFICATION",
   "同定に参加する",
-  "OBSERVATION QUALITY",
-  "観察レコードとして育てる",
+  "EVENT / OCCURRENCE",
+  "日時・場所・環境を土台にする",
 ];
 
 const representativeSceneReadForbiddenMarkers = [
