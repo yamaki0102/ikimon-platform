@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { profileHeroActions, renderSelfProfileHub } from "./read.js";
-import type { ProfileSnapshot } from "../services/readModels.js";
+import { profileHeroActions, profileRegionalStoryInputForPlace, renderSelfProfileHub } from "./read.js";
+import type { HomePlace, ProfileSnapshot } from "../services/readModels.js";
 import type { RegionalStoryCue } from "../services/regionalStory.js";
 
 function profileSnapshot(overrides: Partial<ProfileSnapshot> = {}): ProfileSnapshot {
@@ -46,6 +46,28 @@ function regionalStory(overrides: Partial<RegionalStoryCue> = {}): RegionalStory
   };
 }
 
+function homePlace(overrides: Partial<HomePlace> = {}): HomePlace {
+  return {
+    placeId: "place:profile-story",
+    placeName: "静岡県の草地",
+    municipality: "静岡市",
+    lastObservedAt: "2026-05-15T09:00:00.000Z",
+    previousObservedAt: null,
+    firstObservedAt: "2026-05-01T09:00:00.000Z",
+    visitCount: 2,
+    latestVisitId: "visit-profile-story",
+    latestDisplayName: "タンポポ",
+    revisitReason: null,
+    nextLookFor: null,
+    lastRecordMode: null,
+    lastSurveyResult: null,
+    absenceSemantics: null,
+    latitude: 34.97,
+    longitude: 138.38,
+    ...overrides,
+  };
+}
+
 test("profile hero actions focus on continuation instead of account utilities", () => {
   const actions = profileHeroActions();
 
@@ -78,4 +100,18 @@ test("self profile hub deduplicates repeated regional story cards before renderi
   assert.equal((html.match(/data-testid="regional-story"/g) ?? []).length, 2);
   assert.equal((html.match(/同じ場所を見返すなら、道の端を残す。/g) ?? []).length, 1);
   assert.equal((html.match(/別の場所を見返すなら、草地の境目を残す。/g) ?? []).length, 1);
+});
+
+test("profile regional story input carries the latest place subject and date", () => {
+  const input = profileRegionalStoryInputForPlace("user-profile-test", homePlace());
+
+  assert.equal(input.surface, "profile");
+  assert.equal(input.viewerUserId, "user-profile-test");
+  assert.equal(input.place.placeId, "place:profile-story");
+  assert.equal(input.place.placeName, "静岡県の草地");
+  assert.equal(input.place.publicLabel, "静岡市");
+  assert.deepEqual(input.observation, {
+    displayName: "タンポポ",
+    observedAt: "2026-05-15T09:00:00.000Z",
+  });
 });
