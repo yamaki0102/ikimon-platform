@@ -68,3 +68,11 @@ test("place memory constants stay aligned with public cell privacy", () => {
   assert.equal(labels.refresh_walk, "気分転換に歩いた");
   assert.equal(labels.walked_with_someone, "誰かと歩いた");
 });
+
+test("place memory visit list can name the latest subject from AI assessment fallback", () => {
+  const source = readFileSync(join(process.cwd(), "src/services/placeMemory.ts"), "utf8");
+
+  assert.match(source, /observation_ai_assessments a/);
+  assert.match(source, /coalesce\(nullif\(o\.vernacular_name, ''\), nullif\(o\.scientific_name, ''\), nullif\(ai\.recommended_taxon_name, ''\)\)/);
+  assert.match(source, /case when coalesce\(nullif\(o\.vernacular_name, ''\), nullif\(o\.scientific_name, ''\), nullif\(ai\.recommended_taxon_name, ''\)\) is null then 1 else 0 end/);
+});

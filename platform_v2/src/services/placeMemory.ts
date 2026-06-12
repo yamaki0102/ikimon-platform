@@ -1187,10 +1187,19 @@ export async function listPlaceMemoryVisits(
         limit 1
       ) previous_visit on true
       left join lateral (
-        select coalesce(o.vernacular_name, o.scientific_name) as display_name
+        select coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, ''), nullif(ai.recommended_taxon_name, '')) as display_name
         from occurrences o
+        left join lateral (
+          select recommended_taxon_name
+            from observation_ai_assessments a
+           where a.occurrence_id = o.occurrence_id
+           order by generated_at desc
+           limit 1
+        ) ai on true
         where o.visit_id = latest_visit.visit_id
-        order by o.subject_index asc
+        order by
+          case when coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, ''), nullif(ai.recommended_taxon_name, '')) is null then 1 else 0 end,
+          o.subject_index asc
         limit 1
       ) latest_subject on true
       order by ${placeMemoryVisitSortSql(sort)}
