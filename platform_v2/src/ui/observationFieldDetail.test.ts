@@ -357,8 +357,12 @@ test("field detail keeps the hero to two primary actions and moves trust links l
   const trustIndex = html.indexOf('<section class="field-trust-info"');
   const heroHtml = html.slice(heroStart, heroEnd);
   const heroButtonCount = (heroHtml.match(/class="evt-btn/g) ?? []).length;
+  const heroPrimaryCount = (heroHtml.match(/class="evt-btn evt-btn-primary/g) ?? []).length;
 
   assert.equal(heroButtonCount, 2);
+  assert.equal(heroPrimaryCount, 1);
+  assert.match(heroHtml, /記録する/);
+  assert.match(heroHtml, /1分ガイドを見る/);
   assert.doesNotMatch(heroHtml, /公式 ↗|認定情報 ↗|事例 ↗|認定情報と一致/);
   assert.ok(trustIndex > metricsIndex);
   assert.match(html.slice(trustIndex), /公式 ↗/);

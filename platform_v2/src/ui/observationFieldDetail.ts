@@ -480,7 +480,7 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
       ${renderAreaTags(encyclopedia, snapshot)}
       ${renderFieldHeroSignals(snapshot)}
       <div class="field-detail-actions">
-        <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
+        <a class="evt-btn evt-btn-primary" href="/record?field_id=${encodeURIComponent(field.fieldId)}">記録する</a>
         <a class="evt-btn evt-btn-on-dark" href="#field-local-guides">1分ガイドを見る</a>
       </div>
     </div>
