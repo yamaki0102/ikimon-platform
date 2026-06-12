@@ -1,10 +1,13 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import {
+  buildGuideProgramRecap,
   getGuideProgramEditorState,
   upsertGuideProgram,
+  type GuideProgramRecap,
   type GuideProgramAdminItem,
   type GuideProgramAssignableSpot,
+  type GuideProgramRateBucket,
 } from "../services/guidePrograms.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
@@ -105,6 +108,7 @@ function renderProgramForm(spots: GuideProgramAssignableSpot[], program?: GuideP
   </section>
   <div class="gpe-actions">
     <button type="submit">${isEdit ? "更新" : "作成"}</button>
+    ${program ? `<a class="gpe-link" href="/admin/guide-programs/${encodeURIComponent(program.programId)}/recap">recap</a>` : ""}
     <span data-program-result></span>
   </div>
 </form>`;
@@ -145,9 +149,28 @@ body{background:#f8fafc;color:#172033;}
 .gpe-spot small{display:block;color:#64748b;font-size:11px;line-height:1.5;margin-top:2px;}
 .gpe-actions{display:flex;align-items:center;gap:10px;border-top:1px solid #eef2f7;padding-top:12px;}
 .gpe-actions button{min-height:38px;border:1px solid #0f766e;border-radius:6px;background:#0f766e;color:#fff;padding:0 14px;font-weight:900;cursor:pointer;}
+.gpe-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#0f172a;padding:0 12px;font-size:12px;font-weight:900;text-decoration:none;}
 .gpe-actions span{font-size:12px;color:#475569;}
 .gpe-empty{color:#64748b;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;}
+.gpe-recap{max-width:1040px;margin:0 auto;padding:32px 18px 72px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;gap:14px;}
+.gpe-recap-hero{display:grid;gap:10px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;}
+.gpe-recap-hero span{color:#047857;font-size:11px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;}
+.gpe-recap-hero h1{margin:0;color:#111827;font-size:28px;line-height:1.2;}
+.gpe-recap-hero p{margin:0;color:#475569;font-size:14px;line-height:1.75;font-weight:720;max-width:760px;}
+.gpe-recap-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.gpe-recap-stat{display:grid;gap:5px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;}
+.gpe-recap-stat span{font-size:11px;color:#64748b;font-weight:900;text-transform:uppercase;}
+.gpe-recap-stat strong{font-size:25px;color:#0f172a;line-height:1.1;}
+.gpe-recap-panel{display:grid;gap:10px;padding:16px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;}
+.gpe-recap-panel h2{margin:0;color:#111827;font-size:17px;line-height:1.3;}
+.gpe-recap-panel ul{margin:0;padding-left:20px;color:#334155;font-size:13px;line-height:1.7;font-weight:720;}
+.gpe-recap-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;}
+.gpe-recap-action{display:grid;gap:5px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;text-decoration:none;}
+.gpe-recap-action strong{color:#0f172a;font-size:14px;line-height:1.35;}
+.gpe-recap-action span{color:#475569;font-size:12px;line-height:1.6;font-weight:720;}
+.gpe-recap-note{padding:12px;border-radius:8px;background:#fff7ed;border:1px solid rgba(245,158,11,.22);color:#7c2d12;font-size:13px;line-height:1.65;font-weight:800;}
 @media (max-width:860px){.gpe-grid{grid-template-columns:1fr}.gpe-fields{grid-template-columns:1fr}.gpe-top{display:block}.gpe-spot{grid-template-columns:18px 56px 1fr}}
+@media (max-width:760px){.gpe-recap-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gpe-recap-hero h1{font-size:24px;}}
 `;
 
 const SCRIPT = `
@@ -198,6 +221,69 @@ document.addEventListener("submit", async (event) => {
 });
 `;
 
+function bucketLabel(bucket: GuideProgramRateBucket): string {
+  if (bucket === "suppressed") return "非表示";
+  if (bucket === "not_applicable") return "対象外";
+  if (bucket === "none") return "未発生";
+  if (bucket === "starting") return "立ち上がり";
+  if (bucket === "building") return "伸長中";
+  return "強い";
+}
+
+function renderRecapList(items: string[]): string {
+  return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function recapStatValue(value: number | null): string {
+  return value === null ? "k未満" : String(value);
+}
+
+function renderGuideProgramRecap(recap: GuideProgramRecap): string {
+  const stats = recap.stats;
+  const participantValue = stats.participantsCountRounded === null
+    ? `k未満`
+    : `${stats.participantsCountRounded}+`;
+  return `
+<main class="gpe-recap">
+  <section class="gpe-recap-hero">
+    <span>Field Program Recap</span>
+    <h1>${escapeHtml(recap.program.title)}</h1>
+    <p>Guide Programの解放・再生状況を、Biome型コラボキットと同じ成果物境界でまとめます。個人別行動履歴、正確な来訪経路、公式調査結果としては扱いません。</p>
+    <div class="gpe-actions">
+      <a class="gpe-link" href="/admin/guide-programs">企画編集へ戻る</a>
+      <a class="gpe-link" href="/guide-programs/${encodeURIComponent(recap.program.slug)}">公開ページ</a>
+    </div>
+  </section>
+  <section class="gpe-recap-grid" aria-label="ガイド企画の匿名集計">
+    <article class="gpe-recap-stat"><span>participants</span><strong>${escapeHtml(participantValue)}</strong></article>
+    <article class="gpe-recap-stat"><span>unlocks</span><strong>${escapeHtml(recapStatValue(stats.guideUnlockCount))}</strong></article>
+    <article class="gpe-recap-stat"><span>plays</span><strong>${escapeHtml(recapStatValue(stats.guidePlayCount))}</strong></article>
+    <article class="gpe-recap-stat"><span>guides</span><strong>${stats.guideSpotCount}</strong></article>
+  </section>
+  <section class="gpe-recap-grid" aria-label="ガイド企画の状態">
+    <article class="gpe-recap-stat"><span>completion</span><strong>${escapeHtml(bucketLabel(stats.completionRateBucket))}</strong></article>
+    <article class="gpe-recap-stat"><span>play rate</span><strong>${escapeHtml(bucketLabel(stats.playRateBucket))}</strong></article>
+    <article class="gpe-recap-stat"><span>k threshold</span><strong>${recap.kAnonymityThreshold}</strong></article>
+    <article class="gpe-recap-stat"><span>privacy</span><strong>${recap.privacyBoundary.smallCohortSuppressionApplied ? "抑制中" : "丸め済"}</strong></article>
+  </section>
+  <section class="gpe-recap-panel">
+    <h2>言えること</h2>
+    ${renderRecapList(recap.claimBoundary.canSay)}
+  </section>
+  <section class="gpe-recap-panel">
+    <h2>言わないこと</h2>
+    ${renderRecapList(recap.claimBoundary.cannotSay)}
+  </section>
+  <section class="gpe-recap-panel">
+    <h2>次の打ち手</h2>
+    <div class="gpe-recap-actions">
+      ${recap.nextActions.map((action) => `<a class="gpe-recap-action" href="${escapeHtml(action.href)}"><strong>${escapeHtml(action.label)}</strong><span>${escapeHtml(action.body)}</span></a>`).join("")}
+    </div>
+  </section>
+  <section class="gpe-recap-note">抑制理由: ${escapeHtml(recap.suppressedBreakdownReasons.join(" / "))}</section>
+</main>`;
+}
+
 export async function registerAdminGuideProgramRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/guide-programs", async (request, reply) => {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
@@ -235,12 +321,58 @@ export async function registerAdminGuideProgramRoutes(app: FastifyInstance): Pro
     });
   });
 
+  app.get<{ Params: { programId: string } }>("/admin/guide-programs/:programId/recap", async (request, reply) => {
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    reply.type("text/html; charset=utf-8");
+    if (!session || session.banned || !isAdminOrAnalystRole(session.roleName, session.rankLabel)) {
+      reply.code(403);
+      return renderSiteDocument({
+        basePath: "",
+        title: "ガイドリレー企画 recap — ikimon.life",
+        extraStyles: STYLES,
+        body: loginGate(),
+      });
+    }
+    const recap = await buildGuideProgramRecap(request.params.programId).catch(() => null);
+    if (!recap) {
+      reply.code(404);
+      return renderSiteDocument({
+        basePath: "",
+        title: "ガイドリレー企画 recap — ikimon.life",
+        extraStyles: STYLES,
+        body: `<main class="gpe-recap"><section class="gpe-recap-note">このガイドリレー企画は見つかりません。</section></main>`,
+      });
+    }
+    return renderSiteDocument({
+      basePath: "",
+      title: `${recap.program.title} recap — ikimon.life`,
+      extraStyles: STYLES,
+      body: renderGuideProgramRecap(recap),
+    });
+  });
+
   app.get("/api/v1/admin/guide-programs", async (request, reply) => {
     try {
       await assertGuideProgramAdminAccess(request);
       return { ok: true, ...(await getGuideProgramEditorState()) };
     } catch (error) {
       const message = error instanceof Error ? error.message : "guide_program_admin_read_failed";
+      reply.code(adminErrorStatus(message));
+      return { ok: false, error: message };
+    }
+  });
+
+  app.get<{ Params: { programId: string } }>("/api/v1/admin/guide-programs/:programId/recap", async (request, reply) => {
+    try {
+      await assertGuideProgramAdminAccess(request);
+      const recap = await buildGuideProgramRecap(request.params.programId);
+      if (!recap) {
+        reply.code(404);
+        return { ok: false, error: "guide_program_recap_not_found" };
+      }
+      return { ok: true, recap };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "guide_program_recap_failed";
       reply.code(adminErrorStatus(message));
       return { ok: false, error: message };
     }

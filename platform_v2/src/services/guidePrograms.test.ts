@@ -4,8 +4,10 @@ import { join } from "node:path";
 import test from "node:test";
 import {
   SAFE_GUIDE_PROGRAM_POLICY,
+  guideProgramRateBucket,
   listAssignableGuideSpots,
   normalizeGuideProgramEditorInput,
+  roundedGuideParticipantCount,
 } from "./guidePrograms.js";
 
 test("guide program editor normalizes safe defaults and publishable spot assignments", () => {
@@ -77,4 +79,36 @@ test("guide program public detail reads progress without copying coordinates", (
   assert.match(source, /state: "signed_out" \| "not_started" \| "in_progress" \| "complete"/);
   assert.doesNotMatch(source, /guide_programs[\s\S]*latitude/);
   assert.doesNotMatch(source, /guide_programs[\s\S]*longitude/);
+});
+
+test("guide program recap suppresses small cohorts and buckets rates", () => {
+  assert.equal(roundedGuideParticipantCount(0), null);
+  assert.equal(roundedGuideParticipantCount(2), null);
+  assert.equal(roundedGuideParticipantCount(3), null);
+  assert.equal(roundedGuideParticipantCount(5), 5);
+  assert.equal(roundedGuideParticipantCount(9), 5);
+  assert.equal(roundedGuideParticipantCount(12), 10);
+
+  assert.equal(guideProgramRateBucket({ numerator: 1, denominator: 2, participants: 2 }), "suppressed");
+  assert.equal(guideProgramRateBucket({ numerator: 0, denominator: 8, participants: 5 }), "none");
+  assert.equal(guideProgramRateBucket({ numerator: 1, denominator: 8, participants: 5 }), "starting");
+  assert.equal(guideProgramRateBucket({ numerator: 3, denominator: 8, participants: 5 }), "building");
+  assert.equal(guideProgramRateBucket({ numerator: 7, denominator: 8, participants: 5 }), "strong");
+  assert.equal(guideProgramRateBucket({ numerator: 1, denominator: 0, participants: 5 }), "not_applicable");
+});
+
+test("guide program recap read model avoids route, coordinate, and user-level output", () => {
+  const source = readFileSync(join(process.cwd(), "src", "services", "guidePrograms.ts"), "utf8");
+  assert.match(source, /buildGuideProgramRecap/);
+  assert.match(source, /guide_program_recap\/v1/);
+  assert.match(source, /exactCoordinatesIncluded: false/);
+  assert.match(source, /userLevelRowsIncluded: false/);
+  assert.match(source, /guideUnlockCount: smallCohortSuppressed \? null : guideUnlockCount/);
+  assert.match(source, /guidePlayCount: smallCohortSuppressed \? null : guidePlayCount/);
+  assert.match(source, /participant_count_below_k_anonymity_threshold/);
+  assert.match(source, /spot_window_breakdown_disabled_in_p0/);
+  assert.match(source, /\/community\/events\/new/);
+  assert.doesNotMatch(source, /guide_unlocks[\s\S]*latitude/);
+  assert.doesNotMatch(source, /guide_unlocks[\s\S]*longitude/);
+  assert.doesNotMatch(source, /route_points|track_points|path_geometry/);
 });
