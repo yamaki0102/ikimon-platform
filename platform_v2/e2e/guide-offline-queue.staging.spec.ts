@@ -135,8 +135,8 @@ test("guide audio-only offline mode does not request camera video", async ({ bro
     await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
     await page.locator("#guide-start-btn").click();
-    await page.locator('input[name="guide-camera-choice"][value="off"]').check();
-    await page.locator('input[name="guide-audio-choice"][value="on"]').check();
+    await page.locator('input[name="guide-mission-choice"][value="sound"]').check();
+    await expect(page.locator("#guide-start-confirm")).toContainText("音声だけで開始");
     await page.locator("#guide-start-confirm").click();
 
     await expect(page.locator("#guide-camera-wrap")).toHaveClass(/is-audio-only/);

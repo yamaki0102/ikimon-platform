@@ -25,6 +25,9 @@ test("guide scene analysis auto-saves only after the field-observation quality g
   assert.match(sceneRoute, /parseClientSceneId\(body\.clientSceneId\)/);
   assert.match(sceneRoute, /sceneJobs\.get\(clientSceneId\)/);
   assert.match(sceneRoute, /const sceneId = clientSceneId \?\? randomUUID\(\)/);
+  assert.match(source, /const SCENE_JOB_TTL_MS = 30 \* 60 \* 1000/);
+  assert.match(source, /function pruneSceneJobs\(\): void/);
+  assert.match(source, /sceneJobs\.delete\(sceneId\)/);
   assert.match(source, /decideGuideAutoSave/);
   assert.match(source, /getSiteBrief/);
   assert.match(source, /clientSceneId\?: string stable client id for offline retry idempotency/);

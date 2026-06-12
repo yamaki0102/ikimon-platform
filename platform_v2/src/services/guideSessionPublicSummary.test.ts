@@ -180,3 +180,27 @@ test("guide session public summary carries genus and family level candidates int
   assert.match(visibleCopy, /候補/);
   assert.doesNotMatch(visibleCopy, /確認できたもの|見つからなかったもの|分けています/);
 });
+
+test("guide session public summary does not expose exact route coordinates", () => {
+  const summaries = buildGuideSessionPublicSummaries([
+    row({
+      guideRecordId: "00000000-0000-4000-8000-000000000041",
+      lat: 34.712345,
+      lng: 137.765432,
+      capturedAt: "2026-05-16T09:00:00.000+09:00",
+    }),
+    row({
+      guideRecordId: "00000000-0000-4000-8000-000000000042",
+      lat: 34.719876,
+      lng: 137.769876,
+      capturedAt: "2026-05-16T09:20:00.000+09:00",
+    }),
+  ], "user-1");
+
+  const summary = summaries[0]!;
+  const serialized = JSON.stringify(summary);
+  assert.equal(Object.hasOwn(summary, "lat"), false);
+  assert.equal(Object.hasOwn(summary, "lng"), false);
+  assert.doesNotMatch(serialized, /34\.712345|137\.765432|34\.719876|137\.769876/);
+  assert.ok(summary.publicLocationLabel === null || !/[0-9]+\.[0-9]{3,}/.test(summary.publicLocationLabel));
+});

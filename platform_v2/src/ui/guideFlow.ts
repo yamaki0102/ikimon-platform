@@ -1000,6 +1000,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const OFFLINE_MAX_BYTES = 80 * 1024 * 1024;
   const OFFLINE_MAX_SCENES = 120;
   const OFFLINE_MAX_AUDIO = 1800;
+  const OFFLINE_MEDIA_TTL_MS = 72 * 60 * 60 * 1000;
+  const OFFLINE_TELEMETRY_TTL_MS = 24 * 60 * 60 * 1000;
   const ONLINE_ANALYSE_INTERVAL_MS = 18000;
   const OFFLINE_ANALYSE_INTERVAL_MS = 22000;
   const TELEMETRY_INTERVAL_MS = 1500;
@@ -1529,6 +1531,52 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (!(window.ikimonAppOutbox && typeof window.ikimonAppOutbox.delete === 'function')) return;
     window.ikimonAppOutbox.delete('guide:' + id).catch(() => undefined);
   }
+  function currentGuideConsentSnapshot() {
+    return {
+      version: 1,
+      active: Boolean(running),
+      camera: Boolean(cameraOptIn && running),
+      audio: Boolean(audioOptIn && running),
+      location: Boolean(running && locationWatchId !== null),
+      capturedAt: new Date().toISOString()
+    };
+  }
+  function captureGuideConsentSnapshot() {
+    return currentGuideConsentSnapshot();
+  }
+  function hasCapturedConsent(item, key) {
+    return Boolean(item && item.capturedConsentSnapshot && item.capturedConsentSnapshot[key] === true);
+  }
+  function canReplayWithCurrentConsent(item, key) {
+    const current = currentGuideConsentSnapshot();
+    return Boolean(current[key] === true && hasCapturedConsent(item, key));
+  }
+  function hasActiveCurrentConsent() {
+    const current = currentGuideConsentSnapshot();
+    return Boolean(current.camera || current.audio || current.location);
+  }
+  function isOfflineItemExpired(item, now) {
+    const createdAt = Number(item && item.createdAt || 0);
+    if (!Number.isFinite(createdAt) || createdAt <= 0) return true;
+    const ttl = item && item.type === 'telemetry' ? OFFLINE_TELEMETRY_TTL_MS : OFFLINE_MEDIA_TTL_MS;
+    return now - createdAt > ttl;
+  }
+  async function purgeGuideOfflineQueue(reason) {
+    try {
+      const items = await readAllOfflineItems();
+      for (const item of items) {
+        await deleteOfflineItem(item.id);
+        removeAppOutboxItem(item.id);
+      }
+      offlineQueuedCount = 0;
+      offlineLastSynced = false;
+      storagePressureActive = false;
+      updateOfflineUi();
+      if (reason) console.info('Guide offline queue purged', reason);
+    } catch (error) {
+      console.error('Guide offline queue purge error', error);
+    }
+  }
   function updateOfflineUi() {
     const online = isOnlineNow();
     let label = online ? copy.offlineOnline : copy.offlineOffline;
@@ -1627,10 +1675,17 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   }
   async function enforceOfflineQueueLimits() {
     const items = await readAllOfflineItems();
+    const now = Date.now();
     items.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-    const scenes = items.filter((item) => item.type === 'scene');
-    const audios = items.filter((item) => item.type === 'audio');
-    let bytes = items.reduce((sum, item) => sum + estimateOfflineItemBytes(item), 0);
+    const expired = items.filter((item) => isOfflineItemExpired(item, now));
+    for (const item of expired) {
+      await deleteOfflineItem(item.id);
+      removeAppOutboxItem(item.id);
+    }
+    const activeItems = items.filter((item) => !expired.includes(item));
+    const scenes = activeItems.filter((item) => item.type === 'scene');
+    const audios = activeItems.filter((item) => item.type === 'audio');
+    let bytes = activeItems.reduce((sum, item) => sum + estimateOfflineItemBytes(item), 0);
     const deleteIds = [];
     while (scenes.length > OFFLINE_MAX_SCENES) {
       const item = scenes.shift();
@@ -1660,14 +1715,18 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         bytes -= estimateOfflineItemBytes(item);
       }
     }
-    for (const id of deleteIds) await deleteOfflineItem(id);
-    return deleteIds.length > 0 || bytes > OFFLINE_MAX_BYTES * 0.85;
+    for (const id of deleteIds) {
+      await deleteOfflineItem(id);
+      removeAppOutboxItem(id);
+    }
+    return expired.length > 0 || deleteIds.length > 0 || bytes > OFFLINE_MAX_BYTES * 0.85;
   }
   async function refreshQueueStatus() {
     try {
+      storagePressureActive = await enforceOfflineQueueLimits();
       const items = await readAllOfflineItems();
       offlineQueuedCount = items.length;
-      storagePressureActive = items.reduce((sum, item) => sum + estimateOfflineItemBytes(item), 0) > OFFLINE_MAX_BYTES * 0.85;
+      storagePressureActive = storagePressureActive || items.reduce((sum, item) => sum + estimateOfflineItemBytes(item), 0) > OFFLINE_MAX_BYTES * 0.85;
     } catch {
       offlineQueuedCount = 0;
     }
@@ -2469,6 +2528,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       audioMimeType: payload.audioBlob ? (payload.audioBlob.type || payload.audioMimeType || preferredMime || null) : null,
       audioPrivacySkippedCount: payload.audioPrivacySkippedCount || 0,
       audioPrivacyPolicy: payload.audioPrivacyPolicy || 'exclude_speech_likely_chunks',
+      capturedConsentSnapshot: captureGuideConsentSnapshot(),
       lastError: reason || null,
       createdAt: Date.now()
     };
@@ -2530,6 +2590,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       sessionId: sessionId,
       guideMode: getGuideMode(),
       points: points,
+      capturedConsentSnapshot: captureGuideConsentSnapshot(),
       lastError: reason || null,
       createdAt: Date.now()
     });
@@ -2692,6 +2753,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         audioFingerprint: fingerprint,
         clientVadResult: vad,
         clientAudioQuality: quality,
+        rawAudioPolicy: 'analysis_only_delete_after_detection',
+        rawAudioPolicyReason: 'live_guide_natural_sound_analysis_only',
         locationQuality: {
           accuracyM: lastKnownPosition.accuracyM,
           speedMps: lastKnownPosition.speedMps,
@@ -2726,6 +2789,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       mimeType: payload.mimeType,
       meta: payload.meta,
       audioBlob: audioBlob,
+      capturedConsentSnapshot: captureGuideConsentSnapshot(),
       lastError: reason || null,
       createdAt: Date.now()
     });
@@ -2753,7 +2817,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
   }
   async function replayOfflineItem(item) {
+    if (isOfflineItemExpired(item, Date.now())) return 'dropped';
+    if (!hasActiveCurrentConsent()) return 'deferred';
     if (item.type === 'scene') {
+      if (!canReplayWithCurrentConsent(item, 'camera')) return 'dropped';
+      const canReplayAudio = Boolean(item.audioBlob && canReplayWithCurrentConsent(item, 'audio'));
       const sceneRes = await postScenePayload({
         clientSceneId: item.clientSceneId,
         sessionId: item.sessionId,
@@ -2775,15 +2843,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         coverageSummary: item.coverageSummary || null,
         visualCandidate: item.visualCandidate || null,
         facePrivacy: item.facePrivacy || null,
-        audioBlob: item.audioBlob || null,
-        audioMimeType: item.audioMimeType || null,
+        audioBlob: canReplayAudio ? item.audioBlob : null,
+        audioMimeType: canReplayAudio ? item.audioMimeType : null,
         audioPrivacySkippedCount: item.audioPrivacySkippedCount || 0,
         audioPrivacyPolicy: item.audioPrivacyPolicy || 'exclude_speech_likely_chunks'
       });
       handleAcceptedScene(sceneRes);
-      return;
+      return 'replayed';
     }
     if (item.type === 'audio') {
+      if (!canReplayWithCurrentConsent(item, 'audio')) return 'dropped';
       await postAudioPayload({
         externalId: item.externalId,
         sessionId: item.sessionId,
@@ -2795,11 +2864,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         mimeType: item.mimeType,
         meta: item.meta
       }, item.audioBlob);
+      return 'replayed';
     }
     if (item.type === 'telemetry') {
+      if (!canReplayWithCurrentConsent(item, 'location')) return 'dropped';
       const payload = await postTelemetryPayload(Array.isArray(item.points) ? item.points : []);
       applyTelemetryResponse(payload);
+      return 'replayed';
     }
+    return 'dropped';
   }
   async function drainOfflineQueue() {
     if (offlineSyncing || !isOnlineNow()) {
@@ -2816,7 +2889,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       for (const item of items) {
         if (!isOnlineNow()) break;
         try {
-          await replayOfflineItem(item);
+          const replayState = await replayOfflineItem(item);
+          if (replayState === 'deferred') break;
           await deleteOfflineItem(item.id);
           removeAppOutboxItem(item.id);
         } catch (error) {
@@ -3417,6 +3491,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   });
   window.addEventListener('offline', () => {
     updateOfflineUi();
+  });
+  window.addEventListener('ikimon-guide-consent-reset', () => {
+    void purgeGuideOfflineQueue('consent_reset');
+  });
+  window.addEventListener('ikimon-auth-logout', () => {
+    void purgeGuideOfflineQueue('logout');
   });
   void refreshQueueStatus().then(() => drainOfflineQueue());
   async function playTrailScene(scene) {
