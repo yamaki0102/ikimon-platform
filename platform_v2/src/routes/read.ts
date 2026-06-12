@@ -13636,6 +13636,9 @@ const MY_GUIDES_STYLES = `
   .guide-program-map-pin span { display: block; max-width: 190px; padding: 6px 9px; border-radius: 8px; background: rgba(255,255,255,.94); box-shadow: 0 10px 22px rgba(15,23,42,.10); font-size: 11px; font-weight: 900; line-height: 1.35; text-align: center; }
   .guide-program-map-pin[data-unlocked="true"] i { background: #047857; }
   .guide-program-map-note { position: absolute; left: 14px; bottom: 14px; z-index: 2; max-width: min(520px, calc(100% - 28px)); padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.9); color: #475569; font-size: 11px; font-weight: 820; line-height: 1.45; }
+  .guide-program-audience-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #475569; font-size: 12.5px; line-height: 1.6; font-weight: 760; }
+  .guide-program-audience-note strong { color: #0f172a; }
+  .guide-program-audience-note a { flex: 0 0 auto; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.10); color: #0f172a; font-size: 12px; font-weight: 900; text-decoration: none; }
   @media (max-width: 620px) {
     .my-guides-page { width: min(100% - 20px, 1040px); padding-top: 12px; }
     .my-guides-hero h1 { font-size: 25px; }
@@ -21149,13 +21152,17 @@ ${mapExplorerBootScript({ basePath, lang })}`,
     const programs = await listPublishedGuideProgramsForPublic(session?.userId ?? null).catch(() => []);
     const body = `<main class="my-guides-page">
       <section class="my-guides-hero">
-        <span>Guide relay</span>
-        <h1>ガイドリレー企画</h1>
-        <p>ガイドのあるエリアの近くで記録を残すと、本人用に現地ガイドが解放されます。企画ごとの進み具合を見ながら、次に歩く場所を選べます。</p>
+        <span>For participants</span>
+        <h1>近くで記録すると、現地ガイドが開く</h1>
+        <p>ここは参加者向けのページです。ガイドのあるエリアで観察記録を残すと、その場所の見どころや背景をあとから本人用に見返せます。</p>
         <div class="my-guides-actions">
           <a href="${escapeHtml(withBasePath(basePath, "/record"))}">近くで記録する</a>
           <a href="${escapeHtml(withBasePath(basePath, "/my-guides"))}">マイガイド</a>
         </div>
+      </section>
+      <section class="guide-program-audience-note">
+        <span><strong>自治体・企業・DMOの方へ:</strong> 企画づくり、観察会、匿名recapの説明は別ページに分けました。</span>
+        <a href="${escapeHtml(withBasePath(basePath, "/for-business/field-programs"))}">導入向け説明を見る</a>
       </section>
       ${programs.length
         ? `<section class="guide-program-list">${programs.map((program) => renderProgramCard(basePath, program)).join("")}</section>`

@@ -127,6 +127,9 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /app\.get\("\/guide-programs"/);
   assert.match(source, /app\.get<\{ Params: \{ slug: string \} \}>\("\/guide-programs\/:slug"/);
   assert.match(source, /listPublishedGuideProgramsForPublic\(session\?\.userId \?\? null\)/);
+  assert.match(source, /For participants/);
+  assert.match(source, /近くで記録すると、現地ガイドが開く/);
+  assert.match(source, /\/for-business\/field-programs/);
   assert.match(source, /getPublishedGuideProgramDetail\(request\.params\.slug, session\?\.userId \?\? null\)/);
   assert.match(source, /guide-program-progress/);
   assert.match(source, /renderGuideProgramMap/);
