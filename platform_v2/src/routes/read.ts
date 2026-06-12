@@ -9824,9 +9824,11 @@ function renderProfilePlaceStories(stories: RegionalStoryCue[]): string {
 
 export function profileRegionalStoryInputForPlace(
   viewerUserId: string,
-  place: Pick<HomePlace, "placeId" | "placeName" | "municipality" | "latitude" | "longitude" | "latestDisplayName" | "lastObservedAt">,
+  place: Pick<HomePlace, "placeId" | "placeName" | "municipality" | "latitude" | "longitude" | "latestDisplayName" | "nextLookFor" | "lastObservedAt">,
 ): RegionalStoryInput {
   const latestDisplayName = String(place.latestDisplayName ?? "").trim();
+  const nextLookFor = String(place.nextLookFor ?? "").trim();
+  const subjectContext = latestDisplayName || nextLookFor;
   const lastObservedAt = String(place.lastObservedAt ?? "").trim();
   return {
     surface: "profile",
@@ -9840,9 +9842,9 @@ export function profileRegionalStoryInputForPlace(
       publicLabel: place.municipality,
       allowPrecisePlaceLabel: true,
     },
-    observation: latestDisplayName || lastObservedAt
+    observation: subjectContext || lastObservedAt
       ? {
-          displayName: latestDisplayName || null,
+          displayName: subjectContext || null,
           observedAt: lastObservedAt || null,
         }
       : undefined,

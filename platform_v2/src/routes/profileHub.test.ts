@@ -115,3 +115,15 @@ test("profile regional story input carries the latest place subject and date", (
     observedAt: "2026-05-15T09:00:00.000Z",
   });
 });
+
+test("profile regional story input falls back to next-look context when latest subject is empty", () => {
+  const input = profileRegionalStoryInputForPlace("user-profile-test", homePlace({
+    latestDisplayName: null,
+    nextLookFor: "水辺の鳥",
+  }));
+
+  assert.deepEqual(input.observation, {
+    displayName: "水辺の鳥",
+    observedAt: "2026-05-15T09:00:00.000Z",
+  });
+});
