@@ -88,3 +88,29 @@ test("regional story has a safe fallback for unknown regions", async () => {
   assert.equal(story.sourceMode, "fallback");
   assert.match(story.collectiveNote, /記録|見返|比べ|比較|重ね|条件/);
 });
+
+test("profile regional fallback uses latest subject context instead of a generic target", async () => {
+  const story = await getRegionalStoryCue({
+    surface: "profile",
+    viewerUserId: null,
+    recordExposure: false,
+    place: {
+      placeId: "place:profile-unknown",
+      placeName: "静岡県の草地",
+      municipality: "静岡市",
+      allowPrecisePlaceLabel: true,
+    },
+    observation: {
+      displayName: "タンポポ",
+      observedAt: "2026-05-15T09:00:00.000Z",
+    },
+    maxCards: 1,
+  });
+
+  assert.ok(story);
+  assert.equal(story.cards.length, 0);
+  assert.equal(story.sourceMode, "fallback");
+  assert.match(story.placeHook, /タンポポ/);
+  assert.doesNotMatch(story.placeHook, /今日見えたもの|なぜここにいたか/);
+  assert.match([story.whyHere, story.nextObservationAngle, story.collectiveNote].join(" "), /株|花|葉|季節|同じ場所|日当たり/);
+});

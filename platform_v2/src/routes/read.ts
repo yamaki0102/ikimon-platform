@@ -108,7 +108,7 @@ import {
   type ReferenceCandidate,
   type ReferenceProfileSummary,
 } from "../services/referenceLibrary.js";
-import { getRegionalStoryCue, type RegionalKnowledgeCard, type RegionalStoryCue } from "../services/regionalStory.js";
+import { getRegionalStoryCue, type RegionalKnowledgeCard, type RegionalStoryCue, type RegionalStoryInput } from "../services/regionalStory.js";
 import {
   assertSpecialistAdminSession,
   assertSpecialistSession,
@@ -9840,6 +9840,34 @@ function renderProfilePlaceStories(stories: RegionalStoryCue[]): string {
       ${distinctStories.map((story) => renderRegionalStoryPanel(story, "profile")).join("")}
     </div>
   </section>`;
+}
+
+export function profileRegionalStoryInputForPlace(
+  viewerUserId: string,
+  place: Pick<HomePlace, "placeId" | "placeName" | "municipality" | "latitude" | "longitude" | "latestDisplayName" | "lastObservedAt">,
+): RegionalStoryInput {
+  const latestDisplayName = String(place.latestDisplayName ?? "").trim();
+  const lastObservedAt = String(place.lastObservedAt ?? "").trim();
+  return {
+    surface: "profile",
+    viewerUserId,
+    place: {
+      placeId: place.placeId,
+      placeName: place.placeName,
+      municipality: place.municipality,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      publicLabel: place.municipality,
+      allowPrecisePlaceLabel: true,
+    },
+    observation: latestDisplayName || lastObservedAt
+      ? {
+          displayName: latestDisplayName || null,
+          observedAt: lastObservedAt || null,
+        }
+      : undefined,
+    maxCards: 1,
+  };
 }
 
 function normalizeProfileStoryText(value: string | null | undefined): string {
@@ -20125,19 +20153,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "記録として読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
-    const regionalStories = (await Promise.all(snapshot.recentPlaces.slice(0, 3).map((place) => getRegionalStoryCue({
-      surface: "profile",
-      viewerUserId: session.userId,
-      place: {
-        placeId: place.placeId,
-        placeName: place.placeName,
-        municipality: place.municipality,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        allowPrecisePlaceLabel: true,
-      },
-      maxCards: 1,
-    }).catch(() => null)))).filter((story): story is RegionalStoryCue => Boolean(story));
+    const regionalStories = (await Promise.all(snapshot.recentPlaces.slice(0, 3).map((place) =>
+      getRegionalStoryCue(profileRegionalStoryInputForPlace(session.userId, place)).catch(() => null),
+    ))).filter((story): story is RegionalStoryCue => Boolean(story));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,

@@ -874,6 +874,18 @@ function text(value: string | null | undefined): string {
   return (value ?? "").trim();
 }
 
+function regionalPlaceLookupTerms(place: RegionalStoryPlaceInput): string[] {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const value of [place.placeName, place.publicLabel, place.municipality, place.prefecture]) {
+    const term = text(value);
+    if (!term || seen.has(term)) continue;
+    seen.add(term);
+    terms.push(term);
+  }
+  return terms;
+}
+
 function safeTags(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean).slice(0, 16);
@@ -1070,6 +1082,7 @@ function compactText(value: unknown, fallback: string, maxLength: number): strin
 async function loadDbCards(place: RegionalStoryPlaceInput): Promise<RegionalKnowledgeCard[]> {
   try {
     const pool = getPool();
+    const lookupTerms = regionalPlaceLookupTerms(place);
     const result = await pool.query<RegionalKnowledgeCardRow>(
       `select card_id, region_scope, locale, source_type, place_hint, place_keys, historical_place_names,
               category, title, summary, retrieval_text, source_url, source_label, source_fingerprint, license,
@@ -1085,7 +1098,11 @@ async function loadDbCards(place: RegionalStoryPlaceInput): Promise<RegionalKnow
             or tags ?| $3::text[]
             or observation_hooks ?| $3::text[]
             or historical_place_names ?| $3::text[]
-            or retrieval_text ilike $4
+            or exists (
+              select 1
+                from unnest($3::text[]) as lookup(term)
+               where retrieval_text ilike '%' || lookup.term || '%'
+            )
           )
         order by
           case when region_scope = $1 then 0 when region_scope = $2 then 1 else 2 end,
@@ -1095,8 +1112,7 @@ async function loadDbCards(place: RegionalStoryPlaceInput): Promise<RegionalKnow
       [
         looksLikeHamamatsu(place) ? "JP-22-Hamamatsu" : text(place.municipality) || text(place.prefecture) || "JP",
         text(place.prefecture) || "JP",
-        [place.placeName, place.publicLabel, place.municipality, place.prefecture].map(text).filter(Boolean),
-        `%${[place.placeName, place.publicLabel, place.municipality, place.prefecture].map(text).filter(Boolean)[0] ?? ""}%`,
+        lookupTerms,
       ],
     );
     return result.rows.map(rowToCard).filter((card): card is RegionalKnowledgeCard => Boolean(card));
@@ -1474,7 +1490,7 @@ function composeStory(input: RegionalStoryInput, cards: RegionalKnowledgeCard[],
   const seasonPart = season ? `${SEASON_LABEL[season]}の` : "";
   const placeHook = seasonalTip
     ? `${seasonPart}${target}を${placeLabel}で再訪するなら、変化の手がかりを揃える。`
-    : `${target}を${placeLabel}で再訪するなら、「なぜここにいたか」を残す。`;
+    : `${target}を${placeLabel}で再訪するなら、周囲1mの条件を一緒に残す。`;
 
   // whyHere: 出典の中身 → 行動への接続を1段だけ。汎用文言を最小化
   const citationLine = primary ? citationActionLine(primary, target) : "";
