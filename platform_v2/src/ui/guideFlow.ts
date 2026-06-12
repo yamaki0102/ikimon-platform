@@ -110,22 +110,22 @@ type GuideCopy = {
 const COPY: Record<SiteLang, GuideCopy> = {
   ja: {
     title: "ライブガイド",
-    subtitle: "映像と音から、土地の物語を足跡に残します",
+    subtitle: "歩いた場所の自然の手がかりを、AIと一緒に残します",
     startBtn: "ガイドを開始する",
     startSheetTitle: "使うものを選んで開始します",
     startSheetBody: "歩き方に合わせて、カメラと音声を別々に選べます。あとから画面下のボタンで音声だけ切り替えることもできます。",
     missionChoiceTitle: "今日のミッション",
     missionChoiceBody: "移動手段に合わせて、カメラと音声の組み合わせを先に決めます。",
     missions: [
-      { id: "quick", label: "徒歩で見ながら記録", body: "画面を見て歩ける時は、映像と音声の両方で手がかりを残す" },
-      { id: "sound", label: "ポケット音声", body: "ポケットに入れる時は映像を切り、鳥・虫・水音などの自然音だけ集める" },
-      { id: "spot", label: "1地点を詳しく見る", body: "同じ場所で植生・地形・管理痕跡をゆっくり拾う" },
-      { id: "open_ride", label: "自転車・オープンカー", body: "風や鳥・虫の音も拾える移動では、映像と音声の両方を使う" },
-      { id: "drive", label: "車内・電車・バス", body: "車内、電車、バス、新幹線などは、映像だけで通過した環境を残す" },
+      { id: "quick", label: "🚶 歩きながら見る", body: "カメラだけで、足元や水辺の手がかりをすばやく残す" },
+      { id: "sound", label: "🎧 ポケット音声", body: "映像を切り、鳥・虫・水音などの自然音だけ集める" },
+      { id: "spot", label: "🔎 1地点を詳しく見る", body: "同じ場所で植生・地形・管理痕跡をゆっくり拾う" },
+      { id: "open_ride", label: "🚲 自転車・オープンカー", body: "同乗者や停止中の利用向け。映像と自然音を残す" },
+      { id: "drive", label: "🚌 車内・電車・バス", body: "運転者は操作しないでください。同乗者・乗客が映像だけで通過ログを残す" },
     ],
     missionPresetNotice: {
-      open_ride: "自転車・オープンカー向けにしました。カメラON + 音声ON + 移動中モードで、通過した環境と自然音を残します。",
-      drive: "車内・電車・バス向けにしました。次に見る指示は出さず、カメラON + 音声OFF + 移動中モードで通過ログを残します。",
+      open_ride: "自転車・オープンカー向けにしました。運転者は操作せず、同乗者または停止中に使ってください。",
+      drive: "車内・電車・バス向けにしました。運転者は操作せず、カメラON + 音声OFFで通過ログを残します。",
     },
     cameraChoiceTitle: "カメラを使いますか？",
     cameraChoiceBody: "周囲の植物や地形を読み取る場合はONが向いています。ポケットに入れて音だけ集めるときはOFFにすると、映像は取得しません。",
@@ -150,7 +150,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     recommendedPocketHint: "ポケットに入れて使う日は、カメラOFF + 音声ONに変えると映像を取らずに自然音だけ集められます。",
     sessionSummaryTitle: "今回のふりかえり",
     sessionSummarySaved: "保存されたもの",
-    sessionSummarySkipped: "保存しなかったもの",
+    sessionSummarySkipped: "記録にならなかった場面",
     sessionSummaryAudioOnly: "音声だけで取れたもの",
     queuedRecapLabel: "未同期のもの",
     sessionSummaryEmpty: "まだ集計できる記録はありません。",
@@ -169,7 +169,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     offlineFailed: "同期失敗あり",
     offlineSceneQueued: "端末に一時保存中",
     storagePressure: "端末の保存容量に近づいています。映像の頻度を下げて、自然音と代表フレームを優先します。",
-    stopBtn: "停止する",
+    stopBtn: "■ ガイドを終了",
     langLabel: "言語",
     modeLabel: "移動モード",
     modes: [
@@ -194,7 +194,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     started: "ガイド中。解析用フレームは自動送信され、元画像は保存しません。Trailでサムネイルと保存理由を確認できます。",
     stopped: "停止しました。解析済みの足跡は下に残ります。",
     playing: "▶ ガイド音声を再生中",
-    privacyNotice: "開始直後は映像解析のみ。音声は下のボタンを押した場合だけ、自然音候補として短く保存します。",
+    privacyNotice: "人の声らしい音は保存しません。映像は解析用の小さなフレームだけ送り、元画像は保存しません。",
     frameNotice: "端末画像全体のアップロードボタンはありません。解析用の小さなフレームだけ自動で送り、保存するのはサムネイル・解析結果・保存/除外理由です。自然音はONにした時だけ短い候補を別記録にします。",
     naturalSoundBadge: "音声は初期OFF",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
@@ -231,22 +231,22 @@ const COPY: Record<SiteLang, GuideCopy> = {
   },
   en: {
     title: "Live Guide",
-    subtitle: "Continuous video & audio analysis — the land tells its story",
+    subtitle: "Save field clues from the place you are walking through with AI.",
     startBtn: "Start Guide",
     startSheetTitle: "Choose what Guide can use",
     startSheetBody: "Camera and audio are separate choices. You can still change audio later.",
     missionChoiceTitle: "Today's mission",
     missionChoiceBody: "Pick the movement style first, and Guide will match camera and audio.",
     missions: [
-      { id: "quick", label: "Walk with screen", body: "Use both camera and audio when you can watch the scene while walking" },
+      { id: "quick", label: "🚶 Walk and look", body: "Use the camera only to quickly save nearby field clues" },
       { id: "sound", label: "Pocket audio", body: "Turn camera off and collect bird, insect, or water cues when the phone stays pocketed" },
       { id: "spot", label: "Study one spot", body: "Stay in place and capture vegetation, landform, and management traces" },
-      { id: "open_ride", label: "Bike / open car", body: "Use both camera and audio when wind, birds, or insects can be captured" },
-      { id: "drive", label: "Car / train / bus", body: "Use camera only for enclosed vehicles, trains, buses, and bullet trains" },
+      { id: "open_ride", label: "🚲 Bike / open car", body: "For passengers or stopped use only. Save camera and natural sound clues" },
+      { id: "drive", label: "🚌 Car / train / bus", body: "Drivers must not operate this. Passengers can save a camera-only transit log" },
     ],
     missionPresetNotice: {
-      open_ride: "Bike / open-car preset applied. Starts as Camera on + Audio on + moving mode.",
-      drive: "Enclosed-vehicle preset applied. Guide will not prompt what to look at next; starts as Camera on + Audio off + moving mode.",
+      open_ride: "Bike / open-car preset applied. Drivers must not operate this; use as a passenger or while stopped.",
+      drive: "Enclosed-vehicle preset applied. Drivers must not operate this; starts as Camera on + Audio off.",
     },
     cameraChoiceTitle: "Use the camera?",
     cameraChoiceBody: "Turn it on when you want plants, habitat, and landforms read from the scene. Turn it off for pocket audio-only walks.",
@@ -271,7 +271,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     recommendedPocketHint: "For pocket use, switch to Camera off + Audio on to collect natural sound without video.",
     sessionSummaryTitle: "Session recap",
     sessionSummarySaved: "Saved",
-    sessionSummarySkipped: "Not saved",
+    sessionSummarySkipped: "Scenes not retained",
     sessionSummaryAudioOnly: "Audio-only captures",
     queuedRecapLabel: "Waiting to sync",
     sessionSummaryEmpty: "No session activity to summarize yet.",
@@ -290,7 +290,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     offlineFailed: "Sync issue",
     offlineSceneQueued: "Temporarily saved on this device",
     storagePressure: "Device storage is getting full. Guide will lower video frequency and prioritize natural sound plus representative frames.",
-    stopBtn: "Stop",
+    stopBtn: "■ End guide",
     langLabel: "Language",
     modeLabel: "Movement mode",
     modes: [
@@ -315,7 +315,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     started: "Guide is running. Small analysis frames are sent automatically; original device images are not stored. Trail shows thumbnails and save reasons.",
     stopped: "Stopped. Analysed trail items remain below.",
     playing: "▶ Playing guide audio",
-    privacyNotice: "Guide starts with video analysis only. Audio is saved only if you enable natural sound recording below.",
+    privacyNotice: "Speech-like audio is not saved. Guide sends small analysis frames only; original images are not stored.",
     frameNotice: "There is no full-device-image upload button. Guide only sends small analysis frames and stores thumbnails, results, and save/skip reasons. Natural sound is stored separately only when enabled.",
     naturalSoundBadge: "Audio off by default",
     voiceExcludedNotice: "Possible human voice was excluded",
@@ -655,9 +655,17 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const audioPipeline = guideAudioPipelineCopy(lang);
   const cats = c.categories.map((cat) => `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.label)}</option>`).join("");
   const modes = c.modes.map((mode) => `<option value="${escapeHtml(mode.id)}">${escapeHtml(mode.label)}</option>`).join("");
+  const missionSensorBadge = (id: string): string => {
+    if (id === "sound") return "🎤";
+    if (id === "spot" || id === "open_ride") return "📷+🎤";
+    return "📷";
+  };
+  const privacyAria = lang === "ja" ? "音声と映像のプライバシー" : "Audio and camera privacy";
+  const detailsLabel = lang === "ja" ? "仕組みを見る" : "How Guide works";
+  const advancedLabel = lang === "ja" ? "細かく調整する" : "Fine-tune settings";
   const missions = c.missions.map((mission, index) => `<label class="guide-start-option guide-mission-option">
             <input type="radio" name="guide-mission-choice" value="${escapeHtml(mission.id)}"${index === 0 ? " checked" : ""}>
-            <span><b>${escapeHtml(mission.label)}</b><small>${escapeHtml(mission.body)}</small></span>
+            <span><b>${escapeHtml(mission.label)}</b><small>${escapeHtml(mission.body)}</small><strong class="guide-mission-badge">${escapeHtml(missionSensorBadge(mission.id))}</strong></span>
           </label>`).join("");
 
   const langOptions = [
@@ -676,19 +684,6 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   <div class="guide-header">
     <h1 class="guide-title">${escapeHtml(c.title)}</h1>
     <p class="guide-subtitle">${escapeHtml(c.subtitle)}</p>
-    <div class="guide-context-card">
-      <strong>${escapeHtml(c.contextTitle)}</strong>
-      <p>${escapeHtml(c.contextBody)}</p>
-    </div>
-    <div class="guide-audio-chain" aria-label="${escapeHtml(audioPipeline.aria)}">
-      <div>
-        <strong>${escapeHtml(audioPipeline.title)}</strong>
-        <p>${escapeHtml(audioPipeline.body)}</p>
-      </div>
-      <ol>
-        ${audioPipeline.stages.map((stage) => `<li><b>${escapeHtml(stage.label)}</b><span>${escapeHtml(stage.body)}</span></li>`).join("")}
-      </ol>
-    </div>
   </div>
 
   <div class="guide-controls">
@@ -696,19 +691,12 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <label class="guide-select-label">${escapeHtml(c.langLabel)}
         <select class="guide-select" id="guide-lang-select">${langOptions}</select>
       </label>
-      <label class="guide-select-label">${escapeHtml(c.modeLabel)}
-        <select class="guide-select" id="guide-mode-select">${modes}</select>
-      </label>
-      <label class="guide-select-label">${escapeHtml(c.categoryLabel)}
-        <select class="guide-select" id="guide-category-select">${cats}</select>
-      </label>
     </div>
     <button class="guide-start-btn" id="guide-start-btn">${escapeHtml(c.startBtn)}</button>
-    <div class="guide-privacy-row" aria-label="音声プライバシー">
+    <div class="guide-privacy-row" aria-label="${escapeHtml(privacyAria)}">
       <span class="guide-privacy-badge">${escapeHtml(c.naturalSoundBadge)}</span>
       <p class="guide-privacy-note">${escapeHtml(c.privacyNotice)}</p>
-      <p class="guide-privacy-note">${escapeHtml(c.frameNotice)}</p>
-      <button class="guide-audio-opt-btn" id="guide-audio-opt-btn" type="button" aria-pressed="false">${escapeHtml(c.audioOptInBtn)}</button>
+      <button class="guide-audio-opt-btn" id="guide-audio-opt-btn" type="button" aria-pressed="false" hidden>${escapeHtml(c.audioOptInBtn)}</button>
     </div>
     <p class="guide-privacy-live" id="guide-privacy-live" aria-live="polite">${escapeHtml(c.audioOffNotice)}</p>
     <div class="guide-offline-row" id="guide-offline-row" data-state="online" aria-live="polite">
@@ -716,6 +704,22 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <span class="guide-offline-queued" id="guide-offline-queued" hidden>${escapeHtml(c.offlineQueued.replace("{count}", "0"))}</span>
       <span class="guide-offline-pressure" id="guide-offline-pressure" hidden>${escapeHtml(c.storagePressure)}</span>
     </div>
+    <details class="guide-explain-details">
+      <summary>${escapeHtml(detailsLabel)}</summary>
+      <div class="guide-context-card">
+        <strong>${escapeHtml(c.contextTitle)}</strong>
+        <p>${escapeHtml(c.contextBody)}</p>
+      </div>
+      <div class="guide-audio-chain" aria-label="${escapeHtml(audioPipeline.aria)}">
+        <div>
+          <strong>${escapeHtml(audioPipeline.title)}</strong>
+          <p>${escapeHtml(audioPipeline.body)}</p>
+        </div>
+        <ol>
+          ${audioPipeline.stages.map((stage) => `<li><b>${escapeHtml(stage.label)}</b><span>${escapeHtml(stage.body)}</span></li>`).join("")}
+        </ol>
+      </div>
+    </details>
   </div>
 
   <div class="guide-start-sheet-backdrop" id="guide-start-sheet" hidden>
@@ -733,47 +737,50 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         </div>
       </fieldset>
 
-      <div class="guide-recommended-card">
-        <div>
-          <strong>${escapeHtml(c.recommendedTitle)}</strong>
-          <p>${escapeHtml(c.recommendedBody)}</p>
-          <small>${escapeHtml(c.recommendedPocketHint)}</small>
+      <details class="guide-start-advanced">
+        <summary>${escapeHtml(advancedLabel)}</summary>
+        <div class="guide-start-selects">
+          <label class="guide-select-label">${escapeHtml(c.modeLabel)}
+            <select class="guide-select" id="guide-mode-select">${modes}</select>
+          </label>
+          <label class="guide-select-label">${escapeHtml(c.categoryLabel)}
+            <select class="guide-select" id="guide-category-select">${cats}</select>
+          </label>
         </div>
-        <button class="guide-recommended-apply" id="guide-recommended-apply" type="button">${escapeHtml(c.recommendedApply)}</button>
-      </div>
+        <fieldset class="guide-start-choice">
+          <legend>${escapeHtml(c.cameraChoiceTitle)}</legend>
+          <p>${escapeHtml(c.cameraChoiceBody)}</p>
+          <div class="guide-start-options">
+            <label class="guide-start-option">
+              <input type="radio" name="guide-camera-choice" value="on" checked>
+              <span>${escapeHtml(c.cameraOnBtn)}</span>
+            </label>
+            <label class="guide-start-option">
+              <input type="radio" name="guide-camera-choice" value="off">
+              <span>${escapeHtml(c.cameraOffBtn)}</span>
+            </label>
+          </div>
+          <small>${escapeHtml(c.cameraOffHint)}</small>
+        </fieldset>
 
-      <fieldset class="guide-start-choice">
-        <legend>${escapeHtml(c.cameraChoiceTitle)}</legend>
-        <p>${escapeHtml(c.cameraChoiceBody)}</p>
-        <div class="guide-start-options">
-          <label class="guide-start-option">
-            <input type="radio" name="guide-camera-choice" value="on" checked>
-            <span>${escapeHtml(c.cameraOnBtn)}</span>
-          </label>
-          <label class="guide-start-option">
-            <input type="radio" name="guide-camera-choice" value="off">
-            <span>${escapeHtml(c.cameraOffBtn)}</span>
-          </label>
-        </div>
-        <small>${escapeHtml(c.cameraOffHint)}</small>
-      </fieldset>
-
-      <fieldset class="guide-start-choice">
-        <legend>${escapeHtml(c.audioChoiceTitle)}</legend>
-        <p>${escapeHtml(c.audioChoiceBody)}</p>
-        <div class="guide-start-options">
-          <label class="guide-start-option">
-            <input type="radio" name="guide-audio-choice" value="on">
-            <span>${escapeHtml(c.audioOnBtn)}</span>
-          </label>
-          <label class="guide-start-option">
-            <input type="radio" name="guide-audio-choice" value="off" checked>
-            <span>${escapeHtml(c.audioOffBtn)}</span>
-          </label>
-        </div>
-      </fieldset>
+        <fieldset class="guide-start-choice">
+          <legend>${escapeHtml(c.audioChoiceTitle)}</legend>
+          <p>${escapeHtml(c.audioChoiceBody)}</p>
+          <div class="guide-start-options">
+            <label class="guide-start-option">
+              <input type="radio" name="guide-audio-choice" value="on">
+              <span>${escapeHtml(c.audioOnBtn)}</span>
+            </label>
+            <label class="guide-start-option">
+              <input type="radio" name="guide-audio-choice" value="off" checked>
+              <span>${escapeHtml(c.audioOffBtn)}</span>
+            </label>
+          </div>
+        </fieldset>
+      </details>
 
       <p class="guide-start-sheet-live" id="guide-start-sheet-live" aria-live="polite"></p>
+      <p class="guide-start-consent">${escapeHtml(c.privacyNotice)}</p>
       <div class="guide-start-sheet-actions">
         <button class="guide-sheet-secondary" id="guide-start-cancel" type="button">${escapeHtml(c.startSheetCancel)}</button>
         <button class="guide-sheet-primary" id="guide-start-confirm" type="button">${escapeHtml(c.beginWithChoices)}</button>
@@ -833,17 +840,17 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
 
   <section class="guide-session-summary" id="guide-session-summary" hidden aria-live="polite">
     <h2>${escapeHtml(c.sessionSummaryTitle)}</h2>
+    <p id="guide-summary-empty" hidden>${escapeHtml(c.sessionSummaryEmpty)}</p>
+    <div class="guide-session-insights">
+      <div class="guide-session-primary"><span>${escapeHtml(c.sessionSummaryTodayLabel)}</span><strong id="guide-summary-today">${escapeHtml(c.sessionSummaryTodayEmpty)}</strong></div>
+      <div><span>${escapeHtml(c.sessionSummaryNextLabel)}</span><strong id="guide-summary-next">${escapeHtml(c.sessionSummaryNextEmpty)}</strong></div>
+      <div><span>${escapeHtml(c.sessionSummaryEvidenceLabel)}</span><strong id="guide-summary-evidence">${escapeHtml(c.sessionSummaryEvidenceEmpty)}</strong></div>
+    </div>
     <div class="guide-session-summary-grid">
       <div><strong id="guide-summary-saved">0</strong><span>${escapeHtml(c.sessionSummarySaved)}</span></div>
       <div><strong id="guide-summary-skipped">0</strong><span>${escapeHtml(c.sessionSummarySkipped)}</span></div>
       <div><strong id="guide-summary-audio-only">0</strong><span>${escapeHtml(c.sessionSummaryAudioOnly)}</span></div>
       <div><strong id="guide-summary-queued">0</strong><span>${escapeHtml(c.queuedRecapLabel)}</span></div>
-    </div>
-    <p id="guide-summary-empty" hidden>${escapeHtml(c.sessionSummaryEmpty)}</p>
-    <div class="guide-session-insights">
-      <div><span>${escapeHtml(c.sessionSummaryTodayLabel)}</span><strong id="guide-summary-today">${escapeHtml(c.sessionSummaryTodayEmpty)}</strong></div>
-      <div><span>${escapeHtml(c.sessionSummaryEvidenceLabel)}</span><strong id="guide-summary-evidence">${escapeHtml(c.sessionSummaryEvidenceEmpty)}</strong></div>
-      <div><span>${escapeHtml(c.sessionSummaryNextLabel)}</span><strong id="guide-summary-next">${escapeHtml(c.sessionSummaryNextEmpty)}</strong></div>
     </div>
     <a class="guide-session-results-link" href="${escapeHtml(basePath ? `${basePath}/guide/outcomes` : "/guide/outcomes")}">${escapeHtml(c.sessionSummaryResultsLink)}</a>
   </section>
@@ -1104,35 +1111,35 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const lang = getLang();
     if (lang === 'en') {
       return {
-        title: 'Survey coverage',
+        title: 'Field status',
         areaUnknown: 'Checking registered area',
         outsideArea: 'No registered area here',
-        timeLabel: 'Time seen',
+        timeLabel: 'Time',
         distanceLabel: 'Distance',
-        cellsLabel: '10m cells',
-        aiLabel: 'AI runs',
-        nonDetection: 'Passed, no AI detection',
+        cellsLabel: 'Area seen',
+        aiLabel: 'Findings',
+        nonDetection: 'Moving',
         searched: 'Searched, not detected',
         candidate: 'Scoped non-detection',
-        weakGps: 'GPS is wider than 10m, so coverage is estimated.',
+        weakGps: 'GPS is broader than 10m, so coverage is estimated.',
         defaultHint: 'Device-side coverage uses 10m cells; exact route stays private.',
-        thinPrefix: 'Thin next: '
+        thinPrefix: 'Look next: '
       };
     }
     return {
-      title: '調査カバー',
+      title: 'フィールド状況',
       areaUnknown: '登録エリアを確認中',
       outsideArea: '登録エリア外',
-      timeLabel: '見た時間',
+      timeLabel: '時間',
       distanceLabel: '距離',
-      cellsLabel: '10mセル',
-      aiLabel: 'AI解析',
-      nonDetection: '通過・AI未検出',
+      cellsLabel: '見た範囲',
+      aiLabel: '気づき',
+      nonDetection: '移動中',
       searched: '探したが未検出',
       candidate: '条件つき未確認',
       weakGps: 'GPS精度が10mより粗いので、カバー率は推定です。',
       defaultHint: '端末内では10mセルで見た範囲を推定し、exact routeは公開しません。',
-      thinPrefix: '次に薄いところ: '
+      thinPrefix: '次に見る: '
     };
   }
   function formatDuration(ms) {
@@ -2107,15 +2114,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (state === 'error') return { cls: 'is-error', text: copy.autoSaveError, note: '', retry: retryHintForAutoSave(scene), showManual: true };
     return { cls: 'is-pending', text: copy.autoSaveBadge, note: '', retry: '', showManual: true };
   }
-  function aiModelMeta(scene) {
-    const visual = scene && typeof scene.visualExtractModel === 'string' ? scene.visualExtractModel : '';
-    const text = scene && typeof scene.textModel === 'string' ? scene.textModel : '';
-    if (!visual && !text) return '';
-    const parts = [];
-    if (visual) parts.push(copy.visualModelLabel + ': ' + visual);
-    if (text) parts.push(copy.textModelLabel + ': ' + text);
-    return '<div class="gdi-ai-models">' + parts.map(escapeInline).join(' · ') + '</div>';
-  }
   function normalizeTrailToken(value) {
     return String(value || '').replace(/\\s+/g, '').replace(/[()]/g, function(ch){ return ch === '(' ? '（' : '）'; });
   }
@@ -2189,18 +2187,21 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const distance = formatDistance(representative.distanceFromCurrentM);
     const autoSave = autoSaveView(representative);
     const badge = trailBundleBadge(bundle);
+    const trailDetails = [
+      autoSave.note,
+      autoSave.retry,
+      representative.uncertaintyReason,
+      representative.whyInteresting,
+      representative.deliveryState === 'deferred' ? copy.trailDeferred : '',
+    ].filter(Boolean);
     li.innerHTML = '<div class="gdi-thumb-wrap">' + (representative.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(representative.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
       + '<div class="gdi-body">'
       + '<div class="gdi-kicker">' + escapeInline(formatCaptured(new Date(bundle.startAt).toISOString()) + distance) + (badge ? '<span class="gdi-bundle">' + escapeInline(badge) + '</span>' : '') + '</div>'
-      + '<div class="gdi-autosave ' + escapeInline(autoSave.cls) + '"><span>' + escapeInline(autoSave.text) + '</span>' + (autoSave.note ? '<em>' + escapeInline(autoSave.note) + '</em>' : '') + '</div>'
-      + (autoSave.retry ? '<div class="gdi-retry">' + escapeInline(autoSave.retry) + '</div>' : '')
+      + '<div class="gdi-autosave ' + escapeInline(autoSave.cls) + '"><span>' + escapeInline(autoSave.text) + '</span></div>'
       + '<div class="gdi-summary">' + escapeInline(representative.delayedSummary || representative.summary || '') + '</div>'
-      + aiModelMeta(representative)
       + (species.length ? '<div class="gdi-species">' + species.map(escapeInline).join(' · ') + '</div>' : '')
-      + (representative.uncertaintyReason ? '<div class="gdi-note">' + escapeInline(representative.uncertaintyReason) + '</div>' : '')
-      + '<div class="gdi-why">' + escapeInline(representative.whyInteresting || '') + '</div>'
       + '<div class="gdi-next">' + escapeInline(representative.nextLookTarget || '') + '</div>'
-      + (representative.deliveryState === 'deferred' ? '<div class="gdi-deferred">' + escapeInline(copy.trailDeferred) + '</div>' : '')
+      + (trailDetails.length ? '<details class="gdi-details"><summary>' + escapeInline(getLang() === 'ja' ? '詳細' : 'Details') + '</summary><p>' + trailDetails.map(escapeInline).join('</p><p>') + '</p></details>' : '')
       + '<div class="gdi-actions"><button type="button" class="gdi-play" data-scene-id="' + escapeInline(representative.sceneId) + '">' + escapeInline(copy.playTrail) + '</button>'
       + (autoSave.showManual ? '<button type="button" class="gdi-save" data-scene-id="' + escapeInline(representative.sceneId) + '">' + escapeInline(copy.manualSave) + '</button>' : '')
       + '</div>'
@@ -3062,9 +3063,23 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const checked = document.querySelector('input[name="' + name + '"]:checked');
     return checked && checked.value ? checked.value : fallback;
   }
+  function selectedStartSummary() {
+    const camera = selectedChoice('guide-camera-choice', 'on') === 'on';
+    const audio = selectedChoice('guide-audio-choice', 'off') === 'on';
+    const lang = getLang();
+    if (camera && audio) return lang === 'ja' ? 'カメラと音声で開始する' : 'Start with camera and audio';
+    if (camera) return lang === 'ja' ? 'カメラだけで開始する' : 'Start with camera only';
+    if (audio) return lang === 'ja' ? '音声だけで開始する' : 'Start with audio only';
+    return copy.beginWithChoices;
+  }
+  function updateStartConfirmText() {
+    if (startConfirm) startConfirm.textContent = selectedStartSummary();
+  }
   function openStartSheet() {
     if (!startSheet) return;
     if (startSheetLive) startSheetLive.textContent = '';
+    applyMissionPreset(selectedChoice('guide-mission-choice', 'quick'));
+    updateStartConfirmText();
     startSheet.hidden = false;
     const first = startSheet.querySelector('input[name="guide-mission-choice"]');
     if (first && typeof first.focus === 'function') first.focus();
@@ -3100,9 +3115,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     } else {
       setSelectValue('guide-mode-select', 'walk');
       setRadioChoice('guide-camera-choice', 'on');
-      setRadioChoice('guide-audio-choice', 'on');
+      setRadioChoice('guide-audio-choice', 'off');
     }
     if (startSheetLive) startSheetLive.textContent = copy.missionPresetNotice[mission] || '';
+    updateStartConfirmText();
   }
   function applyRecommendedSettings() {
     setRadioChoice('guide-camera-choice', 'on');
@@ -3304,6 +3320,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       if (audioOptIn) void startOptionalAudioCapture();
       void prepareLiveAssist();
       if (nowWrap) nowWrap.hidden = false;
+      if (audioOptBtn) audioOptBtn.hidden = false;
       startBtn.hidden = true;
       permMsg.hidden = true;
       if (photoFallback) photoFallback.hidden = true;
@@ -3348,6 +3365,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   document.querySelectorAll('input[name="guide-mission-choice"]').forEach((input) => {
     input.addEventListener('change', () => applyMissionPreset(input.value || 'quick'));
   });
+  document.querySelectorAll('input[name="guide-camera-choice"], input[name="guide-audio-choice"]').forEach((input) => {
+    input.addEventListener('change', updateStartConfirmText);
+  });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && startSheet && !startSheet.hidden) closeStartSheet();
   });
@@ -3375,6 +3395,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (video) video.hidden = false;
     if (audioOnlyPanel) audioOnlyPanel.hidden = true;
     if (nowWrap) nowWrap.hidden = true;
+    if (audioOptBtn) audioOptBtn.hidden = true;
     startBtn.hidden = false;
     setStatus('');
     setNowState('');
@@ -3484,13 +3505,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 }
 
 export const GUIDE_FLOW_STYLES = `
-  .guide-root { max-width: 640px; min-height: calc(100vh - 80px); margin: 0 auto; padding: 30px 16px 64px; background-image: linear-gradient(rgba(16,185,129,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,.045) 1px, transparent 1px); background-size: 56px 56px; }
-  .guide-header { margin-bottom: 24px; }
+  .guide-root { max-width: 640px; min-height: calc(100vh - 80px); margin: 0 auto; padding: 28px 16px 88px; background: #f8faf8; }
+  .guide-header { margin-bottom: 18px; }
   .guide-title { font-size: 32px; font-weight: 950; color: #0f172a; letter-spacing: 0; line-height: 1.12; margin: 0 0 8px; }
-  .guide-subtitle { font-size: 14px; color: #475569; margin: 0; line-height: 1.7; font-weight: 700; }
+  .guide-subtitle { font-size: 15px; color: #334155; margin: 0; line-height: 1.65; font-weight: 500; }
   .guide-context-card { margin-top: 14px; display: grid; gap: 5px; padding: 12px 13px; border-radius: 8px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.9)); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
-  .guide-context-card strong { color: #064e3b; font-size: 13px; line-height: 1.35; font-weight: 950; }
-  .guide-context-card p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
+  .guide-context-card strong { color: #064e3b; font-size: 13px; line-height: 1.35; font-weight: 800; }
+  .guide-context-card p { margin: 0; color: #475569; font-size: 13px; line-height: 1.65; font-weight: 500; }
   .guide-audio-chain { margin-top: 10px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 10px; padding: 12px; border-radius: 8px; background: #0f172a; border: 1px solid rgba(15,23,42,.12); box-shadow: 0 10px 26px rgba(15,23,42,.08); }
   .guide-audio-chain strong { color: #fff; font-size: 13px; line-height: 1.35; font-weight: 950; }
   .guide-audio-chain p { margin: 5px 0 0; color: #cbd5e1; font-size: 12px; line-height: 1.6; font-weight: 760; }
@@ -3498,64 +3519,65 @@ export const GUIDE_FLOW_STYLES = `
   .guide-audio-chain li { min-width: 0; display: grid; gap: 3px; padding: 9px; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); }
   .guide-audio-chain b { color: #a7f3d0; font-size: 11px; line-height: 1.2; font-weight: 950; }
   .guide-audio-chain span { color: #e2e8f0; font-size: 11px; line-height: 1.45; font-weight: 720; }
-  .guide-controls { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+  .guide-controls { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
   .guide-privacy-row { display: grid; gap: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.86); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-privacy-badge { width: fit-content; display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 950; border: 1px solid rgba(5,150,105,.2); }
-  .guide-privacy-note { margin: 0; font-size: 12px; color: #047857; line-height: 1.6; font-weight: 800; }
+  .guide-privacy-note { margin: 0; font-size: 13px; color: #047857; line-height: 1.55; font-weight: 600; }
   .guide-audio-opt-btn { width: fit-content; min-height: 38px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.14); background: #fff; color: #0f172a; font-size: 12px; font-weight: 900; cursor: pointer; }
   .guide-audio-opt-btn.is-on { background: #0f172a; color: #fff; border-color: #0f172a; }
-  .guide-privacy-live { margin: -4px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(254,249,195,.92); color: #854d0e; border: 1px solid rgba(202,138,4,.2); font-size: 12px; line-height: 1.55; font-weight: 850; }
+  .guide-privacy-live { margin: -2px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(254,249,195,.92); color: #854d0e; border: 1px solid rgba(202,138,4,.2); font-size: 13px; line-height: 1.55; font-weight: 650; }
   .guide-privacy-live[hidden] { display: none; }
-  .guide-offline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 36px; padding: 8px 10px; border-radius: 8px; background: rgba(248,250,252,.92); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; font-weight: 900; }
+  .guide-offline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 36px; padding: 8px 10px; border-radius: 8px; background: rgba(248,250,252,.92); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 13px; font-weight: 700; }
   .guide-offline-row[data-state="offline"], .guide-offline-row[data-state="failed"] { background: rgba(255,247,237,.94); border-color: rgba(234,88,12,.22); color: #9a3412; }
   .guide-offline-row[data-state="syncing"] { background: rgba(239,246,255,.94); border-color: rgba(37,99,235,.18); color: #1d4ed8; }
   .guide-offline-state, .guide-offline-queued { display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 0 9px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.08); }
   .guide-offline-queued[hidden], .guide-offline-pressure[hidden] { display: none; }
   .guide-offline-pressure { flex-basis: 100%; color: #b45309; line-height: 1.5; font-weight: 850; }
   .guide-selects { display: flex; gap: 10px; flex-wrap: wrap; }
-  .guide-select-label { font-size: 11px; font-weight: 900; color: #334155; text-transform: uppercase; letter-spacing: 0; display: flex; flex-direction: column; gap: 5px; }
-  .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 13px; font-weight: 800; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
-  .guide-start-btn { min-height: 56px; padding: 14px 24px; border-radius: 999px; background: #059669; color: #fff; font-size: 15px; font-weight: 950; border: none; cursor: pointer; box-shadow: 0 12px 26px rgba(5,150,105,.24); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+  .guide-select-label { font-size: 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0; display: flex; flex-direction: column; gap: 5px; }
+  .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 13px; font-weight: 650; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
+  .guide-start-btn { min-height: 60px; padding: 15px 24px; border-radius: 999px; background: #059669; color: #fff; font-size: 16px; font-weight: 850; border: none; cursor: pointer; box-shadow: 0 12px 26px rgba(5,150,105,.24); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
   .guide-start-btn:hover { transform: translateY(-2px); background: #047857; box-shadow: 0 16px 30px rgba(5,150,105,.28); }
   .guide-start-sheet-backdrop[hidden] { display: none; }
   .guide-start-sheet-backdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(15,23,42,.48); backdrop-filter: blur(5px); }
   .guide-start-sheet { width: min(100%, 560px); max-height: min(86vh, 720px); overflow-y: auto; display: grid; gap: 14px; padding: 18px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.12); box-shadow: 0 24px 60px rgba(15,23,42,.28); }
   .guide-start-sheet-head { display: grid; gap: 6px; }
   .guide-start-sheet-head h2 { margin: 0; color: #0f172a; font-size: 20px; line-height: 1.28; font-weight: 950; letter-spacing: 0; }
-  .guide-start-sheet-head p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 750; }
-  .guide-recommended-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(5,150,105,.22); box-shadow: inset 0 0 0 1px rgba(5,150,105,.08); }
-  .guide-recommended-card strong { display: block; color: #064e3b; font-size: 13px; line-height: 1.35; font-weight: 950; }
-  .guide-recommended-card p { margin: 4px 0 0; color: #065f46; font-size: 12px; line-height: 1.6; font-weight: 850; }
-  .guide-recommended-card small { display: block; margin-top: 5px; color: #0f766e; font-size: 11px; line-height: 1.5; font-weight: 800; }
-  .guide-recommended-apply { min-height: 40px; padding: 8px 13px; border: none; border-radius: 999px; background: #059669; color: #fff; font-size: 12px; font-weight: 950; cursor: pointer; white-space: nowrap; }
+  .guide-start-sheet-head p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 500; }
   .guide-start-choice { margin: 0; padding: 13px; border-radius: 8px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; display: grid; gap: 9px; }
   .guide-start-choice legend { padding: 0 4px; color: #0f172a; font-size: 13px; font-weight: 950; }
-  .guide-start-choice p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
-  .guide-start-choice small { color: #0f766e; font-size: 11px; line-height: 1.5; font-weight: 850; }
+  .guide-start-choice p { margin: 0; color: #475569; font-size: 13px; line-height: 1.6; font-weight: 500; }
+  .guide-start-choice small { color: #0f766e; font-size: 12px; line-height: 1.5; font-weight: 650; }
   .guide-start-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .guide-start-option { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(15,23,42,.14); background: #fff; color: #0f172a; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .guide-start-option { min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 10px; border-radius: 8px; border: 1px solid rgba(15,23,42,.14); background: #fff; color: #0f172a; font-size: 13px; font-weight: 750; cursor: pointer; }
   .guide-start-option:has(input:checked) { border-color: rgba(5,150,105,.55); background: #ecfdf5; color: #065f46; box-shadow: inset 0 0 0 1px rgba(5,150,105,.18); }
   .guide-start-option input { width: 16px; height: 16px; accent-color: #059669; flex: 0 0 auto; }
-  .guide-mission-options { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .guide-mission-option { align-items: flex-start; justify-content: flex-start; min-height: 82px; text-align: left; }
+  .guide-mission-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .guide-mission-option { align-items: flex-start; justify-content: flex-start; min-height: 94px; text-align: left; }
   .guide-mission-option span { min-width: 0; display: grid; gap: 3px; }
   .guide-mission-option b { color: inherit; font-size: 13px; line-height: 1.25; }
-  .guide-mission-option small { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 800; }
+  .guide-mission-option small { color: #475569; font-size: 12px; line-height: 1.45; font-weight: 500; }
+  .guide-mission-badge { width: fit-content; margin-top: 3px; border-radius: 999px; background: #f1f5f9; color: #0f766e; padding: 3px 8px; font-size: 12px; font-weight: 800; }
   .guide-mission-option:has(input:checked) small { color: #047857; }
-  .guide-start-sheet-live { min-height: 18px; margin: -2px 0 0; color: #b45309; font-size: 12px; line-height: 1.5; font-weight: 900; }
+  .guide-start-advanced, .guide-explain-details { border-radius: 8px; border: 1px solid rgba(15,23,42,.1); background: rgba(255,255,255,.78); padding: 10px 12px; }
+  .guide-start-advanced summary, .guide-explain-details summary { cursor: pointer; color: #0f172a; font-size: 13px; font-weight: 800; }
+  .guide-start-advanced[open], .guide-explain-details[open] { display: grid; gap: 12px; }
+  .guide-start-selects { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .guide-start-consent { margin: -2px 0 0; color: #047857; font-size: 13px; line-height: 1.55; font-weight: 600; }
+  .guide-start-sheet-live { min-height: 18px; margin: -2px 0 0; color: #b45309; font-size: 13px; line-height: 1.5; font-weight: 700; }
   .guide-start-sheet-actions { display: flex; justify-content: flex-end; gap: 10px; }
-  .guide-sheet-secondary, .guide-sheet-primary { min-height: 46px; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .guide-sheet-secondary, .guide-sheet-primary { min-height: 48px; padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 800; cursor: pointer; }
   .guide-sheet-secondary { border: 1px solid rgba(15,23,42,.14); background: #fff; color: #334155; }
   .guide-sheet-primary { border: none; background: #059669; color: #fff; box-shadow: 0 10px 24px rgba(5,150,105,.22); }
   .guide-now[hidden] { display: none; }
   .guide-now { margin-bottom: 14px; padding: 13px 14px; border-radius: 8px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
-  .guide-now-title { margin: 0 0 4px; font-size: 13px; font-weight: 900; color: #0f172a; }
-  .guide-now-hint { margin: 0; font-size: 12px; color: #64748b; line-height: 1.6; }
-  .guide-now-next { margin: 8px 0 0; display: flex; gap: 7px; align-items: baseline; color: #065f46; font-size: 12px; line-height: 1.45; }
+  .guide-now-title { margin: 0 0 4px; font-size: 13px; font-weight: 800; color: #0f172a; }
+  .guide-now-hint { margin: 0; font-size: 13px; color: #475569; line-height: 1.6; }
+  .guide-now-next { margin: 8px 0 0; display: flex; gap: 7px; align-items: baseline; color: #065f46; font-size: 13px; line-height: 1.45; }
   .guide-now-next[hidden] { display: none; }
   .guide-now-next span { flex: 0 0 auto; min-height: 22px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 8px; background: #dcfce7; color: #047857; font-size: 11px; font-weight: 950; }
   .guide-now-next b { font-weight: 900; }
-  .guide-now-state { min-width: 72px; text-align: right; font-size: 12px; color: #047857; font-weight: 900; }
+  .guide-now-state { min-width: 72px; text-align: right; font-size: 13px; color: #047857; font-weight: 800; }
   .guide-coverage[hidden] { display: none; }
   .guide-coverage { margin: 0 0 14px; padding: 13px 14px; border-radius: 8px; background: rgba(255,255,255,.94); border: 1px solid rgba(5,150,105,.16); box-shadow: 0 8px 20px rgba(15,23,42,.05); display: grid; gap: 11px; }
   .guide-coverage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -3567,8 +3589,8 @@ export const GUIDE_FLOW_STYLES = `
   .guide-coverage-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .guide-coverage-grid div { min-width: 0; padding: 9px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); display: grid; gap: 2px; }
   .guide-coverage-grid strong { color: #059669; font-size: 19px; line-height: 1; font-weight: 950; }
-  .guide-coverage-grid span { color: #64748b; font-size: 10.5px; line-height: 1.25; font-weight: 850; }
-  .guide-coverage-hint { margin: 0; color: #0f766e; font-size: 12px; line-height: 1.55; font-weight: 850; }
+  .guide-coverage-grid span { color: #475569; font-size: 12px; line-height: 1.25; font-weight: 650; }
+  .guide-coverage-hint { margin: 0; color: #0f766e; font-size: 13px; line-height: 1.55; font-weight: 650; }
   .guide-camera-wrap { position: relative; background: #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 14px 34px rgba(15,23,42,.18); }
   .guide-camera-wrap.is-audio-only { min-height: 172px; display: grid; place-items: center; padding: 18px; background: linear-gradient(135deg, #0f172a, #164e63); }
   .guide-video { width: 100%; display: block; border-radius: 8px; height: min(68dvh, 640px); min-height: 420px; object-fit: cover; }
@@ -3578,7 +3600,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-audio-only-panel strong { color: #fff; font-size: 18px; font-weight: 950; line-height: 1.25; }
   .guide-audio-only-panel p { margin: 0; color: #bae6fd; font-size: 13px; line-height: 1.7; font-weight: 800; }
   .guide-status { position: absolute; top: 12px; left: 12px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; backdrop-filter: blur(6px); }
-  .guide-stop-btn { position: absolute; bottom: 12px; right: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(239,68,68,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
+  .guide-stop-btn { position: fixed; z-index: 70; left: 16px; right: 16px; bottom: 16px; min-height: 56px; padding: 12px 18px; border-radius: 999px; background: rgba(185,28,28,.96); color: #fff; font-size: 15px; font-weight: 850; border: none; cursor: pointer; box-shadow: 0 14px 34px rgba(127,29,29,.28); backdrop-filter: blur(6px); }
   .guide-record-btn { position: absolute; bottom: 12px; left: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(16,185,129,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
   .guide-permission-msg { padding: 16px; border-radius: 8px; background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #b91c1c; font-size: 13px; font-weight: 700; margin-bottom: 20px; }
   .guide-photo-fallback[hidden] { display: none; }
@@ -3591,13 +3613,14 @@ export const GUIDE_FLOW_STYLES = `
   .guide-session-summary h2 { margin: 0; color: #0f172a; font-size: 14px; font-weight: 950; line-height: 1.35; }
   .guide-session-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .guide-session-summary-grid div { min-width: 0; padding: 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); display: grid; gap: 2px; }
-  .guide-session-summary-grid strong { color: #059669; font-size: 22px; line-height: 1; font-weight: 950; }
-  .guide-session-summary-grid span { color: #475569; font-size: 11px; line-height: 1.35; font-weight: 850; }
-  .guide-session-summary p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 800; }
+  .guide-session-summary-grid strong { color: #059669; font-size: 20px; line-height: 1; font-weight: 850; }
+  .guide-session-summary-grid span { color: #475569; font-size: 12px; line-height: 1.35; font-weight: 650; }
+  .guide-session-summary p { margin: 0; color: #475569; font-size: 13px; line-height: 1.55; font-weight: 500; }
   .guide-session-insights { display: grid; gap: 8px; }
   .guide-session-insights div { display: grid; gap: 3px; padding: 10px 11px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
   .guide-session-insights span { color: #64748b; font-size: 11px; line-height: 1.25; font-weight: 950; }
-  .guide-session-insights strong { color: #0f172a; font-size: 12px; line-height: 1.55; font-weight: 850; }
+  .guide-session-insights strong { color: #0f172a; font-size: 13px; line-height: 1.55; font-weight: 700; }
+  .guide-session-insights .guide-session-primary strong { font-size: 16px; color: #065f46; }
   .guide-session-results-link { width: fit-content; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 999px; background: #0f172a; color: #fff; font-size: 12px; font-weight: 950; text-decoration: none; }
   .guide-discoveries { margin-top: 24px; }
   .guide-trail-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
@@ -3613,9 +3636,9 @@ export const GUIDE_FLOW_STYLES = `
   .gdi-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
   .gdi-icon { font-size: 18px; flex-shrink: 0; }
   .gdi-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .gdi-kicker { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 10px; color: #64748b; font-weight: 800; }
+  .gdi-kicker { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: #475569; font-weight: 650; }
   .gdi-bundle { display: inline-flex; align-items: center; min-height: 20px; padding: 0 7px; border-radius: 999px; background: rgba(5,150,105,.1); color: #047857; border: 1px solid rgba(5,150,105,.16); font-size: 10px; font-weight: 950; }
-  .gdi-autosave { width: fit-content; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; border-radius: 999px; padding: 4px 9px; font-size: 10.5px; font-weight: 900; line-height: 1.35; }
+  .gdi-autosave { width: fit-content; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 800; line-height: 1.35; }
   .gdi-autosave span { white-space: nowrap; }
   .gdi-autosave em { font-style: normal; font-weight: 800; opacity: .82; }
   .gdi-autosave.is-saved { background: rgba(16,185,129,.14); color: #047857; border: 1px solid rgba(16,185,129,.22); }
@@ -3623,15 +3646,16 @@ export const GUIDE_FLOW_STYLES = `
   .gdi-autosave.is-error { background: rgba(239,68,68,.12); color: #991b1b; border: 1px solid rgba(239,68,68,.2); }
   .gdi-autosave.is-pending { background: rgba(148,163,184,.14); color: #475569; border: 1px solid rgba(148,163,184,.22); }
   .gdi-retry { font-size: 12px; color: #0f766e; background: rgba(236,253,245,.9); border: 1px solid rgba(16,185,129,.18); border-radius: 7px; padding: 7px 8px; line-height: 1.45; font-weight: 850; }
-  .gdi-summary { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.5; }
-  .gdi-ai-models { font-size: 10px; line-height: 1.35; color: #047857; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  .gdi-summary { font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.5; }
   .gdi-species { font-size: 11px; color: #047857; font-weight: 700; }
-  .gdi-note { font-size: 12px; color: #b45309; background: rgba(245,158,11,.1); border-radius: 7px; padding: 7px 8px; line-height: 1.45; }
-  .gdi-why, .gdi-next { font-size: 12px; color: #475569; line-height: 1.55; }
+  .gdi-note { font-size: 13px; color: #b45309; background: rgba(245,158,11,.1); border-radius: 7px; padding: 7px 8px; line-height: 1.45; }
+  .gdi-why, .gdi-next { font-size: 13px; color: #475569; line-height: 1.55; }
   .gdi-next { color: #0f766e; font-weight: 700; }
-  .gdi-deferred { font-size: 11px; color: #047857; font-weight: 900; }
+  .gdi-details { display: grid; gap: 6px; color: #475569; font-size: 13px; line-height: 1.5; }
+  .gdi-details summary { cursor: pointer; width: fit-content; color: #0f766e; font-weight: 750; }
+  .gdi-details p { margin: 6px 0 0; }
   .gdi-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-  .gdi-actions button { border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer; min-height: 34px; }
+  .gdi-actions button { border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 750; cursor: pointer; min-height: 36px; }
   .gdi-actions .gdi-play { background: #0f172a; color: #fff; }
   .guide-audio { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
   .guide-audio-header { display: flex; flex-direction: column; gap: 6px; }
@@ -3654,9 +3678,8 @@ export const GUIDE_FLOW_STYLES = `
     .guide-audio-chain ol { grid-template-columns: 1fr; }
     .guide-start-sheet-backdrop { padding: 10px; }
     .guide-start-sheet { padding: 15px; }
-    .guide-recommended-card { grid-template-columns: 1fr; }
-    .guide-recommended-apply { width: 100%; }
     .guide-start-options { grid-template-columns: 1fr; }
+    .guide-mission-options { grid-template-columns: 1fr; }
     .guide-start-sheet-actions { flex-direction: column-reverse; }
     .guide-sheet-secondary, .guide-sheet-primary { width: 100%; }
     .guide-video { height: min(70dvh, 620px); min-height: 360px; }
