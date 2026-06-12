@@ -282,8 +282,13 @@ test("field program business page separates partner and participant audiences", 
     assert.match(response.body, /Guide Program/);
     assert.match(response.body, /Observation Event/);
     assert.match(response.body, /program_recap/);
+    assert.match(response.body, /企画マップと匿名recapを、1画面で確認する/);
+    assert.match(response.body, /来訪できるガイド地点だけを表示/);
+    assert.match(response.body, /成果として言えることだけを残す/);
+    assert.match(response.body, /k未満は抑制/);
     assert.match(response.body, /個人別行動履歴、正確な来訪経路、希少種位置は出しません/);
     assert.match(response.body, /\/ja\/guide-programs/);
+    assert.match(response.body, /\/ja\/guide-programs\/aikan-renri-guide-relay/);
   } finally {
     await app.close();
   }
