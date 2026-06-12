@@ -126,6 +126,22 @@
         "lead": "One topic per page: how to start observing, check names, and keep records useful later.",
         "activeNav": "learn",
         "bodyPageId": "learn-index"
+      },
+      "crew": {
+        "title": "IKIMON CREW | ikimon.life",
+        "eyebrow": "IKIMON CREW",
+        "heading": "Support the work behind nearby nature records.",
+        "lead": "IKIMON CREW is an annual support program for ikimon.life and IKIMON. The 10k / 30k / 50k JPY tiers are support-only. The 100k JPY tier can include website production and operation as a return gift.",
+        "activeNav": "community",
+        "bodyPageId": "crew"
+      },
+      "crewMembers": {
+        "title": "IKIMON CREW | ikimon.life",
+        "eyebrow": "CREW Introduction",
+        "heading": "Meet IKIMON CREW.",
+        "lead": "People, companies, and groups quietly supporting ikimon.life and its nearby nature records.",
+        "activeNav": "community",
+        "bodyPageId": "crew-members"
       }
     }
   },

@@ -693,6 +693,22 @@
         "activeNav": "learn",
         "bodyPageId": "contact"
       },
+      "crew": {
+        "title": "IKIMON CREW | ikimon.life",
+        "eyebrow": "IKIMON CREW",
+        "heading": "身近な自然記録を、続ける力に。",
+        "lead": "ikimon.life と IKIMON の活動を、年会費で支えてくれるCREWを募集しています。1万円・3万円・5万円は返礼なし。10万円は、必要な方にWEBサイト制作・運用の返礼を用意しています。",
+        "activeNav": "community",
+        "bodyPageId": "crew"
+      },
+      "crewMembers": {
+        "title": "IKIMON CREW紹介 | ikimon.life",
+        "eyebrow": "CREW紹介",
+        "heading": "IKIMON CREWを紹介します。",
+        "lead": "身近な自然記録のプラットフォーム「ikimon.life」を、静かに、力強く支えてくれる人、会社、団体のみなさまです。",
+        "activeNav": "community",
+        "bodyPageId": "crew-members"
+      },
       "community": {
         "title": "みんなで観察する | ikimon.life",
         "eyebrow": "みんなで調べる",
