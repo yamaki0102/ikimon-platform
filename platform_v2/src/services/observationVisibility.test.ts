@@ -21,3 +21,10 @@ test("owner delete casts jsonb_build_object parameters for postgres type inferen
   assert.match(source, /'owner_hidden_at',\s+\$2::text/);
   assert.match(source, /'owner_hidden_by',\s+\$3::text/);
 });
+
+test("observation upsert keeps an owner-hidden visit hidden on re-upsert", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "observationWrite.ts"), "utf8");
+  assert.match(source, /when visits\.public_visibility = 'hidden' then 'hidden'/);
+  assert.match(source, /when visits\.public_visibility = 'hidden' then visits\.quality_review_status/);
+  assert.match(source, /'owner_hidden_at', visits\.source_payload->>'owner_hidden_at'/);
+});
