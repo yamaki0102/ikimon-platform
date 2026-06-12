@@ -158,6 +158,8 @@ type LayoutHero = {
   actions?: Array<{ href: string; label: string; variant?: "primary" | "secondary" }>;
 };
 
+type LayoutHeroAction = NonNullable<LayoutHero["actions"]>[number];
+
 type PublicSharedCopy = {
   cta: {
     record: string;
@@ -9415,9 +9417,16 @@ const PROFILE_HUB_STYLES = `
   .profile-action-card h3 { margin: 0; font-size: 19px; line-height: 1.35; color: #0f172a; }
   .profile-action-card p { margin: 0; color: #64748b; line-height: 1.7; }
   .profile-intro-heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .profile-intro-empty { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 8px; border: 1px dashed rgba(15,23,42,.14); background: rgba(255,255,255,.72); }
+  .profile-intro-empty p { margin: 4px 0 0; color: #64748b; font-size: 13px; line-height: 1.65; font-weight: 720; }
   .profile-avatar { width: 58px; height: 58px; border-radius: 999px; overflow: hidden; display: grid; place-items: center; flex: 0 0 auto; background: #ecfdf5; color: #047857; border: 1px solid rgba(16,185,129,.18); font-size: 22px; font-weight: 950; }
   .profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .profile-intro-heading h2 { min-width: 0; overflow-wrap: anywhere; }
+  .profile-account-utilities { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.72); }
+  .profile-account-utilities p { margin: 4px 0 0; color: #64748b; font-size: 13px; line-height: 1.65; font-weight: 720; }
+  .profile-account-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .profile-account-links a { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #334155; font-size: 12px; line-height: 1.2; font-weight: 900; text-decoration: none; white-space: normal; }
+  .profile-account-links a.is-danger { border-color: rgba(185,28,28,.18); color: #991b1b; background: #fffafa; }
   .profile-life-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .profile-life-card { min-width: 0; display: grid; grid-template-rows: auto 1fr; min-height: 210px; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); }
   .profile-life-media { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #e2e8f0; }
@@ -9458,6 +9467,9 @@ const PROFILE_HUB_STYLES = `
     .profile-reading-main h3 { max-width: 100%; font-size: 27px; line-height: 1.18; }
     .profile-reading-actions .btn, .profile-hub-actions .btn, .profile-library-link { width: 100%; border-radius: 14px; }
     .profile-intro-heading { align-items: flex-start; gap: 12px; }
+    .profile-intro-empty, .profile-account-utilities { display: grid; }
+    .profile-account-links { justify-content: stretch; }
+    .profile-account-links a { width: 100%; border-radius: 14px; }
     .profile-settings-card { padding: 18px; border-radius: 8px; }
     .profile-settings-avatar { align-items: flex-start; }
   }
@@ -9508,9 +9520,21 @@ function renderProfileIntro(basePath: string, snapshot: ProfileSnapshot, editabl
   if (!snapshot.avatarUrl && !snapshot.profileBio && !snapshot.expertise && !editable) {
     return "";
   }
+  const hasProfileNotes = Boolean(snapshot.avatarUrl || snapshot.profileBio || snapshot.expertise);
   const editLink = editable
     ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/profile/settings"))}">編集する</a>`
     : "";
+  if (!hasProfileNotes) {
+    return `<section class="section" data-testid="profile-intro">
+      <div class="profile-intro-empty">
+        <div>
+          <div class="eyebrow">プロフィール</div>
+          <p>プロフィールメモは未設定です。</p>
+        </div>
+        ${editLink}
+      </div>
+    </section>`;
+  }
   const avatarFallback = (snapshot.displayName || "?").slice(0, 1);
   const avatar = snapshot.avatarUrl
     ? `<span class="profile-avatar"><img src="${escapeHtml(snapshot.avatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'profile-avatar',textContent:${JSON.stringify(avatarFallback)}}))" /></span>`
@@ -9808,13 +9832,42 @@ function renderProfileGrowth(snapshot: ProfileSnapshot, digest: ProfileNoteDiges
 }
 
 function renderProfilePlaceStories(stories: RegionalStoryCue[]): string {
-  if (stories.length === 0) return "";
+  const distinctStories = dedupeProfileRegionalStories(stories, 2);
+  if (distinctStories.length === 0) return "";
   return `<section class="section" data-testid="profile-place-stories">
     <div class="section-header"><div><div class="eyebrow">Place relationship</div><h2>自分と場所の関係史</h2></div></div>
     <div class="profile-place-story-list">
-      ${stories.slice(0, 3).map((story) => renderRegionalStoryPanel(story, "profile")).join("")}
+      ${distinctStories.map((story) => renderRegionalStoryPanel(story, "profile")).join("")}
     </div>
   </section>`;
+}
+
+function normalizeProfileStoryText(value: string | null | undefined): string {
+  return String(value ?? "").normalize("NFKC").replace(/\s+/gu, " ").trim().toLowerCase();
+}
+
+function profileRegionalStoryDedupKey(story: RegionalStoryCue): string {
+  const renderedStoryText = [
+    story.placeHook,
+    story.whyHere,
+    story.nextObservationAngle,
+    story.collectiveNote,
+  ].map(normalizeProfileStoryText).filter(Boolean).join("|");
+  return renderedStoryText || normalizeProfileStoryText(`${story.angleKey}|${story.usedCardIds.join(",")}`);
+}
+
+function dedupeProfileRegionalStories(stories: RegionalStoryCue[], maxCount: number): RegionalStoryCue[] {
+  const seen = new Set<string>();
+  const distinct: RegionalStoryCue[] = [];
+  for (const story of stories) {
+    // Profile story cards render the heading and body first, so dedupe on that text before showing several near-identical place prompts.
+    const key = profileRegionalStoryDedupKey(story);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    distinct.push(story);
+    if (distinct.length >= maxCount) break;
+  }
+  return distinct;
 }
 
 function renderProfileContribution(basePath: string, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
@@ -9883,7 +9936,22 @@ function renderProfileReferenceLibrary(basePath: string, summary: ReferenceProfi
   </section>`;
 }
 
-function renderSelfProfileHub(
+function renderProfileAccountUtilities(basePath: string): string {
+  return `<section class="section" data-testid="profile-account-utilities">
+    <div class="profile-account-utilities">
+      <div>
+        <div class="eyebrow">アカウント</div>
+        <p>表示名や自己紹介の調整、ログアウトはこちらから行えます。</p>
+      </div>
+      <div class="profile-account-links">
+        <a href="${escapeHtml(withBasePath(basePath, "/profile/settings"))}">プロフィール設定</a>
+        <a class="is-danger" href="${escapeHtml(withBasePath(basePath, "/logout"))}">ログアウト</a>
+      </div>
+    </div>
+  </section>`;
+}
+
+export function renderSelfProfileHub(
   basePath: string,
   lang: SiteLang,
   snapshot: ProfileSnapshot,
@@ -9900,7 +9968,16 @@ function renderSelfProfileHub(
     ${renderProfileHistory(snapshot)}
     ${renderProfileGrowth(snapshot, digest)}
     ${renderProfileSummary(snapshot)}
-    ${renderProfileContribution(basePath, snapshot, digest)}`;
+    ${renderProfileContribution(basePath, snapshot, digest)}
+    ${renderProfileAccountUtilities(basePath)}`;
+}
+
+export function profileHeroActions(): LayoutHeroAction[] {
+  return [
+    { href: "/records?view=mine", label: "記録一覧を見る" },
+    { href: "/records?view=places", label: "場所を見る", variant: "secondary" },
+    { href: "/guide/outcomes", label: "ガイド成果を見る", variant: "secondary" },
+  ];
 }
 
 function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot): string {
@@ -20061,14 +20138,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       maxCards: 1,
     }).catch(() => null)))).filter((story): story is RegionalStoryCue => Boolean(story));
-    const heroActions = [
-      { href: "/records?view=mine", label: "記録一覧を見る" },
-      { href: "/guide/outcomes", label: "ガイド成果を見る", variant: "secondary" as const },
-      { href: "/records?view=places", label: "場所を見る", variant: "secondary" as const },
-      { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
-      { href: "/logout", label: "ログアウト", variant: "secondary" as const },
-    ];
-
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
@@ -20080,7 +20149,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
         lead: "あなたのマイページ。記録一覧を起点に、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
-        actions: heroActions,
+        actions: profileHeroActions(),
       },
       PROFILE_HUB_STYLES,
       appendLangToHref(withBasePath(basePath, "/profile"), lang),
