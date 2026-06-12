@@ -13587,7 +13587,7 @@ const RECORDS_WORKBENCH_STYLES = `
 `;
 
 const MY_GUIDES_STYLES = `
-  .my-guides-page { display: grid; gap: 18px; width: min(1040px, calc(100vw - var(--ikimon-desktop-sidebar-w, 0px) - 28px)); margin: 0 auto; padding: 26px 0 54px; }
+  .my-guides-page { display: grid; gap: 18px; width: min(1040px, calc(100vw - var(--ikimon-desktop-sidebar-w, 0px) - 64px)); margin: 0 auto; padding: 26px 0 54px; }
   .my-guides-hero { display: grid; gap: 10px; padding: 18px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
   .my-guides-hero span { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .my-guides-hero h1 { margin: 0; color: #0f172a; font-size: clamp(24px, 4vw, 38px); line-height: 1.12; letter-spacing: 0; }
