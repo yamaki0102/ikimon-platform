@@ -762,6 +762,18 @@
           { "href": "/contact", "label": "受信設定を相談する" }
         ]
       },
+      "forBusinessFieldPrograms": {
+        "title": "地域フィールドプログラム | ikimon.life",
+        "eyebrow": "自治体・企業・DMO向け",
+        "heading": "地域の見どころを、参加と成果物につなげる",
+        "lead": "参加者向けのガイド体験とは分けて、自治体・企業・DMOが地域企画、観察会、匿名recapとして使う場合の考え方を説明します。",
+        "activeNav": "business",
+        "bodyPageId": "for-business-field-programs",
+        "afterActions": [
+          { "href": "/guide-programs", "label": "参加者向けページを見る" },
+          { "href": "/contact", "label": "導入を相談する" }
+        ]
+      },
       "forBusinessDemo": {
         "title": "団体向け画面デモ | ikimon.life",
         "eyebrow": "企業・地域で活用",

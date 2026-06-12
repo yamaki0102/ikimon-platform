@@ -262,8 +262,28 @@ test("for business page links to invasive reporting partnership", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/for-business?lang=ja" });
     assert.equal(response.statusCode, 200);
+    assert.match(response.body, /地域フィールドプログラム/);
+    assert.match(response.body, /\/ja\/for-business\/field-programs/);
     assert.match(response.body, /外来種候補の自動情報提供/);
     assert.match(response.body, /\/ja\/for-business\/invasive-reporting/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("field program business page separates partner and participant audiences", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/for-business/field-programs?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /自治体・企業・DMO向け/);
+    assert.match(response.body, /地域の見どころを、参加と成果物につなげる/);
+    assert.match(response.body, /参加者向けのページは/);
+    assert.match(response.body, /Guide Program/);
+    assert.match(response.body, /Observation Event/);
+    assert.match(response.body, /program_recap/);
+    assert.match(response.body, /個人別行動履歴、正確な来訪経路、希少種位置は出しません/);
+    assert.match(response.body, /\/ja\/guide-programs/);
   } finally {
     await app.close();
   }

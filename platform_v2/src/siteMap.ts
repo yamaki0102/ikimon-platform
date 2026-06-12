@@ -945,6 +945,21 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     marketing: { pageKey: "forBusinessInvasiveReporting" },
   },
   {
+    path: "/for-business/field-programs",
+    lane: "business",
+    layout: "reading",
+    audience: "business",
+    auth: "public",
+    navVisibility: ["footer", "qa", "xml"],
+    title: { ja: "地域フィールドプログラム", en: "Field programs" },
+    summary: {
+      ja: "自治体・企業・DMO向けに、常設ガイド、観察会、匿名recapを分けて説明する。",
+      en: "Explain guide programs, observation events, and anonymous recap for partners.",
+    },
+    marketing: { pageKey: "forBusinessFieldPrograms" },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "地域の見どころを、参加と成果物につなげる" }, readySelector: "body", screenshot: { baselineName: "registry-for-business-field-programs" } },
+  },
+  {
     path: "/for-business/demo",
     lane: "business",
     layout: "wide",
