@@ -809,9 +809,23 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           observed_municipality = excluded.observed_municipality,
           locality_note = excluded.locality_note,
           note = excluded.note,
-          source_payload = excluded.source_payload,
-          public_visibility = excluded.public_visibility,
-          quality_review_status = excluded.quality_review_status,
+          source_payload = case
+            when visits.public_visibility = 'hidden'
+              then excluded.source_payload || jsonb_strip_nulls(jsonb_build_object(
+                'owner_hidden_at', visits.source_payload->>'owner_hidden_at',
+                'owner_hidden_by', visits.source_payload->>'owner_hidden_by',
+                'owner_hidden_reason', visits.source_payload->>'owner_hidden_reason'
+              ))
+            else excluded.source_payload
+          end,
+          public_visibility = case
+            when visits.public_visibility = 'hidden' then 'hidden'
+            else excluded.public_visibility
+          end,
+          quality_review_status = case
+            when visits.public_visibility = 'hidden' then visits.quality_review_status
+            else excluded.quality_review_status
+          end,
           quality_gate_reasons = excluded.quality_gate_reasons,
           updated_at = now()`,
       [
