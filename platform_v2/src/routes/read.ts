@@ -13624,18 +13624,27 @@ const MY_GUIDES_STYLES = `
   .guide-program-spot strong { display: block; color: #0f172a; font-size: 14px; line-height: 1.35; }
   .guide-program-spot p { margin: 3px 0 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 700; }
   .guide-program-next { padding: 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.20); color: #064e3b; font-weight: 800; line-height: 1.65; }
-  .guide-program-map { position: relative; min-height: 280px; overflow: hidden; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: linear-gradient(145deg,#ecfeff,#f8fafc 54%,#ecfdf5); box-shadow: 0 12px 30px rgba(15,23,42,.05); }
-  .guide-program-map::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(0deg, rgba(15,23,42,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.045) 1px, transparent 1px); background-size: 34px 34px; }
-  .guide-program-map::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 26% 28%, rgba(20,184,166,.18), transparent 32%), radial-gradient(circle at 74% 70%, rgba(14,165,233,.17), transparent 36%); }
-  .guide-program-map-head { position: absolute; left: 14px; top: 14px; right: 14px; z-index: 2; display: flex; justify-content: space-between; gap: 10px; align-items: start; pointer-events: none; }
+  .guide-program-map { position: relative; min-height: 330px; overflow: hidden; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #dff4f0; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+  .guide-program-map-canvas,
+  .guide-program-map-fallback { position: absolute; inset: 0; }
+  .guide-program-map-canvas { z-index: 1; }
+  .guide-program-map-fallback { z-index: 0; background: linear-gradient(145deg,#ecfeff,#f8fafc 54%,#ecfdf5); overflow: hidden; }
+  .guide-program-map-fallback::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(0deg, rgba(15,23,42,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.045) 1px, transparent 1px); background-size: 34px 34px; }
+  .guide-program-map-fallback::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 26% 28%, rgba(20,184,166,.18), transparent 32%), radial-gradient(circle at 74% 70%, rgba(14,165,233,.17), transparent 36%); }
+  .guide-program-map.is-map-ready .guide-program-map-fallback { display: none; }
+  .guide-program-map-head { position: absolute; left: 14px; top: 14px; right: 14px; z-index: 3; display: flex; justify-content: space-between; gap: 10px; align-items: start; pointer-events: none; }
   .guide-program-map-head strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
   .guide-program-map-head span { display: block; margin-top: 2px; color: #475569; font-size: 11px; font-weight: 800; }
-  .guide-program-map-head a { pointer-events: auto; flex: 0 0 auto; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; border-radius: 8px; background: rgba(15,23,42,.88); color: #fff; font-size: 11px; font-weight: 900; text-decoration: none; }
-  .guide-program-map-pin { position: absolute; z-index: 3; left: var(--pin-x); top: var(--pin-y); transform: translate(-50%, -50%); display: grid; gap: 5px; justify-items: center; max-width: 190px; text-decoration: none; color: #0f172a; }
+  .guide-program-map-head > div { padding: 9px 11px; border-radius: 8px; background: rgba(255,255,255,.88); box-shadow: 0 10px 22px rgba(15,23,42,.08); backdrop-filter: blur(8px); }
+  .guide-program-map-head a { pointer-events: auto; flex: 0 0 auto; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 11px; border-radius: 8px; background: rgba(15,23,42,.88); color: #fff; font-size: 11px; font-weight: 900; text-decoration: none; box-shadow: 0 10px 22px rgba(15,23,42,.18); }
+  .guide-program-map-pin { position: absolute; z-index: 1; left: var(--pin-x); top: var(--pin-y); transform: translate(-50%, -50%); display: grid; gap: 5px; justify-items: center; max-width: 190px; text-decoration: none; color: #0f172a; }
   .guide-program-map-pin i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: #0f766e; color: #fff; font-style: normal; font-size: 12px; font-weight: 950; box-shadow: 0 12px 24px rgba(15,118,110,.28); border: 2px solid #fff; }
   .guide-program-map-pin span { display: block; max-width: 190px; padding: 6px 9px; border-radius: 8px; background: rgba(255,255,255,.94); box-shadow: 0 10px 22px rgba(15,23,42,.10); font-size: 11px; font-weight: 900; line-height: 1.35; text-align: center; }
   .guide-program-map-pin[data-unlocked="true"] i { background: #047857; }
-  .guide-program-map-note { position: absolute; left: 14px; bottom: 14px; z-index: 2; max-width: min(520px, calc(100% - 28px)); padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.9); color: #475569; font-size: 11px; font-weight: 820; line-height: 1.45; }
+  .guide-program-map-marker { width: 32px; height: 32px; border-radius: 999px; border: 2px solid #fff; background: #0f766e; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 950; box-shadow: 0 12px 24px rgba(15,118,110,.30); cursor: pointer; }
+  .guide-program-map-marker[data-unlocked="true"] { background: #047857; }
+  .guide-program-map-popup { margin: 0; color: #0f172a; font-size: 12px; line-height: 1.45; font-weight: 800; }
+  .guide-program-map-note { position: absolute; left: 14px; bottom: 14px; z-index: 3; max-width: min(520px, calc(100% - 28px)); padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.9); color: #475569; font-size: 11px; font-weight: 820; line-height: 1.45; box-shadow: 0 10px 22px rgba(15,23,42,.08); backdrop-filter: blur(8px); }
   .guide-program-audience-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #475569; font-size: 12.5px; line-height: 1.6; font-weight: 760; }
   .guide-program-audience-note strong { color: #0f172a; }
   .guide-program-audience-note a { flex: 0 0 auto; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.10); color: #0f172a; font-size: 12px; font-weight: 900; text-decoration: none; }
@@ -13643,7 +13652,7 @@ const MY_GUIDES_STYLES = `
     .my-guides-page { width: min(100% - 20px, 1040px); padding-top: 12px; }
     .my-guides-hero h1 { font-size: 25px; }
     .my-guides-grid { grid-template-columns: 1fr; }
-    .guide-program-map { min-height: 250px; }
+    .guide-program-map { min-height: 300px; }
     .guide-program-map-head { display: flex; }
     .guide-program-map-pin span { max-width: 150px; }
     .guide-program-map-note { top: 64px; right: 14px; bottom: auto; max-width: none; }
@@ -13773,10 +13782,21 @@ function projectProgramSpots(spots: GuideProgramPublicSpot[]): Array<GuideProgra
 }
 
 function renderGuideProgramMap(basePath: string, program: GuideProgramPublicDetail): string {
-  const spots = projectProgramSpots(program.spots);
-  if (!spots.length) return "";
+  const validSpots = program.spots.filter((spot) => Number.isFinite(spot.displayLat) && Number.isFinite(spot.displayLng));
+  const fallbackSpots = projectProgramSpots(program.spots);
+  if (!validSpots.length) return "";
   const mapHref = guideProgramMapHref(basePath, program);
-  const pins = spots.map((spot, index) => `<a class="guide-program-map-pin"
+  const payload = {
+    mapHref,
+    spots: validSpots.map((spot, index) => ({
+      title: spot.title,
+      lat: spot.displayLat,
+      lng: spot.displayLng,
+      unlocked: spot.unlocked,
+      markerLabel: spot.unlocked ? "済" : String(index + 1),
+    })),
+  };
+  const fallbackPins = fallbackSpots.map((spot, index) => `<a class="guide-program-map-pin"
       href="${escapeHtml(mapHref)}"
       data-unlocked="${spot.unlocked ? "true" : "false"}"
       style="--pin-x:${spot.xPct.toFixed(2)}%;--pin-y:${spot.yPct.toFixed(2)}%;"
@@ -13785,16 +13805,144 @@ function renderGuideProgramMap(basePath: string, program: GuideProgramPublicDeta
       <span>${escapeHtml(spot.title)}</span>
     </a>`).join("");
   return `<section class="guide-program-map" aria-label="ガイドスポットの来訪地点">
+    <div class="guide-program-map-canvas" data-guide-program-map="${escapeHtml(scriptJson(payload))}"></div>
+    <div class="guide-program-map-fallback" aria-hidden="true">${fallbackPins}</div>
     <div class="guide-program-map-head">
       <div>
         <strong>ガイドの来訪地点</strong>
-        <span>${escapeHtml(program.spots.length === 1 ? "来訪できる地点を表示しています" : "企画内のガイドスポットを表示しています")}</span>
+        <span>${escapeHtml(program.spots.length === 1 ? "実際の地図上に来訪地点を表示しています" : "企画内のガイドスポットを実際の地図上に表示しています")}</span>
       </div>
       <a href="${escapeHtml(mapHref)}">大きいマップ</a>
     </div>
-    ${pins}
     <div class="guide-program-map-note">表示は来訪承諾または公開情報で案内できるガイド地点です。あなたの記録位置や解放地点は公開しません。</div>
   </section>`;
+}
+
+function guideProgramMapBootScript(): string {
+  return `<script>
+(() => {
+  const targets = Array.from(document.querySelectorAll('[data-guide-program-map]'));
+  if (!targets.length) return;
+
+  const MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
+  const MAPLIBRE_JS_SRI = 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj';
+  const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+
+  function ensureStyle() {
+    if (document.querySelector('link[data-maplibre="1"]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = MAPLIBRE_CSS;
+    link.integrity = MAPLIBRE_CSS_SRI;
+    link.crossOrigin = 'anonymous';
+    link.referrerPolicy = 'no-referrer';
+    link.setAttribute('data-maplibre', '1');
+    document.head.appendChild(link);
+  }
+
+  function parsePayload(el) {
+    try {
+      const payload = JSON.parse(el.getAttribute('data-guide-program-map') || '{}');
+      if (!payload || !Array.isArray(payload.spots)) return null;
+      const spots = payload.spots
+        .map((spot) => ({
+          title: String(spot.title || 'ガイド地点'),
+          lat: Number(spot.lat),
+          lng: Number(spot.lng),
+          unlocked: Boolean(spot.unlocked),
+          markerLabel: String(spot.markerLabel || ''),
+        }))
+        .filter((spot) => Number.isFinite(spot.lat) && Number.isFinite(spot.lng));
+      if (!spots.length) return null;
+      return { mapHref: String(payload.mapHref || '/map'), spots };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function hydrateTarget(el) {
+    if (!window.maplibregl || el.getAttribute('data-map-ready') === 'true') return;
+    const payload = parsePayload(el);
+    if (!payload) return;
+    const shell = el.closest('.guide-program-map');
+    const map = new window.maplibregl.Map({
+      container: el,
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors',
+          },
+        },
+        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+      },
+      center: [payload.spots[0].lng, payload.spots[0].lat],
+      zoom: payload.spots.length === 1 ? 15 : 13,
+      attributionControl: true,
+      interactive: true,
+    });
+    map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    map.on('load', () => {
+      const bounds = new window.maplibregl.LngLatBounds();
+      payload.spots.forEach((spot, index) => {
+        bounds.extend([spot.lng, spot.lat]);
+        const markerEl = document.createElement('button');
+        markerEl.type = 'button';
+        markerEl.className = 'guide-program-map-marker';
+        markerEl.textContent = spot.markerLabel || String(index + 1);
+        markerEl.setAttribute('aria-label', spot.title + ' の来訪地点');
+        markerEl.setAttribute('data-unlocked', spot.unlocked ? 'true' : 'false');
+        markerEl.addEventListener('click', () => {
+          window.location.href = payload.mapHref;
+        });
+        new window.maplibregl.Marker({ element: markerEl, anchor: 'center' })
+          .setLngLat([spot.lng, spot.lat])
+          .setPopup(new window.maplibregl.Popup({ offset: 18 }).setHTML('<p class="guide-program-map-popup">' + spot.title.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] || ch)) + '</p>'))
+          .addTo(map);
+      });
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, { padding: { top: 88, right: 56, bottom: 68, left: 56 }, maxZoom: 15.5, duration: 0 });
+      }
+      el.setAttribute('data-map-ready', 'true');
+      if (shell) shell.classList.add('is-map-ready');
+      map.resize();
+    });
+    map.on('error', () => {
+      if (shell) shell.classList.add('is-map-error');
+    });
+  }
+
+  function hydrateAll() {
+    targets.forEach(hydrateTarget);
+  }
+
+  ensureStyle();
+  if (window.maplibregl) {
+    hydrateAll();
+    return;
+  }
+  if (document.querySelector('script[data-guide-program-maplibre="1"]')) return;
+  const script = document.createElement('script');
+  script.src = MAPLIBRE_JS;
+  script.integrity = MAPLIBRE_JS_SRI;
+  script.crossOrigin = 'anonymous';
+  script.referrerPolicy = 'no-referrer';
+  script.defer = true;
+  script.setAttribute('data-guide-program-maplibre', '1');
+  script.onload = hydrateAll;
+  script.onerror = () => {
+    targets.forEach((el) => {
+      const shell = el.closest('.guide-program-map');
+      if (shell) shell.classList.add('is-map-error');
+    });
+  };
+  document.head.appendChild(script);
+})();
+</script>`;
 }
 
 function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail, canManage = false): string {
@@ -21208,7 +21356,7 @@ ${mapExplorerBootScript({ basePath, lang })}`,
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, `/guide-programs/${program.slug}`), lang),
       extraStyles: MY_GUIDES_STYLES,
-      body: renderProgramDetail(basePath, program, canManage),
+      body: `${renderProgramDetail(basePath, program, canManage)}${guideProgramMapBootScript()}`,
       footerNote: "進捗は本人用です。正確な記録位置は公開しません。",
     });
   });
