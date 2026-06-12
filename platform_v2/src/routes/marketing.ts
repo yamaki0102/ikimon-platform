@@ -683,6 +683,33 @@ const LOWER_PAGE_STYLES = `
   .doc-toc-l3 { padding-left: 14px; font-size: 12px; color: #64748b; }
   .doc-link-strip { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 14px; margin-top: 16px; }
   .doc-link-strip .link-arrow { color: #047857; font-size: 14px; font-weight: 900; text-decoration: underline; text-underline-offset: 4px; }
+  .field-program-demo { display: grid; gap: 18px; max-width: 1040px; margin: 0 auto 18px; padding: 20px 0 28px; border-bottom: 1px solid rgba(15,23,42,.08); }
+  .field-program-demo-head { display: grid; gap: 8px; max-width: 760px; }
+  .field-program-demo-head span { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .field-program-demo-head h2 { margin: 0; color: #0f172a; font-size: clamp(24px, 3.4vw, 34px); line-height: 1.25; letter-spacing: 0; }
+  .field-program-demo-head p { margin: 0; color: #475569; font-size: 15px; line-height: 1.8; font-weight: 720; }
+  .field-program-demo-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(300px, .88fr); gap: 14px; align-items: stretch; }
+  .field-program-demo-map { position: relative; min-height: 320px; overflow: hidden; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #eef8f6; }
+  .field-program-demo-map::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(0deg, rgba(15,23,42,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.05) 1px, transparent 1px); background-size: 34px 34px; }
+  .field-program-demo-map::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, rgba(14,165,233,.12), transparent 34%), linear-gradient(30deg, transparent 58%, rgba(16,185,129,.14)); }
+  .field-program-demo-map-label { position: absolute; left: 14px; top: 14px; z-index: 2; display: grid; gap: 3px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.9); box-shadow: 0 10px 22px rgba(15,23,42,.08); }
+  .field-program-demo-map-label strong { color: #0f172a; font-size: 13px; line-height: 1.35; }
+  .field-program-demo-map-label span { color: #64748b; font-size: 11px; font-weight: 850; }
+  .field-program-demo-point { position: absolute; z-index: 2; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: grid; gap: 5px; justify-items: center; }
+  .field-program-demo-point b { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: #0f766e; color: #fff; border: 2px solid #fff; box-shadow: 0 12px 24px rgba(15,118,110,.26); font-size: 12px; }
+  .field-program-demo-point span { max-width: 150px; padding: 5px 8px; border-radius: 8px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 11px; line-height: 1.35; font-weight: 900; text-align: center; box-shadow: 0 10px 20px rgba(15,23,42,.08); }
+  .field-program-demo-recap { display: grid; gap: 12px; padding: 16px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+  .field-program-demo-recap header { display: grid; gap: 4px; padding-bottom: 10px; border-bottom: 1px solid rgba(15,23,42,.08); }
+  .field-program-demo-recap header span { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .field-program-demo-recap header strong { color: #0f172a; font-size: 16px; line-height: 1.35; }
+  .field-program-demo-recap dl { display: grid; gap: 8px; margin: 0; }
+  .field-program-demo-recap div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid rgba(15,23,42,.06); }
+  .field-program-demo-recap dt { color: #475569; font-size: 12px; line-height: 1.5; font-weight: 820; }
+  .field-program-demo-recap dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 950; }
+  .field-program-demo-note { margin: 0; padding: 10px 12px; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 760; }
+  .field-program-demo-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .field-program-demo-actions a { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 8px; background: #0f172a; color: #fff; font-size: 12px; font-weight: 900; text-decoration: none; }
+  .field-program-demo-actions a + a { background: #fff; color: #0f172a; border: 1px solid rgba(15,23,42,.12); }
   .route-gateway { max-width: 760px; margin: 6px auto 0; border-top: 1px solid rgba(15,23,42,.08); padding-top: 24px; }
   .route-gateway .section-header p { max-width: 620px; }
   .route-gateway-grid { display: grid; gap: 10px; }
@@ -717,6 +744,11 @@ const LOWER_PAGE_STYLES = `
     .doc-toc { grid-template-columns: 1fr; }
     .route-gateway-card { grid-template-columns: 1fr; }
     .route-gateway-card span:last-child { grid-column: 1; grid-row: auto; }
+    .field-program-demo { padding-top: 8px; }
+    .field-program-demo-grid { grid-template-columns: 1fr; }
+    .field-program-demo-map { min-height: 300px; }
+    .field-program-demo-map-label { right: 14px; }
+    .field-program-demo-point span { max-width: 124px; }
     .learn-wiki { gap: 26px; }
     .learn-wiki-list { grid-template-columns: 1fr; gap: 0; }
     .learn-wiki-term-cloud { column-count: 1; }
@@ -1215,6 +1247,48 @@ function renderGatewayGrid(basePath: string, lang: SiteLang, meta: MarketingPage
   </section>`;
 }
 
+function renderFieldProgramBusinessDemo(basePath: string, lang: SiteLang): string {
+  const participantHref = appendLangToHref(withBasePath(basePath, "/guide-programs/aikan-renri-guide-relay"), lang);
+  const pricingHref = appendLangToHref(withBasePath(basePath, "/for-business/pricing"), lang);
+  const contactHref = appendLangToHref(withBasePath(basePath, "/contact"), lang);
+  return `<section class="field-program-demo" aria-label="企画マップと匿名recapデモ">
+    <div class="field-program-demo-head">
+      <span>導入前デモ</span>
+      <h2>企画マップと匿名recapを、1画面で確認する</h2>
+      <p>主催者は、参加者に見せる地点、守る位置情報、終了後に言える成果を先に確認できます。参加者向けの体験と、団体向けの振り返り資料を同じ企画から分けて扱います。</p>
+    </div>
+    <div class="field-program-demo-grid">
+      <div class="field-program-demo-map" aria-label="企画マップサンプル">
+        <div class="field-program-demo-map-label">
+          <strong>企画マップ</strong>
+          <span>来訪できるガイド地点だけを表示</span>
+        </div>
+        <div class="field-program-demo-point" style="--x:24%;--y:30%"><b>1</b><span>入口の見どころ</span></div>
+        <div class="field-program-demo-point" style="--x:54%;--y:56%"><b>2</b><span>観察の起点</span></div>
+        <div class="field-program-demo-point" style="--x:76%;--y:38%"><b>3</b><span>次回へつなぐ場所</span></div>
+      </div>
+      <aside class="field-program-demo-recap" aria-label="匿名recapサンプル">
+        <header>
+          <span>匿名recap</span>
+          <strong>成果として言えることだけを残す</strong>
+        </header>
+        <dl>
+          <div><dt>ガイド解放</dt><dd>12件</dd></div>
+          <div><dt>参加者数</dt><dd>10名台</dd></div>
+          <div><dt>再生率</dt><dd>building</dd></div>
+          <div><dt>小人数内訳</dt><dd>k未満は抑制</dd></div>
+        </dl>
+        <p class="field-program-demo-note">個人別行動履歴、正確な来訪経路、希少種位置は出しません。次回企画、観察会、案内文の改善に使える粒度で返します。</p>
+      </aside>
+    </div>
+    <div class="field-program-demo-actions">
+      <a href="${escapeHtml(participantHref)}">参加者側の画面を見る</a>
+      <a href="${escapeHtml(pricingHref)}">導入単位を見る</a>
+      <a href="${escapeHtml(contactHref)}">相談する</a>
+    </div>
+  </section>`;
+}
+
 function renderPageDocument(basePath: string, lang: SiteLang, currentPath: string, page: SitePageDefinition, prependHtml = ""): string {
   const pageKey = page.marketing?.pageKey;
   if (!pageKey) {
@@ -1246,6 +1320,9 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
         align: "center" as const,
         afterActionsHtml: renderAfterActions(basePath, lang, meta.afterActions),
       };
+  const fieldProgramDemoHtml = pageKey === "forBusinessFieldPrograms"
+    ? renderFieldProgramBusinessDemo(basePath, lang)
+    : "";
   return renderSiteDocument({
     basePath,
     title: meta.title,
@@ -1261,6 +1338,7 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
     hero: heroConfig,
     body: `<div class="lower-page is-article${isLearnIndexHub ? " is-learn-hub" : ""}">
       ${prependHtml}
+      ${fieldProgramDemoHtml}
       <div class="doc-reading-layout">
         <section class="section doc-article">
           ${plainLearnReader ? renderDocHeader(basePath, lang, meta) : ""}

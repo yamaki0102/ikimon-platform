@@ -13617,6 +13617,13 @@ const MY_GUIDES_STYLES = `
   .guide-program-progress-row { display: flex; justify-content: space-between; gap: 10px; color: #334155; font-size: 12px; font-weight: 900; }
   .guide-program-progress-track { height: 9px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
   .guide-program-progress-track span { display: block; height: 100%; background: #0f766e; border-radius: inherit; }
+  .guide-program-action-deck { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .guide-program-action-link { min-width: 0; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #0f172a; text-decoration: none; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+  .guide-program-action-link b { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 12px; font-weight: 950; }
+  .guide-program-action-link strong { display: block; color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; }
+  .guide-program-action-link span { display: block; margin-top: 3px; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 760; }
+  .guide-program-action-link[data-primary="true"] { background: #ecfdf5; border-color: rgba(16,185,129,.22); }
+  .guide-program-action-link[data-primary="true"] b { background: #047857; color: #fff; }
   .guide-program-spot-list { display: grid; gap: 9px; }
   .guide-program-spot { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
   .guide-program-spot b { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 12px; }
@@ -13652,6 +13659,7 @@ const MY_GUIDES_STYLES = `
     .my-guides-page { width: min(100% - 20px, 1040px); padding-top: 12px; }
     .my-guides-hero h1 { font-size: 25px; }
     .my-guides-grid { grid-template-columns: 1fr; }
+    .guide-program-action-deck { grid-template-columns: 1fr; }
     .guide-program-map { min-height: 300px; }
     .guide-program-map-head { display: flex; }
     .guide-program-map-pin span { max-width: 150px; }
@@ -13717,6 +13725,33 @@ function renderProgramProgress(program: GuideProgramPublicDetail): string {
     </div>
     <div class="guide-program-progress-track" aria-hidden="true"><span style="width:${Math.max(0, Math.min(100, progress.percent))}%"></span></div>
   </div>`;
+}
+
+function renderProgramActionDeck(basePath: string, program: GuideProgramPublicDetail): string {
+  const mapHref = guideProgramMapHref(basePath, program);
+  return `<section class="guide-program-action-deck" aria-label="参加者の次の行動">
+    <a class="guide-program-action-link" data-primary="true" href="${escapeHtml(withBasePath(basePath, "/record"))}">
+      <b>1</b>
+      <div>
+        <strong>近くで記録する</strong>
+        <span>この企画の地点に近い観察記録を残すと、本人用ガイドが開きます。</span>
+      </div>
+    </a>
+    <a class="guide-program-action-link" href="${escapeHtml(mapHref)}">
+      <b>2</b>
+      <div>
+        <strong>地点を地図で確認</strong>
+        <span>来訪できるガイド地点を地図で見て、次に歩く場所を決めます。</span>
+      </div>
+    </a>
+    <a class="guide-program-action-link" href="${escapeHtml(withBasePath(basePath, "/my-guides"))}">
+      <b>3</b>
+      <div>
+        <strong>あとからMy Guide</strong>
+        <span>解放したガイドは公開投稿にせず、本人用に保存して見返せます。</span>
+      </div>
+    </a>
+  </section>`;
 }
 
 function renderProgramCard(basePath: string, program: GuideProgramPublicDetail): string {
@@ -13971,6 +14006,7 @@ function renderProgramDetail(basePath: string, program: GuideProgramPublicDetail
         <span>公開投稿不要</span>
       </div>
     </section>
+    ${renderProgramActionDeck(basePath, program)}
     ${next}
     ${renderGuideProgramMap(basePath, program)}
     <section class="guide-program-spot-list">${program.spots.map(renderProgramSpot).join("")}</section>

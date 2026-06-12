@@ -132,6 +132,10 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /\/for-business\/field-programs/);
   assert.match(source, /getPublishedGuideProgramDetail\(request\.params\.slug, session\?\.userId \?\? null\)/);
   assert.match(source, /guide-program-progress/);
+  assert.match(source, /renderProgramActionDeck/);
+  assert.match(source, /参加者の次の行動/);
+  assert.match(source, /地点を地図で確認/);
+  assert.match(source, /あとからMy Guide/);
   assert.match(source, /renderGuideProgramMap/);
   assert.match(source, /data-guide-program-map/);
   assert.match(source, /guideProgramMapBootScript/);
