@@ -387,7 +387,7 @@ export const OBSERVATION_EVENT_STYLES = `
 
 .evt-live-actions {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   padding: 8px 8px 12px;
   background: var(--evt-surface);
@@ -407,6 +407,12 @@ export const OBSERVATION_EVENT_STYLES = `
   transition: transform var(--evt-motion-fast), box-shadow var(--evt-motion-fast), background var(--evt-motion-fast);
   -webkit-tap-highlight-color: transparent;
 }
+.evt-live-action-btn:first-child {
+  grid-column: 1 / -1;
+  min-height: 56px;
+  flex-direction: row;
+  font-size: 15px;
+}
 .evt-live-action-btn:active { transform: scale(.96); }
 .evt-live-action-btn .evt-live-action-icon { font-size: 22px; line-height: 1; }
 .evt-live-action-btn[data-mood="record"]   { background: linear-gradient(135deg, #10b981, #0ea5e9); color: #fff; border-color: transparent; box-shadow: 0 12px 28px var(--evt-glow-effort); }
@@ -414,6 +420,101 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-live-action-btn[data-mood="absent"]   { background: rgba(15,23,42,.04); color: #1f2937; }
 .evt-live-action-btn[data-mood="role"]     { background: rgba(236,72,153,.08); border-color: rgba(236,72,153,.32); color: #9d174d; }
 .evt-live-action-btn:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+
+/* === 観察ラリー（参加者） === */
+.evt-rally-shell {
+  padding-bottom: 116px;
+}
+.evt-rally-hero {
+  display: grid;
+  gap: 14px;
+}
+.evt-rally-hero-main {
+  display: grid;
+  gap: 8px;
+}
+.evt-rally-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.evt-rally-consent {
+  display: grid;
+  gap: 6px;
+  max-width: 720px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.12);
+  color: rgba(236,253,245,.92);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.evt-rally-consent strong {
+  color: #ffffff;
+  font-weight: 900;
+}
+.evt-rally-consent span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.evt-rally-action-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 8px 12px;
+  margin-inline: -10px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid var(--evt-line);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -12px 30px rgba(15,23,42,.10);
+  backdrop-filter: blur(10px);
+}
+.evt-rally-action-btn {
+  min-width: 0;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 8px;
+  border: 1px solid var(--evt-line);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--evt-ink);
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.evt-rally-action-btn.is-primary {
+  grid-column: 1 / -1;
+  min-height: 56px;
+  flex-direction: row;
+  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 12px 28px var(--evt-glow-effort);
+  font-size: 15px;
+}
+.evt-rally-action-icon {
+  font-size: 21px;
+  line-height: 1;
+}
+.evt-rally-action-btn:active {
+  transform: scale(.97);
+}
+.evt-rally-action-btn:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
 
 .evt-solo-loop-grid {
   display: grid;
@@ -847,13 +948,22 @@ export const OBSERVATION_EVENT_STYLES = `
     grid-template-rows: minmax(240px, 48%) minmax(130px, 26%) auto;
   }
   .evt-live-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   }
   .evt-live-action-btn {
     min-height: 58px;
+    padding: 8px 4px;
     border-radius: 14px;
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .evt-live-action-btn:first-child {
+    min-height: 54px;
+    font-size: 14px;
+  }
+  .evt-live-action-btn .evt-live-action-icon {
+    font-size: 20px;
   }
   .evt-solo-loop-grid { grid-template-columns: 1fr; }
   .evt-area-head { grid-template-columns: 1fr; }
