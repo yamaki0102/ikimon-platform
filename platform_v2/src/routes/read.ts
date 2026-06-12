@@ -13635,7 +13635,7 @@ const MY_GUIDES_STYLES = `
   .guide-program-map-canvas,
   .guide-program-map-fallback { position: absolute; inset: 0; }
   .guide-program-map-canvas { z-index: 1; }
-  .guide-program-map-fallback { z-index: 0; background: linear-gradient(145deg,#ecfeff,#f8fafc 54%,#ecfdf5); overflow: hidden; }
+  .guide-program-map-fallback { z-index: 2; background: linear-gradient(145deg,#ecfeff,#f8fafc 54%,#ecfdf5); overflow: hidden; }
   .guide-program-map-fallback::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(0deg, rgba(15,23,42,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.045) 1px, transparent 1px); background-size: 34px 34px; }
   .guide-program-map-fallback::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 26% 28%, rgba(20,184,166,.18), transparent 32%), radial-gradient(circle at 74% 70%, rgba(14,165,233,.17), transparent 36%); }
   .guide-program-map.is-map-ready .guide-program-map-fallback { display: none; }
@@ -13901,19 +13901,24 @@ function guideProgramMapBootScript(): string {
     const payload = parsePayload(el);
     if (!payload) return;
     const shell = el.closest('.guide-program-map');
+    const revealMap = () => {
+      el.setAttribute('data-map-ready', 'true');
+      if (shell) shell.classList.add('is-map-ready');
+      map.resize();
+    };
     const map = new window.maplibregl.Map({
       container: el,
       style: {
         version: 8,
         sources: {
-          osm: {
+          gsi_std: {
             type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
             tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
+            attribution: '地理院タイル',
           },
         },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+        layers: [{ id: 'gsi-std', type: 'raster', source: 'gsi_std' }],
       },
       center: [payload.spots[0].lng, payload.spots[0].lat],
       zoom: payload.spots.length === 1 ? 15 : 13,
@@ -13942,9 +13947,11 @@ function guideProgramMapBootScript(): string {
       if (!bounds.isEmpty()) {
         map.fitBounds(bounds, { padding: { top: 88, right: 56, bottom: 68, left: 56 }, maxZoom: 15.5, duration: 0 });
       }
-      el.setAttribute('data-map-ready', 'true');
-      if (shell) shell.classList.add('is-map-ready');
-      map.resize();
+      if (typeof map.areTilesLoaded === 'function' && map.areTilesLoaded()) {
+        revealMap();
+        return;
+      }
+      map.once('idle', revealMap);
     });
     map.on('error', () => {
       if (shell) shell.classList.add('is-map-error');
