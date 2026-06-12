@@ -108,8 +108,8 @@ test.describe.serial("observation scene read model visual QA", () => {
         await expect(identifyPanel).toContainText("同定に参加する");
         await expect(identifyPanel).toContainText("別レコードを追加");
         await expect(identifyPanel).toContainText("候補への操作");
-        await expect(page.locator(".obs-local-quality-card").first()).toContainText("OBSERVATION QUALITY");
-        await expect(page.locator(".obs-local-quality-card").first()).toContainText("観察レコードとして育てる");
+        await expect(page.locator(".obs-local-quality-card").first()).toContainText("EVENT / OCCURRENCE");
+        await expect(page.locator(".obs-local-quality-card").first()).toContainText("日時・場所・環境を土台にする");
         await expect(page.locator("body")).not.toContainText("この映像で読む対象を切り替える");
         await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
         await expect(page.locator(".obs-local-quality-inline").first()).toBeVisible();

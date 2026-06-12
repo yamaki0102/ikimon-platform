@@ -409,7 +409,7 @@ test.describe("production candidate smoke", () => {
     await expect(page.locator("body")).not.toContainText("この映像で読む対象を切り替える");
     await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
     await expect(page.locator("body")).toContainText("IDENTIFICATION");
-    await expect(page.locator("body")).toContainText("OBSERVATION QUALITY");
+    await expect(page.locator("body")).toContainText("EVENT / OCCURRENCE");
     await expect(page.locator(".obs-ai-readout")).toBeVisible();
     await expect(page.locator(".obs-local-quality-inline")).toBeVisible();
     await expect(page.locator(".obs-frame-identify-card")).toBeVisible();
@@ -513,7 +513,7 @@ test.describe("production candidate smoke", () => {
       await page.goto(joinUrl(baseUrl, canonicalFieldAdviceScene), { waitUntil: "domcontentloaded" });
       await expect(page.locator("body")).not.toContainText("現場アドバイス");
       await expect(page.locator("[data-care-policy-form]")).toHaveCount(0);
-      await expect(page.locator("body")).toContainText("OBSERVATION QUALITY");
+      await expect(page.locator("body")).toContainText("EVENT / OCCURRENCE");
       await recordSmokeCheckpoint("field_policy_ui_hidden_on_observation_detail", {
         path: page.url(),
       });
