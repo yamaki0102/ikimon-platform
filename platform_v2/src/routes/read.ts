@@ -44,6 +44,15 @@ import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight, type TaxonInsight } from "../services/taxonInsights.js";
 import { lookupLocalTaxonName } from "../services/taxonNameNormalizer.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
+import {
+  ENVIRONMENT_RECORD_FIELDS,
+  deriveEnvironmentRecordFromSiteBrief,
+  environmentRecordFieldSource,
+  environmentRecordLabel,
+  environmentRecordSourceLabel,
+  environmentRecordValue,
+  hasAnyEnvironmentRecordValue,
+} from "../services/environmentRecord.js";
 import { getPlaceManagementPolicy, type PlaceManagementPolicy } from "../services/placeManagementPolicy.js";
 import { getPlaceVegetationTrend, type PlaceVegetationTrend } from "../services/placeVegetationTrend.js";
 import { getGlossaryTermsForScope, renderGlossaryText, type GlossaryTermHint } from "../services/glossaryTerms.js";
@@ -1737,8 +1746,10 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-origin-hint dt { color: #0f172a; font-size: 10px; line-height: 1.35; font-weight: 950; }
   .obs-local-origin-hint dd { margin: 0; color: #475569; font-size: 10px; line-height: 1.35; font-weight: 760; }
   .obs-local-quality-draft { display: grid; gap: 8px; padding: 10px; border-radius: 13px; background: rgba(240,253,250,.72); border: 1px solid rgba(20,184,166,.14); }
-  .obs-local-quality-draft-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: #0f172a; font-size: 11.5px; line-height: 1.25; font-weight: 950; }
+  .obs-local-quality-draft-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #0f172a; font-size: 11.5px; line-height: 1.25; font-weight: 950; }
+  .obs-local-quality-draft-head > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
   .obs-local-quality-draft-head span { color: #0f766e; font-size: 10px; font-weight: 950; }
+  .obs-local-quality-draft-edit { flex-shrink: 0; min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(15,118,110,.18); background: #fff; color: #0f766e; font-size: 10.5px; line-height: 1; font-weight: 950; cursor: pointer; }
   .obs-local-quality-draft-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
   .obs-local-quality-chip { position: relative; display: grid; gap: 4px; min-height: 74px; padding: 9px 10px; border-radius: 11px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.07); color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 850; }
   .obs-local-quality-chip-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -1773,7 +1784,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-origin-save:disabled { background: #cbd5e1; cursor: not-allowed; }
   .obs-edit-fields { display: grid; gap: 9px; }
   .obs-edit-field { display: grid; gap: 5px; color: #334155; font-size: 11.5px; font-weight: 900; }
-  .obs-edit-field input { min-height: 42px; width: 100%; padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; }
+  .obs-edit-field input, .obs-edit-field select { min-height: 42px; width: 100%; padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; }
+  .obs-env-edit-field span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .obs-env-edit-field small { color: #0f766e; font-size: 10px; font-weight: 950; }
   .obs-name-search { width: 100%; min-height: 40px; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,118,110,.14); background: #fff; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; }
   .obs-location-map { position: relative; min-height: 190px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(15,118,110,.18); background: linear-gradient(135deg, #ecfdf5 0 35%, #e0f2fe 35% 52%, #f8fafc 52% 100%); cursor: crosshair; touch-action: none; }
   .obs-location-map::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(15,23,42,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.07) 1px, transparent 1px); background-size: 32px 32px; opacity: .55; }
@@ -7133,96 +7146,6 @@ function observationOriginLabel(value: string | null | undefined): string {
   return OBSERVATION_ORIGIN_OPTIONS.find((option) => option.value === normalized)?.label ?? "不明";
 }
 
-const ENVIRONMENT_RECORD_FIELDS = [
-  {
-    field: "place_type",
-    title: "場所の型",
-    help: "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。",
-    options: [
-      { value: "grassland_urban_edge", label: "草地と市街地の縁" },
-      { value: "urban", label: "市街地" },
-      { value: "woodland", label: "林内" },
-      { value: "water_edge", label: "水辺" },
-      { value: "wetland", label: "湿地" },
-      { value: "coast", label: "海岸" },
-      { value: "unknown", label: "不明" },
-    ],
-  },
-  {
-    field: "contact_surface",
-    title: "接している面",
-    help: "対象が触れている・立っている・浮いている面を残す。",
-    options: [
-      { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
-      { value: "soil", label: "土" },
-      { value: "plant", label: "植物上" },
-      { value: "water", label: "水面・水中" },
-      { value: "rock", label: "岩・石" },
-      { value: "artificial", label: "人工物" },
-      { value: "unknown", label: "不明" },
-    ],
-  },
-  {
-    field: "surrounding_cover",
-    title: "周辺の被覆",
-    help: "まわりを覆う植物、水、雪、岩、構造物などを残す。",
-    options: [
-      { value: "low_grass", label: "低い草地" },
-      { value: "trees_shrubs", label: "樹木・低木" },
-      { value: "bare_ground", label: "裸地" },
-      { value: "water", label: "水" },
-      { value: "snow", label: "雪" },
-      { value: "built_surface", label: "舗装・構造物" },
-      { value: "unknown", label: "不明" },
-    ],
-  },
-  {
-    field: "environment_condition",
-    title: "環境条件",
-    help: "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。",
-    options: [
-      { value: "open_dry", label: "開けて乾き気味" },
-      { value: "sunny", label: "日当たり" },
-      { value: "shaded", label: "日陰" },
-      { value: "wet", label: "湿り気あり" },
-      { value: "flowing", label: "流れあり" },
-      { value: "windy", label: "風あり" },
-      { value: "unknown", label: "不明" },
-    ],
-  },
-  {
-    field: "human_change",
-    title: "人為・変化",
-    help: "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。",
-    options: [
-      { value: "trampling_mowing", label: "踏圧・草刈り跡" },
-      { value: "mowing", label: "草刈り" },
-      { value: "trampling", label: "踏圧" },
-      { value: "planting", label: "植栽・管理" },
-      { value: "construction", label: "造成・工事" },
-      { value: "release", label: "放流・放逐" },
-      { value: "none_visible", label: "目立つ変化なし" },
-      { value: "unknown", label: "不明" },
-    ],
-  },
-] as const;
-
-type EnvironmentRecordField = typeof ENVIRONMENT_RECORD_FIELDS[number];
-
-function environmentRecordHasStoredValue(record: Record<string, string> | null | undefined, field: EnvironmentRecordField): boolean {
-  const raw = String(record?.[field.field] ?? "").trim();
-  return field.options.some((option) => option.value === raw);
-}
-
-function environmentRecordValue(record: Record<string, string> | null | undefined, field: EnvironmentRecordField): string {
-  const raw = String(record?.[field.field] ?? "").trim();
-  return field.options.some((option) => option.value === raw) ? raw : "unknown";
-}
-
-function environmentRecordLabel(field: EnvironmentRecordField, value: string): string {
-  return field.options.find((option) => option.value === value)?.label ?? "不明";
-}
-
 type QualityNameCandidate = {
   name: string;
   rank: string;
@@ -7306,9 +7229,13 @@ function renderObservationQualityCard(options: {
   isLoggedIn: boolean;
   originLoginHref: string;
   glossaryTerms?: GlossaryTermHint[];
+  siteBrief?: SiteBrief | null;
 }): string {
   const mediaCount = options.snapshot.photoAssets.length + options.snapshot.videoAssets.length + options.snapshot.audioAssets.length;
   const hasEvidence = mediaCount > 0;
+  const isNoDetectionRecord = options.snapshot.surveyResult === "no_detection_note"
+    || options.snapshot.absenceSemantics === "protocol_note_only"
+    || options.snapshot.absenceSemantics === "casual_note_only";
   const hasHumanSupport = options.snapshot.identifications.length > 0 || Boolean(options.consensus?.communityTaxon);
   const subjectName = observationDetailUiName(options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || options.snapshot.displayName || "この候補");
   const mediaState = options.snapshot.videoAssets.length > 0
@@ -7352,46 +7279,68 @@ function renderObservationQualityCard(options: {
   const dateLocationHelp = hasRecordLocation
     ? "撮影日時と観察場所が入っているか。"
     : "場所なしで保存済み。必要なら後から地点を足せます。";
-  const mediaConsistencyClass = hasEvidence ? "" : " is-next";
-  const mediaConsistencyMark = hasEvidence ? "✓" : "!";
-  const mediaConsistencyHelp = hasEvidence
+  const mediaConsistencyClass = hasEvidence || isNoDetectionRecord ? "" : " is-next";
+  const mediaConsistencyMark = hasEvidence || isNoDetectionRecord ? "✓" : "!";
+  const mediaConsistencyHelp = isNoDetectionRecord
+    ? "生きものが写らない記録では、環境写真やメモは任意の補助です。"
+    : hasEvidence
     ? "関係ない画像や場面違いの証拠が混じっていないか。"
     : "写真・動画・音はまだありません。メディア整合の確認は対象外です。";
-  const mediaConsistencyState = hasEvidence
+  const mediaConsistencyState = isNoDetectionRecord
+    ? hasEvidence ? "補助メディアあり" : "任意"
+    : hasEvidence
     ? (isGreenfinchSnapshot ? "AI確認済み" : `${sceneNoun}確認済み`)
     : "対象外";
-  const environmentRecord = options.snapshot.environmentRecord ?? {};
+  const storedEnvironmentRecord = options.snapshot.environmentRecord ?? {};
+  const fallbackEnvironmentRecord = hasAnyEnvironmentRecordValue(storedEnvironmentRecord)
+    ? {}
+    : deriveEnvironmentRecordFromSiteBrief(options.siteBrief?.signals, options.siteBrief);
+  const environmentRecord = hasAnyEnvironmentRecordValue(storedEnvironmentRecord)
+    ? storedEnvironmentRecord
+    : fallbackEnvironmentRecord;
   const environmentFieldCards = ENVIRONMENT_RECORD_FIELDS.map((field) => {
-    const hasStoredValue = environmentRecordHasStoredValue(environmentRecord, field);
     const value = environmentRecordValue(environmentRecord, field);
-    const label = environmentRecordLabel(field, value);
-    const sourceLabel = hasStoredValue ? "入力済み" : "未入力";
-    return `<div class="obs-local-quality-chip" data-quality-chip data-env-field="${escapeHtml(field.field)}" data-env-current="${escapeHtml(value)}">
+    const label = environmentRecordLabel(field.field, value);
+    const sourceLabel = environmentRecordSourceLabel(environmentRecord, field);
+    const source = environmentRecordFieldSource(environmentRecord, field);
+    return `<div class="obs-local-quality-chip" data-quality-chip data-env-field="${escapeHtml(field.field)}" data-env-current="${escapeHtml(value)}" data-env-source="${escapeHtml(source)}">
       <div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(field.title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(field.help, glossaryTerms, 2)}</p></details></div>
       <div class="obs-local-quality-chip-value-row"><em data-env-field-label>${escapeHtml(label)}</em><button class="obs-local-quality-field-edit" type="button" data-env-edit="${escapeHtml(field.field)}">変更</button></div>
-      <small class="obs-local-quality-source">${sourceLabel}</small>
+      <small class="obs-local-quality-source" data-env-field-source>${sourceLabel}</small>
     </div>`;
   }).join("");
-  const hasAnyEnvironmentValue = ENVIRONMENT_RECORD_FIELDS.some((field) => environmentRecordHasStoredValue(environmentRecord, field));
-  const environmentHistorySeed = hasAnyEnvironmentValue ? "環境レコードに入力があります" : "まだ編集はありません";
+  const environmentFieldInputs = ENVIRONMENT_RECORD_FIELDS.map((field) => {
+    const currentValue = environmentRecordValue(environmentRecord, field);
+    const sourceLabel = environmentRecordSourceLabel(environmentRecord, field);
+    const optionsHtml = field.options.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === currentValue ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("");
+    return `<label class="obs-edit-field obs-env-edit-field" data-env-input-row="${escapeHtml(field.field)}">
+      <span>${renderGlossaryText(field.title, glossaryTerms, 1)}<small>${escapeHtml(sourceLabel)}</small></span>
+      <select data-env-input="${escapeHtml(field.field)}">${optionsHtml}</select>
+    </label>`;
+  }).join("");
+  const hasAnyEnvironmentValue = hasAnyEnvironmentRecordValue(environmentRecord);
+  const hasDerivedEnvironmentValue = ENVIRONMENT_RECORD_FIELDS.some((field) => environmentRecordFieldSource(environmentRecord, field) === "derived");
+  const environmentHistorySeed = hasAnyEnvironmentValue
+    ? hasDerivedEnvironmentValue ? "環境レコードの自動下書きがあります" : "環境レコードに入力があります"
+    : "まだ編集はありません";
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
     <div class="obs-local-quality-head">
       <div>
-        <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
-        <h3 class="obs-local-quality-title">観察レコードとして育てる</h3>
-        <p class="obs-local-quality-lead">観察レコードは、この記録に付く同定情報です。1つの記録に複数付けられます。</p>
+        <div class="obs-local-quality-eye">EVENT / OCCURRENCE</div>
+        <h3 class="obs-local-quality-title">日時・場所・環境を土台にする</h3>
+        <p class="obs-local-quality-lead">日時・場所・環境はこの記録に1枠。名前の候補や同定は、対象ごとにあとから変わります。</p>
       </div>
     </div>
     <div class="obs-local-quality-checks">
       <div class="obs-local-quality-check${dateLocationStateClass}">
         <i class="obs-local-quality-mark">${dateLocationMark}</i>
-        <div><strong>日時・場所</strong><span>${dateLocationHelp}</span><em><span data-date-current-label>${escapeHtml(observedAtLabel)}</span> / <span data-location-current-label>${escapeHtml(locationLabel)}</span></em></div>
+        <div><strong>イベントの土台</strong><span>${dateLocationHelp}</span><em><span data-date-current-label>${escapeHtml(observedAtLabel)}</span> / <span data-location-current-label>${escapeHtml(locationLabel)}</span></em></div>
         <span><button class="obs-local-quality-change" type="button" data-quality-action="date">日時</button> <button class="obs-local-quality-change" type="button" data-quality-action="location">場所</button></span>
       </div>
-      <div class="obs-local-quality-check${hasEvidence ? "" : " is-warn"}">
-        <i class="obs-local-quality-mark">${hasEvidence ? "✓" : "!"}</i>
-        <div><strong>証拠</strong><span>後から生物を確認できるメディアがあるか。</span><em>${escapeHtml(mediaState)}</em></div>
-        <button class="obs-local-quality-change" type="button" data-quality-action="evidence">写真を追加</button>
+      <div class="obs-local-quality-check${isNoDetectionRecord || hasEvidence ? "" : " is-warn"}">
+        <i class="obs-local-quality-mark">${isNoDetectionRecord || hasEvidence ? "✓" : "!"}</i>
+        <div><strong>${isNoDetectionRecord ? "探索条件" : "証拠"}</strong><span>${isNoDetectionRecord ? "見つからなかった条件を、日時・場所・環境と一緒に残せているか。" : "後から生物を確認できるメディアがあるか。"}</span><em>${escapeHtml(isNoDetectionRecord ? "不在メモとして有効" : mediaState)}</em></div>
+        <button class="obs-local-quality-change" type="button" data-quality-action="${isNoDetectionRecord ? "environment" : "evidence"}">${isNoDetectionRecord ? "条件を整える" : "写真を追加"}</button>
       </div>
       <div class="obs-local-quality-check${hasHumanSupport ? "" : " is-next"}">
         <i class="obs-local-quality-mark">${hasHumanSupport ? "✓" : "!"}</i>
@@ -7417,8 +7366,8 @@ function renderObservationQualityCard(options: {
     </div>
     <div class="obs-local-quality-action-status" data-quality-action-status aria-live="polite"></div>
     <div class="obs-local-quality-draft" data-quality-draft>
-      <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div>
-      <p class="obs-local-quality-lead">環境情報はこの記録に1枠。その場の状態を5項目でまとめて残します。</p>
+      <div class="obs-local-quality-draft-head"><div><strong>環境・イベントレコード</strong><span data-quality-draft-count>5項目</span></div><button class="obs-local-quality-draft-edit" type="button" data-env-edit-all>一括編集</button></div>
+      <p class="obs-local-quality-lead">${isNoDetectionRecord ? "生きものが写っていない記録でも、日時・場所・環境があると次回の比較に使いやすくなります。" : "環境情報はこの記録に1枠。その場の状態を5項目でまとめて残します。"}</p>
       <div class="obs-local-quality-draft-grid">
         ${environmentFieldCards}
       </div>
@@ -7499,10 +7448,10 @@ function renderObservationQualityCard(options: {
           </div>
           <button class="obs-origin-sheet-close" type="button" data-env-close aria-label="閉じる">×</button>
         </div>
-        <p class="obs-origin-sheet-message" data-env-message>${escapeHtml(options.isLoggedIn ? options.canEditOrigin ? "項目を選んで保存します。" : "環境レコードは投稿者だけが変更できます。" : "ログインすると、自分の記録に環境レコードを保存できます。")}</p>
+        <p class="obs-origin-sheet-message" data-env-message>${escapeHtml(options.isLoggedIn ? options.canEditOrigin ? "自動下書きを確認し、5項目をまとめて保存します。" : "環境レコードは投稿者だけが変更できます。" : "ログインすると、自分の記録に環境レコードを保存できます。")}</p>
         ${!options.isLoggedIn ? `<a class="obs-origin-login-link" href="${escapeHtml(options.originLoginHref)}">ログインして保存</a>` : ""}
-        <div class="obs-origin-choice-list" data-env-choice-list></div>
-        <button class="obs-origin-save" type="button" data-env-save${options.canEditOrigin ? "" : " disabled"}>保存</button>
+        <div class="obs-edit-fields obs-env-edit-fields" data-env-fields>${environmentFieldInputs}</div>
+        <button class="obs-origin-save" type="button" data-env-save${options.canEditOrigin ? "" : " disabled"}>まとめて保存</button>
       </div>
     </div>
     <div class="obs-origin-toast" data-env-toast hidden><span data-env-toast-text></span><button type="button" data-env-undo>元に戻す</button></div>
@@ -7884,8 +7833,6 @@ export function renderLocalObservationPolishScript(): string {
           ['trampling_mowing', '踏圧・草刈り跡'], ['mowing', '草刈り'], ['trampling', '踏圧'], ['planting', '植栽・管理'], ['construction', '造成・工事'], ['release', '放流・放逐'], ['none_visible', '目立つ変化なし'], ['unknown', '不明']
         ] }
       };
-      var selectedEnvField = '';
-      var selectedEnvValue = '';
       var envUndoTimer = null;
       var selectedName = card.getAttribute('data-name-current') || '';
       var selectedNameRank = card.getAttribute('data-name-rank-current') || '';
@@ -8160,50 +8107,63 @@ export function renderLocalObservationPolishScript(): string {
         }
         return '不明';
       }
+      function envSourceLabel(source, value){
+        if (source === 'user') return '保存済み';
+        if (source === 'derived' && value !== 'unknown') return '自動下書き';
+        if (source === 'legacy' && value !== 'unknown') return '入力済み';
+        return '未入力';
+      }
       function envSheet(){ return card.querySelector('[data-env-sheet]'); }
       function envToast(){ return card.querySelector('[data-env-toast]'); }
-      function setEnvChoice(value){
-        selectedEnvValue = value || 'unknown';
-        Array.prototype.forEach.call(card.querySelectorAll('[data-env-choice]'), function(choice){
-          var active = choice.getAttribute('data-env-choice') === selectedEnvValue;
-          choice.classList.toggle('is-selected', active);
-          choice.setAttribute('aria-pressed', active ? 'true' : 'false');
+      function envInputs(){
+        return Array.prototype.slice.call(card.querySelectorAll('[data-env-input]'));
+      }
+      function currentEnvValues(){
+        var values = {};
+        Array.prototype.forEach.call(card.querySelectorAll('[data-env-field]'), function(chip){
+          var field = chip.getAttribute('data-env-field') || '';
+          if (envFieldDef(field)) values[field] = chip.getAttribute('data-env-current') || 'unknown';
+        });
+        return values;
+      }
+      function readEnvInputValues(){
+        var values = {};
+        envInputs().forEach(function(input){
+          var field = input.getAttribute('data-env-input') || '';
+          if (envFieldDef(field)) values[field] = input.value || 'unknown';
+        });
+        return values;
+      }
+      function syncEnvInputsFromChips(){
+        envInputs().forEach(function(input){
+          var field = input.getAttribute('data-env-input') || '';
+          var chip = card.querySelector('[data-env-field="' + field + '"]');
+          if (chip) input.value = chip.getAttribute('data-env-current') || 'unknown';
         });
       }
-      function renderEnvChoices(field, currentValue){
-        var def = envFieldDef(field);
-        var list = card.querySelector('[data-env-choice-list]');
-        if (!def || !list) return;
-        while (list.firstChild) list.removeChild(list.firstChild);
-        def.options.forEach(function(option){
-          var button = document.createElement('button');
-          button.className = 'obs-origin-choice';
-          button.type = 'button';
-          button.setAttribute('data-env-choice', option[0]);
-          button.textContent = option[1];
-          list.appendChild(button);
-        });
-        setEnvChoice(currentValue || (def.options[0] && def.options[0][0]) || 'unknown');
-      }
-      function setEnvValue(field, value){
+      function setEnvValue(field, value, source){
         var chip = card.querySelector('[data-env-field="' + field + '"]');
         if (!chip) return;
-        chip.setAttribute('data-env-current', value || 'unknown');
+        var normalized = value || 'unknown';
+        var normalizedSource = source || 'user';
+        chip.setAttribute('data-env-current', normalized);
+        chip.setAttribute('data-env-source', normalizedSource);
         var label = chip.querySelector('[data-env-field-label]');
-        if (label) label.textContent = envLabel(field, value);
+        if (label) label.textContent = envLabel(field, normalized);
+        var sourceLabel = chip.querySelector('[data-env-field-source]');
+        if (sourceLabel) sourceLabel.textContent = envSourceLabel(normalizedSource, normalized);
+        var input = card.querySelector('[data-env-input="' + field + '"]');
+        if (input) input.value = normalized;
       }
       function openEnvSheet(field){
-        var def = envFieldDef(field);
         var sheet = envSheet();
-        if (!def || !sheet) return false;
-        selectedEnvField = field;
-        var chip = card.querySelector('[data-env-field="' + field + '"]');
-        var current = chip ? chip.getAttribute('data-env-current') || '' : '';
+        if (!sheet) return false;
+        var focusField = envFieldDef(field) ? field : 'place_type';
         var title = sheet.querySelector('[data-env-sheet-title]');
-        if (title) title.textContent = def.title;
-        renderEnvChoices(field, current);
+        if (title) title.textContent = '環境レコードをまとめて編集';
+        syncEnvInputsFromChips();
         sheet.hidden = false;
-        var first = sheet.querySelector('[data-env-choice].is-selected') || sheet.querySelector('[data-env-choice]') || sheet.querySelector('[data-env-close]');
+        var first = sheet.querySelector('[data-env-input="' + focusField + '"]') || sheet.querySelector('[data-env-input]') || sheet.querySelector('[data-env-close]');
         if (first && typeof first.focus === 'function') window.setTimeout(function(){ first.focus(); }, 30);
         return true;
       }
@@ -8211,23 +8171,10 @@ export function renderLocalObservationPolishScript(): string {
         var sheet = envSheet();
         if (sheet) sheet.hidden = true;
       }
-      function postEnvField(field, value){
-        var occurrenceId = card.getAttribute('data-quality-occurrence-id') || '';
-        return fetch('/api/v1/occurrences/' + encodeURIComponent(occurrenceId) + '/environment-field', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ field: field, value: value })
-        }).then(function(response){
-          return response.json().catch(function(){ return {}; }).then(function(payload){
-            if (!response.ok || !payload || payload.ok !== true) {
-              throw new Error((payload && payload.error) || 'environment_field_save_failed');
-            }
-            return payload;
-          });
-        });
+      function postEnvRecord(values){
+        return postJson(occurrenceEndpoint('/environment-record'), { values: values });
       }
-      function showEnvToast(text, field, previousValue){
+      function showEnvToast(text, previousValues){
         var toast = envToast();
         if (!toast) return;
         var label = toast.querySelector('[data-env-toast-text]');
@@ -8235,8 +8182,17 @@ export function renderLocalObservationPolishScript(): string {
         toast.hidden = false;
         if (envUndoTimer) window.clearTimeout(envUndoTimer);
         envUndoTimer = window.setTimeout(function(){ toast.hidden = true; }, 5000);
-        toast.setAttribute('data-env-undo-field', field || '');
-        toast.setAttribute('data-env-undo-value', previousValue || 'unknown');
+        toast.setAttribute('data-env-undo-values', JSON.stringify(previousValues || {}));
+      }
+      function envUndoValues(){
+        var toast = envToast();
+        if (!toast) return {};
+        try {
+          var parsed = JSON.parse(toast.getAttribute('data-env-undo-values') || '{}');
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (error) {
+          return {};
+        }
       }
       function openIdentify(action){
         var identify = document.getElementById('identify');
@@ -8286,6 +8242,19 @@ export function renderLocalObservationPolishScript(): string {
           addHistory('証拠を確認: メディア欄へ移動');
           setActionStatus('この記録では投稿者用の写真追加欄が見つかりません。表示中のメディアを確認します。', true);
           focusElement(document.querySelector('[data-observation-media]') || document.querySelector('.obs-media-ledger'));
+          return;
+        }
+        if (action === 'environment') {
+          var openedEnvironment = openEnvSheet('place_type');
+          if (card.getAttribute('data-env-login-required') === '1') {
+            setActionStatus(openedEnvironment ? 'ログインすると環境レコードを保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnvironment);
+            return;
+          }
+          if (card.getAttribute('data-env-can-edit') !== '1') {
+            setActionStatus('環境レコードは投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedEnvironment ? '環境レコードをまとめて保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnvironment);
           return;
         }
         if (action === 'media') {
@@ -8473,6 +8442,20 @@ export function renderLocalObservationPolishScript(): string {
           closeEnvSheet();
           return;
         }
+        var envEditAll = event.target && event.target.closest ? event.target.closest('[data-env-edit-all]') : null;
+        if (envEditAll) {
+          var openedEnvAll = openEnvSheet('place_type');
+          if (card.getAttribute('data-env-login-required') === '1') {
+            setActionStatus(openedEnvAll ? 'ログインすると環境レコードを保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnvAll);
+            return;
+          }
+          if (card.getAttribute('data-env-can-edit') !== '1') {
+            setActionStatus('環境レコードは投稿者だけが変更できます。', false);
+            return;
+          }
+          setActionStatus(openedEnvAll ? '環境レコードをまとめて保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnvAll);
+          return;
+        }
         var envEdit = event.target && event.target.closest ? event.target.closest('[data-env-edit]') : null;
         if (envEdit) {
           var field = envEdit.getAttribute('data-env-edit') || '';
@@ -8488,27 +8471,23 @@ export function renderLocalObservationPolishScript(): string {
           setActionStatus(openedEnv ? '環境レコードを選んで保存できます。' : '環境レコードの編集欄を開けませんでした。', !openedEnv);
           return;
         }
-        var envChoice = event.target && event.target.closest ? event.target.closest('[data-env-choice]') : null;
-        if (envChoice) {
-          if (card.getAttribute('data-env-can-edit') === '1') setEnvChoice(envChoice.getAttribute('data-env-choice') || 'unknown');
-          return;
-        }
         var envSave = event.target && event.target.closest ? event.target.closest('[data-env-save]') : null;
         if (envSave) {
-          if (card.getAttribute('data-env-can-edit') !== '1' || !selectedEnvField) return;
-          var envChip = card.querySelector('[data-env-field="' + selectedEnvField + '"]');
-          var previousEnv = envChip ? envChip.getAttribute('data-env-current') || 'unknown' : 'unknown';
+          if (card.getAttribute('data-env-can-edit') !== '1') return;
+          var previousEnvValues = currentEnvValues();
+          var nextEnvValues = readEnvInputValues();
           envSave.disabled = true;
           setActionStatus('環境レコードを保存しています。', false);
-          postEnvField(selectedEnvField, selectedEnvValue).then(function(payload){
-            var savedField = payload.field || selectedEnvField;
-            var savedValue = payload.value || selectedEnvValue;
-            var savedLabel = payload.label || envLabel(savedField, savedValue);
-            setEnvValue(savedField, savedValue);
+          postEnvRecord(nextEnvValues).then(function(payload){
+            var savedValues = payload.values || {};
+            Object.keys(nextEnvValues).forEach(function(field){
+              var saved = savedValues[field] || {};
+              setEnvValue(field, saved.value || nextEnvValues[field], saved.source || 'user');
+            });
             closeEnvSheet();
-            addHistory('環境レコードを変更: ' + envFieldDef(savedField).title + ' / ' + savedLabel);
-            setActionStatus('環境レコードを保存しました。', false);
-            showEnvToast(envFieldDef(savedField).title + 'を「' + savedLabel + '」にしました。', savedField, previousEnv);
+            addHistory('環境レコードをまとめて保存');
+            setActionStatus('環境レコードをまとめて保存しました。', false);
+            showEnvToast('環境レコードをまとめて保存しました。', previousEnvValues);
           }).catch(function(error){
             setActionStatus(error && error.message === 'session_required' ? 'ログインし直してください。' : '保存できませんでした。時間をおいて再度お試しください。', true);
           }).finally(function(){
@@ -8519,14 +8498,15 @@ export function renderLocalObservationPolishScript(): string {
         var envUndo = event.target && event.target.closest ? event.target.closest('[data-env-undo]') : null;
         if (envUndo) {
           var envUndoToast = envToast();
-          var undoField = envUndoToast ? envUndoToast.getAttribute('data-env-undo-field') || '' : '';
-          var undoValue = envUndoToast ? envUndoToast.getAttribute('data-env-undo-value') || 'unknown' : 'unknown';
-          if (!undoField) return;
-          postEnvField(undoField, undoValue).then(function(payload){
-            var restoredField = payload.field || undoField;
-            var restoredValue = payload.value || undoValue;
-            setEnvValue(restoredField, restoredValue);
-            addHistory('環境レコードを元に戻しました: ' + envFieldDef(restoredField).title + ' / ' + envLabel(restoredField, restoredValue));
+          var restoreValues = envUndoValues();
+          if (Object.keys(restoreValues).length === 0) return;
+          postEnvRecord(restoreValues).then(function(payload){
+            var restoredValues = payload.values || {};
+            Object.keys(restoreValues).forEach(function(field){
+              var restored = restoredValues[field] || {};
+              setEnvValue(field, restored.value || restoreValues[field], restored.source || 'user');
+            });
+            addHistory('環境レコードを元に戻しました');
             setActionStatus('環境レコードを元に戻しました。', false);
             if (envUndoToast) envUndoToast.hidden = true;
           }).catch(function(){
@@ -19289,6 +19269,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         isLoggedIn: Boolean(viewerUserId),
         originLoginHref: appendLangToHref(withBasePath(basePath, `/login?redirect=${encodeURIComponent(request.url)}`), lang),
         glossaryTerms,
+        siteBrief: siteBriefResult ?? null,
       }),
       visibleRecordCount: visibleRecordItems.length,
       summaryStrip: "",

@@ -85,8 +85,8 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "別候補を提案",
     "保留する",
     "別レコードを追加",
-    "OBSERVATION QUALITY",
-    "観察レコードとして育てる",
+    "EVENT / OCCURRENCE",
+    "日時・場所・環境を土台にする",
     "この映像で読む対象を切り替える",
     "かなり近そう",
     "分類候補",
@@ -543,8 +543,10 @@ test("observation quality change buttons are wired to real page targets", () => 
   assert.doesNotMatch(qualitySource, /data-quality-action="date_place"/);
   assert.match(qualitySource, /data-quality-action="date"/);
   assert.match(qualitySource, /data-quality-action="location"/);
-  assert.match(qualitySource, /data-quality-action="evidence"/);
-  assert.match(qualitySource, />写真を追加<\/button>/);
+  assert.match(qualitySource, /写真を追加/);
+  assert.match(qualitySource, /: "evidence"/);
+  assert.match(qualitySource, /data-quality-action="\$\{isNoDetectionRecord \? "environment" : "evidence"\}"/);
+  assert.match(qualitySource, /不在メモとして有効/);
   assert.match(qualitySource, /data-quality-action="identification"/);
   assert.match(qualitySource, /data-name-sheet/);
   assert.match(qualitySource, /data-name-choice="\$\{escapeHtml\(candidate\.name\)\}"/);
@@ -561,9 +563,12 @@ test("observation quality change buttons are wired to real page targets", () => 
   assert.match(qualitySource, /data-origin-toast/);
   assert.match(qualitySource, /data-quality-action="media"/);
   assert.match(qualitySource, /data-quality-action-status/);
+  assert.match(qualitySource, /環境・イベントレコード/);
+  assert.match(qualitySource, /data-env-edit-all/);
   assert.match(qualitySource, /obs-local-quality-field-edit/);
   assert.match(qualitySource, /data-env-edit="\$\{escapeHtml\(field\.field\)\}"/);
   assert.match(qualitySource, /data-env-sheet/);
+  assert.match(qualitySource, /data-env-input="\$\{escapeHtml\(field\.field\)\}"/);
   assert.match(qualitySource, /data-env-save/);
   assert.match(qualitySource, /data-env-toast/);
   assert.match(polishSource, /function handleQualityAction/);
@@ -579,7 +584,8 @@ test("observation quality change buttons are wired to real page targets", () => 
   assert.match(polishSource, /function openOriginSheet/);
   assert.match(polishSource, /\/origin/);
   assert.match(polishSource, /function openEnvSheet/);
-  assert.match(polishSource, /\/environment-field/);
+  assert.match(polishSource, /occurrenceEndpoint\('\/environment-record'\)/);
+  assert.doesNotMatch(polishSource, /\/environment-field/);
   assert.match(polishSource, /data-name-undo/);
   assert.match(polishSource, /data-date-undo/);
   assert.match(polishSource, /data-location-undo/);

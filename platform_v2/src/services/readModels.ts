@@ -29,6 +29,7 @@ import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessme
 import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 import { listPlaceMemoryVisits } from "./placeMemory.js";
 import { identificationReferencesFromJson, type IdentificationReferenceView } from "./identificationReferencesView.js";
+import { normalizeEnvironmentRecordSnapshot } from "./environmentRecord.js";
 
 function publicMunicipalityLabel(input: {
   municipality?: string | null;
@@ -1011,12 +1012,7 @@ export async function getObservationDetailSnapshot(
   const surveyResult = typeof visitPayload.survey_result === "string" ? visitPayload.survey_result : null;
   const absenceSemantics = typeof visitPayload.absence_semantics === "string" ? visitPayload.absence_semantics : null;
   const revisitReason = typeof visitPayload.revisit_reason === "string" ? visitPayload.revisit_reason : null;
-  const environmentRecord = base.environment_record && typeof base.environment_record === "object"
-    ? Object.fromEntries(
-        Object.entries(base.environment_record)
-          .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== ""),
-      )
-    : null;
+  const environmentRecord = normalizeEnvironmentRecordSnapshot(base.environment_record);
 
   const photosResult = await pool.query<{
     asset_id: string;

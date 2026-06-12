@@ -11,6 +11,7 @@ import {
   upsertAssetBlob,
 } from "./writeSupport.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
+import { deriveEnvironmentRecordFromSiteBrief } from "./environmentRecord.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
 import { resolveFieldsForPoint } from "./resolveFieldsForPoint.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
@@ -1227,28 +1228,30 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     void (async () => {
       try {
         const signals = await fetchSiteSignals(input.latitude!, input.longitude!);
-      const brief = composeSiteBrief(signals, "ja");
-      const fcPool = getPool();
-      const fcClient = await fcPool.connect();
-      try {
-        await fcClient.query(
-          `insert into field_context
-             (occurrence_id, lat, lng, hypothesis_id, hypothesis_label, hypothesis_confidence, signals, source_lang)
-           values ($1, $2, $3, $4, $5, $6, $7::jsonb, 'ja')
-           on conflict do nothing`,
-          [
-            occurrenceId,
-            input.latitude,
-            input.longitude,
-            brief.hypothesis.id,
-            brief.hypothesis.label,
-            brief.hypothesis.confidence,
-            JSON.stringify(signals),
-          ],
-        );
-      } finally {
-        fcClient.release();
-      }
+        const brief = composeSiteBrief(signals, "ja");
+        const structured = deriveEnvironmentRecordFromSiteBrief(signals, brief);
+        const fcPool = getPool();
+        const fcClient = await fcPool.connect();
+        try {
+          await fcClient.query(
+            `insert into field_context
+               (occurrence_id, lat, lng, hypothesis_id, hypothesis_label, hypothesis_confidence, structured, signals, source_lang)
+             values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, 'ja')
+             on conflict do nothing`,
+            [
+              occurrenceId,
+              input.latitude,
+              input.longitude,
+              brief.hypothesis.id,
+              brief.hypothesis.label,
+              brief.hypothesis.confidence,
+              JSON.stringify(structured),
+              JSON.stringify(signals),
+            ],
+          );
+        } finally {
+          fcClient.release();
+        }
       } catch {
         // intentionally swallowed
       }

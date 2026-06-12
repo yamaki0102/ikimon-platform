@@ -27,4 +27,6 @@ test("observation writes support unlocated note saves without downstream locatio
   assert.match(source, /const spatialMesh = hasLocation[\s\S]*encodeJisMeshCodes/);
   assert.match(source, /if \(hasLocation\) \{[\s\S]*upsertPlaceMemoryForVisit/);
   assert.match(source, /if \(hasLocation\) \{[\s\S]*fetchSiteSignals/);
+  assert.match(source, /deriveEnvironmentRecordFromSiteBrief\(signals, brief\)/);
+  assert.match(source, /hypothesis_confidence, structured, signals, source_lang/);
 });
