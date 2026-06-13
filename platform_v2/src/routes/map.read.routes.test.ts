@@ -123,6 +123,7 @@ test("my guides page exposes unlocked guide replay and map return", () => {
 
 test("guide relay program pages expose public detail and private progress", () => {
   const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+  const staticMapSource = readFileSync(new URL("../services/guideProgramStaticMap.ts", import.meta.url), "utf8");
 
   assert.match(source, /app\.get\("\/guide-programs"/);
   assert.match(source, /app\.get<\{ Params: \{ slug: string \} \}>\("\/guide-programs\/:slug"/);
@@ -137,8 +138,12 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /地点を地図で確認/);
   assert.match(source, /あとからMy Guide/);
   assert.match(source, /renderGuideProgramMap/);
+  assert.match(source, /buildGuideProgramStaticMapLayout/);
   assert.match(source, /guide-program-map-static/);
-  assert.match(source, /cyberjapandata\.gsi\.go\.jp\/xyz\/std/);
+  assert.match(source, /data-guide-static-map="gsi-std"/);
+  assert.match(source, /data-guide-static-tile="true"/);
+  assert.match(staticMapSource, /cyberjapandata\.gsi\.go\.jp\/xyz\/std/);
+  assert.match(staticMapSource, /guideProgramWorldPixel/);
   assert.match(source, /tile\.openstreetmap\.org/);
   assert.match(source, /isAdminOrAnalystRole/);
   assert.match(source, /運営recap/);
@@ -146,6 +151,7 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /ガイドの来訪地点/);
   assert.match(source, /実際の地図上に表示しています/);
   assert.match(source, /あなたの記録位置や解放地点は公開しません。/);
+  assert.match(source, /国土地理院「地理院タイル（標準地図）」/);
   assert.match(source, /自由参加/);
   assert.match(source, /任意/);
   assert.match(source, /進捗は本人用です。正確な記録位置は公開しません。/);

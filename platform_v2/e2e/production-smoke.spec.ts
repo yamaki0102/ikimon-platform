@@ -371,6 +371,57 @@ test.describe("production candidate smoke", () => {
     await expect(page.locator("#map-explorer")).toBeVisible();
   });
 
+  test("guide relay static GSI map loads real tile images", async ({ page, request }) => {
+    const response = await page.goto("/guide-programs/aikan-renri-guide-relay", { waitUntil: "domcontentloaded" });
+    expect(response?.status(), "guide program status").toBeLessThan(500);
+
+    const staticMap = page.locator('[data-guide-static-map="gsi-std"]');
+    await expect(staticMap).toBeVisible();
+    await staticMap.scrollIntoViewIfNeeded();
+    const tiles = staticMap.locator('img[data-guide-static-tile="true"]');
+    await expect(tiles, "guide program preview should render the 4x3 GSI tile grid").toHaveCount(12);
+
+    await expect.poll(async () =>
+      tiles.evaluateAll((images) =>
+        images.filter((image) => {
+          const img = image as HTMLImageElement;
+          return img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
+        }).length,
+      ), { message: "all guide program GSI tiles should finish loading in the browser" },
+    ).toBe(12);
+
+    const tileUrls = await tiles.evaluateAll((images) =>
+      images.map((image) => (image as HTMLImageElement).currentSrc || (image as HTMLImageElement).src),
+    );
+    const tileFetchWarnings: string[] = [];
+    for (const url of tileUrls) {
+      expect(url, "tile src should use the GSI standard tile endpoint").toContain("cyberjapandata.gsi.go.jp/xyz/std/");
+      try {
+        const tileResponse = await request.get(url, { timeout: 10_000 });
+        const contentType = tileResponse.headers()["content-type"] ?? "";
+        const body = await tileResponse.body();
+        if (tileResponse.status() !== 200 || !/^image\/png\b/.test(contentType) || body.length <= 1024) {
+          tileFetchWarnings.push(`${url} status=${tileResponse.status()} content-type=${contentType} bytes=${body.length}`);
+        }
+      } catch (error) {
+        tileFetchWarnings.push(`${url} ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    if (tileFetchWarnings.length) {
+      console.warn(`Best-effort GSI tile fetch warnings:\n${tileFetchWarnings.join("\n")}`);
+    }
+
+    const mapBox = await page.locator(".guide-program-map").boundingBox();
+    const pinBox = await page.locator(".guide-program-map-pin").first().boundingBox();
+    expect(mapBox, "guide program map should be visible").toBeTruthy();
+    expect(pinBox, "guide program map pin should be visible").toBeTruthy();
+    expect(pinBox!.x + pinBox!.width / 2).toBeGreaterThanOrEqual(mapBox!.x);
+    expect(pinBox!.x + pinBox!.width / 2).toBeLessThanOrEqual(mapBox!.x + mapBox!.width);
+    expect(pinBox!.y + pinBox!.height / 2).toBeGreaterThanOrEqual(mapBox!.y);
+    expect(pinBox!.y + pinBox!.height / 2).toBeLessThanOrEqual(mapBox!.y + mapBox!.height);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("public surfaces do not leak fixtures or 1x1 placeholder thumbnails", async ({ page, request }) => {
     const checkedThumbs = new Set<string>();
     for (const path of publicSurfacePages) {

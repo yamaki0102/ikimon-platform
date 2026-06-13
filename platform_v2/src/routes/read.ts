@@ -154,6 +154,10 @@ import {
   type GuideProgramPublicDetail,
   type GuideProgramPublicSpot,
 } from "../services/guidePrograms.js";
+import {
+  buildGuideProgramStaticMapLayout,
+  type GuideProgramStaticMapLayout,
+} from "../services/guideProgramStaticMap.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
@@ -13718,14 +13722,12 @@ const MY_GUIDES_STYLES = `
   .guide-program-spot strong { display: block; color: #0f172a; font-size: 14px; line-height: 1.35; }
   .guide-program-spot p { margin: 3px 0 0; color: #475569; font-size: 12.5px; line-height: 1.55; font-weight: 700; }
   .guide-program-next { padding: 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.20); color: #064e3b; font-weight: 800; line-height: 1.65; }
-  .guide-program-map { position: relative; min-height: 330px; overflow: hidden; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #dff4f0; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
-  .guide-program-map-canvas,
+  .guide-program-map { position: relative; justify-self: center; width: min(100%, 720px); aspect-ratio: 4 / 3; min-height: 0; overflow: hidden; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #dff4f0; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
   .guide-program-map-fallback { position: absolute; inset: 0; }
-  .guide-program-map-canvas { z-index: 1; }
   .guide-program-map-fallback { z-index: 2; background: #dff4f0; overflow: hidden; }
   .guide-program-map-fallback::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(236,253,245,.08), rgba(236,253,245,.20)); pointer-events: none; }
-  .guide-program-map-static { position: absolute; inset: -18% -8%; z-index: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); filter: saturate(.96) contrast(.98); }
-  .guide-program-map-static img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .guide-program-map-static { position: absolute; inset: 0; z-index: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); filter: saturate(.96) contrast(.98); }
+  .guide-program-map-static img { display: block; width: 100%; height: 100%; object-fit: fill; }
   .guide-program-map-head { position: absolute; left: 14px; top: 14px; right: 14px; z-index: 3; display: flex; justify-content: space-between; gap: 10px; align-items: start; pointer-events: none; }
   .guide-program-map-head strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
   .guide-program-map-head span { display: block; margin-top: 2px; color: #475569; font-size: 11px; font-weight: 800; }
@@ -13747,7 +13749,7 @@ const MY_GUIDES_STYLES = `
     .my-guides-hero h1 { font-size: 25px; }
     .my-guides-grid { grid-template-columns: 1fr; }
     .guide-program-action-deck { grid-template-columns: 1fr; }
-    .guide-program-map { min-height: 300px; }
+    .guide-program-map { width: 100%; min-height: 0; }
     .guide-program-map-head { display: flex; }
     .guide-program-map-pin span { max-width: 150px; }
     .guide-program-map-note { top: 64px; right: 14px; bottom: auto; max-width: none; }
@@ -13869,83 +13871,57 @@ function renderProgramSpot(spot: GuideProgramPublicSpot, index: number): string 
   </article>`;
 }
 
-function guideProgramMapHref(basePath: string, program: GuideProgramPublicDetail): string {
-  const first = program.spots.find((spot) => Number.isFinite(spot.displayLat) && Number.isFinite(spot.displayLng));
+function guideProgramMapHref(
+  basePath: string,
+  program: GuideProgramPublicDetail,
+  layout: GuideProgramStaticMapLayout<GuideProgramPublicSpot> | null = buildGuideProgramStaticMapLayout(program.spots),
+): string {
   const mapBase = withBasePath(basePath, "/map");
-  if (!first) return mapBase;
+  if (!layout) return mapBase;
   const params = new URLSearchParams({
-    lat: first.displayLat.toFixed(6),
-    lng: first.displayLng.toFixed(6),
-    z: "15",
+    lat: layout.centerLat.toFixed(6),
+    lng: layout.centerLng.toFixed(6),
+    z: String(layout.zoom),
     guideProgram: program.slug,
   });
   return `${mapBase}?${params.toString()}`;
 }
 
-function projectProgramSpots(spots: GuideProgramPublicSpot[]): Array<GuideProgramPublicSpot & { xPct: number; yPct: number }> {
-  const valid = spots.filter((spot) => Number.isFinite(spot.displayLat) && Number.isFinite(spot.displayLng));
-  if (!valid.length) return [];
-  if (valid.length === 1) {
-    return valid.map((spot) => ({ ...spot, xPct: 50, yPct: 56 }));
-  }
-  const lats = valid.map((spot) => spot.displayLat);
-  const lngs = valid.map((spot) => spot.displayLng);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const latSpan = Math.max(maxLat - minLat, 0.00035);
-  const lngSpan = Math.max(maxLng - minLng, 0.00035);
-  return valid.map((spot) => ({
-    ...spot,
-    xPct: 14 + ((spot.displayLng - minLng) / lngSpan) * 72,
-    yPct: 86 - ((spot.displayLat - minLat) / latSpan) * 72,
-  }));
-}
-
-function guideProgramTileCoordinate(lat: number, lng: number, zoom: number): { x: number; y: number } {
-  const latRad = lat * Math.PI / 180;
-  const scale = 2 ** zoom;
-  const x = Math.floor((lng + 180) / 360 * scale);
-  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * scale);
-  return { x, y };
-}
-
-function renderGuideProgramStaticTiles(spots: GuideProgramPublicSpot[]): string {
-  const valid = spots.filter((spot) => Number.isFinite(spot.displayLat) && Number.isFinite(spot.displayLng));
-  if (!valid.length) return "";
-  const zoom = valid.length === 1 ? 16 : 14;
-  const centerLat = valid.reduce((sum, spot) => sum + spot.displayLat, 0) / valid.length;
-  const centerLng = valid.reduce((sum, spot) => sum + spot.displayLng, 0) / valid.length;
-  const center = guideProgramTileCoordinate(centerLat, centerLng, zoom);
-  const maxTile = (2 ** zoom) - 1;
-  const tiles: string[] = [];
-  for (const yOffset of [-1, 0, 1]) {
-    for (const xOffset of [-2, -1, 0, 1]) {
-      const x = Math.min(Math.max(center.x + xOffset, 0), maxTile);
-      const y = Math.min(Math.max(center.y + yOffset, 0), maxTile);
-      tiles.push(`<img src="https://cyberjapandata.gsi.go.jp/xyz/std/${zoom}/${x}/${y}.png" alt="" loading="lazy" decoding="async">`);
-    }
-  }
-  return `<div class="guide-program-map-static" aria-hidden="true">${tiles.join("")}</div>`;
+function renderGuideProgramStaticTiles(layout: GuideProgramStaticMapLayout<GuideProgramPublicSpot>): string {
+  const tiles = layout.tiles.map((tile) => `<img
+      data-guide-static-tile="true"
+      data-guide-static-tile-x="${tile.x}"
+      data-guide-static-tile-y="${tile.y}"
+      src="${escapeHtml(tile.url)}"
+      alt=""
+      loading="lazy"
+      decoding="async"
+      width="256"
+      height="256">`);
+  return `<div class="guide-program-map-static"
+      data-guide-static-map="gsi-std"
+      data-guide-static-map-zoom="${layout.zoom}"
+      data-guide-static-map-tile-cols="${layout.tileCols}"
+      data-guide-static-map-tile-rows="${layout.tileRows}"
+      data-guide-static-map-origin-x="${layout.tileOriginX}"
+      data-guide-static-map-origin-y="${layout.tileOriginY}"
+      aria-hidden="true">${tiles.join("")}</div>`;
 }
 
 function renderGuideProgramMap(basePath: string, program: GuideProgramPublicDetail): string {
-  const validSpots = program.spots.filter((spot) => Number.isFinite(spot.displayLat) && Number.isFinite(spot.displayLng));
-  const fallbackSpots = projectProgramSpots(program.spots);
-  if (!validSpots.length) return "";
-  const mapHref = guideProgramMapHref(basePath, program);
-  const staticTiles = renderGuideProgramStaticTiles(validSpots);
-  const fallbackPins = fallbackSpots.map((spot, index) => `<a class="guide-program-map-pin"
+  const layout = buildGuideProgramStaticMapLayout(program.spots);
+  if (!layout) return "";
+  const mapHref = guideProgramMapHref(basePath, program, layout);
+  const staticTiles = renderGuideProgramStaticTiles(layout);
+  const fallbackPins = layout.pins.map((pin, index) => `<a class="guide-program-map-pin"
       href="${escapeHtml(mapHref)}"
-      data-unlocked="${spot.unlocked ? "true" : "false"}"
-      style="--pin-x:${spot.xPct.toFixed(2)}%;--pin-y:${spot.yPct.toFixed(2)}%;"
-      aria-label="${escapeHtml(`${spot.title} の来訪地点をマップで見る`)}">
-      <i>${spot.unlocked ? "済" : String(index + 1)}</i>
-      <span>${escapeHtml(spot.title)}</span>
+      data-unlocked="${pin.spot.unlocked ? "true" : "false"}"
+      style="--pin-x:${pin.xPct.toFixed(2)}%;--pin-y:${pin.yPct.toFixed(2)}%;"
+      aria-label="${escapeHtml(`${pin.spot.title} の来訪地点をマップで見る`)}">
+      <i>${pin.spot.unlocked ? "済" : String(index + 1)}</i>
+      <span>${escapeHtml(pin.spot.title)}</span>
     </a>`).join("");
-  return `<section class="guide-program-map" aria-label="ガイドスポットの来訪地点">
-    <div class="guide-program-map-canvas" aria-hidden="true"></div>
+  return `<section class="guide-program-map" data-guide-program-map-preview="static-gsi" aria-label="ガイドスポットの来訪地点">
     <div class="guide-program-map-fallback">${staticTiles}${fallbackPins}</div>
     <div class="guide-program-map-head">
       <div>
@@ -13954,7 +13930,7 @@ function renderGuideProgramMap(basePath: string, program: GuideProgramPublicDeta
       </div>
       <a href="${escapeHtml(mapHref)}">大きいマップ</a>
     </div>
-    <div class="guide-program-map-note">表示は来訪承諾または公開情報で案内できるガイド地点です。あなたの記録位置や解放地点は公開しません。</div>
+    <div class="guide-program-map-note">表示は来訪承諾または公開情報で案内できるガイド地点です。あなたの記録位置や解放地点は公開しません。地図画像: 国土地理院「地理院タイル（標準地図）」</div>
   </section>`;
 }
 
