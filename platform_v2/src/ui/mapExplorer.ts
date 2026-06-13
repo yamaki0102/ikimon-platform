@@ -2520,11 +2520,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!sheetEl || !sheetInnerEl) return;
     sheetInnerEl.innerHTML = renderGuideSpotContent(spot);
     hydrateAreaGuideStopControls(sheetInnerEl);
-    sheetEl.setAttribute('aria-hidden', 'false');
-    sheetEl.classList.add('is-open');
-    sheetEl.classList.remove('me-bottom-sheet--detail');
-    sheetEl.removeAttribute('data-snap');
-    sheetEl.classList.add('me-bottom-sheet--area');
+    showAreaBottomSheet();
     renderSidePanels();
     saveMapState();
   }
@@ -2559,11 +2555,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (Number.isFinite(index) && list[index]) openGuideSpotSheet(list[index]);
       });
     });
-    sheetEl.setAttribute('aria-hidden', 'false');
-    sheetEl.classList.add('is-open');
-    sheetEl.classList.remove('me-bottom-sheet--detail');
-    sheetEl.removeAttribute('data-snap');
-    sheetEl.classList.add('me-bottom-sheet--area');
+    showAreaBottomSheet();
     renderSidePanels();
     saveMapState();
   }
@@ -3665,17 +3657,35 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     slot.innerHTML = renderSheetAmbient(state.selectedPoint);
   }
 
-  function setDetailSheetSnap(snap) {
-    if (!sheetEl || !sheetEl.classList.contains('me-bottom-sheet--detail')) return;
+  function sheetSupportsSnap() {
+    return !!(sheetEl && (
+      sheetEl.classList.contains('me-bottom-sheet--detail') ||
+      sheetEl.classList.contains('me-bottom-sheet--area')
+    ));
+  }
+  function setSheetSnap(snap) {
+    if (!sheetSupportsSnap()) return;
     var next = snap === 'full' ? 'full' : 'peek';
     sheetEl.setAttribute('data-snap', next);
     if (sheetGripEl) {
         sheetGripEl.setAttribute('aria-label', next === 'full' ? COPY.bottomSheetCollapseLabel : COPY.bottomSheetExpandLabel);
     }
   }
+  function setDetailSheetSnap(snap) {
+    if (!sheetEl || !sheetEl.classList.contains('me-bottom-sheet--detail')) return;
+    setSheetSnap(snap);
+  }
+  function setAreaSheetSnap(snap) {
+    if (!sheetEl || !sheetEl.classList.contains('me-bottom-sheet--area')) return;
+    setSheetSnap(snap);
+  }
   function toggleDetailSheetSnap() {
     if (!sheetEl || !sheetEl.classList.contains('me-bottom-sheet--detail')) return;
     setDetailSheetSnap(sheetEl.getAttribute('data-snap') === 'full' ? 'peek' : 'full');
+  }
+  function toggleSheetSnap() {
+    if (!sheetSupportsSnap()) return;
+    setSheetSnap(sheetEl.getAttribute('data-snap') === 'full' ? 'peek' : 'full');
   }
   function showDetailBottomSheet() {
     if (!sheetEl) return;
@@ -3684,6 +3694,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.classList.add('me-bottom-sheet--detail');
     sheetEl.classList.add('is-open');
     setDetailSheetSnap('peek');
+    if (sheetInnerEl) sheetInnerEl.scrollTop = 0;
+  }
+  function showAreaBottomSheet() {
+    if (!sheetEl) return;
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.remove('me-bottom-sheet--detail');
+    sheetEl.classList.add('me-bottom-sheet--area');
+    sheetEl.classList.add('is-open');
+    setAreaSheetSnap('peek');
+    try { sheetEl.scrollTop = 0; } catch (_) {}
     if (sheetInnerEl) sheetInnerEl.scrollTop = 0;
   }
 
@@ -4160,11 +4180,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     sheetInnerEl.innerHTML = renderTransientAreaContent(feature, center);
     hydrateAreaGuideStopControls(sheetInnerEl);
-    sheetEl.setAttribute('aria-hidden', 'false');
-    sheetEl.classList.add('is-open');
-    sheetEl.classList.remove('me-bottom-sheet--detail');
-    sheetEl.removeAttribute('data-snap');
-    sheetEl.classList.add('me-bottom-sheet--area');
+    showAreaBottomSheet();
     renderSidePanels();
     saveMapState();
   }
@@ -4214,12 +4230,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     sheetInnerEl.innerHTML = '<div class="me-bottom-meta"><strong>' + escapeHtml(COPY.areaLoading) + '</strong></div>';
-    sheetEl.setAttribute('aria-hidden', 'false');
-    sheetEl.classList.add('is-open');
-    sheetEl.classList.remove('me-bottom-sheet--detail');
-    sheetEl.removeAttribute('data-snap');
     // PC では full-width だと地図を覆い隠して圧迫感が出るので area モード専用の狭幅版に。
-    sheetEl.classList.add('me-bottom-sheet--area');
+    showAreaBottomSheet();
     if (!apiAreaSnapshotTemplate) return;
     var url = apiAreaSnapshotTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId));
     fetch(url, { credentials: 'same-origin' })
@@ -4250,11 +4262,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
   if (sheetGripEl) {
     sheetGripEl.addEventListener('click', function () {
-      toggleDetailSheetSnap();
+      toggleSheetSnap();
     });
     var sheetDragStartY = null;
     sheetGripEl.addEventListener('pointerdown', function (event) {
-      if (!sheetEl || !sheetEl.classList.contains('me-bottom-sheet--detail')) return;
+      if (!sheetSupportsSnap()) return;
       sheetDragStartY = event.clientY;
       try { sheetGripEl.setPointerCapture(event.pointerId); } catch (_) {}
     });
@@ -5117,7 +5129,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-count', 'observation-cell-label', 'observation-cell-selected'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
-    var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
+    var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
@@ -5138,6 +5150,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     if (map.getLayer('area-polygon-outline')) {
       map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' ? 0.86 : 0.42);
+    }
+    if (map.getLayer('area-polygon-approximate-outline')) {
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places' ? 0.82 : 0.5);
     }
 
     if (tab === 'heatmap') {
@@ -5322,7 +5337,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function areaPolygonHitLayers() {
     if (!state.map) return [];
-    return ['area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-selected'].filter(function (id) {
+    return ['area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected'].filter(function (id) {
       return state.map.getLayer(id);
     });
   }
@@ -5444,6 +5459,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       },
     }, beforeId);
     map.addLayer({
+      id: 'area-polygon-approximate-outline',
+      type: 'line',
+      source: 'area-polygons',
+      minzoom: 8,
+      filter: ['==', ['get', 'approximate_boundary'], true],
+      paint: {
+        'line-color': '#b45309',
+        'line-width': 1.8,
+        'line-opacity': 0.82,
+        'line-dasharray': [2, 1.4],
+      },
+    }, beforeId);
+    map.addLayer({
       id: 'area-polygon-hitbox',
       type: 'line',
       source: 'area-polygons',
@@ -5464,7 +5492,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         'line-width': 2.6,
       },
     });
-    ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-hitbox'].forEach(function (layerId) {
+    ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
         var hitLayers = areaPolygonHitLayers();
         var hits = hitLayers.length ? map.queryRenderedFeatures(e.point, { layers: hitLayers }) : e.features;
@@ -7953,7 +7981,8 @@ export const MAP_EXPLORER_STYLES = `
     height: auto;
     max-height: calc(100% - 10px);
   }
-  .me-bottom-sheet--detail .me-bottom-grip {
+  .me-bottom-sheet--detail .me-bottom-grip,
+  .me-bottom-sheet--area .me-bottom-grip {
     position: sticky;
     top: 0;
     z-index: 2;
@@ -7968,7 +7997,8 @@ export const MAP_EXPLORER_STYLES = `
     cursor: grab;
     touch-action: none;
   }
-  .me-bottom-sheet--detail .me-bottom-grip::before {
+  .me-bottom-sheet--detail .me-bottom-grip::before,
+  .me-bottom-sheet--area .me-bottom-grip::before {
     content: "";
     display: block;
     width: 42px;
@@ -7977,7 +8007,8 @@ export const MAP_EXPLORER_STYLES = `
     border-radius: 999px;
     background: rgba(100,116,139,.42);
   }
-  .me-bottom-sheet--detail .me-bottom-grip:active { cursor: grabbing; }
+  .me-bottom-sheet--detail .me-bottom-grip:active,
+  .me-bottom-sheet--area .me-bottom-grip:active { cursor: grabbing; }
   .me-bottom-sheet--detail.is-open { transform: translateY(0); }
   .me-bottom-sheet--detail .me-bottom-close {
     right: 12px;
@@ -9347,22 +9378,29 @@ export const MAP_EXPLORER_STYLES = `
     }
     .me-bottom-sheet {
       display: block;
+      position: fixed;
       border-radius: 22px 22px 0 0;
       left: 0;
       right: 0;
       bottom: 0;
+      z-index: 40;
       max-height: 62%;
+      max-height: min(62dvh, calc(100dvh - var(--me-header-h) - 8px));
     }
     .me-bottom-sheet--detail {
       max-height: 74%;
+      max-height: min(74dvh, calc(100dvh - var(--me-header-h) - 8px));
     }
     .me-bottom-sheet--detail[data-snap="peek"] {
+      height: 35vh;
+      max-height: 35vh;
       height: min(35dvh, 320px);
       max-height: min(35dvh, 320px);
     }
     .me-bottom-sheet--detail[data-snap="full"] {
       height: auto;
       max-height: calc(100% - 8px);
+      max-height: calc(100dvh - var(--me-header-h) - 8px);
     }
   }
 
@@ -9488,13 +9526,21 @@ export const MAP_EXPLORER_STYLES = `
       top: auto;
       bottom: 0;
       max-height: 86%;
+      max-height: calc(100dvh - var(--me-header-h) - 8px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
       border-radius: 22px 22px 0 0;
     }
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="peek"] {
-      max-height: 64%;
+      height: 58vh;
+      max-height: 58vh;
+      height: min(58dvh, calc(100dvh - var(--me-header-h) - 12px), 460px);
+      max-height: min(58dvh, calc(100dvh - var(--me-header-h) - 12px), 460px);
     }
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="full"] {
+      height: auto;
       max-height: calc(100% - 8px);
+      max-height: calc(100dvh - var(--me-header-h) - 8px);
     }
     .me-bottom-sheet.me-bottom-sheet--area .me-area-hero {
       min-height: 154px;
