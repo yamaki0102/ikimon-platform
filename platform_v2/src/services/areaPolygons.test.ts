@@ -14,6 +14,10 @@ const {
   filterAreaFeaturesBySources,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
+  isApproximateSchoolBoundary,
+  approximateSchoolBoundaryLabel,
+  approximateSchoolSourceConfidence,
+  shouldFetchLiveOsm,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
@@ -23,8 +27,9 @@ const {
 } = __test__;
 
 test("defaultSourcesForZoom widens with zoom level", () => {
-  // Phase 1: under z8 only the heavy admin layers (still a placeholder set
-  // since admin polygons land in Phase 2). At z>=10 every source is enabled.
+  // Under z8 only broad admin context is requested. At z>=9 registered
+  // human-scale areas are included so mobile users can discover parks/schools
+  // before zooming to a single block.
   const zLow = defaultSourcesForZoom(5);
   const zMid = defaultSourcesForZoom(9);
   const zHigh = defaultSourcesForZoom(13);
@@ -34,7 +39,8 @@ test("defaultSourcesForZoom widens with zoom level", () => {
 
   assert.ok(zMid.includes("protected_area"));
   assert.ok(zMid.includes("nature_symbiosis_site"));
-  assert.ok(!zMid.includes("osm_park"));
+  assert.ok(zMid.includes("osm_park"));
+  assert.ok(zMid.includes("school"));
 
   assert.ok(zHigh.includes("osm_park"));
   assert.ok(zHigh.includes("school"));
@@ -134,11 +140,11 @@ test("live OSM fallback respects selected area sources", () => {
   );
 });
 
-test("stored school point-buffer fallbacks are not rendered as real area polygons", () => {
+test("stored school point-buffer fallbacks remain renderable as approximate tap targets", () => {
   assert.equal(isRenderableStoredAreaPolygon("school", {
     boundary_approximation: "point_buffer",
     boundary_radius_m: 160,
-  }), false);
+  }), true);
 });
 
 test("stored school polygons enriched with an actual boundary still render", () => {
@@ -148,7 +154,7 @@ test("stored school polygons enriched with an actual boundary still render", () 
   }), true);
 });
 
-test("stored school point-buffer circles stay hidden even if metadata says boundary matched", () => {
+test("stored school point-buffer circles stay visible but are handled as approximate boundaries", () => {
   const center = { lat: 34.7235934, lng: 137.7120329 };
   const radiusM = 160;
   const ring: number[][] = [];
@@ -163,11 +169,37 @@ test("stored school point-buffer circles stay hidden even if metadata says bound
   }
   ring.push(ring[0]!.slice());
 
-  assert.equal(isRenderableStoredAreaPolygon("school", {
+  const pointBufferPayload = {
     boundary_approximation: "point_buffer",
     school_boundary: { source: "osm", matched_name: "静岡県立浜松商業高等学校" },
-  }, { type: "Polygon", coordinates: [ring] }), false);
-  assert.equal(isRenderableStoredAreaPolygon("school", null, { type: "Polygon", coordinates: [ring] }), false);
+  };
+
+  assert.equal(isRenderableStoredAreaPolygon("school", pointBufferPayload, { type: "Polygon", coordinates: [ring] }), true);
+  assert.equal(isApproximateSchoolBoundary("school", pointBufferPayload, { type: "Polygon", coordinates: [ring] }), true);
+  assert.equal(isRenderableStoredAreaPolygon("school", null, { type: "Polygon", coordinates: [ring] }), true);
+  assert.equal(isApproximateSchoolBoundary("school", null, { type: "Polygon", coordinates: [ring] }), true);
+});
+
+test("approximate school trust metadata stays conservative", () => {
+  assert.equal(approximateSchoolSourceConfidence(0), 0);
+  assert.equal(approximateSchoolSourceConfidence(0.2), 0.2);
+  assert.equal(approximateSchoolSourceConfidence(0.75), 0.35);
+  assert.equal(approximateSchoolSourceConfidence(Number.NaN), 0);
+  assert.equal(approximateSchoolBoundaryLabel(""), "境界未確認・代表点からの仮範囲");
+  assert.equal(
+    approximateSchoolBoundaryLabel("公式ページ候補あり"),
+    "境界未確認・代表点からの仮範囲 / 公式ページ候補あり",
+  );
+});
+
+test("default z9 park and school visibility does not trigger live OSM fallback", () => {
+  const query = { bbox: [137.3, 34.6, 137.8, 34.9] as [number, number, number, number], zoom: 9 };
+  const sources = defaultSourcesForZoom(query.zoom);
+  assert.ok(sources.includes("osm_park"));
+  assert.ok(sources.includes("school"));
+  assert.equal(shouldFetchLiveOsm(query, sources), false);
+  assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.3, 34.6, 137.8, 34.9] }, sources), false);
+  assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.7, 34.7, 137.75, 34.75] }, sources), true);
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {

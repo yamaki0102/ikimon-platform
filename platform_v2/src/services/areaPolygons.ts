@@ -38,6 +38,8 @@ export interface AreaPolygonFeatureProps {
   source_confidence: number;
   verification_level: string;
   verification_label: string;
+  approximate_boundary?: boolean;
+  boundary_approximation?: string;
   center: [number, number]; // [lng, lat]
   access?: string;
   transient?: boolean;
@@ -152,6 +154,7 @@ const LIVE_OSM_ENDPOINTS = [
   "https://z.overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ];
+const APPROXIMATE_SCHOOL_BOUNDARY_LABEL = "境界未確認・代表点からの仮範囲";
 
 function cleanGuideStopString(value: unknown, maxLength: number): string {
   if (typeof value !== "string") return "";
@@ -273,11 +276,7 @@ const ADMIN_LAYER_LEVELS = [
 ] as const;
 const ADMIN_LAYER_LEVEL_SQL = ADMIN_LAYER_LEVELS.map((level) => `'${level}'`).join(", ");
 const AREA_LAYER_SOURCE_SQL = `CASE WHEN admin_level IN (${ADMIN_LAYER_LEVEL_SQL}) THEN admin_level ELSE source END`;
-const SCHOOL_POINT_BUFFER_FALLBACK_SQL = `NOT (
-          ${AREA_LAYER_SOURCE_SQL} = 'school'
-          AND payload->>'boundary_approximation' = 'point_buffer'
-          AND NOT (payload ? 'school_boundary')
-        )`;
+const SCHOOL_POINT_BUFFER_FALLBACK_SQL = `TRUE`;
 
 type OverpassElement = {
   type: "way" | "relation" | "node";
@@ -307,13 +306,19 @@ function cacheKey(query: AreaPolygonsQuery): string {
 }
 
 function defaultSourcesForZoom(zoom: number | undefined): AreaPolygonSource[] {
-  // Phase 1 ships with parks/protected/oecm/symbiosis/tsunag at zoom>=8.
-  // admin_* / osm_park land in Phase 2 — they'll just return empty for now.
+  // Keep registered human-scale areas visible before users zoom all the way
+  // into a single block; otherwise mobile users read "parks/schools" in the
+  // UI but see only broad administrative context.
   const z = zoom ?? 0;
   if (z < 8) return ["admin_country", "admin_prefecture"];
-  if (z < 10) return [
+  if (z < 9) return [
     "admin_country", "admin_prefecture",
     "protected_area", "oecm", "nature_symbiosis_site", "tsunag",
+  ];
+  if (z < 10) return [
+    "admin_country", "admin_prefecture",
+    "protected_area", "oecm", "nature_symbiosis_site", "tsunag", "school",
+    "osm_park", "user_defined",
   ];
   return [
     "admin_municipality", "admin_prefecture",
@@ -361,11 +366,28 @@ function isGeneratedPointBufferGeometry(geometry: Record<string, unknown> | null
   return ringLooksLikeGeneratedPointBuffer(coordinates[0]);
 }
 
-function isRenderableStoredAreaPolygon(source: AreaPolygonSource, payload: Record<string, unknown> | null, geometry?: Record<string, unknown> | null): boolean {
+function isRenderableStoredAreaPolygon(source: AreaPolygonSource, _payload: Record<string, unknown> | null, _geometry?: Record<string, unknown> | null): boolean {
   if (source !== "school") return true;
-  if (isGeneratedPointBufferGeometry(geometry ?? null)) return false;
-  if (!payload || payload.boundary_approximation !== "point_buffer") return true;
-  return typeof payload.school_boundary === "object" && payload.school_boundary !== null;
+  // School point-buffer polygons are intentionally visible as approximate tap
+  // targets. Exactness is handled by low confidence, label, and map styling.
+  return true;
+}
+
+function isApproximateSchoolBoundary(source: AreaPolygonSource, payload: Record<string, unknown> | null, geometry?: Record<string, unknown> | null): boolean {
+  if (source !== "school") return false;
+  if (isGeneratedPointBufferGeometry(geometry ?? null)) return true;
+  return Boolean(payload && payload.boundary_approximation === "point_buffer");
+}
+
+function approximateSchoolBoundaryLabel(label: string | null | undefined): string {
+  const clean = (label ?? "").trim();
+  if (!clean || clean === APPROXIMATE_SCHOOL_BOUNDARY_LABEL) return APPROXIMATE_SCHOOL_BOUNDARY_LABEL;
+  if (clean.includes(APPROXIMATE_SCHOOL_BOUNDARY_LABEL)) return clean;
+  return `${APPROXIMATE_SCHOOL_BOUNDARY_LABEL} / ${clean}`;
+}
+
+function approximateSchoolSourceConfidence(sourceConfidence: number): number {
+  return Math.min(Number.isFinite(sourceConfidence) ? sourceConfidence : 0, 0.35);
 }
 
 function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource[]): boolean {
@@ -891,6 +913,9 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     const useSimplified = Boolean(areaHa != null && areaHa > 1000 && row.polygon_simplified);
     const geometry = useSimplified ? row.polygon_simplified : row.polygon;
     if (!isRenderableStoredAreaPolygon(source, row.payload, geometry)) return [];
+    const approximateSchoolBoundary = isApproximateSchoolBoundary(source, row.payload, geometry);
+    const rawSourceConfidence = row.source_confidence == null ? 0 : Number(row.source_confidence);
+    const sourceConfidence = Number.isFinite(rawSourceConfidence) ? rawSourceConfidence : 0;
     const guideStop = normalizeGuideStop(row.payload && row.payload.guide_stop);
     return [{
       type: "Feature",
@@ -907,9 +932,11 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         owner_url: row.owner_url,
         story_url: row.story_url,
         certification_url: row.certification_url,
-        source_confidence: row.source_confidence == null ? 0 : Number(row.source_confidence),
+        source_confidence: approximateSchoolBoundary ? approximateSchoolSourceConfidence(sourceConfidence) : sourceConfidence,
         verification_level: row.verification_level ?? "unverified",
-        verification_label: row.verification_label ?? "",
+        verification_label: approximateSchoolBoundary ? approximateSchoolBoundaryLabel(row.verification_label) : row.verification_label ?? "",
+        approximate_boundary: approximateSchoolBoundary || undefined,
+        boundary_approximation: approximateSchoolBoundary ? "point_buffer" : undefined,
         center: [Number(row.lng), Number(row.lat)],
         entity_key: row.entity_key ?? undefined,
         guide_stop: guideStop,
@@ -980,6 +1007,10 @@ export const __test__ = {
   filterAreaFeaturesBySources,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
+  isApproximateSchoolBoundary,
+  approximateSchoolBoundaryLabel,
+  approximateSchoolSourceConfidence,
+  shouldFetchLiveOsm,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,

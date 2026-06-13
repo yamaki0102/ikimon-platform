@@ -18,6 +18,15 @@ test("area polygon outline width avoids MapLibre-incompatible zoom composites", 
   );
 });
 
+test("approximate school area boundaries get a separate dashed outline layer", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /id: 'area-polygon-approximate-outline'/);
+  assert.match(script, /filter: \['==', \['get', 'approximate_boundary'\], true\]/);
+  assert.match(script, /'line-dasharray': \[2, 1\.4\]/);
+  assert.match(script, /area-polygon-approximate-outline/);
+});
+
 test("map explorer localizes English fallback and failure chrome", () => {
   const html = renderMapExplorer({ basePath: "", lang: "en", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "en" });
@@ -90,6 +99,22 @@ test("mobile place detail peek keeps the map visible", () => {
   assert.match(styles, /\.me-bottom-detail \.me-detail-hero\.me-detail-hero-compact\s*\{\s*min-height: 92px;/);
   assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\] \.me-detail-action-icon/);
   assert.match(styles, /\.me-detail-hero-compact \.me-detail-hero-copy/);
+});
+
+test("mobile area sheet opens as a draggable peek instead of a tiny bottom sliver", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /function showAreaBottomSheet\(\)/);
+  assert.match(script, /setAreaSheetSnap\('peek'\)/);
+  assert.match(script, /function sheetSupportsSnap\(\)/);
+  assert.match(script, /toggleSheetSnap\(\)/);
+  assert.match(script, /if \(!sheetSupportsSnap\(\)\) return;\s+sheetDragStartY = event\.clientY;/);
+  assert.match(styles, /\.me-bottom-sheet--detail \.me-bottom-grip,\s+\.me-bottom-sheet--area \.me-bottom-grip/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-bottom-sheet \{[\s\S]*position: fixed;/);
+  assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\]\s*\{\s*height: 35vh;\s*max-height: 35vh;\s*height: min\(35dvh, 320px\);/);
+  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="peek"\]\s*\{\s*height: 58vh;\s*max-height: 58vh;\s*height: min\(58dvh, calc\(100dvh - var\(--me-header-h\) - 12px\), 460px\);/);
+  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: auto;\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - 8px\);/);
 });
 
 test("area sheet includes contribution feedback surface", () => {
@@ -363,8 +388,8 @@ test("small area outlines have a stable click hitbox across zoom levels", () => 
   assert.match(script, /id: 'area-polygon-hitbox'/);
   assert.match(script, /'line-width': 14/);
   assert.match(script, /function areaPolygonHitLayers\(\)/);
-  assert.match(script, /'area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-selected'/);
-  assert.match(script, /\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-hitbox'\]\.forEach/);
+  assert.match(script, /'area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected'/);
+  assert.match(script, /\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'\]\.forEach/);
   assert.match(script, /map\.queryRenderedFeatures\(e\.point, \{ layers: hitLayers \}\)/);
 });
 
