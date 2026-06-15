@@ -697,6 +697,10 @@ export function buildApp() {
     rewriteUrl: (request) => rewriteLangPrefixToQuery(request.url ?? "/"),
   });
 
+  app.addContentTypeParser(["video/mp4", "application/octet-stream"], { parseAs: "buffer" }, (_request, body, done) => {
+    done(null, body);
+  });
+
   void app.register(helmet, {
     contentSecurityPolicy: false,
     hsts: false,

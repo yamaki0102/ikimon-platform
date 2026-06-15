@@ -244,6 +244,55 @@ test("cloudflare shadow proxy forwards JSON bodies and upstream cookies for cont
   });
 });
 
+test("cloudflare shadow proxy forwards binary video bodies for staging upload rehearsal", async () => {
+  await withTestServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    request.on("end", () => {
+      response.setHeader("content-type", "application/json; charset=utf-8");
+      response.end(JSON.stringify({
+        ok: true,
+        method: request.method,
+        url: request.url,
+        contentType: request.headers["content-type"] ?? null,
+        bytes: Buffer.concat(chunks).byteLength,
+        body: Buffer.concat(chunks).toString("utf8"),
+      }));
+    });
+  }, async (origin) => {
+    await withShadowProxyEnv(origin, async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "PUT",
+          url: "/cloudflare-shadow/api/v1/videos/stream_test/body",
+          headers: {
+            host: "staging.ikimon.life",
+            accept: "application/json",
+            "content-type": "video/mp4",
+          },
+          payload: Buffer.from("staging-video-bytes"),
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.headers["x-ikimon-shadow-proxy"], "1");
+        assert.deepEqual(response.json(), {
+          ok: true,
+          method: "PUT",
+          url: "/api/v1/videos/stream_test/body",
+          contentType: "video/mp4",
+          bytes: 19,
+          body: "staging-video-bytes",
+        });
+      } finally {
+        await app.close();
+      }
+    });
+  });
+});
+
 test("cloudflare shadow proxy stays disabled on public production hosts", async () => {
   await withTestServer((_request, response) => {
     response.setHeader("content-type", "application/json; charset=utf-8");
