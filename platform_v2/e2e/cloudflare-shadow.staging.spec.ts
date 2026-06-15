@@ -210,6 +210,73 @@ test.describe("cloudflare shadow staging proxy", () => {
     expect(payload.replay.firstFingerprint).toBe(payload.replay.secondFingerprint);
   });
 
+  test("proves production-imported data and R2 inventory through the staging route", async ({ request }) => {
+    const response = await request.get("/cloudflare-shadow/shadow-smoke/production-import-dress-rehearsal-proof", {
+      headers: { accept: "application/json" },
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    expect(response.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+
+    const payload = await response.json();
+    expect(payload).toMatchObject({
+      ok: true,
+      gate: "production_imported_data_r2_inventory_dress_rehearsal",
+      mode: "dry_run_no_production_mutation",
+      publicReadmodel: {
+        rows: 588,
+        assetCount: 1961,
+        publicReadyAssetCount: 1906,
+        unresolvedAssetCount: 55,
+      },
+      mediaCoverage: {
+        evidenceAssets: 2032,
+        r2Verified: 1951,
+        legacyLedgered: 81,
+        streamExists: 34,
+      },
+      r2Ledger: {
+        verifiedCount: 1951,
+        verifiedBytes: 2338615108,
+        checksumMatchCount: 1951,
+      },
+      r2Inventory: {
+        totalObjects: 1951,
+        totalBytes: 2338615108,
+      },
+      streamInventory: {
+        total: 34,
+        existsCount: 34,
+        readyCount: 32,
+        nonReadyCount: 2,
+      },
+      invariants: {
+        productionReadmodelImported: true,
+        evidenceAssetsImported: true,
+        mediaCoverageComplete: true,
+        r2LedgerCountMatches: true,
+        r2LedgerChecksumVerified: true,
+        r2InventoryCountMatchesLedger: true,
+        r2InventoryBytesMatchLedger: true,
+        unresolvedAssetsRemainExplicit: true,
+        streamInventoryExists: true,
+        mutationPerformed: false,
+        productionTrafficAffected: false,
+      },
+    });
+    expect(payload.r2Inventory.prefixes).toEqual([
+      expect.objectContaining({
+        prefix: "import-smoke/20260615/",
+        objects: 1156,
+        bytes: 1528180221,
+      }),
+      expect.objectContaining({
+        prefix: "import-smoke/20260615-data/original/",
+        objects: 795,
+        bytes: 810434887,
+      }),
+    ]);
+  });
+
   test("rehearses auth, record, photo, video, map, and detail through the staging route", async ({ request }) => {
     const suffix = Date.now().toString(36);
     const userId = `staging-shadow-user-${suffix}`;
