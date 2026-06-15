@@ -53,6 +53,10 @@ interface Env {
   OBSERVATION_ARCHIVE_TARGET?: string;
 }
 
+function isAppRuntime(env: Env): boolean {
+  return env.ENVIRONMENT === "shadow" || env.ENVIRONMENT === "production";
+}
+
 interface DraftAssetInput {
   mime: string;
   bytes: number;
@@ -774,7 +778,7 @@ async function createDraftObservation(request: Request, env: Env): Promise<Respo
 }
 
 async function issueCompatibleSession(request: Request, env: Env): Promise<Response> {
-  if (env.ENVIRONMENT !== "shadow") {
+  if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
   const input = await readJson<SessionIssueInput>(request);
@@ -902,7 +906,7 @@ async function readCompatibleSession(request: Request, env: Env): Promise<Sessio
 }
 
 async function createCompatibleVideoDirectUpload(request: Request, env: Env): Promise<Response> {
-  if (env.ENVIRONMENT !== "shadow") {
+  if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
   const session = await readCompatibleSession(request, env);
@@ -976,7 +980,7 @@ async function putCompatibleVideoBody(uid: string, request: Request, env: Env): 
 }
 
 async function finalizeCompatibleVideo(uid: string, request: Request, env: Env): Promise<Response> {
-  if (env.ENVIRONMENT !== "shadow") {
+  if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
   assertNonEmpty(uid, "uid");
@@ -1658,7 +1662,7 @@ async function applyEmergencyHide(observationId: string, env: Env): Promise<void
 }
 
 async function hideCompatibleObservation(observationId: string, request: Request, env: Env): Promise<Response> {
-  if (env.ENVIRONMENT !== "shadow") {
+  if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
   assertNonEmpty(observationId, "observationId");

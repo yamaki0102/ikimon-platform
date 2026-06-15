@@ -27,6 +27,18 @@ npm run wrangler:check
 - D1 core DB: `ikimon_shadow_core` (`e06a7372-6964-4db1-92dd-3491d058f412`)
 - D1 observation DB: `ikimon_shadow_observations_2026_06` (`a6d64135-4420-47f7-b2fd-3155c0e0a3be`)
 - R2 bucket: `ikimon-shadow-media` (created 2026-06-15T01:19:37Z)
+
+Production lane bootstrap (not routed to `ikimon.life`):
+
+- Worker env: `production`
+- Worker: `ikimon-life-cloudflare-prod`
+- Worker URL: `https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev`
+- Version: `649c1297-ff2c-4fc0-aa57-9c4e951a18fa`
+- D1 core DB: `ikimon_prod_core` (`914dbe2f-29df-4a2b-aba1-1423fe14f137`)
+- D1 observation DB: `ikimon_prod_observations_2026_06` (`c879eef6-009c-4710-a964-be343d96f3eb`)
+- R2 bucket: `ikimon-prod-media` (created 2026-06-15T16:18:03Z)
+- Queue: `ikimon-prod-media-jobs` (`2a79ca3ab7be45f2ad6ff35d66d498de`)
+- Route/custom domain: not configured. Public `ikimon.life` traffic was not moved.
 - Queue: `ikimon-shadow-media-jobs`
 
 ## 2026-06-15 Validation
@@ -216,6 +228,25 @@ npm run wrangler:check
 - Update/delete replay proof uses `/shadow-smoke/update-delete-replay-proof` to create, update via duplicate upsert, upload one photo, hide via the app-compatible hide endpoint, and apply the rollback ledger twice in dry-run. The expected final state is the updated note, preserved canonical row, hidden public surfaces, and identical replay fingerprints.
 - Rollback restore smoke uses `/shadow-smoke/rollback-restore-smoke` to create one public observation with photo and video evidence, hide it, replay `observation.upsert`, `asset.photo.upload`, `asset.video.finalize`, and `observation.hide` into a restore-state model twice, and verify restored observation/asset/hidden state plus canonical preservation.
 - Production-imported data/R2 inventory proof uses `/shadow-smoke/production-import-dress-rehearsal-proof` to validate restored production read-model totals, media coverage, R2 ledger checksum parity, R2 prefix inventory, unresolved legacy assets, and Stream inventory without mutating production.
+- Production runtime app compatibility is now separated from shadow-smoke diagnostics. With `ENVIRONMENT=production`, normal app-compatible routes for session issue/read/logout, observation upsert, photo upload, video direct upload/body/finalize, public map/detail, and emergency hide are available, while `/shadow-smoke/*` and `/internal/*` remain closed. Local tests cover this production runtime contract without mutating the live production lane DB.
+
+## Production Lane Bootstrap Notes
+
+On 2026-06-16 JST, empty production-lane Cloudflare resources were created and schema migrations were applied:
+
+- `ikimon_prod_core`: migrations `0001_core.sql` and `0002_auth_session_contract.sql`; tables `_cf_KV`, `users`, `operation_audit`, `auth_sessions`.
+- `ikimon_prod_observations_2026_06`: observation migrations `0001` through `0013`; tables include `observations`, `asset_ledger`, `outbox`, `readmodel_public_observations`, `rollback_write_ledger`, production import ledgers, and video upload requests.
+- `ikimon-prod-media`: empty R2 production-lane media bucket.
+- `ikimon-prod-media-jobs`: empty production-lane media queue.
+- `npx wrangler deploy --env production`: deployed route-less Worker version `649c1297-ff2c-4fc0-aa57-9c4e951a18fa`.
+
+Read-only smoke:
+
+- `GET /health` on the workers.dev URL returned `{"ok":true,"environment":"production"}`.
+- `GET /shadow-smoke/route-change-rehearsal-proof` returned `404`.
+- `GET /internal/production-import-summary` returned `404`.
+
+No `ikimon.life` DNS, route, custom domain, maintenance mode, VPS data, or production user data was changed.
 
 ## Required Before Production
 

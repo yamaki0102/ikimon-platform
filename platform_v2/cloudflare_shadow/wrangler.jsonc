@@ -46,5 +46,51 @@
         "max_batch_timeout": 10
       }
     ]
+  },
+  "env": {
+    "production": {
+      "name": "ikimon-life-cloudflare-prod",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
+        "OBSERVATION_DB_NAME": "ikimon_prod_observations_2026_06",
+        "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month"
+      },
+      "d1_databases": [
+        {
+          "binding": "CORE_DB",
+          "database_name": "ikimon_prod_core",
+          "database_id": "914dbe2f-29df-4a2b-aba1-1423fe14f137",
+          "migrations_dir": "migrations/core"
+        },
+        {
+          "binding": "OBS_DB",
+          "database_name": "ikimon_prod_observations_2026_06",
+          "database_id": "c879eef6-009c-4710-a964-be343d96f3eb",
+          "migrations_dir": "migrations/observations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ASSET_BUCKET",
+          "bucket_name": "ikimon-prod-media"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "MEDIA_QUEUE",
+            "queue": "ikimon-prod-media-jobs"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "ikimon-prod-media-jobs",
+            "max_batch_size": 25,
+            "max_batch_timeout": 10
+          }
+        ]
+      }
+    }
   }
 }

@@ -2155,6 +2155,106 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
 });
 
+test("production runtime enables app-compatible write routes while keeping shadow smoke routes closed", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production"
+  };
+
+  const smokeResponse = await worker.fetch(new Request("https://ikimon.life/shadow-smoke/route-change-rehearsal-proof"), productionEnv);
+  assert.equal(smokeResponse.status, 404);
+
+  const issueResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: "production-user",
+      displayName: "Production User",
+      roleName: "Observer",
+      ttlHours: 1
+    })
+  }), productionEnv);
+  const issuePayload = await issueResponse.json() as any;
+  assert.equal(issueResponse.ok, true, JSON.stringify(issuePayload));
+  assert.equal(issuePayload.ok, true);
+  assert.match(issueResponse.headers.get("set-cookie") ?? "", /Secure/);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const upsertPayload = await post("/api/v1/observations/upsert", productionEnv, {
+    observationId: "production-runtime-observation",
+    userId: "production-user",
+    observedAt: "2026-06-16T00:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    locationAccuracyM: 12,
+    note: "production runtime route compatibility",
+    taxon: { vernacularName: "production runtime plant", rank: "species" }
+  });
+  assert.equal(upsertPayload.ok, true);
+
+  const photoResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/production-runtime-observation/photos/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "production-runtime.jpg",
+      mimeType: "image/jpeg",
+      base64Data: Buffer.from("production-runtime-image").toString("base64"),
+      facePrivacy: "no_faces"
+    })
+  }), productionEnv);
+  const photoPayload = await photoResponse.json() as any;
+  assert.equal(photoResponse.ok, true, JSON.stringify(photoPayload));
+  assert.equal(photoPayload.ok, true);
+
+  const directResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/videos/direct-upload", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "production-runtime.mp4",
+      observationId: "production-runtime-observation",
+      mediaRole: "observation_video",
+      uploadProtocol: "post",
+      fileSizeBytes: 18
+    })
+  }), productionEnv);
+  const directPayload = await directResponse.json() as any;
+  assert.equal(directResponse.ok, true, JSON.stringify(directPayload));
+  assert.equal(directPayload.ok, true);
+
+  const uid = String(directPayload.uid);
+  const bodyResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/videos/${encodeURIComponent(uid)}/body`, {
+    method: "PUT",
+    headers: { "content-type": "video/mp4", cookie },
+    body: "production-video-bytes"
+  }), productionEnv);
+  assert.equal(bodyResponse.ok, true, await bodyResponse.text());
+
+  const finalizeResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/videos/${encodeURIComponent(uid)}/finalize`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: "production-runtime-observation",
+      durationMs: 9000,
+      readyToStream: true,
+      bytes: 22
+    })
+  }), productionEnv);
+  const finalizePayload = await finalizeResponse.json() as any;
+  assert.equal(finalizeResponse.ok, true, JSON.stringify(finalizePayload));
+  assert.equal(finalizePayload.ok, true);
+
+  const hideResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/production-runtime-observation/hide", {
+    method: "POST",
+    headers: { cookie }
+  }), productionEnv);
+  const hidePayload = await hideResponse.json() as any;
+  assert.equal(hideResponse.ok, true, JSON.stringify(hidePayload));
+  assert.equal(hidePayload.ok, true);
+  assert.equal(obs.observations.get("production-runtime-observation")?.emergency_hidden, 1);
+  assert.equal(obs.rollbackLedger.size, 4);
+});
+
 async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown): Promise<any> {
   const response = await worker.fetch(new Request(`https://shadow.test${path}`, {
     method: "POST",
