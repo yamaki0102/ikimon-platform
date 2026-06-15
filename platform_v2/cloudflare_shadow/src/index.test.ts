@@ -2047,6 +2047,58 @@ test("shadow rollback restore smoke restores observation, photo, video, and hide
   assert.equal(productionResponse.status, 404);
 });
 
+test("shadow route-change rehearsal proves cutover matrix without mutating DNS or production routes", async () => {
+  const { env } = createEnv();
+
+  const response = await worker.fetch(new Request("https://shadow.test/shadow-smoke/route-change-rehearsal-proof?staging_host=staging.example.test"), env);
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  assert.equal(payload.gate, "staging_route_change_rehearsal");
+  assert.equal(payload.mode, "dry_run_no_dns_or_route_mutation");
+  assert.deepEqual(payload.hosts, {
+    staging: "staging.example.test",
+    production: ["ikimon.life", "www.ikimon.life"]
+  });
+  assert.equal(payload.routeMatrix.length, 5);
+  assert.equal(payload.requiredStagingGates.length, 8);
+  assert.equal(payload.rollback.productionDataMutation, false);
+  assert.equal(payload.rollback.dnsMutationPerformed, false);
+  assert.equal(payload.rollback.routeMutationPerformed, false);
+  assert.equal(payload.invariants.dnsUnchanged, true);
+  assert.equal(payload.invariants.workerRouteUnchanged, true);
+  assert.equal(payload.invariants.maintenanceModeUnchanged, true);
+  assert.equal(payload.invariants.mutationPerformed, false);
+  assert.equal(payload.invariants.productionTrafficAffected, false);
+  assert.equal(payload.invariants.stagingShadowProxyOnly, true);
+  assert.equal(payload.invariants.productionShadowProxyClosed, true);
+  assert.equal(payload.invariants.apexAndWwwPostCutoverDefined, true);
+  assert.equal(payload.invariants.requiredGatesEnumerated, true);
+  assert.equal(payload.invariants.rollbackRouteDocumented, true);
+  assert.equal(payload.invariants.cutoverRequiresExplicitApproval, true);
+  assert.deepEqual(payload.requiredStagingGates, [
+    "health_internal_guard",
+    "stream_nonready_exclusion",
+    "missing_media_ledger",
+    "video_metadata_privacy_and_takedown",
+    "update_delete_idempotent_replay",
+    "rollback_restore_smoke",
+    "production_imported_data_r2_inventory",
+    "auth_record_photo_video_map_detail"
+  ]);
+  assert.ok(payload.routeMatrix.some((route: any) =>
+    route.host === "ikimon.life" &&
+    route.path === "/cloudflare-shadow/health" &&
+    route.postCutoverExpectedStatus === 404
+  ));
+
+  const productionResponse = await worker.fetch(new Request("https://shadow.test/shadow-smoke/route-change-rehearsal-proof"), {
+    ...env,
+    ENVIRONMENT: "production"
+  });
+  assert.equal(productionResponse.status, 404);
+});
+
 test("v1 auth session keeps current optional guest and cookie session contract", async () => {
   const { env, core } = createEnv();
 

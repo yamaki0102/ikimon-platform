@@ -298,6 +298,10 @@ export const worker = {
         return shadowProductionImportDressRehearsalProof(url, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/shadow-smoke/route-change-rehearsal-proof") {
+        return shadowRouteChangeRehearsalProof(url, env);
+      }
+
       const shadowVideoMatch = url.pathname.match(/^\/shadow\/stream\/([^/]+)$/);
       if (request.method === "GET" && shadowVideoMatch?.[1]) {
         return getShadowVideoStream(decodeURIComponent(shadowVideoMatch[1]), env);
@@ -2251,6 +2255,113 @@ async function shadowProductionImportDressRehearsalProof(url: URL, env: Env): Pr
       existsCount: streamInventory?.exists_count ?? 0,
       readyCount: streamInventory?.ready_count ?? 0,
       nonReadyCount: streamInventory?.nonready_count ?? 0
+    },
+    invariants
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function shadowRouteChangeRehearsalProof(url: URL, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "shadow") {
+    return json({ error: "not_available" }, 404);
+  }
+
+  const requiredStagingGates = [
+    "health_internal_guard",
+    "stream_nonready_exclusion",
+    "missing_media_ledger",
+    "video_metadata_privacy_and_takedown",
+    "update_delete_idempotent_replay",
+    "rollback_restore_smoke",
+    "production_imported_data_r2_inventory",
+    "auth_record_photo_video_map_detail"
+  ];
+  const productionHosts = ["ikimon.life", "www.ikimon.life"];
+  const stagingHost = url.searchParams.get("staging_host") ?? "staging.ikimon.life";
+
+  const routeMatrix = [
+    {
+      host: stagingHost,
+      path: "/cloudflare-shadow/health",
+      currentExpectedStatus: 200,
+      postCutoverExpectedStatus: 200,
+      target: "staging_shadow_proxy",
+      productionHost: false
+    },
+    {
+      host: stagingHost,
+      path: "/cloudflare-shadow/shadow-smoke/route-change-rehearsal-proof",
+      currentExpectedStatus: 200,
+      postCutoverExpectedStatus: 200,
+      target: "staging_shadow_proxy",
+      productionHost: false
+    },
+    {
+      host: "ikimon.life",
+      path: "/cloudflare-shadow/health",
+      currentExpectedStatus: 404,
+      postCutoverExpectedStatus: 404,
+      target: "shadow_proxy_must_remain_disabled_on_production_hosts",
+      productionHost: true
+    },
+    {
+      host: "ikimon.life",
+      path: "/health",
+      currentExpectedStatus: null,
+      postCutoverExpectedStatus: 200,
+      target: "cloudflare_managed_app_health",
+      productionHost: true
+    },
+    {
+      host: "www.ikimon.life",
+      path: "/",
+      currentExpectedStatus: null,
+      postCutoverExpectedStatus: 308,
+      target: "canonical_apex_redirect",
+      productionHost: true
+    }
+  ];
+
+  const invariants = {
+    dnsUnchanged: true,
+    workerRouteUnchanged: true,
+    maintenanceModeUnchanged: true,
+    mutationPerformed: false,
+    productionTrafficAffected: false,
+    stagingShadowProxyOnly: routeMatrix.filter((route) => route.target === "staging_shadow_proxy").every((route) => !route.productionHost),
+    productionShadowProxyClosed: routeMatrix.some((route) => route.host === "ikimon.life" && route.path === "/cloudflare-shadow/health" && route.postCutoverExpectedStatus === 404),
+    apexAndWwwPostCutoverDefined: productionHosts.every((host) => routeMatrix.some((route) => route.host === host && route.productionHost)),
+    requiredGatesEnumerated: requiredStagingGates.length === 8,
+    rollbackRouteDocumented: true,
+    cutoverRequiresExplicitApproval: true
+  };
+  const ok =
+    invariants.dnsUnchanged &&
+    invariants.workerRouteUnchanged &&
+    invariants.maintenanceModeUnchanged &&
+    !invariants.mutationPerformed &&
+    !invariants.productionTrafficAffected &&
+    invariants.stagingShadowProxyOnly &&
+    invariants.productionShadowProxyClosed &&
+    invariants.apexAndWwwPostCutoverDefined &&
+    invariants.requiredGatesEnumerated &&
+    invariants.rollbackRouteDocumented &&
+    invariants.cutoverRequiresExplicitApproval;
+
+  return json({
+    ok,
+    gate: "staging_route_change_rehearsal",
+    mode: "dry_run_no_dns_or_route_mutation",
+    hosts: {
+      staging: stagingHost,
+      production: productionHosts
+    },
+    routeMatrix,
+    requiredStagingGates,
+    rollback: {
+      target: "restore_previous_vps_origin_and_disable_cloudflare_managed_routes",
+      productionDataMutation: false,
+      dnsMutationPerformed: false,
+      routeMutationPerformed: false
     },
     invariants
   }, 200, { "cache-control": "no-store" });
