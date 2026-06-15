@@ -268,6 +268,17 @@ function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; u
   return `https://ikimon.life${path}`;
 }
 
+function requestHost(request: { headers: Record<string, unknown> }): string {
+  const rawHost = Array.isArray(request.headers.host) ? request.headers.host[0] : request.headers.host;
+  const firstHost = typeof rawHost === "string" ? rawHost.split(",")[0] ?? "" : "";
+  return firstHost.trim().toLowerCase().replace(/:\d+$/, "");
+}
+
+function isPublicProductionHost(request: { headers: Record<string, unknown> }): boolean {
+  const host = requestHost(request);
+  return host === "ikimon.life" || host === "www.ikimon.life";
+}
+
 function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, name: string, value: string): void {
   if (!reply.getHeader(name)) {
     reply.header(name, value);
@@ -311,6 +322,60 @@ function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(
 
 function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string {
   return withBasePath(getForwardedBasePath(request.headers), requestUrl(request));
+}
+
+function buildShadowProxyTarget(origin: string, proxyPath: string, querystring: string | undefined): string {
+  const safePath = proxyPath && !proxyPath.includes("..") ? `/${proxyPath.replace(/^\/+/, "")}` : "/";
+  const target = new URL(safePath, `${origin}/`);
+  if (querystring) {
+    target.search = querystring;
+  }
+  return target.toString();
+}
+
+function shadowProxyBody(request: { method: string; body?: unknown }): BodyInit | undefined {
+  if (request.method === "GET" || request.method === "HEAD") {
+    return undefined;
+  }
+  if (request.body === undefined || request.body === null) {
+    return undefined;
+  }
+  if (typeof request.body === "string" || request.body instanceof ArrayBuffer) {
+    return request.body;
+  }
+  if (request.body instanceof Uint8Array) {
+    return request.body.buffer.slice(request.body.byteOffset, request.body.byteOffset + request.body.byteLength) as ArrayBuffer;
+  }
+  return JSON.stringify(request.body);
+}
+
+function shadowProxyHeaders(request: { headers: Record<string, unknown> }, body: BodyInit | undefined): Headers {
+  const headers = new Headers();
+  const accept = request.headers.accept;
+  const contentType = request.headers["content-type"];
+  const cookie = request.headers.cookie;
+  const userAgent = request.headers["user-agent"];
+  if (typeof accept === "string") headers.set("accept", accept);
+  if (typeof contentType === "string" && body !== undefined) headers.set("content-type", contentType);
+  if (typeof cookie === "string") headers.set("cookie", cookie);
+  if (typeof userAgent === "string") headers.set("user-agent", userAgent);
+  headers.set("x-ikimon-shadow-proxy", "platform-v2-staging");
+  return headers;
+}
+
+function forwardShadowResponseHeaders(reply: { header(name: string, value: string | string[]): unknown }, response: Response): void {
+  for (const name of ["content-type", "cache-control", "location"]) {
+    const value = response.headers.get(name);
+    if (value) {
+      reply.header(name, value);
+    }
+  }
+  const setCookies = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
+  const fallbackSetCookie = response.headers.get("set-cookie");
+  const cookies = setCookies.length > 0 ? setCookies : fallbackSetCookie ? [fallbackSetCookie] : [];
+  if (cookies.length > 0) {
+    reply.header("set-cookie", cookies);
+  }
 }
 
 function localizedNavHome(lang: SiteLang): string {
@@ -698,6 +763,37 @@ export function buildApp() {
       .type(contentType)
       .header("Cache-Control", "public, max-age=300")
       .send(bytes);
+  });
+
+  app.route<{ Params: { "*": string } }>({
+    method: ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"],
+    url: "/cloudflare-shadow/*",
+    handler: async (request, reply) => {
+      if (!config.cloudflareShadowProxy || isPublicProductionHost(request as unknown as { headers: Record<string, unknown> })) {
+        reply.code(404).type("application/json; charset=utf-8").send({ ok: false, error: "not_found" });
+        return;
+      }
+      const body = shadowProxyBody(request as unknown as { method: string; body?: unknown });
+      const target = buildShadowProxyTarget(
+        config.cloudflareShadowProxy.origin,
+        request.params["*"] ?? "",
+        new URL(request.url, "http://ikimon.local").search.slice(1),
+      );
+      const upstream = await fetch(target, {
+        method: request.method,
+        headers: shadowProxyHeaders(request as unknown as { headers: Record<string, unknown> }, body),
+        body,
+        redirect: "manual",
+      });
+      const bytes = Buffer.from(await upstream.arrayBuffer());
+      reply.code(upstream.status).header("x-ikimon-shadow-proxy", "1");
+      forwardShadowResponseHeaders(reply, upstream);
+      reply.send(bytes);
+    },
+  });
+
+  app.get("/cloudflare-shadow", async (_request, reply) => {
+    reply.redirect("/cloudflare-shadow/health", 308);
   });
 
   app.get("/", async (request, reply) => {

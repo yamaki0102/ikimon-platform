@@ -43,6 +43,9 @@ export type AppConfig = {
   legacyUploadsRoot: string;
   legacyMirrorRoot?: string;
   compatibilityWriteEnabled: boolean;
+  cloudflareShadowProxy?: {
+    origin: string;
+  };
   cloudflare?: {
     accountId: string;
     streamApiToken: string;
@@ -104,6 +107,27 @@ function parsePositiveNumber(rawValue: string | undefined, fallback: number): nu
   return parsed;
 }
 
+function normalizeProxyOrigin(rawValue: string | undefined): string | undefined {
+  const raw = rawValue?.trim();
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const url = new URL(raw);
+    const hostname = url.hostname.toLowerCase();
+    const localHttp = url.protocol === "http:" && (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1");
+    if (url.protocol !== "https:" && !localHttp) {
+      return undefined;
+    }
+    url.pathname = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
 function parseProfileDigestProvider(rawValue: string | undefined, hasDeepseekKey: boolean): "disabled" | "deepseek" {
   const normalized = rawValue?.trim().toLowerCase();
   if (normalized === "deepseek") {
@@ -141,6 +165,8 @@ export function loadConfig(): AppConfig {
   const cfToken = process.env.CLOUDFLARE_STREAM_API_TOKEN?.trim();
   const cfSubdomain = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN?.trim();
   const cfWebhookSecret = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET?.trim();
+  const cloudflareShadowProxyOrigin = normalizeProxyOrigin(process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN);
+  const cloudflareShadowProxyEnabled = parseBoolean(process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED, false);
   const cloudflare = cfAccount && cfToken && cfSubdomain
     ? { accountId: cfAccount, streamApiToken: cfToken, streamCustomerSubdomain: cfSubdomain, streamWebhookSecret: cfWebhookSecret || undefined }
     : undefined;
@@ -195,6 +221,9 @@ export function loadConfig(): AppConfig {
     legacyUploadsRoot: legacyRoots.uploadsRoot,
     legacyMirrorRoot: process.env.LEGACY_MIRROR_ROOT,
     compatibilityWriteEnabled: parseBoolean(process.env.COMPATIBILITY_WRITE_ENABLED, true),
+    cloudflareShadowProxy: cloudflareShadowProxyEnabled && cloudflareShadowProxyOrigin
+      ? { origin: cloudflareShadowProxyOrigin }
+      : undefined,
     cloudflare,
     oauth: {
       google: googleClientId && googleClientSecret

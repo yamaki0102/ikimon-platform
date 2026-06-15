@@ -1,7 +1,44 @@
 import assert from "node:assert/strict";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { buildApp } from "./app.js";
 import { createContactProof } from "./services/contactSubmit.js";
+
+async function withTestServer(
+  handler: (request: IncomingMessage, response: ServerResponse) => void,
+  run: (origin: string) => Promise<void>,
+): Promise<void> {
+  const server = createServer(handler);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address() as AddressInfo;
+    await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+async function withShadowProxyEnv(origin: string, run: () => Promise<void>): Promise<void> {
+  const previousEnabled = process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED;
+  const previousOrigin = process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN;
+  process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED = "1";
+  process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN = origin;
+  try {
+    await run();
+  } finally {
+    if (previousEnabled === undefined) {
+      delete process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED;
+    } else {
+      process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED = previousEnabled;
+    }
+    if (previousOrigin === undefined) {
+      delete process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN;
+    } else {
+      process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN = previousOrigin;
+    }
+  }
+}
 
 test("app accepts photo upload JSON bodies up to the v2 photo preflight envelope", async () => {
   const app = buildApp();
@@ -77,6 +114,153 @@ test("app keeps JSON 404 for API clients", async () => {
   } finally {
     await app.close();
   }
+});
+
+test("cloudflare shadow proxy is disabled unless explicitly configured", async () => {
+  const previousEnabled = process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED;
+  const previousOrigin = process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN;
+  delete process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED;
+  delete process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN;
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/cloudflare-shadow/health",
+      headers: { host: "staging.ikimon.life", accept: "application/json" },
+    });
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(response.json(), { ok: false, error: "not_found" });
+  } finally {
+    await app.close();
+    if (previousEnabled === undefined) {
+      delete process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED;
+    } else {
+      process.env.CLOUDFLARE_SHADOW_PROXY_ENABLED = previousEnabled;
+    }
+    if (previousOrigin === undefined) {
+      delete process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN;
+    } else {
+      process.env.CLOUDFLARE_SHADOW_PROXY_ORIGIN = previousOrigin;
+    }
+  }
+});
+
+test("cloudflare shadow proxy forwards staging-base-path requests without leaking basic auth", async () => {
+  await withTestServer((request, response) => {
+    response.setHeader("content-type", "application/json; charset=utf-8");
+    response.end(JSON.stringify({
+      ok: true,
+      method: request.method,
+      url: request.url,
+      authorization: request.headers.authorization ?? null,
+      marker: request.headers["x-ikimon-shadow-proxy"] ?? null,
+    }));
+  }, async (origin) => {
+    await withShadowProxyEnv(origin, async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/cloudflare-shadow/api/v1/map/cells?bbox=137.8,34.6,137.9,34.8",
+          headers: {
+            host: "staging.ikimon.life",
+            accept: "application/json",
+            authorization: "Basic should-not-forward",
+          },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.headers["x-ikimon-shadow-proxy"], "1");
+        assert.deepEqual(response.json(), {
+          ok: true,
+          method: "GET",
+          url: "/api/v1/map/cells?bbox=137.8,34.6,137.9,34.8",
+          authorization: null,
+          marker: "platform-v2-staging",
+        });
+      } finally {
+        await app.close();
+      }
+    });
+  });
+});
+
+test("cloudflare shadow proxy forwards JSON bodies and upstream cookies for contract rehearsal", async () => {
+  await withTestServer((request, response) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      response.setHeader("content-type", "application/json; charset=utf-8");
+      response.setHeader("set-cookie", "ikimon_shadow_session=abc; Path=/; HttpOnly; SameSite=Lax");
+      response.end(JSON.stringify({
+        ok: true,
+        method: request.method,
+        url: request.url,
+        contentType: request.headers["content-type"] ?? null,
+        body: JSON.parse(body),
+      }));
+    });
+  }, async (origin) => {
+    await withShadowProxyEnv(origin, async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "POST",
+          url: "/cloudflare-shadow/api/v1/auth/session/issue",
+          headers: {
+            host: "staging.ikimon.life",
+            accept: "application/json",
+            "content-type": "application/json",
+          },
+          payload: {
+            userId: "shadow-staging-user",
+            ttlHours: 1,
+          },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.headers["x-ikimon-shadow-proxy"], "1");
+        assert.match(String(response.headers["set-cookie"] ?? ""), /ikimon_shadow_session=abc/);
+        assert.deepEqual(response.json(), {
+          ok: true,
+          method: "POST",
+          url: "/api/v1/auth/session/issue",
+          contentType: "application/json",
+          body: {
+            userId: "shadow-staging-user",
+            ttlHours: 1,
+          },
+        });
+      } finally {
+        await app.close();
+      }
+    });
+  });
+});
+
+test("cloudflare shadow proxy stays disabled on public production hosts", async () => {
+  await withTestServer((_request, response) => {
+    response.setHeader("content-type", "application/json; charset=utf-8");
+    response.end(JSON.stringify({ ok: true }));
+  }, async (origin) => {
+    await withShadowProxyEnv(origin, async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/cloudflare-shadow/health",
+          headers: { host: "ikimon.life", accept: "application/json" },
+        });
+        assert.equal(response.statusCode, 404);
+        assert.deepEqual(response.json(), { ok: false, error: "not_found" });
+      } finally {
+        await app.close();
+      }
+    });
+  });
 });
 
 test("app sends HSTS in production", async () => {

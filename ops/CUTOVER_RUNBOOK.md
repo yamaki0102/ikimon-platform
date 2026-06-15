@@ -19,6 +19,31 @@ staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える
 - staging browser verify secrets: `STAGING_BASIC_AUTH_USER`, `STAGING_BASIC_AUTH_PASS`
 - deploy-staging は `pre-flight` → `deploy` → `verify-ssh` → `verify-e2e` で止める
 
+### Cloudflare shadow staging proxy
+
+Cloudflare-managed 移行の app contract rehearsal では、staging v2 にだけ `/cloudflare-shadow/*` を開ける。production host (`ikimon.life` / `www.ikimon.life`) では同 route は常に 404。
+
+`/etc/ikimon/staging-v2.env` にだけ設定する:
+
+```bash
+CLOUDFLARE_SHADOW_PROXY_ENABLED=1
+CLOUDFLARE_SHADOW_PROXY_ORIGIN=https://ikimon-life-cloudflare-shadow-lab.yamaki0102.workers.dev
+```
+
+設定後の検証:
+
+```bash
+cd platform_v2
+EXPECT_CLOUDFLARE_SHADOW_STAGING=1 npm run e2e:staging:cloudflare-shadow
+```
+
+合格条件:
+
+- `GET /cloudflare-shadow/health` が staging base path 経由で `{"ok":true,"environment":"shadow"}` を返す。
+- `x-ikimon-shadow-proxy: 1` が付く。
+- `/cloudflare-shadow/internal/*` が 200 で公開されない。
+- production env file には `CLOUDFLARE_SHADOW_PROXY_ENABLED=1` を入れない。
+
 ### Release gate: registry sitemap smoke
 
 staging 反映後、production cutover 判断の前に `platform_v2/src/siteMap.ts` の canonical registry から生成される巡回 smoke を必ず通す。`.github/workflows/deploy-staging.yml` の `verify-e2e` job でも `npm run e2e:staging:site-map` を実行する。baseline PNG が commit されている場合は、workflow が `VISUAL_QA_ASSERT_SCREENSHOTS=1` に切り替えて visual diff まで実行する。
