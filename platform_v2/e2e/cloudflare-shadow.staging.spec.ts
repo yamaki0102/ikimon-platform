@@ -230,5 +230,40 @@ test.describe("cloudflare shadow staging proxy", () => {
     expect(detailHtml).toContain('data-shadow-observation-detail="1"');
     expect(detailHtml).not.toContain(String(exactLat));
     expect(detailHtml).not.toContain(String(exactLng));
+
+    const reverseDelta = await request.get(`/cloudflare-shadow/shadow-smoke/reverse-delta-proof?target_prefix=${encodeURIComponent(visitId)}&expected_observations=1&expected_assets=2&expected_ledger=3`, {
+      headers: { accept: "application/json" },
+    });
+    expect(reverseDelta.ok(), await reverseDelta.text()).toBeTruthy();
+    expect(reverseDelta.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+    const reverseDeltaPayload = await reverseDelta.json();
+    expect(reverseDeltaPayload).toMatchObject({
+      ok: true,
+      gate: "integrated_staging_reverse_delta_write_drain",
+      mode: "dry_run_no_vps_mutation",
+      targetPrefix: visitId,
+      counts: {
+        rollbackLedger: 3,
+        observations: 1,
+        assets: 2,
+        ledgerObservations: 1,
+        ledgerAssets: 2,
+      },
+      drift: {
+        observationsWithoutLedger: 0,
+        ledgerObservationsWithoutRows: 0,
+        assetsWithoutLedger: 0,
+        ledgerAssetsWithoutRows: 0,
+      },
+      invariants: {
+        expectedObservationCount: true,
+        expectedAssetCount: true,
+        expectedRollbackLedgerCount: true,
+        observationLedgerAligned: true,
+        assetLedgerAligned: true,
+        mutationPerformed: false,
+        productionTrafficAffected: false,
+      },
+    });
   });
 });
