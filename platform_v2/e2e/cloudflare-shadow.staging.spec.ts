@@ -347,6 +347,79 @@ test.describe("cloudflare shadow staging proxy", () => {
     ]);
   });
 
+  test("proves route-change rehearsal remains dry-run through the staging route", async ({ request }) => {
+    const response = await request.get("/cloudflare-shadow/shadow-smoke/route-change-rehearsal-proof?staging_host=staging.ikimon.life", {
+      headers: { accept: "application/json" },
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    expect(response.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+
+    const payload = await response.json();
+    expect(payload).toMatchObject({
+      ok: true,
+      gate: "staging_route_change_rehearsal",
+      mode: "dry_run_no_dns_or_route_mutation",
+      hosts: {
+        staging: "staging.ikimon.life",
+        production: ["ikimon.life", "www.ikimon.life"],
+      },
+      rollback: {
+        target: "restore_previous_vps_origin_and_disable_cloudflare_managed_routes",
+        productionDataMutation: false,
+        dnsMutationPerformed: false,
+        routeMutationPerformed: false,
+      },
+      invariants: {
+        dnsUnchanged: true,
+        workerRouteUnchanged: true,
+        maintenanceModeUnchanged: true,
+        mutationPerformed: false,
+        productionTrafficAffected: false,
+        stagingShadowProxyOnly: true,
+        productionShadowProxyClosed: true,
+        apexAndWwwPostCutoverDefined: true,
+        requiredGatesEnumerated: true,
+        rollbackRouteDocumented: true,
+        cutoverRequiresExplicitApproval: true,
+      },
+    });
+    expect(payload.requiredStagingGates).toEqual([
+      "health_internal_guard",
+      "stream_nonready_exclusion",
+      "missing_media_ledger",
+      "video_metadata_privacy_and_takedown",
+      "update_delete_idempotent_replay",
+      "rollback_restore_smoke",
+      "production_imported_data_r2_inventory",
+      "auth_record_photo_video_map_detail",
+    ]);
+    expect(payload.routeMatrix).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          host: "staging.ikimon.life",
+          path: "/cloudflare-shadow/health",
+          currentExpectedStatus: 200,
+          target: "staging_shadow_proxy",
+          productionHost: false,
+        }),
+        expect.objectContaining({
+          host: "ikimon.life",
+          path: "/cloudflare-shadow/health",
+          postCutoverExpectedStatus: 404,
+          target: "shadow_proxy_must_remain_disabled_on_production_hosts",
+          productionHost: true,
+        }),
+        expect.objectContaining({
+          host: "www.ikimon.life",
+          path: "/",
+          postCutoverExpectedStatus: 308,
+          target: "canonical_apex_redirect",
+          productionHost: true,
+        }),
+      ]),
+    );
+  });
+
   test("rehearses auth, record, photo, video, map, and detail through the staging route", async ({ request }) => {
     const suffix = Date.now().toString(36);
     const userId = `staging-shadow-user-${suffix}`;
