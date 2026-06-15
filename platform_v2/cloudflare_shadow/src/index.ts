@@ -290,6 +290,10 @@ export const worker = {
         return shadowUpdateDeleteReplayProof(url, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/shadow-smoke/rollback-restore-smoke") {
+        return shadowRollbackRestoreSmoke(url, env);
+      }
+
       if (request.method === "GET" && url.pathname === "/shadow-smoke/production-import-dress-rehearsal-proof") {
         return shadowProductionImportDressRehearsalProof(url, env);
       }
@@ -2742,6 +2746,186 @@ async function shadowUpdateDeleteReplayProof(url: URL, env: Env): Promise<Respon
   }, 200, { "cache-control": "no-store" });
 }
 
+async function shadowRollbackRestoreSmoke(url: URL, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "shadow") {
+    return json({ error: "not_available" }, 404);
+  }
+
+  const suffix = sanitizeIdPart(url.searchParams.get("id") ?? new Date().toISOString());
+  const observationId = `shadow-rollback-restore-${suffix}`.slice(0, 120);
+  const userId = `shadow-rollback-user-${suffix}`.slice(0, 120);
+  const note = "shadow rollback restore smoke";
+
+  const sessionResponse = await issueCompatibleSession(new Request(`${url.origin}/api/v1/auth/session/issue`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId, ttlHours: 1 })
+  }), env);
+  const cookie = sessionResponse.headers.get("set-cookie") ?? "";
+
+  const upsertResponse = await upsertLegacyCompatibleObservation(new Request(`${url.origin}/api/v1/observations/upsert`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId,
+      userId,
+      observedAt: "2026-06-16T01:15:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      locationAccuracyM: 12,
+      visibility: "public",
+      taxon: { vernacularName: "復元演習記録", rank: "species" },
+      note
+    })
+  }), env);
+  if (!upsertResponse.ok) {
+    return upsertResponse;
+  }
+
+  const photoResponse = await uploadLegacyCompatiblePhoto(observationId, new Request(`${url.origin}/api/v1/observations/${encodeURIComponent(observationId)}/photos/upload`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "rollback-restore-proof.jpg",
+      mimeType: "image/jpeg",
+      base64Data: btoa("shadow-rollback-restore-image"),
+      facePrivacy: "no_faces"
+    })
+  }), env);
+  if (!photoResponse.ok) {
+    return photoResponse;
+  }
+
+  const videoBody = "rollback-video-bytes";
+  const directResponse = await createCompatibleVideoDirectUpload(new Request(`${url.origin}/api/v1/videos/direct-upload`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "rollback-restore-proof.mp4",
+      observationId,
+      mediaRole: "observation_video",
+      uploadProtocol: "post",
+      fileSizeBytes: videoBody.length
+    })
+  }), env);
+  if (!directResponse.ok) {
+    return directResponse;
+  }
+  const directPayload = await directResponse.json() as { uid?: string; uploadUrl?: string };
+  const streamUid = String(directPayload.uid ?? "");
+  const uploadUrl = String(directPayload.uploadUrl ?? "");
+  const bodyResponse = await putCompatibleVideoBody(streamUid, new Request(uploadUrl, {
+    method: "PUT",
+    headers: { "content-type": "video/mp4", cookie },
+    body: videoBody
+  }), env);
+  if (!bodyResponse.ok) {
+    return bodyResponse;
+  }
+  const finalizeResponse = await finalizeCompatibleVideo(streamUid, new Request(`${url.origin}/api/v1/videos/${encodeURIComponent(streamUid)}/finalize`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId,
+      durationMs: 9000,
+      readyToStream: true,
+      bytes: videoBody.length
+    })
+  }), env);
+  if (!finalizeResponse.ok) {
+    return finalizeResponse;
+  }
+
+  await markUploadedAssetsPublicReady(observationId, env);
+  await refreshPublicReadmodel(observationId, env);
+  const beforeHide = await takedownVisibilityState(observationId, env);
+
+  const hideResponse = await hideCompatibleObservation(observationId, new Request(`${url.origin}/api/v1/observations/${encodeURIComponent(observationId)}/hide`, {
+    method: "POST",
+    headers: { cookie }
+  }), env);
+  if (!hideResponse.ok) {
+    return hideResponse;
+  }
+  const afterHide = await takedownVisibilityState(observationId, env);
+
+  const canonical = await env.OBS_DB.prepare(
+    `SELECT o.observation_id, o.emergency_hidden, COUNT(a.asset_id) AS asset_count
+     FROM observations o
+     LEFT JOIN asset_ledger a ON a.observation_id = o.observation_id
+     WHERE o.observation_id = ?
+     GROUP BY o.observation_id, o.emergency_hidden`
+  ).bind(observationId).first<{
+    observation_id: string;
+    emergency_hidden: number;
+    asset_count: number;
+  }>();
+  const events = await listRollbackEvents(env, `${observationId}%`, 50);
+  const replayOnce = replayRollbackEvents(events);
+  const replayTwice = replayRollbackEvents([...events, ...events]);
+  const eventCounts = countRollbackEventTypes(events);
+  const restoredObservation = replayOnce.observations[observationId] ?? null;
+  const restoredAssets = Object.values(replayOnce.assets).filter((asset) => asset.observationId === observationId);
+  const replaySqlReady = events.every((event) => event.replay_sql.includes("rollback_"));
+  const invariants = {
+    observationRestored: restoredObservation?.ownerUserId === userId && restoredObservation?.note === note,
+    hiddenStateRestored: restoredObservation?.emergencyHidden === true,
+    assetsRestored: restoredAssets.length === 2,
+    photoRestored: restoredAssets.some((asset) => asset.mime === "image/jpeg"),
+    videoRestored: restoredAssets.some((asset) => asset.mime === "video/mp4"),
+    replaySqlReady,
+    replayIdempotent: replayOnce.fingerprint === replayTwice.fingerprint,
+    canonicalPreserved: Boolean(canonical) && canonical?.emergency_hidden === 1 && Number(canonical?.asset_count ?? 0) === 2,
+    publicSurfacesHidden: afterHide.readmodelRows === 0 && !afterHide.publicDetailVisible && !afterHide.mapVisible,
+    mutationPerformed: false,
+    productionTrafficAffected: false
+  };
+  const ok =
+    invariants.observationRestored &&
+    invariants.hiddenStateRestored &&
+    invariants.assetsRestored &&
+    invariants.photoRestored &&
+    invariants.videoRestored &&
+    invariants.replaySqlReady &&
+    invariants.replayIdempotent &&
+    invariants.canonicalPreserved &&
+    invariants.publicSurfacesHidden &&
+    !invariants.mutationPerformed &&
+    !invariants.productionTrafficAffected;
+
+  return json({
+    ok,
+    gate: "integrated_staging_rollback_restore_smoke",
+    mode: "dry_run_no_vps_mutation",
+    observationId,
+    counts: {
+      rollbackLedger: events.length,
+      eventTypes: eventCounts,
+      restoredObservations: restoredObservation ? 1 : 0,
+      restoredAssets: restoredAssets.length,
+      canonicalAssets: canonical?.asset_count ?? 0
+    },
+    beforeHide,
+    afterHide,
+    canonical: {
+      observationId: canonical?.observation_id ?? null,
+      ownerUserId: userId,
+      emergency_hidden: canonical?.emergency_hidden ?? null,
+      asset_count: canonical?.asset_count ?? 0
+    },
+    restore: {
+      target: "rollback_restore_state_from_rollback_ledger",
+      mutationPerformed: false,
+      applyOrder: ["observation.upsert", "asset.photo.upload", "asset.video.finalize", "observation.hide"],
+      firstFingerprint: replayOnce.fingerprint,
+      secondFingerprint: replayTwice.fingerprint,
+      finalObservation: restoredObservation,
+      assets: restoredAssets
+    },
+    invariants
+  }, 200, { "cache-control": "no-store" });
+}
+
 async function listRollbackEvents(env: Env, targetValue: string | null, limit: number): Promise<RollbackLedgerRow[]> {
   const result = await (targetValue
     ? env.OBS_DB.prepare(
@@ -2812,7 +2996,7 @@ function replayRollbackEvents(events: RollbackLedgerRow[]) {
         observationId: stringOrNullFromUnknown(payload.observationId),
         ownerUserId: stringOrNullFromUnknown(payload.ownerUserId),
         objectKey: stringOrNullFromUnknown(payload.objectKey),
-        mime: stringOrNullFromUnknown(payload.mime),
+        mime: stringOrNullFromUnknown(payload.mime) ?? (event.event_type === "asset.video.finalize" ? "video/mp4" : null),
         bytes: numberOrNullFromUnknown(payload.bytes)
       };
     }

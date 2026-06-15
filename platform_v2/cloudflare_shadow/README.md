@@ -177,6 +177,7 @@ npm run wrangler:check
 - `npx wrangler deploy --dry-run`: passed.
 - The proof endpoint returns counts, drift, and replay metadata only; it does not return replay SQL events and reports `mutationPerformed=false` / `productionTrafficAffected=false`.
 - Added shadow-only `GET /shadow-smoke/update-delete-replay-proof` and app-compatible `POST /api/v1/observations/:id/hide`.
+- Added shadow-only `GET /shadow-smoke/rollback-restore-smoke` for a single dry-run restore exercise from rollback ledger events.
 - Deployed Worker version `c2b89a37-630c-4972-a280-56ad697ee046`.
 - `npm run check`: passed after adding update/delete/idempotent replay proof.
 - `npm test`: passed 21 tests, including duplicate observation upsert, photo ledger, hide ledger, public-surface removal, and double dry-run replay fingerprint equality.
@@ -184,6 +185,7 @@ npm run wrangler:check
 - `npm audit --omit=optional`: 0 vulnerabilities.
 - Live smoke `shadow-update-delete-live-20260615232514` returned `gate=integrated_staging_update_delete_idempotent_replay`, `rollbackLedger=4`, event types `observation.upsert=2`, `asset.photo.upload=1`, `observation.hide=1`, public readmodel/detail/map hidden after hide, canonical row preserved with `emergency_hidden=1`, and `mutationPerformed=false` / `productionTrafficAffected=false`.
 - Added shadow-only `GET /shadow-smoke/production-import-dress-rehearsal-proof` for the production-imported data + R2 inventory rehearsal gate.
+- Added rollback restore smoke `GET /shadow-smoke/rollback-restore-smoke`, which creates one observation, one photo, one pseudo-Stream video, hides the observation, rebuilds rollback restore state from ledger events, and verifies idempotent replay with `mutationPerformed=false` / `productionTrafficAffected=false`.
 - Deployed Worker version `7bc831d3-eed6-4201-a73e-355f68753eb6`.
 - `npm run check`: passed after adding the production-imported data/R2 inventory proof.
 - `npm test`: passed 22 tests.
@@ -212,6 +214,7 @@ npm run wrangler:check
 - Reverse delta rollback readiness starts from `rollback_write_ledger`. The shadow Worker records replayable observation/photo/video events in the same D1 batch as canonical writes, and the dry-run endpoint proves ledger-to-canonical drift without mutating VPS/PostgreSQL.
 - Integrated staging proof uses `/shadow-smoke/reverse-delta-proof?target_prefix=<observation-id>` to verify a staging-created observation, photo, and video have matching rollback ledger coverage without opening `/internal/*` or mutating VPS/PostgreSQL.
 - Update/delete replay proof uses `/shadow-smoke/update-delete-replay-proof` to create, update via duplicate upsert, upload one photo, hide via the app-compatible hide endpoint, and apply the rollback ledger twice in dry-run. The expected final state is the updated note, preserved canonical row, hidden public surfaces, and identical replay fingerprints.
+- Rollback restore smoke uses `/shadow-smoke/rollback-restore-smoke` to create one public observation with photo and video evidence, hide it, replay `observation.upsert`, `asset.photo.upload`, `asset.video.finalize`, and `observation.hide` into a restore-state model twice, and verify restored observation/asset/hidden state plus canonical preservation.
 - Production-imported data/R2 inventory proof uses `/shadow-smoke/production-import-dress-rehearsal-proof` to validate restored production read-model totals, media coverage, R2 ledger checksum parity, R2 prefix inventory, unresolved legacy assets, and Stream inventory without mutating production.
 
 ## Required Before Production
@@ -222,7 +225,7 @@ This lab is not cutover-ready until:
 2. R2 object checksums are reconciled with D1 ledger rows beyond the single-object smoke.
 3. Queue delivery and outbox reconciliation are tested under retry/failure.
 4. A restore drill exports D1, checks R2 inventory, and rebuilds read models.
-5. Production import and rollback still need a final route-change dress rehearsal that includes full app compatibility, write-drain or reverse-delta on the integrated staging route, this production-imported data/R2 inventory gate through staging, and rollback smoke.
+5. Production import and rollback still need a final route-change dress rehearsal that includes full app compatibility, write-drain or reverse-delta on the integrated staging route, this production-imported data/R2 inventory gate through staging, and the rollback restore smoke through staging.
 6. Real production media references must reconcile to R2 objects or provider inventory. The first backup-tar reconciliation still has 47 non-Stream unresolved legacy references and 34 Stream references; these now have non-production ledger, Stream inventory, full 1,951-object matched-media R2 import proof, restored PostgreSQL parity ledger proof, core canonical D1 import proof, post-import D1 restore proof, write/auth/video/public-map/public-detail/browser-flow contract smoke proof, second-location archive proof, and shadow reverse-delta mechanics proof, but production cutover still needs existing app staging integration, full observation detail SSR parity, missing-media provenance, video-container metadata verification, takedown propagation smoke, budget guard, and final rollback rehearsal.
 7. The shadow derivative byte scanner is green for generated SVG derivatives, but production cutover still needs a metadata parser or exiftool-equivalent proof for actual WebP/JPEG/MP4-poster derivatives from the real media processor.
 8. If future internal diagnostics are needed, configure `INTERNAL_AUTH_TOKEN` through explicit secret-update approval and call `/internal/*` with `Authorization: Bearer <token>`.

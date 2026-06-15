@@ -1995,6 +1995,58 @@ test("shadow update/delete proof replays ledger idempotently while preserving ca
   assert.equal(productionResponse.status, 404);
 });
 
+test("shadow rollback restore smoke restores observation, photo, video, and hide state from ledger", async () => {
+  const { env, obs } = createEnv();
+
+  const response = await worker.fetch(new Request("https://shadow.test/shadow-smoke/rollback-restore-smoke?id=unit"), env);
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  assert.equal(payload.gate, "integrated_staging_rollback_restore_smoke");
+  assert.equal(payload.mode, "dry_run_no_vps_mutation");
+  assert.deepEqual(payload.counts.eventTypes, {
+    "observation.upsert": 1,
+    "asset.photo.upload": 1,
+    "asset.video.finalize": 1,
+    "observation.hide": 1
+  });
+  assert.equal(payload.counts.rollbackLedger, 4);
+  assert.equal(payload.counts.restoredObservations, 1);
+  assert.equal(payload.counts.restoredAssets, 2);
+  assert.equal(payload.counts.canonicalAssets, 2);
+  assert.equal(payload.beforeHide.publicDetailVisible, true);
+  assert.equal(payload.beforeHide.mapVisible, true);
+  assert.equal(payload.afterHide.publicDetailVisible, false);
+  assert.equal(payload.afterHide.mapVisible, false);
+  assert.equal(payload.canonical.emergency_hidden, 1);
+  assert.equal(payload.canonical.asset_count, 2);
+  assert.equal(payload.restore.target, "rollback_restore_state_from_rollback_ledger");
+  assert.equal(payload.restore.mutationPerformed, false);
+  assert.equal(payload.restore.firstFingerprint, payload.restore.secondFingerprint);
+  assert.equal(payload.restore.finalObservation.note, "shadow rollback restore smoke");
+  assert.equal(payload.restore.finalObservation.emergencyHidden, true);
+  assert.equal(payload.restore.assets.length, 2);
+  assert.equal(payload.invariants.observationRestored, true);
+  assert.equal(payload.invariants.hiddenStateRestored, true);
+  assert.equal(payload.invariants.assetsRestored, true);
+  assert.equal(payload.invariants.photoRestored, true);
+  assert.equal(payload.invariants.videoRestored, true);
+  assert.equal(payload.invariants.replaySqlReady, true);
+  assert.equal(payload.invariants.replayIdempotent, true);
+  assert.equal(payload.invariants.canonicalPreserved, true);
+  assert.equal(payload.invariants.publicSurfacesHidden, true);
+  assert.equal(payload.invariants.mutationPerformed, false);
+  assert.equal(payload.invariants.productionTrafficAffected, false);
+  assert.equal(obs.observations.size, 1);
+  assert.equal(obs.rollbackLedger.size, 4);
+
+  const productionResponse = await worker.fetch(new Request("https://shadow.test/shadow-smoke/rollback-restore-smoke?id=prod"), {
+    ...env,
+    ENVIRONMENT: "production"
+  });
+  assert.equal(productionResponse.status, 404);
+});
+
 test("v1 auth session keeps current optional guest and cookie session contract", async () => {
   const { env, core } = createEnv();
 
