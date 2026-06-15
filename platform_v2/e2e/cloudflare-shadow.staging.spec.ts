@@ -210,6 +210,76 @@ test.describe("cloudflare shadow staging proxy", () => {
     expect(payload.replay.firstFingerprint).toBe(payload.replay.secondFingerprint);
   });
 
+  test("proves rollback restore from ledger through the staging route", async ({ request }) => {
+    const suffix = Date.now().toString(36);
+    const response = await request.get(`/cloudflare-shadow/shadow-smoke/rollback-restore-smoke?id=staging-${suffix}`, {
+      headers: { accept: "application/json" },
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    expect(response.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+
+    const payload = await response.json();
+    expect(payload).toMatchObject({
+      ok: true,
+      gate: "integrated_staging_rollback_restore_smoke",
+      mode: "dry_run_no_vps_mutation",
+      counts: {
+        rollbackLedger: 4,
+        restoredObservations: 1,
+        restoredAssets: 2,
+        canonicalAssets: 2,
+        eventTypes: {
+          "observation.upsert": 1,
+          "asset.photo.upload": 1,
+          "asset.video.finalize": 1,
+          "observation.hide": 1,
+        },
+      },
+      beforeHide: {
+        readmodelRows: 1,
+        publicDetailVisible: true,
+        mapVisible: true,
+      },
+      afterHide: {
+        readmodelRows: 0,
+        publicDetailVisible: false,
+        mapVisible: false,
+      },
+      canonical: {
+        emergency_hidden: 1,
+        asset_count: 2,
+      },
+      restore: {
+        target: "rollback_restore_state_from_rollback_ledger",
+        mutationPerformed: false,
+        finalObservation: {
+          note: "shadow rollback restore smoke",
+          emergencyHidden: true,
+        },
+      },
+      invariants: {
+        observationRestored: true,
+        hiddenStateRestored: true,
+        assetsRestored: true,
+        photoRestored: true,
+        videoRestored: true,
+        replaySqlReady: true,
+        replayIdempotent: true,
+        canonicalPreserved: true,
+        publicSurfacesHidden: true,
+        mutationPerformed: false,
+        productionTrafficAffected: false,
+      },
+    });
+    expect(payload.restore.firstFingerprint).toBe(payload.restore.secondFingerprint);
+    expect(payload.restore.assets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ mime: "image/jpeg" }),
+        expect.objectContaining({ mime: "video/mp4" }),
+      ]),
+    );
+  });
+
   test("proves production-imported data and R2 inventory through the staging route", async ({ request }) => {
     const response = await request.get("/cloudflare-shadow/shadow-smoke/production-import-dress-rehearsal-proof", {
       headers: { accept: "application/json" },
