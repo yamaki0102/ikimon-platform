@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS users (
+  user_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS operation_audit (
+  audit_id TEXT PRIMARY KEY,
+  operation_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
