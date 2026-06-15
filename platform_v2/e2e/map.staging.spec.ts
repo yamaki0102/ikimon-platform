@@ -215,8 +215,9 @@ for (const profile of MAP_VIEWPORTS) {
         expect(statusAfterPan).toMatch(/^(\d+ 件を表示中 · \d+|この条件に合う観察はまだない)/);
       }
       const searchAreaButton = page.locator("#me-search-area-btn");
+      await searchAreaButton.waitFor({ state: "visible", timeout: 2_000 }).catch(() => undefined);
       if (await searchAreaButton.isVisible().catch(() => false)) {
-        await searchAreaButton.click({ force: true });
+        await searchAreaButton.click();
       }
     }
     await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0", { timeout: 30_000 });
