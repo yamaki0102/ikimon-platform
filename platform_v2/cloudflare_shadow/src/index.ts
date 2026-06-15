@@ -290,6 +290,10 @@ export const worker = {
         return shadowUpdateDeleteReplayProof(url, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/shadow-smoke/production-import-dress-rehearsal-proof") {
+        return shadowProductionImportDressRehearsalProof(url, env);
+      }
+
       const shadowVideoMatch = url.pathname.match(/^\/shadow\/stream\/([^/]+)$/);
       if (request.method === "GET" && shadowVideoMatch?.[1]) {
         return getShadowVideoStream(decodeURIComponent(shadowVideoMatch[1]), env);
@@ -2093,6 +2097,188 @@ async function shadowMissingMediaLedgerProof(url: URL, env: Env): Promise<Respon
       publicReadyDoesNotIncludeUnresolved: publicReadyAssetCount + unresolvedAssetCount === assetCount
     }
   });
+}
+
+async function shadowProductionImportDressRehearsalProof(url: URL, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "shadow") {
+    return json({ error: "not_available" }, 404);
+  }
+
+  const expectedReadmodelRows = clampInteger(Number(url.searchParams.get("expected_public_rows") ?? "588"), 0, 1000000);
+  const expectedEvidenceAssets = clampInteger(Number(url.searchParams.get("expected_evidence_assets") ?? "2032"), 0, 1000000);
+  const expectedR2Verified = clampInteger(Number(url.searchParams.get("expected_r2_verified") ?? "1951"), 0, 1000000);
+  const expectedR2Objects = clampInteger(Number(url.searchParams.get("expected_r2_objects") ?? "1951"), 0, 1000000);
+  const expectedR2Bytes = clampInteger(Number(url.searchParams.get("expected_r2_bytes") ?? "2338615108"), 0, 100000000000);
+  const expectedLegacyLedgered = clampInteger(Number(url.searchParams.get("expected_legacy_ledgered") ?? "81"), 0, 1000000);
+  const expectedUnresolvedAssets = clampInteger(Number(url.searchParams.get("expected_unresolved_assets") ?? "55"), 0, 1000000);
+  const expectedStreamExists = clampInteger(Number(url.searchParams.get("expected_stream_exists") ?? "34"), 0, 1000000);
+
+  const publicReadmodel = await env.OBS_DB.prepare(
+    `SELECT
+       COUNT(*) AS rows,
+       SUM(asset_count) AS asset_count,
+       SUM(public_ready_asset_count) AS public_ready_asset_count,
+       SUM(unresolved_asset_count) AS unresolved_asset_count
+     FROM production_import_public_readmodel`
+  ).first<{
+    rows: number;
+    asset_count: number | null;
+    public_ready_asset_count: number | null;
+    unresolved_asset_count: number | null;
+  }>();
+
+  const mediaCoverage = await env.OBS_DB.prepare(
+    `SELECT
+       COUNT(*) AS evidence_assets,
+       SUM(CASE WHEN r.asset_id IS NOT NULL AND r.import_status = 'uploaded_verified' THEN 1 ELSE 0 END) AS r2_verified,
+       SUM(CASE WHEN l.asset_id IS NOT NULL THEN 1 ELSE 0 END) AS legacy_ledgered,
+       SUM(CASE WHEN s.asset_id IS NOT NULL AND s.exists_on_stream = 1 THEN 1 ELSE 0 END) AS stream_exists
+     FROM production_import_evidence_assets a
+     LEFT JOIN legacy_r2_import_ledger r ON r.asset_id = a.asset_id
+     LEFT JOIN legacy_asset_import_ledger l ON l.asset_id = a.asset_id
+     LEFT JOIN legacy_stream_inventory s ON s.asset_id = a.asset_id`
+  ).first<{
+    evidence_assets: number;
+    r2_verified: number | null;
+    legacy_ledgered: number | null;
+    stream_exists: number | null;
+  }>();
+
+  const r2Ledger = await env.OBS_DB.prepare(
+    `SELECT
+       COUNT(*) AS verified_count,
+       SUM(COALESCE(verified_bytes, uploaded_bytes)) AS verified_bytes,
+       SUM(CASE
+         WHEN import_status = 'uploaded_verified'
+          AND uploaded_sha256 = expected_sha256
+          AND verified_sha256 = expected_sha256
+          AND uploaded_bytes = expected_bytes
+          AND verified_bytes = expected_bytes
+         THEN 1 ELSE 0 END) AS checksum_match_count
+     FROM legacy_r2_import_ledger
+     WHERE import_status = 'uploaded_verified'`
+  ).first<{
+    verified_count: number;
+    verified_bytes: number | null;
+    checksum_match_count: number | null;
+  }>();
+
+  const streamInventory = await env.OBS_DB.prepare(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(CASE WHEN exists_on_stream = 1 THEN 1 ELSE 0 END) AS exists_count,
+       SUM(CASE WHEN ready_to_stream = 1 THEN 1 ELSE 0 END) AS ready_count,
+       SUM(CASE WHEN exists_on_stream = 1 AND ready_to_stream = 0 THEN 1 ELSE 0 END) AS nonready_count
+     FROM legacy_stream_inventory`
+  ).first<{
+    total: number;
+    exists_count: number | null;
+    ready_count: number | null;
+    nonready_count: number | null;
+  }>();
+
+  const prefixes = [
+    "import-smoke/20260615/",
+    "import-smoke/20260615-data/original/"
+  ];
+  const r2Inventory = await summarizeR2Prefixes(env.ASSET_BUCKET, prefixes);
+
+  const assetCount = publicReadmodel?.asset_count ?? 0;
+  const publicReadyAssetCount = publicReadmodel?.public_ready_asset_count ?? 0;
+  const unresolvedAssetCount = publicReadmodel?.unresolved_asset_count ?? 0;
+  const evidenceAssets = mediaCoverage?.evidence_assets ?? 0;
+  const r2Verified = mediaCoverage?.r2_verified ?? 0;
+  const legacyLedgered = mediaCoverage?.legacy_ledgered ?? 0;
+  const streamExists = mediaCoverage?.stream_exists ?? 0;
+  const r2LedgerVerifiedCount = r2Ledger?.verified_count ?? 0;
+  const r2LedgerVerifiedBytes = r2Ledger?.verified_bytes ?? 0;
+  const r2ChecksumMatchCount = r2Ledger?.checksum_match_count ?? 0;
+
+  const invariants = {
+    productionReadmodelImported: publicReadmodel?.rows === expectedReadmodelRows,
+    evidenceAssetsImported: evidenceAssets === expectedEvidenceAssets,
+    mediaCoverageComplete: r2Verified + legacyLedgered === evidenceAssets,
+    r2LedgerCountMatches: r2LedgerVerifiedCount === expectedR2Verified,
+    r2LedgerChecksumVerified: r2ChecksumMatchCount === r2LedgerVerifiedCount,
+    r2InventoryCountMatchesLedger: r2Inventory.totalObjects === expectedR2Objects && r2Inventory.totalObjects === r2LedgerVerifiedCount,
+    r2InventoryBytesMatchLedger: r2Inventory.totalBytes === expectedR2Bytes && r2Inventory.totalBytes === r2LedgerVerifiedBytes,
+    unresolvedAssetsRemainExplicit: unresolvedAssetCount === expectedUnresolvedAssets && publicReadyAssetCount + unresolvedAssetCount === assetCount,
+    streamInventoryExists: streamExists === expectedStreamExists && (streamInventory?.exists_count ?? 0) === expectedStreamExists,
+    mutationPerformed: false,
+    productionTrafficAffected: false
+  };
+  const ok =
+    invariants.productionReadmodelImported &&
+    invariants.evidenceAssetsImported &&
+    invariants.mediaCoverageComplete &&
+    invariants.r2LedgerCountMatches &&
+    invariants.r2LedgerChecksumVerified &&
+    invariants.r2InventoryCountMatchesLedger &&
+    invariants.r2InventoryBytesMatchLedger &&
+    invariants.unresolvedAssetsRemainExplicit &&
+    invariants.streamInventoryExists &&
+    !invariants.mutationPerformed &&
+    !invariants.productionTrafficAffected;
+
+  return json({
+    ok,
+    gate: "production_imported_data_r2_inventory_dress_rehearsal",
+    mode: "dry_run_no_production_mutation",
+    publicReadmodel: {
+      rows: publicReadmodel?.rows ?? 0,
+      assetCount,
+      publicReadyAssetCount,
+      unresolvedAssetCount
+    },
+    mediaCoverage: {
+      evidenceAssets,
+      r2Verified,
+      legacyLedgered,
+      streamExists
+    },
+    r2Ledger: {
+      verifiedCount: r2LedgerVerifiedCount,
+      verifiedBytes: r2LedgerVerifiedBytes,
+      checksumMatchCount: r2ChecksumMatchCount
+    },
+    r2Inventory,
+    streamInventory: {
+      total: streamInventory?.total ?? 0,
+      existsCount: streamInventory?.exists_count ?? 0,
+      readyCount: streamInventory?.ready_count ?? 0,
+      nonReadyCount: streamInventory?.nonready_count ?? 0
+    },
+    invariants
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function summarizeR2Prefixes(bucket: R2Bucket, prefixes: string[]) {
+  const prefixSummaries = [];
+  let totalObjects = 0;
+  let totalBytes = 0;
+  for (const prefix of prefixes) {
+    let cursor: string | undefined;
+    let objects = 0;
+    let bytes = 0;
+    let pages = 0;
+    do {
+      const page = await bucket.list({ prefix, limit: 1000, cursor });
+      pages += 1;
+      for (const object of page.objects) {
+        objects += 1;
+        bytes += object.size;
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+    prefixSummaries.push({ prefix, objects, bytes, pages });
+    totalObjects += objects;
+    totalBytes += bytes;
+  }
+  return {
+    prefixes: prefixSummaries,
+    totalObjects,
+    totalBytes
+  };
 }
 
 async function shadowStreamNonReadyExclusionProof(url: URL, env: Env): Promise<Response> {

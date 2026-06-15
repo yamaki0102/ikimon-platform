@@ -132,6 +132,12 @@ interface LegacyAssetImportRow {
 interface LegacyR2ImportRow {
   asset_id: string;
   import_status: string;
+  uploaded_bytes?: number;
+  expected_bytes?: number;
+  verified_bytes?: number;
+  uploaded_sha256?: string;
+  expected_sha256?: string;
+  verified_sha256?: string;
 }
 
 interface LegacyStreamInventoryRow {
@@ -151,6 +157,10 @@ interface ProductionImportPublicReadmodelRow {
   unresolved_asset_count: number;
 }
 
+interface ProductionImportEvidenceAssetRow {
+  asset_id: string;
+}
+
 class FakeD1 {
   users = new Set<string>();
   drafts = new Map<string, DraftRow>();
@@ -167,6 +177,7 @@ class FakeD1 {
   legacyR2Imports: LegacyR2ImportRow[] = [];
   legacyStreamInventory: LegacyStreamInventoryRow[] = [];
   productionPublicReadmodel = new Map<string, ProductionImportPublicReadmodelRow>();
+  productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -715,6 +726,36 @@ class FakeStatement {
         asset_count: rows.reduce((sum, row) => sum + row.asset_count, 0),
         public_ready_asset_count: rows.reduce((sum, row) => sum + row.public_ready_asset_count, 0),
         unresolved_asset_count: rows.reduce((sum, row) => sum + row.unresolved_asset_count, 0)
+      } as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS evidence_assets")) {
+      const evidenceAssets = this.db.productionEvidenceAssets;
+      return ({
+        evidence_assets: evidenceAssets.length,
+        r2_verified: evidenceAssets.filter((asset) =>
+          this.db.legacyR2Imports.some((row) => row.asset_id === asset.asset_id && row.import_status === "uploaded_verified")
+        ).length,
+        legacy_ledgered: evidenceAssets.filter((asset) =>
+          this.db.legacyAssetImports.some((row) => row.asset_id === asset.asset_id)
+        ).length,
+        stream_exists: evidenceAssets.filter((asset) =>
+          this.db.legacyStreamInventory.some((row) => row.asset_id === asset.asset_id && row.exists_on_stream === 1)
+        ).length
+      } as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS verified_count")) {
+      const verified = this.db.legacyR2Imports.filter((row) => row.import_status === "uploaded_verified");
+      return ({
+        verified_count: verified.length,
+        verified_bytes: verified.reduce((sum, row) => sum + (row.verified_bytes ?? row.uploaded_bytes ?? 0), 0),
+        checksum_match_count: verified.filter((row) =>
+          row.uploaded_sha256 === row.expected_sha256 &&
+          row.verified_sha256 === row.expected_sha256 &&
+          row.uploaded_bytes === row.expected_bytes &&
+          row.verified_bytes === row.expected_bytes
+        ).length
       } as T);
     }
 
@@ -1501,6 +1542,87 @@ test("stream non-ready proof keeps inprogress Stream assets out of public-ready 
 
   const productionResponse = await worker.fetch(
     new Request("https://shadow.test/shadow-smoke/stream-nonready-exclusion-proof?expected_total=4&expected_ready=2&expected_nonready=2"),
+    { ...env, ENVIRONMENT: "production" }
+  );
+  assert.equal(productionResponse.status, 404);
+});
+
+test("production import dress rehearsal proof ties imported readmodel to R2 inventory", async () => {
+  const { env, obs } = createEnv();
+  obs.productionEvidenceAssets.push(
+    { asset_id: "r2-photo-1" },
+    { asset_id: "r2-photo-2" },
+    { asset_id: "missing-photo-1" },
+    { asset_id: "stream-video-1" }
+  );
+  obs.legacyR2Imports.push(
+    {
+      asset_id: "r2-photo-1",
+      import_status: "uploaded_verified",
+      expected_bytes: 5,
+      uploaded_bytes: 5,
+      verified_bytes: 5,
+      expected_sha256: "sha-a",
+      uploaded_sha256: "sha-a",
+      verified_sha256: "sha-a"
+    },
+    {
+      asset_id: "r2-photo-2",
+      import_status: "uploaded_verified",
+      expected_bytes: 7,
+      uploaded_bytes: 7,
+      verified_bytes: 7,
+      expected_sha256: "sha-b",
+      uploaded_sha256: "sha-b",
+      verified_sha256: "sha-b"
+    }
+  );
+  obs.legacyAssetImports.push(
+    { asset_id: "missing-photo-1", import_status: "missing_legacy_asset", asset_role: "observation_photo" },
+    { asset_id: "stream-video-1", import_status: "stream_inventory_pending", asset_role: "observation_video" }
+  );
+  obs.legacyStreamInventory.push({
+    stream_uid: "stream-prod-1",
+    asset_id: "stream-video-1",
+    visit_id: "visit-prod-1",
+    exists_on_stream: 1,
+    ready_to_stream: 1,
+    status_state: "ready",
+    modified_at_stream: "2026-06-15T00:00:00Z"
+  });
+  obs.productionPublicReadmodel.set("visit-prod-1", {
+    visit_id: "visit-prod-1",
+    asset_count: 4,
+    public_ready_asset_count: 2,
+    unresolved_asset_count: 2
+  });
+  await env.ASSET_BUCKET.put("import-smoke/20260615/r2-photo-1.jpg", "12345");
+  await env.ASSET_BUCKET.put("import-smoke/20260615-data/original/r2-photo-2.jpg", "1234567");
+
+  const response = await worker.fetch(
+    new Request("https://shadow.test/shadow-smoke/production-import-dress-rehearsal-proof?expected_public_rows=1&expected_evidence_assets=4&expected_r2_verified=2&expected_r2_objects=2&expected_r2_bytes=12&expected_legacy_ledgered=2&expected_unresolved_assets=2&expected_stream_exists=1"),
+    env
+  );
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  assert.equal(payload.gate, "production_imported_data_r2_inventory_dress_rehearsal");
+  assert.equal(payload.publicReadmodel.rows, 1);
+  assert.equal(payload.mediaCoverage.evidenceAssets, 4);
+  assert.equal(payload.mediaCoverage.r2Verified, 2);
+  assert.equal(payload.mediaCoverage.legacyLedgered, 2);
+  assert.equal(payload.r2Ledger.checksumMatchCount, 2);
+  assert.equal(payload.r2Inventory.totalObjects, 2);
+  assert.equal(payload.r2Inventory.totalBytes, 12);
+  assert.equal(payload.invariants.mediaCoverageComplete, true);
+  assert.equal(payload.invariants.r2InventoryCountMatchesLedger, true);
+  assert.equal(payload.invariants.r2InventoryBytesMatchLedger, true);
+  assert.equal(payload.invariants.unresolvedAssetsRemainExplicit, true);
+  assert.equal(payload.invariants.mutationPerformed, false);
+  assert.equal(payload.invariants.productionTrafficAffected, false);
+
+  const productionResponse = await worker.fetch(
+    new Request("https://shadow.test/shadow-smoke/production-import-dress-rehearsal-proof"),
     { ...env, ENVIRONMENT: "production" }
   );
   assert.equal(productionResponse.status, 404);
