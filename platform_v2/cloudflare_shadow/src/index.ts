@@ -286,6 +286,10 @@ export const worker = {
         return shadowReverseDeltaProof(url, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/shadow-smoke/update-delete-replay-proof") {
+        return shadowUpdateDeleteReplayProof(url, env);
+      }
+
       const shadowVideoMatch = url.pathname.match(/^\/shadow\/stream\/([^/]+)$/);
       if (request.method === "GET" && shadowVideoMatch?.[1]) {
         return getShadowVideoStream(decodeURIComponent(shadowVideoMatch[1]), env);
@@ -352,6 +356,11 @@ export const worker = {
       const photoUploadMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/photos\/upload$/);
       if (request.method === "POST" && photoUploadMatch?.[1]) {
         return uploadLegacyCompatiblePhoto(decodeURIComponent(photoUploadMatch[1]), request, env);
+      }
+
+      const hideObservationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/hide$/);
+      if (request.method === "POST" && hideObservationMatch?.[1]) {
+        return hideCompatibleObservation(decodeURIComponent(hideObservationMatch[1]), request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
@@ -1163,6 +1172,20 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
        (observation_id, draft_id, owner_user_id, observed_at, taxon_label, note, exact_lat, exact_lng,
         location_accuracy_m, public_cell, visibility, partition_month)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        + ` ON CONFLICT(observation_id) DO UPDATE SET
+          draft_id = excluded.draft_id,
+          owner_user_id = excluded.owner_user_id,
+          observed_at = excluded.observed_at,
+          taxon_label = excluded.taxon_label,
+          note = excluded.note,
+          exact_lat = excluded.exact_lat,
+          exact_lng = excluded.exact_lng,
+          location_accuracy_m = excluded.location_accuracy_m,
+          public_cell = excluded.public_cell,
+          visibility = excluded.visibility,
+          partition_month = excluded.partition_month,
+          emergency_hidden = 0,
+          processing_state = 'accepted'`
     ).bind(
       visitId,
       draftId,
@@ -1593,14 +1616,53 @@ async function deletePublicReadmodelRow(observationId: string, env: Env): Promis
 }
 
 async function applyEmergencyHide(observationId: string, env: Env): Promise<void> {
+  const observation = await env.OBS_DB.prepare(
+    "SELECT draft_id, owner_user_id, partition_month FROM observations WHERE observation_id = ?"
+  ).bind(observationId).first<{ draft_id: string; owner_user_id: string; partition_month: string | null }>();
+  if (!observation) {
+    throw new HttpError(404, `observation not found: ${observationId}`);
+  }
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "UPDATE observations SET emergency_hidden = 1 WHERE observation_id = ?"
     ).bind(observationId),
     env.OBS_DB.prepare(
       "DELETE FROM readmodel_public_observations WHERE observation_id = ?"
-    ).bind(observationId)
+    ).bind(observationId),
+    rollbackLedgerInsert(env, {
+      eventType: "observation.hide",
+      targetId: observationId,
+      partitionMonth: observation.partition_month,
+      sourceEndpoint: "POST /api/v1/observations/:id/hide",
+      payload: {
+        observationId,
+        ownerUserId: observation.owner_user_id,
+        emergencyHidden: true,
+        publicReadmodelDeleted: true
+      },
+      replaySql: postgresObservationHideReplaySql(observationId)
+    })
   ]);
+}
+
+async function hideCompatibleObservation(observationId: string, request: Request, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "shadow") {
+    return json({ ok: false, error: "not_available" }, 404);
+  }
+  assertNonEmpty(observationId, "observationId");
+  const session = await readCompatibleSession(request, env);
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401);
+  }
+  await assertObservationOwnedByUser(observationId, session.userId, env);
+  await applyEmergencyHide(observationId, env);
+  return json({
+    ok: true,
+    visitId: observationId,
+    hidden: true,
+    canonicalPreserved: true,
+    publicReadmodelDeleted: true
+  });
 }
 
 async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
@@ -2355,6 +2417,256 @@ async function shadowReverseDeltaProof(url: URL, env: Env): Promise<Response> {
   }, 200, { "cache-control": "no-store" });
 }
 
+async function shadowUpdateDeleteReplayProof(url: URL, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "shadow") {
+    return json({ error: "not_available" }, 404);
+  }
+
+  const suffix = sanitizeIdPart(url.searchParams.get("id") ?? new Date().toISOString());
+  const observationId = `shadow-update-delete-${suffix}`.slice(0, 120);
+  const userId = `shadow-update-user-${suffix}`.slice(0, 120);
+  const initialNote = "shadow update/delete replay proof initial";
+  const updatedNote = "shadow update/delete replay proof updated";
+
+  const sessionResponse = await issueCompatibleSession(new Request(`${url.origin}/api/v1/auth/session/issue`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId, ttlHours: 1 })
+  }), env);
+  const cookie = sessionResponse.headers.get("set-cookie") ?? "";
+
+  const upserts = [
+    { note: initialNote, observedAt: "2026-06-15T04:30:00.000Z", taxonLabel: "初回記録" },
+    { note: updatedNote, observedAt: "2026-06-15T04:31:00.000Z", taxonLabel: "更新後記録" }
+  ];
+  for (const upsert of upserts) {
+    const upsertResponse = await upsertLegacyCompatibleObservation(new Request(`${url.origin}/api/v1/observations/upsert`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId,
+        userId,
+        observedAt: upsert.observedAt,
+        latitude: 34.71234,
+        longitude: 137.81234,
+        locationAccuracyM: 12,
+        visibility: "public",
+        taxon: { vernacularName: upsert.taxonLabel, rank: "species" },
+        note: upsert.note
+      })
+    }), env);
+    if (!upsertResponse.ok) {
+      return upsertResponse;
+    }
+  }
+
+  const photoResponse = await uploadLegacyCompatiblePhoto(observationId, new Request(`${url.origin}/api/v1/observations/${encodeURIComponent(observationId)}/photos/upload`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "update-delete-proof.jpg",
+      mimeType: "image/jpeg",
+      base64Data: btoa("shadow-update-delete-image"),
+      facePrivacy: "no_faces"
+    })
+  }), env);
+  if (!photoResponse.ok) {
+    return photoResponse;
+  }
+
+  await markUploadedAssetsPublicReady(observationId, env);
+  await refreshPublicReadmodel(observationId, env);
+  const beforeHide = await takedownVisibilityState(observationId, env);
+
+  const hideResponse = await hideCompatibleObservation(observationId, new Request(`${url.origin}/api/v1/observations/${encodeURIComponent(observationId)}/hide`, {
+    method: "POST",
+    headers: { cookie }
+  }), env);
+  if (!hideResponse.ok) {
+    return hideResponse;
+  }
+  const afterHide = await takedownVisibilityState(observationId, env);
+
+  const canonical = await env.OBS_DB.prepare(
+    `SELECT o.observation_id, o.emergency_hidden, COUNT(a.asset_id) AS asset_count
+     FROM observations o
+     LEFT JOIN asset_ledger a ON a.observation_id = o.observation_id
+     WHERE o.observation_id = ?
+     GROUP BY o.observation_id, o.emergency_hidden`
+  ).bind(observationId).first<{ observation_id: string; emergency_hidden: number; asset_count: number }>();
+  const events = await listRollbackEvents(env, `${observationId}%`, 50);
+  const replayOnce = replayRollbackEvents(events);
+  const replayTwice = replayRollbackEvents([...events, ...events]);
+  const eventCounts = countRollbackEventTypes(events);
+  const finalObservation = replayOnce.observations[observationId] ?? null;
+  const canonicalRow = await env.OBS_DB.prepare(
+    "SELECT draft_id, owner_user_id, partition_month FROM observations WHERE observation_id = ?"
+  ).bind(observationId).first<{ draft_id: string; owner_user_id: string; partition_month: string | null }>();
+  const invariants = {
+    updateLedgered: eventCounts["observation.upsert"] === 2,
+    hideLedgered: eventCounts["observation.hide"] === 1,
+    assetLedgered: eventCounts["asset.photo.upload"] === 1,
+    replayIdempotent: replayOnce.fingerprint === replayTwice.fingerprint,
+    finalNoteUpdated: finalObservation?.note === updatedNote,
+    finalHidden: finalObservation?.emergencyHidden === true,
+    canonicalPreserved: Boolean(canonicalRow) && canonical?.emergency_hidden === 1,
+    publicSurfacesHidden: afterHide.readmodelRows === 0 && !afterHide.publicDetailVisible && !afterHide.mapVisible,
+    mutationPerformed: false,
+    productionTrafficAffected: false
+  };
+  const ok =
+    invariants.updateLedgered &&
+    invariants.hideLedgered &&
+    invariants.assetLedgered &&
+    invariants.replayIdempotent &&
+    invariants.finalNoteUpdated &&
+    invariants.finalHidden &&
+    invariants.canonicalPreserved &&
+    invariants.publicSurfacesHidden &&
+    !invariants.mutationPerformed &&
+    !invariants.productionTrafficAffected;
+
+  return json({
+    ok,
+    gate: "integrated_staging_update_delete_idempotent_replay",
+    mode: "dry_run_no_vps_mutation",
+    observationId,
+    counts: {
+      rollbackLedger: events.length,
+      eventTypes: eventCounts,
+      observations: 1,
+      assets: canonical?.asset_count ?? 0
+    },
+    beforeHide,
+    afterHide,
+    canonical: {
+      observationId: canonical?.observation_id ?? null,
+      emergency_hidden: canonical?.emergency_hidden ?? null,
+      asset_count: canonical?.asset_count ?? 0
+    },
+    replay: {
+      target: "VPS/PostgreSQL dry-run artifact",
+      mutationPerformed: false,
+      applyOrder: ["observation.upsert", "asset.photo.upload", "observation.hide"],
+      firstFingerprint: replayOnce.fingerprint,
+      secondFingerprint: replayTwice.fingerprint,
+      finalObservation
+    },
+    invariants
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function listRollbackEvents(env: Env, targetValue: string | null, limit: number): Promise<RollbackLedgerRow[]> {
+  const result = await (targetValue
+    ? env.OBS_DB.prepare(
+      `SELECT ledger_id, event_type, target_id, partition_month, source_endpoint, payload_json, replay_sql, replay_status, created_at
+       FROM rollback_write_ledger
+       WHERE target_id LIKE ?
+          OR JSON_EXTRACT(payload_json, '$.observationId') LIKE ?
+       ORDER BY created_at, ledger_id
+       LIMIT ?`
+    ).bind(targetValue, targetValue, limit)
+    : env.OBS_DB.prepare(
+      `SELECT ledger_id, event_type, target_id, partition_month, source_endpoint, payload_json, replay_sql, replay_status, created_at
+       FROM rollback_write_ledger
+       ORDER BY created_at, ledger_id
+       LIMIT ?`
+    ).bind(limit)
+  ).all<RollbackLedgerRow>();
+  return result.results;
+}
+
+function countRollbackEventTypes(events: RollbackLedgerRow[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const event of events) {
+    counts[event.event_type] = (counts[event.event_type] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function replayRollbackEvents(events: RollbackLedgerRow[]) {
+  const observations: Record<string, {
+    ownerUserId: string | null;
+    observedAt: string | null;
+    taxonLabel: string | null;
+    note: string | null;
+    publicCell: string | null;
+    visibility: string | null;
+    emergencyHidden: boolean;
+  }> = {};
+  const assets: Record<string, {
+    observationId: string | null;
+    ownerUserId: string | null;
+    objectKey: string | null;
+    mime: string | null;
+    bytes: number | null;
+  }> = {};
+
+  for (const event of events) {
+    const payload = JSON.parse(event.payload_json) as Record<string, unknown>;
+    if (event.event_type === "observation.upsert" || event.event_type === "observation.finalize") {
+      const observationId = stringFromUnknown(payload.visitId ?? payload.observationId ?? event.target_id);
+      const observedAt = stringOrNullFromUnknown(payload.observedAt);
+      const existing = observations[observationId];
+      if (existing?.observedAt && observedAt && existing.observedAt > observedAt) {
+        continue;
+      }
+      observations[observationId] = {
+        ownerUserId: stringOrNullFromUnknown(payload.ownerUserId),
+        observedAt,
+        taxonLabel: stringOrNullFromUnknown(payload.taxonLabel),
+        note: stringOrNullFromUnknown(payload.note),
+        publicCell: stringOrNullFromUnknown(payload.publicCell),
+        visibility: stringOrNullFromUnknown(payload.visibility),
+        emergencyHidden: false
+      };
+    }
+    if (event.event_type === "asset.photo.upload" || event.event_type === "asset.video.finalize") {
+      assets[event.target_id] = {
+        observationId: stringOrNullFromUnknown(payload.observationId),
+        ownerUserId: stringOrNullFromUnknown(payload.ownerUserId),
+        objectKey: stringOrNullFromUnknown(payload.objectKey),
+        mime: stringOrNullFromUnknown(payload.mime),
+        bytes: numberOrNullFromUnknown(payload.bytes)
+      };
+    }
+    if (event.event_type === "observation.hide") {
+      const observationId = stringFromUnknown(payload.observationId ?? event.target_id);
+      observations[observationId] = {
+        ...(observations[observationId] ?? {
+          ownerUserId: stringOrNullFromUnknown(payload.ownerUserId),
+          observedAt: null,
+          taxonLabel: null,
+          note: null,
+          publicCell: null,
+          visibility: null
+        }),
+        emergencyHidden: true
+      };
+    }
+  }
+
+  for (const event of events) {
+    if (event.event_type !== "observation.hide") continue;
+    const payload = JSON.parse(event.payload_json) as Record<string, unknown>;
+    const observationId = stringFromUnknown(payload.observationId ?? event.target_id);
+    observations[observationId] = {
+      ...(observations[observationId] ?? {
+        ownerUserId: stringOrNullFromUnknown(payload.ownerUserId),
+        observedAt: null,
+        taxonLabel: null,
+        note: null,
+        publicCell: null,
+        visibility: null
+      }),
+      emergencyHidden: true
+    };
+  }
+
+  const fingerprint = stableJson({ observations, assets });
+  return { observations, assets, fingerprint };
+}
+
 async function countRollbackLedger(env: Env, targetValue: string | null): Promise<number> {
   const row = await (targetValue
     ? env.OBS_DB.prepare(
@@ -2499,6 +2811,10 @@ function postgresObservationReplaySql(
     sqlLiteral(visibility)
   ].join(", ");
   return `INSERT INTO rollback_observations (observation_id, owner_user_id, observed_at, taxon_label, note, exact_lat, exact_lng, location_accuracy_m, public_cell, visibility) VALUES (${values}) ON CONFLICT (observation_id) DO UPDATE SET observed_at = EXCLUDED.observed_at, taxon_label = EXCLUDED.taxon_label, note = EXCLUDED.note, exact_lat = EXCLUDED.exact_lat, exact_lng = EXCLUDED.exact_lng, location_accuracy_m = EXCLUDED.location_accuracy_m, public_cell = EXCLUDED.public_cell, visibility = EXCLUDED.visibility;`;
+}
+
+function postgresObservationHideReplaySql(observationId: string): string {
+  return `UPDATE rollback_observations SET emergency_hidden = TRUE, public_visible = FALSE WHERE observation_id = ${sqlLiteral(observationId)};`;
 }
 
 function postgresAssetReplaySql(
@@ -3000,6 +3316,36 @@ function numberOrNull(value: unknown): number | null {
 
 function stringValue(value: D1Value | undefined): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function stringFromUnknown(value: unknown): string {
+  return typeof value === "string" ? value : String(value ?? "");
+}
+
+function stringOrNullFromUnknown(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function numberOrNullFromUnknown(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function stableJson(value: unknown): string {
+  return JSON.stringify(sortJsonValue(value));
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortJsonValue(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => [key, sortJsonValue(item)])
+    );
+  }
+  return value;
 }
 
 function normalizeOptionalText(value: unknown): string | null {

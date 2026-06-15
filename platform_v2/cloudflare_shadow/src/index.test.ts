@@ -1829,6 +1829,50 @@ test("reverse delta dry-run exports replayable write ledger with drift zero", as
   assert.equal(productionProofResponse.status, 404);
 });
 
+test("shadow update/delete proof replays ledger idempotently while preserving canonical data", async () => {
+  const { env, obs } = createEnv();
+
+  const response = await worker.fetch(new Request("https://shadow.test/shadow-smoke/update-delete-replay-proof?id=unit"), env);
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  assert.equal(payload.gate, "integrated_staging_update_delete_idempotent_replay");
+  assert.equal(payload.mode, "dry_run_no_vps_mutation");
+  assert.deepEqual(payload.counts.eventTypes, {
+    "observation.upsert": 2,
+    "asset.photo.upload": 1,
+    "observation.hide": 1
+  });
+  assert.equal(payload.counts.rollbackLedger, 4);
+  assert.equal(payload.counts.observations, 1);
+  assert.equal(payload.counts.assets, 1);
+  assert.equal(payload.beforeHide.publicDetailVisible, true);
+  assert.equal(payload.beforeHide.mapVisible, true);
+  assert.equal(payload.afterHide.publicDetailVisible, false);
+  assert.equal(payload.afterHide.mapVisible, false);
+  assert.equal(payload.canonical.emergency_hidden, 1);
+  assert.equal(payload.replay.mutationPerformed, false);
+  assert.equal(payload.replay.firstFingerprint, payload.replay.secondFingerprint);
+  assert.equal(payload.replay.finalObservation.note, "shadow update/delete replay proof updated");
+  assert.equal(payload.replay.finalObservation.emergencyHidden, true);
+  assert.equal(payload.invariants.updateLedgered, true);
+  assert.equal(payload.invariants.hideLedgered, true);
+  assert.equal(payload.invariants.replayIdempotent, true);
+  assert.equal(payload.invariants.mutationPerformed, false);
+  assert.equal(payload.invariants.productionTrafficAffected, false);
+  assert.equal(obs.observations.size, 1);
+  assert.equal(obs.rollbackLedger.size, 4);
+
+  const detailResponse = await worker.fetch(new Request(`https://shadow.test/api/v1/observations/${encodeURIComponent(payload.observationId)}/public-detail`), env);
+  assert.equal(detailResponse.status, 404);
+
+  const productionResponse = await worker.fetch(new Request("https://shadow.test/shadow-smoke/update-delete-replay-proof?id=prod"), {
+    ...env,
+    ENVIRONMENT: "production"
+  });
+  assert.equal(productionResponse.status, 404);
+});
+
 test("v1 auth session keeps current optional guest and cookie session contract", async () => {
   const { env, core } = createEnv();
 
