@@ -149,6 +149,67 @@ test.describe("cloudflare shadow staging proxy", () => {
     expect(takedownPayload.canonical.asset_count).toBeGreaterThan(0);
   });
 
+  test("proves update, hide, and idempotent rollback replay through the staging route", async ({ request }) => {
+    const suffix = Date.now().toString(36);
+    const response = await request.get(`/cloudflare-shadow/shadow-smoke/update-delete-replay-proof?id=staging-${suffix}`, {
+      headers: { accept: "application/json" },
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    expect(response.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+
+    const payload = await response.json();
+    expect(payload).toMatchObject({
+      ok: true,
+      gate: "integrated_staging_update_delete_idempotent_replay",
+      mode: "dry_run_no_vps_mutation",
+      counts: {
+        rollbackLedger: 4,
+        observations: 1,
+        assets: 1,
+        eventTypes: {
+          "observation.upsert": 2,
+          "asset.photo.upload": 1,
+          "observation.hide": 1,
+        },
+      },
+      beforeHide: {
+        readmodelRows: 1,
+        publicDetailVisible: true,
+        mapVisible: true,
+      },
+      afterHide: {
+        readmodelRows: 0,
+        publicDetailVisible: false,
+        mapVisible: false,
+      },
+      canonical: {
+        emergency_hidden: 1,
+        asset_count: 1,
+      },
+      replay: {
+        target: "VPS/PostgreSQL dry-run artifact",
+        mutationPerformed: false,
+        finalObservation: {
+          note: "shadow update/delete replay proof updated",
+          emergencyHidden: true,
+        },
+      },
+      invariants: {
+        updateLedgered: true,
+        hideLedgered: true,
+        assetLedgered: true,
+        replayIdempotent: true,
+        finalNoteUpdated: true,
+        finalHidden: true,
+        canonicalPreserved: true,
+        publicSurfacesHidden: true,
+        mutationPerformed: false,
+        productionTrafficAffected: false,
+      },
+    });
+    expect(payload.replay.firstFingerprint).toBe(payload.replay.secondFingerprint);
+  });
+
   test("rehearses auth, record, photo, video, map, and detail through the staging route", async ({ request }) => {
     const suffix = Date.now().toString(36);
     const userId = `staging-shadow-user-${suffix}`;
