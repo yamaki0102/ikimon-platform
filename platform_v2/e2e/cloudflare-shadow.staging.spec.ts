@@ -56,6 +56,99 @@ test.describe("cloudflare shadow staging proxy", () => {
     });
   });
 
+  test("proves missing legacy media stays ledgered and degraded through the staging route", async ({ request }) => {
+    const response = await request.get("/cloudflare-shadow/shadow-smoke/missing-media-ledger-proof", {
+      headers: { accept: "application/json" },
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    expect(response.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+
+    const payload = await response.json();
+    expect(payload).toMatchObject({
+      ok: true,
+      gate: "missing_legacy_asset_degraded_public_readmodel",
+      expected: {
+        missingLegacyAssets: 47,
+        streamInventoryPending: 34,
+      },
+      invariants: {
+        missingLegacyAssetsLedgered: true,
+        streamInventoryPendingLedgered: true,
+        missingLegacyAssetsNotUploadedVerified: true,
+        unresolvedAssetsRemainExplicit: true,
+        publicReadyDoesNotIncludeUnresolved: true,
+      },
+    });
+  });
+
+  test("proves video metadata privacy and emergency takedown through the staging route", async ({ request }) => {
+    const suffix = Date.now().toString(36);
+    const videoProof = await request.get(`/cloudflare-shadow/shadow-smoke/video-metadata-proof?id=staging-${suffix}`, {
+      headers: { accept: "application/json" },
+    });
+    expect(videoProof.ok(), await videoProof.text()).toBeTruthy();
+    expect(videoProof.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+    const videoPayload = await videoProof.json();
+    expect(videoPayload).toMatchObject({
+      ok: true,
+      served: {
+        videoStatus: 200,
+        videoContentType: "video/mp4",
+        posterStatus: 200,
+        posterContentType: "image/jpeg",
+      },
+      videoInspection: {
+        tool: "shadow-video-container-byte-signature-scan-v1",
+        scannedContainer: "mp4",
+        ftypPresent: true,
+        gpsExifPresent: false,
+      },
+      posterInspection: {
+        gpsExifPresent: false,
+      },
+      visibility: {
+        publicDetailVisible: true,
+        mapVisible: true,
+      },
+      invariants: {
+        servedVideoIsMp4: true,
+        videoGpsExifAbsent: true,
+        posterGpsExifAbsent: true,
+        exactLocationExposed: false,
+      },
+    });
+
+    const takedown = await request.get(`/cloudflare-shadow/shadow-smoke/takedown-proof?id=staging-${suffix}`, {
+      headers: { accept: "application/json" },
+    });
+    expect(takedown.ok(), await takedown.text()).toBeTruthy();
+    expect(takedown.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+    const takedownPayload = await takedown.json();
+    expect(takedownPayload).toMatchObject({
+      ok: true,
+      before: {
+        publicDetailVisible: true,
+        mapVisible: true,
+      },
+      after: {
+        readmodelRows: 0,
+        publicDetailVisible: false,
+        mapVisible: false,
+      },
+      canonical: {
+        emergency_hidden: 1,
+      },
+      invariants: {
+        canonicalDeleted: false,
+        readmodelHidden: true,
+        publicDetailHidden: true,
+        mapHidden: true,
+        exactLocationExposed: false,
+      },
+    });
+    expect(takedownPayload.canonical.asset_count).toBeGreaterThan(0);
+  });
+
   test("rehearses auth, record, photo, video, map, and detail through the staging route", async ({ request }) => {
     const suffix = Date.now().toString(36);
     const userId = `staging-shadow-user-${suffix}`;
