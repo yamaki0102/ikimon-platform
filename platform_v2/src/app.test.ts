@@ -154,6 +154,7 @@ test("cloudflare shadow proxy forwards staging-base-path requests without leakin
       url: request.url,
       authorization: request.headers.authorization ?? null,
       marker: request.headers["x-ikimon-shadow-proxy"] ?? null,
+      userAgent: request.headers["user-agent"] ?? null,
     }));
   }, async (origin) => {
     await withShadowProxyEnv(origin, async () => {
@@ -166,6 +167,7 @@ test("cloudflare shadow proxy forwards staging-base-path requests without leakin
             host: "staging.ikimon.life",
             accept: "application/json",
             authorization: "Basic should-not-forward",
+            "user-agent": "Python-urllib/3.12",
           },
         });
 
@@ -177,6 +179,7 @@ test("cloudflare shadow proxy forwards staging-base-path requests without leakin
           url: "/api/v1/map/cells?bbox=137.8,34.6,137.9,34.8",
           authorization: null,
           marker: "platform-v2-staging",
+          userAgent: "ikimon-platform-v2-staging-shadow-proxy/1.0",
         });
       } finally {
         await app.close();

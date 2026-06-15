@@ -354,11 +354,10 @@ function shadowProxyHeaders(request: { headers: Record<string, unknown> }, body:
   const accept = request.headers.accept;
   const contentType = request.headers["content-type"];
   const cookie = request.headers.cookie;
-  const userAgent = request.headers["user-agent"];
   if (typeof accept === "string") headers.set("accept", accept);
   if (typeof contentType === "string" && body !== undefined) headers.set("content-type", contentType);
   if (typeof cookie === "string") headers.set("cookie", cookie);
-  if (typeof userAgent === "string") headers.set("user-agent", userAgent);
+  headers.set("user-agent", "ikimon-platform-v2-staging-shadow-proxy/1.0");
   headers.set("x-ikimon-shadow-proxy", "platform-v2-staging");
   return headers;
 }
