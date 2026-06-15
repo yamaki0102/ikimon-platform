@@ -20,4 +20,32 @@ test.describe("cloudflare shadow staging proxy", () => {
     expect([401, 403, 404]).toContain(internal.status());
     expect(internal.status(), "internal summary must not be exposed through the staging proxy").not.toBe(200);
   });
+
+  test("proves non-ready Stream rows stay out of public-ready media through the staging route", async ({ request }) => {
+    const response = await request.get("/cloudflare-shadow/shadow-smoke/stream-nonready-exclusion-proof", {
+      headers: {
+        accept: "application/json",
+        "user-agent": "Python-urllib/3.12",
+      },
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    expect(response.headers()["x-ikimon-shadow-proxy"]).toBe("1");
+
+    const payload = await response.json();
+    expect(payload.gate).toBe("stream_nonready_excluded_from_public_ready");
+    expect(payload.inventory).toMatchObject({
+      total: 34,
+      existsCount: 34,
+      readyCount: 32,
+      nonReadyCount: 2,
+    });
+    expect(payload.invariants).toMatchObject({
+      allStreamRowsAccountedFor: true,
+      readyCountMatchesExpected: true,
+      nonReadyCountMatchesExpected: true,
+      nonReadyRowsLedgered: true,
+      publicReadyExcludesUnresolved: true,
+      unresolvedCoversNonReady: true,
+    });
+  });
 });
