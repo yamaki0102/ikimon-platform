@@ -9,6 +9,9 @@ concurrency:
   group: production-deploy
   cancel-in-progress: false
 
+env:
+  IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL: APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+
 jobs:
   classify-deploy-change:
     name: Classify Deploy Change
@@ -62,7 +65,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: platform_v2/package-lock.json
+          cache-dependency-path: |
+            platform_v2/package-lock.json
+            platform_v2/cloudflare_shadow/package-lock.json
 
       - name: Check deploy guardrails
         shell: pwsh
@@ -95,411 +100,158 @@ jobs:
         working-directory: platform_v2
         run: npm run test:curator
 
-  prepare-candidate:
-    name: Prepare Production Candidate
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+
+      - name: Typecheck Cloudflare Worker
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run check
+
+      - name: Test Cloudflare Worker
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm test
+
+      - name: Materialized original UI dry run
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run materialize:original-ui:dry-run
+
+  cloudflare-production:
+    name: Deploy Cloudflare Production
     runs-on: ubuntu-latest
     needs:
       - pre-flight
       - classify-deploy-change
     if: ${{ needs.pre-flight.result == 'success' && needs['classify-deploy-change'].result == 'success' }}
     environment: production
-    outputs:
-      candidate_port: ${{ steps.candidate-port.outputs.candidate_port }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v5
 
-      - name: Configure SSH key
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
-          chmod 600 ~/.ssh/ikimon_vps
-          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
-
-      - name: Ensure production repo uses public HTTPS remote
-        run: |
-          repo_url="https://github.com/${GITHUB_REPOSITORY}.git"
-          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "git -C /var/www/ikimon.life/repo remote set-url origin '${repo_url}'"
-
-      - name: Sync production repo via SSH
-        id: repo-sync
-        if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode == 'sync_only' }}
-        run: |
-          sync_output="$(ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 "RELEASE_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
-          set -euo pipefail
-          APP_ROOT="/var/www/ikimon.life"
-          REPO_DIR="${APP_ROOT}/repo"
-          DATA_DIR="${REPO_DIR}/upload_package/data"
-          CONFIG_DIR="${REPO_DIR}/upload_package/config"
-          UPLOADS_DIR="${REPO_DIR}/upload_package/public_html/uploads"
-          PERSISTENT_UPLOADS="${APP_ROOT}/persistent/uploads"
-          RUNTIME_ALLOWLIST="${REPO_DIR}/ops/deploy/runtime_persistent_allowlist.txt"
-          BACKUP_DIR="$(mktemp -d /tmp/ikimon-repo-sync-XXXX)"
-          CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
-          force_legacy_sync=0
-
-          load_runtime_allowlist() {
-            if [ ! -f "$RUNTIME_ALLOWLIST" ]; then
-              echo "Missing runtime allowlist: $RUNTIME_ALLOWLIST"
-              exit 1
-            fi
-            grep -v '^[[:space:]]*#' "$RUNTIME_ALLOWLIST" | sed '/^[[:space:]]*$/d'
-          }
-
-          rsync_runtime_copy() {
-            local source="$1"
-            local dest="$2"
-            local rc=0
-            rsync -a "$source" "$dest" || rc=$?
-            if [ "$rc" -eq 24 ]; then
-              echo "Warning: runtime file vanished during repo sync: $source"
-              return 0
-            fi
-            return "$rc"
-          }
-
-          copy_runtime_allowlist() {
-            local src_root="$1"
-            local dst_root="$2"
-            local pattern rel rel_dir match rel_match
-
-            while IFS= read -r pattern; do
-              if [[ "$pattern" != upload_package/data/* ]]; then
-                continue
-              fi
-
-              rel="${pattern#upload_package/data/}"
-              if [[ "$rel" == *"/**" ]]; then
-                rel_dir="${rel%/**}"
-                if [ -d "$src_root/$rel_dir" ]; then
-                  mkdir -p "$dst_root/$rel_dir"
-                  rsync_runtime_copy "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
-                fi
-                continue
-              fi
-
-              if [[ "$rel" == *"*"* || "$rel" == *"?"* || "$rel" == *"["* ]]; then
-                while IFS= read -r match; do
-                  [ -z "$match" ] && continue
-                  rel_match="${match#$src_root/}"
-                  mkdir -p "$dst_root/$(dirname "$rel_match")"
-                  rsync_runtime_copy "$match" "$dst_root/$rel_match"
-                done < <(compgen -G "$src_root/$rel" || true)
-                continue
-              fi
-
-              if [ -e "$src_root/$rel" ]; then
-                mkdir -p "$dst_root/$(dirname "$rel")"
-                rsync_runtime_copy "$src_root/$rel" "$dst_root/$rel"
-              fi
-            done < <(load_runtime_allowlist)
-          }
-
-          cleanup() {
-            rm -rf "$BACKUP_DIR"
-          }
-          trap cleanup EXIT
-
-          cd "$REPO_DIR"
-          git fetch origin main >/dev/null
-          if [ ! -L "$UPLOADS_DIR" ] || [ "$(readlink -f "$UPLOADS_DIR" 2>/dev/null || true)" != "$PERSISTENT_UPLOADS" ]; then
-            force_legacy_sync=1
-            echo "Will force legacy sync once because uploads symlink is not aligned with persistent storage."
-          fi
-
-          mkdir -p "$BACKUP_DIR/data" "$BACKUP_DIR/config"
-          copy_runtime_allowlist "$DATA_DIR" "$BACKUP_DIR/data"
-          for file_name in "${CONFIG_FILES[@]}"; do
-            if [ -f "$CONFIG_DIR/$file_name" ]; then
-              cp -a "$CONFIG_DIR/$file_name" "$BACKUP_DIR/config/$file_name"
-            fi
-          done
-
-          git checkout main >/dev/null 2>&1 || git checkout -f main >/dev/null 2>&1
-          git reset --hard "$RELEASE_SHA"
-          mkdir -p "$DATA_DIR" "$CONFIG_DIR"
-          copy_runtime_allowlist "$BACKUP_DIR/data" "$DATA_DIR"
-          for file_name in "${CONFIG_FILES[@]}"; do
-            if [ -f "$BACKUP_DIR/config/$file_name" ]; then
-              cp -a "$BACKUP_DIR/config/$file_name" "$CONFIG_DIR/$file_name"
-            fi
-          done
-          mkdir -p "$PERSISTENT_UPLOADS"
-          rm -rf "$UPLOADS_DIR"
-          ln -sfn "$PERSISTENT_UPLOADS" "$UPLOADS_DIR"
-          chown -h www-data:www-data "$UPLOADS_DIR" 2>/dev/null || true
-          echo "Production repo synced to $(git rev-parse --short HEAD)"
-          echo "force_legacy_sync=${force_legacy_sync}"
-          REMOTE
-          )"
-          printf '%s\n' "$sync_output"
-          if printf '%s\n' "$sync_output" | grep -q '^force_legacy_sync=1$'; then
-            echo "force_legacy_sync=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "force_legacy_sync=0" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Deploy legacy lane via SSH
-        if: ${{ needs['classify-deploy-change'].outputs.legacy_lane_mode != 'sync_only' }}
-        run: ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 /var/www/ikimon.life/deploy.sh
-
-      - name: Prepare inactive platform_v2 candidate
-        env:
-          FORCE_LEGACY_SYNC: ${{ steps.repo-sync.outputs.force_legacy_sync }}
-        run: |
-          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "FORCE_LEGACY_SYNC='${FORCE_LEGACY_SYNC}' bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh prepare '${GITHUB_SHA}'"
-
-      - name: Read candidate port
-        id: candidate-port
-        run: |
-          port="$(ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 'cat /var/www/ikimon.life/deploy_state/candidate_port')"
-          case "$port" in
-            3201|3202) ;;
-            *) echo "Invalid candidate port: $port"; exit 1 ;;
-          esac
-          echo "candidate_port=$port" >> "$GITHUB_OUTPUT"
-
-  candidate-smoke:
-    name: Smoke Production Candidate
-    runs-on: ubuntu-latest
-    needs:
-      - prepare-candidate
-      - classify-deploy-change
-    environment: production
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup platform_v2 browser smoke runtime
-        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup Node
+        uses: actions/setup-node@v5
         with:
-          install-with-deps: "false"
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            platform_v2/package-lock.json
+            platform_v2/cloudflare_shadow/package-lock.json
 
-      - name: Configure SSH key
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
-          chmod 600 ~/.ssh/ikimon_vps
-          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
-
-      - name: Open SSH tunnel to candidate
-        run: |
-          ssh -i ~/.ssh/ikimon_vps -f -N \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=20 \
-            -o ExitOnForwardFailure=yes \
-            -L 13202:127.0.0.1:${{ needs.prepare-candidate.outputs.candidate_port }} \
-            root@162.43.44.131
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -fsS http://127.0.0.1:13202/healthz >/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Candidate SSH tunnel did not become healthy"
-          exit 1
-
-      - name: Generate UI smoke fixture prefix
-        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
-        id: ui-smoke
-        run: echo "fixture_prefix=smoke-ui-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
-
-      - name: Cleanup stale public UI smoke fixtures
-        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
-        run: |
-          set -euo pipefail
-          html="$(curl -fsS http://127.0.0.1:13202/ja/observations || true)"
-          prefixes="$(printf '%s' "$html" | grep -Eo 'smoke-ui-[A-Za-z0-9-]+' | sort -u || true)"
-          if [ -z "$prefixes" ]; then
-            echo "No stale smoke-ui fixture prefixes detected."
-            exit 0
-          fi
-          while IFS= read -r prefix; do
-            [ -n "$prefix" ] || continue
-            echo "Cleaning stale production smoke fixture prefix: $prefix"
-            ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-              "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --silent --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}" >/dev/null
-          done <<< "$prefixes"
-
-      - name: Run targeted production candidate smoke
-        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier == 'targeted' }}
-        id: targeted-smoke
-        env:
-          PRODUCTION_SMOKE_BASE_URL: http://127.0.0.1:13202
-          DEPLOY_SMOKE_TIER_REASON: ${{ needs['classify-deploy-change'].outputs.reason }}
-          DEPLOY_SMOKE_CHANGED_COUNT: ${{ needs['classify-deploy-change'].outputs.changed_count }}
-        run: |
-          set -euo pipefail
-          mkdir -p platform_v2/test-results
-          node scripts/run_targeted_candidate_smoke.mjs \
-            --base-url="${PRODUCTION_SMOKE_BASE_URL}" \
-            --output=platform_v2/test-results/production-targeted-smoke.json \
-            --summary="${GITHUB_STEP_SUMMARY}" \
-            --reason="${DEPLOY_SMOKE_TIER_REASON}" \
-            --changed-count="${DEPLOY_SMOKE_CHANGED_COUNT}"
-
-      - name: Run production candidate browser smoke
-        if: ${{ needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
-        id: browser-smoke
+      - name: Install platform_v2 dependencies
         working-directory: platform_v2
-        env:
-          PRODUCTION_SMOKE_BASE_URL: http://127.0.0.1:13202
-          PRODUCTION_SMOKE_UI_PREFIX: ${{ steps.ui-smoke.outputs.fixture_prefix }}
-          PRODUCTION_SMOKE_CHECKPOINT_FILE: test-results/production-smoke-checkpoints.jsonl
-        run: npm run e2e:production-smoke
+        run: npm ci
 
-      - name: Cleanup production candidate UI smoke data
-        id: cleanup-smoke
-        if: ${{ always() && needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' && steps.ui-smoke.outputs.fixture_prefix != '' }}
-        run: |
-          mkdir -p platform_v2/test-results
-          prefix="${{ steps.ui-smoke.outputs.fixture_prefix }}"
-          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --silent --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}" \
-            | tee platform_v2/test-results/production-ui-smoke-cleanup.json
+      - name: Build platform_v2
+        working-directory: platform_v2
+        run: npm run build
 
-      - name: Write production candidate smoke summary
-        if: ${{ always() && needs['classify-deploy-change'].outputs.smoke_tier != 'targeted' }}
-        env:
-          BROWSER_SMOKE_OUTCOME: ${{ steps.browser-smoke.outcome }}
-          CLEANUP_SMOKE_OUTCOME: ${{ steps.cleanup-smoke.outcome }}
-          UI_SMOKE_PREFIX: ${{ steps.ui-smoke.outputs.fixture_prefix }}
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+
+      - name: Cloudflare Worker guarded dry run
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:production:dry-run
+
+      - name: Original UI materialization dry run
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run materialize:original-ui:dry-run
+
+      - name: Deploy Cloudflare Worker
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:production
+
+      - name: Materialize original UI into production R2
+        working-directory: platform_v2/cloudflare_shadow
         run: |
-          node <<'NODE'
+          set -euo pipefail
+          npm run materialize:original-ui -- --output materialize-original-ui.json
+
+      - name: Write Cloudflare deploy summary
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require("node:fs");
-          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-          const checkpointPath = "platform_v2/test-results/production-smoke-checkpoints.jsonl";
-          const cleanupPath = "platform_v2/test-results/production-ui-smoke-cleanup.json";
-          const labels = {
-            canonical_scene_ai_subject_records: "写真内AI対象の観測レコード化",
-            identification_workbench_reference_flow: "同定ワークベンチ資料根拠保存",
-            photo_api_contract: "写真API契約 ok:true",
-            photo_ui_post: "写真UI投稿",
-            video_ui_post: "動画UI投稿",
-          };
-          const passed = new Set();
-          if (fs.existsSync(checkpointPath)) {
-            for (const line of fs.readFileSync(checkpointPath, "utf8").split(/\r?\n/)) {
-              if (!line.trim()) continue;
-              try {
-                const row = JSON.parse(line);
-                if (row.status === "passed" && labels[row.phase]) passed.add(row.phase);
-              } catch {
-                // Keep the summary resilient even when the smoke failure truncates output.
-              }
-            }
+          const json = JSON.parse(fs.readFileSync("materialize-original-ui.json", "utf8"));
+          console.log("## Cloudflare Production Deploy");
+          console.log("");
+          console.log("- Worker: `ikimon-life-cloudflare-prod`");
+          console.log("- R2 bucket: `ikimon-prod-media`");
+          console.log("- Original UI scope: `core`");
+          console.log("- VPS SSH/deploy: `not used`");
+          console.log("");
+          console.log("### Materialized UI");
+          for (const item of json.rendered) {
+            console.log(`- \`${item.pathname}\` -> \`${item.key}\` (${item.bytes} bytes)`);
           }
-          let cleanup = null;
-          if (fs.existsSync(cleanupPath)) {
-            try {
-              cleanup = JSON.parse(fs.readFileSync(cleanupPath, "utf8"));
-            } catch {
-              cleanup = null;
-            }
-          }
-          const rows = Object.entries(labels).map(([phase, label]) => {
-            return `| ${label} | ${passed.has(phase) ? "PASS" : "NOT COMPLETED"} |`;
-          });
-          const matchedVideos = cleanup?.matched?.videos ?? 0;
-          const matchedReferences = cleanup?.matched?.referenceSources ?? 0;
-          const cloudflareResults = cleanup?.cloudflare ?? [];
-          const cleanupPassed =
-            process.env.CLEANUP_SMOKE_OUTCOME === "success" &&
-            cleanup &&
-            cleanup.dryRun === false &&
-            (cleanup.matched?.users ?? 0) >= 1 &&
-            (cleanup.deleted?.users ?? 0) >= 1 &&
-            (cleanup.deleted?.visits ?? 0) >= 1 &&
-            matchedReferences >= 1 &&
-            (cleanup.deleted?.knowledgeSources ?? 0) >= 1 &&
-            (cleanup.deleted?.videoRequests ?? 0) >= 1 &&
-            cloudflareResults.length >= matchedVideos &&
-            cloudflareResults.every((item) => item.status === 200 || item.status === 404);
-          rows.push(`| cleanup成功 | ${cleanupPassed ? "PASS" : "NOT COMPLETED"} |`);
-          const cleanupDetail = cleanup
-            ? `\n\nCleanup matched/deleted: users ${cleanup.matched?.users ?? 0}/${cleanup.deleted?.users ?? 0}, visits ${cleanup.matched?.visits ?? 0}/${cleanup.deleted?.visits ?? 0}, references ${matchedReferences}/${cleanup.deleted?.knowledgeSources ?? 0}, videos ${cleanup.matched?.videos ?? 0}/${cleanup.deleted?.videoRequests ?? 0}, files ${cleanup.matched?.files ?? 0}/${cleanup.deleted?.files ?? 0}.`
-            : "\n\nCleanup detail: cleanup JSON was not available.";
-          fs.appendFileSync(summaryPath, [
-            "## Production Candidate Media Smoke",
-            "",
-            `Fixture prefix: \`${process.env.UI_SMOKE_PREFIX || "n/a"}\``,
-            `Browser smoke outcome: \`${process.env.BROWSER_SMOKE_OUTCOME || "unknown"}\``,
-            `Cleanup outcome: \`${process.env.CLEANUP_SMOKE_OUTCOME || "unknown"}\``,
-            "",
-            "| Layer | Result |",
-            "| --- | --- |",
-            ...rows,
-            cleanupDetail,
-            "",
-          ].join("\n"));
           NODE
 
-      - name: Upload production smoke artifacts
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: production-smoke-artifacts
-          path: |
-            platform_v2/test-results
-            platform_v2/playwright-report/production-smoke
-          if-no-files-found: ignore
-
-  promote:
-    name: Promote Production Candidate
-    runs-on: ubuntu-latest
-    needs: candidate-smoke
-    environment: production
-    steps:
-      - name: Configure SSH key
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
-          chmod 600 ~/.ssh/ikimon_vps
-          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
-
-      - name: Promote candidate to public nginx
-        run: |
-          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh promote"
-
   verify:
-    name: Post-deploy Verification
+    name: Post-deploy Cloudflare Verification
     runs-on: ubuntu-latest
-    needs: promote
+    needs: cloudflare-production
     steps:
-      - name: Health Check
+      - name: Health and route checks
         run: |
-          echo "=== Health Check ==="
+          set -euo pipefail
+          echo "=== Cloudflare Health Check ==="
           for url in \
+            https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz \
+            https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/readyz \
             https://ikimon.life/healthz \
             https://ikimon.life/readyz \
             https://ikimon.life/ \
-            https://ikimon.life/explore \
-            https://ikimon.life/map \
-            https://ikimon.life/learn \
-            https://ikimon.life/learn/invasive-species-reporting \
-            https://ikimon.life/for-business/invasive-reporting \
-            https://ikimon.life/contact
+            https://ikimon.life/ja/map \
+            https://ikimon.life/ja/learn \
+            https://ikimon.life/ja/contact
           do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")
-            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
-              echo "OK $url -> $STATUS"
-            else
-              echo "FAIL $url -> $STATUS"
-              exit 1
-            fi
+            status="$(curl -sS -o /dev/null -w "%{http_code}" "$url")"
+            case "$status" in
+              2*|3*) echo "OK $url -> $status" ;;
+              *) echo "FAIL $url -> $status"; exit 1 ;;
+            esac
           done
 
-      - name: Content Verification
+      - name: Map UI content check
         run: |
-          BODY=$(curl -s https://ikimon.life/)
-          if echo "$BODY" | grep -q "ikimon"; then
-            echo "Content verified"
-          else
-            echo "Content verification failed"
+          set -euo pipefail
+          body="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/ja/map?deploy_smoke=${GITHUB_SHA}")"
+          if ! printf '%s' "$body" | grep -q 'me-map-kicker'; then
+            echo "Map header kicker is missing from materialized HTML."
             exit 1
           fi
+          if printf '%s' "$body" | grep -q '<div class="me-enjoy-strip"'; then
+            echo "Old map overlay DOM is still present in materialized HTML."
+            exit 1
+          fi
+          if ! printf '%s' "$body" | grep -q 'global-record-launcher'; then
+            echo "Mobile record launcher markup is missing from materialized HTML."
+            exit 1
+          fi
+          echo "Map materialized HTML verified."
 
-# Required GitHub Secret (Settings > Secrets and variables > Actions):
-# - VPS_SSH_KEY: contents of ~/Downloads/ikimon.pem
+      - name: Map data checks
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const obs = await fetch("https://ikimon.life/ja/api/v1/map/observations?bbox=122.9,24.0,146.0,45.6&zoom=5&limit=20", {
+            headers: { "cache-control": "no-store" }
+          }).then((response) => response.json());
+          const withMedia = (obs.items || []).filter((item) => item.photoUrl || item.videoThumbUrl).length;
+          if (!Array.isArray(obs.items) || obs.items.length === 0 || withMedia === 0) {
+            throw new Error(`Map observation media smoke failed: items=${obs.items?.length ?? 0} withMedia=${withMedia}`);
+          }
+          const areas = await fetch("https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.55,34.61,137.91,34.85&zoom=12&limit=50", {
+            headers: { "cache-control": "no-store" }
+          }).then((response) => response.json());
+          const features = areas.features || [];
+          const named = features.filter((feature) => feature?.properties?.name || feature?.properties?.source_label).length;
+          if (!Array.isArray(features) || features.length === 0 || named === 0) {
+            throw new Error(`Map area smoke failed: features=${features.length} named=${named}`);
+          }
+          console.log(JSON.stringify({ observations: obs.items.length, withMedia, areas: features.length, named }, null, 2));
+          NODE
+
+# Required GitHub Secrets (Settings > Secrets and variables > Actions):
+# - CLOUDFLARE_API_TOKEN: Cloudflare API token with Workers Scripts:Edit and R2:Edit for ikimon production resources.

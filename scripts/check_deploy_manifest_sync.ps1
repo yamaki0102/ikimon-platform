@@ -22,6 +22,48 @@ $workflowText = Get-Content -Raw -Path $workflowFullPath
 $deployContractText = $workflowText
 $issues = New-Object System.Collections.Generic.List[string]
 
+if ($manifest.platform -eq "cloudflare_worker") {
+    foreach ($requiredText in @(
+        $manifest.workerName,
+        $manifest.r2Bucket,
+        $manifest.workerDirectory,
+        "deploy:production:dry-run",
+        "deploy:production",
+        "materialize:original-ui:dry-run",
+        "materialize:original-ui",
+        "CLOUDFLARE_API_TOKEN",
+        "VPS SSH/deploy"
+    )) {
+        if (-not [string]::IsNullOrWhiteSpace($requiredText) -and $workflowText -notmatch [regex]::Escape($requiredText)) {
+            $issues.Add("deploy.yml is missing Cloudflare deploy contract text: $requiredText")
+        }
+    }
+
+    foreach ($url in $manifest.healthChecks) {
+        if ($workflowText -notmatch [regex]::Escape($url)) {
+            $issues.Add("deploy.yml verify step is missing health check URL: $url")
+        }
+    }
+
+    if ($workflowText -match "VPS_SSH_KEY|ssh -i|deploy_platform_v2_blue_green\.sh|162\.43\.44\.131") {
+        $issues.Add("deploy.yml still references the old VPS production lane")
+    }
+
+    if ($workflowText -notmatch "check_deploy_guardrails\.ps1") {
+        $issues.Add("deploy.yml is missing deploy guardrail check step")
+    }
+
+    if ($issues.Count -gt 0) {
+        foreach ($issue in $issues) {
+            Write-Error $issue
+        }
+        exit 1
+    }
+
+    Write-Output "Cloudflare deploy manifest and workflow are in sync."
+    exit 0
+}
+
 if ($workflowText -notmatch [regex]::Escape($manifest.productionHost)) {
     $issues.Add("deploy.yml does not reference productionHost $($manifest.productionHost)")
 }

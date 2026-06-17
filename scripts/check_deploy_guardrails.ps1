@@ -103,7 +103,8 @@ $persistentChanged = @($changedFiles | Where-Object { Test-MatchAnyPattern -Path
 
 $issues = New-Object System.Collections.Generic.List[string]
 
-if ($manifest.strategy -ne "github_actions_only") {
+$allowedStrategies = @("github_actions_only", "github_actions_cloudflare_worker")
+if ($allowedStrategies -notcontains $manifest.strategy) {
     $issues.Add("Unsupported deploy strategy in manifest: $($manifest.strategy)")
 }
 
