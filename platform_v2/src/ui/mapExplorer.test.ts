@@ -142,8 +142,8 @@ test("area biodiversity badges render as presence-only map markers", () => {
   assert.match(script, /function areaBadgeCountLabel\(item\)/);
   assert.match(script, /me-area-badge-pill/);
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
+  assert.doesNotMatch(script, /me-area-badge-actions/);
   assert.match(styles, /\.me-area-badge-pill/);
-  assert.match(styles, /\.me-area-badge-marker:hover \.me-area-badge-actions/);
 });
 
 test("guide-enabled areas advertise guide availability before tapping the area", () => {
@@ -290,13 +290,32 @@ test("map explorer keeps the regional guide label in the header and leaves the m
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
   assert.match(html, /me-map-kicker">地域図鑑マップ/);
+  assert.match(html, /data-side="rail"/);
+  assert.match(html, /aria-expanded="false"/);
   assert.doesNotMatch(html, /me-enjoy-strip/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
-  assert.match(html, /このエリアの活動・ラリー/);
-  assert.match(html, /主催者の方へ/);
-  assert.match(html, /data-testid="map-activity-rally-panel"/);
+  assert.doesNotMatch(html, /このエリアの活動・ラリー/);
+  assert.doesNotMatch(html, /data-testid="map-activity-rally-panel"/);
   assert.doesNotMatch(html, /data-events-new-href/);
   assert.doesNotMatch(html, /\/community\/events\/new/);
+});
+
+test("default map surface uses a tiered simple vector style", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /url: 'https:\/\/tiles\.openfreemap\.org\/planet'/);
+  assert.match(script, /glyphs: 'https:\/\/tiles\.openfreemap\.org\/fonts\/\{fontstack\}\/\{range\}\.pbf'/);
+  assert.match(script, /var SIMPLE_MID_LANDMARK_CLASSES = \['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'\]/);
+  assert.match(script, /var SIMPLE_HIGH_LANDMARK_CLASSES = \['railway', 'town_hall', 'library', 'hospital'\]/);
+  assert.match(script, /var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = \['shop', 'grocery', 'cafe', 'restaurant'\]/);
+  assert.match(script, /id: 'simple-road-major'/);
+  assert.match(script, /id: 'simple-road-local'/);
+  assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 13/);
+  assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 16/);
+  assert.match(script, /id: 'simple-commercial-label'[\s\S]*?minzoom: 15\.2/);
+  assert.match(script, /id: 'simple-place-label'[\s\S]*?maxzoom: 15\.25/);
+  assert.doesNotMatch(script, /'source-layer': 'building'/);
+  assert.doesNotMatch(script, /'post'/);
 });
 
 test("map explorer restores the quick record launcher on mobile only", () => {
@@ -317,9 +336,8 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
   assert.match(script, /isNamedAreaBadgeFeature\(item\.feature, zoom\)/);
   assert.match(script, /主催者/);
   assert.match(script, /エリア図鑑/);
-  assert.match(script, /このエリアの活動・ラリー/);
   assert.match(script, /EVENTS_ORGANIZER_HREF/);
-  assert.match(script, /me-area-badge-actions/);
+  assert.doesNotMatch(script, /me-area-badge-actions/);
   assert.match(script, /me-area-badge-pill/);
   assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml\)/);
   assert.match(script, /me-area-primary-actions/);
@@ -327,9 +345,7 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
   assert.doesNotMatch(script, /eventsNewHrefTemplate/);
   assert.doesNotMatch(script, /\/community\/events\/new/);
   assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml/);
-  assert.match(script, /event\.stopPropagation\(\);/);
   assert.match(styles, /\.me-area-badge-marker:hover \.me-area-badge-chips/);
-  assert.match(styles, /\.me-area-badge-marker:focus-within \.me-area-badge-actions/);
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {
@@ -374,7 +390,10 @@ test("map opens near current location instead of restoring stale local viewport"
 test("heatmap tab keeps area polygons selectable", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(script, /show\(areaLayers, tab === 'markers' \|\| tab === 'heatmap' \|\| tab === 'places'\);/);
+  assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places'\);/);
+  assert.match(script, /var markerLayers = \['observation-cell-fill', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-selected'\]/);
+  assert.match(script, /var markerDetailLayers = \['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'\]/);
+  assert.match(script, /show\(markerDetailLayers, false\);/);
 });
 
 test("heatmap area filters keep osm parks as selectable anchors", () => {

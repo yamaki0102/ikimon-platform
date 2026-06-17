@@ -33,6 +33,8 @@ test("app sends browser security headers on every response", async () => {
     assert.match(csp, /frame-ancestors 'none'/);
     assert.match(csp, /form-action 'self'/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/nominatim\.openstreetmap\.org/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/tiles\.openfreemap\.org/);
+    assert.match(csp, /font-src 'self'[\s\S]*https:\/\/tiles\.openfreemap\.org/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/www\.google\.com/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/\*\.google-analytics\.com/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/\*\.analytics\.google\.com/);
