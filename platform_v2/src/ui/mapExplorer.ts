@@ -803,14 +803,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     withBasePath(props.basePath, "/community/events"),
     props.lang,
   );
-  const activityRallyPanelHtml = `<section class="me-activity-panel" data-testid="map-activity-rally-panel" aria-label="${escapeHtml(copy.activityRallyTitle)}">
-              <div class="me-activity-head">
-                <span>${escapeHtml(copy.activityRallyMeta)}</span>
-                <strong>${escapeHtml(copy.activityRallyTitle)}</strong>
-              </div>
-              <p>${escapeHtml(copy.activityRallyBody)}</p>
-              <a class="me-activity-link" href="${escapeHtml(eventsOrganizerHref)}">${escapeHtml(copy.activityRallyLinkLabel)}</a>
-            </section>`;
+  const activityRallyPanelHtml = "";
 
   const taxonChipsHtml = copy.taxonChips
     .map(
@@ -992,7 +985,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Toque em um pino ou célula no mapa para ver os detalhes aqui."
         : "Tap a pin or cell on the map to see details here.";
 
-  return `<section class="section me-section" data-side="open" aria-label="Map Explorer">
+  return `<section class="section me-section" data-side="rail" aria-label="Map Explorer">
     <div class="me-topbar">
       <div class="me-topbar-primary">
         <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "地域図鑑マップ" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
@@ -1133,7 +1126,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
 
     <div class="me-main">
       <aside class="me-side" id="me-side" data-tab="results" aria-label="result panel">
-        <button type="button" class="me-side-toggle" id="me-side-toggle" aria-label="${escapeHtml(sideToggleLabel)}" title="${escapeHtml(sideToggleLabel)}" aria-expanded="true">
+        <button type="button" class="me-side-toggle" id="me-side-toggle" aria-label="${escapeHtml(sideToggleLabel)}" title="${escapeHtml(sideToggleLabel)}" aria-expanded="false">
           <span class="me-side-toggle-icon" aria-hidden="true">‹</span>
         </button>
         <div class="me-side-rail-icons" aria-hidden="true">
@@ -1547,12 +1540,287 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     document.head.appendChild(link);
   }
 
+  var SIMPLE_MID_LANDMARK_CLASSES = ['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'];
+  var SIMPLE_HIGH_LANDMARK_CLASSES = ['railway', 'town_hall', 'library', 'hospital'];
+  var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = ['shop', 'grocery', 'cafe', 'restaurant'];
+
   var BASEMAPS = {
     standard: {
       version: 8,
-      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-      sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
-      layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+      glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+      sources: {
+        openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: 'OpenFreeMap / OpenStreetMap contributors' },
+      },
+      layers: [
+        { id: 'simple-bg', type: 'background', paint: { 'background-color': '#edf4ef' } },
+        {
+          id: 'simple-water',
+          type: 'fill',
+          source: 'openmaptiles',
+          'source-layer': 'water',
+          paint: { 'fill-color': '#b8dce7', 'fill-opacity': 0.86 },
+        },
+        {
+          id: 'simple-wood',
+          type: 'fill',
+          source: 'openmaptiles',
+          'source-layer': 'landcover',
+          filter: ['==', ['get', 'class'], 'wood'],
+          paint: { 'fill-color': '#c7dfbf', 'fill-opacity': 0.72 },
+        },
+        {
+          id: 'simple-grass',
+          type: 'fill',
+          source: 'openmaptiles',
+          'source-layer': 'landcover',
+          filter: ['match', ['get', 'class'], ['grass', 'scrub'], true, false],
+          paint: { 'fill-color': '#d4e8c9', 'fill-opacity': 0.62 },
+        },
+        {
+          id: 'simple-wetland',
+          type: 'fill',
+          source: 'openmaptiles',
+          'source-layer': 'landcover',
+          filter: ['==', ['get', 'class'], 'wetland'],
+          paint: { 'fill-color': '#c5ded3', 'fill-opacity': 0.62 },
+        },
+        {
+          id: 'simple-park',
+          type: 'fill',
+          source: 'openmaptiles',
+          'source-layer': 'park',
+          paint: { 'fill-color': '#c9e4bf', 'fill-opacity': 0.72 },
+        },
+        {
+          id: 'simple-waterway',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'waterway',
+          minzoom: 8,
+          paint: {
+            'line-color': '#9dccdc',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 13, 2.2, 16, 4],
+            'line-opacity': 0.8,
+          },
+        },
+        {
+          id: 'simple-road-major',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'transportation',
+          filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.7, 10, 2.1, 14, 4.8],
+            'line-opacity': 0.88,
+          },
+        },
+        {
+          id: 'simple-road-local',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'transportation',
+          minzoom: 13,
+          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service', 'track', 'path'], true, false],
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.45, 15, 1.4, 17, 2.8],
+            'line-opacity': 0.38,
+          },
+        },
+        {
+          id: 'simple-landmark-dot',
+          type: 'circle',
+          source: 'openmaptiles',
+          'source-layer': 'poi',
+          minzoom: 13,
+          filter: ['match', ['get', 'class'], SIMPLE_MID_LANDMARK_CLASSES, true, false],
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 2.5, 16, 4],
+            'circle-color': ['match', ['get', 'class'], ['school', 'kindergarten', 'college', 'university'], '#8aa0b2', '#79aa78'],
+            'circle-stroke-color': 'rgba(255,255,255,0.88)',
+            'circle-stroke-width': 1,
+            'circle-opacity': 0.78,
+          },
+        },
+        {
+          id: 'simple-civic-dot',
+          type: 'circle',
+          source: 'openmaptiles',
+          'source-layer': 'poi',
+          minzoom: 16,
+          filter: ['match', ['get', 'class'], SIMPLE_HIGH_LANDMARK_CLASSES, true, false],
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 2.7, 17, 4.2],
+            'circle-color': ['match', ['get', 'class'], 'railway', '#8c8fa3', 'hospital', '#b4818d', '#7f98a7'],
+            'circle-stroke-color': 'rgba(255,255,255,0.88)',
+            'circle-stroke-width': 1,
+            'circle-opacity': 0.74,
+          },
+        },
+        {
+          id: 'simple-commercial-dot',
+          type: 'circle',
+          source: 'openmaptiles',
+          'source-layer': 'poi',
+          minzoom: 15.2,
+          filter: ['match', ['get', 'class'], SIMPLE_COMMERCIAL_LANDMARK_CLASSES, true, false],
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.2, 2.2, 17, 3.5],
+            'circle-color': '#9b8f67',
+            'circle-stroke-color': 'rgba(255,255,255,0.86)',
+            'circle-stroke-width': 1,
+            'circle-opacity': 0.68,
+          },
+        },
+        {
+          id: 'simple-place-label',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'place',
+          minzoom: 5,
+          maxzoom: 15.25,
+          filter: ['has', 'name'],
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 5, 12, 10, 13, 14, 15, 17, 16],
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#51666a',
+            'text-halo-color': 'rgba(237,244,239,0.92)',
+            'text-halo-width': 1.4,
+          },
+        },
+        {
+          id: 'simple-landmark-label',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'poi',
+          minzoom: 13,
+          filter: ['match', ['get', 'class'], SIMPLE_MID_LANDMARK_CLASSES, true, false],
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 16, 12],
+            'text-offset': [0, 0.78],
+            'text-anchor': 'top',
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': ['match', ['get', 'class'], ['school', 'kindergarten', 'college', 'university'], '#687d8d', '#5d805c'],
+            'text-halo-color': 'rgba(237,244,239,0.9)',
+            'text-halo-width': 1.15,
+          },
+        },
+        {
+          id: 'simple-civic-label',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'poi',
+          minzoom: 16,
+          filter: ['match', ['get', 'class'], SIMPLE_HIGH_LANDMARK_CLASSES, true, false],
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 16, 10, 17, 12],
+            'text-offset': [0, 0.78],
+            'text-anchor': 'top',
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': ['match', ['get', 'class'], 'railway', '#71758c', 'hospital', '#8f6370', '#647f8f'],
+            'text-halo-color': 'rgba(237,244,239,0.9)',
+            'text-halo-width': 1.15,
+          },
+        },
+        {
+          id: 'simple-commercial-label',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'poi',
+          minzoom: 15.2,
+          filter: ['match', ['get', 'class'], SIMPLE_COMMERCIAL_LANDMARK_CLASSES, true, false],
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 15.2, 9.7, 17, 11.5],
+            'text-offset': [0, 0.78],
+            'text-anchor': 'top',
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#746d58',
+            'text-halo-color': 'rgba(237,244,239,0.88)',
+            'text-halo-width': 1.05,
+          },
+        },
+        {
+          id: 'simple-park-name',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'park',
+          minzoom: 13,
+          filter: ['has', 'name'],
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10.5, 16, 13],
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#5b7d5b',
+            'text-halo-color': 'rgba(237,244,239,0.88)',
+            'text-halo-width': 1.1,
+          },
+        },
+        {
+          id: 'simple-water-name',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'water_name',
+          minzoom: 10,
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 10, 10, 14, 12],
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#4f91a5',
+            'text-halo-color': 'rgba(237,244,239,0.88)',
+            'text-halo-width': 1.1,
+          },
+        },
+        {
+          id: 'simple-road-name-major',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'transportation_name',
+          minzoom: 12,
+          filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
+          layout: {
+            'symbol-placement': 'line',
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name'], ['get', 'ref']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9.5, 16, 12],
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#758083',
+            'text-halo-color': 'rgba(237,244,239,0.88)',
+            'text-halo-width': 1.1,
+          },
+        },
+      ],
     },
     gsi: {
       version: 8,
@@ -2665,16 +2933,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var fieldId = String(props.field_id || '');
       var isGuidePinBadge = !!item.guideStop && useGuidePinBadges;
       var isCompactGuideBadge = !!item.guideStop && useCompactGuideBadges;
-      var eventHref = EVENTS_ORGANIZER_HREF;
-      var albumHref = fieldId
-        ? FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))
-        : '';
-      var actionsHtml = eventHref && albumHref
-        ? '<span class="me-area-badge-actions">' +
-            '<a href="' + escapeHtml(eventHref) + '">' + escapeHtml(COPY.areaBadgeEventLabel) + '</a>' +
-            '<a href="' + escapeHtml(albumHref) + '">' + escapeHtml(COPY.areaBadgeAlbumLabel) + '</a>' +
-          '</span>'
-        : '';
+      var actionsHtml = '';
       var countLabel = areaBadgeCountLabel(item);
       if (!countLabel) countLabel = String(props.source_label || props.admin_level || props.source || '');
       var el = document.createElement('div');
@@ -2708,11 +2967,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         event.preventDefault();
         event.stopPropagation();
         openAreaFeatureSheet(item.feature, item.center.lat, item.center.lng);
-      });
-      el.querySelectorAll('.me-area-badge-actions a').forEach(function (anchor) {
-        anchor.addEventListener('click', function (event) {
-          event.stopPropagation();
-        });
       });
       var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
         .setLngLat([item.center.lng, item.center.lat])
@@ -5118,7 +5372,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyTab(map, tab) {
     // Show/hide layers based on active tab.
-    var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-count', 'observation-cell-label', 'observation-cell-selected'];
+    var markerLayers = ['observation-cell-fill', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-selected'];
+    var markerDetailLayers = ['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
@@ -5128,9 +5383,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     };
     show(markerLayers, tab === 'markers');
+    show(markerDetailLayers, false);
     show(heatLayers, tab === 'heatmap');
     show(frontierLayers, tab === 'frontier');
-    show(areaLayers, tab === 'markers' || tab === 'heatmap' || tab === 'places');
+    show(areaLayers, tab === 'heatmap' || tab === 'places');
     if (map.getLayer('waterway-hint-line')) {
       map.setLayoutProperty('waterway-hint-line', 'visibility', tab === 'places' ? 'visible' : 'none');
     }
