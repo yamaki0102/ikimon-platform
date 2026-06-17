@@ -20,7 +20,8 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /source: 'map'/);
     assert.match(html, /id: 'map:state'/);
     assert.match(html, /class="me-map-cues"/);
-    assert.match(html, /\.me-enjoy-strip \{[\s\S]*?display: none;/);
+    assert.match(html, /\.me-enjoy-strip \{[\s\S]*?display: grid;/);
+    assert.match(html, /\.me-map-cues \{[\s\S]*?display: none;/);
     assert.match(html, /\.me-map-status \{[\s\S]*?bottom: 18px;/);
     assert.match(html, /me-detail-panel/);
     assert.match(html, /me-detail-actions/);
@@ -29,7 +30,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /data-snap/);
     assert.match(html, /me-discovery-preview/);
     assert.match(html, /pickDiscoveryPreviewRecords/);
-    assert.match(html, /Enjoy Nature Map/);
+    assert.match(html, /ikimon - 皆で作る地域図鑑/);
     assert.match(html, />最近の発見</);
     assert.match(html, />季節の気配</);
     assert.match(html, />エリア図鑑</);
@@ -75,7 +76,9 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /エリア種別/);
     assert.match(html, /自然共生サイト/);
     assert.match(html, /学校・キャンパス/);
-    assert.match(html, /このエリアで観察会/);
+    assert.match(html, /このエリアの活動・ラリー/);
+    assert.match(html, /主催者の方へ/);
+    assert.doesNotMatch(html, /\/community\/events\/new/);
     assert.match(html, /admin_curated/);
     assert.match(html, /community_curated/);
     assert.match(html, /auto_observation/);

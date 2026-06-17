@@ -171,6 +171,7 @@ const GENERIC_PLACE_MATCH_TERMS = new Set([
 
 const OBSERVATION_REGIONAL_ABSTRACT_COPY = /生物多様性|オープンデータ|デジタルツイン|コミュニティ|地域の見方が一段深くなる/u;
 const OBSERVATION_BROAD_HERITAGE_COPY = /文化財一覧|文化財/u;
+let regionalKnowledgeCardsTableAvailable: boolean | null = null;
 
 const ANGLES: Array<{
   key: string;
@@ -1079,8 +1080,26 @@ function compactText(value: unknown, fallback: string, maxLength: number): strin
   return selected.length <= maxLength ? selected : `${selected.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
 }
 
+async function hasRegionalKnowledgeCardsTable(): Promise<boolean> {
+  if (regionalKnowledgeCardsTableAvailable !== null) {
+    return regionalKnowledgeCardsTableAvailable;
+  }
+  try {
+    const result = await getPool().query<{ exists: boolean }>(
+      "select to_regclass('public.regional_knowledge_cards') is not null as exists",
+    );
+    regionalKnowledgeCardsTableAvailable = result.rows[0]?.exists === true;
+    return regionalKnowledgeCardsTableAvailable;
+  } catch {
+    return false;
+  }
+}
+
 async function loadDbCards(place: RegionalStoryPlaceInput): Promise<RegionalKnowledgeCard[]> {
   try {
+    if (!await hasRegionalKnowledgeCardsTable()) {
+      return [];
+    }
     const pool = getPool();
     const lookupTerms = regionalPlaceLookupTerms(place);
     const result = await pool.query<RegionalKnowledgeCardRow>(

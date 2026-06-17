@@ -100,7 +100,9 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /\.brand-wordmark-img \{[\s\S]*width: auto;[\s\S]*height: 100%;[\s\S]*max-width: none;/);
   assert.match(html, /--ikimon-header-brand-w: max\(var\(--ikimon-desktop-sidebar-w\), 154px\);/);
   assert.match(html, /body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-header-brand-w: 154px;/);
-  assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) auto;/);
+  assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) minmax\(0, 1fr\);/);
+  assert.match(html, /\.site-search-desktop \{[\s\S]*grid-column: 2;/);
+  assert.match(html, /\.site-header-actions-desktop \{[\s\S]*grid-column: 3;[\s\S]*justify-self: end;/);
   assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: auto;[\s\S]*height: 15px;[\s\S]*aspect-ratio: 711 \/ 222;/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
@@ -109,7 +111,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<meta property="og:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
   assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
-  assert.match(html, /<span>ikimon<\/span>\s*<span>Enjoy Life<\/span>/);
+  assert.match(html, /<span>ikimon<\/span>\s*<span>皆で作る地域図鑑<\/span>/);
 });
 
 test("site shell keeps records search query and view in header search", () => {

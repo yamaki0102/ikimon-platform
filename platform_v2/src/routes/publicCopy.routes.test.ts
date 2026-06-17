@@ -131,30 +131,24 @@ test("updates page keeps the full release history on the v2 public shell", async
   }
 });
 
-test("home page uses the current content-first top surface", async () => {
+test("home page uses the current map home surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /Enjoy Life/);
-    assert.match(response.body, /<title>ikimon \| 生きものを手がかりに、この場所の今を残す/);
-    assert.match(response.body, /生きものを手がかりに、/);
-    assert.match(response.body, /この場所の今を残す/);
-    assert.match(response.body, /prototype-content-wall/);
-    assert.match(response.body, /PLACE MEMORY/);
-    assert.match(response.body, /場所の今を残す記録/);
-    assert.match(response.body, /育つ観察エリア/);
-    assert.match(response.body, /FIELD EVENTS/);
-    assert.match(response.body, /近くの観察会/);
-    assert.match(response.body, /記録する/);
-    assert.match(response.body, /写真/);
-    assert.match(response.body, /動画/);
-    assert.match(response.body, /選ぶ/);
-    assert.match(response.body, /ガイド/);
-    assert.match(response.body, /同定待ち/);
+    assert.match(response.body, /<title>ikimon - 皆で作る地域図鑑 \| ikimon/);
+    assert.match(response.body, /id="map-explorer"/);
+    assert.match(response.body, /ikimon - 皆で作る地域図鑑/);
+    assert.match(response.body, /地域の自然・風景・水・土・農・季節・活動/);
+    assert.match(response.body, /このエリアの活動・ラリー/);
+    assert.match(response.body, /主催者の方へ/);
+    assert.doesNotMatch(response.body, /\/community\/events\/new/);
+    assert.doesNotMatch(response.body, /prototype-content-wall/);
+    assert.doesNotMatch(response.body, /FIELD EVENTS/);
+    assert.doesNotMatch(response.body, /近くの観察会/);
     assert.doesNotMatch(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
-    assert.match(response.body, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
-    assert.match(response.body, /見つからなかった条件/);
+    assert.doesNotMatch(response.body, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
+    assert.doesNotMatch(response.body, /見つからなかった条件/);
     assert.doesNotMatch(response.body, /今日は、どこを見に行く？/);
     assert.doesNotMatch(response.body, /見つける、確かめる、地図で見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { getRegionalStoryCue } from "./regionalStory.js";
 
@@ -43,6 +44,13 @@ test("regional story returns sourced Hamamatsu cards without requiring the datab
   assert.doesNotMatch(publicObservationStoryText, /文化財|地域の見方が一段深くなる|オープンデータ|生物多様性|コミュニティ|デジタルツイン/);
   // 春のタンポポ → 春の植物向けヒントが含まれること
   assert.match(story.whyHere, /つぼみ|花|葉|株|日当たり/);
+});
+
+test("regional story checks the regional knowledge table before querying it", async () => {
+  const source = await readFile(new URL("./regionalStory.ts", import.meta.url), "utf8");
+
+  assert.match(source, /to_regclass\('public\.regional_knowledge_cards'\)/);
+  assert.match(source, /if \(!await hasRegionalKnowledgeCardsTable\(\)\) \{\s+return \[\];\s+\}/);
 });
 
 test("regional story only uses specific heritage cards when the place actually matches", async () => {

@@ -97,7 +97,7 @@ test("app sends HSTS in production", async () => {
   }
 });
 
-test("root route serves the landing HTML even for generic accept headers", async () => {
+test("root route serves the map home HTML even for generic accept headers", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -108,7 +108,11 @@ test("root route serves the landing HTML even for generic accept headers", async
     assert.equal(response.statusCode, 200);
     assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
     assert.doesNotMatch(response.body, /"status":"bootstrapping"/);
-    assert.match(response.body, /ikimon\.life/);
+    assert.match(response.body, /id="map-explorer"/);
+    assert.match(response.body, /ikimon - 皆で作る地域図鑑/);
+    assert.match(response.body, /このエリアの活動・ラリー/);
+    assert.doesNotMatch(response.body, /\/community\/events\/new/);
+    assert.doesNotMatch(response.body, /prototype-topa/);
   } finally {
     await app.close();
   }

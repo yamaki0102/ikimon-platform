@@ -286,20 +286,35 @@ test("area badge clicks reopen the side panel before showing selection", () => {
   assert.match(openAreaSheetBody, /setSideRailMode\(false\);\s+renderSelectedCard\(\);\s+renderSidePanels\(\);\s+setSideTab\('selection'\);/);
 });
 
-test("area map labels and side cards expose event and encyclopedia shortcuts", () => {
+test("map explorer renders the regional guide and activity rally slot", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+
+  assert.match(html, /ikimon - 皆で作る地域図鑑/);
+  assert.match(html, /地域の自然・風景・水・土・農・季節・活動/);
+  assert.match(html, /このエリアの活動・ラリー/);
+  assert.match(html, /主催者の方へ/);
+  assert.match(html, /data-testid="map-activity-rally-panel"/);
+  assert.doesNotMatch(html, /data-events-new-href/);
+  assert.doesNotMatch(html, /\/community\/events\/new/);
+});
+
+test("area map labels and side cards expose organizer and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /areaBadgeEventLabel/);
   assert.match(script, /areaBadgeAlbumLabel/);
-  assert.match(script, /観察会/);
+  assert.match(script, /主催者/);
   assert.match(script, /エリア図鑑/);
+  assert.match(script, /このエリアの活動・ラリー/);
+  assert.match(script, /EVENTS_ORGANIZER_HREF/);
   assert.match(script, /me-area-badge-actions/);
   assert.match(script, /me-area-badge-pill/);
   assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml\)/);
   assert.match(script, /me-area-primary-actions/);
-  assert.match(script, /eventsNewHrefTemplate\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
+  assert.doesNotMatch(script, /eventsNewHrefTemplate/);
+  assert.doesNotMatch(script, /\/community\/events\/new/);
   assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml/);
   assert.match(script, /event\.stopPropagation\(\);/);
   assert.match(styles, /\.me-area-badge-marker:hover \.me-area-badge-chips/);

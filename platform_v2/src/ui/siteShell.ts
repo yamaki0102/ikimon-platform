@@ -375,7 +375,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
-      legalTagline: "Enjoy Life",
+      legalTagline: "皆で作る地域図鑑",
     },
     en: {
       primaryTitle: "Daily",
@@ -407,7 +407,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Updates",
       },
       personalizedEmpty: "Sign in to pin followed taxa and observation areas here.",
-      legalTagline: "Enjoy Life",
+      legalTagline: "Regional Field Guide",
     },
     es: {
       primaryTitle: "Diario",
@@ -439,7 +439,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Novedades",
       },
       personalizedEmpty: "Entra para fijar taxones y areas de observacion.",
-      legalTagline: "Enjoy Life",
+      legalTagline: "Guia regional",
     },
     "pt-BR": {
       primaryTitle: "Diario",
@@ -471,7 +471,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Novidades",
       },
       personalizedEmpty: "Entre para fixar taxons e areas de observacao.",
-      legalTagline: "Enjoy Life",
+      legalTagline: "Guia regional",
     },
   };
   return localized[lang] ?? localized.ja;
@@ -903,7 +903,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ikimon｜Enjoy Life</span>
+        <span>ikimon｜皆で作る地域図鑑</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
@@ -6222,7 +6222,7 @@ ${alternateLinks}
         margin: 0 16px;
         padding: 7px 0;
         display: grid;
-        grid-template-columns: var(--ikimon-header-brand-w) minmax(280px, 640px) auto;
+        grid-template-columns: var(--ikimon-header-brand-w) minmax(280px, 640px) minmax(0, 1fr);
         gap: 18px;
         justify-content: stretch;
       }
@@ -6252,6 +6252,7 @@ ${alternateLinks}
         display: inline-flex;
       }
       .site-search-desktop {
+        grid-column: 2;
         width: min(640px, 100%);
         max-width: none;
         justify-self: center;
@@ -6259,6 +6260,7 @@ ${alternateLinks}
         box-shadow: none;
       }
       .site-header-actions-desktop {
+        grid-column: 3;
         justify-self: end;
       }
       .site-header-actions-desktop .btn {
