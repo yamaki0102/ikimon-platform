@@ -2843,15 +2843,37 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
 });
 
 test("production runtime enables app-compatible write routes while keeping shadow smoke routes closed", async () => {
-  const { env, obs } = createEnv();
+  const { env, obs, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production"
   };
   const workerOrigin = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
 
-  const smokeResponse = await worker.fetch(new Request("https://ikimon.life/shadow-smoke/route-change-rehearsal-proof"), productionEnv);
-  assert.equal(smokeResponse.status, 404);
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+
+  try {
+    for (const path of [
+      "/shadow-smoke/record",
+      "/shadow-smoke/map",
+      "/shadow-smoke/takedown-proof",
+      "/shadow-smoke/route-change-rehearsal-proof",
+      "/shadow/stream/test-video",
+      "/shadow/stream/test-video/thumbnail.jpg"
+    ]) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+      assert.equal(response.status, 404, path);
+    }
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 
   const issueResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
     method: "POST",

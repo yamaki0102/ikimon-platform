@@ -540,6 +540,10 @@ export const worker = {
         if (guard) return guard;
       }
 
+      if (isShadowDiagnosticPath(url.pathname) && env.ENVIRONMENT === "production") {
+        return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+      }
+
       if (request.method === "GET" && url.pathname === "/api/v1/map/cells") {
         return getPublicMapCells(url, env);
       }
@@ -921,11 +925,14 @@ function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: E
   return shouldUseOriginFallback(url, env) && url.pathname.startsWith("/api/v1/observations/");
 }
 
+function isShadowDiagnosticPath(pathname: string): boolean {
+  return pathname.startsWith("/shadow-smoke/") || pathname.startsWith("/shadow/");
+}
+
 function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL, env: Env): boolean {
   if (!shouldUseOriginFallback(url, env)) return false;
   if (url.pathname.startsWith("/internal/")) return false;
-  if (url.pathname.startsWith("/shadow-smoke/")) return false;
-  if (url.pathname.startsWith("/shadow/")) return false;
+  if (isShadowDiagnosticPath(url.pathname)) return false;
   if (url.pathname === "/health") return false;
   if (isSuspiciousPublicProbePath(url.pathname)) return false;
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
