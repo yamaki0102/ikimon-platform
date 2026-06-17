@@ -425,9 +425,10 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       select coalesce(ab.public_url, ab.storage_path) as public_url
       from evidence_assets ea
       join asset_blobs ab on ab.blob_id = ea.blob_id
-      where ea.occurrence_id = o.occurrence_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
         and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-      order by ea.created_at asc
+      order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+        ea.created_at asc
       limit 1
     ) photo on true
     where ${whereClauses.join(" and ")}

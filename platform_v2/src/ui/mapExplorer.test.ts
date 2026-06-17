@@ -298,6 +298,22 @@ test("map explorer renders the regional guide and activity rally slot", () => {
   assert.doesNotMatch(html, /\/community\/events\/new/);
 });
 
+test("map explorer does not paint the field-guide title over the map", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+
+  assert.match(html, /class="me-enjoy-strip"[^>]*hidden[^>]*aria-hidden="true"/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-enjoy-strip\[hidden\]\s*\{[\s\S]*display:\s*none !important;/);
+});
+
+test("map explorer hides migration jargon and unidentified placeholders from public copy", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function publicBriefText/);
+  assert.match(script, /Cloudflare\|互換表示\|移行中/);
+  assert.match(script, /unidentified/);
+  assert.match(script, /return fallback \|\| COPY\.awaitingIdLabel/);
+});
+
 test("area map labels and side cards expose organizer and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
@@ -408,20 +424,22 @@ test("small area outlines have a stable click hitbox across zoom levels", () => 
   assert.match(script, /map\.queryRenderedFeatures\(e\.point, \{ layers: hitLayers \}\)/);
 });
 
-test("map explorer exposes visited place shortcuts and a clickable side collapse control", () => {
+test("map explorer omits visited place shortcuts while keeping side collapse control", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(html, /id="me-visited-panel"/);
-  assert.match(html, /data-api-my-places="\/api\/v1\/map\/my-places"/);
-  assert.match(script, /function loadVisitedPlaces\(force\)/);
-  assert.match(script, /function jumpToVisitedPlace\(place\)/);
-  assert.match(script, /sort='\s\+ encodeURIComponent\(state\.visitedPlacesSort\)/);
-  assert.match(script, /最近/);
-  assert.match(script, /よく行く/);
-  assert.match(script, /季節で再訪/);
+  assert.doesNotMatch(html, /id="me-visited-panel"/);
+  assert.doesNotMatch(html, /data-api-my-places/);
+  assert.doesNotMatch(script, /function loadVisitedPlaces\(force\)/);
+  assert.doesNotMatch(script, /function jumpToVisitedPlace\(place\)/);
+  assert.doesNotMatch(script, /sort='\s\+ encodeURIComponent\(state\.visitedPlacesSort\)/);
+  assert.doesNotMatch(script, /よく行く/);
+  assert.doesNotMatch(script, /季節で再訪/);
+  assert.doesNotMatch(script, /行った場所へ/);
+  assert.doesNotMatch(script, /記録すると、ここに再訪先が出ます。/);
   assert.match(script, /function buildPlaceMemoryRecordHref\(place\)/);
   assert.match(script, /revisitObservationId/);
-  assert.match(script, /setSideRailMode\(false\);/);
-  assert.match(script, /行った場所へ/);
+  assert.match(html, /id="me-side-toggle"/);
+  assert.match(script, /function setSideRailMode\(rail\)/);
+  assert.match(script, /setSideRailMode\(nowRail\);/);
 });
