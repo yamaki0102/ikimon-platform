@@ -250,6 +250,8 @@ No `ikimon.life` DNS, route, custom domain, maintenance mode, VPS data, or produ
 
 ## Production Worker Deploy Guard
 
+Operational runbook: [`docs/cloudflare-operations-runbook.md`](docs/cloudflare-operations-runbook.md)
+
 Use the guarded deploy entrypoint instead of running `wrangler deploy --env production` directly:
 
 ```bash
