@@ -29,6 +29,10 @@ export type TaxonGroupChip = {
 export type MapExplorerCopy = {
   enjoyTitle: string;
   enjoyLead: string;
+  activityRallyTitle: string;
+  activityRallyBody: string;
+  activityRallyMeta: string;
+  activityRallyLinkLabel: string;
   visualCueCount: string;
   visualCueColor: string;
   visualCuePlace: string;
@@ -147,8 +151,12 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
-    enjoyTitle: "Enjoy Nature Map",
-    enjoyLead: "写真、公園、季節の手がかりから、次に行きたい自然を見つける地図。場所を選ぶと、今見られるものと次にできることが出ます。",
+    enjoyTitle: "ikimon - 皆で作る地域図鑑",
+    enjoyLead: "地域図鑑マップとして、地域の自然・風景・水・土・農・季節・活動を場所ごとに見返します。記録の厚みと余白から、次に歩きたい場所を見つけます。",
+    activityRallyTitle: "このエリアの活動・ラリー",
+    activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
+    activityRallyMeta: "イベント / 投稿ラリー",
+    activityRallyLinkLabel: "主催者の方へ",
     visualCueCount: "写真カード = 最近の発見",
     visualCueColor: "色 = 生きものの気配",
     visualCuePlace: "面 = 公園・自然共生サイト・学校",
@@ -242,7 +250,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaFallbackName: "OSMの公園・緑地",
     osmAreaSourceLabel: "公園・緑地 (OSM live)",
     areaLoading: "エリア情報を読み込み中…",
-    unregisteredAreaText: "このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。",
+    unregisteredAreaText: "このエリアはまだ ikimon のフィールドDBには未登録です。まずは地域図鑑マップ上の手がかりとして扱います。",
     mapLoadErrorTitle: "地図ライブラリを読み込めませんでした",
     mapLoadErrorBody: "ネットワーク状況を確認のうえ、もう一度開いてください。",
     mapLoadRetryLabel: "再読み込み",
@@ -264,8 +272,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   en: {
-    enjoyTitle: "Enjoy Nature Map",
-    enjoyLead: "Find the next place you want to visit through photos, parks, seasons, and field clues. Pick a place to see what is visible now and what to do next.",
+    enjoyTitle: "ikimon - Everyone's Regional Field Guide",
+    enjoyLead: "A regional field-guide map for looking back at local nature, scenery, water, soil, farming, seasons, and activities by place. Find where to walk next from the depth and gaps in local records.",
+    activityRallyTitle: "Activities and rallies in this area",
+    activityRallyBody: "Observation events, posting rallies, and outdoor local activities can be tied to the regional guide here. Organizer inquiries start from this guide.",
+    activityRallyMeta: "Events / posting rallies",
+    activityRallyLinkLabel: "For organizers",
     visualCueCount: "Photo cards = recent finds",
     visualCueColor: "Color = signs of life",
     visualCuePlace: "Areas = parks / symbiosis sites / schools",
@@ -359,7 +371,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaFallbackName: "OSM park or green space",
     osmAreaSourceLabel: "Park / green space (OSM live)",
     areaLoading: "Loading area information…",
-    unregisteredAreaText: "This area is not registered in ikimon's field database yet. Creating an event makes it available as a normal area next time.",
+    unregisteredAreaText: "This area is not registered in ikimon's field database yet. For now, it stays as a field-guide clue on the map.",
     mapLoadErrorTitle: "Could not load the map library",
     mapLoadErrorBody: "Check your network connection, then open the map again.",
     mapLoadRetryLabel: "Reload",
@@ -381,8 +393,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   es: {
-    enjoyTitle: "Enjoy Nature Map",
-    enjoyLead: "Encuentra el próximo lugar para visitar a partir de fotos, parques, estaciones y pistas de campo. Elige un lugar para ver qué hay ahora y qué hacer después.",
+    enjoyTitle: "ikimon - Guia regional creada por todos",
+    enjoyLead: "Un mapa-guia regional para revisar naturaleza, paisaje, agua, suelo, agricultura, estaciones y actividades locales por lugar. Encuentra dónde caminar después desde la profundidad y los vacíos del registro.",
+    activityRallyTitle: "Actividades y rallies de esta área",
+    activityRallyBody: "Las salidas, los rallies de publicaciones y las actividades locales al aire libre pueden vincularse a la guía regional desde aquí. Las consultas empiezan en la guía para organizadores.",
+    activityRallyMeta: "Eventos / rallies",
+    activityRallyLinkLabel: "Para organizadores",
     visualCueCount: "Tarjetas con foto = hallazgos recientes",
     visualCueColor: "Color = señales de vida",
     visualCuePlace: "Zonas = parques / sitios de simbiosis / escuelas",
@@ -476,7 +492,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaFallbackName: "Parque o zona verde de OSM",
     osmAreaSourceLabel: "Parque / zona verde (OSM live)",
     areaLoading: "Cargando información del área…",
-    unregisteredAreaText: "Esta área aún no está registrada en la base de campos de ikimon. Crear una salida permite tratarla como área normal la próxima vez.",
+    unregisteredAreaText: "Esta área aún no está registrada en la base de campos de ikimon. Por ahora queda como pista del mapa-guía.",
     mapLoadErrorTitle: "No se pudo cargar la biblioteca del mapa",
     mapLoadErrorBody: "Revisa la conexión y vuelve a abrir el mapa.",
     mapLoadRetryLabel: "Recargar",
@@ -498,8 +514,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   "pt-BR": {
-    enjoyTitle: "Enjoy Nature Map",
-    enjoyLead: "Encontre o próximo lugar para visitar por fotos, parques, estações e pistas de campo. Escolha um lugar para ver o que aparece agora e o que fazer depois.",
+    enjoyTitle: "ikimon - Guia regional feita por todos",
+    enjoyLead: "Um mapa guia regional para rever natureza, paisagem, agua, solo, agricultura, estações e atividades locais por lugar. Encontre onde caminhar depois pela profundidade e lacunas dos registros.",
+    activityRallyTitle: "Atividades e rallies desta área",
+    activityRallyBody: "Eventos de observação, rallies de publicações e atividades locais ao ar livre podem ser vinculados ao guia regional aqui. Consultas começam pela página para organizadores.",
+    activityRallyMeta: "Eventos / rallies",
+    activityRallyLinkLabel: "Para organizadores",
     visualCueCount: "Cartões com foto = descobertas recentes",
     visualCueColor: "Cor = sinais de vida",
     visualCuePlace: "Áreas = parques / sítios de simbiose / escolas",
@@ -593,7 +613,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaFallbackName: "Parque ou área verde do OSM",
     osmAreaSourceLabel: "Parque / área verde (OSM live)",
     areaLoading: "Carregando informações da área…",
-    unregisteredAreaText: "Esta área ainda não está registrada no banco de campos do ikimon. Criar uma saída permite tratá-la como área normal na próxima vez.",
+    unregisteredAreaText: "Esta área ainda não está registrada no banco de campos do ikimon. Por enquanto, fica como pista do mapa guia.",
     mapLoadErrorTitle: "Não foi possível carregar a biblioteca do mapa",
     mapLoadErrorBody: "Verifique a conexão e abra o mapa novamente.",
     mapLoadRetryLabel: "Recarregar",
@@ -779,10 +799,18 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiGuideSpots = withBasePath(props.basePath, "/api/v1/map/guide-spots");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
-  const eventsNewHrefTemplate = appendLangToHref(
-    withBasePath(props.basePath, "/community/events/new?field_id=__FIELD_ID__"),
+  const eventsOrganizerHref = appendLangToHref(
+    withBasePath(props.basePath, "/community/events"),
     props.lang,
   );
+  const activityRallyPanelHtml = `<section class="me-activity-panel" data-testid="map-activity-rally-panel" aria-label="${escapeHtml(copy.activityRallyTitle)}">
+              <div class="me-activity-head">
+                <span>${escapeHtml(copy.activityRallyMeta)}</span>
+                <strong>${escapeHtml(copy.activityRallyTitle)}</strong>
+              </div>
+              <p>${escapeHtml(copy.activityRallyBody)}</p>
+              <a class="me-activity-link" href="${escapeHtml(eventsOrganizerHref)}">${escapeHtml(copy.activityRallyLinkLabel)}</a>
+            </section>`;
 
   const taxonChipsHtml = copy.taxonChips
     .map(
@@ -1123,6 +1151,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
             </div>
             <section class="me-visited-panel" id="me-visited-panel" hidden></section>
             <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
+            ${activityRallyPanelHtml}
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
           </div>
           <div class="me-side-pane me-side-pane-selection" role="tabpanel">
@@ -1132,7 +1161,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-events-new-href="${escapeHtml(eventsNewHrefTemplate)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
         <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
           <strong>${escapeHtml(copy.enjoyTitle)}</strong>
           <span>${escapeHtml(copy.enjoyLead)}</span>
@@ -1263,7 +1292,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
-  var eventsNewHrefTemplate = root.getAttribute('data-events-new-href') || '';
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
@@ -1394,6 +1422,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     resultHeading: props.lang === "ja" ? "近くの発見" : props.lang === "es" ? "Hallazgos cercanos" : props.lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
     resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
     movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
+    areaActivityRallyTitle: copy.activityRallyTitle,
+    areaActivityRallyBody: copy.activityRallyBody,
+    areaActivityRallyMeta: copy.activityRallyMeta,
+    areaActivityRallyLinkLabel: copy.activityRallyLinkLabel,
     selectHint: props.lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
     overlapChoiceTitle: props.lang === "ja" ? "どちらを開く？" : props.lang === "es" ? "¿Qué abrir?" : props.lang === "pt-BR" ? "O que abrir?" : "What should open?",
     overlapChoiceCell: props.lang === "ja" ? "四角を選ぶ" : props.lang === "es" ? "Elegir celda" : props.lang === "pt-BR" ? "Escolher célula" : "Select cell",
@@ -1456,10 +1488,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaMissingSeasonLead: props.lang === "ja" ? "この季節の記録を足すと、場所の図鑑が一段強くなる。" : props.lang === "es" ? "Sumar registros de estas temporadas fortalece el álbum del lugar." : props.lang === "pt-BR" ? "Adicionar registros destas estações fortalece o álbum do lugar." : "Adding these seasons makes the place album stronger.",
     areaCompleteSeasonLead: props.lang === "ja" ? "四季の入口があります。次は同じ季節の再訪で厚みを出せます。" : props.lang === "es" ? "Ya hay entrada para las cuatro temporadas. Ahora conviene revisitar." : props.lang === "pt-BR" ? "Já há entrada para as quatro estações. Agora vale revisitar." : "All seasons have an entry. Revisit to add depth.",
     areaPublicPageLabel: props.lang === "ja" ? "エリア図鑑を見る" : props.lang === "es" ? "Ver álbum del área" : props.lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
-    areaEventCreateLabel: props.lang === "ja" ? "このエリアで観察会" : props.lang === "es" ? "Crear salida aquí" : props.lang === "pt-BR" ? "Criar saída aqui" : "Create event here",
-    areaBadgeEventLabel: props.lang === "ja" ? "観察会" : props.lang === "es" ? "Salida" : props.lang === "pt-BR" ? "Saída" : "Event",
+    areaEventCreateLabel: props.lang === "ja" ? "主催者の方へ" : props.lang === "es" ? "Para organizadores" : props.lang === "pt-BR" ? "Para organizadores" : "For organizers",
+    areaBadgeEventLabel: props.lang === "ja" ? "主催者" : props.lang === "es" ? "Organizadores" : props.lang === "pt-BR" ? "Organizadores" : "Organizers",
     areaBadgeAlbumLabel: props.lang === "ja" ? "エリア図鑑" : props.lang === "es" ? "Álbum" : props.lang === "pt-BR" ? "Álbum" : "Area album",
-    areaEventCreateHint: props.lang === "ja" ? "この範囲を開催エリアにして、観察会と図鑑を育てる" : props.lang === "es" ? "Usa esta área para la salida y su álbum." : props.lang === "pt-BR" ? "Use esta área para a saída e o álbum." : "Use this area for an event and its album.",
+    areaEventCreateHint: props.lang === "ja" ? "観察会や投稿ラリーを、地域の活動として扱う入口です。" : props.lang === "es" ? "Entrada para tratar salidas y rallies como actividades locales." : props.lang === "pt-BR" ? "Entrada para tratar eventos e rallies como atividades locais." : "A guide for handling events and posting rallies as local activities.",
     areaPositiveTitleMine: props.lang === "ja" ? "このエリアで見えてきたこと" : props.lang === "es" ? "Lo que se va viendo aquí" : props.lang === "pt-BR" ? "O que começou a aparecer aqui" : "What is coming into view here",
     areaPositiveTitleGuest: props.lang === "ja" ? "みんなの記録で見えてきたこと" : props.lang === "es" ? "Lo que los registros muestran" : props.lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
     areaPositiveViewer: props.lang === "ja" ? "あなたの視点" : props.lang === "es" ? "Tu mirada" : props.lang === "pt-BR" ? "Seu olhar" : "Your perspective",
@@ -1492,7 +1524,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
   var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
-  var EVENTS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events/new"), props.lang))};
+  var EVENTS_ORGANIZER_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events"), props.lang))};
   var FIELDS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/new"), props.lang))};
   var FIELDS_ALBUM_TPL = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/__FIELD_ID__"), props.lang))};
   var LOGIN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/login"), props.lang))};
@@ -2624,9 +2656,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var fieldId = String(props.field_id || '');
       var isGuidePinBadge = !!item.guideStop && useGuidePinBadges;
       var isCompactGuideBadge = !!item.guideStop && useCompactGuideBadges;
-      var eventHref = fieldId && eventsNewHrefTemplate
-        ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
-        : '';
+      var eventHref = EVENTS_ORGANIZER_HREF;
       var albumHref = fieldId
         ? FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))
         : '';
@@ -2856,7 +2886,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var coordQs = hasCoord
       ? 'lat=' + encodeURIComponent(String(context.lat)) + '&lng=' + encodeURIComponent(String(context.lng))
       : '';
-    var eventHref = hasCoord ? buildPointAreaEventHref(context.lat, context.lng) || EVENTS_NEW_BASE + sep(EVENTS_NEW_BASE) + coordQs : EVENTS_NEW_BASE;
+    var eventHref = EVENTS_ORGANIZER_HREF;
     var fieldHref = hasCoord ? FIELDS_NEW_BASE + sep(FIELDS_NEW_BASE) + coordQs : NOTES_HREF;
     var nearbyHref = hasCoord ? appendQueryParams(SCAN_HREF, { lat: context.lat.toFixed(6), lng: context.lng.toFixed(6), z: 14 }) : SCAN_HREF;
     return renderDetailActions([
@@ -3529,15 +3559,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var coordQs = hasCoord
       ? 'lat=' + encodeURIComponent(String(pt.lat)) + '&lng=' + encodeURIComponent(String(pt.lng))
       : '';
-    var eventHref = hasCoord ? buildPointAreaEventHref(pt.lat, pt.lng) || EVENTS_NEW_BASE + sep(EVENTS_NEW_BASE) + coordQs : '';
+    var eventHref = EVENTS_ORGANIZER_HREF;
     var fieldHref = hasCoord ? FIELDS_NEW_BASE + sep(FIELDS_NEW_BASE) + coordQs : '';
     var ctaSeamless = hasCoord
       ? ''
         + '<div class="me-place-cta-row">'
         +   '<a class="me-place-cta me-place-cta-primary" href="' + escapeHtml(eventHref) + '">'
-        +     '<span class="me-place-cta-icon" aria-hidden="true">＋</span>'
-        +     '<span class="me-place-cta-body"><strong>' + escapeHtml(COPY.placeActionRecord) + '</strong>'
-        +     '<span>' + escapeHtml(COPY.placeStoryActions) + '</span></span>'
+        +     '<span class="me-place-cta-icon" aria-hidden="true">↗</span>'
+        +     '<span class="me-place-cta-body"><strong>' + escapeHtml(COPY.areaEventCreateLabel) + '</strong>'
+        +     '<span>' + escapeHtml(COPY.areaEventCreateHint) + '</span></span>'
         +   '</a>'
         +   '<a class="me-place-cta me-place-cta-secondary" href="' + escapeHtml(fieldHref) + '">'
         +     '<span class="me-place-cta-icon" aria-hidden="true">⛳</span>'
@@ -4077,56 +4107,25 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     coords.push(coords[0]);
     return { type: 'Polygon', coordinates: [coords] };
   }
-  function buildPointAreaEventHref(lat, lng) {
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
-    var params = { lat: Number(lat).toFixed(6), lng: Number(lng).toFixed(6) };
-    if (window.sessionStorage) {
-      try {
-        var draftId = 'point-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-        window.sessionStorage.setItem('ikimon:event-area-draft:' + draftId, JSON.stringify({
-          name: COPY.selectedPointName,
-          center: { lat: Number(lat), lng: Number(lng) },
-          polygon: pointCirclePolygon(Number(lat), Number(lng), 300),
-          source: 'map_point_area',
-        }));
-        params.area_draft = draftId;
-        params.name = COPY.selectedPointName;
-      } catch (_) {}
-    }
-    return appendQueryParams(EVENTS_NEW_BASE, params);
-  }
-  function buildTransientAreaEventHref(feature, fallbackLat, fallbackLng) {
-    var props = (feature && feature.properties) || {};
-    var center = areaFeatureCenter(feature, fallbackLat, fallbackLng);
-    var name = String(props.name || COPY.osmAreaFallbackName);
-    var params = center
-      ? { lat: center.lat.toFixed(6), lng: center.lng.toFixed(6), name: name }
-      : { name: name };
-    var polygon = normalizeAreaGeometryForDraft(feature && feature.geometry);
-    if (center && polygon && window.sessionStorage) {
-      try {
-        var draftId = 'area-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-        window.sessionStorage.setItem('ikimon:event-area-draft:' + draftId, JSON.stringify({
-          name: name,
-          center: center,
-          polygon: polygon,
-          source: 'osm_live_area',
-          osm: {
-            entityKey: props.entity_key || '',
-            osmType: props.osm_type || '',
-            osmId: props.osm_id || null,
-          },
-        }));
-        params.area_draft = draftId;
-      } catch (_) {}
-    }
-    return appendQueryParams(EVENTS_NEW_BASE, params);
+  function renderAreaActivityRallyPanel(extraHtml) {
+    return ''
+      + '<section class="me-area-primary-actions me-area-activity-panel" aria-label="' + escapeHtml(COPY.areaActivityRallyTitle) + '">'
+      +   '<div class="me-area-activity-head">'
+      +     '<span>' + escapeHtml(COPY.areaActivityRallyMeta) + '</span>'
+      +     '<strong>' + escapeHtml(COPY.areaActivityRallyTitle) + '</strong>'
+      +   '</div>'
+      +   '<p>' + escapeHtml(COPY.areaActivityRallyBody) + '</p>'
+      +   '<a class="me-area-activity-link me-area-primary-action me-area-primary-action-event" href="' + escapeHtml(EVENTS_ORGANIZER_HREF) + '">'
+      +     '<span aria-hidden="true">↗</span>'
+      +     escapeHtml(COPY.areaActivityRallyLinkLabel)
+      +   '</a>'
+      +   (extraHtml ? '<div class="me-area-activity-extra">' + extraHtml + '</div>' : '')
+      + '</section>';
   }
 
   function renderTransientAreaContent(feature, center) {
     var props = (feature && feature.properties) || {};
     var safeCenter = center || areaFeatureCenter(feature, null, null);
-    var ctaHref = safeCenter ? buildTransientAreaEventHref(feature, safeCenter.lat, safeCenter.lng) : RECORD_HREF;
     var sourceLabel = String(props.source_label || COPY.osmAreaSourceLabel);
     var sourceLinksHtml = renderAreaSourceLinks(props);
     var sourceTrustHtml = renderAreaSourceTrust(props.source_confidence, props.verification_label, props.verification_level);
@@ -4135,15 +4134,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
     return ''
       + renderAreaHero({ title: areaName, sourceLabel: sourceLabel, meta: locationLabel, photo: null })
-      + '<div class="me-area-sheet-cta">'
-      +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
-      +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
-      +     escapeHtml(COPY.areaEventCreateLabel)
-      +   '</a>'
-      +   sourceLinksHtml
-      +   sourceTrustHtml
-      +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
-      + '</div>'
+      + renderAreaActivityRallyPanel(sourceLinksHtml + sourceTrustHtml + '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>')
       + renderAreaGuideStop(props, safeCenter)
       + renderAreaAccessGuidance(transientAccessGuidance(props))
       + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
@@ -4718,26 +4709,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderAreaPrimaryActions(fieldId, sourceLinksHtml, sourceTrustHtml) {
     if (!fieldId) return '';
-    var eventHref = eventsNewHrefTemplate
-      ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
-      : '';
+    var eventHref = EVENTS_ORGANIZER_HREF;
     var albumHref = FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId));
     if (!eventHref || !albumHref) return '';
     var metaHtml = sourceLinksHtml || sourceTrustHtml
       ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'
       : '';
-    return ''
-      + '<div class="me-area-primary-actions">'
-      +   '<a class="me-area-primary-action me-area-primary-action-event" href="' + escapeHtml(eventHref) + '">'
-      +     '<span aria-hidden="true">＋</span>'
-      +     escapeHtml(COPY.areaEventCreateLabel)
-      +   '</a>'
-      +   '<a class="me-area-primary-action me-area-primary-action-album" href="' + escapeHtml(albumHref) + '">'
-      +     '<span aria-hidden="true">□</span>'
-      +     escapeHtml(COPY.areaPublicPageLabel)
-      +   '</a>'
-      +   metaHtml
-      + '</div>';
+    var albumHtml = '<a class="me-area-primary-action me-area-primary-action-album" href="' + escapeHtml(albumHref) + '">'
+      + '<span aria-hidden="true">□</span>'
+      + escapeHtml(COPY.areaPublicPageLabel)
+      + '</a>';
+    return renderAreaActivityRallyPanel(albumHtml + metaHtml);
   }
 
   function renderAreaSheet(snapshot) {
@@ -7276,7 +7258,7 @@ export const MAP_EXPLORER_STYLES = `
     right: 14px;
     z-index: 6;
     width: min(580px, calc(100% - 28px));
-    display: none;
+    display: grid;
     gap: 7px;
     padding: 10px 12px;
     border-radius: 14px;
@@ -7302,7 +7284,7 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 750;
   }
   .me-map-cues {
-    display: flex;
+    display: none;
     flex-wrap: wrap;
     gap: 5px;
     margin-top: 0;
@@ -8414,6 +8396,61 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-primary-action-event:hover {
     background: #0f766e;
     color: #fff !important;
+  }
+  .me-activity-panel,
+  .me-area-primary-actions.me-area-activity-panel {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 12px;
+    margin: 0 0 10px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(14,165,233,.18);
+    box-shadow: 0 8px 22px rgba(15,23,42,.05);
+  }
+  .me-area-primary-actions.me-area-activity-panel {
+    margin: -2px 0 12px;
+  }
+  .me-activity-head,
+  .me-area-activity-head {
+    display: grid;
+    gap: 2px;
+  }
+  .me-activity-head span,
+  .me-area-activity-head span {
+    font-size: 10px;
+    line-height: 1.25;
+    color: #0f766e;
+    font-weight: 950;
+  }
+  .me-activity-head strong,
+  .me-area-activity-head strong {
+    font-size: 13px;
+    line-height: 1.35;
+    color: #0f172a;
+    font-weight: 950;
+  }
+  .me-activity-panel p,
+  .me-area-activity-panel p {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #475569;
+    font-weight: 720;
+  }
+  .me-activity-link,
+  .me-area-activity-link {
+    width: fit-content;
+    max-width: 100%;
+    min-height: 34px;
+    padding: 8px 12px;
+  }
+  .me-area-activity-extra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
   }
   .me-area-primary-actions-meta {
     grid-column: 1 / -1;

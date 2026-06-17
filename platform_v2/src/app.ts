@@ -70,6 +70,7 @@ import { getStrings } from "./i18n/index.js";
 import type { LandingSnapshot } from "./services/readModels.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./ui/landingTop.js";
+import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./ui/mapExplorer.js";
 import { MAP_MINI_STYLES, mapMiniBootScript } from "./ui/mapMini.js";
 import { escapeHtml, renderSiteDocument } from "./ui/siteShell.js";
 
@@ -442,6 +443,34 @@ ${mapMiniBootScript("ikimon-topa-map-mini")}`,
   });
 }
 
+function buildMapHomeHtml(
+  options: Pick<PreviewContext, "basePath">,
+  lang: SiteLang,
+  currentPath: string,
+): string {
+  const mapPageCopy = getShortCopy<{ title: string; footerNote: string }>(lang, "public", "read.map");
+  const currentYear = new Date().getFullYear();
+  const years: number[] = [];
+  for (let year = currentYear; year >= currentYear - 10; year -= 1) {
+    years.push(year);
+  }
+
+  return renderSiteDocument({
+    basePath: options.basePath,
+    title: mapPageCopy.title,
+    description: "地域の自然・風景・水・土・農・季節・活動を、場所ごとに見返す地域図鑑マップです。",
+    activeNav: localizedNavHome(lang),
+    lang,
+    currentPath,
+    extraStyles: MAP_EXPLORER_STYLES,
+    shellClassName: "shell-bleed shell-map",
+    hideFooter: true,
+    body: `${renderMapExplorer({ basePath: options.basePath, lang, years })}
+${mapExplorerBootScript({ basePath: options.basePath, lang })}`,
+    footerNote: mapPageCopy.footerNote,
+  });
+}
+
 function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath: string): string {
   const recordPage = listPagesByVisibility("qa").find((page) => page.path === "/record");
   const recordHref = recordPage ? materializeQaHref(recordPage, options) : "/record";
@@ -704,14 +733,8 @@ export function buildApp() {
     const basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
     const lang = detectLangFromUrl(requestUrl(request));
     const session = await getSessionFromCookie(request.headers.cookie);
-    const { viewerUserId, queryOverrideHonored } = resolveViewer(request.query, session);
-    const contextPromise = process.env.ALLOW_QUERY_USER_ID === "1"
-      ? getPreviewContext()
-      : Promise.resolve(emptyPreviewContext(basePath));
-    const [context, snapshot] = await Promise.all([
-      contextPromise,
-      getLandingSnapshotForRoot(viewerUserId),
-    ]);
+    const { viewerUserId } = resolveViewer(request.query, session);
+    const context = emptyPreviewContext(basePath);
     context.basePath = basePath;
     reply.type("text/html; charset=utf-8");
     if (viewerUserId) {
@@ -720,12 +743,10 @@ export function buildApp() {
     } else {
       reply.header("Cache-Control", "public, max-age=30, stale-while-revalidate=30");
     }
-    return buildLandingRootHtml(
+    return buildMapHomeHtml(
       context,
       lang,
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
-      snapshot,
-      queryOverrideHonored,
     );
   });
 
