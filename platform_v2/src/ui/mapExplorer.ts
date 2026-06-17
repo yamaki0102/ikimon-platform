@@ -995,6 +995,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   return `<section class="section me-section" data-side="open" aria-label="Map Explorer">
     <div class="me-topbar">
       <div class="me-topbar-primary">
+        <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "地域図鑑マップ" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
         <div class="me-search-shell" role="search">
           <span class="me-search-icon" aria-hidden="true">🔍</span>
           <input
@@ -1162,15 +1163,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
-        <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
-          <strong>${escapeHtml(copy.enjoyTitle)}</strong>
-          <span>${escapeHtml(copy.enjoyLead)}</span>
-          <div class="me-map-cues" aria-hidden="true">
-            <span><i class="me-cue-dot"></i>${escapeHtml(copy.visualCueCount)}</span>
-            <span><i class="me-cue-rainbow"></i>${escapeHtml(copy.visualCueColor)}</span>
-            <span><i class="me-cue-place"></i>${escapeHtml(copy.visualCuePlace)}</span>
-          </div>
-        </div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
@@ -2631,6 +2623,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return count > 0 ? String(count) + '件' : '';
   }
 
+  function isNamedAreaBadgeFeature(feature, zoom) {
+    if (!Number.isFinite(zoom) || zoom < 11.2) return false;
+    var props = feature && feature.properties ? feature.properties : {};
+    var source = String(props.source || props.admin_level || '').trim();
+    if (!props.name || !source) return false;
+    return [
+      'user_defined',
+      'osm_park',
+      'nature_symbiosis_site',
+      'tsunag',
+      'protected_area',
+      'oecm',
+      'school'
+    ].indexOf(source) >= 0;
+  }
+
   function refreshAreaBadgeMarkers() {
     clearAreaBadgeMarkers();
     if (!state.map || !window.maplibregl || (state.tab !== 'places' && state.tab !== 'markers')) return;
@@ -2644,7 +2652,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .filter(function (item) {
         if (!item.center) return false;
         if (item.guideStop) return true;
-        return state.tab === 'places' && item.groups.length > 0;
+        if (item.groups.length > 0) return state.tab === 'places' || state.tab === 'markers';
+        return isNamedAreaBadgeFeature(item.feature, zoom);
       })
       .slice(0, 80);
     var guideBadgeCount = features.filter(function (item) { return !!item.guideStop; }).length;
@@ -2667,6 +2676,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           '</span>'
         : '';
       var countLabel = areaBadgeCountLabel(item);
+      if (!countLabel) countLabel = String(props.source_label || props.admin_level || props.source || '');
       var el = document.createElement('div');
       var badgeChipsHtml = (item.guideStop
         ? '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>'
@@ -6888,7 +6898,7 @@ export const MAP_EXPLORER_STYLES = `
     padding-bottom: 0;
   }
 
-  .global-record-launcher {
+  .site-shell.is-map-surface .global-record-launcher {
     display: none;
   }
 
@@ -7061,6 +7071,20 @@ export const MAP_EXPLORER_STYLES = `
     align-items: center;
     gap: 8px;
     min-width: 0;
+  }
+  .me-map-kicker {
+    flex: 0 0 auto;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(15,118,110,.08);
+    color: #0f766e;
+    font-size: 11px;
+    line-height: 1.1;
+    font-weight: 900;
+    letter-spacing: .03em;
   }
   .me-topbar-secondary {
     display: flex;
@@ -9301,6 +9325,11 @@ export const MAP_EXPLORER_STYLES = `
   }
 
   @media (max-width: 900px) {
+    .site-shell.is-map-surface .global-record-launcher {
+      display: grid;
+      z-index: 72;
+    }
+
     .me-section {
       --me-side-w: 0px;
       --me-topbar-h: 94px;
@@ -9312,6 +9341,7 @@ export const MAP_EXPLORER_STYLES = `
       padding: 5px 10px;
     }
     .me-topbar-primary { display: contents; }
+    .me-map-kicker { display: none; }
     .me-search-shell { grid-column: 1; grid-row: 1; }
     .me-topbar-secondary { grid-column: 2; grid-row: 1; }
     .me-tabs {
@@ -9419,14 +9449,14 @@ export const MAP_EXPLORER_STYLES = `
       border-radius: 22px 22px 0 0;
       left: 0;
       right: 0;
-      bottom: 0;
+      bottom: 88px;
       z-index: 40;
       max-height: 62%;
-      max-height: min(62dvh, calc(100dvh - var(--me-header-h) - 8px));
+      max-height: min(62dvh, calc(100dvh - var(--me-header-h) - 96px));
     }
     .me-bottom-sheet--detail {
       max-height: 74%;
-      max-height: min(74dvh, calc(100dvh - var(--me-header-h) - 8px));
+      max-height: min(74dvh, calc(100dvh - var(--me-header-h) - 96px));
     }
     .me-bottom-sheet--detail[data-snap="peek"] {
       height: 35vh;
@@ -9437,7 +9467,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-bottom-sheet--detail[data-snap="full"] {
       height: auto;
       max-height: calc(100% - 8px);
-      max-height: calc(100dvh - var(--me-header-h) - 8px);
+      max-height: calc(100dvh - var(--me-header-h) - 96px);
     }
   }
 
@@ -9561,9 +9591,9 @@ export const MAP_EXPLORER_STYLES = `
       left: 0;
       right: 0;
       top: auto;
-      bottom: 0;
+      bottom: 88px;
       max-height: 86%;
-      max-height: calc(100dvh - var(--me-header-h) - 8px);
+      max-height: calc(100dvh - var(--me-header-h) - 96px);
       overflow-y: auto;
       overscroll-behavior: contain;
       border-radius: 22px 22px 0 0;
@@ -9571,13 +9601,13 @@ export const MAP_EXPLORER_STYLES = `
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="peek"] {
       height: 58vh;
       max-height: 58vh;
-      height: min(58dvh, calc(100dvh - var(--me-header-h) - 12px), 460px);
-      max-height: min(58dvh, calc(100dvh - var(--me-header-h) - 12px), 460px);
+      height: min(58dvh, calc(100dvh - var(--me-header-h) - 100px), 460px);
+      max-height: min(58dvh, calc(100dvh - var(--me-header-h) - 100px), 460px);
     }
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="full"] {
       height: auto;
       max-height: calc(100% - 8px);
-      max-height: calc(100dvh - var(--me-header-h) - 8px);
+      max-height: calc(100dvh - var(--me-header-h) - 96px);
     }
     .me-bottom-sheet.me-bottom-sheet--area .me-area-hero {
       min-height: 154px;
