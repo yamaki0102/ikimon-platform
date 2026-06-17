@@ -112,10 +112,10 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "トップ", en: "Home" },
-    summary: { ja: "Enjoy Life の思想から、身近な生きものの観察と地域の自然記録へ進む入口。", en: "The entry point for enjoying life through nearby nature and starting a record." },
+    summary: { ja: "ikimon - 皆で作る地域図鑑の入口。地域の自然・風景・水・土・農・季節・活動を地図から見返す。", en: "The map-first entry point for building a regional field guide together." },
     primaryAction: { href: "/record", label: { ja: "記録する", en: "Record" } },
     legacyRedirects: ["/index.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "場所の今を残す記録" }, readySelector: "body", screenshot: { baselineName: "registry-top" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "ikimon - 皆で作る地域図鑑" }, readySelector: "body", screenshot: { baselineName: "registry-top" } },
   },
   {
     path: "/record",
