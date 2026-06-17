@@ -1,0 +1,28 @@
+{
+  "name": "ikimon-cloudflare-shadow-lab",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "wrangler:check": "wrangler check",
+    "dev": "wrangler dev --local --port 8787",
+    "load:10k": "node scripts/loadtest.mjs --records=10000 --media=3 --url=http://127.0.0.1:8787",
+    "build:field-detail-sql": "node scripts/build-field-detail-readmodel-sql.mjs",
+    "deploy:production:dry-run": "node scripts/deploy-production-guard.mjs",
+    "deploy:production": "node scripts/deploy-production-guard.mjs --execute"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.100.0"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3"
+  }
+}
