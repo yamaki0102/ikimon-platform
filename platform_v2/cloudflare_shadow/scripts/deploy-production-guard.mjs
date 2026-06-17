@@ -1,11 +1,17 @@
 import { spawn } from "node:child_process";
 
 const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
+const productionWorkerUrl = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
+const productionPublicUrl = "https://ikimon.life";
+const allowedArgs = new Set(["--execute", "--approval"]);
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const key = process.argv[index];
   const value = process.argv[index + 1];
   if (key.startsWith("--")) {
+    if (!allowedArgs.has(key)) {
+      throw new Error(`Unknown deploy guard argument: ${key}`);
+    }
     args.set(key, value?.startsWith("--") ? "true" : (value ?? "true"));
     if (value && !value.startsWith("--")) index += 1;
   }
@@ -13,8 +19,6 @@ for (let index = 2; index < process.argv.length; index += 1) {
 
 const execute = args.get("--execute") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
-const workerUrl = args.get("--worker-url") ?? "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
-const publicUrl = args.get("--public-url") ?? "https://ikimon.life";
 
 if (execute && approval !== requiredApproval) {
   throw new Error(`Refusing production deploy. Pass --approval ${requiredApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
@@ -69,16 +73,28 @@ function quoteCmdArg(value) {
 async function smoke(baseUrl) {
   for (const path of ["/healthz", "/readyz"]) {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
+      redirect: "manual",
       headers: { accept: "application/json", "cache-control": "no-store" }
     });
+    const contentType = response.headers.get("content-type") ?? "";
+    let payload = {};
+    if (contentType.includes("application/json")) {
+      payload = await response.json();
+    }
+    const ok = response.ok
+      && typeof payload === "object"
+      && payload !== null
+      && payload.ok === true
+      && payload.service === "ikimon-life-cloudflare-worker";
     events.push({
       command: `smoke ${baseUrl}${path}`,
-      exitCode: response.ok ? 0 : 1,
+      exitCode: ok ? 0 : 1,
       durationMs: 0,
-      status: response.status
+      status: response.status,
+      contentType
     });
-    if (!response.ok) {
-      throw new Error(`Smoke failed for ${baseUrl}${path}: ${response.status}`);
+    if (!ok) {
+      throw new Error(`Smoke failed for ${baseUrl}${path}: ${response.status} ${contentType}`);
     }
   }
 }
@@ -90,8 +106,8 @@ await run("npx", ["wrangler", "deploy", "--env", "production", "--dry-run"]);
 
 if (execute) {
   await run("npx", ["wrangler", "deploy", "--env", "production"]);
-  await smoke(workerUrl);
-  await smoke(publicUrl);
+  await smoke(productionWorkerUrl);
+  await smoke(productionPublicUrl);
 }
 
 console.log(JSON.stringify({
@@ -99,6 +115,6 @@ console.log(JSON.stringify({
   mode: execute ? "execute" : "dry-run",
   productionDeployExecuted: execute,
   approvalRequiredForExecute: requiredApproval,
-  smokeTargets: execute ? [workerUrl, publicUrl] : [],
+  smokeTargets: execute ? [productionWorkerUrl, productionPublicUrl] : [],
   events
 }, null, 2));
