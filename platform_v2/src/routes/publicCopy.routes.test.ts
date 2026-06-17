@@ -138,8 +138,7 @@ test("home page uses the current map home surface", async () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<title>ikimon - 皆で作る地域図鑑 \| ikimon/);
     assert.match(response.body, /id="map-explorer"/);
-    assert.match(response.body, /ikimon - 皆で作る地域図鑑/);
-    assert.match(response.body, /地域の自然・風景・水・土・農・季節・活動/);
+    assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
     assert.match(response.body, /このエリアの活動・ラリー/);
     assert.match(response.body, /主催者の方へ/);
     assert.doesNotMatch(response.body, /\/community\/events\/new/);

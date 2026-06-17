@@ -27,15 +27,10 @@ export type TaxonGroupChip = {
 };
 
 export type MapExplorerCopy = {
-  enjoyTitle: string;
-  enjoyLead: string;
   activityRallyTitle: string;
   activityRallyBody: string;
   activityRallyMeta: string;
   activityRallyLinkLabel: string;
-  visualCueCount: string;
-  visualCueColor: string;
-  visualCuePlace: string;
   tabMarkers: string;
   tabHeatmap: string;
   tabPlaces: string;
@@ -151,15 +146,10 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
-    enjoyTitle: "ikimon - 皆で作る地域図鑑",
-    enjoyLead: "地域図鑑マップとして、地域の自然・風景・水・土・農・季節・活動を場所ごとに見返します。記録の厚みと余白から、次に歩きたい場所を見つけます。",
     activityRallyTitle: "このエリアの活動・ラリー",
     activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
-    visualCueCount: "写真カード = 最近の発見",
-    visualCueColor: "色 = 生きものの気配",
-    visualCuePlace: "面 = 公園・自然共生サイト・学校",
     tabMarkers: "最近の発見",
     tabHeatmap: "季節の気配",
     tabPlaces: "エリア図鑑",
@@ -272,15 +262,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   en: {
-    enjoyTitle: "ikimon - Everyone's Regional Field Guide",
-    enjoyLead: "A regional field-guide map for looking back at local nature, scenery, water, soil, farming, seasons, and activities by place. Find where to walk next from the depth and gaps in local records.",
     activityRallyTitle: "Activities and rallies in this area",
     activityRallyBody: "Observation events, posting rallies, and outdoor local activities can be tied to the regional guide here. Organizer inquiries start from this guide.",
     activityRallyMeta: "Events / posting rallies",
     activityRallyLinkLabel: "For organizers",
-    visualCueCount: "Photo cards = recent finds",
-    visualCueColor: "Color = signs of life",
-    visualCuePlace: "Areas = parks / symbiosis sites / schools",
     tabMarkers: "Recent finds",
     tabHeatmap: "Seasonal signs",
     tabPlaces: "Area Albums",
@@ -393,15 +378,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   es: {
-    enjoyTitle: "ikimon - Guia regional creada por todos",
-    enjoyLead: "Un mapa-guia regional para revisar naturaleza, paisaje, agua, suelo, agricultura, estaciones y actividades locales por lugar. Encuentra dónde caminar después desde la profundidad y los vacíos del registro.",
     activityRallyTitle: "Actividades y rallies de esta área",
     activityRallyBody: "Las salidas, los rallies de publicaciones y las actividades locales al aire libre pueden vincularse a la guía regional desde aquí. Las consultas empiezan en la guía para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    visualCueCount: "Tarjetas con foto = hallazgos recientes",
-    visualCueColor: "Color = señales de vida",
-    visualCuePlace: "Zonas = parques / sitios de simbiosis / escuelas",
     tabMarkers: "Hallazgos recientes",
     tabHeatmap: "Señales de estación",
     tabPlaces: "Álbumes de áreas",
@@ -514,15 +494,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   "pt-BR": {
-    enjoyTitle: "ikimon - Guia regional feita por todos",
-    enjoyLead: "Um mapa guia regional para rever natureza, paisagem, agua, solo, agricultura, estações e atividades locais por lugar. Encontre onde caminhar depois pela profundidade e lacunas dos registros.",
     activityRallyTitle: "Atividades e rallies desta área",
     activityRallyBody: "Eventos de observação, rallies de publicações e atividades locais ao ar livre podem ser vinculados ao guia regional aqui. Consultas começam pela página para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    visualCueCount: "Cartões com foto = descobertas recentes",
-    visualCueColor: "Cor = sinais de vida",
-    visualCuePlace: "Áreas = parques / sítios de simbiose / escolas",
     tabMarkers: "Descobertas recentes",
     tabHeatmap: "Sinais da estação",
     tabPlaces: "Álbuns de áreas",
@@ -7134,82 +7109,6 @@ export const MAP_EXPLORER_STYLES = `
     transition: width .25s ease, margin .25s ease;
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
-  .me-enjoy-strip {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    right: 14px;
-    z-index: 6;
-    width: min(580px, calc(100% - 28px));
-    display: grid;
-    gap: 7px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.9);
-    border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 8px 18px rgba(15,23,42,.1);
-    backdrop-filter: blur(12px);
-    pointer-events: none;
-    transition: left .25s ease, width .25s ease;
-  }
-  .me-enjoy-strip[hidden] {
-    display: none !important;
-  }
-  .me-enjoy-strip strong {
-    color: #0f172a;
-    font-size: 16px;
-    line-height: 1.25;
-    font-weight: 950;
-    letter-spacing: 0;
-  }
-  .me-enjoy-strip > span {
-    display: none;
-    color: #475569;
-    font-size: 12px;
-    line-height: 1.45;
-    font-weight: 750;
-  }
-  .me-map-cues {
-    display: none;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 0;
-  }
-  .me-map-cues span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 26px;
-    padding: 0 8px;
-    border-radius: 999px;
-    background: rgba(248,250,252,.92);
-    border: 1px solid rgba(15,23,42,.08);
-    color: #334155;
-    font-size: 11px;
-    line-height: 1.2;
-    font-weight: 850;
-  }
-  .me-map-cues i {
-    display: inline-block;
-    flex: 0 0 auto;
-    width: 14px;
-    height: 14px;
-  }
-  .me-cue-dot {
-    border-radius: 999px;
-    background: #0ea5e9;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 2px rgba(14,165,233,.28);
-  }
-  .me-cue-rainbow {
-    border-radius: 999px;
-    background: conic-gradient(from 30deg, #22c55e, #0ea5e9, #a855f7, #f59e0b, #22c55e);
-  }
-  .me-cue-place {
-    border-radius: 4px;
-    background: rgba(34,197,94,.24);
-    border: 1px solid rgba(22,163,74,.44);
-  }
   .me-map-panel {
     position: absolute;
     z-index: 5;
@@ -9114,21 +9013,6 @@ export const MAP_EXPLORER_STYLES = `
     .me-map-panel-insight {
       left: 12px;
       width: min(360px, calc(100% - 96px));
-    }
-    .me-enjoy-strip {
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      width: auto;
-      padding: 10px 12px;
-      border-radius: 16px;
-    }
-    .me-enjoy-strip strong {
-      font-size: 13px;
-      line-height: 1.25;
-    }
-    .me-enjoy-strip > span {
-      display: none;
     }
     .me-search-area-btn {
       top: 14px;
