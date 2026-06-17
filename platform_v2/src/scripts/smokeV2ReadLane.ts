@@ -57,10 +57,14 @@ function parseArgs(argv: string[]): SmokeOptions {
 }
 
 async function fetchHtml(url: string, allowedStatuses = [200]): Promise<{ html: string; status: number }> {
+  const headers: Record<string, string> = {
+    accept: "text/html",
+  };
+  if (process.env.IKIMON_ORIGIN_FALLBACK_SMOKE === "1") {
+    headers.cookie = "ikimon_origin_fallback_smoke=1";
+  }
   const response = await fetch(url, {
-    headers: {
-      accept: "text/html",
-    },
+    headers,
   });
 
   if (!allowedStatuses.includes(response.status)) {
