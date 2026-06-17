@@ -498,7 +498,7 @@ promote_candidate() {
   rm -f "${rendered}"
   export_runtime_env
   if ! npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-lane -- --base-url="${PUBLIC_BASE_URL}" ||
-     ! IKIMON_SCENE_READ_SMOKE=required npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-read-lane -- --base-url="${PUBLIC_BASE_URL}"; then
+     ! IKIMON_ORIGIN_FALLBACK_SMOKE=1 IKIMON_SCENE_READ_SMOKE=required npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-read-lane -- --base-url="${PUBLIC_BASE_URL}"; then
     restore_nginx_snapshot "${snapshot}" || true
     printf '%s\n' "${previous}" > "${STATE_DIR}/active_color"
     exit 1
