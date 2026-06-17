@@ -272,6 +272,11 @@ interface PublicMapRow {
   asset_count: number;
 }
 
+interface PublicMapPhotoRow {
+  observation_id: string;
+  public_derivative_key: string;
+}
+
 interface PublicDetailRow extends PublicMapRow {
   owner_user_id: string;
   note: string | null;
@@ -365,6 +370,8 @@ interface FieldDetailReadmodelRow {
   entity_key: string | null;
   updated_at: string | null;
 }
+
+interface AreaPolygonReadmodelRow extends FieldDetailReadmodelRow {}
 
 interface ReverseDeltaCountRow {
   count: number;
@@ -565,7 +572,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/area-polygons") {
-        return getPublicMapEmptyGeoJson("area-polygons", { "cache-control": "public, max-age=60" });
+        return getPublicMapAreaPolygons(url, env);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/effort-summary") {
@@ -1459,20 +1466,10 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
     .filter((row) => selectedCell ? row.public_cell === selectedCell : publicCellInBbox(row.public_cell, bbox as [number, number, number, number]))
     .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
     .slice(0, limit);
+  const photoUrls = await queryPublicMapPhotoUrls(env);
 
   return json({
-    items: scopedRows.map((row) => ({
-      occurrenceId: `occ:${row.observation_id}:0`,
-      visitId: row.observation_id,
-      displayName: row.taxon_label ?? "同定待ち",
-      isAiCandidate: false,
-      isAwaitingId: !row.taxon_label,
-      localityLabel: "位置をぼかしています",
-      observedAt: row.observed_at,
-      photoUrl: null,
-      taxonGroup: taxonGroupForLabel(row.taxon_label),
-      cellId: publicCellToCellId(row.public_cell)
-    })),
+    items: scopedRows.map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null)),
     stats: {
       totalReturned: scopedRows.length,
       totalAll: scopedRows.length,
@@ -1482,6 +1479,31 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+async function getPublicMapAreaPolygons(url: URL, env: Env): Promise<Response> {
+  const bbox = parseBboxParam(url.searchParams.get("bbox"));
+  if (!bbox) {
+    return json({ error: "missing_or_invalid_bbox" }, 400, { "cache-control": "no-store" });
+  }
+  const sources = parseSourceParam(url.searchParams.get("sources"));
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "250"), 1, 1000);
+  const rows = await queryAreaPolygonRows(env, bbox, sources, limit);
+  const features = rows
+    .map((row) => areaPolygonFeatureFromReadmodel(row))
+    .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature));
+
+  return json({
+    type: "FeatureCollection",
+    features,
+    truncated: rows.length >= limit,
+    stats: {
+      totalReturned: features.length,
+      totalAll: features.length,
+      source: "cloudflare_field_detail_readmodel",
+      kind: "area-polygons"
+    }
+  }, 200, { "cache-control": "public, max-age=60" });
 }
 
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
@@ -1885,6 +1907,144 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
      LIMIT 5000`
   ).all<PublicMapRow>();
   return rows.results;
+}
+
+async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT observation_id, public_derivative_key
+       FROM asset_ledger
+      WHERE observation_id IS NOT NULL
+        AND processing_state = 'uploaded'
+        AND public_derivative_key IS NOT NULL
+        AND exif_scrub_state = 'scrubbed'
+        AND public_ready_at IS NOT NULL
+        AND mime LIKE 'image/%'
+      ORDER BY public_ready_at DESC
+      LIMIT 5000`
+  ).all<PublicMapPhotoRow>();
+  const map = new Map<string, string>();
+  for (const row of rows.results) {
+    if (!map.has(row.observation_id)) map.set(row.observation_id, publicMediaUrl(row.public_derivative_key));
+  }
+  return map;
+}
+
+function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null) {
+  const displayName = publicTaxonDisplayName(row.taxon_label);
+  return {
+    occurrenceId: `occ:${row.observation_id}:0`,
+    visitId: row.observation_id,
+    displayName,
+    isAiCandidate: false,
+    isAwaitingId: isWeakTaxonLabel(row.taxon_label),
+    localityLabel: "位置をぼかしています",
+    observedAt: row.observed_at,
+    photoUrl,
+    taxonGroup: taxonGroupForLabel(row.taxon_label),
+    cellId: publicCellToCellId(row.public_cell)
+  };
+}
+
+async function queryAreaPolygonRows(
+  env: Env,
+  bbox: [number, number, number, number],
+  sources: string[],
+  limit: number
+): Promise<AreaPolygonReadmodelRow[]> {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const allRows = await env.OBS_DB.prepare(
+    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha,
+            has_polygon, has_simplified_geometry,
+            certification_id, certification_url, official_url, owner_url, story_url,
+            verification_level, verification_method, verification_label, source_confidence,
+            valid_from, valid_to, entity_key, updated_at
+       FROM production_import_field_detail_readmodel
+      WHERE public_lat >= ?
+        AND public_lat <= ?
+        AND public_lng >= ?
+        AND public_lng <= ?
+      ORDER BY COALESCE(area_ha, 999999), name
+      LIMIT ?`
+  ).bind(minLat, maxLat, minLng, maxLng, limit).all<AreaPolygonReadmodelRow>();
+  const allowed = new Set(sources);
+  return allRows.results.filter((row) => sources.length === 0 || allowed.has(areaLayerSource(row)));
+}
+
+function parseSourceParam(raw: string | null): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => /^[a-z_]+$/.test(value));
+}
+
+function areaLayerSource(row: AreaPolygonReadmodelRow): string {
+  if (row.admin_level && ["osm_park", "admin_municipality", "admin_prefecture", "admin_country"].includes(row.admin_level)) {
+    return row.admin_level;
+  }
+  return row.source || "user_defined";
+}
+
+function areaPolygonFeatureFromReadmodel(row: AreaPolygonReadmodelRow) {
+  if (!Number.isFinite(row.public_lat) || !Number.isFinite(row.public_lng)) return null;
+  const source = areaLayerSource(row);
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [publicAreaApproxPolygon(row.public_lat, row.public_lng, row.radius_m, row.area_ha)]
+    },
+    properties: {
+      field_id: row.field_id,
+      name: row.name,
+      source,
+      source_label: areaSourceLabel(source),
+      admin_level: row.admin_level,
+      prefecture: row.prefecture ?? "",
+      city: row.city ?? "",
+      area_ha: row.area_ha,
+      official_url: row.official_url ?? "",
+      owner_url: row.owner_url ?? "",
+      story_url: row.story_url ?? "",
+      certification_url: row.certification_url ?? "",
+      source_confidence: row.source_confidence ?? 0.55,
+      verification_level: row.verification_level ?? "readmodel_public",
+      verification_label: row.verification_label ?? "公開read model",
+      center: [row.public_lng, row.public_lat],
+      transient: row.has_polygon !== 1,
+      entity_key: row.entity_key ?? undefined,
+      biodiversity_groups: []
+    }
+  };
+}
+
+function publicAreaApproxPolygon(lat: number, lng: number, radiusM: number | null, areaHa: number | null): [number, number][] {
+  const radiusFromArea = Number.isFinite(areaHa) && (areaHa ?? 0) > 0
+    ? Math.sqrt((areaHa as number) * 10000 / Math.PI)
+    : null;
+  const radius = Math.max(60, Math.min(900, radiusM ?? radiusFromArea ?? 160));
+  const latDelta = radius / 111_320;
+  const lngDelta = radius / (111_320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+  return [
+    [lng - lngDelta, lat - latDelta],
+    [lng + lngDelta, lat - latDelta],
+    [lng + lngDelta, lat + latDelta],
+    [lng - lngDelta, lat + latDelta],
+    [lng - lngDelta, lat - latDelta]
+  ];
+}
+
+function areaSourceLabel(source: string): string {
+  if (source === "school") return "学校";
+  if (source === "osm_park") return "公園 (OSM)";
+  if (source === "nature_symbiosis_site") return "自然共生サイト";
+  if (source === "protected_area") return "保護区";
+  if (source === "oecm") return "OECM";
+  if (source === "tsunag") return "TSUNAG";
+  if (source === "admin_municipality") return "市町村";
+  if (source === "admin_prefecture") return "都道府県";
+  if (source === "admin_country") return "国";
+  return "公開エリア";
 }
 
 async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<Response> {
@@ -5397,7 +5557,17 @@ function publicMapEmptyProvenance(sampleSize: number) {
   };
 }
 
+function isWeakTaxonLabel(label: string | null): boolean {
+  const text = (label ?? "").trim().toLowerCase();
+  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "不明"].includes(text);
+}
+
+function publicTaxonDisplayName(label: string | null): string {
+  return isWeakTaxonLabel(label) ? "同定待ち" : (label as string).trim();
+}
+
 function taxonGroupForLabel(label: string | null): string {
+  if (isWeakTaxonLabel(label)) return "other";
   const text = label ?? "";
   if (/鳥|bird|aves/i.test(text)) return "bird";
   if (/虫|昆虫|蝶|蜂|insect/i.test(text)) return "insect";

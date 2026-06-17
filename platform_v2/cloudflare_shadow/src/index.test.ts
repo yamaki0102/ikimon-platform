@@ -1104,6 +1104,23 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT observation_id, public_derivative_key FROM asset_ledger")) {
+      const rows = [...this.db.assets.values()]
+        .filter((asset) =>
+          asset.observation_id &&
+          asset.processing_state === "uploaded" &&
+          asset.public_derivative_key &&
+          asset.exif_scrub_state === "scrubbed" &&
+          asset.public_ready_at &&
+          asset.mime.startsWith("image/")
+        )
+        .sort((a, b) => (b.public_ready_at ?? "").localeCompare(a.public_ready_at ?? ""))
+        .map((asset) => ({
+          observation_id: asset.observation_id,
+          public_derivative_key: asset.public_derivative_key
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT metric_type, metric_key, metric_value, detail_json FROM production_restore_parity_metrics")) {
       const rows = this.db.parityMetrics
         .filter((row) => row.run_id === string(this.values[0]))
@@ -1122,6 +1139,23 @@ class FakeStatement {
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
+      const minLat = number(this.values[0]);
+      const maxLat = number(this.values[1]);
+      const minLng = number(this.values[2]);
+      const maxLng = number(this.values[3]);
+      const limit = number(this.values[4]);
+      const rows = [...this.db.productionFieldDetails.values()]
+        .filter((row) =>
+          row.public_lat >= minLat &&
+          row.public_lat <= maxLat &&
+          row.public_lng >= minLng &&
+          row.public_lng <= maxLng
+        )
+        .sort((a, b) => (a.area_ha ?? 999999) - (b.area_ha ?? 999999) || a.name.localeCompare(b.name, "ja"))
+        .slice(0, limit);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT partition_month, COUNT(*) AS count, MIN(observed_at) AS earliest_observed_at")) {
@@ -1537,6 +1571,37 @@ test("media processing refreshes the public read model even when queue jobs run 
 
 test("v1 public map read routes expose current shell contracts without exact coordinates", async () => {
   const { env, queue } = createEnv();
+  const schoolFieldId = "school-map-contract";
+  env.OBS_DB.productionFieldDetails.set(schoolFieldId, {
+    field_id: schoolFieldId,
+    source: "school",
+    admin_level: "school",
+    name: "地図テスト小学校",
+    name_kana: null,
+    summary: "地域の観察フィールド",
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: "34.71,137.81",
+    public_lat: 34.712,
+    public_lng: 137.812,
+    radius_m: 180,
+    area_ha: 1.2,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: null,
+    certification_url: null,
+    official_url: "https://example.test/school",
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "公開情報と一致",
+    source_confidence: 0.92,
+    valid_from: null,
+    valid_to: null,
+    entity_key: null,
+    updated_at: "2026-06-18T00:00:00.000Z"
+  });
   await post("/api/v1/observations/upsert", env, {
     observationId: "visit-map-contract",
     userId: "map-user",
@@ -1576,9 +1641,36 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(observationsPayload.items[0].occurrenceId, "occ:visit-map-contract:0");
   assert.equal(observationsPayload.items[0].displayName, "地図テスト植物");
   assert.equal(observationsPayload.items[0].cellId, "cell:34.71,137.81");
+  assert.match(observationsPayload.items[0].photoUrl, /^\/derived\/.+\/display\.webp$/);
   assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
   assert.ok(!("features" in observationsPayload));
   assert.doesNotMatch(JSON.stringify(observationsPayload), /34\.71234|137\.81234/);
+
+  env.OBS_DB.readmodel.set("visit-unidentified-contract", {
+    observation_id: "visit-unidentified-contract",
+    public_cell: "34.71,137.81",
+    observed_at: "2026-06-15T01:00:00.000Z",
+    taxon_label: "unidentified",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+  const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81&limit=10"), env);
+  const unidentifiedPayload = await unidentifiedResponse.json() as any;
+  const unidentified = unidentifiedPayload.items.find((item: any) => item.visitId === "visit-unidentified-contract");
+  assert.equal(unidentified.displayName, "同定待ち");
+  assert.equal(unidentified.isAwaitingId, true);
+
+  const areaResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72&sources=school"
+  ), env);
+  const areaPayload = await areaResponse.json() as any;
+  assert.equal(areaResponse.ok, true, JSON.stringify(areaPayload));
+  assert.equal(areaPayload.features.length, 1);
+  assert.equal(areaPayload.features[0].properties.field_id, schoolFieldId);
+  assert.equal(areaPayload.features[0].properties.name, "地図テスト小学校");
+  assert.equal(areaPayload.features[0].properties.source, "school");
+  assert.equal(areaPayload.stats.source, "cloudflare_field_detail_readmodel");
+  assert.doesNotMatch(JSON.stringify(areaPayload), /34\.71234|137\.81234/);
 
   const myPlacesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-places"), env);
   assert.equal(myPlacesResponse.ok, true);
@@ -1587,7 +1679,6 @@ test("v1 public map read routes expose current shell contracts without exact coo
   for (const path of [
     "/api/v1/map/traces?limit=200",
     "/api/v1/map/frontier?bbox=137.70%2C34.70%2C137.82%2C34.72",
-    "/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72",
     "/api/v1/map/guide-spots"
   ]) {
     const response = await worker.fetch(new Request(`https://shadow.test${path}`), env);
