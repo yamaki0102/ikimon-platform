@@ -11,7 +11,9 @@
     "load:10k": "node scripts/loadtest.mjs --records=10000 --media=3 --url=http://127.0.0.1:8787",
     "build:field-detail-sql": "node scripts/build-field-detail-readmodel-sql.mjs",
     "deploy:production:dry-run": "node scripts/deploy-production-guard.mjs",
-    "deploy:production": "node scripts/deploy-production-guard.mjs --execute"
+    "deploy:production": "node scripts/deploy-production-guard.mjs --execute",
+    "materialize:original-ui:dry-run": "tsx scripts/materialize-original-ui-html.mjs",
+    "materialize:original-ui": "tsx scripts/materialize-original-ui-html.mjs --execute"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",

@@ -10,11 +10,13 @@ Scope:
 - R2 bucket: `ikimon-prod-media`
 - Queue: `ikimon-prod-media-jobs`
 - Public domain: `https://ikimon.life`
+- Routine production entrypoint: GitHub Actions `Deploy to Production`, Cloudflare-only.
 
 Hard boundaries:
 
 - Do not run direct `wrangler deploy --env production` for routine deploys. Use the guarded npm script.
-- Do not change DNS, custom domains, routes, D1 data, R2 objects, secrets, billing, provider settings, or VPS state as part of routine deploy.
+- Do not change DNS, custom domains, routes, D1 data, secrets, billing, provider settings, or VPS state as part of routine deploy.
+- Routine deploy may update only `original-ui/html/*` objects in `ikimon-prod-media`, generated from the same commit, plus the Worker script.
 - Do not delete D1/R2 resources. Rollback of Worker code does not restore deleted or mutated Cloudflare resources.
 - Production D1 writes, secret changes, billing changes, DNS changes, and provider/VPS shutdown still require explicit task approval.
 
@@ -34,7 +36,7 @@ Preconditions:
 - PR review scope is clear.
 - `git status --short --branch` is clean except for the intended change.
 - No pending D1 migration, R2 import, secret update, DNS change, route/custom-domain change, billing operation, or VPS/provider operation is included.
-- If the change needs D1/R2 mutation, stop and write a separate data-change plan.
+- If the change needs D1/R2 mutation outside `original-ui/html/*` materialization, stop and write a separate data-change plan.
 
 Commands:
 
@@ -42,6 +44,7 @@ Commands:
 cd platform_v2/cloudflare_shadow
 npm install
 npm run deploy:production:dry-run
+npm run materialize:original-ui:dry-run
 ```
 
 Expected dry-run gates:
@@ -50,14 +53,16 @@ Expected dry-run gates:
 - `npm test`
 - `npx wrangler --version`
 - `npx wrangler deploy --env production --dry-run`
+- local render of core `original-ui/html/*` pages.
 
 Execute only after dry-run passes:
 
 ```powershell
 npm run deploy:production -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
 ```
 
-The guarded script then deploys the Worker and smokes:
+The guarded scripts deploy the Worker, update core materialized HTML in R2, and smoke:
 
 - `https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz`
 - `https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/readyz`
@@ -68,9 +73,10 @@ Post-deploy evidence to record:
 
 - commit SHA and PR number
 - output JSON from `deploy-production-guard.mjs`
+- output JSON from `materialize-original-ui-html.mjs`
 - Worker version/deployment ID if shown by Wrangler
 - healthz/readyz HTTP statuses
-- explicit note that DNS, D1 data, R2 objects, secrets, billing, provider, and VPS state were not changed
+- explicit note that DNS, D1 data, secrets, billing, provider, and VPS state were not changed; R2 changes were limited to `original-ui/html/*`.
 
 Stop and rollback if:
 
