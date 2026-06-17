@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import {
   __test__,
@@ -156,4 +158,11 @@ test("buildPublicCellRecords drops exact coordinates and site-level names from p
   assert.ok(!("lng" in record));
   assert.ok(!("placeName" in record));
   assert.ok(!("siteName" in record));
+});
+
+test("public map photos fall back to visit-level assets", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "mapSnapshot.ts"), "utf8");
+
+  assert.match(source, /where \(ea\.occurrence_id = o\.occurrence_id or ea\.visit_id = o\.visit_id\)/);
+  assert.match(source, /order by case when ea\.occurrence_id = o\.occurrence_id then 0 else 1 end/);
 });

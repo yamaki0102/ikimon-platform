@@ -27,15 +27,10 @@ export type TaxonGroupChip = {
 };
 
 export type MapExplorerCopy = {
-  enjoyTitle: string;
-  enjoyLead: string;
   activityRallyTitle: string;
   activityRallyBody: string;
   activityRallyMeta: string;
   activityRallyLinkLabel: string;
-  visualCueCount: string;
-  visualCueColor: string;
-  visualCuePlace: string;
   tabMarkers: string;
   tabHeatmap: string;
   tabPlaces: string;
@@ -151,15 +146,10 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
-    enjoyTitle: "ikimon - 皆で作る地域図鑑",
-    enjoyLead: "地域図鑑マップとして、地域の自然・風景・水・土・農・季節・活動を場所ごとに見返します。記録の厚みと余白から、次に歩きたい場所を見つけます。",
     activityRallyTitle: "このエリアの活動・ラリー",
     activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
-    visualCueCount: "写真カード = 最近の発見",
-    visualCueColor: "色 = 生きものの気配",
-    visualCuePlace: "面 = 公園・自然共生サイト・学校",
     tabMarkers: "最近の発見",
     tabHeatmap: "季節の気配",
     tabPlaces: "エリア図鑑",
@@ -272,15 +262,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   en: {
-    enjoyTitle: "ikimon - Everyone's Regional Field Guide",
-    enjoyLead: "A regional field-guide map for looking back at local nature, scenery, water, soil, farming, seasons, and activities by place. Find where to walk next from the depth and gaps in local records.",
     activityRallyTitle: "Activities and rallies in this area",
     activityRallyBody: "Observation events, posting rallies, and outdoor local activities can be tied to the regional guide here. Organizer inquiries start from this guide.",
     activityRallyMeta: "Events / posting rallies",
     activityRallyLinkLabel: "For organizers",
-    visualCueCount: "Photo cards = recent finds",
-    visualCueColor: "Color = signs of life",
-    visualCuePlace: "Areas = parks / symbiosis sites / schools",
     tabMarkers: "Recent finds",
     tabHeatmap: "Seasonal signs",
     tabPlaces: "Area Albums",
@@ -393,15 +378,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   es: {
-    enjoyTitle: "ikimon - Guia regional creada por todos",
-    enjoyLead: "Un mapa-guia regional para revisar naturaleza, paisaje, agua, suelo, agricultura, estaciones y actividades locales por lugar. Encuentra dónde caminar después desde la profundidad y los vacíos del registro.",
     activityRallyTitle: "Actividades y rallies de esta área",
     activityRallyBody: "Las salidas, los rallies de publicaciones y las actividades locales al aire libre pueden vincularse a la guía regional desde aquí. Las consultas empiezan en la guía para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    visualCueCount: "Tarjetas con foto = hallazgos recientes",
-    visualCueColor: "Color = señales de vida",
-    visualCuePlace: "Zonas = parques / sitios de simbiosis / escuelas",
     tabMarkers: "Hallazgos recientes",
     tabHeatmap: "Señales de estación",
     tabPlaces: "Álbumes de áreas",
@@ -514,15 +494,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   "pt-BR": {
-    enjoyTitle: "ikimon - Guia regional feita por todos",
-    enjoyLead: "Um mapa guia regional para rever natureza, paisagem, agua, solo, agricultura, estações e atividades locais por lugar. Encontre onde caminhar depois pela profundidade e lacunas dos registros.",
     activityRallyTitle: "Atividades e rallies desta área",
     activityRallyBody: "Eventos de observação, rallies de publicações e atividades locais ao ar livre podem ser vinculados ao guia regional aqui. Consultas começam pela página para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    visualCueCount: "Cartões com foto = descobertas recentes",
-    visualCueColor: "Cor = sinais de vida",
-    visualCuePlace: "Áreas = parques / sítios de simbiose / escolas",
     tabMarkers: "Descobertas recentes",
     tabHeatmap: "Sinais da estação",
     tabPlaces: "Álbuns de áreas",
@@ -794,7 +769,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
   const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
   const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
-  const apiMyPlaces = withBasePath(props.basePath, "/api/v1/map/my-places");
   const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
   const apiGuideSpots = withBasePath(props.basePath, "/api/v1/map/guide-spots");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
@@ -1149,7 +1123,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
               <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
               <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
             </div>
-            <section class="me-visited-panel" id="me-visited-panel" hidden></section>
             <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
             ${activityRallyPanelHtml}
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
@@ -1161,16 +1134,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
-        <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
-          <strong>${escapeHtml(copy.enjoyTitle)}</strong>
-          <span>${escapeHtml(copy.enjoyLead)}</span>
-          <div class="me-map-cues" aria-hidden="true">
-            <span><i class="me-cue-dot"></i>${escapeHtml(copy.visualCueCount)}</span>
-            <span><i class="me-cue-rainbow"></i>${escapeHtml(copy.visualCueColor)}</span>
-            <span><i class="me-cue-place"></i>${escapeHtml(copy.visualCuePlace)}</span>
-          </div>
-        </div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
@@ -1230,7 +1194,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sideToggleEl = document.getElementById('me-side-toggle');
   var sideRailCountEl = document.getElementById('me-side-rail-count');
   var sideSelectionEmptyEl = document.getElementById('me-side-selection-empty');
-  var visitedPanelEl = document.getElementById('me-visited-panel');
   var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
   var sideTabBtns = document.querySelectorAll('[data-side-tab]');
   function setSideTab(name) {
@@ -1287,7 +1250,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiTraces = root.getAttribute('data-api-traces') || '';
   var apiFrontier = root.getAttribute('data-api-frontier') || '';
   var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
-  var apiMyPlaces = root.getAttribute('data-api-my-places') || '';
   var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
   var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
@@ -1404,14 +1366,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     impactPanelTitleMine: props.lang === "ja" ? "キミの記録が役立っていること" : props.lang === "es" ? "Cómo ayudan tus registros" : props.lang === "pt-BR" ? "Como seus registros ajudam" : "How your records help",
     impactPanelTitleGuest: props.lang === "ja" ? "みんなの記録がこの地域を育てています" : props.lang === "es" ? "Los registros de todos hacen crecer esta zona" : props.lang === "pt-BR" ? "Os registros de todos fazem esta área crescer" : "Everyone's records grow this area",
     impactPanelLoading: props.lang === "ja" ? "この範囲で役立っていることを読み込み中…" : props.lang === "es" ? "Leyendo cómo ayuda esta zona…" : props.lang === "pt-BR" ? "Lendo como esta área ajuda…" : "Reading how this area is growing…",
-    visitedPlacesTitle: props.lang === "ja" ? "行った場所へ" : props.lang === "es" ? "Lugares visitados" : props.lang === "pt-BR" ? "Locais visitados" : "Visited places",
-    visitedPlacesLead: props.lang === "ja" ? "過去に記録した場所へすぐ移動" : props.lang === "es" ? "Salta a lugares que ya registraste" : props.lang === "pt-BR" ? "Vá para locais que você já registrou" : "Jump back to places you recorded",
-    visitedPlacesEmpty: props.lang === "ja" ? "記録すると、ここに再訪先が出ます。" : props.lang === "es" ? "Cuando registres, aparecerán aquí." : props.lang === "pt-BR" ? "Quando registrar, eles aparecerão aqui." : "Your revisit shortcuts will appear here.",
-    visitedPlacesLogin: props.lang === "ja" ? "ログインすると、自分の訪問場所が出ます。" : props.lang === "es" ? "Inicia sesión para ver tus lugares." : props.lang === "pt-BR" ? "Entre para ver seus locais." : "Sign in to see your places.",
-    visitedPlacesVisitSuffix: props.lang === "ja" ? "回" : props.lang === "es" ? " visitas" : props.lang === "pt-BR" ? " visitas" : " visits",
-    visitedSortRecent: props.lang === "ja" ? "最近" : props.lang === "es" ? "Recientes" : props.lang === "pt-BR" ? "Recentes" : "Recent",
-    visitedSortFrequent: props.lang === "ja" ? "よく行く" : props.lang === "es" ? "Frecuentes" : props.lang === "pt-BR" ? "Frequentes" : "Frequent",
-    visitedSortSeasonal: props.lang === "ja" ? "季節で再訪" : props.lang === "es" ? "Temporada" : props.lang === "pt-BR" ? "Estação" : "Seasonal",
     impactRevisitStory: props.lang === "ja" ? "同じ場所を比べられるようになった" : props.lang === "es" ? "Hizo posible comparar el mismo lugar" : props.lang === "pt-BR" ? "Tornou possível comparar o mesmo lugar" : "Made the same place comparable",
     impactGuideStory: props.lang === "ja" ? "ガイド記録で季節の手がかりが増えた" : props.lang === "es" ? "La guía añadió pistas de temporada" : props.lang === "pt-BR" ? "O guia adicionou pistas da estação" : "Guide records added seasonal clues",
     impactScanStory: props.lang === "ja" ? "スキャンで未調査エリアが見えた" : props.lang === "es" ? "El escaneo mostró huecos por explorar" : props.lang === "pt-BR" ? "O escaneamento mostrou áreas a explorar" : "Scans revealed places still to explore",
@@ -1591,6 +1545,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     'nature_symbiosis_site', 'tsunag', 'school',
     'protected_area', 'oecm', 'osm_park', 'user_defined',
   ];
+  var VIEWPORT_RECORD_LIMIT = 600;
+  var CELL_RECORD_LIMIT = 1500;
 
   var state = {
     tab: 'markers',
@@ -1606,9 +1562,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     map: null,
     features: [],
     records: [],
-    visitedPlaces: [],
-    visitedPlacesSignedIn: null,
-    visitedPlacesSort: 'recent',
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -1623,7 +1576,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     recordAbort: null,
     frontierAbort: null,
     effortAbort: null,
-    visitedPlacesAbort: null,
     areaPolygonsAbort: null,
     guideSpotsAbort: null,
     areaPolygonsDebounce: null,
@@ -1709,7 +1661,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function localizedDisplayName(value, fallback) {
     var text = String(value || '').trim();
-    if (!text || text === '同定待ち' || /awaiting id|unknown|unresolved/i.test(text)) return fallback || COPY.awaitingIdLabel;
+    if (!text || text === '同定待ち' || /awaiting id|unknown|unidentified|unresolved/i.test(text)) return fallback || COPY.awaitingIdLabel;
     return friendlyTaxonLabel(text);
   }
   function recordDisplayName(record, fallback) {
@@ -1992,116 +1944,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       mapInsightCardEl.innerHTML = '';
       mapInsightCardEl.classList.remove('is-visible');
     }
-    renderVisitedPlacesPanel();
     if (!contributionPanelEl) return;
     contributionPanelEl.innerHTML = renderContributionPanel();
-  }
-
-  function renderVisitedPlacesPanel() {
-    if (!visitedPanelEl) return;
-    var places = Array.isArray(state.visitedPlaces) ? state.visitedPlaces : [];
-    if (state.visitedPlacesSignedIn === false) {
-      visitedPanelEl.hidden = true;
-      visitedPanelEl.innerHTML = '';
-      return;
-    }
-    if (!places.length && state.visitedPlacesSignedIn !== true) {
-      visitedPanelEl.hidden = true;
-      visitedPanelEl.innerHTML = '';
-      return;
-    }
-    var sortOptions = [
-      { value: 'recent', label: COPY.visitedSortRecent },
-      { value: 'frequent', label: COPY.visitedSortFrequent },
-      { value: 'seasonal', label: COPY.visitedSortSeasonal },
-    ];
-    var sortHtml = '<div class="me-visited-sort" role="group" aria-label="' + escapeHtml(COPY.visitedPlacesTitle) + '">' + sortOptions.map(function (opt) {
-      var active = state.visitedPlacesSort === opt.value;
-      return '<button type="button" class="' + (active ? 'is-active' : '') + '" data-visited-sort="' + escapeHtml(opt.value) + '" aria-pressed="' + (active ? 'true' : 'false') + '">' + escapeHtml(opt.label) + '</button>';
-    }).join('') + '</div>';
-    var body = places.length
-      ? '<div class="me-visited-list">' + places.map(function (place, index) {
-          var title = String(place.placeName || place.municipality || COPY.selectedFieldLabel);
-          var metaParts = [];
-          if (place.municipality && String(place.municipality) !== title) metaParts.push(String(place.municipality));
-          if (state.visitedPlacesSort === 'seasonal' && Number(place.seasonalVisitCount || 0) > 0) {
-            metaParts.push(COPY.visitedSortSeasonal + ' ' + String(place.seasonalVisitCount) + COPY.visitedPlacesVisitSuffix);
-          }
-          if (place.latestDisplayName) metaParts.push(String(place.latestDisplayName));
-          if (place.lastObservedAt) metaParts.push(String(place.lastObservedAt).slice(0, 10));
-          var visits = Math.max(0, Number(place.visitCount || 0));
-          if (visits) metaParts.push(String(visits) + COPY.visitedPlacesVisitSuffix);
-          return '<button type="button" class="me-visited-chip" data-visited-index="' + index + '">' +
-            '<span class="me-visited-pin" aria-hidden="true">⌖</span>' +
-            '<span class="me-visited-copy"><strong>' + escapeHtml(title) + '</strong>' +
-            '<small>' + escapeHtml(metaParts.join(' / ')) + '</small></span>' +
-            '</button>';
-        }).join('') + '</div>'
-      : '<p class="me-visited-empty">' + escapeHtml(COPY.visitedPlacesEmpty) + '</p>';
-    visitedPanelEl.hidden = false;
-    visitedPanelEl.innerHTML = '<div class="me-visited-head"><span>' + escapeHtml(COPY.visitedPlacesTitle) + '</span><small>' + escapeHtml(COPY.visitedPlacesLead) + '</small></div>' + sortHtml + body;
-    visitedPanelEl.querySelectorAll('[data-visited-sort]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        var sort = button.getAttribute('data-visited-sort') || 'recent';
-        if (sort !== 'recent' && sort !== 'frequent' && sort !== 'seasonal') sort = 'recent';
-        if (state.visitedPlacesSort === sort) return;
-        state.visitedPlacesSort = sort;
-        state.visitedPlaces = [];
-        renderVisitedPlacesPanel();
-        loadVisitedPlaces(true);
-      });
-    });
-    visitedPanelEl.querySelectorAll('[data-visited-index]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        var index = Number(button.getAttribute('data-visited-index'));
-        if (!Number.isFinite(index)) return;
-        jumpToVisitedPlace(places[index]);
-      });
-    });
-  }
-
-  function jumpToVisitedPlace(place) {
-    if (!place || !state.map) return;
-    var lat = Number(place.latitude);
-    var lng = Number(place.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    setSideRailMode(false);
-    state.map.flyTo({
-      center: [lng, lat],
-      zoom: Math.max(13.8, state.map.getZoom ? state.map.getZoom() : 13.8),
-      duration: 650,
-      essential: true,
-    });
-    openPlaceSheet(lat, lng, place);
-    setSideTab('selection');
-  }
-
-  function loadVisitedPlaces(force) {
-    if (!apiMyPlaces) return;
-    if (state.visitedPlacesAbort) {
-      if (!force) return;
-      try { state.visitedPlacesAbort.abort(); } catch (_) {}
-      state.visitedPlacesAbort = null;
-    }
-    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    state.visitedPlacesAbort = controller || {};
-    fetch(apiMyPlaces + '?limit=12&sort=' + encodeURIComponent(state.visitedPlacesSort), { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (payload) {
-        state.visitedPlacesAbort = null;
-        if (!payload) return;
-        state.visitedPlacesSignedIn = payload.signedIn !== false;
-        state.visitedPlacesSort = payload.sort || state.visitedPlacesSort;
-        state.visitedPlaces = Array.isArray(payload.items) ? payload.items : [];
-        renderVisitedPlacesPanel();
-        if (sideRailCountEl && state.visitedPlaces.length) {
-          sideRailCountEl.textContent = String(state.visitedPlaces.length);
-        }
-      })
-      .catch(function (err) {
-        state.visitedPlacesAbort = null;
-        if (err && err.name === 'AbortError') return;
-      });
   }
 
   function compactNumber(value) {
@@ -3438,21 +3282,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return '<div class="me-site-brief me-site-brief-error">' + escapeHtml(COPY.siteBriefError) + '</div>';
     }
     var h = brief.hypothesis;
-    var displayLabel = friendlyHypothesisLabel(h.label);
+    var displayLabel = friendlyHypothesisLabel(publicBriefText(h.label, COPY.unknownHypothesisLabel));
     var confPct = Math.round((h.confidence || 0) * 100);
     var reasons = (brief.reasons || []).map(function (r) {
-      return '<li>' + escapeHtml(r) + '</li>';
+      var text = publicBriefText(r, '');
+      return text ? '<li>' + escapeHtml(text) + '</li>' : '';
     }).join('');
     var checks = (brief.checks || []).map(function (c) {
-      return '<li>' + escapeHtml(c) + '</li>';
+      var text = publicBriefText(c, '');
+      return text ? '<li>' + escapeHtml(text) + '</li>' : '';
     }).join('');
     var caps = (brief.captureHints || []).map(function (c) {
-      return '<li>' + escapeHtml(c) + '</li>';
+      var text = publicBriefText(c, '');
+      return text ? '<li>' + escapeHtml(text) + '</li>' : '';
     }).join('');
     var environment = (brief.environmentEvidence || []).slice(0, 4).map(function (item) {
-      var meta = [item.value, item.source].filter(Boolean).join(' · ');
-      var limitation = item.limitation ? '<em>' + escapeHtml(item.limitation) + '</em>' : '';
-      return '<li><strong>' + escapeHtml(item.label || 'environment') + '</strong><span>' + escapeHtml(meta) + '</span>' + limitation + '</li>';
+      var label = publicBriefText(item.label || 'environment', 'environment');
+      var meta = [publicBriefText(item.value, ''), publicBriefText(item.source, '')].filter(Boolean).join(' · ');
+      var limitationText = publicBriefText(item.limitation, '');
+      var limitation = limitationText ? '<em>' + escapeHtml(limitationText) + '</em>' : '';
+      return meta || limitation ? '<li><strong>' + escapeHtml(label) + '</strong><span>' + escapeHtml(meta) + '</span>' + limitation + '</li>' : '';
     }).join('');
     var notices = renderMapOfficialNotices(brief.officialNotices || []);
     var context = getSelectedContext();
@@ -3460,13 +3309,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var missingAxes = frontier && frontier.properties && Array.isArray(frontier.properties.missingAxes)
       ? frontier.properties.missingAxes.map(axisLabel).join(' · ')
       : '';
-    var whyHere = (brief.reasons && brief.reasons[0]) || displayLabel;
+    var whyHere = publicBriefText((brief.reasons && brief.reasons[0]) || displayLabel, displayLabel);
     var whyNow = frontier && frontier.properties
       ? priorityCueLabel(frontier.properties.priorityCue)
-      : (brief.checks && brief.checks[0]) || displayLabel;
+      : publicBriefText((brief.checks && brief.checks[0]) || displayLabel, displayLabel);
     var oneVisit = frontier && frontier.properties
       ? roleHintLabel(frontier.properties.recommendedRole) + (missingAxes ? ' · ' + missingAxes : '')
-      : (brief.captureHints && brief.captureHints[0]) || displayLabel;
+      : publicBriefText((brief.captureHints && brief.captureHints[0]) || displayLabel, displayLabel);
     var nextHook = state.effortSummary && state.effortSummary.actorLens && state.effortSummary.actorLens.actorClass === 'traveler'
       ? (frontier && frontier.properties
           ? priorityCueLabel(frontier.properties.priorityCue) + (missingAxes ? ' · ' + missingAxes : '')
@@ -3480,7 +3329,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       { label: COPY.siteBriefOneVisitLabel, body: oneVisit },
       { label: COPY.siteBriefNextHookLabel, body: nextHook },
     ].map(function (item) {
-      return '<div class="me-site-brief-loop-card"><div class="me-site-brief-loop-label">' + escapeHtml(item.label) + '</div><div class="me-site-brief-loop-body">' + escapeHtml(item.body) + '</div></div>';
+      return '<div class="me-site-brief-loop-card"><div class="me-site-brief-loop-label">' + escapeHtml(item.label) + '</div><div class="me-site-brief-loop-body">' + escapeHtml(publicBriefText(item.body, COPY.awaitingIdLabel)) + '</div></div>';
     }).join('');
     return '<div class="me-site-brief">' +
       '<div class="me-site-brief-head">' +
@@ -3501,6 +3350,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!text) return '';
     if (/現地確認|空白地点|空白地帯/.test(text)) return COPY.unknownHypothesisLabel;
     if (/未記録|記録不足|低カバー|カバー不足/.test(text)) return COPY.recordingGapLabel;
+    return text;
+  }
+
+  function isInternalMigrationCopy(value) {
+    var text = String(value || '').trim();
+    if (!text) return false;
+    return /Cloudflare|互換表示|移行中|migration|compatibility|read-?model|materiali[sz]e|worker|origin fallback|vps/i.test(text);
+  }
+
+  function publicBriefText(value, fallback) {
+    var text = String(value || '').trim();
+    if (!text || isInternalMigrationCopy(text)) return fallback || '';
     return text;
   }
 
@@ -5610,6 +5471,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function loadGuideSpots() {
     if (!apiGuideSpots || !state.map) return;
+    if (state.tab !== 'markers' && state.tab !== 'places') {
+      clearGuideSpotMarkers();
+      return;
+    }
     var bbox = currentBboxString();
     if (!bbox) return;
     if (state.guideSpotsAbort) { try { state.guideSpotsAbort.abort(); } catch (_) {} }
@@ -5741,7 +5606,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function loadRecords(scope) {
     if (!state.map) return;
-    var qs = '?limit=1500';
+    var recordLimit = scope && scope.cellId ? CELL_RECORD_LIMIT : VIEWPORT_RECORD_LIMIT;
+    var qs = '?limit=' + encodeURIComponent(String(recordLimit));
     if (state.markerProfile) qs += '&marker_profile=' + encodeURIComponent(state.markerProfile);
     if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
@@ -5828,8 +5694,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.pendingViewportSearch = false;
     updateSearchAreaUi();
     refreshMapData();
-    loadFrontier(state.map);
-    loadEffortSummary();
+    if (state.tab === 'frontier') loadFrontier(state.map);
+    deferMapTask(function () { loadEffortSummary(); }, 180);
   }
 
   function scheduleViewportRefresh() {
@@ -5857,6 +5723,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     loadEffortSummary();
     loadTraces();
     saveMapState();
+  }
+
+  function deferMapTask(fn, delay) {
+    var run = function () {
+      try { fn(); } catch (_) {}
+    };
+    var ms = typeof delay === 'number' ? delay : 0;
+    if (window.requestIdleCallback) {
+      window.setTimeout(function () {
+        window.requestIdleCallback(run, { timeout: Math.max(500, ms + 500) });
+      }, ms);
+      return;
+    }
+    window.setTimeout(run, ms);
   }
 
   function switchBasemap(key) {
@@ -6170,15 +6050,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
       refreshMapData();
-      loadFrontier(state.map);
-      loadEffortSummary();
-      loadTraces();
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
-      loadGuideSpots();
-      loadVisitedPlaces();
       maybeAutoLocateOnFirstOpen();
       maybeShowLayerHint(state.tab);
+      deferMapTask(function () {
+        if (state.tab === 'frontier') loadFrontier(state.map);
+        loadEffortSummary();
+        loadTraces();
+      }, 220);
     });
     state.map.on('moveend', function () {
       if (state.ignoreNextMoveEnd) {
@@ -6194,7 +6074,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       refreshDiscoveryPreviewMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
-      loadGuideSpots();
+      if (state.tab === 'markers' || state.tab === 'places') loadGuideSpots();
       if (state.waterwayDebounce) clearTimeout(state.waterwayDebounce);
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
       if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);
@@ -7251,79 +7131,6 @@ export const MAP_EXPLORER_STYLES = `
     transition: width .25s ease, margin .25s ease;
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
-  .me-enjoy-strip {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    right: 14px;
-    z-index: 6;
-    width: min(580px, calc(100% - 28px));
-    display: grid;
-    gap: 7px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.9);
-    border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 8px 18px rgba(15,23,42,.1);
-    backdrop-filter: blur(12px);
-    pointer-events: none;
-    transition: left .25s ease, width .25s ease;
-  }
-  .me-enjoy-strip strong {
-    color: #0f172a;
-    font-size: 16px;
-    line-height: 1.25;
-    font-weight: 950;
-    letter-spacing: 0;
-  }
-  .me-enjoy-strip > span {
-    display: none;
-    color: #475569;
-    font-size: 12px;
-    line-height: 1.45;
-    font-weight: 750;
-  }
-  .me-map-cues {
-    display: none;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 0;
-  }
-  .me-map-cues span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 26px;
-    padding: 0 8px;
-    border-radius: 999px;
-    background: rgba(248,250,252,.92);
-    border: 1px solid rgba(15,23,42,.08);
-    color: #334155;
-    font-size: 11px;
-    line-height: 1.2;
-    font-weight: 850;
-  }
-  .me-map-cues i {
-    display: inline-block;
-    flex: 0 0 auto;
-    width: 14px;
-    height: 14px;
-  }
-  .me-cue-dot {
-    border-radius: 999px;
-    background: #0ea5e9;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 2px rgba(14,165,233,.28);
-  }
-  .me-cue-rainbow {
-    border-radius: 999px;
-    background: conic-gradient(from 30deg, #22c55e, #0ea5e9, #a855f7, #f59e0b, #22c55e);
-  }
-  .me-cue-place {
-    border-radius: 4px;
-    background: rgba(34,197,94,.24);
-    border: 1px solid rgba(22,163,74,.44);
-  }
   .me-map-panel {
     position: absolute;
     z-index: 5;
@@ -8976,121 +8783,6 @@ export const MAP_EXPLORER_STYLES = `
   .me-side-head { padding: 0 2px; flex: 0 0 auto; }
   .me-side-title { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
   .me-side-subtitle { margin-top: 4px; font-size: 11.5px; color: #64748b; font-weight: 700; }
-  .me-visited-panel {
-    flex: 0 0 auto;
-    display: grid;
-    gap: 8px;
-    padding: 10px;
-    border: 1px solid rgba(14,165,233,.14);
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(239,246,255,.92));
-  }
-  .me-visited-panel[hidden] { display: none; }
-  .me-visited-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .me-visited-head span {
-    color: #0f172a;
-    font-size: 12px;
-    line-height: 1.2;
-    font-weight: 950;
-  }
-  .me-visited-head small {
-    min-width: 0;
-    color: #64748b;
-    font-size: 10.5px;
-    line-height: 1.35;
-    font-weight: 760;
-    text-align: right;
-  }
-  .me-visited-sort {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
-  }
-  .me-visited-sort button {
-    min-width: 0;
-    min-height: 30px;
-    padding: 5px 6px;
-    border: 1px solid rgba(15,23,42,.08);
-    border-radius: 7px;
-    background: rgba(255,255,255,.76);
-    color: #475569;
-    font-size: 11px;
-    line-height: 1.2;
-    font-weight: 850;
-    cursor: pointer;
-  }
-  .me-visited-sort button.is-active {
-    border-color: rgba(14,165,233,.38);
-    background: #e0f2fe;
-    color: #075985;
-  }
-  .me-visited-list {
-    display: grid;
-    gap: 6px;
-    max-height: 212px;
-    overflow-y: auto;
-    padding-right: 2px;
-  }
-  .me-visited-chip {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    min-height: 50px;
-    padding: 7px 8px;
-    border: 1px solid rgba(15,23,42,.08);
-    border-radius: 8px;
-    background: rgba(255,255,255,.82);
-    color: #0f172a;
-    cursor: pointer;
-    text-align: left;
-  }
-  .me-visited-chip:hover { border-color: rgba(14,165,233,.34); background: #fff; }
-  .me-visited-pin {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
-    background: rgba(14,165,233,.13);
-    color: #0369a1;
-    font-weight: 950;
-  }
-  .me-visited-copy {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-  .me-visited-copy strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 12.5px;
-    line-height: 1.25;
-    font-weight: 900;
-  }
-  .me-visited-copy small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #64748b;
-    font-size: 10.5px;
-    line-height: 1.35;
-    font-weight: 750;
-  }
-  .me-visited-empty {
-    margin: 0;
-    color: #64748b;
-    font-size: 12px;
-    line-height: 1.55;
-    font-weight: 750;
-  }
 
   .me-side-pane-selection { gap: 0; padding: 0; }
   .me-side-pane-selection .me-map-panel-selection {
@@ -9281,8 +8973,6 @@ export const MAP_EXPLORER_STYLES = `
   .me-locate-fab:focus-visible,
   .me-bottom-close:focus-visible,
   .me-side-toggle:focus-visible,
-  .me-visited-chip:focus-visible,
-  .me-visited-sort button:focus-visible,
   .me-overlap-choice-btn:focus-visible,
   .me-area-badge-main:focus-visible,
   .me-area-badge-actions a:focus-visible,
@@ -9345,21 +9035,6 @@ export const MAP_EXPLORER_STYLES = `
     .me-map-panel-insight {
       left: 12px;
       width: min(360px, calc(100% - 96px));
-    }
-    .me-enjoy-strip {
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      width: auto;
-      padding: 10px 12px;
-      border-radius: 16px;
-    }
-    .me-enjoy-strip strong {
-      font-size: 13px;
-      line-height: 1.25;
-    }
-    .me-enjoy-strip > span {
-      display: none;
     }
     .me-search-area-btn {
       top: 14px;

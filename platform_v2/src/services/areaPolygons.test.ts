@@ -18,6 +18,8 @@ const {
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
   shouldFetchLiveOsm,
+  shouldSupplementLiveOsm,
+  areaLayerSourceSortSql,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
@@ -200,6 +202,32 @@ test("default z9 park and school visibility does not trigger live OSM fallback",
   assert.equal(shouldFetchLiveOsm(query, sources), false);
   assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.3, 34.6, 137.8, 34.9] }, sources), false);
   assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.7, 34.7, 137.75, 34.75] }, sources), true);
+});
+
+test("live OSM supplements stored school and park rows at high zoom", () => {
+  const query = { bbox: [137.70, 34.70, 137.75, 34.75] as [number, number, number, number], zoom: 13 };
+  const storedSchool = liveElementToFeature({
+    type: "way",
+    id: 101,
+    tags: { name: "Stored school equivalent", amenity: "school" },
+    geometry: [
+      { lat: 34.72, lon: 137.72 },
+      { lat: 34.72, lon: 137.73 },
+      { lat: 34.73, lon: 137.73 },
+    ],
+  });
+  assert.ok(storedSchool);
+  assert.equal(shouldSupplementLiveOsm(query, ["school", "osm_park"], [storedSchool!], 20), true);
+  assert.equal(shouldSupplementLiveOsm(query, ["school", "osm_park"], [storedSchool!], 1), false);
+  assert.equal(shouldSupplementLiveOsm({ ...query, zoom: 10 }, ["school", "osm_park"], [storedSchool!], 20), false);
+});
+
+test("area layer SQL prioritizes human-scale school and park areas before admin layers", () => {
+  const orderSql = areaLayerSourceSortSql();
+  assert.match(orderSql, /WHEN 'school' THEN 0/);
+  assert.match(orderSql, /WHEN 'osm_park' THEN 1/);
+  assert.match(orderSql, /WHEN 'admin_municipality' THEN 7/);
+  assert.ok(orderSql.indexOf("WHEN 'school' THEN 0") < orderSql.indexOf("WHEN 'admin_municipality' THEN 7"));
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {
