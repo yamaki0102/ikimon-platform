@@ -399,6 +399,17 @@ function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource
   return (maxLng - minLng) <= LIVE_OSM_MAX_SPAN_DEGREES && (maxLat - minLat) <= LIVE_OSM_MAX_SPAN_DEGREES;
 }
 
+function shouldSupplementLiveOsm(
+  query: AreaPolygonsQuery,
+  sources: AreaPolygonSource[],
+  features: AreaPolygonFeature[],
+  limit: number,
+): boolean {
+  if (!shouldFetchLiveOsm(query, sources)) return false;
+  if (features.length >= limit) return false;
+  return sources.some((source) => LIVE_OSM_SOURCES.has(source));
+}
+
 function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: AreaPolygonSource[]): AreaPolygonFeature[] {
   if (sources.length === 0) return features;
   const allowed = new Set<AreaPolygonSource>(sources);
@@ -629,6 +640,21 @@ function normalizeFeatureContract(feature: AreaPolygonFeature): AreaPolygonFeatu
       verification_label: props.verification_label || "未確認",
     },
   };
+}
+
+function areaLayerSourceSortSql(): string {
+  return `CASE ${AREA_LAYER_SOURCE_SQL}
+        WHEN 'school' THEN 0
+        WHEN 'osm_park' THEN 1
+        WHEN 'user_defined' THEN 2
+        WHEN 'nature_symbiosis_site' THEN 3
+        WHEN 'tsunag' THEN 4
+        WHEN 'protected_area' THEN 5
+        WHEN 'oecm' THEN 6
+        WHEN 'admin_municipality' THEN 7
+        WHEN 'admin_prefecture' THEN 8
+        ELSE 9
+      END`;
 }
 
 function isCompleteFreshLiveCache(freshTileCount: number, totalTileCount: number, freshFeatureCount: number): boolean {
@@ -900,7 +926,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         -- 現行版のみ (廃止された旧公園・旧合併前市町村などは除外)。
         -- 過去版を引きたい場合は別 endpoint で as_of 指定する想定。
         AND valid_to IS NULL
-      ORDER BY area_ha NULLS LAST
+      ORDER BY ${areaLayerSourceSortSql()}, area_ha NULLS LAST
       LIMIT $6`,
     [minLat, maxLat, minLng, maxLng, sources, limit + 1],
   );
@@ -946,10 +972,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     }];
   });
 
-  const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources) && (
-    (sources.includes("osm_park") && !features.some((feature) => feature.properties.source === "osm_park")) ||
-    (sources.includes("school") && !features.some((feature) => feature.properties.source === "school"))
-  );
+  const shouldUseLiveOsm = shouldSupplementLiveOsm(query, sources, features, limit);
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
@@ -1011,6 +1034,8 @@ export const __test__ = {
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
   shouldFetchLiveOsm,
+  shouldSupplementLiveOsm,
+  areaLayerSourceSortSql,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,

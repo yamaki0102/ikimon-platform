@@ -1545,6 +1545,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     'nature_symbiosis_site', 'tsunag', 'school',
     'protected_area', 'oecm', 'osm_park', 'user_defined',
   ];
+  var VIEWPORT_RECORD_LIMIT = 600;
+  var CELL_RECORD_LIMIT = 1500;
 
   var state = {
     tab: 'markers',
@@ -5469,6 +5471,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function loadGuideSpots() {
     if (!apiGuideSpots || !state.map) return;
+    if (state.tab !== 'markers' && state.tab !== 'places') {
+      clearGuideSpotMarkers();
+      return;
+    }
     var bbox = currentBboxString();
     if (!bbox) return;
     if (state.guideSpotsAbort) { try { state.guideSpotsAbort.abort(); } catch (_) {} }
@@ -5600,7 +5606,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function loadRecords(scope) {
     if (!state.map) return;
-    var qs = '?limit=1500';
+    var recordLimit = scope && scope.cellId ? CELL_RECORD_LIMIT : VIEWPORT_RECORD_LIMIT;
+    var qs = '?limit=' + encodeURIComponent(String(recordLimit));
     if (state.markerProfile) qs += '&marker_profile=' + encodeURIComponent(state.markerProfile);
     if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
@@ -5687,8 +5694,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.pendingViewportSearch = false;
     updateSearchAreaUi();
     refreshMapData();
-    loadFrontier(state.map);
-    loadEffortSummary();
+    if (state.tab === 'frontier') loadFrontier(state.map);
+    deferMapTask(function () { loadEffortSummary(); }, 180);
   }
 
   function scheduleViewportRefresh() {
@@ -5716,6 +5723,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     loadEffortSummary();
     loadTraces();
     saveMapState();
+  }
+
+  function deferMapTask(fn, delay) {
+    var run = function () {
+      try { fn(); } catch (_) {}
+    };
+    var ms = typeof delay === 'number' ? delay : 0;
+    if (window.requestIdleCallback) {
+      window.setTimeout(function () {
+        window.requestIdleCallback(run, { timeout: Math.max(500, ms + 500) });
+      }, ms);
+      return;
+    }
+    window.setTimeout(run, ms);
   }
 
   function switchBasemap(key) {
@@ -6029,14 +6050,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
       refreshMapData();
-      loadFrontier(state.map);
-      loadEffortSummary();
-      loadTraces();
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
-      loadGuideSpots();
       maybeAutoLocateOnFirstOpen();
       maybeShowLayerHint(state.tab);
+      deferMapTask(function () {
+        if (state.tab === 'frontier') loadFrontier(state.map);
+        loadEffortSummary();
+        loadTraces();
+      }, 220);
     });
     state.map.on('moveend', function () {
       if (state.ignoreNextMoveEnd) {
@@ -6052,7 +6074,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       refreshDiscoveryPreviewMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
-      loadGuideSpots();
+      if (state.tab === 'markers' || state.tab === 'places') loadGuideSpots();
       if (state.waterwayDebounce) clearTimeout(state.waterwayDebounce);
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
       if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);

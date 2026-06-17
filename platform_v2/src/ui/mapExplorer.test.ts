@@ -363,6 +363,16 @@ test("map viewport movement refreshes stale result panels automatically", () => 
   assert.match(script, /searchAreaBtnEl\.addEventListener\('click', function \(\) \{\s+refreshViewportSearchData\(\);/);
 });
 
+test("map initial data load stays light and defers secondary panels", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /var VIEWPORT_RECORD_LIMIT = 600;/);
+  assert.match(script, /var CELL_RECORD_LIMIT = 1500;/);
+  assert.match(script, /var recordLimit = scope && scope\.cellId \? CELL_RECORD_LIMIT : VIEWPORT_RECORD_LIMIT;/);
+  assert.match(script, /function deferMapTask\(fn, delay\)/);
+  assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, 220\);/);
+});
+
 test("map opens near current location instead of restoring stale local viewport", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
