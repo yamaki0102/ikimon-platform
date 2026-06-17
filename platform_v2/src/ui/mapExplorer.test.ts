@@ -289,8 +289,6 @@ test("area badge clicks reopen the side panel before showing selection", () => {
 test("map explorer renders the regional guide and activity rally slot", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
-  assert.match(html, /ikimon - 皆で作る地域図鑑/);
-  assert.match(html, /地域の自然・風景・水・土・農・季節・活動/);
   assert.match(html, /このエリアの活動・ラリー/);
   assert.match(html, /主催者の方へ/);
   assert.match(html, /data-testid="map-activity-rally-panel"/);
@@ -301,8 +299,8 @@ test("map explorer renders the regional guide and activity rally slot", () => {
 test("map explorer does not paint the field-guide title over the map", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
-  assert.match(html, /class="me-enjoy-strip"[^>]*hidden[^>]*aria-hidden="true"/);
-  assert.match(MAP_EXPLORER_STYLES, /\.me-enjoy-strip\[hidden\]\s*\{[\s\S]*display:\s*none !important;/);
+  assert.doesNotMatch(html, /class="me-enjoy-strip"/);
+  assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
 });
 
 test("map explorer hides migration jargon and unidentified placeholders from public copy", () => {

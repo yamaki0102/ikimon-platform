@@ -1160,15 +1160,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
-        <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}" hidden aria-hidden="true">
-          <strong>${escapeHtml(copy.enjoyTitle)}</strong>
-          <span>${escapeHtml(copy.enjoyLead)}</span>
-          <div class="me-map-cues" aria-hidden="true">
-            <span><i class="me-cue-dot"></i>${escapeHtml(copy.visualCueCount)}</span>
-            <span><i class="me-cue-rainbow"></i>${escapeHtml(copy.visualCueColor)}</span>
-            <span><i class="me-cue-place"></i>${escapeHtml(copy.visualCuePlace)}</span>
-          </div>
-        </div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
