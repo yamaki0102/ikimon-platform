@@ -217,15 +217,15 @@ jobs:
         run: |
           set -euo pipefail
           body="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/ja/map?deploy_smoke=${GITHUB_SHA}")"
-          if ! printf '%s' "$body" | grep -q 'me-map-kicker'; then
+          if [[ "$body" != *"me-map-kicker"* ]]; then
             echo "Map header kicker is missing from materialized HTML."
             exit 1
           fi
-          if printf '%s' "$body" | grep -q '<div class="me-enjoy-strip"'; then
+          if [[ "$body" == *'<div class="me-enjoy-strip"'* ]]; then
             echo "Old map overlay DOM is still present in materialized HTML."
             exit 1
           fi
-          if ! printf '%s' "$body" | grep -q 'global-record-launcher'; then
+          if [[ "$body" != *"global-record-launcher"* ]]; then
             echo "Mobile record launcher markup is missing from materialized HTML."
             exit 1
           fi
