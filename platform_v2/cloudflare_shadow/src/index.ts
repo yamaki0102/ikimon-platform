@@ -1,3 +1,5 @@
+import * as bcrypt from "bcryptjs";
+
 type D1Value = string | number | null;
 
 interface D1PreparedStatement {
@@ -51,6 +53,14 @@ interface Env {
   INTERNAL_AUTH_TOKEN?: string;
   OBSERVATION_DB_NAME?: string;
   OBSERVATION_ARCHIVE_TARGET?: string;
+  ORIGIN_FALLBACK_BASE_URL?: string;
+  ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
+  PUBLIC_WRITE_MODE?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  TWITTER_CLIENT_ID?: string;
+  TWITTER_CLIENT_SECRET?: string;
+  V2_OAUTH_STATE_SECRET?: string;
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -128,6 +138,52 @@ interface SessionIssueInput {
   rankLabel?: string | null;
 }
 
+interface AuthLoginInput {
+  email?: unknown;
+  password?: unknown;
+  redirect?: unknown;
+}
+
+interface AuthUserRow {
+  user_id: string;
+  email: string;
+  password_hash: string | null;
+  display_name: string;
+  role_name: string | null;
+  rank_label: string | null;
+  banned: number;
+}
+
+type OAuthProvider = "google" | "twitter";
+
+interface OAuthStatePayload {
+  provider: OAuthProvider;
+  state: string;
+  redirect: string;
+  codeVerifier?: string;
+  expiresAt: number;
+}
+
+interface OAuthProfile {
+  provider: OAuthProvider;
+  providerUserId: string;
+  name: string;
+  email: string | null;
+  avatarUrl: string | null;
+  rawProfile: Record<string, unknown>;
+}
+
+interface OAuthAccountRow {
+  user_id: string;
+  provider: string;
+  provider_user_id: string;
+  provider_email: string | null;
+  display_name: string;
+  role_name: string | null;
+  rank_label: string | null;
+  banned: number;
+}
+
 interface SessionSnapshot {
   tokenHash: string;
   userId: string;
@@ -136,6 +192,49 @@ interface SessionSnapshot {
   rankLabel: string | null;
   banned: boolean;
   expiresAt: string;
+}
+
+interface OriginSessionResponse {
+  ok?: boolean;
+  session?: {
+    userId?: unknown;
+    displayName?: unknown;
+    roleName?: unknown;
+    rankLabel?: unknown;
+    banned?: unknown;
+    expiresAt?: unknown;
+    tokenHash?: unknown;
+  } | null;
+}
+
+interface PersonalAreaSubscriptionRow {
+  subscription_id: string;
+  target_type: string;
+  target_id: string;
+  label: string | null;
+  href: string | null;
+  is_active: number;
+  created_at: string | null;
+  updated_at: string | null;
+  observation_count?: number | null;
+  needs_id_count?: number | null;
+}
+
+interface PersonalTaxonSubscriptionRow {
+  label: string | null;
+  scientific_name: string | null;
+  taxon_rank: string | null;
+}
+
+interface PersonalAlertRow {
+  delivery_id: string;
+  occurrence_id: string;
+  trigger_kind: string;
+  delivery_status: string;
+  delivered_at: string | null;
+  acknowledged_at: string | null;
+  created_at: string | null;
+  payload_json: string | null;
 }
 
 interface VideoDirectUploadInput {
@@ -220,6 +319,53 @@ interface RollbackLedgerRow {
   created_at: string;
 }
 
+interface OperationAuditRow {
+  payload_json: string;
+  created_at: string;
+}
+
+interface OriginFallbackTelemetryPayload {
+  reason: string;
+  method: string;
+  host: string;
+  routePattern: string;
+  pathHash: string;
+  originalUiHtmlKeyHash?: string;
+  publicWriteMode: string;
+  environment: string;
+}
+
+interface FieldDetailReadmodelRow {
+  field_id: string;
+  source: string;
+  admin_level: string | null;
+  name: string;
+  name_kana: string | null;
+  summary: string | null;
+  prefecture: string | null;
+  city: string | null;
+  public_cell: string;
+  public_lat: number;
+  public_lng: number;
+  radius_m: number | null;
+  area_ha: number | null;
+  has_polygon: number;
+  has_simplified_geometry: number;
+  certification_id: string | null;
+  certification_url: string | null;
+  official_url: string | null;
+  owner_url: string | null;
+  story_url: string | null;
+  verification_level: string | null;
+  verification_method: string | null;
+  verification_label: string | null;
+  source_confidence: number | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  entity_key: string | null;
+  updated_at: string | null;
+}
+
 interface ReverseDeltaCountRow {
   count: number;
 }
@@ -231,6 +377,146 @@ const MIN_VIDEO_DURATION_SECONDS = 6;
 const MAX_VIDEO_DURATION_SECONDS = 60;
 const MAP_DEFAULT_GRID_M = 1000;
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
+const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
+const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
+  "/",
+  "/record",
+  "/map",
+  "/login",
+  "/en/",
+  "/en/login",
+  "/en/map",
+  "/en/record",
+  "/es/",
+  "/es/login",
+  "/es/map",
+  "/es/record",
+  "/pt-br/",
+  "/pt-br/login",
+  "/pt-br/map",
+  "/pt-br/record",
+  "/register",
+  "/learn",
+  "/community",
+  "/community/events",
+  "/community/events/new",
+  "/community/fields",
+  "/for-business",
+  "/for-business/field-programs",
+  "/for-business/invasive-reporting",
+  "/ja/",
+  "/ja/about",
+  "/ja/cases",
+  "/ja/community",
+  "/ja/community/events",
+  "/ja/community/events/new",
+  "/ja/community/fields",
+  "/en/community/fields",
+  "/es/community/fields",
+  "/pt-br/community/fields",
+  "/ja/contact",
+  "/ja/faq",
+  "/ja/for-business",
+  "/ja/for-business/apply",
+  "/ja/for-business/demo",
+  "/ja/for-business/field-programs",
+  "/ja/for-business/invasive-reporting",
+  "/ja/for-business/monitoring/apply",
+  "/ja/for-business/pricing",
+  "/ja/for-business/status",
+  "/ja/for-researcher/apply",
+  "/ja/guide",
+  "/ja/home",
+  "/ja/impact",
+  "/ja/learn",
+  "/ja/learn/biodiversity",
+  "/ja/learn/biomonweek",
+  "/ja/learn/citizen-science",
+  "/ja/learn/field-loop",
+  "/ja/learn/glossary",
+  "/ja/learn/identification-basics",
+  "/ja/learn/invasive-species",
+  "/ja/learn/invasive-species/alternanthera-philoxeroides",
+  "/ja/learn/invasive-species/bombus-terrestris",
+  "/ja/learn/invasive-species/chelydra-serpentina",
+  "/ja/learn/invasive-species/coreopsis-lanceolata",
+  "/ja/learn/invasive-species/eichhornia-crassipes",
+  "/ja/learn/invasive-species/erigeron-annuus",
+  "/ja/learn/invasive-species/erigeron-philadelphicus",
+  "/ja/learn/invasive-species/gambusia-affinis",
+  "/ja/learn/invasive-species/garrulax-canorus",
+  "/ja/learn/invasive-species/latrodectus-hasseltii",
+  "/ja/learn/invasive-species/leiothrix-lutea",
+  "/ja/learn/invasive-species/linepithema-humile",
+  "/ja/learn/invasive-species/lithobates-catesbeianus",
+  "/ja/learn/invasive-species/micropterus-salmoides",
+  "/ja/learn/invasive-species/myocastor-coypus",
+  "/ja/learn/invasive-species/paguma-larvata",
+  "/ja/learn/invasive-species/pistia-stratiotes",
+  "/ja/learn/invasive-species/procambarus-clarkii",
+  "/ja/learn/invasive-species/procyon-lotor",
+  "/ja/learn/invasive-species/rudbeckia-laciniata",
+  "/ja/learn/invasive-species/sicyos-angulatus",
+  "/ja/learn/invasive-species/solenopsis-invicta",
+  "/ja/learn/invasive-species/solidago-canadensis",
+  "/ja/learn/invasive-species/taraxacum-officinale",
+  "/ja/learn/invasive-species/trachemys-scripta-elegans",
+  "/ja/learn/invasive-species/tradescantia-fluminensis",
+  "/ja/learn/invasive-species-reporting",
+  "/ja/learn/methodology",
+  "/ja/learn/policy-and-business",
+  "/ja/learn/technology",
+  "/ja/learn/terms/30by30",
+  "/ja/learn/terms/ai-candidate",
+  "/ja/learn/terms/attention-restoration-theory",
+  "/ja/learn/terms/baseline",
+  "/ja/learn/terms/biodiversity",
+  "/ja/learn/terms/biodiversity-credits",
+  "/ja/learn/terms/biodiversity-monitoring",
+  "/ja/learn/terms/biomonweek",
+  "/ja/learn/terms/biophilia-hypothesis",
+  "/ja/learn/terms/citizen-science",
+  "/ja/learn/terms/darwin-core",
+  "/ja/learn/terms/dataset",
+  "/ja/learn/terms/dwca",
+  "/ja/learn/terms/ecosystem-services",
+  "/ja/learn/terms/environmental-dna",
+  "/ja/learn/terms/evidence-tier",
+  "/ja/learn/terms/fixed-point-observation",
+  "/ja/learn/terms/gbif",
+  "/ja/learn/terms/identification",
+  "/ja/learn/terms/kunming-montreal-gbf",
+  "/ja/learn/terms/location-data",
+  "/ja/learn/terms/natural-capital",
+  "/ja/learn/terms/nature-connectedness",
+  "/ja/learn/terms/nature-positive",
+  "/ja/learn/terms/nature-symbiosis-site",
+  "/ja/learn/terms/oecm",
+  "/ja/learn/terms/one-health",
+  "/ja/learn/terms/open-dispute",
+  "/ja/learn/terms/participatory-monitoring",
+  "/ja/learn/terms/quick-capture",
+  "/ja/learn/terms/rare-species",
+  "/ja/learn/terms/sampling-effort",
+  "/ja/learn/terms/survey",
+  "/ja/learn/terms/taxonomy-name",
+  "/ja/learn/terms/tnfd",
+  "/ja/learn/updates",
+  "/ja/learn/wellbeing",
+  "/en/learn",
+  "/es/learn",
+  "/pt-br/learn",
+  "/ja/lens",
+  "/ja/login",
+  "/ja/map",
+  "/ja/privacy",
+  "/ja/profile",
+  "/ja/profile/settings",
+  "/ja/record",
+  "/ja/records",
+  "/ja/register",
+  "/ja/terms"
+]);
 
 export const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -239,6 +525,14 @@ export const worker = {
 
       if (request.method === "GET" && url.pathname === "/health") {
         return json({ ok: true, environment: env.ENVIRONMENT });
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/healthz") {
+        return getHealthz(env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/readyz") {
+        return getReadyz(env);
       }
 
       if (url.pathname.startsWith("/internal/")) {
@@ -256,6 +550,66 @@ export const worker = {
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/my-places") {
         return getPublicMapMyPlaces(request, env);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/traces") {
+        return getPublicMapEmptyGeoJson("traces");
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/frontier") {
+        return getPublicMapEmptyGeoJson("frontier");
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/area-polygons") {
+        return getPublicMapEmptyGeoJson("area-polygons", { "cache-control": "public, max-age=60" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/effort-summary") {
+        return getPublicMapEffortSummaryShim();
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/site-brief") {
+        return getPublicMapSiteBriefShim(url);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/guide-spots") {
+        return getPublicMapEmptyGeoJson("guide-spots");
+      }
+
+      const fieldDetailApiMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/public-detail$/);
+      if (request.method === "GET" && fieldDetailApiMatch?.[1]) {
+        return getFieldDetailJson(decodeURIComponent(fieldDetailApiMatch[1]), env);
+      }
+
+      const areaSnapshotMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/area-snapshot$/);
+      if (request.method === "GET" && areaSnapshotMatch?.[1]) {
+        return getOriginalUiAreaSnapshot(decodeURIComponent(areaSnapshotMatch[1]), request, url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
+        return getOriginalUiStaticAsset(request, url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiThumbPath(url.pathname)) {
+        return getOriginalUiThumb(request, url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
+        return getOriginalUiHtml(request, url, env);
+      }
+
+      const oauthStartMatch = url.pathname.match(/^\/auth\/oauth\/([^/]+)\/start$/);
+      if (request.method === "GET" && oauthStartMatch?.[1]) {
+        return handleOAuthStart(request, decodeURIComponent(oauthStartMatch[1]), env);
+      }
+
+      const oauthCallbackMatch = url.pathname.match(/^\/auth\/oauth\/([^/]+)\/callback$/);
+      if (request.method === "GET" && oauthCallbackMatch?.[1]) {
+        return handleOAuthCallback(request, decodeURIComponent(oauthCallbackMatch[1]), env);
+      }
+
+      if (request.method === "GET" && url.pathname === "/oauth_callback.php") {
+        return handleOAuthCallback(request, url.searchParams.get("provider"), env);
       }
 
       if (request.method === "GET" && url.pathname.startsWith("/derived/")) {
@@ -321,6 +675,32 @@ export const worker = {
         return getPublicObservationDetailJson(decodeURIComponent(publicDetailApiMatch[1]), env);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
+        return recordUiKpiEventShim(request);
+      }
+
+      const appWriteBoundary = handlePublicCustomDomainAppWriteBoundary(request, url, env);
+      if (appWriteBoundary) {
+        return appWriteBoundary;
+      }
+
+      const personalRuntimeBoundary = await handleOriginalPersonalRuntimeBoundary(request, url, env);
+      if (personalRuntimeBoundary) {
+        return personalRuntimeBoundary;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/observations/") {
+        return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+      }
+
+      if (shouldFallbackObservationApiToOrigin(request, url, env)) {
+        return fetchOriginFallback(request, url, env, "unsupported_observation_api");
+      }
+
+      if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
+        return fetchOriginFallback(request, url, env, "public_custom_domain_path");
+      }
+
       const publicDetailPageMatch = url.pathname.match(/^\/observations\/([^/]+)$/);
       if (request.method === "GET" && publicDetailPageMatch?.[1]) {
         return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), env);
@@ -353,6 +733,10 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/session/logout") {
         return logoutCompatibleSession(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
+        return loginWithPassword(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/videos/direct-upload") {
@@ -415,6 +799,18 @@ export const worker = {
         return reverseDeltaDryRun(url, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/internal/origin-fallback-telemetry") {
+        return originFallbackTelemetrySummary(url, env);
+      }
+
+      if (url.pathname.startsWith("/internal/")) {
+        return json({ error: "not_found" }, 404);
+      }
+
+      if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
+        return fetchOriginFallback(request, url, env, "public_custom_domain_path");
+      }
+
       return json({ error: "not_found" }, 404);
     } catch (error) {
       if (error instanceof HttpError) {
@@ -433,6 +829,551 @@ export const worker = {
 };
 
 export default worker;
+
+function getHealthz(env: Env): Response {
+  return json({
+    ok: true,
+    service: "ikimon-life-cloudflare-worker",
+    environment: env.ENVIRONMENT,
+    fallbackOriginConfigured: Boolean(env.ORIGIN_FALLBACK_BASE_URL)
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getReadyz(env: Env): Promise<Response> {
+  try {
+    await env.CORE_DB.prepare("SELECT 1 AS ok").first();
+    await env.OBS_DB.prepare("SELECT 1 AS ok").first();
+    return json({
+      ok: true,
+      service: "ikimon-life-cloudflare-worker",
+      environment: env.ENVIRONMENT,
+      coreDb: "ok",
+      observationDb: "ok",
+      assetBucket: "bound",
+      mediaQueue: "bound"
+    }, 200, { "cache-control": "no-store" });
+  } catch (error) {
+    console.error("readyz failed", error);
+    return json({
+      ok: false,
+      service: "ikimon-life-cloudflare-worker",
+      environment: env.ENVIRONMENT,
+      error: "readiness_check_failed"
+    }, 503, { "cache-control": "no-store" });
+  }
+}
+
+function handlePublicCustomDomainAppWriteBoundary(request: Request, url: URL, env: Env): Response | Promise<Response> | null {
+  if (!shouldUseOriginFallback(url, env)) return null;
+  if (!isPublicAppWriteCandidatePath(url)) return null;
+
+  const mode = getPublicWriteMode(env);
+  if (mode === "cloudflare_native") return null;
+  if (mode === "write_disabled" && isMutatingMethod(request.method)) {
+    return publicWriteDisabledResponse();
+  }
+
+  return fetchOriginFallback(request, url, env, "public_write_origin_mode");
+}
+
+async function handleOriginalPersonalRuntimeBoundary(request: Request, url: URL, env: Env): Promise<Response | null> {
+  if (!isOriginalPersonalRuntimePath(request, url)) return null;
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) {
+    return json({ ok: false, error: "auth_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+  if (request.method === "GET" && url.pathname === "/api/v1/me/alerts") {
+    return getPersonalAlerts(session, env);
+  }
+  if (request.method === "POST" && url.pathname === "/api/v1/me/alerts/read") {
+    return markPersonalAlertsRead(session, request, env);
+  }
+  if (request.method === "GET" && url.pathname === "/api/v1/me/area-subscriptions") {
+    return getPersonalAreaSubscriptions(session, env);
+  }
+  if (request.method === "POST" && url.pathname === "/api/v1/me/area-subscriptions") {
+    return upsertPersonalAreaSubscription(session, request, env);
+  }
+  const deleteAreaMatch = url.pathname.match(/^\/api\/v1\/me\/area-subscriptions\/([^/]+)$/);
+  if (request.method === "DELETE" && deleteAreaMatch?.[1]) {
+    return deletePersonalAreaSubscription(session, decodeURIComponent(deleteAreaMatch[1]), env);
+  }
+  if (request.method === "GET" && url.pathname === "/api/v1/me/personalized-menu") {
+    return getPersonalizedMenu(session, url, env);
+  }
+  return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+}
+
+function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
+  if (request.method === "GET" && url.pathname === "/api/v1/me/alerts") return true;
+  if (request.method === "POST" && url.pathname === "/api/v1/me/alerts/read") return true;
+  if (request.method === "GET" && url.pathname === "/api/v1/me/personalized-menu") return true;
+  if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/v1/me/area-subscriptions") return true;
+  if (request.method === "DELETE" && /^\/api\/v1\/me\/area-subscriptions\/[^/]+$/.test(url.pathname)) return true;
+  return false;
+}
+
+function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: Env): boolean {
+  if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
+  return shouldUseOriginFallback(url, env) && url.pathname.startsWith("/api/v1/observations/");
+}
+
+function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL, env: Env): boolean {
+  if (!shouldUseOriginFallback(url, env)) return false;
+  if (url.pathname.startsWith("/internal/")) return false;
+  if (url.pathname.startsWith("/shadow-smoke/")) return false;
+  if (url.pathname.startsWith("/shadow/")) return false;
+  if (url.pathname === "/health") return false;
+  if (isSuspiciousPublicProbePath(url.pathname)) return false;
+  if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
+  if (request.method !== "GET" && request.method !== "HEAD") return true;
+  return true;
+}
+
+function shouldUseOriginFallback(url: URL, env: Env): boolean {
+  return Boolean(env.ORIGIN_FALLBACK_BASE_URL) && PUBLIC_CUSTOM_HOSTS.has(url.hostname);
+}
+
+function isSuspiciousPublicProbePath(pathname: string): boolean {
+  if (pathname.startsWith("/data:")) return true;
+  if (pathname === "/app-ads.txt") return true;
+  if (/^\/(?:\.|api\/\.|app\/\.|backend\/\.|config\/|credentials\/)/.test(pathname)) return true;
+  if (/(?:^|\/)(?:wp-includes|wlwmanifest\.xml|xmlrpc\.php)(?:\/|$)/.test(pathname)) return true;
+  if (/(?:^|\/)(?:client_secrets?|service[-_]?account|firebase[-_]?credentials|firebase[-_]?service[-_]?account|gcp[-_]?credentials|gcloud[-_]?service[-_]?key)\.json$/i.test(pathname)) return true;
+  if (/^\/(?:firebase-adminsdk|firebase|gcp-key|credentials|application_default_credentials)\.json$/i.test(pathname)) return true;
+  if (/^\/appsettings\.(?:json|development\.json|production\.json)$/i.test(pathname)) return true;
+  return false;
+}
+
+function getPublicWriteMode(env: Env): "origin_fallback" | "cloudflare_native" | "write_disabled" {
+  const mode = (env.PUBLIC_WRITE_MODE ?? "origin_fallback").trim().toLowerCase();
+  if (mode === "cloudflare_native") return "cloudflare_native";
+  if (mode === "write_disabled") return "write_disabled";
+  return "origin_fallback";
+}
+
+function isPublicAppWriteCandidatePath(url: URL): boolean {
+  if (url.pathname === "/api/v0/draft-observations") return true;
+  if (url.pathname.startsWith("/api/v0/assets/") && url.pathname.endsWith("/body")) return true;
+  if (url.pathname === "/api/v0/observations/finalize") return true;
+  if (url.pathname === "/api/v1/observations/upsert") return true;
+  if (url.pathname === "/api/v1/auth/session/issue") return true;
+  if (url.pathname === "/api/v1/auth/session") return true;
+  if (url.pathname === "/api/v1/auth/session/logout") return true;
+  if (url.pathname === "/api/v1/auth/login") return true;
+  if (url.pathname === "/api/v1/videos/direct-upload") return true;
+  if (/^\/api\/v1\/videos\/[^/]+\/body$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
+  return false;
+}
+
+async function getPersonalAreaSubscriptions(session: SessionSnapshot, env: Env): Promise<Response> {
+  const rows = await env.CORE_DB.prepare(
+    `SELECT subscription_id, target_type, target_id, label, href, is_active, created_at, updated_at
+       FROM user_area_subscriptions
+      WHERE user_id = ?
+      ORDER BY is_active DESC, updated_at DESC
+      LIMIT 100`
+  ).bind(session.userId).all<PersonalAreaSubscriptionRow>();
+  return json({
+    ok: true,
+    subscriptions: rows.results.map(personalAreaSubscriptionPayload)
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function upsertPersonalAreaSubscription(session: SessionSnapshot, request: Request, env: Env): Promise<Response> {
+  const body = await readJson<{ targetType?: unknown; targetId?: unknown; label?: unknown; href?: unknown }>(request);
+  const targetType = normalizeOptionalText(body.targetType);
+  const targetId = normalizeOptionalText(body.targetId);
+  if (!targetType || !["field", "place", "region"].includes(targetType) || !targetId) {
+    return json({ ok: false, error: "targetType_and_targetId_required" }, 400, { "cache-control": "no-store" });
+  }
+  const normalizedTargetId = targetId.slice(0, 160);
+  const subscriptionId = crypto.randomUUID();
+  const label = safePersonalLabel(body.label, normalizedTargetId);
+  const href = safePersonalHref(body.href, areaSubscriptionHref(targetType, normalizedTargetId));
+  await env.CORE_DB.prepare(
+    `INSERT INTO user_area_subscriptions
+       (subscription_id, user_id, target_type, target_id, label, href, is_active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     ON CONFLICT(user_id, target_type, target_id)
+     DO UPDATE SET label = excluded.label,
+                   href = excluded.href,
+                   is_active = 1,
+                   updated_at = CURRENT_TIMESTAMP`
+  ).bind(subscriptionId, session.userId, targetType, normalizedTargetId, label, href).run();
+  const row = await env.CORE_DB.prepare(
+    `SELECT subscription_id
+       FROM user_area_subscriptions
+      WHERE user_id = ? AND target_type = ? AND target_id = ?`
+  ).bind(session.userId, targetType, normalizedTargetId).first<{ subscription_id: string }>();
+  return json({ ok: true, subscriptionId: row?.subscription_id ?? subscriptionId }, 200, { "cache-control": "no-store" });
+}
+
+async function deletePersonalAreaSubscription(session: SessionSnapshot, id: string, env: Env): Promise<Response> {
+  const subscriptionId = normalizeOptionalText(id);
+  if (!subscriptionId) {
+    return json({ ok: false, error: "id_required" }, 400, { "cache-control": "no-store" });
+  }
+  const existing = await env.CORE_DB.prepare(
+    "SELECT subscription_id FROM user_area_subscriptions WHERE subscription_id = ? AND user_id = ?"
+  ).bind(subscriptionId, session.userId).first<{ subscription_id: string }>();
+  if (!existing) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  await env.CORE_DB.prepare(
+    "DELETE FROM user_area_subscriptions WHERE subscription_id = ? AND user_id = ?"
+  ).bind(subscriptionId, session.userId).run();
+  return json({ ok: true }, 200, { "cache-control": "no-store" });
+}
+
+async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "10"), 1, 20);
+  const [areas, taxa, unreadAlerts] = await Promise.all([
+    env.CORE_DB.prepare(
+      `SELECT s.subscription_id, s.target_type, s.target_id, s.label, s.href, s.is_active, s.created_at, s.updated_at,
+              COALESCE(st.observation_count, 0) AS observation_count,
+              COALESCE(st.needs_id_count, 0) AS needs_id_count
+         FROM user_area_subscriptions s
+         LEFT JOIN user_area_subscription_stats st
+           ON st.user_id = s.user_id AND st.target_type = s.target_type AND st.target_id = s.target_id
+        WHERE s.user_id = ? AND s.is_active = 1
+        ORDER BY s.updated_at DESC
+        LIMIT 8`
+    ).bind(session.userId).all<PersonalAreaSubscriptionRow>(),
+    env.CORE_DB.prepare(
+      `SELECT label, scientific_name, taxon_rank
+         FROM taxon_alert_subscriptions
+        WHERE user_id = ? AND is_active = 1
+        ORDER BY created_at DESC
+        LIMIT 8`
+    ).bind(session.userId).all<PersonalTaxonSubscriptionRow>(),
+    env.CORE_DB.prepare(
+      `SELECT COUNT(*) AS unread_count
+         FROM alert_deliveries
+        WHERE user_id = ?
+          AND acknowledged_at IS NULL`
+    ).bind(session.userId).first<{ unread_count: number }>()
+  ]);
+  const items = dedupePersonalMenuItems([
+    ...areas.results.map((row) => {
+      const label = safePersonalLabel(row.label, row.target_id);
+      return {
+        kind: row.target_type,
+        label,
+        href: safePersonalHref(row.href, areaSubscriptionHref(row.target_type, row.target_id)),
+        source: "follow",
+        stats: {
+          observationCount: toSafeCount(row.observation_count),
+          needsIdCount: toSafeCount(row.needs_id_count)
+        }
+      };
+    }),
+    ...taxa.results.map((row) => {
+      const label = safePersonalLabel(row.label ?? row.scientific_name ?? row.taxon_rank, "分類群");
+      return {
+        kind: "taxon",
+        label,
+        href: `/records?view=public&q=${encodeURIComponent(label)}`,
+        source: "follow",
+        stats: { followed: true }
+      };
+    })
+  ]).slice(0, limit);
+  return json({
+    ok: true,
+    items,
+    summary: { unreadAlertCount: toSafeCount(unreadAlerts?.unread_count) }
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getPersonalAlerts(session: SessionSnapshot, env: Env): Promise<Response> {
+  const rows = await env.CORE_DB.prepare(
+    `SELECT delivery_id, occurrence_id, trigger_kind, delivery_status, delivered_at, acknowledged_at, created_at, payload_json
+       FROM alert_deliveries
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 100`
+  ).bind(session.userId).all<PersonalAlertRow>();
+  return json({
+    ok: true,
+    alerts: rows.results.map((row) => ({
+      deliveryId: row.delivery_id,
+      occurrenceId: row.occurrence_id,
+      triggerKind: row.trigger_kind,
+      deliveryStatus: row.delivery_status,
+      deliveredAt: row.delivered_at,
+      acknowledgedAt: row.acknowledged_at,
+      createdAt: row.created_at,
+      payload: parseJsonObject(row.payload_json)
+    }))
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function markPersonalAlertsRead(session: SessionSnapshot, request: Request, env: Env): Promise<Response> {
+  const body = await readJson<{ ids?: unknown }>(request);
+  const ids = Array.isArray(body.ids)
+    ? body.ids.map((value) => normalizeOptionalText(value)).filter((value): value is string => Boolean(value)).slice(0, 100)
+    : [];
+  const now = new Date().toISOString();
+  let acknowledgedCount = 0;
+  if (ids.length > 0) {
+    const placeholders = ids.map(() => "?").join(", ");
+    const existing = await env.CORE_DB.prepare(
+      `SELECT delivery_id
+         FROM alert_deliveries
+        WHERE user_id = ? AND delivery_id IN (${placeholders})`
+    ).bind(session.userId, ...ids).all<{ delivery_id: string }>();
+    acknowledgedCount = existing.results.length;
+    if (acknowledgedCount > 0) {
+      await env.CORE_DB.prepare(
+        `UPDATE alert_deliveries
+            SET acknowledged_at = COALESCE(acknowledged_at, ?),
+                delivery_status = CASE WHEN delivery_status = 'sent' THEN 'acknowledged' ELSE delivery_status END
+          WHERE user_id = ? AND delivery_id IN (${placeholders})`
+      ).bind(now, session.userId, ...ids).run();
+    }
+  } else {
+    const unread = await env.CORE_DB.prepare(
+      `SELECT delivery_id
+         FROM alert_deliveries
+        WHERE user_id = ? AND acknowledged_at IS NULL`
+    ).bind(session.userId).all<{ delivery_id: string }>();
+    acknowledgedCount = unread.results.length;
+    if (acknowledgedCount > 0) {
+      await env.CORE_DB.prepare(
+        `UPDATE alert_deliveries
+            SET acknowledged_at = COALESCE(acknowledged_at, ?),
+                delivery_status = CASE WHEN delivery_status = 'sent' THEN 'acknowledged' ELSE delivery_status END
+          WHERE user_id = ? AND acknowledged_at IS NULL`
+      ).bind(now, session.userId).run();
+    }
+  }
+  return json({ ok: true, acknowledgedCount }, 200, { "cache-control": "no-store" });
+}
+
+function personalAreaSubscriptionPayload(row: PersonalAreaSubscriptionRow) {
+  const label = safePersonalLabel(row.label, row.target_id);
+  return {
+    subscriptionId: row.subscription_id,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    label,
+    href: safePersonalHref(row.href, areaSubscriptionHref(row.target_type, row.target_id)),
+    isActive: Boolean(row.is_active),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function safePersonalLabel(value: unknown, fallback: string): string {
+  const label = typeof value === "string" ? value.trim() : "";
+  return (label || fallback).slice(0, 120);
+}
+
+function safePersonalHref(value: unknown, fallback: string): string {
+  const href = typeof value === "string" ? value.trim() : "";
+  if (!href || !href.startsWith("/") || href.startsWith("//") || href.includes("\n")) return fallback;
+  return href.slice(0, 240);
+}
+
+function areaSubscriptionHref(targetType: string, targetId: string): string {
+  const encoded = encodeURIComponent(targetId);
+  if (targetType === "field") return `/map?field=${encoded}`;
+  if (targetType === "place") return `/map?place=${encoded}`;
+  return `/map?region=${encoded}`;
+}
+
+function dedupePersonalMenuItems<T extends { href: string; label: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const output: T[] = [];
+  for (const item of items) {
+    const key = `${normalizePersonalMenuHref(item.href)}::${item.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(item);
+  }
+  return output;
+}
+
+function normalizePersonalMenuHref(value: string): string {
+  const raw = value.trim();
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "";
+  try {
+    const url = new URL(raw, "https://ikimon.local");
+    const parts = url.pathname.split("/").filter(Boolean);
+    const first = parts[0];
+    const langlessPath = first === "ja" || first === "en" || first === "es" || first === "pt-BR"
+      ? `/${parts.slice(1).join("/")}` || "/"
+      : url.pathname;
+    return `${langlessPath}${url.search}`;
+  } catch {
+    return raw.split("#", 1)[0] ?? raw;
+  }
+}
+
+function toSafeCount(value: unknown): number {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseJsonObject(value: string | null): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function isMutatingMethod(method: string): boolean {
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function publicWriteDisabledResponse(): Response {
+  return json({
+    ok: false,
+    error: "write_temporarily_disabled",
+    mode: "read_only_migration_window"
+  }, 503, {
+    "cache-control": "no-store",
+    "retry-after": "300",
+    "x-ikimon-cloudflare-write-mode": "write_disabled"
+  });
+}
+
+async function fetchOriginFallback(request: Request, url: URL, env: Env, reason = "origin_fallback"): Promise<Response> {
+  const base = new URL(env.ORIGIN_FALLBACK_BASE_URL ?? "");
+  const target = new URL(url.toString());
+  target.protocol = base.protocol;
+  target.host = base.host;
+  const resolveOverride = env.ORIGIN_FALLBACK_RESOLVE_OVERRIDE?.trim();
+  if (target.host === url.host && !resolveOverride) {
+    return json({ error: "origin_fallback_loop_blocked" }, 502, { "cache-control": "no-store" });
+  }
+
+  const headers = new Headers(request.headers);
+  headers.set("x-ikimon-cloudflare-fallback", "origin");
+  headers.set("x-ikimon-cloudflare-fallback-reason", reason);
+  headers.delete("cf-connecting-ip");
+  headers.delete("cf-ipcountry");
+  headers.delete("cf-ray");
+  headers.delete("cf-visitor");
+
+  const originalUiHtmlKeyForTelemetry = isOriginalUiHtmlPath(url.pathname) ? originalUiHtmlKey(url.pathname) : null;
+  await recordOriginFallbackTelemetry(env, {
+    reason,
+    method: request.method,
+    host: url.hostname,
+    routePattern: fallbackRoutePattern(url.pathname),
+    pathHash: (await sha256Hex(textToArrayBuffer(url.pathname))).slice(0, 16),
+    originalUiHtmlKeyHash: originalUiHtmlKeyForTelemetry ? (await sha256Hex(textToArrayBuffer(originalUiHtmlKeyForTelemetry))).slice(0, 16) : undefined,
+    publicWriteMode: getPublicWriteMode(env),
+    environment: env.ENVIRONMENT
+  });
+
+  const init: RequestInit & { cf?: { resolveOverride?: string } } = {
+    method: request.method,
+    headers,
+    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+    redirect: "manual"
+  };
+  if (resolveOverride) {
+    init.cf = { resolveOverride };
+  }
+
+  return fetch(target.toString(), init);
+}
+
+async function recordOriginFallbackTelemetry(env: Env, payload: OriginFallbackTelemetryPayload): Promise<void> {
+  try {
+    await env.CORE_DB.prepare(
+      `INSERT INTO operation_audit (audit_id, operation_type, target_id, payload_json)
+       VALUES (?, 'origin_fallback', ?, ?)`
+    ).bind(
+      `origin-fallback-${crypto.randomUUID()}`,
+      payload.reason,
+      JSON.stringify(payload)
+    ).run();
+  } catch (error) {
+    console.error(JSON.stringify({
+      message: "origin_fallback_telemetry_failed",
+      error: error instanceof Error ? error.message : String(error),
+      reason: payload.reason,
+      routePattern: payload.routePattern
+    }));
+  }
+}
+
+async function originFallbackTelemetrySummary(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "1000"), 1, 5000);
+  const rows = await env.CORE_DB.prepare(
+    `SELECT payload_json, created_at
+     FROM operation_audit
+     WHERE operation_type = 'origin_fallback'
+     ORDER BY created_at DESC
+     LIMIT ?`
+  ).bind(limit).all<OperationAuditRow>();
+  const byReason: Record<string, number> = {};
+  const byRoutePattern: Record<string, number> = {};
+  let parseFailures = 0;
+  for (const row of rows.results) {
+    try {
+      const payload = JSON.parse(row.payload_json) as Partial<OriginFallbackTelemetryPayload>;
+      const reason = normalizeOptionalText(payload.reason) ?? "unknown";
+      const routePattern = normalizeOptionalText(payload.routePattern) ?? "unknown";
+      byReason[reason] = (byReason[reason] ?? 0) + 1;
+      byRoutePattern[routePattern] = (byRoutePattern[routePattern] ?? 0) + 1;
+    } catch {
+      parseFailures += 1;
+    }
+  }
+  return json({
+    ok: true,
+    limit,
+    count: rows.results.length,
+    byReason,
+    byRoutePattern,
+    parseFailures,
+    note: "Telemetry excludes query strings, request bodies, cookies, emails, passwords, and exact observation ids."
+  }, 200, { "cache-control": "no-store" });
+}
+
+function fallbackRoutePattern(pathname: string): string {
+  if (/^\/api\/v1\/fields\/[^/]+\/area-snapshot$/.test(pathname)) return "/api/v1/fields/:id/area-snapshot";
+  if (pathname === "/favicon.ico") return "/favicon.ico";
+  if (pathname === "/manifest.webmanifest") return "/manifest.webmanifest";
+  if (/^\/assets\/brand\/[^/]+$/.test(pathname)) return "/assets/brand/:asset";
+  if (/^\/assets\/img\/invasive\/[^/]+$/.test(pathname)) return "/assets/img/invasive/:asset";
+  if (/^\/assets\/[^/]+/.test(pathname)) return "/assets/*";
+  if (/^\/thumb\/[^/]+\/avatars\/[^/]+$/.test(pathname)) return "/thumb/:size/avatars/:asset";
+  if (/^\/thumb\/[^/]+\/v2-observations\/[^/]+\/[^/]+$/.test(pathname)) return "/thumb/:size/v2-observations/:record/:asset";
+  if (pathname === "/thumb/") return "/thumb/";
+  if (/^\/thumb\//.test(pathname)) return "/thumb/*";
+  if (/^(?:\/(?:ja|en|es|pt-br))?\/community\/fields\/[^/]+$/.test(pathname)) return pathname.replace(/^(\/(?:ja|en|es|pt-br))?\/community\/fields\/[^/]+$/, "$1/community/fields/:id");
+  if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[^/]+\/snapshot$/.test(pathname)) return pathname.replace(/^(\/(?:ja|en|es|pt-br))?\/places\/[^/]+\/snapshot$/, "$1/places/:id/snapshot");
+  if (/^(?:\/(?:ja|en|es|pt-br))?\/observations\/[^/]+$/.test(pathname)) return pathname.replace(/^(\/(?:ja|en|es|pt-br))?\/observations\/[^/]+$/, "$1/observations/:id");
+  if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(pathname)) return "/api/v1/observations/:id/photos/upload";
+  if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(pathname)) return "/api/v1/observations/:id/hide";
+  if (/^\/api\/v1\/observations\/[^/]+\/public-detail$/.test(pathname)) return "/api/v1/observations/:id/public-detail";
+  if (/^\/api\/v1\/observations\/[^/]+/.test(pathname)) return "/api/v1/observations/:id/*";
+  if (/^\/api\/v1\/videos\/[^/]+\/body$/.test(pathname)) return "/api/v1/videos/:uid/body";
+  if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(pathname)) return "/api/v1/videos/:uid/finalize";
+  const uuidRedacted = pathname.replace(
+    /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi,
+    "/:id"
+  );
+  if (uuidRedacted.length > 120 || /[<>{}"'`\\]|\s/.test(uuidRedacted) || uuidRedacted.startsWith("/data:")) {
+    return "/_unmatched";
+  }
+  return uuidRedacted;
+}
 
 async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
   const rows = await queryPublicMapRows(env);
@@ -537,11 +1478,337 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
 }
 
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
-  const session = await readCompatibleSession(request, env);
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session || session.banned) {
     return json({ signedIn: false, items: [] }, 200, { "cache-control": "no-store" });
   }
   return json({ signedIn: true, sort: "recent", items: [] }, 200, { "cache-control": "no-store" });
+}
+
+function getPublicMapEmptyGeoJson(kind: string, headers: Record<string, string> = { "cache-control": "no-store" }): Response {
+  return json({
+    type: "FeatureCollection",
+    features: [],
+    stats: {
+      totalReturned: 0,
+      totalAll: 0,
+      source: "cloudflare_compat_empty",
+      kind
+    }
+  }, 200, headers);
+}
+
+function getPublicMapEffortSummaryShim(): Response {
+  return json({
+    actorLens: {
+      actorClass: "community"
+    },
+    myProgress: {
+      revisitCount: 0,
+      roleBreakdown: {
+        note: 0,
+        guide: 0,
+        scan: 0
+      }
+    },
+    communityProgress: {
+      activeCellCount: 0,
+      strengthenedCellCount: 0
+    },
+    frontierRemaining: {
+      blankCount: 0,
+      buildingCount: 0,
+      repeatableCount: 0,
+      matureCount: 0
+    },
+    campaignProgress: {
+      labelKey: "mixed_frontier",
+      priorityCue: "fresh_gap"
+    },
+    compatibility: {
+      source: "cloudflare_compat_empty"
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
+function getPublicMapSiteBriefShim(url: URL): Response {
+  const lat = Number(url.searchParams.get("lat"));
+  const lng = Number(url.searchParams.get("lng"));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return json({ error: "invalid_coords" }, 400, { "cache-control": "no-store" });
+  }
+  return json({
+    hypothesis: {
+      label: "記録不足の場所",
+      confidence: 0.35
+    },
+    reasons: ["Cloudflare移行中の互換表示です。"],
+    checks: ["公開位置はぼかしたまま扱います。"],
+    captureHints: ["写真、音、メモのいずれかを残すと地域の見え方が増えます。"],
+    environmentEvidence: [],
+    officialNotices: [],
+    compatibility: {
+      source: "cloudflare_compat_empty"
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getOriginalUiAreaSnapshot(fieldId: string, request: Request, url: URL, env: Env): Promise<Response> {
+  if (!isSafeFieldId(fieldId)) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const object = await env.ASSET_BUCKET.get(originalUiAreaSnapshotKey(fieldId));
+  if (object?.body) {
+    return new Response(object.body, {
+      headers: {
+        "content-type": object.httpMetadata?.contentType ?? "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-ikimon-cloudflare-materialized": "original-ui-area-snapshot"
+      }
+    });
+  }
+  if (shouldUseOriginFallback(url, env)) {
+    return fetchOriginFallback(request, url, env, "area_snapshot_materialized_miss");
+  }
+  return json({ ok: false, error: "area_snapshot_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+function isSafeFieldId(fieldId: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(fieldId);
+}
+
+function originalUiAreaSnapshotKey(fieldId: string): string {
+  return `original-ui/area-snapshots/${fieldId}.json`;
+}
+
+async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> {
+  const row = await getFieldDetailReadmodelRow(fieldId, env);
+  if (!row) {
+    return json({ ok: false, error: "field_not_found" }, 404, { "cache-control": "no-store" });
+  }
+  return json({
+    ok: true,
+    field: fieldDetailPublicPayload(row),
+    privacy: {
+      exactLocationExposed: false,
+      geometryExposed: false,
+      publicCellPrecision: "0.01_degree"
+    },
+    compatibility: {
+      source: "cloudflare_field_detail_readmodel"
+    }
+  }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "field-detail-readmodel"
+  });
+}
+
+async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const match = parseFieldDetailPath(url.pathname);
+  if (!match) return null;
+  const row = await getFieldDetailReadmodelRow(match.fieldId, env);
+  if (!row) return null;
+  return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang), 200, {
+    "cache-control": "no-store",
+    "vary": "cookie, authorization",
+    "x-ikimon-cloudflare-native": "field-detail-readmodel"
+  });
+}
+
+function parseFieldDetailPath(pathname: string): { lang: string; fieldId: string } | null {
+  const match = pathname.match(/^\/(?:(ja|en|es|pt-br)\/)?community\/fields\/([a-zA-Z0-9][a-zA-Z0-9_-]{0,127})$/);
+  if (!match?.[2]) return null;
+  return { lang: match[1] ?? "ja", fieldId: match[2] };
+}
+
+async function getFieldDetailReadmodelRow(fieldId: string, env: Env): Promise<FieldDetailReadmodelRow | null> {
+  if (!isSafeFieldId(fieldId)) return null;
+  return env.OBS_DB.prepare(
+    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha,
+            has_polygon, has_simplified_geometry,
+            certification_id, certification_url, official_url, owner_url, story_url,
+            verification_level, verification_method, verification_label, source_confidence,
+            valid_from, valid_to, entity_key, updated_at
+       FROM production_import_field_detail_readmodel
+      WHERE field_id = ?`
+  ).bind(fieldId).first<FieldDetailReadmodelRow>();
+}
+
+function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
+  return {
+    fieldId: row.field_id,
+    source: row.source,
+    adminLevel: row.admin_level ?? "",
+    name: row.name,
+    nameKana: row.name_kana ?? "",
+    summary: row.summary ?? "",
+    prefecture: row.prefecture ?? "",
+    city: row.city ?? "",
+    publicLocation: {
+      cell: row.public_cell,
+      lat: row.public_lat,
+      lng: row.public_lng,
+      label: publicFieldLocationLabel(row)
+    },
+    radiusM: row.radius_m,
+    areaHa: row.area_ha,
+    hasPolygon: row.has_polygon === 1,
+    hasSimplifiedGeometry: row.has_simplified_geometry === 1,
+    certificationId: row.certification_id ?? "",
+    links: {
+      certification: row.certification_url ?? "",
+      official: row.official_url ?? "",
+      owner: row.owner_url ?? "",
+      story: row.story_url ?? ""
+    },
+    verification: {
+      level: row.verification_level ?? "",
+      method: row.verification_method ?? "",
+      label: row.verification_label ?? "",
+      confidence: row.source_confidence
+    },
+    validFrom: row.valid_from ?? "",
+    validTo: row.valid_to ?? "",
+    entityKey: row.entity_key ?? "",
+    updatedAt: row.updated_at ?? ""
+  };
+}
+
+function publicFieldLocationLabel(row: FieldDetailReadmodelRow): string {
+  const parts = [row.prefecture, row.city].filter((part): part is string => Boolean(part && part.trim()));
+  return parts.length > 0 ? parts.join(" ") : "位置をぼかしています";
+}
+
+async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): Promise<Response> {
+  const object = await env.ASSET_BUCKET.get(originalUiStaticAssetKey(url.pathname));
+  if (object?.body) {
+    return new Response(request.method === "HEAD" ? null : object.body, {
+      headers: {
+        "content-type": object.httpMetadata?.contentType ?? contentTypeForOriginalUiStaticAsset(url.pathname),
+        "cache-control": cacheControlForOriginalUiStaticAsset(url.pathname),
+        "x-ikimon-cloudflare-materialized": "original-ui-static-asset"
+      }
+    });
+  }
+  if (shouldUseOriginFallback(url, env)) {
+    return fetchOriginFallback(request, url, env, "static_asset_materialized_miss");
+  }
+  return json({ ok: false, error: "static_asset_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+function isOriginalUiStaticAssetPath(pathname: string): boolean {
+  if (pathname === "/offline.html" || pathname === "/robots.txt" || pathname === "/app-sw.js") return true;
+  if (pathname === "/sitemap.xml") return true;
+  if (pathname === "/favicon.ico" || pathname === "/manifest.webmanifest") return true;
+  if (/^\/assets\/brand\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
+  if (/^\/assets\/img\/invasive\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
+  return false;
+}
+
+function originalUiStaticAssetKey(pathname: string): string {
+  return `original-ui/static/${pathname.replace(/^\/+/, "")}`;
+}
+
+function contentTypeForOriginalUiStaticAsset(pathname: string): string {
+  if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
+  if (pathname.endsWith(".txt")) return "text/plain; charset=utf-8";
+  if (pathname.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (pathname.endsWith(".xml")) return "application/xml; charset=utf-8";
+  if (pathname.endsWith(".json")) return "application/json; charset=utf-8";
+  if (pathname.endsWith(".webmanifest")) return "application/manifest+json; charset=utf-8";
+  if (pathname.endsWith(".ico")) return "image/x-icon";
+  if (pathname.endsWith(".png")) return "image/png";
+  if (pathname.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
+}
+
+function cacheControlForOriginalUiStaticAsset(pathname: string): string {
+  if (pathname === "/manifest.webmanifest") return "public, max-age=300";
+  return "public, max-age=31536000, immutable";
+}
+
+async function getOriginalUiThumb(request: Request, url: URL, env: Env): Promise<Response> {
+  const object = await env.ASSET_BUCKET.get(originalUiThumbKey(url.pathname));
+  if (object?.body) {
+    return new Response(request.method === "HEAD" ? null : object.body, {
+      headers: {
+        "content-type": object.httpMetadata?.contentType ?? contentTypeForOriginalUiThumb(url.pathname),
+        "cache-control": "public, max-age=31536000, immutable",
+        "x-ikimon-cloudflare-materialized": "original-ui-thumb"
+      }
+    });
+  }
+  if (shouldUseOriginFallback(url, env)) {
+    return fetchOriginFallback(request, url, env, "thumb_materialized_miss");
+  }
+  return json({ ok: false, error: "thumb_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+function isOriginalUiThumbPath(pathname: string): boolean {
+  if (pathname === "/thumb/") return true;
+  return /^\/thumb\/[a-zA-Z0-9._-]+\/(?:avatars|v2-observations)\/[a-zA-Z0-9._/-]+$/.test(pathname);
+}
+
+function originalUiThumbKey(pathname: string): string {
+  return `original-ui/thumb/${pathname.replace(/^\/thumb\/?/, "")}`;
+}
+
+function contentTypeForOriginalUiThumb(pathname: string): string {
+  if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) return "image/jpeg";
+  if (pathname.endsWith(".png")) return "image/png";
+  if (pathname.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
+}
+
+async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
+  if (hasPersonalizedHtmlHeaders(request)) {
+    if (shouldUseOriginFallback(url, env)) {
+      return fetchOriginFallback(request, url, env, "html_personalized_request");
+    }
+    return json({ ok: false, error: "html_requires_origin_for_personalized_request" }, 404, { "cache-control": "no-store" });
+  }
+
+  const object = await env.ASSET_BUCKET.get(originalUiHtmlKey(url.pathname));
+  if (object?.body) {
+    return new Response(request.method === "HEAD" ? null : object.body, {
+      headers: {
+        "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "vary": "cookie, authorization",
+        "x-ikimon-cloudflare-materialized": "original-ui-html"
+      }
+    });
+  }
+
+  const nativeFieldDetail = await getNativeFieldDetailHtmlIfAvailable(request, url, env);
+  if (nativeFieldDetail) {
+    return nativeFieldDetail;
+  }
+
+  if (shouldUseOriginFallback(url, env)) {
+    return fetchOriginFallback(request, url, env, "html_materialized_miss");
+  }
+  return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+function isOriginalUiHtmlPath(pathname: string): boolean {
+  if (ORIGINAL_UI_HTML_STATIC_PATHS.has(pathname)) return true;
+  if (/^(?:\/(?:ja|en|es|pt-br))?\/community\/fields\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(pathname)) return true;
+  if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}\/snapshot$/.test(pathname)) return true;
+  return false;
+}
+
+function originalUiHtmlKey(pathname: string): string {
+  const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+  return `original-ui/html/${cleanPath}.html`;
+}
+
+function hasPersonalizedHtmlHeaders(request: Request): boolean {
+  const cookie = request.headers.get("cookie")?.trim();
+  if (cookie) return true;
+  const authorization = request.headers.get("authorization")?.trim();
+  return Boolean(authorization);
 }
 
 async function getPublicDerivedMedia(url: URL, env: Env): Promise<Response> {
@@ -781,6 +2048,9 @@ async function issueCompatibleSession(request: Request, env: Env): Promise<Respo
   if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
+  if (env.ENVIRONMENT === "production" && PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname)) {
+    return json({ ok: false, error: "not_available" }, 404);
+  }
   const input = await readJson<SessionIssueInput>(request);
   assertNonEmpty(input.userId, "userId");
   const ttlHours = typeof input.ttlHours === "number" && Number.isFinite(input.ttlHours) && input.ttlHours > 0
@@ -834,7 +2104,7 @@ async function issueCompatibleSession(request: Request, env: Env): Promise<Respo
 
 async function getCompatibleSession(request: Request, url: URL, env: Env): Promise<Response> {
   const optional = url.searchParams.get("optional") === "1" || url.searchParams.get("optional") === "true";
-  const session = await readCompatibleSession(request, env);
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session) {
     return optional
       ? json({ ok: false, error: "session_not_found", session: null })
@@ -873,6 +2143,529 @@ async function logoutCompatibleSession(request: Request, env: Env): Promise<Resp
   });
 }
 
+async function handleOAuthStart(request: Request, providerInput: unknown, env: Env): Promise<Response> {
+  const provider = oauthProviderFromInput(providerInput);
+  if (!provider) return oauthErrorRedirect(env);
+  if (!getOAuthConfig(env, provider)) {
+    if (shouldFallbackOAuthToOrigin(request, env)) {
+      return fetchOriginFallback(request, new URL(request.url), env, "oauth_provider_not_configured");
+    }
+    return oauthErrorRedirect(env);
+  }
+
+  const url = new URL(request.url);
+  const start = await buildOAuthStart(provider, request, env, url.searchParams.get("redirect"));
+  return redirect303(start.authorizationUrl, {
+    "cache-control": "no-store",
+    "set-cookie": start.cookie
+  });
+}
+
+async function handleOAuthCallback(request: Request, providerInput: unknown, env: Env): Promise<Response> {
+  const provider = oauthProviderFromInput(providerInput);
+  if (!provider) return oauthErrorRedirect(env, true);
+  if (!getOAuthConfig(env, provider)) {
+    if (shouldFallbackOAuthToOrigin(request, env)) {
+      return fetchOriginFallback(request, new URL(request.url), env, "oauth_provider_not_configured");
+    }
+    return oauthErrorRedirect(env, true);
+  }
+
+  try {
+    const url = new URL(request.url);
+    const state = await readOAuthState(request.headers.get("cookie"), env);
+    const callbackState = url.searchParams.get("state") ?? "";
+    const code = url.searchParams.get("code") ?? "";
+    if (!state || state.provider !== provider || state.state !== callbackState || !code || url.searchParams.has("error")) {
+      throw new Error("oauth_state_invalid");
+    }
+    const profile = await exchangeOAuthCode(provider, code, oauthRedirectUri(request, provider), state.codeVerifier, env);
+    const user = await findOrCreateOAuthUser(profile, env);
+    const session = await issueSessionForAuthUser(request, env, user);
+    const headers = new Headers({
+      location: safeRedirectPath(state.redirect),
+      "cache-control": "no-store"
+    });
+    headers.append("set-cookie", session.cookie);
+    headers.append("set-cookie", buildClearedOAuthStateCookie(env));
+    return new Response(null, { status: 303, headers });
+  } catch (error) {
+    console.warn(JSON.stringify({
+      message: "oauth_callback_failed",
+      provider,
+      error: error instanceof Error ? error.message : "unknown"
+    }));
+    return oauthErrorRedirect(env, true);
+  }
+}
+
+async function loginWithPassword(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+
+  const fallbackRequest = request.clone();
+  const input = await readJson<AuthLoginInput>(request);
+  const email = normalizeEmail(input.email);
+  const password = typeof input.password === "string" ? input.password : "";
+  let user: AuthUserRow | null = null;
+  try {
+    user = email && password ? await findAuthUserByEmail(email, env) : null;
+  } catch {
+    if (shouldFallbackLoginToOrigin(fallbackRequest, env)) {
+      return fetchOriginFallback(fallbackRequest, new URL(fallbackRequest.url), env, "auth_store_unavailable");
+    }
+    throw new HttpError(500, "auth_store_unavailable");
+  }
+  const passwordOk = await verifyPassword(password, user?.password_hash ?? null);
+  if (!user || !passwordOk) {
+    if (shouldFallbackLoginToOrigin(fallbackRequest, env)) {
+      return fetchOriginFallback(fallbackRequest, new URL(fallbackRequest.url), env, "auth_d1_miss_or_mismatch");
+    }
+    return json({ ok: false, error: "invalid_credentials" }, 401, { "cache-control": "no-store" });
+  }
+  if (user.banned) {
+    return json({ ok: false, error: "account_disabled" }, 403, { "cache-control": "no-store" });
+  }
+
+  const session = await issueSessionForAuthUser(request, env, user);
+  await env.CORE_DB.prepare(
+    "UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP WHERE user_id = ?"
+  ).bind(user.user_id).run();
+
+  return json({
+    ok: true,
+    redirect: safeRedirectPath(input.redirect),
+    session: session.session
+  }, 200, {
+    "cache-control": "no-store",
+    "set-cookie": session.cookie
+  });
+}
+
+function shouldFallbackLoginToOrigin(request: Request, env: Env): boolean {
+  if (env.ENVIRONMENT !== "production" || !env.ORIGIN_FALLBACK_BASE_URL) return false;
+  return PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname);
+}
+
+function shouldFallbackOAuthToOrigin(request: Request, env: Env): boolean {
+  if (env.ENVIRONMENT !== "production" || !env.ORIGIN_FALLBACK_BASE_URL) return false;
+  return PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname);
+}
+
+function oauthProviderFromInput(input: unknown): OAuthProvider | null {
+  const value = typeof input === "string" ? input.toLowerCase().trim() : "";
+  return value === "google" || value === "twitter" ? value : null;
+}
+
+function getOAuthConfig(env: Env, provider: OAuthProvider): { clientId: string; clientSecret: string } | null {
+  const clientId = provider === "google" ? env.GOOGLE_CLIENT_ID : env.TWITTER_CLIENT_ID;
+  const clientSecret = provider === "google" ? env.GOOGLE_CLIENT_SECRET : env.TWITTER_CLIENT_SECRET;
+  if (!clientId?.trim() || !clientSecret?.trim()) return null;
+  return { clientId: clientId.trim(), clientSecret: clientSecret.trim() };
+}
+
+function oauthStateSecret(env: Env): string {
+  return env.V2_OAUTH_STATE_SECRET?.trim()
+    ?? env.GOOGLE_CLIENT_SECRET?.trim()
+    ?? env.TWITTER_CLIENT_SECRET?.trim()
+    ?? "ikimon-dev-oauth-state";
+}
+
+async function signOAuthState(encodedPayload: string, env: Env): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    textToArrayBuffer(oauthStateSecret(env)),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return arrayBufferToBase64Url(await crypto.subtle.sign("HMAC", key, textToArrayBuffer(encodedPayload)));
+}
+
+async function encodeOAuthState(payload: OAuthStatePayload, env: Env): Promise<string> {
+  const encoded = base64UrlEncodeText(JSON.stringify(payload));
+  return `${encoded}.${await signOAuthState(encoded, env)}`;
+}
+
+async function decodeOAuthState(value: string | undefined, env: Env): Promise<OAuthStatePayload | null> {
+  if (!value) return null;
+  const [encoded, signature] = value.split(".");
+  if (!encoded || !signature) return null;
+  const expected = await signOAuthState(encoded, env);
+  if (!constantTimeStringEqual(signature, expected)) return null;
+  try {
+    const parsed = JSON.parse(arrayBufferToText(base64UrlToArrayBuffer(encoded))) as OAuthStatePayload;
+    if (!parsed || parsed.expiresAt < Date.now()) return null;
+    if (parsed.provider !== "google" && parsed.provider !== "twitter") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function readOAuthState(cookieHeader: string | null, env: Env): Promise<OAuthStatePayload | null> {
+  const raw = parseCookies(cookieHeader).ikimon_oauth_state;
+  return decodeOAuthState(raw, env);
+}
+
+async function buildOAuthStateCookie(payload: OAuthStatePayload, env: Env): Promise<string> {
+  const secure = env.ENVIRONMENT === "production" ? " Secure;" : "";
+  return `ikimon_oauth_state=${encodeURIComponent(await encodeOAuthState(payload, env))}; Path=/; HttpOnly; SameSite=Lax;${secure} Max-Age=600`;
+}
+
+function buildClearedOAuthStateCookie(env: Env): string {
+  const secure = env.ENVIRONMENT === "production" ? " Secure;" : "";
+  return `ikimon_oauth_state=; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
+
+function requestPublicOrigin(request: Request): string {
+  const url = new URL(request.url);
+  const forwardedHost = headerFirst(request.headers.get("x-forwarded-host"));
+  const forwardedProto = headerFirst(request.headers.get("x-forwarded-proto"));
+  return `${forwardedProto || url.protocol.replace(":", "")}://${forwardedHost || url.host}`;
+}
+
+function oauthRedirectUri(request: Request, provider: OAuthProvider): string {
+  const origin = requestPublicOrigin(request);
+  return provider === "google"
+    ? `${origin}/oauth_callback.php?provider=google`
+    : `${origin}/auth/oauth/${provider}/callback`;
+}
+
+async function buildOAuthStart(provider: OAuthProvider, request: Request, env: Env, redirectInput: unknown): Promise<{
+  cookie: string;
+  authorizationUrl: string;
+}> {
+  const config = getOAuthConfig(env, provider);
+  if (!config) throw new Error("oauth_provider_not_configured");
+  const state = randomToken().slice(0, 40);
+  const codeVerifier = provider === "twitter" ? randomToken() : undefined;
+  const payload: OAuthStatePayload = {
+    provider,
+    state,
+    redirect: safeRedirectPath(redirectInput),
+    codeVerifier,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  };
+  const params = new URLSearchParams({
+    client_id: config.clientId,
+    redirect_uri: oauthRedirectUri(request, provider),
+    response_type: "code",
+    state
+  });
+  if (provider === "google") {
+    params.set("scope", "openid email profile");
+    params.set("prompt", "select_account");
+    return {
+      cookie: await buildOAuthStateCookie(payload, env),
+      authorizationUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+    };
+  }
+
+  params.set("scope", "tweet.read users.read offline.access");
+  params.set("code_challenge", await codeChallenge(codeVerifier ?? ""));
+  params.set("code_challenge_method", "S256");
+  return {
+    cookie: await buildOAuthStateCookie(payload, env),
+    authorizationUrl: `https://twitter.com/i/oauth2/authorize?${params.toString()}`
+  };
+}
+
+async function exchangeOAuthCode(provider: OAuthProvider, code: string, redirectUri: string, codeVerifier: string | undefined, env: Env): Promise<OAuthProfile> {
+  const config = getOAuthConfig(env, provider);
+  if (!config) throw new Error("oauth_provider_not_configured");
+  if (provider === "google") {
+    const token = await postForm("https://oauth2.googleapis.com/token", new URLSearchParams({
+      code,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code"
+    }));
+    const accessToken = typeof token.access_token === "string" ? token.access_token : "";
+    if (!accessToken) throw new Error("oauth_token_failed");
+    const profile = await getJson("https://www.googleapis.com/oauth2/v2/userinfo", accessToken);
+    return {
+      provider,
+      providerUserId: String(profile.id ?? ""),
+      name: String(profile.name ?? ""),
+      email: typeof profile.email === "string" ? profile.email : null,
+      avatarUrl: typeof profile.picture === "string" ? profile.picture : null,
+      rawProfile: profile
+    };
+  }
+
+  const token = await postForm("https://api.x.com/2/oauth2/token", new URLSearchParams({
+    code,
+    grant_type: "authorization_code",
+    redirect_uri: redirectUri,
+    code_verifier: codeVerifier ?? ""
+  }), {
+    authorization: `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`
+  });
+  const accessToken = typeof token.access_token === "string" ? token.access_token : "";
+  if (!accessToken) throw new Error("oauth_token_failed");
+  const profile = await getJson("https://api.x.com/2/users/me?user.fields=profile_image_url,name,username", accessToken);
+  const data = profile.data && typeof profile.data === "object" ? profile.data as Record<string, unknown> : {};
+  return {
+    provider,
+    providerUserId: String(data.id ?? ""),
+    name: String(data.name ?? data.username ?? ""),
+    email: null,
+    avatarUrl: typeof data.profile_image_url === "string" ? data.profile_image_url : null,
+    rawProfile: profile
+  };
+}
+
+async function postForm(url: string, body: URLSearchParams, headers: Record<string, string> = {}): Promise<Record<string, unknown>> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      accept: "application/json",
+      ...headers
+    },
+    body: body.toString()
+  });
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new Error(String(payload.error_description ?? payload.error ?? "oauth_token_failed"));
+  }
+  return payload;
+}
+
+async function getJson(url: string, accessToken: string): Promise<Record<string, unknown>> {
+  const response = await fetch(url, {
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      accept: "application/json"
+    }
+  });
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(String(payload.error ?? "oauth_profile_failed"));
+  return payload;
+}
+
+async function findOrCreateOAuthUser(profile: OAuthProfile, env: Env): Promise<AuthUserRow> {
+  if (!profile.providerUserId.trim()) throw new Error("oauth_profile_invalid");
+  const existing = await findOAuthAccount(profile.provider, profile.providerUserId, env);
+  if (existing) {
+    if (existing.banned) throw new Error("account_disabled");
+    await upsertOAuthAccount(existing.user_id, profile, existing.display_name, existing.role_name, existing.rank_label, existing.banned, env);
+    return oauthAccountToAuthUser(existing);
+  }
+
+  const email = normalizeEmail(profile.email);
+  const authUser = email ? await findAuthUserByEmail(email, env) : null;
+  if (authUser?.banned) throw new Error("account_disabled");
+  const userId = authUser?.user_id ?? `user_${crypto.randomUUID()}`;
+  const displayName = authUser?.display_name ?? normalizeOptionalText(profile.name) ?? "ikimon user";
+  const roleName = authUser?.role_name ?? "Observer";
+  const rankLabel = authUser?.rank_label ?? "観察者";
+  await env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
+  await upsertOAuthAccount(userId, profile, displayName, roleName, rankLabel, authUser?.banned ?? 0, env);
+  if (authUser) {
+    await env.CORE_DB.prepare("UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(authUser.user_id).run();
+  }
+  return {
+    user_id: userId,
+    email,
+    password_hash: authUser?.password_hash ?? null,
+    display_name: displayName,
+    role_name: roleName,
+    rank_label: rankLabel,
+    banned: authUser?.banned ?? 0
+  };
+}
+
+async function findOAuthAccount(provider: OAuthProvider, providerUserId: string, env: Env): Promise<OAuthAccountRow | null> {
+  return env.CORE_DB.prepare(
+    `SELECT user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned
+     FROM oauth_accounts
+     WHERE provider = ? AND provider_user_id = ?
+     LIMIT 1`
+  ).bind(provider, providerUserId).first<OAuthAccountRow>();
+}
+
+async function upsertOAuthAccount(
+  userId: string,
+  profile: OAuthProfile,
+  displayName: string,
+  roleName: string | null,
+  rankLabel: string | null,
+  banned: number,
+  env: Env
+): Promise<void> {
+  await env.CORE_DB.prepare(
+    `INSERT INTO oauth_accounts
+     (user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned, profile_json, linked_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(provider, provider_user_id) DO UPDATE SET
+       user_id = excluded.user_id,
+       provider_email = excluded.provider_email,
+       display_name = excluded.display_name,
+       role_name = excluded.role_name,
+       rank_label = excluded.rank_label,
+       banned = excluded.banned,
+       profile_json = excluded.profile_json,
+       linked_at = CURRENT_TIMESTAMP`
+  ).bind(
+    userId,
+    profile.provider,
+    profile.providerUserId,
+    profile.email,
+    displayName,
+    roleName ?? "Observer",
+    rankLabel,
+    banned,
+    JSON.stringify(profile.rawProfile)
+  ).run();
+}
+
+function oauthAccountToAuthUser(row: OAuthAccountRow): AuthUserRow {
+  return {
+    user_id: row.user_id,
+    email: row.provider_email ?? "",
+    password_hash: null,
+    display_name: row.display_name,
+    role_name: row.role_name,
+    rank_label: row.rank_label,
+    banned: row.banned
+  };
+}
+
+function oauthErrorRedirect(env: Env, clearState = false): Response {
+  return redirect303("/login?error=oauth", clearState ? {
+    "cache-control": "no-store",
+    "set-cookie": buildClearedOAuthStateCookie(env)
+  } : { "cache-control": "no-store" });
+}
+
+async function findAuthUserByEmail(email: string, env: Env): Promise<AuthUserRow | null> {
+  return env.CORE_DB.prepare(
+    `SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned
+     FROM auth_users
+     WHERE lower(email) = lower(?)
+     LIMIT 1`
+  ).bind(email).first<AuthUserRow>();
+}
+
+async function issueSessionForAuthUser(request: Request, env: Env, user: AuthUserRow): Promise<{ cookie: string; session: SessionSnapshot }> {
+  const rawToken = randomToken();
+  const tokenHash = await sha256Hex(textToArrayBuffer(rawToken));
+  const expiresAt = new Date(Date.now() + 24 * 30 * 60 * 60 * 1000).toISOString();
+  const roleName = normalizeOptionalText(user.role_name) ?? "Observer";
+  const rankLabel = normalizeOptionalText(user.rank_label) ?? "観察者";
+
+  await env.CORE_DB.batch([
+    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(user.user_id),
+    env.CORE_DB.prepare(
+      `INSERT INTO auth_sessions
+       (token_hash, user_id, display_name, role_name, rank_label, banned, expires_at, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`
+    ).bind(
+      tokenHash,
+      user.user_id,
+      user.display_name,
+      roleName,
+      rankLabel,
+      expiresAt,
+      request.headers.get("cf-connecting-ip") ?? null,
+      request.headers.get("user-agent") ?? null
+    )
+  ]);
+
+  return {
+    cookie: buildSessionCookie(rawToken, expiresAt, env),
+    session: {
+      tokenHash,
+      userId: user.user_id,
+      displayName: user.display_name,
+      roleName,
+      rankLabel,
+      banned: false,
+      expiresAt
+    }
+  };
+}
+
+async function verifyPassword(password: string, storedHash: string | null): Promise<boolean> {
+  const hash = storedHash?.trim();
+  if (!password || !hash) return false;
+  try {
+    return await bcrypt.compare(password, normalizeLegacyBcryptHash(hash));
+  } catch {
+    return false;
+  }
+}
+
+function normalizeLegacyBcryptHash(hash: string): string {
+  return hash.startsWith("$2y$") ? `$2b$${hash.slice(4)}` : hash;
+}
+
+function assertSameOriginRequest(request: Request): Response | null {
+  const secFetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
+  if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
+    return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
+  }
+
+  const origin = request.headers.get("origin")?.trim();
+  if (!origin) return null;
+
+  const url = new URL(request.url);
+  let parsedOrigin: URL;
+  try {
+    parsedOrigin = new URL(origin);
+  } catch {
+    return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
+  }
+  if (parsedOrigin.protocol !== url.protocol || parsedOrigin.host !== url.host) {
+    return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
+  }
+  return null;
+}
+
+function normalizeEmail(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function safeRedirectPath(value: unknown, fallback = "/record"): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\") || raw.includes("\u0000")) {
+    return fallback;
+  }
+  try {
+    const parsed = new URL(raw, "https://ikimon.local");
+    if (parsed.origin !== "https://ikimon.local") return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+async function recordUiKpiEventShim(request: Request): Promise<Response> {
+  const input = await readJson<Record<string, unknown>>(request);
+  const eventName = normalizeOptionalText(input.eventName);
+  if (!eventName || ![
+    "first_action",
+    "task_completion",
+    "section_view",
+    "read_depth",
+    "primary_cta_click",
+    "funnel_step",
+    "funnel_error"
+  ].includes(eventName)) {
+    return json({ ok: false, error: "invalid_event_name" }, 400, { "cache-control": "no-store" });
+  }
+  return json({
+    ok: true,
+    eventId: `cf-ui-kpi-${crypto.randomUUID()}`,
+    compatibility: {
+      source: "cloudflare_compat_noop"
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
 async function readCompatibleSession(request: Request, env: Env): Promise<SessionSnapshot | null> {
   const rawToken = readSessionTokenFromCookie(request.headers.get("cookie"));
   if (!rawToken) return null;
@@ -905,11 +2698,93 @@ async function readCompatibleSession(request: Request, env: Env): Promise<Sessio
   };
 }
 
+async function readCompatibleSessionWithOriginFallback(request: Request, env: Env): Promise<SessionSnapshot | null> {
+  const session = await readCompatibleSession(request, env);
+  if (session) return session;
+  return importOriginSessionIfAvailable(request, env);
+}
+
+async function importOriginSessionIfAvailable(request: Request, env: Env): Promise<SessionSnapshot | null> {
+  if (!env.ORIGIN_FALLBACK_BASE_URL) return null;
+  const requestUrl = new URL(request.url);
+  if (!PUBLIC_CUSTOM_HOSTS.has(requestUrl.hostname)) return null;
+  const rawToken = readSessionTokenFromCookie(request.headers.get("cookie"));
+  if (!rawToken) return null;
+  const tokenHash = await sha256Hex(textToArrayBuffer(rawToken));
+
+  const originUrl = new URL(request.url);
+  originUrl.pathname = "/api/v1/auth/session";
+  originUrl.search = "?optional=1";
+  const headers = new Headers();
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers.set("cookie", cookie);
+  const userAgent = request.headers.get("user-agent");
+  if (userAgent) headers.set("user-agent", userAgent);
+  headers.set("accept", "application/json");
+
+  const response = await fetchOriginFallback(new Request(originUrl.toString(), {
+    method: "GET",
+    headers
+  }), originUrl, env, "origin_session_probe");
+  if (!response.ok) return null;
+
+  let payload: OriginSessionResponse;
+  try {
+    payload = await response.json() as OriginSessionResponse;
+  } catch {
+    return null;
+  }
+  if (payload.ok !== true || !payload.session) return null;
+  const originTokenHash = normalizeOptionalText(payload.session.tokenHash);
+  if (originTokenHash && originTokenHash !== tokenHash) return null;
+  const userId = normalizeOptionalText(payload.session.userId);
+  const displayName = normalizeOptionalText(payload.session.displayName) ?? userId;
+  const roleName = normalizeOptionalText(payload.session.roleName) ?? "Observer";
+  const rankLabel = normalizeOptionalText(payload.session.rankLabel);
+  const expiresAt = normalizeOptionalText(payload.session.expiresAt);
+  if (!userId || !expiresAt) return null;
+
+  const session: SessionSnapshot = {
+    tokenHash,
+    userId,
+    displayName: displayName ?? userId,
+    roleName,
+    rankLabel,
+    banned: payload.session.banned === true,
+    expiresAt
+  };
+  await env.CORE_DB.batch([
+    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(session.userId),
+    env.CORE_DB.prepare(
+      `INSERT INTO auth_sessions
+       (token_hash, user_id, display_name, role_name, rank_label, banned, expires_at, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'origin-session-lazy-import')
+       ON CONFLICT(token_hash) DO UPDATE SET
+         user_id = excluded.user_id,
+         display_name = excluded.display_name,
+         role_name = excluded.role_name,
+         rank_label = excluded.rank_label,
+         banned = excluded.banned,
+         expires_at = excluded.expires_at,
+         user_agent = excluded.user_agent`
+    ).bind(
+      session.tokenHash,
+      session.userId,
+      session.displayName,
+      session.roleName,
+      session.rankLabel,
+      session.banned ? 1 : 0,
+      session.expiresAt
+    )
+  ]);
+  return session;
+}
+
 async function createCompatibleVideoDirectUpload(request: Request, env: Env): Promise<Response> {
   if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
-  const session = await readCompatibleSession(request, env);
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session) {
     return json({ ok: false, error: "session_required" }, 401);
   }
@@ -984,7 +2859,7 @@ async function finalizeCompatibleVideo(uid: string, request: Request, env: Env):
     return json({ ok: false, error: "not_available" }, 404);
   }
   assertNonEmpty(uid, "uid");
-  const session = await readCompatibleSession(request, env);
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session) {
     return json({ ok: false, error: "session_required" }, 401);
   }
@@ -1145,7 +3020,18 @@ async function attachVideoAssetToObservation(input: {
 
 async function upsertLegacyCompatibleObservation(request: Request, env: Env): Promise<Response> {
   const input = await readJson<LegacyObservationUpsertInput>(request);
-  assertNonEmpty(input.userId, "userId");
+  if (env.ENVIRONMENT === "production") {
+    const session = await readCompatibleSessionWithOriginFallback(request, env);
+    if (!session) {
+      return json({ ok: false, error: "session_required" }, 401);
+    }
+    assertNonEmpty(input.userId, "userId");
+    if (session.userId !== input.userId) {
+      return json({ ok: false, error: "forbidden" }, 403);
+    }
+  } else {
+    assertNonEmpty(input.userId, "userId");
+  }
   if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
     throw new HttpError(400, "missing_location");
   }
@@ -1301,6 +3187,15 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   ).bind(observationId).first<{ draft_id: string; owner_user_id: string; partition_month: string | null }>();
   if (!observation) {
     return json({ ok: false, error: `observation not found: ${observationId}` }, 404);
+  }
+  if (env.ENVIRONMENT === "production") {
+    const session = await readCompatibleSessionWithOriginFallback(request, env);
+    if (!session) {
+      return json({ ok: false, error: "session_required" }, 401);
+    }
+    if (session.userId !== observation.owner_user_id) {
+      return json({ ok: false, error: "forbidden" }, 403);
+    }
   }
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
 
@@ -1666,7 +3561,7 @@ async function hideCompatibleObservation(observationId: string, request: Request
     return json({ ok: false, error: "not_available" }, 404);
   }
   assertNonEmpty(observationId, "observationId");
-  const session = await readCompatibleSession(request, env);
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session) {
     return json({ ok: false, error: "session_required" }, 401);
   }
@@ -3510,6 +5405,62 @@ function clampInteger(value: number, min: number, max: number): number {
   return Number.isFinite(value) ? Math.min(Math.max(Math.trunc(value), min), max) : min;
 }
 
+function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): string {
+  const payload = fieldDetailPublicPayload(row);
+  const isEnglish = lang === "en";
+  const title = isEnglish ? `${payload.name} - ikimon field` : `${payload.name} - ikimon フィールド`;
+  const locationLabel = payload.publicLocation.label;
+  const links = [
+    ["official", payload.links.official],
+    ["certification", payload.links.certification],
+    ["owner", payload.links.owner],
+    ["story", payload.links.story]
+  ].filter(([, href]) => href);
+  const linkHtml = links.length > 0
+    ? `<ul>${links.map(([label, href]) => `<li><a href="${escapeHtml(href)}" rel="nofollow noopener">${escapeHtml(label)}</a></li>`).join("")}</ul>`
+    : `<p class="muted">${isEnglish ? "No public links are available." : "公開リンクはまだありません。"}</p>`;
+  return `<!doctype html>
+<html lang="${escapeHtml(lang)}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; color: #17201a; background: #f6f8f5; }
+    main { max-width: 920px; margin: 0 auto; padding: 30px 18px 56px; }
+    a { color: #176b45; font-weight: 800; }
+    h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: 0; }
+    .meta, .muted { color: #53615a; line-height: 1.7; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 22px; }
+    .panel { background: #fff; border: 1px solid #d8e0da; border-radius: 8px; padding: 15px 16px; }
+    .label { color: #53615a; font-size: 13px; margin: 0 0 6px; }
+    .value { margin: 0; font-weight: 800; overflow-wrap: anywhere; }
+    .summary { font-size: 16px; line-height: 1.85; }
+  </style>
+</head>
+<body>
+<main data-ikimon-field-detail="1" data-field-id="${escapeHtml(payload.fieldId)}" data-cloudflare-source="field-detail-readmodel">
+  <p class="meta">${isEnglish ? "ikimon public field" : "ikimon 公開フィールド"}</p>
+  <h1>${escapeHtml(payload.name)}</h1>
+  ${payload.summary ? `<p class="summary">${escapeHtml(payload.summary)}</p>` : ""}
+  <section class="grid" aria-label="field metadata">
+    <div class="panel"><p class="label">${isEnglish ? "Public location" : "公開位置"}</p><p class="value">${escapeHtml(locationLabel)} / ${escapeHtml(payload.publicLocation.cell)}</p></div>
+    <div class="panel"><p class="label">${isEnglish ? "Radius" : "半径"}</p><p class="value">${payload.radiusM ? `${payload.radiusM}m` : "-"}</p></div>
+    <div class="panel"><p class="label">${isEnglish ? "Source" : "ソース"}</p><p class="value">${escapeHtml(payload.source)}</p></div>
+    <div class="panel"><p class="label">${isEnglish ? "Verification" : "確認状態"}</p><p class="value">${escapeHtml(payload.verification.label || payload.verification.level || "-")}</p></div>
+  </section>
+  <section class="panel">
+    <h2>${isEnglish ? "Links" : "関連リンク"}</h2>
+    ${linkHtml}
+  </section>
+  <section class="panel">
+    <p class="muted">${isEnglish ? "Exact coordinates and geometry are not exposed on this public page." : "この公開ページでは、正確な座標とジオメトリ本体は表示しません。"}</p>
+  </section>
+</main>
+</body>
+</html>`;
+}
+
 function renderObservationNotFoundHtml(): string {
   return `<!doctype html>
 <html lang="ja">
@@ -3977,6 +5928,44 @@ function textToArrayBuffer(value: string): ArrayBuffer {
   return new TextEncoder().encode(value).buffer;
 }
 
+function arrayBufferToText(value: ArrayBuffer): string {
+  return new TextDecoder().decode(value);
+}
+
+function arrayBufferToBase64Url(value: ArrayBuffer): string {
+  const bytes = new Uint8Array(value);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToArrayBuffer(value: string): ArrayBuffer {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
+  return base64ToArrayBuffer(padded);
+}
+
+function base64UrlEncodeText(value: string): string {
+  return arrayBufferToBase64Url(textToArrayBuffer(value));
+}
+
+function constantTimeStringEqual(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  let diff = aBytes.length ^ bBytes.length;
+  const max = Math.max(aBytes.length, bBytes.length);
+  for (let index = 0; index < max; index += 1) {
+    diff |= (aBytes[index] ?? 0) ^ (bBytes[index] ?? 0);
+  }
+  return diff === 0;
+}
+
+async function codeChallenge(verifier: string): Promise<string> {
+  return arrayBufferToBase64Url(await crypto.subtle.digest("SHA-256", textToArrayBuffer(verifier)));
+}
+
 function shadowSafeMp4Bytes(): ArrayBuffer {
   return textToArrayBuffer("\u0000\u0000\u0000\u0018ftypmp42\u0000\u0000\u0000\u0000mp42isom\u0000\u0000\u0000\u0010moovsafe\u0000\u0000\u0000\u0010mdatikimon");
 }
@@ -4025,6 +6014,20 @@ function parseCookies(headerValue: string | null): Record<string, string> {
     cookies[name] = decodeURIComponent(value);
     return cookies;
   }, {});
+}
+
+function headerFirst(value: string | null): string {
+  return value?.split(",")[0]?.trim() ?? "";
+}
+
+function redirect303(location: string, headers?: Record<string, string>): Response {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location,
+      ...(headers ?? {})
+    }
+  });
 }
 
 function readSessionTokenFromCookie(headerValue: string | null): string | null {

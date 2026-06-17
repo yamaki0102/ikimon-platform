@@ -248,6 +248,24 @@ Read-only smoke:
 
 No `ikimon.life` DNS, route, custom domain, maintenance mode, VPS data, or production user data was changed.
 
+## Production Worker Deploy Guard
+
+Use the guarded deploy entrypoint instead of running `wrangler deploy --env production` directly:
+
+```bash
+npm run deploy:production:dry-run
+```
+
+This runs `npm run check`, `npm test`, `wrangler --version`, and `wrangler deploy --env production --dry-run`.
+
+Production deploy requires an explicit approval code and then smokes both workers.dev and the public custom domain:
+
+```bash
+npm run deploy:production -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+```
+
+The guard does not change DNS, D1 data, R2 objects, secrets, billing, provider settings, or VPS state. It only deploys the Worker when `--execute` is used with the approval code.
+
 ## Required Before Production
 
 This lab is not cutover-ready until:

@@ -8,7 +8,10 @@
     "test": "tsx --test \"src/**/*.test.ts\"",
     "wrangler:check": "wrangler check",
     "dev": "wrangler dev --local --port 8787",
-    "load:10k": "node scripts/loadtest.mjs --records=10000 --media=3 --url=http://127.0.0.1:8787"
+    "load:10k": "node scripts/loadtest.mjs --records=10000 --media=3 --url=http://127.0.0.1:8787",
+    "build:field-detail-sql": "node scripts/build-field-detail-readmodel-sql.mjs",
+    "deploy:production:dry-run": "node scripts/deploy-production-guard.mjs",
+    "deploy:production": "node scripts/deploy-production-guard.mjs --execute"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",
@@ -18,5 +21,8 @@
   },
   "overrides": {
     "esbuild": "^0.28.1"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3"
   }
 }
