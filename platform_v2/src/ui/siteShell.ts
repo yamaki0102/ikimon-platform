@@ -6568,6 +6568,8 @@ ${alternateLinks}
       .has-global-record-launcher .site-header-actions-mobile .site-record-link { display: none; }
       .is-reading-surface .site-header-actions-mobile .site-record-link { display: none; }
       .site-shell.has-global-record-launcher { padding-bottom: 88px; }
+      .site-shell.has-global-record-launcher.is-map-surface { padding-bottom: 0; }
+      .site-shell.is-map-surface .global-record-launcher { z-index: 72; }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
       .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 18ch; }
       .hero-panel p { font-size: 16px; line-height: 1.85; max-width: 32ch; margin-top: 18px; }

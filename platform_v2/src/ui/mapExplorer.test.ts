@@ -113,8 +113,8 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
   assert.match(styles, /\.me-bottom-sheet--detail \.me-bottom-grip,\s+\.me-bottom-sheet--area \.me-bottom-grip/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-bottom-sheet \{[\s\S]*position: fixed;/);
   assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\]\s*\{\s*height: 35vh;\s*max-height: 35vh;\s*height: min\(35dvh, 320px\);/);
-  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="peek"\]\s*\{\s*height: 58vh;\s*max-height: 58vh;\s*height: min\(58dvh, calc\(100dvh - var\(--me-header-h\) - 12px\), 460px\);/);
-  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: auto;\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - 8px\);/);
+  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="peek"\]\s*\{\s*height: 58vh;\s*max-height: 58vh;\s*height: min\(58dvh, calc\(100dvh - var\(--me-header-h\) - 100px\), 460px\);/);
+  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: auto;\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - 96px\);/);
 });
 
 test("area sheet includes contribution feedback surface", () => {
@@ -286,16 +286,24 @@ test("area badge clicks reopen the side panel before showing selection", () => {
   assert.match(openAreaSheetBody, /setSideRailMode\(false\);\s+renderSelectedCard\(\);\s+renderSidePanels\(\);\s+setSideTab\('selection'\);/);
 });
 
-test("map explorer renders the regional guide and activity rally slot", () => {
+test("map explorer keeps the regional guide label in the header and leaves the map canvas unobstructed", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
-  assert.match(html, /ikimon - 皆で作る地域図鑑/);
-  assert.match(html, /地域の自然・風景・水・土・農・季節・活動/);
+  assert.match(html, /me-map-kicker">地域図鑑マップ/);
+  assert.doesNotMatch(html, /me-enjoy-strip/);
+  assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
   assert.match(html, /このエリアの活動・ラリー/);
   assert.match(html, /主催者の方へ/);
   assert.match(html, /data-testid="map-activity-rally-panel"/);
   assert.doesNotMatch(html, /data-events-new-href/);
   assert.doesNotMatch(html, /\/community\/events\/new/);
+});
+
+test("map explorer restores the quick record launcher on mobile only", () => {
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(styles, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: none;\s*\}/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;/);
 });
 
 test("area map labels and side cards expose organizer and encyclopedia shortcuts", () => {
@@ -304,6 +312,9 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
 
   assert.match(script, /areaBadgeEventLabel/);
   assert.match(script, /areaBadgeAlbumLabel/);
+  assert.match(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
+  assert.match(script, /'school'/);
+  assert.match(script, /isNamedAreaBadgeFeature\(item\.feature, zoom\)/);
   assert.match(script, /主催者/);
   assert.match(script, /エリア図鑑/);
   assert.match(script, /このエリアの活動・ラリー/);

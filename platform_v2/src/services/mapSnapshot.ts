@@ -15,9 +15,10 @@ import {
 } from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 import {
-  PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
+  PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
+  VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "./observationQualityGate.js";
 import { buildPublicMapCellName } from "./publicMapCellNaming.js";
 
@@ -143,6 +144,7 @@ type PublicMapSourceRow = {
   latitude: number | null;
   longitude: number | null;
   photo_url: string | null;
+  video_thumb_url: string | null;
   source_kind: string | null;
   session_mode: string | null;
   visit_mode: string | null;
@@ -364,7 +366,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
     "coalesce(v.point_longitude, p.center_longitude) is not null",
     MAP_READ_FIXTURE_EXCLUSION_SQL,
     PUBLIC_OBSERVATION_QUALITY_SQL,
-    PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
+    PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   ];
   const params: unknown[] = [];
 
@@ -406,6 +408,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       coalesce(v.point_latitude, p.center_latitude) as latitude,
       coalesce(v.point_longitude, p.center_longitude) as longitude,
       photo.public_url as photo_url,
+      video.thumb_url as video_thumb_url,
       v.source_kind,
       v.session_mode,
       v.visit_mode,
@@ -425,11 +428,24 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       select coalesce(ab.public_url, ab.storage_path) as public_url
       from evidence_assets ea
       join asset_blobs ab on ab.blob_id = ea.blob_id
-      where ea.occurrence_id = o.occurrence_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
         and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-      order by ea.created_at asc
+      order by
+        case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+        ea.created_at asc
       limit 1
     ) photo on true
+    left join lateral (
+      select coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url') as thumb_url
+      from evidence_assets ea
+      join asset_blobs ab on ab.blob_id = ea.blob_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
+        and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
+      order by
+        case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+        ea.created_at asc
+      limit 1
+    ) video on true
     where ${whereClauses.join(" and ")}
     order by v.observed_at desc
     limit ${limit}
@@ -475,7 +491,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
           prefecture: row.prefecture,
           localityLabel: locality.label,
           localityScope: locality.scope,
-          photoUrl: normalizeAssetUrl(row.photo_url),
+          photoUrl: normalizeAssetUrl(row.photo_url ?? row.video_thumb_url),
           taxonGroup: inferTaxonGroup(row.scientific_name, row.vernacular_name),
           sourceKind: row.source_kind,
           sessionMode: row.session_mode,
@@ -913,7 +929,7 @@ export async function getCoverageMesh(
       and coalesce(v.point_longitude, p.center_longitude) is not null
       and ${MAP_READ_FIXTURE_EXCLUSION_SQL}
       and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-      and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
+      and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
       ${whereYear}
     group by lat_bin, lng_bin
     order by c desc
