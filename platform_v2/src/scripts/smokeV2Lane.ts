@@ -94,7 +94,10 @@ async function main(): Promise<void> {
       path: "/readyz",
       parse: "json",
       validate: (payload) => {
-        if (!isRecord(payload) || payload.ok !== true || typeof payload.now !== "string") {
+        const legacyReady = isRecord(payload) && typeof payload.now === "string";
+        const cloudflareReady =
+          isRecord(payload) && payload.coreDb === "ok" && payload.observationDb === "ok";
+        if (!isRecord(payload) || payload.ok !== true || (!legacyReady && !cloudflareReady)) {
           return "readyz did not confirm database readiness";
         }
         return null;
