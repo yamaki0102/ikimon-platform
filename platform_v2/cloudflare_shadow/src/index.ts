@@ -1338,7 +1338,8 @@ async function fetchMapAreaPolygonsOriginFallback(request: Request, url: URL, en
     headers: request.headers,
     redirect: "manual"
   });
-  return fetchOriginFallback(fallbackRequest, fallbackUrl, env, "map_area_polygons_origin_geometry");
+  const response = await fetchOriginFallback(fallbackRequest, fallbackUrl, env, "map_area_polygons_origin_geometry");
+  return filterMapAreaPolygonsResponse(response);
 }
 
 function isShadowDiagnosticPath(pathname: string): boolean {
@@ -1906,7 +1907,8 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
   if (nativeRows.length > 0) {
     const nativeFeatures = nativeRows
       .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
-      .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature));
+      .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
+      .filter(isDisplayableAreaPolygonFeature);
     return json({
       type: "FeatureCollection",
       features: nativeFeatures,
@@ -2499,6 +2501,94 @@ function safeAreaGeometry(raw: string): { type: "Polygon" | "MultiPolygon"; coor
     return { type, coordinates };
   } catch {
     return null;
+  }
+}
+
+function textProp(props: Record<string, unknown>, key: string): string {
+  const value = props[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function numericProp(props: Record<string, unknown>, key: string): number {
+  const value = props[key];
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function booleanishProp(props: Record<string, unknown>, key: string): boolean {
+  const value = props[key];
+  if (value === true || value === 1) return true;
+  if (typeof value === "string") return ["true", "1", "yes"].includes(value.trim().toLowerCase());
+  return false;
+}
+
+function areaFeatureProps(feature: unknown): Record<string, unknown> | null {
+  if (!feature || typeof feature !== "object" || Array.isArray(feature)) return null;
+  const props = (feature as { properties?: unknown }).properties;
+  if (!props || typeof props !== "object" || Array.isArray(props)) return null;
+  return props as Record<string, unknown>;
+}
+
+function isApproximateAreaPolygonFeature(feature: unknown): boolean {
+  const props = areaFeatureProps(feature);
+  if (!props) return false;
+  const label = textProp(props, "verification_label");
+  return booleanishProp(props, "approximate_boundary")
+    || textProp(props, "boundary_approximation") === "point_buffer"
+    || label.includes("境界未確認・代表点からの仮範囲");
+}
+
+function isWeakLiveOsmAreaPolygonFeature(feature: unknown): boolean {
+  const props = areaFeatureProps(feature);
+  if (!props) return false;
+  if (!textProp(props, "field_id").startsWith("osm-live:")) return false;
+  const name = textProp(props, "name");
+  if (name === "OSMの学校・キャンパス" || name === "OSMの公園・緑地") return true;
+  if (textProp(props, "source") === "school") {
+    const hasExternalEvidence = Boolean(
+      textProp(props, "official_url") ||
+      textProp(props, "owner_url") ||
+      textProp(props, "certification_url")
+    );
+    return !hasExternalEvidence && numericProp(props, "source_confidence") < 0.75;
+  }
+  return false;
+}
+
+function isDisplayableAreaPolygonFeature(feature: unknown): boolean {
+  return !isApproximateAreaPolygonFeature(feature) && !isWeakLiveOsmAreaPolygonFeature(feature);
+}
+
+function filterMapAreaPolygonsPayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const features = (payload as { features?: unknown }).features;
+  if (!Array.isArray(features)) return payload;
+  const filteredFeatures = features.filter(isDisplayableAreaPolygonFeature);
+  const stats = (payload as { stats?: unknown }).stats;
+  return {
+    ...(payload as Record<string, unknown>),
+    features: filteredFeatures,
+    stats: stats && typeof stats === "object" && !Array.isArray(stats)
+      ? {
+          ...(stats as Record<string, unknown>),
+          totalReturned: filteredFeatures.length,
+          totalAll: filteredFeatures.length
+        }
+      : stats
+  };
+}
+
+async function filterMapAreaPolygonsResponse(response: Response): Promise<Response> {
+  if (!response.ok) return response;
+  try {
+    const payload = await response.clone().json();
+    const filteredPayload = filterMapAreaPolygonsPayload(payload);
+    if (filteredPayload === payload) return response;
+    return json(filteredPayload, response.status, {
+      "cache-control": response.headers.get("cache-control") ?? "public, max-age=60"
+    });
+  } catch {
+    return response;
   }
 }
 

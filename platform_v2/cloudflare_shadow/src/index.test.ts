@@ -3680,12 +3680,49 @@ test("production map area polygons fall back to origin geometry with bounded dis
     });
     return Response.json({
       type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: { field_id: "origin-school", name: "origin polygon school" },
-        geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
-      }],
-      truncated: true
+      features: [
+        {
+          type: "Feature",
+          properties: { field_id: "origin-school", name: "origin polygon school" },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        },
+        {
+          type: "Feature",
+          properties: {
+            field_id: "origin-approx-school",
+            name: "代表点小学校",
+            source: "school",
+            approximate_boundary: true,
+            boundary_approximation: "point_buffer",
+            verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致"
+          },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        },
+        {
+          type: "Feature",
+          properties: {
+            field_id: "osm-live:way:603994619",
+            name: "OSMの学校・キャンパス",
+            source: "school",
+            verification_label: "未確認",
+            source_confidence: 0.45
+          },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        },
+        {
+          type: "Feature",
+          properties: {
+            field_id: "osm-live:way:603028580",
+            name: "OSMの公園・緑地",
+            source: "osm_park",
+            verification_label: "未確認",
+            source_confidence: 0.45
+          },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        }
+      ],
+      truncated: true,
+      stats: { totalReturned: 4, totalAll: 4, source: "origin" }
     }, { headers: { "cache-control": "public, max-age=60" } });
   }) as typeof fetch;
   try {
@@ -3695,8 +3732,11 @@ test("production map area polygons fall back to origin geometry with bounded dis
     const payload = await response.json() as any;
 
     assert.equal(response.status, 200);
+    assert.equal(payload.features.length, 1);
     assert.equal(payload.features[0].properties.name, "origin polygon school");
     assert.equal(payload.features[0].geometry.coordinates[0].length, 4);
+    assert.equal(payload.stats.totalReturned, 1);
+    assert.equal(payload.stats.totalAll, 1);
     assert.equal(seen.length, 1);
     assert.equal(seen[0]?.url, "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&limit=48");
     assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
@@ -3711,6 +3751,42 @@ test("production map area polygons fall back to origin geometry with bounded dis
 
 test("production map area polygons use native polygon readmodel before origin fallback", async () => {
   const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", {
+    field_id: "native-approx-school",
+    source: "school",
+    admin_level: "school",
+    name: "代表点だけの小学校",
+    prefecture: "静岡県",
+    city: "浜松市",
+    center_lat: 34.694,
+    center_lng: 137.704,
+    bbox_min_lat: 34.69,
+    bbox_max_lat: 34.70,
+    bbox_min_lng: 137.70,
+    bbox_max_lng: 137.71,
+    area_ha: 0.5,
+    geometry_json: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[
+        [137.700, 34.690],
+        [137.708, 34.690],
+        [137.708, 34.698],
+        [137.700, 34.698],
+        [137.700, 34.690]
+      ]]
+    }),
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    source_confidence: 0.35,
+    verification_level: "registry_matched",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    official_url: "https://example.test/approx-school",
+    owner_url: null,
+    story_url: null,
+    certification_url: null,
+    entity_key: "school:approx",
+    updated_at: "2026-06-18T00:00:00.000Z"
+  });
   env.OBS_DB.productionAreaPolygons.set("native-school", {
     field_id: "native-school",
     source: "school",
@@ -3771,6 +3847,7 @@ test("production map area polygons use native polygon readmodel before origin fa
     assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
     assert.equal(payload.features.length, 1);
     assert.equal(payload.features[0].properties.field_id, "native-school");
+    assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|境界未確認/);
     assert.equal(payload.features[0].geometry.coordinates[0].length, 5);
     assert.deepEqual(payload.features[0].properties.center, [137.705, 34.695]);
   } finally {
