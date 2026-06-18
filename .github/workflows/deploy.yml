@@ -237,15 +237,15 @@ jobs:
         working-directory: platform_v2/cloudflare_shadow
         run: |
           set -euo pipefail
-          mkdir -p .deploy-artifact
-          cp .deploy/production-preflight-latest.json .deploy-artifact/production-preflight-latest.json
-          cp .deploy/wrangler-version-cache.json .deploy-artifact/wrangler-version-cache.json
+          mkdir -p preflight-artifact
+          cp .deploy/production-preflight-latest.json preflight-artifact/production-preflight-latest.json
+          cp .deploy/wrangler-version-cache.json preflight-artifact/wrangler-version-cache.json
 
       - name: Upload Cloudflare quick preflight artifact
         uses: actions/upload-artifact@v6
         with:
           name: cloudflare-production-preflight
-          path: platform_v2/cloudflare_shadow/.deploy-artifact/*
+          path: platform_v2/cloudflare_shadow/preflight-artifact/*
           if-no-files-found: error
           retention-days: 2
 
