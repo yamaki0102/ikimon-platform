@@ -399,6 +399,17 @@ function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource
   return (maxLng - minLng) <= LIVE_OSM_MAX_SPAN_DEGREES && (maxLat - minLat) <= LIVE_OSM_MAX_SPAN_DEGREES;
 }
 
+function shouldSupplementLiveOsm(
+  query: AreaPolygonsQuery,
+  sources: AreaPolygonSource[],
+  features: AreaPolygonFeature[],
+  limit: number,
+): boolean {
+  if (features.length >= limit) return false;
+  if (!sources.some((source) => LIVE_OSM_SOURCES.has(source))) return false;
+  return shouldFetchLiveOsm(query, sources);
+}
+
 function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: AreaPolygonSource[]): AreaPolygonFeature[] {
   if (sources.length === 0) return features;
   const allowed = new Set<AreaPolygonSource>(sources);
@@ -946,10 +957,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     }];
   });
 
-  const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources) && (
-    (sources.includes("osm_park") && !features.some((feature) => feature.properties.source === "osm_park")) ||
-    (sources.includes("school") && !features.some((feature) => feature.properties.source === "school"))
-  );
+  const shouldUseLiveOsm = shouldSupplementLiveOsm(query, sources, features, limit);
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
@@ -1011,6 +1019,7 @@ export const __test__ = {
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
   shouldFetchLiveOsm,
+  shouldSupplementLiveOsm,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,

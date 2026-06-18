@@ -1537,6 +1537,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var SIMPLE_MID_LANDMARK_CLASSES = ['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'];
   var SIMPLE_HIGH_LANDMARK_CLASSES = ['railway', 'town_hall', 'library', 'hospital'];
   var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = ['shop', 'grocery', 'cafe', 'restaurant'];
+  var SIMPLE_LOCALITY_CLASSES = ['town', 'village', 'hamlet', 'suburb', 'quarter', 'neighbourhood'];
 
   var BASEMAPS = {
     standard: {
@@ -1591,11 +1592,36 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           },
         },
         {
+          id: 'simple-school-landuse-outline',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'landuse',
+          minzoom: 13,
+          filter: ['==', ['get', 'class'], 'school'],
+          paint: {
+            'line-color': '#c4a248',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.6, 16, 1.1, 18, 1.8],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0.18, 16, 0.36, 18, 0.5],
+          },
+        },
+        {
           id: 'simple-park',
           type: 'fill',
           source: 'openmaptiles',
           'source-layer': 'park',
           paint: { 'fill-color': '#c9e4bf', 'fill-opacity': 0.72 },
+        },
+        {
+          id: 'simple-park-outline',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'park',
+          minzoom: 12,
+          paint: {
+            'line-color': '#80b878',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.45, 15, 0.85, 18, 1.35],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.2, 15, 0.38, 18, 0.52],
+          },
         },
         {
           id: 'simple-waterway',
@@ -1667,6 +1693,30 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
             'text-color': '#51666a',
             'text-halo-color': 'rgba(237,244,239,0.92)',
             'text-halo-width': 1.4,
+          },
+        },
+        {
+          id: 'simple-locality-label',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'place',
+          minzoom: 12.4,
+          maxzoom: 18,
+          filter: ['all', ['has', 'name'], ['match', ['get', 'class'], SIMPLE_LOCALITY_CLASSES, true, false]],
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 12.4, 10.2, 15, 11.2, 17.5, 12.2],
+            'text-max-width': 7,
+            'text-padding': 10,
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#566a6b',
+            'text-halo-color': 'rgba(237,244,239,0.9)',
+            'text-halo-width': 1.15,
+            'text-opacity': ['interpolate', ['linear'], ['zoom'], 12.4, 0.72, 14.5, 0.9],
           },
         },
         {
