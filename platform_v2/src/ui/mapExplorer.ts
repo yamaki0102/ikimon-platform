@@ -1579,6 +1579,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           paint: { 'fill-color': '#c5ded3', 'fill-opacity': 0.62 },
         },
         {
+          id: 'simple-landuse-soft',
+          type: 'fill',
+          source: 'openmaptiles',
+          'source-layer': 'landuse',
+          minzoom: 11,
+          filter: ['match', ['get', 'class'], ['residential', 'commercial', 'industrial', 'school', 'hospital'], true, false],
+          paint: {
+            'fill-color': ['match', ['get', 'class'], 'school', '#dfe7c7', 'hospital', '#ead7dc', 'commercial', '#ece1cd', 'industrial', '#e4d8dc', '#e8e5d7'],
+            'fill-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.12, 15, 0.2, 17, 0.26],
+          },
+        },
+        {
           id: 'simple-park',
           type: 'fill',
           source: 'openmaptiles',
@@ -1611,16 +1623,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           },
         },
         {
+          id: 'simple-road-local-casing',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'transportation',
+          minzoom: 13.2,
+          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service', 'track'], true, false],
+          paint: {
+            'line-color': '#cfd8d2',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 13.2, 0.75, 15, 1.45, 17.5, 2.9],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 13.2, 0.3, 15.5, 0.44, 17.5, 0.55],
+          },
+        },
+        {
           id: 'simple-road-local',
           type: 'line',
           source: 'openmaptiles',
           'source-layer': 'transportation',
-          minzoom: 16.8,
-          filter: ['match', ['get', 'class'], ['tertiary', 'minor'], true, false],
+          minzoom: 13.2,
+          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service', 'track'], true, false],
           paint: {
             'line-color': '#ffffff',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 16.8, 0.35, 17.8, 1.15],
-            'line-opacity': 0.18,
+            'line-width': ['interpolate', ['linear'], ['zoom'], 13.2, 0.55, 15, 1.05, 17.5, 2.2],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 13.2, 0.42, 15.5, 0.62, 17.5, 0.78],
           },
         },
         {
