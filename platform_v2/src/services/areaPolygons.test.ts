@@ -19,6 +19,7 @@ const {
   approximateSchoolSourceConfidence,
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
+  hasRequestedLiveOsmSourceCoverage,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
@@ -71,6 +72,9 @@ test("buildLiveOsmAreaQuery uses Overpass south,west,north,east order", () => {
   assert.match(query, /\(34\.73,137\.39,34\.75,137\.43\)/);
   assert.match(query, /leisure/);
   assert.match(query, /amenity/);
+  assert.match(query, /kindergarten/);
+  assert.match(query, /landuse/);
+  assert.match(query, /building/);
 });
 
 test("liveElementToFeature converts OSM way into transient area feature", () => {
@@ -107,6 +111,32 @@ test("liveElementToFeature converts OSM schools into transient school areas", ()
   assert.equal(feature?.properties.source_confidence, 0.45);
   assert.equal(feature?.properties.verification_level, "unverified");
   assert.equal(feature?.properties.verification_label, "未確認");
+});
+
+test("liveElementToFeature treats OSM education landuse and school buildings as school areas", () => {
+  const educationLanduse = liveElementToFeature({
+    type: "way",
+    id: 790,
+    tags: { name: "西伊場こども園", landuse: "education" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+  const schoolBuilding = liveElementToFeature({
+    type: "way",
+    id: 791,
+    tags: { name: "浜松小学校 校舎", building: "school" },
+    geometry: [
+      { lat: 34.71, lon: 137.72 },
+      { lat: 34.71, lon: 137.73 },
+      { lat: 34.72, lon: 137.73 },
+    ],
+  });
+
+  assert.equal(educationLanduse?.properties.source, "school");
+  assert.equal(schoolBuilding?.properties.source, "school");
 });
 
 test("live OSM fallback respects selected area sources", () => {
@@ -229,6 +259,40 @@ test("live OSM supplement continues when stored park or school coverage is parti
     },
   }));
   assert.equal(shouldSupplementLiveOsm(query, [...sources], fullFeatures, 50), false);
+});
+
+test("fresh live OSM cache must cover each requested live source before skipping fetch", () => {
+  const park = liveElementToFeature({
+    type: "way",
+    id: 901,
+    tags: { name: "伊場遺跡公園", leisure: "park" },
+    geometry: [
+      { lat: 34.70, lon: 137.70 },
+      { lat: 34.70, lon: 137.71 },
+      { lat: 34.71, lon: 137.71 },
+    ],
+  });
+  const school = liveElementToFeature({
+    type: "way",
+    id: 902,
+    tags: { name: "浜松第一小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.71, lon: 137.71 },
+      { lat: 34.71, lon: 137.72 },
+      { lat: 34.72, lon: 137.72 },
+    ],
+  });
+  assert.ok(park);
+  assert.ok(school);
+  const approximateStoredSchool = {
+    ...school,
+    properties: { ...school.properties, approximate_boundary: true },
+  };
+
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park]), false);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park, approximateStoredSchool]), false);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park, school]), true);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["osm_park"], [park]), true);
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {
