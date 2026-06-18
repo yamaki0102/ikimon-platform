@@ -16,7 +16,7 @@ Hard boundaries:
 
 - Do not run direct `wrangler deploy --env production` for routine deploys. Use the guarded npm script.
 - Do not change DNS, custom domains, routes, D1 data, secrets, billing, provider settings, or VPS state as part of routine deploy.
-- Routine deploy may update only `original-ui/html/*` objects in `ikimon-prod-media`, generated from the same commit, plus the Worker script.
+- Routine deploy may update only `original-ui/html/*` and `original-ui/static/app-sw.js` objects in `ikimon-prod-media`, generated from the same commit, plus the Worker script.
 - Do not delete D1/R2 resources. Rollback of Worker code does not restore deleted or mutated Cloudflare resources.
 - Production D1 writes, secret changes, billing changes, DNS changes, and provider/VPS shutdown still require explicit task approval.
 
@@ -36,7 +36,7 @@ Preconditions:
 - PR review scope is clear.
 - `git status --short --branch` is clean except for the intended change.
 - No pending D1 migration, R2 import, secret update, DNS change, route/custom-domain change, billing operation, or VPS/provider operation is included.
-- If the change needs D1/R2 mutation outside `original-ui/html/*` materialization, stop and write a separate data-change plan.
+- If the change needs D1/R2 mutation outside `original-ui/html/*` and `original-ui/static/app-sw.js` materialization, stop and write a separate data-change plan.
 
 Commands:
 
@@ -53,7 +53,7 @@ Expected dry-run gates:
 - `npm test`
 - `npx wrangler --version`
 - `npx wrangler deploy --env production --dry-run`
-- local render of core `original-ui/html/*` pages.
+- local render of core `original-ui/html/*` pages and `original-ui/static/app-sw.js`.
 
 Execute only after dry-run passes:
 
@@ -76,7 +76,7 @@ Post-deploy evidence to record:
 - output JSON from `materialize-original-ui-html.mjs`
 - Worker version/deployment ID if shown by Wrangler
 - healthz/readyz HTTP statuses
-- explicit note that DNS, D1 data, secrets, billing, provider, and VPS state were not changed; R2 changes were limited to `original-ui/html/*`.
+- explicit note that DNS, D1 data, secrets, billing, provider, and VPS state were not changed; R2 changes were limited to `original-ui/html/*` and `original-ui/static/app-sw.js`.
 
 Stop and rollback if:
 

@@ -1734,6 +1734,7 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
 }
 
 function cacheControlForOriginalUiStaticAsset(pathname: string): string {
+  if (pathname === "/app-sw.js" || pathname === "/offline.html") return "no-cache, no-store, must-revalidate";
   if (pathname === "/manifest.webmanifest") return "public, max-age=300";
   return "public, max-age=31536000, immutable";
 }
