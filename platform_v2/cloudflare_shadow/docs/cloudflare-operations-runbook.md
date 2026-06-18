@@ -44,22 +44,54 @@ Commands:
 cd platform_v2/cloudflare_shadow
 npm install
 npm run deploy:production:dry-run
-npm run materialize:original-ui:dry-run
+npm run materialize:original-ui:dry-run -- --concurrency 4
 ```
 
 Expected dry-run gates:
 
 - `npm run check`
 - `npm test`
+- production config guard and hardcoded-secret scan
 - `npx wrangler --version`
 - `npx wrangler deploy --env production --dry-run`
 - local render of core `original-ui/html/*` pages and `original-ui/static/app-sw.js`.
+- `.deploy/production-preflight-latest.json` written for the fast lane.
+
+For routine low-risk Worker/tooling edits, the quick profile may be used during iteration:
+
+```powershell
+npm run test:quick
+npm run deploy:production:quick-preflight
+```
+
+Quick profile skips only `synthetic 10k daily profile`; it still runs the other Worker contract tests, TypeScript, config guard, secret scan, and Wrangler dry-run. Run `npm run test:heavy` to exercise only the synthetic 10k case, and refresh full evidence with `npm run deploy:production:preflight` before high-risk runtime changes.
+
+If the same git `HEAD` and deploy-input hash have already passed the full dry-run, the fast lane may be used:
+
+```powershell
+npm run deploy:production:fast:dry-run
+```
+
+The fast lane must still validate the preflight report, re-run the config guard and secret scan, run Wrangler dry-run, and refuse stale or mismatched deploy inputs.
+
+The guard caches `npx wrangler --version` at `.deploy/wrangler-version-cache.json` and reuses it only when both the package lock hash and Worker deploy-input hash match. A Wrangler dependency change, Worker/deploy-tool change, or package lock change refreshes the cache. `wrangler deploy --env production --dry-run` remains mandatory and is not cached.
+
+For the lowest local wait time, have GitHub Actions create the quick preflight artifact first:
+
+```powershell
+gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
+npm run deploy:production:artifact:pull
+npm run deploy:production:fast:dry-run
+```
+
+The helper resolves the latest successful artifact run for the current branch and exact `HEAD`, downloads `cloudflare-production-preflight`, and writes `.deploy/production-preflight-latest.json` plus `.deploy/wrangler-version-cache.json`. It is valid only for the same git `HEAD` and Worker deploy-input hash; the fast lane still rechecks config, scans for hardcoded secrets, runs Wrangler production dry-run, and refuses stale evidence. The production GitHub Actions deploy workflow now creates this artifact before deploy and uses `npm run deploy:production:fast` in the Worker deploy job.
 
 Execute only after dry-run passes:
 
 ```powershell
 npm run deploy:production -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
-npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+npm run deploy:production:fast -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY --concurrency 4
 ```
 
 The guarded scripts deploy the Worker, update core materialized HTML in R2, and smoke:
@@ -74,6 +106,7 @@ Post-deploy evidence to record:
 - commit SHA and PR number
 - output JSON from `deploy-production-guard.mjs`
 - output JSON from `materialize-original-ui-html.mjs`
+- preflight report path and whether `lane` was `full` or `fast`
 - Worker version/deployment ID if shown by Wrangler
 - healthz/readyz HTTP statuses
 - explicit note that DNS, D1 data, secrets, billing, provider, and VPS state were not changed; R2 changes were limited to `original-ui/html/*` and `original-ui/static/app-sw.js`.

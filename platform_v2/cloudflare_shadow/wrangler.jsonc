@@ -51,6 +51,16 @@
   "env": {
     "production": {
       "name": "ikimon-life-cloudflare-prod",
+      "workers_dev": true,
+      "routes": [
+        "ikimon.life/*",
+        "www.ikimon.life/*",
+        "staging.ikimon.life/api/v1/map/*",
+        "staging.ikimon.life/ja/api/v1/map/*",
+        "staging.ikimon.life/derived/*",
+        "staging.ikimon.life/healthz",
+        "staging.ikimon.life/readyz"
+      ],
       "vars": {
         "ENVIRONMENT": "production",
         "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
