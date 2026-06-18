@@ -106,6 +106,14 @@ export type MapExplorerCopy = {
   unknownHypothesisLabel: string;
   recordingGapLabel: string;
   selectedPointName: string;
+  areaRestrictedActionLabel: string;
+  areaRestrictedActionHint: string;
+  areaSafeRecordLabel: string;
+  areaSchoolNotice: string;
+  cellAggregateTitle: string;
+  cellAggregateBadge: string;
+  cellAggregateSafety: string;
+  mapPointSafety: string;
   osmAreaFallbackName: string;
   osmAreaSourceLabel: string;
   areaLoading: string;
@@ -151,15 +159,15 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
-    enjoyTitle: "ikimon - 皆で作る地域図鑑",
-    enjoyLead: "地域図鑑マップとして、地域の自然・風景・水・土・農・季節・活動を場所ごとに見返します。記録の厚みと余白から、次に歩きたい場所を見つけます。",
+    enjoyTitle: "地域図鑑マップ",
+    enjoyLead: "近くの公園、水辺、地域のフィールド、季節の記録を重ねて見る地図。エリアや記録の厚みを選ぶと、この地域の今とこれから育つ余白が見えます。",
     activityRallyTitle: "このエリアの活動・ラリー",
     activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
-    visualCueCount: "写真カード = 最近の発見",
-    visualCueColor: "色 = 生きものの気配",
-    visualCuePlace: "面 = 公園・自然共生サイト・学校",
+    visualCueCount: "余白 = これから育つ場所",
+    visualCueColor: "色 = 季節と記録の厚み",
+    visualCuePlace: "面 = 場所ページ・エリア図鑑",
     tabMarkers: "最近の発見",
     tabHeatmap: "季節の気配",
     tabPlaces: "エリア図鑑",
@@ -211,10 +219,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintDismiss: "閉じる",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "この範囲はまだこれから。季節や地域を少し広げると、行きたくなる場所が見つかるかもしれません。",
-    sideRecentLabel: "近くの発見",
+    empty: "この範囲はまだこれから。エリアや季節を少し広げると、地域図鑑の入口が見つかるかもしれません。",
+    sideRecentLabel: "この範囲の地域図鑑",
     recentFindsHint: "この場所で見えたもの",
-    sideRevisitLabel: "場所のストーリー",
+    sideRevisitLabel: "選んだ場所",
     crossEyebrow: "この場所で、次の自然体験を残す",
     crossLensLabel: JA_PUBLIC_SHARED_COPY.cta.openGuide,
     crossScanLabel: JA_PUBLIC_SHARED_COPY.cta.openScan,
@@ -227,9 +235,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetCloseLabel: "閉じる",
     bottomSheetExpandLabel: "詳細を広げる",
     bottomSheetCollapseLabel: "詳細を半分に戻す",
-    siteBriefHeading: "ここで見つかるもの",
+    siteBriefHeading: "地図だけではわからないこと",
     siteBriefReasonsLabel: "最近の発見",
-    siteBriefChecksLabel: "歩きながら見たいこと",
+    siteBriefChecksLabel: "現地で安全に確かめること",
     siteBriefCapturesLabel: "撮るなら",
     siteBriefEnvironmentLabel: "衛星・地図の手がかり",
     siteBriefWhyHereLabel: "行きたくなる理由",
@@ -237,16 +245,24 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefOneVisitLabel: "今日できること",
     siteBriefNextHookLabel: "また見たくなること",
     siteBriefLoading: "この地点を読み解き中…",
-    siteBriefError: "手がかりが取れなかった。現地の直感を優先して。",
+    siteBriefError: "地図だけでは読み解けません。立入可否と現地の安全を優先してください。",
     searchPlaceholder: "場所や生きものを探す（例: 静岡市 谷津山、モンシロチョウ）",
     searchAriaLabel: "場所または種を検索",
     searchNoResult: "見つからなかった。もう一語ゆるめてみる。",
     searchError: "検索に失敗した。しばらく待ってから試す。",
     searchResultSpecies: "種",
     searchResultPlace: "場所",
-    unknownHypothesisLabel: "地図だけではわからない場所",
+    unknownHypothesisLabel: "地図の手がかり",
     recordingGapLabel: "記録の余白",
-    selectedPointName: "地図で選んだ地点",
+    selectedPointName: "地図の手がかり",
+    areaRestrictedActionLabel: "地域のルールを確認",
+    areaRestrictedActionHint: "学校・立入制限・未確認の場所では、許可された観察だけを扱います。",
+    areaSafeRecordLabel: "公開範囲を確認して記録",
+    areaSchoolNotice: "学校・キャンパスは関係者区域を含みます。無許可で敷地内に入らず、公開範囲と学校・管理者の許可がある観察だけを扱います。",
+    cellAggregateTitle: "この範囲の記録の厚み",
+    cellAggregateBadge: "地域単位の集計",
+    cellAggregateSafety: "地域全体のまとまりとして表示しています。記録を足すときは、公開範囲と現地のルールを確認してください。",
+    mapPointSafety: "地図だけでは現地の安全や立入可否は判断できません。案内板、管理者、公開範囲を優先してください。",
     osmAreaFallbackName: "OSMの公園・緑地",
     osmAreaSourceLabel: "公園・緑地 (OSM live)",
     areaLoading: "エリア情報を読み込み中…",
@@ -368,6 +384,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     unknownHypothesisLabel: "A place the map alone cannot explain",
     recordingGapLabel: "Open recording gap",
     selectedPointName: "Map-selected point",
+    areaRestrictedActionLabel: "Check local rules",
+    areaRestrictedActionHint: "For schools, restricted, or unverified places, only permitted observations are handled.",
+    areaSafeRecordLabel: "Record after checking scope",
+    areaSchoolNotice: "Schools and campuses may include restricted areas. Do not enter without permission; only handle observations within approved public scope.",
+    cellAggregateTitle: "Record density in this area",
+    cellAggregateBadge: "Area aggregate",
+    cellAggregateSafety: "This view shows the area as a whole. Before adding a record, check public scope and local rules.",
+    mapPointSafety: "The map alone cannot confirm safety or access. Follow signs, managers, and public-scope rules first.",
     osmAreaFallbackName: "OSM park or green space",
     osmAreaSourceLabel: "Park / green space (OSM live)",
     areaLoading: "Loading area information…",
@@ -489,6 +513,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     unknownHypothesisLabel: "Un lugar que el mapa solo no puede explicar",
     recordingGapLabel: "Hueco de registros",
     selectedPointName: "Punto elegido en el mapa",
+    areaRestrictedActionLabel: "Revisar reglas locales",
+    areaRestrictedActionHint: "En escuelas, zonas restringidas o no verificadas, solo se tratan observaciones permitidas.",
+    areaSafeRecordLabel: "Registrar tras revisar alcance",
+    areaSchoolNotice: "Las escuelas y campus pueden incluir zonas restringidas. No entres sin permiso; usa solo observaciones aprobadas para publicar.",
+    cellAggregateTitle: "Densidad de registros en esta zona",
+    cellAggregateBadge: "Agregado de zona",
+    cellAggregateSafety: "Esta vista muestra la zona en conjunto. Antes de registrar, revisa el alcance público y las reglas locales.",
+    mapPointSafety: "El mapa solo no confirma seguridad ni acceso. Prioriza señales, gestores y reglas de alcance público.",
     osmAreaFallbackName: "Parque o zona verde de OSM",
     osmAreaSourceLabel: "Parque / zona verde (OSM live)",
     areaLoading: "Cargando información del área…",
@@ -610,6 +642,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     unknownHypothesisLabel: "Um lugar que o mapa sozinho não explica",
     recordingGapLabel: "Lacuna de registros",
     selectedPointName: "Ponto escolhido no mapa",
+    areaRestrictedActionLabel: "Ver regras locais",
+    areaRestrictedActionHint: "Em escolas, áreas restritas ou não verificadas, apenas observações permitidas são tratadas.",
+    areaSafeRecordLabel: "Registrar após revisar escopo",
+    areaSchoolNotice: "Escolas e campus podem incluir áreas restritas. Não entre sem permissão; use apenas observações aprovadas para publicação.",
+    cellAggregateTitle: "Densidade de registros nesta área",
+    cellAggregateBadge: "Agregado da área",
+    cellAggregateSafety: "Esta visão mostra a área como um todo. Antes de registrar, verifique o escopo público e as regras locais.",
+    mapPointSafety: "O mapa sozinho não confirma segurança ou acesso. Priorize placas, gestores e regras de escopo público.",
     osmAreaFallbackName: "Parque ou área verde do OSM",
     osmAreaSourceLabel: "Parque / área verde (OSM live)",
     areaLoading: "Carregando informações da área…",
@@ -943,7 +983,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Filtros"
         : "Filters";
   const listHeading = lang === "ja"
-    ? "近くの発見"
+    ? "この範囲の地域図鑑"
     : lang === "es"
       ? "Observaciones en esta área"
       : lang === "pt-BR"
@@ -957,7 +997,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Buscar nesta área"
         : "Search this area";
   const sideTabResultsLabel = lang === "ja"
-    ? "最近の発見"
+    ? "地域図鑑"
     : lang === "es"
       ? "Lista"
       : lang === "pt-BR"
@@ -978,7 +1018,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Recolher painel"
         : "Collapse side panel";
   const sideSelectionEmptyLabel = lang === "ja"
-    ? "公園、緑地、発見カードを選ぶと、ここに今見られるものと次の行動が出ます。"
+    ? "エリアや記録の厚みを選ぶと、この地域の今の姿と、これから育てる記録が見えます。記録は地域単位で集計しています。"
     : lang === "es"
       ? "Toca un pin o una celda del mapa para ver los detalles aquí."
       : lang === "pt-BR"
@@ -1003,10 +1043,15 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <div id="me-search-results" class="me-search-results" role="listbox" aria-label="${escapeHtml(copy.searchAriaLabel)}"></div>
         </div>
         <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
-          <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
+          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
           <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="heatmap">${escapeHtml(copy.tabHeatmap)}</button>
-          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="places">${escapeHtml(copy.tabPlaces)}</button>
+          <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="places">${escapeHtml(copy.tabPlaces)}</button>
           <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="frontier">${escapeHtml(copy.tabCoverage)}</button>
+        </div>
+        <div class="me-map-cues" aria-label="${escapeHtml(copy.enjoyTitle)}">
+          <span><i class="me-cue-dot" aria-hidden="true"></i>${escapeHtml(copy.visualCueCount)}</span>
+          <span><i class="me-cue-rainbow" aria-hidden="true"></i>${escapeHtml(copy.visualCueColor)}</span>
+          <span><i class="me-cue-place" aria-hidden="true"></i>${escapeHtml(copy.visualCuePlace)}</span>
         </div>
       </div>
       <div class="me-topbar-secondary">
@@ -1323,6 +1368,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     unknownHypothesisLabel: copy.unknownHypothesisLabel,
     recordingGapLabel: copy.recordingGapLabel,
     selectedPointName: copy.selectedPointName,
+    areaRestrictedActionLabel: copy.areaRestrictedActionLabel,
+    areaRestrictedActionHint: copy.areaRestrictedActionHint,
+    areaSafeRecordLabel: copy.areaSafeRecordLabel,
+    areaSchoolNotice: copy.areaSchoolNotice,
+    cellAggregateTitle: copy.cellAggregateTitle,
+    cellAggregateBadge: copy.cellAggregateBadge,
+    cellAggregateSafety: copy.cellAggregateSafety,
+    mapPointSafety: copy.mapPointSafety,
     osmAreaFallbackName: copy.osmAreaFallbackName,
     osmAreaSourceLabel: copy.osmAreaSourceLabel,
     areaLoading: copy.areaLoading,
@@ -1510,7 +1563,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
   var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
   var EVENTS_ORGANIZER_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events"), props.lang))};
-  var FIELDS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/new"), props.lang))};
   var FIELDS_ALBUM_TPL = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/__FIELD_ID__"), props.lang))};
   var LOGIN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/login"), props.lang))};
   ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
@@ -1851,7 +1903,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   ];
 
   var state = {
-    tab: 'markers',
+    tab: 'places',
     role: 'mixed',
     actorClass: 'all',
     markerProfile: 'all_research_artifacts',
@@ -2158,6 +2210,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function fmtProvenanceMeta(stats) {
     if (!stats || !stats.provenance) return '';
+    var privacy = stats.privacy || null;
+    if (privacy && privacy.policy === 'k_anonymous_cell_aggregate') {
+      return [
+        'profile=' + String(stats.markerProfile || 'all_research_artifacts'),
+        'public aggregate k>=' + String(privacy.minCellRecords || 3),
+        'suppressed counts hidden'
+      ].join(' | ');
+    }
     var visible = stats.provenance.visible || {};
     var excluded = stats.provenance.excluded || {};
     var sampleLabel = stats.provenance.sampled ? ('sample ' + String(stats.provenance.sampleSize || 0)) : 'full';
@@ -3025,17 +3085,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function renderPlaceDetailActions(context) {
     var hasCoord = context && Number.isFinite(context.lat) && Number.isFinite(context.lng);
-    var sep = function (base) { return base.indexOf('?') >= 0 ? '&' : '?'; };
-    var coordQs = hasCoord
-      ? 'lat=' + encodeURIComponent(String(context.lat)) + '&lng=' + encodeURIComponent(String(context.lng))
-      : '';
-    var eventHref = EVENTS_ORGANIZER_HREF;
-    var fieldHref = hasCoord ? FIELDS_NEW_BASE + sep(FIELDS_NEW_BASE) + coordQs : NOTES_HREF;
-    var nearbyHref = hasCoord ? appendQueryParams(SCAN_HREF, { lat: context.lat.toFixed(6), lng: context.lng.toFixed(6), z: 14 }) : SCAN_HREF;
+    var eventHref = context && context.memoryPlace ? buildPlaceMemoryRecordHref(context.memoryPlace) : RECORD_HREF;
+    var fieldHref = context && context.memoryPlace && hasCoord ? buildPlaceMemoryRecordHref(context.memoryPlace) : NOTES_HREF;
+    var recordLabel = context && context.memoryPlace ? COPY.placeActionRecord : COPY.areaSafeRecordLabel;
+    if (context && context.kind === 'cell') {
+      return renderDetailActions([
+        { icon: '＋', label: COPY.areaSafeRecordLabel, href: RECORD_HREF },
+        { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF },
+        { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF },
+        { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF },
+      ]);
+    }
+    if (!context || !context.memoryPlace) {
+      return renderDetailActions([
+        { icon: '＋', label: COPY.areaSafeRecordLabel, href: RECORD_HREF },
+        { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF },
+        { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF },
+        { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF },
+      ]);
+    }
     return renderDetailActions([
-      { icon: '＋', label: COPY.areaEventCreateLabel, href: eventHref },
-      { icon: '☆', label: COPY.areaPublicPageLabel, href: fieldHref },
-      { icon: '🔍', label: COPY.placeActionNearby, href: nearbyHref },
+      { icon: '＋', label: recordLabel, href: eventHref },
+      { icon: '☆', label: COPY.placeActionFollow, href: fieldHref },
+      { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF },
+      { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF },
+      { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF },
     ]);
   }
   function renderSelectedCard() {
@@ -3083,7 +3157,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var seq = ++siteBriefSeq;
       selectedCardEl.innerHTML =
         '<article class="me-detail-panel me-detail-panel-place">' +
-          renderDetailHero({ title: COPY.selectedFieldLabel, meta: coordLabel(context.lat, context.lng), badge: COPY.selectionPlaceLabel, compact: true }) +
+          renderDetailHero({ title: COPY.selectedPointName, meta: '', badge: COPY.selectionPlaceLabel }) +
+          renderAggregateSafety(COPY.mapPointSafety) +
+          renderDetailVisitReasons(context) +
           renderSiteBriefSlot('me-selected-brief-slot', context) +
           renderDetailRecentFinds(context) +
           renderDetailWalkableFinds(context) +
@@ -3110,7 +3186,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var cellSeq = ++siteBriefSeq;
       selectedCardEl.innerHTML =
         '<article class="me-detail-panel me-detail-panel-cell">' +
-          renderDetailHero({ title: cellProps.albumName || cellProps.label || COPY.selectedFieldLabel, meta: (cellProps.scaleLabel || countLabel) + ' · ' + countLabel + (latest ? ' · ' + latest : '') + (era ? ' · ' + era : ''), badge: cellProps.localityLabel || COPY.selectionPlaceLabel, compact: true }) +
+          renderDetailHero({ title: COPY.cellAggregateTitle, meta: countLabel + (latest ? ' · ' + latest : '') + (era ? ' · ' + era : ''), badge: COPY.cellAggregateBadge }) +
+          renderAggregateSafety(COPY.cellAggregateSafety) +
+          renderDetailVisitReasons(context) +
           renderSiteBriefSlot('me-selected-brief-slot', context) +
           renderDetailRecentFinds(context) +
           renderDetailWalkableFinds(context) +
@@ -3565,6 +3643,85 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (playBtn) playBtn.addEventListener('click', function () { speakAreaGuideStop(); });
   }
 
+  function areaText(area) {
+    var a = area || {};
+    return [
+      a.source,
+      a.source_kind,
+      a.sourceLabel,
+      a.source_label,
+      a.admin_level,
+      a.fieldSource,
+      a.name,
+      a.label,
+      a.ownerName,
+      a.owner_name
+    ].filter(function (value) { return value != null && value !== ''; }).join(' ');
+  }
+
+  function areaSourceKind(area) {
+    var a = area || {};
+    return String(a.source || a.source_kind || a.admin_level || a.fieldSource || a.sourceLabel || a.source_label || '').toLowerCase();
+  }
+
+  function isSchoolArea(area) {
+    var source = areaSourceKind(area);
+    if (source === 'school' || source === 'university' || source === 'kindergarten') return true;
+    return /(学校|校|大学|幼稚園|保育園|こども園|学園|学院|教習所|school|campus|university|college|kindergarten|nursery)/i.test(areaText(area));
+  }
+
+  function hasSensitiveMasking(masking) {
+    return !!(masking && Number(masking.maskedSpecies || 0) > 0 && !masking.viewerCanSeeExact);
+  }
+
+  function areaAccessStatus(area, masking) {
+    if (isSchoolArea(area)) return 'school';
+    if (hasSensitiveMasking(masking)) return 'sensitive';
+    var a = area || {};
+    var guidance = a.accessGuidance || {};
+    var guidanceStatus = String(guidance.status || a.access_status || '').toLowerCase();
+    var access = String(a.access || a.accessStatus || '').toLowerCase();
+    if (guidanceStatus === 'private_or_restricted' || access === 'private' || access === 'no' || access === 'restricted') {
+      return 'private_or_restricted';
+    }
+    if (guidanceStatus === 'public_access' || access === 'yes' || access === 'public' || access === 'permissive') {
+      return 'public_access';
+    }
+    var verification = String(a.verificationLevel || a.verification_level || '').toLowerCase();
+    var confidence = Number(a.sourceConfidence || a.source_confidence || 0);
+    if (/^(registry_matched|page_verified|owner_verified|staff_verified)$/.test(verification) || confidence >= 0.75) {
+      return 'public_access';
+    }
+    return 'unknown';
+  }
+
+  function canSuggestAreaEvent(area, masking) {
+    return areaAccessStatus(area, masking) === 'public_access';
+  }
+
+  function canSuggestDirectAreaRecord(area, masking) {
+    return areaAccessStatus(area, masking) === 'public_access';
+  }
+
+  function renderAreaSafetyNotice(area, masking) {
+    var status = areaAccessStatus(area, masking);
+    if (status === 'school') {
+      return '<div class="me-area-sensitive me-area-safety"><strong>' + escapeHtml(COPY.areaRestrictedActionLabel) + '</strong><br>' + escapeHtml(COPY.areaSchoolNotice) + '</div>';
+    }
+    if (status === 'private_or_restricted' || status === 'unknown') {
+      return '<div class="me-area-sensitive me-area-safety"><strong>' + escapeHtml(COPY.areaRestrictedActionLabel) + '</strong><br>' + escapeHtml(COPY.areaRestrictedActionHint) + '</div>';
+    }
+    return '';
+  }
+
+  function renderRestrictedAreaAction() {
+    return '<div class="me-area-sensitive me-area-action-note"><strong>' + escapeHtml(COPY.areaRestrictedActionLabel) + '</strong><br>' + escapeHtml(COPY.areaRestrictedActionHint) + '</div>';
+  }
+
+  function renderAggregateSafety(text) {
+    return '<section class="me-aggregate-safety me-detail-section">' + escapeHtml(text) + '</section>';
+  }
+
   function toThumbUrl(url, preset) {
     if (!url) return url;
     var m = /^\\/(uploads|data\\/uploads)\\/(.+\\.(?:jpe?g|png|webp|gif))$/i.exec(url);
@@ -3695,32 +3852,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderPlaceActions() {
-    // No observation context — take the user to act now or review their own notes.
-    var pt = state.selectedPoint;
-    var hasCoord = pt && Number.isFinite(pt.lat) && Number.isFinite(pt.lng);
-    var sep = function (base) { return base.indexOf('?') >= 0 ? '&' : '?'; };
-    var coordQs = hasCoord
-      ? 'lat=' + encodeURIComponent(String(pt.lat)) + '&lng=' + encodeURIComponent(String(pt.lng))
-      : '';
-    var eventHref = EVENTS_ORGANIZER_HREF;
-    var fieldHref = hasCoord ? FIELDS_NEW_BASE + sep(FIELDS_NEW_BASE) + coordQs : '';
-    var ctaSeamless = hasCoord
-      ? ''
-        + '<div class="me-place-cta-row">'
-        +   '<a class="me-place-cta me-place-cta-primary" href="' + escapeHtml(eventHref) + '">'
-        +     '<span class="me-place-cta-icon" aria-hidden="true">↗</span>'
-        +     '<span class="me-place-cta-body"><strong>' + escapeHtml(COPY.areaEventCreateLabel) + '</strong>'
-        +     '<span>' + escapeHtml(COPY.areaEventCreateHint) + '</span></span>'
-        +   '</a>'
-        +   '<a class="me-place-cta me-place-cta-secondary" href="' + escapeHtml(fieldHref) + '">'
-        +     '<span class="me-place-cta-icon" aria-hidden="true">⛳</span>'
-        +     '<span class="me-place-cta-body"><strong>' + escapeHtml(COPY.placeActionFollow) + '</strong>'
-        +     '<span>' + escapeHtml(COPY.impactRevisitStory) + '</span></span>'
-        +   '</a>'
-        + '</div>'
-      : '';
-    return ctaSeamless +
-      '<div class="me-bottom-actions">' +
+    return '<div class="me-bottom-actions">' +
       '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.placeActionGuide) + '</a>' +
       '<a class="inline-link" href="' + SCAN_HREF + '">' + escapeHtml(COPY.placeActionScan) + '</a>' +
@@ -4064,11 +4196,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetInnerEl.innerHTML =
       '<article class="me-detail-panel me-bottom-detail me-detail-panel-cell">' +
         renderDetailHero({
-          title: p.albumName || p.label || COPY.selectedFieldLabel,
-          meta: (p.scaleLabel || '') + (p.scaleLabel ? ' · ' : '') + String(p.count || 0) + ' ' + COPY.resultCountLabel + (p.latestObservedAt ? ' · ' + String(p.latestObservedAt).slice(0, 10) : '') + (p.nameEraLabel ? ' · ' + String(p.nameEraLabel) : ''),
-          badge: p.localityLabel || COPY.selectionPlaceLabel,
-          compact: true,
+          title: COPY.cellAggregateTitle,
+          meta: String(p.count || 0) + ' ' + COPY.resultCountLabel + (p.latestObservedAt ? ' · ' + String(p.latestObservedAt).slice(0, 10) : '') + (p.nameEraLabel ? ' · ' + String(p.nameEraLabel) : ''),
+          badge: COPY.cellAggregateBadge,
         }) +
+        renderAggregateSafety(COPY.cellAggregateSafety) +
+        renderDetailVisitReasons(detailContext) +
         renderSiteBriefSlot('me-site-brief-slot', detailContext) +
         renderDetailRecentFinds(detailContext) +
         renderDetailWalkableFinds(detailContext) +
@@ -4132,7 +4265,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var seq = ++siteBriefSeq;
     sheetInnerEl.innerHTML =
       '<article class="me-detail-panel me-bottom-detail me-detail-panel-place">' +
-        renderDetailHero({ title: COPY.selectedFieldLabel, meta: coordLabel(lat, lng), badge: COPY.selectionPlaceLabel, compact: true }) +
+        renderDetailHero({ title: COPY.selectedPointName, meta: '', badge: COPY.selectionPlaceLabel }) +
+        renderAggregateSafety(COPY.mapPointSafety) +
+        renderDetailVisitReasons(detailContext) +
         renderSiteBriefSlot('me-site-brief-slot', detailContext) +
         renderDetailRecentFinds(detailContext) +
         renderDetailWalkableFinds(detailContext) +
@@ -4275,13 +4410,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var areaName = String(props.name || COPY.osmAreaFallbackName);
     var locationLabel = safeCenter ? safeCenter.lat.toFixed(4) + ', ' + safeCenter.lng.toFixed(4) : '';
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
+    var guidance = transientAccessGuidance(props);
+    var canRecord = canSuggestDirectAreaRecord(props, null);
     return ''
       + renderAreaHero({ title: areaName, sourceLabel: sourceLabel, meta: locationLabel, photo: null })
       + renderAreaActivityRallyPanel(sourceLinksHtml + sourceTrustHtml + '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>')
       + renderAreaGuideStop(props, safeCenter)
-      + renderAreaAccessGuidance(transientAccessGuidance(props))
+      + renderAreaAccessGuidance(guidance)
+      + renderAreaSafetyNotice(props, null)
       + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
-      + renderAreaObservationGallery(transientAreaGalleryItems(feature, safeCenter), { label: COPY.areaGalleryTitle })
+      + renderAreaObservationGallery(transientAreaGalleryItems(feature, safeCenter), { label: COPY.areaGalleryTitle, canRecord: canRecord })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
       + '<div class="me-area-sheet-timeline is-empty">' + escapeHtml(COPY.unregisteredAreaText) + '</div>';
   }
@@ -4575,6 +4713,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderAreaObservationGallery(items, options) {
     var records = Array.isArray(items) ? items.slice(0, 8) : [];
     var label = options && options.label ? String(options.label) : COPY.areaGalleryTitle;
+    var canRecord = !options || options.canRecord !== false;
     if (!records.length) {
       return ''
         + '<section class="me-area-gallery is-empty" aria-label="' + escapeHtml(label) + '">'
@@ -4582,7 +4721,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         +     '<span>' + escapeHtml(label) + '</span>'
         +     '<strong>' + escapeHtml(COPY.areaGalleryEmpty) + '</strong>'
         +   '</div>'
-        +   '<a class="me-area-gallery-empty-cta" href="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.placeActionRecord) + '</a>'
+        +   (canRecord
+              ? '<a class="me-area-gallery-empty-cta" href="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaSafeRecordLabel) + '</a>'
+              : '<p class="me-area-story-note">' + escapeHtml(COPY.areaRestrictedActionHint) + '</p>')
         + '</section>';
     }
     return ''
@@ -4639,10 +4780,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
-  function renderAreaStoryTabs(snapshot) {
+  function renderAreaStoryTabs(snapshot, options) {
     var summary = (snapshot && snapshot.observationSummary) || {};
     var gallery = Array.isArray(snapshot && snapshot.observationGallery) ? snapshot.observationGallery : [];
     var seasonalCoverage = Array.isArray(snapshot && snapshot.seasonalCoverage) ? snapshot.seasonalCoverage : [];
+    var canRecord = !options || options.canRecord !== false;
     var topTaxa = Array.isArray(summary.topTaxa) ? summary.topTaxa.slice(0, 8) : [];
     var taxaHtml = topTaxa.length
       ? topTaxa.map(function (taxon) {
@@ -4662,9 +4804,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var missingHtml = missing.length
       ? '<p class="me-area-story-note">' + escapeHtml(COPY.areaMissingSeasonLead) + '</p>'
         + missing.map(function (row) {
+            if (!canRecord) {
+              return '<span class="me-area-season-gap is-muted">'
+                + '<span>' + escapeHtml(String(row.label || row.season || 'season')) + '</span>'
+                + '<strong>' + escapeHtml(COPY.areaRestrictedActionLabel) + '</strong>'
+                + '</span>';
+            }
             return '<a class="me-area-season-gap" href="' + escapeHtml(RECORD_HREF) + '">'
               + '<span>' + escapeHtml(String(row.label || row.season || 'season')) + '</span>'
-              + '<strong>' + escapeHtml(COPY.placeActionRecord) + '</strong>'
+              + '<strong>' + escapeHtml(COPY.areaSafeRecordLabel) + '</strong>'
               + '</a>';
           }).join('')
       : '<p class="me-area-story-note">' + escapeHtml(COPY.areaCompleteSeasonLead) + '</p>';
@@ -4883,6 +5031,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var sourceLinksHtml = renderAreaSourceLinks(f);
     var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence, f.verificationLabel, f.verificationLevel);
     var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
+    var canRecord = canSuggestDirectAreaRecord(f, masking);
     var followHtml = renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId }));
     var selectedAreaFeature = state.selectedPoint && state.selectedPoint.areaFeature ? state.selectedPoint.areaFeature : null;
     var selectedAreaProps = selectedAreaFeature && selectedAreaFeature.properties ? selectedAreaFeature.properties : f;
@@ -4908,13 +5057,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var timelineHtml = renderAreaTimeline(timeline);
     var indicatorsHtml = renderEffortIndicators(indicators);
     var maskingHtml = renderSensitiveBanner(masking);
+    var safetyNoticeHtml = renderAreaSafetyNotice(f, masking);
     var placeStoryHtml = renderPlaceStoryHighlights(f, summary, indicators, representativePhoto);
-    var galleryHtml = renderAreaObservationGallery(gallery, { label: COPY.areaGalleryTitle });
+    var galleryHtml = renderAreaObservationGallery(gallery, { label: COPY.areaGalleryTitle, canRecord: canRecord });
     var schoolAlbumHtml = renderSchoolAlbumEntrypoints(f);
     var accessHtml = renderAreaAccessGuidance(f.accessGuidance);
-    var storyTabsHtml = renderAreaStoryTabs(snapshot);
+    var storyTabsHtml = renderAreaStoryTabs(snapshot, { canRecord: canRecord });
     var positiveHtml = renderAreaPositiveFeedback(snapshot, fieldId);
-    return heroHtml + primaryActionsHtml + positiveHtml + guideStopHtml + accessHtml + followHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    var publicPageHtml = fieldId
+      ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
+      : '';
+    return heroHtml + accessHtml + maskingHtml + safetyNoticeHtml + primaryActionsHtml + positiveHtml + guideStopHtml + followHtml + publicPageHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -8537,6 +8690,12 @@ export const MAP_EXPLORER_STYLES = `
     color: #0f766e;
     font-size: 10px;
   }
+  .me-area-season-gap.is-muted {
+    color: #92400e;
+    background: rgba(254,243,199,.62);
+    border-color: rgba(217,119,6,.24);
+  }
+  .me-area-season-gap.is-muted strong { color: #92400e; }
   .me-area-story-note {
     flex-basis: 100%;
     margin: 0;
@@ -8718,6 +8877,16 @@ export const MAP_EXPLORER_STYLES = `
   .me-detail-stats strong { font-size: 12px; line-height: 1.45; color: #0f172a; font-weight: 850; overflow-wrap: anywhere; }
   .me-detail-section {
     margin: 0 14px 14px;
+  }
+  .me-aggregate-safety {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(240,253,250,.9);
+    border: 1px solid rgba(20,184,166,.18);
+    color: #0f3f3a;
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1.5;
   }
   .me-detail-section-head {
     display: flex;
@@ -9396,7 +9565,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-map-status {
       left: 10px;
       right: auto;
-      bottom: 54px;
+      bottom: 96px;
       top: auto;
       max-width: calc(100% - 96px);
     }
@@ -9528,6 +9697,12 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-effort-title { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; justify-content: space-between; font-size: 12px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
   .me-area-effort-title > span:first-child { font-size: 13px; }
   .me-area-effort-explainer { margin: 0 0 10px; font-size: 11px; color: #475569; line-height: 1.5; padding: 8px 10px; border-radius: 10px; background: rgba(241,245,249,.7); border: 1px solid rgba(148,163,184,.18); }
+  .me-area-safety strong,
+  .me-area-action-note strong {
+    display: inline-block;
+    margin-bottom: 2px;
+    color: #78350f;
+  }
 
   /* Area mode: PC では「この場所」タブの右隣に縦長サイドカードとして出す。
      左パネル (一覧/この場所) と被らないよう --me-side-w 分ずらす。

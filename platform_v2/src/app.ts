@@ -48,6 +48,7 @@ import { registerPlaceManagementPolicyApiRoutes } from "./routes/placeManagement
 import { registerPlaceMemoryApiRoutes } from "./routes/placeMemoryApi.js";
 import { registerReferenceRoutes } from "./routes/references.js";
 import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
+import { startPublicMapSnapshotScheduler } from "./services/publicMapSnapshotScheduler.js";
 import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
 import { registerSampleReportRoute } from "./routes/sampleReport.js";
 import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
@@ -847,6 +848,7 @@ export function buildApp() {
 
   // 5 分周期の AI Quest cron(activity ありのセッションのみ)
   startQuestScheduler();
+  startPublicMapSnapshotScheduler();
 
   return app;
 }

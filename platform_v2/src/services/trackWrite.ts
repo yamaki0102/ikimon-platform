@@ -7,6 +7,7 @@ import {
   normalizeTimestamp,
   recordCompatibilityFailure,
 } from "./writeSupport.js";
+import { queuePublicMapSnapshotRefresh } from "./publicMapSnapshotScheduler.js";
 
 export type TrackPointInput = {
   latitude: number;
@@ -219,6 +220,8 @@ export async function upsertTrack(input: TrackUpsertInput): Promise<TrackWriteRe
       }
     }
   }
+
+  queuePublicMapSnapshotRefresh("track-upsert", { force: true });
 
   return {
     visitId,

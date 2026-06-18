@@ -166,3 +166,4 @@ do
 done
 
 echo "Staging deploy complete: $(git rev-parse --short HEAD)"
+echo "Release rehearsal gate: run GitHub Actions Deploy to Staging with verify_level=full to execute public_map_snapshot_alert_lifecycle."

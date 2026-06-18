@@ -54,6 +54,7 @@ import {
   type ObservationGovernanceContextInput,
   type ObservationPackageEventInput,
 } from "./observationPackageDataChain.js";
+import { queuePublicMapSnapshotRefresh } from "./publicMapSnapshotScheduler.js";
 import { resolveAdminLocalityForPoint } from "./adminLocalityResolver.js";
 import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
 import { encodeJisMeshCodes } from "./jisMesh.js";
@@ -1264,6 +1265,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   if (placeMemory?.photoEchoEnabled) {
     void kickPlaceMemoryPhotoProcessingForVisit(visitId).catch(() => undefined);
   }
+
+  queuePublicMapSnapshotRefresh("observation-upsert", { force: true });
 
   const config = loadConfig();
   const compatibility = {

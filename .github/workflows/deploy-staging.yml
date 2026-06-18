@@ -169,6 +169,11 @@ jobs:
             echo "- PHP lint: $RUN_PHP_LINT"
             echo "- browser smoke: $RUN_BROWSER_SMOKE"
             echo "- full browser E2E: $RUN_FULL_BROWSER_E2E"
+            if [ "$VERIFY_LEVEL" = "full" ]; then
+              echo "- public_map_snapshot_alert_lifecycle: required"
+            else
+              echo "- public_map_snapshot_alert_lifecycle: skipped (full only)"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   pre-flight:
@@ -514,7 +519,12 @@ jobs:
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
             STAGING_MIGRATION_REPAIR_CHECKSUMS="${{ github.event.inputs.migration_repair_checksums || '' }}"
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            SCOPE_FILE=/var/www/ikimon.life-staging/.github-deploy-scope.env
             STAGING_ENV_FILE=/etc/ikimon/staging-v2.env
+            VERIFY_LEVEL=auto
+            if [ -f "$SCOPE_FILE" ]; then
+              . "$SCOPE_FILE"
+            fi
             if [ -z "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
               echo "FAIL: V2_PRIVILEGED_WRITE_API_KEY missing in staging environment"
               exit 1
@@ -599,6 +609,16 @@ jobs:
               "V2_PRIVILEGED_WRITE_API_KEY=${V2_PRIVILEGED_WRITE_API_KEY}" \
               "V2_BASE_URL=http://127.0.0.1:3200" \
               bash -lc "cd '$V2_DIR' && npx tsx src/scripts/smokePassiveAudioIngest.ts"
+            if [ "$VERIFY_LEVEL" = "full" ]; then
+              echo "== public map snapshot alert lifecycle smoke =="
+              runuser -u ikimon-staging -- env \
+                "DATABASE_URL=${DATABASE_URL}" \
+                "V2_BASE_URL=http://127.0.0.1:3200" \
+                "IKIMON_OPS_STALENESS_WEBHOOK_URL=${IKIMON_OPS_STALENESS_WEBHOOK_URL:-}" \
+                bash -lc "cd '$V2_DIR' && npm run smoke:public-map-snapshot-alert -- --apply --confirm=public-map-snapshot-staging-smoke --base-url=http://127.0.0.1:3200 --allow-local"
+            else
+              echo "Skip public map snapshot alert lifecycle smoke: verify_level=$VERIFY_LEVEL (requires full)."
+            fi
 
   verify-e2e:
     name: Verify Staging in Browser

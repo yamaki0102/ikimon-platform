@@ -2,6 +2,7 @@ import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
 import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import { refreshPublicMapSnapshotIfStale } from "../services/mapSnapshot.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -366,6 +367,12 @@ async function main(): Promise<void> {
   }
 
   console.log(JSON.stringify({ options, summary }, null, 2));
+  if (!options.dryRun && summary.tracksImported > 0) {
+    await refreshPublicMapSnapshotIfStale({
+      force: true,
+      refreshedBy: "import:importTrackSessions",
+    });
+  }
   await pool.end();
 }
 
