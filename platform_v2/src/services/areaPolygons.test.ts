@@ -9,6 +9,7 @@ const {
   liveElementToFeature,
   tileForLngLat,
   tilesForBbox,
+  bboxForTiles,
   featureTouchesBbox,
   isCompleteFreshLiveCache,
   filterAreaFeaturesBySources,
@@ -25,6 +26,7 @@ const {
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
   LIVE_OSM_EMPTY_TTL_HOURS,
   LIVE_OSM_ENDPOINTS,
+  LIVE_OSM_TILE_FETCH_LIMIT,
   SOURCE_LABEL,
 } = __test__;
 
@@ -71,10 +73,30 @@ test("buildLiveOsmAreaQuery uses Overpass south,west,north,east order", () => {
   const query = buildLiveOsmAreaQuery([137.39, 34.73, 137.43, 34.75]);
   assert.match(query, /\(34\.73,137\.39,34\.75,137\.43\)/);
   assert.match(query, /leisure/);
+  assert.match(query, /playground/);
+  assert.match(query, /recreation_ground/);
+  assert.match(query, /landuse"\="grass"\]\["name"\]/);
   assert.match(query, /amenity/);
   assert.match(query, /kindergarten/);
   assert.match(query, /landuse/);
   assert.match(query, /building/);
+});
+
+test("liveElementToFeature treats playground polygons as park areas", () => {
+  const feature = liveElementToFeature({
+    type: "way",
+    id: 263321118,
+    tags: { name: "西伊場第三公園", leisure: "playground" },
+    geometry: [
+      { lat: 34.6961, lon: 137.6997 },
+      { lat: 34.6961, lon: 137.7005 },
+      { lat: 34.6966, lon: 137.7005 },
+    ],
+  });
+
+  assert.equal(feature?.properties.source, "osm_park");
+  assert.equal(feature?.properties.name, "西伊場第三公園");
+  assert.equal(feature?.properties.entity_key, "osm:way:263321118");
 });
 
 test("liveElementToFeature converts OSM way into transient area feature", () => {
@@ -389,6 +411,19 @@ test("tilesForBbox returns bounded web mercator tile keys", () => {
   assert.ok(tiles.every((tile) => tile.z === 14));
   const one = tileForLngLat(137.41, 34.74);
   assert.ok(tiles.some((tile) => tile.x === one.x && tile.y === one.y));
+});
+
+test("bboxForTiles expands live cache fetches to complete tile coverage", () => {
+  const viewport: [number, number, number, number] = [137.6998, 34.6958, 137.7010, 34.6968];
+  const tiles = tilesForBbox(viewport);
+  const bbox = bboxForTiles(tiles);
+
+  assert.ok(bbox);
+  assert.ok(bbox[0] <= viewport[0]);
+  assert.ok(bbox[1] <= viewport[1]);
+  assert.ok(bbox[2] >= viewport[2]);
+  assert.ok(bbox[3] >= viewport[3]);
+  assert.ok(LIVE_OSM_TILE_FETCH_LIMIT >= 300);
 });
 
 test("featureTouchesBbox keeps cached tile features local to the current viewport", () => {
