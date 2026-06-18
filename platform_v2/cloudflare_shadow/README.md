@@ -283,11 +283,11 @@ GitHub Actions can build the same fast-lane artifact with `Cloudflare Quick Pref
 
 ```bash
 gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
-gh run download <run-id> --name cloudflare-production-preflight --dir .deploy
+npm run deploy:production:artifact:pull
 npm run deploy:production:fast:dry-run
 ```
 
-The artifact contains `.deploy/production-preflight-latest.json` and `.deploy/wrangler-version-cache.json`. The fast lane still refuses mismatched `HEAD`, changed Worker deploy inputs, stale reports, and missing Wrangler dry-run evidence.
+The helper resolves the latest successful artifact run for the current branch and exact `HEAD`, downloads `cloudflare-production-preflight`, and writes `.deploy/production-preflight-latest.json` plus `.deploy/wrangler-version-cache.json`. The fast lane still refuses mismatched `HEAD`, changed Worker deploy inputs, stale reports, and missing Wrangler dry-run evidence.
 
 Production deploy requires an explicit approval code and then smokes both workers.dev and the public custom domain:
 

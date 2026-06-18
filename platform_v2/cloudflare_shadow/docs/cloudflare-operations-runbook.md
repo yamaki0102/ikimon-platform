@@ -80,11 +80,11 @@ For the lowest local wait time, have GitHub Actions create the quick preflight a
 
 ```powershell
 gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
-gh run download <run-id> --name cloudflare-production-preflight --dir .deploy
+npm run deploy:production:artifact:pull
 npm run deploy:production:fast:dry-run
 ```
 
-The artifact includes `production-preflight-latest.json` and `wrangler-version-cache.json`. It is valid only for the same git `HEAD` and Worker deploy-input hash; the fast lane still rechecks config, scans for hardcoded secrets, runs Wrangler production dry-run, and refuses stale evidence. The production GitHub Actions deploy workflow now creates this artifact before deploy and uses `npm run deploy:production:fast` in the Worker deploy job.
+The helper resolves the latest successful artifact run for the current branch and exact `HEAD`, downloads `cloudflare-production-preflight`, and writes `.deploy/production-preflight-latest.json` plus `.deploy/wrangler-version-cache.json`. It is valid only for the same git `HEAD` and Worker deploy-input hash; the fast lane still rechecks config, scans for hardcoded secrets, runs Wrangler production dry-run, and refuses stale evidence. The production GitHub Actions deploy workflow now creates this artifact before deploy and uses `npm run deploy:production:fast` in the Worker deploy job.
 
 Execute only after dry-run passes:
 
