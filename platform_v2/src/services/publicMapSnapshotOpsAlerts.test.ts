@@ -87,6 +87,12 @@ test("staging smoke backdates, alerts, verifies admin, refreshes, and resolves",
   assert.match(smokeSource, /--apply/);
   assert.match(smokeSource, /--confirm=public-map-snapshot-staging-smoke/);
   assert.match(smokeSource, /Refusing to run public map snapshot alert smoke against production host/);
+  assert.match(smokeSource, /--capture-webhook/);
+  assert.match(smokeSource, /startWebhookCapture/);
+  assert.match(smokeSource, /required webhook capture did not receive a staleness notification/);
+  assert.match(smokeSource, /--create-smoke-admin-session/);
+  assert.match(smokeSource, /createSmokeAdminSession/);
+  assert.match(smokeSource, /--require-admin/);
   assert.match(smokeSource, /update public_map_snapshots/);
   assert.match(smokeSource, /runCacheInvalidateOnce/);
   assert.match(smokeSource, /readActiveAlert/);
@@ -122,12 +128,18 @@ test("public map snapshot alert smoke is wired into the staging full release gat
   assert.match(gate.command, /smoke:public-map-snapshot-alert/);
   assert.match(gate.command, /--confirm=public-map-snapshot-staging-smoke/);
   assert.match(gate.command, /--allow-local/);
+  assert.match(gate.command, /--create-smoke-admin-session/);
+  assert.match(gate.command, /--require-admin/);
+  assert.match(gate.command, /--capture-webhook/);
+  assert.match(gate.command, /--require-webhook/);
   for (const marker of gate.workflowMarkers) {
     assert.match(workflowSource, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.match(workflowSource, /if \[ "\$VERIFY_LEVEL" = "full" \]/);
   assert.match(workflowSource, /npm run smoke:public-map-snapshot-alert/);
   assert.match(workflowSource, /IKIMON_OPS_STALENESS_WEBHOOK_URL/);
+  assert.match(workflowSource, /--create-smoke-admin-session/);
+  assert.match(workflowSource, /--capture-webhook/);
   assert.match(manifestSyncSource, /releaseGates/);
   assert.match(manifestSyncSource, /workflowMarkers/);
   assert.match(deploymentDoc, /public_map_snapshot_alert_lifecycle/);

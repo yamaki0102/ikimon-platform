@@ -11,7 +11,7 @@ import type {
 } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-export const DEFAULT_STAGING_MAP_PATH = "/map?bm=esri&lng=137.8589&lat=34.7219&z=10.6";
+export const DEFAULT_STAGING_MAP_PATH = "/map?tab=markers&bm=esri&lng=137.8589&lat=34.7219&z=10.6";
 export const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
 
 export type SeededRegressionFixture = {
@@ -291,11 +291,18 @@ export async function addSessionCookie(context: BrowserContext, rawCookie: strin
 export async function waitForMapReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH): Promise<void> {
   await page.goto(mapPath, { waitUntil: "domcontentloaded" });
   await page.locator("#map-explorer").waitFor({ state: "visible" });
-  await page.locator("#map-explorer canvas").first().waitFor({ state: "visible" });
-  await page.waitForFunction(() => {
-    return document.querySelectorAll(".me-result-row").length > 0 || document.querySelectorAll(".me-results-empty").length > 0;
-  });
   await expect(page.locator(".me-main")).toBeVisible();
+  await page.locator("#map-explorer canvas").first().waitFor({ state: "visible" });
+  try {
+    await page.waitForFunction(() => {
+      return document.querySelectorAll(".me-result-row").length > 0 || document.querySelectorAll(".me-results-empty").length > 0;
+    }, undefined, { timeout: 45_000 });
+  } catch (error) {
+    const sideStatus = ((await page.locator("#me-side-status").textContent().catch(() => "")) ?? "").trim();
+    const mapStatus = ((await page.locator("#me-map-status").textContent().catch(() => "")) ?? "").trim();
+    const pending = await page.locator("#map-explorer").getAttribute("data-results-pending").catch(() => null);
+    throw new Error(`map_ready_timeout path=${mapPath} sideStatus=${sideStatus || "empty"} mapStatus=${mapStatus || "empty"} pending=${pending ?? "missing"} cause=${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export async function waitForSearchAreaButton(page: Page): Promise<void> {

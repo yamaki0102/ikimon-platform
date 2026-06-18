@@ -615,7 +615,7 @@ jobs:
                 "DATABASE_URL=${DATABASE_URL}" \
                 "V2_BASE_URL=http://127.0.0.1:3200" \
                 "IKIMON_OPS_STALENESS_WEBHOOK_URL=${IKIMON_OPS_STALENESS_WEBHOOK_URL:-}" \
-                bash -lc "cd '$V2_DIR' && npm run smoke:public-map-snapshot-alert -- --apply --confirm=public-map-snapshot-staging-smoke --base-url=http://127.0.0.1:3200 --allow-local"
+                bash -lc "cd '$V2_DIR' && npm run smoke:public-map-snapshot-alert -- --apply --confirm=public-map-snapshot-staging-smoke --base-url=http://127.0.0.1:3200 --allow-local --create-smoke-admin-session --require-admin --capture-webhook --require-webhook"
             else
               echo "Skip public map snapshot alert lifecycle smoke: verify_level=$VERIFY_LEVEL (requires full)."
             fi

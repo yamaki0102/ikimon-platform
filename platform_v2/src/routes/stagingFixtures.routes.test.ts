@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
@@ -123,4 +124,13 @@ test("staging fixture routes enforce staging gate and privileged key", async () 
       }
     },
   );
+});
+
+test("staging fixture routes refresh the public map snapshot after seed and cleanup", async () => {
+  const source = await readFile(new URL("./write.ts", import.meta.url), "utf8");
+
+  assert.match(source, /refreshPublicMapSnapshot/);
+  assert.match(source, /refreshedBy: "staging-fixture:seed-regression"/);
+  assert.match(source, /refreshedBy: "staging-fixture:cleanup"/);
+  assert.match(source, /if \(!cleanup\.dryRun\)/);
 });

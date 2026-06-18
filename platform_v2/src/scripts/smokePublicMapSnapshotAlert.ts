@@ -1,4 +1,6 @@
+import { createServer } from "node:http";
 import { getPool } from "../db.js";
+import { issueSession } from "../services/authSession.js";
 import { refreshPublicMapSnapshot } from "../services/mapSnapshot.js";
 import { runCacheInvalidateOnce } from "./cron/runCacheInvalidate.js";
 
@@ -12,7 +14,10 @@ type SmokeOptions = {
   mode: SmokeMode;
   webhookUrl: string;
   requireWebhook: boolean;
+  captureWebhook: boolean;
   adminCookie: string;
+  requireAdmin: boolean;
+  createSmokeAdminSession: boolean;
   allowLocal: boolean;
   allowNonStaging: boolean;
 };
@@ -41,6 +46,24 @@ type OpsStatusPayload = {
   refreshedBy?: string | null;
 };
 
+type WebhookCaptureRequest = {
+  method: string;
+  path: string;
+  body: unknown;
+};
+
+type WebhookCapture = {
+  url: string;
+  requests: WebhookCaptureRequest[];
+  close: () => Promise<void>;
+};
+
+type SmokeAdminSession = {
+  userId: string;
+  tokenHash: string;
+  cookie: string;
+};
+
 const SNAPSHOT_KEY = "public-map:v1:global";
 const REGISTRY_KEY = "public_map_snapshot";
 const CONFIRMATION = "public-map-snapshot-staging-smoke";
@@ -56,7 +79,10 @@ function parseArgs(argv: string[]): SmokeOptions {
       || process.env.IKIMON_OPS_WEBHOOK_URL?.trim()
       || "",
     requireWebhook: false,
+    captureWebhook: false,
     adminCookie: process.env.IKIMON_ADMIN_COOKIE?.trim() || "",
+    requireAdmin: false,
+    createSmokeAdminSession: false,
     allowLocal: false,
     allowNonStaging: false,
   };
@@ -92,8 +118,22 @@ function parseArgs(argv: string[]): SmokeOptions {
       options.requireWebhook = true;
       continue;
     }
+    if (arg === "--capture-webhook") {
+      options.captureWebhook = true;
+      options.requireWebhook = true;
+      continue;
+    }
     if (arg.startsWith("--admin-cookie=")) {
       options.adminCookie = arg.slice("--admin-cookie=".length).trim();
+      continue;
+    }
+    if (arg === "--require-admin") {
+      options.requireAdmin = true;
+      continue;
+    }
+    if (arg === "--create-smoke-admin-session") {
+      options.createSmokeAdminSession = true;
+      options.requireAdmin = true;
       continue;
     }
     if (arg === "--allow-local") {
@@ -133,8 +173,11 @@ function assertSafeSmokeTarget(options: SmokeOptions): void {
   if (!isStaging && !options.allowNonStaging) {
     throw new Error("Smoke target must look like staging. Pass --allow-non-staging only for an isolated non-production lane.");
   }
-  if (options.requireWebhook && !options.webhookUrl) {
+  if (options.requireWebhook && !options.webhookUrl && !options.captureWebhook) {
     throw new Error("--require-webhook needs --webhook-url or IKIMON_OPS_STALENESS_WEBHOOK_URL.");
+  }
+  if (options.requireAdmin && !options.adminCookie && !options.createSmokeAdminSession) {
+    throw new Error("--require-admin needs --admin-cookie or --create-smoke-admin-session.");
   }
   if (options.webhookUrl) {
     process.env.IKIMON_OPS_STALENESS_WEBHOOK_URL = options.webhookUrl;
@@ -175,7 +218,126 @@ async function fetchText(url: string, headers?: HeadersInit): Promise<string> {
 }
 
 function adminHeaders(options: SmokeOptions): HeadersInit | undefined {
-  return options.adminCookie ? { cookie: options.adminCookie } : undefined;
+  const cookie = options.adminCookie.split(";")[0]?.trim() || options.adminCookie;
+  return cookie ? { cookie } : undefined;
+}
+
+async function startWebhookCapture(): Promise<WebhookCapture> {
+  const requests: WebhookCaptureRequest[] = [];
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    request.on("end", () => {
+      const rawBody = Buffer.concat(chunks).toString("utf8");
+      let body: unknown = rawBody;
+      if (rawBody.trim()) {
+        try {
+          body = JSON.parse(rawBody) as unknown;
+        } catch {
+          body = rawBody;
+        }
+      } else {
+        body = null;
+      }
+      requests.push({
+        method: request.method ?? "GET",
+        path: request.url ?? "/",
+        body,
+      });
+      response.writeHead(204);
+      response.end();
+    });
+    request.on("error", () => {
+      response.writeHead(500);
+      response.end();
+    });
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => {
+      server.off("listening", onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(0, "127.0.0.1");
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("webhook_capture_bind_failed");
+  }
+
+  return {
+    url: `http://127.0.0.1:${address.port}/public-map-snapshot-smoke`,
+    requests,
+    close: () => new Promise<void>((resolve, reject) => {
+      server.close((error?: Error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    }),
+  };
+}
+
+async function createSmokeAdminSession(): Promise<SmokeAdminSession> {
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const userId = `smoke-public-map-snapshot-admin-${suffix}`;
+  const pool = getPool();
+  await pool.query(
+    `insert into users (
+        user_id, legacy_user_id, display_name, email, password_hash, avatar_asset_id,
+        role_name, rank_label, auth_provider, oauth_id, banned, created_at, updated_at
+     ) values (
+        $1, $1, 'Public Map Snapshot Smoke Admin', $2, null, null,
+        'Analyst', '分析担当', 'staging_smoke', null, false, now(), now()
+     )
+     on conflict (user_id) do update set
+        display_name = excluded.display_name,
+        email = excluded.email,
+        role_name = excluded.role_name,
+        rank_label = excluded.rank_label,
+        auth_provider = excluded.auth_provider,
+        banned = false,
+        updated_at = now()`,
+    [userId, `${userId}@example.invalid`],
+  );
+  const session = await issueSession({
+    userId,
+    ttlHours: 1,
+    ipAddress: "127.0.0.1",
+    userAgent: "smokePublicMapSnapshotAlert",
+  });
+  return {
+    userId,
+    tokenHash: session.tokenHash,
+    cookie: session.cookie.split(";")[0]?.trim() || session.cookie,
+  };
+}
+
+async function cleanupSmokeAdminSession(session: SmokeAdminSession): Promise<void> {
+  const pool = getPool();
+  await pool.query(
+    `delete from remember_tokens
+      where token_hash = $1
+         or user_id = $2`,
+    [session.tokenHash, session.userId],
+  );
+  await pool.query(
+    `delete from users
+      where user_id = $1
+        and auth_provider = 'staging_smoke'`,
+    [session.userId],
+  );
 }
 
 async function ensureSnapshotExists(): Promise<SnapshotRow> {
@@ -285,7 +447,12 @@ function validateAlert(alert: AlertRow | null, options: SmokeOptions): AlertRow 
 }
 
 async function verifyAdminDataHealth(options: SmokeOptions): Promise<{ checked: boolean; matched: boolean }> {
-  if (!options.adminCookie) return { checked: false, matched: false };
+  if (!options.adminCookie) {
+    if (options.requireAdmin) {
+      throw new Error("admin data-health verification was required but no admin cookie was configured");
+    }
+    return { checked: false, matched: false };
+  }
   const html = await fetchText(`${options.baseUrl.replace(/\/+$/, "")}/admin/data-health`, adminHeaders(options));
   const matched = html.includes("未解決 staleness alerts")
     && html.includes("public_map_snapshot")
@@ -298,64 +465,106 @@ async function verifyAdminDataHealth(options: SmokeOptions): Promise<{ checked: 
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  assertSafeSmokeTarget(options);
+  let webhookCapture: WebhookCapture | null = null;
+  let smokeAdminSession: SmokeAdminSession | null = null;
 
-  const baseUrl = options.baseUrl.replace(/\/+$/, "");
-  const originalSnapshot = await ensureSnapshotExists();
-  const backdatedAt = await backdateSnapshot(options);
+  try {
+    assertSafeSmokeTarget(options);
 
-  const staleOpsPayload = validateOpsSnapshotPayload(
-    await fetchJson(`${baseUrl}/ops/public-map-snapshot`),
-    "stale",
-  );
-  const cacheInvalidate = await runCacheInvalidateOnce();
-  const alert = validateAlert(await readActiveAlert(), options);
-  const admin = await verifyAdminDataHealth(options);
+    if (options.captureWebhook) {
+      webhookCapture = await startWebhookCapture();
+      options.webhookUrl = webhookCapture.url;
+      process.env.IKIMON_OPS_STALENESS_WEBHOOK_URL = webhookCapture.url;
+    }
+    if (options.createSmokeAdminSession) {
+      smokeAdminSession = await createSmokeAdminSession();
+      options.adminCookie = smokeAdminSession.cookie;
+    }
 
-  const refresh = await refreshPublicMapSnapshot({
-    refreshedBy: "smoke:public-map-snapshot-alert:resolve",
-  });
-  const activeAlertsAfterRefresh = await countActiveAlerts();
-  if (activeAlertsAfterRefresh !== 0) {
-    throw new Error(`expected refresh to resolve public_map_snapshot alerts, active=${activeAlertsAfterRefresh}`);
+    const baseUrl = options.baseUrl.replace(/\/+$/, "");
+    const originalSnapshot = await ensureSnapshotExists();
+    const backdatedAt = await backdateSnapshot(options);
+
+    const staleOpsPayload = validateOpsSnapshotPayload(
+      await fetchJson(`${baseUrl}/ops/public-map-snapshot`),
+      "stale",
+    );
+    const cacheInvalidate = await runCacheInvalidateOnce();
+    const alert = validateAlert(await readActiveAlert(), options);
+    if (options.requireWebhook && webhookCapture && webhookCapture.requests.length === 0) {
+      throw new Error("required webhook capture did not receive a staleness notification");
+    }
+    const admin = await verifyAdminDataHealth(options);
+
+    const refresh = await refreshPublicMapSnapshot({
+      refreshedBy: "smoke:public-map-snapshot-alert:resolve",
+    });
+    const activeAlertsAfterRefresh = await countActiveAlerts();
+    if (activeAlertsAfterRefresh !== 0) {
+      throw new Error(`expected refresh to resolve public_map_snapshot alerts, active=${activeAlertsAfterRefresh}`);
+    }
+    const freshOpsPayload = validateOpsSnapshotPayload(
+      await fetchJson(`${baseUrl}/ops/public-map-snapshot`),
+      "fresh",
+    );
+
+    console.log(JSON.stringify({
+      status: "passed",
+      baseUrl,
+      mode: options.mode,
+      originalSnapshot,
+      backdatedAt,
+      staleOpsPayload,
+      cacheInvalidate,
+      alert: {
+        alertId: alert.alert_id,
+        severity: alert.severity,
+        notifiedAt: alert.notified_at,
+      },
+      webhook: {
+        configured: Boolean(options.webhookUrl),
+        required: options.requireWebhook,
+        capture: webhookCapture
+          ? {
+              requestCount: webhookCapture.requests.length,
+              requests: webhookCapture.requests,
+            }
+          : null,
+      },
+      adminDataHealth: admin,
+      refresh,
+      activeAlertsAfterRefresh,
+      freshOpsPayload,
+    }, null, 2));
+  } finally {
+    const cleanupErrors: unknown[] = [];
+    if (smokeAdminSession) {
+      try {
+        await cleanupSmokeAdminSession(smokeAdminSession);
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    if (webhookCapture) {
+      try {
+        await webhookCapture.close();
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    try {
+      await getPool().end();
+    } catch {
+      // Pool may not be configured yet if argument guards failed before DB use.
+    }
+    if (cleanupErrors.length > 0) {
+      const first = cleanupErrors[0];
+      throw first instanceof Error ? first : new Error(String(first));
+    }
   }
-  const freshOpsPayload = validateOpsSnapshotPayload(
-    await fetchJson(`${baseUrl}/ops/public-map-snapshot`),
-    "fresh",
-  );
-
-  console.log(JSON.stringify({
-    status: "passed",
-    baseUrl,
-    mode: options.mode,
-    originalSnapshot,
-    backdatedAt,
-    staleOpsPayload,
-    cacheInvalidate,
-    alert: {
-      alertId: alert.alert_id,
-      severity: alert.severity,
-      notifiedAt: alert.notified_at,
-    },
-    webhook: {
-      configured: Boolean(options.webhookUrl),
-      required: options.requireWebhook,
-    },
-    adminDataHealth: admin,
-    refresh,
-    activeAlertsAfterRefresh,
-    freshOpsPayload,
-  }, null, 2));
-
-  await getPool().end();
 }
 
-void main().catch(async (error) => {
+void main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
-  try {
-    await getPool().end().catch(() => undefined);
-  } catch {
-    // Pool may not be configured yet if argument guards failed before DB use.
-  }
   process.exitCode = 1;
 });
