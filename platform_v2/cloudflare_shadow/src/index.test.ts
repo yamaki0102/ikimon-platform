@@ -1607,7 +1607,9 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const siteBriefResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/site-brief?lat=34.71&lng=137.81&lang=ja"), env);
   const siteBriefPayload = await siteBriefResponse.json() as any;
   assert.equal(siteBriefResponse.ok, true);
-  assert.equal(siteBriefPayload.hypothesis.label, "記録不足の場所");
+  assert.equal(siteBriefPayload.hypothesis.label, "まだ見落としがありそうな場所");
+  assert.match(siteBriefPayload.reasons[0], /身近な環境の境目/);
+  assert.doesNotMatch(JSON.stringify(siteBriefPayload), /Cloudflare|互換表示|移行中/);
   assert.doesNotMatch(JSON.stringify(siteBriefPayload), /34\.71|137\.81/);
 
   const kpiResponse = await worker.fetch(new Request("https://shadow.test/api/v1/ui-kpi/events", {

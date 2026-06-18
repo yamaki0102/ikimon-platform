@@ -47,6 +47,19 @@ test("app sends browser security headers on every response", async () => {
   }
 });
 
+test("legacy service worker cleanup also clears app shell caches", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/sw.js" });
+    assert.equal(response.statusCode, 200);
+    assert.match(String(response.headers["cache-control"] ?? ""), /no-store/);
+    assert.match(response.body, /registration\.unregister/);
+    assert.match(response.body, /'ikimon-app-'/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("app returns the site shell 404 for browser navigations", async () => {
   const app = buildApp();
   try {

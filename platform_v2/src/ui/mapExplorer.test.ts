@@ -310,10 +310,13 @@ test("default map surface uses a tiered simple vector style", () => {
   assert.match(script, /var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = \['shop', 'grocery', 'cafe', 'restaurant'\]/);
   assert.match(script, /id: 'simple-road-major'/);
   assert.match(script, /id: 'simple-road-local'/);
-  assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 15\.4/);
-  assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 16\.5/);
+  assert.match(script, /id: 'simple-waterway'[\s\S]*?filter: \['match', \['get', 'class'\], \['river', 'canal'\], true, false\]/);
+  assert.match(script, /id: 'simple-road-local'[\s\S]*?minzoom: 16\.8/);
+  assert.doesNotMatch(script, /'service'\], true, false\]/);
+  assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 15\.9/);
+  assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 17/);
   assert.match(script, /id: 'simple-commercial-label'[\s\S]*?minzoom: 15\.8/);
-  assert.match(script, /id: 'simple-place-label'[\s\S]*?maxzoom: 13\.8/);
+  assert.match(script, /id: 'simple-place-label'[\s\S]*?maxzoom: 12\.8/);
   assert.doesNotMatch(script, /id: 'simple-landmark-dot'/);
   assert.doesNotMatch(script, /id: 'simple-civic-dot'/);
   assert.doesNotMatch(script, /id: 'simple-commercial-dot'/);

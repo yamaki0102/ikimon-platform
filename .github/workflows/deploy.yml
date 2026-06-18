@@ -235,12 +235,21 @@ jobs:
             echo "Signed-in map shell is still falling back to the old OSM raster HTML."
             exit 1
           fi
+          if [[ "$body" != *"filter: ['match', ['get', 'class'], ['river', 'canal'], true, false]"* ]]; then
+            echo "Map shell is missing the stronger simplified waterway filter."
+            exit 1
+          fi
           if [[ "$body" == *'<div class="me-enjoy-strip"'* ]]; then
             echo "Old map overlay DOM is still present in materialized HTML."
             exit 1
           fi
           if [[ "$body" != *"global-record-launcher"* ]]; then
             echo "Mobile record launcher markup is missing from materialized HTML."
+            exit 1
+          fi
+          app_sw="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/app-sw.js?deploy_smoke=${GITHUB_SHA}")"
+          if [[ "$app_sw" != *"ikimon-app-v2"* || "$app_sw" != *"MAP_NAV_RE"* || "$app_sw" != *"cache: 'no-store'"* ]]; then
+            echo "PWA service worker is missing the map cache-bypass update."
             exit 1
           fi
           echo "Map materialized HTML verified."
@@ -264,7 +273,14 @@ jobs:
           if (!Array.isArray(features) || features.length === 0 || named === 0) {
             throw new Error(`Map area smoke failed: features=${features.length} named=${named}`);
           }
-          console.log(JSON.stringify({ observations: obs.items.length, withMedia, areas: features.length, named }, null, 2));
+          const brief = await fetch("https://ikimon.life/ja/api/v1/map/site-brief?lat=34.6942&lng=137.7029&lang=ja", {
+            headers: { "cache-control": "no-store" }
+          }).then((response) => response.json());
+          const briefText = JSON.stringify(brief);
+          if (/Cloudflare|互換表示|移行中/.test(briefText)) {
+            throw new Error(`Map site brief leaked migration copy: ${briefText}`);
+          }
+          console.log(JSON.stringify({ observations: obs.items.length, withMedia, areas: features.length, named, siteBrief: brief.hypothesis?.label }, null, 2));
           NODE
 
 # Required GitHub Secrets (Settings > Secrets and variables > Actions):
