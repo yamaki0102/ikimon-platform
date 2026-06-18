@@ -42,7 +42,7 @@ test("app service worker is separate from legacy cleanup worker and caches app s
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/javascript/);
     assert.equal(response.headers["service-worker-allowed"], "/");
-    assert.match(response.body, /ikimon-app-v2/);
+    assert.match(response.body, /ikimon-app-v3/);
     assert.match(response.body, /networkFirstNavigation/);
     assert.match(response.body, /OFFLINE_URLS/);
     assert.match(response.body, /offline\.html\?lang=en/);

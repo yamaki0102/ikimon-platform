@@ -566,6 +566,9 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/area-polygons") {
+        if (shouldUseOriginFallback(url, env)) {
+          return fetchOriginFallback(request, url, env, "map_area_polygons_origin_runtime");
+        }
         return getPublicMapEmptyGeoJson("area-polygons", { "cache-control": "public, max-age=60" });
       }
 
@@ -578,6 +581,9 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/guide-spots") {
+        if (shouldUseOriginFallback(url, env)) {
+          return fetchOriginFallback(request, url, env, "map_guide_spots_origin_runtime");
+        }
         return getPublicMapEmptyGeoJson("guide-spots");
       }
 
