@@ -38,6 +38,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /navigator\.languages/);
   assert.match(html, /beforeinstallprompt/);
   assert.match(html, /navigator\.serviceWorker\.register\('\/app-sw\.js'/);
+  assert.match(html, /updateViaCache: 'none'/);
+  assert.match(html, /registration\.update\(\)/);
   assert.match(html, /data-app-install-prompt/);
   assert.match(html, /<meta name="theme-color" content="#d8efe3" \/>/);
   assert.match(html, /data-app-launch-screen/);

@@ -3645,7 +3645,12 @@ export function renderSiteDocument(options: SiteShellOptions): string {
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/app-sw.js', { scope: '/' }).catch(() => undefined);
+      navigator.serviceWorker.register('/app-sw.js', { scope: '/', updateViaCache: 'none' }).then((registration) => {
+        if (registration && typeof registration.update === 'function') {
+          return registration.update();
+        }
+        return undefined;
+      }).catch(() => undefined);
       requestAppOutboxSync('startup');
     }, { once: true });
   }
