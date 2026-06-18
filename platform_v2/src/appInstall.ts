@@ -152,7 +152,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
 }
 
 export function buildAppServiceWorker(): string {
-  return `const VERSION = 'ikimon-app-v4';
+  return `const VERSION = 'ikimon-app-v5';
 const SHELL_CACHE = VERSION + ':shell';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
