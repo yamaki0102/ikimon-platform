@@ -3328,6 +3328,10 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const isReadingPage = isReadingSurface(currentPath);
   const prefersCollapsedSideNav = isReadingPage || isImmersiveSurface || /\bshell-records-workbench\b/.test(shellClassName);
   const isMapSurface = /\bshell-map\b/.test(shellClassName);
+  const defaultSrOnlyHeading = pageTitle.replace(/\s*\|\s*ikimon\s*$/i, "");
+  const srOnlyPageHeading = isMapSurface
+    ? (lang === "ja" ? "地図" : lang === "es" ? "Mapa" : lang === "pt-BR" ? "Mapa" : "Map")
+    : defaultSrOnlyHeading;
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}${isMapSurface ? " is-map-surface" : ""}`;
   const appLaunchHeadScript = `<script>
 (function () {
@@ -6721,7 +6725,7 @@ ${alternateLinks}
     ${nav(options.basePath, lang, currentPath, options.activeNav, uiLangs)}
     <main id="main-content" class="${mainClassName}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
-      ${!options.hero && !/<h1[\s>]/.test(`${options.belowHeroHtml ?? ""}${options.body}`) ? `<h1 class="sr-only">${escapeHtml(pageTitle.replace(/\s*\|\s*ikimon\s*$/i, ""))}</h1>` : ""}
+      ${!options.hero && !/<h1[\s>]/.test(`${options.belowHeroHtml ?? ""}${options.body}`) ? `<h1 class="sr-only">${escapeHtml(srOnlyPageHeading)}</h1>` : ""}
       ${options.belowHeroHtml ?? ""}
       ${options.body}
     </main>

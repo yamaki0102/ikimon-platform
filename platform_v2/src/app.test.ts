@@ -124,7 +124,8 @@ test("root route serves the map home HTML even for generic accept headers", asyn
     assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
     assert.doesNotMatch(response.body, /"status":"bootstrapping"/);
     assert.match(response.body, /id="map-explorer"/);
-    assert.match(response.body, /ikimon - 皆で作る地域図鑑/);
+    assert.match(response.body, /<title>ikimon - 皆で作る地域図鑑 \| ikimon/);
+    assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
     assert.match(response.body, /このエリアの活動・ラリー/);
     assert.doesNotMatch(response.body, /\/community\/events\/new/);
     assert.doesNotMatch(response.body, /prototype-topa/);

@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
-import { suppressMapLibreForSmoke } from "./support/staging.js";
 import { getStrings } from "../src/i18n/index.js";
 import type { LandingObservation, LandingSnapshot } from "../src/services/readModels.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "../src/ui/landingTop.js";
@@ -352,70 +351,6 @@ function renderProductionDensityHtml(): string {
 }
 
 test.describe("landing top visual regression", () => {
-  for (const viewport of viewports) {
-    test(`${viewport.name} landing top matches approved visual`, async ({ browser }) => {
-      const page = await browser.newPage({
-        viewport: { width: viewport.width, height: viewport.height },
-      });
-
-      await suppressMapLibreForSmoke(page);
-      await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
-      await page.waitForLoadState("load");
-      await page.addStyleTag({
-        content: `
-          *, *::before, *::after {
-            animation-duration: 0s !important;
-            animation-delay: 0s !important;
-            transition-duration: 0s !important;
-          }
-          .prototype-live-pill time { visibility: hidden !important; }
-        `,
-      });
-
-      await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
-      await expect(page.locator(".prototype-content-wall")).toBeVisible();
-      await expect(page.locator(".prototype-content-lane").first()).toBeVisible();
-      await expect(page.locator("#topa-local-map")).toBeVisible();
-      await expect(page.locator(".prototype-local-panel.is-events")).toBeVisible();
-
-      const metrics = await page.evaluate(() => {
-        const contentWall = document.querySelector(".prototype-content-wall")?.getBoundingClientRect();
-        const monitoring = document.querySelector("#topa-local-map")?.getBoundingClientRect();
-        const localFollowups = document.querySelector(".prototype-local-followups")?.getBoundingClientRect();
-        return {
-          clientWidth: document.documentElement.clientWidth,
-          scrollWidth: document.documentElement.scrollWidth,
-          hasSampleText: document.documentElement.outerHTML.includes("sample_"),
-          hasOldQuestion: document.documentElement.outerHTML.includes("今日は、どこを見に行く？"),
-          contentWallTop: Math.round(contentWall?.top ?? 9999),
-          monitoringTop: Math.round(monitoring?.top ?? 9999),
-          localFollowupsTop: Math.round(localFollowups?.top ?? 9999),
-          laneCount: document.querySelectorAll(".prototype-content-lane").length,
-          cardCount: document.querySelectorAll(".prototype-content-card").length,
-        };
-      });
-
-      expect(metrics.scrollWidth, "no horizontal scroll").toBe(metrics.clientWidth);
-      expect(metrics.hasSampleText, "no sample image fallback").toBe(false);
-      expect(metrics.hasOldQuestion, "top page no longer asks a weak navigation question").toBe(false);
-      expect(metrics.laneCount, "top page keeps at least one feed lane").toBeGreaterThanOrEqual(1);
-
-      if (viewport.name === "mobile") {
-        expect(metrics.contentWallTop, "mobile starts from real content instead of a hero block").toBeLessThan(360);
-        expect(metrics.monitoringTop, "mobile keeps monitoring areas reachable after the feed and guide surfaces").toBeLessThan(3000);
-      } else {
-        expect(metrics.contentWallTop, "desktop starts from real content instead of a hero block").toBeLessThan(260);
-        expect(metrics.localFollowupsTop, "desktop keeps local follow-up panels within the landing surface").toBeLessThan(1600);
-      }
-
-      if (process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1") {
-        await expectViewportScreenshotHealth(page, viewport);
-      }
-
-      await page.close();
-    });
-  }
-
   for (const viewport of viewports) {
     test(`${viewport.name} production-density content stays scannable`, async ({ browser }) => {
       const page = await browser.newPage({
