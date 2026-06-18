@@ -6,7 +6,7 @@ import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp, ups
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const FIXTURE_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{2,80}$/;
 
-type RegressionFixtureKind = "manual" | "historical" | "smoke" | "scene";
+type RegressionFixtureKind = "manual" | "manual_companion_a" | "manual_companion_b" | "historical" | "smoke" | "scene";
 
 type RegressionFixtureSeedInput = {
   fixturePrefix: string;
@@ -480,7 +480,7 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
     observedAt,
     sourceKind: input.sourceKind,
     expectedVisibility:
-      input.kind === "manual"
+      input.kind === "manual" || input.kind.startsWith("manual_companion_")
         ? "manual_only"
         : input.kind === "scene"
           ? "manual_only"
@@ -636,8 +636,10 @@ export async function seedStagingRegressionFixtures(
   const displayName = "Regression Field Note Observer";
 
   try {
-    const [manualPhoto, historicalPhoto, smokePhoto, scenePhoto] = await Promise.all([
+    const [manualPhoto, manualCompanionPhotoA, manualCompanionPhotoB, historicalPhoto, smokePhoto, scenePhoto] = await Promise.all([
       ensureFixturePhoto(fixturePrefix, "manual"),
+      ensureFixturePhoto(fixturePrefix, "manual_companion_a"),
+      ensureFixturePhoto(fixturePrefix, "manual_companion_b"),
       ensureFixturePhoto(fixturePrefix, "historical"),
       ensureFixturePhoto(fixturePrefix, "smoke"),
       ensureFixturePhoto(fixturePrefix, "scene"),
@@ -679,6 +681,50 @@ export async function seedStagingRegressionFixtures(
           note: "low-confidence-hidden-fixture",
         },
       ],
+    });
+
+    await upsertFixtureVisit(client, {
+      kind: "manual_companion_a",
+      fixturePrefix,
+      userId,
+      observedAt: new Date(now - 115 * 60 * 1000).toISOString(),
+      latitude: 35.0108,
+      longitude: 138.3932,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression manual companion fixture",
+      siteId: `${fixturePrefix}-manual-companion-a-site`,
+      siteName: "Regression Manual Companion Terrace A",
+      note: "manual companion regression fixture",
+      subjectLabel: "Regression Manual Companion Finch A",
+      scientificName: "Passer montanus",
+      sourceKind: "v2_observation",
+      sourcePayload: { source: "regression_seed_manual_companion" },
+      qualityGrade: "casual",
+      evidenceTier: 1,
+      photo: manualCompanionPhotoA,
+    });
+
+    await upsertFixtureVisit(client, {
+      kind: "manual_companion_b",
+      fixturePrefix,
+      userId,
+      observedAt: new Date(now - 110 * 60 * 1000).toISOString(),
+      latitude: 35.0112,
+      longitude: 138.3935,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression manual companion fixture",
+      siteId: `${fixturePrefix}-manual-companion-b-site`,
+      siteName: "Regression Manual Companion Terrace B",
+      note: "manual companion regression fixture",
+      subjectLabel: "Regression Manual Companion Finch B",
+      scientificName: "Passer montanus",
+      sourceKind: "v2_observation",
+      sourcePayload: { source: "regression_seed_manual_companion" },
+      qualityGrade: "casual",
+      evidenceTier: 1,
+      photo: manualCompanionPhotoB,
     });
 
     const historical = await upsertFixtureVisit(client, {

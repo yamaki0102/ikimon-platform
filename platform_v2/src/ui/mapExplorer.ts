@@ -2217,7 +2217,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (resultsListEl) resultsListEl.setAttribute('aria-busy', pending ? 'true' : 'false');
   }
 
+  function setResultsLoadState(stateName, count) {
+    if (!root) return;
+    root.setAttribute('data-results-state', stateName || 'idle');
+    if (typeof count === 'number' && Number.isFinite(count)) {
+      root.setAttribute('data-results-count', String(count));
+    }
+  }
+
   updatePendingMapResultsState();
+  setResultsLoadState('idle', 0);
 
   function contributorBandLabel(band) {
     if (band === '1-2') return COPY.contributorBand_1_2;
@@ -2425,34 +2434,46 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!records.length) {
       sideStatusEl.textContent = COPY.empty;
       resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
+      setResultsLoadState('empty', 0);
       return;
     }
     sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll + ' · ' + COPY.resultGroupedByDate;
-    resultsListEl.innerHTML = groupResultRecords(records.slice(0, 120)).map(function (group) {
-      var locality = summarizeLocalities(group.records);
-      var label = group.date || COPY.resultGroupUnknownDate;
-      var meta = [locality, String(group.records.length) + ' ' + COPY.resultCountLabel].filter(Boolean).join(' · ');
-      var rows = group.records.map(function (record) {
-        var active = record.occurrenceId === state.selectedOccurrenceId;
-        var thumb = record.photoUrl
-          ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="64" height="64" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
-          : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
-        var displayLabel = recordDisplayName(record);
-        var titleMeta = [record.localityLabel || '', resultGroupDate(record)].filter(Boolean).join(' · ');
-        return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '" title="' + escapeHtml(titleMeta) + '">' +
-          thumb +
-          '<span class="me-result-body">' +
-            '<strong>' + escapeHtml(displayLabel) + '</strong>' +
-            renderResultBadges(record) +
-          '</span>' +
+    try {
+      resultsListEl.innerHTML = groupResultRecords(records.slice(0, 120)).map(function (group) {
+        var locality = summarizeLocalities(group.records);
+        var label = group.date || COPY.resultGroupUnknownDate;
+        var meta = [locality, String(group.records.length) + ' ' + COPY.resultCountLabel].filter(Boolean).join(' · ');
+        var rows = group.records.map(function (record) {
+          var active = record.occurrenceId === state.selectedOccurrenceId;
+          var thumb = record.photoUrl
+            ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="64" height="64" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
+            : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
+          var displayLabel = recordDisplayName(record);
+          var titleMeta = [record.localityLabel || '', resultGroupDate(record)].filter(Boolean).join(' · ');
+          return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '" title="' + escapeHtml(titleMeta) + '">' +
+            thumb +
+            '<span class="me-result-body">' +
+              '<strong>' + escapeHtml(displayLabel) + '</strong>' +
+              renderResultBadges(record) +
+            '</span>' +
+          '</button>';
+        }).join('');
+        return '<section class="me-result-group">' +
+          '<div class="me-result-group-head"><strong>' + escapeHtml(label) + '</strong>' +
+          (meta ? '<span>' + escapeHtml(meta) + '</span>' : '') + '</div>' +
+          rows +
+        '</section>';
+      }).join('');
+    } catch (err) {
+      resultsListEl.innerHTML = records.slice(0, 40).map(function (record) {
+        return '<button type="button" class="me-result-row" data-occurrence-id="' + escapeHtml(record && record.occurrenceId || '') + '">' +
+          '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>' +
+          '<span class="me-result-body"><strong>' + escapeHtml(recordDisplayName(record)) + '</strong></span>' +
         '</button>';
       }).join('');
-      return '<section class="me-result-group">' +
-        '<div class="me-result-group-head"><strong>' + escapeHtml(label) + '</strong>' +
-        (meta ? '<span>' + escapeHtml(meta) + '</span>' : '') + '</div>' +
-        rows +
-      '</section>';
-    }).join('');
+      try { console.warn('[map] result list fallback render', err); } catch (_) {}
+    }
+    setResultsLoadState('ready', records.length);
     resultsListEl.querySelectorAll('.me-result-row').forEach(function (rowEl) {
       rowEl.addEventListener('click', function () {
         if (hasPendingMapResults()) return;
@@ -5966,6 +5987,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.pendingViewportSearch = false;
     }
     setStatus(COPY.loading);
+    setResultsLoadState('loading', state.records && state.records.length ? state.records.length : 0);
     if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     var requestSeq = state._recordsRequestSeq + 1;
@@ -6018,6 +6040,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           state._recordsAppliedSeq = requestSeq;
           updatePendingMapResultsState();
         }
+        setResultsLoadState('error', state.records && state.records.length ? state.records.length : 0);
         setStatus('—');
         setStatusMeta('');
         clearDiscoveryPreviewMarkers();

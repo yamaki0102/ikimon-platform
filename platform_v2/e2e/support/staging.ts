@@ -294,14 +294,20 @@ export async function waitForMapReady(page: Page, mapPath = DEFAULT_STAGING_MAP_
   await expect(page.locator(".me-main")).toBeVisible();
   await page.locator("#map-explorer canvas").first().waitFor({ state: "visible" });
   try {
+    await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-state", /^(ready|empty)$/, { timeout: 60_000 });
     await page.waitForFunction(() => {
       return document.querySelectorAll(".me-result-row").length > 0 || document.querySelectorAll(".me-results-empty").length > 0;
-    }, undefined, { timeout: 45_000 });
+    }, undefined, { timeout: 10_000 });
   } catch (error) {
     const sideStatus = ((await page.locator("#me-side-status").textContent().catch(() => "")) ?? "").trim();
     const mapStatus = ((await page.locator("#me-map-status").textContent().catch(() => "")) ?? "").trim();
     const pending = await page.locator("#map-explorer").getAttribute("data-results-pending").catch(() => null);
-    throw new Error(`map_ready_timeout path=${mapPath} sideStatus=${sideStatus || "empty"} mapStatus=${mapStatus || "empty"} pending=${pending ?? "missing"} cause=${error instanceof Error ? error.message : String(error)}`);
+    const state = await page.locator("#map-explorer").getAttribute("data-results-state").catch(() => null);
+    const count = await page.locator("#map-explorer").getAttribute("data-results-count").catch(() => null);
+    const rows = await page.locator(".me-result-row").count().catch(() => -1);
+    const empties = await page.locator(".me-results-empty").count().catch(() => -1);
+    const listPreview = ((await page.locator("#me-results-list").evaluate((node) => node.innerHTML.slice(0, 180)).catch(() => "")) ?? "").replace(/\s+/g, " ");
+    throw new Error(`map_ready_timeout path=${mapPath} sideStatus=${sideStatus || "empty"} mapStatus=${mapStatus || "empty"} pending=${pending ?? "missing"} state=${state ?? "missing"} count=${count ?? "missing"} rows=${rows} empty=${empties} list=${listPreview || "empty"} cause=${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

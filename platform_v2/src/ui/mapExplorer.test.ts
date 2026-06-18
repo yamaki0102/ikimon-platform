@@ -291,6 +291,10 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /Chloris: 'カワラヒワ属'/);
   assert.match(script, /Monticola: 'イソヒヨドリ属'/);
   assert.match(script, /function groupResultRecords\(records\)/);
+  assert.match(script, /function setResultsLoadState\(stateName, count\)/);
+  assert.match(script, /data-results-state/);
+  assert.match(script, /setResultsLoadState\('ready', records\.length\)/);
+  assert.match(script, /setResultsLoadState\('error'/);
   assert.match(script, /me-result-group-head/);
   assert.match(script, /COPY\.resultGroupedByDate/);
   assert.match(script, /renderResultBadges\(record\)/);
