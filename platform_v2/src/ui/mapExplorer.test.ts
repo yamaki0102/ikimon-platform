@@ -189,12 +189,13 @@ test("map guide spots render independently from area polygons", () => {
   assert.match(script, /renderGuideSourceLinks/);
   assert.match(script, /groupGuideSpotFeatures/);
   assert.match(script, /guideSpotClusterKey/);
-  assert.match(script, /GUIDE_SPOT_LABEL_ZOOM = 12\.6/);
-  assert.match(script, /GUIDE_SPOT_DENSE_LIMIT = 10/);
-  assert.match(script, /guideSpotCount > GUIDE_SPOT_DENSE_LIMIT/);
   assert.match(script, /is-pin/);
+  assert.match(script, /me-guide-cluster-count/);
+  assert.doesNotMatch(script, /GUIDE_SPOT_LABEL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_SPOT_FULL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_SPOT_DENSE_LIMIT/);
   assert.match(styles, /me-guide-spot-marker/);
-  assert.match(styles, /me-guide-spot-marker\.is-cluster/);
+  assert.match(styles, /me-guide-cluster-count/);
   assert.doesNotMatch(script, /あと __DISTANCE__|formatGuideDistance|radius \+ 'm'/);
 });
 
