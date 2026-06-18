@@ -3871,7 +3871,8 @@ test("production app refresh page serves materialized reset shell from R2", asyn
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
-  await env.ASSET_BUCKET.put("original-ui/html/app-refresh.html", "<!doctype html><title>ikimon app refresh</title><script>registration.unregister()</script>", {
+  const appRefreshHtml = "<!doctype html><title>ikimon app refresh</title><script>new URLSearchParams(window.location.search);registration.unregister();caches.keys()</script>";
+  await env.ASSET_BUCKET.put("original-ui/html/app-refresh.html", appRefreshHtml, {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
 
@@ -3882,9 +3883,14 @@ test("production app refresh page serves materialized reset shell from R2", asyn
     return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
-    const response = await worker.fetch(new Request("https://ikimon.life/app-refresh?to=%2Fmap%3Flang%3Dja"), productionEnv);
+    const response = await worker.fetch(new Request("https://ikimon.life/app-refresh?to=%2Fmap%3Flang%3Dja", {
+      headers: { cookie: "ikimon_v2_session=deploy-smoke" }
+    }), productionEnv);
+    const body = await response.text();
     assert.equal(response.status, 200);
-    assert.equal(await response.text(), "<!doctype html><title>ikimon app refresh</title><script>registration.unregister()</script>");
+    assert.equal(body, appRefreshHtml);
+    assert.match(body, /<title>ikimon app refresh<\/title>/);
+    assert.doesNotMatch(body, /404|ページが見つかりません|Cloudflare移行中|互換表示/);
     assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
