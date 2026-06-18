@@ -1524,9 +1524,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var GUIDE_BADGE_LABEL_ZOOM = 12.6;
   var GUIDE_BADGE_FULL_ZOOM = 13.4;
   var GUIDE_BADGE_DENSE_LIMIT = 8;
-  var GUIDE_SPOT_LABEL_ZOOM = 12.6;
-  var GUIDE_SPOT_FULL_ZOOM = 13.8;
-  var GUIDE_SPOT_DENSE_LIMIT = 10;
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
@@ -5736,28 +5733,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .catch(function (err) { if (err && err.name === 'AbortError') return; });
   }
 
-  function renderGuideSpotMarker(feature, guideSpotCount) {
+  function renderGuideSpotMarker(feature) {
     var center = guideSpotCenter(feature);
     var spot = feature && feature.properties ? feature.properties : {};
     if (!center || !spot.title) return null;
-    var zoom = state.map && state.map.getZoom ? state.map.getZoom() : 12;
-    var pin = !Number.isFinite(zoom) || zoom < GUIDE_SPOT_LABEL_ZOOM || guideSpotCount > GUIDE_SPOT_DENSE_LIMIT;
-    var compact = !pin && zoom < GUIDE_SPOT_FULL_ZOOM;
     var el = document.createElement('div');
-    el.className = 'me-guide-spot-marker' + (pin ? ' is-pin' : '') + (compact ? ' is-compact' : '');
+    el.className = 'me-guide-spot-marker is-pin';
     el.setAttribute('aria-label', String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel);
-    el.innerHTML = pin
-      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-          '<span class="me-guide-dot" aria-hidden="true"></span>' +
-        '</button>'
-      : compact
-      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-          '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
-        '</button>'
-      : '<button type="button" class="me-guide-spot-main">' +
-          '<strong>' + escapeHtml(String(spot.title || '')) + '</strong>' +
-          '<span>' + escapeHtml(String(spot.subtitle || COPY.guideStopEyebrow)) + '</span>' +
-        '</button>';
+    el.innerHTML = '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+      '<span class="me-guide-dot" aria-hidden="true"></span>' +
+    '</button>';
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -5787,9 +5772,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return Object.keys(groups).map(function (key) { return groups[key]; });
   }
 
-  function renderGuideSpotGroupMarker(features, guideSpotCount) {
+  function renderGuideSpotGroupMarker(features) {
     var list = Array.isArray(features) ? features : [];
-    if (list.length <= 1) return renderGuideSpotMarker(list[0], guideSpotCount);
+    if (list.length <= 1) return renderGuideSpotMarker(list[0]);
     var centers = list.map(guideSpotCenter).filter(Boolean);
     if (!centers.length) return null;
     var center = centers.reduce(function (acc, item) {
@@ -5798,11 +5783,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return acc;
     }, { lat: 0, lng: 0 });
     var el = document.createElement('div');
-    el.className = 'me-guide-spot-marker is-cluster';
+    el.className = 'me-guide-spot-marker is-cluster is-pin';
     el.setAttribute('aria-label', COPY.guideSpotClusterLabel + ' ' + String(list.length));
-    el.innerHTML = '<button type="button" class="me-guide-spot-main">' +
-      '<strong>' + escapeHtml(COPY.guideSpotClusterLabel) + '</strong>' +
-      '<span>' + escapeHtml(String(list.length) + ' ' + COPY.areaBadgeGuideLabel) + '</span>' +
+    el.innerHTML = '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(COPY.guideSpotClusterLabel + ' ' + String(list.length)) + '" aria-label="' + escapeHtml(COPY.guideSpotClusterLabel + ' ' + String(list.length)) + '">' +
+      '<span class="me-guide-cluster-count" aria-hidden="true">' + escapeHtml(String(list.length)) + '</span>' +
     '</button>';
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
@@ -5818,9 +5802,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     clearGuideSpotMarkers();
     if (!state.map || !window.maplibregl || !collection || !Array.isArray(collection.features)) return;
     if (state.tab !== 'markers' && state.tab !== 'places') return;
-    var guideSpotCount = collection.features.length;
     groupGuideSpotFeatures(collection.features.slice(0, 80)).forEach(function (features) {
-      var marker = renderGuideSpotGroupMarker(features, guideSpotCount);
+      var marker = renderGuideSpotGroupMarker(features);
       if (marker) state.guideSpotMarkers.push(marker);
     });
   }
@@ -7890,6 +7873,20 @@ export const MAP_EXPLORER_STYLES = `
     background: #2dd4bf;
     box-shadow: 0 0 0 4px rgba(45,212,191,.24);
   }
+  .me-guide-cluster-count {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2dd4bf;
+    color: #063f3c;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
   .me-guide-spot-marker {
     color: #0f172a;
     transform-origin: bottom center;
@@ -7922,29 +7919,6 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 9.5px;
     line-height: 1.25;
     font-weight: 800;
-  }
-  .me-guide-spot-marker.is-cluster .me-guide-spot-main {
-    border-color: rgba(15,118,110,.26);
-    background: rgba(240,253,250,.98);
-    box-shadow: 0 14px 30px rgba(15,118,110,.18);
-  }
-  .me-guide-spot-marker.is-cluster .me-guide-spot-main strong {
-    color: #0f766e;
-  }
-  .me-guide-spot-marker.is-compact .me-guide-spot-main {
-    display: inline-flex;
-    max-width: none;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    box-shadow: 0 10px 20px rgba(15,23,42,.18);
-  }
-  .me-guide-spot-marker.is-compact .me-area-badge-chip-guide {
-    min-height: 24px;
-    padding: 3px 9px;
-    border: 2px solid rgba(255,255,255,.88);
-    box-shadow: 0 0 0 1px rgba(15,23,42,.16);
   }
   .me-guide-spot-detail,
   .me-guide-spot-body {
