@@ -3635,6 +3635,9 @@ test("production original UI static assets serve materialized bytes from R2 with
   await env.ASSET_BUCKET.put("original-ui/static/sitemap.xml", "<urlset></urlset>", {
     httpMetadata: { contentType: "application/xml; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/static/app-sw.js", "const VERSION = 'ikimon-app-v2';", {
+    httpMetadata: { contentType: "application/javascript; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -3654,6 +3657,13 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(await sitemap.text(), "<urlset></urlset>");
     assert.equal(sitemap.headers.get("content-type"), "application/xml; charset=utf-8");
     assert.equal(sitemap.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
+    const appSw = await worker.fetch(new Request("https://ikimon.life/app-sw.js"), productionEnv);
+    assert.equal(appSw.status, 200);
+    assert.equal(await appSw.text(), "const VERSION = 'ikimon-app-v2';");
+    assert.equal(appSw.headers.get("content-type"), "application/javascript; charset=utf-8");
+    assert.equal(appSw.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
+    assert.equal(appSw.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
