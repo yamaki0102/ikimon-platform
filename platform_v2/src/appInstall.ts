@@ -152,7 +152,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
 }
 
 export function buildAppServiceWorker(): string {
-  return `const VERSION = 'ikimon-app-v3';
+  return `const VERSION = 'ikimon-app-v4';
 const SHELL_CACHE = VERSION + ':shell';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
@@ -186,6 +186,19 @@ self.addEventListener('activate', (event) => {
     const keys = await caches.keys();
     await Promise.all(keys.filter((key) => key.startsWith('ikimon-app-') && !key.startsWith(VERSION)).map((key) => caches.delete(key)));
     await self.clients.claim();
+    const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(clientsList.map((client) => {
+      try {
+        const url = new URL(client.url);
+        if (url.origin === location.origin && MAP_NAV_RE.test(url.pathname) && url.searchParams.get('sw') !== VERSION) {
+          url.searchParams.set('sw', VERSION);
+          return client.navigate(url.toString());
+        }
+      } catch (_) {
+        return undefined;
+      }
+      return undefined;
+    }));
   })());
 });
 
