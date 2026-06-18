@@ -427,6 +427,14 @@ function hasRequestedLiveOsmSourceCoverage(sources: AreaPolygonSource[], feature
   return requested.every((source) => features.some((feature) => hasConcreteAreaFeatureForSource(feature, source)));
 }
 
+function hasFreshLiveOsmCacheCoverage(
+  sources: AreaPolygonSource[],
+  cachedFeatures: AreaPolygonFeature[],
+  freshComplete: boolean,
+): boolean {
+  return freshComplete && hasRequestedLiveOsmSourceCoverage(sources, cachedFeatures);
+}
+
 function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: AreaPolygonSource[]): AreaPolygonFeature[] {
   if (sources.length === 0) return features;
   const allowed = new Set<AreaPolygonSource>(sources);
@@ -1020,8 +1028,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
-    const cachedCoversRequestedSources = cached.freshComplete
-      && hasRequestedLiveOsmSourceCoverage(sources, features.concat(cachedFeatures));
+    const cachedCoversRequestedSources = hasFreshLiveOsmCacheCoverage(sources, cachedFeatures, cached.freshComplete);
     if (cachedCoversRequestedSources) {
       features.push(...cachedFeatures);
     } else {
@@ -1089,6 +1096,7 @@ export const __test__ = {
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,
+  hasFreshLiveOsmCacheCoverage,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,

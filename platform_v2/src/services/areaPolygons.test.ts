@@ -21,6 +21,7 @@ const {
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,
+  hasFreshLiveOsmCacheCoverage,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
@@ -315,6 +316,25 @@ test("fresh live OSM cache must cover each requested live source before skipping
   assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park, approximateStoredSchool]), false);
   assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park, school]), true);
   assert.equal(hasRequestedLiveOsmSourceCoverage(["osm_park"], [park]), true);
+});
+
+test("fresh live OSM cache coverage is decided only from cached live features", () => {
+  const storedPark = liveElementToFeature({
+    type: "way",
+    id: 263321118,
+    tags: { name: "西伊場第三公園", leisure: "playground" },
+    geometry: [
+      { lat: 34.6961, lon: 137.6997 },
+      { lat: 34.6961, lon: 137.7005 },
+      { lat: 34.6966, lon: 137.7005 },
+    ],
+  });
+  assert.ok(storedPark);
+
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["osm_park"], [storedPark]), true);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [], true), false);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], false), false);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], true), true);
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {
