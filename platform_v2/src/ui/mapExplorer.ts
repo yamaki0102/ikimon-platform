@@ -2907,6 +2907,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ].indexOf(source) >= 0;
   }
 
+  function areaBadgeLimitForZoom(zoom) {
+    if (!Number.isFinite(zoom)) return 36;
+    if (zoom < 13) return 28;
+    if (zoom < 15) return 36;
+    if (zoom < 16) return 48;
+    return 64;
+  }
+
   function refreshAreaBadgeMarkers() {
     clearAreaBadgeMarkers();
     if (!state.map || !window.maplibregl || (state.tab !== 'places' && state.tab !== 'markers')) return;
@@ -2923,7 +2931,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (item.groups.length > 0) return state.tab === 'places' || state.tab === 'markers';
         return isNamedAreaBadgeFeature(item.feature, zoom);
       })
-      .slice(0, 80);
+      .slice(0, areaBadgeLimitForZoom(zoom));
     var guideBadgeCount = features.filter(function (item) { return !!item.guideStop; }).length;
     var useGuidePinBadges = zoom < GUIDE_BADGE_LABEL_ZOOM || guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT;
     var useCompactGuideBadges = !useGuidePinBadges && zoom < GUIDE_BADGE_FULL_ZOOM;

@@ -373,6 +373,34 @@ interface FieldDetailReadmodelRow {
 
 interface AreaPolygonReadmodelRow extends FieldDetailReadmodelRow {}
 
+interface AreaPolygonGeometryReadmodelRow {
+  field_id: string;
+  source: string;
+  admin_level: string | null;
+  name: string;
+  prefecture: string | null;
+  city: string | null;
+  center_lat: number;
+  center_lng: number;
+  bbox_min_lat: number;
+  bbox_max_lat: number;
+  bbox_min_lng: number;
+  bbox_max_lng: number;
+  area_ha: number | null;
+  geometry_json: string;
+  approximate_boundary: number;
+  boundary_approximation: string | null;
+  source_confidence: number | null;
+  verification_level: string | null;
+  verification_label: string | null;
+  official_url: string | null;
+  owner_url: string | null;
+  story_url: string | null;
+  certification_url: string | null;
+  entity_key: string | null;
+  updated_at: string | null;
+}
+
 interface ReverseDeltaCountRow {
   count: number;
 }
@@ -572,7 +600,14 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/area-polygons") {
-        return getPublicMapAreaPolygons(url, env);
+        if (shouldFallbackMapAreaPolygonsToOrigin(request, url, env)) {
+          const nativeResponse = await getPublicMapAreaPolygons(url, env, { allowApproximateFallback: false });
+          if (nativeResponse) return nativeResponse;
+          return fetchMapAreaPolygonsOriginFallback(request, url, env);
+        }
+        const response = await getPublicMapAreaPolygons(url, env);
+        if (response) return response;
+        return getPublicMapEmptyGeoJson("area-polygons");
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/effort-summary") {
@@ -930,6 +965,38 @@ function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
 function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: Env): boolean {
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
   return shouldUseOriginFallback(url, env) && url.pathname.startsWith("/api/v1/observations/");
+}
+
+function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
+  return request.method === "GET"
+    && url.pathname === "/api/v1/map/area-polygons"
+    && shouldUseOriginFallback(url, env);
+}
+
+function mapAreaPolygonsFallbackLimit(zoom: number | null): number {
+  if (zoom == null || !Number.isFinite(zoom)) return 48;
+  if (zoom < 11) return 40;
+  if (zoom < 13) return 56;
+  if (zoom < 15) return 48;
+  return 72;
+}
+
+function mapAreaPolygonsFallbackUrl(url: URL): URL {
+  const next = new URL(url.toString());
+  if (!next.searchParams.has("limit")) {
+    next.searchParams.set("limit", String(mapAreaPolygonsFallbackLimit(Number(next.searchParams.get("zoom")))));
+  }
+  return next;
+}
+
+async function fetchMapAreaPolygonsOriginFallback(request: Request, url: URL, env: Env): Promise<Response> {
+  const fallbackUrl = mapAreaPolygonsFallbackUrl(url);
+  const fallbackRequest = new Request(fallbackUrl.toString(), {
+    method: request.method,
+    headers: request.headers,
+    redirect: "manual"
+  });
+  return fetchOriginFallback(fallbackRequest, fallbackUrl, env, "map_area_polygons_origin_geometry");
 }
 
 function isShadowDiagnosticPath(pathname: string): boolean {
@@ -1481,13 +1548,37 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   }, 200, { "cache-control": "no-store" });
 }
 
-async function getPublicMapAreaPolygons(url: URL, env: Env): Promise<Response> {
+interface PublicMapAreaPolygonOptions {
+  allowApproximateFallback?: boolean;
+}
+
+async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAreaPolygonOptions = {}): Promise<Response | null> {
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   if (!bbox) {
     return json({ error: "missing_or_invalid_bbox" }, 400, { "cache-control": "no-store" });
   }
   const sources = parseSourceParam(url.searchParams.get("sources"));
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "250"), 1, 1000);
+  const defaultLimit = mapAreaPolygonsFallbackLimit(Number(url.searchParams.get("zoom")));
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
+  const nativeRows = await queryNativeAreaPolygonRows(env, bbox, sources, limit);
+  if (nativeRows.length > 0) {
+    const nativeFeatures = nativeRows
+      .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
+      .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature));
+    return json({
+      type: "FeatureCollection",
+      features: nativeFeatures,
+      truncated: nativeRows.length >= limit,
+      stats: {
+        totalReturned: nativeFeatures.length,
+        totalAll: nativeFeatures.length,
+        source: "cloudflare_area_polygon_readmodel",
+        kind: "area-polygons"
+      }
+    }, 200, { "cache-control": "public, max-age=60" });
+  }
+  if (options.allowApproximateFallback === false) return null;
+
   const rows = await queryAreaPolygonRows(env, bbox, sources, limit);
   const features = rows
     .map((row) => areaPolygonFeatureFromReadmodel(row))
@@ -1971,6 +2062,43 @@ async function queryAreaPolygonRows(
   return allRows.results.filter((row) => sources.length === 0 || allowed.has(areaLayerSource(row)));
 }
 
+async function queryNativeAreaPolygonRows(
+  env: Env,
+  bbox: [number, number, number, number],
+  sources: string[],
+  limit: number
+): Promise<AreaPolygonGeometryReadmodelRow[]> {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const sourceClause = sources.length > 0
+    ? ` AND source IN (${sources.map(() => "?").join(", ")})`
+    : "";
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT field_id, source, admin_level, name, prefecture, city,
+              center_lat, center_lng,
+              bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng,
+              area_ha, geometry_json, approximate_boundary, boundary_approximation,
+              source_confidence, verification_level, verification_label,
+              official_url, owner_url, story_url, certification_url,
+              entity_key, updated_at
+         FROM production_import_area_polygon_readmodel
+        WHERE bbox_max_lat >= ?
+          AND bbox_min_lat <= ?
+          AND bbox_max_lng >= ?
+          AND bbox_min_lng <= ?
+          ${sourceClause}
+        ORDER BY COALESCE(area_ha, 999999), name
+        LIMIT ?`
+    ).bind(minLat, maxLat, minLng, maxLng, ...sources, limit).all<AreaPolygonGeometryReadmodelRow>();
+    return rows.results;
+  } catch (error) {
+    if (String(error).includes("production_import_area_polygon_readmodel") || String(error).includes("no such table")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
 function parseSourceParam(raw: string | null): string[] {
   return (raw ?? "")
     .split(",")
@@ -1983,6 +2111,53 @@ function areaLayerSource(row: AreaPolygonReadmodelRow): string {
     return row.admin_level;
   }
   return row.source || "user_defined";
+}
+
+function safeAreaGeometry(raw: string): { type: "Polygon" | "MultiPolygon"; coordinates: unknown[] } | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const type = (parsed as { type?: unknown }).type;
+    const coordinates = (parsed as { coordinates?: unknown }).coordinates;
+    if ((type !== "Polygon" && type !== "MultiPolygon") || !Array.isArray(coordinates)) return null;
+    return { type, coordinates };
+  } catch {
+    return null;
+  }
+}
+
+function areaPolygonFeatureFromGeometryReadmodel(row: AreaPolygonGeometryReadmodelRow) {
+  if (!Number.isFinite(row.center_lat) || !Number.isFinite(row.center_lng)) return null;
+  const geometry = safeAreaGeometry(row.geometry_json);
+  if (!geometry) return null;
+  const source = row.source || "user_defined";
+  return {
+    type: "Feature",
+    geometry,
+    properties: {
+      field_id: row.field_id,
+      name: row.name,
+      source,
+      source_label: areaSourceLabel(source),
+      admin_level: row.admin_level,
+      prefecture: row.prefecture ?? "",
+      city: row.city ?? "",
+      area_ha: row.area_ha,
+      official_url: row.official_url ?? "",
+      owner_url: row.owner_url ?? "",
+      story_url: row.story_url ?? "",
+      certification_url: row.certification_url ?? "",
+      source_confidence: row.source_confidence ?? 0.75,
+      verification_level: row.verification_level ?? "readmodel_public_polygon",
+      verification_label: row.verification_label ?? "公開read model polygon",
+      center: [row.center_lng, row.center_lat],
+      transient: row.approximate_boundary === 1,
+      approximate_boundary: row.approximate_boundary === 1,
+      boundary_approximation: row.boundary_approximation ?? undefined,
+      entity_key: row.entity_key ?? undefined,
+      biodiversity_groups: []
+    }
+  };
 }
 
 function areaPolygonFeatureFromReadmodel(row: AreaPolygonReadmodelRow) {

@@ -202,6 +202,34 @@ interface ProductionFieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface ProductionAreaPolygonReadmodelRow {
+  field_id: string;
+  source: string;
+  admin_level: string | null;
+  name: string;
+  prefecture: string | null;
+  city: string | null;
+  center_lat: number;
+  center_lng: number;
+  bbox_min_lat: number;
+  bbox_max_lat: number;
+  bbox_min_lng: number;
+  bbox_max_lng: number;
+  area_ha: number | null;
+  geometry_json: string;
+  approximate_boundary: number;
+  boundary_approximation: string | null;
+  source_confidence: number | null;
+  verification_level: string | null;
+  verification_label: string | null;
+  official_url: string | null;
+  owner_url: string | null;
+  story_url: string | null;
+  certification_url: string | null;
+  entity_key: string | null;
+  updated_at: string | null;
+}
+
 interface AuthUserRow {
   user_id: string;
   email: string;
@@ -298,6 +326,7 @@ class FakeD1 {
   productionPublicReadmodel = new Map<string, ProductionImportPublicReadmodelRow>();
   productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
+  productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -1139,6 +1168,26 @@ class FakeStatement {
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT field_id, source, admin_level, name, prefecture, city, center_lat, center_lng")) {
+      const minLat = number(this.values[0]);
+      const maxLat = number(this.values[1]);
+      const minLng = number(this.values[2]);
+      const maxLng = number(this.values[3]);
+      const limit = number(this.values.at(-1));
+      const sources = this.values.slice(4, -1).map((value) => string(value));
+      const allowed = new Set(sources);
+      const rows = [...this.db.productionAreaPolygons.values()]
+        .filter((row) =>
+          row.bbox_max_lat >= minLat &&
+          row.bbox_min_lat <= maxLat &&
+          row.bbox_max_lng >= minLng &&
+          row.bbox_min_lng <= maxLng &&
+          (sources.length === 0 || allowed.has(row.source))
+        )
+        .sort((a, b) => (a.area_ha ?? 999999) - (b.area_ha ?? 999999) || a.name.localeCompare(b.name, "ja"))
+        .slice(0, limit);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
@@ -3594,6 +3643,124 @@ test("production full-domain fallback preserves original public UI routes withou
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
     assert.equal(seen.length, publicUiRoutes.length);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production map area polygons fall back to origin geometry with bounded display limit", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const seen: Array<{ url: string; resolveOverride?: string; reason?: string }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const target = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+    seen.push({
+      url: target,
+      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
+      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason") ?? undefined
+    });
+    return Response.json({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: { field_id: "origin-school", name: "origin polygon school" },
+        geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+      }],
+      truncated: true
+    }, { headers: { "cache-control": "public, max-age=60" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.features[0].properties.name, "origin polygon school");
+    assert.equal(payload.features[0].geometry.coordinates[0].length, 4);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0]?.url, "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&limit=48");
+    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen[0]?.reason, "map_area_polygons_origin_geometry");
+    const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
+    assert.equal(latestTelemetry.reason, "map_area_polygons_origin_geometry");
+    assert.equal(latestTelemetry.routePattern, "/api/v1/map/area-polygons");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production map area polygons use native polygon readmodel before origin fallback", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-school", {
+    field_id: "native-school",
+    source: "school",
+    admin_level: "school",
+    name: "ネイティブポリゴン小学校",
+    prefecture: "静岡県",
+    city: "浜松市",
+    center_lat: 34.695,
+    center_lng: 137.705,
+    bbox_min_lat: 34.69,
+    bbox_max_lat: 34.70,
+    bbox_min_lng: 137.70,
+    bbox_max_lng: 137.71,
+    area_ha: 1.1,
+    geometry_json: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[
+        [137.700, 34.690],
+        [137.710, 34.691],
+        [137.709, 34.699],
+        [137.701, 34.700],
+        [137.700, 34.690]
+      ]]
+    }),
+    approximate_boundary: 0,
+    boundary_approximation: null,
+    source_confidence: 0.9,
+    verification_level: "registry_matched",
+    verification_label: "公開情報と一致",
+    official_url: "https://example.test/native-school",
+    owner_url: null,
+    story_url: null,
+    certification_url: null,
+    entity_key: "school:native",
+    updated_at: "2026-06-18T00:00:00.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
+    assert.equal(payload.features.length, 1);
+    assert.equal(payload.features[0].properties.field_id, "native-school");
+    assert.equal(payload.features[0].geometry.coordinates[0].length, 5);
+    assert.deepEqual(payload.features[0].properties.center, [137.705, 34.695]);
   } finally {
     globalThis.fetch = originalFetch;
   }
