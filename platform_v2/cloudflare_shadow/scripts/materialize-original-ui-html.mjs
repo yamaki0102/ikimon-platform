@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const productionBucket = "ikimon-prod-media";
-const allowedArgs = new Set(["--execute", "--approval", "--scope", "--path", "--bucket", "--output"]);
+const allowedArgs = new Set(["--execute", "--approval", "--scope", "--path", "--bucket", "--output", "--concurrency"]);
 const args = new Map();
 const explicitPaths = [];
 
@@ -33,6 +33,7 @@ const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPL
 const scope = args.get("--scope") ?? "core";
 const bucket = args.get("--bucket") ?? productionBucket;
 const outputPath = args.get("--output") ?? "";
+const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
 
 if (execute && approval !== requiredApproval) {
   throw new Error(`Refusing R2 materialization. Pass --approval ${requiredApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
@@ -93,9 +94,12 @@ function run(command, commandArgs, options = {}) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     const commandLine = [command, ...commandArgs].join(" ");
-    const child = spawn(command, commandArgs, {
+    const executable = process.platform === "win32" ? "cmd.exe" : command;
+    const args = process.platform === "win32"
+      ? ["/d", "/s", "/c", [command, ...commandArgs].map(quoteCmdArg).join(" ")]
+      : commandArgs;
+    const child = spawn(executable, args, {
       cwd: process.cwd(),
-      shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
       ...options
     });
@@ -123,6 +127,27 @@ function run(command, commandArgs, options = {}) {
       }
     });
   });
+}
+
+function quoteCmdArg(value) {
+  if (/^[A-Za-z0-9_/:.=+\\-]+$/.test(value)) return value;
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+function clampInteger(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
+
+async function runPool(items, limit, worker) {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (item) await worker(item);
+    }
+  });
+  await Promise.all(workers);
 }
 
 const { buildApp } = await import(new URL("../../src/app.ts", import.meta.url));
@@ -162,7 +187,8 @@ try {
   }
 
   if (execute) {
-    for (const item of rendered) {
+    const uploadStartedAt = Date.now();
+    await runPool(rendered, concurrency, async (item) => {
       await run("npx", [
         "wrangler",
         "r2",
@@ -178,7 +204,12 @@ try {
         "no-store",
         "--force"
       ]);
-    }
+    });
+    events.push({
+      command: `parallel r2 put ${rendered.length} objects concurrency=${concurrency}`,
+      exitCode: 0,
+      durationMs: Date.now() - uploadStartedAt
+    });
   }
 } finally {
   await app.close();
@@ -191,6 +222,7 @@ const result = {
   r2WritesExecuted: execute,
   bucket,
   scope,
+  concurrency,
   rendered: rendered.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
   events
 };

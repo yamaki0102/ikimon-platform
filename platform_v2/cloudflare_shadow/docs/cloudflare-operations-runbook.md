@@ -44,22 +44,33 @@ Commands:
 cd platform_v2/cloudflare_shadow
 npm install
 npm run deploy:production:dry-run
-npm run materialize:original-ui:dry-run
+npm run materialize:original-ui:dry-run -- --concurrency 4
 ```
 
 Expected dry-run gates:
 
 - `npm run check`
 - `npm test`
+- production config guard and hardcoded-secret scan
 - `npx wrangler --version`
 - `npx wrangler deploy --env production --dry-run`
 - local render of core `original-ui/html/*` pages.
+- `.deploy/production-preflight-latest.json` written for the fast lane.
+
+If the same git `HEAD` and deploy-input hash have already passed the full dry-run, the fast lane may be used:
+
+```powershell
+npm run deploy:production:fast:dry-run
+```
+
+The fast lane must still validate the preflight report, re-run the config guard and secret scan, run Wrangler dry-run, and refuse stale or mismatched deploy inputs.
 
 Execute only after dry-run passes:
 
 ```powershell
 npm run deploy:production -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
-npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+npm run deploy:production:fast -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY --concurrency 4
 ```
 
 The guarded scripts deploy the Worker, update core materialized HTML in R2, and smoke:
@@ -74,6 +85,7 @@ Post-deploy evidence to record:
 - commit SHA and PR number
 - output JSON from `deploy-production-guard.mjs`
 - output JSON from `materialize-original-ui-html.mjs`
+- preflight report path and whether `lane` was `full` or `fast`
 - Worker version/deployment ID if shown by Wrangler
 - healthz/readyz HTTP statuses
 - explicit note that DNS, D1 data, secrets, billing, provider, and VPS state were not changed; R2 changes were limited to `original-ui/html/*`.

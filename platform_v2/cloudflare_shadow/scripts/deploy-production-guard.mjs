@@ -1,9 +1,21 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const productionWorkerUrl = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
 const productionPublicUrl = "https://ikimon.life";
-const allowedArgs = new Set(["--execute", "--approval"]);
+const defaultPreflightReportPath = ".deploy/production-preflight-latest.json";
+const defaultMaxPreflightAgeMinutes = 360;
+const allowedArgs = new Set([
+  "--execute",
+  "--approval",
+  "--fast",
+  "--preflight-report",
+  "--write-preflight-report",
+  "--max-preflight-age-minutes"
+]);
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const key = process.argv[index];
@@ -18,10 +30,17 @@ for (let index = 2; index < process.argv.length; index += 1) {
 }
 
 const execute = args.get("--execute") === "true";
+const fast = args.get("--fast") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
+const preflightReportPath = args.get("--preflight-report") ?? defaultPreflightReportPath;
+const writePreflightReportPath = args.get("--write-preflight-report") ?? (!fast ? defaultPreflightReportPath : "");
+const maxPreflightAgeMinutes = Number(args.get("--max-preflight-age-minutes") ?? String(defaultMaxPreflightAgeMinutes));
 
 if (execute && approval !== requiredApproval) {
   throw new Error(`Refusing production deploy. Pass --approval ${requiredApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
+}
+if (!Number.isFinite(maxPreflightAgeMinutes) || maxPreflightAgeMinutes < 1) {
+  throw new Error("--max-preflight-age-minutes must be a positive number.");
 }
 
 const events = [];
@@ -30,6 +49,9 @@ function run(command, commandArgs, options = {}) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     const commandLine = [command, ...commandArgs].join(" ");
+    const echo = options.echo !== false;
+    const spawnOptions = { ...options };
+    delete spawnOptions.echo;
     const executable = process.platform === "win32" ? "cmd.exe" : command;
     const args = process.platform === "win32"
       ? ["/d", "/s", "/c", [command, ...commandArgs].map(quoteCmdArg).join(" ")]
@@ -37,17 +59,17 @@ function run(command, commandArgs, options = {}) {
     const child = spawn(executable, args, {
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "pipe"],
-      ...options
+      ...spawnOptions
     });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString();
-      process.stdout.write(chunk);
+      if (echo) process.stdout.write(chunk);
     });
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString();
-      process.stderr.write(chunk);
+      if (echo) process.stderr.write(chunk);
     });
     child.on("close", (code) => {
       const event = {
@@ -99,8 +121,167 @@ async function smoke(baseUrl) {
   }
 }
 
-await run("npm", ["run", "check"]);
-await run("npm", ["test"]);
+function stripJsonComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
+async function readProductionConfigSummary() {
+  const raw = await readFile("wrangler.jsonc", "utf8");
+  const config = JSON.parse(stripJsonComments(raw));
+  const production = config.env?.production;
+  const routes = production?.routes ?? [];
+  const vars = production?.vars ?? {};
+  const d1Names = (production?.d1_databases ?? []).map((item) => item.database_name).sort();
+  const r2Buckets = (production?.r2_buckets ?? []).map((item) => item.bucket_name).sort();
+  const requiredRoutes = [
+    "ikimon.life/*",
+    "www.ikimon.life/*",
+    "staging.ikimon.life/api/v1/map/*",
+    "staging.ikimon.life/derived/*"
+  ];
+  const missingRoutes = requiredRoutes.filter((route) => !routes.includes(route));
+  const failures = [];
+  if (production?.name !== "ikimon-life-cloudflare-prod") failures.push("unexpected_production_worker_name");
+  if (vars.ENVIRONMENT !== "production") failures.push("production_environment_var_missing");
+  if (vars.PUBLIC_WRITE_MODE !== "cloudflare_native") failures.push("public_write_mode_not_cloudflare_native");
+  if (!d1Names.includes("ikimon_prod_core")) failures.push("missing_prod_core_d1");
+  if (!d1Names.includes("ikimon_prod_observations_2026_06")) failures.push("missing_prod_observations_d1");
+  if (!r2Buckets.includes("ikimon-prod-media")) failures.push("missing_prod_r2_bucket");
+  failures.push(...missingRoutes.map((route) => `missing_route:${route}`));
+  if (failures.length) {
+    throw new Error(`Production Cloudflare config safety check failed: ${failures.join(", ")}`);
+  }
+  return {
+    workerName: production.name,
+    routes,
+    publicWriteMode: vars.PUBLIC_WRITE_MODE,
+    d1Names,
+    r2Buckets
+  };
+}
+
+async function gitText(args) {
+  const result = await run("git", args, { echo: false });
+  return result.stdout.trim();
+}
+
+async function currentDeployState() {
+  const gitHead = await gitText(["rev-parse", "HEAD"]);
+  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const deployInputSha256 = await hashDeployInputs();
+  const productionConfig = await readProductionConfigSummary();
+  return {
+    gitHead,
+    gitStatus,
+    clean: gitStatus.length === 0,
+    deployInputSha256,
+    productionConfig
+  };
+}
+
+async function hashDeployInputs() {
+  const listed = await gitText(["ls-files", "--", "src", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const files = listed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).sort();
+  const hash = createHash("sha256");
+  for (const file of files) {
+    hash.update(file);
+    hash.update("\0");
+    hash.update(await readFile(file));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
+async function assertNoHardcodedSecrets() {
+  const listed = await gitText(["ls-files", "--", "src", "wrangler.jsonc", "package.json", "package-lock.json"]);
+  const files = listed
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter((item) => item && !/\.test\.ts$/.test(item));
+  const secretPattern = /(?:api[_-]?key|secret|password|token|private[_-]?key)\s*[:=]\s*["'][^"']{12,}["']/i;
+  const findings = [];
+  for (const file of files) {
+    const source = await readFile(file, "utf8");
+    if (secretPattern.test(source)) findings.push(file);
+  }
+  if (findings.length) {
+    throw new Error(`Refusing deploy: possible hardcoded secret in ${findings.join(", ")}`);
+  }
+}
+
+async function readPreflightReport(path) {
+  const report = JSON.parse(await readFile(path, "utf8"));
+  if (!report || report.ok !== true) throw new Error("Preflight report is not ok.");
+  return report;
+}
+
+function assertFreshPreflightReport(report, state) {
+  if (report.gitHead !== state.gitHead) {
+    throw new Error(`Fast deploy refused: preflight gitHead ${report.gitHead} does not match current ${state.gitHead}.`);
+  }
+  if (report.deployInputSha256 !== state.deployInputSha256) {
+    throw new Error("Fast deploy refused: deploy input hash changed after preflight.");
+  }
+  if (!report.clean || !state.clean) {
+    throw new Error("Fast deploy refused: deploy inputs must be clean in git before and during fast deploy.");
+  }
+  const ageMinutes = (Date.now() - Date.parse(report.checkedAt)) / 60000;
+  if (!Number.isFinite(ageMinutes) || ageMinutes > maxPreflightAgeMinutes) {
+    throw new Error(`Fast deploy refused: preflight report is stale (${Math.round(ageMinutes)} minutes).`);
+  }
+  const requiredCommands = ["npm run check", "npm test", "npx wrangler deploy --env production --dry-run"];
+  const commandSet = new Set((report.events ?? []).map((event) => event.command));
+  const missingCommands = requiredCommands.filter((command) => !commandSet.has(command));
+  if (missingCommands.length) {
+    throw new Error(`Fast deploy refused: preflight report missing ${missingCommands.join(", ")}.`);
+  }
+}
+
+async function writePreflightReport(path, state) {
+  const report = {
+    ok: true,
+    checkedAt: new Date().toISOString(),
+    gitHead: state.gitHead,
+    clean: state.clean,
+    deployInputSha256: state.deployInputSha256,
+    productionConfig: state.productionConfig,
+    requiredSafetyGates: [
+      "typescript_check",
+      "worker_test_suite",
+      "wrangler_dry_run",
+      "production_config_guard",
+      "hardcoded_secret_scan",
+      "post_deploy_health_ready_smoke"
+    ],
+    events
+  };
+  await mkdir(dirname(resolve(path)), { recursive: true });
+  await writeFile(path, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  events.push({
+    command: `write preflight report ${path}`,
+    exitCode: 0,
+    durationMs: 0
+  });
+}
+
+const initialState = await currentDeployState();
+await assertNoHardcodedSecrets();
+if (fast) {
+  const report = await readPreflightReport(preflightReportPath);
+  assertFreshPreflightReport(report, initialState);
+  events.push({
+    command: `validate fast preflight ${preflightReportPath}`,
+    exitCode: 0,
+    durationMs: 0,
+    checkedAt: report.checkedAt,
+    gitHead: report.gitHead
+  });
+} else {
+  await run("npm", ["run", "check"]);
+  await run("npm", ["test"]);
+}
 await run("npx", ["wrangler", "--version"]);
 await run("npx", ["wrangler", "deploy", "--env", "production", "--dry-run"]);
 
@@ -110,11 +291,18 @@ if (execute) {
   await smoke(productionPublicUrl);
 }
 
+if (!fast && writePreflightReportPath) {
+  const finalState = await currentDeployState();
+  await writePreflightReport(writePreflightReportPath, finalState);
+}
+
 console.log(JSON.stringify({
   ok: true,
   mode: execute ? "execute" : "dry-run",
+  lane: fast ? "fast" : "full",
   productionDeployExecuted: execute,
   approvalRequiredForExecute: requiredApproval,
+  preflightReport: fast ? preflightReportPath : (writePreflightReportPath || null),
   smokeTargets: execute ? [productionWorkerUrl, productionPublicUrl] : [],
   events
 }, null, 2));
