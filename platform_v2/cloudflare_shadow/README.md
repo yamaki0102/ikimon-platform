@@ -260,6 +260,15 @@ npm run deploy:production:dry-run
 
 This runs `npm run check`, `npm test`, `wrangler --version`, `wrangler deploy --env production --dry-run`, the production config guard, and the hardcoded-secret scan. It also writes `.deploy/production-preflight-latest.json` for the fast lane.
 
+For the normal edit loop, use the quick profile. It skips only the synthetic 10k load-profile test and keeps the other Worker contract tests:
+
+```bash
+npm run test:quick
+npm run deploy:production:quick-preflight
+```
+
+Use `npm run test:heavy` to run only the synthetic 10k profile, and `npm run deploy:production:preflight` before high-risk Worker runtime changes or when refreshing the full deployment evidence.
+
 When the same git `HEAD` and Worker deploy-input hash have already passed the full preflight, use the fast lane:
 
 ```bash

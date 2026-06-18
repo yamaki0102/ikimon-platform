@@ -13,6 +13,7 @@ const allowedArgs = new Set([
   "--approval",
   "--fast",
   "--preflight-report",
+  "--test-profile",
   "--write-preflight-report",
   "--max-preflight-age-minutes"
 ]);
@@ -35,12 +36,16 @@ const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPL
 const preflightReportPath = args.get("--preflight-report") ?? defaultPreflightReportPath;
 const writePreflightReportPath = args.get("--write-preflight-report") ?? (!fast ? defaultPreflightReportPath : "");
 const maxPreflightAgeMinutes = Number(args.get("--max-preflight-age-minutes") ?? String(defaultMaxPreflightAgeMinutes));
+const testProfile = args.get("--test-profile") ?? "full";
 
 if (execute && approval !== requiredApproval) {
   throw new Error(`Refusing production deploy. Pass --approval ${requiredApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
 }
 if (!Number.isFinite(maxPreflightAgeMinutes) || maxPreflightAgeMinutes < 1) {
   throw new Error("--max-preflight-age-minutes must be a positive number.");
+}
+if (!["full", "quick", "heavy"].includes(testProfile)) {
+  throw new Error("--test-profile must be one of: full, quick, heavy.");
 }
 
 const events = [];
@@ -231,12 +236,19 @@ function assertFreshPreflightReport(report, state) {
   if (!Number.isFinite(ageMinutes) || ageMinutes > maxPreflightAgeMinutes) {
     throw new Error(`Fast deploy refused: preflight report is stale (${Math.round(ageMinutes)} minutes).`);
   }
-  const requiredCommands = ["npm run check", "npm test", "npx wrangler deploy --env production --dry-run"];
+  const profile = typeof report.testProfile === "string" ? report.testProfile : "full";
+  const requiredCommands = ["npm run check", testCommandForProfile(profile).commandLine, "npx wrangler deploy --env production --dry-run"];
   const commandSet = new Set((report.events ?? []).map((event) => event.command));
   const missingCommands = requiredCommands.filter((command) => !commandSet.has(command));
   if (missingCommands.length) {
     throw new Error(`Fast deploy refused: preflight report missing ${missingCommands.join(", ")}.`);
   }
+}
+
+function testCommandForProfile(profile) {
+  if (profile === "quick") return { command: "npm", args: ["run", "test:quick"], commandLine: "npm run test:quick" };
+  if (profile === "heavy") return { command: "npm", args: ["run", "test:heavy"], commandLine: "npm run test:heavy" };
+  return { command: "npm", args: ["test"], commandLine: "npm test" };
 }
 
 async function writePreflightReport(path, state) {
@@ -246,10 +258,11 @@ async function writePreflightReport(path, state) {
     gitHead: state.gitHead,
     clean: state.clean,
     deployInputSha256: state.deployInputSha256,
+    testProfile,
     productionConfig: state.productionConfig,
     requiredSafetyGates: [
       "typescript_check",
-      "worker_test_suite",
+      testProfile === "quick" ? "worker_quick_test_suite" : testProfile === "heavy" ? "worker_heavy_test_suite" : "worker_full_test_suite",
       "wrangler_dry_run",
       "production_config_guard",
       "hardcoded_secret_scan",
@@ -280,7 +293,8 @@ if (fast) {
   });
 } else {
   await run("npm", ["run", "check"]);
-  await run("npm", ["test"]);
+  const testCommand = testCommandForProfile(testProfile);
+  await run(testCommand.command, testCommand.args);
 }
 await run("npx", ["wrangler", "--version"]);
 await run("npx", ["wrangler", "deploy", "--env", "production", "--dry-run"]);
@@ -299,7 +313,8 @@ if (!fast && writePreflightReportPath) {
 console.log(JSON.stringify({
   ok: true,
   mode: execute ? "execute" : "dry-run",
-  lane: fast ? "fast" : "full",
+  lane: fast ? "fast" : `${testProfile}-preflight`,
+  testProfile: fast ? undefined : testProfile,
   productionDeployExecuted: execute,
   approvalRequiredForExecute: requiredApproval,
   preflightReport: fast ? preflightReportPath : (writePreflightReportPath || null),

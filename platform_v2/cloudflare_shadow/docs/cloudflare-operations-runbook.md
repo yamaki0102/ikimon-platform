@@ -57,6 +57,15 @@ Expected dry-run gates:
 - local render of core `original-ui/html/*` pages.
 - `.deploy/production-preflight-latest.json` written for the fast lane.
 
+For routine low-risk Worker/tooling edits, the quick profile may be used during iteration:
+
+```powershell
+npm run test:quick
+npm run deploy:production:quick-preflight
+```
+
+Quick profile skips only `synthetic 10k daily profile`; it still runs the other Worker contract tests, TypeScript, config guard, secret scan, and Wrangler dry-run. Run `npm run test:heavy` to exercise only the synthetic 10k case, and refresh full evidence with `npm run deploy:production:preflight` before high-risk runtime changes.
+
 If the same git `HEAD` and deploy-input hash have already passed the full dry-run, the fast lane may be used:
 
 ```powershell
