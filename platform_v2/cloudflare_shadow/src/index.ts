@@ -1549,12 +1549,12 @@ function getPublicMapSiteBriefShim(url: URL): Response {
   }
   return json({
     hypothesis: {
-      label: "記録不足の場所",
-      confidence: 0.35
+      label: "まだ見落としがありそうな場所",
+      confidence: 0.42
     },
-    reasons: ["Cloudflare移行中の互換表示です。"],
-    checks: ["公開位置はぼかしたまま扱います。"],
-    captureHints: ["写真、音、メモのいずれかを残すと地域の見え方が増えます。"],
+    reasons: ["水路、緑地、建物のすき間など、身近な環境の境目を見比べられる場所です。"],
+    checks: ["花、草地、水辺、日陰、人工物のまわりに小さな変化がないか見てください。"],
+    captureHints: ["気になったものを1枚撮るか、音やメモを残すと次の見返しにつながります。"],
     environmentEvidence: [],
     officialNotices: [],
     compatibility: {

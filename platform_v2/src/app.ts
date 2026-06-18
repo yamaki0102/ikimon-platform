@@ -630,7 +630,7 @@ async function getPreviewContext(): Promise<PreviewContext> {
 const LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT = `// ikimon.life v2 intentionally does not use the legacy PHP Service Worker.
 // Returning this script from the old SW URLs lets browsers update the old
 // registration, clear its shell caches, and then unregister it.
-const LEGACY_CACHE_PREFIXES = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-'];
+const LEGACY_CACHE_PREFIXES = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-', 'ikimon-app-'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

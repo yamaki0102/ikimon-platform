@@ -42,13 +42,16 @@ test("app service worker is separate from legacy cleanup worker and caches app s
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/javascript/);
     assert.equal(response.headers["service-worker-allowed"], "/");
-    assert.match(response.body, /ikimon-app-v1/);
+    assert.match(response.body, /ikimon-app-v2/);
     assert.match(response.body, /networkFirstNavigation/);
     assert.match(response.body, /OFFLINE_URLS/);
     assert.match(response.body, /offline\.html\?lang=en/);
     assert.match(response.body, /\/assets\/brand\/app-icon-192\.png/);
     assert.match(response.body, /\/assets\/brand\/favicon-32\.png/);
     assert.match(response.body, /APP_NAV_RE/);
+    assert.match(response.body, /MAP_NAV_RE/);
+    assert.match(response.body, /cache: 'no-store'/);
+    assert.match(response.body, /&& !isMapShell/);
     assert.match(response.body, /ikimon-app-outbox-sync/);
     assert.match(response.body, /self\.addEventListener\('sync'/);
     assert.doesNotMatch(response.body, /registration\.unregister/);
