@@ -146,6 +146,25 @@ test("area biodiversity badges render as presence-only map markers", () => {
   assert.match(styles, /\.me-area-badge-pill/);
 });
 
+test("area map suppresses point-buffer pseudo boundaries and clusters dense badges", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /function shouldDrawAreaPolygonFeature\(feature\)/);
+  assert.match(script, /props\.approximate_boundary !== true/);
+  assert.match(script, /String\(props\.boundary_approximation \|\| ''\) !== 'point_buffer'/);
+  assert.match(script, /var drawableAreaFeatures = state\.areaPolygonFeatures\.filter\(shouldDrawAreaPolygonFeature\)/);
+  assert.match(script, /src\.setData\(\{ type: 'FeatureCollection', features: drawableAreaFeatures \}\)/);
+  assert.match(script, /AREA_BADGE_CLUSTER_MAX_ZOOM = 15\.2/);
+  assert.match(script, /AREA_BADGE_CLUSTER_DENSE_LIMIT = 14/);
+  assert.match(script, /function clusterAreaBadgeItems\(items, zoom\)/);
+  assert.match(script, /areaBadgeClusterPixelSizeForZoom/);
+  assert.match(script, /is-area-cluster/);
+  assert.match(script, /zoomToAreaBadgeCluster\(item\)/);
+  assert.match(script, /areaBadgeClusterLabel/);
+  assert.match(styles, /\.me-area-badge-marker\.is-area-cluster \.me-area-badge-pill/);
+});
+
 test("guide-enabled areas advertise guide availability before tapping the area", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
@@ -169,11 +188,12 @@ test("guide map badges stay compact at low zoom or high density", () => {
   assert.match(script, /zoom < GUIDE_BADGE_LABEL_ZOOM \|\| guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT/);
   assert.match(script, /is-guide-pin/);
   assert.match(script, /is-guide-compact/);
-  assert.match(script, /me-guide-dot/);
+  assert.match(script, /renderGuideSpotSymbol\(item\.guideStop\)/);
+  assert.match(script, /me-guide-spot-symbol/);
   assert.match(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
   assert.match(styles, /me-area-badge-marker\.is-guide-pin/);
   assert.match(styles, /me-area-badge-marker\.is-guide-compact/);
-  assert.match(styles, /me-guide-dot/);
+  assert.match(styles, /me-guide-spot-symbol/);
 });
 
 test("map guide spots render independently from area polygons", () => {
@@ -193,8 +213,15 @@ test("map guide spots render independently from area polygons", () => {
   assert.match(script, /GUIDE_SPOT_DENSE_LIMIT = 10/);
   assert.match(script, /guideSpotCount > GUIDE_SPOT_DENSE_LIMIT/);
   assert.match(script, /is-pin/);
+  assert.match(script, /function guideSpotCategoryLabel\(spot\)/);
+  assert.match(script, /SEARCH_LANG === 'ja' \? '地域遺産'/);
+  assert.match(script, /SEARCH_LANG === 'es' \? 'Patrimonio'/);
+  assert.match(script, /function guideSpotCategorySymbol\(spot\)/);
+  assert.match(script, /is-category-' \+ categoryKey/);
+  assert.match(script, /renderGuideSpotSymbol\(spot\)/);
   assert.match(styles, /me-guide-spot-marker/);
   assert.match(styles, /me-guide-spot-marker\.is-cluster/);
+  assert.match(styles, /me-guide-spot-marker\.is-category-heritage \.me-guide-spot-symbol/);
   assert.doesNotMatch(script, /あと __DISTANCE__|formatGuideDistance|radius \+ 'm'/);
 });
 

@@ -1727,8 +1727,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
 
   for (const path of [
     "/api/v1/map/traces?limit=200",
-    "/api/v1/map/frontier?bbox=137.70%2C34.70%2C137.82%2C34.72",
-    "/api/v1/map/guide-spots"
+    "/api/v1/map/frontier?bbox=137.70%2C34.70%2C137.82%2C34.72"
   ]) {
     const response = await worker.fetch(new Request(`https://shadow.test${path}`), env);
     const payload = await response.json() as any;
@@ -1737,6 +1736,19 @@ test("v1 public map read routes expose current shell contracts without exact coo
     assert.deepEqual(payload.features, []);
     assert.doesNotMatch(JSON.stringify(payload), /34\.71234|137\.81234/);
   }
+
+  const guideSpotsResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/map/guide-spots?bbox=137.55%2C34.60%2C137.90%2C34.85&limit=20"
+  ), env);
+  const guideSpotsPayload = await guideSpotsResponse.json() as any;
+  assert.equal(guideSpotsResponse.ok, true, JSON.stringify(guideSpotsPayload));
+  assert.equal(guideSpotsPayload.type, "FeatureCollection");
+  assert.equal(guideSpotsPayload.stats.source, "cloudflare_static_global_guide_spots");
+  assert.equal(guideSpotsPayload.stats.coverage, "global_bbox");
+  assert.ok(guideSpotsPayload.features.length >= 8);
+  assert.equal(guideSpotsPayload.features[0].geometry.type, "Point");
+  assert.ok(guideSpotsPayload.features.some((feature: any) => feature.properties.id === "hamamatsu-shijimizuka-site"));
+  assert.ok(guideSpotsPayload.features.some((feature: any) => feature.properties.category === "heritage"));
 
   const effortResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/effort-summary?bbox=137.70%2C34.70%2C137.82%2C34.72"), env);
   const effortPayload = await effortResponse.json() as any;

@@ -1476,6 +1476,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaEventCreateLabel: props.lang === "ja" ? "主催者の方へ" : props.lang === "es" ? "Para organizadores" : props.lang === "pt-BR" ? "Para organizadores" : "For organizers",
     areaBadgeEventLabel: props.lang === "ja" ? "主催者" : props.lang === "es" ? "Organizadores" : props.lang === "pt-BR" ? "Organizadores" : "Organizers",
     areaBadgeAlbumLabel: props.lang === "ja" ? "エリア図鑑" : props.lang === "es" ? "Álbum" : props.lang === "pt-BR" ? "Álbum" : "Area album",
+    areaBadgeClusterLabel: props.lang === "ja" ? "この周辺" : props.lang === "es" ? "Cerca" : props.lang === "pt-BR" ? "Por perto" : "Nearby",
     areaEventCreateHint: props.lang === "ja" ? "観察会や投稿ラリーを、地域の活動として扱う入口です。" : props.lang === "es" ? "Entrada para tratar salidas y rallies como actividades locales." : props.lang === "pt-BR" ? "Entrada para tratar eventos e rallies como atividades locais." : "A guide for handling events and posting rallies as local activities.",
     areaPositiveTitleMine: props.lang === "ja" ? "このエリアで見えてきたこと" : props.lang === "es" ? "Lo que se va viendo aquí" : props.lang === "pt-BR" ? "O que começou a aparecer aqui" : "What is coming into view here",
     areaPositiveTitleGuest: props.lang === "ja" ? "みんなの記録で見えてきたこと" : props.lang === "es" ? "Lo que los registros muestran" : props.lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
@@ -1524,6 +1525,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var GUIDE_BADGE_LABEL_ZOOM = 12.6;
   var GUIDE_BADGE_FULL_ZOOM = 13.4;
   var GUIDE_BADGE_DENSE_LIMIT = 8;
+  var AREA_BADGE_CLUSTER_MAX_ZOOM = 15.2;
+  var AREA_BADGE_CLUSTER_DENSE_LIMIT = 14;
   var GUIDE_SPOT_LABEL_ZOOM = 12.6;
   var GUIDE_SPOT_FULL_ZOOM = 13.8;
   var GUIDE_SPOT_DENSE_LIMIT = 10;
@@ -2657,6 +2660,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat, lng: lng } : null;
   }
 
+  function guideSpotCategoryKey(spot) {
+    var key = String(spot && (spot.category || spot.category_key || spot.type) || '').toLowerCase().trim();
+    if (key === 'heritage' || key === 'nature' || key === 'community' || key === 'owner') return key;
+    return 'guide';
+  }
+
+  function guideSpotCategoryLabel(spot) {
+    var key = guideSpotCategoryKey(spot);
+    var labels = {
+      heritage: SEARCH_LANG === 'ja' ? '地域遺産' : SEARCH_LANG === 'es' ? 'Patrimonio' : SEARCH_LANG === 'pt-BR' ? 'Patrimônio' : 'Heritage',
+      nature: SEARCH_LANG === 'ja' ? '自然' : SEARCH_LANG === 'es' ? 'Naturaleza' : SEARCH_LANG === 'pt-BR' ? 'Natureza' : 'Nature',
+      community: SEARCH_LANG === 'ja' ? '地域' : SEARCH_LANG === 'es' ? 'Comunidad' : SEARCH_LANG === 'pt-BR' ? 'Comunidade' : 'Community',
+      owner: SEARCH_LANG === 'ja' ? '公式' : SEARCH_LANG === 'es' ? 'Oficial' : SEARCH_LANG === 'pt-BR' ? 'Oficial' : 'Official',
+      guide: COPY.areaBadgeGuideLabel
+    };
+    return labels[key] || COPY.areaBadgeGuideLabel;
+  }
+
+  function guideSpotCategorySymbol(spot) {
+    var key = guideSpotCategoryKey(spot);
+    if (key === 'heritage') return SEARCH_LANG === 'ja' ? '史' : 'H';
+    if (key === 'nature') return SEARCH_LANG === 'ja' ? '緑' : 'N';
+    if (key === 'community') return SEARCH_LANG === 'ja' ? '地' : 'C';
+    if (key === 'owner') return SEARCH_LANG === 'ja' ? '認' : 'O';
+    return 'G';
+  }
+
+  function renderGuideSpotSymbol(spot) {
+    return '<span class="me-guide-spot-symbol" aria-hidden="true">' + escapeHtml(guideSpotCategorySymbol(spot)) + '</span>';
+  }
+
   function guideStopSourceLinks(stop) {
     var links = stop && (stop.sourceLinks || stop.source_links || stop.sources);
     if (!Array.isArray(links)) return [];
@@ -2908,11 +2942,117 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function areaBadgeLimitForZoom(zoom) {
-    if (!Number.isFinite(zoom)) return 36;
-    if (zoom < 13) return 28;
-    if (zoom < 15) return 36;
-    if (zoom < 16) return 48;
-    return 64;
+    if (!Number.isFinite(zoom)) return 28;
+    if (zoom < 12) return 14;
+    if (zoom < 13) return 18;
+    if (zoom < 14) return 24;
+    if (zoom < 15) return 32;
+    if (zoom < 16) return 42;
+    return 56;
+  }
+
+  function shouldDrawAreaPolygonFeature(feature) {
+    var props = feature && feature.properties ? feature.properties : {};
+    if (props.approximate_boundary !== true) return true;
+    return String(props.boundary_approximation || '') !== 'point_buffer';
+  }
+
+  function areaBadgeSourceRank(source) {
+    var key = String(source || '').trim();
+    if (key === 'user_defined') return 90;
+    if (key === 'nature_symbiosis_site' || key === 'protected_area' || key === 'oecm') return 80;
+    if (key === 'tsunag') return 76;
+    if (key === 'osm_park') return 66;
+    if (key === 'school') return 58;
+    return 40;
+  }
+
+  function areaBadgeItemRank(item) {
+    var props = item && item.feature && item.feature.properties ? item.feature.properties : {};
+    var rank = areaBadgeSourceRank(props.source || props.admin_level);
+    if (item && item.guideStop) rank += 200;
+    if (item && item.groups && item.groups.length) rank += item.groups.length * 20;
+    if (props.approximate_boundary === true && String(props.boundary_approximation || '') === 'point_buffer') rank -= 8;
+    return rank;
+  }
+
+  function areaBadgeClusterPixelSizeForZoom(zoom) {
+    if (!Number.isFinite(zoom) || zoom < 12.4) return 148;
+    if (zoom < 13.4) return 124;
+    if (zoom < 14.4) return 102;
+    return 84;
+  }
+
+  function clusterAreaBadgeItems(items, zoom) {
+    if (!state.map || !state.map.project || !Array.isArray(items)) return items || [];
+    if (zoom >= AREA_BADGE_CLUSTER_MAX_ZOOM && items.length <= AREA_BADGE_CLUSTER_DENSE_LIMIT) return items;
+    var grid = areaBadgeClusterPixelSizeForZoom(zoom);
+    var buckets = {};
+    var singles = [];
+    items.forEach(function (item) {
+      if (!item || !item.center) return;
+      if (item.guideStop) {
+        singles.push(item);
+        return;
+      }
+      var point = state.map.project([item.center.lng, item.center.lat]);
+      if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+        singles.push(item);
+        return;
+      }
+      var key = Math.floor(point.x / grid) + ':' + Math.floor(point.y / grid);
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push(item);
+    });
+    Object.keys(buckets).forEach(function (key) {
+      var list = buckets[key].slice().sort(function (a, b) { return areaBadgeItemRank(b) - areaBadgeItemRank(a); });
+      if (list.length === 1) {
+        singles.push(list[0]);
+        return;
+      }
+      var center = list.reduce(function (acc, item) {
+        acc.lat += item.center.lat;
+        acc.lng += item.center.lng;
+        return acc;
+      }, { lat: 0, lng: 0 });
+      singles.push({
+        feature: list[0].feature,
+        groups: [],
+        guideStop: null,
+        center: { lat: center.lat / list.length, lng: center.lng / list.length },
+        clusterItems: list,
+        clusterCount: list.length
+      });
+    });
+    return singles.sort(function (a, b) {
+      var aCluster = Array.isArray(a.clusterItems) ? a.clusterItems.length : 0;
+      var bCluster = Array.isArray(b.clusterItems) ? b.clusterItems.length : 0;
+      if (aCluster !== bCluster) return bCluster - aCluster;
+      return areaBadgeItemRank(b) - areaBadgeItemRank(a);
+    });
+  }
+
+  function areaBadgeClusterCountLabel(item) {
+    var count = item && item.clusterCount ? item.clusterCount : (item && item.clusterItems ? item.clusterItems.length : 0);
+    if (SEARCH_LANG === 'ja') return String(count) + 'エリア';
+    if (SEARCH_LANG === 'es') return String(count) + ' áreas';
+    if (SEARCH_LANG === 'pt-BR') return String(count) + ' áreas';
+    return String(count) + ' areas';
+  }
+
+  function zoomToAreaBadgeCluster(item) {
+    if (!state.map || !window.maplibregl || !item || !Array.isArray(item.clusterItems)) return;
+    var bounds = new window.maplibregl.LngLatBounds();
+    item.clusterItems.forEach(function (clusterItem) {
+      if (!clusterItem || !clusterItem.center) return;
+      bounds.extend([clusterItem.center.lng, clusterItem.center.lat]);
+    });
+    if (bounds.isEmpty && bounds.isEmpty()) return;
+    state.map.fitBounds(bounds, {
+      padding: 82,
+      maxZoom: 15.8,
+      duration: 360
+    });
   }
 
   function refreshAreaBadgeMarkers() {
@@ -2920,7 +3060,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!state.map || !window.maplibregl || (state.tab !== 'places' && state.tab !== 'markers')) return;
     var zoom = state.map.getZoom();
     if (!Number.isFinite(zoom) || zoom < 10.2) return;
-    var features = (Array.isArray(state.areaPolygonFeatures) ? state.areaPolygonFeatures : [])
+    var candidates = (Array.isArray(state.areaPolygonFeatures) ? state.areaPolygonFeatures : [])
       .map(function (feature) {
         var guideStop = areaGuideStopFrom(feature && feature.properties ? feature.properties : {});
         return { feature: feature, groups: areaBadgeGroups(feature), guideStop: guideStop, center: areaBadgeCenter(feature) };
@@ -2931,36 +3071,43 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (item.groups.length > 0) return state.tab === 'places' || state.tab === 'markers';
         return isNamedAreaBadgeFeature(item.feature, zoom);
       })
+      .sort(function (a, b) { return areaBadgeItemRank(b) - areaBadgeItemRank(a); });
+    var features = clusterAreaBadgeItems(candidates, zoom)
       .slice(0, areaBadgeLimitForZoom(zoom));
     var guideBadgeCount = features.filter(function (item) { return !!item.guideStop; }).length;
     var useGuidePinBadges = zoom < GUIDE_BADGE_LABEL_ZOOM || guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT;
     var useCompactGuideBadges = !useGuidePinBadges && zoom < GUIDE_BADGE_FULL_ZOOM;
     features.forEach(function (item) {
       var props = item.feature && item.feature.properties ? item.feature.properties : {};
-      var name = String(props.name || COPY.selectedFieldLabel);
+      var isAreaCluster = Array.isArray(item.clusterItems) && item.clusterItems.length > 1;
+      var name = isAreaCluster ? areaBadgeClusterCountLabel(item) : String(props.name || COPY.selectedFieldLabel);
       var fieldId = String(props.field_id || '');
       var isGuidePinBadge = !!item.guideStop && useGuidePinBadges;
       var isCompactGuideBadge = !!item.guideStop && useCompactGuideBadges;
       var actionsHtml = '';
-      var countLabel = areaBadgeCountLabel(item);
+      var countLabel = isAreaCluster ? COPY.areaBadgeClusterLabel : areaBadgeCountLabel(item);
       if (!countLabel) countLabel = String(props.source_label || props.admin_level || props.source || '');
       var el = document.createElement('div');
-      var badgeChipsHtml = (item.guideStop
+      var badgeChipsHtml = isAreaCluster
+        ? ''
+        : (item.guideStop
         ? '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>'
         : '') + item.groups.map(renderAreaBadgeGroup).join('');
-      var ariaBits = item.groups.map(function (group) { return group.label; });
+      var ariaBits = isAreaCluster ? [COPY.areaBadgeClusterLabel] : item.groups.map(function (group) { return group.label; });
       if (item.guideStop) ariaBits.unshift(COPY.areaBadgeGuideLabel);
       el.className = 'me-area-badge-marker' +
+        (isAreaCluster ? ' is-area-cluster' : '') +
         (item.guideStop ? ' has-guide-stop' : '') +
         (isGuidePinBadge ? ' is-guide-pin' : '') +
         (isCompactGuideBadge ? ' is-guide-compact' : '');
       el.setAttribute('aria-label', name + ' ' + ariaBits.join(' '));
       el.innerHTML = isGuidePinBadge
         ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-            '<span class="me-guide-dot" aria-hidden="true"></span>' +
+            renderGuideSpotSymbol(item.guideStop) +
           '</button>'
         : isCompactGuideBadge
         ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+            renderGuideSpotSymbol(item.guideStop) +
             '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
           '</button>'
         : '<button type="button" class="me-area-badge-main">' +
@@ -2974,6 +3121,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       el.querySelector('.me-area-badge-main').addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
+        if (isAreaCluster) {
+          zoomToAreaBadgeCluster(item);
+          return;
+        }
         openAreaFeatureSheet(item.feature, item.center.lat, item.center.lng);
       });
       var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
@@ -5786,8 +5937,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (!collection) return;
         ensureAreaPolygons(state.map);
         state.areaPolygonFeatures = Array.isArray(collection.features) ? collection.features : [];
+        var drawableAreaFeatures = state.areaPolygonFeatures.filter(shouldDrawAreaPolygonFeature);
         var src = state.map.getSource('area-polygons');
-        if (src) src.setData(collection);
+        if (src) src.setData({ type: 'FeatureCollection', features: drawableAreaFeatures });
         applyTab(state.map, state.tab);
       })
       .catch(function (err) { if (err && err.name === 'AbortError') return; });
@@ -5800,20 +5952,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var zoom = state.map && state.map.getZoom ? state.map.getZoom() : 12;
     var pin = !Number.isFinite(zoom) || zoom < GUIDE_SPOT_LABEL_ZOOM || guideSpotCount > GUIDE_SPOT_DENSE_LIMIT;
     var compact = !pin && zoom < GUIDE_SPOT_FULL_ZOOM;
+    var categoryKey = guideSpotCategoryKey(spot);
+    var categoryLabel = guideSpotCategoryLabel(spot);
     var el = document.createElement('div');
-    el.className = 'me-guide-spot-marker' + (pin ? ' is-pin' : '') + (compact ? ' is-compact' : '');
-    el.setAttribute('aria-label', String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel);
+    el.className = 'me-guide-spot-marker is-category-' + categoryKey + (pin ? ' is-pin' : '') + (compact ? ' is-compact' : '');
+    el.setAttribute('aria-label', String(spot.title || '') + ' ' + categoryLabel + ' ' + COPY.areaBadgeGuideLabel);
     el.innerHTML = pin
-      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-          '<span class="me-guide-dot" aria-hidden="true"></span>' +
+      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + categoryLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + categoryLabel) + '">' +
+          renderGuideSpotSymbol(spot) +
         '</button>'
       : compact
-      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + categoryLabel) + '">' +
+          renderGuideSpotSymbol(spot) +
           '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
         '</button>'
       : '<button type="button" class="me-guide-spot-main">' +
+          renderGuideSpotSymbol(spot) +
+          '<span class="me-guide-spot-text">' +
           '<strong>' + escapeHtml(String(spot.title || '')) + '</strong>' +
           '<span>' + escapeHtml(String(spot.subtitle || COPY.guideStopEyebrow)) + '</span>' +
+          '<em>' + escapeHtml(categoryLabel) + '</em>' +
+          '</span>' +
         '</button>';
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
@@ -5858,8 +6017,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.className = 'me-guide-spot-marker is-cluster';
     el.setAttribute('aria-label', COPY.guideSpotClusterLabel + ' ' + String(list.length));
     el.innerHTML = '<button type="button" class="me-guide-spot-main">' +
-      '<strong>' + escapeHtml(COPY.guideSpotClusterLabel) + '</strong>' +
-      '<span>' + escapeHtml(String(list.length) + ' ' + COPY.areaBadgeGuideLabel) + '</span>' +
+      '<span class="me-guide-spot-symbol" aria-hidden="true">' + escapeHtml(String(list.length)) + '</span>' +
+      '<span class="me-guide-spot-text">' +
+        '<strong>' + escapeHtml(COPY.guideSpotClusterLabel) + '</strong>' +
+        '<span>' + escapeHtml(String(list.length) + ' ' + COPY.areaBadgeGuideLabel) + '</span>' +
+      '</span>' +
     '</button>';
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
@@ -7859,6 +8021,21 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
   .me-area-badge-chip-guide { background: #0f172a; color: #f8fafc; }
   .me-area-badge-marker.has-guide-stop .me-area-badge-pill { border-color: rgba(15,23,42,.22); }
+  .me-area-badge-marker.is-area-cluster .me-area-badge-pill {
+    min-height: 34px;
+    padding: 6px 10px;
+    border-color: rgba(15,118,110,.28);
+    background: rgba(15,118,110,.96);
+    color: #f8fafc;
+    box-shadow: 0 12px 24px rgba(15,23,42,.18);
+  }
+  .me-area-badge-marker.is-area-cluster .me-area-badge-pill strong,
+  .me-area-badge-marker.is-area-cluster .me-area-badge-pill em {
+    color: #f8fafc;
+  }
+  .me-area-badge-marker.is-area-cluster .me-area-badge-pill em {
+    opacity: .82;
+  }
   .me-area-badge-actions {
     display: none;
     gap: 4px;
@@ -7906,15 +8083,20 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-area-badge-marker.is-guide-compact .me-area-badge-main {
     display: inline-flex;
+    align-items: center;
+    gap: 5px;
     width: auto;
+    padding: 3px;
+    border: 1px solid rgba(15,23,42,.12);
     border-radius: 999px;
+    background: rgba(255,255,255,.96);
     box-shadow: 0 10px 20px rgba(15,23,42,.18);
   }
   .me-area-badge-marker.is-guide-compact .me-area-badge-chip-guide {
     min-height: 24px;
     padding: 3px 9px;
-    border: 2px solid rgba(255,255,255,.88);
-    box-shadow: 0 0 0 1px rgba(15,23,42,.16);
+    border: 0;
+    box-shadow: none;
   }
   .me-area-badge-marker.is-guide-pin {
     min-width: 0;
@@ -7940,6 +8122,48 @@ export const MAP_EXPLORER_STYLES = `
     background: #0f172a;
     box-shadow: 0 10px 20px rgba(15,23,42,.20);
   }
+  .me-guide-spot-symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff7ed;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.36), 0 5px 12px rgba(15,118,110,.22);
+  }
+  .me-area-badge-marker.is-guide-pin .me-guide-spot-symbol,
+  .me-guide-spot-marker.is-pin .me-guide-spot-symbol {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    background: #f59e0b;
+    color: #111827;
+    font-size: 9px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.42), 0 0 0 4px rgba(245,158,11,.24);
+  }
+  .me-guide-spot-marker.is-category-heritage .me-guide-spot-symbol {
+    background: #f59e0b;
+    color: #111827;
+  }
+  .me-guide-spot-marker.is-category-nature .me-guide-spot-symbol {
+    background: #16a34a;
+    color: #f0fdf4;
+  }
+  .me-guide-spot-marker.is-category-community .me-guide-spot-symbol {
+    background: #0ea5e9;
+    color: #f0f9ff;
+  }
+  .me-guide-spot-marker.is-category-owner .me-guide-spot-symbol {
+    background: #0f172a;
+    color: #f8fafc;
+  }
   .me-guide-dot {
     width: 8px;
     height: 8px;
@@ -7953,7 +8177,9 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-guide-spot-main {
     display: grid;
-    gap: 3px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
     max-width: 178px;
     padding: 8px 10px;
     border: 1px solid rgba(15,23,42,.16);
@@ -7964,13 +8190,18 @@ export const MAP_EXPLORER_STYLES = `
     text-align: left;
     cursor: pointer;
   }
+  .me-guide-spot-text {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
   .me-guide-spot-main strong {
     font-size: 11px;
     line-height: 1.2;
     font-weight: 950;
     letter-spacing: 0;
   }
-  .me-guide-spot-main > span:not(.me-area-badge-chip) {
+  .me-guide-spot-text > span {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -7979,6 +8210,13 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 9.5px;
     line-height: 1.25;
     font-weight: 800;
+  }
+  .me-guide-spot-text > em {
+    color: #0f766e;
+    font-size: 9px;
+    line-height: 1.1;
+    font-style: normal;
+    font-weight: 950;
   }
   .me-guide-spot-marker.is-cluster .me-guide-spot-main {
     border-color: rgba(15,118,110,.26);
@@ -7990,18 +8228,20 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-guide-spot-marker.is-compact .me-guide-spot-main {
     display: inline-flex;
+    align-items: center;
+    gap: 5px;
     max-width: none;
-    padding: 0;
-    border: 0;
+    padding: 3px;
+    border: 1px solid rgba(15,23,42,.12);
     border-radius: 999px;
-    background: transparent;
+    background: rgba(255,255,255,.96);
     box-shadow: 0 10px 20px rgba(15,23,42,.18);
   }
   .me-guide-spot-marker.is-compact .me-area-badge-chip-guide {
     min-height: 24px;
     padding: 3px 9px;
-    border: 2px solid rgba(255,255,255,.88);
-    box-shadow: 0 0 0 1px rgba(15,23,42,.16);
+    border: 0;
+    box-shadow: none;
   }
   .me-guide-spot-detail,
   .me-guide-spot-body {
