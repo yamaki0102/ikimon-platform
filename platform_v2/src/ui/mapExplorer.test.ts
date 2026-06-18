@@ -303,13 +303,18 @@ test("default map surface uses a tiered simple vector style", () => {
   assert.match(script, /var SIMPLE_MID_LANDMARK_CLASSES = \['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'\]/);
   assert.match(script, /var SIMPLE_HIGH_LANDMARK_CLASSES = \['railway', 'town_hall', 'library', 'hospital'\]/);
   assert.match(script, /var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = \['shop', 'grocery', 'cafe', 'restaurant'\]/);
+  assert.match(script, /var SIMPLE_LOCALITY_CLASSES = \['town', 'village', 'hamlet', 'suburb', 'quarter', 'neighbourhood'\]/);
   assert.match(script, /id: 'simple-road-major'/);
   assert.match(script, /id: 'simple-landuse-soft'/);
+  assert.match(script, /id: 'simple-school-landuse-outline'[\s\S]*?minzoom: 13/);
+  assert.match(script, /id: 'simple-park-outline'[\s\S]*?minzoom: 12/);
   assert.match(script, /id: 'simple-road-local-casing'/);
   assert.match(script, /id: 'simple-road-local'/);
   assert.match(script, /id: 'simple-waterway'[\s\S]*?filter: \['match', \['get', 'class'\], \['river', 'canal'\], true, false\]/);
   assert.match(script, /id: 'simple-road-local'[\s\S]*?minzoom: 13\.2/);
   assert.match(script, /id: 'simple-road-local'[\s\S]*?\['tertiary', 'minor', 'service', 'track'\]/);
+  assert.match(script, /id: 'simple-locality-label'[\s\S]*?minzoom: 12\.4/);
+  assert.match(script, /id: 'simple-locality-label'[\s\S]*?SIMPLE_LOCALITY_CLASSES/);
   assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 15\.9/);
   assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 17/);
   assert.match(script, /id: 'simple-commercial-label'[\s\S]*?minzoom: 15\.8/);

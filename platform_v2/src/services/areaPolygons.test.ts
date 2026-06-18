@@ -18,6 +18,7 @@ const {
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
   shouldFetchLiveOsm,
+  shouldSupplementLiveOsm,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
@@ -200,6 +201,34 @@ test("default z9 park and school visibility does not trigger live OSM fallback",
   assert.equal(shouldFetchLiveOsm(query, sources), false);
   assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.3, 34.6, 137.8, 34.9] }, sources), false);
   assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.7, 34.7, 137.75, 34.75] }, sources), true);
+});
+
+test("live OSM supplement continues when stored park or school coverage is partial", () => {
+  const query = { bbox: [137.70, 34.69, 137.72, 34.71] as [number, number, number, number], zoom: 16 };
+  const sources = ["school", "osm_park"] as const;
+  const storedSchool = liveElementToFeature({
+    type: "way",
+    id: 777,
+    tags: { name: "浜松第一小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.70, lon: 137.70 },
+      { lat: 34.70, lon: 137.71 },
+      { lat: 34.71, lon: 137.71 },
+    ],
+  });
+  assert.ok(storedSchool);
+  assert.equal(shouldSupplementLiveOsm(query, [...sources], [storedSchool], 50), true);
+  assert.equal(shouldSupplementLiveOsm(query, ["protected_area"], [storedSchool], 50), false);
+  assert.equal(shouldSupplementLiveOsm({ ...query, zoom: 12 }, [...sources], [storedSchool], 50), false);
+  const fullFeatures = Array.from({ length: 50 }, (_, i) => ({
+    ...storedSchool,
+    properties: {
+      ...storedSchool.properties,
+      field_id: `stored-school:${i}`,
+      entity_key: `stored-school:${i}`,
+    },
+  }));
+  assert.equal(shouldSupplementLiveOsm(query, [...sources], fullFeatures, 50), false);
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {
