@@ -145,7 +145,7 @@ const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
 const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school"]);
 const LIVE_OSM_TILE_Z = 14;
-const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v2";
+const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v3";
 const LIVE_OSM_TILE_SOURCE = "overpass";
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
 const LIVE_OSM_EMPTY_TTL_HOURS = 6;
@@ -410,6 +410,22 @@ function shouldSupplementLiveOsm(
   return shouldFetchLiveOsm(query, sources);
 }
 
+function requestedLiveOsmSources(sources: AreaPolygonSource[]): AreaPolygonSource[] {
+  return Array.from(new Set(sources.filter((source) => LIVE_OSM_SOURCES.has(source))));
+}
+
+function hasConcreteAreaFeatureForSource(feature: AreaPolygonFeature, source: AreaPolygonSource): boolean {
+  if (feature.properties.source !== source) return false;
+  if (source === "school" && feature.properties.approximate_boundary === true) return false;
+  return true;
+}
+
+function hasRequestedLiveOsmSourceCoverage(sources: AreaPolygonSource[], features: AreaPolygonFeature[]): boolean {
+  const requested = requestedLiveOsmSources(sources);
+  if (requested.length === 0) return true;
+  return requested.every((source) => features.some((feature) => hasConcreteAreaFeatureForSource(feature, source)));
+}
+
 function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: AreaPolygonSource[]): AreaPolygonFeature[] {
   if (sources.length === 0) return features;
   const allowed = new Set<AreaPolygonSource>(sources);
@@ -425,8 +441,12 @@ function buildLiveOsmAreaQuery(bbox: [number, number, number, number]): string {
   way["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
   relation["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
   relation["boundary"="national_park"](${bb});
-  way["amenity"~"^(school|college|university)$"](${bb});
-  relation["amenity"~"^(school|college|university)$"](${bb});
+  way["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
+  relation["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
+  way["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
+  relation["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
+  way["building"~"^(school|college|university|kindergarten)$"](${bb});
+  relation["building"~"^(school|college|university|kindergarten)$"](${bb});
 );
 out tags geom;
 `;
@@ -464,8 +484,16 @@ function liveElementToPolygon(element: OverpassElement): Record<string, unknown>
 }
 
 function liveElementSource(element: OverpassElement): { source: AreaPolygonSource; label: string; fallbackName: string } {
-  const amenity = element.tags?.amenity ?? "";
-  if (amenity === "school" || amenity === "college" || amenity === "university") {
+  const tags = element.tags ?? {};
+  const amenity = tags.amenity ?? "";
+  const landuse = tags.landuse ?? "";
+  const building = tags.building ?? "";
+  if (
+    amenity === "school" || amenity === "college" || amenity === "university" ||
+    amenity === "kindergarten" || amenity === "childcare" ||
+    landuse === "education" || landuse === "school" || landuse === "college" || landuse === "university" || landuse === "kindergarten" ||
+    building === "school" || building === "college" || building === "university" || building === "kindergarten"
+  ) {
     return { source: "school", label: "学校・キャンパス (OSM live)", fallbackName: "OSMの学校・キャンパス" };
   }
   return { source: "osm_park", label: "公園・緑地 (OSM live)", fallbackName: "OSMの公園・緑地" };
@@ -961,7 +989,9 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
-    if (cached.freshComplete) {
+    const cachedCoversRequestedSources = cached.freshComplete
+      && hasRequestedLiveOsmSourceCoverage(sources, features.concat(cachedFeatures));
+    if (cachedCoversRequestedSources) {
       features.push(...cachedFeatures);
     } else {
       const live = await fetchLiveOsmAreaPolygons(query, limit - features.length);
@@ -1020,6 +1050,7 @@ export const __test__ = {
   approximateSchoolSourceConfidence,
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
+  hasRequestedLiveOsmSourceCoverage,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
