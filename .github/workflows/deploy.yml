@@ -252,6 +252,21 @@ jobs:
             echo "PWA service worker is missing the map cache-bypass update."
             exit 1
           fi
+          app_refresh_headers="$(mktemp)"
+          app_refresh="$(curl -fsS -D "$app_refresh_headers" -H 'cache-control: no-store' "https://ikimon.life/app-refresh?deploy_smoke=${GITHUB_SHA}")"
+          if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$app_refresh_headers"; then
+            echo "PWA app refresh page is not served from materialized original UI HTML."
+            cat "$app_refresh_headers"
+            exit 1
+          fi
+          if [[ "$app_refresh" != *"registration.unregister"* || "$app_refresh" != *"caches.keys"* || "$app_refresh" != *"URLSearchParams(window.location.search)"* ]]; then
+            echo "PWA app refresh page is missing the stale-shell reset contract."
+            exit 1
+          fi
+          if [[ "$app_refresh" == *"indexedDB.deleteDatabase"* || "$app_refresh" == *"localStorage.clear"* ]]; then
+            echo "PWA app refresh page may clear client draft data stores."
+            exit 1
+          fi
           echo "Map materialized HTML verified."
 
       - name: Map data checks
