@@ -235,6 +235,19 @@ jobs:
             echo "Signed-in map shell is still falling back to the old OSM raster HTML."
             exit 1
           fi
+          for signed_home_url in "https://ikimon.life/?source=pwa&deploy_smoke_home=${GITHUB_SHA}" "https://ikimon.life/ja/?source=pwa&deploy_smoke_home=${GITHUB_SHA}"; do
+            signed_home_headers="$(mktemp)"
+            signed_home="$(curl -fsS -D "$signed_home_headers" -H 'cache-control: no-store' -H 'cookie: ikimon_v2_session=deploy-smoke' "$signed_home_url")"
+            if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$signed_home_headers"; then
+              echo "Signed-in home shell is not served from materialized original UI HTML: $signed_home_url"
+              cat "$signed_home_headers"
+              exit 1
+            fi
+            if [[ "$signed_home" != *"tiles.openfreemap.org/planet"* || "$signed_home" == *"tile.openstreetmap.org"* || "$signed_home" == *"me-area-badge"* ]]; then
+              echo "Signed-in home shell is falling back to the old map UI: $signed_home_url"
+              exit 1
+            fi
+          done
           if [[ "$body" != *"filter: ['match', ['get', 'class'], ['river', 'canal'], true, false]"* ]]; then
             echo "Map shell is missing the stronger simplified waterway filter."
             exit 1

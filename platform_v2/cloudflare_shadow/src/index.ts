@@ -1830,7 +1830,10 @@ function hasPersonalizedHtmlHeaders(request: Request): boolean {
 }
 
 function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
-  return pathname === "/app-refresh" || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname);
+  return pathname === "/app-refresh"
+    || pathname === "/"
+    || /^\/(?:ja|en|es|pt-br)\/$/.test(pathname)
+    || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname);
 }
 
 async function getPublicDerivedMedia(url: URL, env: Env): Promise<Response> {

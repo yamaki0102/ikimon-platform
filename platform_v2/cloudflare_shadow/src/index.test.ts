@@ -4061,7 +4061,7 @@ test("production original UI observation detail HTML stays on origin fallback to
   }
 });
 
-test("production original UI map app shell serves materialized HTML even with session cookies", async () => {
+test("production original UI app shells serve materialized HTML even with session cookies", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -4069,6 +4069,12 @@ test("production original UI map app shell serves materialized HTML even with se
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
+  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>materialized home</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><title>materialized ja home</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
   await env.ASSET_BUCKET.put("original-ui/html/map.html", "<!doctype html><title>materialized map</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -4083,6 +4089,20 @@ test("production original UI map app shell serves materialized HTML even with se
     return new Response(`fallback should not be called: ${String(input)} ${new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason")}`, { status: 599 });
   }) as typeof fetch;
   try {
+    const homeResponse = await worker.fetch(new Request("https://ikimon.life/?source=pwa", {
+      headers: { cookie: "ikimon_v2_session=secret" }
+    }), productionEnv);
+    assert.equal(homeResponse.status, 200);
+    assert.equal(await homeResponse.text(), "<!doctype html><title>materialized home</title>");
+    assert.equal(homeResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const localizedHomeResponse = await worker.fetch(new Request("https://ikimon.life/ja/?source=pwa", {
+      headers: { cookie: "ikimon_v2_session=secret" }
+    }), productionEnv);
+    assert.equal(localizedHomeResponse.status, 200);
+    assert.equal(await localizedHomeResponse.text(), "<!doctype html><title>materialized ja home</title>");
+    assert.equal(localizedHomeResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
     const mapResponse = await worker.fetch(new Request("https://ikimon.life/map", {
       headers: { cookie: "ikimon_v2_session=secret" }
     }), productionEnv);
