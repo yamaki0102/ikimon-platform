@@ -311,7 +311,7 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /function groupResultRecords\(records\)/);
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
   assert.match(script, /data-results-state/);
-  assert.match(script, /setResultsLoadState\('ready', records\.length\)/);
+  assert.match(script, /setResultsLoadState\(records\.length \? 'ready' : 'empty', records\.length\)/);
   assert.match(script, /setResultsLoadState\('error'/);
   assert.match(script, /me-result-group-head/);
   assert.match(script, /COPY\.resultGroupedByDate/);
@@ -320,6 +320,10 @@ test("result side panel groups dense records by date and normalizes candidate la
   const resultListBody = script.slice(
     script.indexOf("function renderResultList()"),
     script.indexOf("function clearDiscoveryPreviewMarkers()"),
+  );
+  assert.ok(
+    resultListBody.indexOf("setResultsLoadState(records.length ? 'ready' : 'empty', records.length)") <
+      resultListBody.indexOf("if (!resultsListEl || !sideStatusEl) return;"),
   );
   assert.doesNotMatch(resultListBody, /'<span>' \+ escapeHtml\(record\.localityLabel/);
   assert.match(styles, /\.me-result-group \{/);

@@ -134,3 +134,13 @@ test("staging fixture routes refresh the public map snapshot after seed and clea
   assert.match(source, /refreshedBy: "staging-fixture:cleanup"/);
   assert.match(source, /if \(!cleanup\.dryRun\)/);
 });
+
+test("staging map regression fixtures stay public-map safe while smoke remains excluded", async () => {
+  const source = await readFile(new URL("../services/stagingRegressionFixtures.ts", import.meta.url), "utf8");
+
+  assert.match(source, /publicUrl: "\/assets\/regression\/vertical-region-public\.svg"/);
+  assert.doesNotMatch(source, /publicUrl: "\/assets\/regression\/vertical-region-fixture\.svg"/);
+  assert.match(source, /"historical_companion_a"/);
+  assert.match(source, /"historical_companion_b"/);
+  assert.match(source, /sourcePayload: \{ source: "smoke_regression_fixture" \}/);
+});

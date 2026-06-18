@@ -6,7 +6,15 @@ import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp, ups
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const FIXTURE_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{2,80}$/;
 
-type RegressionFixtureKind = "manual" | "manual_companion_a" | "manual_companion_b" | "historical" | "smoke" | "scene";
+type RegressionFixtureKind =
+  | "manual"
+  | "manual_companion_a"
+  | "manual_companion_b"
+  | "historical"
+  | "historical_companion_a"
+  | "historical_companion_b"
+  | "smoke"
+  | "scene";
 
 type RegressionFixtureSeedInput = {
   fixturePrefix: string;
@@ -114,7 +122,7 @@ async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixture
     const svgMarker = Buffer.alloc(1039, "vertical-region-fixture.svg");
     return {
       storagePath,
-      publicUrl: "/assets/regression/vertical-region-fixture.svg",
+      publicUrl: "/assets/regression/vertical-region-public.svg",
       sha256: createHash("sha256").update(svgMarker).digest("hex"),
       bytes: svgMarker.byteLength,
       mimeType: "image/svg+xml",
@@ -484,7 +492,7 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
         ? "manual_only"
         : input.kind === "scene"
           ? "manual_only"
-          : input.kind === "historical"
+          : input.kind === "historical" || input.kind.startsWith("historical_companion_")
           ? "all_research_artifacts_only"
           : "excluded",
   };
@@ -636,11 +644,22 @@ export async function seedStagingRegressionFixtures(
   const displayName = "Regression Field Note Observer";
 
   try {
-    const [manualPhoto, manualCompanionPhotoA, manualCompanionPhotoB, historicalPhoto, smokePhoto, scenePhoto] = await Promise.all([
+    const [
+      manualPhoto,
+      manualCompanionPhotoA,
+      manualCompanionPhotoB,
+      historicalPhoto,
+      historicalCompanionPhotoA,
+      historicalCompanionPhotoB,
+      smokePhoto,
+      scenePhoto,
+    ] = await Promise.all([
       ensureFixturePhoto(fixturePrefix, "manual"),
       ensureFixturePhoto(fixturePrefix, "manual_companion_a"),
       ensureFixturePhoto(fixturePrefix, "manual_companion_b"),
       ensureFixturePhoto(fixturePrefix, "historical"),
+      ensureFixturePhoto(fixturePrefix, "historical_companion_a"),
+      ensureFixturePhoto(fixturePrefix, "historical_companion_b"),
       ensureFixturePhoto(fixturePrefix, "smoke"),
       ensureFixturePhoto(fixturePrefix, "scene"),
     ]);
@@ -747,6 +766,50 @@ export async function seedStagingRegressionFixtures(
       qualityGrade: "research",
       evidenceTier: 2,
       photo: historicalPhoto,
+    });
+
+    await upsertFixtureVisit(client, {
+      kind: "historical_companion_a",
+      fixturePrefix,
+      userId,
+      observedAt: new Date(now - 235 * 60 * 1000).toISOString(),
+      latitude: 35.0129,
+      longitude: 138.3878,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression historical companion fixture",
+      siteId: `${fixturePrefix}-historical-companion-a-site`,
+      siteName: "Regression Historical Companion Marsh A",
+      note: "historical companion regression fixture",
+      subjectLabel: "Regression Historical Companion Reed Warbler A",
+      scientificName: "Acrocephalus orientalis",
+      sourceKind: "legacy_observation",
+      sourcePayload: { source: "regression_seed_historical_companion" },
+      qualityGrade: "research",
+      evidenceTier: 2,
+      photo: historicalCompanionPhotoA,
+    });
+
+    await upsertFixtureVisit(client, {
+      kind: "historical_companion_b",
+      fixturePrefix,
+      userId,
+      observedAt: new Date(now - 230 * 60 * 1000).toISOString(),
+      latitude: 35.0130,
+      longitude: 138.3880,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression historical companion fixture",
+      siteId: `${fixturePrefix}-historical-companion-b-site`,
+      siteName: "Regression Historical Companion Marsh B",
+      note: "historical companion regression fixture",
+      subjectLabel: "Regression Historical Companion Reed Warbler B",
+      scientificName: "Acrocephalus orientalis",
+      sourceKind: "legacy_observation",
+      sourcePayload: { source: "regression_seed_historical_companion" },
+      qualityGrade: "research",
+      evidenceTier: 2,
+      photo: historicalCompanionPhotoB,
     });
 
     const smoke = await upsertFixtureVisit(client, {

@@ -2444,14 +2444,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderResultList() {
-    if (!resultsListEl || !sideStatusEl) return;
     var records = Array.isArray(state.records) ? state.records : [];
     var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
+    setResultsLoadState(records.length ? 'ready' : 'empty', records.length);
     updateSideRailSignal(records);
+    if (!resultsListEl || !sideStatusEl) return;
     if (!records.length) {
       sideStatusEl.textContent = COPY.empty;
       resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
-      setResultsLoadState('empty', 0);
       return;
     }
     sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll + ' · ' + COPY.resultGroupedByDate;
@@ -2490,7 +2490,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }).join('');
       try { console.warn('[map] result list fallback render', err); } catch (_) {}
     }
-    setResultsLoadState('ready', records.length);
     resultsListEl.querySelectorAll('.me-result-row').forEach(function (rowEl) {
       rowEl.addEventListener('click', function () {
         if (hasPendingMapResults()) return;
