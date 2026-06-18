@@ -1,0 +1,79 @@
+name: Cloudflare Quick Preflight Artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - ".github/workflows/cloudflare-quick-preflight.yml"
+      - "platform_v2/cloudflare_shadow/**"
+
+concurrency:
+  group: cloudflare-quick-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  artifact:
+    name: Build Quick Preflight Artifact
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Require Cloudflare API token
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "CLOUDFLARE_API_TOKEN is required for Wrangler production dry-run."
+            exit 1
+          fi
+
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+
+      - name: Cloudflare Worker quick preflight
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:production:quick-preflight
+
+      - name: Prepare preflight artifact
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          set -euo pipefail
+          mkdir -p .deploy-artifact
+          cp .deploy/production-preflight-latest.json .deploy-artifact/production-preflight-latest.json
+          cp .deploy/wrangler-version-cache.json .deploy-artifact/wrangler-version-cache.json
+
+      - name: Upload Cloudflare quick preflight artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-production-preflight
+          path: platform_v2/cloudflare_shadow/.deploy-artifact/*
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Write Cloudflare preflight summary
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(".deploy/production-preflight-latest.json", "utf8"));
+          console.log("## Cloudflare Quick Preflight Artifact");
+          console.log("");
+          console.log(`- Artifact: \`cloudflare-production-preflight\``);
+          console.log(`- Git HEAD: \`${report.gitHead}\``);
+          console.log(`- Test profile: \`${report.testProfile}\``);
+          console.log(`- Deploy input hash: \`${report.deployInputSha256}\``);
+          console.log(`- Checked at: \`${report.checkedAt}\``);
+          NODE

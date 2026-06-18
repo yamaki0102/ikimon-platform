@@ -279,6 +279,16 @@ The fast lane does not rerun the full TypeScript/test suite. It validates the pr
 
 The deploy guard also caches `npx wrangler --version` in `.deploy/wrangler-version-cache.json`. The cache is accepted only when the package lock hash and Worker deploy-input hash match, so a Wrangler upgrade or Worker/deploy-tool change refreshes the version check automatically. `wrangler deploy --env production --dry-run` is never skipped.
 
+GitHub Actions can build the same fast-lane artifact with `Cloudflare Quick Preflight Artifact`. Use it when local iteration should avoid the TypeScript/test preflight wait:
+
+```bash
+gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
+gh run download <run-id> --name cloudflare-production-preflight --dir .deploy
+npm run deploy:production:fast:dry-run
+```
+
+The artifact contains `.deploy/production-preflight-latest.json` and `.deploy/wrangler-version-cache.json`. The fast lane still refuses mismatched `HEAD`, changed Worker deploy inputs, stale reports, and missing Wrangler dry-run evidence.
+
 Production deploy requires an explicit approval code and then smokes both workers.dev and the public custom domain:
 
 ```bash

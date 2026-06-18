@@ -76,6 +76,16 @@ The fast lane must still validate the preflight report, re-run the config guard 
 
 The guard caches `npx wrangler --version` at `.deploy/wrangler-version-cache.json` and reuses it only when both the package lock hash and Worker deploy-input hash match. A Wrangler dependency change, Worker/deploy-tool change, or package lock change refreshes the cache. `wrangler deploy --env production --dry-run` remains mandatory and is not cached.
 
+For the lowest local wait time, have GitHub Actions create the quick preflight artifact first:
+
+```powershell
+gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
+gh run download <run-id> --name cloudflare-production-preflight --dir .deploy
+npm run deploy:production:fast:dry-run
+```
+
+The artifact includes `production-preflight-latest.json` and `wrangler-version-cache.json`. It is valid only for the same git `HEAD` and Worker deploy-input hash; the fast lane still rechecks config, scans for hardcoded secrets, runs Wrangler production dry-run, and refuses stale evidence. The production GitHub Actions deploy workflow now creates this artifact before deploy and uses `npm run deploy:production:fast` in the Worker deploy job.
+
 Execute only after dry-run passes:
 
 ```powershell
