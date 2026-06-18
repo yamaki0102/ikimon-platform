@@ -1769,7 +1769,7 @@ function contentTypeForOriginalUiThumb(pathname: string): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  if (hasPersonalizedHtmlHeaders(request)) {
+  if (hasPersonalizedHtmlHeaders(request) && !isCookieSafeOriginalUiAppShell(url.pathname)) {
     if (shouldUseOriginFallback(url, env)) {
       return fetchOriginFallback(request, url, env, "html_personalized_request");
     }
@@ -1816,6 +1816,10 @@ function hasPersonalizedHtmlHeaders(request: Request): boolean {
   if (cookie) return true;
   const authorization = request.headers.get("authorization")?.trim();
   return Boolean(authorization);
+}
+
+function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
+  return /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname);
 }
 
 async function getPublicDerivedMedia(url: URL, env: Env): Promise<Response> {
