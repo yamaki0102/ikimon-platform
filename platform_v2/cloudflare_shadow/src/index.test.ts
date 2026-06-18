@@ -3863,6 +3863,38 @@ test("production original UI html serves materialized anonymous pages from R2 wi
   }
 });
 
+test("production app refresh page serves materialized reset shell from R2", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/app-refresh.html", "<!doctype html><title>ikimon app refresh</title><script>registration.unregister()</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/app-refresh?to=%2Fmap%3Flang%3Dja"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "<!doctype html><title>ikimon app refresh</title><script>registration.unregister()</script>");
+    assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production original UI html serves whitelisted public reading routes from R2", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

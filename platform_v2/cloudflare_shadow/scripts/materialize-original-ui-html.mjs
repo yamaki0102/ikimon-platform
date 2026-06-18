@@ -46,6 +46,7 @@ const events = [];
 const corePaths = [
   "/",
   "/map",
+  "/app-refresh",
   "/ja/",
   "/ja/map",
   "/en/",

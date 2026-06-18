@@ -383,6 +383,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
   "/record",
   "/map",
+  "/app-refresh",
   "/login",
   "/en/",
   "/en/login",

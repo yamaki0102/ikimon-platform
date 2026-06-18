@@ -63,6 +63,46 @@ test("app service worker is separate from legacy cleanup worker and caches app s
   }
 });
 
+test("app refresh page unregisters stale service workers without clearing client data stores", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/app-refresh?to=%2Fmap%3Flang%3Dja%26tab%3Dplaces",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers["cache-control"] as string, /no-store/);
+    assert.match(response.headers["x-robots-tag"] as string, /noindex/);
+    assert.match(response.body, /navigator\.serviceWorker\.getRegistrations/);
+    assert.match(response.body, /registration\.unregister/);
+    assert.match(response.body, /caches\.keys/);
+    assert.match(response.body, /\^ikimon-app-/);
+    assert.match(response.body, /URLSearchParams\(window\.location\.search\)/);
+    assert.match(response.body, /"\/map\?lang=ja&tab=places"/);
+    assert.doesNotMatch(response.body, /indexedDB\.deleteDatabase/);
+    assert.doesNotMatch(response.body, /localStorage\.clear/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("app refresh page rejects external redirect targets", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/app-refresh?to=https%3A%2F%2Fevil.example%2Fmap",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /"\/map"/);
+    assert.doesNotMatch(response.body, /evil\.example/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("offline fallback page links the three field-first app surfaces", async () => {
   const app = buildApp();
   try {
