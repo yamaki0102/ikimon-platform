@@ -22,7 +22,7 @@ test("approximate school area boundaries get a separate dashed outline layer", (
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /id: 'area-polygon-approximate-outline'/);
-  assert.match(script, /filter: \['==', \['get', 'approximate_boundary'\], true\]/);
+  assert.match(script, /filter: \['all', \['==', \['get', 'approximate_boundary'\], true\], VISIBLE_AREA_POLYGON_FILTER\]/);
   assert.match(script, /'line-dasharray': \[2, 1\.4\]/);
   assert.match(script, /area-polygon-approximate-outline/);
 });
@@ -310,10 +310,14 @@ test("default map surface uses a tiered simple vector style", () => {
   assert.match(script, /var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = \['shop', 'grocery', 'cafe', 'restaurant'\]/);
   assert.match(script, /id: 'simple-road-major'/);
   assert.match(script, /id: 'simple-road-local'/);
-  assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 13/);
-  assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 16/);
-  assert.match(script, /id: 'simple-commercial-label'[\s\S]*?minzoom: 15\.2/);
-  assert.match(script, /id: 'simple-place-label'[\s\S]*?maxzoom: 15\.25/);
+  assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 15\.4/);
+  assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 16\.5/);
+  assert.match(script, /id: 'simple-commercial-label'[\s\S]*?minzoom: 15\.8/);
+  assert.match(script, /id: 'simple-place-label'[\s\S]*?maxzoom: 13\.8/);
+  assert.doesNotMatch(script, /id: 'simple-landmark-dot'/);
+  assert.doesNotMatch(script, /id: 'simple-civic-dot'/);
+  assert.doesNotMatch(script, /id: 'simple-commercial-dot'/);
+  assert.doesNotMatch(script, /id: 'simple-road-name-major'/);
   assert.doesNotMatch(script, /'source-layer': 'building'/);
   assert.doesNotMatch(script, /'post'/);
 });
@@ -391,7 +395,7 @@ test("heatmap tab keeps area polygons selectable", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places'\);/);
-  assert.match(script, /var markerLayers = \['observation-cell-fill', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-selected'\]/);
+  assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);
   assert.match(script, /var markerDetailLayers = \['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'\]/);
   assert.match(script, /show\(markerDetailLayers, false\);/);
 });
@@ -436,6 +440,16 @@ test("small area outlines have a stable click hitbox across zoom levels", () => 
   assert.match(script, /'area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected'/);
   assert.match(script, /\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'\]\.forEach/);
   assert.match(script, /map\.queryRenderedFeatures\(e\.point, \{ layers: hitLayers \}\)/);
+});
+
+test("approximate school areas are not rendered as circular map ranges", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /var VISIBLE_AREA_POLYGON_FILTER = \['!', \['all', \['==', \['get', 'source'\], 'school'\], \['==', \['get', 'approximate_boundary'\], true\]\]\]/);
+  assert.match(script, /filter: VISIBLE_AREA_POLYGON_FILTER/);
+  assert.match(script, /filter: \['all', \['==', \['get', 'approximate_boundary'\], true\], VISIBLE_AREA_POLYGON_FILTER\]/);
+  assert.match(script, /function selectedAreaPolygonFilter\(fieldId\)/);
+  assert.match(script, /state\.map\.setFilter\('area-polygon-selected', selectedAreaPolygonFilter/);
 });
 
 test("map explorer exposes visited place shortcuts and a clickable side collapse control", () => {

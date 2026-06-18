@@ -212,13 +212,27 @@ jobs:
               *) echo "FAIL $url -> $status"; exit 1 ;;
             esac
           done
+          health_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/healthz?deploy_smoke=${GITHUB_SHA}")"
+          if [[ "$health_payload" != *'"buildMarker":"map-shell-cookie-safe-v2"'* ]]; then
+            echo "Production Worker build marker is stale: $health_payload"
+            exit 1
+          fi
 
       - name: Map UI content check
         run: |
           set -euo pipefail
           body="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/ja/map?deploy_smoke=${GITHUB_SHA}")"
+          signed_body="$(curl -fsS -H 'cache-control: no-store' -H 'cookie: ikimon_v2_session=deploy-smoke' "https://ikimon.life/map?deploy_smoke_signed=${GITHUB_SHA}")"
           if [[ "$body" != *"me-map-kicker"* ]]; then
             echo "Map header kicker is missing from materialized HTML."
+            exit 1
+          fi
+          if [[ "$signed_body" != *"tiles.openfreemap.org/planet"* ]]; then
+            echo "Signed-in map shell did not receive the materialized simple vector map HTML."
+            exit 1
+          fi
+          if [[ "$signed_body" == *"tile.openstreetmap.org"* ]]; then
+            echo "Signed-in map shell is still falling back to the old OSM raster HTML."
             exit 1
           fi
           if [[ "$body" == *'<div class="me-enjoy-strip"'* ]]; then

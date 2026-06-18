@@ -377,6 +377,7 @@ const MIN_VIDEO_DURATION_SECONDS = 6;
 const MAX_VIDEO_DURATION_SECONDS = 60;
 const MAP_DEFAULT_GRID_M = 1000;
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
+const WORKER_BUILD_MARKER = "map-shell-cookie-safe-v2";
 const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
 const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
@@ -839,6 +840,7 @@ function getHealthz(env: Env): Response {
     ok: true,
     service: "ikimon-life-cloudflare-worker",
     environment: env.ENVIRONMENT,
+    buildMarker: WORKER_BUILD_MARKER,
     fallbackOriginConfigured: Boolean(env.ORIGIN_FALLBACK_BASE_URL)
   }, 200, { "cache-control": "no-store" });
 }
@@ -851,6 +853,7 @@ async function getReadyz(env: Env): Promise<Response> {
       ok: true,
       service: "ikimon-life-cloudflare-worker",
       environment: env.ENVIRONMENT,
+      buildMarker: WORKER_BUILD_MARKER,
       coreDb: "ok",
       observationDb: "ok",
       assetBucket: "bound",
