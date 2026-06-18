@@ -258,6 +258,7 @@ jobs:
           console.log("## Cloudflare Quick Preflight Artifact");
           console.log("");
           console.log(`- Artifact: \`cloudflare-production-preflight\``);
+          console.log(`- Dry-run contract: \`deploy:production:dry-run\``);
           console.log(`- Git HEAD: \`${report.gitHead}\``);
           console.log(`- Test profile: \`${report.testProfile}\``);
           console.log(`- Deploy input hash: \`${report.deployInputSha256}\``);
