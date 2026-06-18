@@ -5,8 +5,8 @@ import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from ".
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const outlineStart = script.indexOf("id: 'area-polygon-outline'");
-  const selectedStart = script.indexOf("id: 'area-polygon-selected'", outlineStart);
-  const outlineScript = script.slice(outlineStart, selectedStart);
+  const approximateStart = script.indexOf("id: 'area-polygon-approximate-outline'", outlineStart);
+  const outlineScript = script.slice(outlineStart, approximateStart);
 
   assert.match(
     outlineScript,
@@ -140,6 +140,8 @@ test("area badge labels are not rendered as map markers", () => {
   assert.doesNotMatch(script, /function areaBadgeCountLabel\(item\)/);
   assert.doesNotMatch(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
   assert.doesNotMatch(script, /me-area-badge-pill/);
+  assert.match(script, /id: 'area-polygon-name'/);
+  assert.match(script, /'text-field': \['get', 'name'\]/);
   assert.doesNotMatch(script, /new window\.maplibregl\.Marker\(\{ element: el, anchor: 'bottom', offset: \[0, -10\] \}\)/);
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
   assert.doesNotMatch(script, /me-area-badge-actions/);
@@ -307,6 +309,7 @@ test("default map surface uses a tiered simple vector style", () => {
   assert.match(script, /id: 'simple-road-major'/);
   assert.match(script, /id: 'simple-landuse-soft'/);
   assert.match(script, /id: 'simple-school-landuse-outline'[\s\S]*?minzoom: 13/);
+  assert.match(script, /id: 'simple-school-landuse-outline'[\s\S]*?\['school', 'kindergarten', 'college', 'university'\]/);
   assert.match(script, /id: 'simple-park-outline'[\s\S]*?minzoom: 12/);
   assert.match(script, /id: 'simple-road-local-casing'/);
   assert.match(script, /id: 'simple-road-local'/);
@@ -396,7 +399,8 @@ test("heatmap tab keeps area polygons selectable", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places'\);/);
-  assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected'\]\);/);
+  assert.match(script, /show\(areaLabelLayers, tab === 'places'\);/);
+  assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name', 'area-polygon-selected'\]\);/);
   assert.match(script, /8, 0\.16, 14, 0\.34, 17, 0\.42/);
   assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places'/);
   assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);

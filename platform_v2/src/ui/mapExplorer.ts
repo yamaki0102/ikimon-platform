@@ -1597,7 +1597,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           source: 'openmaptiles',
           'source-layer': 'landuse',
           minzoom: 13,
-          filter: ['==', ['get', 'class'], 'school'],
+          filter: ['match', ['get', 'class'], ['school', 'kindergarten', 'college', 'university'], true, false],
           paint: {
             'line-color': '#c4a248',
             'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.6, 16, 1.1, 18, 1.8],
@@ -5258,6 +5258,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
+    var areaLabelLayers = ['area-polygon-name'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
@@ -5275,6 +5276,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     show(heatLayers, tab === 'heatmap');
     show(frontierLayers, tab === 'frontier');
     show(areaLayers, tab === 'heatmap' || tab === 'places');
+    show(areaLabelLayers, tab === 'places');
     if (map.getLayer('waterway-hint-line')) {
       map.setLayoutProperty('waterway-hint-line', 'visibility', tab === 'places' ? 'visible' : 'none');
     }
@@ -5304,7 +5306,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
         'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else if (tab === 'places') {
-      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected']);
+      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)');
       loadWaterwayHints();
@@ -5629,6 +5631,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         'line-color': 'rgba(15,23,42,0)',
         'line-opacity': 0.01,
         'line-width': 14,
+      },
+    }, beforeId);
+    map.addLayer({
+      id: 'area-polygon-name',
+      type: 'symbol',
+      source: 'area-polygons',
+      minzoom: 15.4,
+      filter: ['all', ['has', 'name'], VISIBLE_AREA_POLYGON_FILTER],
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 15.4, 10.2, 17.5, 12],
+        'text-max-width': 8,
+        'text-padding': 12,
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+        'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'area_ha'], 9999]],
+      },
+      paint: {
+        'text-color': [
+          'match', ['get', 'source'],
+          'school', '#8a6a16',
+          'osm_park', '#0f766e',
+          'protected_area', '#047857',
+          'oecm', '#4d7c0f',
+          'nature_symbiosis_site', '#047857',
+          '#475569',
+        ],
+        'text-halo-color': 'rgba(237,244,239,0.94)',
+        'text-halo-width': 1.3,
+        'text-opacity': ['interpolate', ['linear'], ['zoom'], 15.4, 0.72, 16.4, 0.92],
       },
     }, beforeId);
     map.addLayer({
