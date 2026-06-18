@@ -248,7 +248,7 @@ jobs:
             exit 1
           fi
           app_sw="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/app-sw.js?deploy_smoke=${GITHUB_SHA}")"
-          if [[ "$app_sw" != *"ikimon-app-v4"* || "$app_sw" != *"MAP_NAV_RE"* || "$app_sw" != *"cache: 'no-store'"* || "$app_sw" != *"client.navigate"* ]]; then
+          if [[ "$app_sw" != *"ikimon-app-v5"* || "$app_sw" != *"MAP_NAV_RE"* || "$app_sw" != *"cache: 'no-store'"* || "$app_sw" != *"client.navigate"* ]]; then
             echo "PWA service worker is missing the map cache-bypass update."
             exit 1
           fi
