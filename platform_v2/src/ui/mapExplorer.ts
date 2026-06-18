@@ -1598,9 +1598,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'source-layer': 'waterway',
           minzoom: 8,
           paint: {
-            'line-color': '#9dccdc',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 13, 2.2, 16, 4],
-            'line-opacity': 0.8,
+            'line-color': '#9ed3df',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 13, 1.4, 16, 2.6],
+            'line-opacity': 0.58,
           },
         },
         {
@@ -1620,57 +1620,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           type: 'line',
           source: 'openmaptiles',
           'source-layer': 'transportation',
-          minzoom: 13,
-          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service', 'track', 'path'], true, false],
+          minzoom: 15.5,
+          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service'], true, false],
           paint: {
             'line-color': '#ffffff',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.45, 15, 1.4, 17, 2.8],
-            'line-opacity': 0.38,
-          },
-        },
-        {
-          id: 'simple-landmark-dot',
-          type: 'circle',
-          source: 'openmaptiles',
-          'source-layer': 'poi',
-          minzoom: 13,
-          filter: ['match', ['get', 'class'], SIMPLE_MID_LANDMARK_CLASSES, true, false],
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 2.5, 16, 4],
-            'circle-color': ['match', ['get', 'class'], ['school', 'kindergarten', 'college', 'university'], '#8aa0b2', '#79aa78'],
-            'circle-stroke-color': 'rgba(255,255,255,0.88)',
-            'circle-stroke-width': 1,
-            'circle-opacity': 0.78,
-          },
-        },
-        {
-          id: 'simple-civic-dot',
-          type: 'circle',
-          source: 'openmaptiles',
-          'source-layer': 'poi',
-          minzoom: 16,
-          filter: ['match', ['get', 'class'], SIMPLE_HIGH_LANDMARK_CLASSES, true, false],
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 2.7, 17, 4.2],
-            'circle-color': ['match', ['get', 'class'], 'railway', '#8c8fa3', 'hospital', '#b4818d', '#7f98a7'],
-            'circle-stroke-color': 'rgba(255,255,255,0.88)',
-            'circle-stroke-width': 1,
-            'circle-opacity': 0.74,
-          },
-        },
-        {
-          id: 'simple-commercial-dot',
-          type: 'circle',
-          source: 'openmaptiles',
-          'source-layer': 'poi',
-          minzoom: 15.2,
-          filter: ['match', ['get', 'class'], SIMPLE_COMMERCIAL_LANDMARK_CLASSES, true, false],
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.2, 2.2, 17, 3.5],
-            'circle-color': '#9b8f67',
-            'circle-stroke-color': 'rgba(255,255,255,0.86)',
-            'circle-stroke-width': 1,
-            'circle-opacity': 0.68,
+            'line-width': ['interpolate', ['linear'], ['zoom'], 15.5, 0.45, 17, 1.5],
+            'line-opacity': 0.22,
           },
         },
         {
@@ -1679,7 +1634,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           source: 'openmaptiles',
           'source-layer': 'place',
           minzoom: 5,
-          maxzoom: 15.25,
+          maxzoom: 13.8,
           filter: ['has', 'name'],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
@@ -1699,14 +1654,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           type: 'symbol',
           source: 'openmaptiles',
           'source-layer': 'poi',
-          minzoom: 13,
+          minzoom: 15.4,
           filter: ['match', ['get', 'class'], SIMPLE_MID_LANDMARK_CLASSES, true, false],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
             'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 16, 12],
-            'text-offset': [0, 0.78],
-            'text-anchor': 'top',
+            'text-size': ['interpolate', ['linear'], ['zoom'], 15.4, 10, 17, 11.6],
             'text-allow-overlap': false,
             'text-ignore-placement': false,
           },
@@ -1721,14 +1674,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           type: 'symbol',
           source: 'openmaptiles',
           'source-layer': 'poi',
-          minzoom: 16,
+          minzoom: 16.5,
           filter: ['match', ['get', 'class'], SIMPLE_HIGH_LANDMARK_CLASSES, true, false],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
             'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 16, 10, 17, 12],
-            'text-offset': [0, 0.78],
-            'text-anchor': 'top',
+            'text-size': ['interpolate', ['linear'], ['zoom'], 16.5, 10, 17.5, 11.4],
             'text-allow-overlap': false,
             'text-ignore-placement': false,
           },
@@ -1743,14 +1694,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           type: 'symbol',
           source: 'openmaptiles',
           'source-layer': 'poi',
-          minzoom: 15.2,
+          minzoom: 15.8,
           filter: ['match', ['get', 'class'], SIMPLE_COMMERCIAL_LANDMARK_CLASSES, true, false],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
             'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 15.2, 9.7, 17, 11.5],
-            'text-offset': [0, 0.78],
-            'text-anchor': 'top',
+            'text-size': ['interpolate', ['linear'], ['zoom'], 15.8, 9.6, 17, 11.2],
             'text-allow-overlap': false,
             'text-ignore-placement': false,
           },
@@ -1795,27 +1744,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           },
           paint: {
             'text-color': '#4f91a5',
-            'text-halo-color': 'rgba(237,244,239,0.88)',
-            'text-halo-width': 1.1,
-          },
-        },
-        {
-          id: 'simple-road-name-major',
-          type: 'symbol',
-          source: 'openmaptiles',
-          'source-layer': 'transportation_name',
-          minzoom: 12,
-          filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
-          layout: {
-            'symbol-placement': 'line',
-            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name'], ['get', 'ref']],
-            'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9.5, 16, 12],
-            'text-allow-overlap': false,
-            'text-ignore-placement': false,
-          },
-          paint: {
-            'text-color': '#758083',
             'text-halo-color': 'rgba(237,244,239,0.88)',
             'text-halo-width': 1.1,
           },
@@ -4418,7 +4346,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedCellId = null;
     state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'area', fieldId: String(props.field_id || ''), areaFeature: feature, transient: true };
     if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], String(props.field_id || '__none__')]);
+      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(props.field_id || '__none__'));
     }
     if (!shouldUseBottomSheet()) {
       sheetEl.classList.remove('is-open');
@@ -4457,7 +4385,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedCellId = null;
     state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId, areaFeature: feature || null };
     if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], fieldId]);
+      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(fieldId));
     }
     if (!shouldUseBottomSheet()) {
       sheetEl.classList.remove('is-open');
@@ -4511,7 +4439,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.removeAttribute('data-snap');
     sheetEl.setAttribute('aria-hidden', 'true');
     if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], '__none__']);
+      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter('__none__'));
     }
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
@@ -5217,9 +5145,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       id: 'observation-cell-fill',
       type: 'fill',
       source: sourceId,
+      layout: { visibility: 'none' },
       paint: {
-        'fill-color': 'rgba(14,165,233,0.24)',
-        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 1, 0.12, 4, 0.18, 12, 0.28],
+        'fill-color': 'rgba(14,165,233,0.12)',
+        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 1, 0.04, 4, 0.07, 12, 0.10],
       },
     });
     map.addLayer({
@@ -5235,16 +5164,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       id: 'observation-cell-bloom',
       type: 'circle',
       source: 'observation-centroids',
+      layout: { visibility: 'none' },
       paint: {
-        'circle-color': taxonColorExpression(0.26),
+        'circle-color': taxonColorExpression(0.12),
         'circle-radius': [
           'interpolate', ['linear'], ['zoom'],
-          6, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 8, 8, 14, 24, 24],
-          13, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 15, 8, 24, 24, 38],
+          6, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 5, 8, 9, 24, 13],
+          13, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 7, 8, 12, 24, 18],
         ],
-        'circle-stroke-color': taxonColorExpression(0.82),
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 13, 2.4],
-        'circle-opacity': 0.86,
+        'circle-stroke-color': taxonColorExpression(0.22),
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 13, 1.1],
+        'circle-opacity': 0.38,
       },
     });
     map.addLayer({
@@ -5253,9 +5183,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       source: 'observation-centroids',
       paint: {
         'circle-color': taxonColorExpression(0.95),
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 13, 7],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 3, 13, 5.5],
         'circle-stroke-color': 'rgba(255,255,255,0.96)',
-        'circle-stroke-width': 2,
+        'circle-stroke-width': 1.6,
       },
     });
     map.addLayer({
@@ -5372,7 +5302,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyTab(map, tab) {
     // Show/hide layers based on active tab.
-    var markerLayers = ['observation-cell-fill', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-selected'];
+    var markerLayers = ['observation-cell-dot', 'observation-cell-selected'];
     var markerDetailLayers = ['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
@@ -5393,8 +5323,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (map.getLayer('area-polygon-fill')) {
       map.setPaintProperty('area-polygon-fill', 'fill-opacity',
         tab === 'places'
-          ? ['interpolate', ['linear'], ['zoom'], 8, 0.22, 14, 0.46]
-          : ['interpolate', ['linear'], ['zoom'], 8, 0.06, 14, 0.16]);
+          ? ['interpolate', ['linear'], ['zoom'], 8, 0.10, 14, 0.22]
+          : ['interpolate', ['linear'], ['zoom'], 8, 0.03, 14, 0.08]);
     }
     if (map.getLayer('area-polygon-outline')) {
       map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' ? 0.86 : 0.42);
@@ -5590,6 +5520,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  var VISIBLE_AREA_POLYGON_FILTER = ['!', ['all', ['==', ['get', 'source'], 'school'], ['==', ['get', 'approximate_boundary'], true]]];
+  function selectedAreaPolygonFilter(fieldId) {
+    return ['all', ['==', ['get', 'field_id'], String(fieldId || '__none__')], VISIBLE_AREA_POLYGON_FILTER];
+  }
+
   function pickSmallestAreaFeature(features) {
     if (!features || !features.length) return null;
     var pick = features[0];
@@ -5659,6 +5594,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'fill',
       source: 'area-polygons',
       minzoom: 8,
+      filter: VISIBLE_AREA_POLYGON_FILTER,
       layout: {
         // 「公園 vs 行政界」のような大小ポリゴン重なりで小さい方を上に描画。
         // クリック時の queryRenderedFeatures もこの順を尊重するので、
@@ -5679,7 +5615,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'admin_country', 'rgba(148,163,184,0.06)',
           'rgba(148,163,184,0.10)',
         ],
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.32, 14, 0.6],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.10, 14, 0.22],
       },
     }, beforeId);
     map.addLayer({
@@ -5687,6 +5623,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'line',
       source: 'area-polygons',
       minzoom: 8,
+      filter: VISIBLE_AREA_POLYGON_FILTER,
       paint: {
         'line-color': [
           'case',
@@ -5711,7 +5648,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'line',
       source: 'area-polygons',
       minzoom: 8,
-      filter: ['==', ['get', 'approximate_boundary'], true],
+      filter: ['all', ['==', ['get', 'approximate_boundary'], true], VISIBLE_AREA_POLYGON_FILTER],
       paint: {
         'line-color': '#b45309',
         'line-width': 1.8,
@@ -5724,6 +5661,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'line',
       source: 'area-polygons',
       minzoom: 8,
+      filter: VISIBLE_AREA_POLYGON_FILTER,
       paint: {
         'line-color': 'rgba(15,23,42,0)',
         'line-opacity': 0.01,
@@ -5734,7 +5672,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       id: 'area-polygon-selected',
       type: 'line',
       source: 'area-polygons',
-      filter: ['==', ['get', 'field_id'], '__none__'],
+      filter: selectedAreaPolygonFilter('__none__'),
       paint: {
         'line-color': '#0f766e',
         'line-width': 2.6,

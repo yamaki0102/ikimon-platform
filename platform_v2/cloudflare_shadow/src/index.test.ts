@@ -4213,11 +4213,13 @@ test("production public health endpoints are served by Cloudflare instead of ori
     const healthPayload = await health.json() as any;
     assert.equal(healthPayload.ok, true);
     assert.equal(healthPayload.service, "ikimon-life-cloudflare-worker");
+    assert.equal(healthPayload.buildMarker, "map-shell-cookie-safe-v2");
 
     const ready = await worker.fetch(new Request("https://ikimon.life/readyz"), productionEnv);
     assert.equal(ready.status, 200);
     const readyPayload = await ready.json() as any;
     assert.equal(readyPayload.ok, true);
+    assert.equal(readyPayload.buildMarker, "map-shell-cookie-safe-v2");
     assert.equal(readyPayload.coreDb, "ok");
     assert.equal(readyPayload.observationDb, "ok");
     assert.equal(fallbackCalls, 0);
