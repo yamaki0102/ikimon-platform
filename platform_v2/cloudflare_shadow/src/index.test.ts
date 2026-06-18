@@ -1622,6 +1622,62 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(kpiPayload.ok, true);
 });
 
+test("production map area overlays fall back to origin runtime while native map cells stay on Cloudflare", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; method?: string; reason: string | null; resolveOverride?: string }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seen.push({
+      url: String(input),
+      method: init?.method,
+      reason: headers.get("x-ikimon-cloudflare-fallback-reason"),
+      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride
+    });
+    return new Response(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [[[137.70, 34.70], [137.71, 34.70], [137.71, 34.71], [137.70, 34.71], [137.70, 34.70]]] },
+        properties: { field_id: "field-origin", name: "origin area", source: "osm_park" }
+      }]
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const cellsResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/map/cells?bbox=137.70,34.70,137.82,34.72&zoom=13"), productionEnv);
+    assert.equal(cellsResponse.ok, true);
+    assert.equal(seen.length, 0);
+
+    const areaResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/map/area-polygons?bbox=137.70,34.70,137.82,34.72&zoom=17.5"), productionEnv);
+    const areaPayload = await areaResponse.json() as any;
+    assert.equal(areaResponse.ok, true, JSON.stringify(areaPayload));
+    assert.equal(areaPayload.features.length, 1);
+    assert.equal(areaPayload.features[0].properties.name, "origin area");
+
+    const guideResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/map/guide-spots?bbox=137.70,34.70,137.82,34.72"), productionEnv);
+    assert.equal(guideResponse.ok, true);
+
+    assert.deepEqual(seen.map((item) => item.url), [
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.70,34.70,137.82,34.72&zoom=17.5",
+      "https://ikimon.life/api/v1/map/guide-spots?bbox=137.70,34.70,137.82,34.72"
+    ]);
+    assert.deepEqual(seen.map((item) => item.reason), [
+      "map_area_polygons_origin_runtime",
+      "map_guide_spots_origin_runtime"
+    ]);
+    assert.deepEqual(seen.map((item) => item.resolveOverride), ["origin.ikimon.test", "origin.ikimon.test"]);
+    assert.equal(core.operationAudit.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("shadow takedown proof removes public surfaces while preserving canonical evidence", async () => {
   const { env, obs } = createEnv();
   const response = await worker.fetch(new Request("https://shadow.test/shadow-smoke/takedown-proof?id=unit"), env);

@@ -5313,6 +5313,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
       });
     };
+    var moveToTop = function (ids) {
+      ids.forEach(function (id) {
+        if (map.getLayer(id)) {
+          try { map.moveLayer(id); } catch (_) {}
+        }
+      });
+    };
     show(markerLayers, tab === 'markers');
     show(markerDetailLayers, false);
     show(heatLayers, tab === 'heatmap');
@@ -5324,14 +5331,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (map.getLayer('area-polygon-fill')) {
       map.setPaintProperty('area-polygon-fill', 'fill-opacity',
         tab === 'places'
-          ? ['interpolate', ['linear'], ['zoom'], 8, 0.10, 14, 0.22]
+          ? ['interpolate', ['linear'], ['zoom'], 8, 0.16, 14, 0.34, 17, 0.42]
           : ['interpolate', ['linear'], ['zoom'], 8, 0.03, 14, 0.08]);
     }
     if (map.getLayer('area-polygon-outline')) {
-      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' ? 0.86 : 0.42);
+      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' ? 0.96 : 0.42);
+      map.setPaintProperty('area-polygon-outline', 'line-width', tab === 'places'
+        ? ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 3.2, 2.2]
+        : ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 2.4, 1.4]);
     }
     if (map.getLayer('area-polygon-approximate-outline')) {
-      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places' ? 0.82 : 0.5);
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places' ? 0.92 : 0.5);
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-width', tab === 'places' ? 2.4 : 1.8);
     }
 
     if (tab === 'heatmap') {
@@ -5343,6 +5354,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
         'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else if (tab === 'places') {
+      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)');
       loadWaterwayHints();
