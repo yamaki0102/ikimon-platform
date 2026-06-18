@@ -27,6 +27,24 @@ test("approximate school area boundaries get a separate dashed outline layer", (
   assert.match(script, /area-polygon-approximate-outline/);
 });
 
+test("collapsed side rail uses a nonnumeric area signal", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const railMatch = html.match(/<div class="me-side-rail-icons"[^>]*>([\s\S]*?)<\/div>/);
+
+  assert.ok(railMatch);
+  const railBody = railMatch[1] || "";
+  assert.doesNotMatch(html, /\u{1F4CB}/u);
+  assert.match(html, /me-side-rail-mark/);
+  assert.match(html, /me-side-rail-signal/);
+  assert.doesNotMatch(railBody, />\s*\d+\s*</);
+  assert.doesNotMatch(railBody, />\s*\u2014\s*</);
+  assert.match(script, /SIDE_RAIL_SIGNAL_MIN_RECORDS = 6/);
+  assert.match(script, /SIDE_RAIL_SIGNAL_MAX_ZOOM = 14/);
+  assert.match(script, /function updateSideRailSignal\(records\)/);
+  assert.doesNotMatch(script, /sideRailCountEl\.textContent/);
+});
+
 test("map explorer localizes English fallback and failure chrome", () => {
   const html = renderMapExplorer({ basePath: "", lang: "en", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "en" });
