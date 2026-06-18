@@ -132,47 +132,40 @@ test("area sheet includes contribution feedback surface", () => {
   assert.match(script, /自分の記録を見返す/);
 });
 
-test("area biodiversity badges render as presence-only map markers", () => {
+test("area badge labels are not rendered as map markers", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
-  const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(script, /me-area-badge-marker/);
-  assert.match(script, /biodiversity_groups/);
   assert.match(script, /function refreshAreaBadgeMarkers/);
-  assert.match(script, /function areaBadgeCountLabel\(item\)/);
-  assert.match(script, /me-area-badge-pill/);
+  assert.match(script, /function refreshAreaBadgeMarkers\(\) \{\s*clearAreaBadgeMarkers\(\);\s*\}/);
+  assert.doesNotMatch(script, /function areaBadgeCountLabel\(item\)/);
+  assert.doesNotMatch(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
+  assert.doesNotMatch(script, /me-area-badge-pill/);
+  assert.doesNotMatch(script, /new window\.maplibregl\.Marker\(\{ element: el, anchor: 'bottom', offset: \[0, -10\] \}\)/);
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
   assert.doesNotMatch(script, /me-area-badge-actions/);
-  assert.match(styles, /\.me-area-badge-pill/);
 });
 
-test("guide-enabled areas advertise guide availability before tapping the area", () => {
+test("guide spots advertise guide availability without area label badges", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /areaBadgeGuideLabel/);
-  assert.match(script, /state\.tab !== 'places' && state\.tab !== 'markers'/);
-  assert.match(script, /var guideStop = areaGuideStopFrom/);
-  assert.match(script, /if \(item\.guideStop\) return true;/);
-  assert.match(script, /me-area-badge-chip-guide/);
-  assert.match(script, /has-guide-stop/);
+  assert.match(script, /function renderGuideSpotMarker/);
+  assert.match(script, /me-guide-spot-marker is-pin/);
+  assert.doesNotMatch(script, /has-guide-stop/);
   assert.match(script, /ガイド/);
 });
 
-test("guide map badges stay compact at low zoom or high density", () => {
+test("guide area badges are disabled in favor of guide spot pins", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(script, /GUIDE_BADGE_LABEL_ZOOM = 12\.6/);
-  assert.match(script, /GUIDE_BADGE_FULL_ZOOM = 13\.4/);
-  assert.match(script, /GUIDE_BADGE_DENSE_LIMIT = 8/);
-  assert.match(script, /guideBadgeCount = features\.filter/);
-  assert.match(script, /zoom < GUIDE_BADGE_LABEL_ZOOM \|\| guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT/);
-  assert.match(script, /is-guide-pin/);
-  assert.match(script, /is-guide-compact/);
+  assert.doesNotMatch(script, /GUIDE_BADGE_LABEL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_BADGE_FULL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_BADGE_DENSE_LIMIT/);
+  assert.doesNotMatch(script, /is-guide-pin/);
+  assert.doesNotMatch(script, /is-guide-compact/);
   assert.match(script, /me-guide-dot/);
-  assert.match(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
-  assert.match(styles, /me-area-badge-marker\.is-guide-pin/);
-  assert.match(styles, /me-area-badge-marker\.is-guide-compact/);
+  assert.doesNotMatch(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
   assert.match(styles, /me-guide-dot/);
 });
 
@@ -279,11 +272,12 @@ test("frontier and heatmap layers gain stronger zoom-sensitive visual feedback",
   assert.match(script, /14, \['interpolate', \['linear'\], \['coalesce', \['get', 'count'\], 0\]/);
 });
 
-test("area badge clicks reopen the side panel before showing selection", () => {
+test("area polygon selection reopens the side panel before showing selection", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const openAreaSheetBody = script.slice(script.indexOf("function openAreaSheet("), script.indexOf("function applyAreaSnapshot"));
 
-  assert.match(script, /openAreaFeatureSheet\(item\.feature, item\.center\.lat, item\.center\.lng\)/);
+  assert.match(script, /function openAreaFeatureSheet\(feature, lat, lng\)/);
+  assert.match(script, /openAreaSheet\(fieldId, lat, lng, feature\)/);
   assert.match(openAreaSheetBody, /setSideRailMode\(false\);\s+renderSelectedCard\(\);\s+renderSidePanels\(\);\s+setSideTab\('selection'\);/);
 });
 
@@ -335,25 +329,21 @@ test("map explorer restores the quick record launcher on mobile only", () => {
 
 test("area map labels and side cards expose organizer and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
-  const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /areaBadgeEventLabel/);
   assert.match(script, /areaBadgeAlbumLabel/);
-  assert.match(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
-  assert.match(script, /'school'/);
-  assert.match(script, /isNamedAreaBadgeFeature\(item\.feature, zoom\)/);
+  assert.doesNotMatch(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
   assert.match(script, /主催者/);
   assert.match(script, /エリア図鑑/);
   assert.match(script, /EVENTS_ORGANIZER_HREF/);
   assert.doesNotMatch(script, /me-area-badge-actions/);
-  assert.match(script, /me-area-badge-pill/);
+  assert.doesNotMatch(script, /me-area-badge-pill/);
   assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml\)/);
   assert.match(script, /me-area-primary-actions/);
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.doesNotMatch(script, /eventsNewHrefTemplate/);
   assert.doesNotMatch(script, /\/community\/events\/new/);
   assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml/);
-  assert.match(styles, /\.me-area-badge-marker:hover \.me-area-badge-chips/);
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {

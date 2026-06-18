@@ -1521,9 +1521,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
   var MAPLIBRE_JS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-  var GUIDE_BADGE_LABEL_ZOOM = 12.6;
-  var GUIDE_BADGE_FULL_ZOOM = 13.4;
-  var GUIDE_BADGE_DENSE_LIMIT = 8;
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
@@ -2778,127 +2775,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     saveMapState();
   }
 
-  function areaBadgeGroups(feature) {
-    var props = feature && feature.properties ? feature.properties : {};
-    var raw = props.biodiversity_groups || props.biodiversityGroups || [];
-    if (typeof raw === 'string') {
-      try { raw = JSON.parse(raw); } catch (_) { raw = []; }
-    }
-    if (!Array.isArray(raw)) return [];
-    return raw.filter(function (group) {
-      return group && group.label;
-    }).slice(0, 5);
-  }
-
-  function areaBadgeCenter(feature) {
-    var props = feature && feature.properties ? feature.properties : {};
-    var center = props.center;
-    if (typeof center === 'string') {
-      try { center = JSON.parse(center); } catch (_) { center = null; }
-    }
-    if (Array.isArray(center) && center.length >= 2) {
-      var lng = Number(center[0]);
-      var lat = Number(center[1]);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat: lat, lng: lng };
-    }
-    var fallback = areaFeatureCenter(feature);
-    return fallback && Number.isFinite(fallback.lat) && Number.isFinite(fallback.lng) ? fallback : null;
-  }
-
-  function renderAreaBadgeGroup(group) {
-    var key = String(group.group || group.icon || 'other').replace(/[^a-z0-9_-]/gi, '') || 'other';
-    return '<span class="me-area-badge-chip me-area-badge-chip-' + escapeHtml(key) + '">' +
-      escapeHtml(group.label) +
-    '</span>';
-  }
-
-  function areaBadgeCountLabel(item) {
-    var count = (item && item.groups ? item.groups.length : 0) + (item && item.guideStop ? 1 : 0);
-    return count > 0 ? String(count) + '件' : '';
-  }
-
-  function isNamedAreaBadgeFeature(feature, zoom) {
-    if (!Number.isFinite(zoom) || zoom < 11.2) return false;
-    var props = feature && feature.properties ? feature.properties : {};
-    var source = String(props.source || props.admin_level || '').trim();
-    if (!props.name || !source) return false;
-    return [
-      'user_defined',
-      'osm_park',
-      'nature_symbiosis_site',
-      'tsunag',
-      'protected_area',
-      'oecm',
-      'school'
-    ].indexOf(source) >= 0;
-  }
-
   function refreshAreaBadgeMarkers() {
     clearAreaBadgeMarkers();
-    if (!state.map || !window.maplibregl || (state.tab !== 'places' && state.tab !== 'markers')) return;
-    var zoom = state.map.getZoom();
-    if (!Number.isFinite(zoom) || zoom < 10.2) return;
-    var features = (Array.isArray(state.areaPolygonFeatures) ? state.areaPolygonFeatures : [])
-      .map(function (feature) {
-        var guideStop = areaGuideStopFrom(feature && feature.properties ? feature.properties : {});
-        return { feature: feature, groups: areaBadgeGroups(feature), guideStop: guideStop, center: areaBadgeCenter(feature) };
-      })
-      .filter(function (item) {
-        if (!item.center) return false;
-        if (item.guideStop) return true;
-        if (item.groups.length > 0) return state.tab === 'places' || state.tab === 'markers';
-        return isNamedAreaBadgeFeature(item.feature, zoom);
-      })
-      .slice(0, 80);
-    var guideBadgeCount = features.filter(function (item) { return !!item.guideStop; }).length;
-    var useGuidePinBadges = zoom < GUIDE_BADGE_LABEL_ZOOM || guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT;
-    var useCompactGuideBadges = !useGuidePinBadges && zoom < GUIDE_BADGE_FULL_ZOOM;
-    features.forEach(function (item) {
-      var props = item.feature && item.feature.properties ? item.feature.properties : {};
-      var name = String(props.name || COPY.selectedFieldLabel);
-      var fieldId = String(props.field_id || '');
-      var isGuidePinBadge = !!item.guideStop && useGuidePinBadges;
-      var isCompactGuideBadge = !!item.guideStop && useCompactGuideBadges;
-      var actionsHtml = '';
-      var countLabel = areaBadgeCountLabel(item);
-      if (!countLabel) countLabel = String(props.source_label || props.admin_level || props.source || '');
-      var el = document.createElement('div');
-      var badgeChipsHtml = (item.guideStop
-        ? '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>'
-        : '') + item.groups.map(renderAreaBadgeGroup).join('');
-      var ariaBits = item.groups.map(function (group) { return group.label; });
-      if (item.guideStop) ariaBits.unshift(COPY.areaBadgeGuideLabel);
-      el.className = 'me-area-badge-marker' +
-        (item.guideStop ? ' has-guide-stop' : '') +
-        (isGuidePinBadge ? ' is-guide-pin' : '') +
-        (isCompactGuideBadge ? ' is-guide-compact' : '');
-      el.setAttribute('aria-label', name + ' ' + ariaBits.join(' '));
-      el.innerHTML = isGuidePinBadge
-        ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-            '<span class="me-guide-dot" aria-hidden="true"></span>' +
-          '</button>'
-        : isCompactGuideBadge
-        ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-            '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
-          '</button>'
-        : '<button type="button" class="me-area-badge-main">' +
-            '<span class="me-area-badge-pill">' +
-              '<strong>' + escapeHtml(name) + '</strong>' +
-              (countLabel ? '<em>' + escapeHtml(countLabel) + '</em>' : '') +
-            '</span>' +
-            (badgeChipsHtml ? '<span class="me-area-badge-chips">' + badgeChipsHtml + '</span>' : '') +
-          '</button>' +
-          actionsHtml;
-      el.querySelector('.me-area-badge-main').addEventListener('click', function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        openAreaFeatureSheet(item.feature, item.center.lat, item.center.lng);
-      });
-      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
-        .setLngLat([item.center.lng, item.center.lat])
-        .addTo(state.map);
-      state.areaBadgeMarkers.push(marker);
-    });
   }
 
   function clearSideSelection() {
@@ -7683,175 +7561,6 @@ export const MAP_EXPLORER_STYLES = `
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
   }
-  .me-area-badge-marker {
-    border: 0;
-    background: transparent;
-    color: #0f172a;
-    min-width: 0;
-    max-width: 188px;
-    padding: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-    cursor: default;
-    display: grid;
-    gap: 4px;
-    text-align: left;
-    transform-origin: bottom center;
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .me-area-badge-marker:hover,
-  .me-area-badge-marker:focus-within {
-    transform: translateY(-2px);
-  }
-  .me-area-badge-main {
-    display: grid;
-    gap: 4px;
-    width: auto;
-    max-width: 188px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .me-area-badge-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    max-width: 188px;
-    min-height: 30px;
-    padding: 5px 9px;
-    border: 1px solid rgba(13,148,136,.26);
-    border-radius: 999px;
-    background: rgba(255,255,255,.95);
-    box-shadow: 0 10px 24px rgba(15,23,42,.14);
-    backdrop-filter: blur(10px);
-  }
-  .me-area-badge-marker strong {
-    display: block;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 11.5px;
-    line-height: 1.2;
-    font-weight: 900;
-    letter-spacing: 0;
-  }
-  .me-area-badge-pill em {
-    flex: 0 0 auto;
-    font-style: normal;
-    color: #0f766e;
-    font-size: 10px;
-    line-height: 1;
-    font-weight: 950;
-  }
-  .me-area-badge-chips {
-    display: none;
-    flex-wrap: wrap;
-    gap: 3px;
-    max-width: 188px;
-    padding: 6px 7px 7px;
-    border-radius: 10px;
-    border: 1px solid rgba(15,23,42,.06);
-    background: rgba(255,255,255,.96);
-    box-shadow: 0 12px 28px rgba(15,23,42,.13);
-  }
-  .me-area-badge-marker:hover .me-area-badge-chips,
-  .me-area-badge-marker:focus-within .me-area-badge-chips {
-    display: flex;
-  }
-  .me-area-badge-chip {
-    display: inline-flex;
-    align-items: center;
-    min-height: 18px;
-    padding: 2px 6px;
-    border-radius: 999px;
-    font-size: 10px;
-    line-height: 1;
-    font-weight: 900;
-    letter-spacing: 0;
-    background: rgba(100,116,139,.12);
-    color: #334155;
-  }
-  .me-area-badge-chip-bird { background: rgba(14,165,233,.14); color: #075985; }
-  .me-area-badge-chip-insect { background: rgba(245,158,11,.16); color: #92400e; }
-  .me-area-badge-chip-plant { background: rgba(16,185,129,.16); color: #065f46; }
-  .me-area-badge-chip-amphibian_reptile { background: rgba(20,184,166,.16); color: #0f766e; }
-  .me-area-badge-chip-mammal { background: rgba(168,85,247,.14); color: #6b21a8; }
-  .me-area-badge-chip-fungi { background: rgba(217,119,6,.14); color: #78350f; }
-  .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
-  .me-area-badge-chip-guide { background: #0f172a; color: #f8fafc; }
-  .me-area-badge-marker.has-guide-stop .me-area-badge-pill { border-color: rgba(15,23,42,.22); }
-  .me-area-badge-actions {
-    display: none;
-    gap: 4px;
-    max-width: 188px;
-    padding: 5px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.95);
-    box-shadow: 0 12px 28px rgba(15,23,42,.12);
-  }
-  .me-area-badge-marker:hover .me-area-badge-actions,
-  .me-area-badge-marker:focus-within .me-area-badge-actions {
-    display: flex;
-  }
-  .me-area-badge-actions a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 24px;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: #0f766e;
-    color: #fff;
-    font-size: 10px;
-    line-height: 1.1;
-    font-weight: 900;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .me-area-badge-actions a:nth-child(2) {
-    background: rgba(240,253,250,.96);
-    color: #0f766e;
-    border: 1px solid rgba(15,118,110,.18);
-  }
-  .me-area-badge-marker.is-guide-compact {
-    min-width: 0;
-    max-width: none;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-  }
-  .me-area-badge-marker.is-guide-compact:hover {
-    box-shadow: none;
-  }
-  .me-area-badge-marker.is-guide-compact .me-area-badge-main {
-    display: inline-flex;
-    width: auto;
-    border-radius: 999px;
-    box-shadow: 0 10px 20px rgba(15,23,42,.18);
-  }
-  .me-area-badge-marker.is-guide-compact .me-area-badge-chip-guide {
-    min-height: 24px;
-    padding: 3px 9px;
-    border: 2px solid rgba(255,255,255,.88);
-    box-shadow: 0 0 0 1px rgba(15,23,42,.16);
-  }
-  .me-area-badge-marker.is-guide-pin {
-    min-width: 0;
-    max-width: none;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-  }
-  .me-area-badge-marker.is-guide-pin .me-area-badge-main,
   .me-guide-spot-marker.is-pin .me-guide-spot-main {
     display: inline-flex;
     align-items: center;
@@ -7910,7 +7619,7 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 950;
     letter-spacing: 0;
   }
-  .me-guide-spot-main > span:not(.me-area-badge-chip) {
+  .me-guide-spot-main > span:not(.me-guide-dot):not(.me-guide-cluster-count) {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -9489,8 +9198,6 @@ export const MAP_EXPLORER_STYLES = `
   .me-visited-chip:focus-visible,
   .me-visited-sort button:focus-visible,
   .me-overlap-choice-btn:focus-visible,
-  .me-area-badge-main:focus-visible,
-  .me-area-badge-actions a:focus-visible,
   .me-area-primary-action:focus-visible,
   .me-year-range:focus-visible,
   .me-result-row:focus-visible,
@@ -9584,29 +9291,6 @@ export const MAP_EXPLORER_STYLES = `
       bottom: 54px;
       top: auto;
       max-width: calc(100% - 96px);
-    }
-    .me-area-badge-marker {
-      max-width: 150px;
-    }
-    .me-area-badge-pill {
-      max-width: 150px;
-      min-height: 28px;
-      padding: 4px 8px;
-    }
-    .me-area-badge-marker strong { font-size: 10.5px; }
-    .me-area-badge-chip {
-      min-height: 17px;
-      padding: 2px 5px;
-      font-size: 9.5px;
-    }
-    .me-area-badge-chips,
-    .me-area-badge-actions {
-      max-width: 150px;
-    }
-    .me-area-badge-actions a {
-      min-height: 22px;
-      padding: 4px 5px;
-      font-size: 9.5px;
     }
     .me-locate-fab { bottom: 96px; }
     .me-layer-hint {
