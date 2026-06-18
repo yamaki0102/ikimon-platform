@@ -7,6 +7,7 @@ const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const productionWorkerUrl = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
 const productionPublicUrl = "https://ikimon.life";
 const defaultPreflightReportPath = ".deploy/production-preflight-latest.json";
+const defaultWranglerVersionCachePath = ".deploy/wrangler-version-cache.json";
 const defaultMaxPreflightAgeMinutes = 360;
 const allowedArgs = new Set([
   "--execute",
@@ -14,6 +15,7 @@ const allowedArgs = new Set([
   "--fast",
   "--preflight-report",
   "--test-profile",
+  "--wrangler-version-cache",
   "--write-preflight-report",
   "--max-preflight-age-minutes"
 ]);
@@ -34,6 +36,7 @@ const execute = args.get("--execute") === "true";
 const fast = args.get("--fast") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
 const preflightReportPath = args.get("--preflight-report") ?? defaultPreflightReportPath;
+const wranglerVersionCachePath = args.get("--wrangler-version-cache") ?? defaultWranglerVersionCachePath;
 const writePreflightReportPath = args.get("--write-preflight-report") ?? (!fast ? defaultPreflightReportPath : "");
 const maxPreflightAgeMinutes = Number(args.get("--max-preflight-age-minutes") ?? String(defaultMaxPreflightAgeMinutes));
 const testProfile = args.get("--test-profile") ?? "full";
@@ -174,21 +177,27 @@ async function gitText(args) {
 
 async function currentDeployState() {
   const gitHead = await gitText(["rev-parse", "HEAD"]);
-  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-production-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const deployInputSha256 = await hashDeployInputs();
+  const packageLockSha256 = await hashFiles(["package.json", "package-lock.json"]);
   const productionConfig = await readProductionConfigSummary();
   return {
     gitHead,
     gitStatus,
     clean: gitStatus.length === 0,
     deployInputSha256,
+    packageLockSha256,
     productionConfig
   };
 }
 
 async function hashDeployInputs() {
-  const listed = await gitText(["ls-files", "--", "src", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const listed = await gitText(["ls-files", "--", "src", "scripts/deploy-production-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
   const files = listed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).sort();
+  return hashFiles(files);
+}
+
+async function hashFiles(files) {
   const hash = createHash("sha256");
   for (const file of files) {
     hash.update(file);
@@ -197,6 +206,15 @@ async function hashDeployInputs() {
     hash.update("\0");
   }
   return hash.digest("hex");
+}
+
+async function readJsonFile(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
+    return null;
+  }
 }
 
 async function assertNoHardcodedSecrets() {
@@ -258,6 +276,7 @@ async function writePreflightReport(path, state) {
     gitHead: state.gitHead,
     clean: state.clean,
     deployInputSha256: state.deployInputSha256,
+    packageLockSha256: state.packageLockSha256,
     testProfile,
     productionConfig: state.productionConfig,
     requiredSafetyGates: [
@@ -279,6 +298,45 @@ async function writePreflightReport(path, state) {
   });
 }
 
+async function runWranglerVersionGate(state) {
+  const cache = await readJsonFile(wranglerVersionCachePath);
+  if (cache
+    && cache.ok === true
+    && cache.deployInputSha256 === state.deployInputSha256
+    && cache.packageLockSha256 === state.packageLockSha256
+    && typeof cache.version === "string"
+    && cache.version.trim()) {
+    process.stdout.write(`${cache.version.trim()}\n`);
+    events.push({
+      command: `npx wrangler --version (cached ${wranglerVersionCachePath})`,
+      exitCode: 0,
+      durationMs: 0,
+      version: cache.version.trim(),
+      checkedAt: cache.checkedAt
+    });
+    return cache.version.trim();
+  }
+
+  const result = await run("npx", ["wrangler", "--version"]);
+  const version = result.stdout.trim().split(/\r?\n/).at(-1)?.trim() || "";
+  const payload = {
+    ok: true,
+    checkedAt: new Date().toISOString(),
+    version,
+    deployInputSha256: state.deployInputSha256,
+    packageLockSha256: state.packageLockSha256
+  };
+  await mkdir(dirname(resolve(wranglerVersionCachePath)), { recursive: true });
+  await writeFile(wranglerVersionCachePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  events.push({
+    command: `write wrangler version cache ${wranglerVersionCachePath}`,
+    exitCode: 0,
+    durationMs: 0,
+    version
+  });
+  return version;
+}
+
 const initialState = await currentDeployState();
 await assertNoHardcodedSecrets();
 if (fast) {
@@ -296,7 +354,7 @@ if (fast) {
   const testCommand = testCommandForProfile(testProfile);
   await run(testCommand.command, testCommand.args);
 }
-await run("npx", ["wrangler", "--version"]);
+await runWranglerVersionGate(initialState);
 await run("npx", ["wrangler", "deploy", "--env", "production", "--dry-run"]);
 
 if (execute) {
@@ -318,6 +376,7 @@ console.log(JSON.stringify({
   productionDeployExecuted: execute,
   approvalRequiredForExecute: requiredApproval,
   preflightReport: fast ? preflightReportPath : (writePreflightReportPath || null),
+  wranglerVersionCache: wranglerVersionCachePath,
   smokeTargets: execute ? [productionWorkerUrl, productionPublicUrl] : [],
   events
 }, null, 2));

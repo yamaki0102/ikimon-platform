@@ -277,6 +277,8 @@ npm run deploy:production:fast:dry-run
 
 The fast lane does not rerun the full TypeScript/test suite. It validates the preflight report, rechecks the production config and secret scan, runs Wrangler dry-run, and refuses to run if deploy inputs changed or the report is stale.
 
+The deploy guard also caches `npx wrangler --version` in `.deploy/wrangler-version-cache.json`. The cache is accepted only when the package lock hash and Worker deploy-input hash match, so a Wrangler upgrade or Worker/deploy-tool change refreshes the version check automatically. `wrangler deploy --env production --dry-run` is never skipped.
+
 Production deploy requires an explicit approval code and then smokes both workers.dev and the public custom domain:
 
 ```bash

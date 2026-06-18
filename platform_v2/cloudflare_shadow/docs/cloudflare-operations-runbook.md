@@ -74,6 +74,8 @@ npm run deploy:production:fast:dry-run
 
 The fast lane must still validate the preflight report, re-run the config guard and secret scan, run Wrangler dry-run, and refuse stale or mismatched deploy inputs.
 
+The guard caches `npx wrangler --version` at `.deploy/wrangler-version-cache.json` and reuses it only when both the package lock hash and Worker deploy-input hash match. A Wrangler dependency change, Worker/deploy-tool change, or package lock change refreshes the cache. `wrangler deploy --env production --dry-run` remains mandatory and is not cached.
+
 Execute only after dry-run passes:
 
 ```powershell
