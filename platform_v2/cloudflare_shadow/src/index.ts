@@ -941,7 +941,7 @@ export const worker = {
         return getPublicMapEmptyGeoJson("frontier");
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/area-polygons") {
+      if (request.method === "GET" && isMapAreaPolygonsApiPath(url.pathname)) {
         if (shouldFallbackMapAreaPolygonsToOrigin(request, url, env)) {
           const nativeResponse = await getPublicMapAreaPolygons(url, env, { allowApproximateFallback: false });
           if (nativeResponse) return nativeResponse;
@@ -1311,8 +1311,13 @@ function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: E
 
 function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
   return request.method === "GET"
-    && url.pathname === "/api/v1/map/area-polygons"
+    && isMapAreaPolygonsApiPath(url.pathname)
     && shouldUseOriginFallback(url, env);
+}
+
+function isMapAreaPolygonsApiPath(pathname: string): boolean {
+  return pathname === "/api/v1/map/area-polygons"
+    || /^\/(?:ja|en|es|pt-br)\/api\/v1\/map\/area-polygons$/.test(pathname);
 }
 
 function mapAreaPolygonsFallbackLimit(zoom: number | null): number {

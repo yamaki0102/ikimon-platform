@@ -3744,6 +3744,22 @@ test("production map area polygons fall back to origin geometry with bounded dis
     const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
     assert.equal(latestTelemetry.reason, "map_area_polygons_origin_geometry");
     assert.equal(latestTelemetry.routePattern, "/api/v1/map/area-polygons");
+
+    seen.length = 0;
+    const localizedResponse = await worker.fetch(new Request(
+      "https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+    ), productionEnv);
+    const localizedPayload = await localizedResponse.json() as any;
+    assert.equal(localizedResponse.status, 200);
+    assert.equal(localizedPayload.features.length, 1);
+    assert.equal(localizedPayload.features[0].properties.name, "origin polygon school");
+    assert.equal(localizedPayload.stats.totalReturned, 1);
+    assert.equal(localizedPayload.stats.totalAll, 1);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0]?.url, "https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&limit=48");
+    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen[0]?.reason, "map_area_polygons_origin_geometry");
+    assert.doesNotMatch(JSON.stringify(localizedPayload), /origin-approx-school|OSMの学校・キャンパス|OSMの公園・緑地|境界未確認/);
   } finally {
     globalThis.fetch = originalFetch;
   }
