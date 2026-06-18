@@ -9,6 +9,7 @@ const {
   liveElementToFeature,
   tileForLngLat,
   tilesForBbox,
+  bboxForTiles,
   featureTouchesBbox,
   isCompleteFreshLiveCache,
   filterAreaFeaturesBySources,
@@ -19,11 +20,15 @@ const {
   approximateSchoolSourceConfidence,
   isDisplayableAreaFeature,
   shouldFetchLiveOsm,
+  shouldSupplementLiveOsm,
+  hasRequestedLiveOsmSourceCoverage,
+  hasFreshLiveOsmCacheCoverage,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
   LIVE_OSM_EMPTY_TTL_HOURS,
   LIVE_OSM_ENDPOINTS,
+  LIVE_OSM_TILE_FETCH_LIMIT,
   SOURCE_LABEL,
 } = __test__;
 
@@ -70,7 +75,30 @@ test("buildLiveOsmAreaQuery uses Overpass south,west,north,east order", () => {
   const query = buildLiveOsmAreaQuery([137.39, 34.73, 137.43, 34.75]);
   assert.match(query, /\(34\.73,137\.39,34\.75,137\.43\)/);
   assert.match(query, /leisure/);
+  assert.match(query, /playground/);
+  assert.match(query, /recreation_ground/);
+  assert.match(query, /landuse"\="grass"\]\["name"\]/);
   assert.match(query, /amenity/);
+  assert.match(query, /kindergarten/);
+  assert.match(query, /landuse/);
+  assert.match(query, /building/);
+});
+
+test("liveElementToFeature treats playground polygons as park areas", () => {
+  const feature = liveElementToFeature({
+    type: "way",
+    id: 263321118,
+    tags: { name: "西伊場第三公園", leisure: "playground" },
+    geometry: [
+      { lat: 34.6961, lon: 137.6997 },
+      { lat: 34.6961, lon: 137.7005 },
+      { lat: 34.6966, lon: 137.7005 },
+    ],
+  });
+
+  assert.equal(feature?.properties.source, "osm_park");
+  assert.equal(feature?.properties.name, "西伊場第三公園");
+  assert.equal(feature?.properties.entity_key, "osm:way:263321118");
 });
 
 test("liveElementToFeature converts OSM way into transient area feature", () => {
@@ -133,6 +161,32 @@ test("liveElementToFeature rejects building-only OSM fragments", () => {
 
   assert.equal(schoolBuilding, null);
   assert.equal(kindergartenBuilding, null);
+});
+
+test("liveElementToFeature treats OSM education landuse as school and rejects building-only fragments", () => {
+  const educationLanduse = liveElementToFeature({
+    type: "way",
+    id: 790,
+    tags: { name: "西伊場こども園", landuse: "education" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+  const schoolBuilding = liveElementToFeature({
+    type: "way",
+    id: 791,
+    tags: { name: "浜松小学校 校舎", building: "school" },
+    geometry: [
+      { lat: 34.71, lon: 137.72 },
+      { lat: 34.71, lon: 137.73 },
+      { lat: 34.72, lon: 137.73 },
+    ],
+  });
+
+  assert.equal(educationLanduse?.properties.source, "school");
+  assert.equal(schoolBuilding, null);
 });
 
 test("live OSM fallback respects selected area sources", () => {
@@ -227,6 +281,87 @@ test("default z9 park and school visibility does not trigger live OSM fallback",
   assert.equal(shouldFetchLiveOsm(query, sources), false);
   assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.3, 34.6, 137.8, 34.9] }, sources), false);
   assert.equal(shouldFetchLiveOsm({ ...query, zoom: 13, bbox: [137.7, 34.7, 137.75, 34.75] }, sources), true);
+});
+
+test("live OSM supplement continues when stored park or school coverage is partial", () => {
+  const query = { bbox: [137.70, 34.69, 137.72, 34.71] as [number, number, number, number], zoom: 16 };
+  const sources = ["school", "osm_park"] as const;
+  const storedSchool = liveElementToFeature({
+    type: "way",
+    id: 777,
+    tags: { name: "浜松第一小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.70, lon: 137.70 },
+      { lat: 34.70, lon: 137.71 },
+      { lat: 34.71, lon: 137.71 },
+    ],
+  });
+  assert.ok(storedSchool);
+  assert.equal(shouldSupplementLiveOsm(query, [...sources], [storedSchool], 50), true);
+  assert.equal(shouldSupplementLiveOsm(query, ["protected_area"], [storedSchool], 50), false);
+  assert.equal(shouldSupplementLiveOsm({ ...query, zoom: 12 }, [...sources], [storedSchool], 50), false);
+  const fullFeatures = Array.from({ length: 50 }, (_, i) => ({
+    ...storedSchool,
+    properties: {
+      ...storedSchool.properties,
+      field_id: `stored-school:${i}`,
+      entity_key: `stored-school:${i}`,
+    },
+  }));
+  assert.equal(shouldSupplementLiveOsm(query, [...sources], fullFeatures, 50), false);
+});
+
+test("fresh live OSM cache must cover each requested live source before skipping fetch", () => {
+  const park = liveElementToFeature({
+    type: "way",
+    id: 901,
+    tags: { name: "伊場遺跡公園", leisure: "park" },
+    geometry: [
+      { lat: 34.70, lon: 137.70 },
+      { lat: 34.70, lon: 137.71 },
+      { lat: 34.71, lon: 137.71 },
+    ],
+  });
+  const school = liveElementToFeature({
+    type: "way",
+    id: 902,
+    tags: { name: "浜松第一小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.71, lon: 137.71 },
+      { lat: 34.71, lon: 137.72 },
+      { lat: 34.72, lon: 137.72 },
+    ],
+  });
+  assert.ok(park);
+  assert.ok(school);
+  const approximateStoredSchool = {
+    ...school,
+    properties: { ...school.properties, approximate_boundary: true },
+  };
+
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park]), false);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park, approximateStoredSchool]), false);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["school", "osm_park"], [park, school]), true);
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["osm_park"], [park]), true);
+});
+
+test("fresh live OSM cache coverage is decided only from cached live features", () => {
+  const storedPark = liveElementToFeature({
+    type: "way",
+    id: 263321118,
+    tags: { name: "西伊場第三公園", leisure: "playground" },
+    geometry: [
+      { lat: 34.6961, lon: 137.6997 },
+      { lat: 34.6961, lon: 137.7005 },
+      { lat: 34.6966, lon: 137.7005 },
+    ],
+  });
+  assert.ok(storedPark);
+
+  assert.equal(hasRequestedLiveOsmSourceCoverage(["osm_park"], [storedPark]), true);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [], true), false);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], false), false);
+  assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], true), true);
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {
@@ -373,6 +508,19 @@ test("tilesForBbox returns bounded web mercator tile keys", () => {
   assert.ok(tiles.every((tile) => tile.z === 14));
   const one = tileForLngLat(137.41, 34.74);
   assert.ok(tiles.some((tile) => tile.x === one.x && tile.y === one.y));
+});
+
+test("bboxForTiles expands live cache fetches to complete tile coverage", () => {
+  const viewport: [number, number, number, number] = [137.6998, 34.6958, 137.7010, 34.6968];
+  const tiles = tilesForBbox(viewport);
+  const bbox = bboxForTiles(tiles);
+
+  assert.ok(bbox);
+  assert.ok(bbox[0] <= viewport[0]);
+  assert.ok(bbox[1] <= viewport[1]);
+  assert.ok(bbox[2] >= viewport[2]);
+  assert.ok(bbox[3] >= viewport[3]);
+  assert.ok(LIVE_OSM_TILE_FETCH_LIMIT >= 300);
 });
 
 test("featureTouchesBbox keeps cached tile features local to the current viewport", () => {

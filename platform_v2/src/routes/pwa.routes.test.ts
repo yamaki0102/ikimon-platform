@@ -42,16 +42,62 @@ test("app service worker is separate from legacy cleanup worker and caches app s
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/javascript/);
     assert.equal(response.headers["service-worker-allowed"], "/");
-    assert.match(response.body, /ikimon-app-v1/);
+    assert.match(response.body, /ikimon-app-v5/);
     assert.match(response.body, /networkFirstNavigation/);
     assert.match(response.body, /OFFLINE_URLS/);
     assert.match(response.body, /offline\.html\?lang=en/);
     assert.match(response.body, /\/assets\/brand\/app-icon-192\.png/);
     assert.match(response.body, /\/assets\/brand\/favicon-32\.png/);
     assert.match(response.body, /APP_NAV_RE/);
+    assert.match(response.body, /MAP_NAV_RE/);
+    assert.match(response.body, /cache: 'no-store'/);
+    assert.match(response.body, /clients\.matchAll/);
+    assert.match(response.body, /client\.navigate/);
+    assert.match(response.body, /searchParams\.set\('sw', VERSION\)/);
+    assert.match(response.body, /&& !isMapShell/);
     assert.match(response.body, /ikimon-app-outbox-sync/);
     assert.match(response.body, /self\.addEventListener\('sync'/);
     assert.doesNotMatch(response.body, /registration\.unregister/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("app refresh page unregisters stale service workers without clearing client data stores", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/app-refresh?to=%2Fmap%3Flang%3Dja%26tab%3Dplaces",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers["cache-control"] as string, /no-store/);
+    assert.match(response.headers["x-robots-tag"] as string, /noindex/);
+    assert.match(response.body, /navigator\.serviceWorker\.getRegistrations/);
+    assert.match(response.body, /registration\.unregister/);
+    assert.match(response.body, /caches\.keys/);
+    assert.match(response.body, /\^ikimon-app-/);
+    assert.match(response.body, /URLSearchParams\(window\.location\.search\)/);
+    assert.match(response.body, /"\/map\?lang=ja&tab=places"/);
+    assert.doesNotMatch(response.body, /indexedDB\.deleteDatabase/);
+    assert.doesNotMatch(response.body, /localStorage\.clear/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("app refresh page rejects external redirect targets", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/app-refresh?to=https%3A%2F%2Fevil.example%2Fmap",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /"\/map"/);
+    assert.doesNotMatch(response.body, /evil\.example/);
   } finally {
     await app.close();
   }

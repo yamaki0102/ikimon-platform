@@ -145,8 +145,9 @@ const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
 const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school"]);
 const LIVE_OSM_TILE_Z = 14;
-const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v2";
+const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v4";
 const LIVE_OSM_TILE_SOURCE = "overpass";
+const LIVE_OSM_TILE_FETCH_LIMIT = 600;
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
 const LIVE_OSM_EMPTY_TTL_HOURS = 6;
 const LIVE_OSM_ENDPOINTS = [
@@ -402,6 +403,41 @@ function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource
   return (maxLng - minLng) <= LIVE_OSM_MAX_SPAN_DEGREES && (maxLat - minLat) <= LIVE_OSM_MAX_SPAN_DEGREES;
 }
 
+function shouldSupplementLiveOsm(
+  query: AreaPolygonsQuery,
+  sources: AreaPolygonSource[],
+  features: AreaPolygonFeature[],
+  limit: number,
+): boolean {
+  if (features.length >= limit) return false;
+  if (!sources.some((source) => LIVE_OSM_SOURCES.has(source))) return false;
+  return shouldFetchLiveOsm(query, sources);
+}
+
+function requestedLiveOsmSources(sources: AreaPolygonSource[]): AreaPolygonSource[] {
+  return Array.from(new Set(sources.filter((source) => LIVE_OSM_SOURCES.has(source))));
+}
+
+function hasConcreteAreaFeatureForSource(feature: AreaPolygonFeature, source: AreaPolygonSource): boolean {
+  if (feature.properties.source !== source) return false;
+  if (source === "school" && feature.properties.approximate_boundary === true) return false;
+  return true;
+}
+
+function hasRequestedLiveOsmSourceCoverage(sources: AreaPolygonSource[], features: AreaPolygonFeature[]): boolean {
+  const requested = requestedLiveOsmSources(sources);
+  if (requested.length === 0) return true;
+  return requested.every((source) => features.some((feature) => hasConcreteAreaFeatureForSource(feature, source)));
+}
+
+function hasFreshLiveOsmCacheCoverage(
+  sources: AreaPolygonSource[],
+  cachedFeatures: AreaPolygonFeature[],
+  freshComplete: boolean,
+): boolean {
+  return freshComplete && hasRequestedLiveOsmSourceCoverage(sources, cachedFeatures);
+}
+
 function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: AreaPolygonSource[]): AreaPolygonFeature[] {
   if (sources.length === 0) return features;
   const allowed = new Set<AreaPolygonSource>(sources);
@@ -434,9 +470,17 @@ function buildLiveOsmAreaQuery(bbox: [number, number, number, number]): string {
 (
   way["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
   relation["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
+  way["landuse"~"^(recreation_ground|village_green)$"](${bb});
+  relation["landuse"~"^(recreation_ground|village_green)$"](${bb});
+  way["landuse"="grass"]["name"](${bb});
+  relation["landuse"="grass"]["name"](${bb});
   relation["boundary"="national_park"](${bb});
-  way["amenity"~"^(school|college|university)$"](${bb});
-  relation["amenity"~"^(school|college|university)$"](${bb});
+  way["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
+  relation["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
+  way["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
+  relation["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
+  way["building"~"^(school|college|university|kindergarten)$"](${bb});
+  relation["building"~"^(school|college|university|kindergarten)$"](${bb});
 );
 out tags geom;
 `;
@@ -476,7 +520,12 @@ function liveElementToPolygon(element: OverpassElement): Record<string, unknown>
 function liveElementSource(element: OverpassElement): { source: AreaPolygonSource; label: string; fallbackName: string } | null {
   const tags = element.tags ?? {};
   const amenity = tags.amenity ?? "";
-  if (amenity === "school" || amenity === "college" || amenity === "university") {
+  const landuse = tags.landuse ?? "";
+  if (
+    amenity === "school" || amenity === "college" || amenity === "university" ||
+    amenity === "kindergarten" || amenity === "childcare" ||
+    landuse === "education" || landuse === "school" || landuse === "college" || landuse === "university" || landuse === "kindergarten"
+  ) {
     return { source: "school", label: "学校・キャンパス (OSM live)", fallbackName: "OSMの学校・キャンパス" };
   }
   if (
@@ -595,6 +644,32 @@ function tilesForBbox(bbox: [number, number, number, number], z = LIVE_OSM_TILE_
     }
   }
   return tiles;
+}
+
+function tileXToLng(x: number, z: number): number {
+  return (x / (2 ** z)) * 360 - 180;
+}
+
+function tileYToLat(y: number, z: number): number {
+  const n = Math.PI - (2 * Math.PI * y) / (2 ** z);
+  return (180 / Math.PI) * Math.atan(Math.sinh(n));
+}
+
+function bboxForTiles(tiles: Array<{ z: number; x: number; y: number }>): [number, number, number, number] | null {
+  if (tiles.length === 0) return null;
+  const z = tiles[0]!.z;
+  const sameZoomTiles = tiles.filter((tile) => tile.z === z);
+  if (sameZoomTiles.length === 0) return null;
+  const minX = Math.min(...sameZoomTiles.map((tile) => tile.x));
+  const maxX = Math.max(...sameZoomTiles.map((tile) => tile.x));
+  const minY = Math.min(...sameZoomTiles.map((tile) => tile.y));
+  const maxY = Math.max(...sameZoomTiles.map((tile) => tile.y));
+  return [
+    tileXToLng(minX, z),
+    tileYToLat(maxY + 1, z),
+    tileXToLng(maxX + 1, z),
+    tileYToLat(minY, z),
+  ];
 }
 
 function walkGeometryNumbers(value: unknown, visit: (lng: number, lat: number) => void): void {
@@ -979,20 +1054,24 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     }];
   });
 
-  const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources) && (
-    (sources.includes("osm_park") && !features.some((feature) => feature.properties.source === "osm_park")) ||
-    (sources.includes("school") && !features.some((feature) => feature.properties.source === "school"))
-  );
+  const shouldUseLiveOsm = shouldSupplementLiveOsm(query, sources, features, limit);
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
-    if (cached.freshComplete) {
+    const cachedCoversRequestedSources = hasFreshLiveOsmCacheCoverage(sources, cachedFeatures, cached.freshComplete);
+    if (cachedCoversRequestedSources) {
       features.push(...cachedFeatures.filter(isDisplayableAreaFeature));
     } else {
-      const live = await fetchLiveOsmAreaPolygons(query, limit - features.length);
+      const liveFetchBbox = bboxForTiles(cached.tiles) ?? query.bbox;
+      const liveFetchLimit = Math.min(MAX_LIMIT, Math.max(limit - features.length, LIVE_OSM_TILE_FETCH_LIMIT));
+      const live = await fetchLiveOsmAreaPolygons({ ...query, bbox: liveFetchBbox }, liveFetchLimit);
       if (live.ok) {
         await writeLiveOsmTileCache(cached.tiles, live.features);
-        features.push(...filterAreaFeaturesBySources(live.features, sources).filter(isDisplayableAreaFeature));
+        features.push(...dedupeAreaFeatures(
+          filterAreaFeaturesBySources(live.features, sources).filter(isDisplayableAreaFeature),
+          limit - features.length,
+          query.bbox,
+        ));
       } else {
         features.push(...filterAreaFeaturesBySources(cached.staleFeatures, sources).filter(isDisplayableAreaFeature));
       }
@@ -1035,6 +1114,7 @@ export const __test__ = {
   liveElementToFeature,
   tileForLngLat,
   tilesForBbox,
+  bboxForTiles,
   featureTouchesBbox,
   isCompleteFreshLiveCache,
   filterAreaFeaturesBySources,
@@ -1046,10 +1126,14 @@ export const __test__ = {
   isDisplayableAreaFeature,
   isWeakLiveOsmAreaFeature,
   shouldFetchLiveOsm,
+  shouldSupplementLiveOsm,
+  hasRequestedLiveOsmSourceCoverage,
+  hasFreshLiveOsmCacheCoverage,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
   LIVE_OSM_EMPTY_TTL_HOURS,
   LIVE_OSM_ENDPOINTS,
+  LIVE_OSM_TILE_FETCH_LIMIT,
   SOURCE_LABEL,
 };

@@ -4,7 +4,9 @@
  * Targets the small / municipal park layer that KSJ does NOT cover (e.g. 西伊場第1公園).
  *
  *   leisure=park
+ *   leisure=playground / leisure=garden
  *   leisure=nature_reserve
+ *   named landuse=recreation_ground / village_green / grass
  *   boundary=national_park    ← national parks too, KSJ has them but OSM is more current
  *
  * 100年スパン耐性:
@@ -158,10 +160,12 @@ function buildQuery(bbox: [number, number, number, number]): string {
   return `
     [out:json][timeout:60];
     (
-      way["leisure"="park"](${bb});
-      way["leisure"="nature_reserve"](${bb});
-      relation["leisure"="park"](${bb});
-      relation["leisure"="nature_reserve"](${bb});
+      way["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
+      relation["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
+      way["landuse"~"^(recreation_ground|village_green)$"](${bb});
+      relation["landuse"~"^(recreation_ground|village_green)$"](${bb});
+      way["landuse"="grass"]["name"](${bb});
+      relation["landuse"="grass"]["name"](${bb});
       relation["boundary"="national_park"](${bb});
     );
     out geom;

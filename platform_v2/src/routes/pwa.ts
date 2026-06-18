@@ -36,6 +36,14 @@ export async function registerPwaRoutes(app: FastifyInstance): Promise<void> {
     return buildAppServiceWorker();
   });
 
+  app.get<{ Querystring: { to?: string } }>("/app-refresh", async (request, reply) => {
+    reply
+      .type("text/html; charset=utf-8")
+      .header("Cache-Control", "no-cache, no-store, must-revalidate")
+      .header("X-Robots-Tag", "noindex, nofollow");
+    return renderAppRefreshHtml(safeAppRefreshTarget(request.query?.to));
+  });
+
   app.get<{ Querystring: { lang?: string } }>("/debug/app-outbox", async (request, reply) => {
     const lang = detectLangFromUrl(request.url);
     const basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
@@ -58,6 +66,98 @@ export async function registerPwaRoutes(app: FastifyInstance): Promise<void> {
       extraStyles: appOutboxDebugStyles(),
     });
   });
+}
+
+function safeAppRefreshTarget(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return "/map";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/map";
+  try {
+    const parsed = new URL(raw, "https://ikimon.life");
+    if (parsed.origin !== "https://ikimon.life") return "/map";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "/map";
+  }
+}
+
+function renderAppRefreshHtml(target: string): string {
+  const defaultTargetJson = JSON.stringify(target);
+  return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>ikimon app refresh</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5fbf7;color:#0f172a}.panel{width:min(420px,100%);display:grid;gap:14px}.mark{width:56px;height:56px;border-radius:16px;background:#ecfdf5;display:grid;place-items:center;color:#047857;font-weight:950;font-size:24px}.panel h1{margin:0;font-size:24px;line-height:1.25}.panel p{margin:0;color:#475569;line-height:1.7}.status{min-height:40px;border-radius:8px;background:#fff;border:1px solid rgba(15,23,42,.08);display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:850;color:#334155}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions a,.actions button{min-height:44px;border-radius:8px;border:0;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:inherit;font-weight:900;cursor:pointer}.actions button{background:#10b981;color:#fff}.actions a{background:#e2e8f0;color:#0f172a}
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <div class="mark">i</div>
+    <h1>アプリ表示を更新しています</h1>
+    <p>端末内の古いService Workerとアプリ表示キャッシュだけを解除して、最新の地図を読み直します。未同期の記録データは消しません。</p>
+    <div class="status" data-status>準備中...</div>
+    <div class="actions">
+      <button type="button" data-retry>もう一度実行</button>
+      <a href="/map">地図を開く</a>
+    </div>
+  </main>
+  <script>
+(function () {
+  var defaultTarget = ${defaultTargetJson};
+  var statusEl = document.querySelector('[data-status]');
+  var retryEl = document.querySelector('[data-retry]');
+  function safeTarget(value) {
+    var raw = String(value || '').trim();
+    if (!raw || raw.charAt(0) !== '/' || raw.slice(0, 2) === '//' || raw.indexOf('\\\\') !== -1) return defaultTarget;
+    try {
+      var parsed = new URL(raw, window.location.origin);
+      if (parsed.origin !== window.location.origin) return defaultTarget;
+      return parsed.pathname + parsed.search + parsed.hash;
+    } catch (_) {
+      return defaultTarget;
+    }
+  }
+  function targetFromLocation() {
+    try {
+      return safeTarget(new URLSearchParams(window.location.search).get('to'));
+    } catch (_) {
+      return defaultTarget;
+    }
+  }
+  function setStatus(text) {
+    if (statusEl) statusEl.textContent = text;
+  }
+  function addResetParam(url) {
+    var join = url.indexOf('?') === -1 ? '?' : '&';
+    return url + join + 'pwa_reset=' + Date.now();
+  }
+  async function resetAppShell() {
+    setStatus('古いアプリシェルを確認しています...');
+    try {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+        var registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(function (registration) { return registration.unregister(); }));
+      }
+    } catch (_) {}
+    try {
+      if ('caches' in window && caches.keys) {
+        var keys = await caches.keys();
+        await Promise.all(keys.filter(function (key) { return /^ikimon-app-/.test(key); }).map(function (key) { return caches.delete(key); }));
+      }
+    } catch (_) {}
+    setStatus('最新の地図を開き直します...');
+    window.location.replace(addResetParam(targetFromLocation()));
+  }
+  if (retryEl) retryEl.addEventListener('click', function () { void resetAppShell(); });
+  window.addEventListener('load', function () { void resetAppShell(); }, { once: true });
+})();
+  </script>
+</body>
+</html>`;
 }
 
 function renderAppOutboxDebugBody(): string {

@@ -1476,7 +1476,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaEventCreateLabel: props.lang === "ja" ? "主催者の方へ" : props.lang === "es" ? "Para organizadores" : props.lang === "pt-BR" ? "Para organizadores" : "For organizers",
     areaBadgeEventLabel: props.lang === "ja" ? "主催者" : props.lang === "es" ? "Organizadores" : props.lang === "pt-BR" ? "Organizadores" : "Organizers",
     areaBadgeAlbumLabel: props.lang === "ja" ? "エリア図鑑" : props.lang === "es" ? "Álbum" : props.lang === "pt-BR" ? "Álbum" : "Area album",
-    areaBadgeClusterLabel: props.lang === "ja" ? "この周辺" : props.lang === "es" ? "Cerca" : props.lang === "pt-BR" ? "Por perto" : "Nearby",
     areaEventCreateHint: props.lang === "ja" ? "観察会や投稿ラリーを、地域の活動として扱う入口です。" : props.lang === "es" ? "Entrada para tratar salidas y rallies como actividades locales." : props.lang === "pt-BR" ? "Entrada para tratar eventos e rallies como atividades locais." : "A guide for handling events and posting rallies as local activities.",
     areaPositiveTitleMine: props.lang === "ja" ? "このエリアで見えてきたこと" : props.lang === "es" ? "Lo que se va viendo aquí" : props.lang === "pt-BR" ? "O que começou a aparecer aqui" : "What is coming into view here",
     areaPositiveTitleGuest: props.lang === "ja" ? "みんなの記録で見えてきたこと" : props.lang === "es" ? "Lo que los registros muestran" : props.lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
@@ -1522,14 +1521,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
   var MAPLIBRE_JS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-  var GUIDE_BADGE_LABEL_ZOOM = 12.6;
-  var GUIDE_BADGE_FULL_ZOOM = 13.4;
-  var GUIDE_BADGE_DENSE_LIMIT = 8;
-  var AREA_BADGE_CLUSTER_MAX_ZOOM = 15.2;
-  var AREA_BADGE_CLUSTER_DENSE_LIMIT = 14;
-  var GUIDE_SPOT_LABEL_ZOOM = 12.6;
-  var GUIDE_SPOT_FULL_ZOOM = 13.8;
-  var GUIDE_SPOT_DENSE_LIMIT = 10;
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
@@ -1546,6 +1537,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var SIMPLE_MID_LANDMARK_CLASSES = ['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'];
   var SIMPLE_HIGH_LANDMARK_CLASSES = ['railway', 'town_hall', 'library', 'hospital'];
   var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = ['shop', 'grocery', 'cafe', 'restaurant'];
+  var SIMPLE_LOCALITY_CLASSES = ['town', 'village', 'hamlet', 'suburb', 'quarter', 'neighbourhood'];
 
   var BASEMAPS = {
     standard: {
@@ -1588,6 +1580,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           paint: { 'fill-color': '#c5ded3', 'fill-opacity': 0.62 },
         },
         {
+          id: 'simple-landuse-soft',
+          type: 'fill',
+          source: 'openmaptiles',
+          'source-layer': 'landuse',
+          minzoom: 11,
+          filter: ['match', ['get', 'class'], ['residential', 'commercial', 'industrial', 'school', 'hospital'], true, false],
+          paint: {
+            'fill-color': ['match', ['get', 'class'], 'school', '#dfe7c7', 'hospital', '#ead7dc', 'commercial', '#ece1cd', 'industrial', '#e4d8dc', '#e8e5d7'],
+            'fill-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.12, 15, 0.2, 17, 0.26],
+          },
+        },
+        {
+          id: 'simple-school-landuse-outline',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'landuse',
+          minzoom: 13,
+          filter: ['match', ['get', 'class'], ['school', 'kindergarten', 'college', 'university'], true, false],
+          paint: {
+            'line-color': '#c4a248',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.6, 16, 1.1, 18, 1.8],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0.18, 16, 0.36, 18, 0.5],
+          },
+        },
+        {
           id: 'simple-park',
           type: 'fill',
           source: 'openmaptiles',
@@ -1595,15 +1612,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           paint: { 'fill-color': '#c9e4bf', 'fill-opacity': 0.72 },
         },
         {
+          id: 'simple-park-outline',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'park',
+          minzoom: 12,
+          paint: {
+            'line-color': '#80b878',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.45, 15, 0.85, 18, 1.35],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.2, 15, 0.38, 18, 0.52],
+          },
+        },
+        {
           id: 'simple-waterway',
           type: 'line',
           source: 'openmaptiles',
           'source-layer': 'waterway',
-          minzoom: 8,
+          minzoom: 10,
+          filter: ['match', ['get', 'class'], ['river', 'canal'], true, false],
           paint: {
-            'line-color': '#9dccdc',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 13, 2.2, 16, 4],
-            'line-opacity': 0.8,
+            'line-color': '#9ed3df',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.45, 14, 1.0, 17, 2.0],
+            'line-opacity': 0.48,
           },
         },
         {
@@ -1619,61 +1649,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           },
         },
         {
+          id: 'simple-road-local-casing',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'transportation',
+          minzoom: 13.2,
+          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service', 'track'], true, false],
+          paint: {
+            'line-color': '#cfd8d2',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 13.2, 0.75, 15, 1.45, 17.5, 2.9],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 13.2, 0.3, 15.5, 0.44, 17.5, 0.55],
+          },
+        },
+        {
           id: 'simple-road-local',
           type: 'line',
           source: 'openmaptiles',
           'source-layer': 'transportation',
-          minzoom: 13,
-          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service', 'track', 'path'], true, false],
+          minzoom: 13.2,
+          filter: ['match', ['get', 'class'], ['tertiary', 'minor', 'service', 'track'], true, false],
           paint: {
             'line-color': '#ffffff',
-            'line-width': ['interpolate', ['linear'], ['zoom'], 13, 0.45, 15, 1.4, 17, 2.8],
-            'line-opacity': 0.38,
-          },
-        },
-        {
-          id: 'simple-landmark-dot',
-          type: 'circle',
-          source: 'openmaptiles',
-          'source-layer': 'poi',
-          minzoom: 13,
-          filter: ['match', ['get', 'class'], SIMPLE_MID_LANDMARK_CLASSES, true, false],
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 2.5, 16, 4],
-            'circle-color': ['match', ['get', 'class'], ['school', 'kindergarten', 'college', 'university'], '#8aa0b2', '#79aa78'],
-            'circle-stroke-color': 'rgba(255,255,255,0.88)',
-            'circle-stroke-width': 1,
-            'circle-opacity': 0.78,
-          },
-        },
-        {
-          id: 'simple-civic-dot',
-          type: 'circle',
-          source: 'openmaptiles',
-          'source-layer': 'poi',
-          minzoom: 16,
-          filter: ['match', ['get', 'class'], SIMPLE_HIGH_LANDMARK_CLASSES, true, false],
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 2.7, 17, 4.2],
-            'circle-color': ['match', ['get', 'class'], 'railway', '#8c8fa3', 'hospital', '#b4818d', '#7f98a7'],
-            'circle-stroke-color': 'rgba(255,255,255,0.88)',
-            'circle-stroke-width': 1,
-            'circle-opacity': 0.74,
-          },
-        },
-        {
-          id: 'simple-commercial-dot',
-          type: 'circle',
-          source: 'openmaptiles',
-          'source-layer': 'poi',
-          minzoom: 15.2,
-          filter: ['match', ['get', 'class'], SIMPLE_COMMERCIAL_LANDMARK_CLASSES, true, false],
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 15.2, 2.2, 17, 3.5],
-            'circle-color': '#9b8f67',
-            'circle-stroke-color': 'rgba(255,255,255,0.86)',
-            'circle-stroke-width': 1,
-            'circle-opacity': 0.68,
+            'line-width': ['interpolate', ['linear'], ['zoom'], 13.2, 0.55, 15, 1.05, 17.5, 2.2],
+            'line-opacity': ['interpolate', ['linear'], ['zoom'], 13.2, 0.42, 15.5, 0.62, 17.5, 0.78],
           },
         },
         {
@@ -1682,7 +1680,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           source: 'openmaptiles',
           'source-layer': 'place',
           minzoom: 5,
-          maxzoom: 15.25,
+          maxzoom: 12.8,
           filter: ['has', 'name'],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
@@ -1698,18 +1696,40 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           },
         },
         {
+          id: 'simple-locality-label',
+          type: 'symbol',
+          source: 'openmaptiles',
+          'source-layer': 'place',
+          minzoom: 12.4,
+          maxzoom: 18,
+          filter: ['all', ['has', 'name'], ['match', ['get', 'class'], SIMPLE_LOCALITY_CLASSES, true, false]],
+          layout: {
+            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 12.4, 10.2, 15, 11.2, 17.5, 12.2],
+            'text-max-width': 7,
+            'text-padding': 10,
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+          },
+          paint: {
+            'text-color': '#566a6b',
+            'text-halo-color': 'rgba(237,244,239,0.9)',
+            'text-halo-width': 1.15,
+            'text-opacity': ['interpolate', ['linear'], ['zoom'], 12.4, 0.72, 14.5, 0.9],
+          },
+        },
+        {
           id: 'simple-landmark-label',
           type: 'symbol',
           source: 'openmaptiles',
           'source-layer': 'poi',
-          minzoom: 13,
+          minzoom: 15.9,
           filter: ['match', ['get', 'class'], SIMPLE_MID_LANDMARK_CLASSES, true, false],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
             'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 16, 12],
-            'text-offset': [0, 0.78],
-            'text-anchor': 'top',
+            'text-size': ['interpolate', ['linear'], ['zoom'], 15.9, 9.6, 17.2, 11.2],
             'text-allow-overlap': false,
             'text-ignore-placement': false,
           },
@@ -1724,14 +1744,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           type: 'symbol',
           source: 'openmaptiles',
           'source-layer': 'poi',
-          minzoom: 16,
+          minzoom: 17,
           filter: ['match', ['get', 'class'], SIMPLE_HIGH_LANDMARK_CLASSES, true, false],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
             'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 16, 10, 17, 12],
-            'text-offset': [0, 0.78],
-            'text-anchor': 'top',
+            'text-size': ['interpolate', ['linear'], ['zoom'], 17, 9.8, 18, 11.2],
             'text-allow-overlap': false,
             'text-ignore-placement': false,
           },
@@ -1746,14 +1764,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           type: 'symbol',
           source: 'openmaptiles',
           'source-layer': 'poi',
-          minzoom: 15.2,
+          minzoom: 15.8,
           filter: ['match', ['get', 'class'], SIMPLE_COMMERCIAL_LANDMARK_CLASSES, true, false],
           layout: {
             'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name']],
             'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 15.2, 9.7, 17, 11.5],
-            'text-offset': [0, 0.78],
-            'text-anchor': 'top',
+            'text-size': ['interpolate', ['linear'], ['zoom'], 15.8, 9.6, 17, 11.2],
             'text-allow-overlap': false,
             'text-ignore-placement': false,
           },
@@ -1798,27 +1814,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           },
           paint: {
             'text-color': '#4f91a5',
-            'text-halo-color': 'rgba(237,244,239,0.88)',
-            'text-halo-width': 1.1,
-          },
-        },
-        {
-          id: 'simple-road-name-major',
-          type: 'symbol',
-          source: 'openmaptiles',
-          'source-layer': 'transportation_name',
-          minzoom: 12,
-          filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
-          layout: {
-            'symbol-placement': 'line',
-            'text-field': ['coalesce', ['get', 'name:ja'], ['get', 'name'], ['get', 'ref']],
-            'text-font': ['Noto Sans Regular'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9.5, 16, 12],
-            'text-allow-overlap': false,
-            'text-ignore-placement': false,
-          },
-          paint: {
-            'text-color': '#758083',
             'text-halo-color': 'rgba(237,244,239,0.88)',
             'text-halo-width': 1.1,
           },
@@ -2660,37 +2655,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat, lng: lng } : null;
   }
 
-  function guideSpotCategoryKey(spot) {
-    var key = String(spot && (spot.category || spot.category_key || spot.type) || '').toLowerCase().trim();
-    if (key === 'heritage' || key === 'nature' || key === 'community' || key === 'owner') return key;
-    return 'guide';
-  }
-
-  function guideSpotCategoryLabel(spot) {
-    var key = guideSpotCategoryKey(spot);
-    var labels = {
-      heritage: SEARCH_LANG === 'ja' ? '地域遺産' : SEARCH_LANG === 'es' ? 'Patrimonio' : SEARCH_LANG === 'pt-BR' ? 'Patrimônio' : 'Heritage',
-      nature: SEARCH_LANG === 'ja' ? '自然' : SEARCH_LANG === 'es' ? 'Naturaleza' : SEARCH_LANG === 'pt-BR' ? 'Natureza' : 'Nature',
-      community: SEARCH_LANG === 'ja' ? '地域' : SEARCH_LANG === 'es' ? 'Comunidad' : SEARCH_LANG === 'pt-BR' ? 'Comunidade' : 'Community',
-      owner: SEARCH_LANG === 'ja' ? '公式' : SEARCH_LANG === 'es' ? 'Oficial' : SEARCH_LANG === 'pt-BR' ? 'Oficial' : 'Official',
-      guide: COPY.areaBadgeGuideLabel
-    };
-    return labels[key] || COPY.areaBadgeGuideLabel;
-  }
-
-  function guideSpotCategorySymbol(spot) {
-    var key = guideSpotCategoryKey(spot);
-    if (key === 'heritage') return SEARCH_LANG === 'ja' ? '史' : 'H';
-    if (key === 'nature') return SEARCH_LANG === 'ja' ? '緑' : 'N';
-    if (key === 'community') return SEARCH_LANG === 'ja' ? '地' : 'C';
-    if (key === 'owner') return SEARCH_LANG === 'ja' ? '認' : 'O';
-    return 'G';
-  }
-
-  function renderGuideSpotSymbol(spot) {
-    return '<span class="me-guide-spot-symbol" aria-hidden="true">' + escapeHtml(guideSpotCategorySymbol(spot)) + '</span>';
-  }
-
   function guideStopSourceLinks(stop) {
     var links = stop && (stop.sourceLinks || stop.source_links || stop.sources);
     if (!Array.isArray(links)) return [];
@@ -2886,252 +2850,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     saveMapState();
   }
 
-  function areaBadgeGroups(feature) {
-    var props = feature && feature.properties ? feature.properties : {};
-    var raw = props.biodiversity_groups || props.biodiversityGroups || [];
-    if (typeof raw === 'string') {
-      try { raw = JSON.parse(raw); } catch (_) { raw = []; }
-    }
-    if (!Array.isArray(raw)) return [];
-    return raw.filter(function (group) {
-      return group && group.label;
-    }).slice(0, 5);
-  }
-
-  function areaBadgeCenter(feature) {
-    var props = feature && feature.properties ? feature.properties : {};
-    var center = props.center;
-    if (typeof center === 'string') {
-      try { center = JSON.parse(center); } catch (_) { center = null; }
-    }
-    if (Array.isArray(center) && center.length >= 2) {
-      var lng = Number(center[0]);
-      var lat = Number(center[1]);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat: lat, lng: lng };
-    }
-    var fallback = areaFeatureCenter(feature);
-    return fallback && Number.isFinite(fallback.lat) && Number.isFinite(fallback.lng) ? fallback : null;
-  }
-
-  function renderAreaBadgeGroup(group) {
-    var key = String(group.group || group.icon || 'other').replace(/[^a-z0-9_-]/gi, '') || 'other';
-    return '<span class="me-area-badge-chip me-area-badge-chip-' + escapeHtml(key) + '">' +
-      escapeHtml(group.label) +
-    '</span>';
-  }
-
-  function areaBadgeCountLabel(item) {
-    var count = (item && item.groups ? item.groups.length : 0) + (item && item.guideStop ? 1 : 0);
-    return count > 0 ? String(count) + '件' : '';
-  }
-
-  function isNamedAreaBadgeFeature(feature, zoom) {
-    if (!Number.isFinite(zoom) || zoom < 11.2) return false;
-    var props = feature && feature.properties ? feature.properties : {};
-    var source = String(props.source || props.admin_level || '').trim();
-    if (!props.name || !source) return false;
-    return [
-      'user_defined',
-      'osm_park',
-      'nature_symbiosis_site',
-      'tsunag',
-      'protected_area',
-      'oecm',
-      'school'
-    ].indexOf(source) >= 0;
-  }
-
-  function areaBadgeLimitForZoom(zoom) {
-    if (!Number.isFinite(zoom)) return 28;
-    if (zoom < 12) return 14;
-    if (zoom < 13) return 18;
-    if (zoom < 14) return 24;
-    if (zoom < 15) return 32;
-    if (zoom < 16) return 42;
-    return 56;
-  }
-
-  function shouldDrawAreaPolygonFeature(feature) {
-    var props = feature && feature.properties ? feature.properties : {};
-    if (props.approximate_boundary !== true) return true;
-    return String(props.boundary_approximation || '') !== 'point_buffer';
-  }
-
-  function areaBadgeSourceRank(source) {
-    var key = String(source || '').trim();
-    if (key === 'user_defined') return 90;
-    if (key === 'nature_symbiosis_site' || key === 'protected_area' || key === 'oecm') return 80;
-    if (key === 'tsunag') return 76;
-    if (key === 'osm_park') return 66;
-    if (key === 'school') return 58;
-    return 40;
-  }
-
-  function areaBadgeItemRank(item) {
-    var props = item && item.feature && item.feature.properties ? item.feature.properties : {};
-    var rank = areaBadgeSourceRank(props.source || props.admin_level);
-    if (item && item.guideStop) rank += 200;
-    if (item && item.groups && item.groups.length) rank += item.groups.length * 20;
-    if (props.approximate_boundary === true && String(props.boundary_approximation || '') === 'point_buffer') rank -= 8;
-    return rank;
-  }
-
-  function areaBadgeClusterPixelSizeForZoom(zoom) {
-    if (!Number.isFinite(zoom) || zoom < 12.4) return 148;
-    if (zoom < 13.4) return 124;
-    if (zoom < 14.4) return 102;
-    return 84;
-  }
-
-  function clusterAreaBadgeItems(items, zoom) {
-    if (!state.map || !state.map.project || !Array.isArray(items)) return items || [];
-    if (zoom >= AREA_BADGE_CLUSTER_MAX_ZOOM && items.length <= AREA_BADGE_CLUSTER_DENSE_LIMIT) return items;
-    var grid = areaBadgeClusterPixelSizeForZoom(zoom);
-    var buckets = {};
-    var singles = [];
-    items.forEach(function (item) {
-      if (!item || !item.center) return;
-      if (item.guideStop) {
-        singles.push(item);
-        return;
-      }
-      var point = state.map.project([item.center.lng, item.center.lat]);
-      if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
-        singles.push(item);
-        return;
-      }
-      var key = Math.floor(point.x / grid) + ':' + Math.floor(point.y / grid);
-      if (!buckets[key]) buckets[key] = [];
-      buckets[key].push(item);
-    });
-    Object.keys(buckets).forEach(function (key) {
-      var list = buckets[key].slice().sort(function (a, b) { return areaBadgeItemRank(b) - areaBadgeItemRank(a); });
-      if (list.length === 1) {
-        singles.push(list[0]);
-        return;
-      }
-      var center = list.reduce(function (acc, item) {
-        acc.lat += item.center.lat;
-        acc.lng += item.center.lng;
-        return acc;
-      }, { lat: 0, lng: 0 });
-      singles.push({
-        feature: list[0].feature,
-        groups: [],
-        guideStop: null,
-        center: { lat: center.lat / list.length, lng: center.lng / list.length },
-        clusterItems: list,
-        clusterCount: list.length
-      });
-    });
-    return singles.sort(function (a, b) {
-      var aCluster = Array.isArray(a.clusterItems) ? a.clusterItems.length : 0;
-      var bCluster = Array.isArray(b.clusterItems) ? b.clusterItems.length : 0;
-      if (aCluster !== bCluster) return bCluster - aCluster;
-      return areaBadgeItemRank(b) - areaBadgeItemRank(a);
-    });
-  }
-
-  function areaBadgeClusterCountLabel(item) {
-    var count = item && item.clusterCount ? item.clusterCount : (item && item.clusterItems ? item.clusterItems.length : 0);
-    if (SEARCH_LANG === 'ja') return String(count) + 'エリア';
-    if (SEARCH_LANG === 'es') return String(count) + ' áreas';
-    if (SEARCH_LANG === 'pt-BR') return String(count) + ' áreas';
-    return String(count) + ' areas';
-  }
-
-  function zoomToAreaBadgeCluster(item) {
-    if (!state.map || !window.maplibregl || !item || !Array.isArray(item.clusterItems)) return;
-    var bounds = new window.maplibregl.LngLatBounds();
-    item.clusterItems.forEach(function (clusterItem) {
-      if (!clusterItem || !clusterItem.center) return;
-      bounds.extend([clusterItem.center.lng, clusterItem.center.lat]);
-    });
-    if (bounds.isEmpty && bounds.isEmpty()) return;
-    state.map.fitBounds(bounds, {
-      padding: 82,
-      maxZoom: 15.8,
-      duration: 360
-    });
-  }
-
   function refreshAreaBadgeMarkers() {
     clearAreaBadgeMarkers();
-    if (!state.map || !window.maplibregl || (state.tab !== 'places' && state.tab !== 'markers')) return;
-    var zoom = state.map.getZoom();
-    if (!Number.isFinite(zoom) || zoom < 10.2) return;
-    var candidates = (Array.isArray(state.areaPolygonFeatures) ? state.areaPolygonFeatures : [])
-      .map(function (feature) {
-        var guideStop = areaGuideStopFrom(feature && feature.properties ? feature.properties : {});
-        return { feature: feature, groups: areaBadgeGroups(feature), guideStop: guideStop, center: areaBadgeCenter(feature) };
-      })
-      .filter(function (item) {
-        if (!item.center) return false;
-        if (item.guideStop) return true;
-        if (item.groups.length > 0) return state.tab === 'places' || state.tab === 'markers';
-        return isNamedAreaBadgeFeature(item.feature, zoom);
-      })
-      .sort(function (a, b) { return areaBadgeItemRank(b) - areaBadgeItemRank(a); });
-    var features = clusterAreaBadgeItems(candidates, zoom)
-      .slice(0, areaBadgeLimitForZoom(zoom));
-    var guideBadgeCount = features.filter(function (item) { return !!item.guideStop; }).length;
-    var useGuidePinBadges = zoom < GUIDE_BADGE_LABEL_ZOOM || guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT;
-    var useCompactGuideBadges = !useGuidePinBadges && zoom < GUIDE_BADGE_FULL_ZOOM;
-    features.forEach(function (item) {
-      var props = item.feature && item.feature.properties ? item.feature.properties : {};
-      var isAreaCluster = Array.isArray(item.clusterItems) && item.clusterItems.length > 1;
-      var name = isAreaCluster ? areaBadgeClusterCountLabel(item) : String(props.name || COPY.selectedFieldLabel);
-      var fieldId = String(props.field_id || '');
-      var isGuidePinBadge = !!item.guideStop && useGuidePinBadges;
-      var isCompactGuideBadge = !!item.guideStop && useCompactGuideBadges;
-      var actionsHtml = '';
-      var countLabel = isAreaCluster ? COPY.areaBadgeClusterLabel : areaBadgeCountLabel(item);
-      if (!countLabel) countLabel = String(props.source_label || props.admin_level || props.source || '');
-      var el = document.createElement('div');
-      var badgeChipsHtml = isAreaCluster
-        ? ''
-        : (item.guideStop
-        ? '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>'
-        : '') + item.groups.map(renderAreaBadgeGroup).join('');
-      var ariaBits = isAreaCluster ? [COPY.areaBadgeClusterLabel] : item.groups.map(function (group) { return group.label; });
-      if (item.guideStop) ariaBits.unshift(COPY.areaBadgeGuideLabel);
-      el.className = 'me-area-badge-marker' +
-        (isAreaCluster ? ' is-area-cluster' : '') +
-        (item.guideStop ? ' has-guide-stop' : '') +
-        (isGuidePinBadge ? ' is-guide-pin' : '') +
-        (isCompactGuideBadge ? ' is-guide-compact' : '');
-      el.setAttribute('aria-label', name + ' ' + ariaBits.join(' '));
-      el.innerHTML = isGuidePinBadge
-        ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-            renderGuideSpotSymbol(item.guideStop) +
-          '</button>'
-        : isCompactGuideBadge
-        ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-            renderGuideSpotSymbol(item.guideStop) +
-            '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
-          '</button>'
-        : '<button type="button" class="me-area-badge-main">' +
-            '<span class="me-area-badge-pill">' +
-              '<strong>' + escapeHtml(name) + '</strong>' +
-              (countLabel ? '<em>' + escapeHtml(countLabel) + '</em>' : '') +
-            '</span>' +
-            (badgeChipsHtml ? '<span class="me-area-badge-chips">' + badgeChipsHtml + '</span>' : '') +
-          '</button>' +
-          actionsHtml;
-      el.querySelector('.me-area-badge-main').addEventListener('click', function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        if (isAreaCluster) {
-          zoomToAreaBadgeCluster(item);
-          return;
-        }
-        openAreaFeatureSheet(item.feature, item.center.lat, item.center.lng);
-      });
-      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
-        .setLngLat([item.center.lng, item.center.lat])
-        .addTo(state.map);
-      state.areaBadgeMarkers.push(marker);
-    });
   }
 
   function clearSideSelection() {
@@ -4577,7 +4297,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedCellId = null;
     state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'area', fieldId: String(props.field_id || ''), areaFeature: feature, transient: true };
     if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], String(props.field_id || '__none__')]);
+      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(props.field_id || '__none__'));
     }
     if (!shouldUseBottomSheet()) {
       sheetEl.classList.remove('is-open');
@@ -4616,7 +4336,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedCellId = null;
     state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId, areaFeature: feature || null };
     if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], fieldId]);
+      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(fieldId));
     }
     if (!shouldUseBottomSheet()) {
       sheetEl.classList.remove('is-open');
@@ -4670,7 +4390,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.removeAttribute('data-snap');
     sheetEl.setAttribute('aria-hidden', 'true');
     if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], '__none__']);
+      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter('__none__'));
     }
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
@@ -5376,9 +5096,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       id: 'observation-cell-fill',
       type: 'fill',
       source: sourceId,
+      layout: { visibility: 'none' },
       paint: {
-        'fill-color': 'rgba(14,165,233,0.24)',
-        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 1, 0.12, 4, 0.18, 12, 0.28],
+        'fill-color': 'rgba(14,165,233,0.12)',
+        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 1, 0.04, 4, 0.07, 12, 0.10],
       },
     });
     map.addLayer({
@@ -5394,16 +5115,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       id: 'observation-cell-bloom',
       type: 'circle',
       source: 'observation-centroids',
+      layout: { visibility: 'none' },
       paint: {
-        'circle-color': taxonColorExpression(0.26),
+        'circle-color': taxonColorExpression(0.12),
         'circle-radius': [
           'interpolate', ['linear'], ['zoom'],
-          6, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 8, 8, 14, 24, 24],
-          13, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 15, 8, 24, 24, 38],
+          6, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 5, 8, 9, 24, 13],
+          13, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 7, 8, 12, 24, 18],
         ],
-        'circle-stroke-color': taxonColorExpression(0.82),
-        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 13, 2.4],
-        'circle-opacity': 0.86,
+        'circle-stroke-color': taxonColorExpression(0.22),
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 13, 1.1],
+        'circle-opacity': 0.38,
       },
     });
     map.addLayer({
@@ -5412,9 +5134,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       source: 'observation-centroids',
       paint: {
         'circle-color': taxonColorExpression(0.95),
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 13, 7],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 3, 13, 5.5],
         'circle-stroke-color': 'rgba(255,255,255,0.96)',
-        'circle-stroke-width': 2,
+        'circle-stroke-width': 1.6,
       },
     });
     map.addLayer({
@@ -5531,14 +5253,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyTab(map, tab) {
     // Show/hide layers based on active tab.
-    var markerLayers = ['observation-cell-fill', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-selected'];
+    var markerLayers = ['observation-cell-dot', 'observation-cell-selected'];
     var markerDetailLayers = ['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
+    var areaLabelLayers = ['area-polygon-name'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+      });
+    };
+    var moveToTop = function (ids) {
+      ids.forEach(function (id) {
+        if (map.getLayer(id)) {
+          try { map.moveLayer(id); } catch (_) {}
+        }
       });
     };
     show(markerLayers, tab === 'markers');
@@ -5546,20 +5276,25 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     show(heatLayers, tab === 'heatmap');
     show(frontierLayers, tab === 'frontier');
     show(areaLayers, tab === 'heatmap' || tab === 'places');
+    show(areaLabelLayers, tab === 'places');
     if (map.getLayer('waterway-hint-line')) {
       map.setLayoutProperty('waterway-hint-line', 'visibility', tab === 'places' ? 'visible' : 'none');
     }
     if (map.getLayer('area-polygon-fill')) {
       map.setPaintProperty('area-polygon-fill', 'fill-opacity',
         tab === 'places'
-          ? ['interpolate', ['linear'], ['zoom'], 8, 0.22, 14, 0.46]
-          : ['interpolate', ['linear'], ['zoom'], 8, 0.06, 14, 0.16]);
+          ? ['interpolate', ['linear'], ['zoom'], 8, 0.16, 14, 0.34, 17, 0.42]
+          : ['interpolate', ['linear'], ['zoom'], 8, 0.03, 14, 0.08]);
     }
     if (map.getLayer('area-polygon-outline')) {
-      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' ? 0.86 : 0.42);
+      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' ? 0.96 : 0.42);
+      map.setPaintProperty('area-polygon-outline', 'line-width', tab === 'places'
+        ? ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 3.2, 2.2]
+        : ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 2.4, 1.4]);
     }
     if (map.getLayer('area-polygon-approximate-outline')) {
-      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places' ? 0.82 : 0.5);
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places' ? 0.92 : 0.5);
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-width', tab === 'places' ? 2.4 : 1.8);
     }
 
     if (tab === 'heatmap') {
@@ -5571,6 +5306,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
         'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else if (tab === 'places') {
+      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)');
       loadWaterwayHints();
@@ -5749,6 +5485,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  var VISIBLE_AREA_POLYGON_FILTER = ['!', ['all', ['==', ['get', 'source'], 'school'], ['==', ['get', 'approximate_boundary'], true]]];
+  function selectedAreaPolygonFilter(fieldId) {
+    return ['all', ['==', ['get', 'field_id'], String(fieldId || '__none__')], VISIBLE_AREA_POLYGON_FILTER];
+  }
+
   function pickSmallestAreaFeature(features) {
     if (!features || !features.length) return null;
     var pick = features[0];
@@ -5818,6 +5559,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'fill',
       source: 'area-polygons',
       minzoom: 8,
+      filter: VISIBLE_AREA_POLYGON_FILTER,
       layout: {
         // 「公園 vs 行政界」のような大小ポリゴン重なりで小さい方を上に描画。
         // クリック時の queryRenderedFeatures もこの順を尊重するので、
@@ -5838,7 +5580,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'admin_country', 'rgba(148,163,184,0.06)',
           'rgba(148,163,184,0.10)',
         ],
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.32, 14, 0.6],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.10, 14, 0.22],
       },
     }, beforeId);
     map.addLayer({
@@ -5846,6 +5588,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'line',
       source: 'area-polygons',
       minzoom: 8,
+      filter: VISIBLE_AREA_POLYGON_FILTER,
       paint: {
         'line-color': [
           'case',
@@ -5870,7 +5613,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'line',
       source: 'area-polygons',
       minzoom: 8,
-      filter: ['==', ['get', 'approximate_boundary'], true],
+      filter: ['all', ['==', ['get', 'approximate_boundary'], true], VISIBLE_AREA_POLYGON_FILTER],
       paint: {
         'line-color': '#b45309',
         'line-width': 1.8,
@@ -5883,6 +5626,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'line',
       source: 'area-polygons',
       minzoom: 8,
+      filter: VISIBLE_AREA_POLYGON_FILTER,
       paint: {
         'line-color': 'rgba(15,23,42,0)',
         'line-opacity': 0.01,
@@ -5890,10 +5634,41 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       },
     }, beforeId);
     map.addLayer({
+      id: 'area-polygon-name',
+      type: 'symbol',
+      source: 'area-polygons',
+      minzoom: 15.4,
+      filter: ['all', ['has', 'name'], VISIBLE_AREA_POLYGON_FILTER],
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 15.4, 10.2, 17.5, 12],
+        'text-max-width': 8,
+        'text-padding': 12,
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+        'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'area_ha'], 9999]],
+      },
+      paint: {
+        'text-color': [
+          'match', ['get', 'source'],
+          'school', '#8a6a16',
+          'osm_park', '#0f766e',
+          'protected_area', '#047857',
+          'oecm', '#4d7c0f',
+          'nature_symbiosis_site', '#047857',
+          '#475569',
+        ],
+        'text-halo-color': 'rgba(237,244,239,0.94)',
+        'text-halo-width': 1.3,
+        'text-opacity': ['interpolate', ['linear'], ['zoom'], 15.4, 0.72, 16.4, 0.92],
+      },
+    }, beforeId);
+    map.addLayer({
       id: 'area-polygon-selected',
       type: 'line',
       source: 'area-polygons',
-      filter: ['==', ['get', 'field_id'], '__none__'],
+      filter: selectedAreaPolygonFilter('__none__'),
       paint: {
         'line-color': '#0f766e',
         'line-width': 2.6,
@@ -5937,43 +5712,23 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (!collection) return;
         ensureAreaPolygons(state.map);
         state.areaPolygonFeatures = Array.isArray(collection.features) ? collection.features : [];
-        var drawableAreaFeatures = state.areaPolygonFeatures.filter(shouldDrawAreaPolygonFeature);
         var src = state.map.getSource('area-polygons');
-        if (src) src.setData({ type: 'FeatureCollection', features: drawableAreaFeatures });
+        if (src) src.setData(collection);
         applyTab(state.map, state.tab);
       })
       .catch(function (err) { if (err && err.name === 'AbortError') return; });
   }
 
-  function renderGuideSpotMarker(feature, guideSpotCount) {
+  function renderGuideSpotMarker(feature) {
     var center = guideSpotCenter(feature);
     var spot = feature && feature.properties ? feature.properties : {};
     if (!center || !spot.title) return null;
-    var zoom = state.map && state.map.getZoom ? state.map.getZoom() : 12;
-    var pin = !Number.isFinite(zoom) || zoom < GUIDE_SPOT_LABEL_ZOOM || guideSpotCount > GUIDE_SPOT_DENSE_LIMIT;
-    var compact = !pin && zoom < GUIDE_SPOT_FULL_ZOOM;
-    var categoryKey = guideSpotCategoryKey(spot);
-    var categoryLabel = guideSpotCategoryLabel(spot);
     var el = document.createElement('div');
-    el.className = 'me-guide-spot-marker is-category-' + categoryKey + (pin ? ' is-pin' : '') + (compact ? ' is-compact' : '');
-    el.setAttribute('aria-label', String(spot.title || '') + ' ' + categoryLabel + ' ' + COPY.areaBadgeGuideLabel);
-    el.innerHTML = pin
-      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + categoryLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + categoryLabel) + '">' +
-          renderGuideSpotSymbol(spot) +
-        '</button>'
-      : compact
-      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + categoryLabel) + '">' +
-          renderGuideSpotSymbol(spot) +
-          '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
-        '</button>'
-      : '<button type="button" class="me-guide-spot-main">' +
-          renderGuideSpotSymbol(spot) +
-          '<span class="me-guide-spot-text">' +
-          '<strong>' + escapeHtml(String(spot.title || '')) + '</strong>' +
-          '<span>' + escapeHtml(String(spot.subtitle || COPY.guideStopEyebrow)) + '</span>' +
-          '<em>' + escapeHtml(categoryLabel) + '</em>' +
-          '</span>' +
-        '</button>';
+    el.className = 'me-guide-spot-marker is-pin';
+    el.setAttribute('aria-label', String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel);
+    el.innerHTML = '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+      '<span class="me-guide-dot" aria-hidden="true"></span>' +
+    '</button>';
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -6003,9 +5758,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return Object.keys(groups).map(function (key) { return groups[key]; });
   }
 
-  function renderGuideSpotGroupMarker(features, guideSpotCount) {
+  function renderGuideSpotGroupMarker(features) {
     var list = Array.isArray(features) ? features : [];
-    if (list.length <= 1) return renderGuideSpotMarker(list[0], guideSpotCount);
+    if (list.length <= 1) return renderGuideSpotMarker(list[0]);
     var centers = list.map(guideSpotCenter).filter(Boolean);
     if (!centers.length) return null;
     var center = centers.reduce(function (acc, item) {
@@ -6014,14 +5769,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return acc;
     }, { lat: 0, lng: 0 });
     var el = document.createElement('div');
-    el.className = 'me-guide-spot-marker is-cluster';
+    el.className = 'me-guide-spot-marker is-cluster is-pin';
     el.setAttribute('aria-label', COPY.guideSpotClusterLabel + ' ' + String(list.length));
-    el.innerHTML = '<button type="button" class="me-guide-spot-main">' +
-      '<span class="me-guide-spot-symbol" aria-hidden="true">' + escapeHtml(String(list.length)) + '</span>' +
-      '<span class="me-guide-spot-text">' +
-        '<strong>' + escapeHtml(COPY.guideSpotClusterLabel) + '</strong>' +
-        '<span>' + escapeHtml(String(list.length) + ' ' + COPY.areaBadgeGuideLabel) + '</span>' +
-      '</span>' +
+    el.innerHTML = '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(COPY.guideSpotClusterLabel + ' ' + String(list.length)) + '" aria-label="' + escapeHtml(COPY.guideSpotClusterLabel + ' ' + String(list.length)) + '">' +
+      '<span class="me-guide-cluster-count" aria-hidden="true">' + escapeHtml(String(list.length)) + '</span>' +
     '</button>';
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
@@ -6037,9 +5788,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     clearGuideSpotMarkers();
     if (!state.map || !window.maplibregl || !collection || !Array.isArray(collection.features)) return;
     if (state.tab !== 'markers' && state.tab !== 'places') return;
-    var guideSpotCount = collection.features.length;
     groupGuideSpotFeatures(collection.features.slice(0, 80)).forEach(function (features) {
-      var marker = renderGuideSpotGroupMarker(features, guideSpotCount);
+      var marker = renderGuideSpotGroupMarker(features);
       if (marker) state.guideSpotMarkers.push(marker);
     });
   }
@@ -7919,195 +7669,6 @@ export const MAP_EXPLORER_STYLES = `
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
   }
-  .me-area-badge-marker {
-    border: 0;
-    background: transparent;
-    color: #0f172a;
-    min-width: 0;
-    max-width: 188px;
-    padding: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-    cursor: default;
-    display: grid;
-    gap: 4px;
-    text-align: left;
-    transform-origin: bottom center;
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .me-area-badge-marker:hover,
-  .me-area-badge-marker:focus-within {
-    transform: translateY(-2px);
-  }
-  .me-area-badge-main {
-    display: grid;
-    gap: 4px;
-    width: auto;
-    max-width: 188px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .me-area-badge-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    max-width: 188px;
-    min-height: 30px;
-    padding: 5px 9px;
-    border: 1px solid rgba(13,148,136,.26);
-    border-radius: 999px;
-    background: rgba(255,255,255,.95);
-    box-shadow: 0 10px 24px rgba(15,23,42,.14);
-    backdrop-filter: blur(10px);
-  }
-  .me-area-badge-marker strong {
-    display: block;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 11.5px;
-    line-height: 1.2;
-    font-weight: 900;
-    letter-spacing: 0;
-  }
-  .me-area-badge-pill em {
-    flex: 0 0 auto;
-    font-style: normal;
-    color: #0f766e;
-    font-size: 10px;
-    line-height: 1;
-    font-weight: 950;
-  }
-  .me-area-badge-chips {
-    display: none;
-    flex-wrap: wrap;
-    gap: 3px;
-    max-width: 188px;
-    padding: 6px 7px 7px;
-    border-radius: 10px;
-    border: 1px solid rgba(15,23,42,.06);
-    background: rgba(255,255,255,.96);
-    box-shadow: 0 12px 28px rgba(15,23,42,.13);
-  }
-  .me-area-badge-marker:hover .me-area-badge-chips,
-  .me-area-badge-marker:focus-within .me-area-badge-chips {
-    display: flex;
-  }
-  .me-area-badge-chip {
-    display: inline-flex;
-    align-items: center;
-    min-height: 18px;
-    padding: 2px 6px;
-    border-radius: 999px;
-    font-size: 10px;
-    line-height: 1;
-    font-weight: 900;
-    letter-spacing: 0;
-    background: rgba(100,116,139,.12);
-    color: #334155;
-  }
-  .me-area-badge-chip-bird { background: rgba(14,165,233,.14); color: #075985; }
-  .me-area-badge-chip-insect { background: rgba(245,158,11,.16); color: #92400e; }
-  .me-area-badge-chip-plant { background: rgba(16,185,129,.16); color: #065f46; }
-  .me-area-badge-chip-amphibian_reptile { background: rgba(20,184,166,.16); color: #0f766e; }
-  .me-area-badge-chip-mammal { background: rgba(168,85,247,.14); color: #6b21a8; }
-  .me-area-badge-chip-fungi { background: rgba(217,119,6,.14); color: #78350f; }
-  .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
-  .me-area-badge-chip-guide { background: #0f172a; color: #f8fafc; }
-  .me-area-badge-marker.has-guide-stop .me-area-badge-pill { border-color: rgba(15,23,42,.22); }
-  .me-area-badge-marker.is-area-cluster .me-area-badge-pill {
-    min-height: 34px;
-    padding: 6px 10px;
-    border-color: rgba(15,118,110,.28);
-    background: rgba(15,118,110,.96);
-    color: #f8fafc;
-    box-shadow: 0 12px 24px rgba(15,23,42,.18);
-  }
-  .me-area-badge-marker.is-area-cluster .me-area-badge-pill strong,
-  .me-area-badge-marker.is-area-cluster .me-area-badge-pill em {
-    color: #f8fafc;
-  }
-  .me-area-badge-marker.is-area-cluster .me-area-badge-pill em {
-    opacity: .82;
-  }
-  .me-area-badge-actions {
-    display: none;
-    gap: 4px;
-    max-width: 188px;
-    padding: 5px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.95);
-    box-shadow: 0 12px 28px rgba(15,23,42,.12);
-  }
-  .me-area-badge-marker:hover .me-area-badge-actions,
-  .me-area-badge-marker:focus-within .me-area-badge-actions {
-    display: flex;
-  }
-  .me-area-badge-actions a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 24px;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: #0f766e;
-    color: #fff;
-    font-size: 10px;
-    line-height: 1.1;
-    font-weight: 900;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .me-area-badge-actions a:nth-child(2) {
-    background: rgba(240,253,250,.96);
-    color: #0f766e;
-    border: 1px solid rgba(15,118,110,.18);
-  }
-  .me-area-badge-marker.is-guide-compact {
-    min-width: 0;
-    max-width: none;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-  }
-  .me-area-badge-marker.is-guide-compact:hover {
-    box-shadow: none;
-  }
-  .me-area-badge-marker.is-guide-compact .me-area-badge-main {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    width: auto;
-    padding: 3px;
-    border: 1px solid rgba(15,23,42,.12);
-    border-radius: 999px;
-    background: rgba(255,255,255,.96);
-    box-shadow: 0 10px 20px rgba(15,23,42,.18);
-  }
-  .me-area-badge-marker.is-guide-compact .me-area-badge-chip-guide {
-    min-height: 24px;
-    padding: 3px 9px;
-    border: 0;
-    box-shadow: none;
-  }
-  .me-area-badge-marker.is-guide-pin {
-    min-width: 0;
-    max-width: none;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-  }
-  .me-area-badge-marker.is-guide-pin .me-area-badge-main,
   .me-guide-spot-marker.is-pin .me-guide-spot-main {
     display: inline-flex;
     align-items: center;
@@ -8122,48 +7683,6 @@ export const MAP_EXPLORER_STYLES = `
     background: #0f172a;
     box-shadow: 0 10px 20px rgba(15,23,42,.20);
   }
-  .me-guide-spot-symbol {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    min-width: 22px;
-    border-radius: 999px;
-    background: #0f766e;
-    color: #fff7ed;
-    font-size: 10px;
-    line-height: 1;
-    font-weight: 950;
-    letter-spacing: 0;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.36), 0 5px 12px rgba(15,118,110,.22);
-  }
-  .me-area-badge-marker.is-guide-pin .me-guide-spot-symbol,
-  .me-guide-spot-marker.is-pin .me-guide-spot-symbol {
-    width: 18px;
-    height: 18px;
-    min-width: 18px;
-    background: #f59e0b;
-    color: #111827;
-    font-size: 9px;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.42), 0 0 0 4px rgba(245,158,11,.24);
-  }
-  .me-guide-spot-marker.is-category-heritage .me-guide-spot-symbol {
-    background: #f59e0b;
-    color: #111827;
-  }
-  .me-guide-spot-marker.is-category-nature .me-guide-spot-symbol {
-    background: #16a34a;
-    color: #f0fdf4;
-  }
-  .me-guide-spot-marker.is-category-community .me-guide-spot-symbol {
-    background: #0ea5e9;
-    color: #f0f9ff;
-  }
-  .me-guide-spot-marker.is-category-owner .me-guide-spot-symbol {
-    background: #0f172a;
-    color: #f8fafc;
-  }
   .me-guide-dot {
     width: 8px;
     height: 8px;
@@ -8171,15 +7690,27 @@ export const MAP_EXPLORER_STYLES = `
     background: #2dd4bf;
     box-shadow: 0 0 0 4px rgba(45,212,191,.24);
   }
+  .me-guide-cluster-count {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2dd4bf;
+    color: #063f3c;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
   .me-guide-spot-marker {
     color: #0f172a;
     transform-origin: bottom center;
   }
   .me-guide-spot-main {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    gap: 7px;
+    gap: 3px;
     max-width: 178px;
     padding: 8px 10px;
     border: 1px solid rgba(15,23,42,.16);
@@ -8190,18 +7721,13 @@ export const MAP_EXPLORER_STYLES = `
     text-align: left;
     cursor: pointer;
   }
-  .me-guide-spot-text {
-    display: grid;
-    min-width: 0;
-    gap: 2px;
-  }
   .me-guide-spot-main strong {
     font-size: 11px;
     line-height: 1.2;
     font-weight: 950;
     letter-spacing: 0;
   }
-  .me-guide-spot-text > span {
+  .me-guide-spot-main > span:not(.me-guide-dot):not(.me-guide-cluster-count) {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -8210,38 +7736,6 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 9.5px;
     line-height: 1.25;
     font-weight: 800;
-  }
-  .me-guide-spot-text > em {
-    color: #0f766e;
-    font-size: 9px;
-    line-height: 1.1;
-    font-style: normal;
-    font-weight: 950;
-  }
-  .me-guide-spot-marker.is-cluster .me-guide-spot-main {
-    border-color: rgba(15,118,110,.26);
-    background: rgba(240,253,250,.98);
-    box-shadow: 0 14px 30px rgba(15,118,110,.18);
-  }
-  .me-guide-spot-marker.is-cluster .me-guide-spot-main strong {
-    color: #0f766e;
-  }
-  .me-guide-spot-marker.is-compact .me-guide-spot-main {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    max-width: none;
-    padding: 3px;
-    border: 1px solid rgba(15,23,42,.12);
-    border-radius: 999px;
-    background: rgba(255,255,255,.96);
-    box-shadow: 0 10px 20px rgba(15,23,42,.18);
-  }
-  .me-guide-spot-marker.is-compact .me-area-badge-chip-guide {
-    min-height: 24px;
-    padding: 3px 9px;
-    border: 0;
-    box-shadow: none;
   }
   .me-guide-spot-detail,
   .me-guide-spot-body {
@@ -9812,8 +9306,6 @@ export const MAP_EXPLORER_STYLES = `
   .me-visited-chip:focus-visible,
   .me-visited-sort button:focus-visible,
   .me-overlap-choice-btn:focus-visible,
-  .me-area-badge-main:focus-visible,
-  .me-area-badge-actions a:focus-visible,
   .me-area-primary-action:focus-visible,
   .me-year-range:focus-visible,
   .me-result-row:focus-visible,
@@ -9907,29 +9399,6 @@ export const MAP_EXPLORER_STYLES = `
       bottom: 54px;
       top: auto;
       max-width: calc(100% - 96px);
-    }
-    .me-area-badge-marker {
-      max-width: 150px;
-    }
-    .me-area-badge-pill {
-      max-width: 150px;
-      min-height: 28px;
-      padding: 4px 8px;
-    }
-    .me-area-badge-marker strong { font-size: 10.5px; }
-    .me-area-badge-chip {
-      min-height: 17px;
-      padding: 2px 5px;
-      font-size: 9.5px;
-    }
-    .me-area-badge-chips,
-    .me-area-badge-actions {
-      max-width: 150px;
-    }
-    .me-area-badge-actions a {
-      min-height: 22px;
-      padding: 4px 5px;
-      font-size: 9.5px;
     }
     .me-locate-fab { bottom: 96px; }
     .me-layer-hint {

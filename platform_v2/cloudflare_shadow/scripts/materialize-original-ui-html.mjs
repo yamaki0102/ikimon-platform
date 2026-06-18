@@ -47,6 +47,7 @@ const events = [];
 const corePaths = [
   "/",
   "/map",
+  "/app-refresh",
   "/ja/",
   "/ja/map",
   "/en/",
@@ -56,6 +57,7 @@ const corePaths = [
   "/pt-br/",
   "/pt-br/map"
 ];
+const staticAssetPaths = ["/app-sw.js"];
 
 function normalizePublicPath(value) {
   const path = String(value || "").trim();
@@ -68,6 +70,16 @@ function normalizePublicPath(value) {
 function originalUiHtmlKey(pathname) {
   const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   return `original-ui/html/${cleanPath}.html`;
+}
+
+function originalUiStaticKey(pathname) {
+  return `original-ui/static/${pathname.replace(/^\/+/, "")}`;
+}
+
+function staticContentType(pathname) {
+  if (pathname.endsWith(".js")) return "application/javascript; charset=utf-8";
+  if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
+  return "application/octet-stream";
 }
 
 async function readAllOriginalUiStaticPaths() {
@@ -157,6 +169,7 @@ await app.ready();
 const tempDir = await mkdtemp(join(tmpdir(), "ikimon-original-ui-"));
 const targets = await resolveTargetPaths();
 const rendered = [];
+const renderedStatic = [];
 
 try {
   for (const pathname of targets) {
@@ -186,6 +199,33 @@ try {
     rendered.push({ pathname, key, bytes: Buffer.byteLength(response.body), filePath });
   }
 
+  for (const pathname of staticAssetPaths) {
+    const response = await app.inject({
+      method: "GET",
+      url: pathname,
+      headers: {
+        accept: "*/*",
+        "cache-control": "no-store"
+      }
+    });
+    const contentType = String(response.headers["content-type"] ?? "");
+    const ok = response.statusCode >= 200 && response.statusCode < 300 && contentType.includes("javascript");
+    events.push({
+      command: `render-static ${pathname}`,
+      exitCode: ok ? 0 : 1,
+      durationMs: 0,
+      status: response.statusCode,
+      contentType
+    });
+    if (!ok) {
+      throw new Error(`Failed to render static ${pathname}: ${response.statusCode} ${contentType}`);
+    }
+    const key = originalUiStaticKey(pathname);
+    const filePath = join(tempDir, key.replaceAll("/", "__"));
+    await writeFile(filePath, response.body, "utf8");
+    renderedStatic.push({ pathname, key, bytes: Buffer.byteLength(response.body), filePath, contentType: staticContentType(pathname) });
+  }
+
   if (execute) {
     const uploadStartedAt = Date.now();
     await runPool(rendered, concurrency, async (item) => {
@@ -210,6 +250,23 @@ try {
       exitCode: 0,
       durationMs: Date.now() - uploadStartedAt
     });
+    for (const item of renderedStatic) {
+      await run("npx", [
+        "wrangler",
+        "r2",
+        "object",
+        "put",
+        `${bucket}/${item.key}`,
+        "--remote",
+        "--file",
+        item.filePath,
+        "--content-type",
+        item.contentType,
+        "--cache-control",
+        "no-cache, no-store, must-revalidate",
+        "--force"
+      ]);
+    }
   }
 } finally {
   await app.close();
@@ -224,6 +281,7 @@ const result = {
   scope,
   concurrency,
   rendered: rendered.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
+  renderedStatic: renderedStatic.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
   events
 };
 

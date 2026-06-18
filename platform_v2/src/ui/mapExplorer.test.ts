@@ -5,8 +5,8 @@ import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from ".
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const outlineStart = script.indexOf("id: 'area-polygon-outline'");
-  const selectedStart = script.indexOf("id: 'area-polygon-selected'", outlineStart);
-  const outlineScript = script.slice(outlineStart, selectedStart);
+  const approximateStart = script.indexOf("id: 'area-polygon-approximate-outline'", outlineStart);
+  const outlineScript = script.slice(outlineStart, approximateStart);
 
   assert.match(
     outlineScript,
@@ -22,7 +22,7 @@ test("approximate school area boundaries get a separate dashed outline layer", (
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /id: 'area-polygon-approximate-outline'/);
-  assert.match(script, /filter: \['==', \['get', 'approximate_boundary'\], true\]/);
+  assert.match(script, /filter: \['all', \['==', \['get', 'approximate_boundary'\], true\], VISIBLE_AREA_POLYGON_FILTER\]/);
   assert.match(script, /'line-dasharray': \[2, 1\.4\]/);
   assert.match(script, /area-polygon-approximate-outline/);
 });
@@ -132,68 +132,43 @@ test("area sheet includes contribution feedback surface", () => {
   assert.match(script, /自分の記録を見返す/);
 });
 
-test("area biodiversity badges render as presence-only map markers", () => {
+test("area badge labels are not rendered as map markers", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
-  const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(script, /me-area-badge-marker/);
-  assert.match(script, /biodiversity_groups/);
   assert.match(script, /function refreshAreaBadgeMarkers/);
-  assert.match(script, /function areaBadgeCountLabel\(item\)/);
-  assert.match(script, /me-area-badge-pill/);
+  assert.match(script, /function refreshAreaBadgeMarkers\(\) \{\s*clearAreaBadgeMarkers\(\);\s*\}/);
+  assert.doesNotMatch(script, /function areaBadgeCountLabel\(item\)/);
+  assert.doesNotMatch(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
+  assert.doesNotMatch(script, /me-area-badge-pill/);
+  assert.match(script, /id: 'area-polygon-name'/);
+  assert.match(script, /'text-field': \['get', 'name'\]/);
+  assert.doesNotMatch(script, /new window\.maplibregl\.Marker\(\{ element: el, anchor: 'bottom', offset: \[0, -10\] \}\)/);
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
   assert.doesNotMatch(script, /me-area-badge-actions/);
-  assert.match(styles, /\.me-area-badge-pill/);
 });
 
-test("area map suppresses point-buffer pseudo boundaries and clusters dense badges", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
-  const styles = MAP_EXPLORER_STYLES;
-
-  assert.match(script, /function shouldDrawAreaPolygonFeature\(feature\)/);
-  assert.match(script, /props\.approximate_boundary !== true/);
-  assert.match(script, /String\(props\.boundary_approximation \|\| ''\) !== 'point_buffer'/);
-  assert.match(script, /var drawableAreaFeatures = state\.areaPolygonFeatures\.filter\(shouldDrawAreaPolygonFeature\)/);
-  assert.match(script, /src\.setData\(\{ type: 'FeatureCollection', features: drawableAreaFeatures \}\)/);
-  assert.match(script, /AREA_BADGE_CLUSTER_MAX_ZOOM = 15\.2/);
-  assert.match(script, /AREA_BADGE_CLUSTER_DENSE_LIMIT = 14/);
-  assert.match(script, /function clusterAreaBadgeItems\(items, zoom\)/);
-  assert.match(script, /areaBadgeClusterPixelSizeForZoom/);
-  assert.match(script, /is-area-cluster/);
-  assert.match(script, /zoomToAreaBadgeCluster\(item\)/);
-  assert.match(script, /areaBadgeClusterLabel/);
-  assert.match(styles, /\.me-area-badge-marker\.is-area-cluster \.me-area-badge-pill/);
-});
-
-test("guide-enabled areas advertise guide availability before tapping the area", () => {
+test("guide spots advertise guide availability without area label badges", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /areaBadgeGuideLabel/);
-  assert.match(script, /state\.tab !== 'places' && state\.tab !== 'markers'/);
-  assert.match(script, /var guideStop = areaGuideStopFrom/);
-  assert.match(script, /if \(item\.guideStop\) return true;/);
-  assert.match(script, /me-area-badge-chip-guide/);
-  assert.match(script, /has-guide-stop/);
+  assert.match(script, /function renderGuideSpotMarker/);
+  assert.match(script, /me-guide-spot-marker is-pin/);
+  assert.doesNotMatch(script, /has-guide-stop/);
   assert.match(script, /ガイド/);
 });
 
-test("guide map badges stay compact at low zoom or high density", () => {
+test("guide area badges are disabled in favor of guide spot pins", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(script, /GUIDE_BADGE_LABEL_ZOOM = 12\.6/);
-  assert.match(script, /GUIDE_BADGE_FULL_ZOOM = 13\.4/);
-  assert.match(script, /GUIDE_BADGE_DENSE_LIMIT = 8/);
-  assert.match(script, /guideBadgeCount = features\.filter/);
-  assert.match(script, /zoom < GUIDE_BADGE_LABEL_ZOOM \|\| guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT/);
-  assert.match(script, /is-guide-pin/);
-  assert.match(script, /is-guide-compact/);
-  assert.match(script, /renderGuideSpotSymbol\(item\.guideStop\)/);
-  assert.match(script, /me-guide-spot-symbol/);
-  assert.match(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
-  assert.match(styles, /me-area-badge-marker\.is-guide-pin/);
-  assert.match(styles, /me-area-badge-marker\.is-guide-compact/);
-  assert.match(styles, /me-guide-spot-symbol/);
+  assert.doesNotMatch(script, /GUIDE_BADGE_LABEL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_BADGE_FULL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_BADGE_DENSE_LIMIT/);
+  assert.doesNotMatch(script, /is-guide-pin/);
+  assert.doesNotMatch(script, /is-guide-compact/);
+  assert.match(script, /me-guide-dot/);
+  assert.doesNotMatch(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
+  assert.match(styles, /me-guide-dot/);
 });
 
 test("map guide spots render independently from area polygons", () => {
@@ -209,19 +184,13 @@ test("map guide spots render independently from area polygons", () => {
   assert.match(script, /renderGuideSourceLinks/);
   assert.match(script, /groupGuideSpotFeatures/);
   assert.match(script, /guideSpotClusterKey/);
-  assert.match(script, /GUIDE_SPOT_LABEL_ZOOM = 12\.6/);
-  assert.match(script, /GUIDE_SPOT_DENSE_LIMIT = 10/);
-  assert.match(script, /guideSpotCount > GUIDE_SPOT_DENSE_LIMIT/);
   assert.match(script, /is-pin/);
-  assert.match(script, /function guideSpotCategoryLabel\(spot\)/);
-  assert.match(script, /SEARCH_LANG === 'ja' \? '地域遺産'/);
-  assert.match(script, /SEARCH_LANG === 'es' \? 'Patrimonio'/);
-  assert.match(script, /function guideSpotCategorySymbol\(spot\)/);
-  assert.match(script, /is-category-' \+ categoryKey/);
-  assert.match(script, /renderGuideSpotSymbol\(spot\)/);
+  assert.match(script, /me-guide-cluster-count/);
+  assert.doesNotMatch(script, /GUIDE_SPOT_LABEL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_SPOT_FULL_ZOOM/);
+  assert.doesNotMatch(script, /GUIDE_SPOT_DENSE_LIMIT/);
   assert.match(styles, /me-guide-spot-marker/);
-  assert.match(styles, /me-guide-spot-marker\.is-cluster/);
-  assert.match(styles, /me-guide-spot-marker\.is-category-heritage \.me-guide-spot-symbol/);
+  assert.match(styles, /me-guide-cluster-count/);
   assert.doesNotMatch(script, /あと __DISTANCE__|formatGuideDistance|radius \+ 'm'/);
 });
 
@@ -305,11 +274,12 @@ test("frontier and heatmap layers gain stronger zoom-sensitive visual feedback",
   assert.match(script, /14, \['interpolate', \['linear'\], \['coalesce', \['get', 'count'\], 0\]/);
 });
 
-test("area badge clicks reopen the side panel before showing selection", () => {
+test("area polygon selection reopens the side panel before showing selection", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const openAreaSheetBody = script.slice(script.indexOf("function openAreaSheet("), script.indexOf("function applyAreaSnapshot"));
 
-  assert.match(script, /openAreaFeatureSheet\(item\.feature, item\.center\.lat, item\.center\.lng\)/);
+  assert.match(script, /function openAreaFeatureSheet\(feature, lat, lng\)/);
+  assert.match(script, /openAreaSheet\(fieldId, lat, lng, feature\)/);
   assert.match(openAreaSheetBody, /setSideRailMode\(false\);\s+renderSelectedCard\(\);\s+renderSidePanels\(\);\s+setSideTab\('selection'\);/);
 });
 
@@ -335,12 +305,27 @@ test("default map surface uses a tiered simple vector style", () => {
   assert.match(script, /var SIMPLE_MID_LANDMARK_CLASSES = \['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'\]/);
   assert.match(script, /var SIMPLE_HIGH_LANDMARK_CLASSES = \['railway', 'town_hall', 'library', 'hospital'\]/);
   assert.match(script, /var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = \['shop', 'grocery', 'cafe', 'restaurant'\]/);
+  assert.match(script, /var SIMPLE_LOCALITY_CLASSES = \['town', 'village', 'hamlet', 'suburb', 'quarter', 'neighbourhood'\]/);
   assert.match(script, /id: 'simple-road-major'/);
+  assert.match(script, /id: 'simple-landuse-soft'/);
+  assert.match(script, /id: 'simple-school-landuse-outline'[\s\S]*?minzoom: 13/);
+  assert.match(script, /id: 'simple-school-landuse-outline'[\s\S]*?\['school', 'kindergarten', 'college', 'university'\]/);
+  assert.match(script, /id: 'simple-park-outline'[\s\S]*?minzoom: 12/);
+  assert.match(script, /id: 'simple-road-local-casing'/);
   assert.match(script, /id: 'simple-road-local'/);
-  assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 13/);
-  assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 16/);
-  assert.match(script, /id: 'simple-commercial-label'[\s\S]*?minzoom: 15\.2/);
-  assert.match(script, /id: 'simple-place-label'[\s\S]*?maxzoom: 15\.25/);
+  assert.match(script, /id: 'simple-waterway'[\s\S]*?filter: \['match', \['get', 'class'\], \['river', 'canal'\], true, false\]/);
+  assert.match(script, /id: 'simple-road-local'[\s\S]*?minzoom: 13\.2/);
+  assert.match(script, /id: 'simple-road-local'[\s\S]*?\['tertiary', 'minor', 'service', 'track'\]/);
+  assert.match(script, /id: 'simple-locality-label'[\s\S]*?minzoom: 12\.4/);
+  assert.match(script, /id: 'simple-locality-label'[\s\S]*?SIMPLE_LOCALITY_CLASSES/);
+  assert.match(script, /id: 'simple-landmark-label'[\s\S]*?minzoom: 15\.9/);
+  assert.match(script, /id: 'simple-civic-label'[\s\S]*?minzoom: 17/);
+  assert.match(script, /id: 'simple-commercial-label'[\s\S]*?minzoom: 15\.8/);
+  assert.match(script, /id: 'simple-place-label'[\s\S]*?maxzoom: 12\.8/);
+  assert.doesNotMatch(script, /id: 'simple-landmark-dot'/);
+  assert.doesNotMatch(script, /id: 'simple-civic-dot'/);
+  assert.doesNotMatch(script, /id: 'simple-commercial-dot'/);
+  assert.doesNotMatch(script, /id: 'simple-road-name-major'/);
   assert.doesNotMatch(script, /'source-layer': 'building'/);
   assert.doesNotMatch(script, /'post'/);
 });
@@ -354,25 +339,21 @@ test("map explorer restores the quick record launcher on mobile only", () => {
 
 test("area map labels and side cards expose organizer and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
-  const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /areaBadgeEventLabel/);
   assert.match(script, /areaBadgeAlbumLabel/);
-  assert.match(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
-  assert.match(script, /'school'/);
-  assert.match(script, /isNamedAreaBadgeFeature\(item\.feature, zoom\)/);
+  assert.doesNotMatch(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
   assert.match(script, /主催者/);
   assert.match(script, /エリア図鑑/);
   assert.match(script, /EVENTS_ORGANIZER_HREF/);
   assert.doesNotMatch(script, /me-area-badge-actions/);
-  assert.match(script, /me-area-badge-pill/);
+  assert.doesNotMatch(script, /me-area-badge-pill/);
   assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml\)/);
   assert.match(script, /me-area-primary-actions/);
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.doesNotMatch(script, /eventsNewHrefTemplate/);
   assert.doesNotMatch(script, /\/community\/events\/new/);
   assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml/);
-  assert.match(styles, /\.me-area-badge-marker:hover \.me-area-badge-chips/);
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {
@@ -418,7 +399,11 @@ test("heatmap tab keeps area polygons selectable", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places'\);/);
-  assert.match(script, /var markerLayers = \['observation-cell-fill', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-selected'\]/);
+  assert.match(script, /show\(areaLabelLayers, tab === 'places'\);/);
+  assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name', 'area-polygon-selected'\]\);/);
+  assert.match(script, /8, 0\.16, 14, 0\.34, 17, 0\.42/);
+  assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places'/);
+  assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);
   assert.match(script, /var markerDetailLayers = \['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'\]/);
   assert.match(script, /show\(markerDetailLayers, false\);/);
 });
@@ -463,6 +448,16 @@ test("small area outlines have a stable click hitbox across zoom levels", () => 
   assert.match(script, /'area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected'/);
   assert.match(script, /\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'\]\.forEach/);
   assert.match(script, /map\.queryRenderedFeatures\(e\.point, \{ layers: hitLayers \}\)/);
+});
+
+test("approximate school areas are not rendered as circular map ranges", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /var VISIBLE_AREA_POLYGON_FILTER = \['!', \['all', \['==', \['get', 'source'\], 'school'\], \['==', \['get', 'approximate_boundary'\], true\]\]\]/);
+  assert.match(script, /filter: VISIBLE_AREA_POLYGON_FILTER/);
+  assert.match(script, /filter: \['all', \['==', \['get', 'approximate_boundary'\], true\], VISIBLE_AREA_POLYGON_FILTER\]/);
+  assert.match(script, /function selectedAreaPolygonFilter\(fieldId\)/);
+  assert.match(script, /state\.map\.setFilter\('area-polygon-selected', selectedAreaPolygonFilter/);
 });
 
 test("map explorer exposes visited place shortcuts and a clickable side collapse control", () => {

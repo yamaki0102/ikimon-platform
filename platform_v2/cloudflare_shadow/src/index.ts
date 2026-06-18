@@ -412,6 +412,7 @@ const MIN_VIDEO_DURATION_SECONDS = 6;
 const MAX_VIDEO_DURATION_SECONDS = 60;
 const MAP_DEFAULT_GRID_M = 1000;
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
+const WORKER_BUILD_MARKER = "map-shell-cookie-safe-v2";
 const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
 
@@ -759,6 +760,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
   "/record",
   "/map",
+  "/app-refresh",
   "/login",
   "/en/",
   "/en/login",
@@ -1223,6 +1225,7 @@ function getHealthz(env: Env): Response {
     ok: true,
     service: "ikimon-life-cloudflare-worker",
     environment: env.ENVIRONMENT,
+    buildMarker: WORKER_BUILD_MARKER,
     fallbackOriginConfigured: Boolean(env.ORIGIN_FALLBACK_BASE_URL)
   }, 200, { "cache-control": "no-store" });
 }
@@ -1235,6 +1238,7 @@ async function getReadyz(env: Env): Promise<Response> {
       ok: true,
       service: "ikimon-life-cloudflare-worker",
       environment: env.ENVIRONMENT,
+      buildMarker: WORKER_BUILD_MARKER,
       coreDb: "ok",
       observationDb: "ok",
       assetBucket: "bound",
@@ -2042,12 +2046,12 @@ function getPublicMapSiteBriefShim(url: URL): Response {
   }
   return json({
     hypothesis: {
-      label: "記録不足の場所",
-      confidence: 0.35
+      label: "まだ見落としがありそうな場所",
+      confidence: 0.42
     },
-    reasons: ["Cloudflare移行中の互換表示です。"],
-    checks: ["公開位置はぼかしたまま扱います。"],
-    captureHints: ["写真、音、メモのいずれかを残すと地域の見え方が増えます。"],
+    reasons: ["水路、緑地、建物のすき間など、身近な環境の境目を見比べられる場所です。"],
+    checks: ["花、草地、水辺、日陰、人工物のまわりに小さな変化がないか見てください。"],
+    captureHints: ["気になったものを1枚撮るか、音やメモを残すと次の見返しにつながります。"],
     environmentEvidence: [],
     officialNotices: [],
     compatibility: {
@@ -2227,6 +2231,7 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
 }
 
 function cacheControlForOriginalUiStaticAsset(pathname: string): string {
+  if (pathname === "/app-sw.js" || pathname === "/offline.html") return "no-cache, no-store, must-revalidate";
   if (pathname === "/manifest.webmanifest") return "public, max-age=300";
   return "public, max-age=31536000, immutable";
 }
@@ -2265,7 +2270,7 @@ function contentTypeForOriginalUiThumb(pathname: string): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  if (hasPersonalizedHtmlHeaders(request)) {
+  if (hasPersonalizedHtmlHeaders(request) && !isCookieSafeOriginalUiAppShell(url.pathname)) {
     if (shouldUseOriginFallback(url, env)) {
       return fetchOriginFallback(request, url, env, "html_personalized_request");
     }
@@ -2312,6 +2317,13 @@ function hasPersonalizedHtmlHeaders(request: Request): boolean {
   if (cookie) return true;
   const authorization = request.headers.get("authorization")?.trim();
   return Boolean(authorization);
+}
+
+function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
+  return pathname === "/app-refresh"
+    || pathname === "/"
+    || /^\/(?:ja|en|es|pt-br)\/$/.test(pathname)
+    || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname);
 }
 
 async function getPublicDerivedMedia(url: URL, env: Env): Promise<Response> {
