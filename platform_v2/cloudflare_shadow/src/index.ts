@@ -272,6 +272,11 @@ interface PublicMapRow {
   asset_count: number;
 }
 
+interface PublicMapPhotoRow {
+  observation_id: string;
+  public_derivative_key: string;
+}
+
 interface PublicDetailRow extends PublicMapRow {
   owner_user_id: string;
   note: string | null;
@@ -366,6 +371,36 @@ interface FieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface AreaPolygonReadmodelRow extends FieldDetailReadmodelRow {}
+
+interface AreaPolygonGeometryReadmodelRow {
+  field_id: string;
+  source: string;
+  admin_level: string | null;
+  name: string;
+  prefecture: string | null;
+  city: string | null;
+  center_lat: number;
+  center_lng: number;
+  bbox_min_lat: number;
+  bbox_max_lat: number;
+  bbox_min_lng: number;
+  bbox_max_lng: number;
+  area_ha: number | null;
+  geometry_json: string;
+  approximate_boundary: number;
+  boundary_approximation: string | null;
+  source_confidence: number | null;
+  verification_level: string | null;
+  verification_label: string | null;
+  official_url: string | null;
+  owner_url: string | null;
+  story_url: string | null;
+  certification_url: string | null;
+  entity_key: string | null;
+  updated_at: string | null;
+}
+
 interface ReverseDeltaCountRow {
   count: number;
 }
@@ -379,6 +414,348 @@ const MAP_DEFAULT_GRID_M = 1000;
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
 const WORKER_BUILD_MARKER = "map-shell-cookie-safe-v2";
 const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
+const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
+
+type ShadowMapGuideSpot = {
+  id: string;
+  title: string;
+  subtitle: string;
+  lat: number;
+  lng: number;
+  locationPrecision: "exact" | "approximate";
+  visitAnchorLabel: string;
+  publicLocationMode: "exact" | "area" | "hidden";
+  subjectLocationMode: "same_as_visit_anchor" | "area_public" | "hidden";
+  sensitiveReviewStatus: "cleared" | "needs_review";
+  category: "heritage" | "nature" | "community" | "owner";
+  approvalState: "public_source" | "owner_verified";
+  preview: string;
+  script: string;
+  storyPoints: string[];
+  triggerRadiusM: number;
+  unlockedRadiusM: number;
+  guideAreaId?: string;
+  guideProgramIds?: string[];
+  ownerType?: "owner" | "community" | "municipality" | "school";
+  visibilityStatus?: "published" | "paused" | "hidden";
+  safetyStatus?: "active" | "caution" | "closed";
+  landownerConsent?: boolean;
+  availableTimePolicy?: "anytime_public" | "business_hours" | "event_only";
+  distanceDisplayPolicy?: "coarse";
+  requiredAccuracyM?: number;
+  accuracyBufferCapM?: number;
+  sourceLinks: Array<{ label: string; url: string }>;
+};
+
+const SHADOW_MAP_GUIDE_SPOTS: ShadowMapGuideSpot[] = [
+  {
+    id: "aikan-renri-lenri-tree",
+    title: "Cafe & Restaurant LENRIと連理の木",
+    subtitle: "愛管の自然共生サイトで、食・農・設備技術と土地の関係を聞く",
+    lat: 34.81435,
+    lng: 137.7327,
+    locationPrecision: "exact",
+    visitAnchorLabel: "Cafe & Restaurant LENRI/連理の木の来訪地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "owner",
+    approvalState: "owner_verified",
+    preview: "連理の木、れんり農園、Cafe & Restaurant LENRI、地中熱GXを、同じ場所で育ってきた地域の物語として紹介します。",
+    script: "ここは、愛管株式会社が設備会社としての現場力を、食、農、自然共生、教育へ少しずつ結び直してきた場所です。訪れたら、看板や建物だけでなく、連理の木、農園、足元の草地、水や熱の使い方にも目を向けてください。",
+    storyPoints: [
+      "連理の木を中心に、食、農、自然共生、設備技術が同じ場所でつながっている。",
+      "Cafe & Restaurant LENRIは、地域素材や場づくりを通じて人と土地の関係を見せる入口。",
+      "地中熱GXや自然共生サイトの活動も、裏側でこの場所の思想を支えている。"
+    ],
+    triggerRadiusM: 120,
+    unlockedRadiusM: 45,
+    guideAreaId: "aikan-renri-ikan-hq",
+    guideProgramIds: ["aikan-renri-guide-relay"],
+    ownerType: "owner",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 120,
+    accuracyBufferCapM: 80,
+    sourceLinks: [
+      { label: "愛管株式会社: 生物多様性", url: "https://i-kan.co.jp/company/biodiversity/" },
+      { label: "浜松市: 地域遺産認定制度", url: HAMAMATSU_CITY_HERITAGE_URL }
+    ]
+  },
+  {
+    id: "hamamatsu-shijimizuka-site",
+    title: "蜆塚遺跡",
+    subtitle: "縄文時代の集落と貝塚を、今の公園で見る",
+    lat: 34.713292,
+    lng: 137.7031213,
+    locationPrecision: "exact",
+    visitAnchorLabel: "蜆塚公園・博物館周辺の来訪地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "heritage",
+    approvalState: "public_source",
+    preview: "東海地方でも大きな縄文時代の集落跡として紹介される場所です。",
+    script: "ここは、縄文時代後期から晩期にかけての集落跡を、今の公園の中で見られる場所です。歩く時は、展示物だけでなく、地形、貝塚、隣接する博物館までをひとつの時間の層として見てください。",
+    storyPoints: [
+      "縄文時代の暮らしの跡が、現在は公園として保存されている。",
+      "貝塚は食べ物のごみではなく、当時の環境や暮らしを読む手がかりになる。",
+      "博物館とセットで見ると、現地の地形と出土資料がつながる。"
+    ],
+    triggerRadiusM: 220,
+    unlockedRadiusM: 90,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [{ label: "浜松市: 蜆塚遺跡", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamatsu/hamatsu/shizimizuka.html" }]
+  },
+  {
+    id: "hamamatsu-nakamurake-house",
+    title: "中村家住宅",
+    subtitle: "宇布見に残る大規模な近世住宅",
+    lat: 34.6974944,
+    lng: 137.6336934,
+    locationPrecision: "exact",
+    visitAnchorLabel: "中村家住宅の公開見学地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "heritage",
+    approvalState: "public_source",
+    preview: "国指定重要文化財として紹介される、雄踏町宇布見の歴史的住宅です。",
+    script: "ここでは、建物の大きさだけでなく、部屋の配置や柱の立ち方にも注目してください。住宅は、ひとつの家の歴史だけでなく、宇布見の土地と人の移動を読む入口になります。",
+    storyPoints: [
+      "大きな屋敷構えと主屋の構造から、地域の有力家の暮らしが見える。",
+      "建物の間取りや柱の配置は、保存建築を読む具体的な手がかりになる。",
+      "浜名湖周辺の歴史や東海道沿いの文化とつながる。"
+    ],
+    triggerRadiusM: 220,
+    unlockedRadiusM: 90,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [{ label: "浜松市: 中村家住宅", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/yuto/yuto/nakamurake.html" }]
+  },
+  {
+    id: "hamamatsu-maisaka-wakihonjin",
+    title: "旧舞坂脇本陣",
+    subtitle: "東海道舞坂宿と今切渡しの記憶",
+    lat: 34.68472,
+    lng: 137.6087012,
+    locationPrecision: "exact",
+    visitAnchorLabel: "旧舞坂脇本陣の公開見学地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "heritage",
+    approvalState: "public_source",
+    preview: "旧東海道に残る脇本陣の遺構として紹介される場所です。",
+    script: "ここは、江戸時代の東海道舞坂宿を想像するための入口です。建物だけでなく、海と街道、人の移動が重なる地点として見てください。",
+    storyPoints: [
+      "舞坂宿は東海道と今切渡しを結ぶ交通の節点だった。",
+      "復元された建物から、宿場町の役割を現地で想像できる。",
+      "湖・海・街道が重なる浜松らしい文化景観の入口になる。"
+    ],
+    triggerRadiusM: 220,
+    unlockedRadiusM: 90,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [{ label: "浜松市: 旧舞坂脇本陣", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/maisaka/maisaka/wakihonjin.html" }]
+  },
+  {
+    id: "hamamatsu-castle-ruins",
+    title: "浜松城跡",
+    subtitle: "街なかに残る城郭の石垣と地形",
+    lat: 34.7117306,
+    lng: 137.7249641,
+    locationPrecision: "exact",
+    visitAnchorLabel: "浜松城公園の来訪地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "heritage",
+    approvalState: "public_source",
+    preview: "市指定史跡として、野面積みの石垣などが紹介されています。",
+    script: "浜松城跡では、天守だけでなく石垣と地形を見てください。街の中心にありながら、城の防御、地形、まちの記憶が同時に見える場所です。",
+    storyPoints: [
+      "石垣の積み方から、古い城郭の技術が読める。",
+      "城跡は観光地であると同時に、市街地の地形を理解する手がかりになる。",
+      "三方ヶ原合戦や犀ヶ崖など、周辺の戦国史跡ともつながる。"
+    ],
+    triggerRadiusM: 260,
+    unlockedRadiusM: 110,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [{ label: "浜松市: 浜松城跡", url: "https://www.city.hamamatsu.shizuoka.jp/kouen/siro/hamamatujou.html" }]
+  },
+  {
+    id: "hamamatsu-ryotanji-garden",
+    title: "龍潭寺庭園",
+    subtitle: "井伊谷の歴史と庭園を見る",
+    lat: 34.8286004,
+    lng: 137.6679167,
+    locationPrecision: "exact",
+    visitAnchorLabel: "龍潭寺庭園の公開見学地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "heritage",
+    approvalState: "public_source",
+    preview: "浜名区引佐町井伊谷の文化財として紹介される庭園です。",
+    script: "龍潭寺では、庭そのものだけでなく、井伊谷の地形や周辺の城跡、寺院の配置を一緒に見てください。静かな庭の奥に、地域の政治と信仰の記憶が重なっています。",
+    storyPoints: [
+      "庭園は鑑賞の場であり、井伊谷の歴史を読む入口でもある。",
+      "寺の建物、庭、背後の地形を一体で見ると場所の意味が立ち上がる。",
+      "周辺の地域遺産センターや城跡と合わせて巡ると理解が深まる。"
+    ],
+    triggerRadiusM: 240,
+    unlockedRadiusM: 100,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [
+      { label: "浜松市: 名勝", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/meisho.html" },
+      { label: "浜松市: 地域遺産センター", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/maibun/index.html" }
+    ]
+  },
+  {
+    id: "hamamatsu-makaya-temple-garden",
+    title: "摩訶耶寺庭園",
+    subtitle: "湖北に残る古庭園の時間",
+    lat: 34.8176672,
+    lng: 137.5568322,
+    locationPrecision: "exact",
+    visitAnchorLabel: "摩訶耶寺庭園の公開見学地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "heritage",
+    approvalState: "public_source",
+    preview: "鎌倉時代初期にさかのぼる庭園として紹介される場所です。",
+    script: "摩訶耶寺庭園では、水、石、池の配置をゆっくり見てください。庭は静かな景色ですが、修復されながら受け継がれてきた文化財でもあります。",
+    storyPoints: [
+      "池泉鑑賞式の庭園として、石と水の配置が見どころになる。",
+      "古い庭園は、自然そのものではなく、人が自然をどう見たかを残す。",
+      "修復の履歴まで含めて、地域で守る文化財として見られる。"
+    ],
+    triggerRadiusM: 240,
+    unlockedRadiusM: 100,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [{ label: "浜松市: 摩訶耶寺庭園", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/info/bunkazaijyoho77.html" }]
+  },
+  {
+    id: "hamamatsu-hourinji-temple",
+    title: "初山宝林寺",
+    subtitle: "浜松にもたらされた黄檗文化",
+    lat: 34.8170097,
+    lng: 137.6917906,
+    locationPrecision: "exact",
+    visitAnchorLabel: "初山宝林寺の公開見学地点",
+    publicLocationMode: "exact",
+    subjectLocationMode: "same_as_visit_anchor",
+    sensitiveReviewStatus: "cleared",
+    category: "heritage",
+    approvalState: "public_source",
+    preview: "明の僧・独湛に関わる黄檗宗寺院として紹介されています。",
+    script: "初山宝林寺では、建物の形や雰囲気に残る異国的な要素を見てください。寺を見ることは、浜松が外から来た文化を受け止めてきた歴史を見ることでもあります。",
+    storyPoints: [
+      "黄檗文化は、建築や信仰の表現として浜松に残っている。",
+      "寺の配置や建物の意匠から、地域と外来文化の接点が見える。",
+      "細江・引佐周辺の寺社や井伊谷の歴史と合わせて巡れる。"
+    ],
+    triggerRadiusM: 240,
+    unlockedRadiusM: 100,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "business_hours",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [
+      { label: "浜松市: 浜松にもたらされた黄檗文化", url: "https://www.city.hamamatsu.shizuoka.jp/hamahaku/02tenji/tokubetu/oubaku.html" },
+      { label: "浜松市: 文化財情報vol.1", url: "https://www.city.hamamatsu.shizuoka.jp/bunkazai/info/info_01.html" }
+    ]
+  },
+  {
+    id: "hamamatsu-heritage-system",
+    title: "浜松地域遺産認定制度",
+    subtitle: "地域で受け継がれてきた文化資源を見る入口",
+    lat: 34.710834,
+    lng: 137.726126,
+    locationPrecision: "approximate",
+    visitAnchorLabel: "浜松中心部の地域遺産制度紹介地点",
+    publicLocationMode: "area",
+    subjectLocationMode: "area_public",
+    sensitiveReviewStatus: "cleared",
+    category: "community",
+    approvalState: "public_source",
+    preview: "浜松市が地域の文化資源を顕彰する制度の考え方を紹介します。",
+    script: "浜松市の地域遺産認定制度は、指定文化財だけでなく、地域で大切にされてきた文化資源を見えるようにする仕組みです。地図で点を見る時も、建物や木だけでなく、それを受け継ぐ人や地域の記憶を合わせて見てください。",
+    storyPoints: [
+      "制度は、地域に残る文化資源をゆるやかに認め、活用するための入口になる。",
+      "所有者や地域の同意、文化財保護審議会の意見を経て認定される。",
+      "ikimonのガイドでは、出典を明示しながら現地で聞ける形に変換する。"
+    ],
+    triggerRadiusM: 300,
+    unlockedRadiusM: 120,
+    guideProgramIds: ["hamamatsu-heritage-guide-relay"],
+    ownerType: "municipality",
+    visibilityStatus: "published",
+    safetyStatus: "active",
+    landownerConsent: true,
+    availableTimePolicy: "anytime_public",
+    distanceDisplayPolicy: "coarse",
+    requiredAccuracyM: 150,
+    accuracyBufferCapM: 100,
+    sourceLinks: [{ label: "浜松市: 浜松地域遺産認定制度", url: HAMAMATSU_CITY_HERITAGE_URL }]
+  }
+];
 const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
   "/record",
@@ -566,11 +943,15 @@ export const worker = {
         return getPublicMapEmptyGeoJson("frontier");
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/area-polygons") {
-        if (shouldUseOriginFallback(url, env)) {
-          return fetchOriginFallback(request, url, env, "map_area_polygons_origin_runtime");
+      if (request.method === "GET" && isMapAreaPolygonsApiPath(url.pathname)) {
+        if (shouldFallbackMapAreaPolygonsToOrigin(request, url, env)) {
+          const nativeResponse = await getPublicMapAreaPolygons(url, env, { allowApproximateFallback: false });
+          if (nativeResponse) return nativeResponse;
+          return fetchMapAreaPolygonsOriginFallback(request, url, env);
         }
-        return getPublicMapEmptyGeoJson("area-polygons", { "cache-control": "public, max-age=60" });
+        const response = await getPublicMapAreaPolygons(url, env);
+        if (response) return response;
+        return getPublicMapEmptyGeoJson("area-polygons");
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/effort-summary") {
@@ -582,10 +963,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/guide-spots") {
-        if (shouldUseOriginFallback(url, env)) {
-          return fetchOriginFallback(request, url, env, "map_guide_spots_origin_runtime");
-        }
-        return getPublicMapEmptyGeoJson("guide-spots");
+        return getPublicMapGuideSpots(url);
       }
 
       const fieldDetailApiMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/public-detail$/);
@@ -933,6 +1311,44 @@ function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
 function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: Env): boolean {
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
   return shouldUseOriginFallback(url, env) && url.pathname.startsWith("/api/v1/observations/");
+}
+
+function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
+  return request.method === "GET"
+    && isMapAreaPolygonsApiPath(url.pathname)
+    && shouldUseOriginFallback(url, env);
+}
+
+function isMapAreaPolygonsApiPath(pathname: string): boolean {
+  return pathname === "/api/v1/map/area-polygons"
+    || /^\/(?:ja|en|es|pt-br)\/api\/v1\/map\/area-polygons$/.test(pathname);
+}
+
+function mapAreaPolygonsFallbackLimit(zoom: number | null): number {
+  if (zoom == null || !Number.isFinite(zoom)) return 48;
+  if (zoom < 11) return 40;
+  if (zoom < 13) return 56;
+  if (zoom < 15) return 48;
+  return 72;
+}
+
+function mapAreaPolygonsFallbackUrl(url: URL): URL {
+  const next = new URL(url.toString());
+  if (!next.searchParams.has("limit")) {
+    next.searchParams.set("limit", String(mapAreaPolygonsFallbackLimit(Number(next.searchParams.get("zoom")))));
+  }
+  return next;
+}
+
+async function fetchMapAreaPolygonsOriginFallback(request: Request, url: URL, env: Env): Promise<Response> {
+  const fallbackUrl = mapAreaPolygonsFallbackUrl(url);
+  const fallbackRequest = new Request(fallbackUrl.toString(), {
+    method: request.method,
+    headers: request.headers,
+    redirect: "manual"
+  });
+  const response = await fetchOriginFallback(fallbackRequest, fallbackUrl, env, "map_area_polygons_origin_geometry");
+  return filterMapAreaPolygonsResponse(response);
 }
 
 function isShadowDiagnosticPath(pathname: string): boolean {
@@ -1469,20 +1885,10 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
     .filter((row) => selectedCell ? row.public_cell === selectedCell : publicCellInBbox(row.public_cell, bbox as [number, number, number, number]))
     .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
     .slice(0, limit);
+  const photoUrls = await queryPublicMapPhotoUrls(env);
 
   return json({
-    items: scopedRows.map((row) => ({
-      occurrenceId: `occ:${row.observation_id}:0`,
-      visitId: row.observation_id,
-      displayName: row.taxon_label ?? "同定待ち",
-      isAiCandidate: false,
-      isAwaitingId: !row.taxon_label,
-      localityLabel: "位置をぼかしています",
-      observedAt: row.observed_at,
-      photoUrl: null,
-      taxonGroup: taxonGroupForLabel(row.taxon_label),
-      cellId: publicCellToCellId(row.public_cell)
-    })),
+    items: scopedRows.map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null)),
     stats: {
       totalReturned: scopedRows.length,
       totalAll: scopedRows.length,
@@ -1492,6 +1898,90 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+interface PublicMapAreaPolygonOptions {
+  allowApproximateFallback?: boolean;
+}
+
+async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAreaPolygonOptions = {}): Promise<Response | null> {
+  const bbox = parseBboxParam(url.searchParams.get("bbox"));
+  if (!bbox) {
+    return json({ error: "missing_or_invalid_bbox" }, 400, { "cache-control": "no-store" });
+  }
+  const sources = parseSourceParam(url.searchParams.get("sources"));
+  const defaultLimit = mapAreaPolygonsFallbackLimit(Number(url.searchParams.get("zoom")));
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
+  const nativeRows = await queryNativeAreaPolygonRows(env, bbox, sources, limit);
+  if (nativeRows.length > 0) {
+    const nativeFeatures = nativeRows
+      .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
+      .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
+      .filter(isDisplayableAreaPolygonFeature);
+    return json({
+      type: "FeatureCollection",
+      features: nativeFeatures,
+      truncated: nativeRows.length >= limit,
+      stats: {
+        totalReturned: nativeFeatures.length,
+        totalAll: nativeFeatures.length,
+        source: "cloudflare_area_polygon_readmodel",
+        kind: "area-polygons"
+      }
+    }, 200, { "cache-control": "public, max-age=60" });
+  }
+  if (options.allowApproximateFallback === false) return null;
+
+  const rows = await queryAreaPolygonRows(env, bbox, sources, limit);
+  const features = rows
+    .map((row) => areaPolygonFeatureFromReadmodel(row))
+    .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature));
+
+  return json({
+    type: "FeatureCollection",
+    features,
+    truncated: rows.length >= limit,
+    stats: {
+      totalReturned: features.length,
+      totalAll: features.length,
+      source: "cloudflare_field_detail_readmodel",
+      kind: "area-polygons"
+    }
+  }, 200, { "cache-control": "public, max-age=60" });
+}
+
+function getPublicMapGuideSpots(url: URL): Response {
+  const bbox = parseBboxParam(url.searchParams.get("bbox"));
+  if (!bbox) {
+    return json({ error: "missing_or_invalid_bbox" }, 400, { "cache-control": "no-store" });
+  }
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "80"), 1, 120);
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const scoped = SHADOW_MAP_GUIDE_SPOTS
+    .filter((spot) => spot.lng >= minLng && spot.lng <= maxLng && spot.lat >= minLat && spot.lat <= maxLat)
+    .slice(0, limit);
+  return json({
+    type: "FeatureCollection",
+    features: scoped.map((spot) => {
+      const { lat: _lat, lng: _lng, ...properties } = spot;
+      return {
+        type: "Feature",
+        properties,
+        geometry: {
+          type: "Point",
+          coordinates: [spot.lng, spot.lat]
+        }
+      };
+    }),
+    truncated: scoped.length >= limit,
+    stats: {
+      totalReturned: scoped.length,
+      totalAll: scoped.length,
+      source: "cloudflare_static_global_guide_spots",
+      kind: "guide-spots",
+      coverage: "global_bbox"
+    }
+  }, 200, { "cache-control": "public, max-age=300" });
 }
 
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
@@ -1903,6 +2393,316 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
      LIMIT 5000`
   ).all<PublicMapRow>();
   return rows.results;
+}
+
+async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT observation_id, public_derivative_key
+       FROM asset_ledger
+      WHERE observation_id IS NOT NULL
+        AND processing_state = 'uploaded'
+        AND public_derivative_key IS NOT NULL
+        AND exif_scrub_state = 'scrubbed'
+        AND public_ready_at IS NOT NULL
+        AND mime LIKE 'image/%'
+      ORDER BY public_ready_at DESC
+      LIMIT 5000`
+  ).all<PublicMapPhotoRow>();
+  const map = new Map<string, string>();
+  for (const row of rows.results) {
+    if (!map.has(row.observation_id)) map.set(row.observation_id, publicMediaUrl(row.public_derivative_key));
+  }
+  return map;
+}
+
+function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null) {
+  const displayName = publicTaxonDisplayName(row.taxon_label);
+  return {
+    occurrenceId: `occ:${row.observation_id}:0`,
+    visitId: row.observation_id,
+    displayName,
+    isAiCandidate: false,
+    isAwaitingId: isWeakTaxonLabel(row.taxon_label),
+    localityLabel: "位置をぼかしています",
+    observedAt: row.observed_at,
+    photoUrl,
+    taxonGroup: taxonGroupForLabel(row.taxon_label),
+    cellId: publicCellToCellId(row.public_cell)
+  };
+}
+
+async function queryAreaPolygonRows(
+  env: Env,
+  bbox: [number, number, number, number],
+  sources: string[],
+  limit: number
+): Promise<AreaPolygonReadmodelRow[]> {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const allRows = await env.OBS_DB.prepare(
+    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha,
+            has_polygon, has_simplified_geometry,
+            certification_id, certification_url, official_url, owner_url, story_url,
+            verification_level, verification_method, verification_label, source_confidence,
+            valid_from, valid_to, entity_key, updated_at
+       FROM production_import_field_detail_readmodel
+      WHERE public_lat >= ?
+        AND public_lat <= ?
+        AND public_lng >= ?
+        AND public_lng <= ?
+      ORDER BY COALESCE(area_ha, 999999), name
+      LIMIT ?`
+  ).bind(minLat, maxLat, minLng, maxLng, limit).all<AreaPolygonReadmodelRow>();
+  const allowed = new Set(sources);
+  return allRows.results.filter((row) => sources.length === 0 || allowed.has(areaLayerSource(row)));
+}
+
+async function queryNativeAreaPolygonRows(
+  env: Env,
+  bbox: [number, number, number, number],
+  sources: string[],
+  limit: number
+): Promise<AreaPolygonGeometryReadmodelRow[]> {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const sourceClause = sources.length > 0
+    ? ` AND source IN (${sources.map(() => "?").join(", ")})`
+    : "";
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT field_id, source, admin_level, name, prefecture, city,
+              center_lat, center_lng,
+              bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng,
+              area_ha, geometry_json, approximate_boundary, boundary_approximation,
+              source_confidence, verification_level, verification_label,
+              official_url, owner_url, story_url, certification_url,
+              entity_key, updated_at
+         FROM production_import_area_polygon_readmodel
+        WHERE bbox_max_lat >= ?
+          AND bbox_min_lat <= ?
+          AND bbox_max_lng >= ?
+          AND bbox_min_lng <= ?
+          ${sourceClause}
+        ORDER BY COALESCE(area_ha, 999999), name
+        LIMIT ?`
+    ).bind(minLat, maxLat, minLng, maxLng, ...sources, limit).all<AreaPolygonGeometryReadmodelRow>();
+    return rows.results;
+  } catch (error) {
+    if (String(error).includes("production_import_area_polygon_readmodel") || String(error).includes("no such table")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+function parseSourceParam(raw: string | null): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => /^[a-z_]+$/.test(value));
+}
+
+function areaLayerSource(row: AreaPolygonReadmodelRow): string {
+  if (row.admin_level && ["osm_park", "admin_municipality", "admin_prefecture", "admin_country"].includes(row.admin_level)) {
+    return row.admin_level;
+  }
+  return row.source || "user_defined";
+}
+
+function safeAreaGeometry(raw: string): { type: "Polygon" | "MultiPolygon"; coordinates: unknown[] } | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const type = (parsed as { type?: unknown }).type;
+    const coordinates = (parsed as { coordinates?: unknown }).coordinates;
+    if ((type !== "Polygon" && type !== "MultiPolygon") || !Array.isArray(coordinates)) return null;
+    return { type, coordinates };
+  } catch {
+    return null;
+  }
+}
+
+function textProp(props: Record<string, unknown>, key: string): string {
+  const value = props[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function numericProp(props: Record<string, unknown>, key: string): number {
+  const value = props[key];
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function booleanishProp(props: Record<string, unknown>, key: string): boolean {
+  const value = props[key];
+  if (value === true || value === 1) return true;
+  if (typeof value === "string") return ["true", "1", "yes"].includes(value.trim().toLowerCase());
+  return false;
+}
+
+function areaFeatureProps(feature: unknown): Record<string, unknown> | null {
+  if (!feature || typeof feature !== "object" || Array.isArray(feature)) return null;
+  const props = (feature as { properties?: unknown }).properties;
+  if (!props || typeof props !== "object" || Array.isArray(props)) return null;
+  return props as Record<string, unknown>;
+}
+
+function isApproximateAreaPolygonFeature(feature: unknown): boolean {
+  const props = areaFeatureProps(feature);
+  if (!props) return false;
+  const label = textProp(props, "verification_label");
+  return booleanishProp(props, "approximate_boundary")
+    || textProp(props, "boundary_approximation") === "point_buffer"
+    || label.includes("境界未確認・代表点からの仮範囲");
+}
+
+function isWeakLiveOsmAreaPolygonFeature(feature: unknown): boolean {
+  const props = areaFeatureProps(feature);
+  if (!props) return false;
+  if (!textProp(props, "field_id").startsWith("osm-live:")) return false;
+  const name = textProp(props, "name");
+  if (name === "OSMの学校・キャンパス" || name === "OSMの公園・緑地") return true;
+  if (textProp(props, "source") === "school") {
+    const hasExternalEvidence = Boolean(
+      textProp(props, "official_url") ||
+      textProp(props, "owner_url") ||
+      textProp(props, "certification_url")
+    );
+    return !hasExternalEvidence && numericProp(props, "source_confidence") < 0.75;
+  }
+  return false;
+}
+
+function isDisplayableAreaPolygonFeature(feature: unknown): boolean {
+  return !isApproximateAreaPolygonFeature(feature) && !isWeakLiveOsmAreaPolygonFeature(feature);
+}
+
+function filterMapAreaPolygonsPayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const features = (payload as { features?: unknown }).features;
+  if (!Array.isArray(features)) return payload;
+  const filteredFeatures = features.filter(isDisplayableAreaPolygonFeature);
+  const stats = (payload as { stats?: unknown }).stats;
+  return {
+    ...(payload as Record<string, unknown>),
+    features: filteredFeatures,
+    stats: stats && typeof stats === "object" && !Array.isArray(stats)
+      ? {
+          ...(stats as Record<string, unknown>),
+          totalReturned: filteredFeatures.length,
+          totalAll: filteredFeatures.length
+        }
+      : stats
+  };
+}
+
+async function filterMapAreaPolygonsResponse(response: Response): Promise<Response> {
+  if (!response.ok) return response;
+  try {
+    const payload = await response.clone().json();
+    const filteredPayload = filterMapAreaPolygonsPayload(payload);
+    if (filteredPayload === payload) return response;
+    return json(filteredPayload, response.status, {
+      "cache-control": response.headers.get("cache-control") ?? "public, max-age=60"
+    });
+  } catch {
+    return response;
+  }
+}
+
+function areaPolygonFeatureFromGeometryReadmodel(row: AreaPolygonGeometryReadmodelRow) {
+  if (!Number.isFinite(row.center_lat) || !Number.isFinite(row.center_lng)) return null;
+  const geometry = safeAreaGeometry(row.geometry_json);
+  if (!geometry) return null;
+  const source = row.source || "user_defined";
+  return {
+    type: "Feature",
+    geometry,
+    properties: {
+      field_id: row.field_id,
+      name: row.name,
+      source,
+      source_label: areaSourceLabel(source),
+      admin_level: row.admin_level,
+      prefecture: row.prefecture ?? "",
+      city: row.city ?? "",
+      area_ha: row.area_ha,
+      official_url: row.official_url ?? "",
+      owner_url: row.owner_url ?? "",
+      story_url: row.story_url ?? "",
+      certification_url: row.certification_url ?? "",
+      source_confidence: row.source_confidence ?? 0.75,
+      verification_level: row.verification_level ?? "readmodel_public_polygon",
+      verification_label: row.verification_label ?? "公開read model polygon",
+      center: [row.center_lng, row.center_lat],
+      transient: row.approximate_boundary === 1,
+      approximate_boundary: row.approximate_boundary === 1,
+      boundary_approximation: row.boundary_approximation ?? undefined,
+      entity_key: row.entity_key ?? undefined,
+      biodiversity_groups: []
+    }
+  };
+}
+
+function areaPolygonFeatureFromReadmodel(row: AreaPolygonReadmodelRow) {
+  if (!Number.isFinite(row.public_lat) || !Number.isFinite(row.public_lng)) return null;
+  const source = areaLayerSource(row);
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [publicAreaApproxPolygon(row.public_lat, row.public_lng, row.radius_m, row.area_ha)]
+    },
+    properties: {
+      field_id: row.field_id,
+      name: row.name,
+      source,
+      source_label: areaSourceLabel(source),
+      admin_level: row.admin_level,
+      prefecture: row.prefecture ?? "",
+      city: row.city ?? "",
+      area_ha: row.area_ha,
+      official_url: row.official_url ?? "",
+      owner_url: row.owner_url ?? "",
+      story_url: row.story_url ?? "",
+      certification_url: row.certification_url ?? "",
+      source_confidence: row.source_confidence ?? 0.55,
+      verification_level: row.verification_level ?? "readmodel_public",
+      verification_label: row.verification_label ?? "公開read model",
+      center: [row.public_lng, row.public_lat],
+      transient: row.has_polygon !== 1,
+      entity_key: row.entity_key ?? undefined,
+      biodiversity_groups: []
+    }
+  };
+}
+
+function publicAreaApproxPolygon(lat: number, lng: number, radiusM: number | null, areaHa: number | null): [number, number][] {
+  const radiusFromArea = Number.isFinite(areaHa) && (areaHa ?? 0) > 0
+    ? Math.sqrt((areaHa as number) * 10000 / Math.PI)
+    : null;
+  const radius = Math.max(60, Math.min(900, radiusM ?? radiusFromArea ?? 160));
+  const latDelta = radius / 111_320;
+  const lngDelta = radius / (111_320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+  return [
+    [lng - lngDelta, lat - latDelta],
+    [lng + lngDelta, lat - latDelta],
+    [lng + lngDelta, lat + latDelta],
+    [lng - lngDelta, lat + latDelta],
+    [lng - lngDelta, lat - latDelta]
+  ];
+}
+
+function areaSourceLabel(source: string): string {
+  if (source === "school") return "学校";
+  if (source === "osm_park") return "公園 (OSM)";
+  if (source === "nature_symbiosis_site") return "自然共生サイト";
+  if (source === "protected_area") return "保護区";
+  if (source === "oecm") return "OECM";
+  if (source === "tsunag") return "TSUNAG";
+  if (source === "admin_municipality") return "市町村";
+  if (source === "admin_prefecture") return "都道府県";
+  if (source === "admin_country") return "国";
+  return "公開エリア";
 }
 
 async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<Response> {
@@ -5415,7 +6215,17 @@ function publicMapEmptyProvenance(sampleSize: number) {
   };
 }
 
+function isWeakTaxonLabel(label: string | null): boolean {
+  const text = (label ?? "").trim().toLowerCase();
+  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "不明"].includes(text);
+}
+
+function publicTaxonDisplayName(label: string | null): string {
+  return isWeakTaxonLabel(label) ? "同定待ち" : (label as string).trim();
+}
+
 function taxonGroupForLabel(label: string | null): string {
+  if (isWeakTaxonLabel(label)) return "other";
   const text = label ?? "";
   if (/鳥|bird|aves/i.test(text)) return "bird";
   if (/虫|昆虫|蝶|蜂|insect/i.test(text)) return "insect";

@@ -202,6 +202,34 @@ interface ProductionFieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface ProductionAreaPolygonReadmodelRow {
+  field_id: string;
+  source: string;
+  admin_level: string | null;
+  name: string;
+  prefecture: string | null;
+  city: string | null;
+  center_lat: number;
+  center_lng: number;
+  bbox_min_lat: number;
+  bbox_max_lat: number;
+  bbox_min_lng: number;
+  bbox_max_lng: number;
+  area_ha: number | null;
+  geometry_json: string;
+  approximate_boundary: number;
+  boundary_approximation: string | null;
+  source_confidence: number | null;
+  verification_level: string | null;
+  verification_label: string | null;
+  official_url: string | null;
+  owner_url: string | null;
+  story_url: string | null;
+  certification_url: string | null;
+  entity_key: string | null;
+  updated_at: string | null;
+}
+
 interface AuthUserRow {
   user_id: string;
   email: string;
@@ -298,6 +326,7 @@ class FakeD1 {
   productionPublicReadmodel = new Map<string, ProductionImportPublicReadmodelRow>();
   productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
+  productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -1104,6 +1133,23 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT observation_id, public_derivative_key FROM asset_ledger")) {
+      const rows = [...this.db.assets.values()]
+        .filter((asset) =>
+          asset.observation_id &&
+          asset.processing_state === "uploaded" &&
+          asset.public_derivative_key &&
+          asset.exif_scrub_state === "scrubbed" &&
+          asset.public_ready_at &&
+          asset.mime.startsWith("image/")
+        )
+        .sort((a, b) => (b.public_ready_at ?? "").localeCompare(a.public_ready_at ?? ""))
+        .map((asset) => ({
+          observation_id: asset.observation_id,
+          public_derivative_key: asset.public_derivative_key
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT metric_type, metric_key, metric_value, detail_json FROM production_restore_parity_metrics")) {
       const rows = this.db.parityMetrics
         .filter((row) => row.run_id === string(this.values[0]))
@@ -1122,6 +1168,43 @@ class FakeStatement {
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT field_id, source, admin_level, name, prefecture, city, center_lat, center_lng")) {
+      const minLat = number(this.values[0]);
+      const maxLat = number(this.values[1]);
+      const minLng = number(this.values[2]);
+      const maxLng = number(this.values[3]);
+      const limit = number(this.values.at(-1));
+      const sources = this.values.slice(4, -1).map((value) => string(value));
+      const allowed = new Set(sources);
+      const rows = [...this.db.productionAreaPolygons.values()]
+        .filter((row) =>
+          row.bbox_max_lat >= minLat &&
+          row.bbox_min_lat <= maxLat &&
+          row.bbox_max_lng >= minLng &&
+          row.bbox_min_lng <= maxLng &&
+          (sources.length === 0 || allowed.has(row.source))
+        )
+        .sort((a, b) => (a.area_ha ?? 999999) - (b.area_ha ?? 999999) || a.name.localeCompare(b.name, "ja"))
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
+      const minLat = number(this.values[0]);
+      const maxLat = number(this.values[1]);
+      const minLng = number(this.values[2]);
+      const maxLng = number(this.values[3]);
+      const limit = number(this.values[4]);
+      const rows = [...this.db.productionFieldDetails.values()]
+        .filter((row) =>
+          row.public_lat >= minLat &&
+          row.public_lat <= maxLat &&
+          row.public_lng >= minLng &&
+          row.public_lng <= maxLng
+        )
+        .sort((a, b) => (a.area_ha ?? 999999) - (b.area_ha ?? 999999) || a.name.localeCompare(b.name, "ja"))
+        .slice(0, limit);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT partition_month, COUNT(*) AS count, MIN(observed_at) AS earliest_observed_at")) {
@@ -1537,6 +1620,37 @@ test("media processing refreshes the public read model even when queue jobs run 
 
 test("v1 public map read routes expose current shell contracts without exact coordinates", async () => {
   const { env, queue } = createEnv();
+  const schoolFieldId = "school-map-contract";
+  env.OBS_DB.productionFieldDetails.set(schoolFieldId, {
+    field_id: schoolFieldId,
+    source: "school",
+    admin_level: "school",
+    name: "地図テスト小学校",
+    name_kana: null,
+    summary: "地域の観察フィールド",
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: "34.71,137.81",
+    public_lat: 34.712,
+    public_lng: 137.812,
+    radius_m: 180,
+    area_ha: 1.2,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: null,
+    certification_url: null,
+    official_url: "https://example.test/school",
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "公開情報と一致",
+    source_confidence: 0.92,
+    valid_from: null,
+    valid_to: null,
+    entity_key: null,
+    updated_at: "2026-06-18T00:00:00.000Z"
+  });
   await post("/api/v1/observations/upsert", env, {
     observationId: "visit-map-contract",
     userId: "map-user",
@@ -1576,9 +1690,36 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(observationsPayload.items[0].occurrenceId, "occ:visit-map-contract:0");
   assert.equal(observationsPayload.items[0].displayName, "地図テスト植物");
   assert.equal(observationsPayload.items[0].cellId, "cell:34.71,137.81");
+  assert.match(observationsPayload.items[0].photoUrl, /^\/derived\/.+\/display\.webp$/);
   assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
   assert.ok(!("features" in observationsPayload));
   assert.doesNotMatch(JSON.stringify(observationsPayload), /34\.71234|137\.81234/);
+
+  env.OBS_DB.readmodel.set("visit-unidentified-contract", {
+    observation_id: "visit-unidentified-contract",
+    public_cell: "34.71,137.81",
+    observed_at: "2026-06-15T01:00:00.000Z",
+    taxon_label: "unidentified",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+  const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81&limit=10"), env);
+  const unidentifiedPayload = await unidentifiedResponse.json() as any;
+  const unidentified = unidentifiedPayload.items.find((item: any) => item.visitId === "visit-unidentified-contract");
+  assert.equal(unidentified.displayName, "同定待ち");
+  assert.equal(unidentified.isAwaitingId, true);
+
+  const areaResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72&sources=school"
+  ), env);
+  const areaPayload = await areaResponse.json() as any;
+  assert.equal(areaResponse.ok, true, JSON.stringify(areaPayload));
+  assert.equal(areaPayload.features.length, 1);
+  assert.equal(areaPayload.features[0].properties.field_id, schoolFieldId);
+  assert.equal(areaPayload.features[0].properties.name, "地図テスト小学校");
+  assert.equal(areaPayload.features[0].properties.source, "school");
+  assert.equal(areaPayload.stats.source, "cloudflare_field_detail_readmodel");
+  assert.doesNotMatch(JSON.stringify(areaPayload), /34\.71234|137\.81234/);
 
   const myPlacesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-places"), env);
   assert.equal(myPlacesResponse.ok, true);
@@ -1586,9 +1727,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
 
   for (const path of [
     "/api/v1/map/traces?limit=200",
-    "/api/v1/map/frontier?bbox=137.70%2C34.70%2C137.82%2C34.72",
-    "/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72",
-    "/api/v1/map/guide-spots"
+    "/api/v1/map/frontier?bbox=137.70%2C34.70%2C137.82%2C34.72"
   ]) {
     const response = await worker.fetch(new Request(`https://shadow.test${path}`), env);
     const payload = await response.json() as any;
@@ -1597,6 +1736,19 @@ test("v1 public map read routes expose current shell contracts without exact coo
     assert.deepEqual(payload.features, []);
     assert.doesNotMatch(JSON.stringify(payload), /34\.71234|137\.81234/);
   }
+
+  const guideSpotsResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/map/guide-spots?bbox=137.55%2C34.60%2C137.90%2C34.85&limit=20"
+  ), env);
+  const guideSpotsPayload = await guideSpotsResponse.json() as any;
+  assert.equal(guideSpotsResponse.ok, true, JSON.stringify(guideSpotsPayload));
+  assert.equal(guideSpotsPayload.type, "FeatureCollection");
+  assert.equal(guideSpotsPayload.stats.source, "cloudflare_static_global_guide_spots");
+  assert.equal(guideSpotsPayload.stats.coverage, "global_bbox");
+  assert.ok(guideSpotsPayload.features.length >= 8);
+  assert.equal(guideSpotsPayload.features[0].geometry.type, "Point");
+  assert.ok(guideSpotsPayload.features.some((feature: any) => feature.properties.id === "hamamatsu-shijimizuka-site"));
+  assert.ok(guideSpotsPayload.features.some((feature: any) => feature.properties.category === "heritage"));
 
   const effortResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/effort-summary?bbox=137.70%2C34.70%2C137.82%2C34.72"), env);
   const effortPayload = await effortResponse.json() as any;
@@ -1622,7 +1774,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(kpiPayload.ok, true);
 });
 
-test("production map area overlays fall back to origin runtime while native map cells stay on Cloudflare", async () => {
+test("production map area polygons use filtered origin geometry while guide spots stay native", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -1664,15 +1816,13 @@ test("production map area overlays fall back to origin runtime while native map 
     assert.equal(guideResponse.ok, true);
 
     assert.deepEqual(seen.map((item) => item.url), [
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.70,34.70,137.82,34.72&zoom=17.5",
-      "https://ikimon.life/api/v1/map/guide-spots?bbox=137.70,34.70,137.82,34.72"
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72&zoom=17.5&limit=72"
     ]);
     assert.deepEqual(seen.map((item) => item.reason), [
-      "map_area_polygons_origin_runtime",
-      "map_guide_spots_origin_runtime"
+      "map_area_polygons_origin_geometry"
     ]);
-    assert.deepEqual(seen.map((item) => item.resolveOverride), ["origin.ikimon.test", "origin.ikimon.test"]);
-    assert.equal(core.operationAudit.length, 2);
+    assert.deepEqual(seen.map((item) => item.resolveOverride), ["origin.ikimon.test"]);
+    assert.equal(core.operationAudit.length, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -3561,6 +3711,217 @@ test("production full-domain fallback preserves original public UI routes withou
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
     assert.equal(seen.length, publicUiRoutes.length);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production map area polygons fall back to origin geometry with bounded display limit", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const seen: Array<{ url: string; resolveOverride?: string; reason?: string }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const target = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+    seen.push({
+      url: target,
+      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
+      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason") ?? undefined
+    });
+    return Response.json({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { field_id: "origin-school", name: "origin polygon school" },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        },
+        {
+          type: "Feature",
+          properties: {
+            field_id: "origin-approx-school",
+            name: "代表点小学校",
+            source: "school",
+            approximate_boundary: true,
+            boundary_approximation: "point_buffer",
+            verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致"
+          },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        },
+        {
+          type: "Feature",
+          properties: {
+            field_id: "osm-live:way:603994619",
+            name: "OSMの学校・キャンパス",
+            source: "school",
+            verification_label: "未確認",
+            source_confidence: 0.45
+          },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        },
+        {
+          type: "Feature",
+          properties: {
+            field_id: "osm-live:way:603028580",
+            name: "OSMの公園・緑地",
+            source: "osm_park",
+            verification_label: "未確認",
+            source_confidence: 0.45
+          },
+          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
+        }
+      ],
+      truncated: true,
+      stats: { totalReturned: 4, totalAll: 4, source: "origin" }
+    }, { headers: { "cache-control": "public, max-age=60" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.features.length, 1);
+    assert.equal(payload.features[0].properties.name, "origin polygon school");
+    assert.equal(payload.features[0].geometry.coordinates[0].length, 4);
+    assert.equal(payload.stats.totalReturned, 1);
+    assert.equal(payload.stats.totalAll, 1);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0]?.url, "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&limit=48");
+    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen[0]?.reason, "map_area_polygons_origin_geometry");
+    const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
+    assert.equal(latestTelemetry.reason, "map_area_polygons_origin_geometry");
+    assert.equal(latestTelemetry.routePattern, "/api/v1/map/area-polygons");
+
+    seen.length = 0;
+    const localizedResponse = await worker.fetch(new Request(
+      "https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+    ), productionEnv);
+    const localizedPayload = await localizedResponse.json() as any;
+    assert.equal(localizedResponse.status, 200);
+    assert.equal(localizedPayload.features.length, 1);
+    assert.equal(localizedPayload.features[0].properties.name, "origin polygon school");
+    assert.equal(localizedPayload.stats.totalReturned, 1);
+    assert.equal(localizedPayload.stats.totalAll, 1);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0]?.url, "https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&limit=48");
+    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen[0]?.reason, "map_area_polygons_origin_geometry");
+    assert.doesNotMatch(JSON.stringify(localizedPayload), /origin-approx-school|OSMの学校・キャンパス|OSMの公園・緑地|境界未確認/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production map area polygons use native polygon readmodel before origin fallback", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", {
+    field_id: "native-approx-school",
+    source: "school",
+    admin_level: "school",
+    name: "代表点だけの小学校",
+    prefecture: "静岡県",
+    city: "浜松市",
+    center_lat: 34.694,
+    center_lng: 137.704,
+    bbox_min_lat: 34.69,
+    bbox_max_lat: 34.70,
+    bbox_min_lng: 137.70,
+    bbox_max_lng: 137.71,
+    area_ha: 0.5,
+    geometry_json: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[
+        [137.700, 34.690],
+        [137.708, 34.690],
+        [137.708, 34.698],
+        [137.700, 34.698],
+        [137.700, 34.690]
+      ]]
+    }),
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    source_confidence: 0.35,
+    verification_level: "registry_matched",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    official_url: "https://example.test/approx-school",
+    owner_url: null,
+    story_url: null,
+    certification_url: null,
+    entity_key: "school:approx",
+    updated_at: "2026-06-18T00:00:00.000Z"
+  });
+  env.OBS_DB.productionAreaPolygons.set("native-school", {
+    field_id: "native-school",
+    source: "school",
+    admin_level: "school",
+    name: "ネイティブポリゴン小学校",
+    prefecture: "静岡県",
+    city: "浜松市",
+    center_lat: 34.695,
+    center_lng: 137.705,
+    bbox_min_lat: 34.69,
+    bbox_max_lat: 34.70,
+    bbox_min_lng: 137.70,
+    bbox_max_lng: 137.71,
+    area_ha: 1.1,
+    geometry_json: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[
+        [137.700, 34.690],
+        [137.710, 34.691],
+        [137.709, 34.699],
+        [137.701, 34.700],
+        [137.700, 34.690]
+      ]]
+    }),
+    approximate_boundary: 0,
+    boundary_approximation: null,
+    source_confidence: 0.9,
+    verification_level: "registry_matched",
+    verification_label: "公開情報と一致",
+    official_url: "https://example.test/native-school",
+    owner_url: null,
+    story_url: null,
+    certification_url: null,
+    entity_key: "school:native",
+    updated_at: "2026-06-18T00:00:00.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
+    assert.equal(payload.features.length, 1);
+    assert.equal(payload.features[0].properties.field_id, "native-school");
+    assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|境界未確認/);
+    assert.equal(payload.features[0].geometry.coordinates[0].length, 5);
+    assert.deepEqual(payload.features[0].properties.center, [137.705, 34.695]);
   } finally {
     globalThis.fetch = originalFetch;
   }

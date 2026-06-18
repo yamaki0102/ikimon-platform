@@ -258,15 +258,54 @@ Use the guarded deploy entrypoint instead of running `wrangler deploy --env prod
 npm run deploy:production:dry-run
 ```
 
-This runs `npm run check`, `npm test`, `wrangler --version`, and `wrangler deploy --env production --dry-run`.
+This runs `npm run check`, `npm test`, `wrangler --version`, `wrangler deploy --env production --dry-run`, the production config guard, and the hardcoded-secret scan. It also writes `.deploy/production-preflight-latest.json` for the fast lane.
+
+For the normal edit loop, use the quick profile. It skips only the synthetic 10k load-profile test and keeps the other Worker contract tests:
+
+```bash
+npm run test:quick
+npm run deploy:production:quick-preflight
+```
+
+Use `npm run test:heavy` to run only the synthetic 10k profile, and `npm run deploy:production:preflight` before high-risk Worker runtime changes or when refreshing the full deployment evidence.
+
+When the same git `HEAD` and Worker deploy-input hash have already passed the full preflight, use the fast lane:
+
+```bash
+npm run deploy:production:fast:dry-run
+```
+
+The fast lane does not rerun the full TypeScript/test suite. It validates the preflight report, rechecks the production config and secret scan, runs Wrangler dry-run, and refuses to run if deploy inputs changed or the report is stale.
+
+The deploy guard also caches `npx wrangler --version` in `.deploy/wrangler-version-cache.json`. The cache is accepted only when the package lock hash and Worker deploy-input hash match, so a Wrangler upgrade or Worker/deploy-tool change refreshes the version check automatically. `wrangler deploy --env production --dry-run` is never skipped.
+
+GitHub Actions can build the same fast-lane artifact with `Cloudflare Quick Preflight Artifact`. Use it when local iteration should avoid the TypeScript/test preflight wait:
+
+```bash
+gh workflow run cloudflare-quick-preflight.yml --ref <branch-or-sha>
+npm run deploy:production:artifact:pull
+npm run deploy:production:fast:dry-run
+```
+
+The helper resolves the latest successful artifact run for the current branch and exact `HEAD`, downloads `cloudflare-production-preflight`, and writes `.deploy/production-preflight-latest.json` plus `.deploy/wrangler-version-cache.json`. The fast lane still refuses mismatched `HEAD`, changed Worker deploy inputs, stale reports, and missing Wrangler dry-run evidence.
 
 Production deploy requires an explicit approval code and then smokes both workers.dev and the public custom domain:
 
 ```bash
 npm run deploy:production -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
+npm run deploy:production:fast -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY
 ```
 
 The guard does not change DNS, D1 data, R2 objects, secrets, billing, provider settings, or VPS state. It only deploys the Worker when `--execute` is used with the approval code.
+
+Original UI materialization writes R2 HTML objects in parallel by default:
+
+```bash
+npm run materialize:original-ui:dry-run -- --concurrency 4
+npm run materialize:original-ui -- --approval APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY --concurrency 4
+```
+
+Keep `--concurrency` between `1` and `8`. Use `1` only when debugging object-specific failures.
 
 ## Required Before Production
 

@@ -18,6 +18,7 @@ const {
   isApproximateSchoolBoundary,
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
+  isDisplayableAreaFeature,
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,
@@ -121,7 +122,7 @@ test("liveElementToFeature converts OSM schools into transient school areas", ()
   const feature = liveElementToFeature({
     type: "way",
     id: 789,
-    tags: { name: "浜松第一小学校", amenity: "school" },
+    tags: { name: "浜松第一小学校", amenity: "school", website: "https://example.test/school" },
     geometry: [
       { lat: 34.73, lon: 137.39 },
       { lat: 34.73, lon: 137.40 },
@@ -131,12 +132,38 @@ test("liveElementToFeature converts OSM schools into transient school areas", ()
   assert.equal(feature?.properties.source, "school");
   assert.equal(feature?.properties.source_label, "学校・キャンパス (OSM live)");
   assert.equal(feature?.properties.entity_key, "osm:way:789");
-  assert.equal(feature?.properties.source_confidence, 0.45);
+  assert.equal(feature?.properties.source_confidence, 0.75);
   assert.equal(feature?.properties.verification_level, "unverified");
-  assert.equal(feature?.properties.verification_label, "未確認");
+  assert.equal(feature?.properties.verification_label, "公式ページ候補あり");
 });
 
-test("liveElementToFeature treats OSM education landuse and school buildings as school areas", () => {
+test("liveElementToFeature rejects building-only OSM fragments", () => {
+  const schoolBuilding = liveElementToFeature({
+    type: "way",
+    id: 603994619,
+    tags: { building: "school", source: "GSImaps/ort" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+  const kindergartenBuilding = liveElementToFeature({
+    type: "way",
+    id: 714620742,
+    tags: { building: "kindergarten" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+
+  assert.equal(schoolBuilding, null);
+  assert.equal(kindergartenBuilding, null);
+});
+
+test("liveElementToFeature treats OSM education landuse as school and rejects building-only fragments", () => {
   const educationLanduse = liveElementToFeature({
     type: "way",
     id: 790,
@@ -159,7 +186,7 @@ test("liveElementToFeature treats OSM education landuse and school buildings as 
   });
 
   assert.equal(educationLanduse?.properties.source, "school");
-  assert.equal(schoolBuilding?.properties.source, "school");
+  assert.equal(schoolBuilding, null);
 });
 
 test("live OSM fallback respects selected area sources", () => {
@@ -194,11 +221,11 @@ test("live OSM fallback respects selected area sources", () => {
   );
 });
 
-test("stored school point-buffer fallbacks remain renderable as approximate tap targets", () => {
+test("stored school point-buffer fallbacks are not rendered as area polygons", () => {
   assert.equal(isRenderableStoredAreaPolygon("school", {
     boundary_approximation: "point_buffer",
     boundary_radius_m: 160,
-  }), true);
+  }), false);
 });
 
 test("stored school polygons enriched with an actual boundary still render", () => {
@@ -208,7 +235,7 @@ test("stored school polygons enriched with an actual boundary still render", () 
   }), true);
 });
 
-test("stored school point-buffer circles stay visible but are handled as approximate boundaries", () => {
+test("stored school point-buffer circles are filtered even when metadata is weak", () => {
   const center = { lat: 34.7235934, lng: 137.7120329 };
   const radiusM = 160;
   const ring: number[][] = [];
@@ -228,9 +255,9 @@ test("stored school point-buffer circles stay visible but are handled as approxi
     school_boundary: { source: "osm", matched_name: "静岡県立浜松商業高等学校" },
   };
 
-  assert.equal(isRenderableStoredAreaPolygon("school", pointBufferPayload, { type: "Polygon", coordinates: [ring] }), true);
+  assert.equal(isRenderableStoredAreaPolygon("school", pointBufferPayload, { type: "Polygon", coordinates: [ring] }), false);
   assert.equal(isApproximateSchoolBoundary("school", pointBufferPayload, { type: "Polygon", coordinates: [ring] }), true);
-  assert.equal(isRenderableStoredAreaPolygon("school", null, { type: "Polygon", coordinates: [ring] }), true);
+  assert.equal(isRenderableStoredAreaPolygon("school", null, { type: "Polygon", coordinates: [ring] }), false);
   assert.equal(isApproximateSchoolBoundary("school", null, { type: "Polygon", coordinates: [ring] }), true);
 });
 
@@ -351,6 +378,56 @@ test("stored school point-buffer rows render when the geometry is no longer a ge
       [137.39, 34.73],
     ]],
   }), true);
+});
+
+test("displayable area feature filter removes approximate and weak OSM live rows", () => {
+  const weakUnnamedSchool = liveElementToFeature({
+    type: "way",
+    id: 1234,
+    tags: { amenity: "school" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+  const officialSchool = liveElementToFeature({
+    type: "way",
+    id: 1235,
+    tags: { name: "公式小学校", amenity: "school", website: "https://example.test/school" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+
+  assert.equal(weakUnnamedSchool ? isDisplayableAreaFeature(weakUnnamedSchool) : true, false);
+  assert.equal(officialSchool ? isDisplayableAreaFeature(officialSchool) : false, true);
+  assert.equal(isDisplayableAreaFeature({
+    type: "Feature",
+    geometry: { type: "Polygon", coordinates: [] },
+    properties: {
+      field_id: "approx",
+      name: "仮範囲",
+      source: "school",
+      source_label: "学校",
+      admin_level: "school",
+      prefecture: "",
+      city: "",
+      area_ha: null,
+      official_url: "",
+      owner_url: "",
+      story_url: "",
+      certification_url: "",
+      source_confidence: 0.35,
+      verification_level: "registry_matched",
+      verification_label: "境界未確認・代表点からの仮範囲",
+      center: [137.39, 34.73],
+      approximate_boundary: true,
+      boundary_approximation: "point_buffer",
+    },
+  }), false);
 });
 
 test("normalizeGuideStop keeps approved location guide stops bounded for map delivery", () => {

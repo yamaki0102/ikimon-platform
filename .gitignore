@@ -1,6 +1,7 @@
 # === Dependencies ===
 vendor/
 node_modules/
+.wrangler/
 
 # === IDE / Editor ===
 .idea/

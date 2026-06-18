@@ -367,17 +367,20 @@ function isGeneratedPointBufferGeometry(geometry: Record<string, unknown> | null
   return ringLooksLikeGeneratedPointBuffer(coordinates[0]);
 }
 
-function isRenderableStoredAreaPolygon(source: AreaPolygonSource, _payload: Record<string, unknown> | null, _geometry?: Record<string, unknown> | null): boolean {
+function hasEnrichedSchoolBoundary(payload: Record<string, unknown> | null): boolean {
+  return typeof payload?.school_boundary === "object" && payload.school_boundary !== null;
+}
+
+function isRenderableStoredAreaPolygon(source: AreaPolygonSource, payload: Record<string, unknown> | null, geometry?: Record<string, unknown> | null): boolean {
   if (source !== "school") return true;
-  // School point-buffer polygons are intentionally visible as approximate tap
-  // targets. Exactness is handled by low confidence, label, and map styling.
-  return true;
+  if (isGeneratedPointBufferGeometry(geometry ?? null)) return false;
+  return !payload || payload.boundary_approximation !== "point_buffer" || hasEnrichedSchoolBoundary(payload);
 }
 
 function isApproximateSchoolBoundary(source: AreaPolygonSource, payload: Record<string, unknown> | null, geometry?: Record<string, unknown> | null): boolean {
   if (source !== "school") return false;
   if (isGeneratedPointBufferGeometry(geometry ?? null)) return true;
-  return Boolean(payload && payload.boundary_approximation === "point_buffer");
+  return Boolean(payload && payload.boundary_approximation === "point_buffer" && !hasEnrichedSchoolBoundary(payload));
 }
 
 function approximateSchoolBoundaryLabel(label: string | null | undefined): string {
@@ -441,6 +444,24 @@ function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: Ar
   return features.filter((feature) => allowed.has(feature.properties.source));
 }
 
+function isWeakLiveOsmAreaFeature(feature: AreaPolygonFeature): boolean {
+  const props = feature.properties;
+  if (!String(props.field_id || "").startsWith("osm-live:")) return false;
+  const name = String(props.name || "");
+  if (name === "OSMの学校・キャンパス" || name === "OSMの公園・緑地") return true;
+  if (props.source === "school") {
+    const hasExternalEvidence = Boolean(props.official_url || props.owner_url || props.certification_url);
+    return !hasExternalEvidence && (props.source_confidence ?? 0) < 0.75;
+  }
+  return false;
+}
+
+function isDisplayableAreaFeature(feature: AreaPolygonFeature): boolean {
+  const props = feature.properties;
+  if (props.approximate_boundary || props.boundary_approximation === "point_buffer") return false;
+  return !isWeakLiveOsmAreaFeature(feature);
+}
+
 function buildLiveOsmAreaQuery(bbox: [number, number, number, number]): string {
   const [minLng, minLat, maxLng, maxLat] = bbox;
   const bb = `${minLat},${minLng},${maxLat},${maxLng}`;
@@ -496,25 +517,32 @@ function liveElementToPolygon(element: OverpassElement): Record<string, unknown>
   return null;
 }
 
-function liveElementSource(element: OverpassElement): { source: AreaPolygonSource; label: string; fallbackName: string } {
+function liveElementSource(element: OverpassElement): { source: AreaPolygonSource; label: string; fallbackName: string } | null {
   const tags = element.tags ?? {};
   const amenity = tags.amenity ?? "";
   const landuse = tags.landuse ?? "";
-  const building = tags.building ?? "";
   if (
     amenity === "school" || amenity === "college" || amenity === "university" ||
     amenity === "kindergarten" || amenity === "childcare" ||
-    landuse === "education" || landuse === "school" || landuse === "college" || landuse === "university" || landuse === "kindergarten" ||
-    building === "school" || building === "college" || building === "university" || building === "kindergarten"
+    landuse === "education" || landuse === "school" || landuse === "college" || landuse === "university" || landuse === "kindergarten"
   ) {
     return { source: "school", label: "学校・キャンパス (OSM live)", fallbackName: "OSMの学校・キャンパス" };
   }
-  return { source: "osm_park", label: "公園・緑地 (OSM live)", fallbackName: "OSMの公園・緑地" };
+  if (
+    tags.leisure === "park" ||
+    tags.leisure === "garden" ||
+    tags.leisure === "nature_reserve" ||
+    tags.leisure === "playground" ||
+    tags.boundary === "national_park"
+  ) {
+    return { source: "osm_park", label: "公園・緑地 (OSM live)", fallbackName: "OSMの公園・緑地" };
+  }
+  return null;
 }
 
 function liveElementDisplayName(element: OverpassElement): string {
   const tags = element.tags ?? {};
-  return tags["name:ja"] ?? tags.name ?? tags.alt_name ?? liveElementSource(element).fallbackName;
+  return tags["name:ja"] ?? tags.name ?? tags.alt_name ?? liveElementSource(element)?.fallbackName ?? "OSMのエリア";
 }
 
 function liveElementCenter(element: OverpassElement, geometry: Record<string, unknown>): [number, number] | null {
@@ -554,6 +582,7 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
   const tags = element.tags ?? {};
   const entityKey = `osm:${element.type}:${element.id}`;
   const source = liveElementSource(element);
+  if (!source) return null;
   const website = tags.website ?? tags["contact:website"] ?? "";
   return {
     type: "Feature",
@@ -692,6 +721,7 @@ function featuresFromCollection(value: unknown): AreaPolygonFeature[] {
     ? features
       .filter((f) => f && typeof f === "object")
       .map((f) => normalizeFeatureContract(f as AreaPolygonFeature))
+      .filter(isDisplayableAreaFeature)
     : [];
 }
 
@@ -1030,7 +1060,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
     const cachedCoversRequestedSources = hasFreshLiveOsmCacheCoverage(sources, cachedFeatures, cached.freshComplete);
     if (cachedCoversRequestedSources) {
-      features.push(...cachedFeatures);
+      features.push(...cachedFeatures.filter(isDisplayableAreaFeature));
     } else {
       const liveFetchBbox = bboxForTiles(cached.tiles) ?? query.bbox;
       const liveFetchLimit = Math.min(MAX_LIMIT, Math.max(limit - features.length, LIVE_OSM_TILE_FETCH_LIMIT));
@@ -1038,17 +1068,17 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
       if (live.ok) {
         await writeLiveOsmTileCache(cached.tiles, live.features);
         features.push(...dedupeAreaFeatures(
-          filterAreaFeaturesBySources(live.features, sources),
+          filterAreaFeaturesBySources(live.features, sources).filter(isDisplayableAreaFeature),
           limit - features.length,
           query.bbox,
         ));
       } else {
-        features.push(...filterAreaFeaturesBySources(cached.staleFeatures, sources));
+        features.push(...filterAreaFeaturesBySources(cached.staleFeatures, sources).filter(isDisplayableAreaFeature));
       }
     }
   }
 
-  const dedupedFeatures = dedupeAreaFeatures(features, limit);
+  const dedupedFeatures = dedupeAreaFeatures(features.filter(isDisplayableAreaFeature), limit);
   const biodiverseFieldIds = dedupedFeatures
     .map((feature) => feature.properties.field_id)
     .filter((fieldId) => isUuid(fieldId));
@@ -1093,6 +1123,8 @@ export const __test__ = {
   isApproximateSchoolBoundary,
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
+  isDisplayableAreaFeature,
+  isWeakLiveOsmAreaFeature,
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,
