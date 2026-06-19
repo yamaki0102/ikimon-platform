@@ -156,8 +156,9 @@ for (const profile of MAP_VIEWPORTS) {
 
     await waitForMapReady(page, DEFAULT_STAGING_MAP_PATH);
     await maybeCaptureQaScreenshot(page, `${profile.slug}-initial.jpg`);
-    await expect(page.locator(".me-topbar-primary")).toBeVisible();
-    await expect(page.locator(".me-topbar-secondary")).toBeVisible();
+    await expect(page.locator(".me-search-shell")).toBeVisible();
+    await expect(page.locator(".me-tabs")).toBeVisible();
+    await expect(page.locator(".me-filter-toggle")).toBeVisible();
     await expect(page.locator("#map-explorer")).toBeVisible();
     const initialRowCount = await resultRows.count();
 

@@ -1899,6 +1899,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     waterwaySearchKey: '',
     recordsLoadWatchdog: null,
     recordsLoadWatchdogSeq: 0,
+    recordsHardSettleWatchdog: null,
     recordsRecoveryKey: '',
     recordsRecoveryAttempts: 0,
     initialDataLoadTimer: null,
@@ -1926,6 +1927,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var SIDE_RAIL_SIGNAL_MIN_RECORDS = 6;
   var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
   var RECORDS_LOAD_WATCHDOG_MS = 8000;
+  var RECORDS_HARD_SETTLE_MS = 20000;
 
   function sideRailSignalCanUseRecords(records) {
     var count = Array.isArray(records) ? records.length : 0;
@@ -2261,11 +2263,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.recordsLoadWatchdogSeq = 0;
   }
 
+  function clearRecordsHardSettleWatchdog() {
+    if (!state.recordsHardSettleWatchdog) return;
+    clearTimeout(state.recordsHardSettleWatchdog);
+    state.recordsHardSettleWatchdog = null;
+  }
+
   function settleCurrentRecordsRequest(requestSeq) {
     if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return false;
     state._recordsAppliedSeq = requestSeq;
-    if (state.recordsLoadWatchdogSeq === requestSeq) state.recordAbort = null;
+    state.recordAbort = null;
     clearRecordsLoadWatchdog(requestSeq);
+    if (state._recordsAppliedSeq === state._recordsRequestSeq) clearRecordsHardSettleWatchdog();
     updatePendingMapResultsState();
     return true;
   }
@@ -2313,6 +2322,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.recordsLoadWatchdog = null;
       recoverRecordsLoad(requestSeq, requestKey, scope);
     }, RECORDS_LOAD_WATCHDOG_MS);
+  }
+
+  function scheduleRecordsHardSettleWatchdog() {
+    if (state.recordsHardSettleWatchdog) return;
+    state.recordsHardSettleWatchdog = setTimeout(function () {
+      state.recordsHardSettleWatchdog = null;
+      if (state._recordsAppliedSeq === state._recordsRequestSeq) return;
+      if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
+      state.recordsRecoveryAttempts = 0;
+      forceSettleRecordsRequest(state._recordsRequestSeq, state.lastStats);
+    }, RECORDS_HARD_SETTLE_MS);
   }
 
   function contributorBandLabel(band) {
@@ -6087,6 +6107,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.recordAbort = controller;
     updatePendingMapResultsState();
     scheduleRecordsLoadWatchdog(requestSeq, requestKey, scope);
+    scheduleRecordsHardSettleWatchdog();
     fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('records ' + r.status)); })
       .then(function (list) {
