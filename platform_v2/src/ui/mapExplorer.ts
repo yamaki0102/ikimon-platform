@@ -2847,6 +2847,25 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</section>';
   }
 
+  function renderResultsLoadingState() {
+    var rows = [
+      { primary: '72%', secondary: '46%' },
+      { primary: '84%', secondary: '62%' },
+      { primary: '58%', secondary: '38%' },
+    ];
+    return '<section class="me-results-loading" aria-label="' + escapeHtml(COPY.loading) + '">' +
+      rows.map(function (row) {
+        return '<div class="me-results-loading-row">' +
+          '<i class="me-results-loading-thumb" aria-hidden="true"></i>' +
+          '<span class="me-results-loading-lines" aria-hidden="true">' +
+            '<b style="--skeleton-w:' + escapeHtml(row.primary) + '"></b>' +
+            '<b style="--skeleton-w:' + escapeHtml(row.secondary) + '"></b>' +
+          '</span>' +
+        '</div>';
+      }).join('') +
+    '</section>';
+  }
+
   function setMapEmptyInviteVisible(visible) {
     if (!emptyInviteEl) return;
     emptyInviteEl.hidden = !visible;
@@ -6704,7 +6723,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.recordsRecoveryAttempts = 0;
     }
     setStatus(COPY.loading);
-    setResultsLoadState('loading', state.records && state.records.length ? state.records.length : 0);
+    var visibleRecords = state.records && state.records.length ? state.records.length : 0;
+    setResultsLoadState('loading', visibleRecords);
+    if (!visibleRecords && resultsListEl) {
+      resultsListEl.innerHTML = renderResultsLoadingState();
+      setMapEmptyInviteVisible(false);
+    }
     if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
     clearRecordsLoadWatchdog();
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
@@ -8678,6 +8702,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-locate-fab:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(15,23,42,.2); }
   .me-locate-fab.is-loading { animation: me-locate-spin .8s linear infinite; }
   @keyframes me-locate-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes me-results-loading { from { background-position: 100% 0; } to { background-position: -80% 0; } }
   .me-locate-marker {
     width: 18px; height: 18px; border-radius: 50%;
     background: #0ea5e9; border: 3px solid #fff;
@@ -10086,6 +10111,48 @@ export const MAP_EXPLORER_STYLES = `
   .me-results-empty strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 900; }
   .me-results-empty p, .me-results-empty small { margin: 0; color: #64748b; line-height: 1.55; }
   .me-results-empty small { font-size: 11px; }
+  .me-results-loading {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(14,165,233,.12);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.7);
+  }
+  .me-results-loading-row {
+    min-height: 74px;
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 10px;
+    background: rgba(248,250,252,.88);
+    border: 1px solid rgba(148,163,184,.14);
+  }
+  .me-results-loading-thumb,
+  .me-results-loading-lines b {
+    display: block;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(226,232,240,.96), rgba(203,213,225,.76), rgba(226,232,240,.96));
+    background-size: 180% 100%;
+    animation: me-results-loading 1.2s ease-in-out infinite;
+  }
+  .me-results-loading-thumb {
+    width: 54px;
+    height: 54px;
+    border-radius: 10px;
+  }
+  .me-results-loading-lines {
+    display: grid;
+    gap: 9px;
+    min-width: 0;
+  }
+  .me-results-loading-lines b {
+    width: var(--skeleton-w, 70%);
+    height: 12px;
+  }
   .me-results-empty-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .me-results-empty-action {
     display: inline-flex; align-items: center; justify-content: center;
@@ -10102,6 +10169,12 @@ export const MAP_EXPLORER_STYLES = `
   @media (min-width: 1180px) {
     .me-results-empty-actions { grid-template-columns: 1fr 1fr; }
     .me-results-empty-action:first-child { grid-column: 1 / -1; }
+  }
+  @media (max-width: 520px) {
+    .me-results-loading { gap: 7px; padding: 9px; }
+    .me-results-loading-row { min-height: 66px; grid-template-columns: 48px minmax(0, 1fr); }
+    .me-results-loading-row:nth-child(n+3) { display: none; }
+    .me-results-loading-thumb { width: 46px; height: 46px; }
   }
   .me-overlap-choice-popup .maplibregl-popup-content {
     padding: 8px;

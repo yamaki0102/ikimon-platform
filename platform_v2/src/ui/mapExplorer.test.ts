@@ -406,6 +406,12 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /Monticola: 'イソヒヨドリ属'/);
   assert.match(script, /function groupResultRecords\(records\)/);
   assert.match(script, /function renderResultsEmptyState\(\)/);
+  assert.match(script, /function renderResultsLoadingState\(\)/);
+  assert.match(script, /class="me-results-loading"/);
+  assert.match(script, /class="me-results-loading-thumb"/);
+  assert.match(script, /class="me-results-loading-lines"/);
+  assert.doesNotMatch(script, /地図を準備中/);
+  assert.doesNotMatch(script, /resultsLoadingAreas|resultsLoadingRecords|resultsLoadingSeason/);
   assert.match(script, /COPY\.emptyTitle/);
   assert.match(script, /data-results-empty-areas/);
   assert.match(script, /data-results-empty-widen/);
@@ -429,6 +435,7 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /RECORDS_HARD_SETTLE_MS = 20000/);
   assert.match(script, /scheduleRecordsHardSettleWatchdog\(\);/);
   assert.match(script, /data-results-state/);
+  assert.match(script, /if \(!visibleRecords && resultsListEl\) \{\s+resultsListEl\.innerHTML = renderResultsLoadingState\(\);\s+setMapEmptyInviteVisible\(false\);/);
   assert.match(script, /setResultsLoadState\(records\.length \? 'ready' : 'empty', records\.length\)/);
   assert.match(script, /resultsListEl\.innerHTML = renderResultsEmptyState\(\);/);
   assert.match(script, /setResultsLoadState\('error'/);
@@ -448,6 +455,11 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(styles, /\.me-result-group \{/);
   assert.match(styles, /grid-template-columns: 64px minmax\(0,1fr\)/);
   assert.match(styles, /\.me-result-badges/);
+  assert.match(styles, /\.me-results-loading \{/);
+  assert.match(styles, /\.me-results-loading-row \{/);
+  assert.match(styles, /\.me-results-loading-thumb,/);
+  assert.match(styles, /\.me-results-loading-row:nth-child\(n\+3\) \{ display: none; \}/);
+  assert.match(styles, /@keyframes me-results-loading/);
   assert.match(styles, /\.me-results-empty-actions/);
   assert.match(styles, /\.me-results-empty-action\.is-primary/);
   assert.match(styles, /\.me-empty-invite/);
