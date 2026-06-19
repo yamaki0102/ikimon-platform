@@ -11,6 +11,29 @@ ikimon.life の本番 deploy は `main` マージ起点の GitHub Actions に一
 4. `main` にマージする
 5. GitHub Actions が VPS の deploy script を実行する
 
+## Deploy-owner Approval Lane
+
+夜間自律反映では、`REVIEW_REQUIRED` を admin merge で迂回しない。Codex は
+検証済みの ready PR と承認パケットを残し、owner review を待つ。
+
+`codex/*` から `main` へのPRは、本文に次を含める。
+
+```md
+## Deploy-owner approval lane
+
+- [x] Owner approval required before merge
+- [x] Admin bypass is not requested
+- [x] Branch protection remains enforced
+
+Staging evidence: <run URL or reason not required>
+Production deploy intent: <what will deploy after owner merge>
+```
+
+CI の `Deploy-owner Approval Lane` はこの欄を検査し、欠落したPRを落とす。
+例外は、ユーザーが「admin bypassして」「branch protection bypassを許可」と明示した
+緊急復旧だけ。その場合でも failing CI、deploy guardrail、migration guardrail、
+production smoke を無視してはならない。
+
 本番 deploy は legacy PHP だけでは完了ではない。`deploy.sh` の git reset 後に
 `platform_v2` を blue/green の inactive runtime へ配置し、内部 health/readiness と
 runner からの candidate smoke が通った場合だけ nginx を promote する。UI / route /

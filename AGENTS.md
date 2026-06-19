@@ -109,11 +109,14 @@ php tools/lint.php
 ### GitHub 管理者権限の扱い
 
 - ユーザーが「反映して」「マージして」「本番へ進めて」と明示した場合、Codex は GitHub 管理者権限で進める前提でよい
-- PR が `MERGEABLE` かつ required checks が通過済みで、止まっている理由が `REVIEW_REQUIRED` のみなら、`gh pr merge --admin` で owner review 待ちを bypass してよい
+- PR が `MERGEABLE` かつ required checks が通過済みで、止まっている理由が `REVIEW_REQUIRED` のみなら、原則として `gh pr merge --admin` は使わず deploy-owner approval lane に落とす
+- `codex/*` から `main` へのPRは、PR本文の `Deploy-owner approval lane` で owner approval 必須、admin bypass 未要求、branch protection 維持を明示する。欠落時は CI の `Deploy-owner Approval Lane` が落ちる
+- 夜間自律反映では、CI / staging / smoke を通したうえで ready PR と approval packet を残し、owner review を待つ。`REVIEW_REQUIRED` だけを理由に branch protection を迂回しない
+- 例外は、ユーザーが「admin bypassして」「branch protection bypassを許可」と明示した緊急復旧だけ。その場合も required checks / deploy guardrail / migration guardrail / production smoke は無視しない
 - ただし、失敗中の CI / deploy guardrail / migration guardrail / production smoke を管理者権限で無視してはいけない
 - `main` への直接 push は引き続き禁止。管理者権限を使う場合も、`codex/<task-name>` → PR → admin merge → GitHub Actions deploy の順序を守る
 
-**Codex がデプロイのために手動SSHで追加作業することは原則ない。** PR を作り、必要なら admin merge し、GitHub Actions の結果を確認する。
+**Codex がデプロイのために手動SSHで追加作業することは原則ない。** PR を作り、通常は deploy-owner approval lane で owner review を待ち、明示的な緊急例外時だけ admin merge し、GitHub Actions の結果を確認する。
 本番反映をユーザーが依頼した場合は、PR 作成や merge で止めず、該当する GitHub Actions deploy workflow が `success` / `failure` などの最終状態になるまで監視し、失敗時はログ確認と止血まで継続する。
 `deploy.sh` はローカルの preflight 用であり、本番 deploy はしない。
 

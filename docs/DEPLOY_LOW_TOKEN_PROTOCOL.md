@@ -60,6 +60,9 @@ ikimon.life の low-token deploy check をして。
 - `git diff --name-only` に出ていない領域の設計文書は読まない。
 - production deploy は `main` merge 起点の GitHub Actions のみ。ローカル SSH deploy はしない。
 - production に入る操作は、ユーザー承認後に進める。
+- 夜間自律反映では `REVIEW_REQUIRED` を admin merge で迂回しない。`codex/*` PR は
+  `Deploy-owner approval lane` 欄を埋め、CI / staging / smoke を通した ready PR として
+  owner review を待つ。
 
 ## Security / Overwrite Gate
 
