@@ -180,6 +180,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /name="mediaRole" value="sound_motion"/);
         assert.match(response.body, /この長さでOK/);
         assert.match(response.body, /撮影時の現在地/);
+        assert.match(response.body, /現在地をこの記録に使う/);
+        assert.match(response.body, /許可すると、この記録の地点入力に使います。/);
+        assert.match(response.body, /現在地は許可した時に、この記録の地点入力に使います。/);
+        assert.doesNotMatch(response.body, /写真に場所も入れる/);
+        assert.doesNotMatch(response.body, /現在地を入れると、あとで同じ場所を見返しやすくなります。/);
         assert.match(response.body, /id="record-location-privacy"/);
         assert.match(response.body, /id="record-public-state"/);
         assert.match(response.body, /公開状態/);
@@ -210,6 +215,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /record_location_pair_required/);
         assert.match(response.body, /photo_exif_gps/);
         assert.match(response.body, /browser_geolocation/);
+        assert.match(response.body, /hasCoordinates: true/);
+        assert.doesNotMatch(response.body, /sendRecordFunnelStep\('location_set', \{[\s\S]{0,240}latitude:/);
+        assert.doesNotMatch(response.body, /sendRecordFunnelStep\('location_set', \{[\s\S]{0,240}longitude:/);
         assert.match(response.body, /PHOTO_EXIF_READ_MAX_BYTES = 8 \* 1024 \* 1024/);
         assert.match(response.body, /parseImageExif/);
         assert.match(response.body, /parseHeifExif/);
@@ -248,6 +256,9 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /<html lang="en">/);
         assert.match(response.body, /Record with photo/);
+        assert.match(response.body, /Use current location for this record/);
+        assert.match(response.body, /If you allow it, we use it to fill in this record&#39;s location\./);
+        assert.match(response.body, /Current location is used after you allow it to fill in this record&#39;s location\./);
         assert.match(response.body, /Name can come later/);
         assert.match(response.body, /One photo is enough/);
         assert.match(response.body, /Community can help/);
