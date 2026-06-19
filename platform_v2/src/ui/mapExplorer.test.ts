@@ -208,7 +208,7 @@ test("area gallery empty state is localized without leaking Japanese guidance", 
 test("mobile map status clears the default area legend", () => {
   assert.match(
     MAP_EXPLORER_STYLES,
-    /@media \(max-width: 900px\)[\s\S]*\.me-map-status \{[\s\S]*bottom: 96px;/,
+    /@media \(max-width: 900px\)[\s\S]*\.me-map-status \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);/,
   );
 });
 
@@ -542,7 +542,17 @@ test("map explorer restores the quick record launcher on mobile only", () => {
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(styles, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: none;\s*\}/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;[\s\S]*bottom: max\(8px, env\(safe-area-inset-bottom\)\);/);
+  assert.match(styles, /--me-mobile-action-space: calc\(92px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
+});
+
+test("mobile map filters open from the thumb zone above the record launcher", () => {
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-filter-panel \{[\s\S]*position: fixed;[\s\S]*top: auto;[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);[\s\S]*z-index: 80;/);
+  assert.match(styles, /\.me-filter-panel \{[\s\S]*backdrop-filter: blur\(12px\);/);
+  assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: var\(--me-mobile-action-space\);/);
+  assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\); \}/);
 });
 
 test("map explorer does not paint the field-guide title over the map", () => {
