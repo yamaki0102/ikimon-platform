@@ -164,6 +164,7 @@ test("area sheets gate contribution CTAs behind public access evidence", () => {
   assert.match(script, /COPY\.areaNextStepRestrictedLine/);
   assert.match(script, /COPY\.areaSchoolNotice/);
   assert.match(script, /var canRecord = canSuggestDirectAreaRecord\(f, masking\);/);
+  assert.match(script, /var accessStatus = areaAccessStatus\(f, masking\);/);
   assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml, canSuggestEvent\)/);
   assert.match(script, /if \(canSuggestEvent === false \|\| !eventHref\) \{\s+return metaHtml;/);
   assert.match(script, /var nextStepHtml = renderAreaNextStepCard\(\{/);
@@ -177,8 +178,31 @@ test("area sheets gate contribution CTAs behind public access evidence", () => {
   );
   assert.match(
     script,
-    /renderAreaObservationGallery\(gallery, \{ label: COPY\.areaGalleryTitle, canRecord: canRecord \}\)/,
+    /renderAreaObservationGallery\(gallery, \{ label: COPY\.areaGalleryTitle, canRecord: canRecord, areaStatus: accessStatus \}\)/,
   );
+  assert.match(
+    script,
+    /renderAreaObservationGallery\(galleryItems, \{ label: COPY\.areaGalleryTitle, canRecord: canRecord, areaStatus: areaStatus \}\)/,
+  );
+  assert.match(script, /function widenAreaEmptyState\(\)/);
+  assert.match(script, /data-area-empty-widen/);
+  assert.match(script, /COPY\.areaGalleryEmptyPublicLead/);
+  assert.match(script, /COPY\.areaGalleryEmptyRestrictedLead/);
+  assert.match(script, /COPY\.areaGalleryEmptySchoolLead/);
+  assert.match(script, /COPY\.areaGalleryEmptyPublicSafety/);
+  assert.match(script, /isSchool \? COPY\.areaSchoolNotice : COPY\.areaRestrictedActionHint/);
+  assert.match(script, /canRecord\s+\?\s+'<a class="me-area-gallery-empty-action is-primary"/);
+  assert.match(script, /: '<span class="me-area-gallery-empty-action is-safety">/);
+});
+
+test("area gallery empty state is localized without leaking Japanese guidance", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "en" });
+
+  assert.match(script, /No records yet\. If the public scope and on-site rules are clear/);
+  assert.match(script, /For safety and privacy, direct recording is not offered for this area/);
+  assert.match(script, /Near schools or educational facilities, do not photograph or search around the site/);
+  assert.doesNotMatch(script, /安全とプライバシー/);
+  assert.doesNotMatch(script, /学校・教育施設の敷地内/);
 });
 
 test("mobile map status clears the default area legend", () => {
