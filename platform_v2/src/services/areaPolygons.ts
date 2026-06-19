@@ -445,6 +445,30 @@ function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: Ar
   return features.filter((feature) => allowed.has(feature.properties.source));
 }
 
+function areaFeatureSourceRank(source: AreaPolygonSource, sources: AreaPolygonSource[]): number {
+  const requestedIndex = sources.indexOf(source);
+  if (requestedIndex >= 0) return requestedIndex;
+  if (source === "school") return 0;
+  if (source === "osm_park") return 1;
+  return 10;
+}
+
+function prioritizeLiveOsmFeaturesForRequest(
+  features: AreaPolygonFeature[],
+  sources: AreaPolygonSource[],
+  limit: number,
+): AreaPolygonFeature[] {
+  const scoped = filterAreaFeaturesBySources(features, requestedLiveOsmSources(sources));
+  return scoped
+    .map((feature, index) => ({ feature, index }))
+    .sort((a, b) => {
+      const rank = areaFeatureSourceRank(a.feature.properties.source, sources) - areaFeatureSourceRank(b.feature.properties.source, sources);
+      return rank !== 0 ? rank : a.index - b.index;
+    })
+    .slice(0, Math.max(0, limit))
+    .map((item) => item.feature);
+}
+
 function isWeakLiveOsmAreaFeature(feature: AreaPolygonFeature): boolean {
   const props = feature.properties;
   if (!String(props.field_id || "").startsWith("osm-live:")) return false;
@@ -967,13 +991,13 @@ async function fetchLiveOsmAreaPolygons(query: AreaPolygonsQuery, remainingLimit
       for (const element of json.elements ?? []) {
         const feature = liveElementToFeature(element);
         if (!feature) continue;
+        if (query.sources && query.sources.length > 0 && !query.sources.includes(feature.properties.source)) continue;
         const key = feature.properties.entity_key ?? feature.properties.field_id;
         if (seen.has(key)) continue;
         seen.add(key);
         features.push(feature);
-        if (features.length >= remainingLimit) break;
       }
-      return { ok: true, features };
+      return { ok: true, features: prioritizeLiveOsmFeaturesForRequest(features, query.sources ?? [], remainingLimit) };
     } catch (error) {
       lastError = error instanceof Error ? error.message : "overpass_failed";
     } finally {
@@ -1148,6 +1172,7 @@ export const __test__ = {
   featureTouchesBbox,
   isCompleteFreshLiveCache,
   filterAreaFeaturesBySources,
+  prioritizeLiveOsmFeaturesForRequest,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
   isApproximateSchoolBoundary,

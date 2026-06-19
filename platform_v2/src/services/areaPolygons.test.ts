@@ -13,6 +13,7 @@ const {
   featureTouchesBbox,
   isCompleteFreshLiveCache,
   filterAreaFeaturesBySources,
+  prioritizeLiveOsmFeaturesForRequest,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
   isApproximateSchoolBoundary,
@@ -364,6 +365,46 @@ test("fresh live OSM cache coverage is decided only from cached live features", 
   assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [], true), false);
   assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], false), false);
   assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], true), true);
+});
+
+test("live OSM request priority keeps schools from being starved by earlier park results", () => {
+  const parkA = liveElementToFeature({
+    type: "way",
+    id: 263321118,
+    tags: { name: "西伊場第三公園", leisure: "playground" },
+    geometry: [
+      { lat: 34.6961, lon: 137.6997 },
+      { lat: 34.6961, lon: 137.7005 },
+      { lat: 34.6966, lon: 137.7005 },
+    ],
+  });
+  const parkB = liveElementToFeature({
+    type: "way",
+    id: 263321119,
+    tags: { name: "西伊場第一公園", leisure: "park" },
+    geometry: [
+      { lat: 34.6971, lon: 137.7017 },
+      { lat: 34.6971, lon: 137.7025 },
+      { lat: 34.6976, lon: 137.7025 },
+    ],
+  });
+  const school = liveElementToFeature({
+    type: "way",
+    id: 194423250,
+    tags: { name: "浜松市立鴨江小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.701, lon: 137.704 },
+      { lat: 34.701, lon: 137.705 },
+      { lat: 34.702, lon: 137.705 },
+    ],
+  });
+  assert.ok(parkA);
+  assert.ok(parkB);
+  assert.ok(school);
+
+  const prioritized = prioritizeLiveOsmFeaturesForRequest([parkA, parkB, school], ["school", "osm_park"], 2);
+  assert.deepEqual(prioritized.map((feature) => feature.properties.source), ["school", "osm_park"]);
+  assert.equal(prioritized[0]?.properties.name, "浜松市立鴨江小学校");
 });
 
 test("live OSM supplements stored school and park rows at high zoom", () => {
