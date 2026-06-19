@@ -1,6 +1,9 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import {
+  addSessionCookie,
+  createStagingApiContext,
   newStagingContext,
+  suppressMapLibreForSmoke,
   type ViewportProfile,
 } from "./support/staging.js";
 
@@ -11,48 +14,115 @@ const HOME_VIEWPORTS: ViewportProfile[] = [
   { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 ];
 
+type SessionPayload = {
+  ok: boolean;
+  error?: string;
+};
+
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
-}
-
-async function waitForMapHomeReady(page: Page): Promise<void> {
-  await page.goto("/?lang=ja&bm=esri&lng=137.8589&lat=34.7219&z=11", { waitUntil: "domcontentloaded" });
-  await page.locator("#map-explorer").waitFor({ state: "visible" });
-  await page.locator("#map-explorer canvas").first().waitFor({ state: "visible", timeout: 30_000 });
-  await page.waitForFunction(() => {
-    return document.querySelectorAll(".me-result-row").length > 0 || document.querySelectorAll(".me-results-empty").length > 0;
-  }, undefined, { timeout: 30_000 });
 }
 
 async function visibleBodyText(page: Page): Promise<string> {
   return page.evaluate(() => document.body.innerText);
 }
 
+function firstMatch(source: string, pattern: RegExp): string | null {
+  const match = source.match(pattern);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+async function resolveQaUserId(api: APIRequestContext): Promise<string> {
+  const response = await api.get("/qa/site-map?lang=ja");
+  expect(response.ok(), "/qa/site-map should expose a materialized user").toBeTruthy();
+  const html = await response.text();
+  const userId = firstMatch(html, /\/home\?userId=([^"&]+)/) ?? firstMatch(html, /\/profile\/([^"?&#]+)/);
+  expect(userId, "QA sitemap should expose a user route").toBeTruthy();
+  return userId!;
+}
+
+async function issueSessionCookie(api: APIRequestContext, userId: string): Promise<string> {
+  const writeKey = process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim();
+  expect(writeKey, "V2_PRIVILEGED_WRITE_API_KEY is required for logged-in home staging QA").toBeTruthy();
+  const response = await api.post("/api/v1/auth/session/issue", {
+    headers: {
+      "x-ikimon-write-key": writeKey!,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: { userId, ttlHours: 4 },
+  });
+  const payload = (await response.json().catch(() => null)) as SessionPayload | null;
+  expect(response.ok(), payload?.error ?? "session_issue_failed").toBeTruthy();
+  const rawCookie = response.headers()["set-cookie"] ?? "";
+  expect(rawCookie, "session issue response should set a cookie").toBeTruthy();
+  return rawCookie;
+}
+
+async function expectMapFirstHomeShell(page: Page): Promise<void> {
+  await expect(async () => {
+    await page.goto("/?lang=ja", { waitUntil: "networkidle" });
+    await expect(page.locator(".me-section")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#me-map")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#me-side-toggle")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#me-side-rail-count")).toHaveCount(1);
+    await expect(page.locator("#me-side-rail-count")).toHaveText("");
+    const railText = await page.locator(".me-side-rail-icons").innerText({ timeout: 5_000 });
+    expect(railText).not.toContain("\u{1F4CB}");
+    expect(railText).not.toMatch(/\d/);
+  }).toPass({
+    intervals: [1_500, 3_000, 5_000],
+    timeout: 45_000,
+  });
+}
+
+async function expectQuietMapHome(page: Page): Promise<void> {
+  await expect(page.locator(".me-enjoy-strip")).toHaveCount(0);
+  await expect(page.locator("#me-visited-panel")).toHaveCount(0);
+  await expect(page.locator("[data-api-my-places]")).toHaveCount(0);
+  await expect(page.locator(".me-filter-toggle")).toBeVisible();
+  const visibleText = await visibleBodyText(page);
+  expect(visibleText).not.toContain("ikimon - 皆で作る地域図鑑");
+  expect(visibleText).not.toContain("Cloudflare移行中");
+  expect(visibleText).not.toContain("unidentified");
+  expect(visibleText).not.toContain("行った場所へ");
+  expect(visibleText).not.toContain("よく行く");
+  expect(visibleText).not.toContain("季節で再訪");
+}
+
 for (const profile of HOME_VIEWPORTS) {
-  test(`root map home stays readable and quiet (${profile.slug})`, async ({ browser }) => {
+  test(`home opens the map-first shell (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
 
     try {
-      await waitForMapHomeReady(page);
-      await expect(page.locator(".me-section")).toBeVisible();
-      await expect(page.locator(".me-map-wrap")).toBeVisible();
-      await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0", { timeout: 30_000 });
-      await expect(page.locator(".me-enjoy-strip")).toBeHidden();
-      await expect(page.locator("#me-visited-panel")).toHaveCount(0);
-      await expect(page.locator("[data-api-my-places]")).toHaveCount(0);
-      await expect(page.locator(".me-filter-toggle")).toBeVisible();
-      const visibleText = await visibleBodyText(page);
-      expect(visibleText).not.toContain("ikimon - 皆で作る地域図鑑");
-      expect(visibleText).not.toContain("Cloudflare移行中");
-      expect(visibleText).not.toContain("unidentified");
-      expect(visibleText).not.toContain("行った場所へ");
-      expect(visibleText).not.toContain("よく行く");
-      expect(visibleText).not.toContain("季節で再訪");
+      await suppressMapLibreForSmoke(page);
+      await expectMapFirstHomeShell(page);
+      await expectQuietMapHome(page);
       await expectNoHorizontalOverflow(page);
     } finally {
       await context.close();
     }
   });
 }
+
+test("logged-in staging home keeps the map-first shell", async ({ browser, playwright }) => {
+  const api = await createStagingApiContext(playwright);
+  const userId = await resolveQaUserId(api);
+  const rawCookie = await issueSessionCookie(api, userId);
+  const context = await newStagingContext(browser, { slug: "desktop-1440", viewport: { width: 1440, height: 900 } });
+  await addSessionCookie(context, rawCookie);
+  const page = await context.newPage();
+
+  try {
+    await suppressMapLibreForSmoke(page);
+    await expectMapFirstHomeShell(page);
+    await expectQuietMapHome(page);
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: "test-results/home-map-first-logged-in.png", fullPage: true });
+  } finally {
+    await context.close();
+    await api.dispose();
+  }
+});
