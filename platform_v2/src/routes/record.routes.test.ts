@@ -45,6 +45,16 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /あとで見返すためのメモ/);
         assert.match(response.body, /まだ分からないまま残す/);
         assert.match(response.body, /今日は見なかったメモを記録として残す/);
+        assert.match(response.body, /id="record-unknown-name-strip"/);
+        assert.match(response.body, /data-quick-capture-state="present"/);
+        assert.match(response.body, /data-quick-capture-state="unknown"/);
+        assert.match(response.body, /data-quick-capture-state="unknown">名前はあとで/);
+        assert.doesNotMatch(response.body, /data-quick-capture-state="no_detection_note">今日は見なかった/);
+        assert.match(response.body, /const syncQuickCaptureStateChips = \(\) =>/);
+        assert.match(response.body, /quickCaptureStateStrip\.hidden = !hasDraft/);
+        assert.match(response.body, /setQuickCaptureState\(button\.getAttribute\('data-quick-capture-state'\)/);
+        assert.match(response.body, /名前はあとで確かめられます。写真と場所を保存できます。/);
+        assert.match(response.body, /写真があると名前を確かめやすくなります。今はメモだけでも保存できます。/);
         assert.match(response.body, /次に見返す手がかり/);
         assert.match(response.body, /この記録の役割/);
         assert.match(response.body, /name="activityIntent"/);
@@ -275,6 +285,9 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /Role of this record/);
         assert.match(response.body, /Today&#39;s purpose/);
         assert.match(response.body, /Save while unsure/);
+        assert.match(response.body, /id="record-unknown-name-strip"/);
+        assert.match(response.body, /data-quick-capture-state="unknown">Name later/);
+        assert.doesNotMatch(response.body, /data-quick-capture-state="no_detection_note">Not seen/);
         assert.match(response.body, /Record for comparison/);
         assert.match(response.body, /Field scan/);
         assert.match(response.body, /Waterside \/ catch/);

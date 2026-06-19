@@ -5092,6 +5092,7 @@ type RecordFormCopy = {
   quickReviewPill: string;
   quickCaptureStateLabel: string;
   quickCaptureStateOptions: Record<"present" | "unknown" | "no_detection_note", string>;
+  quickCaptureChipOptions: Record<"present" | "unknown" | "no_detection_note", string>;
   nextLookForLabel: string;
   nextLookForPlaceholder: string;
   surveyBlockTitle: string;
@@ -5533,6 +5534,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         unknown: "まだ分からないまま残す",
         no_detection_note: "今日は見なかったメモを記録として残す",
       },
+      quickCaptureChipOptions: {
+        present: "見つけた",
+        unknown: "名前はあとで",
+        no_detection_note: "今日は見なかった",
+      },
       nextLookForLabel: "次に見返す手がかり",
       nextLookForPlaceholder: "例: 同じ水辺の音 / 葉の裏 / 同じ木の花",
       surveyBlockTitle: "比べるための記録",
@@ -5694,6 +5700,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         present: "Found and noted",
         unknown: "Save while unsure",
         no_detection_note: "Not found today",
+      },
+      quickCaptureChipOptions: {
+        present: "Found",
+        unknown: "Name later",
+        no_detection_note: "Not seen",
       },
       nextLookForLabel: "What to look for next",
       nextLookForPlaceholder: "Example: the waterside bird from last week / a leaf to identify / the same tree flower",
@@ -5857,6 +5868,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         unknown: "Guardar aunque no sepa",
         no_detection_note: "No encontrado hoy",
       },
+      quickCaptureChipOptions: {
+        present: "Encontrado",
+        unknown: "Nombre despues",
+        no_detection_note: "No visto",
+      },
       nextLookForLabel: "Que buscar despues",
       nextLookForPlaceholder: "Ejemplo: el ave del agua de la semana pasada / una hoja por identificar / la flor del mismo arbol",
       surveyBlockTitle: "Registro para comparar",
@@ -6018,6 +6034,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         present: "Encontrado e anotado",
         unknown: "Salvar mesmo sem saber",
         no_detection_note: "Nao encontrado hoje",
+      },
+      quickCaptureChipOptions: {
+        present: "Encontrado",
+        unknown: "Nome depois",
+        no_detection_note: "Nao visto",
       },
       nextLookForLabel: "O que procurar depois",
       nextLookForPlaceholder: "Exemplo: ave da agua da semana passada / folha para identificar / flor da mesma arvore",
@@ -14280,6 +14301,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input type="hidden" name="placeId" value="" />
               <input type="hidden" name="prefecture" value="" />
               <input type="hidden" name="revisitOfVisitId" value="" />
+              <div id="record-unknown-name-strip" class="record-unknown-name-strip" hidden>
+                <span class="record-label">${escapeHtml(recordForm.quickCaptureStateLabel)}</span>
+                <div class="record-unknown-name-actions" role="group" aria-label="${escapeHtml(recordForm.quickCaptureStateLabel)}">
+                  <button type="button" data-quick-capture-state="present">${escapeHtml(recordForm.quickCaptureChipOptions.present)}</button>
+                  <button type="button" data-quick-capture-state="unknown">${escapeHtml(recordForm.quickCaptureChipOptions.unknown)}</button>
+                </div>
+              </div>
               <div id="record-video-guide" class="record-video-guide" hidden>
                 <div class="record-video-guide-head">
                   <div>
@@ -14710,6 +14738,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const quickFieldsWrap = form ? form.querySelector('[data-quick-only]') : null;
         const surveyFieldsWrap = form ? form.querySelector('[data-survey-only]') : null;
         const surveyRequiredFields = form ? Array.from(form.querySelectorAll('[data-survey-required]')) : [];
+        const quickCaptureStateField = form ? form.elements.namedItem('quickCaptureState') : null;
+        const quickCaptureStateStrip = document.getElementById('record-unknown-name-strip');
+        const quickCaptureStateButtons = Array.from(document.querySelectorAll('[data-quick-capture-state]'));
         const mediaRoleInputs = form ? Array.from(form.querySelectorAll('input[name="mediaRole"]')) : [];
         const previewDate = document.getElementById('record-preview-date');
         const previewKicker = document.getElementById('record-preview-kicker');
@@ -15271,6 +15302,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const quickCaptureState = String(data.get('quickCaptureState') || 'present');
           if (visualRecordFeedbackSentence && photoCount > 0) return visualRecordFeedbackSentence;
           if (hasNoteDraft() && !hasSelectedMedia()) {
+            if (quickCaptureState === 'unknown') return '写真があると名前を確かめやすくなります。今はメモだけでも保存できます。';
             return hasLocation
               ? 'メモと場所は残っています。次に同じ場所へ行ったら、見たものを1枚足すと比較しやすくなります。'
               : 'メモだけの記録です。次は現在地か場所メモを足すと、あとから見返しやすくなります。';
@@ -15290,7 +15322,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           if (photoCount === 1) {
             if (!hasLocation) return '写真は入っています。次は現在地か場所メモを足すと、記録として使いやすくなります。';
-            if (!hasName && !hasNote && quickCaptureState !== 'unknown') return '写真と場所は残っています。分からない点を一言メモすると、あとで確認しやすくなります。';
+            if (!hasName && quickCaptureState === 'unknown') return '名前はあとで確かめられます。写真と場所を保存できます。';
+            if (!hasName && !hasNote) return '写真と場所は残っています。気になった形や色を一言足すと、あとで確認しやすくなります。';
             return '写真と場所が残っています。次は別角度や周囲の様子を足すと、見分ける手がかりが増えます。';
           }
           return '';
@@ -15329,6 +15362,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (publicStateHelp) publicStateHelp.textContent = draft.body;
         };
 
+        const syncQuickCaptureStateChips = () => {
+          if (!quickCaptureStateStrip || !quickCaptureStateButtons.length) return;
+          const hasDraft = hasRecordDraft();
+          quickCaptureStateStrip.hidden = !hasDraft;
+          const current = quickCaptureStateField ? String(quickCaptureStateField.value || 'present') : 'present';
+          quickCaptureStateButtons.forEach((button) => {
+            const active = button.getAttribute('data-quick-capture-state') === current;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
+        };
+
+        const setQuickCaptureState = (value) => {
+          if (!quickCaptureStateField) return;
+          quickCaptureStateField.value = value || 'present';
+          currentCaptureNoticeText = '';
+          syncQuickCaptureStateChips();
+          syncPreview();
+          syncSubmitCta();
+        };
+
         const buildPublicStateSuccessHtml = (observation) => {
           const publicVisibility = String(observation && observation.publicVisibility || '');
           const qualityReviewStatus = String(observation && observation.qualityReviewStatus || '');
@@ -15358,6 +15412,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
           syncRecordPublicState();
+          syncQuickCaptureStateChips();
         };
 
         const syncVideoPrimaryPhotoUi = () => {
@@ -16669,6 +16724,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             button.setAttribute('aria-pressed', active ? 'true' : 'false');
           });
           syncModeUi();
+          syncQuickCaptureStateChips();
           syncSubmitCta();
           if (hasDraft && form) {
             window.requestAnimationFrame(() => form.scrollIntoView({ block: 'start', behavior: 'auto' }));
@@ -16698,6 +16754,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           resetVisualRecordFeedback();
           if (form) form.hidden = true;
           if (captureResult) captureResult.hidden = false;
+          if (quickCaptureStateStrip) quickCaptureStateStrip.hidden = true;
           document.documentElement.classList.remove('record-has-media');
           document.documentElement.classList.remove('record-video-simple');
           const label = captureLabels[kind];
@@ -16712,6 +16769,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           syncVideoPrimaryPhotoUi();
           syncSubmitCta();
           syncModeUi();
+          syncQuickCaptureStateChips();
         };
 
         const clearSelectedMedia = () => {
@@ -17270,6 +17328,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (target && typeof target.click === 'function') target.click();
           });
         });
+        quickCaptureStateButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            setQuickCaptureState(button.getAttribute('data-quick-capture-state') || 'present');
+          });
+        });
+        if (quickCaptureStateField && typeof quickCaptureStateField.addEventListener === 'function') {
+          quickCaptureStateField.addEventListener('change', () => setQuickCaptureState(String(quickCaptureStateField.value || 'present')));
+        }
         mediaInputs.forEach((input) => {
           input.addEventListener('change', async () => {
             const files = input.files ? Array.from(input.files) : [];
@@ -18108,6 +18174,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-submit-panel strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
         .record-submit-panel p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 750; }
         .record-submit-panel .btn { min-width: 140px; }
+        .record-unknown-name-strip { grid-column: 1 / -1; display: grid; gap: 8px; padding: 12px; border-radius: 18px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); }
+        .record-unknown-name-strip[hidden] { display: none; }
+        .record-unknown-name-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .record-unknown-name-actions button { min-width: 0; min-height: 48px; padding: 8px 10px; border-radius: 14px; border: 1px solid rgba(15,23,42,.10); background: #f8fafc; color: #0f172a; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 950; cursor: pointer; overflow-wrap: anywhere; hyphens: auto; }
+        .record-unknown-name-actions button.is-active { background: #ecfdf5; border-color: rgba(16,185,129,.32); color: #065f46; box-shadow: 0 8px 18px rgba(16,185,129,.09); }
+        .record-unknown-name-actions button:focus-visible { outline: 3px solid #0284c7; outline-offset: 2px; }
         .record-public-state { grid-column: 1 / -1; display: grid; gap: 5px; padding: 12px 14px; border-radius: 16px; background: #f8fafc; border: 1px solid rgba(15,23,42,.1); }
         .record-public-state[hidden] { display: none; }
         .record-public-state[data-public-state="candidate"] { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
@@ -18324,6 +18396,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-submit-dock-meta { min-height: 58px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px 8px; border-radius: 17px; background: #ecfdf5; color: #064e3b; font-size: 11px; line-height: 1.25; font-weight: 950; }
           .record-submit-panel { align-items: flex-start; flex-direction: column; }
           .record-submit-panel .btn { width: 100%; }
+          .record-unknown-name-strip { padding: 10px; border-radius: 16px; }
+          .record-unknown-name-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+          .record-unknown-name-actions button { min-height: 44px; }
           .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-status-inline { margin-left: 0; }
           .record-impact-receipts-head { align-items: flex-start; flex-direction: column; }
