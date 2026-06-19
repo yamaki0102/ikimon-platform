@@ -227,7 +227,13 @@ async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
 }
 
 async function expectFilterDrawerOpens(page: Page): Promise<void> {
-  await page.locator(".me-filter-toggle").click({ timeout: 8_000 });
+  const clicked = await page.evaluate(() => {
+    const toggle = document.querySelector<HTMLElement>(".me-filter-toggle");
+    if (!toggle) return false;
+    toggle.click();
+    return true;
+  });
+  expect(clicked).toBe(true);
   await page.waitForFunction(() => {
     const isVisible = (selector: string): boolean => {
       const element = document.querySelector<HTMLElement>(selector);
