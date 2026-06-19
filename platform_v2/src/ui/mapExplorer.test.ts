@@ -635,7 +635,7 @@ test("heatmap tab keeps area polygons selectable", () => {
 
   assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places'\);/);
   assert.match(script, /show\(areaLabelLayers, tab === 'places'\);/);
-  assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected'\]\);/);
+  assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected-halo', 'area-polygon-selected'\]\);/);
   assert.match(script, /8, 0\.11, 11, 0\.15, 14, 0\.28, 16\.5, 0\.42/);
   assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places'/);
   assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);
@@ -699,9 +699,26 @@ test("small area outlines have a stable click hitbox across zoom levels", () => 
   assert.match(script, /id: 'area-polygon-hitbox'/);
   assert.match(script, /'line-width': 14/);
   assert.match(script, /function areaPolygonHitLayers\(\)/);
-  assert.match(script, /'area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected'/);
+  assert.match(script, /'area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected-halo', 'area-polygon-selected'/);
   assert.match(script, /\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'\]\.forEach/);
   assert.match(script, /map\.queryRenderedFeatures\(e\.point, \{ layers: hitLayers \}\)/);
+});
+
+test("selected area polygon keeps a high-contrast double outline", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /id: 'area-polygon-selected-halo'/);
+  assert.match(script, /'line-color': 'rgba\(255,255,255,0\.94\)'/);
+  assert.match(script, /'line-width': \['interpolate', \['linear'\], \['zoom'\], 8, 5\.6, 14, 8\.2, 17, 10\.5\]/);
+  assert.match(script, /id: 'area-polygon-selected-halo'[\s\S]*?\}, beforeId\);/);
+  assert.match(script, /id: 'area-polygon-selected'[\s\S]*?'line-color': '#0f766e'/);
+  assert.match(script, /id: 'area-polygon-selected'[\s\S]*?'line-width': \['interpolate', \['linear'\], \['zoom'\], 8, 3\.2, 14, 4\.8, 17, 6\.2\]/);
+  assert.match(script, /id: 'area-polygon-selected'[\s\S]*?\}, beforeId\);/);
+  assert.match(script, /function setSelectedAreaPolygonFilter\(fieldId\)/);
+  assert.match(script, /\['area-polygon-selected-halo', 'area-polygon-selected'\]\.forEach/);
+  assert.match(script, /setSelectedAreaPolygonFilter\(fieldId\);/);
+  assert.match(script, /setSelectedAreaPolygonFilter\(props\.field_id \|\| '__none__'\);/);
+  assert.match(script, /setSelectedAreaPolygonFilter\('__none__'\);/);
 });
 
 test("approximate school areas are not rendered as circular map ranges", () => {
@@ -711,7 +728,7 @@ test("approximate school areas are not rendered as circular map ranges", () => {
   assert.match(script, /filter: VISIBLE_AREA_POLYGON_FILTER/);
   assert.match(script, /filter: \['all', \['==', \['get', 'approximate_boundary'\], true\], VISIBLE_AREA_POLYGON_FILTER\]/);
   assert.match(script, /function selectedAreaPolygonFilter\(fieldId\)/);
-  assert.match(script, /state\.map\.setFilter\('area-polygon-selected', selectedAreaPolygonFilter/);
+  assert.match(script, /function setSelectedAreaPolygonFilter\(fieldId\)/);
 });
 
 test("map explorer omits visited place shortcuts while keeping side collapse control", () => {
