@@ -4944,6 +4944,16 @@ type RecordFormCopy = {
   locationSearchButton: string;
   locationMapAria: string;
   locationMapFallback: string;
+  locationPrivacyTitle: string;
+  locationPrivacyExactLabel: string;
+  locationPrivacyExactBody: string;
+  locationPrivacyPublicLabel: string;
+  locationPrivacyPublicBody: string;
+  locationPrivacySensitiveLabel: string;
+  locationPrivacySensitiveBody: string;
+  locationPrivacyPreviewUnset: string;
+  locationPrivacyPreviewSet: string;
+  locationPrivacyAfterSave: string;
   coordinateSummary: string;
   latitudeLabel: string;
   longitudeLabel: string;
@@ -5346,6 +5356,16 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "検索",
       locationMapAria: "記録の地点を地図で指定",
       locationMapFallback: "地図を読み込み中。表示されたらタップして記録の地点を指定できます。",
+      locationPrivacyTitle: "公開される位置",
+      locationPrivacyExactLabel: "正確な地点",
+      locationPrivacyExactBody: "保存と自分の記録整理に使います。公開地図では正確な地点ピンを出さない設計ですが、写真のGPS情報は別に注意が必要です。",
+      locationPrivacyPublicLabel: "公開表示",
+      locationPrivacyPublicBody: "地図上では市区町村や広い区画として扱います。個人宅や通学路が推測される写真・メモは投稿前に確認してください。",
+      locationPrivacySensitiveLabel: "学校・自宅・希少種",
+      locationPrivacySensitiveBody: "学校、自宅付近、希少種は広い表示でも特定につながることがあります。必要なら写真のGPSを消してから投稿してください。",
+      locationPrivacyPreviewUnset: "公開地図は広い表示にします。写真ファイルにGPSが残る場合があります。",
+      locationPrivacyPreviewSet: "公開地図は広い表示です。写真のGPS情報や写り込みも確認してください。",
+      locationPrivacyAfterSave: "公開地図は広い表示ですが、写真ファイルのGPS情報や写り込みから場所が分かる場合があります。学校・自宅付近・希少種は投稿後も公開状態を確認してください。",
       coordinateSummary: "座標を直接編集",
       latitudeLabel: "緯度",
       longitudeLabel: "経度",
@@ -5490,6 +5510,16 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "Search",
       locationMapAria: "Choose observation place on the map",
       locationMapFallback: "Loading map. Tap it when it appears to set the place.",
+      locationPrivacyTitle: "What becomes public",
+      locationPrivacyExactLabel: "Exact place",
+      locationPrivacyExactBody: "Used for saving and your notebook. Public maps are designed not to show exact pins, but photo GPS metadata needs a separate check.",
+      locationPrivacyPublicLabel: "Public view",
+      locationPrivacyPublicBody: "Map display uses a municipality or broad area. Check photos and notes before posting if they reveal a home or school route.",
+      locationPrivacySensitiveLabel: "Schools, homes, rare species",
+      locationPrivacySensitiveBody: "Schools, home areas, and rare species can still be identifiable even from broad areas. Remove photo GPS before posting when needed.",
+      locationPrivacyPreviewUnset: "Public maps use a broad view. Photo files may still contain GPS metadata.",
+      locationPrivacyPreviewSet: "Public maps use a broad view. Check photo GPS metadata and visible clues too.",
+      locationPrivacyAfterSave: "Public maps use a broad view, but photo GPS metadata or visible clues can still reveal a place. Recheck school, home-area, and rare-species records after saving.",
       coordinateSummary: "Edit coordinates directly",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -5634,6 +5664,16 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "Buscar",
       locationMapAria: "Elegir lugar de observacion en el mapa",
       locationMapFallback: "Cargando mapa. Tocalo cuando aparezca para fijar el lugar.",
+      locationPrivacyTitle: "Que sera publico",
+      locationPrivacyExactLabel: "Lugar exacto",
+      locationPrivacyExactBody: "Se usa para guardar y para tu cuaderno. El mapa publico evita pines exactos, pero el GPS de la foto debe revisarse aparte.",
+      locationPrivacyPublicLabel: "Vista publica",
+      locationPrivacyPublicBody: "El mapa usa municipio o area amplia. Revisa fotos y notas si pueden mostrar casa o ruta escolar.",
+      locationPrivacySensitiveLabel: "Escuelas, hogares, especies raras",
+      locationPrivacySensitiveBody: "Escuelas, hogares y especies raras pueden identificarse aun desde areas amplias. Quita el GPS de la foto si hace falta.",
+      locationPrivacyPreviewUnset: "El mapa publico usa vista amplia. La foto puede conservar GPS en sus metadatos.",
+      locationPrivacyPreviewSet: "El mapa publico usa vista amplia. Revisa tambien GPS de la foto y pistas visibles.",
+      locationPrivacyAfterSave: "El mapa publico usa vista amplia, pero el GPS de la foto o pistas visibles pueden revelar el lugar. Revisa registros de escuela, hogar y especies raras despues de guardar.",
       coordinateSummary: "Editar coordenadas directamente",
       latitudeLabel: "Latitud",
       longitudeLabel: "Longitud",
@@ -5778,6 +5818,16 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "Buscar",
       locationMapAria: "Escolher local da observacao no mapa",
       locationMapFallback: "Carregando mapa. Toque nele quando aparecer para definir o local.",
+      locationPrivacyTitle: "O que fica publico",
+      locationPrivacyExactLabel: "Local exato",
+      locationPrivacyExactBody: "Usado para salvar e no seu caderno. O mapa publico evita pinos exatos, mas o GPS da foto precisa de checagem separada.",
+      locationPrivacyPublicLabel: "Vista publica",
+      locationPrivacyPublicBody: "O mapa usa municipio ou area ampla. Confira fotos e notas se elas revelam casa ou rota escolar.",
+      locationPrivacySensitiveLabel: "Escolas, casas, especies raras",
+      locationPrivacySensitiveBody: "Escolas, areas de casa e especies raras ainda podem ser identificadas em areas amplas. Remova o GPS da foto quando necessario.",
+      locationPrivacyPreviewUnset: "O mapa publico usa vista ampla. A foto pode manter GPS nos metadados.",
+      locationPrivacyPreviewSet: "O mapa publico usa vista ampla. Confira tambem GPS da foto e pistas visiveis.",
+      locationPrivacyAfterSave: "O mapa publico usa vista ampla, mas GPS da foto ou pistas visiveis ainda podem revelar o local. Revise registros de escola, casa e especies raras depois de salvar.",
       coordinateSummary: "Editar coordenadas diretamente",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -14190,6 +14240,29 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     </div>
                     <button type="button" class="btn btn-ghost record-gps-btn" data-record-locate>${escapeHtml(recordForm.currentLocation)}</button>
                   </div>
+                  <details id="record-location-privacy" class="record-location-privacy">
+                    <summary class="record-location-privacy-head" aria-label="${escapeHtml(recordForm.locationPrivacyTitle)}">
+                      <strong>${escapeHtml(recordForm.locationPrivacyTitle)}</strong>
+                      <span id="record-location-privacy-preview">${escapeHtml(recordForm.locationPrivacyPreviewUnset)}</span>
+                    </summary>
+                    <div class="record-location-privacy-grid">
+                      <div class="record-location-privacy-item">
+                        <b>1</b>
+                        <strong>${escapeHtml(recordForm.locationPrivacyExactLabel)}</strong>
+                        <span>${escapeHtml(recordForm.locationPrivacyExactBody)}</span>
+                      </div>
+                      <div class="record-location-privacy-item">
+                        <b>2</b>
+                        <strong>${escapeHtml(recordForm.locationPrivacyPublicLabel)}</strong>
+                        <span>${escapeHtml(recordForm.locationPrivacyPublicBody)}</span>
+                      </div>
+                      <div class="record-location-privacy-item is-sensitive">
+                        <b>!</b>
+                        <strong>${escapeHtml(recordForm.locationPrivacySensitiveLabel)}</strong>
+                        <span>${escapeHtml(recordForm.locationPrivacySensitiveBody)}</span>
+                      </div>
+                    </div>
+                  </details>
                   <div class="record-place-search">
                     <input id="record-location-search" type="search" placeholder="${escapeHtml(recordForm.locationSearchPlaceholder)}" autocomplete="off" />
                     <button type="button" id="record-location-search-btn">${escapeHtml(recordForm.locationSearchButton)}</button>
@@ -14531,6 +14604,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const locationLabel = document.getElementById('record-location-label');
         const locationHelp = document.getElementById('record-location-help');
         const locationMapEl = document.getElementById('record-location-map');
+        const locationPrivacy = document.getElementById('record-location-privacy');
+        const locationPrivacyPreview = document.getElementById('record-location-privacy-preview');
         const locationSearchInput = document.getElementById('record-location-search');
         const locationSearchButton = document.getElementById('record-location-search-btn');
         const locationResults = document.getElementById('record-location-results');
@@ -14635,6 +14710,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           submitDockMeta: ${JSON.stringify(recordForm.submitDockMeta)},
           mediaNoteOnly: ${JSON.stringify(recordForm.mediaNoteOnly)},
           mediaLocationMissing: ${JSON.stringify(recordForm.mediaLocationMissing)},
+          locationPrivacyPreviewUnset: ${JSON.stringify(recordForm.locationPrivacyPreviewUnset)},
+          locationPrivacyPreviewSet: ${JSON.stringify(recordForm.locationPrivacyPreviewSet)},
+          locationPrivacyAfterSave: ${JSON.stringify(recordForm.locationPrivacyAfterSave)},
         };
 
         if (observedAt && !observedAt.value) {
@@ -14849,10 +14927,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (!coords) {
             locationLabel.textContent = recordUiCopy.locationUnknown;
             locationHelp.textContent = recordUiCopy.locationHelp;
+            syncLocationPrivacyNotice();
             return;
           }
           locationLabel.textContent = sourceLabel || recordUiCopy.locationSelected;
           locationHelp.textContent = coords.lat.toFixed(6) + ', ' + coords.lng.toFixed(6);
+          syncLocationPrivacyNotice();
+        };
+
+        const syncLocationPrivacyNotice = () => {
+          const coords = readCoords();
+          if (locationPrivacy) locationPrivacy.classList.toggle('has-location', Boolean(coords));
+          if (locationPrivacyPreview) {
+            locationPrivacyPreview.textContent = coords
+              ? recordUiCopy.locationPrivacyPreviewSet
+              : recordUiCopy.locationPrivacyPreviewUnset;
+          }
         };
 
         const setRecordLocationProvenance = (source, lat, lng, details) => {
@@ -17611,6 +17701,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? extraStatus
                 : '';
               const impactHtml = buildImpactHtml(observationJson.impact || null, suffix);
+              const locationPrivacyHtml = '<div class="record-success-privacy">' + escapeHtmlText(recordUiCopy.locationPrivacyAfterSave) + '</div>';
               const contributionReceipts = Array.isArray(observationJson.contributionReceipts)
                 ? observationJson.contributionReceipts.slice(0, 3)
                 : [];
@@ -17639,7 +17730,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
@@ -17798,6 +17889,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-place-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
         .record-place-head strong { display: block; color: #0f172a; font-size: 15px; line-height: 1.45; }
         .record-place-head p { margin: 3px 0 0; color: #64748b; font-size: 12px; line-height: 1.6; font-weight: 750; }
+        .record-location-privacy { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: linear-gradient(135deg, rgba(240,253,250,.95), rgba(255,255,255,.98)); border: 1px solid rgba(20,184,166,.24); }
+        .record-location-privacy:not([open]) { gap: 0; }
+        .record-location-privacy.has-location { border-color: rgba(5,150,105,.34); box-shadow: 0 10px 24px rgba(5,150,105,.08); }
+        .record-location-privacy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; }
+        .record-location-privacy-head::-webkit-details-marker { display: none; }
+        .record-location-privacy-head::after { content: "+"; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #ccfbf1; color: #0f766e; font-size: 14px; line-height: 1; font-weight: 950; }
+        .record-location-privacy[open] .record-location-privacy-head::after { content: "-"; }
+        .record-location-privacy-head strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; }
+        .record-location-privacy-head span { flex: 1 1 auto; max-width: 60%; color: #0f766e; font-size: 11px; line-height: 1.45; font-weight: 900; text-align: right; }
+        .record-location-privacy-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-location-privacy-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 7px; align-content: start; min-height: 88px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.07); }
+        .record-location-privacy-item b { grid-row: span 2; width: 24px; height: 24px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #ccfbf1; color: #0f766e; font-size: 11px; line-height: 1; font-weight: 950; }
+        .record-location-privacy-item.is-sensitive b { background: #fef3c7; color: #b45309; }
+        .record-location-privacy-item strong { color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; overflow-wrap: anywhere; }
+        .record-location-privacy-item span { grid-column: 2; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 760; overflow-wrap: anywhere; }
         .record-place-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
         .record-place-search input { min-height: 48px; padding: 0 14px; border-radius: 16px; border: 1px solid rgba(15,23,42,.12); background: #fff; font: inherit; }
         .record-place-search button { min-height: 48px; padding: 0 16px; border-radius: 16px; border: 0; background: #0f766e; color: #fff; font: inherit; font-weight: 950; cursor: pointer; }
@@ -17825,6 +17931,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-submit-panel strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
         .record-submit-panel p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 750; }
         .record-submit-panel .btn { min-width: 140px; }
+        .record-success-privacy { margin-top: 8px; padding: 9px 11px; border-radius: 12px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); color: #065f46; font-size: 12px; line-height: 1.55; font-weight: 850; }
         .site-footer { padding-bottom: 104px; }
         .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
         .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; scroll-margin-top: 92px; }
@@ -18014,6 +18121,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-autofill-status { margin-left: 0; max-width: 100%; border-radius: 16px; }
           .record-place-head { flex-direction: column; }
           .record-place-head .record-gps-btn { width: 100%; }
+          .record-location-privacy-head { flex-direction: column; }
+          .record-location-privacy-head span { max-width: none; text-align: left; }
+          .record-location-privacy-grid { grid-template-columns: 1fr; }
+          .record-location-privacy-item { min-height: auto; }
           .record-place-search { grid-template-columns: 1fr; }
           .record-location-map { min-height: 220px; }
           .record-submit-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 42; display: grid; grid-template-columns: minmax(0, .65fr) minmax(0, .95fr) minmax(0, 1.1fr); gap: 8px; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.96); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); }
