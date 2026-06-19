@@ -345,6 +345,15 @@ test("public map snapshot payload stores public cell memberships instead of coor
   assert.ok((record.cellIdsByRequestedGrid as Record<string, string>)["10000"]);
 });
 
+test("refreshPublicMapSnapshot serializes snapshot rewrites with a transaction advisory lock", async () => {
+  const source = await readFile(new URL("./mapSnapshot.ts", import.meta.url), "utf8");
+
+  assert.match(source, /PUBLIC_MAP_REFRESH_LOCK_KEY/);
+  assert.match(source, /pg_advisory_xact_lock\(hashtext\(\$1\)\)/);
+  assert.match(source, /await client\.query\("begin"\)/);
+  assert.match(source, /await client\.query\("commit"\)/);
+});
+
 test("public map snapshot status detects missing, fresh, and stale snapshots", () => {
   const now = new Date("2026-06-19T12:00:00.000Z");
   const maxAgeMs = 6 * 60 * 60 * 1000;

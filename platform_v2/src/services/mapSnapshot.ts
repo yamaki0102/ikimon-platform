@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import type { Pool, PoolClient } from "pg";
 import { buildObserverNameSql } from "./observerNameSql.js";
 import { formatTaxonDisplayName } from "./localizedDisplay.js";
 import {
@@ -273,8 +274,11 @@ type PublicMapFixedCellScope = {
 
 const PUBLIC_MAP_SNAPSHOT_KEY = "public-map:v1:global";
 const PUBLIC_MAP_FRESHNESS_REGISTRY_KEY = "public_map_snapshot";
+const PUBLIC_MAP_REFRESH_LOCK_KEY = "public-map-snapshot-refresh:v1";
 const PUBLIC_MAP_REQUESTED_GRIDS = [1000, 3000, 10000] as const;
 export const DEFAULT_PUBLIC_MAP_SNAPSHOT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+type MapSnapshotQueryClient = Pick<Pool | PoolClient, "query">;
 
 const MAP_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
@@ -608,7 +612,7 @@ function compareIsoDesc(a: string | null, b: string | null): number {
   return a < b ? 1 : a > b ? -1 : 0;
 }
 
-async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
+async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQueryClient): Promise<{
   rows: PublicMapPreparedRecord[];
   markerProfile: MarkerProfile;
   provenance: {
@@ -623,9 +627,9 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
   const fixedCellScope = filters.bbox
     ? buildPublicMapFixedCellScope(filters.bbox, requestedGridM)
     : null;
-  let pool;
+  let queryClient = db;
   try {
-    pool = getPool();
+    queryClient ??= getPool();
   } catch {
     return {
       rows: [],
@@ -744,7 +748,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
 
   try {
     const sensitiveIndex = await loadSensitiveSpeciesIndex();
-    const result = await pool.query<PublicMapSourceRow>(sql, params);
+    const result = await queryClient.query<PublicMapSourceRow>(sql, params);
     const rows = result.rows
       .filter((row) => row.latitude !== null && row.longitude !== null)
       .filter((row) => {
@@ -994,11 +998,11 @@ export async function getPublicMapSnapshotStatus(
 }
 
 async function markPublicMapSnapshotFreshnessSuccess(
-  pool: ReturnType<typeof getPool>,
+  db: MapSnapshotQueryClient,
   generatedAt: string,
 ): Promise<void> {
   try {
-    await pool.query(
+    await db.query(
       `update freshness_registry
           set last_attempt_at = $2::timestamptz,
               last_success_at = $2::timestamptz,
@@ -1013,7 +1017,7 @@ async function markPublicMapSnapshotFreshnessSuccess(
         Math.floor(resolvePublicMapSnapshotMaxAgeMs() / 1000),
       ],
     );
-    await pool.query(
+    await db.query(
       `update staleness_alerts
           set resolved_at = now()
         where registry_key = $1
@@ -1082,41 +1086,53 @@ function filteredSnapshotRecords(
 }
 
 export async function refreshPublicMapSnapshot(options: { limit?: number; refreshedBy?: string } = {}): Promise<PublicMapSnapshotRefreshResult> {
-  const generatedAt = new Date().toISOString();
-  const prepared = await fetchPublicMapRows({
-    limit: options.limit ?? 4000,
-    markerProfile: "all_research_artifacts",
-  });
-  const payload = buildPublicMapSnapshotPayload(prepared.rows, generatedAt);
   const pool = getPool();
-  await pool.query(
-    `insert into public_map_snapshots (
-        snapshot_key, payload, policy, generated_at, source_sample_size, public_record_count, refreshed_by
-      ) values ($1, $2::jsonb, $3::jsonb, $4::timestamptz, $5, $6, $7)
-      on conflict (snapshot_key) do update set
-        payload = excluded.payload,
-        policy = excluded.policy,
-        generated_at = excluded.generated_at,
-        source_sample_size = excluded.source_sample_size,
-        public_record_count = excluded.public_record_count,
-        refreshed_by = excluded.refreshed_by`,
-    [
-      PUBLIC_MAP_SNAPSHOT_KEY,
-      JSON.stringify(payload),
-      JSON.stringify(PUBLIC_MAP_AGGREGATE_POLICY),
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query("select pg_advisory_xact_lock(hashtext($1))", [PUBLIC_MAP_REFRESH_LOCK_KEY]);
+
+    const generatedAt = new Date().toISOString();
+    const prepared = await fetchPublicMapRows({
+      limit: options.limit ?? 4000,
+      markerProfile: "all_research_artifacts",
+    }, client);
+    const payload = buildPublicMapSnapshotPayload(prepared.rows, generatedAt);
+    await client.query(
+      `insert into public_map_snapshots (
+          snapshot_key, payload, policy, generated_at, source_sample_size, public_record_count, refreshed_by
+        ) values ($1, $2::jsonb, $3::jsonb, $4::timestamptz, $5, $6, $7)
+        on conflict (snapshot_key) do update set
+          payload = excluded.payload,
+          policy = excluded.policy,
+          generated_at = excluded.generated_at,
+          source_sample_size = excluded.source_sample_size,
+          public_record_count = excluded.public_record_count,
+          refreshed_by = excluded.refreshed_by`,
+      [
+        PUBLIC_MAP_SNAPSHOT_KEY,
+        JSON.stringify(payload),
+        JSON.stringify(PUBLIC_MAP_AGGREGATE_POLICY),
+        generatedAt,
+        prepared.provenance.sampleSize,
+        payload.records.length,
+        options.refreshedBy ?? "manual",
+      ],
+    );
+    await markPublicMapSnapshotFreshnessSuccess(client, generatedAt);
+    await client.query("commit");
+    return {
+      snapshotKey: PUBLIC_MAP_SNAPSHOT_KEY,
       generatedAt,
-      prepared.provenance.sampleSize,
-      payload.records.length,
-      options.refreshedBy ?? "manual",
-    ],
-  );
-  await markPublicMapSnapshotFreshnessSuccess(pool, generatedAt);
-  return {
-    snapshotKey: PUBLIC_MAP_SNAPSHOT_KEY,
-    generatedAt,
-    sourceSampleSize: prepared.provenance.sampleSize,
-    publicRecordCount: payload.records.length,
-  };
+      sourceSampleSize: prepared.provenance.sampleSize,
+      publicRecordCount: payload.records.length,
+    };
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function refreshPublicMapSnapshotIfStale(

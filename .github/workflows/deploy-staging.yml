@@ -751,7 +751,7 @@ jobs:
           STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
           STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
           V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
-        run: npm run e2e:staging -- --grep-invert "map shell QA flow|map share state survives reload" --shard=${{ matrix.shard_index }}/${{ matrix.shard_total }}
+        run: npm run e2e:staging -- --grep-invert "notes/map regression staging fixtures|map shell QA flow|map share state survives reload" --shard=${{ matrix.shard_index }}/${{ matrix.shard_total }}
 
       - name: Upload Playwright artifacts
         if: always()
@@ -764,12 +764,20 @@ jobs:
           if-no-files-found: ignore
 
   verify-e2e-full-map:
-    name: Verify Staging in Browser / full map
+    name: Verify Staging in Browser / full map ${{ matrix.lane }}
     runs-on: ubuntu-latest
     needs: [plan, verify-e2e-prepare]
     if: needs.plan.outputs.run_full_browser_e2e == 'true'
     timeout-minutes: 12
     environment: staging
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: shell
+            spec: e2e/map.staging.spec.ts
+          - lane: records
+            spec: e2e/notes-map-regression.staging.spec.ts
     steps:
       - uses: actions/checkout@v5
         with:
@@ -786,13 +794,13 @@ jobs:
           STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
           STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
           V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
-        run: npx playwright test -c playwright.staging.config.ts e2e/map.staging.spec.ts
+        run: npx playwright test -c playwright.staging.config.ts ${{ matrix.spec }}
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: staging-playwright-artifacts-full-map
+          name: staging-playwright-artifacts-full-map-${{ matrix.lane }}
           path: |
             platform_v2/test-results
             platform_v2/playwright-report/staging
