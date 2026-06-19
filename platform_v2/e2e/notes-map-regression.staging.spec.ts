@@ -18,6 +18,8 @@ type MapObservationsPayload = {
   }>;
   stats?: {
     markerProfile?: string;
+    totalReturned?: number;
+    totalAll?: number;
   };
 };
 
@@ -32,6 +34,65 @@ function collectOccurrenceIds(payload: MapObservationsPayload): Set<string> {
       .map((item) => item.occurrenceId ?? "")
       .filter(Boolean),
   );
+}
+
+type MapObservationProbe = {
+  ok: boolean;
+  markerProfile: string | null;
+  ids: Set<string>;
+  totalReturned: number | null;
+  totalAll: number | null;
+  sample: string[];
+};
+
+async function fetchMapObservationProbe(api: APIRequestContext, path: string): Promise<MapObservationProbe> {
+  const response = await api.get(path, {
+    headers: { accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => ({ items: [] }))) as MapObservationsPayload;
+  const ids = collectOccurrenceIds(payload);
+  return {
+    ok: response.ok(),
+    markerProfile: payload.stats?.markerProfile ?? null,
+    ids,
+    totalReturned: typeof payload.stats?.totalReturned === "number" ? payload.stats.totalReturned : null,
+    totalAll: typeof payload.stats?.totalAll === "number" ? payload.stats.totalAll : null,
+    sample: Array.from(ids).slice(0, 8),
+  };
+}
+
+async function waitForMapObservationProbe(
+  api: APIRequestContext,
+  path: string,
+  expected: {
+    markerProfile: string;
+    requiredIds: string[];
+    forbiddenIds: string[];
+  },
+): Promise<MapObservationProbe> {
+  const deadline = Date.now() + 30_000;
+  let last: MapObservationProbe | null = null;
+  while (Date.now() <= deadline) {
+    last = await fetchMapObservationProbe(api, path);
+    const missing = expected.requiredIds.filter((id) => !last!.ids.has(id));
+    const unexpected = expected.forbiddenIds.filter((id) => last!.ids.has(id));
+    if (last.ok && last.markerProfile === expected.markerProfile && missing.length === 0 && unexpected.length === 0) {
+      return last;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+  const missing = expected.requiredIds.filter((id) => !last?.ids.has(id));
+  const unexpected = expected.forbiddenIds.filter((id) => last?.ids.has(id));
+  throw new Error([
+    `map_observation_probe_failed path=${path}`,
+    `ok=${last?.ok ?? false}`,
+    `markerProfile=${last?.markerProfile ?? "missing"}`,
+    `totalReturned=${last?.totalReturned ?? "missing"}`,
+    `totalAll=${last?.totalAll ?? "missing"}`,
+    `missing=${missing.join(",") || "none"}`,
+    `unexpected=${unexpected.join(",") || "none"}`,
+    `sample=${last?.sample.join(",") || "empty"}`,
+  ].join(" "));
 }
 
 test.describe.serial("notes/map regression staging fixtures", () => {
@@ -75,38 +136,23 @@ test.describe.serial("notes/map regression staging fixtures", () => {
 
   test("map API excludes smoke fixtures and respects marker profiles", async () => {
     const bbox = "122.9,24.0,146.0,45.6";
-    const defaultResponse = await api.get(`/api/v1/map/observations?bbox=${bbox}&limit=1500`, {
-      headers: { accept: "application/json" },
+    await waitForMapObservationProbe(api, `/api/v1/map/observations?bbox=${bbox}&limit=1500`, {
+      markerProfile: "all_research_artifacts",
+      requiredIds: [fixture.manual.occurrenceId, fixture.historical.occurrenceId],
+      forbiddenIds: [fixture.smoke.occurrenceId],
     });
-    expect(defaultResponse.ok()).toBeTruthy();
-    const defaultPayload = (await defaultResponse.json()) as MapObservationsPayload;
-    const defaultIds = collectOccurrenceIds(defaultPayload);
-    expect(defaultPayload.stats?.markerProfile).toBe("all_research_artifacts");
-    expect(defaultIds.has(fixture.manual.occurrenceId)).toBeTruthy();
-    expect(defaultIds.has(fixture.historical.occurrenceId)).toBeTruthy();
-    expect(defaultIds.has(fixture.smoke.occurrenceId)).toBeFalsy();
 
-    const manualOnlyResponse = await api.get(`/api/v1/map/observations?bbox=${bbox}&limit=1500&marker_profile=manual_only`, {
-      headers: { accept: "application/json" },
+    await waitForMapObservationProbe(api, `/api/v1/map/observations?bbox=${bbox}&limit=1500&marker_profile=manual_only`, {
+      markerProfile: "manual_only",
+      requiredIds: [fixture.manual.occurrenceId],
+      forbiddenIds: [fixture.historical.occurrenceId, fixture.smoke.occurrenceId],
     });
-    expect(manualOnlyResponse.ok()).toBeTruthy();
-    const manualOnlyPayload = (await manualOnlyResponse.json()) as MapObservationsPayload;
-    const manualOnlyIds = collectOccurrenceIds(manualOnlyPayload);
-    expect(manualOnlyPayload.stats?.markerProfile).toBe("manual_only");
-    expect(manualOnlyIds.has(fixture.manual.occurrenceId)).toBeTruthy();
-    expect(manualOnlyIds.has(fixture.historical.occurrenceId)).toBeFalsy();
-    expect(manualOnlyIds.has(fixture.smoke.occurrenceId)).toBeFalsy();
 
-    const explicitAllResponse = await api.get(`/api/v1/map/observations?bbox=${bbox}&limit=1500&marker_profile=all_research_artifacts`, {
-      headers: { accept: "application/json" },
+    await waitForMapObservationProbe(api, `/api/v1/map/observations?bbox=${bbox}&limit=1500&marker_profile=all_research_artifacts`, {
+      markerProfile: "all_research_artifacts",
+      requiredIds: [fixture.manual.occurrenceId, fixture.historical.occurrenceId],
+      forbiddenIds: [fixture.smoke.occurrenceId],
     });
-    expect(explicitAllResponse.ok()).toBeTruthy();
-    const explicitAllPayload = (await explicitAllResponse.json()) as MapObservationsPayload;
-    const explicitAllIds = collectOccurrenceIds(explicitAllPayload);
-    expect(explicitAllPayload.stats?.markerProfile).toBe("all_research_artifacts");
-    expect(explicitAllIds.has(fixture.manual.occurrenceId)).toBeTruthy();
-    expect(explicitAllIds.has(fixture.historical.occurrenceId)).toBeTruthy();
-    expect(explicitAllIds.has(fixture.smoke.occurrenceId)).toBeFalsy();
   });
 
   test("notes/profile/map UI uses display names and keeps smoke fixtures out of public surfaces", async ({ browser }) => {

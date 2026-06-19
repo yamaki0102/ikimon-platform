@@ -1897,6 +1897,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     waterwayAbort: null,
     waterwayDebounce: null,
     waterwaySearchKey: '',
+    recordsLoadWatchdog: null,
+    recordsLoadWatchdogSeq: 0,
+    recordsRecoveryKey: '',
+    recordsRecoveryAttempts: 0,
     areaPolygonFeatures: [],
     discoveryPreviewMarkers: [],
     areaBadgeMarkers: [],
@@ -1918,6 +1922,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var activeGuideAudio = null;
   var SIDE_RAIL_SIGNAL_MIN_RECORDS = 6;
   var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
+  var RECORDS_LOAD_WATCHDOG_MS = 12000;
 
   function sideRailSignalCanUseRecords(records) {
     var count = Array.isArray(records) ? records.length : 0;
@@ -2244,6 +2249,62 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   updatePendingMapResultsState();
   setResultsLoadState('idle', 0);
+
+  function clearRecordsLoadWatchdog(requestSeq) {
+    if (!state.recordsLoadWatchdog) return;
+    if (requestSeq != null && state.recordsLoadWatchdogSeq !== requestSeq) return;
+    clearTimeout(state.recordsLoadWatchdog);
+    state.recordsLoadWatchdog = null;
+    state.recordsLoadWatchdogSeq = 0;
+  }
+
+  function settleCurrentRecordsRequest(requestSeq) {
+    if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return false;
+    state._recordsAppliedSeq = requestSeq;
+    if (state.recordsLoadWatchdogSeq === requestSeq) state.recordAbort = null;
+    clearRecordsLoadWatchdog(requestSeq);
+    updatePendingMapResultsState();
+    return true;
+  }
+
+  function recoverRecordsLoad(requestSeq, requestKey, scope) {
+    if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
+    if (state._recordsAppliedSeq === requestSeq) return;
+    if (state.recordsRecoveryKey !== requestKey) {
+      state.recordsRecoveryKey = requestKey;
+      state.recordsRecoveryAttempts = 0;
+    }
+    if (state.recordsRecoveryAttempts < 1) {
+      state.recordsRecoveryAttempts += 1;
+      loadRecords(scope || null);
+      return;
+    }
+    state.recordsRecoveryAttempts = 0;
+    if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
+    state._recordsAppliedSeq = requestSeq;
+    state.recordAbort = null;
+    clearRecordsLoadWatchdog(requestSeq);
+    renderResultList();
+    renderSelectedCard();
+    renderSidePanels();
+    refreshDiscoveryPreviewMarkers();
+    updatePendingMapResultsState();
+    updateSearchAreaUi();
+    var records = Array.isArray(state.records) ? state.records : [];
+    var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
+    if (!records.length) setStatus(COPY.empty);
+    else setStatus(fmtStatsLabel(records.length, totalAll));
+    setStatusMeta(state.lastStats ? fmtProvenanceMeta(state.lastStats) : '');
+  }
+
+  function scheduleRecordsLoadWatchdog(requestSeq, requestKey, scope) {
+    clearRecordsLoadWatchdog();
+    state.recordsLoadWatchdogSeq = requestSeq;
+    state.recordsLoadWatchdog = setTimeout(function () {
+      state.recordsLoadWatchdog = null;
+      recoverRecordsLoad(requestSeq, requestKey, scope);
+    }, RECORDS_LOAD_WATCHDOG_MS);
+  }
 
   function contributorBandLabel(band) {
     if (band === '1-2') return COPY.contributorBand_1_2;
@@ -6002,19 +6063,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.lastSearchedBbox = bbox;
       state.pendingViewportSearch = false;
     }
+    var requestKey = qs;
+    if (state.recordsRecoveryKey !== requestKey) {
+      state.recordsRecoveryKey = requestKey;
+      state.recordsRecoveryAttempts = 0;
+    }
     setStatus(COPY.loading);
     setResultsLoadState('loading', state.records && state.records.length ? state.records.length : 0);
     if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
+    clearRecordsLoadWatchdog();
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     var requestSeq = state._recordsRequestSeq + 1;
     state._recordsRequestSeq = requestSeq;
     state.recordAbort = controller;
     updatePendingMapResultsState();
+    scheduleRecordsLoadWatchdog(requestSeq, requestKey, scope);
     fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('records ' + r.status)); })
       .then(function (list) {
         if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
-        state._recordsAppliedSeq = requestSeq;
+        settleCurrentRecordsRequest(requestSeq);
+        state.recordsRecoveryAttempts = 0;
         state.records = (list && list.items) || [];
         state.lastStats = (list && list.stats) || null;
         if (state.selectedOccurrenceId) {
@@ -6051,11 +6120,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         setStatusMeta(fmtProvenanceMeta(list && list.stats));
       })
       .catch(function (err) {
-        if (err && err.name === 'AbortError') return;
-        if (MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) {
-          state._recordsAppliedSeq = requestSeq;
-          updatePendingMapResultsState();
+        if (err && err.name === 'AbortError') {
+          settleCurrentRecordsRequest(requestSeq);
+          return;
         }
+        settleCurrentRecordsRequest(requestSeq);
+        state.recordsRecoveryAttempts = 0;
         setResultsLoadState('error', state.records && state.records.length ? state.records.length : 0);
         setStatus('—');
         setStatusMeta('');

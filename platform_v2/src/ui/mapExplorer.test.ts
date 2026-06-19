@@ -310,6 +310,10 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /Monticola: 'イソヒヨドリ属'/);
   assert.match(script, /function groupResultRecords\(records\)/);
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
+  assert.match(script, /function scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\)/);
+  assert.match(script, /function recoverRecordsLoad\(requestSeq, requestKey, scope\)/);
+  assert.match(script, /settleCurrentRecordsRequest\(requestSeq\)/);
+  assert.match(script, /RECORDS_LOAD_WATCHDOG_MS = 12000/);
   assert.match(script, /data-results-state/);
   assert.match(script, /setResultsLoadState\(records\.length \? 'ready' : 'empty', records\.length\)/);
   assert.match(script, /setResultsLoadState\('error'/);
