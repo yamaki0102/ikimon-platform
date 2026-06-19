@@ -24,7 +24,7 @@ on:
         default: ''
         type: string
       verify_level:
-        description: 'Verification depth: auto is the normal fast path; full is for release/cutover rehearsal'
+        description: 'Verification depth: fast=staging-fast deploy+healthz only; auto=normal preview; full=staging-release'
         required: false
         default: 'auto'
         type: choice
@@ -123,7 +123,12 @@ jobs:
           RUN_BROWSER_SMOKE=false
           RUN_FULL_BROWSER_E2E=false
 
-          if [ "$VERIFY_LEVEL" = "full" ]; then
+          if [ "$VERIFY_LEVEL" = "fast" ]; then
+            RUN_PHP_LINT=false
+            RUN_MANIFEST_CHECK=false
+            RUN_BROWSER_SMOKE=false
+            RUN_FULL_BROWSER_E2E=false
+          elif [ "$VERIFY_LEVEL" = "full" ]; then
             RUN_PHP_LINT=true
             RUN_MANIFEST_CHECK=true
             RUN_BROWSER_SMOKE=true
@@ -156,7 +161,11 @@ jobs:
           {
             echo "## Staging profile"
             echo ""
-            if [ "$VERIFY_LEVEL" = "full" ]; then
+            if [ "$VERIFY_LEVEL" = "fast" ]; then
+              echo "- Mode: staging-fast preview"
+              echo "- Release evidence: no"
+              echo "- Verification: deploy/restart/healthz only"
+            elif [ "$VERIFY_LEVEL" = "full" ]; then
               echo "- Mode: release/full rehearsal"
             else
               echo "- Mode: lightweight staging preview"
@@ -171,6 +180,8 @@ jobs:
             echo "- full browser E2E: $RUN_FULL_BROWSER_E2E"
             if [ "$VERIFY_LEVEL" = "full" ]; then
               echo "- public_map_snapshot_alert_lifecycle: required"
+            elif [ "$VERIFY_LEVEL" = "fast" ]; then
+              echo "- public_map_snapshot_alert_lifecycle: skipped (staging-fast)"
             else
               echo "- public_map_snapshot_alert_lifecycle: skipped (full only)"
             fi
@@ -204,10 +215,12 @@ jobs:
           extensions: gd, mbstring, json
 
       - name: Check deploy guardrails
+        if: needs.plan.outputs.verify_level != 'fast'
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
 
       - name: Check platform_v2 migration guardrails
+        if: needs.plan.outputs.verify_level != 'fast'
         shell: pwsh
         run: ./scripts/check_platform_v2_migration_guardrails.ps1 -BaseRef origin/main
 
@@ -328,6 +341,9 @@ jobs:
             if [ "$VERIFY_LEVEL" = "full" ] || [ "$KNOWLEDGE_CHANGED" = "true" ]; then
               SHOULD_RUN_KNOWLEDGE=true
             fi
+            if [ "$VERIFY_LEVEL" = "fast" ]; then
+              SHOULD_RUN_KNOWLEDGE=false
+            fi
             if [ "$SHOULD_REBUILD" != "true" ]; then
               echo "Skip platform_v2 rebuild: deployed diff does not touch v2/deploy runtime files. Use verify_level=full to force."
               exit 0
@@ -353,15 +369,19 @@ jobs:
             npm ci --silent
             echo "== npm run build =="
             npm run build
-            echo "== npm run migrate =="
-            if [ -n "$STAGING_MIGRATION_REPAIR_CHECKSUMS" ] && ! printf '%s' "$STAGING_MIGRATION_REPAIR_CHECKSUMS" | grep -qE '^[a-zA-Z0-9._/-]+\.sql(,[a-zA-Z0-9._/-]+\.sql)*$'; then
-              echo "Invalid migration_repair_checksums: $STAGING_MIGRATION_REPAIR_CHECKSUMS"
-              exit 1
+            if [ "$VERIFY_LEVEL" = "fast" ]; then
+              echo "== staging-fast: skip migrations, imports, and knowledge postdeploy =="
+            else
+              echo "== npm run migrate =="
+              if [ -n "$STAGING_MIGRATION_REPAIR_CHECKSUMS" ] && ! printf '%s' "$STAGING_MIGRATION_REPAIR_CHECKSUMS" | grep -qE '^[a-zA-Z0-9._/-]+\.sql(,[a-zA-Z0-9._/-]+\.sql)*$'; then
+                echo "Invalid migration_repair_checksums: $STAGING_MIGRATION_REPAIR_CHECKSUMS"
+                exit 1
+              fi
+              DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
+              IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS" DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
+              DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run import:observation-fields:aikan-renri
+              DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run import:invasive-reporting:shizuoka
             fi
-            DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
-            IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS" DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
-            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run import:observation-fields:aikan-renri
-            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run import:invasive-reporting:shizuoka
             if [ "$SHOULD_RUN_KNOWLEDGE" = "true" ]; then
               echo "== npm run compile:knowledge-navigation dry-run =="
               DRY_RUN_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --dry-run --json)"
@@ -524,6 +544,19 @@ jobs:
             VERIFY_LEVEL=auto
             if [ -f "$SCOPE_FILE" ]; then
               . "$SCOPE_FILE"
+            fi
+            if [ "$VERIFY_LEVEL" = "fast" ]; then
+              echo "== staging-fast healthz only =="
+              for i in 1 2 3 4 5 6 7 8 9 10; do
+                STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3200/healthz 2>/dev/null || true)
+                if [ "$STATUS" = "200" ]; then
+                  echo "OK staging-fast healthz -> $STATUS"
+                  exit 0
+                fi
+                sleep 1
+              done
+              echo "FAIL staging-fast healthz did not return 200"
+              exit 1
             fi
             if [ -z "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
               echo "FAIL: V2_PRIVILEGED_WRITE_API_KEY missing in staging environment"
