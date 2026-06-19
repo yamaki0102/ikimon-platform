@@ -988,7 +988,7 @@ async function fetchLiveOsmAreaPolygons(query: AreaPolygonsQuery, remainingLimit
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json",
-          "User-Agent": "ikimon.life-area-polygons (https://ikimon.life)",
+          "X-Ikimon-Client": "ikimon.life-area-polygons",
         },
         body,
         signal: controller.signal,
