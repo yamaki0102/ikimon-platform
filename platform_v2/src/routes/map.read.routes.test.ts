@@ -35,7 +35,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, />最近の発見</);
     assert.match(html, />季節の気配</);
     assert.match(html, />エリア図鑑</);
-    assert.match(html, />記録の余白</);
+    assert.match(html, />記録候補</);
     assert.doesNotMatch(html, /写真カード = 最近の発見/);
     assert.doesNotMatch(html, /\.me-enjoy-strip/);
     assert.doesNotMatch(html, /\.me-map-cues/);

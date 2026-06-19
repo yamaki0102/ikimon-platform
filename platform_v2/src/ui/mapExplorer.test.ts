@@ -141,7 +141,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /地域図鑑マップ/);
   assert.match(html, /この範囲の地域図鑑/);
   assert.match(html, /記録は地域単位で集計しています/);
-  assert.doesNotMatch(html, /余白 = これから育つ場所/);
+  assert.doesNotMatch(html, /me-map-cue/);
   assert.doesNotMatch(html, /色 = 季節と記録の厚み/);
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
@@ -386,7 +386,7 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(html, /aria-label="閉じる"/);
   assert.match(script, /function layerHintInfo\(tab\)/);
   assert.match(script, /ズームするとエリア図鑑の範囲が見えます。/);
-  assert.match(script, /ズームすると記録の余白が面で見えます。/);
+  assert.match(script, /ズームすると記録候補の範囲が見えます。/);
   assert.match(script, /ズームすると季節の気配の濃淡が見えます。/);
   assert.match(script, /maybeShowLayerHint\(state\.tab\);/);
   assert.match(script, /function jumpToVisibleLayer\(tab\)/);
