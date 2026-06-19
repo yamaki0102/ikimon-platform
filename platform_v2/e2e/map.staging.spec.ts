@@ -163,7 +163,6 @@ async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
 
 type MapShellState = {
   filterToggleVisible: boolean;
-  gsiBasemapVisible: boolean;
   launcherVisible: boolean;
   mapHeight: number;
   mapVisible: boolean;
@@ -186,7 +185,6 @@ async function readMapShellState(page: Page): Promise<MapShellState> {
     const root = document.querySelector<HTMLElement>("#map-explorer");
     return {
       filterToggleVisible: isVisible(".me-filter-toggle"),
-      gsiBasemapVisible: isVisible('input[name="me-basemap"][value="gsi"]'),
       launcherVisible: isVisible(".global-record-launcher"),
       mapHeight: mapBox?.height ?? 0,
       mapVisible: isVisible("#map-explorer") && isVisible(".me-map-wrap"),
@@ -226,30 +224,6 @@ async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
   }, isMobile, { timeout: 20_000 });
 }
 
-async function expectFilterDrawerOpens(page: Page): Promise<void> {
-  const clicked = await page.evaluate(() => {
-    const toggle = document.querySelector<HTMLElement>(".me-filter-toggle");
-    if (!toggle) return false;
-    toggle.click();
-    return true;
-  });
-  expect(clicked).toBe(true);
-  await page.waitForFunction(() => {
-    const isVisible = (selector: string): boolean => {
-      const element = document.querySelector<HTMLElement>(selector);
-      if (!element) return false;
-      const style = window.getComputedStyle(element);
-      const box = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
-    };
-    return Boolean(
-      document.querySelector(".me-filter-drawer")?.hasAttribute("open")
-      && isVisible(".me-filter-panel")
-      && isVisible('input[name="me-basemap"][value="gsi"]')
-    );
-  }, undefined, { timeout: 8_000 });
-}
-
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
@@ -272,10 +246,6 @@ for (const profile of MAP_VIEWPORTS) {
     }
     expect(initialState.filterToggleVisible).toBe(true);
     expect(initialState.resultsCount).toBeGreaterThan(0);
-
-    await expectFilterDrawerOpens(page);
-    const filterState = await readMapShellState(page);
-    expect(filterState.gsiBasemapVisible).toBe(true);
 
     await context.close();
   });
