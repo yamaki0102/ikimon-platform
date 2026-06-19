@@ -12,6 +12,12 @@ const VIEWPORTS: ViewportProfile[] = [
   { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 ];
 
+const RECORD_ENTRY_ROUTES = [
+  { slug: "home", path: "/?lang=ja" },
+  { slug: "map", path: "/map?tab=places&lng=137.7032&lat=34.6983&z=14.9&lang=ja", usesMap: true },
+  { slug: "records", path: "/records?view=public&lang=ja" },
+];
+
 const CAMERA_DEVICE_VIEWPORTS: ViewportProfile[] = [
   {
     slug: "iphone-safari-390x844",
@@ -85,6 +91,71 @@ async function issueSessionCookie(api: APIRequestContext, userId: string): Promi
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+}
+
+async function expectRecordEntryReachable(page: Page, profile: ViewportProfile): Promise<void> {
+  const result = await page.evaluate((expectMobileLauncher) => {
+    const selectors = [
+      ".site-record-link",
+      '[data-global-record-trigger="photo"]',
+      '[data-global-record-trigger="gallery"]',
+    ];
+    const candidates = selectors.flatMap((selector) =>
+      Array.from(document.querySelectorAll<HTMLElement>(selector)).map((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        const centerX = Math.max(0, Math.min(window.innerWidth - 1, rect.left + rect.width / 2));
+        const centerY = Math.max(0, Math.min(window.innerHeight - 1, rect.top + rect.height / 2));
+        const hit = document.elementFromPoint(centerX, centerY);
+        const visible = style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          Number(style.opacity || "1") > 0.05 &&
+          rect.width >= 36 &&
+          rect.height >= 32;
+        const inViewport = rect.top >= -1 &&
+          rect.left >= -1 &&
+          rect.right <= window.innerWidth + 1 &&
+          rect.bottom <= window.innerHeight + 1;
+        const hitTarget = !!hit && (hit === element || element.contains(hit));
+        return {
+          selector,
+          text: (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim(),
+          rect: {
+            top: Math.round(rect.top),
+            right: Math.round(rect.right),
+            bottom: Math.round(rect.bottom),
+            left: Math.round(rect.left),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          },
+          display: style.display,
+          visibility: style.visibility,
+          opacity: style.opacity,
+          visible,
+          inViewport,
+          hitTarget,
+          hitTag: hit ? hit.tagName.toLowerCase() : null,
+          hitClass: hit instanceof HTMLElement ? hit.className : null,
+        };
+      }),
+    );
+    const reachable = candidates.find((candidate) =>
+      candidate.visible &&
+      candidate.inViewport &&
+      candidate.hitTarget &&
+      (!expectMobileLauncher || candidate.selector === '[data-global-record-trigger="photo"]')
+    );
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      expectMobileLauncher,
+      reachable,
+      candidates,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  }, Boolean(profile.isMobile));
+
+  expect(result.overflow, JSON.stringify(result, null, 2)).toBeLessThanOrEqual(1);
+  expect(result.reachable, JSON.stringify(result, null, 2)).toBeTruthy();
 }
 
 async function installRecordMocks(page: Page, userId: string, kpiPayloads: KpiPayload[]): Promise<void> {
@@ -339,6 +410,25 @@ test.describe("record funnel staging QA", () => {
         await context.close();
       }
     });
+  }
+});
+
+test.describe("record entry viewport reachability", () => {
+  for (const profile of VIEWPORTS) {
+    for (const route of RECORD_ENTRY_ROUTES) {
+      test(`record start remains reachable on ${route.slug} (${profile.slug})`, async ({ browser }) => {
+        const context = await newStagingContext(browser, profile);
+        const page = await context.newPage();
+
+        try {
+          if (route.usesMap) await suppressMapLibreForSmoke(page);
+          await page.goto(route.path, { waitUntil: "domcontentloaded" });
+          await expectRecordEntryReachable(page, profile);
+        } finally {
+          await context.close();
+        }
+      });
+    }
   }
 });
 
