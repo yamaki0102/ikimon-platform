@@ -74,6 +74,41 @@ test("qa sitemap uses the canonical registry and legacy redirects point to v2 ro
   }
 });
 
+test("reflection loop manifest exposes route registry and measurement config without personal data", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/qa/reflection-loop.json",
+      headers: { host: "ikimon.life", "x-forwarded-proto": "https" },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers["content-type"] as string, /application\/json/);
+    const manifest = JSON.parse(response.body) as {
+      schema_version: number;
+      origin: string;
+      loop_contract: { no_personal_data: boolean; production_mutation_boundary: string };
+      analytics: { ga4_measurement_id: string; clarity_project_id: string };
+      coverage: { route_count: number; qa_route_count: number; visual_qa_route_count: number };
+      routes: Array<{ path: string; auth: string; visualQa: boolean }>;
+    };
+
+    assert.equal(manifest.schema_version, 1);
+    assert.equal(manifest.origin, "https://ikimon.life");
+    assert.equal(manifest.loop_contract.no_personal_data, true);
+    assert.match(manifest.loop_contract.production_mutation_boundary, /GitHub Actions/);
+    assert.equal(manifest.analytics.ga4_measurement_id, "G-NCL0M1VJZ2");
+    assert.equal(manifest.analytics.clarity_project_id, "wl2ezvfqbh");
+    assert.equal(manifest.coverage.route_count, manifest.routes.length);
+    assert.equal(manifest.coverage.qa_route_count, listPagesByVisibility("qa").length);
+    assert.ok(manifest.coverage.visual_qa_route_count > 0);
+    assert.ok(manifest.routes.some((route) => route.path === "/qa/reflection-loop.json" && route.auth === "system"));
+    assert.ok(manifest.routes.some((route) => route.path === "/records" && route.visualQa));
+  } finally {
+    await app.close();
+  }
+});
+
 test("top-level shared navigation does not link to 404 pages", async () => {
   const app = buildApp();
   try {
