@@ -41,6 +41,17 @@ type PaintMetrics = {
   largestContentfulPaintMs: number | null;
 };
 
+type MapCanvasReadiness = {
+  ready: boolean;
+  wrapWidth: number;
+  wrapHeight: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  statusText: string;
+  resultsState: string;
+  resultsPending: string;
+};
+
 function isMapApiUrl(url: string): boolean {
   return /\/api\/v1\/map\/(?:cells|observations|area-polygons|frontier|guide-spots|effort-summary)\b/.test(url);
 }
@@ -108,6 +119,38 @@ async function readPaintMetrics(page: Page): Promise<PaintMetrics> {
   }
 }
 
+async function readMapCanvasReadiness(page: Page): Promise<MapCanvasReadiness> {
+  return await page.evaluate(() => {
+    const wrap = document.querySelector<HTMLElement>(".me-map-wrap");
+    const canvas = document.querySelector<HTMLCanvasElement>(".maplibregl-canvas");
+    const status = document.querySelector<HTMLElement>("#me-map-status");
+    const root = document.querySelector<HTMLElement>("#map-explorer");
+    const wrapBox = wrap?.getBoundingClientRect();
+    const canvasBox = canvas?.getBoundingClientRect();
+    const wrapWidth = Math.round(wrapBox?.width ?? 0);
+    const wrapHeight = Math.round(wrapBox?.height ?? 0);
+    const canvasWidth = Math.round(canvasBox?.width ?? 0);
+    const canvasHeight = Math.round(canvasBox?.height ?? 0);
+    return {
+      ready: Boolean(
+        wrap
+        && canvas
+        && wrapWidth > 320
+        && wrapHeight > 480
+        && canvasWidth > 300
+        && canvasHeight > 300
+      ),
+      wrapWidth,
+      wrapHeight,
+      canvasWidth,
+      canvasHeight,
+      statusText: (status?.textContent ?? "").trim(),
+      resultsState: root?.getAttribute("data-results-state") ?? "",
+      resultsPending: root?.getAttribute("data-results-pending") ?? "",
+    };
+  });
+}
+
 async function waitForMapPerformanceSummary(
   browser: Browser,
   profile: ViewportProfile,
@@ -134,28 +177,17 @@ async function waitForMapPerformanceSummary(
   const domContentLoadedMs = Date.now() - startedAt;
   expect(response?.status() ?? 0, `${DEFAULT_STAGING_MAP_PATH} should load for map performance QA`).toBeLessThan(400);
 
-  await page.waitForFunction(
-    () => {
-      const wrap = document.querySelector<HTMLElement>(".me-map-wrap");
-      const canvas = document.querySelector<HTMLCanvasElement>(".maplibregl-canvas");
-      const status = document.querySelector<HTMLElement>("#me-map-status");
-      const wrapBox = wrap?.getBoundingClientRect();
-      const canvasBox = canvas?.getBoundingClientRect();
-      return Boolean(
-        wrap
-        && canvas
-        && (wrapBox?.width ?? 0) > 320
-        && (wrapBox?.height ?? 0) > 480
-        && (canvasBox?.width ?? 0) > 300
-        && (canvasBox?.height ?? 0) > 300
-        && (!status || status.textContent !== "読み込み中…")
-      );
-    },
-    null,
-    { timeout: MAP_LOAD_BUDGET_MS.mapCanvasVisible },
-  );
+  let lastCanvasReadiness: MapCanvasReadiness | null = null;
+  await expect.poll(async () => {
+    lastCanvasReadiness = await readMapCanvasReadiness(page);
+    return lastCanvasReadiness.ready;
+  }, {
+    message: "map canvas should be visible before map data side panels finish settling",
+    timeout: MAP_LOAD_BUDGET_MS.mapCanvasVisible,
+  }).toBe(true);
 
   const mapCanvasVisibleMs = Date.now() - startedAt;
+  console.info(`map-performance-canvas ${JSON.stringify(lastCanvasReadiness)}`);
   await expect.poll(() => firstMapApi?.ms ?? 0, {
     message: "first /api/v1/map response should arrive before the map feels stalled",
     timeout: MAP_LOAD_BUDGET_MS.firstMapApi,
