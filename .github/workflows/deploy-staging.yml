@@ -293,7 +293,9 @@ jobs:
               echo "BROWSER_CONTRACT_CHANGED=$BROWSER_CONTRACT_CHANGED"
             } > "$SCOPE_FILE"
             echo "Deploy scope: verify=${STAGING_VERIFY_LEVEL:-auto} v2=$V2_CHANGED php=$PHP_CHANGED deploy=$DEPLOY_CHANGED knowledge=$KNOWLEDGE_CHANGED browser_contract=$BROWSER_CONTRACT_CHANGED"
-            if [ "${STAGING_ALLOW_NON_FF:-false}" != "true" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
+            if [ "${STAGING_VERIFY_LEVEL:-auto}" = "fast" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
+              echo "staging-fast permits non-fast-forward branch switches; this run is not production promotion evidence."
+            elif [ "${STAGING_ALLOW_NON_FF:-false}" != "true" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
               echo "Refusing non-fast-forward staging deploy."
               echo "Current staging HEAD: $LOCAL_HEAD"
               echo "Target branch HEAD:   $REMOTE_HEAD"
