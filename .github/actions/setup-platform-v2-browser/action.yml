@@ -34,6 +34,30 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: npm ci
 
+    - name: Configure Playwright browser cache path
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "PLAYWRIGHT_BROWSERS_PATH=${GITHUB_WORKSPACE}/.cache/ms-playwright" >> "$GITHUB_ENV"
+
+    - name: Resolve Playwright version
+      id: playwright-version
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        version="$(node -p "require('./node_modules/@playwright/test/package.json').version")"
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+        echo "Playwright version: ${version}"
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/.cache/ms-playwright
+        key: platform-v2-playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}-chromium
+        restore-keys: |
+          platform-v2-playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}-
+
     - name: Install Playwright Chromium
       if: ${{ inputs.install-with-deps == 'true' }}
       shell: bash
