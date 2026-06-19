@@ -27,6 +27,7 @@
     "e2e:staging:smoke": "playwright test -c playwright.staging.config.ts e2e/home.staging.spec.ts",
     "e2e:staging:service-loop": "playwright test -c playwright.staging.config.ts e2e/service-loop.staging.spec.ts",
     "e2e:staging:record-funnel": "playwright test -c playwright.staging.config.ts e2e/record-funnel.staging.spec.ts",
+    "e2e:staging:map-performance": "playwright test -c playwright.staging.config.ts e2e/map-performance.staging.spec.ts",
     "e2e:staging:observation-scene": "playwright test -c playwright.staging.config.ts e2e/observation-scene-read-model.staging.spec.ts",
     "plan:staging-non-map-shards": "node scripts/planStagingNonMapShards.mjs",
     "e2e:local:observation-candidates": "playwright test -c playwright.staging.config.ts e2e/observation-candidate-tabs.local.spec.ts",
