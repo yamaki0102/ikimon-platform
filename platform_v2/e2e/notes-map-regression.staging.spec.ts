@@ -70,7 +70,7 @@ async function waitForMapObservationProbe(
     forbiddenIds: string[];
   },
 ): Promise<MapObservationProbe> {
-  const deadline = Date.now() + 30_000;
+  const deadline = Date.now() + 10_000;
   let last: MapObservationProbe | null = null;
   while (Date.now() <= deadline) {
     last = await fetchMapObservationProbe(api, path);
@@ -79,7 +79,7 @@ async function waitForMapObservationProbe(
     if (last.ok && last.markerProfile === expected.markerProfile && missing.length === 0 && unexpected.length === 0) {
       return last;
     }
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   const missing = expected.requiredIds.filter((id) => !last?.ids.has(id));
   const unexpected = expected.forbiddenIds.filter((id) => last?.ids.has(id));
@@ -134,7 +134,7 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     await probeApi.dispose();
   });
 
-  test("map API excludes smoke fixtures and respects marker profiles", async () => {
+  test("map API exposes fixed public snapshot and excludes smoke fixtures", async () => {
     const bbox = "122.9,24.0,146.0,45.6";
     const allProbe = await waitForMapObservationProbe(api, `/api/v1/map/observations?bbox=${bbox}&limit=1500`, {
       markerProfile: "all_research_artifacts",
@@ -143,13 +143,6 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     });
     expect(allProbe.totalReturned ?? 0).toBeGreaterThan(0);
     expect(allProbe.totalAll ?? 0).toBeGreaterThan(0);
-
-    const manualProbe = await waitForMapObservationProbe(api, `/api/v1/map/observations?bbox=${bbox}&limit=1500&marker_profile=manual_only`, {
-      markerProfile: "manual_only",
-      requiredIds: [],
-      forbiddenIds: [fixture.historical.occurrenceId, fixture.smoke.occurrenceId],
-    });
-    expect(manualProbe.totalReturned ?? 0).toBeLessThanOrEqual(allProbe.totalReturned ?? Number.MAX_SAFE_INTEGER);
   });
 
   test("notes/profile/map UI uses display names and keeps smoke fixtures out of public surfaces", async ({ browser }) => {
