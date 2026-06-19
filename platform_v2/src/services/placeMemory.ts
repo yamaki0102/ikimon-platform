@@ -9,6 +9,7 @@ import { buildPublicCellId } from "./publicLocation.js";
 import { generateAiTextWithRoleChain, type AiRouterPart } from "./aiModelRouter.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
+import { VALID_OBSERVATION_PHOTO_ASSET_SQL } from "./observationQualityGate.js";
 
 export const PLACE_MEMORY_GRID_M = 1000;
 const MAX_ECHO_NOTE_LENGTH = 80;
@@ -1017,6 +1018,7 @@ export type PlaceMemoryVisitItem = {
   visitCount: number;
   latestVisitId: string | null;
   latestDisplayName: string | null;
+  latestPhotoUrl: string | null;
   revisitReason: string | null;
   nextLookFor: string | null;
   lastRecordMode: string | null;
@@ -1038,6 +1040,7 @@ type PlaceMemoryVisitRow = {
   visit_count: string;
   latest_visit_id: string | null;
   latest_display_name: string | null;
+  latest_photo_url: string | null;
   last_record_mode: string | null;
   last_survey_result: string | null;
   absence_semantics: string | null;
@@ -1063,6 +1066,12 @@ function placeMemoryVisitSortSql(sort: PlaceMemoryVisitSort): string {
             latest_visit.observed_at asc`;
   }
   return "latest_visit.observed_at desc";
+}
+
+function normalizeAssetUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) return value;
+  return `/${value.replace(/^\.?\//, "")}`;
 }
 
 export async function listPlaceMemoryVisits(
@@ -1151,6 +1160,7 @@ export async function listPlaceMemoryVisits(
         stats.visit_count,
         latest_visit.visit_id as latest_visit_id,
         latest_subject.display_name as latest_display_name,
+        latest_photo.public_url as latest_photo_url,
         latest_visit.visit_mode as last_record_mode,
         latest_visit.source_payload,
         latest_visit.source_payload->>'survey_result' as last_survey_result,
@@ -1202,6 +1212,17 @@ export async function listPlaceMemoryVisits(
           o.subject_index asc
         limit 1
       ) latest_subject on true
+      left join lateral (
+        select coalesce(ab.public_url, ab.storage_path) as public_url
+        from evidence_assets ea
+        join asset_blobs ab on ab.blob_id = ea.blob_id
+        where ea.visit_id = latest_visit.visit_id
+          and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+        order by
+          case when ea.occurrence_id is not null then 0 else 1 end,
+          ea.created_at asc
+        limit 1
+      ) latest_photo on true
       order by ${placeMemoryVisitSortSql(sort)}
       limit $2`,
     [userId, limit],
@@ -1228,6 +1249,7 @@ export async function listPlaceMemoryVisits(
       visitCount: Number(row.visit_count) || 0,
       latestVisitId: row.latest_visit_id,
       latestDisplayName: row.latest_display_name,
+      latestPhotoUrl: normalizeAssetUrl(row.latest_photo_url),
       revisitReason: revisitReason || null,
       nextLookFor: nextLookFor || row.target_taxa_scope || row.latest_display_name || null,
       lastRecordMode: row.last_record_mode,

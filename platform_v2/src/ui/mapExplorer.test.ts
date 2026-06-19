@@ -753,15 +753,17 @@ test("approximate school areas are not rendered as circular map ranges", () => {
   assert.match(script, /function setSelectedAreaPolygonFilter\(fieldId\)/);
 });
 
-test("map explorer omits visited place shortcuts while keeping side collapse control", () => {
+test("map explorer surfaces own place thumbnails without old shortcut copy", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.doesNotMatch(html, /id="me-visited-panel"/);
-  assert.doesNotMatch(html, /data-api-my-places/);
-  assert.doesNotMatch(script, /function loadVisitedPlaces\(force\)/);
-  assert.doesNotMatch(script, /function jumpToVisitedPlace\(place\)/);
-  assert.doesNotMatch(script, /sort='\s\+ encodeURIComponent\(state\.visitedPlacesSort\)/);
+  assert.match(html, /id="me-own-places-panel"/);
+  assert.match(html, /data-api-my-places="\/api\/v1\/map\/my-places"/);
+  assert.match(script, /function loadOwnPlaces\(\)/);
+  assert.match(script, /function jumpToOwnPlace\(place\)/);
+  assert.match(script, /latestPhotoUrl/);
+  assert.match(script, /自分の場所/);
+  assert.match(script, /前に残した写真から、もう一度その場所へ戻れます。/);
   assert.doesNotMatch(script, /よく行く/);
   assert.doesNotMatch(script, /季節で再訪/);
   assert.doesNotMatch(script, /行った場所へ/);

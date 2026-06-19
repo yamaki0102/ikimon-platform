@@ -8,6 +8,7 @@ export type MapVisitedPlace = {
   visitCount: number;
   latestVisitId: string | null;
   latestDisplayName: string | null;
+  latestPhotoUrl: string | null;
   revisitReason: string | null;
   nextLookFor: string | null;
   lastRecordMode: string | null;
@@ -51,6 +52,7 @@ export async function listMapVisitedPlaces(
       visitCount: row.visitCount,
       latestVisitId: row.latestVisitId,
       latestDisplayName: row.latestDisplayName,
+      latestPhotoUrl: row.latestPhotoUrl,
       revisitReason: row.revisitReason,
       nextLookFor: row.nextLookFor,
       lastRecordMode: row.lastRecordMode,

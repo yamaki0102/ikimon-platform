@@ -971,6 +971,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
+  const apiMyPlaces = withBasePath(props.basePath, "/api/v1/map/my-places");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
   const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
@@ -1323,6 +1324,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
               <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
               <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
             </div>
+            <div class="me-own-places-panel" id="me-own-places-panel" data-testid="map-own-places-panel" hidden></div>
             <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
             ${activityRallyPanelHtml}
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
@@ -1334,7 +1336,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
@@ -1404,6 +1406,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var selectedCardEl = document.getElementById('me-map-selection-card');
   var mapInsightCardEl = document.getElementById('me-map-insight-card');
   var contributionPanelEl = document.getElementById('me-contribution-panel');
+  var ownPlacesPanelEl = document.getElementById('me-own-places-panel');
   var sideEl = document.getElementById('me-side');
   var sideToggleEl = document.getElementById('me-side-toggle');
   var sideRailCountEl = document.getElementById('me-side-rail-count');
@@ -1461,6 +1464,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var searchAreaBtnEl = document.getElementById('me-search-area-btn');
   var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
+  var apiMyPlaces = root.getAttribute('data-api-my-places') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
   var apiFrontier = root.getAttribute('data-api-frontier') || '';
@@ -1628,6 +1632,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     impactBlankStory: props.lang === "ja" ? "この場所の空白を埋める候補が見えた" : props.lang === "es" ? "Aparecieron huecos que se pueden completar" : props.lang === "pt-BR" ? "Apareceram vazios que podem ser preenchidos" : "Found gaps that can be filled",
     impactCommunityStory: props.lang === "ja" ? "最近、見え方が厚くなった場所" : props.lang === "es" ? "Lugares que se hicieron más claros hace poco" : props.lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
     impactPrivateNote: props.lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : props.lang === "es" ? "Se muestra solo agregado del área, no nombres." : props.lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
+    ownPlacesTitle: props.lang === "ja" ? "自分の場所" : props.lang === "es" ? "Mis lugares" : props.lang === "pt-BR" ? "Meus lugares" : "My places",
+    ownPlacesLead: props.lang === "ja" ? "前に残した写真から、もう一度その場所へ戻れます。" : props.lang === "es" ? "Vuelve a lugares anteriores desde tus fotos." : props.lang === "pt-BR" ? "Volte aos lugares anteriores pelas suas fotos." : "Return to previous places from your photos.",
+    ownPlaceRecordLabel: props.lang === "ja" ? "もう一度記録" : props.lang === "es" ? "Registrar otra vez" : props.lang === "pt-BR" ? "Registrar de novo" : "Record again",
+    ownPlaceVisitedSuffix: props.lang === "ja" ? "回" : props.lang === "es" ? " visitas" : props.lang === "pt-BR" ? " visitas" : " visits",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
     resultHeading: props.lang === "ja" ? "近くの発見" : props.lang === "es" ? "Hallazgos cercanos" : props.lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
     resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
@@ -2097,6 +2105,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     map: null,
     features: [],
     records: [],
+    ownPlaces: [],
+    ownPlacesSignedIn: false,
+    ownPlacesLoaded: false,
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -2111,6 +2122,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     recordAbort: null,
     frontierAbort: null,
     effortAbort: null,
+    ownPlacesAbort: null,
     areaPolygonsAbort: null,
     guideSpotsAbort: null,
     areaPolygonsDebounce: null,
@@ -2728,6 +2740,103 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   '<div class="me-impact-grid">' + hero + '</div>'
       +   '<div class="me-impact-next"><span>' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(next) + '</strong></div>'
       + '</section>';
+  }
+
+  function ownPlaceMeta(place) {
+    var parts = [];
+    if (place && place.lastObservedAt) parts.push(String(place.lastObservedAt).slice(0, 10));
+    if (place && Number(place.visitCount || 0) > 0) {
+      parts.push(String(Number(place.visitCount || 0)) + COPY.ownPlaceVisitedSuffix);
+    }
+    return parts.join(' · ');
+  }
+
+  function ownPlaceImageHtml(place) {
+    var src = place && place.latestPhotoUrl ? String(place.latestPhotoUrl) : '';
+    if (src) {
+      return '<span class="me-own-place-photo"><img src="' + escapeHtml(src) + '" alt="" loading="lazy" decoding="async" /></span>';
+    }
+    return '<span class="me-own-place-photo is-empty" aria-hidden="true">📍</span>';
+  }
+
+  function renderOwnPlacesPanel() {
+    if (!ownPlacesPanelEl) return;
+    var places = Array.isArray(state.ownPlaces) ? state.ownPlaces : [];
+    if (!state.ownPlacesSignedIn || !places.length) {
+      ownPlacesPanelEl.hidden = true;
+      ownPlacesPanelEl.innerHTML = '';
+      return;
+    }
+    ownPlacesPanelEl.hidden = false;
+    ownPlacesPanelEl.innerHTML = ''
+      + '<section class="me-own-places-card" aria-label="' + escapeHtml(COPY.ownPlacesTitle) + '">'
+      +   '<div class="me-own-places-head">'
+      +     '<strong>' + escapeHtml(COPY.ownPlacesTitle) + '</strong>'
+      +     '<span>' + escapeHtml(COPY.ownPlacesLead) + '</span>'
+      +   '</div>'
+      +   '<div class="me-own-places-strip">'
+      + places.slice(0, 8).map(function (place, index) {
+        var title = place && place.placeName ? String(place.placeName) : COPY.selectedPointName;
+        var subject = place && place.latestDisplayName ? String(place.latestDisplayName) : (place && place.nextLookFor ? String(place.nextLookFor) : '');
+        var meta = ownPlaceMeta(place);
+        var recordHref = buildPlaceMemoryRecordHref(place || {});
+        return '<article class="me-own-place" data-own-place-index="' + String(index) + '">'
+          + '<button type="button" class="me-own-place-main" data-own-place-open="' + String(index) + '">'
+          + ownPlaceImageHtml(place)
+          + '<span class="me-own-place-copy">'
+          + '<strong>' + escapeHtml(title) + '</strong>'
+          + (subject ? '<small>' + escapeHtml(subject) + '</small>' : '')
+          + (meta ? '<em>' + escapeHtml(meta) + '</em>' : '')
+          + '</span>'
+          + '</button>'
+          + '<a class="me-own-place-record" href="' + escapeHtml(recordHref) + '">' + escapeHtml(COPY.ownPlaceRecordLabel) + '</a>'
+          + '</article>';
+      }).join('')
+      +   '</div>'
+      + '</section>';
+    ownPlacesPanelEl.querySelectorAll('[data-own-place-open]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var idx = Number(button.getAttribute('data-own-place-open'));
+        var place = Number.isFinite(idx) ? places[idx] : null;
+        if (place) jumpToOwnPlace(place);
+      });
+    });
+  }
+
+  function jumpToOwnPlace(place) {
+    var lat = Number(place && place.latitude);
+    var lng = Number(place && place.longitude);
+    if (!state.map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    state.tab = 'places';
+    syncUiFromState();
+    applyTab(state.map, state.tab);
+    state.map.flyTo({ center: [lng, lat], zoom: 16.2, duration: 620, essential: true });
+    openPlaceSheet(lat, lng, place);
+    sendMapKpi('map_own_place_open', 'map:own_place_open', {
+      placeId: place.placeId || '',
+      visitCount: Number(place.visitCount || 0)
+    });
+  }
+
+  function loadOwnPlaces() {
+    if (!apiMyPlaces || !ownPlacesPanelEl || state.ownPlacesLoaded) return;
+    state.ownPlacesLoaded = true;
+    if (state.ownPlacesAbort) { try { state.ownPlacesAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.ownPlacesAbort = controller;
+    fetch(apiMyPlaces + '?limit=8&sort=recent', { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (payload) {
+        state.ownPlacesSignedIn = !!(payload && payload.signedIn);
+        state.ownPlaces = payload && Array.isArray(payload.items) ? payload.items : [];
+        renderOwnPlacesPanel();
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        state.ownPlacesSignedIn = false;
+        state.ownPlaces = [];
+        renderOwnPlacesPanel();
+      });
   }
 
   function findCellFeatureById(cellId) {
@@ -7097,6 +7206,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     applyRestoredParams(params, { restoreViewport: restoreViewport });
     syncUiFromState();
   })();
+  loadOwnPlaces();
 
   // ---- Trace lines (visit_track_points → GeoJSON LineStrings) -------------
   function paintTraces(map, coll) {
@@ -9001,6 +9111,93 @@ export const MAP_EXPLORER_STYLES = `
   .me-sheet-card { padding: 10px 12px; border-radius: 14px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 3px; }
   .me-sheet-card strong { font-size: 12px; font-weight: 800; color: #0f172a; }
   .me-sheet-card span { font-size: 11px; color: #64748b; line-height: 1.45; }
+  .me-own-places-panel[hidden] { display: none; }
+  .me-own-places-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 10px 24px rgba(15,23,42,.06);
+  }
+  .me-own-places-head { display: grid; gap: 3px; }
+  .me-own-places-head strong { font-size: 13px; line-height: 1.3; color: #0f172a; font-weight: 900; }
+  .me-own-places-head span { font-size: 10.5px; line-height: 1.45; color: #64748b; font-weight: 750; }
+  .me-own-places-strip {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(168px, 72%);
+    gap: 9px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    padding-bottom: 2px;
+  }
+  .me-own-place {
+    scroll-snap-align: start;
+    min-width: 0;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: 6px;
+    padding: 7px;
+    border-radius: 14px;
+    background: rgba(248,250,252,.92);
+    border: 1px solid rgba(148,163,184,.16);
+  }
+  .me-own-place-main {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    min-height: 66px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-own-place-photo {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(20,184,166,.16), rgba(14,165,233,.12));
+    color: #0f766e;
+    font-size: 18px;
+  }
+  .me-own-place-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .me-own-place-copy { min-width: 0; display: grid; gap: 2px; }
+  .me-own-place-copy strong,
+  .me-own-place-copy small,
+  .me-own-place-copy em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .me-own-place-copy strong { font-size: 12px; line-height: 1.25; color: #0f172a; font-weight: 900; }
+  .me-own-place-copy small { font-size: 10.5px; line-height: 1.35; color: #334155; font-weight: 750; }
+  .me-own-place-copy em { font-style: normal; font-size: 10px; line-height: 1.35; color: #64748b; font-weight: 700; }
+  .me-own-place-record {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(16,185,129,.10);
+    color: #047857;
+    border: 1px solid rgba(16,185,129,.16);
+    text-decoration: none;
+    font-size: 10.5px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
   .me-contribution-panel { display: block; }
   .me-impact-card {
     display: grid;
