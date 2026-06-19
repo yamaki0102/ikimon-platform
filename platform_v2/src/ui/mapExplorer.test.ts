@@ -405,6 +405,15 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /Chloris: 'カワラヒワ属'/);
   assert.match(script, /Monticola: 'イソヒヨドリ属'/);
   assert.match(script, /function groupResultRecords\(records\)/);
+  assert.match(script, /function renderResultsEmptyState\(\)/);
+  assert.match(script, /COPY\.emptyTitle/);
+  assert.match(script, /data-results-empty-areas/);
+  assert.match(script, /data-results-empty-widen/);
+  assert.match(script, /me-empty-invite/);
+  assert.match(script, /data-kpi-action="map:results_empty_record"/);
+  assert.match(script, /function switchMapTab\(tab\)/);
+  assert.match(script, /switchMapTab\('places'\)/);
+  assert.match(script, /function widenEmptyViewport\(\)/);
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
   assert.match(script, /function runInitialMapDataLoad\(reason\)/);
   assert.match(script, /scheduleInitialMapDataLoad\(180\)/);
@@ -421,6 +430,7 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /scheduleRecordsHardSettleWatchdog\(\);/);
   assert.match(script, /data-results-state/);
   assert.match(script, /setResultsLoadState\(records\.length \? 'ready' : 'empty', records\.length\)/);
+  assert.match(script, /resultsListEl\.innerHTML = renderResultsEmptyState\(\);/);
   assert.match(script, /setResultsLoadState\('error'/);
   assert.match(script, /me-result-group-head/);
   assert.match(script, /COPY\.resultGroupedByDate/);
@@ -438,6 +448,10 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(styles, /\.me-result-group \{/);
   assert.match(styles, /grid-template-columns: 64px minmax\(0,1fr\)/);
   assert.match(styles, /\.me-result-badges/);
+  assert.match(styles, /\.me-results-empty-actions/);
+  assert.match(styles, /\.me-results-empty-action\.is-primary/);
+  assert.match(styles, /\.me-empty-invite/);
+  assert.doesNotMatch(script, /縺|繧|譁|髱|蝗|遽/);
 });
 
 test("unified search separates current-area and other-area results", () => {

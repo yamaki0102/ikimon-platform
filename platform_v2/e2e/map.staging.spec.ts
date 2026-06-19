@@ -162,6 +162,39 @@ async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
   });
 }
 
+async function installEmptyMapApiFixtures(page: Page): Promise<void> {
+  await page.route("**/api/v1/map/cells**", async (route) => {
+    await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/observations**", async (route) => {
+    await fulfillJson(route, {
+      items: [],
+      stats: {
+        totalReturned: 0,
+        totalAll: 0,
+        markerProfile: "all_research_artifacts",
+        gridM: 3000,
+        selectedCellId: null,
+      },
+    });
+  });
+  await page.route("**/api/v1/map/frontier**", async (route) => {
+    await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/area-polygons**", async (route) => {
+    await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/guide-spots**", async (route) => {
+    await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/effort-summary**", async (route) => {
+    await fulfillJson(route, EMPTY_EFFORT_SUMMARY);
+  });
+  await page.route("**/api/v1/map/site-brief**", async (route) => {
+    await fulfillJson(route, { ok: false, error: "qa_fixture_no_site_brief" });
+  });
+}
+
 type MapShellState = {
   filterToggleVisible: boolean;
   launcherVisible: boolean;
@@ -226,6 +259,14 @@ async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
   }, isMobile, { timeout: 10_000 });
 }
 
+async function waitForMapEmptyState(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH): Promise<void> {
+  const response = await page.goto(mapPath, { waitUntil: "domcontentloaded" });
+  expect(response?.status() ?? 0, `${mapPath} should load before empty-state assertions`).toBeLessThan(400);
+  await expect(page.locator("#map-explorer[data-results-state='empty']")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator("#me-empty-invite")).toBeVisible();
+  await expect(page.locator(".me-results-empty")).toBeAttached();
+}
+
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
@@ -251,5 +292,20 @@ for (const profile of MAP_VIEWPORTS) {
     expect(initialState.resultsCount).toBeGreaterThan(0);
 
     await context.close();
+  });
+
+  test(`map empty state invites candidate discovery (${profile.slug})`, async ({ browser }) => {
+    const context = await newStagingContext(browser, profile);
+    const page = await context.newPage();
+    await installMapLibreStubForSmoke(page);
+    await installEmptyMapApiFixtures(page);
+    await waitForMapEmptyState(page, DEFAULT_STAGING_MAP_PATH);
+
+    await expect(page.locator(".me-results-empty")).toContainText("ここは、まだ図鑑が育つ余白です");
+    await expect(page.locator("#me-empty-invite [data-results-empty-areas]")).toBeVisible();
+    await expect(page.locator("#me-empty-invite [data-results-empty-widen]")).toBeVisible();
+    await expect(page.locator("#me-empty-invite [data-kpi-action='map:results_empty_record']")).toHaveAttribute("href", /\/record/);
+
+    await page.close();
   });
 }
