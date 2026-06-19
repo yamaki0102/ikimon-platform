@@ -4,6 +4,7 @@ import path from "node:path";
 
 const EXCLUDED_SPECS = new Set([
   "e2e/map.staging.spec.ts",
+  "e2e/map-performance.staging.spec.ts",
   "e2e/notes-map-regression.staging.spec.ts",
   "e2e/sitemap-registry-visual.staging.spec.ts",
 ]);

@@ -812,6 +812,8 @@ jobs:
         include:
           - lane: shell
             spec: e2e/map.staging.spec.ts
+          - lane: performance
+            spec: e2e/map-performance.staging.spec.ts
           - lane: records
             spec: e2e/notes-map-regression.staging.spec.ts
     steps:
