@@ -104,6 +104,14 @@ export type MapExplorerCopy = {
   areaRestrictedActionLabel: string;
   areaRestrictedActionHint: string;
   areaSafeRecordLabel: string;
+  areaGalleryEmptyPublicLead: string;
+  areaGalleryEmptyPublicSafety: string;
+  areaGalleryEmptyPublicWiden: string;
+  areaGalleryEmptyRestrictedLead: string;
+  areaGalleryEmptyRestrictedCheck: string;
+  areaGalleryEmptyRestrictedWiden: string;
+  areaGalleryEmptySchoolLead: string;
+  areaGalleryEmptySchoolWiden: string;
   areaNextStepEyebrow: string;
   areaNextStepRecordTitle: string;
   areaNextStepRestrictedTitle: string;
@@ -258,6 +266,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "地域のルールを確認",
     areaRestrictedActionHint: "学校・立入制限・未確認の場所では、許可された観察だけを扱います。",
     areaSafeRecordLabel: "公開範囲を確認して記録",
+    areaGalleryEmptyPublicLead: "まだ記録がありません。現地の表示と公開範囲を確認できる場所なら、最初の手がかりを残せます。",
+    areaGalleryEmptyPublicSafety: "案内板・保護区域・管理者のルールを優先して、公開範囲で見えたものだけを記録する。",
+    areaGalleryEmptyPublicWiden: "この場所が薄いときは、表示範囲や季節を広げて近くの記録を探す。",
+    areaGalleryEmptyRestrictedLead: "安全とプライバシーのため、このエリアでは直接の記録導線を出していません。",
+    areaGalleryEmptyRestrictedCheck: "看板、管理者、公開範囲、立入制限を先に確認する。",
+    areaGalleryEmptyRestrictedWiden: "表示範囲や季節を広げて、近くの安全な公開場所を探す。",
+    areaGalleryEmptySchoolLead: "学校・教育施設の敷地内や周辺では撮影や探索を促しません。近くの公共の公園や公開された自然エリアで観察してください。",
+    areaGalleryEmptySchoolWiden: "この範囲にこだわらず、近くの公開エリアへ移動して安全に記録する。",
     areaNextStepEyebrow: "次にできること",
     areaNextStepRecordTitle: "安全に、この場所の図鑑を育てる",
     areaNextStepRestrictedTitle: "まず安全と許可を確認",
@@ -392,6 +408,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "Check local rules",
     areaRestrictedActionHint: "For schools, restricted, or unverified places, only permitted observations are handled.",
     areaSafeRecordLabel: "Record after checking scope",
+    areaGalleryEmptyPublicLead: "No records yet. If the public scope and on-site rules are clear, your record can become the first clue.",
+    areaGalleryEmptyPublicSafety: "Follow signs, protected areas, and manager rules; record only what you see from public scope.",
+    areaGalleryEmptyPublicWiden: "If this spot feels thin, widen the visible area or season to find nearby records.",
+    areaGalleryEmptyRestrictedLead: "For safety and privacy, direct recording is not offered for this area.",
+    areaGalleryEmptyRestrictedCheck: "Check signs, managers, public scope, and entry restrictions first.",
+    areaGalleryEmptyRestrictedWiden: "Widen the area or season and choose a safer nearby public place.",
+    areaGalleryEmptySchoolLead: "Near schools or educational facilities, do not photograph or search around the site. Move to a nearby public park or open nature area instead.",
+    areaGalleryEmptySchoolWiden: "Do not focus on this boundary; move to a nearby public area and record safely there.",
     areaNextStepEyebrow: "Next step",
     areaNextStepRecordTitle: "Grow this area guide safely",
     areaNextStepRestrictedTitle: "Check safety and permission first",
@@ -526,6 +550,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "Revisar reglas locales",
     areaRestrictedActionHint: "En escuelas, zonas restringidas o no verificadas, solo se tratan observaciones permitidas.",
     areaSafeRecordLabel: "Registrar tras revisar alcance",
+    areaGalleryEmptyPublicLead: "Aun no hay registros. Si el alcance publico y las reglas del sitio son claras, tu registro puede ser la primera pista.",
+    areaGalleryEmptyPublicSafety: "Sigue senales, areas protegidas y reglas del gestor; registra solo lo visible desde alcance publico.",
+    areaGalleryEmptyPublicWiden: "Si este punto esta vacio, amplia el area visible o la estacion para encontrar registros cercanos.",
+    areaGalleryEmptyRestrictedLead: "Por seguridad y privacidad, no ofrecemos registro directo en esta area.",
+    areaGalleryEmptyRestrictedCheck: "Revisa primero senales, gestores, alcance publico y restricciones de entrada.",
+    areaGalleryEmptyRestrictedWiden: "Amplia el area o la estacion y elige un lugar publico cercano mas seguro.",
+    areaGalleryEmptySchoolLead: "Cerca de escuelas o centros educativos, no fotografies ni busques alrededor del sitio. Ve a un parque publico o area natural abierta cercana.",
+    areaGalleryEmptySchoolWiden: "No te centres en este limite; muévete a un area publica cercana y registra alli con seguridad.",
     areaNextStepEyebrow: "Siguiente paso",
     areaNextStepRecordTitle: "Hacer crecer esta guia de forma segura",
     areaNextStepRestrictedTitle: "Revisa seguridad y permiso primero",
@@ -660,6 +692,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "Ver regras locais",
     areaRestrictedActionHint: "Em escolas, áreas restritas ou não verificadas, apenas observações permitidas são tratadas.",
     areaSafeRecordLabel: "Registrar após revisar escopo",
+    areaGalleryEmptyPublicLead: "Ainda nao ha registros. Se o escopo publico e as regras locais estiverem claros, seu registro pode virar a primeira pista.",
+    areaGalleryEmptyPublicSafety: "Siga placas, areas protegidas e regras do gestor; registre apenas o que ve em escopo publico.",
+    areaGalleryEmptyPublicWiden: "Se este ponto estiver vazio, amplie a area visivel ou a estacao para encontrar registros proximos.",
+    areaGalleryEmptyRestrictedLead: "Por seguranca e privacidade, o registro direto nao e oferecido nesta area.",
+    areaGalleryEmptyRestrictedCheck: "Confira primeiro placas, gestores, escopo publico e restricoes de entrada.",
+    areaGalleryEmptyRestrictedWiden: "Amplie a area ou a estacao e escolha um local publico proximo mais seguro.",
+    areaGalleryEmptySchoolLead: "Perto de escolas ou instalacoes educacionais, nao fotografe nem procure ao redor do local. Va a um parque publico ou area natural aberta proxima.",
+    areaGalleryEmptySchoolWiden: "Nao foque neste limite; va a uma area publica proxima e registre com seguranca.",
     areaNextStepEyebrow: "Proximo passo",
     areaNextStepRecordTitle: "Fazer este guia crescer com seguranca",
     areaNextStepRestrictedTitle: "Verifique seguranca e permissao primeiro",
@@ -1387,6 +1427,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaRestrictedActionLabel: copy.areaRestrictedActionLabel,
     areaRestrictedActionHint: copy.areaRestrictedActionHint,
     areaSafeRecordLabel: copy.areaSafeRecordLabel,
+    areaGalleryEmptyPublicLead: copy.areaGalleryEmptyPublicLead,
+    areaGalleryEmptyPublicSafety: copy.areaGalleryEmptyPublicSafety,
+    areaGalleryEmptyPublicWiden: copy.areaGalleryEmptyPublicWiden,
+    areaGalleryEmptyRestrictedLead: copy.areaGalleryEmptyRestrictedLead,
+    areaGalleryEmptyRestrictedCheck: copy.areaGalleryEmptyRestrictedCheck,
+    areaGalleryEmptyRestrictedWiden: copy.areaGalleryEmptyRestrictedWiden,
+    areaGalleryEmptySchoolLead: copy.areaGalleryEmptySchoolLead,
+    areaGalleryEmptySchoolWiden: copy.areaGalleryEmptySchoolWiden,
     areaNextStepEyebrow: copy.areaNextStepEyebrow,
     areaNextStepRecordTitle: copy.areaNextStepRecordTitle,
     areaNextStepRestrictedTitle: copy.areaNextStepRestrictedTitle,
@@ -4533,6 +4581,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var locationLabel = safeCenter ? safeCenter.lat.toFixed(4) + ', ' + safeCenter.lng.toFixed(4) : '';
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
     var guidance = transientAccessGuidance(props);
+    var areaStatus = areaAccessStatus(props, null);
     var canRecord = canSuggestDirectAreaRecord(props, null);
     var guideStopHtml = renderAreaGuideStop(props, safeCenter);
     var galleryItems = transientAreaGalleryItems(feature, safeCenter);
@@ -4556,7 +4605,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + activityHtml
       + guideStopHtml
       + (canRecord ? renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId })) : '')
-      + renderAreaObservationGallery(galleryItems, { label: COPY.areaGalleryTitle, canRecord: canRecord })
+      + renderAreaObservationGallery(galleryItems, { label: COPY.areaGalleryTitle, canRecord: canRecord, areaStatus: areaStatus })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
       + '<div class="me-area-sheet-timeline is-empty">' + escapeHtml(COPY.unregisteredAreaText) + '</div>';
   }
@@ -4722,6 +4771,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   });
 
+  function widenAreaEmptyState() {
+    if (!state.map || typeof state.map.getZoom !== 'function' || typeof state.map.easeTo !== 'function') return;
+    var currentZoom = Number(state.map.getZoom());
+    if (!Number.isFinite(currentZoom)) return;
+    state.map.easeTo({ zoom: Math.max(10, currentZoom - 1.4), duration: 450 });
+  }
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var button = target.closest('[data-area-empty-widen]');
+    if (!button) return;
+    event.preventDefault();
+    widenAreaEmptyState();
+  });
+
   function coverSourceLabel(source) {
     if (source === 'admin_curated') return COPY.coverSourceAdmin;
     if (source === 'community_curated') return COPY.coverSourceCommunity;
@@ -4853,16 +4917,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var records = Array.isArray(items) ? items.slice(0, 8) : [];
     var label = options && options.label ? String(options.label) : COPY.areaGalleryTitle;
     var canRecord = !options || options.canRecord !== false;
+    var accessStatus = String(options && options.areaStatus || (canRecord ? 'public_access' : 'unknown'));
     if (!records.length) {
+      var isSchool = accessStatus === 'school' || accessStatus === 'permission_required';
+      var lead = canRecord
+        ? COPY.areaGalleryEmptyPublicLead
+        : (isSchool ? COPY.areaGalleryEmptySchoolLead : COPY.areaGalleryEmptyRestrictedLead);
+      var primaryAction = canRecord
+        ? '<a class="me-area-gallery-empty-action is-primary" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:gallery_empty_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaSafeRecordLabel) + '</a>'
+        : '<span class="me-area-gallery-empty-action is-safety">' + escapeHtml(isSchool ? COPY.areaRestrictedActionLabel : COPY.areaGalleryEmptyRestrictedCheck) + '</span>';
+      var secondaryAction = '<button type="button" class="me-area-gallery-empty-action" data-area-empty-widen>' + escapeHtml(canRecord ? COPY.areaGalleryEmptyPublicWiden : (isSchool ? COPY.areaGalleryEmptySchoolWiden : COPY.areaGalleryEmptyRestrictedWiden)) + '</button>';
+      var note = canRecord ? COPY.areaGalleryEmptyPublicSafety : (isSchool ? COPY.areaSchoolNotice : COPY.areaRestrictedActionHint);
       return ''
         + '<section class="me-area-gallery is-empty" aria-label="' + escapeHtml(label) + '">'
         +   '<div class="me-area-gallery-head">'
         +     '<span>' + escapeHtml(label) + '</span>'
         +     '<strong>' + escapeHtml(COPY.areaGalleryEmpty) + '</strong>'
         +   '</div>'
-        +   (canRecord
-              ? '<a class="me-area-gallery-empty-cta" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:gallery_empty_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaSafeRecordLabel) + '</a>'
-              : '<p class="me-area-story-note">' + escapeHtml(COPY.areaRestrictedActionHint) + '</p>')
+        +   '<p class="me-area-gallery-empty-lead">' + escapeHtml(lead) + '</p>'
+        +   '<div class="me-area-gallery-empty-actions">' + primaryAction + secondaryAction + '</div>'
+        +   '<p class="me-area-story-note">' + escapeHtml(note) + '</p>'
         + '</section>';
     }
     return ''
@@ -5173,6 +5247,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var sourceLinksHtml = renderAreaSourceLinks(f);
     var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence, f.verificationLabel, f.verificationLevel);
     var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
+    var accessStatus = areaAccessStatus(f, masking);
     var canRecord = canSuggestDirectAreaRecord(f, masking);
     var followHtml = canRecord ? renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId })) : '';
     var selectedAreaFeature = state.selectedPoint && state.selectedPoint.areaFeature ? state.selectedPoint.areaFeature : null;
@@ -5207,7 +5282,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var maskingHtml = renderSensitiveBanner(masking);
     var safetyNoticeHtml = renderAreaSafetyNotice(f, masking);
     var placeStoryHtml = renderPlaceStoryHighlights(f, summary, indicators, representativePhoto);
-    var galleryHtml = renderAreaObservationGallery(gallery, { label: COPY.areaGalleryTitle, canRecord: canRecord });
+    var galleryHtml = renderAreaObservationGallery(gallery, { label: COPY.areaGalleryTitle, canRecord: canRecord, areaStatus: accessStatus });
     var schoolAlbumHtml = renderSchoolAlbumEntrypoints(f);
     var accessHtml = renderAreaAccessGuidance(f.accessGuidance);
     var storyTabsHtml = renderAreaStoryTabs(snapshot, { canRecord: canRecord });
@@ -8617,19 +8692,54 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-access span { font-size: 11px; font-weight: 950; }
   .me-area-access p { margin: 0; font-size: 11.5px; line-height: 1.55; font-weight: 720; overflow-wrap: anywhere; }
   .me-area-access-public_access { background: rgba(236,253,245,.92); border-color: rgba(16,185,129,.24); color: #064e3b; }
-  .me-area-gallery-empty-cta {
+  .me-area-gallery-empty-lead {
+    margin: 8px 0 0;
+    color: #334155;
+    font-size: 12.5px;
+    line-height: 1.6;
+    font-weight: 760;
+    overflow-wrap: anywhere;
+  }
+  .me-area-gallery-empty-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .me-area-gallery-empty-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: fit-content;
-    min-height: 40px;
-    padding: 8px 14px;
+    min-width: 0;
+    min-height: 42px;
+    padding: 8px 10px;
     border-radius: 12px;
-    background: #0f766e;
-    color: #fff !important;
+    border: 1px solid rgba(15,118,110,.18);
+    background: #fff;
+    color: #0f766e !important;
+    text-align: center;
     text-decoration: none;
-    font-size: 12px;
-    font-weight: 900;
+    font-size: 11.5px;
+    line-height: 1.25;
+    font-weight: 930;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    cursor: pointer;
+  }
+  .me-area-gallery-empty-action.is-primary {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #fff !important;
+  }
+  .me-area-gallery-empty-action.is-safety {
+    background: rgba(255,251,235,.92);
+    border-color: rgba(245,158,11,.28);
+    color: #92400e !important;
+    cursor: default;
+  }
+  @media (max-width: 520px) {
+    .me-area-gallery-empty-actions { grid-template-columns: 1fr; }
   }
   .me-area-public-page {
     display: flex;
