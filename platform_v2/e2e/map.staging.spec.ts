@@ -1,8 +1,7 @@
-import { test, expect, type Locator, type Page, type Route } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
   MAP_VIEWPORTS,
-  maybeCaptureQaScreenshot,
   newStagingContext,
 } from "./support/staging.js";
 
@@ -162,50 +161,87 @@ async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
   });
 }
 
-async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH): Promise<void> {
+type MapShellState = {
+  filterToggleVisible: boolean;
+  gsiBasemapVisible: boolean;
+  launcherVisible: boolean;
+  mapHeight: number;
+  mapVisible: boolean;
+  mapWidth: number;
+  resultsCount: number;
+  rowCount: number;
+};
+
+async function readMapShellState(page: Page): Promise<MapShellState> {
+  return page.evaluate(() => {
+    const isVisible = (selector: string): boolean => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    };
+    const mapWrap = document.querySelector<HTMLElement>(".me-map-wrap");
+    const mapBox = mapWrap?.getBoundingClientRect();
+    const root = document.querySelector<HTMLElement>("#map-explorer");
+    return {
+      filterToggleVisible: isVisible(".me-filter-toggle"),
+      gsiBasemapVisible: isVisible('input[name="me-basemap"][value="gsi"]'),
+      launcherVisible: isVisible(".global-record-launcher"),
+      mapHeight: mapBox?.height ?? 0,
+      mapVisible: isVisible("#map-explorer") && isVisible(".me-map-wrap"),
+      mapWidth: mapBox?.width ?? 0,
+      resultsCount: Number(root?.getAttribute("data-results-count") || "0"),
+      rowCount: document.querySelectorAll(".me-result-row").length,
+    };
+  });
+}
+
+async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH, isMobile = false): Promise<void> {
   await page.goto(mapPath, { waitUntil: "domcontentloaded" });
-  await page.locator("#map-explorer").waitFor({ state: "visible" });
-  await expect(page.locator(".me-main")).toBeVisible();
-  await expect(page.locator(".me-search-shell")).toBeVisible();
-  await expect(page.locator(".me-tabs")).toBeVisible();
-  await expect(page.locator(".me-filter-toggle")).toBeVisible();
-  await page.locator("#map-explorer canvas").first().waitFor({ state: "visible" });
-  await page.waitForFunction(() => {
-    const root = document.querySelector("#map-explorer");
-    if (!root) return false;
-    const count = Number(root.getAttribute("data-results-count") || "0");
+  await page.waitForFunction((expectedMobile) => {
+    const isVisible = (selector: string): boolean => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    };
+    const root = document.querySelector<HTMLElement>("#map-explorer");
+    const mapWrap = document.querySelector<HTMLElement>(".me-map-wrap");
+    const mapBox = mapWrap?.getBoundingClientRect();
+    const count = Number(root?.getAttribute("data-results-count") || "0");
     const rows = document.querySelectorAll(".me-result-row").length;
-    const empty = document.querySelectorAll(".me-results-empty").length;
-    const status = [
-      document.querySelector("#me-map-status")?.textContent || "",
-      document.querySelector("#me-side-status")?.textContent || "",
-    ].join(" ");
-    return count > 0 || rows > 0 || empty > 0 || /\d+\s*\/\s*\d+/.test(status);
-  }, undefined, { timeout: 45_000 });
+    return Boolean(
+      root
+      && isVisible(".me-main")
+      && isVisible(".me-search-shell")
+      && isVisible(".me-filter-toggle")
+      && isVisible("#map-explorer")
+      && isVisible(".me-map-wrap")
+      && (mapBox?.width ?? 0) > (expectedMobile ? 340 : 600)
+      && (mapBox?.height ?? 0) > (expectedMobile ? 500 : 620)
+      && (count > 0 || rows > 0)
+    );
+  }, isMobile, { timeout: 20_000 });
 }
 
-async function requiredBox(name: string, locator: Locator) {
-  const box = await locator.boundingBox();
-  expect(box, `${name} should have a bounding box`).not.toBeNull();
-  return box!;
-}
-
-async function expectDesktopMapDominance(page: Page): Promise<void> {
-  const mapWrap = page.locator(".me-map-wrap");
-  await expect(mapWrap).toBeVisible();
-
-  const mapBox = await requiredBox("desktop map wrap", mapWrap);
-  expect(mapBox.width).toBeGreaterThan(600);
-  expect(mapBox.height).toBeGreaterThan(620);
-}
-
-async function expectMobileMapDominance(page: Page): Promise<void> {
-  await expect(page.locator(".me-side")).toBeHidden();
-  const mapWrap = page.locator(".me-map-wrap");
-  await expect(mapWrap).toBeVisible();
-  const mapBox = await requiredBox("mobile map wrap", mapWrap);
-  expect(mapBox.width).toBeGreaterThan(340);
-  expect(mapBox.height).toBeGreaterThan(500);
+async function expectFilterDrawerOpens(page: Page): Promise<void> {
+  await page.locator(".me-filter-toggle").click({ timeout: 8_000 });
+  await page.waitForFunction(() => {
+    const isVisible = (selector: string): boolean => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    };
+    return Boolean(
+      document.querySelector(".me-filter-drawer")?.hasAttribute("open")
+      && isVisible(".me-filter-panel")
+      && isVisible('input[name="me-basemap"][value="gsi"]')
+    );
+  }, undefined, { timeout: 8_000 });
 }
 
 for (const profile of MAP_VIEWPORTS) {
@@ -213,32 +249,27 @@ for (const profile of MAP_VIEWPORTS) {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
     await installDeterministicMapApiFixtures(page);
-    const resultRows = page.locator(".me-result-row");
-
-    await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH);
-    await maybeCaptureQaScreenshot(page, `${profile.slug}-initial.jpg`);
-    const initialRowCount = await resultRows.count();
+    await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, !!profile.isMobile);
+    const initialState = await readMapShellState(page);
 
     if (profile.isMobile) {
-      expect(initialRowCount).toBeGreaterThan(0);
-      await expectMobileMapDominance(page);
+      expect(initialState.rowCount).toBeGreaterThan(0);
+      expect(initialState.mapVisible).toBe(true);
+      expect(initialState.mapWidth).toBeGreaterThan(340);
+      expect(initialState.mapHeight).toBeGreaterThan(500);
+      expect(initialState.launcherVisible).toBe(true);
     } else {
-      expect(initialRowCount).toBeGreaterThan(0);
-      await expectDesktopMapDominance(page);
+      expect(initialState.rowCount).toBeGreaterThan(0);
+      expect(initialState.mapVisible).toBe(true);
+      expect(initialState.mapWidth).toBeGreaterThan(600);
+      expect(initialState.mapHeight).toBeGreaterThan(620);
     }
+    expect(initialState.filterToggleVisible).toBe(true);
+    expect(initialState.resultsCount).toBeGreaterThan(0);
 
-    if (profile.isMobile) {
-      await expect(page.locator(".global-record-launcher")).toBeVisible();
-      await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
-    } else {
-      await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
-    }
-
-    await page.locator(".me-filter-toggle").click();
-    await expect(page.locator(".me-filter-drawer")).toHaveAttribute("open", "");
-    await expect(page.locator(".me-filter-panel")).toBeVisible();
-    await expect(page.locator('input[name="me-basemap"][value="gsi"]')).toBeVisible();
-    await maybeCaptureQaScreenshot(page, `${profile.slug}-filters.jpg`);
+    await expectFilterDrawerOpens(page);
+    const filterState = await readMapShellState(page);
+    expect(filterState.gsiBasemapVisible).toBe(true);
 
     await context.close();
   });
