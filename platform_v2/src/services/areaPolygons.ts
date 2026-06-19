@@ -48,6 +48,7 @@ export interface AreaPolygonFeatureProps {
   guide_stop_json?: string;
   osm_type?: string;
   osm_id?: number;
+  osm_named?: boolean;
   biodiversity_groups?: AreaBiodiversityGroup[];
 }
 
@@ -451,7 +452,8 @@ function isWeakLiveOsmAreaFeature(feature: AreaPolygonFeature): boolean {
   if (name === "OSMの学校・キャンパス" || name === "OSMの公園・緑地") return true;
   if (props.source === "school") {
     const hasExternalEvidence = Boolean(props.official_url || props.owner_url || props.certification_url);
-    return !hasExternalEvidence && (props.source_confidence ?? 0) < 0.75;
+    const hasSpecificName = props.osm_named === true;
+    return !hasExternalEvidence && !hasSpecificName && (props.source_confidence ?? 0) < 0.75;
   }
   return false;
 }
@@ -545,6 +547,11 @@ function liveElementDisplayName(element: OverpassElement): string {
   return tags["name:ja"] ?? tags.name ?? tags.alt_name ?? liveElementSource(element)?.fallbackName ?? "OSMのエリア";
 }
 
+function liveElementHasName(element: OverpassElement): boolean {
+  const tags = element.tags ?? {};
+  return Boolean((tags["name:ja"] ?? tags.name ?? tags.alt_name ?? "").trim());
+}
+
 function liveElementCenter(element: OverpassElement, geometry: Record<string, unknown>): [number, number] | null {
   if (Number.isFinite(element.center?.lat) && Number.isFinite(element.center?.lon)) {
     return [Number(element.center!.lon), Number(element.center!.lat)];
@@ -584,6 +591,7 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
   const source = liveElementSource(element);
   if (!source) return null;
   const website = tags.website ?? tags["contact:website"] ?? "";
+  const hasName = liveElementHasName(element);
   return {
     type: "Feature",
     properties: {
@@ -608,6 +616,7 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
       entity_key: entityKey,
       osm_type: element.type,
       osm_id: element.id,
+      osm_named: hasName,
     },
     geometry,
   };

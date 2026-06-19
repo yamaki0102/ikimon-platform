@@ -162,6 +162,11 @@ test("area sheets gate contribution CTAs behind public access evidence", () => {
   assert.match(script, /function renderRestrictedAreaAction\(\)/);
   assert.match(script, /COPY\.areaSchoolNotice/);
   assert.match(script, /var canRecord = canSuggestDirectAreaRecord\(f, masking\);/);
+  assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml, canSuggestEvent\)/);
+  assert.match(script, /if \(canSuggestEvent === false \|\| !eventHref\) \{\s+return renderRestrictedAreaAction\(\) \+ metaHtml;/);
+  assert.match(script, /var primaryActionsHtml = renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml, canRecord\);/);
+  assert.match(script, /var activityHtml = canRecord\s+\? renderAreaActivityRallyPanel/);
+  assert.match(script, /: renderRestrictedAreaAction\(\) \+ metaHtml;/);
   assert.match(
     script,
     /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml \+ followHtml \+ publicPageHtml/,
@@ -462,7 +467,8 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
   assert.match(script, /EVENTS_ORGANIZER_HREF/);
   assert.doesNotMatch(script, /me-area-badge-actions/);
   assert.doesNotMatch(script, /me-area-badge-pill/);
-  assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml\)/);
+  assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml, canSuggestEvent\)/);
+  assert.match(script, /if \(canSuggestEvent === false \|\| !eventHref\)/);
   assert.match(script, /me-area-primary-actions/);
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.doesNotMatch(script, /eventsNewHrefTemplate/);
