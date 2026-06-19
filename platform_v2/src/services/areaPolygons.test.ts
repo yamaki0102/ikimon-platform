@@ -164,7 +164,7 @@ test("liveElementToFeature rejects building-only OSM fragments", () => {
   assert.equal(kindergartenBuilding, null);
 });
 
-test("liveElementToFeature treats OSM education landuse as school and rejects building-only fragments", () => {
+test("liveElementToFeature treats OSM education landuse and named education buildings as school", () => {
   const educationLanduse = liveElementToFeature({
     type: "way",
     id: 790,
@@ -187,7 +187,8 @@ test("liveElementToFeature treats OSM education landuse as school and rejects bu
   });
 
   assert.equal(educationLanduse?.properties.source, "school");
-  assert.equal(schoolBuilding, null);
+  assert.equal(schoolBuilding?.properties.source, "school");
+  assert.equal(schoolBuilding?.properties.verification_level, "unverified");
 });
 
 test("live OSM fallback respects selected area sources", () => {
@@ -428,6 +429,16 @@ test("displayable area feature filter keeps named OSM school polygons visible bu
       { lat: 34.74, lon: 137.40 },
     ],
   });
+  const namedSchoolBuildingWithoutAmenity = liveElementToFeature({
+    type: "way",
+    id: 1237,
+    tags: { name: "西伊場小学校 校舎", building: "school" },
+    geometry: [
+      { lat: 34.731, lon: 137.391 },
+      { lat: 34.731, lon: 137.392 },
+      { lat: 34.732, lon: 137.392 },
+    ],
+  });
   const officialSchool = liveElementToFeature({
     type: "way",
     id: 1235,
@@ -445,6 +456,8 @@ test("displayable area feature filter keeps named OSM school polygons visible bu
   assert.equal(namedSchoolWithoutOfficialUrl?.properties.verification_level, "unverified");
   assert.equal(namedSchoolWithoutOfficialUrl?.properties.osm_named, true);
   assert.equal(weakUnnamedSchool?.properties.osm_named, false);
+  assert.equal(namedSchoolBuildingWithoutAmenity?.properties.source, "school");
+  assert.equal(namedSchoolBuildingWithoutAmenity ? isDisplayableAreaFeature(namedSchoolBuildingWithoutAmenity) : false, true);
   assert.equal(officialSchool ? isDisplayableAreaFeature(officialSchool) : false, true);
   assert.equal(isDisplayableAreaFeature({
     type: "Feature",
