@@ -2267,6 +2267,25 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return true;
   }
 
+  function renderAppliedRecordsState(stats) {
+    renderResultList();
+    renderSelectedCard();
+    renderSidePanels();
+    refreshDiscoveryPreviewMarkers();
+    updateSearchAreaUi();
+    var records = Array.isArray(state.records) ? state.records : [];
+    var totalAll = stats && Number.isFinite(stats.totalAll) ? stats.totalAll : records.length;
+    if (!records.length) setStatus(COPY.empty);
+    else setStatus(fmtStatsLabel(records.length, totalAll));
+    setStatusMeta(stats ? fmtProvenanceMeta(stats) : '');
+  }
+
+  function forceSettleRecordsRequest(requestSeq, stats) {
+    if (!settleCurrentRecordsRequest(requestSeq)) return false;
+    renderAppliedRecordsState(stats || state.lastStats);
+    return true;
+  }
+
   function recoverRecordsLoad(requestSeq, requestKey, scope) {
     if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
     if (state._recordsAppliedSeq === requestSeq) return;
@@ -2281,20 +2300,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     state.recordsRecoveryAttempts = 0;
     if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
-    state._recordsAppliedSeq = requestSeq;
-    state.recordAbort = null;
-    clearRecordsLoadWatchdog(requestSeq);
-    renderResultList();
-    renderSelectedCard();
-    renderSidePanels();
-    refreshDiscoveryPreviewMarkers();
-    updatePendingMapResultsState();
-    updateSearchAreaUi();
-    var records = Array.isArray(state.records) ? state.records : [];
-    var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
-    if (!records.length) setStatus(COPY.empty);
-    else setStatus(fmtStatsLabel(records.length, totalAll));
-    setStatusMeta(state.lastStats ? fmtProvenanceMeta(state.lastStats) : '');
+    forceSettleRecordsRequest(requestSeq, state.lastStats);
   }
 
   function scheduleRecordsLoadWatchdog(requestSeq, requestKey, scope) {
@@ -6082,7 +6088,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('records ' + r.status)); })
       .then(function (list) {
         if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
-        settleCurrentRecordsRequest(requestSeq);
         state.recordsRecoveryAttempts = 0;
         state.records = (list && list.items) || [];
         state.lastStats = (list && list.stats) || null;
@@ -6108,20 +6113,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
             }
           }
         }
-        renderResultList();
-        renderSelectedCard();
-        renderSidePanels();
-        refreshDiscoveryPreviewMarkers();
-        updatePendingMapResultsState();
-        updateSearchAreaUi();
-        var totalAll = (list && list.stats && list.stats.totalAll) || state.records.length;
-        if (!state.records.length) setStatus(COPY.empty);
-        else setStatus(fmtStatsLabel(state.records.length, totalAll));
-        setStatusMeta(fmtProvenanceMeta(list && list.stats));
+        forceSettleRecordsRequest(requestSeq, list && list.stats);
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') {
-          settleCurrentRecordsRequest(requestSeq);
+          forceSettleRecordsRequest(requestSeq, state.lastStats);
           return;
         }
         settleCurrentRecordsRequest(requestSeq);
@@ -6130,6 +6126,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         setStatus('—');
         setStatusMeta('');
         clearDiscoveryPreviewMarkers();
+      })
+      .then(function () {
+        if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
+        if (state._recordsAppliedSeq === requestSeq) return;
+        forceSettleRecordsRequest(requestSeq, state.lastStats);
       });
   }
 

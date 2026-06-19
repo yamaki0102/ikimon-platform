@@ -312,7 +312,9 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
   assert.match(script, /function scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\)/);
   assert.match(script, /function recoverRecordsLoad\(requestSeq, requestKey, scope\)/);
+  assert.match(script, /function forceSettleRecordsRequest\(requestSeq, stats\)/);
   assert.match(script, /settleCurrentRecordsRequest\(requestSeq\)/);
+  assert.match(script, /if \(state\._recordsAppliedSeq === requestSeq\) return;\s+forceSettleRecordsRequest\(requestSeq, state\.lastStats\);/);
   assert.match(script, /RECORDS_LOAD_WATCHDOG_MS = 12000/);
   assert.match(script, /data-results-state/);
   assert.match(script, /setResultsLoadState\(records\.length \? 'ready' : 'empty', records\.length\)/);

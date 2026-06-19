@@ -117,7 +117,9 @@ function assertFixturePrefix(value: string): string {
 
 async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixtureKind): Promise<FixturePhoto> {
   const buffer = Buffer.from(TINY_PNG_BASE64, "base64");
-  const storagePath = `uploads/staging-regression/${fixturePrefix}/${kind}.${kind === "manual" ? "svg" : "png"}`;
+  const publicMapFixture = kind !== "smoke";
+  const storageBase = publicMapFixture ? "uploads/regression-public" : "uploads/staging-regression";
+  const storagePath = `${storageBase}/${fixturePrefix}/${kind}.${kind === "manual" ? "svg" : "png"}`;
   if (kind === "manual") {
     const svgMarker = Buffer.alloc(1039, "vertical-region-fixture.svg");
     return {
@@ -272,8 +274,8 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
         biome, substrate_tags, evidence_tags, source_payload, created_at, updated_at
      ) values (
         $1, $2, $3, 0, $4, $5, 'species', 'HumanObservation', null, null, 'present',
-        null, $6, 'regression_fixture', $7, null, null,
-        null, '[]'::jsonb, '["regression_fixture"]'::jsonb, $8::jsonb, $9, now()
+        null, $6, null, $7, null, null,
+        null, '[]'::jsonb, '["qa_public"]'::jsonb, $8::jsonb, $9, now()
      )
      on conflict (occurrence_id) do update set
         scientific_name = excluded.scientific_name,

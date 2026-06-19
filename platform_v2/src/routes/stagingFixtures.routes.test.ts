@@ -140,6 +140,9 @@ test("staging map regression fixtures stay public-map safe while smoke remains e
 
   assert.match(source, /publicUrl: "\/assets\/regression\/vertical-region-public\.svg"/);
   assert.doesNotMatch(source, /publicUrl: "\/assets\/regression\/vertical-region-fixture\.svg"/);
+  assert.match(source, /const storageBase = publicMapFixture \? "uploads\/regression-public" : "uploads\/staging-regression"/);
+  assert.doesNotMatch(source, /data_quality[^]*'regression_fixture'/);
+  assert.match(source, /'\["qa_public"\]'::jsonb/);
   assert.match(source, /"manual_companion_a"/);
   assert.match(source, /"manual_companion_b"/);
   assert.match(source, /"historical_companion_a"/);
