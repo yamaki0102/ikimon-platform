@@ -620,11 +620,12 @@ jobs:
               echo "Skip public map snapshot alert lifecycle smoke: verify_level=$VERIFY_LEVEL (requires full)."
             fi
 
-  verify-e2e:
-    name: Verify Staging in Browser
+  verify-e2e-prepare:
+    name: Prepare Full Browser Verification
     runs-on: ubuntu-latest
     needs: [plan, verify-ssh]
-    if: needs.plan.outputs.run_browser_smoke == 'true' || needs.plan.outputs.run_full_browser_e2e == 'true'
+    if: needs.plan.outputs.run_full_browser_e2e == 'true'
+    timeout-minutes: 12
     environment: staging
     steps:
       - uses: actions/checkout@v5
@@ -662,7 +663,6 @@ jobs:
             done
 
       - name: Run staging registry sitemap smoke
-        if: needs.plan.outputs.run_full_browser_e2e == 'true'
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
@@ -676,8 +676,32 @@ jobs:
             npm run e2e:staging:site-map
           fi
 
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-playwright-artifacts-prepare
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
+          if-no-files-found: ignore
+
+  verify-e2e-smoke:
+    name: Verify Staging in Browser / smoke
+    runs-on: ubuntu-latest
+    needs: [plan, verify-ssh]
+    if: needs.plan.outputs.run_browser_smoke == 'true' && needs.plan.outputs.run_full_browser_e2e != 'true'
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+
       - name: Run staging browser smoke
-        if: needs.plan.outputs.run_full_browser_e2e != 'true'
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
@@ -686,21 +710,54 @@ jobs:
           V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
         run: npm run e2e:staging:smoke
 
-      - name: Run staging browser E2E
-        if: needs.plan.outputs.run_full_browser_e2e == 'true'
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-playwright-artifacts-smoke
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
+          if-no-files-found: ignore
+
+  verify-e2e-full:
+    name: Verify Staging in Browser / full ${{ matrix.shard_index }} of ${{ matrix.shard_total }}
+    runs-on: ubuntu-latest
+    needs: [plan, verify-e2e-prepare]
+    if: needs.plan.outputs.run_full_browser_e2e == 'true'
+    timeout-minutes: 25
+    environment: staging
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard_index: 1
+            shard_total: 2
+          - shard_index: 2
+            shard_total: 2
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+
+      - name: Run staging browser E2E shard
+        timeout-minutes: 22
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
           STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
           STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
           V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
-        run: npm run e2e:staging
+        run: npm run e2e:staging -- --shard=${{ matrix.shard_index }}/${{ matrix.shard_total }}
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: staging-playwright-artifacts
+          name: staging-playwright-artifacts-full-${{ matrix.shard_index }}-of-${{ matrix.shard_total }}
           path: |
             platform_v2/test-results
             platform_v2/playwright-report/staging
