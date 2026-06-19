@@ -56,21 +56,17 @@ async function issueSessionCookie(api: APIRequestContext, userId: string): Promi
   return rawCookie;
 }
 
-function cookieHeader(rawCookie: string): string {
-  return rawCookie.split(";")[0] ?? rawCookie;
-}
-
-async function gotoLoggedInHomeUntilGuideShelf(page: Page, fixtureSuffix: string): Promise<void> {
-  const expectedSession = encodeURIComponent(`home-guide-shelf-${fixtureSuffix}`);
+async function expectMapFirstHomeShell(page: Page): Promise<void> {
   await expect(async () => {
-    await page.goto(`/?lang=ja&guideSmoke=${encodeURIComponent(fixtureSuffix)}`, { waitUntil: "networkidle" });
-    await expect(page.locator(".prototype-content-lane").filter({ hasText: "自分の記録" })).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator(".prototype-content-lane").filter({ hasText: "場所の今を残す記録" })).toBeVisible({ timeout: 5_000 });
-    const guideShelf = page.locator("#topa-guide");
-    await expect(guideShelf).toBeVisible({ timeout: 5_000 });
-    await expect(guideShelf).toContainText("ガイドの記録", { timeout: 5_000 });
-    await expect(guideShelf.locator(`a[href*="${expectedSession}"]`).first()).toBeVisible({ timeout: 5_000 });
-    await expect(guideShelf.locator("a[href*='/guide/outcomes']").first()).toBeVisible({ timeout: 5_000 });
+    await page.goto("/?lang=ja", { waitUntil: "networkidle" });
+    await expect(page.locator(".me-section")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#map-explorer")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#me-side-toggle")).toHaveCount(1);
+    await expect(page.locator("#me-side-rail-count")).toHaveCount(1);
+    await expect(page.locator("#me-side-rail-count")).toHaveText("");
+    const railText = await page.locator(".me-side-rail-icons").innerText({ timeout: 5_000 });
+    expect(railText).not.toContain("\u{1F4CB}");
+    expect(railText).not.toMatch(/\d/);
   }).toPass({
     intervals: [1_500, 3_000, 5_000],
     timeout: 45_000,
@@ -78,23 +74,13 @@ async function gotoLoggedInHomeUntilGuideShelf(page: Page, fixtureSuffix: string
 }
 
 for (const profile of HOME_VIEWPORTS) {
-  test(`home hero stays focused and stable (${profile.slug})`, async ({ browser }) => {
+  test(`home opens the map-first shell (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
 
     try {
       await suppressMapLibreForSmoke(page);
-      await page.goto("/?lang=ja", { waitUntil: "networkidle" });
-      await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
-      await expect(page.locator(".prototype-content-wall")).toBeVisible();
-      await expect(page.locator(".prototype-content-lane").first()).toBeVisible();
-      await expect(page.locator(".prototype-content-lane").filter({ hasText: "場所の今を残す記録" })).toBeVisible();
-      await expect(page.locator("#topa-local-map")).toBeVisible();
-      await expect(page.locator(".prototype-local-panel.is-invasive")).toBeVisible();
-      await expect(page.locator(".prototype-local-panel.is-events")).toBeVisible();
-      await expect(page.locator("#landing-hero-heading")).toHaveCount(0);
-      await expect(page.locator(".prototype-topa-actions")).toHaveCount(0);
-      await expect(page.locator(".landing-hero-timeline")).toHaveCount(0);
+      await expectMapFirstHomeShell(page);
       await expectNoHorizontalOverflow(page);
     } finally {
       await context.close();
@@ -102,49 +88,19 @@ for (const profile of HOME_VIEWPORTS) {
   });
 }
 
-test("logged-in staging home shows personal guide outcomes shelf", async ({ browser, playwright }) => {
+test("logged-in staging home keeps the map-first shell", async ({ browser, playwright }) => {
   const api = await createStagingApiContext(playwright);
   const userId = await resolveQaUserId(api);
   const rawCookie = await issueSessionCookie(api, userId);
-  const fixtureSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const fixtureLabel = `staging guide shelf ${fixtureSuffix}`;
-  const saveResponse = await api.post("/api/v1/guide/record", {
-    headers: {
-      Cookie: cookieHeader(rawCookie),
-      "content-type": "application/json",
-      accept: "application/json",
-    },
-    data: {
-      sessionId: `home-guide-shelf-${fixtureSuffix}`,
-      lang: "ja",
-      guideMode: "walk",
-      lat: 34.7219,
-      lng: 137.8589,
-      capturedAt: new Date().toISOString(),
-      returnedAt: new Date().toISOString(),
-      sceneHash: `home-guide-shelf-${fixtureSuffix}`,
-      sceneSummary: `${fixtureLabel} の植生と足元の変化`,
-      detectedSpecies: [`${fixtureLabel} plant`],
-      detectedFeatures: [
-        { type: "vegetation", name: `${fixtureLabel} vegetation`, confidence: 0.92, note: "staging visual QA" },
-      ],
-      environmentContext: `${fixtureLabel} environment`,
-      seasonalNote: "staging visual QA",
-    },
-  });
-  const savePayload = await saveResponse.json().catch(() => null) as { guideRecordId?: string; error?: string } | null;
-  expect(saveResponse.ok(), savePayload?.error ?? "guide_record_save_failed").toBeTruthy();
-  expect(savePayload?.guideRecordId, "guide record id should be returned").toBeTruthy();
-
   const context = await newStagingContext(browser, { slug: "desktop-1440", viewport: { width: 1440, height: 900 } });
   await addSessionCookie(context, rawCookie);
   const page = await context.newPage();
 
   try {
     await suppressMapLibreForSmoke(page);
-    await gotoLoggedInHomeUntilGuideShelf(page, fixtureSuffix);
+    await expectMapFirstHomeShell(page);
     await expectNoHorizontalOverflow(page);
-    await page.screenshot({ path: `test-results/home-personal-guide-shelf-${fixtureSuffix}.png`, fullPage: true });
+    await page.screenshot({ path: "test-results/home-map-first-logged-in.png", fullPage: true });
   } finally {
     await context.close();
     await api.dispose();

@@ -1130,8 +1130,8 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span class="me-side-toggle-icon" aria-hidden="true">‹</span>
         </button>
         <div class="me-side-rail-icons" aria-hidden="true">
-          <span>📋</span>
-          <span class="me-side-rail-count" id="me-side-rail-count">—</span>
+          <span class="me-side-rail-mark"></span>
+          <span class="me-side-rail-signal" id="me-side-rail-count" data-signal="neutral"><i></i><i></i><i></i></span>
         </div>
         <div class="me-side-tabs" role="tablist">
           <button type="button" class="me-side-tab is-active" data-side-tab="results" role="tab" aria-selected="true">${escapeHtml(sideTabResultsLabel)}</button>
@@ -1908,6 +1908,23 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var activeGuideStopContext = null;
   var activeGuideSpeech = null;
   var activeGuideAudio = null;
+  var SIDE_RAIL_SIGNAL_MIN_RECORDS = 6;
+  var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
+
+  function sideRailSignalCanUseRecords(records) {
+    var count = Array.isArray(records) ? records.length : 0;
+    if (count < SIDE_RAIL_SIGNAL_MIN_RECORDS) return false;
+    if (!state.map || typeof state.map.getZoom !== 'function') return false;
+    var zoom = Number(state.map.getZoom());
+    return zoom <= SIDE_RAIL_SIGNAL_MAX_ZOOM;
+  }
+
+  function updateSideRailSignal(records) {
+    if (!sideRailCountEl) return;
+    var active = sideRailSignalCanUseRecords(records);
+    sideRailCountEl.classList.toggle('is-active', active);
+    sideRailCountEl.setAttribute('data-signal', active ? 'broad-activity' : 'neutral');
+  }
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
@@ -2352,9 +2369,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         state.visitedPlacesSort = payload.sort || state.visitedPlacesSort;
         state.visitedPlaces = Array.isArray(payload.items) ? payload.items : [];
         renderVisitedPlacesPanel();
-        if (sideRailCountEl && state.visitedPlaces.length) {
-          sideRailCountEl.textContent = String(state.visitedPlaces.length);
-        }
+        updateSideRailSignal(state.records);
       })
       .catch(function (err) {
         state.visitedPlacesAbort = null;
@@ -2513,7 +2528,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!resultsListEl || !sideStatusEl) return;
     var records = Array.isArray(state.records) ? state.records : [];
     var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
-    if (sideRailCountEl) sideRailCountEl.textContent = records.length ? String(records.length) : '—';
+    updateSideRailSignal(records);
     if (!records.length) {
       sideStatusEl.textContent = COPY.empty;
       resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
@@ -8982,17 +8997,50 @@ export const MAP_EXPLORER_STYLES = `
     padding: 18px 0;
     color: #475569;
   }
-  .me-side-rail-icons span { font-size: 20px; line-height: 1; }
-  .me-side-rail-count {
-    display: inline-grid;
-    place-items: center;
-    min-width: 30px;
-    padding: 3px 8px;
+  .me-side-rail-mark {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(20,184,166,.2), rgba(14,165,233,.16));
+  }
+  .me-side-rail-mark::before,
+  .me-side-rail-mark::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    width: 10px;
+    height: 3px;
     border-radius: 999px;
-    background: rgba(14,165,233,.14);
-    color: #075985;
-    font-size: 11px;
-    font-weight: 900;
+    background: rgba(15,118,110,.72);
+  }
+  .me-side-rail-mark::before { top: 7px; transform: rotate(-8deg); }
+  .me-side-rail-mark::after { top: 13px; transform: rotate(8deg); }
+  .me-side-rail-signal {
+    display: inline-flex;
+    align-items: end;
+    gap: 3px;
+    width: 24px;
+    height: 22px;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(148,163,184,.16);
+  }
+  .me-side-rail-signal i {
+    display: block;
+    width: 4px;
+    border-radius: 999px;
+    background: rgba(100,116,139,.42);
+  }
+  .me-side-rail-signal i:nth-child(1) { height: 7px; }
+  .me-side-rail-signal i:nth-child(2) { height: 11px; }
+  .me-side-rail-signal i:nth-child(3) { height: 15px; }
+  .me-side-rail-signal.is-active {
+    background: rgba(20,184,166,.14);
+    box-shadow: 0 0 0 1px rgba(20,184,166,.18);
+  }
+  .me-side-rail-signal.is-active i {
+    background: linear-gradient(180deg, #2dd4bf, #0ea5e9);
   }
 
   .me-side-head { padding: 0 2px; flex: 0 0 auto; }
