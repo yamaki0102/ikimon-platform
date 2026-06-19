@@ -9,6 +9,8 @@ type UiKpiBody = {
     | "section_view"
     | "read_depth"
     | "primary_cta_click"
+    | "map_area_detail_open"
+    | "selected_place_cta_click"
     | "funnel_step"
     | "funnel_error";
   pagePath?: string;

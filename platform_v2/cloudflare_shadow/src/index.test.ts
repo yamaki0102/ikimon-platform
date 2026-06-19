@@ -4025,7 +4025,7 @@ test("production UI KPI events stay native before public custom-domain origin fa
         origin: "https://ikimon.life",
         "sec-fetch-site": "same-origin"
       },
-      body: JSON.stringify({ eventName: "section_view", pagePath: "/map" })
+      body: JSON.stringify({ eventName: "map_area_detail_open", pagePath: "/map" })
     }), productionEnv);
     const payload = await response.json() as any;
 

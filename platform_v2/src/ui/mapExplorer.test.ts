@@ -214,6 +214,21 @@ test("area sheet includes contribution feedback surface", () => {
   assert.match(script, /自分の記録を見返す/);
 });
 
+test("map UX interactions emit area open and selected-place CTA KPI events", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /var UI_KPI_ENDPOINT = "\/api\/v1\/ui-kpi\/events"/);
+  assert.match(script, /function sendMapKpi\(eventName, actionKey, metadata\)/);
+  assert.match(script, /map_area_detail_open/);
+  assert.match(script, /trackAreaDetailOpen\('transient_area', props\)/);
+  assert.match(script, /trackAreaDetailOpen\('registered_area'/);
+  assert.match(script, /data-kpi-event="selected_place_cta_click"/);
+  assert.match(script, /data-kpi-funnel="map_selected_place"/);
+  assert.match(script, /map:selected_place:record/);
+  assert.match(script, /map:area:album/);
+  assert.match(script, /map:area:season_gap_record/);
+});
+
 test("area badge labels are not rendered as map markers", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 

@@ -1523,6 +1523,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var EVENTS_ORGANIZER_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events"), props.lang))};
   var FIELDS_ALBUM_TPL = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/__FIELD_ID__"), props.lang))};
   var LOGIN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/login"), props.lang))};
+  var UI_KPI_ENDPOINT = ${JSON.stringify(withBasePath(props.basePath, "/api/v1/ui-kpi/events"))};
   ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
 
   var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
@@ -1928,6 +1929,45 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
   var RECORDS_LOAD_WATCHDOG_MS = 8000;
   var RECORDS_HARD_SETTLE_MS = 20000;
+
+  function sendMapKpi(eventName, actionKey, metadata) {
+    try {
+      if (!UI_KPI_ENDPOINT) return;
+      var payload = {
+        eventName: eventName,
+        pagePath: window.location.pathname + window.location.search,
+        routeKey: '/map',
+        actionKey: String(actionKey || 'map:interaction').slice(0, 128),
+        metadata: Object.assign({
+          tab: state.tab || '',
+          zoom: state.map && typeof state.map.getZoom === 'function' ? Number(state.map.getZoom().toFixed(2)) : null,
+          lang: document.documentElement.lang || SEARCH_LANG || 'ja',
+          ts: new Date().toISOString()
+        }, metadata || {})
+      };
+      fetch(UI_KPI_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+        credentials: 'same-origin'
+      }).catch(function () {});
+      if (window.ikimonExternalAnalytics && typeof window.ikimonExternalAnalytics.track === 'function') {
+        window.ikimonExternalAnalytics.track(eventName, payload);
+      }
+    } catch (_) {}
+  }
+
+  function trackAreaDetailOpen(kind, props) {
+    var p = props || {};
+    sendMapKpi('map_area_detail_open', 'map:area_detail_open:' + String(kind || 'area'), {
+      areaKind: String(kind || 'area'),
+      fieldId: String(p.field_id || p.fieldId || '').slice(0, 128),
+      source: String(p.source || p.sourceLabel || '').slice(0, 80),
+      verificationLevel: String(p.verification_level || p.verificationLevel || '').slice(0, 80),
+      transient: kind === 'transient_area'
+    });
+  }
 
   function sideRailSignalCanUseRecords(records) {
     var count = Array.isArray(records) ? records.length : 0;
@@ -2923,7 +2963,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function renderDetailActions(items) {
     return '<div class="me-detail-actions">' + items.map(function (item) {
-      return '<a class="me-detail-action" href="' + escapeHtml(item.href) + '">' +
+      var actionKey = String(item.actionKey || 'map:selected_place:cta').slice(0, 128);
+      return '<a class="me-detail-action" href="' + escapeHtml(item.href) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="' + escapeHtml(actionKey) + '" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(item.href) + '">' +
         '<span class="me-detail-action-icon" aria-hidden="true">' + escapeHtml(item.icon) + '</span>' +
         '<strong>' + escapeHtml(item.label) + '</strong>' +
       '</a>';
@@ -3065,26 +3106,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var recordLabel = context && context.memoryPlace ? COPY.placeActionRecord : COPY.areaSafeRecordLabel;
     if (context && context.kind === 'cell') {
       return renderDetailActions([
-        { icon: '＋', label: COPY.areaSafeRecordLabel, href: RECORD_HREF },
-        { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF },
-        { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF },
-        { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF },
+        { icon: '＋', label: COPY.areaSafeRecordLabel, href: RECORD_HREF, actionKey: 'map:selected_cell:record' },
+        { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF, actionKey: 'map:selected_cell:lens' },
+        { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF, actionKey: 'map:selected_cell:scan' },
+        { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:selected_cell:notes' },
       ]);
     }
     if (!context || !context.memoryPlace) {
       return renderDetailActions([
-        { icon: '＋', label: COPY.areaSafeRecordLabel, href: RECORD_HREF },
-        { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF },
-        { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF },
-        { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF },
+        { icon: '＋', label: COPY.areaSafeRecordLabel, href: RECORD_HREF, actionKey: 'map:selected_place:record' },
+        { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF, actionKey: 'map:selected_place:lens' },
+        { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF, actionKey: 'map:selected_place:scan' },
+        { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:selected_place:notes' },
       ]);
     }
     return renderDetailActions([
-      { icon: '＋', label: recordLabel, href: eventHref },
-      { icon: '☆', label: COPY.placeActionFollow, href: fieldHref },
-      { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF },
-      { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF },
-      { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF },
+      { icon: '＋', label: recordLabel, href: eventHref, actionKey: 'map:memory_place:record' },
+      { icon: '☆', label: COPY.placeActionFollow, href: fieldHref, actionKey: 'map:memory_place:follow' },
+      { icon: '🔍', label: COPY.placeActionGuide, href: LENS_HREF, actionKey: 'map:memory_place:lens' },
+      { icon: '📡', label: COPY.placeActionScan, href: SCAN_HREF, actionKey: 'map:memory_place:scan' },
+      { icon: '↗', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:memory_place:notes' },
     ]);
   }
   function renderSelectedCard() {
@@ -3201,10 +3242,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         renderDetailRecentFinds(context) +
         renderDetailWalkableFinds(context) +
         renderDetailActions([
-          { icon: '↗', label: COPY.selectedCardLabel, href: href },
-          { icon: '✓', label: COPY.identifyLabel, href: identifyHref },
-          { icon: '＋', label: COPY.bottomSheetRecord, href: RECORD_HREF },
-          { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF },
+          { icon: '↗', label: COPY.selectedCardLabel, href: href, actionKey: 'map:selected_observation:open' },
+          { icon: '✓', label: COPY.identifyLabel, href: identifyHref, actionKey: 'map:selected_observation:identify' },
+          { icon: '＋', label: COPY.bottomSheetRecord, href: RECORD_HREF, actionKey: 'map:selected_observation:record' },
+          { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:selected_observation:notes' },
         ]) +
         renderDetailStats([
           { label: COPY.placeStoryNow, value: recordDisplayName(record) },
@@ -4161,10 +4202,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         renderDetailRecentFinds(detailContext) +
         renderDetailWalkableFinds(detailContext) +
         renderDetailActions([
-          { icon: '↗', label: COPY.selectedCardLabel, href: OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId)) },
-          { icon: '✓', label: COPY.identifyLabel, href: OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId)) + '#identify' },
-          { icon: '＋', label: COPY.bottomSheetRecord, href: RECORD_HREF },
-          { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF },
+          { icon: '↗', label: COPY.selectedCardLabel, href: OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId)), actionKey: 'map:selected_observation:open' },
+          { icon: '✓', label: COPY.identifyLabel, href: OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId)) + '#identify', actionKey: 'map:selected_observation:identify' },
+          { icon: '＋', label: COPY.bottomSheetRecord, href: RECORD_HREF, actionKey: 'map:selected_observation:record' },
+          { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:selected_observation:notes' },
         ]) +
         renderDetailStats([
           { label: COPY.placeStoryNow, value: recordDisplayName(record) },
@@ -4385,7 +4426,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +     '<strong>' + escapeHtml(COPY.areaActivityRallyTitle) + '</strong>'
       +   '</div>'
       +   '<p>' + escapeHtml(COPY.areaActivityRallyBody) + '</p>'
-      +   '<a class="me-area-activity-link me-area-primary-action me-area-primary-action-event" href="' + escapeHtml(EVENTS_ORGANIZER_HREF) + '">'
+      +   '<a class="me-area-activity-link me-area-primary-action me-area-primary-action-event" href="' + escapeHtml(EVENTS_ORGANIZER_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:event_consult" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(EVENTS_ORGANIZER_HREF) + '">'
       +     '<span aria-hidden="true">↗</span>'
       +     escapeHtml(COPY.areaActivityRallyLinkLabel)
       +   '</a>'
@@ -4432,6 +4473,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedOccurrenceId = null;
     state.selectedCellId = null;
     state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'area', fieldId: String(props.field_id || ''), areaFeature: feature, transient: true };
+    trackAreaDetailOpen('transient_area', props);
     if (state.map && state.map.getLayer('area-polygon-selected')) {
       state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(props.field_id || '__none__'));
     }
@@ -4471,6 +4513,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedOccurrenceId = null;
     state.selectedCellId = null;
     state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId, areaFeature: feature || null };
+    trackAreaDetailOpen('registered_area', Object.assign({ field_id: fieldId }, feature && feature.properties ? feature.properties : {}));
     if (state.map && state.map.getLayer('area-polygon-selected')) {
       state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(fieldId));
     }
@@ -4720,7 +4763,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         +     '<strong>' + escapeHtml(COPY.areaGalleryEmpty) + '</strong>'
         +   '</div>'
         +   (canRecord
-              ? '<a class="me-area-gallery-empty-cta" href="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaSafeRecordLabel) + '</a>'
+              ? '<a class="me-area-gallery-empty-cta" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:gallery_empty_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaSafeRecordLabel) + '</a>'
               : '<p class="me-area-story-note">' + escapeHtml(COPY.areaRestrictedActionHint) + '</p>')
         + '</section>';
     }
@@ -4808,7 +4851,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
                 + '<strong>' + escapeHtml(COPY.areaRestrictedActionLabel) + '</strong>'
                 + '</span>';
             }
-            return '<a class="me-area-season-gap" href="' + escapeHtml(RECORD_HREF) + '">'
+            return '<a class="me-area-season-gap" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:season_gap_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">'
               + '<span>' + escapeHtml(String(row.label || row.season || 'season')) + '</span>'
               + '<strong>' + escapeHtml(COPY.areaSafeRecordLabel) + '</strong>'
               + '</a>';
@@ -5007,7 +5050,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (canSuggestEvent === false || !eventHref) {
       return renderRestrictedAreaAction() + metaHtml;
     }
-    var albumHtml = '<a class="me-area-primary-action me-area-primary-action-album" href="' + escapeHtml(albumHref) + '">'
+    var albumHtml = '<a class="me-area-primary-action me-area-primary-action-album" href="' + escapeHtml(albumHref) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:album" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(albumHref) + '">'
       + '<span aria-hidden="true">□</span>'
       + escapeHtml(COPY.areaPublicPageLabel)
       + '</a>';
@@ -5066,7 +5109,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var storyTabsHtml = renderAreaStoryTabs(snapshot, { canRecord: canRecord });
     var positiveHtml = renderAreaPositiveFeedback(snapshot, fieldId);
     var publicPageHtml = fieldId
-      ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
+      ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:public_page" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
       : '';
     return heroHtml + accessHtml + maskingHtml + safetyNoticeHtml + primaryActionsHtml + positiveHtml + guideStopHtml + followHtml + publicPageHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml;
   }
