@@ -1926,6 +1926,13 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
       .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
       .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
       .filter(isDisplayableAreaPolygonFeature);
+    if (
+      options.allowApproximateFallback === false
+      && sources.includes("school")
+      && !nativeFeatures.some((feature) => feature.properties?.source === "school")
+    ) {
+      return null;
+    }
     return json({
       type: "FeatureCollection",
       features: nativeFeatures,
