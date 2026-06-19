@@ -180,6 +180,16 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /name="mediaRole" value="sound_motion"/);
         assert.match(response.body, /この長さでOK/);
         assert.match(response.body, /撮影時の現在地/);
+        assert.match(response.body, /id="record-location-privacy"/);
+        assert.match(response.body, /公開される位置/);
+        assert.match(response.body, /正確な地点/);
+        assert.match(response.body, /写真のGPS情報は別に注意が必要です/);
+        assert.match(response.body, /学校・自宅・希少種/);
+        assert.match(response.body, /record-location-privacy-preview/);
+        assert.match(response.body, /syncLocationPrivacyNotice/);
+        assert.match(response.body, /locationPrivacyAfterSave/);
+        assert.match(response.body, /写真ファイルのGPS情報や写り込みから場所が分かる場合があります/);
+        assert.doesNotMatch(response.body, /正確な座標を出しません/);
         assert.match(response.body, /name="prefecture" value=""/);
         assert.match(response.body, /if \(!latRaw \|\| !lngRaw\) return null;/);
         assert.doesNotMatch(response.body, /name="latitude"[^>]+required/);
@@ -237,6 +247,11 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /Community can help/);
         assert.match(response.body, /Observed time/);
         assert.match(response.body, /Observation place/);
+        assert.match(response.body, /What becomes public/);
+        assert.match(response.body, /Exact place/);
+        assert.match(response.body, /Photo files may still contain GPS metadata/);
+        assert.match(response.body, /Schools, homes, rare species/);
+        assert.doesNotMatch(response.body, /Exact coordinates stay off public pages/);
         assert.match(response.body, /Fields you can complete later/);
         assert.match(response.body, /No media selected/);
         assert.match(response.body, /Save and complete later/);
