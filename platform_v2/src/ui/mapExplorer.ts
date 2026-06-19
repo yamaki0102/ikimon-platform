@@ -5832,7 +5832,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
-    var areaLabelLayers = ['area-polygon-name'];
+    var areaLabelLayers = ['area-polygon-name-priority', 'area-polygon-name'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
@@ -5857,18 +5857,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (map.getLayer('area-polygon-fill')) {
       map.setPaintProperty('area-polygon-fill', 'fill-opacity',
         tab === 'places'
-          ? ['interpolate', ['linear'], ['zoom'], 8, 0.16, 14, 0.34, 17, 0.42]
+          ? ['interpolate', ['linear'], ['zoom'], 8, 0.11, 11, 0.15, 14, 0.28, 16.5, 0.42]
           : ['interpolate', ['linear'], ['zoom'], 8, 0.03, 14, 0.08]);
     }
     if (map.getLayer('area-polygon-outline')) {
-      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' ? 0.96 : 0.42);
+      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places'
+        ? ['interpolate', ['linear'], ['zoom'], 8, 0.55, 12, 0.72, 15, 0.96]
+        : 0.42);
       map.setPaintProperty('area-polygon-outline', 'line-width', tab === 'places'
-        ? ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 3.2, 2.2]
+        ? ['case',
+          ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
+          ['interpolate', ['linear'], ['zoom'], 8, 1.4, 14, 2.4, 17, 3.2],
+          ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 1.6, 17, 2.2]]
         : ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 2.4, 1.4]);
     }
     if (map.getLayer('area-polygon-approximate-outline')) {
-      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places' ? 0.92 : 0.5);
-      map.setPaintProperty('area-polygon-approximate-outline', 'line-width', tab === 'places' ? 2.4 : 1.8);
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places'
+        ? ['interpolate', ['linear'], ['zoom'], 8, 0.48, 12, 0.74, 15, 0.92]
+        : 0.5);
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-width', tab === 'places'
+        ? ['interpolate', ['linear'], ['zoom'], 8, 1.1, 14, 1.8, 17, 2.4]
+        : 1.8);
     }
 
     if (tab === 'heatmap') {
@@ -5880,7 +5889,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
         'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else if (tab === 'places') {
-      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name', 'area-polygon-selected']);
+      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)', 'areas');
       loadWaterwayHints();
@@ -6166,7 +6175,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       paint: {
         'line-color': [
           'case',
-          ['in', ['get', 'access'], ['literal', ['private', 'no']]],
+          ['in', ['get', 'access'], ['literal', ['private', 'no', 'restricted']]],
           '#dc2626',
           ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
           '#059669',
@@ -6208,6 +6217,57 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       },
     }, beforeId);
     map.addLayer({
+      id: 'area-polygon-name-priority',
+      type: 'symbol',
+      source: 'area-polygons',
+      minzoom: 13.2,
+      maxzoom: 15.35,
+      filter: ['all',
+        ['has', 'name'],
+        ['!', ['in', ['get', 'access'], ['literal', ['private', 'no', 'restricted']]]],
+        ['any',
+          ['all',
+            ['match', ['get', 'source'], ['osm_park', 'protected_area'], true, false],
+            ['any',
+              ['in', ['get', 'access'], ['literal', ['yes', 'public', 'permissive']]],
+              ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
+              ['>=', ['coalesce', ['get', 'source_confidence'], 0], 0.75],
+            ],
+          ],
+          ['all',
+            ['match', ['get', 'source'], ['oecm', 'nature_symbiosis_site'], true, false],
+            ['in', ['get', 'access'], ['literal', ['yes', 'public', 'permissive']]],
+          ],
+        ],
+        ['>=', ['coalesce', ['get', 'area_ha'], 0], 35],
+        VISIBLE_AREA_POLYGON_FILTER,
+      ],
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 13.2, 9.2, 15.4, 10.8],
+        'text-max-width': 7,
+        'text-padding': 18,
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+        'symbol-sort-key': ['coalesce', ['get', 'area_ha'], 9999],
+      },
+      paint: {
+        'text-color': [
+          'match', ['get', 'source'],
+          'school', '#8a6a16',
+          'osm_park', '#0f766e',
+          'protected_area', '#047857',
+          'oecm', '#4d7c0f',
+          'nature_symbiosis_site', '#047857',
+          '#475569',
+        ],
+        'text-halo-color': 'rgba(237,244,239,0.96)',
+        'text-halo-width': 1.5,
+        'text-opacity': ['interpolate', ['linear'], ['zoom'], 13.2, 0, 13.8, 0.72, 15.4, 0.88],
+      },
+    }, beforeId);
+    map.addLayer({
       id: 'area-polygon-name',
       type: 'symbol',
       source: 'area-polygons',
@@ -6216,9 +6276,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       layout: {
         'text-field': ['get', 'name'],
         'text-font': ['Noto Sans Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 15.4, 10.2, 17.5, 12],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 15.4, 10.4, 17.5, 12.2],
         'text-max-width': 8,
-        'text-padding': 12,
+        'text-padding': 16,
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'symbol-sort-key': ['-', 0, ['coalesce', ['get', 'area_ha'], 9999]],
@@ -6235,7 +6295,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         ],
         'text-halo-color': 'rgba(237,244,239,0.94)',
         'text-halo-width': 1.3,
-        'text-opacity': ['interpolate', ['linear'], ['zoom'], 15.4, 0.72, 16.4, 0.92],
+        'text-opacity': ['interpolate', ['linear'], ['zoom'], 15.4, 0.54, 16.4, 0.92],
       },
     }, beforeId);
     map.addLayer({

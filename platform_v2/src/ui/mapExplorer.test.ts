@@ -621,12 +621,31 @@ test("heatmap tab keeps area polygons selectable", () => {
 
   assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places'\);/);
   assert.match(script, /show\(areaLabelLayers, tab === 'places'\);/);
-  assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name', 'area-polygon-selected'\]\);/);
-  assert.match(script, /8, 0\.16, 14, 0\.34, 17, 0\.42/);
+  assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected'\]\);/);
+  assert.match(script, /8, 0\.11, 11, 0\.15, 14, 0\.28, 16\.5, 0\.42/);
   assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places'/);
   assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);
   assert.match(script, /var markerDetailLayers = \['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'\]/);
   assert.match(script, /show\(markerDetailLayers, false\);/);
+});
+
+test("area density and labels are staged by zoom instead of appearing all at once", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /var areaLabelLayers = \['area-polygon-name-priority', 'area-polygon-name'\]/);
+  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?minzoom: 13\.2/);
+  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?maxzoom: 15\.35/);
+  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['!', \['in', \['get', 'access'\], \['literal', \['private', 'no', 'restricted'\]\]\]\]/);
+  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['match', \['get', 'source'\], \['osm_park', 'protected_area'\], true, false\]/);
+  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['match', \['get', 'source'\], \['oecm', 'nature_symbiosis_site'\], true, false\]/);
+  assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?\['>=', \['coalesce', \['get', 'area_ha'\], 0\], 35\]/);
+  assert.doesNotMatch(script, /id: 'area-polygon-name-priority'[\s\S]*?\['school', 'osm_park'/);
+  assert.match(script, /'text-opacity': \['interpolate', \['linear'\], \['zoom'\], 13\.2, 0, 13\.8, 0\.72, 15\.4, 0\.88\]/);
+  assert.match(script, /'line-opacity', tab === 'places'[\s\S]*?8, 0\.55, 12, 0\.72, 15, 0\.96/);
+  assert.match(script, /\['in', \['get', 'access'\], \['literal', \['private', 'no', 'restricted'\]\]\],[\s\S]*?'#dc2626'/);
+  assert.match(script, /8, 1\.4, 14, 2\.4, 17, 3\.2/);
+  assert.match(script, /8, 1\.2, 14, 1\.6, 17, 2\.2/);
+  assert.match(script, /'area-polygon-hitbox'[\s\S]*?'line-width': 14/);
 });
 
 test("heatmap area filters keep osm parks as selectable anchors", () => {
