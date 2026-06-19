@@ -86,6 +86,20 @@ test("buildLiveOsmAreaQuery uses Overpass south,west,north,east order", () => {
   assert.match(query, /building/);
 });
 
+test("buildLiveOsmAreaQuery can scope expensive live fallback by requested source", () => {
+  const schoolQuery = buildLiveOsmAreaQuery([137.39, 34.73, 137.43, 34.75], ["school"]);
+  assert.match(schoolQuery, /amenity/);
+  assert.match(schoolQuery, /building/);
+  assert.doesNotMatch(schoolQuery, /leisure/);
+  assert.doesNotMatch(schoolQuery, /recreation_ground/);
+
+  const parkQuery = buildLiveOsmAreaQuery([137.39, 34.73, 137.43, 34.75], ["osm_park"]);
+  assert.match(parkQuery, /leisure/);
+  assert.match(parkQuery, /playground/);
+  assert.doesNotMatch(parkQuery, /amenity/);
+  assert.doesNotMatch(parkQuery, /building/);
+});
+
 test("liveElementToFeature treats playground polygons as park areas", () => {
   const feature = liveElementToFeature({
     type: "way",

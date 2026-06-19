@@ -488,25 +488,37 @@ function isDisplayableAreaFeature(feature: AreaPolygonFeature): boolean {
   return !isWeakLiveOsmAreaFeature(feature);
 }
 
-function buildLiveOsmAreaQuery(bbox: [number, number, number, number]): string {
+function buildLiveOsmAreaQuery(bbox: [number, number, number, number], sources: AreaPolygonSource[] = []): string {
   const [minLng, minLat, maxLng, maxLat] = bbox;
   const bb = `${minLat},${minLng},${maxLat},${maxLng}`;
+  const requested = requestedLiveOsmSources(sources);
+  const includeAll = requested.length === 0;
+  const clauses: string[] = [];
+  if (includeAll || requested.includes("osm_park")) {
+    clauses.push(
+      `  way["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});`,
+      `  relation["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});`,
+      `  way["landuse"~"^(recreation_ground|village_green)$"](${bb});`,
+      `  relation["landuse"~"^(recreation_ground|village_green)$"](${bb});`,
+      `  way["landuse"="grass"]["name"](${bb});`,
+      `  relation["landuse"="grass"]["name"](${bb});`,
+      `  relation["boundary"="national_park"](${bb});`,
+    );
+  }
+  if (includeAll || requested.includes("school")) {
+    clauses.push(
+      `  way["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});`,
+      `  relation["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});`,
+      `  way["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});`,
+      `  relation["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});`,
+      `  way["building"~"^(school|college|university|kindergarten)$"](${bb});`,
+      `  relation["building"~"^(school|college|university|kindergarten)$"](${bb});`,
+    );
+  }
   return `
 [out:json][timeout:8];
 (
-  way["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
-  relation["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
-  way["landuse"~"^(recreation_ground|village_green)$"](${bb});
-  relation["landuse"~"^(recreation_ground|village_green)$"](${bb});
-  way["landuse"="grass"]["name"](${bb});
-  relation["landuse"="grass"]["name"](${bb});
-  relation["boundary"="national_park"](${bb});
-  way["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
-  relation["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
-  way["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
-  relation["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
-  way["building"~"^(school|college|university|kindergarten)$"](${bb});
-  relation["building"~"^(school|college|university|kindergarten)$"](${bb});
+${clauses.join("\n")}
 );
 out tags geom;
 `;
@@ -965,7 +977,7 @@ async function fetchLiveOsmAreaPolygons(query: AreaPolygonsQuery, remainingLimit
     ...(configuredEndpoint ? [configuredEndpoint] : []),
     ...LIVE_OSM_ENDPOINTS,
   ]));
-  const body = `data=${encodeURIComponent(buildLiveOsmAreaQuery(query.bbox))}`;
+  const body = `data=${encodeURIComponent(buildLiveOsmAreaQuery(query.bbox, query.sources ?? []))}`;
   let lastError = "overpass_failed";
   for (const endpoint of endpoints) {
     const controller = new AbortController();
@@ -1112,21 +1124,40 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
-    const cachedCoversRequestedSources = hasFreshLiveOsmCacheCoverage(sources, cachedFeatures, cached.freshComplete);
-    if (cachedCoversRequestedSources) {
+    const requestedLiveSources = requestedLiveOsmSources(sources);
+    const cachedCoveredSources = requestedLiveSources.filter((source) => hasRequestedLiveOsmSourceCoverage([source], cachedFeatures));
+    const missingLiveSources = requestedLiveSources.filter((source) => !cachedCoveredSources.includes(source));
+    if (cached.freshComplete && missingLiveSources.length === 0) {
       features.push(...cachedFeatures.filter(isDisplayableAreaFeature));
     } else {
+      if (cached.freshComplete && cachedCoveredSources.length > 0) {
+        features.push(...filterAreaFeaturesBySources(cachedFeatures, cachedCoveredSources).filter(isDisplayableAreaFeature));
+      }
       const liveFetchBbox = bboxForTiles(cached.tiles) ?? query.bbox;
       const liveFetchLimit = Math.min(MAX_LIMIT, Math.max(limit - features.length, LIVE_OSM_TILE_FETCH_LIMIT));
-      const live = await fetchLiveOsmAreaPolygons({ ...query, bbox: liveFetchBbox }, liveFetchLimit);
-      if (live.ok) {
-        await writeLiveOsmTileCache(cached.tiles, live.features);
+      const fetchSources = missingLiveSources.length > 0 ? missingLiveSources : requestedLiveSources;
+      const liveFeatures: AreaPolygonFeature[] = [];
+      let liveOk = false;
+      let liveError = "";
+      for (const source of fetchSources) {
+        const live = await fetchLiveOsmAreaPolygons({ ...query, bbox: liveFetchBbox, sources: [source] }, liveFetchLimit);
+        if (live.ok) {
+          liveOk = true;
+          liveFeatures.push(...live.features);
+        } else {
+          liveError = live.error ?? liveError;
+        }
+      }
+      if (liveOk) {
+        const cacheFeatures = dedupeAreaFeatures([...cached.freshFeatures, ...liveFeatures], LIVE_OSM_TILE_FETCH_LIMIT);
+        await writeLiveOsmTileCache(cached.tiles, cacheFeatures);
         features.push(...dedupeAreaFeatures(
-          filterAreaFeaturesBySources(live.features, sources).filter(isDisplayableAreaFeature),
+          filterAreaFeaturesBySources(liveFeatures, sources).filter(isDisplayableAreaFeature),
           limit - features.length,
           query.bbox,
         ));
       } else {
+        if (liveError) console.warn("[areaPolygons] live OSM source fetch failed", liveError);
         features.push(...filterAreaFeaturesBySources(cached.staleFeatures, sources).filter(isDisplayableAreaFeature));
       }
     }
