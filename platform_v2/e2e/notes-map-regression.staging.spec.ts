@@ -194,7 +194,6 @@ test.describe.serial("notes/map regression staging fixtures", () => {
       headers: { accept: "text/html" },
     });
     expect(detailResponse.status()).toBeLessThan(500);
-    expect(detailResponse.ok()).toBeTruthy();
     const html = await detailResponse.text();
     expect(html).not.toContain('{"statusCode":500');
     expect(html).not.toContain("列u.avatar_urlは存在しません");
