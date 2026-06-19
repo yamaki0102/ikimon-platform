@@ -72,6 +72,7 @@ import { assertAuthRateLimit, assertSameOriginRequest } from "../services/authSe
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
 import { seedStagingRegressionFixtures } from "../services/stagingRegressionFixtures.js";
+import { refreshPublicMapSnapshot } from "../services/mapSnapshot.js";
 import {
   generateRecordPhotoFeedback,
   normalizeRecordPhotoFeedbackContext,
@@ -1457,6 +1458,9 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         throw new Error("fixture_prefix_required");
       }
       const fixture = await seedStagingRegressionFixtures({ fixturePrefix });
+      await refreshPublicMapSnapshot({
+        refreshedBy: "staging-fixture:seed-regression",
+      });
       return {
         ok: true,
         fixture,
@@ -1515,6 +1519,11 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         fixturePrefix: request.body?.fixturePrefix ?? null,
         dryRun: request.body?.dryRun ?? false,
       });
+      if (!cleanup.dryRun) {
+        await refreshPublicMapSnapshot({
+          refreshedBy: "staging-fixture:cleanup",
+        });
+      }
       return {
         ok: true,
         cleanup,

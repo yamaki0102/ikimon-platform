@@ -89,23 +89,22 @@ test("selected place and cell details replace static story with site brief", () 
   assert.match(selectedCellBody, /renderSiteBriefSlot\('me-selected-brief-slot', context\)/);
   assert.match(openCellBody, /renderSiteBriefSlot\('me-site-brief-slot', detailContext\)/);
   assert.match(openPlaceBody, /renderSiteBriefSlot\('me-site-brief-slot', detailContext\)/);
-  assert.doesNotMatch(openPlaceBody, /renderDetailVisitReasons\(detailContext\)[\s\S]{0,500}me-site-brief-slot/);
   assert.match(script, /data-brief-fallback/);
   assert.match(script, /target\.removeAttribute\('data-brief-fallback'\)/);
 });
 
-test("public place actions prioritize area circulation over personal record CTA", () => {
+test("public place actions avoid raw coordinate area creation", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const actionBody = script.slice(
     script.indexOf("function renderPlaceDetailActions"),
     script.indexOf("function renderSelectedCard"),
   );
 
-  assert.match(actionBody, /COPY\.areaEventCreateLabel/);
-  assert.match(actionBody, /COPY\.areaPublicPageLabel/);
-  assert.match(actionBody, /COPY\.placeActionNearby/);
-  assert.match(actionBody, /nearbyHref/);
-  assert.doesNotMatch(actionBody, /COPY\.placeActionRecord/);
+  assert.match(actionBody, /COPY\.areaSafeRecordLabel/);
+  assert.match(actionBody, /COPY\.placeActionGuide/);
+  assert.match(actionBody, /COPY\.bottomSheetNotes/);
+  assert.doesNotMatch(actionBody, /FIELDS_NEW_BASE/);
+  assert.doesNotMatch(actionBody, /source: 'map_point_area'/);
 });
 
 test("mobile place detail peek keeps the map visible", () => {
@@ -133,6 +132,66 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
   assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\]\s*\{\s*height: 35vh;\s*max-height: 35vh;\s*height: min\(35dvh, 320px\);/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="peek"\]\s*\{\s*height: 58vh;\s*max-height: 58vh;\s*height: min\(58dvh, calc\(100dvh - var\(--me-header-h\) - 100px\), 460px\);/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: auto;\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - 96px\);/);
+});
+
+test("map home opens as a regional encyclopedia instead of a raw point finder", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /地域図鑑マップ/);
+  assert.match(html, /この範囲の地域図鑑/);
+  assert.match(html, /記録は地域単位で集計しています/);
+  assert.doesNotMatch(html, /余白 = これから育つ場所/);
+  assert.doesNotMatch(html, /色 = 季節と記録の厚み/);
+  assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
+  assert.doesNotMatch(html, /class="me-map-cues"/);
+  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="places"/);
+  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers"/);
+  assert.match(script, /tab: 'places'/);
+});
+
+test("area sheets gate contribution CTAs behind public access evidence", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function isSchoolArea\(area\)/);
+  assert.match(script, /幼稚園\|保育園\|こども園\|学園/);
+  assert.match(script, /function areaAccessStatus\(area, masking\)/);
+  assert.match(script, /function canSuggestAreaEvent\(area, masking\)/);
+  assert.match(script, /return areaAccessStatus\(area, masking\) === 'public_access';/);
+  assert.match(script, /function canSuggestDirectAreaRecord\(area, masking\)/);
+  assert.match(script, /function renderRestrictedAreaAction\(\)/);
+  assert.match(script, /COPY\.areaSchoolNotice/);
+  assert.match(script, /var canRecord = canSuggestDirectAreaRecord\(f, masking\);/);
+  assert.match(
+    script,
+    /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml \+ followHtml \+ publicPageHtml/,
+  );
+  assert.match(
+    script,
+    /renderAreaObservationGallery\(gallery, \{ label: COPY\.areaGalleryTitle, canRecord: canRecord \}\)/,
+  );
+});
+
+test("mobile map status clears the default area legend", () => {
+  assert.match(
+    MAP_EXPLORER_STYLES,
+    /@media \(max-width: 900px\)[\s\S]*\.me-map-status \{[\s\S]*bottom: 96px;/,
+  );
+});
+
+test("cell and blank map selections are aggregate and safety surfaces", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /title: COPY\.cellAggregateTitle/);
+  assert.match(script, /badge: COPY\.cellAggregateBadge/);
+  assert.match(script, /renderAggregateSafety\(COPY\.cellAggregateSafety\)/);
+  assert.match(script, /renderDetailHero\(\{ title: COPY\.selectedPointName, meta: '', badge: COPY\.selectionPlaceLabel \}\)/);
+  assert.match(script, /renderAggregateSafety\(COPY\.mapPointSafety\)/);
+  assert.doesNotMatch(script, /buildPointAreaEventHref/);
+  assert.doesNotMatch(script, /source: 'map_point_area'/);
+  assert.doesNotMatch(script, /FIELDS_NEW_BASE/);
+  assert.doesNotMatch(script, /title: COPY\.selectedPointName, meta: coordLabel/);
+  assert.doesNotMatch(script, /title: COPY\.cellAggregateTitle, meta: coordLabel/);
 });
 
 test("area sheet includes contribution feedback surface", () => {
@@ -250,6 +309,23 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /Chloris: 'カワラヒワ属'/);
   assert.match(script, /Monticola: 'イソヒヨドリ属'/);
   assert.match(script, /function groupResultRecords\(records\)/);
+  assert.match(script, /function setResultsLoadState\(stateName, count\)/);
+  assert.match(script, /function runInitialMapDataLoad\(reason\)/);
+  assert.match(script, /scheduleInitialMapDataLoad\(180\)/);
+  assert.match(script, /runInitialMapDataLoad\('load'\)/);
+  assert.match(script, /function scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\)/);
+  assert.match(script, /function scheduleRecordsHardSettleWatchdog\(\)/);
+  assert.match(script, /function recoverRecordsLoad\(requestSeq, requestKey, scope\)/);
+  assert.match(script, /function forceSettleRecordsRequest\(requestSeq, stats\)/);
+  assert.match(script, /settleCurrentRecordsRequest\(requestSeq\)/);
+  assert.match(script, /state\.recordsRecoveryAttempts \+= 1;\s+scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\);\s+return;/);
+  assert.match(script, /if \(state\._recordsAppliedSeq === requestSeq\) return;\s+forceSettleRecordsRequest\(requestSeq, state\.lastStats\);/);
+  assert.match(script, /RECORDS_LOAD_WATCHDOG_MS = 8000/);
+  assert.match(script, /RECORDS_HARD_SETTLE_MS = 20000/);
+  assert.match(script, /scheduleRecordsHardSettleWatchdog\(\);/);
+  assert.match(script, /data-results-state/);
+  assert.match(script, /setResultsLoadState\(records\.length \? 'ready' : 'empty', records\.length\)/);
+  assert.match(script, /setResultsLoadState\('error'/);
   assert.match(script, /me-result-group-head/);
   assert.match(script, /COPY\.resultGroupedByDate/);
   assert.match(script, /renderResultBadges\(record\)/);
@@ -257,6 +333,10 @@ test("result side panel groups dense records by date and normalizes candidate la
   const resultListBody = script.slice(
     script.indexOf("function renderResultList()"),
     script.indexOf("function clearDiscoveryPreviewMarkers()"),
+  );
+  assert.ok(
+    resultListBody.indexOf("setResultsLoadState(records.length ? 'ready' : 'empty', records.length)") <
+      resultListBody.indexOf("if (!resultsListEl || !sideStatusEl) return;"),
   );
   assert.doesNotMatch(resultListBody, /'<span>' \+ escapeHtml\(record\.localityLabel/);
   assert.match(styles, /\.me-result-group \{/);
@@ -355,6 +435,22 @@ test("map explorer restores the quick record launcher on mobile only", () => {
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;/);
 });
 
+test("map explorer does not paint the field-guide title over the map", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+
+  assert.doesNotMatch(html, /class="me-enjoy-strip"/);
+  assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
+});
+
+test("map explorer hides migration jargon and unidentified placeholders from public copy", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function publicBriefText/);
+  assert.match(script, /Cloudflare\|互換表示\|移行中/);
+  assert.match(script, /unidentified/);
+  assert.match(script, /return fallback \|\| COPY\.awaitingIdLabel/);
+});
+
 test("area map labels and side cards expose organizer and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
@@ -371,7 +467,7 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.doesNotMatch(script, /eventsNewHrefTemplate/);
   assert.doesNotMatch(script, /\/community\/events\/new/);
-  assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml/);
+  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ primaryActionsHtml \+ positiveHtml/);
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {
@@ -389,7 +485,7 @@ test("area sheet exposes on-site guide stops with geolocation-gated playback", (
   assert.match(script, /GUIDE_LANG_ORDER = \['ja', 'en', 'zh-TW', 'zh-CN'\]/);
   assert.match(script, /SpeechSynthesisUtterance/);
   assert.match(script, /hydrateAreaGuideStopControls\(sheetInnerEl\)/);
-  assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml/);
+  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml/);
 });
 
 test("map viewport movement refreshes stale result panels automatically", () => {
@@ -400,6 +496,16 @@ test("map viewport movement refreshes stale result panels automatically", () => 
   assert.match(script, /function scheduleViewportRefresh\(\)/);
   assert.match(script, /scheduleViewportRefresh\(\);\s+refreshDiscoveryPreviewMarkers/);
   assert.match(script, /searchAreaBtnEl\.addEventListener\('click', function \(\) \{\s+refreshViewportSearchData\(\);/);
+});
+
+test("map initial data load stays light and defers secondary panels", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /var VIEWPORT_RECORD_LIMIT = 600;/);
+  assert.match(script, /var CELL_RECORD_LIMIT = 1500;/);
+  assert.match(script, /var recordLimit = scope && scope\.cellId \? CELL_RECORD_LIMIT : VIEWPORT_RECORD_LIMIT;/);
+  assert.match(script, /function deferMapTask\(fn, delay\)/);
+  assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
 });
 
 test("map opens near current location instead of restoring stale local viewport", () => {
@@ -478,20 +584,22 @@ test("approximate school areas are not rendered as circular map ranges", () => {
   assert.match(script, /state\.map\.setFilter\('area-polygon-selected', selectedAreaPolygonFilter/);
 });
 
-test("map explorer exposes visited place shortcuts and a clickable side collapse control", () => {
+test("map explorer omits visited place shortcuts while keeping side collapse control", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(html, /id="me-visited-panel"/);
-  assert.match(html, /data-api-my-places="\/api\/v1\/map\/my-places"/);
-  assert.match(script, /function loadVisitedPlaces\(force\)/);
-  assert.match(script, /function jumpToVisitedPlace\(place\)/);
-  assert.match(script, /sort='\s\+ encodeURIComponent\(state\.visitedPlacesSort\)/);
-  assert.match(script, /最近/);
-  assert.match(script, /よく行く/);
-  assert.match(script, /季節で再訪/);
+  assert.doesNotMatch(html, /id="me-visited-panel"/);
+  assert.doesNotMatch(html, /data-api-my-places/);
+  assert.doesNotMatch(script, /function loadVisitedPlaces\(force\)/);
+  assert.doesNotMatch(script, /function jumpToVisitedPlace\(place\)/);
+  assert.doesNotMatch(script, /sort='\s\+ encodeURIComponent\(state\.visitedPlacesSort\)/);
+  assert.doesNotMatch(script, /よく行く/);
+  assert.doesNotMatch(script, /季節で再訪/);
+  assert.doesNotMatch(script, /行った場所へ/);
+  assert.doesNotMatch(script, /記録すると、ここに再訪先が出ます。/);
   assert.match(script, /function buildPlaceMemoryRecordHref\(place\)/);
   assert.match(script, /revisitObservationId/);
-  assert.match(script, /setSideRailMode\(false\);/);
-  assert.match(script, /行った場所へ/);
+  assert.match(html, /id="me-side-toggle"/);
+  assert.match(script, /function setSideRailMode\(rail\)/);
+  assert.match(script, /setSideRailMode\(nowRail\);/);
 });

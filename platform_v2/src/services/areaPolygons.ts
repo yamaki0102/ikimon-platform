@@ -739,6 +739,21 @@ function normalizeFeatureContract(feature: AreaPolygonFeature): AreaPolygonFeatu
   };
 }
 
+function areaLayerSourceSortSql(): string {
+  return `CASE ${AREA_LAYER_SOURCE_SQL}
+        WHEN 'school' THEN 0
+        WHEN 'osm_park' THEN 1
+        WHEN 'user_defined' THEN 2
+        WHEN 'nature_symbiosis_site' THEN 3
+        WHEN 'tsunag' THEN 4
+        WHEN 'protected_area' THEN 5
+        WHEN 'oecm' THEN 6
+        WHEN 'admin_municipality' THEN 7
+        WHEN 'admin_prefecture' THEN 8
+        ELSE 9
+      END`;
+}
+
 function isCompleteFreshLiveCache(freshTileCount: number, totalTileCount: number, freshFeatureCount: number): boolean {
   return freshTileCount === totalTileCount && freshFeatureCount > 0;
 }
@@ -1008,7 +1023,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         -- 現行版のみ (廃止された旧公園・旧合併前市町村などは除外)。
         -- 過去版を引きたい場合は別 endpoint で as_of 指定する想定。
         AND valid_to IS NULL
-      ORDER BY area_ha NULLS LAST
+      ORDER BY ${areaLayerSourceSortSql()}, area_ha NULLS LAST
       LIMIT $6`,
     [minLat, maxLat, minLng, maxLng, sources, limit + 1],
   );
@@ -1129,6 +1144,7 @@ export const __test__ = {
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,
   hasFreshLiveOsmCacheCoverage,
+  areaLayerSourceSortSql,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,

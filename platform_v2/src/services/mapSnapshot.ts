@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import type { Pool, PoolClient } from "pg";
 import { buildObserverNameSql } from "./observerNameSql.js";
 import { formatTaxonDisplayName } from "./localizedDisplay.js";
 import {
@@ -21,6 +22,14 @@ import {
   VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "./observationQualityGate.js";
 import { buildPublicMapCellName } from "./publicMapCellNaming.js";
+import {
+  coarsenLatLng,
+  decidePublicCoord,
+  loadSensitiveSpeciesIndex,
+  type CoordDecision,
+  type CoordMode,
+  type OccurrenceForMasking,
+} from "./sensitiveSpeciesMasking.js";
 
 /**
  * Public map snapshot for `/map`.
@@ -46,6 +55,17 @@ export type MarkerProfile = "manual_only" | "trusted_only" | "all_research_artif
 export type ProvenanceBucket = "manual" | "legacy" | "track" | "other";
 export type SeasonFilter = "spring" | "summer" | "autumn" | "winter";
 
+export const PUBLIC_MAP_AGGREGATE_POLICY = {
+  minCellRecords: 3,
+  sensitiveMinCellMeters: 5000,
+  municipalityMinCellMeters: 20000,
+  bboxScope: "fixed_public_cell_cover",
+  policy: "k_anonymous_cell_aggregate",
+  exposesSuppressedCounts: false,
+} as const;
+
+export type PublicMapPrivacyStats = typeof PUBLIC_MAP_AGGREGATE_POLICY;
+
 export type MapQueryFilters = {
   taxonGroup?: TaxonGroup;
   year?: number;
@@ -53,6 +73,7 @@ export type MapQueryFilters = {
   limit?: number;
   markerProfile?: MarkerProfile;
   season?: SeasonFilter;
+  zoom?: number;
 };
 
 export type PublicMapCellFeature = {
@@ -94,6 +115,7 @@ export type PublicMapCellFeatureCollection = {
       visible: Record<ProvenanceBucket, number>;
       excluded: Record<ProvenanceBucket, number>;
     };
+    privacy: PublicMapPrivacyStats;
   };
 };
 
@@ -126,6 +148,7 @@ export type PublicMapObservationList = {
       visible: Record<ProvenanceBucket, number>;
       excluded: Record<ProvenanceBucket, number>;
     };
+    privacy: PublicMapPrivacyStats;
   };
 };
 
@@ -149,6 +172,8 @@ type PublicMapSourceRow = {
   session_mode: string | null;
   visit_mode: string | null;
   quality_grade: string | null;
+  context_precision: OccurrenceForMasking["contextPrecision"] | null;
+  risk_lane: string | null;
 };
 
 type PublicMapPreparedRecord = {
@@ -171,6 +196,48 @@ type PublicMapPreparedRecord = {
   sessionMode: string | null;
   visitMode: string | null;
   qualityGrade: string | null;
+  publicCoordMode?: CoordMode;
+  publicCoordReason?: CoordDecision["reason"] | null;
+};
+
+type PublicMapSnapshotRecord = Omit<PublicMapPreparedRecord, "latitude" | "longitude"> & {
+  cellIdsByRequestedGrid: Record<string, string>;
+};
+
+type PublicMapRuntimeRecord = PublicMapPreparedRecord | PublicMapSnapshotRecord;
+
+export type PublicMapSnapshotPayload = {
+  version: 1;
+  generatedAt: string;
+  policy: PublicMapPrivacyStats;
+  records: PublicMapSnapshotRecord[];
+};
+
+export type PublicMapSnapshotRefreshResult = {
+  snapshotKey: string;
+  generatedAt: string;
+  sourceSampleSize: number;
+  publicRecordCount: number;
+};
+
+export type PublicMapSnapshotStatus = {
+  ok: boolean;
+  status: "missing" | "fresh" | "stale" | "error";
+  snapshotKey: string;
+  generatedAt: string | null;
+  ageSeconds: number | null;
+  maxAgeSeconds: number;
+  sourceSampleSize: number;
+  publicRecordCount: number;
+  refreshedBy: string | null;
+  error?: string;
+};
+
+type PublicMapSnapshotStatusRow = {
+  generated_at: string | Date | null;
+  source_sample_size: number | string | null;
+  public_record_count: number | string | null;
+  refreshed_by: string | null;
 };
 
 type PublicCellRecordFilter = {
@@ -190,6 +257,28 @@ type PublicCellGroup = {
   localityInputs: Array<{ municipality?: string | null; prefecture?: string | null }>;
   taxonMix: Partial<Record<TaxonGroup, number>>;
 };
+
+type PublicMapCellRange = {
+  gridM: number;
+  minCellX: number;
+  maxCellX: number;
+  minCellY: number;
+  maxCellY: number;
+};
+
+type PublicMapFixedCellScope = {
+  requestedGridM: number;
+  queryBbox: [number, number, number, number];
+  ranges: PublicMapCellRange[];
+};
+
+const PUBLIC_MAP_SNAPSHOT_KEY = "public-map:v1:global";
+const PUBLIC_MAP_FRESHNESS_REGISTRY_KEY = "public_map_snapshot";
+const PUBLIC_MAP_REFRESH_LOCK_KEY = "public-map-snapshot-refresh:v1";
+const PUBLIC_MAP_REQUESTED_GRIDS = [1000, 3000, 10000] as const;
+export const DEFAULT_PUBLIC_MAP_SNAPSHOT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+type MapSnapshotQueryClient = Pick<Pool | PoolClient, "query">;
 
 const MAP_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
@@ -285,6 +374,172 @@ function emptyBucketCounts(): Record<ProvenanceBucket, number> {
   return { manual: 0, legacy: 0, track: 0, other: 0 };
 }
 
+function publicAggregateProvenance(publicRecordCount: number): PublicMapCellFeatureCollection["stats"]["provenance"] {
+  return {
+    sampled: true,
+    sampleSize: publicRecordCount,
+    visible: emptyBucketCounts(),
+    excluded: emptyBucketCounts(),
+  };
+}
+
+const PUBLIC_MAP_VIEWER = {
+  isAdminOrAnalyst: false,
+  fieldRole: null,
+} as const;
+
+function publicMapGridMetersForRecord(
+  row: Pick<PublicMapRuntimeRecord, "publicCoordMode" | "publicCoordReason">,
+  requestedGridM: number,
+): number {
+  if (row.publicCoordReason === "rare_redlist") {
+    return Math.max(requestedGridM, PUBLIC_MAP_AGGREGATE_POLICY.sensitiveMinCellMeters);
+  }
+  if (row.publicCoordMode === "municipality") {
+    return Math.max(requestedGridM, PUBLIC_MAP_AGGREGATE_POLICY.municipalityMinCellMeters);
+  }
+  return requestedGridM;
+}
+
+function buildPublicCellKeyForRecord(row: PublicMapPreparedRecord, requestedGridM: number): CellKeyParts {
+  const gridM = publicMapGridMetersForRecord(row, requestedGridM);
+  return buildPublicCellKeyParts(row.latitude, row.longitude, gridM);
+}
+
+function snapshotRecordCellParts(row: PublicMapSnapshotRecord, requestedGridM: number): CellKeyParts {
+  const cellId = row.cellIdsByRequestedGrid[String(requestedGridM)];
+  const parsed = cellId ? parsePublicCellId(cellId) : null;
+  if (!parsed) {
+    throw new Error(`public_map_snapshot_missing_cell:${requestedGridM}`);
+  }
+  return parsed;
+}
+
+function publicCellKeyForRuntimeRecord(row: PublicMapRuntimeRecord, requestedGridM: number): CellKeyParts {
+  if ("cellIdsByRequestedGrid" in row) return snapshotRecordCellParts(row, requestedGridM);
+  return buildPublicCellKeyForRecord(row, requestedGridM);
+}
+
+function publicMapDisplayName(row: PublicMapRuntimeRecord): string {
+  if (row.publicCoordReason === "rare_redlist") return "大切な生きもの";
+  return row.displayName;
+}
+
+function publicMapPhotoUrl(row: PublicMapRuntimeRecord): string | null {
+  if (row.publicCoordReason === "rare_redlist") return null;
+  return row.photoUrl;
+}
+
+function buildPublicMapSnapshotRecord(row: PublicMapPreparedRecord): PublicMapSnapshotRecord {
+  const cellIdsByRequestedGrid: Record<string, string> = {};
+  for (const gridM of PUBLIC_MAP_REQUESTED_GRIDS) {
+    cellIdsByRequestedGrid[String(gridM)] = formatPublicCellId(buildPublicCellKeyForRecord(row, gridM));
+  }
+  return {
+    occurrenceId: row.occurrenceId,
+    visitId: row.visitId,
+    displayName: publicMapDisplayName(row),
+    aiCandidateName: row.publicCoordReason === "rare_redlist" ? null : row.aiCandidateName,
+    aiCandidateRank: row.publicCoordReason === "rare_redlist" ? null : row.aiCandidateRank,
+    isAiCandidate: row.publicCoordReason === "rare_redlist" ? false : row.isAiCandidate,
+    observedAt: row.observedAt,
+    municipality: row.municipality,
+    prefecture: row.prefecture,
+    localityLabel: row.localityLabel,
+    localityScope: row.localityScope,
+    photoUrl: publicMapPhotoUrl(row),
+    taxonGroup: row.taxonGroup,
+    sourceKind: row.sourceKind,
+    sessionMode: row.sessionMode,
+    visitMode: row.visitMode,
+    qualityGrade: row.qualityGrade,
+    publicCoordMode: row.publicCoordMode,
+    publicCoordReason: row.publicCoordReason,
+    cellIdsByRequestedGrid,
+  };
+}
+
+function buildPublicMapSnapshotPayload(rows: PublicMapPreparedRecord[], generatedAt = new Date().toISOString()): PublicMapSnapshotPayload {
+  return {
+    version: 1,
+    generatedAt,
+    policy: PUBLIC_MAP_AGGREGATE_POLICY,
+    records: rows.map(buildPublicMapSnapshotRecord),
+  };
+}
+
+function uniqueGridMetersForFixedScope(requestedGridM: number): number[] {
+  return Array.from(new Set([
+    requestedGridM,
+    Math.max(requestedGridM, PUBLIC_MAP_AGGREGATE_POLICY.sensitiveMinCellMeters),
+    Math.max(requestedGridM, PUBLIC_MAP_AGGREGATE_POLICY.municipalityMinCellMeters),
+  ])).sort((a, b) => a - b);
+}
+
+function cellRangeForBbox(bbox: [number, number, number, number], gridM: number): PublicMapCellRange {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const southWest = buildPublicCellKeyParts(minLat, minLng, gridM);
+  const northEast = buildPublicCellKeyParts(maxLat, maxLng, gridM);
+  return {
+    gridM,
+    minCellX: Math.min(southWest.cellX, northEast.cellX),
+    maxCellX: Math.max(southWest.cellX, northEast.cellX),
+    minCellY: Math.min(southWest.cellY, northEast.cellY),
+    maxCellY: Math.max(southWest.cellY, northEast.cellY),
+  };
+}
+
+function rangeBounds(range: PublicMapCellRange): [number, number, number, number] {
+  const minGeom = buildPublicCellGeometry({
+    gridM: range.gridM,
+    cellX: range.minCellX,
+    cellY: range.minCellY,
+  });
+  const maxGeom = buildPublicCellGeometry({
+    gridM: range.gridM,
+    cellX: range.maxCellX,
+    cellY: range.maxCellY,
+  });
+  return [
+    Math.min(minGeom.bounds[0], maxGeom.bounds[0]),
+    Math.min(minGeom.bounds[1], maxGeom.bounds[1]),
+    Math.max(minGeom.bounds[2], maxGeom.bounds[2]),
+    Math.max(minGeom.bounds[3], maxGeom.bounds[3]),
+  ];
+}
+
+function buildPublicMapFixedCellScope(
+  bbox: [number, number, number, number],
+  requestedGridM: number,
+): PublicMapFixedCellScope {
+  const ranges = uniqueGridMetersForFixedScope(requestedGridM).map((gridM) => cellRangeForBbox(bbox, gridM));
+  const bounds = ranges.map(rangeBounds);
+  return {
+    requestedGridM,
+    ranges,
+    queryBbox: [
+      Math.min(...bounds.map((bound) => bound[0])),
+      Math.min(...bounds.map((bound) => bound[1])),
+      Math.max(...bounds.map((bound) => bound[2])),
+      Math.max(...bounds.map((bound) => bound[3])),
+    ],
+  };
+}
+
+function publicCellPartsInFixedScope(parts: CellKeyParts, scope: PublicMapFixedCellScope): boolean {
+  return scope.ranges.some((range) => (
+    range.gridM === parts.gridM
+    && parts.cellX >= range.minCellX
+    && parts.cellX <= range.maxCellX
+    && parts.cellY >= range.minCellY
+    && parts.cellY <= range.maxCellY
+  ));
+}
+
+function publicRecordInFixedScope(record: PublicMapRuntimeRecord, scope: PublicMapFixedCellScope): boolean {
+  return publicCellPartsInFixedScope(publicCellKeyForRuntimeRecord(record, scope.requestedGridM), scope);
+}
+
 function classifyProvenance(
   row: Pick<PublicMapSourceRow, "source_kind" | "session_mode" | "visit_mode">,
 ): ProvenanceBucket {
@@ -313,6 +568,30 @@ function markerProfileMatches(
   return provenance === "manual";
 }
 
+function markerProfileMatchesRuntime(
+  row: Pick<PublicMapRuntimeRecord, "sourceKind" | "sessionMode" | "visitMode" | "qualityGrade">,
+  profile: MarkerProfile,
+): boolean {
+  return markerProfileMatches({
+    source_kind: row.sourceKind,
+    session_mode: row.sessionMode,
+    visit_mode: row.visitMode,
+    quality_grade: row.qualityGrade,
+  }, profile);
+}
+
+function snapshotRecordMatchesFilters(row: PublicMapSnapshotRecord, filters: MapQueryFilters): boolean {
+  const markerProfile = filters.markerProfile ?? "all_research_artifacts";
+  if (!markerProfileMatchesRuntime(row, markerProfile)) return false;
+  if (filters.taxonGroup && row.taxonGroup !== filters.taxonGroup) return false;
+  if (filters.year && new Date(row.observedAt).getUTCFullYear() !== filters.year) return false;
+  if (filters.season) {
+    const month = new Date(row.observedAt).getUTCMonth() + 1;
+    if (!monthForSeason(filters.season).includes(month)) return false;
+  }
+  return true;
+}
+
 function normalizeAssetUrl(value: string | null | undefined): string | null {
   if (!value) return null;
   if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) return value;
@@ -333,7 +612,7 @@ function compareIsoDesc(a: string | null, b: string | null): number {
   return a < b ? 1 : a > b ? -1 : 0;
 }
 
-async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
+async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQueryClient): Promise<{
   rows: PublicMapPreparedRecord[];
   markerProfile: MarkerProfile;
   provenance: {
@@ -344,9 +623,13 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
   };
 }> {
   const markerProfile = filters.markerProfile ?? "all_research_artifacts";
-  let pool;
+  const requestedGridM = pickPublicGridMeters(filters.zoom);
+  const fixedCellScope = filters.bbox
+    ? buildPublicMapFixedCellScope(filters.bbox, requestedGridM)
+    : null;
+  let queryClient = db;
   try {
-    pool = getPool();
+    queryClient ??= getPool();
   } catch {
     return {
       rows: [],
@@ -374,8 +657,9 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
     params.push(filters.year);
     whereClauses.push(`extract(year from v.observed_at) = $${params.length}`);
   }
-  if (filters.bbox) {
-    const [minLng, minLat, maxLng, maxLat] = filters.bbox;
+  const queryBbox = fixedCellScope?.queryBbox ?? filters.bbox;
+  if (queryBbox) {
+    const [minLng, minLat, maxLng, maxLat] = queryBbox;
     params.push(minLng, minLat, maxLng, maxLat);
     whereClauses.push(
       `coalesce(v.point_longitude, p.center_longitude) between $${params.length - 3} and $${params.length - 1}`,
@@ -412,7 +696,9 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       v.source_kind,
       v.session_mode,
       v.visit_mode,
-      o.quality_grade
+      o.quality_grade,
+      coc.context_precision,
+      coc.risk_lane
     from occurrences o
     join visits v on v.visit_id = o.visit_id
     left join users u on u.user_id = v.user_id
@@ -428,10 +714,9 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       select coalesce(ab.public_url, ab.storage_path) as public_url
       from evidence_assets ea
       join asset_blobs ab on ab.blob_id = ea.blob_id
-      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
         and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-      order by
-        case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+      order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
         ea.created_at asc
       limit 1
     ) photo on true
@@ -439,13 +724,19 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       select coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url') as thumb_url
       from evidence_assets ea
       join asset_blobs ab on ab.blob_id = ea.blob_id
-      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
         and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
       order by
         case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
         ea.created_at asc
       limit 1
     ) video on true
+    left join lateral (
+      select max(c.public_precision) as context_precision,
+             max(c.risk_lane) as risk_lane
+        from civic_observation_contexts c
+       where c.visit_id = v.visit_id
+    ) coc on true
     where ${whereClauses.join(" and ")}
     order by v.observed_at desc
     limit ${limit}
@@ -456,7 +747,8 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
   const seasonMonths = filters.season ? monthForSeason(filters.season) : null;
 
   try {
-    const result = await pool.query<PublicMapSourceRow>(sql, params);
+    const sensitiveIndex = await loadSensitiveSpeciesIndex();
+    const result = await queryClient.query<PublicMapSourceRow>(sql, params);
     const rows = result.rows
       .filter((row) => row.latitude !== null && row.longitude !== null)
       .filter((row) => {
@@ -466,7 +758,24 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
         else excludedBuckets[bucket] += 1;
         return include;
       })
-      .map((row) => {
+      .map((row): PublicMapPreparedRecord | null => {
+        const originalLat = Number(row.latitude);
+        const originalLng = Number(row.longitude);
+        const coordDecision = decidePublicCoord(
+          {
+            scientificName: row.scientific_name,
+            vernacularName: row.vernacular_name,
+            contextPrecision: row.context_precision ?? null,
+            riskLane: row.risk_lane,
+          },
+          PUBLIC_MAP_VIEWER,
+          sensitiveIndex,
+        );
+        if (coordDecision.mode === "hidden") return null;
+        const coarsened = coordDecision.mode === "mesh_1km"
+          ? coarsenLatLng(originalLat, originalLng, coordDecision.mode)
+          : { lat: originalLat, lng: originalLng };
+        if (coarsened.lat === null || coarsened.lng === null) return null;
         const locality = resolvePublicLocalityLabel({
           municipality: row.municipality,
           prefecture: row.prefecture,
@@ -485,8 +794,8 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
           aiCandidateRank: row.ai_candidate_rank ?? null,
           isAiCandidate: Boolean(row.is_ai_candidate),
           observedAt: row.observed_at,
-          latitude: Number(row.latitude),
-          longitude: Number(row.longitude),
+          latitude: coarsened.lat,
+          longitude: coarsened.lng,
           municipality: row.municipality,
           prefecture: row.prefecture,
           localityLabel: locality.label,
@@ -497,8 +806,12 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
           sessionMode: row.session_mode,
           visitMode: row.visit_mode,
           qualityGrade: row.quality_grade,
+          publicCoordMode: coordDecision.mode,
+          publicCoordReason: coordDecision.reason,
         } satisfies PublicMapPreparedRecord;
       })
+      .filter((row): row is PublicMapPreparedRecord => row !== null)
+      .filter((row) => !fixedCellScope || publicRecordInFixedScope(row, fixedCellScope))
       .filter((row) => !filters.taxonGroup || row.taxonGroup === filters.taxonGroup)
       .filter((row) => {
         if (!seasonMonths) return true;
@@ -530,20 +843,337 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
   }
 }
 
+function normalizePublicMapSnapshotPayload(value: unknown): PublicMapSnapshotPayload | null {
+  const raw = typeof value === "string" ? JSON.parse(value) as unknown : value;
+  if (!raw || typeof raw !== "object") return null;
+  const payload = raw as Partial<PublicMapSnapshotPayload>;
+  if (payload.version !== 1 || !Array.isArray(payload.records)) return null;
+  return {
+    version: 1,
+    generatedAt: typeof payload.generatedAt === "string" ? payload.generatedAt : new Date(0).toISOString(),
+    policy: PUBLIC_MAP_AGGREGATE_POLICY,
+    records: payload.records.filter((row): row is PublicMapSnapshotRecord => (
+      Boolean(row)
+      && typeof row === "object"
+      && "cellIdsByRequestedGrid" in row
+      && typeof (row as { observedAt?: unknown }).observedAt === "string"
+    )),
+  };
+}
+
+async function loadPublicMapSnapshotPayload(): Promise<PublicMapSnapshotPayload | null> {
+  let pool;
+  try {
+    pool = getPool();
+  } catch {
+    return null;
+  }
+  try {
+    const result = await pool.query<{ payload: unknown }>(
+      `select payload
+         from public_map_snapshots
+        where snapshot_key = $1
+        limit 1`,
+      [PUBLIC_MAP_SNAPSHOT_KEY],
+    );
+    return normalizePublicMapSnapshotPayload(result.rows[0]?.payload ?? null);
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : null;
+    if (code !== "42P01") {
+      console.warn("[mapSnapshot] public map snapshot read failed", error);
+    }
+    return null;
+  }
+}
+
+function parsePositiveNumber(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function snapshotGeneratedAtIso(value: string | Date | null): string | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+export function resolvePublicMapSnapshotMaxAgeMs(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const rawHours = Number(env.IKIMON_PUBLIC_MAP_SNAPSHOT_MAX_AGE_HOURS);
+  if (Number.isFinite(rawHours) && rawHours > 0) {
+    return Math.max(30 * 60 * 1000, Math.trunc(rawHours * 60 * 60 * 1000));
+  }
+  return DEFAULT_PUBLIC_MAP_SNAPSHOT_MAX_AGE_MS;
+}
+
+function publicMapSnapshotStatusFromRow(
+  row: PublicMapSnapshotStatusRow | null | undefined,
+  options: { now?: Date; maxAgeMs?: number; error?: string } = {},
+): PublicMapSnapshotStatus {
+  const maxAgeMs = options.maxAgeMs ?? resolvePublicMapSnapshotMaxAgeMs();
+  const maxAgeSeconds = Math.max(1, Math.floor(maxAgeMs / 1000));
+  if (!row) {
+    return {
+      ok: false,
+      status: "missing",
+      snapshotKey: PUBLIC_MAP_SNAPSHOT_KEY,
+      generatedAt: null,
+      ageSeconds: null,
+      maxAgeSeconds,
+      sourceSampleSize: 0,
+      publicRecordCount: 0,
+      refreshedBy: null,
+      error: options.error,
+    };
+  }
+
+  const generatedAt = snapshotGeneratedAtIso(row.generated_at);
+  if (!generatedAt) {
+    return {
+      ok: false,
+      status: "error",
+      snapshotKey: PUBLIC_MAP_SNAPSHOT_KEY,
+      generatedAt: null,
+      ageSeconds: null,
+      maxAgeSeconds,
+      sourceSampleSize: parsePositiveNumber(row.source_sample_size),
+      publicRecordCount: parsePositiveNumber(row.public_record_count),
+      refreshedBy: row.refreshed_by ?? null,
+      error: options.error ?? "invalid_generated_at",
+    };
+  }
+
+  const nowMs = options.now?.getTime() ?? Date.now();
+  const generatedMs = Date.parse(generatedAt);
+  const ageSeconds = Math.max(0, Math.floor((nowMs - generatedMs) / 1000));
+  const status = ageSeconds <= maxAgeSeconds ? "fresh" : "stale";
+  return {
+    ok: status === "fresh",
+    status,
+    snapshotKey: PUBLIC_MAP_SNAPSHOT_KEY,
+    generatedAt,
+    ageSeconds,
+    maxAgeSeconds,
+    sourceSampleSize: parsePositiveNumber(row.source_sample_size),
+    publicRecordCount: parsePositiveNumber(row.public_record_count),
+    refreshedBy: row.refreshed_by ?? null,
+    error: options.error,
+  };
+}
+
+export async function getPublicMapSnapshotStatus(
+  options: { maxAgeMs?: number; now?: Date } = {},
+): Promise<PublicMapSnapshotStatus> {
+  let pool;
+  try {
+    pool = getPool();
+  } catch (error) {
+    return publicMapSnapshotStatusFromRow(null, {
+      ...options,
+      error: error instanceof Error ? error.message : "db_unavailable",
+    });
+  }
+  try {
+    const result = await pool.query<PublicMapSnapshotStatusRow>(
+      `select generated_at, source_sample_size, public_record_count, refreshed_by
+         from public_map_snapshots
+        where snapshot_key = $1
+        limit 1`,
+      [PUBLIC_MAP_SNAPSHOT_KEY],
+    );
+    return publicMapSnapshotStatusFromRow(result.rows[0], options);
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : null;
+    return publicMapSnapshotStatusFromRow(null, {
+      ...options,
+      error: code === "42P01"
+        ? "public_map_snapshots_table_missing"
+        : error instanceof Error ? error.message : "snapshot_status_read_failed",
+    });
+  }
+}
+
+async function markPublicMapSnapshotFreshnessSuccess(
+  db: MapSnapshotQueryClient,
+  generatedAt: string,
+): Promise<void> {
+  try {
+    await db.query(
+      `update freshness_registry
+          set last_attempt_at = $2::timestamptz,
+              last_success_at = $2::timestamptz,
+              consecutive_failures = 0,
+              status = 'fresh',
+              next_due_at = $2::timestamptz + ($3::int * interval '1 second'),
+              updated_at = now()
+        where registry_key = $1`,
+      [
+        PUBLIC_MAP_FRESHNESS_REGISTRY_KEY,
+        generatedAt,
+        Math.floor(resolvePublicMapSnapshotMaxAgeMs() / 1000),
+      ],
+    );
+    await db.query(
+      `update staleness_alerts
+          set resolved_at = now()
+        where registry_key = $1
+          and resolved_at is null`,
+      [PUBLIC_MAP_FRESHNESS_REGISTRY_KEY],
+    );
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : null;
+    if (code !== "42P01") {
+      console.warn("[mapSnapshot] freshness registry success update failed", error);
+    }
+  }
+}
+
+async function markPublicMapSnapshotFreshnessFailure(): Promise<void> {
+  let pool;
+  try {
+    pool = getPool();
+  } catch {
+    return;
+  }
+  try {
+    await pool.query(
+      `update freshness_registry
+          set last_attempt_at = now(),
+              consecutive_failures = consecutive_failures + 1,
+              status = case when consecutive_failures + 1 >= 3 then 'critical' else 'stale' end,
+              updated_at = now()
+        where registry_key = $1`,
+      [PUBLIC_MAP_FRESHNESS_REGISTRY_KEY],
+    );
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : null;
+    if (code !== "42P01") {
+      console.warn("[mapSnapshot] freshness registry failure update failed", error);
+    }
+  }
+}
+
+function emptyPublicMapCells(markerProfile: MarkerProfile, zoom?: number): PublicMapCellFeatureCollection {
+  const collection = buildPublicMapCells([], zoom);
+  collection.stats.markerProfile = markerProfile;
+  return collection;
+}
+
+function emptyPublicMapObservations(
+  markerProfile: MarkerProfile,
+  filters: PublicCellRecordFilter = {},
+): PublicMapObservationList {
+  const list = buildPublicCellRecords([], filters);
+  list.stats.markerProfile = markerProfile;
+  return list;
+}
+
+function filteredSnapshotRecords(
+  payload: PublicMapSnapshotPayload,
+  filters: MapQueryFilters,
+): PublicMapSnapshotRecord[] {
+  const requestedGridM = pickPublicGridMeters(filters.zoom);
+  const fixedCellScope = filters.bbox
+    ? buildPublicMapFixedCellScope(filters.bbox, requestedGridM)
+    : null;
+  return payload.records
+    .filter((row) => snapshotRecordMatchesFilters(row, filters))
+    .filter((row) => !fixedCellScope || publicRecordInFixedScope(row, fixedCellScope));
+}
+
+export async function refreshPublicMapSnapshot(options: { limit?: number; refreshedBy?: string } = {}): Promise<PublicMapSnapshotRefreshResult> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query("select pg_advisory_xact_lock(hashtext($1))", [PUBLIC_MAP_REFRESH_LOCK_KEY]);
+
+    const generatedAt = new Date().toISOString();
+    const prepared = await fetchPublicMapRows({
+      limit: options.limit ?? 4000,
+      markerProfile: "all_research_artifacts",
+    }, client);
+    const payload = buildPublicMapSnapshotPayload(prepared.rows, generatedAt);
+    await client.query(
+      `insert into public_map_snapshots (
+          snapshot_key, payload, policy, generated_at, source_sample_size, public_record_count, refreshed_by
+        ) values ($1, $2::jsonb, $3::jsonb, $4::timestamptz, $5, $6, $7)
+        on conflict (snapshot_key) do update set
+          payload = excluded.payload,
+          policy = excluded.policy,
+          generated_at = excluded.generated_at,
+          source_sample_size = excluded.source_sample_size,
+          public_record_count = excluded.public_record_count,
+          refreshed_by = excluded.refreshed_by`,
+      [
+        PUBLIC_MAP_SNAPSHOT_KEY,
+        JSON.stringify(payload),
+        JSON.stringify(PUBLIC_MAP_AGGREGATE_POLICY),
+        generatedAt,
+        prepared.provenance.sampleSize,
+        payload.records.length,
+        options.refreshedBy ?? "manual",
+      ],
+    );
+    await markPublicMapSnapshotFreshnessSuccess(client, generatedAt);
+    await client.query("commit");
+    return {
+      snapshotKey: PUBLIC_MAP_SNAPSHOT_KEY,
+      generatedAt,
+      sourceSampleSize: prepared.provenance.sampleSize,
+      publicRecordCount: payload.records.length,
+    };
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function refreshPublicMapSnapshotIfStale(
+  options: { maxAgeMs?: number; force?: boolean; limit?: number; refreshedBy?: string } = {},
+): Promise<{
+  refreshed: boolean;
+  status: PublicMapSnapshotStatus;
+  refresh: PublicMapSnapshotRefreshResult | null;
+}> {
+  const before = await getPublicMapSnapshotStatus({ maxAgeMs: options.maxAgeMs });
+  if (!options.force && before.ok) {
+    return { refreshed: false, status: before, refresh: null };
+  }
+
+  try {
+    const refresh = await refreshPublicMapSnapshot({
+      limit: options.limit,
+      refreshedBy: options.refreshedBy ?? "auto",
+    });
+    const status = await getPublicMapSnapshotStatus({ maxAgeMs: options.maxAgeMs });
+    return { refreshed: true, status, refresh };
+  } catch (error) {
+    await markPublicMapSnapshotFreshnessFailure();
+    throw error;
+  }
+}
+
 export function buildPublicMapCells(
-  rows: PublicMapPreparedRecord[],
+  rows: PublicMapRuntimeRecord[],
   zoom?: number,
 ): PublicMapCellFeatureCollection {
   const gridM = pickPublicGridMeters(zoom);
   const groups = new Map<string, PublicCellGroup>();
 
   for (const row of rows) {
-    const cell = buildPublicCellKeyParts(row.latitude, row.longitude, gridM);
+    const cell = publicCellKeyForRuntimeRecord(row, gridM);
     const cellId = formatPublicCellId(cell);
     if (!groups.has(cellId)) {
       groups.set(cellId, {
         cellId,
-        gridM,
+        gridM: cell.gridM,
         cellX: cell.cellX,
         cellY: cell.cellY,
         count: 0,
@@ -568,7 +1198,11 @@ export function buildPublicMapCells(
     group.taxonMix[row.taxonGroup] = (group.taxonMix[row.taxonGroup] ?? 0) + 1;
   }
 
-  const features = Array.from(groups.values())
+  const publicGroups = Array.from(groups.values())
+    .filter((group) => group.count >= PUBLIC_MAP_AGGREGATE_POLICY.minCellRecords);
+  const publicRecordCount = publicGroups.reduce((sum, group) => sum + group.count, 0);
+
+  const features = publicGroups
     .sort((a, b) => (b.count - a.count) || compareIsoDesc(a.latestObservedAt, b.latestObservedAt))
     .map((group) => {
       const locality = summarizePublicLocalitySet(group.localityInputs);
@@ -614,35 +1248,38 @@ export function buildPublicMapCells(
     stats: {
       totalReturned: features.length,
       totalAll: features.length,
-      totalRecords: rows.length,
+      totalRecords: publicRecordCount,
       markerProfile: "all_research_artifacts",
       gridM,
-      provenance: {
-        sampled: true,
-        sampleSize: rows.length,
-        visible: emptyBucketCounts(),
-        excluded: emptyBucketCounts(),
-      },
+      provenance: publicAggregateProvenance(publicRecordCount),
+      privacy: PUBLIC_MAP_AGGREGATE_POLICY,
     },
   };
 }
 
 export function buildPublicCellRecords(
-  rows: PublicMapPreparedRecord[],
+  rows: PublicMapRuntimeRecord[],
   filters: PublicCellRecordFilter = {},
 ): PublicMapObservationList {
   const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
   const gridM = parsedCellId?.gridM ?? pickPublicGridMeters(filters.zoom);
   const targetCellId = parsedCellId ? formatPublicCellId(parsedCellId) : null;
-  const sorted = rows
+  const scopedEntries = rows
     .map((row) => {
-      const cellParts = buildPublicCellKeyParts(row.latitude, row.longitude, gridM);
+      const cellParts = publicCellKeyForRuntimeRecord(row, gridM);
       return {
         row,
         cellId: formatPublicCellId(cellParts),
       };
     })
-    .filter((entry) => !targetCellId || entry.cellId === targetCellId)
+    .filter((entry) => !targetCellId || entry.cellId === targetCellId);
+  const cellCounts = new Map<string, number>();
+  for (const entry of scopedEntries) {
+    cellCounts.set(entry.cellId, (cellCounts.get(entry.cellId) ?? 0) + 1);
+  }
+  const publicEntries = scopedEntries
+    .filter((entry) => (cellCounts.get(entry.cellId) ?? 0) >= PUBLIC_MAP_AGGREGATE_POLICY.minCellRecords);
+  const sorted = publicEntries
     .sort((a, b) => compareIsoDesc(a.row.observedAt, b.row.observedAt));
 
   const items = sorted
@@ -650,12 +1287,12 @@ export function buildPublicCellRecords(
     .map((entry) => ({
       occurrenceId: entry.row.occurrenceId,
       visitId: entry.row.visitId,
-      displayName: entry.row.displayName,
-      isAiCandidate: entry.row.isAiCandidate,
-      isAwaitingId: entry.row.displayName === "同定待ち",
+      displayName: publicMapDisplayName(entry.row),
+      isAiCandidate: entry.row.publicCoordReason === "rare_redlist" ? false : entry.row.isAiCandidate,
+      isAwaitingId: entry.row.publicCoordReason === "rare_redlist" ? false : entry.row.displayName === "同定待ち",
       localityLabel: entry.row.localityLabel,
       observedAt: entry.row.observedAt,
-      photoUrl: entry.row.photoUrl,
+      photoUrl: publicMapPhotoUrl(entry.row),
       taxonGroup: entry.row.taxonGroup,
       cellId: entry.cellId,
     }));
@@ -664,16 +1301,12 @@ export function buildPublicCellRecords(
     items,
     stats: {
       totalReturned: items.length,
-      totalAll: sorted.length,
+      totalAll: publicEntries.length,
       markerProfile: "all_research_artifacts",
       gridM,
       selectedCellId: targetCellId,
-      provenance: {
-        sampled: true,
-        sampleSize: rows.length,
-        visible: emptyBucketCounts(),
-        excluded: emptyBucketCounts(),
-      },
+      provenance: publicAggregateProvenance(publicEntries.length),
+      privacy: PUBLIC_MAP_AGGREGATE_POLICY,
     },
   };
 }
@@ -858,13 +1491,14 @@ async function enrichPublicMapCellNames(collection: PublicMapCellFeatureCollecti
 export async function getMapCells(
   filters: MapQueryFilters & { zoom?: number },
 ): Promise<PublicMapCellFeatureCollection> {
-  const prepared = await fetchPublicMapRows(filters);
-  const collection = buildPublicMapCells(prepared.rows, filters.zoom);
+  const markerProfile = filters.markerProfile ?? "all_research_artifacts";
+  const snapshot = await loadPublicMapSnapshotPayload();
+  if (!snapshot) return emptyPublicMapCells(markerProfile, filters.zoom);
+  const collection = buildPublicMapCells(filteredSnapshotRecords(snapshot, filters), filters.zoom);
   await enrichPublicMapCellNames(collection).catch((error) => {
     console.warn("[mapSnapshot] public map cell naming enrichment failed", error);
   });
-  collection.stats.markerProfile = prepared.markerProfile;
-  collection.stats.provenance = prepared.provenance;
+  collection.stats.markerProfile = markerProfile;
   return collection;
 }
 
@@ -872,22 +1506,33 @@ export async function getMapObservations(
   filters: MapQueryFilters & { cellId?: string; zoom?: number },
 ): Promise<PublicMapObservationList> {
   const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
-  const prepared = await fetchPublicMapRows({
-    ...filters,
-    bbox: filters.bbox ?? (parsedCellId ? buildPublicCellGeometry(parsedCellId).bounds : undefined),
-  });
-  const list = buildPublicCellRecords(prepared.rows, {
+  const markerProfile = filters.markerProfile ?? "all_research_artifacts";
+  const snapshot = await loadPublicMapSnapshotPayload();
+  if (!snapshot) {
+    return emptyPublicMapObservations(markerProfile, {
+      cellId: filters.cellId,
+      zoom: filters.zoom,
+      limit: filters.limit,
+    });
+  }
+  const scopedFilters = parsedCellId
+    ? { ...filters, bbox: undefined }
+    : { ...filters, bbox: filters.bbox };
+  const list = buildPublicCellRecords(filteredSnapshotRecords(snapshot, scopedFilters), {
     cellId: filters.cellId,
     zoom: filters.zoom,
     limit: filters.limit,
   });
-  list.stats.markerProfile = prepared.markerProfile;
-  list.stats.provenance = prepared.provenance;
+  list.stats.markerProfile = markerProfile;
   return list;
 }
 
 export const __test__ = {
   chooseNearbyAreaName,
+  buildPublicMapFixedCellScope,
+  publicRecordInFixedScope,
+  buildPublicMapSnapshotPayload,
+  publicMapSnapshotStatusFromRow,
 };
 
 /**

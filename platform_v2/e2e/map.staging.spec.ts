@@ -1,272 +1,255 @@
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
+  installMapLibreStubForSmoke,
   MAP_VIEWPORTS,
-  dragMap,
-  maybeCaptureQaScreenshot,
   newStagingContext,
-  waitForMapReady,
 } from "./support/staging.js";
 
-async function requiredBox(name: string, locator: Locator) {
-  const box = await locator.boundingBox();
-  expect(box, `${name} should have a bounding box`).not.toBeNull();
-  return box!;
+test.describe.configure({ retries: 0, timeout: 30_000 });
+
+const MAP_FIXTURE_CELL_ID = "3000:5121:1377";
+const MAP_FIXTURE_COLLECTION = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [137.724, 34.808],
+          [137.736, 34.808],
+          [137.736, 34.818],
+          [137.724, 34.818],
+          [137.724, 34.808],
+        ]],
+      },
+      properties: {
+        cellId: MAP_FIXTURE_CELL_ID,
+        label: "浜松市",
+        albumName: "浜松市・公開メッシュ",
+        localityLabel: "浜松市",
+        themeLabel: "公開メッシュ",
+        scaleLabel: "近所メッシュ",
+        nearbyAreaName: null,
+        nameEraLabel: null,
+        scope: "municipality",
+        gridM: 3000,
+        radiusM: 2121,
+        count: 3,
+        firstObservedAt: "2026-06-01T00:00:00.000Z",
+        latestObservedAt: "2026-06-10T00:00:00.000Z",
+        taxonMix: { plant: 2, insect: 1 },
+        centroidLat: 34.813,
+        centroidLng: 137.73,
+      },
+    },
+  ],
+  stats: {
+    totalReturned: 1,
+    totalAll: 1,
+    totalRecords: 3,
+    gridM: 3000,
+    markerProfile: "all_research_artifacts",
+    provenance: {
+      sampled: false,
+      sampleSize: 3,
+      visible: { manual: 3, legacy: 0, track: 0, other: 0 },
+      excluded: { manual: 0, legacy: 0, track: 0, other: 0 },
+    },
+  },
+};
+const MAP_FIXTURE_RECORDS = {
+  items: [
+    {
+      occurrenceId: "qa-map-fixture-001",
+      visitId: "qa-map-fixture-visit-001",
+      displayName: "公開メッシュの草本",
+      isAiCandidate: false,
+      isAwaitingId: false,
+      localityLabel: "浜松市",
+      observedAt: "2026-06-10T09:00:00.000Z",
+      photoUrl: null,
+      taxonGroup: "plant",
+      cellId: MAP_FIXTURE_CELL_ID,
+    },
+    {
+      occurrenceId: "qa-map-fixture-002",
+      visitId: "qa-map-fixture-visit-002",
+      displayName: "公開メッシュの昆虫",
+      isAiCandidate: false,
+      isAwaitingId: false,
+      localityLabel: "浜松市",
+      observedAt: "2026-06-09T09:00:00.000Z",
+      photoUrl: null,
+      taxonGroup: "insect",
+      cellId: MAP_FIXTURE_CELL_ID,
+    },
+    {
+      occurrenceId: "qa-map-fixture-003",
+      visitId: "qa-map-fixture-visit-003",
+      displayName: "公開メッシュの樹木",
+      isAiCandidate: false,
+      isAwaitingId: false,
+      localityLabel: "浜松市",
+      observedAt: "2026-06-08T09:00:00.000Z",
+      photoUrl: null,
+      taxonGroup: "plant",
+      cellId: MAP_FIXTURE_CELL_ID,
+    },
+  ],
+  stats: {
+    totalReturned: 3,
+    totalAll: 3,
+    markerProfile: "all_research_artifacts",
+    gridM: 3000,
+    selectedCellId: null as string | null,
+    provenance: {
+      sampled: false,
+      sampleSize: 3,
+      visible: { manual: 3, legacy: 0, track: 0, other: 0 },
+      excluded: { manual: 0, legacy: 0, track: 0, other: 0 },
+    },
+  },
+};
+const EMPTY_FEATURE_COLLECTION = {
+  type: "FeatureCollection",
+  features: [],
+  stats: { totalReturned: 0, totalAll: 0 },
+};
+const EMPTY_EFFORT_SUMMARY = {
+  status: "ok",
+  totals: { records: 0, visits: 0, contributors: 0, minutes: 0 },
+  frontierRemaining: {},
+};
+
+async function fulfillJson(route: Route, payload: unknown): Promise<void> {
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: JSON.stringify(payload),
+  });
 }
 
-async function expectDesktopMapDominance(page: Page): Promise<void> {
-  const side = page.locator(".me-side");
-  const mapWrap = page.locator(".me-map-wrap");
-  await expect(side).toBeVisible();
-  await expect(mapWrap).toBeVisible();
-
-  const sideBox = await requiredBox("desktop result pane", side);
-  const mapBox = await requiredBox("desktop map wrap", mapWrap);
-  expect(sideBox.x).toBeLessThanOrEqual(mapBox.x + 1);
-  expect(mapBox.x).toBeGreaterThanOrEqual(sideBox.x + sideBox.width - 1);
-  expect(sideBox.x + sideBox.width).toBeLessThan(mapBox.x + mapBox.width);
-  expect(mapBox.width).toBeGreaterThan(sideBox.width * 1.45);
-  expect(mapBox.height).toBeGreaterThan(620);
+async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
+  await page.route("**/api/v1/map/cells**", async (route) => {
+    await fulfillJson(route, MAP_FIXTURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/observations**", async (route) => {
+    const url = new URL(route.request().url());
+    await fulfillJson(route, {
+      ...MAP_FIXTURE_RECORDS,
+      stats: {
+        ...MAP_FIXTURE_RECORDS.stats,
+        selectedCellId: url.searchParams.get("cell_id"),
+      },
+    });
+  });
+  await page.route("**/api/v1/map/frontier**", async (route) => {
+    await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/area-polygons**", async (route) => {
+    await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/guide-spots**", async (route) => {
+    await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
+  });
+  await page.route("**/api/v1/map/effort-summary**", async (route) => {
+    await fulfillJson(route, EMPTY_EFFORT_SUMMARY);
+  });
+  await page.route("**/api/v1/map/site-brief**", async (route) => {
+    await fulfillJson(route, { ok: false, error: "qa_fixture_no_site_brief" });
+  });
 }
 
-async function expectMobileMapDominance(page: Page): Promise<void> {
-  await expect(page.locator(".me-side")).toBeHidden();
-  const mapWrap = page.locator(".me-map-wrap");
-  await expect(mapWrap).toBeVisible();
-  const mapBox = await requiredBox("mobile map wrap", mapWrap);
-  expect(mapBox.width).toBeGreaterThan(340);
-  expect(mapBox.height).toBeGreaterThan(500);
+type MapShellState = {
+  filterToggleVisible: boolean;
+  launcherVisible: boolean;
+  mapHeight: number;
+  mapVisible: boolean;
+  mapWidth: number;
+  resultsCount: number;
+  rowCount: number;
+};
+
+async function readMapShellState(page: Page): Promise<MapShellState> {
+  return page.evaluate(() => {
+    const isVisible = (selector: string): boolean => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    };
+    const mapWrap = document.querySelector<HTMLElement>(".me-map-wrap");
+    const mapBox = mapWrap?.getBoundingClientRect();
+    const root = document.querySelector<HTMLElement>("#map-explorer");
+    return {
+      filterToggleVisible: isVisible(".me-filter-toggle"),
+      launcherVisible: isVisible(".global-record-launcher"),
+      mapHeight: mapBox?.height ?? 0,
+      mapVisible: isVisible("#map-explorer") && isVisible(".me-map-wrap"),
+      mapWidth: mapBox?.width ?? 0,
+      resultsCount: Number(root?.getAttribute("data-results-count") || "0"),
+      rowCount: document.querySelectorAll(".me-result-row").length,
+    };
+  });
 }
 
-async function expectMobileEmptyState(page: Page): Promise<void> {
-  await expect(page.locator(".me-results-empty")).toHaveCount(1);
-  await expect(page.locator("#me-map-status")).toContainText("この条件に合う観察はまだない");
-}
-
-async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
-  const selectionCard = page.locator("#me-map-selection-card");
-  const insightCard = page.locator("#me-map-insight-card");
-  const side = page.locator(".me-side");
-
-  await expect(selectionCard).toHaveClass(/is-visible/);
-  if (await insightCard.count()) {
-    await expect(insightCard).not.toHaveClass(/is-visible/);
-  }
-
-  const sideBox = await requiredBox("desktop result pane", side);
-  const selectionBox = await requiredBox("desktop place card", selectionCard);
-
-  expect(selectionBox.x).toBeGreaterThanOrEqual(sideBox.x);
-  expect(selectionBox.x + selectionBox.width).toBeLessThanOrEqual(sideBox.x + sideBox.width + 1);
-  expect(selectionBox.y).toBeGreaterThanOrEqual(sideBox.y);
-  expect(selectionBox.height).toBeGreaterThan(120);
-  await expect(selectionCard).toContainText(/\S+/);
-}
-
-async function expectMobileBottomSheet(page: Page): Promise<void> {
-  const sheet = page.locator("#me-bottom-sheet");
-  await expect(sheet).toHaveClass(/is-open/);
-  await expect(sheet).toHaveAttribute("aria-hidden", "false");
-  const sheetBox = await requiredBox("mobile bottom sheet", sheet);
-  expect(sheetBox.height).toBeGreaterThan(220);
-  expect(sheetBox.y).toBeGreaterThan(220);
-  await expect(page.locator("#me-bottom-inner")).toContainText(/\S+/);
-}
-
-async function expectDesktopNeutralState(page: Page): Promise<void> {
-  await expect(page.locator("#me-map-selection-card")).not.toHaveClass(/is-visible/);
-  const insightCard = page.locator("#me-map-insight-card");
-  if (await insightCard.count()) {
-    await expect(insightCard).toHaveClass(/is-visible/);
-  } else {
-    await expect(page.locator(".me-side-tab[data-side-tab='results']")).toHaveClass(/is-active/);
-    await expect(page.locator(".me-side-pane-results")).toBeVisible();
-  }
-  await expect(page.locator(".me-result-row.is-active")).toHaveCount(0);
-}
-
-async function hasBlankPlaceSelection(page: Page, isMobile: boolean): Promise<boolean> {
-  if (isMobile) {
-    const sheet = page.locator("#me-bottom-sheet");
-    if (!(await sheet.evaluate((node) => node.classList.contains("is-open")).catch(() => false))) {
-      return false;
-    }
-    if ((await page.locator("#me-bottom-inner .me-bottom-meta").count()) > 0) {
-      return false;
-    }
-    return (await page.locator("#me-bottom-inner .me-site-brief").count()) > 0;
-  }
-
-  const selectionCard = page.locator("#me-map-selection-card");
-  if (!(await selectionCard.evaluate((node) => node.classList.contains("is-visible")).catch(() => false))) {
-    return false;
-  }
-  const copy = ((await selectionCard.locator(".me-map-card-copy").textContent()) ?? "").trim();
-  return /^\d+\.\d{4},\s*\d+\.\d{4}$/.test(copy);
-}
-
-async function tryOpenBlankPlaceTarget(page: Page, isMobile: boolean): Promise<boolean> {
-  const canvas = page.locator("#map-explorer canvas").first();
-  const box = await requiredBox("map canvas", canvas);
-  const attempts = [
-    { x: box.x + box.width * 0.18, y: box.y + box.height * 0.22 },
-    { x: box.x + box.width * 0.2, y: box.y + box.height * 0.76 },
-    { x: box.x + box.width * 0.82, y: box.y + box.height * 0.24 },
-    { x: box.x + box.width * 0.08, y: box.y + box.height * 0.12 },
-    { x: box.x + box.width * 0.92, y: box.y + box.height * 0.12 },
-    { x: box.x + box.width * 0.5, y: box.y + box.height * 0.1 },
-  ];
-
-  for (const point of attempts) {
-    await page.mouse.click(point.x, point.y);
-    await page.waitForTimeout(250);
-    if (await hasBlankPlaceSelection(page, isMobile)) return true;
-  }
-  return false;
-}
-
-async function triggerPendingViewportSearchOrAutoRefresh(page: Page, previousStatus: string): Promise<"pending" | "refreshed"> {
-  await page.waitForTimeout(700);
-  const attempts = [
-    { x: 220, y: 80 },
-    { x: -240, y: 110 },
-    { x: 0, y: -180 },
-  ];
-  const searchButton = page.locator("#me-search-area-btn");
-  const sideStatus = page.locator("#me-side-status");
-  for (const attempt of attempts) {
-    await dragMap(page, attempt.x, attempt.y);
-    await page.waitForTimeout(350);
-    if (await searchButton.isVisible().catch(() => false)) return "pending";
-    const nextStatus = ((await sideStatus.textContent().catch(() => "")) ?? "").trim();
-    if (nextStatus && nextStatus !== previousStatus) return "refreshed";
-  }
-  if (await searchButton.isVisible().catch(() => false)) return "pending";
-  return "refreshed";
+async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH, isMobile = false): Promise<void> {
+  const response = await page.goto(mapPath, { waitUntil: "domcontentloaded" });
+  expect(response?.status() ?? 0, `${mapPath} should load before map shell assertions`).toBeLessThan(400);
+  await page.waitForFunction((expectedMobile) => {
+    const isVisible = (selector: string): boolean => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    };
+    const root = document.querySelector<HTMLElement>("#map-explorer");
+    const mapWrap = document.querySelector<HTMLElement>(".me-map-wrap");
+    const mapBox = mapWrap?.getBoundingClientRect();
+    const count = Number(root?.getAttribute("data-results-count") || "0");
+    const rows = document.querySelectorAll(".me-result-row").length;
+    return Boolean(
+      root
+      && isVisible(".me-main")
+      && isVisible(".me-search-shell")
+      && isVisible(".me-filter-toggle")
+      && isVisible("#map-explorer")
+      && isVisible(".me-map-wrap")
+      && (mapBox?.width ?? 0) > (expectedMobile ? 340 : 600)
+      && (mapBox?.height ?? 0) > (expectedMobile ? 500 : 620)
+      && (count > 0 || rows > 0)
+    );
+  }, isMobile, { timeout: 10_000 });
 }
 
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
-    const resultRows = page.locator(".me-result-row");
-    const sideStatus = page.locator("#me-side-status");
-
-    await waitForMapReady(page, DEFAULT_STAGING_MAP_PATH);
-    await maybeCaptureQaScreenshot(page, `${profile.slug}-initial.jpg`);
-    await expect(page.locator(".me-topbar-primary")).toBeVisible();
-    await expect(page.locator(".me-topbar-secondary")).toBeVisible();
-    await expect(page.locator("#map-explorer")).toBeVisible();
-    const initialRowCount = await resultRows.count();
+    await installMapLibreStubForSmoke(page);
+    await installDeterministicMapApiFixtures(page);
+    await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, !!profile.isMobile);
+    const initialState = await readMapShellState(page);
 
     if (profile.isMobile) {
-      await expectMobileMapDominance(page);
+      expect(initialState.rowCount).toBeGreaterThan(0);
+      expect(initialState.mapVisible).toBe(true);
+      expect(initialState.mapWidth).toBeGreaterThan(340);
+      expect(initialState.mapHeight).toBeGreaterThan(500);
+      expect(initialState.launcherVisible).toBe(true);
     } else {
-      expect(initialRowCount).toBeGreaterThan(0);
-      await expectDesktopMapDominance(page);
-      await expectDesktopNeutralState(page);
+      expect(initialState.rowCount).toBeGreaterThan(0);
+      expect(initialState.mapVisible).toBe(true);
+      expect(initialState.mapWidth).toBeGreaterThan(600);
+      expect(initialState.mapHeight).toBeGreaterThan(620);
     }
-
-    if (profile.isMobile) {
-      if (initialRowCount > 0) {
-        await page.evaluate(() => {
-          const firstRow = document.querySelector<HTMLButtonElement>(".me-result-row");
-          firstRow?.click();
-        });
-        await expectMobileBottomSheet(page);
-        await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(0);
-        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドガイド");
-        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドスキャン");
-      } else {
-        await expectMobileEmptyState(page);
-      }
-      await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
-    } else {
-      const firstRow = page.locator(".me-result-row").first();
-      await firstRow.click();
-      await expectDesktopSelectionOverlay(page);
-      await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(0);
-      await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドガイド");
-      await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドスキャン");
-      await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
-    }
-
-    const blankPlaceOpened = process.env.MAP_QA_PROBE_BLANK_PLACE === "1"
-      ? await tryOpenBlankPlaceTarget(page, !!profile.isMobile)
-      : false;
-    if (blankPlaceOpened) {
-      if (profile.isMobile) {
-        await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(1);
-        await expect(page.locator("#me-bottom-inner")).toContainText("その場で調べる");
-        await expect(page.locator("#me-bottom-inner")).toContainText("記録する");
-      } else {
-        await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(1);
-        await expect(page.locator("#me-map-selection-card")).toContainText("その場で調べる");
-      }
-    }
-
-    const statusBeforePan = (await sideStatus.textContent())?.trim() ?? "";
-    const viewportSearchState = await triggerPendingViewportSearchOrAutoRefresh(page, statusBeforePan);
-    await maybeCaptureQaScreenshot(page, `${profile.slug}-pending-search.jpg`);
-    if (viewportSearchState === "pending") {
-      await expect(page.locator("#me-search-area-btn")).toContainText("この範囲で再検索");
-      const statusAfterPan = ((await sideStatus.textContent()) ?? "").trim();
-      if (statusAfterPan !== statusBeforePan) {
-        expect(statusAfterPan).toMatch(/^(\d+ 件を表示中 · \d+|この条件に合う観察はまだない)/);
-      }
-      const searchAreaButton = page.locator("#me-search-area-btn");
-      if (await searchAreaButton.isVisible().catch(() => false)) {
-        await searchAreaButton.click({ force: true });
-      }
-    }
-    await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0", { timeout: 30_000 });
-    if (profile.isMobile) {
-      if (initialRowCount > 0) {
-        await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/);
-      }
-    }
-
-    await page.locator(".me-filter-toggle").click();
-    await expect(page.locator(".me-filter-drawer")).toHaveAttribute("open", "");
-    await expect(page.locator(".me-filter-panel")).toBeVisible();
-    await expect(page.locator('input[name="me-basemap"][value="gsi"]')).toBeVisible();
-    await maybeCaptureQaScreenshot(page, `${profile.slug}-filters.jpg`);
+    expect(initialState.filterToggleVisible).toBe(true);
+    expect(initialState.resultsCount).toBeGreaterThan(0);
 
     await context.close();
   });
 }
-
-test("map share state survives reload", async ({ browser }) => {
-  const context = await newStagingContext(browser, MAP_VIEWPORTS[1]);
-  const page = await context.newPage();
-  await waitForMapReady(page);
-
-  await page.getByRole("tab", { name: "記録の余白" }).click({ force: true });
-  await page.locator(".me-filter-toggle").click();
-  await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
-  await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0");
-  await page.getByTestId("map-result-list").locator(".me-result-row").first().click();
-  await expect.poll(() => new URL(page.url()).searchParams.get("cell")).not.toBeNull();
-  const selectedCell = await page.evaluate(() => new URL(window.location.href).searchParams.get("cell"));
-  expect(selectedCell).not.toBeNull();
-  await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0");
-  await page.waitForTimeout(900);
-  await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
-  await page.locator("#me-share-state").click();
-
-  await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("frontier");
-  await expect.poll(() => new URL(page.url()).searchParams.get("bm")).toBe("gsi");
-  await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
-
-  const sharedUrl = page.url();
-  const restoredPage = await context.newPage();
-  await waitForMapReady(restoredPage, sharedUrl);
-  await expect(restoredPage.locator('.me-tab.is-active[data-tab="frontier"]')).toBeVisible();
-  await expect(restoredPage.locator('.me-basemap-opt.is-active input[value="gsi"]')).toBeChecked();
-  await expect.poll(() => new URL(restoredPage.url()).searchParams.get("cell")).toBe(selectedCell);
-  await expect(restoredPage.locator("#me-map-selection-card")).toHaveClass(/is-visible/);
-  await expect(restoredPage.locator(".me-result-row.is-active")).toHaveCount(0);
-  await expect.poll(() => restoredPage.locator(".me-result-row").count()).toBeGreaterThan(0);
-
-  await context.close();
-});

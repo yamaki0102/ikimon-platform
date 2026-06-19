@@ -169,6 +169,11 @@ jobs:
             echo "- PHP lint: $RUN_PHP_LINT"
             echo "- browser smoke: $RUN_BROWSER_SMOKE"
             echo "- full browser E2E: $RUN_FULL_BROWSER_E2E"
+            if [ "$VERIFY_LEVEL" = "full" ]; then
+              echo "- public_map_snapshot_alert_lifecycle: required"
+            else
+              echo "- public_map_snapshot_alert_lifecycle: skipped (full only)"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   pre-flight:
@@ -514,7 +519,12 @@ jobs:
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
             STAGING_MIGRATION_REPAIR_CHECKSUMS="${{ github.event.inputs.migration_repair_checksums || '' }}"
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            SCOPE_FILE=/var/www/ikimon.life-staging/.github-deploy-scope.env
             STAGING_ENV_FILE=/etc/ikimon/staging-v2.env
+            VERIFY_LEVEL=auto
+            if [ -f "$SCOPE_FILE" ]; then
+              . "$SCOPE_FILE"
+            fi
             if [ -z "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
               echo "FAIL: V2_PRIVILEGED_WRITE_API_KEY missing in staging environment"
               exit 1
@@ -599,12 +609,23 @@ jobs:
               "V2_PRIVILEGED_WRITE_API_KEY=${V2_PRIVILEGED_WRITE_API_KEY}" \
               "V2_BASE_URL=http://127.0.0.1:3200" \
               bash -lc "cd '$V2_DIR' && npx tsx src/scripts/smokePassiveAudioIngest.ts"
+            if [ "$VERIFY_LEVEL" = "full" ]; then
+              echo "== public map snapshot alert lifecycle smoke =="
+              runuser -u ikimon-staging -- env \
+                "DATABASE_URL=${DATABASE_URL}" \
+                "V2_BASE_URL=http://127.0.0.1:3200" \
+                "IKIMON_OPS_STALENESS_WEBHOOK_URL=${IKIMON_OPS_STALENESS_WEBHOOK_URL:-}" \
+                bash -lc "cd '$V2_DIR' && npm run smoke:public-map-snapshot-alert -- --apply --confirm=public-map-snapshot-staging-smoke --base-url=http://127.0.0.1:3200 --allow-local --create-smoke-admin-session --require-admin --capture-webhook --require-webhook"
+            else
+              echo "Skip public map snapshot alert lifecycle smoke: verify_level=$VERIFY_LEVEL (requires full)."
+            fi
 
-  verify-e2e:
-    name: Verify Staging in Browser
+  verify-e2e-prepare:
+    name: Prepare Full Browser Verification
     runs-on: ubuntu-latest
     needs: [plan, verify-ssh]
-    if: needs.plan.outputs.run_browser_smoke == 'true' || needs.plan.outputs.run_full_browser_e2e == 'true'
+    if: needs.plan.outputs.run_full_browser_e2e == 'true'
+    timeout-minutes: 12
     environment: staging
     steps:
       - uses: actions/checkout@v5
@@ -641,8 +662,24 @@ jobs:
               bash -lc "set -euo pipefail; set -a; . '$STAGING_ENV_FILE'; set +a; npm --silent --prefix '$V2_DIR' run cleanup:production-ui-smoke -- --fixture-prefix=$prefix" >/dev/null
             done
 
+  verify-e2e-full-sitemap:
+    name: Verify Staging in Browser / full sitemap
+    runs-on: ubuntu-latest
+    needs: [plan, verify-e2e-prepare]
+    if: needs.plan.outputs.run_full_browser_e2e == 'true'
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+        with:
+          install-with-deps: "false"
+
       - name: Run staging registry sitemap smoke
-        if: needs.plan.outputs.run_full_browser_e2e == 'true'
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
@@ -656,8 +693,32 @@ jobs:
             npm run e2e:staging:site-map
           fi
 
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-playwright-artifacts-full-sitemap
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
+          if-no-files-found: ignore
+
+  verify-e2e-smoke:
+    name: Verify Staging in Browser / smoke
+    runs-on: ubuntu-latest
+    needs: [plan, verify-ssh]
+    if: needs.plan.outputs.run_browser_smoke == 'true' && needs.plan.outputs.run_full_browser_e2e != 'true'
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+
       - name: Run staging browser smoke
-        if: needs.plan.outputs.run_full_browser_e2e != 'true'
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
@@ -666,21 +727,118 @@ jobs:
           V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
         run: npm run e2e:staging:smoke
 
-      - name: Run staging browser E2E
-        if: needs.plan.outputs.run_full_browser_e2e == 'true'
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-playwright-artifacts-smoke
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
+          if-no-files-found: ignore
+
+  verify-e2e-full:
+    name: Verify Staging in Browser / full non-map ${{ matrix.shard_index }} of ${{ matrix.shard_total }}
+    runs-on: ubuntu-latest
+    needs: [plan, verify-e2e-prepare]
+    if: needs.plan.outputs.run_full_browser_e2e == 'true'
+    timeout-minutes: 20
+    environment: staging
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard_index: 1
+            shard_total: 2
+          - shard_index: 2
+            shard_total: 2
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+        with:
+          install-with-deps: "false"
+
+      - name: Run staging browser E2E non-map shard
+        timeout-minutes: 17
+        working-directory: platform_v2
+        shell: bash
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: |
+          set -euo pipefail
+          node scripts/planStagingNonMapShards.mjs --total=${{ matrix.shard_total }} --validate
+          node scripts/planStagingNonMapShards.mjs --total=${{ matrix.shard_total }} --explain
+          mapfile -t STAGING_NON_MAP_SPECS < <(node scripts/planStagingNonMapShards.mjs --shard=${{ matrix.shard_index }}/${{ matrix.shard_total }})
+          if [ "${#STAGING_NON_MAP_SPECS[@]}" -eq 0 ]; then
+            echo "No staging non-map specs selected for shard ${{ matrix.shard_index }}/${{ matrix.shard_total }}"
+            exit 1
+          fi
+          {
+            echo "## Staging non-map shard ${{ matrix.shard_index }}/${{ matrix.shard_total }}"
+            echo ""
+            printf -- "- %s\n" "${STAGING_NON_MAP_SPECS[@]}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf 'Running staging non-map specs:\n'
+          printf '  %s\n' "${STAGING_NON_MAP_SPECS[@]}"
+          npx playwright test -c playwright.staging.config.ts "${STAGING_NON_MAP_SPECS[@]}"
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-playwright-artifacts-full-non-map-${{ matrix.shard_index }}-of-${{ matrix.shard_total }}
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
+          if-no-files-found: ignore
+
+  verify-e2e-full-map:
+    name: Verify Staging in Browser / full map ${{ matrix.lane }}
+    runs-on: ubuntu-latest
+    needs: [plan, verify-e2e-prepare]
+    if: needs.plan.outputs.run_full_browser_e2e == 'true'
+    timeout-minutes: 12
+    environment: staging
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: shell
+            spec: e2e/map.staging.spec.ts
+          - lane: records
+            spec: e2e/notes-map-regression.staging.spec.ts
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+        with:
+          install-with-deps: "false"
+
+      - name: Run staging map browser E2E
+        timeout-minutes: 10
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
           STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
           STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
           V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
-        run: npm run e2e:staging
+        run: npx playwright test -c playwright.staging.config.ts ${{ matrix.spec }}
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: staging-playwright-artifacts
+          name: staging-playwright-artifacts-full-map-${{ matrix.lane }}
           path: |
             platform_v2/test-results
             platform_v2/playwright-report/staging

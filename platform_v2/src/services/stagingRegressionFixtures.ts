@@ -6,7 +6,15 @@ import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp, ups
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const FIXTURE_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{2,80}$/;
 
-type RegressionFixtureKind = "manual" | "historical" | "smoke" | "scene";
+type RegressionFixtureKind =
+  | "manual"
+  | "manual_companion_a"
+  | "manual_companion_b"
+  | "historical"
+  | "historical_companion_a"
+  | "historical_companion_b"
+  | "smoke"
+  | "scene";
 
 type RegressionFixtureSeedInput = {
   fixturePrefix: string;
@@ -78,6 +86,7 @@ type FixtureAiCandidate = {
 type FixtureVisitInput = {
   kind: RegressionFixtureKind;
   fixturePrefix: string;
+  publicMapVisible?: boolean;
   userId: string;
   observedAt: string;
   latitude: number;
@@ -107,14 +116,20 @@ function assertFixturePrefix(value: string): string {
   return fixturePrefix;
 }
 
+function publicMapIdPrefix(fixturePrefix: string): string {
+  return `pubmap-${createHash("sha1").update(fixturePrefix).digest("hex").slice(0, 12)}`;
+}
+
 async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixtureKind): Promise<FixturePhoto> {
   const buffer = Buffer.from(TINY_PNG_BASE64, "base64");
-  const storagePath = `uploads/staging-regression/${fixturePrefix}/${kind}.${kind === "manual" ? "svg" : "png"}`;
+  const publicMapFixture = kind !== "smoke";
+  const storageBase = publicMapFixture ? "uploads/regression-public" : "uploads/staging-regression";
+  const storagePath = `${storageBase}/${fixturePrefix}/${kind}.${kind === "manual" ? "svg" : "png"}`;
   if (kind === "manual") {
     const svgMarker = Buffer.alloc(1039, "vertical-region-fixture.svg");
     return {
       storagePath,
-      publicUrl: "/assets/regression/vertical-region-fixture.svg",
+      publicUrl: "/assets/regression/vertical-region-public.svg",
       sha256: createHash("sha256").update(svgMarker).digest("hex"),
       bytes: svgMarker.byteLength,
       mimeType: "image/svg+xml",
@@ -158,7 +173,8 @@ async function upsertFixtureUser(
 }
 
 async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput): Promise<RegressionFixtureSummary> {
-  const visitId = `${input.fixturePrefix}-${input.kind}`;
+  const recordPrefix = input.publicMapVisible ? publicMapIdPrefix(input.fixturePrefix) : input.fixturePrefix;
+  const visitId = `${recordPrefix}-${input.kind}`;
   const occurrenceId = makeOccurrenceId(visitId, 0);
   const placeId = buildPlaceId({
     siteId: input.siteId,
@@ -264,8 +280,8 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
         biome, substrate_tags, evidence_tags, source_payload, created_at, updated_at
      ) values (
         $1, $2, $3, 0, $4, $5, 'species', 'HumanObservation', null, null, 'present',
-        null, $6, 'regression_fixture', $7, null, null,
-        null, '[]'::jsonb, '["regression_fixture"]'::jsonb, $8::jsonb, $9, now()
+        null, $6, null, $7, null, null,
+        null, '[]'::jsonb, '["qa_public"]'::jsonb, $8::jsonb, $9, now()
      )
      on conflict (occurrence_id) do update set
         scientific_name = excluded.scientific_name,
@@ -480,11 +496,11 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
     observedAt,
     sourceKind: input.sourceKind,
     expectedVisibility:
-      input.kind === "manual"
+      input.kind === "manual" || input.kind.startsWith("manual_companion_")
         ? "manual_only"
         : input.kind === "scene"
           ? "manual_only"
-          : input.kind === "historical"
+          : input.kind === "historical" || input.kind.startsWith("historical_companion_")
           ? "all_research_artifacts_only"
           : "excluded",
   };
@@ -636,9 +652,22 @@ export async function seedStagingRegressionFixtures(
   const displayName = "Regression Field Note Observer";
 
   try {
-    const [manualPhoto, historicalPhoto, smokePhoto, scenePhoto] = await Promise.all([
+    const [
+      manualPhoto,
+      manualCompanionPhotoA,
+      manualCompanionPhotoB,
+      historicalPhoto,
+      historicalCompanionPhotoA,
+      historicalCompanionPhotoB,
+      smokePhoto,
+      scenePhoto,
+    ] = await Promise.all([
       ensureFixturePhoto(fixturePrefix, "manual"),
+      ensureFixturePhoto(fixturePrefix, "manual_companion_a"),
+      ensureFixturePhoto(fixturePrefix, "manual_companion_b"),
       ensureFixturePhoto(fixturePrefix, "historical"),
+      ensureFixturePhoto(fixturePrefix, "historical_companion_a"),
+      ensureFixturePhoto(fixturePrefix, "historical_companion_b"),
       ensureFixturePhoto(fixturePrefix, "smoke"),
       ensureFixturePhoto(fixturePrefix, "scene"),
     ]);
@@ -650,6 +679,7 @@ export async function seedStagingRegressionFixtures(
     const manual = await upsertFixtureVisit(client, {
       kind: "manual",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
       latitude: 35.0104,
@@ -681,9 +711,56 @@ export async function seedStagingRegressionFixtures(
       ],
     });
 
+    await upsertFixtureVisit(client, {
+      kind: "manual_companion_a",
+      fixturePrefix,
+      publicMapVisible: true,
+      userId,
+      observedAt: new Date(now - 115 * 60 * 1000).toISOString(),
+      latitude: 35.0108,
+      longitude: 138.3932,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression manual companion fixture",
+      siteId: `${fixturePrefix}-manual-companion-a-site`,
+      siteName: "Regression Manual Companion Terrace A",
+      note: "manual companion regression fixture",
+      subjectLabel: "Regression Manual Companion Finch A",
+      scientificName: "Passer montanus",
+      sourceKind: "v2_observation",
+      sourcePayload: { source: "regression_seed_manual_companion" },
+      qualityGrade: "casual",
+      evidenceTier: 1,
+      photo: manualCompanionPhotoA,
+    });
+
+    await upsertFixtureVisit(client, {
+      kind: "manual_companion_b",
+      fixturePrefix,
+      publicMapVisible: true,
+      userId,
+      observedAt: new Date(now - 110 * 60 * 1000).toISOString(),
+      latitude: 35.0112,
+      longitude: 138.3935,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression manual companion fixture",
+      siteId: `${fixturePrefix}-manual-companion-b-site`,
+      siteName: "Regression Manual Companion Terrace B",
+      note: "manual companion regression fixture",
+      subjectLabel: "Regression Manual Companion Finch B",
+      scientificName: "Passer montanus",
+      sourceKind: "v2_observation",
+      sourcePayload: { source: "regression_seed_manual_companion" },
+      qualityGrade: "casual",
+      evidenceTier: 1,
+      photo: manualCompanionPhotoB,
+    });
+
     const historical = await upsertFixtureVisit(client, {
       kind: "historical",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
       latitude: 35.0128,
@@ -701,6 +778,52 @@ export async function seedStagingRegressionFixtures(
       qualityGrade: "research",
       evidenceTier: 2,
       photo: historicalPhoto,
+    });
+
+    await upsertFixtureVisit(client, {
+      kind: "historical_companion_a",
+      fixturePrefix,
+      publicMapVisible: true,
+      userId,
+      observedAt: new Date(now - 235 * 60 * 1000).toISOString(),
+      latitude: 35.0129,
+      longitude: 138.3878,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression historical companion fixture",
+      siteId: `${fixturePrefix}-historical-companion-a-site`,
+      siteName: "Regression Historical Companion Marsh A",
+      note: "historical companion regression fixture",
+      subjectLabel: "Regression Historical Companion Reed Warbler A",
+      scientificName: "Acrocephalus orientalis",
+      sourceKind: "legacy_observation",
+      sourcePayload: { source: "regression_seed_historical_companion" },
+      qualityGrade: "research",
+      evidenceTier: 2,
+      photo: historicalCompanionPhotoA,
+    });
+
+    await upsertFixtureVisit(client, {
+      kind: "historical_companion_b",
+      fixturePrefix,
+      publicMapVisible: true,
+      userId,
+      observedAt: new Date(now - 230 * 60 * 1000).toISOString(),
+      latitude: 35.0130,
+      longitude: 138.3880,
+      prefecture: "静岡県",
+      municipality: "静岡市",
+      localityNote: "staging regression historical companion fixture",
+      siteId: `${fixturePrefix}-historical-companion-b-site`,
+      siteName: "Regression Historical Companion Marsh B",
+      note: "historical companion regression fixture",
+      subjectLabel: "Regression Historical Companion Reed Warbler B",
+      scientificName: "Acrocephalus orientalis",
+      sourceKind: "legacy_observation",
+      sourcePayload: { source: "regression_seed_historical_companion" },
+      qualityGrade: "research",
+      evidenceTier: 2,
+      photo: historicalCompanionPhotoB,
     });
 
     const smoke = await upsertFixtureVisit(client, {

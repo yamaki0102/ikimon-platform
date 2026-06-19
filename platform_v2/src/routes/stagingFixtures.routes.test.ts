@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
@@ -123,4 +124,30 @@ test("staging fixture routes enforce staging gate and privileged key", async () 
       }
     },
   );
+});
+
+test("staging fixture routes refresh the public map snapshot after seed and cleanup", async () => {
+  const source = await readFile(new URL("./write.ts", import.meta.url), "utf8");
+
+  assert.match(source, /refreshPublicMapSnapshot/);
+  assert.match(source, /refreshedBy: "staging-fixture:seed-regression"/);
+  assert.match(source, /refreshedBy: "staging-fixture:cleanup"/);
+  assert.match(source, /if \(!cleanup\.dryRun\)/);
+});
+
+test("staging map regression fixtures stay public-map safe while smoke remains excluded", async () => {
+  const source = await readFile(new URL("../services/stagingRegressionFixtures.ts", import.meta.url), "utf8");
+
+  assert.match(source, /publicUrl: "\/assets\/regression\/vertical-region-public\.svg"/);
+  assert.doesNotMatch(source, /publicUrl: "\/assets\/regression\/vertical-region-fixture\.svg"/);
+  assert.match(source, /const storageBase = publicMapFixture \? "uploads\/regression-public" : "uploads\/staging-regression"/);
+  assert.doesNotMatch(source, /data_quality[^]*'regression_fixture'/);
+  assert.match(source, /'\["qa_public"\]'::jsonb/);
+  assert.match(source, /function publicMapIdPrefix\(fixturePrefix: string\)/);
+  assert.match(source, /publicMapVisible: true/);
+  assert.match(source, /"manual_companion_a"/);
+  assert.match(source, /"manual_companion_b"/);
+  assert.match(source, /"historical_companion_a"/);
+  assert.match(source, /"historical_companion_b"/);
+  assert.match(source, /sourcePayload: \{ source: "smoke_regression_fixture" \}/);
 });

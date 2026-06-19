@@ -23,6 +23,7 @@ const {
   shouldSupplementLiveOsm,
   hasRequestedLiveOsmSourceCoverage,
   hasFreshLiveOsmCacheCoverage,
+  areaLayerSourceSortSql,
   normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
@@ -362,6 +363,32 @@ test("fresh live OSM cache coverage is decided only from cached live features", 
   assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [], true), false);
   assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], false), false);
   assert.equal(hasFreshLiveOsmCacheCoverage(["osm_park"], [storedPark], true), true);
+});
+
+test("live OSM supplements stored school and park rows at high zoom", () => {
+  const query = { bbox: [137.70, 34.70, 137.75, 34.75] as [number, number, number, number], zoom: 13 };
+  const storedSchool = liveElementToFeature({
+    type: "way",
+    id: 101,
+    tags: { name: "Stored school equivalent", amenity: "school" },
+    geometry: [
+      { lat: 34.72, lon: 137.72 },
+      { lat: 34.72, lon: 137.73 },
+      { lat: 34.73, lon: 137.73 },
+    ],
+  });
+  assert.ok(storedSchool);
+  assert.equal(shouldSupplementLiveOsm(query, ["school", "osm_park"], [storedSchool!], 20), true);
+  assert.equal(shouldSupplementLiveOsm(query, ["school", "osm_park"], [storedSchool!], 1), false);
+  assert.equal(shouldSupplementLiveOsm({ ...query, zoom: 10 }, ["school", "osm_park"], [storedSchool!], 20), false);
+});
+
+test("area layer SQL prioritizes human-scale school and park areas before admin layers", () => {
+  const orderSql = areaLayerSourceSortSql();
+  assert.match(orderSql, /WHEN 'school' THEN 0/);
+  assert.match(orderSql, /WHEN 'osm_park' THEN 1/);
+  assert.match(orderSql, /WHEN 'admin_municipality' THEN 7/);
+  assert.ok(orderSql.indexOf("WHEN 'school' THEN 0") < orderSql.indexOf("WHEN 'admin_municipality' THEN 7"));
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {

@@ -10,6 +10,7 @@ import {
   upsertLegacyObservationQualityReview,
   VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "../services/observationQualityGate.js";
+import { refreshPublicMapSnapshotIfStale } from "../services/mapSnapshot.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1672,6 +1673,10 @@ async function main() {
   console.log(JSON.stringify(summary, null, 2));
 
   if (!options.dryRun) {
+    await refreshPublicMapSnapshotIfStale({
+      force: true,
+      refreshedBy: "import:bootstrapLegacyImport",
+    });
     await getPool().end();
   }
 }

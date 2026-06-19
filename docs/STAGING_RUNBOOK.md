@@ -134,6 +134,29 @@ grep '^DATABASE_URL=' /etc/ikimon/staging-v2.env
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3200/healthz
 ```
 
+### Release gate: public map snapshot alert lifecycle
+
+本番昇格前の release rehearsal では、GitHub Actions `Deploy to Staging` を
+`verify_level=full` で実行する。full verify は `public_map_snapshot_alert_lifecycle`
+gate として、staging DB の `public_map_snapshots.generated_at` を一時的に古くし、
+stale alert 発火、`/ops/public-map-snapshot`、refresh 後の自動 resolve まで確認する。
+
+手動で同じ gate を通す場合:
+
+```bash
+set -a
+. /etc/ikimon/staging-v2.env
+set +a
+runuser -u ikimon-staging -- env \
+  "DATABASE_URL=${DATABASE_URL}" \
+  "V2_BASE_URL=http://127.0.0.1:3200" \
+  "IKIMON_OPS_STALENESS_WEBHOOK_URL=${IKIMON_OPS_STALENESS_WEBHOOK_URL:-}" \
+  bash -lc "cd /var/www/ikimon.life-staging/repo/platform_v2 && npm run smoke:public-map-snapshot-alert -- --apply --confirm=public-map-snapshot-staging-smoke --base-url=http://127.0.0.1:3200 --allow-local"
+```
+
+この smoke は staging DB を意図的に変更する。`--confirm=public-map-snapshot-staging-smoke`
+と `--allow-local` は外さない。production host には向けない。
+
 ## 固定IPバイパス
 
 固定回線からだけ `401` を外したい場合は、Basic Auth 自体は残したまま allowlist で迂回する。
