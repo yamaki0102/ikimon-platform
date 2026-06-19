@@ -662,6 +662,23 @@ jobs:
               bash -lc "set -euo pipefail; set -a; . '$STAGING_ENV_FILE'; set +a; npm --silent --prefix '$V2_DIR' run cleanup:production-ui-smoke -- --fixture-prefix=$prefix" >/dev/null
             done
 
+  verify-e2e-full-sitemap:
+    name: Verify Staging in Browser / full sitemap
+    runs-on: ubuntu-latest
+    needs: [plan, verify-e2e-prepare]
+    if: needs.plan.outputs.run_full_browser_e2e == 'true'
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+        with:
+          install-with-deps: "false"
+
       - name: Run staging registry sitemap smoke
         working-directory: platform_v2
         env:
@@ -680,7 +697,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: staging-playwright-artifacts-prepare
+          name: staging-playwright-artifacts-full-sitemap
           path: |
             platform_v2/test-results
             platform_v2/playwright-report/staging
