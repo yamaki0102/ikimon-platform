@@ -84,7 +84,8 @@ async function expectMapFirstHomeShell(page: Page, profile: ViewportProfile): Pr
 async function expectQuietMapHome(page: Page): Promise<void> {
   await expect(page.locator(".me-enjoy-strip")).toHaveCount(0);
   await expect(page.locator("#me-visited-panel")).toHaveCount(0);
-  await expect(page.locator("[data-api-my-places]")).toHaveCount(0);
+  await expect(page.locator("#me-own-places-panel")).toHaveCount(1);
+  await expect(page.locator("[data-api-my-places]")).toHaveCount(1);
   await expect(page.locator(".me-filter-toggle")).toBeVisible();
   const visibleText = await visibleBodyText(page);
   expect(visibleText).not.toContain("ikimon - 皆で作る地域図鑑");
