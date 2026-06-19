@@ -117,6 +117,16 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-submit-panel"/);
         assert.match(response.body, /id="record-submit-dock-meta"/);
         assert.match(response.body, /class="record-submit-primary">保存/);
+        assert.match(response.body, /id="record-quick-flow"/);
+        assert.match(response.body, /data-record-flow-step="capture"/);
+        assert.match(response.body, /data-record-flow-step="place"/);
+        assert.match(response.body, /data-record-flow-step="save"/);
+        assert.match(response.body, /写真・メモ/);
+        assert.match(response.body, /const syncQuickFlow = \(\) =>/);
+        assert.match(response.body, /step\.setAttribute\('data-state', state\)/);
+        assert.match(response.body, /if \(key === 'place'\) state = hasLocation \? 'done' : 'pending';/);
+        assert.match(response.body, /if \(key === 'save'\) state = recordSubmitInFlight \? 'current' : \(hasDraft \? 'current' : 'pending'\);/);
+        assert.doesNotMatch(response.body, /hasDraft && hasLocation \? 'current'/);
         assert.match(response.body, /data-first-record-candidate="1"/);
         assert.match(response.body, /\/api\/v1\/ui-kpi\/events/);
         assert.match(response.body, /recordSessionId/);
@@ -272,6 +282,10 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /Fields you can complete later/);
         assert.match(response.body, /No media selected/);
         assert.match(response.body, /Save and complete later/);
+        assert.match(response.body, /aria-label="Record flow"/);
+        assert.match(response.body, />Media<\/span>/);
+        assert.match(response.body, />Place<\/span>/);
+        assert.match(response.body, />Save<\/span>/);
         assert.match(response.body, /Role of this record/);
         assert.match(response.body, /Today&#39;s purpose/);
         assert.match(response.body, /Save while unsure/);

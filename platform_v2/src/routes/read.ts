@@ -5073,6 +5073,10 @@ type RecordFormCopy = {
   surveyModeTitle: string;
   surveyModeBody: string;
   tipsLink: string;
+  quickFlowAria: string;
+  quickFlowMedia: string;
+  quickFlowPlace: string;
+  quickFlowSave: string;
   submitDockAria: string;
   submitDockLocation: string;
   submitDockMeta: string;
@@ -5493,6 +5497,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       surveyModeTitle: "しっかり記録",
       surveyModeBody: "比べたい観察の条件も一緒に残す",
       tipsLink: "記録のコツを読む",
+      quickFlowAria: "記録の流れ",
+      quickFlowMedia: "写真・メモ",
+      quickFlowPlace: "場所",
+      quickFlowSave: "保存",
       submitDockAria: "記録を送信する",
       submitDockLocation: "現在地",
       submitDockMeta: "メディア未選択",
@@ -5655,6 +5663,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       surveyModeTitle: "Survey record",
       surveyModeBody: "Add conditions when you want to compare later",
       tipsLink: "Read recording tips",
+      quickFlowAria: "Record flow",
+      quickFlowMedia: "Media",
+      quickFlowPlace: "Place",
+      quickFlowSave: "Save",
       submitDockAria: "Submit record",
       submitDockLocation: "Location",
       submitDockMeta: "No media selected",
@@ -5817,6 +5829,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       surveyModeTitle: "Registro de muestreo",
       surveyModeBody: "Agrega condiciones si quieres comparar despues",
       tipsLink: "Leer consejos de registro",
+      quickFlowAria: "Flujo de registro",
+      quickFlowMedia: "Medio",
+      quickFlowPlace: "Lugar",
+      quickFlowSave: "Guardar",
       submitDockAria: "Enviar registro",
       submitDockLocation: "Lugar",
       submitDockMeta: "Sin medio elegido",
@@ -5979,6 +5995,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       surveyModeTitle: "Registro de campo",
       surveyModeBody: "Adicione condicoes quando quiser comparar depois",
       tipsLink: "Ler dicas de registro",
+      quickFlowAria: "Fluxo do registro",
+      quickFlowMedia: "Midia",
+      quickFlowPlace: "Local",
+      quickFlowSave: "Salvar",
       submitDockAria: "Enviar registro",
       submitDockLocation: "Local",
       submitDockMeta: "Nenhuma midia selecionada",
@@ -14280,6 +14300,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input type="hidden" name="placeId" value="" />
               <input type="hidden" name="prefecture" value="" />
               <input type="hidden" name="revisitOfVisitId" value="" />
+              <ol id="record-quick-flow" class="record-quick-flow" aria-label="${escapeHtml(recordForm.quickFlowAria)}" hidden>
+                <li data-record-flow-step="capture"><b>1</b><span>${escapeHtml(recordForm.quickFlowMedia)}</span></li>
+                <li data-record-flow-step="place"><b>2</b><span>${escapeHtml(recordForm.quickFlowPlace)}</span></li>
+                <li data-record-flow-step="save"><b>3</b><span>${escapeHtml(recordForm.quickFlowSave)}</span></li>
+              </ol>
               <div id="record-video-guide" class="record-video-guide" hidden>
                 <div class="record-video-guide-head">
                   <div>
@@ -14780,6 +14805,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const publicStateLabel = document.getElementById('record-public-state-label');
         const publicStateHelp = document.getElementById('record-public-state-help');
         const submitDockMeta = document.getElementById('record-submit-dock-meta');
+        const quickFlow = document.getElementById('record-quick-flow');
+        const quickFlowSteps = Array.from(document.querySelectorAll('[data-record-flow-step]'));
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
@@ -14933,6 +14960,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               button.textContent = button.dataset.idleLabel;
             }
           });
+          syncQuickFlow();
         };
 
         const isSurveyMode = () => modeInput && modeInput.value === 'survey';
@@ -15329,6 +15357,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (publicStateHelp) publicStateHelp.textContent = draft.body;
         };
 
+        const syncQuickFlow = () => {
+          if (!quickFlow || !quickFlowSteps.length) return;
+          const hasDraft = hasRecordDraft();
+          const hasLocation = !coordsMissing();
+          quickFlow.hidden = !hasDraft;
+          quickFlowSteps.forEach((step) => {
+            const key = step.getAttribute('data-record-flow-step') || '';
+            let state = 'pending';
+            if (key === 'capture') state = hasDraft ? 'done' : 'current';
+            if (key === 'place') state = hasLocation ? 'done' : 'pending';
+            if (key === 'save') state = recordSubmitInFlight ? 'current' : (hasDraft ? 'current' : 'pending');
+            step.setAttribute('data-state', state);
+            if (state === 'current') step.setAttribute('aria-current', 'step');
+            else step.removeAttribute('aria-current');
+          });
+        };
+
         const buildPublicStateSuccessHtml = (observation) => {
           const publicVisibility = String(observation && observation.publicVisibility || '');
           const qualityReviewStatus = String(observation && observation.qualityReviewStatus || '');
@@ -15358,6 +15403,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
           syncRecordPublicState();
+          syncQuickFlow();
         };
 
         const syncVideoPrimaryPhotoUi = () => {
@@ -18108,6 +18154,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-submit-panel strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
         .record-submit-panel p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 750; }
         .record-submit-panel .btn { min-width: 140px; }
+        .record-quick-flow { grid-column: 1 / -1; list-style: none; margin: 0; padding: 8px; border-radius: 20px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-quick-flow[hidden] { display: none; }
+        .record-quick-flow li { min-width: 0; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: 14px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #475569; font-size: 12px; line-height: 1.2; font-weight: 950; hyphens: auto; }
+        .record-quick-flow b { flex: 0 0 26px; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #e2e8f0; color: #334155; font-size: 12px; }
+        .record-quick-flow span { min-width: 0; overflow-wrap: anywhere; }
+        .record-quick-flow li[data-state="done"] { background: #ecfdf5; border-color: rgba(16,185,129,.28); color: #065f46; }
+        .record-quick-flow li[data-state="done"] b { background: #059669; color: #fff; }
+        .record-quick-flow li[data-state="current"] { background: #fffbeb; border-color: rgba(245,158,11,.34); color: #78350f; box-shadow: 0 8px 18px rgba(245,158,11,.08); }
+        .record-quick-flow li[data-state="current"] b { background: #f59e0b; color: #fff; }
         .record-public-state { grid-column: 1 / -1; display: grid; gap: 5px; padding: 12px 14px; border-radius: 16px; background: #f8fafc; border: 1px solid rgba(15,23,42,.1); }
         .record-public-state[hidden] { display: none; }
         .record-public-state[data-public-state="candidate"] { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
@@ -18324,6 +18379,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-submit-dock-meta { min-height: 58px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px 8px; border-radius: 17px; background: #ecfdf5; color: #064e3b; font-size: 11px; line-height: 1.25; font-weight: 950; }
           .record-submit-panel { align-items: flex-start; flex-direction: column; }
           .record-submit-panel .btn { width: 100%; }
+          .record-quick-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 6px; }
+          .record-quick-flow li { min-height: 48px; flex-direction: column; gap: 4px; padding: 7px 5px; font-size: 11px; text-align: center; }
+          .record-quick-flow b { width: 23px; height: 23px; flex-basis: 23px; }
           .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-status-inline { margin-left: 0; }
           .record-impact-receipts-head { align-items: flex-start; flex-direction: column; }
