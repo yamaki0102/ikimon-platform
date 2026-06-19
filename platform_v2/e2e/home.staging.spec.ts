@@ -60,12 +60,16 @@ async function issueSessionCookie(api: APIRequestContext, userId: string): Promi
   return rawCookie;
 }
 
-async function expectMapFirstHomeShell(page: Page): Promise<void> {
+async function expectMapFirstHomeShell(page: Page, profile: ViewportProfile): Promise<void> {
+  const expectsDesktopSideToggle = profile.viewport.width > 900;
   await expect(async () => {
     await page.goto("/?lang=ja", { waitUntil: "networkidle" });
     await expect(page.locator(".me-section")).toBeVisible({ timeout: 5_000 });
     await expect(page.locator("#map-explorer")).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("#me-side-toggle")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#me-side-toggle")).toHaveCount(1);
+    if (expectsDesktopSideToggle) {
+      await expect(page.locator("#me-side-toggle")).toBeVisible({ timeout: 5_000 });
+    }
     await expect(page.locator("#me-side-rail-count")).toHaveCount(1);
     await expect(page.locator("#me-side-rail-count")).toHaveText("");
     const railText = await page.locator(".me-side-rail-icons").innerText({ timeout: 5_000 });
@@ -98,7 +102,7 @@ for (const profile of HOME_VIEWPORTS) {
 
     try {
       await suppressMapLibreForSmoke(page);
-      await expectMapFirstHomeShell(page);
+      await expectMapFirstHomeShell(page, profile);
       await expectQuietMapHome(page);
       await expectNoHorizontalOverflow(page);
     } finally {
@@ -117,7 +121,7 @@ test("logged-in staging home keeps the map-first shell", async ({ browser, playw
 
   try {
     await suppressMapLibreForSmoke(page);
-    await expectMapFirstHomeShell(page);
+    await expectMapFirstHomeShell(page, { slug: "desktop-1440", viewport: { width: 1440, height: 900 } });
     await expectQuietMapHome(page);
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: "test-results/home-map-first-logged-in.png", fullPage: true });
