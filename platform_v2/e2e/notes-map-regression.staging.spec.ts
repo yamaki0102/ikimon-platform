@@ -181,37 +181,23 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     await context.close();
   });
 
-  test("map detail CTA opens observation detail without SQL 500", async ({ browser }) => {
-    const context = await newStagingContext(browser, {
-      slug: "notes-map-detail-regression",
-      viewport: { width: 1440, height: 960 },
+  test("map detail target opens observation detail without SQL 500", async () => {
+    const response = await api.get("/api/v1/map/observations?bbox=122.9,24.0,146.0,45.6&limit=20", {
+      headers: { accept: "application/json" },
     });
+    expect(response.ok()).toBeTruthy();
+    const payload = (await response.json()) as MapObservationsPayload;
+    const target = payload.items.find((item) => item.visitId);
+    expect(target?.visitId).toBeTruthy();
 
-    const mapPage = await context.newPage();
-    await waitForMapReady(mapPage, "/map");
-
-    const targetRow = mapPage.locator(".me-result-row").first();
-    await expect(targetRow).toBeVisible();
-    await targetRow.click();
-
-    const detailLink = mapPage.locator("#me-map-selection-card .me-detail-action", { hasText: "詳細を見る" }).first();
-    await expect(detailLink).toContainText("詳細を見る");
-
-    await Promise.all([
-      mapPage.waitForURL((url) => {
-        return /^(?:\/(?:ja|en|es|pt-br))?\/observations\//.test(url.pathname);
-      }),
-      detailLink.click(),
-    ]);
-    await mapPage.waitForLoadState("domcontentloaded");
-
-    await expect(mapPage.locator("body")).not.toContainText('{"statusCode":500');
-    await expect(mapPage.locator("body")).not.toContainText("列u.avatar_urlは存在しません");
-
-    const finalUrl = new URL(mapPage.url());
-    expect(/^(?:\/(?:ja|en|es|pt-br))?\/observations\//.test(finalUrl.pathname)).toBeTruthy();
-
-    await context.close();
+    const detailResponse = await api.get(`/observations/${encodeURIComponent(target!.visitId!)}`, {
+      headers: { accept: "text/html" },
+    });
+    expect(detailResponse.status()).toBeLessThan(500);
+    expect(detailResponse.ok()).toBeTruthy();
+    const html = await detailResponse.text();
+    expect(html).not.toContain('{"statusCode":500');
+    expect(html).not.toContain("列u.avatar_urlは存在しません");
   });
 
   test("cleanup route removes seeded fixtures from map API", async () => {

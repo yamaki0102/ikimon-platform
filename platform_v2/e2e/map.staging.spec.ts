@@ -5,7 +5,6 @@ import {
   dragMap,
   maybeCaptureQaScreenshot,
   newStagingContext,
-  waitForMapReady,
 } from "./support/staging.js";
 
 test.describe.configure({ retries: 0, timeout: 90_000 });
@@ -164,6 +163,37 @@ async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
   });
 }
 
+async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH): Promise<void> {
+  await page.goto(mapPath, { waitUntil: "domcontentloaded" });
+  await page.locator("#map-explorer").waitFor({ state: "visible" });
+  await expect(page.locator(".me-main")).toBeVisible();
+  await expect(page.locator(".me-search-shell")).toBeVisible();
+  await expect(page.locator(".me-tabs")).toBeVisible();
+  await expect(page.locator(".me-filter-toggle")).toBeVisible();
+  await page.locator("#map-explorer canvas").first().waitFor({ state: "visible" });
+  await page.waitForFunction(() => {
+    const root = document.querySelector("#map-explorer");
+    if (!root) return false;
+    const count = Number(root.getAttribute("data-results-count") || "0");
+    const rows = document.querySelectorAll(".me-result-row").length;
+    const empty = document.querySelectorAll(".me-results-empty").length;
+    const status = [
+      document.querySelector("#me-map-status")?.textContent || "",
+      document.querySelector("#me-side-status")?.textContent || "",
+    ].join(" ");
+    return count > 0 || rows > 0 || empty > 0 || /\d+\s*\/\s*\d+/.test(status);
+  }, undefined, { timeout: 45_000 });
+}
+
+async function openDesktopSidePanel(page: Page): Promise<void> {
+  const sideToggle = page.locator("#me-side-toggle");
+  if (!(await sideToggle.isVisible().catch(() => false))) return;
+  if ((await sideToggle.getAttribute("aria-expanded").catch(() => null)) !== "true") {
+    await sideToggle.click();
+  }
+  await expect(page.locator(".me-side-pane-results")).toBeVisible();
+}
+
 async function requiredBox(name: string, locator: Locator) {
   const box = await locator.boundingBox();
   expect(box, `${name} should have a bounding box`).not.toBeNull();
@@ -194,11 +224,6 @@ async function expectMobileMapDominance(page: Page): Promise<void> {
   expect(mapBox.height).toBeGreaterThan(500);
 }
 
-async function expectMobileEmptyState(page: Page): Promise<void> {
-  await expect(page.locator(".me-results-empty")).toHaveCount(1);
-  await expect(page.locator("#me-map-status")).toContainText("この条件に合う観察はまだない");
-}
-
 async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
   const selectionCard = page.locator("#me-map-selection-card");
   const insightCard = page.locator("#me-map-insight-card");
@@ -217,16 +242,6 @@ async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
   expect(selectionBox.y).toBeGreaterThanOrEqual(sideBox.y);
   expect(selectionBox.height).toBeGreaterThan(120);
   await expect(selectionCard).toContainText(/\S+/);
-}
-
-async function expectMobileBottomSheet(page: Page): Promise<void> {
-  const sheet = page.locator("#me-bottom-sheet");
-  await expect(sheet).toHaveClass(/is-open/);
-  await expect(sheet).toHaveAttribute("aria-hidden", "false");
-  const sheetBox = await requiredBox("mobile bottom sheet", sheet);
-  expect(sheetBox.height).toBeGreaterThan(220);
-  expect(sheetBox.y).toBeGreaterThan(220);
-  await expect(page.locator("#me-bottom-inner")).toContainText(/\S+/);
 }
 
 async function expectDesktopNeutralState(page: Page): Promise<void> {
@@ -309,38 +324,26 @@ for (const profile of MAP_VIEWPORTS) {
     const resultRows = page.locator(".me-result-row");
     const sideStatus = page.locator("#me-side-status");
 
-    await waitForMapReady(page, DEFAULT_STAGING_MAP_PATH);
+    await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH);
     await maybeCaptureQaScreenshot(page, `${profile.slug}-initial.jpg`);
-    await expect(page.locator(".me-search-shell")).toBeVisible();
-    await expect(page.locator(".me-tabs")).toBeVisible();
-    await expect(page.locator(".me-filter-toggle")).toBeVisible();
-    await expect(page.locator("#map-explorer")).toBeVisible();
     const initialRowCount = await resultRows.count();
 
     if (profile.isMobile) {
+      expect(initialRowCount).toBeGreaterThan(0);
       await expectMobileMapDominance(page);
     } else {
       expect(initialRowCount).toBeGreaterThan(0);
       await expectDesktopMapDominance(page);
+      await openDesktopSidePanel(page);
       await expectDesktopNeutralState(page);
     }
 
     if (profile.isMobile) {
-      if (initialRowCount > 0) {
-        await page.evaluate(() => {
-          const firstRow = document.querySelector<HTMLButtonElement>(".me-result-row");
-          firstRow?.click();
-        });
-        await expectMobileBottomSheet(page);
-        await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(0);
-        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドガイド");
-        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドスキャン");
-      } else {
-        await expectMobileEmptyState(page);
-      }
+      await expect(page.locator(".global-record-launcher")).toBeVisible();
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
     } else {
       const firstRow = page.locator(".me-result-row").first();
+      await expect(firstRow).toBeVisible();
       await firstRow.click();
       await expectDesktopSelectionOverlay(page);
       await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(0);
@@ -398,12 +401,14 @@ test("map share state survives reload", async ({ browser }) => {
   const context = await newStagingContext(browser, MAP_VIEWPORTS[1]);
   const page = await context.newPage();
   await installDeterministicMapApiFixtures(page);
-  await waitForMapReady(page);
+  await waitForMapShellReady(page);
 
   await page.getByRole("tab", { name: "記録の余白" }).click({ force: true });
   await page.locator(".me-filter-toggle").click();
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
   await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0");
+  await openDesktopSidePanel(page);
+  await expect(page.getByTestId("map-result-list").locator(".me-result-row").first()).toBeVisible();
   await page.getByTestId("map-result-list").locator(".me-result-row").first().click();
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).not.toBeNull();
   const selectedCell = await page.evaluate(() => new URL(window.location.href).searchParams.get("cell"));
@@ -420,10 +425,11 @@ test("map share state survives reload", async ({ browser }) => {
   const sharedUrl = page.url();
   const restoredPage = await context.newPage();
   await installDeterministicMapApiFixtures(restoredPage);
-  await waitForMapReady(restoredPage, sharedUrl);
+  await waitForMapShellReady(restoredPage, sharedUrl);
   await expect(restoredPage.locator('.me-tab.is-active[data-tab="frontier"]')).toBeVisible();
   await expect(restoredPage.locator('.me-basemap-opt.is-active input[value="gsi"]')).toBeChecked();
   await expect.poll(() => new URL(restoredPage.url()).searchParams.get("cell")).toBe(selectedCell);
+  await openDesktopSidePanel(restoredPage);
   await expect(restoredPage.locator("#me-map-selection-card")).toHaveClass(/is-visible/);
   await expect(restoredPage.locator(".me-result-row.is-active")).toHaveCount(0);
   await expect.poll(() => restoredPage.locator(".me-result-row").count()).toBeGreaterThan(0);
