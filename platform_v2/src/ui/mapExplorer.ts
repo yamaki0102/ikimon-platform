@@ -76,6 +76,11 @@ export type MapExplorerCopy = {
   loading: string;
   statsLabel: (returned: number, total: number) => string;
   empty: string;
+  emptyTitle: string;
+  emptyLead: string;
+  emptyActionAreas: string;
+  emptyActionWiden: string;
+  emptyActionRecord: string;
   sideRecentLabel: string;
   recentFindsHint: string;
   sideRevisitLabel: string;
@@ -248,6 +253,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "この範囲はまだこれから。エリアや季節を少し広げると、地域図鑑の入口が見つかるかもしれません。",
+    emptyTitle: "ここは、まだ図鑑が育つ余白です",
+    emptyLead: "何もない場所ではなく、近くの公開エリアや季節を変えると最初の手がかりが見つかる範囲です。",
+    emptyActionAreas: "候補エリアを見る",
+    emptyActionWiden: "少し広げる",
+    emptyActionRecord: "見つけたものを記録",
     sideRecentLabel: "この範囲の地域図鑑",
     recentFindsHint: "この場所で見えたもの",
     sideRevisitLabel: "選んだ場所",
@@ -400,6 +410,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
     empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
+    emptyTitle: "This is room for the guide to grow",
+    emptyLead: "It is not an empty dead end. Nearby public areas or another season can reveal the first clues.",
+    emptyActionAreas: "View candidate areas",
+    emptyActionWiden: "Widen a little",
+    emptyActionRecord: "Record a find",
     sideRecentLabel: "Nearby finds",
     recentFindsHint: "Seen here",
     sideRevisitLabel: "Place story",
@@ -552,6 +567,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
     empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
+    emptyTitle: "Aquí la guía aún puede crecer",
+    emptyLead: "No es un callejón sin salida. Zonas públicas cercanas u otra estación pueden mostrar las primeras pistas.",
+    emptyActionAreas: "Ver áreas candidatas",
+    emptyActionWiden: "Ampliar un poco",
+    emptyActionRecord: "Registrar hallazgo",
     sideRecentLabel: "Hallazgos cercanos",
     recentFindsHint: "Visto aquí",
     sideRevisitLabel: "Historia del lugar",
@@ -704,6 +724,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
     empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
+    emptyTitle: "Este guia ainda tem espaço para crescer",
+    emptyLead: "Não é um beco sem saída. Áreas públicas próximas ou outra estação podem revelar as primeiras pistas.",
+    emptyActionAreas: "Ver áreas candidatas",
+    emptyActionWiden: "Ampliar um pouco",
+    emptyActionRecord: "Registrar achado",
     sideRecentLabel: "Descobertas por perto",
     recentFindsHint: "Visto aqui",
     sideRevisitLabel: "História do local",
@@ -941,6 +966,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const yearValuesJson = escapeHtml(JSON.stringify(yearTimelineValues));
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
   const overlayLabels = overlayPanelLabels(lang);
+  const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
@@ -1314,6 +1340,16 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span aria-hidden="true">📍</span>
         </button>
         <div class="me-map-status" id="me-map-status" role="status" aria-live="polite">${escapeHtml(copy.loading)}</div>
+        <section class="me-empty-invite" id="me-empty-invite" aria-label="${escapeHtml(copy.emptyTitle)}" aria-hidden="true" hidden>
+          <span class="me-results-empty-kicker">${escapeHtml(copy.recordingGapLabel)}</span>
+          <strong>${escapeHtml(copy.emptyTitle)}</strong>
+          <p>${escapeHtml(copy.emptyLead)}</p>
+          <div class="me-results-empty-actions">
+            <button type="button" class="me-results-empty-action is-primary" data-results-empty-areas>${escapeHtml(copy.emptyActionAreas)}</button>
+            <button type="button" class="me-results-empty-action" data-results-empty-widen>${escapeHtml(copy.emptyActionWiden)}</button>
+            <a class="me-results-empty-action" href="${escapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:results_empty_record" data-kpi-funnel="map_empty_results" data-kpi-target="${escapeHtml(recordHref)}">${escapeHtml(copy.emptyActionRecord)}</a>
+          </div>
+        </section>
         <div class="me-legend is-hidden" id="me-legend" aria-hidden="true">
           <div class="me-legend-main">
             <span class="me-legend-label" id="me-legend-label">${escapeHtml(copy.legendLabel)}</span>
@@ -1372,6 +1408,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sideToggleEl = document.getElementById('me-side-toggle');
   var sideRailCountEl = document.getElementById('me-side-rail-count');
   var sideSelectionEmptyEl = document.getElementById('me-side-selection-empty');
+  var emptyInviteEl = document.getElementById('me-empty-invite');
   var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
   var sideTabBtns = document.querySelectorAll('[data-side-tab]');
   function setSideTab(name) {
@@ -1436,6 +1473,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
     empty: copy.empty,
+    emptyTitle: copy.emptyTitle,
+    emptyLead: copy.emptyLead,
+    emptyActionAreas: copy.emptyActionAreas,
+    emptyActionWiden: copy.emptyActionWiden,
+    emptyActionRecord: copy.emptyActionRecord,
     statsTemplate: "__RETURNED__ / __TOTAL__",
     recentFindsHint: copy.recentFindsHint,
     coverageLegendLow: copy.coverageLegendLow,
@@ -2790,6 +2832,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return badges.length ? '<span class="me-result-badges">' + badges.join('') + '</span>' : '';
   }
 
+  function renderResultsEmptyState() {
+    return ''
+      + '<section class="me-results-empty" aria-label="' + escapeHtml(COPY.emptyTitle) + '">'
+      +   '<span class="me-results-empty-kicker">' + escapeHtml(COPY.recordingGapLabel) + '</span>'
+      +   '<strong>' + escapeHtml(COPY.emptyTitle) + '</strong>'
+      +   '<p>' + escapeHtml(COPY.emptyLead) + '</p>'
+      +   '<div class="me-results-empty-actions">'
+      +     '<button type="button" class="me-results-empty-action is-primary" data-results-empty-areas>' + escapeHtml(COPY.emptyActionAreas) + '</button>'
+      +     '<button type="button" class="me-results-empty-action" data-results-empty-widen>' + escapeHtml(COPY.emptyActionWiden) + '</button>'
+      +     '<a class="me-results-empty-action" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:results_empty_record" data-kpi-funnel="map_empty_results" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.emptyActionRecord) + '</a>'
+      +   '</div>'
+      +   '<small>' + escapeHtml(COPY.empty) + '</small>'
+      + '</section>';
+  }
+
+  function setMapEmptyInviteVisible(visible) {
+    if (!emptyInviteEl) return;
+    emptyInviteEl.hidden = !visible;
+    emptyInviteEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  }
+
   function renderResultList() {
     var records = Array.isArray(state.records) ? state.records : [];
     var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
@@ -2798,9 +2861,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!resultsListEl || !sideStatusEl) return;
     if (!records.length) {
       sideStatusEl.textContent = COPY.empty;
-      resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
+      resultsListEl.innerHTML = renderResultsEmptyState();
+      setMapEmptyInviteVisible(true);
       return;
     }
+    setMapEmptyInviteVisible(false);
     sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll + ' · ' + COPY.resultGroupedByDate;
     try {
       resultsListEl.innerHTML = groupResultRecords(records.slice(0, 120)).map(function (group) {
@@ -4969,11 +5034,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   });
 
-  function widenAreaEmptyState() {
+  function widenEmptyViewport() {
     if (!state.map || typeof state.map.getZoom !== 'function' || typeof state.map.easeTo !== 'function') return;
     var currentZoom = Number(state.map.getZoom());
     if (!Number.isFinite(currentZoom)) return;
     state.map.easeTo({ zoom: Math.max(10, currentZoom - 1.4), duration: 450 });
+  }
+  function widenAreaEmptyState() {
+    widenEmptyViewport();
   }
   document.addEventListener('click', function (event) {
     var target = event.target;
@@ -4982,6 +5050,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!button) return;
     event.preventDefault();
     widenAreaEmptyState();
+  });
+
+  function switchMapTab(tab) {
+    state.tab = tab || 'markers';
+    document.querySelectorAll('.me-tab').forEach(function (b) {
+      var active = b.getAttribute('data-tab') === state.tab;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    if (state.map) {
+      applyTab(state.map, state.tab);
+      if (state.tab === 'frontier') loadFrontier(state.map);
+      if (state.tab === 'places') loadAreaPolygons();
+      maybeShowLayerHint(state.tab);
+    }
+    saveMapState();
+  }
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var areasButton = target.closest('[data-results-empty-areas]');
+    if (areasButton) {
+      event.preventDefault();
+      switchMapTab('places');
+      return;
+    }
+    var widenButton = target.closest('[data-results-empty-widen]');
+    if (widenButton) {
+      event.preventDefault();
+      widenEmptyViewport();
+    }
   });
 
   function coverSourceLabel(source) {
@@ -7189,17 +7288,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   document.querySelectorAll('.me-tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var t = btn.getAttribute('data-tab') || 'markers';
-      state.tab = t;
-      document.querySelectorAll('.me-tab').forEach(function (b) {
-        b.classList.toggle('is-active', b === btn);
-        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
-      });
-      if (state.map) {
-        applyTab(state.map, state.tab);
-        if (state.tab === 'frontier') loadFrontier(state.map);
-        maybeShowLayerHint(state.tab);
-      }
-      saveMapState();
+      switchMapTab(t);
     });
   });
   if (layerHintJumpEl) {
@@ -8252,6 +8341,25 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 6px 14px rgba(15,23,42,.08);
     backdrop-filter: blur(8px);
   }
+  .me-empty-invite {
+    position: absolute;
+    left: 18px;
+    bottom: 58px;
+    z-index: 5;
+    display: grid;
+    gap: 10px;
+    width: min(340px, calc(100% - 128px));
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(14,165,233,.14);
+    box-shadow: 0 16px 34px rgba(15,23,42,.12);
+    backdrop-filter: blur(14px);
+    color: #64748b;
+  }
+  .me-empty-invite[hidden] { display: none; }
+  .me-empty-invite strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 900; }
+  .me-empty-invite p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 700; }
   .me-discovery-preview {
     width: 72px;
     min-height: 78px;
@@ -9951,6 +10059,37 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 13px;
     color: #64748b;
   }
+  .me-results-empty { display: grid; gap: 10px; border-color: rgba(14,165,233,.12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.64); }
+  .me-results-empty-kicker {
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(14,165,233,.1);
+    color: #0369a1;
+    font-size: 10px;
+    line-height: 1.3;
+    font-weight: 900;
+  }
+  .me-results-empty strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 900; }
+  .me-results-empty p, .me-results-empty small { margin: 0; color: #64748b; line-height: 1.55; }
+  .me-results-empty small { font-size: 11px; }
+  .me-results-empty-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .me-results-empty-action {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 38px; padding: 8px 10px; border-radius: 12px;
+    border: 1px solid rgba(15,23,42,.1); background: #fff;
+    color: #0f172a; text-decoration: none; cursor: pointer;
+    font-size: 12px; line-height: 1.25; font-weight: 850; text-align: center;
+  }
+  .me-results-empty-action.is-primary {
+    background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(14,165,233,.14));
+    border-color: rgba(16,185,129,.32);
+    color: #065f46;
+  }
+  @media (min-width: 1180px) {
+    .me-results-empty-actions { grid-template-columns: 1fr 1fr; }
+    .me-results-empty-action:first-child { grid-column: 1 / -1; }
+  }
   .me-overlap-choice-popup .maplibregl-popup-content {
     padding: 8px;
     border-radius: 12px;
@@ -10103,6 +10242,16 @@ export const MAP_EXPLORER_STYLES = `
       top: auto;
       max-width: calc(100% - 96px);
     }
+    .me-empty-invite {
+      left: 10px;
+      bottom: 138px;
+      width: min(360px, calc(100% - 20px));
+      max-height: min(270px, calc(100dvh - var(--me-header-h) - var(--me-topbar-h) - 170px));
+      overflow: auto;
+      padding: 12px;
+    }
+    .me-empty-invite .me-results-empty-actions { grid-template-columns: 1fr 1fr; }
+    .me-empty-invite .me-results-empty-action:first-child { grid-column: 1 / -1; }
     .me-locate-fab { bottom: 96px; }
     .me-layer-hint {
       left: 10px;
