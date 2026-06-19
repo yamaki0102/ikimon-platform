@@ -67,6 +67,10 @@ function isAppRuntime(env: Env): boolean {
   return env.ENVIRONMENT === "shadow" || env.ENVIRONMENT === "production";
 }
 
+const IKIMON_GA4_MEASUREMENT_ID = "G-NCL0M1VJZ2";
+const IKIMON_CLARITY_PROJECT_ID = "wl2ezvfqbh";
+const REFLECTION_LOOP_MANIFEST_PATH = "/qa/reflection-loop.json";
+
 interface DraftAssetInput {
   mime: string;
   bytes: number;
@@ -912,6 +916,10 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/readyz") {
         return getReadyz(env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && url.pathname === REFLECTION_LOOP_MANIFEST_PATH) {
+        return getReflectionLoopManifest(url, env);
       }
 
       if (url.pathname.startsWith("/internal/")) {
@@ -6545,6 +6553,97 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
     status,
     headers: { "content-type": "application/json; charset=utf-8", ...(headers ?? {}) }
   });
+}
+
+function getReflectionLoopManifest(url: URL, env: Env): Response {
+  const publicHtmlPaths = [...ORIGINAL_UI_HTML_STATIC_PATHS].sort();
+  return json({
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    service: "ikimon.life",
+    origin: url.origin,
+    runtime: "cloudflare-worker",
+    environment: env.ENVIRONMENT,
+    manifest_path: REFLECTION_LOOP_MANIFEST_PATH,
+    ok: true,
+    loop_contract: {
+      name: "Reflection Loop",
+      purpose: "production autonomous audit and improvement loop for public UX, route coverage, measurement, deployment health, and operational drift",
+      no_personal_data: true,
+      public_safe: true,
+      mutation_boundary: "code changes flow through GitHub PR, required checks, admin merge only when review is the sole blocker, and Cloudflare production deploy smoke",
+      stop_conditions: [
+        "direct production database mutation",
+        "secret or OAuth credential change",
+        "billing or permission change",
+        "customer or external message send",
+        "delete or history rewrite"
+      ]
+    },
+    analytics: {
+      ga4_measurement_id: IKIMON_GA4_MEASUREMENT_ID,
+      clarity_project_id: IKIMON_CLARITY_PROJECT_ID,
+      evidence_level: "configured_static_ids_only",
+      personal_data_in_manifest: false
+    },
+    coverage: {
+      cloudflare_worker: {
+        source: "platform_v2/cloudflare_shadow/src/index.ts",
+        public_html_path_count: publicHtmlPaths.length,
+        public_html_paths: publicHtmlPaths,
+        worker_routes: [
+          "ikimon.life/*",
+          "www.ikimon.life/*",
+          "staging.ikimon.life/api/v1/map/*",
+          "staging.ikimon.life/derived/*"
+        ],
+        smoke_paths: [
+          "/healthz",
+          "/readyz",
+          REFLECTION_LOOP_MANIFEST_PATH
+        ]
+      },
+      node_platform: {
+        source: "platform_v2/src/services/reflectionLoopManifest.ts",
+        registry_source: "platform_v2/src/siteMap.ts",
+        public_manifest_surface: REFLECTION_LOOP_MANIFEST_PATH,
+        qa_site_map_surface: "/qa/site-map"
+      }
+    },
+    improvement_loop: {
+      inputs: [
+        "route registry",
+        "production HTTP smoke",
+        "Cloudflare deploy guard",
+        "page inventory",
+        "analytics and behavior evidence",
+        "visual and accessibility QA findings",
+        "operations decision and risk logs"
+      ],
+      cycle: [
+        "inspect",
+        "rank",
+        "change",
+        "validate locally",
+        "deploy to production",
+        "smoke production",
+        "record evidence",
+        "repeat"
+      ],
+      priority_basis: {
+        default_order: [
+          "safety/privacy/security",
+          "production availability and deployability",
+          "recording and map core journeys",
+          "measurement coverage",
+          "public content clarity and sitemap coverage",
+          "visual consistency and performance"
+        ],
+        basis: "research-informed decision intelligence plus live production evidence",
+        continuously_updated: true
+      }
+    }
+  }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
 function authorizeInternalRequest(request: Request, env: Env): Response | null {
