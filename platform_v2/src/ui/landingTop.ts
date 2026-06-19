@@ -670,6 +670,111 @@ function renderLandingContentWallLane(
     </section>`;
 }
 
+type LandingOwnPlaceCard = {
+  place: LandingSnapshot["myPlaces"][number];
+  imageObservation: LandingObservation | null;
+};
+
+function ownPlaceKey(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function findOwnPlaceImage(place: LandingSnapshot["myPlaces"][number], myFeed: LandingObservation[]): LandingObservation | null {
+  const placeKey = ownPlaceKey(place.placeName);
+  const municipalityKey = ownPlaceKey(place.municipality);
+  return myFeed.find((obs) => {
+    if (!observationImageUrl(obs, "sm")) return false;
+    const obsPlaceKey = ownPlaceKey(obs.placeName);
+    const obsMunicipalityKey = ownPlaceKey(obs.municipality);
+    return (placeKey && obsPlaceKey && placeKey === obsPlaceKey)
+      || (municipalityKey && obsMunicipalityKey && municipalityKey === obsMunicipalityKey);
+  }) ?? myFeed.find((obs) => Boolean(observationImageUrl(obs, "sm"))) ?? null;
+}
+
+function ownPlaceMapHref(basePath: string, lang: SiteLang, place: LandingSnapshot["myPlaces"][number]): string {
+  const params = new URLSearchParams({ tab: "markers" });
+  if (typeof place.longitude === "number" && Number.isFinite(place.longitude)
+    && typeof place.latitude === "number" && Number.isFinite(place.latitude)) {
+    params.set("lng", place.longitude.toFixed(5));
+    params.set("lat", place.latitude.toFixed(5));
+    params.set("z", "16.2");
+  }
+  return landingHref(basePath, lang, `/map?${params.toString()}`);
+}
+
+function ownPlaceRecordHref(basePath: string, lang: SiteLang, place: LandingSnapshot["myPlaces"][number]): string {
+  const sourceId = place.latestVisitId || place.placeId;
+  return landingHref(basePath, lang, `/record?start=gallery&revisitObservationId=${encodeURIComponent(sourceId)}`);
+}
+
+function ownPlaceCardTitle(place: LandingSnapshot["myPlaces"][number]): string {
+  return compactNearbyLabel(place.placeName || place.municipality || place.latestDisplayName || "いつもの場所");
+}
+
+function ownPlaceCardSubcopy(place: LandingSnapshot["myPlaces"][number], lang: SiteLang): string {
+  const subject = normalizeDisplaySubject(place.latestDisplayName);
+  if (place.revisitReason) return place.revisitReason;
+  if (place.nextLookFor) return place.nextLookFor;
+  if (subject) return lang === "ja" ? `${subject}を見返せます` : subject;
+  return lang === "ja" ? "前の記録から続けられます" : "Continue from your previous record";
+}
+
+function renderLandingOwnPlaceTrail(options: LandingTopRenderOptions): string {
+  const { basePath, lang, snapshot } = options;
+  if (!snapshot.viewerUserId || snapshot.myPlaces.length === 0 || snapshot.myFeed.length === 0) return "";
+  const cards: LandingOwnPlaceCard[] = snapshot.myPlaces
+    .filter(isMeaningfulNearbyPlace)
+    .slice(0, 4)
+    .map((place) => ({ place, imageObservation: findOwnPlaceImage(place, snapshot.myFeed) }));
+  if (cards.length === 0) return "";
+  const copy = lang === "ja"
+    ? {
+        title: "自分が残した場所",
+        lead: "前に行った場所へ、写真から戻れます。",
+        map: "地図で見る",
+        record: "もう一度記録",
+        count: "件",
+      }
+    : {
+        title: "Your places",
+        lead: "Return to places you recorded from your photos.",
+        map: "Open map",
+        record: "Record again",
+        count: "records",
+      };
+  return `<section class="prototype-own-places" aria-label="${escapeHtml(copy.title)}">
+    <div class="prototype-own-places-head">
+      <h3>${escapeHtml(copy.title)}</h3>
+      <p>${escapeHtml(copy.lead)}</p>
+    </div>
+    <div class="prototype-own-places-grid">
+      ${cards.map(({ place, imageObservation }, index) => {
+        const title = ownPlaceCardTitle(place);
+        const imageUrl = imageObservation ? observationImageUrl(imageObservation, "md") : null;
+        const subject = normalizeDisplaySubject(place.latestDisplayName);
+        const mapHref = ownPlaceMapHref(basePath, lang, place);
+        const recordHref = ownPlaceRecordHref(basePath, lang, place);
+        const imageHtml = imageUrl
+          ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />`
+          : `<span aria-hidden="true"></span>`;
+        return `<article class="prototype-own-place-card">
+          <a class="prototype-own-place-thumb" href="${escapeHtml(mapHref)}" data-kpi-action="landing:own_place:map">${imageHtml}</a>
+          <div class="prototype-own-place-copy">
+            <span>${escapeHtml(formatLandingNumber(options.copy, place.visitCount))}${escapeHtml(copy.count)}</span>
+            <strong>${escapeHtml(title)}</strong>
+            <small>${escapeHtml(ownPlaceCardSubcopy(place, lang))}</small>
+            ${subject ? `<em>${escapeHtml(subject)}</em>` : ""}
+          </div>
+          <div class="prototype-own-place-actions">
+            <a href="${escapeHtml(mapHref)}" data-kpi-action="landing:own_place:map">${escapeHtml(copy.map)}</a>
+            <a href="${escapeHtml(recordHref)}" data-kpi-action="landing:own_place:record" data-kpi-event="primary_cta_click" data-kpi-funnel="landing_record" data-kpi-target="${escapeHtml(recordHref)}">${escapeHtml(copy.record)}</a>
+          </div>
+        </article>`;
+      }).join("")}
+    </div>
+  </section>`;
+}
+
 function renderLandingContentWall(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
   const wallCopy = landingContentWallCopy(lang);
@@ -691,6 +796,7 @@ function renderLandingContentWall(options: LandingTopRenderOptions): string {
   const splitClass = snapshot.viewerUserId ? " is-split" : "";
 
   return `<section class="prototype-content-wall" aria-label="${escapeHtml(wallCopy.title)}">
+    ${renderLandingOwnPlaceTrail(options)}
     <div class="prototype-content-lanes${splitClass}">${laneHtml}</div>
   </section>`;
 }
@@ -2186,6 +2292,152 @@ export const LANDING_TOP_STYLES = `
     border-radius: 0;
     background: transparent;
     box-shadow: none;
+  }
+  .prototype-own-places {
+    display: grid;
+    gap: 12px;
+    padding-block: 2px 10px;
+    border-bottom: 1px solid rgba(15,23,42,.08);
+  }
+  .prototype-own-places-head {
+    display: grid;
+    gap: 3px;
+  }
+  .prototype-own-places-head h3 {
+    margin: 0;
+    color: #10251a;
+    font-size: 19px;
+    line-height: 1.25;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .prototype-own-places-head p {
+    max-width: 680px;
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.55;
+    font-weight: 760;
+  }
+  .prototype-own-places-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .prototype-own-place-card {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 9px;
+  }
+  .prototype-own-place-thumb {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(15,23,42,.08);
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 18px 18px, 18px 18px, auto;
+    text-decoration: none;
+  }
+  .prototype-own-place-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    transition: transform .18s ease;
+  }
+  .prototype-own-place-thumb:hover img {
+    transform: scale(1.025);
+  }
+  .prototype-own-place-thumb > span {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: rgba(16,185,129,.14);
+  }
+  .prototype-own-place-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .prototype-own-place-copy span {
+    width: fit-content;
+    min-height: 20px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .prototype-own-place-copy strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .prototype-own-place-copy small {
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+    font-weight: 760;
+  }
+  .prototype-own-place-copy em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #0f766e;
+    font-size: 11px;
+    line-height: 1.2;
+    font-style: normal;
+    font-weight: 900;
+  }
+  .prototype-own-place-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+  .prototype-own-place-actions a {
+    min-width: 0;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    font-size: 11px;
+    line-height: 1.1;
+    font-weight: 950;
+    text-align: center;
+    text-decoration: none;
+  }
+  .prototype-own-place-actions a:last-child {
+    border-color: rgba(16,185,129,.24);
+    background: #ecfdf5;
+    color: #047857;
   }
   .prototype-content-grid {
     display: grid;
@@ -4068,6 +4320,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-trust { grid-template-columns: 1fr; }
     .prototype-content-lanes.is-split { grid-template-columns: 1fr; }
+    .prototype-own-places-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-content-grid { grid-template-columns: var(--ikimon-record-card-grid-tablet); gap: var(--ikimon-record-card-grid-gap-tablet); }
     .prototype-topa-map-shelf { grid-template-columns: 1fr; }
     .prototype-sound-os { grid-template-columns: 1fr; }
@@ -4141,6 +4394,34 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-metrics span { min-height: 32px; flex-direction: row; gap: 5px; }
     .prototype-topa-metrics strong { font-size: 15px; }
     .prototype-content-wall { padding: 0; gap: 14px; }
+    .prototype-own-places {
+      gap: 10px;
+      padding-bottom: 12px;
+    }
+    .prototype-own-places-head h3 {
+      font-size: 17px;
+    }
+    .prototype-own-places-head p {
+      font-size: 12px;
+    }
+    .prototype-own-places-grid {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(238px, 78vw);
+      grid-template-columns: none;
+      gap: 10px;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .prototype-own-places-grid::-webkit-scrollbar { display: none; }
+    .prototype-own-place-card { scroll-snap-align: start; }
+    .prototype-own-place-thumb { aspect-ratio: 16 / 10; }
+    .prototype-own-place-actions a {
+      min-height: 36px;
+      font-size: 11px;
+    }
     .prototype-content-lanes { gap: 22px; }
     .prototype-content-lane { gap: 11px; }
     .prototype-content-lane + .prototype-content-lane {
@@ -4609,6 +4890,12 @@ export const LANDING_TOP_STYLES = `
     .prototype-empty-actions { display: grid; grid-template-columns: 1fr; }
     .prototype-btn { width: 100%; white-space: normal; text-align: center; }
     .prototype-hero-visual { min-height: 700px; }
+    .prototype-own-places-grid {
+      grid-auto-columns: minmax(224px, 82vw);
+    }
+    .prototype-own-place-actions {
+      gap: 6px;
+    }
     .prototype-content-grid { grid-template-columns: var(--ikimon-record-card-grid-mobile); gap: var(--ikimon-record-card-grid-gap-compact); }
     .prototype-content-author {
       grid-template-columns: 20px minmax(0, 1fr);

@@ -398,6 +398,49 @@ test("landing top renders signed-in own and community posts as thumbnail content
   assert.match(html, /別の観察者/);
 });
 
+test("landing top returns signed-in users to their own places with thumbnails", () => {
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: "user-1",
+    myFeed: [{
+      ...photoObservation,
+      placeName: "佐鳴湖公園",
+      municipality: "浜松市",
+      photoUrl: "/uploads/my-sanaru.jpg",
+    }],
+    myPlaces: [{
+      placeId: "place-sanaru",
+      placeName: "佐鳴湖公園",
+      municipality: "浜松市",
+      lastObservedAt: "2026-04-08T09:00:00.000Z",
+      previousObservedAt: "2026-03-28T09:00:00.000Z",
+      firstObservedAt: "2026-03-28T09:00:00.000Z",
+      visitCount: 4,
+      latestVisitId: "visit-sanaru-latest",
+      latestDisplayName: "モンシロチョウ",
+      revisitReason: "夕方にもう一度見たい",
+      nextLookFor: null,
+      lastRecordMode: "manual",
+      lastSurveyResult: null,
+      absenceSemantics: null,
+      latitude: 34.71234,
+      longitude: 137.71234,
+    }],
+  });
+
+  assert.match(html, /<section class="prototype-own-places" aria-label="自分が残した場所">/);
+  assert.match(html, /<h3>自分が残した場所<\/h3>/);
+  assert.match(html, /<img src="\/thumb\/md\/my-sanaru\.jpg" alt="佐鳴湖公園" loading="eager" decoding="async"/);
+  assert.match(html, /<span>4件<\/span>/);
+  assert.match(html, /<strong>佐鳴湖公園<\/strong>/);
+  assert.match(html, /夕方にもう一度見たい/);
+  assert.match(html, /<em>モンシロチョウ<\/em>/);
+  assert.match(html, /href="\/ja\/map\?tab=markers&amp;lng=137\.71234&amp;lat=34\.71234&amp;z=16\.2"/);
+  assert.match(html, /data-kpi-action="landing:own_place:map"/);
+  assert.match(html, /href="\/ja\/record\?start=gallery&amp;revisitObservationId=visit-sanaru-latest"/);
+  assert.match(html, /data-kpi-action="landing:own_place:record"/);
+});
+
 test("landing top gives signed-in own and community posts two desktop rows each", () => {
   const makeObservation = (index: number, observerUserId: string): LandingObservation => ({
     ...photoObservation,
@@ -548,7 +591,6 @@ test("landing top does not render the signed-in continuation hero above the cont
   assert.doesNotMatch(html, /前回の記録を見る/);
   assert.doesNotMatch(html, /同じ場所でもう1件/);
   assert.doesNotMatch(html, /data-kpi-action="landing:story:revisit_record"/);
-  assert.doesNotMatch(html, /data-kpi-funnel="landing_record"/);
   assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
 });
 
