@@ -523,10 +523,16 @@ function liveElementSource(element: OverpassElement): { source: AreaPolygonSourc
   const tags = element.tags ?? {};
   const amenity = tags.amenity ?? "";
   const landuse = tags.landuse ?? "";
+  const building = tags.building ?? "";
+  const hasName = Boolean((tags["name:ja"] ?? tags.name ?? tags.alt_name ?? "").trim());
+  const namedEducationBuilding = hasName && (
+    building === "school" || building === "college" || building === "university" || building === "kindergarten"
+  );
   if (
     amenity === "school" || amenity === "college" || amenity === "university" ||
     amenity === "kindergarten" || amenity === "childcare" ||
-    landuse === "education" || landuse === "school" || landuse === "college" || landuse === "university" || landuse === "kindergarten"
+    landuse === "education" || landuse === "school" || landuse === "college" || landuse === "university" || landuse === "kindergarten" ||
+    namedEducationBuilding
   ) {
     return { source: "school", label: "学校・キャンパス (OSM live)", fallbackName: "OSMの学校・キャンパス" };
   }
