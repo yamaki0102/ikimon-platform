@@ -160,16 +160,20 @@ test("area sheets gate contribution CTAs behind public access evidence", () => {
   assert.match(script, /return areaAccessStatus\(area, masking\) === 'public_access';/);
   assert.match(script, /function canSuggestDirectAreaRecord\(area, masking\)/);
   assert.match(script, /function renderRestrictedAreaAction\(\)/);
+  assert.match(script, /function renderAreaNextStepCard\(options\)/);
+  assert.match(script, /COPY\.areaNextStepRestrictedLine/);
   assert.match(script, /COPY\.areaSchoolNotice/);
   assert.match(script, /var canRecord = canSuggestDirectAreaRecord\(f, masking\);/);
   assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml, canSuggestEvent\)/);
-  assert.match(script, /if \(canSuggestEvent === false \|\| !eventHref\) \{\s+return renderRestrictedAreaAction\(\) \+ metaHtml;/);
+  assert.match(script, /if \(canSuggestEvent === false \|\| !eventHref\) \{\s+return metaHtml;/);
+  assert.match(script, /var nextStepHtml = renderAreaNextStepCard\(\{/);
+  assert.match(script, /var followHtml = canRecord \? renderAreaFollowButton/);
   assert.match(script, /var primaryActionsHtml = renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml, canRecord\);/);
   assert.match(script, /var activityHtml = canRecord\s+\? renderAreaActivityRallyPanel/);
-  assert.match(script, /: renderRestrictedAreaAction\(\) \+ metaHtml;/);
+  assert.match(script, /: metaHtml;/);
   assert.match(
     script,
-    /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml \+ followHtml \+ publicPageHtml/,
+    /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml \+ followHtml \+ publicPageHtml/,
   );
   assert.match(
     script,
@@ -488,7 +492,7 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
   assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
   assert.doesNotMatch(script, /eventsNewHrefTemplate/);
   assert.doesNotMatch(script, /\/community\/events\/new/);
-  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ primaryActionsHtml \+ positiveHtml/);
+  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml/);
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {
@@ -506,7 +510,7 @@ test("area sheet exposes on-site guide stops with geolocation-gated playback", (
   assert.match(script, /GUIDE_LANG_ORDER = \['ja', 'en', 'zh-TW', 'zh-CN'\]/);
   assert.match(script, /SpeechSynthesisUtterance/);
   assert.match(script, /hydrateAreaGuideStopControls\(sheetInnerEl\)/);
-  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml/);
+  assert.match(script, /return heroHtml \+ accessHtml \+ maskingHtml \+ safetyNoticeHtml \+ nextStepHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml/);
 });
 
 test("map viewport movement refreshes stale result panels automatically", () => {

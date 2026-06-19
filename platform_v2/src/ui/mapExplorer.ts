@@ -104,6 +104,16 @@ export type MapExplorerCopy = {
   areaRestrictedActionLabel: string;
   areaRestrictedActionHint: string;
   areaSafeRecordLabel: string;
+  areaNextStepEyebrow: string;
+  areaNextStepRecordTitle: string;
+  areaNextStepRestrictedTitle: string;
+  areaNextStepScopeLine: string;
+  areaNextStepRecordLine: string;
+  areaNextStepFirstRecordLine: string;
+  areaNextStepBrowseLine: string;
+  areaNextStepGuideLine: string;
+  areaNextStepRestrictedLine: string;
+  areaNextStepRecordCta: string;
   areaSchoolNotice: string;
   cellAggregateTitle: string;
   cellAggregateBadge: string;
@@ -248,6 +258,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "地域のルールを確認",
     areaRestrictedActionHint: "学校・立入制限・未確認の場所では、許可された観察だけを扱います。",
     areaSafeRecordLabel: "公開範囲を確認して記録",
+    areaNextStepEyebrow: "次にできること",
+    areaNextStepRecordTitle: "安全に、この場所の図鑑を育てる",
+    areaNextStepRestrictedTitle: "まず安全と許可を確認",
+    areaNextStepScopeLine: "現地の案内板・公開範囲・管理者のルールを優先する。",
+    areaNextStepRecordLine: "公開範囲で見つけたものだけを記録し、正確な立入場所を無理に残さない。",
+    areaNextStepFirstRecordLine: "まだ記録が少ない場所です。公開範囲で見つけたものが最初の手がかりになります。",
+    areaNextStepBrowseLine: "先に写真や季節の記録を見て、見に行く理由を決める。",
+    areaNextStepGuideLine: "現地ガイドがある場所は、近づいてから音声や説明を開く。",
+    areaNextStepRestrictedLine: "学校・私有地・未確認区域では、敷地内へ入らず、許可された観察だけを扱う。",
+    areaNextStepRecordCta: "安全に記録する",
     areaSchoolNotice: "学校・キャンパスは関係者区域を含みます。無許可で敷地内に入らず、公開範囲と学校・管理者の許可がある観察だけを扱います。",
     cellAggregateTitle: "この範囲の記録の厚み",
     cellAggregateBadge: "地域単位の集計",
@@ -372,6 +392,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "Check local rules",
     areaRestrictedActionHint: "For schools, restricted, or unverified places, only permitted observations are handled.",
     areaSafeRecordLabel: "Record after checking scope",
+    areaNextStepEyebrow: "Next step",
+    areaNextStepRecordTitle: "Grow this area guide safely",
+    areaNextStepRestrictedTitle: "Check safety and permission first",
+    areaNextStepScopeLine: "Follow signs, public scope, and manager rules before acting.",
+    areaNextStepRecordLine: "Record only what you find from public scope; do not force an exact entry point.",
+    areaNextStepFirstRecordLine: "This place has few records. A public-scope find can become the first clue.",
+    areaNextStepBrowseLine: "Scan photos and seasonal records first, then decide why to visit.",
+    areaNextStepGuideLine: "If an on-site guide is available, open audio or notes only when you are nearby.",
+    areaNextStepRestrictedLine: "For schools, private land, or unverified areas, do not enter; handle only permitted observations.",
+    areaNextStepRecordCta: "Record safely",
     areaSchoolNotice: "Schools and campuses may include restricted areas. Do not enter without permission; only handle observations within approved public scope.",
     cellAggregateTitle: "Record density in this area",
     cellAggregateBadge: "Area aggregate",
@@ -496,6 +526,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "Revisar reglas locales",
     areaRestrictedActionHint: "En escuelas, zonas restringidas o no verificadas, solo se tratan observaciones permitidas.",
     areaSafeRecordLabel: "Registrar tras revisar alcance",
+    areaNextStepEyebrow: "Siguiente paso",
+    areaNextStepRecordTitle: "Hacer crecer esta guia de forma segura",
+    areaNextStepRestrictedTitle: "Revisa seguridad y permiso primero",
+    areaNextStepScopeLine: "Prioriza senales, alcance publico y reglas del administrador.",
+    areaNextStepRecordLine: "Registra solo lo que encuentres desde un alcance publico; no fuerces un punto exacto de entrada.",
+    areaNextStepFirstRecordLine: "Este lugar tiene pocos registros. Un hallazgo desde un alcance publico puede ser la primera pista.",
+    areaNextStepBrowseLine: "Mira fotos y registros estacionales antes de decidir por que visitar.",
+    areaNextStepGuideLine: "Si hay guia en sitio, abre audio o notas solo cuando estes cerca.",
+    areaNextStepRestrictedLine: "En escuelas, terrenos privados o areas no verificadas, no entres; trata solo observaciones permitidas.",
+    areaNextStepRecordCta: "Registrar con seguridad",
     areaSchoolNotice: "Las escuelas y campus pueden incluir zonas restringidas. No entres sin permiso; usa solo observaciones aprobadas para publicar.",
     cellAggregateTitle: "Densidad de registros en esta zona",
     cellAggregateBadge: "Agregado de zona",
@@ -620,6 +660,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "Ver regras locais",
     areaRestrictedActionHint: "Em escolas, áreas restritas ou não verificadas, apenas observações permitidas são tratadas.",
     areaSafeRecordLabel: "Registrar após revisar escopo",
+    areaNextStepEyebrow: "Proximo passo",
+    areaNextStepRecordTitle: "Fazer este guia crescer com seguranca",
+    areaNextStepRestrictedTitle: "Verifique seguranca e permissao primeiro",
+    areaNextStepScopeLine: "Priorize placas, escopo publico e regras do gestor.",
+    areaNextStepRecordLine: "Registre apenas o que encontrar em escopo publico; nao force um ponto exato de entrada.",
+    areaNextStepFirstRecordLine: "Este lugar tem poucos registros. Um achado em escopo publico pode virar a primeira pista.",
+    areaNextStepBrowseLine: "Veja fotos e registros sazonais antes de decidir por que visitar.",
+    areaNextStepGuideLine: "Se houver guia no local, abra audio ou notas somente quando estiver perto.",
+    areaNextStepRestrictedLine: "Em escolas, areas privadas ou nao verificadas, nao entre; trate apenas observacoes permitidas.",
+    areaNextStepRecordCta: "Registrar com seguranca",
     areaSchoolNotice: "Escolas e campus podem incluir áreas restritas. Não entre sem permissão; use apenas observações aprovadas para publicação.",
     cellAggregateTitle: "Densidade de registros nesta área",
     cellAggregateBadge: "Agregado da área",
@@ -1337,6 +1387,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaRestrictedActionLabel: copy.areaRestrictedActionLabel,
     areaRestrictedActionHint: copy.areaRestrictedActionHint,
     areaSafeRecordLabel: copy.areaSafeRecordLabel,
+    areaNextStepEyebrow: copy.areaNextStepEyebrow,
+    areaNextStepRecordTitle: copy.areaNextStepRecordTitle,
+    areaNextStepRestrictedTitle: copy.areaNextStepRestrictedTitle,
+    areaNextStepScopeLine: copy.areaNextStepScopeLine,
+    areaNextStepRecordLine: copy.areaNextStepRecordLine,
+    areaNextStepFirstRecordLine: copy.areaNextStepFirstRecordLine,
+    areaNextStepBrowseLine: copy.areaNextStepBrowseLine,
+    areaNextStepGuideLine: copy.areaNextStepGuideLine,
+    areaNextStepRestrictedLine: copy.areaNextStepRestrictedLine,
+    areaNextStepRecordCta: copy.areaNextStepRecordCta,
     areaSchoolNotice: copy.areaSchoolNotice,
     cellAggregateTitle: copy.cellAggregateTitle,
     cellAggregateBadge: copy.cellAggregateBadge,
@@ -3734,6 +3794,35 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return '<div class="me-area-sensitive me-area-action-note"><strong>' + escapeHtml(COPY.areaRestrictedActionLabel) + '</strong><br>' + escapeHtml(COPY.areaRestrictedActionHint) + '</div>';
   }
 
+  function renderAreaNextStepCard(options) {
+    var canRecord = !!(options && options.canRecord);
+    var hasRecords = Number(options && options.observationCount || 0) > 0 || !!(options && options.hasGallery);
+    var hasGuide = !!(options && options.hasGuide);
+    var title = canRecord ? COPY.areaNextStepRecordTitle : COPY.areaNextStepRestrictedTitle;
+    var lines = [COPY.areaNextStepScopeLine];
+    if (canRecord) {
+      lines.push(hasRecords ? COPY.areaNextStepRecordLine : COPY.areaNextStepFirstRecordLine);
+    } else {
+      lines.push(COPY.areaNextStepRestrictedLine);
+    }
+    if (hasRecords) lines.push(COPY.areaNextStepBrowseLine);
+    if (hasGuide) lines.push(COPY.areaNextStepGuideLine);
+    var cta = canRecord
+      ? '<a class="me-area-next-step-cta" href="' + escapeHtml(RECORD_HREF) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:next_step_record" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.areaNextStepRecordCta) + '</a>'
+      : '';
+    return ''
+      + '<section class="me-area-next-step' + (canRecord ? '' : ' is-restricted') + '" aria-label="' + escapeHtml(COPY.areaNextStepEyebrow) + '">'
+      +   '<div class="me-area-next-step-head">'
+      +     '<span>' + escapeHtml(COPY.areaNextStepEyebrow) + '</span>'
+      +     '<strong>' + escapeHtml(title) + '</strong>'
+      +   '</div>'
+      +   '<ul>'
+      +     lines.map(function (line) { return '<li>' + escapeHtml(line) + '</li>'; }).join('')
+      +   '</ul>'
+      +   cta
+      + '</section>';
+  }
+
   function renderAggregateSafety(text) {
     return '<section class="me-aggregate-safety me-detail-section">' + escapeHtml(text) + '</section>';
   }
@@ -4445,20 +4534,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
     var guidance = transientAccessGuidance(props);
     var canRecord = canSuggestDirectAreaRecord(props, null);
+    var guideStopHtml = renderAreaGuideStop(props, safeCenter);
+    var galleryItems = transientAreaGalleryItems(feature, safeCenter);
+    var nextStepHtml = renderAreaNextStepCard({
+      canRecord: canRecord,
+      observationCount: galleryItems.length,
+      hasGallery: galleryItems.length > 0,
+      hasGuide: !!guideStopHtml,
+    });
     var metaHtml = sourceLinksHtml || sourceTrustHtml
       ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'
       : '';
     var activityHtml = canRecord
       ? renderAreaActivityRallyPanel(sourceLinksHtml + sourceTrustHtml + '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>')
-      : renderRestrictedAreaAction() + metaHtml;
+      : metaHtml;
     return ''
       + renderAreaHero({ title: areaName, sourceLabel: sourceLabel, meta: locationLabel, photo: null })
-      + activityHtml
-      + renderAreaGuideStop(props, safeCenter)
       + renderAreaAccessGuidance(guidance)
       + renderAreaSafetyNotice(props, null)
-      + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
-      + renderAreaObservationGallery(transientAreaGalleryItems(feature, safeCenter), { label: COPY.areaGalleryTitle, canRecord: canRecord })
+      + nextStepHtml
+      + activityHtml
+      + guideStopHtml
+      + (canRecord ? renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId })) : '')
+      + renderAreaObservationGallery(galleryItems, { label: COPY.areaGalleryTitle, canRecord: canRecord })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
       + '<div class="me-area-sheet-timeline is-empty">' + escapeHtml(COPY.unregisteredAreaText) + '</div>';
   }
@@ -5048,7 +5146,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'
       : '';
     if (canSuggestEvent === false || !eventHref) {
-      return renderRestrictedAreaAction() + metaHtml;
+      return metaHtml;
     }
     var albumHtml = '<a class="me-area-primary-action me-area-primary-action-album" href="' + escapeHtml(albumHref) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:album" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(albumHref) + '">'
       + '<span aria-hidden="true">□</span>'
@@ -5076,13 +5174,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence, f.verificationLabel, f.verificationLevel);
     var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
     var canRecord = canSuggestDirectAreaRecord(f, masking);
-    var followHtml = renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId }));
+    var followHtml = canRecord ? renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId })) : '';
     var selectedAreaFeature = state.selectedPoint && state.selectedPoint.areaFeature ? state.selectedPoint.areaFeature : null;
     var selectedAreaProps = selectedAreaFeature && selectedAreaFeature.properties ? selectedAreaFeature.properties : f;
     var selectedAreaCenter = selectedAreaFeature
       ? areaFeatureCenter(selectedAreaFeature, state.selectedPoint && state.selectedPoint.lat, state.selectedPoint && state.selectedPoint.lng)
       : (state.selectedPoint && Number.isFinite(state.selectedPoint.lat) && Number.isFinite(state.selectedPoint.lng) ? { lat: state.selectedPoint.lat, lng: state.selectedPoint.lng } : null);
     var guideStopHtml = renderAreaGuideStop(selectedAreaProps, selectedAreaCenter);
+    var nextStepHtml = renderAreaNextStepCard({
+      canRecord: canRecord,
+      observationCount: summary.totalObservations || 0,
+      hasGallery: gallery.length > 0,
+      hasGuide: !!guideStopHtml,
+    });
     var areaMeta = rawLocationLabel + (areaHa ? ' / ' + areaHa : '');
     var heroHtml = renderAreaHero({
       title: String(f.name || '観察エリア'),
@@ -5111,7 +5215,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var publicPageHtml = fieldId
       ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '" data-kpi-event="selected_place_cta_click" data-kpi-action="map:area:public_page" data-kpi-funnel="map_selected_place" data-kpi-target="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
       : '';
-    return heroHtml + accessHtml + maskingHtml + safetyNoticeHtml + primaryActionsHtml + positiveHtml + guideStopHtml + followHtml + publicPageHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml;
+    return heroHtml + accessHtml + maskingHtml + safetyNoticeHtml + nextStepHtml + primaryActionsHtml + positiveHtml + guideStopHtml + followHtml + publicPageHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -9606,6 +9710,16 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-effort-hint { font-size: 10px; color: #64748b; line-height: 1.3; }
   .me-area-sensitive { padding: 10px 12px; border-radius: 12px; background: rgba(254,243,199,.55); border: 1px solid rgba(217,119,6,.28); color: #78350f; font-size: 12px; font-weight: 600; line-height: 1.45; margin-bottom: 12px; }
   .me-area-sensitive.is-privileged { background: rgba(220,252,231,.55); border-color: rgba(22,163,74,.28); color: #14532d; }
+  .me-area-next-step { display: grid; gap: 10px; margin: 0 0 12px; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(240,253,250,.96), rgba(255,255,255,.98)); border: 1px solid rgba(15,118,110,.18); box-shadow: 0 10px 24px rgba(15,23,42,.06); }
+  .me-area-next-step.is-restricted { background: linear-gradient(135deg, rgba(255,251,235,.98), rgba(255,255,255,.98)); border-color: rgba(217,119,6,.28); }
+  .me-area-next-step-head { display: grid; gap: 3px; }
+  .me-area-next-step-head span { color: #0f766e; font-size: 10px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+  .me-area-next-step.is-restricted .me-area-next-step-head span { color: #b45309; }
+  .me-area-next-step-head strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+  .me-area-next-step ul { display: grid; gap: 6px; margin: 0; padding-left: 18px; color: #334155; font-size: 12px; line-height: 1.5; font-weight: 760; }
+  .me-area-next-step li { padding-left: 1px; }
+  .me-area-next-step-cta { justify-self: start; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 8px 12px; border-radius: 10px; background: #0f766e; color: #fff !important; font-size: 12px; line-height: 1.2; font-weight: 950; text-decoration: none; box-shadow: 0 7px 16px rgba(15,118,110,.22); }
+  .me-area-next-step-cta:hover { filter: brightness(1.05); }
   .me-area-follow-btn { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 2px 0 12px; border-radius: 14px; border: 1px solid rgba(15,118,110,.22); background: #f0fdfa; color: #0f172a; cursor: pointer; text-align: left; box-shadow: 0 6px 16px rgba(15,23,42,.06); transition: background .15s ease, border-color .15s ease, transform .15s ease; }
   .me-area-follow-btn:hover { transform: translateY(-1px); background: #ecfdf5; border-color: rgba(5,150,105,.34); }
   .me-area-follow-btn[disabled] { cursor: wait; opacity: .86; transform: none; }
