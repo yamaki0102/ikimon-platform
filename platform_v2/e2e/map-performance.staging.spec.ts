@@ -17,6 +17,7 @@ const MAP_LOAD_BUDGET_MS = {
   firstMapApi: 8_000,
   firstMapTile: 12_000,
   lcpWhenAvailable: 7_000,
+  optionalPaintMetrics: 1_000,
 };
 
 type MapPerfMarker = {
@@ -33,6 +34,11 @@ type MapPerfSummary = {
   mapCanvasVisibleMs: number;
   path: string;
   profile: string;
+};
+
+type PaintMetrics = {
+  firstContentfulPaintMs: number | null;
+  largestContentfulPaintMs: number | null;
 };
 
 function isMapApiUrl(url: string): boolean {
@@ -80,6 +86,26 @@ async function installPaintTimingProbe(page: Page): Promise<void> {
       // LCP is a browser metric, not required for the functional gate.
     }
   });
+}
+
+async function readPaintMetrics(page: Page): Promise<PaintMetrics> {
+  const fallback: PaintMetrics = { firstContentfulPaintMs: null, largestContentfulPaintMs: null };
+  let timeoutId: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      page.evaluate(() => {
+        const target = window as typeof window & {
+          __ikimonMapPerf?: { firstContentfulPaintMs: number | null; largestContentfulPaintMs: number | null };
+        };
+        return target.__ikimonMapPerf ?? { firstContentfulPaintMs: null, largestContentfulPaintMs: null };
+      }),
+      new Promise<PaintMetrics>((resolve) => {
+        timeoutId = setTimeout(resolve, MAP_LOAD_BUDGET_MS.optionalPaintMetrics, fallback);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 async function waitForMapPerformanceSummary(
@@ -150,12 +176,7 @@ async function waitForMapPerformanceSummary(
   };
   console.info(`map-performance-core ${JSON.stringify(summaryWithoutPaint)}`);
 
-  const paintMetrics = await page.evaluate(() => {
-    const target = window as typeof window & {
-      __ikimonMapPerf?: { firstContentfulPaintMs: number | null; largestContentfulPaintMs: number | null };
-    };
-    return target.__ikimonMapPerf ?? { firstContentfulPaintMs: null, largestContentfulPaintMs: null };
-  });
+  const paintMetrics = await readPaintMetrics(page);
 
   const summary: MapPerfSummary = {
     domContentLoadedMs,
