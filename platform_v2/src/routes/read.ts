@@ -1504,6 +1504,12 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-owner-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; max-width: var(--ikimon-content-max); margin: 0 auto 12px; padding: 7px 9px; border-radius: 14px; background: rgba(255,255,255,.82); border: 1px solid rgba(148,163,184,.24); box-shadow: 0 6px 16px rgba(15,23,42,.04); }
   .obs-owner-tools::before { content: "管理"; flex: 0 0 auto; color: #64748b; font-size: 10px; line-height: 1; letter-spacing: .08em; font-weight: 950; text-transform: uppercase; }
   .obs-owner-tools .section { margin: 0; }
+  .obs-public-state { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; max-width: var(--ikimon-content-max); margin: 0 auto 12px; padding: 11px 13px; border-radius: 14px; background: #fff7ed; border: 1px solid rgba(234,88,12,.22); box-shadow: 0 6px 16px rgba(15,23,42,.04); }
+  .obs-public-state[data-public-state="candidate"] { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
+  .obs-public-state[data-public-state="hidden"], .obs-public-state[data-public-state="no-media"] { background: #f8fafc; border-color: rgba(100,116,139,.2); }
+  .obs-public-state span { display: block; color: #64748b; font-size: 10px; line-height: 1.25; letter-spacing: .08em; font-weight: 950; text-transform: uppercase; }
+  .obs-public-state strong { display: block; margin-top: 3px; color: #0f172a; font-size: 12.5px; line-height: 1.55; font-weight: 850; }
+  .obs-public-state small { flex: 0 0 190px; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 800; text-align: right; }
   .obs-owner-tool,
   .obs-reassess-row { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 34px; padding: 0; border: 0; background: transparent; margin: 0; }
   .obs-reassess-row.section, .obs-photo-recovery.section, .obs-owner-delete.section { margin-top: 0; }
@@ -1538,6 +1544,8 @@ const OBSERVATION_DETAIL_STYLES = `
   @media (max-width: 760px) {
     .obs-owner-tools { align-items: flex-start; }
     .obs-owner-tools::before { width: 100%; }
+    .obs-public-state { flex-direction: column; }
+    .obs-public-state small { flex-basis: auto; text-align: left; }
     .obs-owner-tool, .obs-reassess-row, .obs-photo-recovery-form { width: 100%; }
     .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button, .obs-reassess-btn { min-height: 38px; border-radius: 12px; }
     .obs-invasive-reporting { padding: 13px; border-radius: 14px; }
@@ -4779,6 +4787,80 @@ function renderObservationOwnerDeletePanel(options: {
   </section>`;
 }
 
+type OwnerPublicStateCopy = {
+  title: string;
+  hidden: string;
+  candidate: string;
+  review: string;
+  noMedia: string;
+  removeHint: string;
+};
+
+function ownerPublicStateCopy(lang: SiteLang): OwnerPublicStateCopy {
+  const localized: Record<SiteLang, OwnerPublicStateCopy> = {
+    ja: {
+      title: "公開状態",
+      hidden: "自分だけの記録です。公開一覧には出ません。",
+      candidate: "公開候補です。公開一覧に出る条件を満たすと表示されます。公開地図は広い表示ですが、写真GPSや写り込みから場所が分かる場合があります。",
+      review: "公開前の確認待ちです。メディア準備や確認が終わるまで、自分の記録として保存されています。",
+      noMedia: "公開カードに使えるメディアがまだありません。写真や動画を足すと公開候補に近づきます。",
+      removeHint: "公開から外したい時は、この下の削除を使えます。",
+    },
+    en: {
+      title: "Public state",
+      hidden: "This is yours only. It does not appear in public lists.",
+      candidate: "This is a public candidate. It appears when public-list conditions are met. Public maps use a broad view, but photo GPS metadata or visible clues can still reveal a place.",
+      review: "This is waiting before public display. It stays in your records until media readiness or review is complete.",
+      noMedia: "There is no media that can form a public card yet. Add a photo or video to move it closer to a public candidate.",
+      removeHint: "Use Delete below if you want to remove it from public display.",
+    },
+    es: {
+      title: "Estado publico",
+      hidden: "Este registro es solo tuyo. No aparece en listas publicas.",
+      candidate: "Es candidato publico. Aparece cuando cumple las condiciones de lista publica. El mapa usa vista amplia, pero GPS de foto o pistas visibles pueden revelar el lugar.",
+      review: "Esta esperando antes de mostrarse publicamente. Queda en tus registros hasta que el medio o la revision este listo.",
+      noMedia: "Aun no hay medio util para una tarjeta publica. Agrega foto o video para acercarlo a candidato publico.",
+      removeHint: "Usa Eliminar abajo si quieres quitarlo de la vista publica.",
+    },
+    "pt-BR": {
+      title: "Estado publico",
+      hidden: "Este registro e somente seu. Nao aparece em listas publicas.",
+      candidate: "E candidato publico. Aparece quando cumprir as condicoes de lista publica. O mapa usa vista ampla, mas GPS da foto ou pistas visiveis ainda podem revelar o local.",
+      review: "Esta aguardando antes da exibicao publica. Fica nos seus registros ate a midia ou revisao ficar pronta.",
+      noMedia: "Ainda nao ha midia para formar um cartao publico. Adicione foto ou video para virar candidato publico.",
+      removeHint: "Use Excluir abaixo se quiser remover da exibicao publica.",
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function renderObservationOwnerPublicStatePanel(snapshot: ObservationDetailSnapshot, isOwner: boolean, lang: SiteLang): string {
+  if (!isOwner) return "";
+  const copy = ownerPublicStateCopy(lang);
+  const publicVisibility = String(snapshot.publicVisibility || "");
+  const qualityReviewStatus = String(snapshot.qualityReviewStatus || "");
+  const mediaCount = snapshot.photoAssets.length + snapshot.videoAssets.length + snapshot.audioAssets.length;
+  let state = "review";
+  let body = copy.review;
+  if (publicVisibility === "hidden") {
+    state = "hidden";
+    body = copy.hidden;
+  } else if (mediaCount <= 0) {
+    state = "no-media";
+    body = copy.noMedia;
+  } else if (publicVisibility === "public" && qualityReviewStatus === "accepted") {
+    state = "candidate";
+    body = copy.candidate;
+  }
+  return `<section class="obs-public-state" data-public-state="${escapeHtml(state)}" aria-label="${escapeHtml(copy.title)}">
+    <div>
+      <span>${escapeHtml(copy.title)}</span>
+      <strong>${escapeHtml(body)}</strong>
+    </div>
+    <small>${escapeHtml(copy.removeHint)}</small>
+  </section>`;
+}
+
 function renderObservationOwnerDeleteScript(isOwner: boolean): string {
   if (!isOwner) return "";
   return `<script>(function(){
@@ -4934,6 +5016,14 @@ type RecordFormCopy = {
   submitPanelHelpMedia: string;
   submitPanelHelpNote: string;
   submitPanelHelpEmpty: string;
+  publicStateTitle: string;
+  publicStateIdle: string;
+  publicStatePhotoCandidate: string;
+  publicStateVideoCandidate: string;
+  publicStateNoteReview: string;
+  publicStateSuccessCandidate: string;
+  publicStateSuccessReview: string;
+  publicStateSuccessHidden: string;
   submitButton: string;
   observedAtLabel: string;
   placeLabel: string;
@@ -5346,6 +5436,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "日時と地点を確認して記録として保存します。周囲・音・動き・気づきはあとで足せます。",
       submitPanelHelpNote: "写真なしの記録として保存します。あとで写真を足せます。",
       submitPanelHelpEmpty: "写真を選ぶと、ここから保存できます。",
+      publicStateTitle: "公開状態",
+      publicStateIdle: "写真・動画・メモを選ぶと、保存後の公開候補か確認待ちかをここに表示します。",
+      publicStatePhotoCandidate: "写真つきの記録は公開候補として保存されます。公開地図は広い表示ですが、写真GPSや写り込みは確認してください。",
+      publicStateVideoCandidate: "動画だけの記録は、動画処理後に公開候補になります。処理中は自分の記録として保存されます。",
+      publicStateNoteReview: "メモだけの記録は自分の記録に保存され、公開カードは確認待ちになります。",
+      publicStateSuccessCandidate: "公開候補として保存しました。公開地図は広い表示ですが、写真GPSや写り込みから場所が分かる場合があります。",
+      publicStateSuccessReview: "自分の記録に保存しました。公開カードはメディア準備または確認後に表示対象になります。",
+      publicStateSuccessHidden: "自分だけの記録として保存されています。公開一覧には出ません。",
       submitButton: "記録を保存",
       observedAtLabel: "観察した日時",
       placeLabel: "記録の地点",
@@ -5500,6 +5598,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "Check time and place, then save. Names and notes can come later.",
       submitPanelHelpNote: "Save this as a note without a photo. You can add a photo later.",
       submitPanelHelpEmpty: "Choose a photo or note to save from here.",
+      publicStateTitle: "Public state",
+      publicStateIdle: "Choose a photo, video, or note to see whether this will be a public candidate or waiting for review.",
+      publicStatePhotoCandidate: "Photo records are saved as public candidates. Public maps use a broad view, but check photo GPS metadata and visible clues.",
+      publicStateVideoCandidate: "Video-only records become public candidates after video processing. While processing, they stay in your records.",
+      publicStateNoteReview: "Note-only records are saved to your records and wait before becoming public cards.",
+      publicStateSuccessCandidate: "Saved as a public candidate. Public maps use a broad view, but photo GPS metadata or visible clues can still reveal a place.",
+      publicStateSuccessReview: "Saved to your records. The public card waits for media readiness or review.",
+      publicStateSuccessHidden: "Saved as yours only. It does not appear in public lists.",
       submitButton: "Save and complete later",
       observedAtLabel: "Observed time",
       placeLabel: "Observation place",
@@ -5654,6 +5760,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "Revisa hora y lugar, luego guarda. El nombre y las notas pueden venir despues.",
       submitPanelHelpNote: "Guarda esto como nota sin foto. Puedes agregar una foto despues.",
       submitPanelHelpEmpty: "Elige una foto o nota para guardar desde aqui.",
+      publicStateTitle: "Estado publico",
+      publicStateIdle: "Elige foto, video o nota para ver si sera candidato publico o quedara en revision.",
+      publicStatePhotoCandidate: "Los registros con foto se guardan como candidatos publicos. El mapa publico usa vista amplia, pero revisa GPS de foto y pistas visibles.",
+      publicStateVideoCandidate: "Los registros solo con video seran candidatos publicos despues del procesamiento. Mientras tanto quedan en tus registros.",
+      publicStateNoteReview: "Los registros solo con nota se guardan en tus registros y esperan antes de ser tarjetas publicas.",
+      publicStateSuccessCandidate: "Guardado como candidato publico. El mapa publico usa vista amplia, pero GPS de foto o pistas visibles pueden revelar el lugar.",
+      publicStateSuccessReview: "Guardado en tus registros. La tarjeta publica espera medios listos o revision.",
+      publicStateSuccessHidden: "Guardado solo para ti. No aparece en listas publicas.",
       submitButton: "Guardar y completar despues",
       observedAtLabel: "Hora observada",
       placeLabel: "Lugar de observacion",
@@ -5808,6 +5922,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "Confira horario e local, depois salve. Nome e notas podem vir depois.",
       submitPanelHelpNote: "Salve isto como nota sem foto. Voce pode adicionar foto depois.",
       submitPanelHelpEmpty: "Escolha uma foto ou nota para salvar daqui.",
+      publicStateTitle: "Estado publico",
+      publicStateIdle: "Escolha foto, video ou nota para ver se sera candidato publico ou aguardara revisao.",
+      publicStatePhotoCandidate: "Registros com foto sao salvos como candidatos publicos. O mapa publico usa vista ampla, mas confira GPS da foto e pistas visiveis.",
+      publicStateVideoCandidate: "Registros so com video viram candidatos publicos depois do processamento. Enquanto processa, ficam nos seus registros.",
+      publicStateNoteReview: "Registros so com nota ficam nos seus registros e aguardam antes de virar cartoes publicos.",
+      publicStateSuccessCandidate: "Salvo como candidato publico. O mapa publico usa vista ampla, mas GPS da foto ou pistas visiveis ainda podem revelar o local.",
+      publicStateSuccessReview: "Salvo nos seus registros. O cartao publico aguarda midia pronta ou revisao.",
+      publicStateSuccessHidden: "Salvo somente para voce. Nao aparece em listas publicas.",
       submitButton: "Salvar e completar depois",
       observedAtLabel: "Horario observado",
       placeLabel: "Local da observacao",
@@ -14181,6 +14303,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 </div>
                 <button type="submit" class="btn btn-solid">${escapeHtml(recordForm.submitButton)}</button>
               </div>
+              <div id="record-public-state" class="record-public-state" data-public-state="idle" hidden aria-live="polite">
+                <span class="record-label">${escapeHtml(recordForm.publicStateTitle)}</span>
+                <strong id="record-public-state-label">${escapeHtml(recordForm.publicStateTitle)}</strong>
+                <p id="record-public-state-help">${escapeHtml(recordForm.publicStateIdle)}</p>
+              </div>
               <div id="record-video-primary-photo" class="record-video-primary-photo" hidden>
                 <div>
                   <span class="record-label">動画の主役写真</span>
@@ -14649,6 +14776,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const submitPanel = document.getElementById('record-submit-panel');
         const submitPanelTitle = document.getElementById('record-submit-panel-title');
         const submitPanelHelp = document.getElementById('record-submit-panel-help');
+        const publicState = document.getElementById('record-public-state');
+        const publicStateLabel = document.getElementById('record-public-state-label');
+        const publicStateHelp = document.getElementById('record-public-state-help');
         const submitDockMeta = document.getElementById('record-submit-dock-meta');
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
@@ -14707,6 +14837,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           submitPanelHelpMedia: ${JSON.stringify(recordForm.submitPanelHelpMedia)},
           submitPanelHelpNote: ${JSON.stringify(recordForm.submitPanelHelpNote)},
           submitPanelHelpEmpty: ${JSON.stringify(recordForm.submitPanelHelpEmpty)},
+          publicStateTitle: ${JSON.stringify(recordForm.publicStateTitle)},
+          publicStateIdle: ${JSON.stringify(recordForm.publicStateIdle)},
+          publicStatePhotoCandidate: ${JSON.stringify(recordForm.publicStatePhotoCandidate)},
+          publicStateVideoCandidate: ${JSON.stringify(recordForm.publicStateVideoCandidate)},
+          publicStateNoteReview: ${JSON.stringify(recordForm.publicStateNoteReview)},
+          publicStateSuccessCandidate: ${JSON.stringify(recordForm.publicStateSuccessCandidate)},
+          publicStateSuccessReview: ${JSON.stringify(recordForm.publicStateSuccessReview)},
+          publicStateSuccessHidden: ${JSON.stringify(recordForm.publicStateSuccessHidden)},
           submitDockMeta: ${JSON.stringify(recordForm.submitDockMeta)},
           mediaNoteOnly: ${JSON.stringify(recordForm.mediaNoteOnly)},
           mediaLocationMissing: ${JSON.stringify(recordForm.mediaLocationMissing)},
@@ -15168,6 +15306,45 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           return parts.length ? parts.join(' / ') : recordUiCopy.submitDockMeta;
         };
 
+        const buildRecordPublicStateDraft = () => {
+          const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
+          const hasVideo = selectedVideoFile instanceof File && isVideoFile(selectedVideoFile);
+          if (photoCount > 0) {
+            return { state: 'candidate', label: recordUiCopy.publicStateTitle, body: recordUiCopy.publicStatePhotoCandidate };
+          }
+          if (hasVideo) {
+            return { state: 'processing', label: recordUiCopy.publicStateTitle, body: recordUiCopy.publicStateVideoCandidate };
+          }
+          if (hasNoteDraft()) {
+            return { state: 'review', label: recordUiCopy.publicStateTitle, body: recordUiCopy.publicStateNoteReview };
+          }
+          return { state: 'idle', label: recordUiCopy.publicStateTitle, body: recordUiCopy.publicStateIdle };
+        };
+
+        const syncRecordPublicState = () => {
+          if (!publicState) return;
+          const draft = buildRecordPublicStateDraft();
+          publicState.hidden = !hasRecordDraft();
+          publicState.setAttribute('data-public-state', draft.state);
+          if (publicStateLabel) publicStateLabel.textContent = draft.label;
+          if (publicStateHelp) publicStateHelp.textContent = draft.body;
+        };
+
+        const buildPublicStateSuccessHtml = (observation) => {
+          const publicVisibility = String(observation && observation.publicVisibility || '');
+          const qualityReviewStatus = String(observation && observation.qualityReviewStatus || '');
+          let body = recordUiCopy.publicStateSuccessReview;
+          let state = 'review';
+          if (publicVisibility === 'hidden') {
+            body = recordUiCopy.publicStateSuccessHidden;
+            state = 'hidden';
+          } else if (publicVisibility === 'public' && qualityReviewStatus === 'accepted') {
+            body = recordUiCopy.publicStateSuccessCandidate;
+            state = 'candidate';
+          }
+          return '<div class="record-success-public-state" data-public-state="' + escapeHtmlText(state) + '"><strong>' + escapeHtmlText(recordUiCopy.publicStateTitle) + '</strong><span>' + escapeHtmlText(body) + '</span></div>';
+        };
+
         const syncSubmitCta = () => {
           const hasDraft = hasRecordDraft();
           if (submitPanel) submitPanel.hidden = !hasDraft;
@@ -15181,6 +15358,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 : recordUiCopy.submitPanelHelpEmpty;
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
+          syncRecordPublicState();
         };
 
         const syncVideoPrimaryPhotoUi = () => {
@@ -17701,6 +17879,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? extraStatus
                 : '';
               const impactHtml = buildImpactHtml(observationJson.impact || null, suffix);
+              const publicStateHtml = buildPublicStateSuccessHtml(observationJson || {});
               const locationPrivacyHtml = '<div class="record-success-privacy">' + escapeHtmlText(recordUiCopy.locationPrivacyAfterSave) + '</div>';
               const contributionReceipts = Array.isArray(observationJson.contributionReceipts)
                 ? observationJson.contributionReceipts.slice(0, 3)
@@ -17730,7 +17909,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
@@ -17931,7 +18110,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-submit-panel strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
         .record-submit-panel p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 750; }
         .record-submit-panel .btn { min-width: 140px; }
+        .record-public-state { grid-column: 1 / -1; display: grid; gap: 5px; padding: 12px 14px; border-radius: 16px; background: #f8fafc; border: 1px solid rgba(15,23,42,.1); }
+        .record-public-state[hidden] { display: none; }
+        .record-public-state[data-public-state="candidate"] { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
+        .record-public-state[data-public-state="processing"] { background: #eff6ff; border-color: rgba(37,99,235,.22); }
+        .record-public-state[data-public-state="review"] { background: #fff7ed; border-color: rgba(234,88,12,.22); }
+        .record-public-state strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; }
+        .record-public-state p { margin: 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 780; }
         .record-success-privacy { margin-top: 8px; padding: 9px 11px; border-radius: 12px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); color: #065f46; font-size: 12px; line-height: 1.55; font-weight: 850; }
+        .record-success-public-state { margin-top: 8px; padding: 9px 11px; border-radius: 12px; background: #fff7ed; border: 1px solid rgba(234,88,12,.22); display: grid; gap: 3px; }
+        .record-success-public-state[data-public-state="candidate"] { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
+        .record-success-public-state[data-public-state="hidden"] { background: #f8fafc; border-color: rgba(100,116,139,.2); }
+        .record-success-public-state strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
+        .record-success-public-state span { color: #334155; font-size: 12px; line-height: 1.55; font-weight: 850; }
         .site-footer { padding-bottom: 104px; }
         .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
         .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; scroll-margin-top: 92px; }
@@ -19423,6 +19614,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       isOwner,
       lang,
     });
+    const ownerPublicStateBlock = renderObservationOwnerPublicStatePanel(snapshot, isOwner, lang);
 
     const hintBlock = "";
     const aiCandidateLearningBlock = "";
@@ -20065,7 +20257,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
+    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerPublicStateBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
