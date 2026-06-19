@@ -86,6 +86,7 @@ type FixtureAiCandidate = {
 type FixtureVisitInput = {
   kind: RegressionFixtureKind;
   fixturePrefix: string;
+  publicMapVisible?: boolean;
   userId: string;
   observedAt: string;
   latitude: number;
@@ -113,6 +114,10 @@ function assertFixturePrefix(value: string): string {
     throw new Error("invalid_fixture_prefix");
   }
   return fixturePrefix;
+}
+
+function publicMapIdPrefix(fixturePrefix: string): string {
+  return `pubmap-${createHash("sha1").update(fixturePrefix).digest("hex").slice(0, 12)}`;
 }
 
 async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixtureKind): Promise<FixturePhoto> {
@@ -168,7 +173,8 @@ async function upsertFixtureUser(
 }
 
 async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput): Promise<RegressionFixtureSummary> {
-  const visitId = `${input.fixturePrefix}-${input.kind}`;
+  const recordPrefix = input.publicMapVisible ? publicMapIdPrefix(input.fixturePrefix) : input.fixturePrefix;
+  const visitId = `${recordPrefix}-${input.kind}`;
   const occurrenceId = makeOccurrenceId(visitId, 0);
   const placeId = buildPlaceId({
     siteId: input.siteId,
@@ -673,6 +679,7 @@ export async function seedStagingRegressionFixtures(
     const manual = await upsertFixtureVisit(client, {
       kind: "manual",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
       latitude: 35.0104,
@@ -707,6 +714,7 @@ export async function seedStagingRegressionFixtures(
     await upsertFixtureVisit(client, {
       kind: "manual_companion_a",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 115 * 60 * 1000).toISOString(),
       latitude: 35.0108,
@@ -729,6 +737,7 @@ export async function seedStagingRegressionFixtures(
     await upsertFixtureVisit(client, {
       kind: "manual_companion_b",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 110 * 60 * 1000).toISOString(),
       latitude: 35.0112,
@@ -751,6 +760,7 @@ export async function seedStagingRegressionFixtures(
     const historical = await upsertFixtureVisit(client, {
       kind: "historical",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
       latitude: 35.0128,
@@ -773,6 +783,7 @@ export async function seedStagingRegressionFixtures(
     await upsertFixtureVisit(client, {
       kind: "historical_companion_a",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 235 * 60 * 1000).toISOString(),
       latitude: 35.0129,
@@ -795,6 +806,7 @@ export async function seedStagingRegressionFixtures(
     await upsertFixtureVisit(client, {
       kind: "historical_companion_b",
       fixturePrefix,
+      publicMapVisible: true,
       userId,
       observedAt: new Date(now - 230 * 60 * 1000).toISOString(),
       latitude: 35.0130,

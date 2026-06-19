@@ -310,6 +310,9 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /Monticola: 'イソヒヨドリ属'/);
   assert.match(script, /function groupResultRecords\(records\)/);
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
+  assert.match(script, /function runInitialMapDataLoad\(reason\)/);
+  assert.match(script, /scheduleInitialMapDataLoad\(180\)/);
+  assert.match(script, /runInitialMapDataLoad\('load'\)/);
   assert.match(script, /function scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\)/);
   assert.match(script, /function recoverRecordsLoad\(requestSeq, requestKey, scope\)/);
   assert.match(script, /function forceSettleRecordsRequest\(requestSeq, stats\)/);
@@ -498,7 +501,7 @@ test("map initial data load stays light and defers secondary panels", () => {
   assert.match(script, /var CELL_RECORD_LIMIT = 1500;/);
   assert.match(script, /var recordLimit = scope && scope\.cellId \? CELL_RECORD_LIMIT : VIEWPORT_RECORD_LIMIT;/);
   assert.match(script, /function deferMapTask\(fn, delay\)/);
-  assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, 220\);/);
+  assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
 });
 
 test("map opens near current location instead of restoring stale local viewport", () => {

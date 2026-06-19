@@ -1901,6 +1901,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     recordsLoadWatchdogSeq: 0,
     recordsRecoveryKey: '',
     recordsRecoveryAttempts: 0,
+    initialDataLoadTimer: null,
+    initialDataLoadAttempts: 0,
+    initialDataLoaded: false,
     areaPolygonFeatures: [],
     discoveryPreviewMarkers: [],
     areaBadgeMarkers: [],
@@ -6192,6 +6195,38 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     window.setTimeout(run, ms);
   }
 
+  function scheduleInitialMapDataLoad(delay) {
+    if (state.initialDataLoaded || state.initialDataLoadTimer) return;
+    state.initialDataLoadTimer = window.setTimeout(function () {
+      state.initialDataLoadTimer = null;
+      runInitialMapDataLoad('timer');
+    }, delay);
+  }
+
+  function runInitialMapDataLoad(reason) {
+    if (!state.map || state.initialDataLoaded) return false;
+    var bbox = '';
+    try { bbox = currentBboxString(); } catch (_) { bbox = ''; }
+    if (!bbox) {
+      state.initialDataLoadAttempts += 1;
+      if (state.initialDataLoadAttempts <= 8) {
+        scheduleInitialMapDataLoad(Math.min(1600, 180 + state.initialDataLoadAttempts * 220));
+      }
+      return false;
+    }
+    state.initialDataLoaded = true;
+    state.initialDataLoadAttempts = 0;
+    refreshMapData();
+    maybeAutoLocateOnFirstOpen();
+    maybeShowLayerHint(state.tab);
+    deferMapTask(function () {
+      if (state.tab === 'frontier') loadFrontier(state.map);
+      loadEffortSummary();
+      loadTraces();
+    }, reason === 'load' ? 220 : 420);
+    return true;
+  }
+
   function switchBasemap(key) {
     if (!state.map || !BASEMAPS[key]) return;
     var wasTab = state.tab;
@@ -6502,17 +6537,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       overlayCatalog.forEach(function (def) {
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
-      refreshMapData();
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
-      maybeAutoLocateOnFirstOpen();
-      maybeShowLayerHint(state.tab);
-      deferMapTask(function () {
-        if (state.tab === 'frontier') loadFrontier(state.map);
-        loadEffortSummary();
-        loadTraces();
-      }, 220);
+      runInitialMapDataLoad('load');
     });
+    scheduleInitialMapDataLoad(180);
     state.map.on('moveend', function () {
       if (state.ignoreNextMoveEnd) {
         state.ignoreNextMoveEnd = false;

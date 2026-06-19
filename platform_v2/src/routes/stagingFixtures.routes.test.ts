@@ -143,6 +143,8 @@ test("staging map regression fixtures stay public-map safe while smoke remains e
   assert.match(source, /const storageBase = publicMapFixture \? "uploads\/regression-public" : "uploads\/staging-regression"/);
   assert.doesNotMatch(source, /data_quality[^]*'regression_fixture'/);
   assert.match(source, /'\["qa_public"\]'::jsonb/);
+  assert.match(source, /function publicMapIdPrefix\(fixturePrefix: string\)/);
+  assert.match(source, /publicMapVisible: true/);
   assert.match(source, /"manual_companion_a"/);
   assert.match(source, /"manual_companion_b"/);
   assert.match(source, /"historical_companion_a"/);
