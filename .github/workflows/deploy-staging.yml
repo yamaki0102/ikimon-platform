@@ -742,6 +742,8 @@ jobs:
 
       - name: Setup platform_v2 browser smoke runtime
         uses: ./.github/actions/setup-platform-v2-browser
+        with:
+          install-with-deps: "false"
 
       - name: Run staging browser E2E non-map shard
         timeout-minutes: 17
@@ -785,6 +787,8 @@ jobs:
 
       - name: Setup platform_v2 browser smoke runtime
         uses: ./.github/actions/setup-platform-v2-browser
+        with:
+          install-with-deps: "false"
 
       - name: Run staging map browser E2E
         timeout-minutes: 10
