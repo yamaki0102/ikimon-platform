@@ -3927,6 +3927,81 @@ test("production map area polygons use native polygon readmodel before origin fa
   }
 });
 
+test("production map area polygons fall back when requested school polygons are missing from native readmodel", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-park-only", {
+    field_id: "native-park-only",
+    source: "osm_park",
+    admin_level: "osm_park",
+    name: "ネイティブ公園",
+    prefecture: "静岡県",
+    city: "浜松市",
+    center_lat: 34.695,
+    center_lng: 137.705,
+    bbox_min_lat: 34.69,
+    bbox_max_lat: 34.70,
+    bbox_min_lng: 137.70,
+    bbox_max_lng: 137.71,
+    area_ha: 1.1,
+    geometry_json: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[[137.700, 34.690], [137.710, 34.691], [137.709, 34.699], [137.700, 34.690]]]
+    }),
+    approximate_boundary: 0,
+    boundary_approximation: null,
+    source_confidence: 0.8,
+    verification_level: "unverified",
+    verification_label: "未確認",
+    official_url: null,
+    owner_url: null,
+    story_url: null,
+    certification_url: null,
+    entity_key: "osm:way:park-only",
+    updated_at: "2026-06-18T00:00:00.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: {
+          field_id: "origin-school",
+          name: "origin fallback school",
+          source: "school",
+          source_confidence: 0.45,
+          verification_level: "unverified"
+        },
+        geometry: { type: "Polygon", coordinates: [[[137.7, 34.69], [137.71, 34.69], [137.71, 34.70], [137.7, 34.69]]] }
+      }],
+      truncated: false,
+      stats: { source: "origin" }
+    }), { headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.equal(fallbackCalls, 1);
+    assert.equal(payload.features.length, 1);
+    assert.equal(payload.features[0].properties.field_id, "origin-school");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production UI KPI events stay native before public custom-domain origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
