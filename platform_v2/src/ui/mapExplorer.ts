@@ -1614,6 +1614,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
     placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
     placeActionFollow: props.lang === "ja" ? "この場所をフォロー" : props.lang === "es" ? "Seguir este lugar" : props.lang === "pt-BR" ? "Seguir este local" : "Follow this place",
+    nearbyAreasStatusTemplate: props.lang === "ja" ? "現在地の近くで __COUNT__ 件のエリアを見つけられます" : props.lang === "es" ? "__COUNT__ áreas visibles cerca de tu ubicación" : props.lang === "pt-BR" ? "__COUNT__ áreas visíveis perto da sua localização" : "__COUNT__ discoverable areas near you",
+    nearbyAreasNoneStatus: props.lang === "ja" ? "近くのエリアはまだ薄いです。少し広げると入口が見つかるかもしれません。" : props.lang === "es" ? "Todavía hay pocas áreas cerca. Amplía un poco para encontrar entradas." : props.lang === "pt-BR" ? "Ainda há poucas áreas perto. Amplie um pouco para encontrar entradas." : "Nearby areas are still thin. Widen the view to find entries.",
+    nearbyAreaMarkerLabel: props.lang === "ja" ? "近くのエリア" : props.lang === "es" ? "Área cercana" : props.lang === "pt-BR" ? "Área próxima" : "Nearby area",
+    nearbyAreaPublicLabel: props.lang === "ja" ? "一般公開" : props.lang === "es" ? "Acceso público" : props.lang === "pt-BR" ? "Acesso público" : "Public",
+    nearbyAreaSchoolLabel: props.lang === "ja" ? "安全確認" : props.lang === "es" ? "Revisar seguridad" : props.lang === "pt-BR" ? "Verificar segurança" : "Check safety",
+    nearbyAreaRestrictedLabel: props.lang === "ja" ? "要確認" : props.lang === "es" ? "Revisar" : props.lang === "pt-BR" ? "Verificar" : "Check",
     insightHeading: props.lang === "ja" ? "見えてきた範囲" : props.lang === "es" ? "Lo que ya se ve" : props.lang === "pt-BR" ? "O que já aparece" : "What is coming into view",
     insightSubhead: props.lang === "ja" ? "この表示範囲の発見の気配を眺める。" : props.lang === "es" ? "Mira las señales de esta ventana." : props.lang === "pt-BR" ? "Veja os sinais nesta janela." : "Browse the signs in this viewport.",
   })};
@@ -2015,8 +2021,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     initialDataLoadAttempts: 0,
     initialDataLoaded: false,
     areaPolygonFeatures: [],
+    areaPolygonsLoaded: false,
     discoveryPreviewMarkers: [],
     areaBadgeMarkers: [],
+    nearbyAreaMarkers: [],
+    nearbyAreaOrigin: null,
+    nearbyAreaLocateMovePending: false,
     guideSpotMarkers: [],
     overlapChoicePopup: null,
     _cellsRequestSeq: 0,
@@ -2822,11 +2832,99 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.areaBadgeMarkers = [];
   }
 
+  function clearNearbyAreaMarkers() {
+    (state.nearbyAreaMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.nearbyAreaMarkers = [];
+  }
+
   function clearGuideSpotMarkers() {
     (state.guideSpotMarkers || []).forEach(function (marker) {
       try { marker.remove(); } catch (_) {}
     });
     state.guideSpotMarkers = [];
+  }
+
+  function areaFeatureDisplayName(feature) {
+    var props = (feature && feature.properties) || {};
+    return String(props.name || props.label || props.field_name || props.fieldId || props.field_id || COPY.nearbyAreaMarkerLabel || '').trim();
+  }
+
+  function areaMarkerState(feature) {
+    var props = (feature && feature.properties) || {};
+    var status = areaAccessStatus(props, null);
+    if (status === 'school') return 'school';
+    if (status === 'public_access') return 'public';
+    return 'restricted';
+  }
+
+  function areaMarkerBadge(feature) {
+    var stateName = areaMarkerState(feature);
+    if (stateName === 'school') return COPY.nearbyAreaSchoolLabel;
+    if (stateName === 'public') return COPY.nearbyAreaPublicLabel;
+    return COPY.nearbyAreaRestrictedLabel;
+  }
+
+  function nearbyDiscoverableAreaCandidates(origin) {
+    if (!origin || !Number.isFinite(origin.lat) || !Number.isFinite(origin.lng)) return [];
+    return (Array.isArray(state.areaPolygonFeatures) ? state.areaPolygonFeatures : [])
+      .map(function (feature) {
+        var props = feature && feature.properties ? feature.properties : {};
+        var center = areaFeatureCenter(feature, null, null);
+        var meters = distanceMeters(origin, center);
+        var access = areaMarkerState(feature);
+        return { feature: feature, props: props, center: center, meters: meters, access: access };
+      })
+      .filter(function (item) {
+        if (!item.feature || !item.props || !item.center || !Number.isFinite(item.meters)) return false;
+        if (item.meters > 1800) return false;
+        if (isAdministrativeAreaFeature(item.feature)) return false;
+        if (!areaFeatureDisplayName(item.feature)) return false;
+        return true;
+      })
+      .sort(function (a, b) {
+        var accessDelta = (a.access === 'public' ? 0 : a.access === 'restricted' ? 1 : 2) -
+          (b.access === 'public' ? 0 : b.access === 'restricted' ? 1 : 2);
+        if (accessDelta) return accessDelta;
+        var areaA = Number(a.props.area_ha);
+        var areaB = Number(b.props.area_ha);
+        var distanceDelta = a.meters - b.meters;
+        if (Math.abs(distanceDelta) > 8) return distanceDelta;
+        return (Number.isFinite(areaA) ? areaA : 999999) - (Number.isFinite(areaB) ? areaB : 999999);
+      })
+      .slice(0, 5);
+  }
+
+  function refreshNearbyAreaMarkers(origin) {
+    clearNearbyAreaMarkers();
+    if (!state.map || !window.maplibregl || state.tab !== 'places') return;
+    var candidates = nearbyDiscoverableAreaCandidates(origin);
+    if (!candidates.length) {
+      if (origin && state.areaPolygonsLoaded) setStatus(COPY.nearbyAreasNoneStatus);
+      return;
+    }
+    setStatus(String(COPY.nearbyAreasStatusTemplate || '').replace('__COUNT__', String(candidates.length)));
+    candidates.forEach(function (item) {
+      var feature = item.feature;
+      var center = item.center;
+      var name = areaFeatureDisplayName(feature);
+      var access = areaMarkerState(feature);
+      var el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'me-nearby-area-marker is-' + access;
+      el.setAttribute('aria-label', (COPY.nearbyAreaMarkerLabel || '') + ': ' + name);
+      el.innerHTML = '<span>' + escapeHtml(areaMarkerBadge(feature)) + '</span><strong>' + escapeHtml(name) + '</strong>';
+      el.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        openAreaFeatureSheet(feature, center.lat, center.lng);
+      });
+      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+        .setLngLat([center.lng, center.lat])
+        .addTo(state.map);
+      state.nearbyAreaMarkers.push(marker);
+    });
   }
 
   function guideSpotCenter(feature) {
@@ -3035,6 +3133,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function refreshAreaBadgeMarkers() {
     clearAreaBadgeMarkers();
+    refreshNearbyAreaMarkers(state.nearbyAreaOrigin);
   }
 
   function clearSideSelection() {
@@ -6073,9 +6172,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var src = state.map.getSource('area-polygons');
       if (src) src.setData({ type: 'FeatureCollection', features: [] });
       state.areaPolygonFeatures = [];
+      state.areaPolygonsLoaded = true;
       clearAreaBadgeMarkers();
+      clearNearbyAreaMarkers();
       return;
     }
+    state.areaPolygonsLoaded = false;
     if (state.areaPolygonsAbort) { try { state.areaPolygonsAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     state.areaPolygonsAbort = controller;
@@ -6088,9 +6190,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (!collection) return;
         ensureAreaPolygons(state.map);
         state.areaPolygonFeatures = Array.isArray(collection.features) ? collection.features : [];
+        state.areaPolygonsLoaded = true;
         var src = state.map.getSource('area-polygons');
         if (src) src.setData(collection);
         applyTab(state.map, state.tab);
+        refreshAreaBadgeMarkers();
       })
       .catch(function (err) { if (err && err.name === 'AbortError') return; });
   }
@@ -6801,6 +6905,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         return;
       }
       saveMapState();
+      if (state.nearbyAreaLocateMovePending) {
+        state.nearbyAreaLocateMovePending = false;
+      } else if (state.nearbyAreaOrigin) {
+        state.nearbyAreaOrigin = null;
+        clearNearbyAreaMarkers();
+      }
       var bbox = currentBboxString();
       state.pendingViewportSearch = !!bbox && bbox !== state.lastSearchedBbox;
       updateSearchAreaUi();
@@ -7393,7 +7503,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         locateFab.classList.remove('is-loading');
         var lng = pos.coords.longitude;
         var lat = pos.coords.latitude;
-        state.map.flyTo({ center: [lng, lat], zoom: 14, duration: 650 });
+        state.tab = 'places';
+        state.nearbyAreaOrigin = {
+          lat: Math.round(lat * 10000) / 10000,
+          lng: Math.round(lng * 10000) / 10000
+        };
+        state.nearbyAreaLocateMovePending = true;
+        syncUiFromState();
+        applyTab(state.map, state.tab);
+        state.map.once('moveend', function () {
+          loadAreaPolygons();
+          refreshNearbyAreaMarkers(state.nearbyAreaOrigin);
+        });
+        state.map.flyTo({ center: [lng, lat], zoom: 14.8, duration: 650 });
         // Drop a quick "you are here" marker; cheap DOM element rather than a
         // source so it doesn't need a style reload.
         if (state._meMarker) state._meMarker.remove();
@@ -8024,6 +8146,63 @@ export const MAP_EXPLORER_STYLES = `
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
   }
+  .me-nearby-area-marker {
+    max-width: 150px;
+    min-width: 98px;
+    display: grid;
+    gap: 2px;
+    padding: 7px 9px 8px;
+    border: 1px solid rgba(15,23,42,.14);
+    border-radius: 10px;
+    background: rgba(255,255,255,.96);
+    color: #0f172a;
+    box-shadow: 0 12px 26px rgba(15,23,42,.16);
+    cursor: pointer;
+    text-align: left;
+    transform-origin: bottom center;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .me-nearby-area-marker:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(15,23,42,.20); border-color: rgba(15,118,110,.28); }
+  .me-nearby-area-marker span {
+    justify-self: start;
+    min-height: 18px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(20,184,166,.12);
+    color: #0f766e;
+    font-size: 10.5px;
+    line-height: 1.1;
+    font-weight: 950;
+  }
+  .me-nearby-area-marker strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .me-nearby-area-marker::after {
+    content: "";
+    justify-self: center;
+    width: 9px;
+    height: 9px;
+    margin-bottom: -13px;
+    transform: rotate(45deg);
+    background: rgba(255,255,255,.96);
+    border-right: 1px solid rgba(15,23,42,.10);
+    border-bottom: 1px solid rgba(15,23,42,.10);
+  }
+  .me-nearby-area-marker.is-public { border-color: rgba(16,185,129,.28); }
+  .me-nearby-area-marker.is-public span { background: rgba(16,185,129,.14); color: #047857; }
+  .me-nearby-area-marker.is-restricted { border-color: rgba(245,158,11,.26); }
+  .me-nearby-area-marker.is-restricted span { background: rgba(254,243,199,.86); color: #92400e; }
+  .me-nearby-area-marker.is-school { border-style: dashed; border-color: #d97706; }
+  .me-nearby-area-marker.is-school span { background: rgba(254,243,199,.9); color: #92400e; }
   .me-guide-spot-marker.is-pin .me-guide-spot-main {
     display: inline-flex;
     align-items: center;
