@@ -148,6 +148,8 @@ export type ObservationDetailSnapshot = {
   organismOrigin: string | null;
   environmentRecord: Record<string, string> | null;
   aiAssessmentStatus: string | null;
+  publicVisibility: string | null;
+  qualityReviewStatus: string | null;
   aiReviewAgreeCount: number;
   aiReviewDisagreeCount: number;
   observedAt: string;
@@ -921,6 +923,8 @@ export async function getObservationDetailSnapshot(
     organism_origin: string | null;
     environment_record: Record<string, unknown> | null;
     ai_assessment_status: string | null;
+    public_visibility: string | null;
+    quality_review_status: string | null;
     observed_at: string;
     note: string | null;
     visit_mode: string | null;
@@ -953,6 +957,8 @@ export async function getObservationDetailSnapshot(
         o.organism_origin,
         fc.structured as environment_record,
         o.ai_assessment_status,
+        v.public_visibility,
+        v.quality_review_status,
         v.observed_at::text,
         v.note,
         v.visit_mode,
@@ -1335,6 +1341,8 @@ export async function getObservationDetailSnapshot(
     organismOrigin: base.organism_origin,
     environmentRecord,
     aiAssessmentStatus: base.ai_assessment_status,
+    publicVisibility: base.public_visibility,
+    qualityReviewStatus: base.quality_review_status,
     aiReviewAgreeCount,
     aiReviewDisagreeCount,
     observedAt: base.observed_at,

@@ -181,6 +181,12 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /この長さでOK/);
         assert.match(response.body, /撮影時の現在地/);
         assert.match(response.body, /id="record-location-privacy"/);
+        assert.match(response.body, /id="record-public-state"/);
+        assert.match(response.body, /公開状態/);
+        assert.match(response.body, /公開候補として保存しました/);
+        assert.match(response.body, /buildPublicStateSuccessHtml/);
+        assert.match(response.body, /qualityReviewStatus/);
+        assert.match(response.body, /recordUiCopy\.publicStatePhotoCandidate/);
         assert.match(response.body, /公開される位置/);
         assert.match(response.body, /正確な地点/);
         assert.match(response.body, /写真のGPS情報は別に注意が必要です/);
