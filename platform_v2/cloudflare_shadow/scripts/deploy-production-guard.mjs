@@ -89,7 +89,11 @@ function run(command, commandArgs, options = {}) {
       if (code === 0) {
         resolve({ stdout, stderr, event });
       } else {
-        reject(new Error(`${event.command} failed with exit code ${code}`));
+        const error = new Error(`${event.command} failed with exit code ${code}`);
+        error.stdout = stdout;
+        error.stderr = stderr;
+        error.event = event;
+        reject(error);
       }
     });
   });
@@ -101,7 +105,7 @@ function quoteCmdArg(value) {
 }
 
 async function smoke(baseUrl) {
-  for (const path of ["/healthz", "/readyz"]) {
+  for (const path of ["/healthz", "/readyz", "/qa/reflection-loop.json"]) {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
       redirect: "manual",
       headers: { accept: "application/json", "cache-control": "no-store" }
@@ -111,11 +115,19 @@ async function smoke(baseUrl) {
     if (contentType.includes("application/json")) {
       payload = await response.json();
     }
-    const ok = response.ok
-      && typeof payload === "object"
-      && payload !== null
-      && payload.ok === true
-      && payload.service === "ikimon-life-cloudflare-worker";
+    const ok = path === "/qa/reflection-loop.json"
+      ? response.ok
+        && typeof payload === "object"
+        && payload !== null
+        && payload.ok === true
+        && payload.service === "ikimon.life"
+        && payload.runtime === "cloudflare-worker"
+        && payload.loop_contract?.no_personal_data === true
+      : response.ok
+        && typeof payload === "object"
+        && payload !== null
+        && payload.ok === true
+        && payload.service === "ikimon-life-cloudflare-worker";
     events.push({
       command: `smoke ${baseUrl}${path}`,
       exitCode: ok ? 0 : 1,
@@ -127,6 +139,14 @@ async function smoke(baseUrl) {
       throw new Error(`Smoke failed for ${baseUrl}${path}: ${response.status} ${contentType}`);
     }
   }
+}
+
+function isTolerableWranglerRouteUpdateFailure(error) {
+  const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
+  return output.includes("Uploaded ikimon-life-cloudflare-prod")
+    && output.includes("Some triggers failed to deploy for ikimon-life-cloudflare-prod")
+    && output.includes("/workers/routes")
+    && output.includes("All Zones");
 }
 
 function stripJsonComments(source) {
@@ -358,7 +378,17 @@ await runWranglerVersionGate(initialState);
 await run("npx", ["wrangler", "deploy", "--env", "production", "--dry-run"]);
 
 if (execute) {
-  await run("npx", ["wrangler", "deploy", "--env", "production"]);
+  try {
+    await run("npx", ["wrangler", "deploy", "--env", "production"]);
+  } catch (error) {
+    if (!isTolerableWranglerRouteUpdateFailure(error)) throw error;
+    events.push({
+      command: "tolerate wrangler route trigger update failure after worker upload",
+      exitCode: 0,
+      durationMs: 0,
+      warning: "Wrangler uploaded the production Worker, then failed while reapplying existing routes with the current token. Production smoke remains mandatory."
+    });
+  }
   await smoke(productionWorkerUrl);
   await smoke(productionPublicUrl);
 }

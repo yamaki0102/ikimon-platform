@@ -4715,6 +4715,46 @@ test("production public health endpoints are served by Cloudflare instead of ori
   }
 });
 
+test("production reflection loop manifest is served by Cloudflare instead of origin fallback", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/qa/reflection-loop.json"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+    const payload = await response.json() as any;
+    const text = JSON.stringify(payload);
+    assert.equal(payload.ok, true);
+    assert.equal(payload.service, "ikimon.life");
+    assert.equal(payload.runtime, "cloudflare-worker");
+    assert.equal(payload.manifest_path, "/qa/reflection-loop.json");
+    assert.equal(payload.loop_contract.no_personal_data, true);
+    assert.equal(payload.analytics.ga4_measurement_id, "G-NCL0M1VJZ2");
+    assert.equal(payload.analytics.clarity_project_id, "wl2ezvfqbh");
+    assert.equal(payload.coverage.cloudflare_worker.public_html_path_count > 50, true);
+    assert.equal(payload.coverage.cloudflare_worker.smoke_paths.includes("/qa/reflection-loop.json"), true);
+    assert.equal(payload.coverage.node_platform.registry_source, "platform_v2/src/siteMap.ts");
+    assert.equal(payload.improvement_loop.priority_basis.continuously_updated, true);
+    assert.equal(text.includes("GOOGLE_CLIENT_SECRET"), false);
+    assert.equal(text.includes("TWITTER_CLIENT_SECRET"), false);
+    assert.equal(text.includes("INTERNAL_AUTH_TOKEN"), false);
+    assert.equal(fallbackCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown): Promise<any> {
   const response = await worker.fetch(new Request(`https://shadow.test${path}`, {
     method: "POST",

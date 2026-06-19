@@ -1091,6 +1091,16 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     summary: { ja: "ステージング確認用の全体導線。", en: "Full route map for staging QA." },
   },
   {
+    path: "/qa/reflection-loop.json",
+    lane: "ops",
+    layout: "standard",
+    audience: "operator",
+    auth: "system",
+    navVisibility: ["qa"],
+    title: { ja: "Reflection Loop Manifest", en: "Reflection Loop Manifest" },
+    summary: { ja: "本番Reflection Loopが読む、route registryと計測設定の機械可読manifest。", en: "Machine-readable route and measurement manifest for the production Reflection Loop." },
+  },
+  {
     path: "/healthz",
     lane: "ops",
     layout: "standard",

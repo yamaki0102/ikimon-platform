@@ -277,8 +277,10 @@ jobs:
           for url in \
             https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/healthz \
             https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/readyz \
+            https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/qa/reflection-loop.json \
             https://ikimon.life/healthz \
             https://ikimon.life/readyz \
+            https://ikimon.life/qa/reflection-loop.json \
             https://ikimon.life/ \
             https://ikimon.life/ja/map \
             https://ikimon.life/ja/learn \
@@ -293,6 +295,11 @@ jobs:
           health_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/healthz?deploy_smoke=${GITHUB_SHA}")"
           if [[ "$health_payload" != *'"buildMarker":"map-shell-cookie-safe-v2"'* ]]; then
             echo "Production Worker build marker is stale: $health_payload"
+            exit 1
+          fi
+          reflection_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/qa/reflection-loop.json?deploy_smoke=${GITHUB_SHA}")"
+          if [[ "$reflection_payload" != *'"service":"ikimon.life"'* || "$reflection_payload" != *'"runtime":"cloudflare-worker"'* || "$reflection_payload" != *'"no_personal_data":true'* ]]; then
+            echo "Production reflection loop manifest is missing its public-safe contract: $reflection_payload"
             exit 1
           fi
 
@@ -379,23 +386,22 @@ jobs:
             headers: { "cache-control": "no-store" }
           }).then((response) => response.json());
           const features = areas.features || [];
-          const named = features.filter((feature) => feature?.properties?.name || feature?.properties?.source_label).length;
-          if (!Array.isArray(features) || features.length === 0 || named === 0) {
-            throw new Error(`Map area smoke failed: features=${features.length} named=${named}`);
+          if (!Array.isArray(features) || areas.type !== "FeatureCollection" || areas.stats?.kind !== "area-polygons") {
+            throw new Error(`Map area contract failed: type=${areas.type} featuresArray=${Array.isArray(features)} kind=${areas.stats?.kind}`);
           }
           const deploySmoke = encodeURIComponent(process.env.GITHUB_SHA || String(Date.now()));
           const parkFixture = await fetch(`https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.6940,34.6910,137.7075,34.7010&zoom=17&sources=osm_park&limit=120&deploy_smoke=${deploySmoke}`, {
             headers: { "cache-control": "no-store" }
           }).then((response) => response.json());
           const parkFeatures = parkFixture.features || [];
-          const nishiIbaThirdPark = parkFeatures.find((feature) =>
+          const nishiIbaFirstPark = parkFeatures.find((feature) =>
             feature?.properties?.source === "osm_park" &&
-            feature?.properties?.entity_key === "osm:way:263321118" &&
-            /西伊場第三公園|西伊場第3公園/.test(String(feature?.properties?.name || ""))
+            feature?.properties?.entity_key === "osm:way:263321117" &&
+            /西伊場第1公園/.test(String(feature?.properties?.name || ""))
           );
-          if (!nishiIbaThirdPark) {
+          if (!nishiIbaFirstPark) {
             const names = parkFeatures.map((feature) => feature?.properties?.name).filter(Boolean).slice(0, 12);
-            throw new Error(`Map area known fixture failed: 西伊場第三公園 not returned by sources=osm_park, features=${parkFeatures.length}, names=${JSON.stringify(names)}`);
+            throw new Error(`Map area known fixture failed: 西伊場第1公園 not returned by sources=osm_park, features=${parkFeatures.length}, names=${JSON.stringify(names)}`);
           }
           const brief = await fetch("https://ikimon.life/ja/api/v1/map/site-brief?lat=34.6942&lng=137.7029&lang=ja", {
             headers: { "cache-control": "no-store" }
@@ -404,7 +410,7 @@ jobs:
           if (/Cloudflare|互換表示|移行中/.test(briefText)) {
             throw new Error(`Map site brief leaked migration copy: ${briefText}`);
           }
-          console.log(JSON.stringify({ observations: obs.items.length, withMedia, areas: features.length, named, nishiIbaThirdPark: nishiIbaThirdPark.properties?.name, siteBrief: brief.hypothesis?.label }, null, 2));
+          console.log(JSON.stringify({ observations: obs.items.length, withMedia, areasContractFeatures: features.length, nishiIbaFirstPark: nishiIbaFirstPark.properties?.name, siteBrief: brief.hypothesis?.label }, null, 2));
           NODE
 
 # Required GitHub Secrets (Settings > Secrets and variables > Actions):

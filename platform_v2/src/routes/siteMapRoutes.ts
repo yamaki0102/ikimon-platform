@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { buildRobotsTxt, buildXmlSitemap } from "../siteMap.js";
+import { buildReflectionLoopManifest } from "../services/reflectionLoopManifest.js";
 
 function requestOrigin(request: { headers: Record<string, unknown> }): string {
   const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "ikimon.life");
@@ -16,5 +17,12 @@ export async function registerSiteMapRoutes(app: FastifyInstance): Promise<void>
   app.get("/robots.txt", async (request, reply) => {
     reply.type("text/plain; charset=utf-8");
     return buildRobotsTxt(requestOrigin(request as unknown as { headers: Record<string, unknown> }));
+  });
+
+  app.get("/qa/reflection-loop.json", async (request, reply) => {
+    reply
+      .type("application/json; charset=utf-8")
+      .header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    return buildReflectionLoopManifest(requestOrigin(request as unknown as { headers: Record<string, unknown> }));
   });
 }

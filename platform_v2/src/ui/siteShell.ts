@@ -3,6 +3,7 @@ import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js"
 import { getShortCopy } from "../content/index.js";
 import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, appInstallCopy } from "../appInstall.js";
 import { BRAND_ASSETS } from "../brandAssets.js";
+import { IKIMON_CLARITY_PROJECT_ID, IKIMON_GA4_MEASUREMENT_ID } from "../services/analyticsConfig.js";
 import {
   getSiteShellLayoutForPath,
   listPagesByLane,
@@ -3441,7 +3442,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const host = window.location.hostname;
   if (host !== 'ikimon.life' && host !== 'www.ikimon.life') return;
 
-  const googleTagId = 'G-NCL0M1VJZ2';
+  const googleTagId = ${JSON.stringify(IKIMON_GA4_MEASUREMENT_ID)};
   const sanitizeDimension = (value, fallback) => {
     const normalized = String(value || fallback || '')
       .replace(/[^a-zA-Z0-9_:\\/\\-.?=&]+/g, '_')
@@ -3493,7 +3494,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments);};
     t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;
     y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window, document, 'clarity', 'script', 'wl2ezvfqbh');
+  })(window, document, 'clarity', 'script', ${JSON.stringify(IKIMON_CLARITY_PROJECT_ID)});
 })();
 </script>`;
   const legacyServiceWorkerCleanupScript = `<script>
