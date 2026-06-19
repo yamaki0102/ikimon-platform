@@ -64,7 +64,7 @@ async function expectMapFirstHomeShell(page: Page): Promise<void> {
   await expect(async () => {
     await page.goto("/?lang=ja", { waitUntil: "networkidle" });
     await expect(page.locator(".me-section")).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("#me-map")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#map-explorer")).toBeVisible({ timeout: 5_000 });
     await expect(page.locator("#me-side-toggle")).toBeVisible({ timeout: 5_000 });
     await expect(page.locator("#me-side-rail-count")).toHaveCount(1);
     await expect(page.locator("#me-side-rail-count")).toHaveText("");
