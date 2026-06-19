@@ -248,6 +248,33 @@ test("cell and blank map selections are aggregate and safety surfaces", () => {
   assert.doesNotMatch(script, /title: COPY\.cellAggregateTitle, meta: coordLabel/);
 });
 
+test("selected map details compare nearby areas records and seasons together", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const enScript = mapExplorerBootScript({ basePath: "", lang: "en" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /"comparisonTitle":"周辺を比べる"/);
+  assert.match(script, /function renderContextComparisonStrip\(context\)/);
+  assert.match(script, /nearbyDiscoverableAreaCandidates\(\{ lat: context\.lat, lng: context\.lng \}\)/);
+  assert.match(script, /nearbyRecordsForContext\(context, 650\)/);
+  assert.match(script, /seasonKeyFromDate\(record && record\.observedAt\)/);
+  assert.match(script, /axis: 'season'[\s\S]*axis: 'records'[\s\S]*axis: 'areas'/);
+  assert.match(script, /data-compare-axis="' \+ escapeHtml\(card\.axis\)/);
+  assert.match(script, /"comparisonLead":""/);
+  assert.match(script, /COPY\.comparisonLead \? '<strong>'/);
+  assert.doesNotMatch(script, /エリア、記録、季節を同じ目線で見る/);
+  assert.doesNotMatch(script, /最初の記録で開ける/);
+  assert.match(script, /COPY\.comparisonSafetyNote/);
+  assert.match(script, /学校・私有地・立入制限は入らず/);
+  assert.match(script, /renderDetailVisitReasons\(context\) \+\s+renderContextComparisonStrip\(context\) \+\s+renderSiteBriefSlot\('me-selected-brief-slot', context\)/);
+  assert.match(script, /renderPlaceDetailActions\(detailContext\) \+\s+renderContextComparisonStrip\(detailContext\) \+\s+renderDetailStats/);
+  assert.match(enScript, /Compare nearby/);
+  assert.doesNotMatch(enScript, /周辺を比べる/);
+  assert.match(styles, /\.me-context-comparison-grid \{\s*display: grid;\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
+  assert.match(styles, /\.me-context-comparison-safety \{/);
+  assert.match(styles, /@media \(max-width: 520px\)[\s\S]*\.me-context-comparison-grid,[\s\S]*\.me-detail-visit \{ grid-template-columns: 1fr; \}/);
+});
+
 test("area sheet includes contribution feedback surface", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
@@ -407,6 +434,11 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /function groupResultRecords\(records\)/);
   assert.match(script, /function renderResultsEmptyState\(\)/);
   assert.match(script, /COPY\.emptyTitle/);
+  assert.match(script, /近くの候補へ/);
+  assert.match(script, /学校・私有地・立入制限は避けてください/);
+  assert.doesNotMatch(script, /図鑑が育つ余白/);
+  assert.doesNotMatch(script, /見える記録が少ない範囲/);
+  assert.doesNotMatch(script, /room for the guide to grow/);
   assert.match(script, /data-results-empty-areas/);
   assert.match(script, /data-results-empty-widen/);
   assert.match(script, /me-empty-invite/);

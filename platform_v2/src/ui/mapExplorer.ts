@@ -252,9 +252,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintDismiss: "閉じる",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "この範囲はまだこれから。エリアや季節を少し広げると、地域図鑑の入口が見つかるかもしれません。",
-    emptyTitle: "ここは、まだ図鑑が育つ余白です",
-    emptyLead: "何もない場所ではなく、近くの公開エリアや季節を変えると最初の手がかりが見つかる範囲です。",
+    empty: "公園・水辺・緑地から見てみる。",
+    emptyTitle: "近くの候補へ",
+    emptyLead: "学校・私有地・立入制限は避けてください。",
     emptyActionAreas: "候補エリアを見る",
     emptyActionWiden: "少し広げる",
     emptyActionRecord: "見つけたものを記録",
@@ -409,9 +409,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintDismiss: "Close",
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
-    empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
-    emptyTitle: "This is room for the guide to grow",
-    emptyLead: "It is not an empty dead end. Nearby public areas or another season can reveal the first clues.",
+    empty: "Start with parks, watersides, and green spaces.",
+    emptyTitle: "Nearby options",
+    emptyLead: "Avoid schools, private land, and restricted areas.",
     emptyActionAreas: "View candidate areas",
     emptyActionWiden: "Widen a little",
     emptyActionRecord: "Record a find",
@@ -566,9 +566,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintDismiss: "Cerrar",
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
-    empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
-    emptyTitle: "Aquí la guía aún puede crecer",
-    emptyLead: "No es un callejón sin salida. Zonas públicas cercanas u otra estación pueden mostrar las primeras pistas.",
+    empty: "Empieza por parques, orillas y zonas verdes.",
+    emptyTitle: "Opciones cercanas",
+    emptyLead: "Evita escuelas, terrenos privados y zonas restringidas.",
     emptyActionAreas: "Ver áreas candidatas",
     emptyActionWiden: "Ampliar un poco",
     emptyActionRecord: "Registrar hallazgo",
@@ -723,9 +723,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintDismiss: "Fechar",
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
-    empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
-    emptyTitle: "Este guia ainda tem espaço para crescer",
-    emptyLead: "Não é um beco sem saída. Áreas públicas próximas ou outra estação podem revelar as primeiras pistas.",
+    empty: "Comece por parques, margens d'água e áreas verdes.",
+    emptyTitle: "Opções próximas",
+    emptyLead: "Evite escolas, áreas privadas e áreas restritas.",
     emptyActionAreas: "Ver áreas candidatas",
     emptyActionWiden: "Ampliar um pouco",
     emptyActionRecord: "Registrar achado",
@@ -1631,6 +1631,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
     resultHeading: props.lang === "ja" ? "近くの発見" : props.lang === "es" ? "Hallazgos cercanos" : props.lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
     resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
+    comparisonTitle: props.lang === "ja" ? "周辺を比べる" : props.lang === "es" ? "Comparar cerca" : props.lang === "pt-BR" ? "Comparar por perto" : "Compare nearby",
+    comparisonLead: "",
+    comparisonAreaLabel: props.lang === "ja" ? "エリア" : props.lang === "es" ? "Áreas" : props.lang === "pt-BR" ? "Áreas" : "Areas",
+    comparisonRecordLabel: props.lang === "ja" ? "近くの記録" : props.lang === "es" ? "Registros cercanos" : props.lang === "pt-BR" ? "Registros próximos" : "Nearby records",
+    comparisonSeasonLabel: props.lang === "ja" ? "季節" : props.lang === "es" ? "Temporada" : props.lang === "pt-BR" ? "Estação" : "Season",
+    comparisonAreaUnit: props.lang === "ja" ? "候補" : props.lang === "es" ? "opciones" : props.lang === "pt-BR" ? "opções" : "options",
+    comparisonRecordUnit: props.lang === "ja" ? "件" : props.lang === "es" ? "registros" : props.lang === "pt-BR" ? "registros" : "records",
+    comparisonSeasonUnit: props.lang === "ja" ? "季節" : props.lang === "es" ? "temporadas" : props.lang === "pt-BR" ? "estações" : "seasons",
+    comparisonAreaEmpty: props.lang === "ja" ? "候補エリア" : props.lang === "es" ? "Áreas candidatas" : props.lang === "pt-BR" ? "Áreas candidatas" : "Candidate areas",
+    comparisonRecordEmpty: props.lang === "ja" ? "記録" : props.lang === "es" ? "Registros" : props.lang === "pt-BR" ? "Registros" : "Records",
+    comparisonSeasonEmpty: props.lang === "ja" ? "別の季節" : props.lang === "es" ? "Otra temporada" : props.lang === "pt-BR" ? "Outra estação" : "Another season",
+    comparisonSafetyNote: props.lang === "ja" ? "学校・私有地・立入制限は入らず、公開範囲と現地ルールを優先。" : props.lang === "es" ? "No entres en escuelas, terrenos privados o zonas restringidas; sigue las reglas locales." : props.lang === "pt-BR" ? "Não entre em escolas, áreas privadas ou restritas; siga as regras locais." : "Do not enter schools, private land, or restricted areas; follow on-site rules.",
     movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
     areaActivityRallyTitle: copy.activityRallyTitle,
     areaActivityRallyBody: copy.activityRallyBody,
@@ -3346,6 +3358,62 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return '<div><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>';
     }).join('') + '</div>';
   }
+  function seasonKeyFromDate(value) {
+    var month = value ? Number(String(value).slice(5, 7)) : 0;
+    if (!Number.isFinite(month) || month < 1 || month > 12) return '';
+    if (month >= 3 && month <= 5) return 'spring';
+    if (month >= 6 && month <= 8) return 'summer';
+    if (month >= 9 && month <= 11) return 'autumn';
+    return 'winter';
+  }
+  function seasonLabelForKey(key) {
+    if (key === 'spring') return COPY.seasonSpring;
+    if (key === 'summer') return COPY.seasonSummer;
+    if (key === 'autumn') return COPY.seasonAutumn;
+    if (key === 'winter') return COPY.seasonWinter;
+    return '';
+  }
+  function nearbyComparisonAreas(context) {
+    if (!context || !Number.isFinite(context.lat) || !Number.isFinite(context.lng)) return [];
+    return nearbyDiscoverableAreaCandidates({ lat: context.lat, lng: context.lng });
+  }
+  function renderContextComparisonStrip(context) {
+    if (!context || !Number.isFinite(context.lat) || !Number.isFinite(context.lng)) return '';
+    var areas = nearbyComparisonAreas(context);
+    var nearbyRecords = nearbyRecordsForContext(context, 650);
+    var seasons = {};
+    nearbyRecords.forEach(function (item) {
+      var record = item && item.record;
+      var key = seasonKeyFromDate(record && record.observedAt);
+      if (key) seasons[key] = true;
+    });
+    var seasonKeys = Object.keys(seasons);
+    var areaDetail = areas.length
+      ? areas.slice(0, 2).map(function (item) { return areaFeatureDisplayName(item.feature); }).filter(Boolean).join(' / ')
+      : COPY.comparisonAreaEmpty;
+    var recordDetail = nearbyRecords.length
+      ? nearbyRecords.slice(0, 2).map(function (item) { return recordDisplayName(item.record, COPY.discoveryFallback); }).filter(Boolean).join(' / ')
+      : COPY.comparisonRecordEmpty;
+    var seasonDetail = seasonKeys.length
+      ? seasonKeys.map(seasonLabelForKey).filter(Boolean).join(' / ')
+      : COPY.comparisonSeasonEmpty;
+    var cards = [
+      { axis: 'season', label: COPY.comparisonSeasonLabel, value: seasonKeys.length ? compactNumber(seasonKeys.length) : currentSeasonLabel(), unit: seasonKeys.length ? COPY.comparisonSeasonUnit : '', detail: seasonDetail },
+      { axis: 'records', label: COPY.comparisonRecordLabel, value: compactNumber(nearbyRecords.length), unit: COPY.comparisonRecordUnit, detail: recordDetail },
+      { axis: 'areas', label: COPY.comparisonAreaLabel, value: compactNumber(areas.length), unit: COPY.comparisonAreaUnit, detail: areaDetail },
+    ];
+    return '<section class="me-context-comparison me-detail-section" aria-label="' + escapeHtml(COPY.comparisonTitle) + '">' +
+      '<div class="me-context-comparison-head"><span>' + escapeHtml(COPY.comparisonTitle) + '</span>' + (COPY.comparisonLead ? '<strong>' + escapeHtml(COPY.comparisonLead) + '</strong>' : '') + '</div>' +
+      '<div class="me-context-comparison-grid">' + cards.map(function (card) {
+        return '<div class="me-context-comparison-card" data-compare-axis="' + escapeHtml(card.axis) + '">' +
+          '<span>' + escapeHtml(card.label) + '</span>' +
+          '<strong>' + escapeHtml(card.value + (card.unit ? ' ' + card.unit : '')) + '</strong>' +
+          '<small>' + escapeHtml(card.detail || '—') + '</small>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<p class="me-context-comparison-safety">' + escapeHtml(COPY.comparisonSafetyNote) + '</p>' +
+    '</section>';
+  }
   function currentSeasonLabel() {
     if (state.season === 'spring') return COPY.seasonSpring;
     if (state.season === 'summer') return COPY.seasonSummer;
@@ -3547,6 +3615,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           renderDetailHero({ title: COPY.selectedPointName, meta: '', badge: COPY.selectionPlaceLabel }) +
           renderAggregateSafety(COPY.mapPointSafety) +
           renderDetailVisitReasons(context) +
+          renderContextComparisonStrip(context) +
           renderSiteBriefSlot('me-selected-brief-slot', context) +
           renderDetailRecentFinds(context) +
           renderDetailWalkableFinds(context) +
@@ -3576,6 +3645,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           renderDetailHero({ title: COPY.cellAggregateTitle, meta: countLabel + (latest ? ' · ' + latest : '') + (era ? ' · ' + era : ''), badge: COPY.cellAggregateBadge }) +
           renderAggregateSafety(COPY.cellAggregateSafety) +
           renderDetailVisitReasons(context) +
+          renderContextComparisonStrip(context) +
           renderSiteBriefSlot('me-selected-brief-slot', context) +
           renderDetailRecentFinds(context) +
           renderDetailWalkableFinds(context) +
@@ -3610,6 +3680,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           photoUrl: record.photoUrl || '',
         }) +
         renderDetailVisitReasons(context) +
+        renderContextComparisonStrip(context) +
         renderDetailRecentFinds(context) +
         renderDetailWalkableFinds(context) +
         renderDetailActions([
@@ -4607,6 +4678,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           { icon: '＋', label: COPY.bottomSheetRecord, href: RECORD_HREF, actionKey: 'map:selected_observation:record' },
           { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:selected_observation:notes' },
         ]) +
+        renderContextComparisonStrip(detailContext) +
         renderDetailStats([
           { label: COPY.placeStoryNow, value: recordDisplayName(record) },
           { label: COPY.placeStoryRecent, value: record.observedAt ? String(record.observedAt).slice(0, 10) : '—' },
@@ -4639,6 +4711,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         renderDetailRecentFinds(detailContext) +
         renderDetailWalkableFinds(detailContext) +
         renderPlaceDetailActions(detailContext) +
+        renderContextComparisonStrip(detailContext) +
         renderDetailStats([
           { label: COPY.placeStoryRecent, value: String(p.count || 0) + ' ' + COPY.resultCountLabel },
           { label: COPY.placeStoryActions, value: p.latestObservedAt ? String(p.latestObservedAt).slice(0, 10) : COPY.placeStoryNeedSeason },
@@ -4705,6 +4778,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         renderDetailRecentFinds(detailContext) +
         renderDetailWalkableFinds(detailContext) +
         renderPlaceDetailActions(detailContext) +
+        renderContextComparisonStrip(detailContext) +
         renderDetailStats([
           { label: COPY.placeStoryNow, value: COPY.placeStoryNoTaxa },
           { label: COPY.placeStoryMissing, value: COPY.placeStoryNeedSeason },
@@ -9689,6 +9763,83 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 13px;
     font-weight: 800;
   }
+  .me-context-comparison {
+    display: grid;
+    gap: 9px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(14,165,233,.16);
+    box-shadow: 0 8px 22px rgba(15,23,42,.05);
+  }
+  .me-context-comparison-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .me-context-comparison-head span {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 950;
+  }
+  .me-context-comparison-head strong {
+    min-width: 0;
+    color: #0f766e;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 900;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .me-context-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .me-context-comparison-card {
+    min-width: 0;
+    min-height: 94px;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    gap: 5px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(248,250,252,.94);
+    border: 1px solid rgba(148,163,184,.15);
+    overflow-wrap: anywhere;
+  }
+  .me-context-comparison-card span {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.3;
+    font-weight: 900;
+  }
+  .me-context-comparison-card strong {
+    color: #0f172a;
+    font-size: 16px;
+    line-height: 1.15;
+    font-weight: 950;
+  }
+  .me-context-comparison-card small {
+    color: #475569;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 760;
+  }
+  .me-context-comparison-safety {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255,251,235,.88);
+    border: 1px solid rgba(245,158,11,.22);
+    color: #78350f;
+    font-size: 10.5px;
+    line-height: 1.45;
+    font-weight: 820;
+    overflow-wrap: anywhere;
+  }
   .me-detail-visit {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -9795,6 +9946,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-impact-grid,
     .me-place-story-grid,
     .me-detail-stats,
+    .me-context-comparison-grid,
     .me-detail-visit { grid-template-columns: 1fr; }
     .me-area-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .me-school-albums-grid { grid-template-columns: 1fr; }
