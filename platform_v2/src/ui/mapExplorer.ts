@@ -4884,9 +4884,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedCellId = null;
     state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'area', fieldId: String(props.field_id || ''), areaFeature: feature, transient: true };
     trackAreaDetailOpen('transient_area', props);
-    if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(props.field_id || '__none__'));
-    }
+    setSelectedAreaPolygonFilter(props.field_id || '__none__');
     if (!shouldUseBottomSheet()) {
       sheetEl.classList.remove('is-open');
       sheetEl.classList.remove('me-bottom-sheet--area');
@@ -4924,9 +4922,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedCellId = null;
     state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId, areaFeature: feature || null };
     trackAreaDetailOpen('registered_area', Object.assign({ field_id: fieldId }, feature && feature.properties ? feature.properties : {}));
-    if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter(fieldId));
-    }
+    setSelectedAreaPolygonFilter(fieldId);
     if (!shouldUseBottomSheet()) {
       sheetEl.classList.remove('is-open');
       sheetEl.classList.remove('me-bottom-sheet--area');
@@ -4978,9 +4974,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.classList.remove('me-bottom-sheet--detail');
     sheetEl.removeAttribute('data-snap');
     sheetEl.setAttribute('aria-hidden', 'true');
-    if (state.map && state.map.getLayer('area-polygon-selected')) {
-      state.map.setFilter('area-polygon-selected', selectedAreaPolygonFilter('__none__'));
-    }
+    setSelectedAreaPolygonFilter('__none__');
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
   if (sheetGripEl) {
@@ -5930,7 +5924,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var markerDetailLayers = ['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
-    var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
+    var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected-halo', 'area-polygon-selected'];
     var areaLabelLayers = ['area-polygon-name-priority', 'area-polygon-name'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
@@ -5988,7 +5982,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
         'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else if (tab === 'places') {
-      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected']);
+      moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected-halo', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)', 'areas');
       loadWaterwayHints();
@@ -6162,7 +6156,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function areaPolygonHitLayers() {
     if (!state.map) return [];
-    return ['area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected'].filter(function (id) {
+    return ['area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-selected-halo', 'area-polygon-selected'].filter(function (id) {
       return state.map.getLayer(id);
     });
   }
@@ -6170,6 +6164,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var VISIBLE_AREA_POLYGON_FILTER = ['!', ['all', ['==', ['get', 'source'], 'school'], ['==', ['get', 'approximate_boundary'], true]]];
   function selectedAreaPolygonFilter(fieldId) {
     return ['all', ['==', ['get', 'field_id'], String(fieldId || '__none__')], VISIBLE_AREA_POLYGON_FILTER];
+  }
+  function setSelectedAreaPolygonFilter(fieldId) {
+    if (!state.map) return;
+    var filter = selectedAreaPolygonFilter(fieldId);
+    ['area-polygon-selected-halo', 'area-polygon-selected'].forEach(function (layerId) {
+      if (state.map.getLayer(layerId)) state.map.setFilter(layerId, filter);
+    });
   }
 
   function pickSmallestAreaFeature(features) {
@@ -6398,15 +6399,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       },
     }, beforeId);
     map.addLayer({
+      id: 'area-polygon-selected-halo',
+      type: 'line',
+      source: 'area-polygons',
+      filter: selectedAreaPolygonFilter('__none__'),
+      paint: {
+        'line-color': 'rgba(255,255,255,0.94)',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 5.6, 14, 8.2, 17, 10.5],
+        'line-opacity': 0.92,
+      },
+    }, beforeId);
+    map.addLayer({
       id: 'area-polygon-selected',
       type: 'line',
       source: 'area-polygons',
       filter: selectedAreaPolygonFilter('__none__'),
       paint: {
         'line-color': '#0f766e',
-        'line-width': 2.6,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3.2, 14, 4.8, 17, 6.2],
+        'line-opacity': 0.98,
       },
-    });
+    }, beforeId);
     ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
         var hitLayers = areaPolygonHitLayers();
