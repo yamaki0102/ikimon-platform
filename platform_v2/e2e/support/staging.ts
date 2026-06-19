@@ -292,8 +292,22 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
     class SmokeMarker {
       constructor(options) { this._element = options && options.element; }
       setLngLat(value) { this._lngLat = value; return this; }
-      addTo() { return this; }
-      remove() { return this; }
+      addTo(map) {
+        this._map = map;
+        if (this._element && map && map._container && !map._container.contains(this._element)) {
+          this._element.style.position = this._element.style.position || "absolute";
+          this._element.style.left = this._element.style.left || "50%";
+          this._element.style.top = this._element.style.top || "50%";
+          map._container.appendChild(this._element);
+        }
+        return this;
+      }
+      remove() {
+        if (this._element && this._element.parentElement) {
+          this._element.parentElement.removeChild(this._element);
+        }
+        return this;
+      }
     }
 
     class SmokePopup {

@@ -212,6 +212,27 @@ test("mobile map status clears the default area legend", () => {
   );
 });
 
+test("locate action highlights nearby discoverable places on the map", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /nearbyAreasStatusTemplate/);
+  assert.match(script, /function refreshNearbyAreaMarkers\(origin\)/);
+  assert.match(script, /function nearbyDiscoverableAreaCandidates\(origin\)/);
+  assert.match(script, /state\.nearbyAreaOrigin = \{/);
+  assert.match(script, /Math\.round\(lat \* 10000\) \/ 10000/);
+  assert.match(script, /if \(origin && state\.areaPolygonsLoaded\) setStatus\(COPY\.nearbyAreasNoneStatus\);/);
+  assert.match(script, /refreshNearbyAreaMarkers\(state\.nearbyAreaOrigin\)/);
+  assert.match(script, /openAreaFeatureSheet\(feature, center\.lat, center\.lng\)/);
+  assert.match(script, /function canSuggestDirectAreaRecord\(area, masking\) \{\s*return areaAccessStatus\(area, masking\) === 'public_access';\s*\}/);
+  assert.match(script, /renderAreaObservationGallery\(gallery, \{ label: COPY\.areaGalleryTitle, canRecord: canRecord, areaStatus: accessStatus \}\)/);
+  assert.match(script, /COPY\.areaGalleryEmptySchoolLead/);
+  assert.match(script, /me-nearby-area-marker/);
+  assert.match(styles, /\.me-nearby-area-marker/);
+  assert.match(styles, /\.me-nearby-area-marker\.is-public/);
+  assert.match(styles, /\.me-nearby-area-marker\.is-school/);
+});
+
 test("cell and blank map selections are aggregate and safety surfaces", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
@@ -261,13 +282,13 @@ test("area badge labels are not rendered as map markers", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /function refreshAreaBadgeMarkers/);
-  assert.match(script, /function refreshAreaBadgeMarkers\(\) \{\s*clearAreaBadgeMarkers\(\);\s*\}/);
+  assert.match(script, /function refreshAreaBadgeMarkers\(\) \{\s*clearAreaBadgeMarkers\(\);\s*refreshNearbyAreaMarkers\(state\.nearbyAreaOrigin\);\s*\}/);
   assert.doesNotMatch(script, /function areaBadgeCountLabel\(item\)/);
   assert.doesNotMatch(script, /function isNamedAreaBadgeFeature\(feature, zoom\)/);
   assert.doesNotMatch(script, /me-area-badge-pill/);
   assert.match(script, /id: 'area-polygon-name'/);
   assert.match(script, /'text-field': \['get', 'name'\]/);
-  assert.doesNotMatch(script, /new window\.maplibregl\.Marker\(\{ element: el, anchor: 'bottom', offset: \[0, -10\] \}\)/);
+  assert.doesNotMatch(script, /me-area-badge/);
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
   assert.doesNotMatch(script, /me-area-badge-actions/);
 });
