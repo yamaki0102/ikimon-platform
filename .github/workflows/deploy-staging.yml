@@ -24,7 +24,7 @@ on:
         default: ''
         type: string
       verify_level:
-        description: 'Verification depth: auto is the normal fast path; full is for release/cutover rehearsal'
+        description: 'Verification depth: fast is deploy+healthz only; auto is preview smoke; full is release/cutover rehearsal'
         required: false
         default: 'auto'
         type: choice
@@ -128,6 +128,11 @@ jobs:
             RUN_MANIFEST_CHECK=true
             RUN_BROWSER_SMOKE=true
             RUN_FULL_BROWSER_E2E=true
+          elif [ "$VERIFY_LEVEL" = "fast" ]; then
+            # Fast lane is intentionally not a release gate: deploy/restart/SSH healthz only.
+            # Browser smoke and full E2E belong to auto/release lanes.
+            RUN_BROWSER_SMOKE=false
+            RUN_FULL_BROWSER_E2E=false
           else
             if [ "$PHP_CHANGED" = "true" ]; then RUN_PHP_LINT=true; fi
             if [ "$DEPLOY_CHANGED" = "true" ]; then RUN_MANIFEST_CHECK=true; fi
