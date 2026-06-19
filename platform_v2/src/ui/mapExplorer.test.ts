@@ -349,6 +349,33 @@ test("map legend stays within the map viewport", () => {
   assert.match(styles, /overflow-wrap: anywhere/);
 });
 
+test("area legend explains place meanings and safety states", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const enScript = mapExplorerBootScript({ basePath: "", lang: "en" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(html, /id="me-legend-detail"/);
+  assert.match(script, /function renderAreaLegendDetail\(\)/);
+  assert.match(script, /<dl class="me-legend-list">/);
+  assert.match(script, /<dt><i aria-hidden="true"><\/i><strong>/);
+  assert.match(script, /areaLegendParkLabel/);
+  assert.match(script, /areaLegendSchoolLabel/);
+  assert.match(script, /areaLegendWaterLabel/);
+  assert.match(script, /showLegend\(COPY\.areaTrustLegendLow, COPY\.areaTrustLegendHigh,[\s\S]*?'areas'\)/);
+  assert.match(script, /data-legend-mode', 'areas'/);
+  assert.match(script, /公園・緑地/);
+  assert.match(script, /学校・教育施設/);
+  assert.match(script, /水辺・水路/);
+  assert.match(enScript, /Parks \/ green/);
+  assert.match(enScript, /Schools/);
+  assert.match(enScript, /Waterways/);
+  assert.match(styles, /\.me-legend-detail/);
+  assert.match(styles, /grid-template-columns: repeat\(auto-fit, minmax\(112px, 1fr\)\)/);
+  assert.match(styles, /\.me-legend-chip\.is-school i[\s\S]*border-style: dashed/);
+  assert.match(styles, /\.me-legend-chip\.is-water i/);
+});
+
 test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
