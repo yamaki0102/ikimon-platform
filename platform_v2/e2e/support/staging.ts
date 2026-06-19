@@ -148,6 +148,180 @@ export async function suppressMapLibreForSmoke(page: Page): Promise<void> {
   });
 }
 
+export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const makeBounds = (center, span) => {
+      const lng = Number(center && center.lng) || 138.38;
+      const lat = Number(center && center.lat) || 35.34;
+      const delta = Number(span) || 0.1;
+      return {
+        _empty: false,
+        _west: lng - delta,
+        _south: lat - delta,
+        _east: lng + delta,
+        _north: lat + delta,
+        extend(value) {
+          const point = Array.isArray(value) ? value : [value && value.lng, value && value.lat];
+          const nextLng = Number(point[0]);
+          const nextLat = Number(point[1]);
+          if (!Number.isFinite(nextLng) || !Number.isFinite(nextLat)) return this;
+          if (this._empty) {
+            this._west = nextLng;
+            this._east = nextLng;
+            this._south = nextLat;
+            this._north = nextLat;
+            this._empty = false;
+          } else {
+            this._west = Math.min(this._west, nextLng);
+            this._east = Math.max(this._east, nextLng);
+            this._south = Math.min(this._south, nextLat);
+            this._north = Math.max(this._north, nextLat);
+          }
+          return this;
+        },
+        getWest() { return this._west; },
+        getSouth() { return this._south; },
+        getEast() { return this._east; },
+        getNorth() { return this._north; },
+        isEmpty() { return this._empty; },
+      };
+    };
+
+    class SmokeMap {
+      constructor(options) {
+        this._handlers = {};
+        this._onceHandlers = {};
+        this._sources = {};
+        this._layers = {};
+        this._loaded = false;
+        this._zoom = Number(options && options.zoom) || 10;
+        const center = Array.isArray(options && options.center) ? options.center : [138.38, 35.34];
+        this._center = { lng: Number(center[0]) || 138.38, lat: Number(center[1]) || 35.34 };
+        this._container = typeof options.container === "string"
+          ? document.getElementById(options.container)
+          : options.container;
+        this._canvas = document.createElement("canvas");
+        this._canvas.setAttribute("data-maplibre-smoke-stub", "1");
+        this._canvas.width = this._container && this._container.clientWidth ? this._container.clientWidth : 800;
+        this._canvas.height = this._container && this._container.clientHeight ? this._container.clientHeight : 600;
+        if (this._container && !this._container.querySelector("[data-maplibre-smoke-stub='1']")) {
+          this._container.appendChild(this._canvas);
+        }
+        setTimeout(() => {
+          this._loaded = true;
+          this._emit("load");
+          this._emit("style.load");
+          this._emit("idle");
+        }, 0);
+      }
+      _listen(bucket, type, layerOrHandler, maybeHandler) {
+        const handler = typeof layerOrHandler === "function" ? layerOrHandler : maybeHandler;
+        if (typeof handler !== "function") return this;
+        if (!bucket[type]) bucket[type] = [];
+        bucket[type].push(handler);
+        if ((type === "load" || type === "style.load") && this._loaded) {
+          setTimeout(() => handler({ type, target: this }), 0);
+        }
+        return this;
+      }
+      _emit(type, event) {
+        const payload = event || {
+          type,
+          target: this,
+          point: { x: 0, y: 0 },
+          lngLat: { lng: this._center.lng, lat: this._center.lat },
+        };
+        (this._handlers[type] || []).slice().forEach((handler) => handler(payload));
+        const onceHandlers = (this._onceHandlers[type] || []).slice();
+        this._onceHandlers[type] = [];
+        onceHandlers.forEach((handler) => handler(payload));
+      }
+      on(type, layerOrHandler, maybeHandler) { return this._listen(this._handlers, type, layerOrHandler, maybeHandler); }
+      once(type, layerOrHandler, maybeHandler) { return this._listen(this._onceHandlers, type, layerOrHandler, maybeHandler); }
+      addControl() { return this; }
+      resize() { return this; }
+      getCanvas() { return this._canvas; }
+      getCenter() { return this._center; }
+      getZoom() { return this._zoom; }
+      getBounds() { return makeBounds(this._center, 0.1); }
+      fitBounds() {
+        setTimeout(() => this._emit("moveend"), 0);
+        return this;
+      }
+      flyTo(options) {
+        if (options && Array.isArray(options.center)) {
+          this._center = { lng: Number(options.center[0]) || this._center.lng, lat: Number(options.center[1]) || this._center.lat };
+        }
+        if (options && Number.isFinite(Number(options.zoom))) this._zoom = Number(options.zoom);
+        setTimeout(() => this._emit("moveend"), 0);
+        return this;
+      }
+      addSource(id, source) {
+        this._sources[id] = {
+          id,
+          data: source && source.data,
+          setData(data) { this.data = data; },
+        };
+        return this;
+      }
+      getSource(id) { return this._sources[id] || null; }
+      removeSource(id) {
+        delete this._sources[id];
+        return this;
+      }
+      addLayer(layer) {
+        if (layer && layer.id) this._layers[layer.id] = layer;
+        return this;
+      }
+      getLayer(id) { return this._layers[id] || null; }
+      removeLayer(id) {
+        delete this._layers[id];
+        return this;
+      }
+      moveLayer() { return this; }
+      setFilter() { return this; }
+      setPaintProperty() { return this; }
+      setLayoutProperty() { return this; }
+      setStyle() {
+        setTimeout(() => this._emit("style.load"), 0);
+        return this;
+      }
+      queryRenderedFeatures() { return []; }
+    }
+
+    class SmokeMarker {
+      constructor(options) { this._element = options && options.element; }
+      setLngLat(value) { this._lngLat = value; return this; }
+      addTo() { return this; }
+      remove() { return this; }
+    }
+
+    class SmokePopup {
+      setLngLat(value) { this._lngLat = value; return this; }
+      setDOMContent(value) { this._content = value; return this; }
+      setHTML(value) { this._html = value; return this; }
+      addTo() { return this; }
+      remove() { return this; }
+    }
+
+    class SmokeLngLatBounds {
+      constructor() {
+        const bounds = makeBounds({ lng: 0, lat: 0 }, 0);
+        bounds._empty = true;
+        return bounds;
+      }
+    }
+
+    window.maplibregl = {
+      Map: SmokeMap,
+      Marker: SmokeMarker,
+      NavigationControl: class {},
+      Popup: SmokePopup,
+      LngLatBounds: SmokeLngLatBounds,
+    };
+  });
+}
+
 export async function createStagingApiContext(playwright: Playwright): Promise<APIRequestContext> {
   const authHeader = stagingBasicAuthHeader();
   return playwright.request.newContext({

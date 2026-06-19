@@ -1,11 +1,12 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
+  installMapLibreStubForSmoke,
   MAP_VIEWPORTS,
   newStagingContext,
 } from "./support/staging.js";
 
-test.describe.configure({ retries: 0, timeout: 90_000 });
+test.describe.configure({ retries: 0, timeout: 30_000 });
 
 const MAP_FIXTURE_CELL_ID = "3000:5121:1377";
 const MAP_FIXTURE_COLLECTION = {
@@ -196,7 +197,8 @@ async function readMapShellState(page: Page): Promise<MapShellState> {
 }
 
 async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH, isMobile = false): Promise<void> {
-  await page.goto(mapPath, { waitUntil: "domcontentloaded" });
+  const response = await page.goto(mapPath, { waitUntil: "domcontentloaded" });
+  expect(response?.status() ?? 0, `${mapPath} should load before map shell assertions`).toBeLessThan(400);
   await page.waitForFunction((expectedMobile) => {
     const isVisible = (selector: string): boolean => {
       const element = document.querySelector<HTMLElement>(selector);
@@ -221,13 +223,14 @@ async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
       && (mapBox?.height ?? 0) > (expectedMobile ? 500 : 620)
       && (count > 0 || rows > 0)
     );
-  }, isMobile, { timeout: 20_000 });
+  }, isMobile, { timeout: 10_000 });
 }
 
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
+    await installMapLibreStubForSmoke(page);
     await installDeterministicMapApiFixtures(page);
     await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, !!profile.isMobile);
     const initialState = await readMapShellState(page);
