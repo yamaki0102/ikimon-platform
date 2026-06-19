@@ -5271,9 +5271,9 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       captureResultTitle: "まだ選んでいません",
       captureResultHelp: "写真・日時・地点だけで保存できます。周囲や気づきはあとで足して、記録の解像度を上げられます。",
       captureChange: "選び直す",
-      locationTitle: "写真に場所も入れる",
-      locationBody: "現在地を入れると、あとで同じ場所を見返しやすくなります。",
-      locationAction: "現在地を入れる",
+      locationTitle: "現在地をこの記録に使う",
+      locationBody: "許可すると、この記録の地点入力に使います。",
+      locationAction: "現在地を使う",
       submittingLabel: "送信中...",
       modeEntryLabel: "記録入口",
       modeQuickLabel: "ふだんの記録",
@@ -5316,8 +5316,8 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       captureResultTitle: "Nothing selected",
       captureResultHelp: "Photo, time, and place are enough to save. Names and notes can come later.",
       captureChange: "Choose again",
-      locationTitle: "Add a place to the photo",
-      locationBody: "Adding your location makes it easier to revisit the same place later.",
+      locationTitle: "Use current location for this record",
+      locationBody: "If you allow it, we use it to fill in this record's location.",
       locationAction: "Use current location",
       submittingLabel: "Sending...",
       modeEntryLabel: "Record entry",
@@ -5361,8 +5361,8 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       captureResultTitle: "Nada elegido",
       captureResultHelp: "Foto, hora y lugar bastan para guardar. El nombre y las notas pueden venir despues.",
       captureChange: "Elegir otra vez",
-      locationTitle: "Agregar lugar a la foto",
-      locationBody: "Agregar ubicacion ayuda a volver al mismo lugar despues.",
+      locationTitle: "Usar ubicacion en este registro",
+      locationBody: "Si lo permites, usamos tu ubicacion para completar el lugar de este registro.",
       locationAction: "Usar ubicacion actual",
       submittingLabel: "Enviando...",
       modeEntryLabel: "Entrada de registro",
@@ -5406,8 +5406,8 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       captureResultTitle: "Nada selecionado",
       captureResultHelp: "Foto, horario e local bastam para salvar. Nome e notas podem vir depois.",
       captureChange: "Escolher de novo",
-      locationTitle: "Adicionar local a foto",
-      locationBody: "Adicionar o local facilita rever o mesmo ponto depois.",
+      locationTitle: "Usar local atual neste registro",
+      locationBody: "Se voce permitir, usamos seu local para preencher o lugar deste registro.",
       locationAction: "Usar local atual",
       submittingLabel: "Enviando...",
       modeEntryLabel: "Entrada do registro",
@@ -5448,7 +5448,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       observedAtLabel: "観察した日時",
       placeLabel: "記録の地点",
       locationUnknown: "地点未指定",
-      locationHelp: "現在地、検索、地図タップで記録の地点を決められます。",
+      locationHelp: "現在地、検索、地図タップで地点を決められます。現在地は許可した時に、この記録の地点入力に使います。",
       currentLocation: "現在地",
       locationSearchPlaceholder: "公園名・駅名・住所で探す",
       locationSearchButton: "検索",
@@ -5610,7 +5610,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       observedAtLabel: "Observed time",
       placeLabel: "Observation place",
       locationUnknown: "Place not set",
-      locationHelp: "Use current location, search, or tap the map.",
+      locationHelp: "Use current location, search, or tap the map. Current location is used after you allow it to fill in this record's location.",
       currentLocation: "Current location",
       locationSearchPlaceholder: "Search park, station, or address",
       locationSearchButton: "Search",
@@ -5772,7 +5772,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       observedAtLabel: "Hora observada",
       placeLabel: "Lugar de observacion",
       locationUnknown: "Lugar sin definir",
-      locationHelp: "Usa ubicacion actual, busca o toca el mapa.",
+      locationHelp: "Usa ubicacion actual, busca o toca el mapa. La ubicacion actual se usa despues de permitirla para completar el lugar de este registro.",
       currentLocation: "Ubicacion actual",
       locationSearchPlaceholder: "Buscar parque, estacion o direccion",
       locationSearchButton: "Buscar",
@@ -5934,7 +5934,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       observedAtLabel: "Horario observado",
       placeLabel: "Local da observacao",
       locationUnknown: "Local nao definido",
-      locationHelp: "Use local atual, busca ou toque no mapa.",
+      locationHelp: "Use local atual, busca ou toque no mapa. O local atual e usado depois da permissao para preencher o lugar deste registro.",
       currentLocation: "Local atual",
       locationSearchPlaceholder: "Buscar parque, estacao ou endereco",
       locationSearchButton: "Buscar",
@@ -15120,8 +15120,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           syncLocationNudge();
           sendRecordFunnelStep('location_set', {
             locationSource: recordLocationProvenance ? recordLocationProvenance.source : 'unknown',
-            latitude: Number(lat).toFixed(6),
-            longitude: Number(lng).toFixed(6),
+            hasCoordinates: true,
           });
           if (recordMapReady && recordMap && window.maplibregl) {
             recordMap.jumpTo({ center: [Number(lng), Number(lat)], zoom: opts && opts.zoom ? opts.zoom : Math.max(recordMap.getZoom(), 15) });
@@ -17425,8 +17424,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   });
                   sendRecordFunnelStep('location_set', {
                     locationSource: 'manual_coordinate_edit',
-                    latitude: coords.lat.toFixed(6),
-                    longitude: coords.lng.toFixed(6),
+                    hasCoordinates: true,
                   });
                 }
                 syncPreview();
