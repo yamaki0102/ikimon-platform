@@ -58,6 +58,16 @@ export type MapExplorerCopy = {
   heatmapLegendHigh: string;
   areaTrustLegendLow: string;
   areaTrustLegendHigh: string;
+  areaLegendConfirmedLabel: string;
+  areaLegendConfirmedHint: string;
+  areaLegendPendingLabel: string;
+  areaLegendPendingHint: string;
+  areaLegendParkLabel: string;
+  areaLegendParkHint: string;
+  areaLegendSchoolLabel: string;
+  areaLegendSchoolHint: string;
+  areaLegendWaterLabel: string;
+  areaLegendWaterHint: string;
   layerHintPlaces: string;
   layerHintFrontier: string;
   layerHintHeatmap: string;
@@ -220,6 +230,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "多い",
     areaTrustLegendLow: "公式確認待ち・立入不明",
     areaTrustLegendHigh: "確認済み範囲",
+    areaLegendConfirmedLabel: "確認済み",
+    areaLegendConfirmedHint: "公開範囲を確認して記録",
+    areaLegendPendingLabel: "確認待ち",
+    areaLegendPendingHint: "許可や案内がなければ入らない",
+    areaLegendParkLabel: "公園・緑地",
+    areaLegendParkHint: "入れる範囲で観察",
+    areaLegendSchoolLabel: "学校・教育施設",
+    areaLegendSchoolHint: "敷地外から観察・立入らない",
+    areaLegendWaterLabel: "水辺・水路",
+    areaLegendWaterHint: "危険な水辺に近づかず足元確認",
     layerHintPlaces: "ズームするとエリア図鑑の範囲が見えます。",
     layerHintFrontier: "ズームすると記録の余白が面で見えます。",
     layerHintHeatmap: "ズームすると季節の気配の濃淡が見えます。",
@@ -362,6 +382,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "High",
     areaTrustLegendLow: "Source/access pending",
     areaTrustLegendHigh: "Verified area",
+    areaLegendConfirmedLabel: "Verified",
+    areaLegendConfirmedHint: "Record within public scope",
+    areaLegendPendingLabel: "Pending",
+    areaLegendPendingHint: "No entry without signs or permission",
+    areaLegendParkLabel: "Parks / green",
+    areaLegendParkHint: "Observe in open areas",
+    areaLegendSchoolLabel: "Schools",
+    areaLegendSchoolHint: "Observe from outside; do not enter",
+    areaLegendWaterLabel: "Waterways",
+    areaLegendWaterHint: "Keep distance and watch footing",
     layerHintPlaces: "Zoom in to see area encyclopedia boundaries.",
     layerHintFrontier: "Zoom in to see recording gaps as areas.",
     layerHintHeatmap: "Zoom in to see seasonal intensity.",
@@ -504,6 +534,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "Alta",
     areaTrustLegendLow: "Fuente/acceso pendiente",
     areaTrustLegendHigh: "Área verificada",
+    areaLegendConfirmedLabel: "Verificada",
+    areaLegendConfirmedHint: "Registra dentro del área pública",
+    areaLegendPendingLabel: "Pendiente",
+    areaLegendPendingHint: "No entrar sin señales o permiso",
+    areaLegendParkLabel: "Parques / verde",
+    areaLegendParkHint: "Observa en zonas abiertas",
+    areaLegendSchoolLabel: "Escuelas",
+    areaLegendSchoolHint: "Observar desde fuera; no entrar",
+    areaLegendWaterLabel: "Agua",
+    areaLegendWaterHint: "Mantén distancia y cuida el suelo",
     layerHintPlaces: "Acércate para ver los límites del álbum del área.",
     layerHintFrontier: "Acércate para ver los huecos de registro como áreas.",
     layerHintHeatmap: "Acércate para ver la intensidad de temporada.",
@@ -646,6 +686,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "Alta",
     areaTrustLegendLow: "Fonte/acesso pendente",
     areaTrustLegendHigh: "Área verificada",
+    areaLegendConfirmedLabel: "Verificada",
+    areaLegendConfirmedHint: "Registre na área pública",
+    areaLegendPendingLabel: "Pendente",
+    areaLegendPendingHint: "Não entre sem placa ou permissão",
+    areaLegendParkLabel: "Parques / verde",
+    areaLegendParkHint: "Observe em áreas abertas",
+    areaLegendSchoolLabel: "Escolas",
+    areaLegendSchoolHint: "Observe de fora; não entre",
+    areaLegendWaterLabel: "Água",
+    areaLegendWaterHint: "Mantenha distância e atenção ao piso",
     layerHintPlaces: "Aproxime o zoom para ver os limites do álbum da área.",
     layerHintFrontier: "Aproxime o zoom para ver os vazios de registro como áreas.",
     layerHintHeatmap: "Aproxime o zoom para ver a intensidade da estação.",
@@ -1265,9 +1315,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </button>
         <div class="me-map-status" id="me-map-status" role="status" aria-live="polite">${escapeHtml(copy.loading)}</div>
         <div class="me-legend is-hidden" id="me-legend" aria-hidden="true">
-          <span class="me-legend-label" id="me-legend-label">${escapeHtml(copy.legendLabel)}</span>
-          <span class="me-legend-gradient" id="me-legend-gradient"></span>
-          <span class="me-legend-range"><span id="me-legend-low">${escapeHtml(copy.heatmapLegendLow)}</span><span id="me-legend-high">${escapeHtml(copy.heatmapLegendHigh)}</span></span>
+          <div class="me-legend-main">
+            <span class="me-legend-label" id="me-legend-label">${escapeHtml(copy.legendLabel)}</span>
+            <span class="me-legend-gradient" id="me-legend-gradient"></span>
+            <span class="me-legend-range"><span id="me-legend-low">${escapeHtml(copy.heatmapLegendLow)}</span><span id="me-legend-high">${escapeHtml(copy.heatmapLegendHigh)}</span></span>
+          </div>
+          <div class="me-legend-detail is-hidden" id="me-legend-detail" aria-hidden="true"></div>
         </div>
         <div class="me-layer-hint is-hidden" id="me-layer-hint" aria-hidden="true" role="status">
           <span id="me-layer-hint-text"></span>
@@ -1301,6 +1354,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var legendEl = document.getElementById('me-legend');
   var legendLowEl = document.getElementById('me-legend-low');
   var legendHighEl = document.getElementById('me-legend-high');
+  var legendDetailEl = document.getElementById('me-legend-detail');
   var layerHintEl = document.getElementById('me-layer-hint');
   var layerHintTextEl = document.getElementById('me-layer-hint-text');
   var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
@@ -1390,6 +1444,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     heatmapLegendHigh: copy.heatmapLegendHigh,
     areaTrustLegendLow: copy.areaTrustLegendLow,
     areaTrustLegendHigh: copy.areaTrustLegendHigh,
+    areaLegendConfirmedLabel: copy.areaLegendConfirmedLabel,
+    areaLegendConfirmedHint: copy.areaLegendConfirmedHint,
+    areaLegendPendingLabel: copy.areaLegendPendingLabel,
+    areaLegendPendingHint: copy.areaLegendPendingHint,
+    areaLegendParkLabel: copy.areaLegendParkLabel,
+    areaLegendParkHint: copy.areaLegendParkHint,
+    areaLegendSchoolLabel: copy.areaLegendSchoolLabel,
+    areaLegendSchoolHint: copy.areaLegendSchoolHint,
+    areaLegendWaterLabel: copy.areaLegendWaterLabel,
+    areaLegendWaterHint: copy.areaLegendWaterHint,
     layerHintPlaces: copy.layerHintPlaces,
     layerHintFrontier: copy.layerHintFrontier,
     layerHintHeatmap: copy.layerHintHeatmap,
@@ -2210,7 +2274,40 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var maxZoom = single && single.properties ? maxZoomForGrid(Number(single.properties.gridM)) : 12.2;
     if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 56, maxZoom: maxZoom, duration: 520 });
   }
-  function showLegend(lowLabel, highLabel, gradient) {
+  function renderAreaLegendDetail() {
+    var items = [
+      { kind: 'school', label: COPY.areaLegendSchoolLabel, hint: COPY.areaLegendSchoolHint },
+      { kind: 'water', label: COPY.areaLegendWaterLabel, hint: COPY.areaLegendWaterHint },
+      { kind: 'pending', label: COPY.areaLegendPendingLabel, hint: COPY.areaLegendPendingHint },
+      { kind: 'park', label: COPY.areaLegendParkLabel, hint: COPY.areaLegendParkHint },
+      { kind: 'confirmed', label: COPY.areaLegendConfirmedLabel, hint: COPY.areaLegendConfirmedHint },
+    ];
+    return '<dl class="me-legend-list">'
+      + items.map(function (item) {
+        return '<div class="me-legend-chip is-' + escapeHtml(item.kind) + '">'
+          + '<dt><i aria-hidden="true"></i><strong>' + escapeHtml(item.label) + '</strong></dt>'
+          + '<dd>' + escapeHtml(item.hint) + '</dd>'
+          + '</div>';
+      }).join('')
+      + '</dl>';
+  }
+
+  function setLegendMode(mode) {
+    if (!legendDetailEl) return;
+    if (mode === 'areas') {
+      legendEl.setAttribute('data-legend-mode', 'areas');
+      legendDetailEl.innerHTML = renderAreaLegendDetail();
+      legendDetailEl.classList.remove('is-hidden');
+      legendDetailEl.setAttribute('aria-hidden', 'false');
+      return;
+    }
+    legendEl.setAttribute('data-legend-mode', 'scale');
+    legendDetailEl.classList.add('is-hidden');
+    legendDetailEl.setAttribute('aria-hidden', 'true');
+    legendDetailEl.innerHTML = '';
+  }
+
+  function showLegend(lowLabel, highLabel, gradient, mode) {
     if (!legendEl) return;
     legendEl.classList.remove('is-hidden');
     legendEl.setAttribute('aria-hidden', 'false');
@@ -2218,11 +2315,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (legendHighEl) legendHighEl.textContent = highLabel;
     var gradEl = document.getElementById('me-legend-gradient');
     if (gradEl) gradEl.style.background = gradient;
+    setLegendMode(mode || 'scale');
   }
   function hideLegend() {
     if (!legendEl) return;
     legendEl.classList.add('is-hidden');
     legendEl.setAttribute('aria-hidden', 'true');
+    setLegendMode('scale');
   }
   function layerHintInfo(tab) {
     if (tab === 'places') return { minZoom: 8.1, text: COPY.layerHintPlaces, maxZoom: 11.8 };
@@ -5783,7 +5882,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     } else if (tab === 'places') {
       moveToTop(['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name', 'area-polygon-selected']);
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
-        'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)');
+        'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)', 'areas');
       loadWaterwayHints();
     } else {
       hideLegend();
@@ -8412,8 +8511,9 @@ export const MAP_EXPLORER_STYLES = `
     padding: 5px 10px; border-radius: 8px;
     background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08);
     box-shadow: 0 4px 10px rgba(15,23,42,.08);
-    display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 10px; font-weight: 700;
+    display: flex; flex-direction: column; align-items: stretch; gap: 7px; font-size: 10px; font-weight: 700;
   }
+  .me-legend-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
   .me-legend-gradient { width: 96px; height: 6px; }
   .me-legend.is-hidden { display: none; }
   .me-legend-label { color: #475569; letter-spacing: .1em; text-transform: uppercase; }
@@ -8421,6 +8521,63 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-range { display: inline-flex; flex: 1 1 190px; min-width: 0; flex-wrap: wrap; gap: 6px 10px; color: #64748b; font-weight: 700; }
   #me-legend-low,
   #me-legend-high { min-width: 0; overflow-wrap: anywhere; }
+  .me-legend-detail {
+    max-width: 100%;
+  }
+  .me-legend-detail.is-hidden { display: none; }
+  .me-legend-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
+  }
+  .me-legend-chip {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(15,23,42,.10);
+    background: rgba(255,255,255,.92);
+    color: #0f172a;
+  }
+  .me-legend-chip dt {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+  }
+  .me-legend-chip i {
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    background: rgba(148,163,184,.16);
+    border: 2px solid rgba(100,116,139,.38);
+  }
+  .me-legend-chip strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 10.5px;
+    line-height: 1.2;
+    font-weight: 900;
+  }
+  .me-legend-chip dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #64748b;
+    font-size: 9.5px;
+    line-height: 1.25;
+    font-weight: 700;
+  }
+  .me-legend-chip.is-confirmed i { background: rgba(16,185,129,.18); border-color: #059669; }
+  .me-legend-chip.is-pending i { background: rgba(245,158,11,.16); border-color: #d97706; }
+  .me-legend-chip.is-park i { background: linear-gradient(135deg, rgba(187,247,208,.9), rgba(74,222,128,.42)); border-color: #16a34a; }
+  .me-legend-chip.is-school i { background: rgba(254,243,199,.9); border-color: #d97706; border-style: dashed; }
+  .me-legend-chip.is-water i { height: 8px; border-radius: 999px; background: #7dd3fc; border-color: #0284c7; }
   .me-layer-hint {
     position: absolute;
     left: 12px;
