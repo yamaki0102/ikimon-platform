@@ -1925,7 +1925,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var activeGuideAudio = null;
   var SIDE_RAIL_SIGNAL_MIN_RECORDS = 6;
   var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
-  var RECORDS_LOAD_WATCHDOG_MS = 12000;
+  var RECORDS_LOAD_WATCHDOG_MS = 8000;
 
   function sideRailSignalCanUseRecords(records) {
     var count = Array.isArray(records) ? records.length : 0;
@@ -2298,7 +2298,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     if (state.recordsRecoveryAttempts < 1) {
       state.recordsRecoveryAttempts += 1;
-      loadRecords(scope || null);
+      scheduleRecordsLoadWatchdog(requestSeq, requestKey, scope);
       return;
     }
     state.recordsRecoveryAttempts = 0;

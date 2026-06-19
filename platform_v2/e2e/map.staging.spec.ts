@@ -8,6 +8,8 @@ import {
   waitForMapReady,
 } from "./support/staging.js";
 
+test.describe.configure({ retries: 0, timeout: 90_000 });
+
 async function requiredBox(name: string, locator: Locator) {
   const box = await locator.boundingBox();
   expect(box, `${name} should have a bounding box`).not.toBeNull();
