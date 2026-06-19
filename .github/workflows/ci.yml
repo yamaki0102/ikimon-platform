@@ -378,10 +378,28 @@ jobs:
             platform_v2/playwright-report/staging
           if-no-files-found: ignore
 
+  deploy-owner-approval-lane:
+    name: Deploy-owner Approval Lane
+    runs-on: ubuntu-latest
+    needs: plan
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check deploy-owner approval packet
+        shell: pwsh
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+        run: ./scripts/check_deploy_owner_approval_lane.ps1 -BaseRef origin/${{ github.base_ref }}
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [plan, lint, test, platform-v2, scene-read-smoke, record-funnel-browser-qa]
+    needs: [plan, lint, test, platform-v2, scene-read-smoke, record-funnel-browser-qa, deploy-owner-approval-lane]
     if: always()
     steps:
       - name: Check results
@@ -390,8 +408,8 @@ jobs:
             [[ "$1" == "success" || "$1" == "skipped" ]]
           }
 
-          if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}" || ! ok_result "${{ needs.scene-read-smoke.result }}" || ! ok_result "${{ needs.record-funnel-browser-qa.result }}"; then
-            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"
+          if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}" || ! ok_result "${{ needs.scene-read-smoke.result }}" || ! ok_result "${{ needs.record-funnel-browser-qa.result }}" || ! ok_result "${{ needs['deploy-owner-approval-lane'].result }}"; then
+            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, deploy-owner-approval-lane=${{ needs['deploy-owner-approval-lane'].result }}"
             exit 1
           fi
-          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"
+          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, deploy-owner-approval-lane=${{ needs['deploy-owner-approval-lane'].result }}"
