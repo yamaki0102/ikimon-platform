@@ -407,11 +407,21 @@ test("stored school point-buffer rows render when the geometry is no longer a ge
   }), true);
 });
 
-test("displayable area feature filter removes approximate and weak OSM live rows", () => {
+test("displayable area feature filter keeps named OSM school polygons visible but unverified", () => {
   const weakUnnamedSchool = liveElementToFeature({
     type: "way",
     id: 1234,
     tags: { amenity: "school" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+  const namedSchoolWithoutOfficialUrl = liveElementToFeature({
+    type: "way",
+    id: 1236,
+    tags: { name: "西伊場小学校", amenity: "school" },
     geometry: [
       { lat: 34.73, lon: 137.39 },
       { lat: 34.73, lon: 137.40 },
@@ -430,6 +440,11 @@ test("displayable area feature filter removes approximate and weak OSM live rows
   });
 
   assert.equal(weakUnnamedSchool ? isDisplayableAreaFeature(weakUnnamedSchool) : true, false);
+  assert.equal(namedSchoolWithoutOfficialUrl ? isDisplayableAreaFeature(namedSchoolWithoutOfficialUrl) : false, true);
+  assert.equal(namedSchoolWithoutOfficialUrl?.properties.source_confidence, 0.45);
+  assert.equal(namedSchoolWithoutOfficialUrl?.properties.verification_level, "unverified");
+  assert.equal(namedSchoolWithoutOfficialUrl?.properties.osm_named, true);
+  assert.equal(weakUnnamedSchool?.properties.osm_named, false);
   assert.equal(officialSchool ? isDisplayableAreaFeature(officialSchool) : false, true);
   assert.equal(isDisplayableAreaFeature({
     type: "Feature",

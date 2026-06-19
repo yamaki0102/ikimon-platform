@@ -4404,9 +4404,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
     var guidance = transientAccessGuidance(props);
     var canRecord = canSuggestDirectAreaRecord(props, null);
+    var metaHtml = sourceLinksHtml || sourceTrustHtml
+      ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'
+      : '';
+    var activityHtml = canRecord
+      ? renderAreaActivityRallyPanel(sourceLinksHtml + sourceTrustHtml + '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>')
+      : renderRestrictedAreaAction() + metaHtml;
     return ''
       + renderAreaHero({ title: areaName, sourceLabel: sourceLabel, meta: locationLabel, photo: null })
-      + renderAreaActivityRallyPanel(sourceLinksHtml + sourceTrustHtml + '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>')
+      + activityHtml
       + renderAreaGuideStop(props, safeCenter)
       + renderAreaAccessGuidance(guidance)
       + renderAreaSafetyNotice(props, null)
@@ -4990,14 +4996,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</section>';
   }
 
-  function renderAreaPrimaryActions(fieldId, sourceLinksHtml, sourceTrustHtml) {
+  function renderAreaPrimaryActions(fieldId, sourceLinksHtml, sourceTrustHtml, canSuggestEvent) {
     if (!fieldId) return '';
     var eventHref = EVENTS_ORGANIZER_HREF;
     var albumHref = FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId));
-    if (!eventHref || !albumHref) return '';
+    if (!albumHref) return '';
     var metaHtml = sourceLinksHtml || sourceTrustHtml
       ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'
       : '';
+    if (canSuggestEvent === false || !eventHref) {
+      return renderRestrictedAreaAction() + metaHtml;
+    }
     var albumHtml = '<a class="me-area-primary-action me-area-primary-action-album" href="' + escapeHtml(albumHref) + '">'
       + '<span aria-hidden="true">□</span>'
       + escapeHtml(COPY.areaPublicPageLabel)
@@ -5038,7 +5047,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       meta: areaMeta,
       photo: representativePhoto,
     });
-    var primaryActionsHtml = renderAreaPrimaryActions(fieldId, sourceLinksHtml, sourceTrustHtml);
+    var primaryActionsHtml = renderAreaPrimaryActions(fieldId, sourceLinksHtml, sourceTrustHtml, canRecord);
     var summaryHtml = ''
       + '<div class="me-area-sheet-summary">'
       +   '<div><span>' + escapeHtml(COPY.placeStoryRecent) + '</span><strong>' + escapeHtml(String(summary.totalObservations || 0)) + '</strong></div>'
