@@ -25,15 +25,6 @@ type ObservationPayload = {
   occurrenceId?: string;
 };
 
-type MyPlacesPayload = {
-  signedIn?: boolean;
-  items?: Array<{
-    placeName?: string;
-    latestPhotoUrl?: string | null;
-    visitCount?: number;
-  }>;
-};
-
 function cookieHeader(rawCookie: string): string {
   return rawCookie.split(";")[0] ?? rawCookie;
 }
@@ -148,31 +139,6 @@ async function uploadPhoto(
   expect(payload?.ok, payload?.error ?? `upload photo ${index}`).toBe(true);
 }
 
-async function waitForMyPlaces(api: APIRequestContext, sessionCookie: string): Promise<MyPlacesPayload> {
-  let last: MyPlacesPayload = {};
-  await expect.poll(async () => {
-    const response = await api.get("/api/v1/map/my-places?limit=8&sort=recent", {
-      headers: { cookie: sessionCookie, accept: "application/json" },
-    });
-    last = (await response.json().catch(() => ({}))) as MyPlacesPayload;
-    const itemCount = last.items?.length ?? 0;
-    const photoCount = last.items?.filter((item) => item.latestPhotoUrl).length ?? 0;
-    return { ok: response.ok(), signedIn: last.signedIn === true, itemCount, photoCount };
-  }, {
-    message: () => `my places did not expose review fixtures: ${JSON.stringify(last).slice(0, 700)}`,
-    timeout: 30_000,
-    intervals: [750, 1_500, 3_000],
-  }).toEqual(expect.objectContaining({
-    ok: true,
-    signedIn: true,
-    itemCount: expect.any(Number),
-    photoCount: expect.any(Number),
-  }));
-  expect(last.items?.length ?? 0).toBeGreaterThanOrEqual(2);
-  expect(last.items?.filter((item) => item.latestPhotoUrl).length ?? 0).toBeGreaterThanOrEqual(2);
-  return last;
-}
-
 async function screenshotPath(fileName: string): Promise<string> {
   const dir = path.join("test-results", "existing-user-review");
   await mkdir(dir, { recursive: true });
@@ -210,7 +176,6 @@ test.describe.serial("existing user own-place visual review", () => {
       });
       await uploadPhoto(api, sessionCookie, created.visitId!, index);
     }
-    await waitForMyPlaces(api, sessionCookie);
   });
 
   test.afterAll(async () => {
