@@ -419,6 +419,11 @@ const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
 const WORKER_BUILD_MARKER = "map-shell-cookie-safe-v2";
 const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
+const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
+const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
+const JMA_NOWCAST_ROOT = "https://www.jma.go.jp/bosai/jmatile/data/nowc";
+const JMA_NOWCAST_OFFSETS = [0, 5, 15, 30, 60] as const;
+const JMA_NOWCAST_ATTRIBUTION_URL = "https://www.jma.go.jp/jma/kishou/know/kurashi/highres_nowcast.html";
 
 type ShadowMapGuideSpot = {
   id: string;
@@ -929,6 +934,24 @@ export const worker = {
 
       if (isShadowDiagnosticPath(url.pathname) && env.ENVIRONMENT === "production") {
         return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+      }
+
+      const weatherApiPath = url.pathname.startsWith("/ja/api/v1/weather/") || url.pathname.startsWith("/ja/api/v1/map/weather/")
+        ? url.pathname.slice(3)
+        : url.pathname;
+
+      if (request.method === "GET" && (
+        weatherApiPath === "/api/v1/weather/jma-nowcast/times"
+        || weatherApiPath === "/api/v1/map/weather/jma-nowcast/times"
+      )) {
+        return getJmaNowcastTimesResponse();
+      }
+
+      if (request.method === "GET" && (
+        weatherApiPath === "/api/v1/weather/jma-nowcast/tile"
+        || weatherApiPath === "/api/v1/map/weather/jma-nowcast/tile"
+      )) {
+        return getJmaNowcastTileResponse(url);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/cells") {
@@ -1906,6 +1929,147 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+type JmaNowcastTarget = {
+  basetime?: unknown;
+  validtime?: unknown;
+  elements?: unknown;
+};
+
+type JmaNowcastSelectedTarget = {
+  basetime: string;
+  validtime: string;
+};
+
+function isValidJmaTimestamp(value: unknown): value is string {
+  return typeof value === "string" && /^\d{14}$/.test(value);
+}
+
+function parseJmaTimestamp(value: string): number | null {
+  if (!isValidJmaTimestamp(value)) return null;
+  const ms = Date.UTC(
+    Number(value.slice(0, 4)),
+    Number(value.slice(4, 6)) - 1,
+    Number(value.slice(6, 8)),
+    Number(value.slice(8, 10)),
+    Number(value.slice(10, 12)),
+    Number(value.slice(12, 14))
+  );
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function jmaTargetSupportsRain(target: JmaNowcastTarget): boolean {
+  return !Array.isArray(target.elements) || target.elements.includes("hrpns");
+}
+
+function jmaOffsetMinutes(target: JmaNowcastTarget): number | null {
+  if (!isValidJmaTimestamp(target.basetime) || !isValidJmaTimestamp(target.validtime)) return null;
+  const base = parseJmaTimestamp(target.basetime);
+  const valid = parseJmaTimestamp(target.validtime);
+  if (base === null || valid === null) return null;
+  return Math.round((valid - base) / 60_000);
+}
+
+function chooseJmaNowcastTarget(targets: JmaNowcastTarget[], offsetMinutes: number): JmaNowcastSelectedTarget | null {
+  const candidates = targets
+    .filter((target) => isValidJmaTimestamp(target.basetime) && isValidJmaTimestamp(target.validtime) && jmaTargetSupportsRain(target))
+    .map((target) => ({
+      target: { basetime: target.basetime as string, validtime: target.validtime as string },
+      offset: jmaOffsetMinutes(target)
+    }))
+    .filter((item): item is { target: JmaNowcastSelectedTarget; offset: number } => item.offset !== null);
+  candidates.sort((a, b) => {
+    const delta = Math.abs(a.offset - offsetMinutes) - Math.abs(b.offset - offsetMinutes);
+    return delta !== 0 ? delta : b.target.validtime.localeCompare(a.target.validtime);
+  });
+  return candidates[0]?.target ?? null;
+}
+
+async function fetchJmaTargets(url: string): Promise<JmaNowcastTarget[]> {
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error(`jma_nowcast_fetch_failed:${response.status}`);
+  const payload = await response.json();
+  return Array.isArray(payload) ? payload as JmaNowcastTarget[] : [];
+}
+
+async function getJmaNowcastTimesResponse(): Promise<Response> {
+  try {
+    const [currentTargets, forecastTargets] = await Promise.all([
+      fetchJmaTargets(JMA_NOWCAST_TARGET_N1),
+      fetchJmaTargets(JMA_NOWCAST_TARGET_N2)
+    ]);
+    const times = JMA_NOWCAST_OFFSETS
+      .map((offsetMinutes) => {
+        const source = offsetMinutes === 0 ? currentTargets : forecastTargets;
+        const target = chooseJmaNowcastTarget(source, offsetMinutes);
+        return target ? {
+          offsetMinutes,
+          basetime: target.basetime,
+          validtime: target.validtime,
+          highResolution: offsetMinutes <= 30
+        } : null;
+      })
+      .filter((target): target is NonNullable<typeof target> => target !== null);
+    return json({
+      source: "jma_high_resolution_precipitation_nowcast",
+      attribution: "Source: JMA High-resolution Precipitation Nowcast",
+      attributionUrl: JMA_NOWCAST_ATTRIBUTION_URL,
+      generatedAt: new Date().toISOString(),
+      tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
+      times
+    }, 200, { "cache-control": "public, max-age=60" });
+  } catch {
+    return json({ error: "jma_nowcast_unavailable" }, 502, { "cache-control": "no-store" });
+  }
+}
+
+function parseJmaTileNumber(raw: string | null, max: number): number | null {
+  if (raw === null) return null;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > max) return null;
+  return value;
+}
+
+async function getJmaNowcastTileResponse(url: URL): Promise<Response> {
+  const basetime = url.searchParams.get("basetime");
+  const validtime = url.searchParams.get("validtime");
+  const z = parseJmaTileNumber(url.searchParams.get("z"), 14);
+  const maxTile = z === null ? 0 : (2 ** z) - 1;
+  const x = parseJmaTileNumber(url.searchParams.get("x"), maxTile);
+  const y = parseJmaTileNumber(url.searchParams.get("y"), maxTile);
+  if (!isValidJmaTimestamp(basetime) || !isValidJmaTimestamp(validtime) || z === null || x === null || y === null) {
+    return json({ error: "invalid_jma_nowcast_tile" }, 400, { "cache-control": "no-store" });
+  }
+
+  const jmaUrl = `${JMA_NOWCAST_ROOT}/${basetime}/none/${validtime}/surf/hrpns/${z}/${x}/${y}.png`;
+  const cache = (globalThis as typeof globalThis & { caches?: { default?: { match(request: Request): Promise<Response | undefined>; put(request: Request, response: Response): Promise<void> } } }).caches?.default;
+  const cacheRequest = new Request(jmaUrl, { method: "GET" });
+  const cached = await cache?.match(cacheRequest);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("cache-control", "public, max-age=300");
+    headers.set("x-ikimon-weather-cache", "hit");
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(cached.body, { status: cached.status, headers });
+  }
+
+  const upstream = await fetch(jmaUrl, { headers: { accept: "image/png" } });
+  if (!upstream.ok) {
+    return json({ error: "jma_nowcast_tile_unavailable" }, upstream.status === 404 ? 404 : 502, { "cache-control": "no-store" });
+  }
+  const bytes = await upstream.arrayBuffer();
+  const response = new Response(bytes, {
+    status: 200,
+    headers: {
+      "content-type": "image/png",
+      "cache-control": "public, max-age=300",
+      "x-ikimon-weather-cache": "miss",
+      "x-content-type-options": "nosniff"
+    }
+  });
+  await cache?.put(cacheRequest, response.clone());
+  return response;
 }
 
 interface PublicMapAreaPolygonOptions {

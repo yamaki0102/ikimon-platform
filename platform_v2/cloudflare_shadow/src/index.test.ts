@@ -1774,6 +1774,58 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(kpiPayload.ok, true);
 });
 
+test("v1 public map nowcast routes proxy fixed JMA targets without exposing a free URL fetcher", async () => {
+  const { env } = createEnv();
+  const originalFetch = globalThis.fetch;
+  const fetchedUrls: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input instanceof Request ? input.url : input);
+    fetchedUrls.push(url);
+    if (url.endsWith("/targetTimes_N1.json")) {
+      return new Response(JSON.stringify([
+        { basetime: "20260620030000", validtime: "20260620030000", elements: ["hrpns"] }
+      ]), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url.endsWith("/targetTimes_N2.json")) {
+      return new Response(JSON.stringify([
+        { basetime: "20260620030000", validtime: "20260620030500", elements: ["hrpns"] },
+        { basetime: "20260620030000", validtime: "20260620031500", elements: ["hrpns"] },
+        { basetime: "20260620030000", validtime: "20260620033000", elements: ["hrpns"] },
+        { basetime: "20260620030000", validtime: "20260620040000", elements: ["hrpns"] }
+      ]), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url === "https://www.jma.go.jp/bosai/jmatile/data/nowc/20260620030000/none/20260620031500/surf/hrpns/5/28/12.png") {
+      return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200, headers: { "content-type": "image/png" } });
+    }
+    return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const timesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/times"), env);
+    const timesPayload = await timesResponse.json() as any;
+    assert.equal(timesResponse.ok, true, JSON.stringify(timesPayload));
+    assert.equal(timesPayload.source, "jma_high_resolution_precipitation_nowcast");
+    assert.equal(timesPayload.times.length, 5);
+    assert.equal(timesPayload.times[2].offsetMinutes, 15);
+    assert.match(timesPayload.tileUrlTemplate, /^\/api\/v1\/weather\/jma-nowcast\/tile/);
+
+    const localizedTimesResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/weather/jma-nowcast/times"), env);
+    assert.equal(localizedTimesResponse.ok, true);
+
+    const invalidTile = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?basetime=https://evil.test&validtime=20260620031500&z=5&x=28&y=12"), env);
+    assert.equal(invalidTile.status, 400);
+
+    const tileResponse = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620031500&z=5&x=28&y=12"), env);
+    assert.equal(tileResponse.ok, true);
+    assert.equal(tileResponse.headers.get("content-type"), "image/png");
+    assert.equal(tileResponse.headers.get("x-ikimon-weather-cache"), "miss");
+    assert.deepEqual([...new Uint8Array(await tileResponse.arrayBuffer())], [137, 80, 78, 71]);
+    assert.equal(fetchedUrls.some((url) => url.includes("evil.test")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production map area polygons use filtered origin geometry while guide spots stay native", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

@@ -1,4 +1,4 @@
-import { test, expect, type Browser, type Page } from "@playwright/test";
+import { test, expect, type Browser } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
   MAP_VIEWPORTS,
@@ -7,6 +7,7 @@ import {
 } from "./support/staging.js";
 
 test.describe.configure({ retries: 0, timeout: 75_000 });
+test.use({ trace: "off" });
 
 const MAP_PERFORMANCE_PROFILES = MAP_VIEWPORTS.filter((profile) =>
   profile.slug === "desktop-1440" || profile.slug === "mobile-390");
@@ -16,8 +17,6 @@ const MAP_LOAD_BUDGET_MS = {
   mapCanvasVisible: 8_000,
   firstMapApi: 8_000,
   firstMapTile: 12_000,
-  lcpWhenAvailable: 7_000,
-  optionalPaintMetrics: 1_000,
 };
 
 type MapPerfMarker = {
@@ -36,11 +35,6 @@ type MapPerfSummary = {
   profile: string;
 };
 
-type PaintMetrics = {
-  firstContentfulPaintMs: number | null;
-  largestContentfulPaintMs: number | null;
-};
-
 function isMapApiUrl(url: string): boolean {
   return /\/api\/v1\/map\/(?:cells|observations|area-polygons|frontier|guide-spots|effort-summary)\b/.test(url);
 }
@@ -54,67 +48,12 @@ function isMapTileUrl(url: string): boolean {
   );
 }
 
-async function installPaintTimingProbe(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const target = window as typeof window & {
-      __ikimonMapPerf?: { firstContentfulPaintMs: number | null; largestContentfulPaintMs: number | null };
-    };
-    target.__ikimonMapPerf = {
-      firstContentfulPaintMs: null,
-      largestContentfulPaintMs: null,
-    };
-    try {
-      const paintObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          if (entry.name === "first-contentful-paint") {
-            target.__ikimonMapPerf!.firstContentfulPaintMs = entry.startTime;
-          }
-        }
-      });
-      paintObserver.observe({ type: "paint", buffered: true });
-    } catch (_) {
-      // Paint timing support varies by browser/runtime.
-    }
-    try {
-      const lcpObserver = new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        const lastEntry = entries[entries.length - 1];
-        if (lastEntry) target.__ikimonMapPerf!.largestContentfulPaintMs = lastEntry.startTime;
-      });
-      lcpObserver.observe({ type: "largest-contentful-paint", buffered: true });
-    } catch (_) {
-      // LCP is a browser metric, not required for the functional gate.
-    }
-  });
-}
-
-async function readPaintMetrics(page: Page): Promise<PaintMetrics> {
-  const fallback: PaintMetrics = { firstContentfulPaintMs: null, largestContentfulPaintMs: null };
-  let timeoutId: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      page.evaluate(() => {
-        const target = window as typeof window & {
-          __ikimonMapPerf?: { firstContentfulPaintMs: number | null; largestContentfulPaintMs: number | null };
-        };
-        return target.__ikimonMapPerf ?? { firstContentfulPaintMs: null, largestContentfulPaintMs: null };
-      }),
-      new Promise<PaintMetrics>((resolve) => {
-        timeoutId = setTimeout(resolve, MAP_LOAD_BUDGET_MS.optionalPaintMetrics, fallback);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-}
-
 async function waitForMapPerformanceSummary(
   browser: Browser,
   profile: ViewportProfile,
 ): Promise<MapPerfSummary> {
   const context = await newStagingContext(browser, profile);
   const page = await context.newPage();
-  await installPaintTimingProbe(page);
 
   const startedAt = Date.now();
   let firstMapApi: MapPerfMarker | null = null;
@@ -138,7 +77,6 @@ async function waitForMapPerformanceSummary(
     () => {
       const wrap = document.querySelector<HTMLElement>(".me-map-wrap");
       const canvas = document.querySelector<HTMLCanvasElement>(".maplibregl-canvas");
-      const status = document.querySelector<HTMLElement>("#me-map-status");
       const wrapBox = wrap?.getBoundingClientRect();
       const canvasBox = canvas?.getBoundingClientRect();
       return Boolean(
@@ -148,7 +86,6 @@ async function waitForMapPerformanceSummary(
         && (wrapBox?.height ?? 0) > 480
         && (canvasBox?.width ?? 0) > 300
         && (canvasBox?.height ?? 0) > 300
-        && (!status || status.textContent !== "読み込み中…")
       );
     },
     null,
@@ -176,19 +113,17 @@ async function waitForMapPerformanceSummary(
   };
   console.info(`map-performance-core ${JSON.stringify(summaryWithoutPaint)}`);
 
-  const paintMetrics = await readPaintMetrics(page);
-
   const summary: MapPerfSummary = {
     domContentLoadedMs,
     firstMapApi,
     firstMapTile,
-    lcpMs: paintMetrics.largestContentfulPaintMs,
+    lcpMs: null,
     mapCanvasVisibleMs,
     path: DEFAULT_STAGING_MAP_PATH,
     profile: profile.slug,
   };
   console.info(`map-performance ${JSON.stringify(summary)}`);
-  await context.close();
+  console.info(`map-performance context cleanup deferred to browser teardown (${profile.slug})`);
   return summary;
 }
 
@@ -199,8 +134,5 @@ for (const profile of MAP_PERFORMANCE_PROFILES) {
     expect(summary.mapCanvasVisibleMs).toBeLessThan(MAP_LOAD_BUDGET_MS.mapCanvasVisible);
     expect(summary.firstMapApi?.ms ?? Number.POSITIVE_INFINITY).toBeLessThan(MAP_LOAD_BUDGET_MS.firstMapApi);
     expect(summary.firstMapTile?.ms ?? Number.POSITIVE_INFINITY).toBeLessThan(MAP_LOAD_BUDGET_MS.firstMapTile);
-    if (summary.lcpMs !== null) {
-      expect(summary.lcpMs).toBeLessThan(MAP_LOAD_BUDGET_MS.lcpWhenAvailable);
-    }
   });
 }

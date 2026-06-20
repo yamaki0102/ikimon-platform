@@ -32,6 +32,16 @@ on:
           - auto
           - fast
           - full
+      capture_ux_review:
+        description: 'Capture non-gating desktop/mobile staging UX review screenshots after deploy'
+        required: false
+        default: false
+        type: boolean
+      ux_review_path:
+        description: 'Path to open for optional UX review capture'
+        required: false
+        default: '/ja/map?tab=places&lng=137.70148&lat=34.6970&z=17.2'
+        type: string
       invasive_reporting_smoke_email:
         description: 'Optional email address for one temporary invasive-reporting delivery smoke. Test rows are removed by the smoke script.'
         required: false
@@ -878,6 +888,238 @@ jobs:
             platform_v2/test-results
             platform_v2/playwright-report/staging
           if-no-files-found: ignore
+
+  capture-ux-review:
+    name: Capture Staging UX Review Evidence
+    runs-on: ubuntu-latest
+    needs: [plan, verify-ssh]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.capture_ux_review == 'true'
+    timeout-minutes: 8
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+        with:
+          install-with-deps: "false"
+
+      - name: Install Japanese screenshot fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
+      - name: Capture desktop/mobile staging UX evidence
+        working-directory: platform_v2
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+          REVIEW_PATH: ${{ github.event.inputs.ux_review_path }}
+        run: |
+          node <<'NODE'
+          const { chromium } = require("@playwright/test");
+          const { appendFileSync, mkdirSync, writeFileSync } = require("node:fs");
+          const path = require("node:path");
+
+          const baseUrl = process.env.STAGING_BASE_URL || "https://staging.ikimon.life";
+          const reviewPath = process.env.REVIEW_PATH || "/ja/map?tab=places&lng=137.70148&lat=34.6970&z=17.2";
+          const username = process.env.STAGING_BASIC_AUTH_USER || "";
+          const password = process.env.STAGING_BASIC_AUTH_PASS || "";
+          const outDir = path.resolve("test-results", "staging-ux-review");
+          mkdirSync(outDir, { recursive: true });
+          const progressPath = path.join(outDir, "progress.log");
+          const reviewJsonPath = path.join(outDir, "rain-nowcast-review.json");
+          const results = [];
+          let browser = null;
+          let fatalError = null;
+
+          function log(message) {
+            const line = `${new Date().toISOString()} ${message}`;
+            console.log(line);
+            appendFileSync(progressPath, `${line}\n`);
+          }
+
+          function writeReview(extra = {}) {
+            writeFileSync(reviewJsonPath, JSON.stringify({
+              generatedAt: new Date().toISOString(),
+              baseUrl,
+              reviewPath,
+              results,
+              ...extra,
+            }, null, 2));
+          }
+
+          function timeoutAfter(ms, label) {
+            return new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+            });
+          }
+
+          async function bounded(promise, ms, label) {
+            return Promise.race([promise, timeoutAfter(ms, label)]);
+          }
+
+          async function captureViewportPng(context, page, outputPath, timeoutMs) {
+            const client = await context.newCDPSession(page);
+            try {
+              const result = await bounded(client.send("Page.captureScreenshot", {
+                format: "png",
+                fromSurface: true,
+                captureBeyondViewport: false,
+              }), timeoutMs, "cdp screenshot");
+              writeFileSync(outputPath, Buffer.from(result.data, "base64"));
+            } finally {
+              await bounded(client.detach().catch(() => {}), 1000, "cdp detach").catch(() => {});
+            }
+          }
+
+          const profiles = [
+            { slug: "desktop-1440", viewport: { width: 1440, height: 900 } },
+            { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+          ];
+
+          function collectState() {
+            const text = (selector) => document.querySelector(selector)?.textContent?.replace(/\s+/g, " ").trim() || "";
+            const attr = (selector, name) => document.querySelector(selector)?.getAttribute(name) || "";
+            const boxOf = (selector) => {
+              const el = document.querySelector(selector);
+              if (!el) return null;
+              const box = el.getBoundingClientRect();
+              return { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) };
+            };
+            return {
+              title: document.title,
+              url: location.href,
+              rainCardEnabled: attr("#me-rain-card", "data-enabled"),
+              rainTogglePressed: attr("#me-rain-toggle", "aria-pressed"),
+              rainStatus: text("#me-rain-status"),
+              rainCardBox: boxOf("#me-rain-card"),
+              mapBox: boxOf(".me-map-wrap"),
+              tabText: text(".me-mode-tabs"),
+              sideHeading: text(".me-side-title, .me-results-title"),
+              bodyTextSample: document.body.textContent?.replace(/\s+/g, " ").trim().slice(0, 1200) || "",
+            };
+          }
+
+          async function captureProfile(profile) {
+            log(`profile ${profile.slug}: start`);
+            const entry = { profile: profile.slug, ok: false, errors: [] };
+            let context = null;
+            let screenshotCaptured = false;
+            const screenshotTimeoutMs = 60000;
+            try {
+              context = await bounded(browser.newContext({
+                baseURL: baseUrl,
+                viewport: profile.viewport,
+                isMobile: profile.isMobile,
+                hasTouch: profile.hasTouch,
+                ignoreHTTPSErrors: true,
+                httpCredentials: username && password ? { username, password } : undefined,
+              }), 15000, `${profile.slug} context`);
+              await context.route(/\.(woff2?|ttf|otf)(\?.*)?$/i, (route) => route.abort()).catch((error) => {
+                entry.errors.push(`font route: ${String(error)}`);
+              });
+              const page = await bounded(context.newPage(), 10000, `${profile.slug} page`);
+              const response = await page.goto(reviewPath, { waitUntil: "domcontentloaded", timeout: 20000 });
+              entry.status = response ? response.status() : null;
+              await page.addStyleTag({
+                content: 'html, body, * { font-family: "Noto Sans CJK JP", "Noto Sans JP", Arial, sans-serif !important; }',
+              }).catch((error) => {
+                entry.errors.push(`font style: ${String(error)}`);
+              });
+              await page.waitForSelector(".me-map-wrap", { state: "visible", timeout: 8000 }).catch((error) => {
+                entry.errors.push(`map wait: ${String(error)}`);
+              });
+              await page.locator("#me-rain-toggle").click({ timeout: 5000 }).catch((error) => {
+                entry.errors.push(`rain click: ${String(error)}`);
+              });
+              await page.waitForTimeout(1500);
+              await captureViewportPng(context, page, path.join(outDir, `rain-nowcast-${profile.slug}.png`), screenshotTimeoutMs);
+              screenshotCaptured = true;
+              entry.state = await bounded(page.evaluate(collectState), 8000, `${profile.slug} state`).catch((error) => {
+                entry.errors.push(`state: ${String(error)}`);
+                return null;
+              });
+              entry.ok = screenshotCaptured;
+            } catch (error) {
+              entry.errors.push(String(error));
+              try {
+                const page = context?.pages()?.[0];
+                if (page && !String(error).includes("screenshot")) {
+                  await captureViewportPng(context, page, path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), screenshotTimeoutMs);
+                  screenshotCaptured = true;
+                  entry.state = await bounded(page.evaluate(collectState), 5000, `${profile.slug} error state`).catch((stateError) => {
+                    entry.errors.push(`error state: ${String(stateError)}`);
+                    return null;
+                  });
+                  entry.ok = screenshotCaptured;
+                }
+              } catch (captureError) {
+                entry.errors.push(`error capture: ${String(captureError)}`);
+              }
+            } finally {
+              results.push(entry);
+              writeReview({ status: "partial" });
+              if (context) {
+                await bounded(context.close().catch(() => {}), 8000, `${profile.slug} context close`).catch((error) => {
+                  entry.errors.push(`context close: ${String(error)}`);
+                });
+              }
+              log(`profile ${profile.slug}: ${entry.ok ? "ok" : "error"}`);
+            }
+          }
+
+          async function main() {
+            log("capture job started");
+            writeReview({ status: "started" });
+            log("launching chromium");
+            browser = await chromium.launch({ headless: true, timeout: 30000 });
+            log("chromium launched");
+            for (const profile of profiles) {
+              await captureProfile(profile);
+            }
+            const missingScreenshots = profiles
+              .filter((profile) => !results.find((entry) => entry.profile === profile.slug && entry.ok))
+              .map((profile) => profile.slug);
+            if (missingScreenshots.length > 0) {
+              fatalError = `missing required screenshots: ${missingScreenshots.join(", ")}`;
+              log(fatalError);
+            }
+            await bounded(browser.close(), 15000, "browser close").catch((error) => {
+              fatalError = String(error);
+              log(`browser close error: ${fatalError}`);
+            });
+            browser = null;
+          }
+
+          Promise.race([main(), timeoutAfter(210000, "capture hard limit")])
+            .then(() => {
+              writeReview({ status: fatalError ? "completed_with_errors" : "completed", fatalError });
+              log("capture job completed");
+              process.exit(fatalError ? 1 : 0);
+            })
+            .catch(async (error) => {
+              fatalError = String(error);
+              log(`capture job failed: ${fatalError}`);
+              writeFileSync(path.join(outDir, "rain-nowcast-review-crash.txt"), fatalError);
+              writeReview({ status: "failed", fatalError });
+              if (browser) {
+                await bounded(browser.close().catch(() => {}), 10000, "browser close after failure").catch(() => {});
+              }
+              process.exit(1);
+            });
+          NODE
+
+      - name: Upload UX review artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-ux-review
+          path: platform_v2/test-results/staging-ux-review/
+          if-no-files-found: warn
 
   invasive-reporting-smoke:
     name: Invasive Reporting Delivery Smoke
