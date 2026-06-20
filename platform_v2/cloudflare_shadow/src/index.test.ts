@@ -1809,6 +1809,9 @@ test("v1 public map nowcast routes proxy fixed JMA targets without exposing a fr
     assert.equal(timesPayload.times[2].offsetMinutes, 15);
     assert.match(timesPayload.tileUrlTemplate, /^\/api\/v1\/map\/weather\/jma-nowcast\/tile/);
 
+    const localizedTimesResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/map/weather/jma-nowcast/times"), env);
+    assert.equal(localizedTimesResponse.ok, true);
+
     const invalidTile = await worker.fetch(new Request("https://shadow.test/api/v1/map/weather/jma-nowcast/tile?basetime=https://evil.test&validtime=20260620031500&z=5&x=28&y=12"), env);
     assert.equal(invalidTile.status, 400);
 

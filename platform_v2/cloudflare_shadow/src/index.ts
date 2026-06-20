@@ -936,11 +936,15 @@ export const worker = {
         return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/weather/jma-nowcast/times") {
+      const weatherApiPath = url.pathname.startsWith("/ja/api/v1/map/weather/")
+        ? url.pathname.slice(3)
+        : url.pathname;
+
+      if (request.method === "GET" && weatherApiPath === "/api/v1/map/weather/jma-nowcast/times") {
         return getJmaNowcastTimesResponse();
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/weather/jma-nowcast/tile") {
+      if (request.method === "GET" && weatherApiPath === "/api/v1/map/weather/jma-nowcast/tile") {
         return getJmaNowcastTileResponse(url);
       }
 

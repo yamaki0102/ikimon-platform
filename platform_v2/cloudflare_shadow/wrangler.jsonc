@@ -49,6 +49,22 @@
     ]
   },
   "env": {
+    "staging": {
+      "name": "ikimon-life-cloudflare-staging-weather",
+      "workers_dev": true,
+      "routes": [
+        "staging.ikimon.life/api/v1/map/weather/jma-nowcast/*",
+        "staging.ikimon.life/ja/api/v1/map/weather/jma-nowcast/*"
+      ],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
+        "OBSERVATION_DB_NAME": "ikimon_shadow_observations_2026_06",
+        "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",
+        "PUBLIC_WRITE_MODE": "origin_fallback",
+        "ORIGIN_FALLBACK_BASE_URL": "https://staging.ikimon.life"
+      }
+    },
     "production": {
       "name": "ikimon-life-cloudflare-prod",
       "workers_dev": true,
