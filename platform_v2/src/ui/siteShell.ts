@@ -1225,6 +1225,24 @@ function globalRecordEntryScript(basePath: string): string {
   let cameraPinchStartZoom = 1;
   let cameraPinchActive = false;
   const cameraPreviewPointers = new Map();
+  const normalizeSavedObservationTargetId = (json, fallbackId) => {
+    const occurrenceId = json && typeof json.occurrenceId === 'string' ? json.occurrenceId.trim() : '';
+    if (occurrenceId) return occurrenceId;
+    const occurrenceIds = json && Array.isArray(json.occurrenceIds) ? json.occurrenceIds : [];
+    const firstOccurrenceId = occurrenceIds.map((id) => String(id || '').trim()).find(Boolean) || '';
+    if (firstOccurrenceId) return firstOccurrenceId;
+    const visitId = json && typeof json.visitId === 'string' ? json.visitId.trim() : '';
+    if (visitId) return visitId;
+    return String(fallbackId || '').trim();
+  };
+  const formatPhotoUploadFailureReason = (error) => {
+    const message = String(error || '').trim();
+    if (!message) return '写真の通信確認に失敗しました。';
+    if (message === 'observation_not_found' || message.indexOf('observation not found:') === 0 || message === 'observation_not_owned') {
+      return '保存した記録への写真の紐づけを確認できませんでした。';
+    }
+    return message;
+  };
   let capturedReviewFile = null;
   let capturedPhotoFiles = [];
   let capturedPhotoObjectUrls = [];
@@ -2132,7 +2150,10 @@ function globalRecordEntryScript(basePath: string): string {
         if (!observationResponse.ok || !observationJson.ok) {
           throw new Error(observationJson.error || 'observation_upsert_failed');
         }
-        detailId = String(observationJson.occurrenceId || observationId);
+        detailId = normalizeSavedObservationTargetId(observationJson, observationId);
+        if (!detailId) {
+          throw new Error('observation_target_missing');
+        }
         photoDraftRetryDetailId = detailId;
       }
       const retryHadUploadedPhoto = photoDraftRetryHasUploadedPhoto;
@@ -2164,7 +2185,7 @@ function globalRecordEntryScript(basePath: string): string {
           });
           return {
             index,
-            error: String(error && error.message || 'photo_upload_network_failed'),
+            error: formatPhotoUploadFailureReason(error && error.message || 'photo_upload_network_failed'),
           };
         } finally {
           completedUploads += 1;
@@ -2179,7 +2200,7 @@ function globalRecordEntryScript(basePath: string): string {
         if (!photoResponse.ok || !photoJson.ok) {
           return {
             index,
-            error: String(photoJson.error || photoResponse.status || 'photo_upload_failed'),
+            error: formatPhotoUploadFailureReason(photoJson.error || photoResponse.status || 'photo_upload_failed'),
           };
         }
         return { index };
@@ -2200,7 +2221,7 @@ function globalRecordEntryScript(basePath: string): string {
         syncPhotoDraftControls();
         const saved = uploadedIndexes.length;
         const failed = failedUploads.length;
-        const reason = failedUploads[0] && failedUploads[0].error ? ' 理由: ' + failedUploads[0].error : '';
+        const reason = failedUploads[0] && failedUploads[0].error ? ' 理由: ' + formatPhotoUploadFailureReason(failedUploads[0].error) : '';
         if (captureButton) captureButton.textContent = '失敗した' + String(failed) + '枚を再送';
         setStatus('記録本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じ記録に再送します。' + reason);
         return;

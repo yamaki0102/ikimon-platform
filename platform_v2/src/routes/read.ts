@@ -14847,6 +14847,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let localityLookupSequence = 0;
         let recordLocationProvenance = null;
         let recordSubmitInFlight = false;
+        const normalizeSavedObservationTargetId = (json, fallbackId) => {
+          const occurrenceId = json && typeof json.occurrenceId === 'string' ? json.occurrenceId.trim() : '';
+          if (occurrenceId) return occurrenceId;
+          const occurrenceIds = json && Array.isArray(json.occurrenceIds) ? json.occurrenceIds : [];
+          const firstOccurrenceId = occurrenceIds.map((id) => String(id || '').trim()).find(Boolean) || '';
+          if (firstOccurrenceId) return firstOccurrenceId;
+          const visitId = json && typeof json.visitId === 'string' ? json.visitId.trim() : '';
+          if (visitId) return visitId;
+          return String(fallbackId || '').trim();
+        };
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = ${JSON.stringify(recordCopy.captureLabels)};
         const recordUiCopy = {
@@ -17835,7 +17845,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (!observationResponse.ok || !observationJson.ok) {
                 throw new Error(observationJson.error || 'observation_upsert_failed');
               }
-              const detailId = String(observationJson.occurrenceId || observationId);
+              const detailId = normalizeSavedObservationTargetId(observationJson, observationId);
+              if (!detailId) {
+                throw new Error('observation_target_missing');
+              }
               const visitId = String(observationJson.visitId || observationId);
               savedDetailId = detailId;
               savedVisitId = visitId;
@@ -18063,7 +18076,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? '<div class="meta">AI判定で外来種候補になった場合、許可済みの自治体・機関へ写真・日時・詳細位置を自動共有することがあります。公開ページに詳細位置は出ません。</div>'
                 : '';
               const statusHeading = savedDetailId ? '記録本体は保存済みです。' : '送信に失敗しました。';
-              if (savedDetailId) pendingMediaRetryObservationId = observationId;
+              if (savedDetailId) pendingMediaRetryObservationId = savedDetailId;
               const funnelErrorAction = message.startsWith('photo_upload_failed_at_')
                 ? 'photo_upload_error'
                 : (message.indexOf('video') >= 0 || message.indexOf('cloudflare') >= 0 || message.indexOf('tus') >= 0)
