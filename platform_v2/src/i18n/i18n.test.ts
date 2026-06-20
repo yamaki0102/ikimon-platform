@@ -12,7 +12,7 @@ test("ja returns the canonical dictionary", () => {
 test("en overrides landing and keeps the english field-loop page shape", () => {
   const s = getStrings("en");
   assert.ok(s.landing.title.startsWith("ikimon — Enjoy Life"));
-  assert.strictEqual(s.landing.tools.lens.eyebrow, "Lens");
+  assert.strictEqual(s.landing.tools.lens.eyebrow, "Save clues");
   assert.strictEqual(s.fieldLoop.title, "Find. Learn. Save. Help someone else.");
 });
 

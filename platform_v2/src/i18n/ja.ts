@@ -46,13 +46,13 @@ export const ja: AppStrings = {
     actionPrimaryGuest: JA_PUBLIC_SHARED_COPY.cta.startObservation,
     actionSecondary: JA_PUBLIC_SHARED_COPY.cta.openMap,
     toolSectionEyebrow: "楽しみ方は 2 つ",
-    toolSectionTitle: "その場で調べるか、次に歩く場所を探すか",
-    toolSectionLead: "気になったものをその場で確かめる入口と、今日どこを歩くか決める入口です。どちらも、あとで記録を残し、対象ごとの観察レコードへ育てやすくするためにあります。",
+    toolSectionTitle: "手がかりを残すか、次に歩く場所を探すか",
+    toolSectionLead: "気になった場面を写真・音・場所の手がかりとして残す入口と、今日どこを歩くか決める入口です。どちらも、あとで見返せる記録へつなげるためにあります。",
     tools: {
       lens: {
-        eyebrow: "その場で調べる",
-        title: "気になったものを、その場で確かめる",
-        body: "カメラを向けると、AI が候補と見分けるヒントを返します。ここで決めきるより、その場の気づきを逃さず記録につなげるための入口です。",
+        eyebrow: "手がかりを残す",
+        title: "気になった場面を、あとで見返せる形に",
+        body: "カメラを向けると、AI が候補と見分けるヒントを返します。ここで決めきるより、写真・音・場所・気づきを記録につなげるための入口です。",
         cta: JA_PUBLIC_SHARED_COPY.cta.openGuide,
         badge: "AI hint",
       },
