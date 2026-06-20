@@ -1206,6 +1206,7 @@ function globalRecordEntryScript(basePath: string): string {
   let recordingTimer = null;
   let directPostInFlight = false;
   let photoDraftRetryDetailId = '';
+  let photoDraftRetryVisitId = '';
   let photoDraftRetryHasUploadedPhoto = false;
   let photoDraftSubmitConfirmUntil = 0;
   let cameraStartInFlight = false;
@@ -1225,6 +1226,16 @@ function globalRecordEntryScript(basePath: string): string {
   let cameraPinchStartZoom = 1;
   let cameraPinchActive = false;
   const cameraPreviewPointers = new Map();
+  const visitIdFromObservationTargetId = (targetId) => {
+    const value = String(targetId || '').trim();
+    const match = value.match(/^occ:([^:]+):\d+$/);
+    return match && match[1] ? match[1] : value;
+  };
+  const normalizeSavedObservationVisitId = (json, fallbackId) => {
+    const visitId = json && typeof json.visitId === 'string' ? json.visitId.trim() : '';
+    if (visitId) return visitId;
+    return visitIdFromObservationTargetId(fallbackId);
+  };
   const normalizeSavedObservationTargetId = (json, fallbackId) => {
     const occurrenceId = json && typeof json.occurrenceId === 'string' ? json.occurrenceId.trim() : '';
     if (occurrenceId) return occurrenceId;
@@ -1844,6 +1855,7 @@ function globalRecordEntryScript(basePath: string): string {
     capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
     capturedPhotoObjectUrls = [];
     photoDraftRetryDetailId = '';
+    photoDraftRetryVisitId = '';
     photoDraftRetryHasUploadedPhoto = false;
     capturedReviewMeta = null;
     resetSheetVideoTrim();
@@ -1991,6 +2003,7 @@ function globalRecordEntryScript(basePath: string): string {
     if (url) URL.revokeObjectURL(url);
     if (capturedPhotoFiles.length === 0) {
       photoDraftRetryDetailId = '';
+      photoDraftRetryVisitId = '';
       photoDraftRetryHasUploadedPhoto = false;
     }
     syncPhotoDraftControls(capturedPhotoFiles.length > 0 ? '写真を外しました。' : '写真をすべて外しました。');
@@ -2018,6 +2031,7 @@ function globalRecordEntryScript(basePath: string): string {
     capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
     capturedPhotoObjectUrls = [];
     photoDraftRetryDetailId = '';
+    photoDraftRetryVisitId = '';
     photoDraftRetryHasUploadedPhoto = false;
     capturedReviewMeta = null;
     renderPhotoTray();
@@ -2085,6 +2099,7 @@ function globalRecordEntryScript(basePath: string): string {
         concurrency: PHOTO_UPLOAD_CONCURRENCY,
       });
       let detailId = photoDraftRetryDetailId;
+      let photoUploadTargetId = photoDraftRetryVisitId || photoDraftRetryDetailId;
       if (!detailId) {
         let location = metadata.location || null;
         if (!location) {
@@ -2150,11 +2165,16 @@ function globalRecordEntryScript(basePath: string): string {
         if (!observationResponse.ok || !observationJson.ok) {
           throw new Error(observationJson.error || 'observation_upsert_failed');
         }
-        detailId = normalizeSavedObservationTargetId(observationJson, observationId);
+        photoUploadTargetId = normalizeSavedObservationVisitId(observationJson, observationId);
+        detailId = normalizeSavedObservationTargetId(observationJson, photoUploadTargetId || observationId);
         if (!detailId) {
           throw new Error('observation_target_missing');
         }
         photoDraftRetryDetailId = detailId;
+        photoDraftRetryVisitId = photoUploadTargetId || visitIdFromObservationTargetId(detailId);
+      }
+      if (!photoUploadTargetId) {
+        photoUploadTargetId = photoDraftRetryVisitId || visitIdFromObservationTargetId(detailId);
       }
       const retryHadUploadedPhoto = photoDraftRetryHasUploadedPhoto;
       let completedUploads = 0;
@@ -2165,7 +2185,7 @@ function globalRecordEntryScript(basePath: string): string {
         let photoJson = {};
         const uploadStartedAt = nowMs();
         try {
-          photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+          photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(photoUploadTargetId) + '/photos/upload'), {
             method: 'POST',
             headers: { 'content-type': 'application/json', accept: 'application/json' },
             credentials: 'include',

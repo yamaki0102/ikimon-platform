@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import type { FastifyRequest } from "fastify";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import { assertPrivilegedWriteAccess } from "./writeGuards.js";
 
@@ -38,4 +40,16 @@ test("privileged write guard rejects missing and mismatched keys", async () => {
     assert.throws(() => assertPrivilegedWriteAccess(requestWithHeaders({})), /forbidden_privileged_write/);
     assert.throws(() => assertPrivilegedWriteAccess(requestWithHeaders({ "x-api-key": "wrong-key" })), /forbidden_privileged_write/);
   });
+});
+
+test("observation ownership guard keeps owner check while allowing occurrence-to-visit fallback", () => {
+  const source = readFileSync(path.join(process.cwd(), "src/services/writeGuards.ts"), "utf8");
+
+  assert.match(source, /function observationOwnershipTargetIds\(observationId: string\): string\[\]/);
+  assert.match(source, /\^occ:\(\[\^:\]\+\):\\d\+\$/);
+  assert.match(source, /v\.visit_id = any\(\$1::text\[\]\)/);
+  assert.match(source, /v\.legacy_observation_id = any\(\$1::text\[\]\)/);
+  assert.match(source, /o\.occurrence_id = any\(\$1::text\[\]\)/);
+  assert.match(source, /and v\.user_id = \$2/);
+  assert.match(source, /\[targetIds, userId\]/);
 });

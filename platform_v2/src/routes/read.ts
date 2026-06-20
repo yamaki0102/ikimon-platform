@@ -14847,6 +14847,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let localityLookupSequence = 0;
         let recordLocationProvenance = null;
         let recordSubmitInFlight = false;
+        const visitIdFromObservationTargetId = (targetId) => {
+          const value = String(targetId || '').trim();
+          const match = value.match(/^occ:([^:]+):\\d+$/);
+          return match && match[1] ? match[1] : value;
+        };
+        const normalizeSavedObservationVisitId = (json, fallbackId) => {
+          const visitId = json && typeof json.visitId === 'string' ? json.visitId.trim() : '';
+          if (visitId) return visitId;
+          return visitIdFromObservationTargetId(fallbackId);
+        };
         const normalizeSavedObservationTargetId = (json, fallbackId) => {
           const occurrenceId = json && typeof json.occurrenceId === 'string' ? json.occurrenceId.trim() : '';
           if (occurrenceId) return occurrenceId;
@@ -17845,11 +17855,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (!observationResponse.ok || !observationJson.ok) {
                 throw new Error(observationJson.error || 'observation_upsert_failed');
               }
-              const detailId = normalizeSavedObservationTargetId(observationJson, observationId);
+              const visitId = normalizeSavedObservationVisitId(observationJson, observationId);
+              const detailId = normalizeSavedObservationTargetId(observationJson, visitId || observationId);
               if (!detailId) {
                 throw new Error('observation_target_missing');
               }
-              const visitId = String(observationJson.visitId || observationId);
+              const photoUploadTargetId = visitId || detailId;
               savedDetailId = detailId;
               savedVisitId = visitId;
               sendRecordFunnelStep('observation_upsert_success', {
@@ -17862,7 +17873,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
               const uploadPhotoFile = async (upload, mediaRoleForPhoto, index, total) => {
                 setStatus('<div class="row"><div>写真を保存しています... ' + String(index) + '/' + String(total) + '</div></div>');
-                const photoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+                const photoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(photoUploadTargetId) + '/photos/upload'), {
                   method: 'POST',
                   headers: { 'content-type': 'application/json', accept: 'application/json' },
                   credentials: 'include',
@@ -18076,7 +18087,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? '<div class="meta">AI判定で外来種候補になった場合、許可済みの自治体・機関へ写真・日時・詳細位置を自動共有することがあります。公開ページに詳細位置は出ません。</div>'
                 : '';
               const statusHeading = savedDetailId ? '記録本体は保存済みです。' : '送信に失敗しました。';
-              if (savedDetailId) pendingMediaRetryObservationId = savedDetailId;
+              if (savedDetailId) pendingMediaRetryObservationId = savedVisitId || savedDetailId;
               const funnelErrorAction = message.startsWith('photo_upload_failed_at_')
                 ? 'photo_upload_error'
                 : (message.indexOf('video') >= 0 || message.indexOf('cloudflare') >= 0 || message.indexOf('tus') >= 0)

@@ -140,8 +140,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /location_set/);
         assert.match(response.body, /submit_attempt/);
         assert.match(response.body, /observation_upsert_success/);
+        assert.match(response.body, /const normalizeSavedObservationVisitId = \(json, fallbackId\) =>/);
         assert.match(response.body, /const normalizeSavedObservationTargetId = \(json, fallbackId\) =>/);
-        assert.match(response.body, /const detailId = normalizeSavedObservationTargetId\(observationJson, observationId\)/);
+        assert.match(response.body, /const visitId = normalizeSavedObservationVisitId\(observationJson, observationId\)/);
+        assert.match(response.body, /const detailId = normalizeSavedObservationTargetId\(observationJson, visitId \|\| observationId\)/);
         assert.match(response.body, /record_success_rendered/);
         assert.match(response.body, /record_saved/);
         assert.match(response.body, /buildContributionReceiptsHtml/);
@@ -156,7 +158,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /photo_upload_error/);
         assert.match(response.body, /video_upload_error/);
         assert.match(response.body, /const statusHeading = savedDetailId \? '記録本体は保存済みです。' : '送信に失敗しました。'/);
-        assert.match(response.body, /pendingMediaRetryObservationId = savedDetailId/);
+        assert.match(response.body, /pendingMediaRetryObservationId = savedVisitId \|\| savedDetailId/);
         assert.doesNotMatch(response.body, /pendingMediaRetryObservationId = observationId/);
         assert.match(response.body, /data-record-success-cta="revisit_same_place"/);
         assert.match(response.body, /同じ場所でもう1件記録する/);
