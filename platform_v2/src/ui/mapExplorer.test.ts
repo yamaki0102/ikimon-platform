@@ -139,7 +139,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(html, /地域図鑑マップ/);
-  assert.match(html, /この範囲の地域図鑑/);
+  assert.match(html, /この範囲の記録/);
   assert.match(html, /記録は地域単位で集計しています/);
   assert.doesNotMatch(html, /余白 = これから育つ場所/);
   assert.doesNotMatch(html, /色 = 季節と記録の厚み/);

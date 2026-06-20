@@ -205,6 +205,15 @@ type MapShellState = {
   rowCount: number;
 };
 
+type RainNowcastTimesPayload = {
+  tileUrlTemplate?: string;
+  times?: Array<{
+    basetime: string;
+    offsetMinutes: number;
+    validtime: string;
+  }>;
+};
+
 async function readMapShellState(page: Page): Promise<MapShellState> {
   return page.evaluate(() => {
     const isVisible = (selector: string): boolean => {
@@ -227,6 +236,36 @@ async function readMapShellState(page: Page): Promise<MapShellState> {
       rowCount: document.querySelectorAll(".me-result-row").length,
     };
   });
+}
+
+async function expectRainNowcastGate(page: Page): Promise<void> {
+  const responsePromise = page.waitForResponse((response) => (
+    response.url().includes("/api/v1/map/weather/jma-nowcast/times")
+  ), { timeout: 12_000 });
+  await page.locator("#me-rain-toggle").click();
+  const response = await responsePromise;
+  expect(response.ok(), `JMA nowcast times should be reachable on staging: ${response.status()} ${response.url()}`).toBeTruthy();
+  const payload = await response.json() as RainNowcastTimesPayload;
+  expect(payload.times?.length ?? 0).toBeGreaterThanOrEqual(3);
+  expect(payload.times?.some((entry) => entry.offsetMinutes === 0)).toBe(true);
+  expect(payload.times?.some((entry) => entry.offsetMinutes >= 30)).toBe(true);
+  expect(payload.tileUrlTemplate ?? "").toMatch(/^\/api\/v1\/map\/weather\/jma-nowcast\/tile/);
+
+  await expect(page.locator("#me-rain-card")).toHaveAttribute("data-enabled", "1");
+  await expect(page.locator("#me-rain-timeline .me-rain-time")).toHaveCount(payload.times?.length ?? 0);
+  await expect(page.locator("#me-rain-status")).toContainText("ikimon独自予報ではありません");
+
+  const sample = payload.times?.[0];
+  if (!sample || !payload.tileUrlTemplate) throw new Error("missing nowcast tile sample");
+  const tilePath = payload.tileUrlTemplate
+    .replace("{basetime}", sample.basetime)
+    .replace("{validtime}", sample.validtime)
+    .replace("{z}", "5")
+    .replace("{x}", "28")
+    .replace("{y}", "12");
+  const tileResponse = await page.request.get(tilePath, { headers: { accept: "image/png" } });
+  expect(tileResponse.ok(), `JMA nowcast tile proxy should return a tile: ${tileResponse.status()} ${tilePath}`).toBeTruthy();
+  expect(tileResponse.headers()["content-type"] ?? "").toContain("image/png");
 }
 
 async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH, isMobile = false): Promise<void> {
@@ -290,6 +329,7 @@ for (const profile of MAP_VIEWPORTS) {
     }
     expect(initialState.filterToggleVisible).toBe(true);
     expect(initialState.resultsCount).toBeGreaterThan(0);
+    await expectRainNowcastGate(page);
 
     await context.close();
   });
@@ -301,7 +341,7 @@ for (const profile of MAP_VIEWPORTS) {
     await installEmptyMapApiFixtures(page);
     await waitForMapEmptyState(page, DEFAULT_STAGING_MAP_PATH);
 
-    await expect(page.locator(".me-results-empty")).toContainText("ここは、まだ図鑑が育つ余白です");
+    await expect(page.locator(".me-results-empty")).toContainText("近くの記録を探せます");
     await expect(page.locator("#me-empty-invite [data-results-empty-areas]")).toBeVisible();
     await expect(page.locator("#me-empty-invite [data-results-empty-widen]")).toBeVisible();
     await expect(page.locator("#me-empty-invite [data-kpi-action='map:results_empty_record']")).toHaveAttribute("href", /\/record/);

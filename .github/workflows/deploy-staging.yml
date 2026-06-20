@@ -713,7 +713,28 @@ jobs:
       - name: Deploy Cloudflare staging weather route
         if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
         working-directory: platform_v2/cloudflare_shadow
-        run: npx wrangler deploy --env staging
+        run: |
+          set +e
+          OUTPUT="$(npx wrangler deploy --env staging 2>&1)"
+          STATUS=$?
+          set -e
+          printf '%s\n' "$OUTPUT"
+          if [ "$STATUS" -ne 0 ]; then
+            if printf '%s\n' "$OUTPUT" | grep -q "Uploaded ikimon-life-cloudflare-staging-weather" \
+              && printf '%s\n' "$OUTPUT" | grep -q "Some triggers failed to deploy for ikimon-life-cloudflare-staging-weather" \
+              && printf '%s\n' "$OUTPUT" | grep -q "/workers/routes"; then
+              echo "WARN: Worker upload succeeded but Wrangler returned nonzero while updating route triggers. Continuing to explicit staging route smoke."
+            else
+              exit "$STATUS"
+            fi
+          fi
+
+      - name: Smoke Cloudflare staging weather route
+        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
+        run: |
+          set -euo pipefail
+          curl -fsS https://ikimon-life-cloudflare-staging-weather.yamaki0102.workers.dev/healthz | grep -q '"ok":true'
+          curl -fsS https://staging.ikimon.life/api/v1/map/weather/jma-nowcast/times | grep -q '"source":"jma_high_resolution_precipitation_nowcast"'
 
   verify-e2e-prepare:
     name: Prepare Full Browser Verification

@@ -252,13 +252,13 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintDismiss: "閉じる",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "この範囲はまだこれから。エリアや季節を少し広げると、地域図鑑の入口が見つかるかもしれません。",
-    emptyTitle: "ここは、まだ図鑑が育つ余白です",
-    emptyLead: "何もない場所ではなく、近くの公開エリアや季節を変えると最初の手がかりが見つかる範囲です。",
+    empty: "近くに視野を広げると、見に行ける場所や季節の記録を見つけやすくなります。",
+    emptyTitle: "近くの記録を探せます",
+    emptyLead: "地図を少し広げるか、季節を変えて、この周辺で見つかった記録を見てみましょう。",
     emptyActionAreas: "候補エリアを見る",
     emptyActionWiden: "少し広げる",
     emptyActionRecord: "見つけたものを記録",
-    sideRecentLabel: "この範囲の地域図鑑",
+    sideRecentLabel: "この範囲の記録",
     recentFindsHint: "この場所で見えたもの",
     sideRevisitLabel: "選んだ場所",
     crossEyebrow: "この場所で、次の自然体験を残す",
@@ -1124,7 +1124,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Filtros"
         : "Filters";
   const listHeading = lang === "ja"
-    ? "この範囲の地域図鑑"
+    ? "この範囲の記録"
     : lang === "es"
       ? "Observaciones en esta área"
       : lang === "pt-BR"
