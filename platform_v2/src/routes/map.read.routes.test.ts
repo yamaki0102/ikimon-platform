@@ -20,6 +20,8 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /source: 'map'/);
     assert.match(html, /id: 'map:state'/);
     assert.match(html, /me-map-kicker">地域図鑑マップ/);
+    assert.match(html, /id="me-purpose-hint"/);
+    assert.match(html, /残したい風景を探す/);
     assert.doesNotMatch(html, /class="me-map-cues"/);
     assert.doesNotMatch(html, /class="me-enjoy-strip"/);
     assert.match(html, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;/);

@@ -74,6 +74,9 @@ export type MapExplorerCopy = {
   layerHintHeatmap: string;
   layerHintJump: string;
   layerHintDismiss: string;
+  purposeHintTitle: string;
+  purposeHintBody: string;
+  purposeHintDismiss: string;
   loading: string;
   statsLabel: (returned: number, total: number) => string;
   empty: string;
@@ -252,6 +255,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintHeatmap: "ズームすると季節の気配の濃淡が見えます。",
     layerHintJump: "見える場所へ",
     layerHintDismiss: "閉じる",
+    purposeHintTitle: "残したい風景を探す",
+    purposeHintBody: "気になる場所を選ぶと、最近の発見と見に行く理由が見えます。",
+    purposeHintDismiss: "この案内を閉じる",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "近くに視野を広げると、見に行ける場所や季節の記録を見つけやすくなります。",
@@ -410,6 +416,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintHeatmap: "Zoom in to see seasonal intensity.",
     layerHintJump: "Show visible layer",
     layerHintDismiss: "Close",
+    purposeHintTitle: "Find a scene to keep",
+    purposeHintBody: "Pick a place to see recent finds and why it may be worth visiting.",
+    purposeHintDismiss: "Close this hint",
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
     empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
@@ -568,6 +577,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintHeatmap: "Acércate para ver la intensidad de temporada.",
     layerHintJump: "Ver capa",
     layerHintDismiss: "Cerrar",
+    purposeHintTitle: "Busca una escena para guardar",
+    purposeHintBody: "Elige un lugar para ver hallazgos recientes y motivos para visitarlo.",
+    purposeHintDismiss: "Cerrar esta pista",
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
     empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
@@ -726,6 +738,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintHeatmap: "Aproxime o zoom para ver a intensidade da estação.",
     layerHintJump: "Mostrar camada",
     layerHintDismiss: "Fechar",
+    purposeHintTitle: "Encontre uma paisagem para guardar",
+    purposeHintBody: "Escolha um lugar para ver achados recentes e motivos para visitar.",
+    purposeHintDismiss: "Fechar esta dica",
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
     empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
@@ -1357,6 +1372,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
+          <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
+          <strong>${escapeHtml(copy.purposeHintTitle)}</strong>
+          <p>${escapeHtml(copy.purposeHintBody)}</p>
+        </section>
         <section class="me-rain-card" id="me-rain-card" data-enabled="0" aria-label="${escapeHtml(copy.tabRain)}" hidden>
           <div class="me-rain-head">
             <strong>${escapeHtml(rainLabels.panel)}</strong>
@@ -1430,6 +1450,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var layerHintTextEl = document.getElementById('me-layer-hint-text');
   var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
   var layerHintCloseEl = document.getElementById('me-layer-hint-close');
+  var purposeHintEl = document.getElementById('me-purpose-hint');
+  var purposeHintCloseEl = document.getElementById('me-purpose-hint-close');
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -1542,6 +1564,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     layerHintFrontier: copy.layerHintFrontier,
     layerHintHeatmap: copy.layerHintHeatmap,
     layerHintJump: copy.layerHintJump,
+    purposeHintTitle: copy.purposeHintTitle,
+    purposeHintBody: copy.purposeHintBody,
+    purposeHintDismiss: copy.purposeHintDismiss,
     legendLabel: copy.legendLabel,
     popupOpenLabel: copy.popupOpenLabel,
     bottomSheetRecord: copy.bottomSheetRecord,
@@ -2215,6 +2240,34 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
   var RECORDS_LOAD_WATCHDOG_MS = 8000;
   var RECORDS_HARD_SETTLE_MS = 20000;
+  var PURPOSE_HINT_STORAGE_KEY = 'ikimon-map-purpose-hint-v1';
+  var purposeHintDismissed = false;
+  try { purposeHintDismissed = window.localStorage.getItem(PURPOSE_HINT_STORAGE_KEY) === '1'; } catch (_) {}
+
+  function isBottomSheetOpen() {
+    return !!(sheetEl && sheetEl.classList.contains('is-open') && sheetEl.getAttribute('aria-hidden') !== 'true');
+  }
+  function setPurposeHintVisible(visible) {
+    if (!purposeHintEl) return;
+    purposeHintEl.hidden = !visible;
+    purposeHintEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  }
+  function canShowPurposeHint() {
+    if (!purposeHintEl || purposeHintDismissed) return false;
+    if (state.tab === 'rain') return false;
+    if (isBottomSheetOpen()) return false;
+    if (emptyInviteEl && !emptyInviteEl.hidden) return false;
+    if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) return false;
+    return true;
+  }
+  function refreshPurposeHint() {
+    setPurposeHintVisible(canShowPurposeHint());
+  }
+  function dismissPurposeHint() {
+    purposeHintDismissed = true;
+    try { window.localStorage.setItem(PURPOSE_HINT_STORAGE_KEY, '1'); } catch (_) {}
+    setPurposeHintVisible(false);
+  }
 
   function sendMapKpi(eventName, actionKey, metadata) {
     try {
@@ -2288,7 +2341,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function syncRainUi() {
     syncRainModeClass();
-    var sheetOpen = sheetEl && sheetEl.classList.contains('is-open') && sheetEl.getAttribute('aria-hidden') !== 'true';
+    var sheetOpen = isBottomSheetOpen();
     try { document.documentElement.classList.toggle('me-sheet-open', Boolean(sheetOpen)); } catch (_) {}
     if (rainCardEl) {
       rainCardEl.hidden = state.tab !== 'rain';
@@ -2296,6 +2349,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       rainCardEl.setAttribute('data-sheet-open', sheetOpen ? '1' : '0');
     }
     if (rainToggleEl) rainToggleEl.setAttribute('aria-pressed', state.rainEnabled ? 'true' : 'false');
+    refreshPurposeHint();
   }
   function enableRainLayer() {
     state.rainEnabled = true;
@@ -2656,10 +2710,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     layerHintEl.classList.add('is-hidden');
     layerHintEl.setAttribute('aria-hidden', 'true');
     layerHintEl.removeAttribute('data-tab');
+    refreshPurposeHint();
   }
   function maybeShowLayerHint(tab) {
     var info = layerHintInfo(tab);
     if (!info || !state.map || !layerHintEl || !layerHintTextEl) {
+      hideLayerHint();
+      return;
+    }
+    if (!purposeHintDismissed && tab === 'places') {
       hideLayerHint();
       return;
     }
@@ -2671,6 +2730,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     layerHintEl.setAttribute('data-tab', tab);
     layerHintEl.classList.remove('is-hidden');
     layerHintEl.setAttribute('aria-hidden', 'false');
+    refreshPurposeHint();
   }
   function extendBoundsWithCoordinates(bounds, coords) {
     if (!Array.isArray(coords)) return;
@@ -3137,6 +3197,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     emptyInviteEl.hidden = !visible;
     emptyInviteEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    refreshPurposeHint();
   }
 
   function renderResultList() {
@@ -4719,6 +4780,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       return;
     }
+    dismissPurposeHint();
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--area');
     sheetEl.classList.add('me-bottom-sheet--detail');
@@ -4733,6 +4795,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       return;
     }
+    dismissPurposeHint();
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--detail');
     sheetEl.classList.add('me-bottom-sheet--area');
@@ -7543,6 +7606,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }
     }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    state.map.on('click', dismissPurposeHint);
+    state.map.on('dragstart', dismissPurposeHint);
+    state.map.on('zoomstart', dismissPurposeHint);
     state.map.on('load', function () {
       // Restore enabled overlays from URL/localStorage state before loading data.
       overlayCatalog.forEach(function (def) {
@@ -7687,6 +7753,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   document.querySelectorAll('.me-tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var t = btn.getAttribute('data-tab') || 'markers';
+      dismissPurposeHint();
       switchMapTab(t);
     });
   });
@@ -7697,6 +7764,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   if (layerHintCloseEl) {
     layerHintCloseEl.addEventListener('click', hideLayerHint);
+  }
+  if (purposeHintCloseEl) {
+    purposeHintCloseEl.addEventListener('click', function (event) {
+      event.preventDefault();
+      dismissPurposeHint();
+    });
   }
   document.querySelectorAll('.me-role-chip').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -7803,6 +7876,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   });
   if (searchAreaBtnEl) {
     searchAreaBtnEl.addEventListener('click', function () {
+      dismissPurposeHint();
       refreshViewportSearchData();
     });
   }
@@ -8080,6 +8154,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   if (searchInputEl) {
     searchInputEl.addEventListener('input', function () {
+      dismissPurposeHint();
       var q = searchInputEl.value;
       if (searchDebounce) clearTimeout(searchDebounce);
       searchDebounce = setTimeout(function () { runUnifiedSearch(q); }, 280);
@@ -8092,6 +8167,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       first.click();
     });
     searchInputEl.addEventListener('focus', function () {
+      dismissPurposeHint();
       if (searchResultsEl && searchResultsEl.childElementCount > 0) searchResultsEl.classList.add('is-open');
     });
     // Close results on outside click.
@@ -8141,6 +8217,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var locateFab = document.getElementById('me-locate-fab');
   if (locateFab) {
     locateFab.addEventListener('click', function () {
+      dismissPurposeHint();
       if (!state.map || !navigator.geolocation) {
         setStatus(COPY.locateError);
         return;
@@ -8698,6 +8775,57 @@ export const MAP_EXPLORER_STYLES = `
     transition: width .25s ease, margin .25s ease;
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
+  .me-purpose-hint {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 5;
+    display: grid;
+    gap: 4px;
+    width: min(310px, calc(100% - 116px));
+    padding: 11px 38px 11px 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(20,184,166,.20);
+    box-shadow: 0 12px 28px rgba(15,23,42,.12);
+    color: #0f172a;
+    backdrop-filter: blur(12px);
+  }
+  .me-purpose-hint[hidden],
+  .me-rain-mode .me-purpose-hint,
+  .me-sheet-open .me-purpose-hint {
+    display: none;
+  }
+  .me-purpose-hint strong {
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 950;
+    color: #10251a;
+  }
+  .me-purpose-hint p {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.45;
+    font-weight: 760;
+    color: #475569;
+  }
+  .me-purpose-hint-close {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 999px;
+    background: rgba(248,250,252,.88);
+    color: #334155;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 900;
+    cursor: pointer;
+  }
   .me-rain-card {
     position: absolute;
     top: 14px;
@@ -10821,6 +10949,14 @@ export const MAP_EXPLORER_STYLES = `
     .me-main { display: block; }
     .me-map-wrap { position: relative; width: 100%; margin-left: 0; }
     .me-map { min-height: var(--me-map-height); height: var(--me-map-height); }
+    .me-purpose-hint {
+      top: 10px;
+      left: 10px;
+      width: min(260px, calc(100% - 116px));
+      padding: 10px 36px 10px 11px;
+    }
+    .me-purpose-hint strong { font-size: 12.5px; }
+    .me-purpose-hint p { font-size: 11px; line-height: 1.4; }
     .me-rain-card {
       position: fixed;
       top: auto;
