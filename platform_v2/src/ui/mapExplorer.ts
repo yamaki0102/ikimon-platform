@@ -2337,7 +2337,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function updateRainLayer() {
     if (!state.map) return;
     removeRainLayer();
-    if (!state.rainEnabled) return;
+    if (!state.rainEnabled || state.tab !== 'rain') return;
     var entry = selectedRainTime();
     if (!entry) return;
     try {
@@ -8601,6 +8601,9 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 12px 28px rgba(15,23,42,.13);
     backdrop-filter: blur(12px);
     color: #0f172a;
+  }
+  .me-rain-card[hidden] {
+    display: none;
   }
   .me-rain-card[data-enabled="0"] .me-rain-timeline,
   .me-rain-card[data-enabled="0"] .me-rain-actions {
