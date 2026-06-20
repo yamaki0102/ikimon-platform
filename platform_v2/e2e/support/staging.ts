@@ -207,6 +207,25 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
         if (this._container && !this._container.querySelector("[data-maplibre-smoke-stub='1']")) {
           this._container.appendChild(this._canvas);
         }
+        this._canvas.addEventListener("click", (event) => {
+          const handlers = this._handlers.click || [];
+          const firstSource = Object.values(this._sources).find((source) => (
+            source
+            && source.data
+            && Array.isArray(source.data.features)
+            && source.data.features.length > 0
+          ));
+          const feature = firstSource && firstSource.data.features[0];
+          const box = this._canvas.getBoundingClientRect();
+          const payload = {
+            type: "click",
+            target: this,
+            features: feature ? [feature] : [],
+            point: { x: event.clientX - box.left, y: event.clientY - box.top },
+            lngLat: { lng: this._center.lng, lat: this._center.lat },
+          };
+          handlers.slice().forEach((handler) => handler(payload));
+        });
         setTimeout(() => {
           this._loaded = true;
           this._emit("load");
