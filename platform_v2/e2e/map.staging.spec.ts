@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page, type Route } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
   installMapLibreStubForSmoke,
@@ -125,7 +125,6 @@ const EMPTY_EFFORT_SUMMARY = {
 const RAIN_VISUAL_REVIEW_PROFILES = MAP_VIEWPORTS.filter((profile) =>
   profile.slug === "desktop-1440" || profile.slug === "mobile-390");
 const RAIN_VISUAL_REVIEW_PATH = "/ja/map?tab=places&lng=137.70148&lat=34.6970&z=17.2";
-const CONTEXT_CLOSE_BUDGET_MS = 3_000;
 
 async function fulfillJson(route: Route, payload: unknown): Promise<void> {
   await route.fulfill({
@@ -133,20 +132,6 @@ async function fulfillJson(route: Route, payload: unknown): Promise<void> {
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify(payload),
   });
-}
-
-async function closeContextBestEffort(context: BrowserContext, label: string): Promise<void> {
-  const closePromise = context.close();
-  closePromise.catch((error) => {
-    console.warn(`staging map context close failed after ${label}: ${String(error)}`);
-  });
-  const result = await Promise.race([
-    closePromise.then(() => "closed" as const),
-    new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), CONTEXT_CLOSE_BUDGET_MS)),
-  ]);
-  if (result === "timeout") {
-    console.warn(`staging map context close timed out after ${label}`);
-  }
 }
 
 async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
@@ -390,11 +375,13 @@ for (const profile of RAIN_VISUAL_REVIEW_PROFILES) {
       );
     }, null, { timeout: 12_000 });
 
-    await expectRainNowcastGate(page);
+    await page.locator("#me-rain-toggle").click();
+    await expect(page.locator("#me-rain-card")).toHaveAttribute("data-enabled", "1");
+    await page.waitForTimeout(1_500);
     await page.screenshot({
       path: testInfo.outputPath(`rain-nowcast-visual-${profile.slug}.png`),
       fullPage: false,
     });
-    await closeContextBestEffort(context, `rain visual review ${profile.slug}`);
+    console.info(`rain nowcast visual review screenshot captured (${profile.slug})`);
   });
 }
