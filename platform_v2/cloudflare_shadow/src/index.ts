@@ -936,15 +936,21 @@ export const worker = {
         return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
       }
 
-      const weatherApiPath = url.pathname.startsWith("/ja/api/v1/map/weather/")
+      const weatherApiPath = url.pathname.startsWith("/ja/api/v1/weather/") || url.pathname.startsWith("/ja/api/v1/map/weather/")
         ? url.pathname.slice(3)
         : url.pathname;
 
-      if (request.method === "GET" && weatherApiPath === "/api/v1/map/weather/jma-nowcast/times") {
+      if (request.method === "GET" && (
+        weatherApiPath === "/api/v1/weather/jma-nowcast/times"
+        || weatherApiPath === "/api/v1/map/weather/jma-nowcast/times"
+      )) {
         return getJmaNowcastTimesResponse();
       }
 
-      if (request.method === "GET" && weatherApiPath === "/api/v1/map/weather/jma-nowcast/tile") {
+      if (request.method === "GET" && (
+        weatherApiPath === "/api/v1/weather/jma-nowcast/tile"
+        || weatherApiPath === "/api/v1/map/weather/jma-nowcast/tile"
+      )) {
         return getJmaNowcastTileResponse(url);
       }
 
@@ -2010,7 +2016,7 @@ async function getJmaNowcastTimesResponse(): Promise<Response> {
       attribution: "Source: JMA High-resolution Precipitation Nowcast",
       attributionUrl: JMA_NOWCAST_ATTRIBUTION_URL,
       generatedAt: new Date().toISOString(),
-      tileUrlTemplate: "/api/v1/map/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
+      tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
       times
     }, 200, { "cache-control": "public, max-age=60" });
   } catch {

@@ -240,7 +240,7 @@ async function readMapShellState(page: Page): Promise<MapShellState> {
 
 async function expectRainNowcastGate(page: Page): Promise<void> {
   const responsePromise = page.waitForResponse((response) => (
-    response.url().includes("/api/v1/map/weather/jma-nowcast/times")
+    response.url().includes("/api/v1/weather/jma-nowcast/times")
   ), { timeout: 12_000 });
   await page.locator("#me-rain-toggle").click();
   const response = await responsePromise;
@@ -249,7 +249,7 @@ async function expectRainNowcastGate(page: Page): Promise<void> {
   expect(payload.times?.length ?? 0).toBeGreaterThanOrEqual(3);
   expect(payload.times?.some((entry) => entry.offsetMinutes === 0)).toBe(true);
   expect(payload.times?.some((entry) => entry.offsetMinutes >= 30)).toBe(true);
-  expect(payload.tileUrlTemplate ?? "").toMatch(/^\/api\/v1\/map\/weather\/jma-nowcast\/tile/);
+  expect(payload.tileUrlTemplate ?? "").toMatch(/^\/api\/v1\/weather\/jma-nowcast\/tile/);
 
   await expect(page.locator("#me-rain-card")).toHaveAttribute("data-enabled", "1");
   await expect(page.locator("#me-rain-timeline .me-rain-time")).toHaveCount(payload.times?.length ?? 0);

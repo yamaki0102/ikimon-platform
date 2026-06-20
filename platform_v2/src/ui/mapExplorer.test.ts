@@ -155,7 +155,7 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(html, /id="me-rain-toggle"[^>]*>雨雲</);
-  assert.match(html, /data-api-jma-nowcast-times="\/api\/v1\/map\/weather\/jma-nowcast\/times"/);
+  assert.match(html, /data-api-jma-nowcast-times="\/api\/v1\/weather\/jma-nowcast\/times"/);
   assert.match(script, /jma-rain-nowcast-layer/);
   assert.match(script, /rainAttribution/);
   assert.match(script, /ikimon独自予報ではありません/);

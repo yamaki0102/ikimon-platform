@@ -977,7 +977,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
   const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
   const apiGuideSpots = withBasePath(props.basePath, "/api/v1/map/guide-spots");
-  const apiJmaNowcastTimes = withBasePath(props.basePath, "/api/v1/map/weather/jma-nowcast/times");
+  const apiJmaNowcastTimes = withBasePath(props.basePath, "/api/v1/weather/jma-nowcast/times");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
   const eventsOrganizerHref = appendLangToHref(
@@ -2290,7 +2290,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
   function rainTileUrl(entry, z, x, y) {
-    var tpl = state.rainTileTemplate || '/api/v1/map/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}';
+    var tpl = state.rainTileTemplate || '/api/v1/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}';
     return tpl
       .replace('{basetime}', encodeURIComponent(entry.basetime || ''))
       .replace('{validtime}', encodeURIComponent(entry.validtime || ''))

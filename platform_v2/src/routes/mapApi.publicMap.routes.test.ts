@@ -103,23 +103,23 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
   try {
     const times = await app.inject({
       method: "GET",
-      url: "/api/v1/map/weather/jma-nowcast/times",
+      url: "/api/v1/weather/jma-nowcast/times",
     });
     assert.equal(times.statusCode, 200);
     const payload = times.json() as Record<string, unknown>;
     assert.equal(payload.source, "jma_high_resolution_precipitation_nowcast");
-    assert.match(String(payload.tileUrlTemplate), /^\/api\/v1\/map\/weather\/jma-nowcast\/tile/);
+    assert.match(String(payload.tileUrlTemplate), /^\/api\/v1\/weather\/jma-nowcast\/tile/);
     assert.deepEqual((payload.times as Array<{ offsetMinutes: number }>).map((item) => item.offsetMinutes), [0, 5, 15, 30, 60]);
 
     const invalidTile = await app.inject({
       method: "GET",
-      url: "/api/v1/map/weather/jma-nowcast/tile?basetime=bad&validtime=20260620030000&z=5&x=28&y=12",
+      url: "/api/v1/weather/jma-nowcast/tile?basetime=bad&validtime=20260620030000&z=5&x=28&y=12",
     });
     assert.equal(invalidTile.statusCode, 400);
 
     const tile = await app.inject({
       method: "GET",
-      url: "/api/v1/map/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620030000&z=5&x=28&y=12",
+      url: "/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620030000&z=5&x=28&y=12",
     });
     assert.equal(tile.statusCode, 200);
     assert.match(String(tile.headers["content-type"] ?? ""), /^image\/png/);
@@ -128,7 +128,7 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
 
     const cachedTile = await app.inject({
       method: "GET",
-      url: "/api/v1/map/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620030000&z=5&x=28&y=12",
+      url: "/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620030000&z=5&x=28&y=12",
     });
     assert.equal(cachedTile.statusCode, 200);
     assert.equal(cachedTile.headers["x-ikimon-weather-cache"], "hit");

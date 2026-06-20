@@ -1801,21 +1801,21 @@ test("v1 public map nowcast routes proxy fixed JMA targets without exposing a fr
   }) as typeof fetch;
 
   try {
-    const timesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/weather/jma-nowcast/times"), env);
+    const timesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/times"), env);
     const timesPayload = await timesResponse.json() as any;
     assert.equal(timesResponse.ok, true, JSON.stringify(timesPayload));
     assert.equal(timesPayload.source, "jma_high_resolution_precipitation_nowcast");
     assert.equal(timesPayload.times.length, 5);
     assert.equal(timesPayload.times[2].offsetMinutes, 15);
-    assert.match(timesPayload.tileUrlTemplate, /^\/api\/v1\/map\/weather\/jma-nowcast\/tile/);
+    assert.match(timesPayload.tileUrlTemplate, /^\/api\/v1\/weather\/jma-nowcast\/tile/);
 
-    const localizedTimesResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/map/weather/jma-nowcast/times"), env);
+    const localizedTimesResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/weather/jma-nowcast/times"), env);
     assert.equal(localizedTimesResponse.ok, true);
 
-    const invalidTile = await worker.fetch(new Request("https://shadow.test/api/v1/map/weather/jma-nowcast/tile?basetime=https://evil.test&validtime=20260620031500&z=5&x=28&y=12"), env);
+    const invalidTile = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?basetime=https://evil.test&validtime=20260620031500&z=5&x=28&y=12"), env);
     assert.equal(invalidTile.status, 400);
 
-    const tileResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620031500&z=5&x=28&y=12"), env);
+    const tileResponse = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620031500&z=5&x=28&y=12"), env);
     assert.equal(tileResponse.ok, true);
     assert.equal(tileResponse.headers.get("content-type"), "image/png");
     assert.equal(tileResponse.headers.get("x-ikimon-weather-cache"), "miss");

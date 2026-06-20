@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { getEffortSummary, getFrontierMap, type EffortActorClass, type EffortRole } from "../services/mapEffort.js";
 import { listMapVisitedPlaces } from "../services/mapVisitedPlaces.js";
@@ -177,7 +177,7 @@ async function getJmaNowcastTimes(): Promise<JmaNowcastTimesResponse> {
     attribution: "Source: JMA High-resolution Precipitation Nowcast",
     attributionUrl: "https://www.jma.go.jp/jma/kishou/know/kurashi/highres_nowcast.html",
     generatedAt: new Date().toISOString(),
-    tileUrlTemplate: "/api/v1/map/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
+    tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
     times,
   };
   jmaNowcastTimesCache = { expiresAt: now + JMA_NOWCAST_TIME_TTL_MS, payload };
@@ -245,7 +245,7 @@ function parseSeason(raw: unknown): SeasonFilter | undefined {
 }
 
 export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/api/v1/map/weather/jma-nowcast/times", async (request, reply) => {
+  const nowcastTimesHandler = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const payload = await getJmaNowcastTimes();
       reply
@@ -257,9 +257,9 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       reply.code(502).type("application/json; charset=utf-8").header("Cache-Control", "no-store");
       return { error: "jma_nowcast_unavailable" };
     }
-  });
+  };
 
-  app.get("/api/v1/map/weather/jma-nowcast/tile", async (request, reply) => {
+  const nowcastTileHandler = async (request: FastifyRequest, reply: FastifyReply) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
     const basetime = typeof q.basetime === "string" ? q.basetime : "";
     const validtime = typeof q.validtime === "string" ? q.validtime : "";
@@ -306,7 +306,12 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     } finally {
       clearTimeout(timer);
     }
-  });
+  };
+
+  app.get("/api/v1/weather/jma-nowcast/times", nowcastTimesHandler);
+  app.get("/api/v1/weather/jma-nowcast/tile", nowcastTileHandler);
+  app.get("/api/v1/map/weather/jma-nowcast/times", nowcastTimesHandler);
+  app.get("/api/v1/map/weather/jma-nowcast/tile", nowcastTileHandler);
 
   app.get("/api/v1/map/cells", async (request, reply) => {
     const q = (request.query ?? {}) as Record<string, unknown>;

@@ -50,7 +50,6 @@ jobs:
       v2_changed: ${{ steps.plan.outputs.v2_changed }}
       migration_changed: ${{ steps.plan.outputs.migration_changed }}
       deploy_changed: ${{ steps.plan.outputs.deploy_changed }}
-      cloudflare_shadow_changed: ${{ steps.plan.outputs.cloudflare_shadow_changed }}
       browser_contract_changed: ${{ steps.plan.outputs.browser_contract_changed }}
       run_php_lint: ${{ steps.plan.outputs.run_php_lint }}
       run_manifest_check: ${{ steps.plan.outputs.run_manifest_check }}
@@ -111,14 +110,12 @@ jobs:
           V2_CHANGED=false
           MIGRATION_CHANGED=false
           DEPLOY_CHANGED=false
-          CLOUDFLARE_SHADOW_CHANGED=false
           BROWSER_CONTRACT_CHANGED=false
 
           if matches '^(upload_package/|tests/|tools/lint\.php|composer\.(json|lock)|phpunit\.xml)'; then PHP_CHANGED=true; fi
           if matches '^platform_v2/'; then V2_CHANGED=true; fi
           if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
           if matches '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
-          if matches '^platform_v2/cloudflare_shadow/'; then CLOUDFLARE_SHADOW_CHANGED=true; fi
           if matches '^(\.github/actions/setup-platform-v2-browser/|platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json))'; then BROWSER_CONTRACT_CHANGED=true; fi
 
           RUN_PHP_LINT=false
@@ -150,7 +147,6 @@ jobs:
             echo "v2_changed=$V2_CHANGED"
             echo "migration_changed=$MIGRATION_CHANGED"
             echo "deploy_changed=$DEPLOY_CHANGED"
-            echo "cloudflare_shadow_changed=$CLOUDFLARE_SHADOW_CHANGED"
             echo "browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
             echo "run_php_lint=$RUN_PHP_LINT"
             echo "run_manifest_check=$RUN_MANIFEST_CHECK"
@@ -159,7 +155,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
           echo "verify_level=$VERIFY_LEVEL"
-          echo "php_changed=$PHP_CHANGED v2_changed=$V2_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED cloudflare_shadow_changed=$CLOUDFLARE_SHADOW_CHANGED browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
+          echo "php_changed=$PHP_CHANGED v2_changed=$V2_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
           echo "run_php_lint=$RUN_PHP_LINT run_manifest_check=$RUN_MANIFEST_CHECK run_browser_smoke=$RUN_BROWSER_SMOKE run_full_browser_e2e=$RUN_FULL_BROWSER_E2E"
 
           {
@@ -178,7 +174,6 @@ jobs:
             echo "- PHP changed: $PHP_CHANGED"
             echo "- platform_v2 changed: $V2_CHANGED"
             echo "- deploy/nginx changed: $DEPLOY_CHANGED"
-            echo "- Cloudflare shadow changed: $CLOUDFLARE_SHADOW_CHANGED"
             echo "- browser contract changed: $BROWSER_CONTRACT_CHANGED"
             echo "- PHP lint: $RUN_PHP_LINT"
             echo "- browser smoke: $RUN_BROWSER_SMOKE"
@@ -660,86 +655,10 @@ jobs:
               echo "Skip public map snapshot alert lifecycle smoke: verify_level=$VERIFY_LEVEL (requires full)."
             fi
 
-  deploy-cloudflare-staging-weather:
-    name: Deploy Cloudflare Staging Weather Route
-    runs-on: ubuntu-latest
-    needs: [plan, pre-flight]
-    environment: staging
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      SHOULD_DEPLOY_WEATHER_WORKER: ${{ needs.plan.outputs.cloudflare_shadow_changed }}
-    steps:
-      - name: Skip when Cloudflare shadow is unchanged
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER != 'true'
-        run: |
-          echo "Skip staging weather Worker deploy: platform_v2/cloudflare_shadow unchanged."
-
-      - uses: actions/checkout@v5
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
-        with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
-
-      - name: Setup Node
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: |
-            platform_v2/cloudflare_shadow/package-lock.json
-
-      - name: Require Cloudflare API token
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
-        run: |
-          set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "CLOUDFLARE_API_TOKEN is required for staging weather Worker deploy."
-            exit 1
-          fi
-
-      - name: Install Cloudflare Worker dependencies
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: npm ci
-
-      - name: Validate Cloudflare Worker staging weather deploy
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: |
-          set -euo pipefail
-          npm run check
-          npx wrangler deploy --env staging --dry-run
-
-      - name: Deploy Cloudflare staging weather route
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
-        working-directory: platform_v2/cloudflare_shadow
-        run: |
-          set +e
-          OUTPUT="$(npx wrangler deploy --env staging 2>&1)"
-          STATUS=$?
-          set -e
-          printf '%s\n' "$OUTPUT"
-          if [ "$STATUS" -ne 0 ]; then
-            if printf '%s\n' "$OUTPUT" | grep -q "Uploaded ikimon-life-cloudflare-staging-weather" \
-              && printf '%s\n' "$OUTPUT" | grep -q "Some triggers failed to deploy for ikimon-life-cloudflare-staging-weather" \
-              && printf '%s\n' "$OUTPUT" | grep -q "/workers/routes"; then
-              echo "WARN: Worker upload succeeded but Wrangler returned nonzero while updating route triggers. Continuing to explicit staging route smoke."
-            else
-              exit "$STATUS"
-            fi
-          fi
-
-      - name: Smoke Cloudflare staging weather route
-        if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
-        run: |
-          set -euo pipefail
-          curl -fsS https://ikimon-life-cloudflare-staging-weather.yamaki0102.workers.dev/healthz | grep -q '"ok":true'
-          curl -fsS https://staging.ikimon.life/api/v1/map/weather/jma-nowcast/times | grep -q '"source":"jma_high_resolution_precipitation_nowcast"'
-
   verify-e2e-prepare:
     name: Prepare Full Browser Verification
     runs-on: ubuntu-latest
-    needs: [plan, verify-ssh, deploy-cloudflare-staging-weather]
+    needs: [plan, verify-ssh]
     if: needs.plan.outputs.run_full_browser_e2e == 'true'
     timeout-minutes: 12
     environment: staging
@@ -822,7 +741,7 @@ jobs:
   verify-e2e-smoke:
     name: Verify Staging in Browser / smoke
     runs-on: ubuntu-latest
-    needs: [plan, verify-ssh, deploy-cloudflare-staging-weather]
+    needs: [plan, verify-ssh]
     if: needs.plan.outputs.run_browser_smoke == 'true' && needs.plan.outputs.run_full_browser_e2e != 'true'
     timeout-minutes: 10
     environment: staging
