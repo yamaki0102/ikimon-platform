@@ -1794,8 +1794,20 @@ test("v1 public map nowcast routes proxy fixed JMA targets without exposing a fr
         { basetime: "20260620030000", validtime: "20260620040000", elements: ["hrpns"] }
       ]), { status: 200, headers: { "content-type": "application/json" } });
     }
+    if (url.endsWith("/rasrf/targetTimes.json")) {
+      return new Response(JSON.stringify([
+        { basetime: "20260620030000", validtime: "20260620050000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620060000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620070000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620080000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620090000", member: "immed", elements: ["rasrf"] }
+      ]), { status: 200, headers: { "content-type": "application/json" } });
+    }
     if (url === "https://www.jma.go.jp/bosai/jmatile/data/nowc/20260620030000/none/20260620031500/surf/hrpns/5/28/12.png") {
       return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200, headers: { "content-type": "image/png" } });
+    }
+    if (url === "https://www.jma.go.jp/bosai/jmatile/data/rasrf/20260620030000/immed/20260620090000/surf/rasrf/5/28/12.png") {
+      return new Response(new Uint8Array([137, 80, 78, 72]), { status: 200, headers: { "content-type": "image/png" } });
     }
     return new Response("not found", { status: 404 });
   }) as typeof fetch;
@@ -1804,10 +1816,15 @@ test("v1 public map nowcast routes proxy fixed JMA targets without exposing a fr
     const timesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/times"), env);
     const timesPayload = await timesResponse.json() as any;
     assert.equal(timesResponse.ok, true, JSON.stringify(timesPayload));
-    assert.equal(timesPayload.source, "jma_high_resolution_precipitation_nowcast");
-    assert.equal(timesPayload.times.length, 5);
+    assert.equal(timesPayload.source, "jma_precipitation_map");
+    assert.equal(timesPayload.times.length, 10);
     assert.equal(timesPayload.times[2].offsetMinutes, 15);
+    assert.equal(timesPayload.times[5].product, "short_range");
+    assert.equal(timesPayload.times[5].member, "immed");
+    assert.equal(timesPayload.times.at(-1).offsetMinutes, 360);
     assert.match(timesPayload.tileUrlTemplate, /^\/api\/v1\/weather\/jma-nowcast\/tile/);
+    assert.match(timesPayload.tileUrlTemplate, /product=\{product\}/);
+    assert.match(timesPayload.tileUrlTemplate, /member=\{member\}/);
 
     const localizedTimesResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/weather/jma-nowcast/times"), env);
     assert.equal(localizedTimesResponse.ok, true);
@@ -1820,7 +1837,15 @@ test("v1 public map nowcast routes proxy fixed JMA targets without exposing a fr
     assert.equal(tileResponse.headers.get("content-type"), "image/png");
     assert.equal(tileResponse.headers.get("x-ikimon-weather-cache"), "miss");
     assert.deepEqual([...new Uint8Array(await tileResponse.arrayBuffer())], [137, 80, 78, 71]);
+
+    const shortRangeTileResponse = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?product=short_range&member=immed&basetime=20260620030000&validtime=20260620090000&z=5&x=28&y=12"), env);
+    assert.equal(shortRangeTileResponse.ok, true);
+    assert.equal(shortRangeTileResponse.headers.get("content-type"), "image/png");
+    assert.equal(shortRangeTileResponse.headers.get("x-ikimon-weather-cache"), "miss");
+    assert.deepEqual([...new Uint8Array(await shortRangeTileResponse.arrayBuffer())], [137, 80, 78, 72]);
     assert.equal(fetchedUrls.some((url) => url.includes("evil.test")), false);
+    assert.equal(fetchedUrls.includes("https://www.jma.go.jp/bosai/jmatile/data/nowc/20260620030000/none/20260620031500/surf/hrpns/5/28/12.png"), true);
+    assert.equal(fetchedUrls.includes("https://www.jma.go.jp/bosai/jmatile/data/rasrf/20260620030000/immed/20260620090000/surf/rasrf/5/28/12.png"), true);
   } finally {
     globalThis.fetch = originalFetch;
   }

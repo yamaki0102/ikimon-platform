@@ -422,8 +422,10 @@ const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunk
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
 const JMA_NOWCAST_ROOT = "https://www.jma.go.jp/bosai/jmatile/data/nowc";
+const JMA_SHORT_RANGE_TARGET = "https://www.jma.go.jp/bosai/jmatile/data/rasrf/targetTimes.json";
+const JMA_SHORT_RANGE_ROOT = "https://www.jma.go.jp/bosai/jmatile/data/rasrf";
 const JMA_NOWCAST_OFFSETS = [0, 5, 15, 30, 60] as const;
-const JMA_NOWCAST_ATTRIBUTION_URL = "https://www.jma.go.jp/jma/kishou/know/kurashi/highres_nowcast.html";
+const JMA_SHORT_RANGE_OFFSETS = [120, 180, 240, 300, 360] as const;
 
 type ShadowMapGuideSpot = {
   id: string;
@@ -1934,12 +1936,14 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
 type JmaNowcastTarget = {
   basetime?: unknown;
   validtime?: unknown;
+  member?: unknown;
   elements?: unknown;
 };
 
 type JmaNowcastSelectedTarget = {
   basetime: string;
   validtime: string;
+  member?: string;
 };
 
 function isValidJmaTimestamp(value: unknown): value is string {
@@ -1961,6 +1965,10 @@ function parseJmaTimestamp(value: string): number | null {
 
 function jmaTargetSupportsRain(target: JmaNowcastTarget): boolean {
   return !Array.isArray(target.elements) || target.elements.includes("hrpns");
+}
+
+function jmaTargetSupportsShortRangeRain(target: JmaNowcastTarget): boolean {
+  return !Array.isArray(target.elements) || target.elements.includes("rasrf");
 }
 
 function jmaOffsetMinutes(target: JmaNowcastTarget): number | null {
@@ -1986,6 +1994,28 @@ function chooseJmaNowcastTarget(targets: JmaNowcastTarget[], offsetMinutes: numb
   return candidates[0]?.target ?? null;
 }
 
+function chooseJmaShortRangeTarget(targets: JmaNowcastTarget[], offsetMinutes: number): JmaNowcastSelectedTarget | null {
+  const candidates = targets
+    .filter((target) => isValidJmaTimestamp(target.basetime) && isValidJmaTimestamp(target.validtime) && jmaTargetSupportsShortRangeRain(target))
+    .map((target): { target: JmaNowcastSelectedTarget; offset: number | null } => ({
+      target: {
+        basetime: target.basetime as string,
+        validtime: target.validtime as string,
+        member: typeof target.member === "string" ? target.member : undefined
+      },
+      offset: jmaOffsetMinutes(target)
+    }))
+    .filter((item): item is { target: JmaNowcastSelectedTarget; offset: number } => item.offset !== null);
+  candidates.sort((a, b) => {
+    const delta = Math.abs(a.offset - offsetMinutes) - Math.abs(b.offset - offsetMinutes);
+    if (delta !== 0) return delta;
+    const memberRank = (value: string | undefined) => value === "immed" ? 0 : 1;
+    const memberDelta = memberRank(a.target.member) - memberRank(b.target.member);
+    return memberDelta !== 0 ? memberDelta : b.target.validtime.localeCompare(a.target.validtime);
+  });
+  return candidates[0]?.target ?? null;
+}
+
 async function fetchJmaTargets(url: string): Promise<JmaNowcastTarget[]> {
   const response = await fetch(url, { headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`jma_nowcast_fetch_failed:${response.status}`);
@@ -1995,28 +2025,43 @@ async function fetchJmaTargets(url: string): Promise<JmaNowcastTarget[]> {
 
 async function getJmaNowcastTimesResponse(): Promise<Response> {
   try {
-    const [currentTargets, forecastTargets] = await Promise.all([
+    const [currentTargets, forecastTargets, shortRangeTargets] = await Promise.all([
       fetchJmaTargets(JMA_NOWCAST_TARGET_N1),
-      fetchJmaTargets(JMA_NOWCAST_TARGET_N2)
+      fetchJmaTargets(JMA_NOWCAST_TARGET_N2),
+      fetchJmaTargets(JMA_SHORT_RANGE_TARGET)
     ]);
-    const times = JMA_NOWCAST_OFFSETS
-      .map((offsetMinutes) => {
-        const source = offsetMinutes === 0 ? currentTargets : forecastTargets;
-        const target = chooseJmaNowcastTarget(source, offsetMinutes);
-        return target ? {
-          offsetMinutes,
-          basetime: target.basetime,
-          validtime: target.validtime,
-          highResolution: offsetMinutes <= 30
-        } : null;
-      })
-      .filter((target): target is NonNullable<typeof target> => target !== null);
+    const times = [];
+    for (const offsetMinutes of JMA_NOWCAST_OFFSETS) {
+      const source = offsetMinutes === 0 ? currentTargets : forecastTargets;
+      const target = chooseJmaNowcastTarget(source, offsetMinutes);
+      if (!target) continue;
+      times.push({
+        offsetMinutes,
+        basetime: target.basetime,
+        validtime: target.validtime,
+        product: "nowcast",
+        member: "none",
+        highResolution: offsetMinutes <= 30
+      });
+    }
+    for (const offsetMinutes of JMA_SHORT_RANGE_OFFSETS) {
+      const target = chooseJmaShortRangeTarget(shortRangeTargets, offsetMinutes);
+      if (!target) continue;
+      times.push({
+        offsetMinutes,
+        basetime: target.basetime,
+        validtime: target.validtime,
+        product: "short_range",
+        member: target.member || "none",
+        highResolution: false
+      });
+    }
     return json({
-      source: "jma_high_resolution_precipitation_nowcast",
-      attribution: "Source: JMA High-resolution Precipitation Nowcast",
-      attributionUrl: JMA_NOWCAST_ATTRIBUTION_URL,
+      source: "jma_precipitation_map",
+      attribution: "Source: JMA High-resolution Precipitation Nowcast / Very Short-range Forecasts of Precipitation",
+      attributionUrl: "https://www.jma.go.jp/jma/en/Activities/forecast.html",
       generatedAt: new Date().toISOString(),
-      tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
+      tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?product={product}&member={member}&basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
       times
     }, 200, { "cache-control": "public, max-age=60" });
   } catch {
@@ -2032,17 +2077,25 @@ function parseJmaTileNumber(raw: string | null, max: number): number | null {
 }
 
 async function getJmaNowcastTileResponse(url: URL): Promise<Response> {
+  const rawProduct = url.searchParams.get("product");
+  const product = rawProduct === "short_range" ? "short_range" : "nowcast";
+  const rawMember = url.searchParams.get("member");
+  const member = rawMember === null || rawMember === ""
+    ? "none"
+    : /^[a-z0-9_-]{1,24}$/i.test(rawMember) ? rawMember : null;
   const basetime = url.searchParams.get("basetime");
   const validtime = url.searchParams.get("validtime");
   const z = parseJmaTileNumber(url.searchParams.get("z"), 14);
   const maxTile = z === null ? 0 : (2 ** z) - 1;
   const x = parseJmaTileNumber(url.searchParams.get("x"), maxTile);
   const y = parseJmaTileNumber(url.searchParams.get("y"), maxTile);
-  if (!isValidJmaTimestamp(basetime) || !isValidJmaTimestamp(validtime) || z === null || x === null || y === null) {
+  if (member === null || !isValidJmaTimestamp(basetime) || !isValidJmaTimestamp(validtime) || z === null || x === null || y === null) {
     return json({ error: "invalid_jma_nowcast_tile" }, 400, { "cache-control": "no-store" });
   }
 
-  const jmaUrl = `${JMA_NOWCAST_ROOT}/${basetime}/none/${validtime}/surf/hrpns/${z}/${x}/${y}.png`;
+  const jmaUrl = product === "short_range"
+    ? `${JMA_SHORT_RANGE_ROOT}/${basetime}/${member}/${validtime}/surf/rasrf/${z}/${x}/${y}.png`
+    : `${JMA_NOWCAST_ROOT}/${basetime}/none/${validtime}/surf/hrpns/${z}/${x}/${y}.png`;
   const cache = (globalThis as typeof globalThis & { caches?: { default?: { match(request: Request): Promise<Response | undefined>; put(request: Request, response: Response): Promise<void> } } }).caches?.default;
   const cacheRequest = new Request(jmaUrl, { method: "GET" });
   const cached = await cache?.match(cacheRequest);
