@@ -1005,9 +1005,17 @@ jobs:
                 ignoreHTTPSErrors: true,
                 httpCredentials: username && password ? { username, password } : undefined,
               }), 15000, `${profile.slug} context`);
+              await context.route(/\.(woff2?|ttf|otf)(\?.*)?$/i, (route) => route.abort()).catch((error) => {
+                entry.errors.push(`font route: ${String(error)}`);
+              });
               const page = await bounded(context.newPage(), 10000, `${profile.slug} page`);
               const response = await page.goto(reviewPath, { waitUntil: "domcontentloaded", timeout: 20000 });
               entry.status = response ? response.status() : null;
+              await page.addStyleTag({
+                content: 'html, body, * { font-family: "Noto Sans CJK JP", "Noto Sans JP", Arial, sans-serif !important; }',
+              }).catch((error) => {
+                entry.errors.push(`font style: ${String(error)}`);
+              });
               await page.waitForSelector(".me-map-wrap", { state: "visible", timeout: 8000 }).catch((error) => {
                 entry.errors.push(`map wait: ${String(error)}`);
               });
@@ -1026,7 +1034,7 @@ jobs:
               entry.errors.push(String(error));
               try {
                 const page = context?.pages()?.[0];
-                if (page) {
+                if (page && !String(error).includes("screenshot")) {
                   await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false, timeout: screenshotTimeoutMs }), screenshotTimeoutMs + 5000, `${profile.slug} error screenshot`);
                   screenshotCaptured = true;
                   entry.state = await bounded(page.evaluate(collectState), 5000, `${profile.slug} error state`).catch((stateError) => {
