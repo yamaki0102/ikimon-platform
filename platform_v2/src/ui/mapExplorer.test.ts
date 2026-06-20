@@ -139,7 +139,9 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(html, /地域図鑑マップ/);
-  assert.match(html, /この範囲の地域図鑑/);
+  assert.match(html, /この範囲で見られるもの/);
+  assert.doesNotMatch(html, /この範囲の地域図鑑/);
+  assert.match(script, /近くの記録/);
   assert.match(html, /記録は地域単位で集計しています/);
   assert.doesNotMatch(html, /me-map-cue/);
   assert.doesNotMatch(html, /色 = 季節と記録の厚み/);
@@ -443,6 +445,10 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /COPY\.resultGroupedByDate/);
   assert.match(script, /renderResultBadges\(record\)/);
   assert.match(script, /width="64" height="64"/);
+  assert.match(script, /hasOwnPlaceHighlights/);
+  assert.match(script, /records\.slice\(0, 8\) : records\.slice\(0, 120\)/);
+  assert.match(script, /resultsListEl\.classList\.toggle\('is-own-place-secondary', ownPlacesVisible\)/);
+  assert.match(script, /ownPlacesVisible \? '' : '<div class="me-result-thumb me-result-thumb-placeholder">🌿<\/div>'/);
   const resultListBody = script.slice(
     script.indexOf("function renderResultList()"),
     script.indexOf("function clearDiscoveryPreviewMarkers()"),
@@ -454,6 +460,9 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.doesNotMatch(resultListBody, /'<span>' \+ escapeHtml\(record\.localityLabel/);
   assert.match(styles, /\.me-result-group \{/);
   assert.match(styles, /grid-template-columns: 64px minmax\(0,1fr\)/);
+  assert.match(styles, /\.me-results-list\.is-own-place-secondary/);
+  assert.match(styles, /max-height: 42%/);
+  assert.match(styles, /\.me-results-list\.is-own-place-secondary \.me-result-row\.is-text-only/);
   assert.match(styles, /\.me-result-badges/);
   assert.match(styles, /\.me-results-loading \{/);
   assert.match(styles, /\.me-results-loading-row \{/);
@@ -462,7 +471,10 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(styles, /@keyframes me-results-loading/);
   assert.match(styles, /\.me-results-empty-actions/);
   assert.match(styles, /\.me-results-empty-action\.is-primary/);
+  assert.match(styles, /\.me-map\[data-results-state="empty"\] ~ \.me-map-status \{ display: none; \}/);
   assert.match(styles, /\.me-empty-invite/);
+  assert.match(styles, /\.me-empty-invite \{[\s\S]*?display: none;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.me-empty-invite \{[\s\S]*?display: grid;/);
   assert.doesNotMatch(script, /縺|繧|譁|髱|蝗|遽/);
 });
 
@@ -764,9 +776,13 @@ test("map explorer surfaces own place thumbnails without old shortcut copy", () 
   assert.match(script, /loadOwnPlaces\(attempt \+ 1\)/);
   assert.match(script, /function loadOwnPlaces\(attempt\)/);
   assert.match(script, /function jumpToOwnPlace\(place\)/);
+  assert.match(script, /function hasOwnPlaceHighlights\(\)/);
   assert.match(script, /latestPhotoUrl/);
+  assert.match(script, /me-own-place-photo is-empty/);
   assert.match(script, /自分の場所/);
   assert.match(script, /前に残した写真から、もう一度その場所へ戻れます。/);
+  assert.match(script, /周辺は最新だけ/);
+  assert.match(script, /renderResultList\(\);/);
   assert.doesNotMatch(script, /よく行く/);
   assert.doesNotMatch(script, /季節で再訪/);
   assert.doesNotMatch(script, /行った場所へ/);

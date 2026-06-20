@@ -258,7 +258,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     emptyActionAreas: "近くの候補を見る",
     emptyActionWiden: "範囲を広げる",
     emptyActionRecord: "記録する",
-    sideRecentLabel: "この範囲の地域図鑑",
+    sideRecentLabel: "近くの記録",
     recentFindsHint: "この場所で見えたもの",
     sideRevisitLabel: "選んだ場所",
     crossEyebrow: "この場所で、次の自然体験を残す",
@@ -1124,7 +1124,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Filtros"
         : "Filters";
   const listHeading = lang === "ja"
-    ? "この範囲の地域図鑑"
+    ? "この範囲で見られるもの"
     : lang === "es"
       ? "Observaciones en esta área"
       : lang === "pt-BR"
@@ -1636,6 +1636,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     impactPrivateNote: props.lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : props.lang === "es" ? "Se muestra solo agregado del área, no nombres." : props.lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
     ownPlacesTitle: props.lang === "ja" ? "自分の場所" : props.lang === "es" ? "Mis lugares" : props.lang === "pt-BR" ? "Meus lugares" : "My places",
     ownPlacesLead: props.lang === "ja" ? "前に残した写真から、もう一度その場所へ戻れます。" : props.lang === "es" ? "Vuelve a lugares anteriores desde tus fotos." : props.lang === "pt-BR" ? "Volte aos lugares anteriores pelas suas fotos." : "Return to previous places from your photos.",
+    ownPlacesNearbyLabel: props.lang === "ja" ? "周辺は最新だけ" : props.lang === "es" ? "Alrededor, solo reciente" : props.lang === "pt-BR" ? "Por perto, só recentes" : "Nearby, recent only",
     ownPlaceRecordLabel: props.lang === "ja" ? "もう一度記録" : props.lang === "es" ? "Registrar otra vez" : props.lang === "pt-BR" ? "Registrar de novo" : "Record again",
     ownPlaceVisitedSuffix: props.lang === "ja" ? "回" : props.lang === "es" ? " visitas" : props.lang === "pt-BR" ? " visitas" : " visits",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
@@ -2758,9 +2759,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function ownPlaceImageHtml(place) {
     var src = place && place.latestPhotoUrl ? String(place.latestPhotoUrl) : '';
     if (src) {
-      return '<span class="me-own-place-photo"><img src="' + escapeHtml(src) + '" alt="" loading="lazy" decoding="async" /></span>';
+      return '<span class="me-own-place-photo"><img src="' + escapeHtml(src) + '" alt="" loading="lazy" decoding="async" onerror="this.outerHTML=&quot;<span class=\\&quot;me-own-place-photo is-empty\\&quot; aria-hidden=\\&quot;true\\&quot;>📍</span>&quot;" /></span>';
     }
     return '<span class="me-own-place-photo is-empty" aria-hidden="true">📍</span>';
+  }
+
+  function hasOwnPlaceHighlights() {
+    return !!(state.ownPlacesSignedIn && Array.isArray(state.ownPlaces) && state.ownPlaces.length);
   }
 
   function renderOwnPlacesPanel() {
@@ -2862,12 +2867,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         state.ownPlaces = payload && Array.isArray(payload.items) ? payload.items : [];
         if (!state.ownPlacesSignedIn && retryOwnPlacesAfterSessionCheck(attempt)) return;
         renderOwnPlacesPanel();
+        renderResultList();
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
         state.ownPlacesSignedIn = false;
         state.ownPlaces = [];
         renderOwnPlacesPanel();
+        renderResultList();
       });
   }
 
@@ -3019,6 +3026,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     setResultsLoadState(records.length ? 'ready' : 'empty', records.length);
     updateSideRailSignal(records);
     if (!resultsListEl || !sideStatusEl) return;
+    var ownPlacesVisible = hasOwnPlaceHighlights();
+    resultsListEl.classList.toggle('is-own-place-secondary', ownPlacesVisible);
     if (!records.length) {
       sideStatusEl.textContent = COPY.empty;
       resultsListEl.innerHTML = renderResultsEmptyState();
@@ -3026,9 +3035,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     setMapEmptyInviteVisible(false);
-    sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll + ' · ' + COPY.resultGroupedByDate;
+    var visibleRecords = ownPlacesVisible ? records.slice(0, 8) : records.slice(0, 120);
+    sideStatusEl.textContent = ownPlacesVisible
+      ? COPY.ownPlacesNearbyLabel + ' · ' + visibleRecords.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll
+      : records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll + ' · ' + COPY.resultGroupedByDate;
     try {
-      resultsListEl.innerHTML = groupResultRecords(records.slice(0, 120)).map(function (group) {
+      resultsListEl.innerHTML = groupResultRecords(visibleRecords).map(function (group) {
         var locality = summarizeLocalities(group.records);
         var label = group.date || COPY.resultGroupUnknownDate;
         var meta = [locality, String(group.records.length) + ' ' + COPY.resultCountLabel].filter(Boolean).join(' · ');
@@ -3036,10 +3048,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           var active = record.occurrenceId === state.selectedOccurrenceId;
           var thumb = record.photoUrl
             ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="64" height="64" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
-            : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
+            : (ownPlacesVisible ? '' : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>');
           var displayLabel = recordDisplayName(record);
           var titleMeta = [record.localityLabel || '', resultGroupDate(record)].filter(Boolean).join(' · ');
-          return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '" title="' + escapeHtml(titleMeta) + '">' +
+          return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + (thumb ? '' : ' is-text-only') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '" title="' + escapeHtml(titleMeta) + '">' +
             thumb +
             '<span class="me-result-body">' +
               '<strong>' + escapeHtml(displayLabel) + '</strong>' +
@@ -8520,12 +8532,13 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 6px 14px rgba(15,23,42,.08);
     backdrop-filter: blur(8px);
   }
+  .me-map[data-results-state="empty"] ~ .me-map-status { display: none; }
   .me-empty-invite {
     position: absolute;
     left: 18px;
     bottom: 58px;
     z-index: 5;
-    display: grid;
+    display: none;
     gap: 10px;
     width: min(340px, calc(100% - 128px));
     padding: 14px;
@@ -10293,6 +10306,37 @@ export const MAP_EXPLORER_STYLES = `
     cursor: pointer;
   }
   .me-result-row.is-active { border-color: rgba(14,165,233,.28); box-shadow: 0 12px 28px rgba(14,165,233,.12); }
+  .me-results-list.is-own-place-secondary {
+    flex: 0 1 auto;
+    max-height: 42%;
+    gap: 6px;
+    padding-top: 2px;
+  }
+  .me-results-list.is-own-place-secondary .me-result-group {
+    gap: 4px;
+  }
+  .me-results-list.is-own-place-secondary .me-result-group-head {
+    padding-top: 4px;
+  }
+  .me-results-list.is-own-place-secondary .me-result-row {
+    min-height: 48px;
+    grid-template-columns: 46px minmax(0,1fr);
+    gap: 8px;
+    padding: 6px;
+  }
+  .me-results-list.is-own-place-secondary .me-result-row.is-text-only {
+    grid-template-columns: minmax(0,1fr);
+  }
+  .me-results-list.is-own-place-secondary .me-result-thumb {
+    width: 46px;
+    height: 46px;
+  }
+  .me-results-list.is-own-place-secondary .me-result-body {
+    gap: 4px;
+  }
+  .me-results-list.is-own-place-secondary .me-result-body strong {
+    font-size: 12px;
+  }
   .me-result-thumb {
     width: 64px;
     height: 64px;
@@ -10566,6 +10610,7 @@ export const MAP_EXPLORER_STYLES = `
       max-width: calc(100% - 96px);
     }
     .me-empty-invite {
+      display: grid;
       left: 10px;
       bottom: calc(var(--me-mobile-action-space) + 50px);
       width: min(360px, calc(100% - 20px));
