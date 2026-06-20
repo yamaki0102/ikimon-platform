@@ -20,7 +20,10 @@ import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
 const JMA_NOWCAST_ROOT = "https://www.jma.go.jp/bosai/jmatile/data/nowc";
+const JMA_SHORT_RANGE_TARGET = "https://www.jma.go.jp/bosai/jmatile/data/rasrf/targetTimes.json";
+const JMA_SHORT_RANGE_ROOT = "https://www.jma.go.jp/bosai/jmatile/data/rasrf";
 const JMA_NOWCAST_OFFSETS = [0, 5, 15, 30, 60] as const;
+const JMA_SHORT_RANGE_OFFSETS = [120, 180, 240, 300, 360] as const;
 const JMA_NOWCAST_TIME_TTL_MS = 60_000;
 const JMA_NOWCAST_TILE_TTL_MS = 300_000;
 const JMA_NOWCAST_TILE_CACHE_MAX = 384;
@@ -29,6 +32,7 @@ const JMA_NOWCAST_FETCH_TIMEOUT_MS = 3_000;
 type JmaNowcastTarget = {
   basetime: string;
   validtime: string;
+  member?: string;
   elements?: string[];
 };
 
@@ -36,7 +40,7 @@ let jmaNowcastTimesCache: { expiresAt: number; payload: JmaNowcastTimesResponse 
 const jmaNowcastTileCache = new Map<string, { expiresAt: number; bytes: Buffer }>();
 
 type JmaNowcastTimesResponse = {
-  source: "jma_high_resolution_precipitation_nowcast";
+  source: "jma_precipitation_map";
   attribution: string;
   attributionUrl: string;
   generatedAt: string;
@@ -45,6 +49,8 @@ type JmaNowcastTimesResponse = {
     offsetMinutes: number;
     basetime: string;
     validtime: string;
+    product: "nowcast" | "short_range";
+    member: string;
     highResolution: boolean;
   }>;
 };
@@ -131,6 +137,10 @@ function targetSupportsRain(target: JmaNowcastTarget): boolean {
   return !Array.isArray(target.elements) || target.elements.includes("hrpns");
 }
 
+function targetSupportsShortRangeRain(target: JmaNowcastTarget): boolean {
+  return !Array.isArray(target.elements) || target.elements.includes("rasrf");
+}
+
 function minutesBetween(base: string, valid: string): number | null {
   const baseMs = parseJmaTimestamp(base);
   const validMs = parseJmaTimestamp(valid);
@@ -153,6 +163,24 @@ function chooseNowcastTarget(targets: JmaNowcastTarget[], offsetMinutes: number)
   return candidates[0]?.target ?? null;
 }
 
+function chooseShortRangeTarget(targets: JmaNowcastTarget[], offsetMinutes: number): JmaNowcastTarget | null {
+  const candidates = targets
+    .filter((target) => isValidJmaTimestamp(target.basetime) && isValidJmaTimestamp(target.validtime) && targetSupportsShortRangeRain(target))
+    .map((target) => ({ target, offset: minutesBetween(target.basetime, target.validtime) }))
+    .filter((item): item is { target: JmaNowcastTarget; offset: number } => item.offset !== null);
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => {
+    const da = Math.abs(a.offset - offsetMinutes);
+    const db = Math.abs(b.offset - offsetMinutes);
+    if (da !== db) return da - db;
+    const memberRank = (value: string | undefined) => value === "immed" ? 0 : 1;
+    const mr = memberRank(a.target.member) - memberRank(b.target.member);
+    if (mr !== 0) return mr;
+    return b.target.validtime.localeCompare(a.target.validtime);
+  });
+  return candidates[0]?.target ?? null;
+}
+
 async function getJmaNowcastTimes(): Promise<JmaNowcastTimesResponse> {
   const now = Date.now();
   if (jmaNowcastTimesCache && jmaNowcastTimesCache.expiresAt > now) return jmaNowcastTimesCache.payload;
@@ -169,15 +197,30 @@ async function getJmaNowcastTimes(): Promise<JmaNowcastTimesResponse> {
       offsetMinutes,
       basetime: target.basetime,
       validtime: target.validtime,
+      product: "nowcast",
+      member: "none",
       highResolution: offsetMinutes <= 30,
     });
   }
+  const shortRangeTargets = await fetchJsonWithTimeout<JmaNowcastTarget[]>(JMA_SHORT_RANGE_TARGET);
+  for (const offsetMinutes of JMA_SHORT_RANGE_OFFSETS) {
+    const target = chooseShortRangeTarget(shortRangeTargets, offsetMinutes);
+    if (!target) continue;
+    times.push({
+      offsetMinutes,
+      basetime: target.basetime,
+      validtime: target.validtime,
+      product: "short_range",
+      member: target.member || "none",
+      highResolution: false,
+    });
+  }
   const payload: JmaNowcastTimesResponse = {
-    source: "jma_high_resolution_precipitation_nowcast",
-    attribution: "Source: JMA High-resolution Precipitation Nowcast",
-    attributionUrl: "https://www.jma.go.jp/jma/kishou/know/kurashi/highres_nowcast.html",
+    source: "jma_precipitation_map",
+    attribution: "Source: JMA High-resolution Precipitation Nowcast / Very Short-range Forecasts of Precipitation",
+    attributionUrl: "https://www.jma.go.jp/jma/en/Activities/forecast.html",
     generatedAt: new Date().toISOString(),
-    tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
+    tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?product={product}&member={member}&basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
     times,
   };
   jmaNowcastTimesCache = { expiresAt: now + JMA_NOWCAST_TIME_TTL_MS, payload };
@@ -261,6 +304,8 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
 
   const nowcastTileHandler = async (request: FastifyRequest, reply: FastifyReply) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
+    const product = q.product === "short_range" ? "short_range" : "nowcast";
+    const member = typeof q.member === "string" && /^[a-z0-9_-]{1,24}$/i.test(q.member) ? q.member : "none";
     const basetime = typeof q.basetime === "string" ? q.basetime : "";
     const validtime = typeof q.validtime === "string" ? q.validtime : "";
     const z = parseTileNumber(q.z, 14);
@@ -272,8 +317,10 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       return { error: "invalid_jma_nowcast_tile" };
     }
 
-    const url = `${JMA_NOWCAST_ROOT}/${basetime}/none/${validtime}/surf/hrpns/${z}/${x}/${y}.png`;
-    const cacheKey = `${basetime}:${validtime}:${z}:${x}:${y}`;
+    const url = product === "short_range"
+      ? `${JMA_SHORT_RANGE_ROOT}/${basetime}/${member}/${validtime}/surf/rasrf/${z}/${x}/${y}.png`
+      : `${JMA_NOWCAST_ROOT}/${basetime}/none/${validtime}/surf/hrpns/${z}/${x}/${y}.png`;
+    const cacheKey = `${product}:${member}:${basetime}:${validtime}:${z}:${x}:${y}`;
     const cached = getCachedJmaTile(cacheKey);
     if (cached) {
       reply

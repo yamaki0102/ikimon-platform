@@ -146,6 +146,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="places"/);
+  assert.match(html, /class="me-tab" role="tab" aria-selected="false" data-tab="rain">雨雲</);
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers"/);
   assert.match(script, /tab: 'places'/);
 });
@@ -154,12 +155,18 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(html, /id="me-rain-toggle"[^>]*>雨雲</);
+  assert.match(html, /id="me-rain-card"[^>]*hidden/);
+  assert.match(html, /id="me-rain-toggle"[^>]*>更新</);
   assert.match(html, /data-api-jma-nowcast-times="\/api\/v1\/weather\/jma-nowcast\/times"/);
   assert.match(script, /jma-rain-nowcast-layer/);
+  assert.match(script, /state\.tab === 'rain'/);
+  assert.match(script, /map:rain:tab_open/);
+  assert.match(script, /map:rain:refresh/);
+  assert.doesNotMatch(script, /map_rain_toggle/);
   assert.match(script, /rainAttribution/);
   assert.match(script, /ikimon独自予報ではありません/);
   assert.match(script, /雷・風は公式情報も確認してください/);
+  assert.match(script, /6時間先/);
   assert.match(script, /rainIndeterminate/);
   assert.match(script, /rainLocationFallback/);
   assert.match(script, /function checkRainAt\(lng, lat\)/);
@@ -659,14 +666,15 @@ test("map opens near current location instead of restoring stale local viewport"
   assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId\) return;/);
 });
 
-test("heatmap tab keeps area polygons selectable", () => {
+test("heatmap and rain tabs keep area polygons selectable", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places'\);/);
-  assert.match(script, /show\(areaLabelLayers, tab === 'places'\);/);
+  assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places' \|\| tab === 'rain'\);/);
+  assert.match(script, /show\(areaLabelLayers, tab === 'places' \|\| tab === 'rain'\);/);
   assert.match(script, /moveToTop\(\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name', 'area-polygon-selected-halo', 'area-polygon-selected'\]\);/);
+  assert.match(script, /moveToTop\(\['jma-rain-nowcast-layer', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name'\]\);/);
   assert.match(script, /8, 0\.11, 11, 0\.15, 14, 0\.28, 16\.5, 0\.42/);
-  assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places'/);
+  assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places' \|\| tab === 'rain'/);
   assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);
   assert.match(script, /var markerDetailLayers = \['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'\]/);
   assert.match(script, /show\(markerDetailLayers, false\);/);

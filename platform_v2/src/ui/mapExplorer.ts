@@ -34,6 +34,7 @@ export type MapExplorerCopy = {
   tabMarkers: string;
   tabHeatmap: string;
   tabPlaces: string;
+  tabRain: string;
   tabCoverage: string;
   tabAriaLabel: string;
   taxonFilterLabel: string;
@@ -194,6 +195,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabMarkers: "最近の発見",
     tabHeatmap: "季節の気配",
     tabPlaces: "エリア図鑑",
+    tabRain: "雨雲",
     tabCoverage: "記録の余白",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
@@ -351,6 +353,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabMarkers: "Recent finds",
     tabHeatmap: "Seasonal signs",
     tabPlaces: "Area Albums",
+    tabRain: "Rain",
     tabCoverage: "Open gaps",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
@@ -508,6 +511,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabMarkers: "Hallazgos recientes",
     tabHeatmap: "Señales de estación",
     tabPlaces: "Álbumes de áreas",
+    tabRain: "Lluvia",
     tabCoverage: "Huecos por mirar",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
@@ -665,6 +669,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabMarkers: "Descobertas recentes",
     tabHeatmap: "Sinais da estação",
     tabPlaces: "Álbuns de áreas",
+    tabRain: "Chuva",
     tabCoverage: "Lacunas para olhar",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
@@ -1166,18 +1171,19 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Toque em um pino ou célula no mapa para ver os detalhes aqui."
         : "Tap a pin or cell on the map to see details here.";
   const rainLabels = {
-    toggle: lang === "ja" ? "雨雲" : lang === "es" ? "Lluvia" : lang === "pt-BR" ? "Chuva" : "Rain",
+    panel: lang === "ja" ? "外へ出る前に確認" : lang === "es" ? "Antes de salir" : lang === "pt-BR" ? "Antes de sair" : "Before heading out",
+    refresh: lang === "ja" ? "更新" : lang === "es" ? "Actualizar" : lang === "pt-BR" ? "Atualizar" : "Refresh",
     source: lang === "ja" ? "気象庁データ" : lang === "es" ? "Datos JMA" : lang === "pt-BR" ? "Dados JMA" : "JMA data",
     current: lang === "ja" ? "現在地" : lang === "es" ? "Mi ubicación" : lang === "pt-BR" ? "Minha localização" : "Current place",
     target: lang === "ja" ? "行き先" : lang === "es" ? "Destino" : lang === "pt-BR" ? "Destino" : "Target",
     timeline: lang === "ja" ? "表示時刻" : lang === "es" ? "Hora" : lang === "pt-BR" ? "Hora" : "Time",
     status: lang === "ja"
-      ? "地図に重ねて、外へ出る前の判断に使えます。"
+      ? "現在から6時間先まで見られます。"
       : lang === "es"
-        ? "Superponlo al mapa antes de salir."
+        ? "Mira desde ahora hasta seis horas."
         : lang === "pt-BR"
-          ? "Sobreponha ao mapa antes de sair."
-          : "Overlay it before heading out.",
+          ? "Veja de agora até seis horas à frente."
+          : "View now through six hours ahead.",
   };
 
   return `<section class="section me-section" data-side="rail" aria-label="Map Explorer">
@@ -1201,6 +1207,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
           <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="heatmap">${escapeHtml(copy.tabHeatmap)}</button>
           <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="places">${escapeHtml(copy.tabPlaces)}</button>
+          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="rain">${escapeHtml(copy.tabRain)}</button>
           <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="frontier">${escapeHtml(copy.tabCoverage)}</button>
         </div>
       </div>
@@ -1350,9 +1357,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
-        <section class="me-rain-card" id="me-rain-card" data-enabled="0" aria-label="${escapeHtml(rainLabels.toggle)}">
+        <section class="me-rain-card" id="me-rain-card" data-enabled="0" aria-label="${escapeHtml(copy.tabRain)}" hidden>
           <div class="me-rain-head">
-            <button type="button" class="me-rain-toggle" id="me-rain-toggle" aria-pressed="false">${escapeHtml(rainLabels.toggle)}</button>
+            <strong>${escapeHtml(rainLabels.panel)}</strong>
+            <button type="button" class="me-rain-toggle" id="me-rain-toggle" aria-pressed="false">${escapeHtml(rainLabels.refresh)}</button>
             <span>${escapeHtml(rainLabels.source)}</span>
           </div>
           <div class="me-rain-timeline" id="me-rain-timeline" role="group" aria-label="${escapeHtml(rainLabels.timeline)}"></div>
@@ -1608,16 +1616,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     shareError: copy.shareError,
     rainNow: props.lang === "ja" ? "現在" : props.lang === "es" ? "Ahora" : props.lang === "pt-BR" ? "Agora" : "Now",
     rainMinute: props.lang === "ja" ? "__MIN__分後" : props.lang === "es" ? "+__MIN__ min" : props.lang === "pt-BR" ? "+__MIN__ min" : "+__MIN__ min",
+    rainHour: props.lang === "ja" ? "__HOUR__時間後" : props.lang === "es" ? "+__HOUR__ h" : props.lang === "pt-BR" ? "+__HOUR__ h" : "+__HOUR__ h",
     rainLoading: props.lang === "ja" ? "気象庁データを読み込み中…" : props.lang === "es" ? "Cargando datos JMA…" : props.lang === "pt-BR" ? "Carregando dados JMA…" : "Loading JMA data…",
     rainUnavailable: props.lang === "ja" ? "雨雲を取得できませんでした。時間をおいて確認してください。" : props.lang === "es" ? "No se pudo cargar la lluvia. Inténtalo más tarde." : props.lang === "pt-BR" ? "Não foi possível carregar a chuva. Tente mais tarde." : "Rain data could not be loaded. Try again later.",
     rainCheckLoading: props.lang === "ja" ? "この地点の雨雲を確認中…" : props.lang === "es" ? "Comprobando este punto…" : props.lang === "pt-BR" ? "Verificando este ponto…" : "Checking this point…",
     rainAtNow: props.lang === "ja" ? "気象庁の表示上、この地点には現在の降水域が重なっています。" : props.lang === "es" ? "La capa JMA muestra precipitación sobre este punto ahora." : props.lang === "pt-BR" ? "A camada JMA mostra precipitação sobre este ponto agora." : "The JMA layer shows precipitation over this point now.",
-    rainWithin: props.lang === "ja" ? "気象庁の表示上、この地点には__MIN__分以内の降水域が重なります。" : props.lang === "es" ? "La capa JMA muestra precipitación sobre este punto en __MIN__ min." : props.lang === "pt-BR" ? "A camada JMA mostra precipitação sobre este ponto em __MIN__ min." : "The JMA layer shows precipitation over this point within __MIN__ min.",
-    rainClear: props.lang === "ja" ? "気象庁の表示上、この地点に重なる降水域は60分先まで見当たりません。" : props.lang === "es" ? "La capa JMA no muestra precipitación superpuesta hasta 60 min." : props.lang === "pt-BR" ? "A camada JMA não mostra precipitação sobreposta até 60 min." : "The JMA layer does not show overlapping precipitation through 60 min.",
+    rainWithin: props.lang === "ja" ? "気象庁の表示上、この地点には__TIME__までに降水域が重なります。" : props.lang === "es" ? "La capa JMA muestra precipitación sobre este punto hacia __TIME__." : props.lang === "pt-BR" ? "A camada JMA mostra precipitação sobre este ponto em __TIME__." : "The JMA layer shows precipitation over this point by __TIME__.",
+    rainClear: props.lang === "ja" ? "気象庁の表示上、この地点に重なる降水域は6時間先まで見当たりません。" : props.lang === "es" ? "La capa JMA no muestra precipitación superpuesta hasta 6 h." : props.lang === "pt-BR" ? "A camada JMA não mostra precipitação sobreposta até 6 h." : "The JMA layer does not show overlapping precipitation through 6 h.",
     rainIndeterminate: props.lang === "ja" ? "この地点の雨雲判定を最後まで確認できませんでした。地図表示と公式情報も見てください。" : props.lang === "es" ? "No se pudo completar la comprobación de este punto. Mira también el mapa y la información oficial." : props.lang === "pt-BR" ? "Não foi possível completar a verificação deste ponto. Veja também o mapa e informações oficiais." : "This point check could not be completed. Check the map and official information too.",
     rainMapCenter: props.lang === "ja" ? "地図中心" : props.lang === "es" ? "centro del mapa" : props.lang === "pt-BR" ? "centro do mapa" : "map center",
     rainLocationFallback: props.lang === "ja" ? "現在地を使えないため、地図中心の雨雲を確認します。" : props.lang === "es" ? "No se pudo usar tu ubicación; se comprobará el centro del mapa." : props.lang === "pt-BR" ? "Não foi possível usar sua localização; vamos verificar o centro do mapa." : "Location is unavailable, so the map center will be checked.",
-    rainAttribution: props.lang === "ja" ? "出典: 気象庁 高解像度降水ナウキャスト。降水域の簡易確認で、ikimon独自予報ではありません。雷・風は公式情報も確認してください。" : props.lang === "es" ? "Source: JMA High-resolution Precipitation Nowcast. This is a simple precipitation check, not an ikimon forecast. Check official thunder and wind info too." : props.lang === "pt-BR" ? "Fonte: JMA High-resolution Precipitation Nowcast. É uma verificação simples de precipitação, não previsão do ikimon. Confira também informações oficiais de raios e vento." : "Source: JMA High-resolution Precipitation Nowcast. This is a simple precipitation check, not an ikimon forecast. Check official thunder and wind info too.",
+    rainAttribution: props.lang === "ja" ? "出典: 気象庁 高解像度降水ナウキャスト・降水短時間予報。ikimon独自予報ではありません。雷・風は公式情報も確認してください。" : props.lang === "es" ? "Source: JMA nowcast and very short-range precipitation forecast. This is not an ikimon forecast. Check official thunder and wind info too." : props.lang === "pt-BR" ? "Fonte: JMA nowcast e previsão de precipitação de curtíssimo prazo. Não é previsão do ikimon. Confira também raios e vento oficiais." : "Source: JMA nowcast and very short-range precipitation forecast. This is not an ikimon forecast. Check official thunder and wind info too.",
     selfLabel: ambient.selfLabel,
     communityLabel: ambient.communityLabel,
     frontierLabel: ambient.frontierLabel,
@@ -2263,8 +2272,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
   function setRainStatus(text) { if (rainStatusEl) rainStatusEl.textContent = text || ''; }
+  function syncRainUi() {
+    if (rainCardEl) {
+      rainCardEl.hidden = state.tab !== 'rain';
+      rainCardEl.setAttribute('data-enabled', state.rainEnabled ? '1' : '0');
+    }
+    if (rainToggleEl) rainToggleEl.setAttribute('aria-pressed', state.rainEnabled ? 'true' : 'false');
+  }
+  function enableRainLayer() {
+    state.rainEnabled = true;
+    syncRainUi();
+    return loadRainTimes().then(updateRainLayer);
+  }
+  function disableRainLayer() {
+    state.rainEnabled = false;
+    syncRainUi();
+    removeRainLayer();
+  }
   function rainTimeLabel(offsetMinutes) {
     var n = Number(offsetMinutes || 0);
+    if (n >= 60 && n % 60 === 0) return String(COPY.rainHour || '+__HOUR__ h').replace('__HOUR__', String(Math.round(n / 60)));
     return n <= 0 ? COPY.rainNow : String(COPY.rainMinute || '+__MIN__ min').replace('__MIN__', String(n));
   }
   function selectedRainTime() {
@@ -2290,8 +2317,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
   function rainTileUrl(entry, z, x, y) {
-    var tpl = state.rainTileTemplate || '/api/v1/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}';
+    var tpl = state.rainTileTemplate || '/api/v1/weather/jma-nowcast/tile?product={product}&member={member}&basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}';
     return tpl
+      .replace('{product}', encodeURIComponent(entry.product || 'nowcast'))
+      .replace('{member}', encodeURIComponent(entry.member || 'none'))
       .replace('{basetime}', encodeURIComponent(entry.basetime || ''))
       .replace('{validtime}', encodeURIComponent(entry.validtime || ''))
       .replace('{z}', String(z))
@@ -2320,13 +2349,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         maxzoom: 14,
         attribution: 'JMA High-resolution Precipitation Nowcast'
       });
-      var before = state.map.getLayer('observation-cell-fill') ? 'observation-cell-fill' : undefined;
       state.map.addLayer({
         id: 'jma-rain-nowcast-layer',
         type: 'raster',
         source: 'jma-rain-nowcast',
         paint: { 'raster-opacity': 0.62 }
-      }, before);
+      });
       setRainStatus(COPY.rainAttribution);
     } catch (err) {
       console.warn('rain layer add failed', err);
@@ -2440,7 +2468,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         }
         var offset = Number(found.offsetMinutes || 0);
         if (offset <= 0) setRainStatus(COPY.rainAtNow);
-        else setRainStatus(String(COPY.rainWithin).replace('__MIN__', String(offset)));
+        else setRainStatus(String(COPY.rainWithin).replace('__TIME__', rainTimeLabel(offset)));
       });
     });
   }
@@ -5287,11 +5315,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       b.classList.toggle('is-active', active);
       b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
+    if (state.tab === 'rain') enableRainLayer();
+    else disableRainLayer();
     if (state.map) {
       applyTab(state.map, state.tab);
       if (state.tab === 'frontier') loadFrontier(state.map);
       if (state.tab === 'places') loadAreaPolygons();
       maybeShowLayerHint(state.tab);
+    }
+    if (state.tab === 'rain') {
+      sendMapKpi('funnel_step', 'map:rain:tab_open', {
+        timeCount: Array.isArray(state.rainTimes) ? state.rainTimes.length : 0
+      });
     }
     saveMapState();
   }
@@ -6176,22 +6211,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     show(markerDetailLayers, false);
     show(heatLayers, tab === 'heatmap');
     show(frontierLayers, tab === 'frontier');
-    show(areaLayers, tab === 'heatmap' || tab === 'places');
-    show(areaLabelLayers, tab === 'places');
+    show(areaLayers, tab === 'heatmap' || tab === 'places' || tab === 'rain');
+    show(areaLabelLayers, tab === 'places' || tab === 'rain');
     if (map.getLayer('waterway-hint-line')) {
-      map.setLayoutProperty('waterway-hint-line', 'visibility', tab === 'places' ? 'visible' : 'none');
+      map.setLayoutProperty('waterway-hint-line', 'visibility', tab === 'places' || tab === 'rain' ? 'visible' : 'none');
     }
     if (map.getLayer('area-polygon-fill')) {
       map.setPaintProperty('area-polygon-fill', 'fill-opacity',
-        tab === 'places'
+        tab === 'places' || tab === 'rain'
           ? ['interpolate', ['linear'], ['zoom'], 8, 0.11, 11, 0.15, 14, 0.28, 16.5, 0.42]
           : ['interpolate', ['linear'], ['zoom'], 8, 0.03, 14, 0.08]);
     }
     if (map.getLayer('area-polygon-outline')) {
-      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places'
+      map.setPaintProperty('area-polygon-outline', 'line-opacity', tab === 'places' || tab === 'rain'
         ? ['interpolate', ['linear'], ['zoom'], 8, 0.55, 12, 0.72, 15, 0.96]
         : 0.42);
-      map.setPaintProperty('area-polygon-outline', 'line-width', tab === 'places'
+      map.setPaintProperty('area-polygon-outline', 'line-width', tab === 'places' || tab === 'rain'
         ? ['case',
           ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
           ['interpolate', ['linear'], ['zoom'], 8, 1.4, 14, 2.4, 17, 3.2],
@@ -6199,10 +6234,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         : ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 2.4, 1.4]);
     }
     if (map.getLayer('area-polygon-approximate-outline')) {
-      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places'
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-opacity', tab === 'places' || tab === 'rain'
         ? ['interpolate', ['linear'], ['zoom'], 8, 0.48, 12, 0.74, 15, 0.92]
         : 0.5);
-      map.setPaintProperty('area-polygon-approximate-outline', 'line-width', tab === 'places'
+      map.setPaintProperty('area-polygon-approximate-outline', 'line-width', tab === 'places' || tab === 'rain'
         ? ['interpolate', ['linear'], ['zoom'], 8, 1.1, 14, 1.8, 17, 2.4]
         : 1.8);
     }
@@ -6220,12 +6255,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
         'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)', 'areas');
       loadWaterwayHints();
+    } else if (tab === 'rain') {
+      moveToTop(['jma-rain-nowcast-layer', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name']);
+      hideLegend();
+      loadWaterwayHints();
     } else {
       hideLegend();
     }
     refreshDiscoveryPreviewMarkers();
     refreshAreaBadgeMarkers();
-    if (tab === 'markers' || tab === 'places') loadGuideSpots();
+    if (tab === 'markers' || tab === 'places' || tab === 'rain') loadGuideSpots();
     else clearGuideSpotMarkers();
   }
 
@@ -6423,7 +6462,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function loadWaterwayHints() {
-    if (!state.map || state.tab !== 'places') return;
+    if (!state.map || (state.tab !== 'places' && state.tab !== 'rain')) return;
     if (state.map.getZoom() < 12.8) {
       emptyWaterwayHints();
       return;
@@ -6449,7 +6488,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       signal: controller ? controller.signal : undefined,
     }).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (json) {
-        if (!json || !state.map || state.tab !== 'places') return;
+        if (!json || !state.map || (state.tab !== 'places' && state.tab !== 'rain')) return;
         ensureWaterwayHints(state.map);
         var features = (Array.isArray(json.elements) ? json.elements : [])
           .map(overpassWayToFeature)
@@ -6772,7 +6811,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function refreshGuideSpotMarkers(collection) {
     clearGuideSpotMarkers();
     if (!state.map || !window.maplibregl || !collection || !Array.isArray(collection.features)) return;
-    if (state.tab !== 'markers' && state.tab !== 'places') return;
+    if (state.tab !== 'markers' && state.tab !== 'places' && state.tab !== 'rain') return;
     groupGuideSpotFeatures(collection.features.slice(0, 80)).forEach(function (features) {
       var marker = renderGuideSpotGroupMarker(features);
       if (marker) state.guideSpotMarkers.push(marker);
@@ -6781,7 +6820,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function loadGuideSpots() {
     if (!apiGuideSpots || !state.map) return;
-    if (state.tab !== 'markers' && state.tab !== 'places') {
+    if (state.tab !== 'markers' && state.tab !== 'places' && state.tab !== 'rain') {
       clearGuideSpotMarkers();
       return;
     }
@@ -7305,7 +7344,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       restoreViewport = false;
     }
     applyRestoredParams(params, { restoreViewport: restoreViewport });
+    state.rainEnabled = state.tab === 'rain';
     syncUiFromState();
+    syncRainUi();
   })();
 
   // ---- Trace lines (visit_track_points → GeoJSON LineStrings) -------------
@@ -7399,7 +7440,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       overlayCatalog.forEach(function (def) {
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
-      if (state.rainEnabled) updateRainLayer();
+      if (state.rainEnabled) loadRainTimes().then(updateRainLayer);
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
       runInitialMapDataLoad('load');
@@ -7425,7 +7466,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       refreshDiscoveryPreviewMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
-      if (state.tab === 'markers' || state.tab === 'places') loadGuideSpots();
+      if (state.tab === 'markers' || state.tab === 'places' || state.tab === 'rain') loadGuideSpots();
       if (state.waterwayDebounce) clearTimeout(state.waterwayDebounce);
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
       if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);
@@ -8000,7 +8041,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         locateFab.classList.remove('is-loading');
         var lng = pos.coords.longitude;
         var lat = pos.coords.latitude;
-        state.tab = 'places';
+        if (state.tab !== 'rain') state.tab = 'places';
         state.nearbyAreaOrigin = {
           lat: Math.round(lat * 10000) / 10000,
           lng: Math.round(lng * 10000) / 10000
@@ -8029,16 +8070,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   if (rainToggleEl) {
     rainToggleEl.addEventListener('click', function () {
-      state.rainEnabled = !state.rainEnabled;
-      rainToggleEl.setAttribute('aria-pressed', state.rainEnabled ? 'true' : 'false');
-      if (rainCardEl) rainCardEl.setAttribute('data-enabled', state.rainEnabled ? '1' : '0');
-      if (state.rainEnabled) loadRainTimes().then(updateRainLayer);
-      else {
-        removeRainLayer();
-        setRainStatus(COPY.rainAttribution);
-      }
-      sendMapKpi('map_rain_toggle', state.rainEnabled ? 'map:rain:on' : 'map:rain:off', {
-        enabled: state.rainEnabled
+      if (state.tab !== 'rain') switchMapTab('rain');
+      else enableRainLayer();
+      sendMapKpi('funnel_step', 'map:rain:refresh', {
+        enabled: true,
+        timeCount: Array.isArray(state.rainTimes) ? state.rainTimes.length : 0
       });
     });
   }
@@ -8575,6 +8611,13 @@ export const MAP_EXPLORER_STYLES = `
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+  }
+  .me-rain-head strong {
+    min-width: 0;
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
   }
   .me-rain-head span {
     color: #64748b;
