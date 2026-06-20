@@ -774,6 +774,9 @@ test("map explorer surfaces own place thumbnails without old shortcut copy", () 
   assert.match(script, /function buildPlaceMemoryRecordHref\(place\)/);
   assert.match(script, /revisitObservationId/);
   assert.match(html, /id="me-side-toggle"/);
-  assert.match(script, /function setSideRailMode\(rail\)/);
+  assert.match(script, /function setSideRailMode\(rail, persist\)/);
   assert.match(script, /setSideRailMode\(nowRail\);/);
+  assert.match(script, /ownPlacesAutoOpened: false/);
+  assert.match(script, /setSideTab\('results'\);/);
+  assert.match(script, /setSideRailMode\(false, false\);/);
 });

@@ -1430,11 +1430,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (available) btn.removeAttribute('disabled');
     else btn.setAttribute('disabled', 'disabled');
   }
-  function setSideRailMode(rail) {
+  function setSideRailMode(rail, persist) {
     if (!sideSectionEl) return;
     sideSectionEl.setAttribute('data-side', rail ? 'rail' : 'open');
     if (sideToggleEl) sideToggleEl.setAttribute('aria-expanded', rail ? 'false' : 'true');
-    try { window.localStorage.setItem('me-side-rail', rail ? '1' : '0'); } catch (e) {}
+    if (persist !== false) {
+      try { window.localStorage.setItem('me-side-rail', rail ? '1' : '0'); } catch (e) {}
+    }
     // Resize map after panel size change so MapLibre picks up new dimensions.
     setTimeout(function () {
       try { if (state && state.map && state.map.resize) state.map.resize(); } catch (e) {}
@@ -2109,6 +2111,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownPlacesSignedIn: false,
     ownPlacesLoaded: false,
     ownPlacesRetryCount: 0,
+    ownPlacesAutoOpened: false,
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -2769,6 +2772,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     ownPlacesPanelEl.hidden = false;
+    if (!state.ownPlacesAutoOpened) {
+      state.ownPlacesAutoOpened = true;
+      setSideTab('results');
+      setSideRailMode(false, false);
+    }
     ownPlacesPanelEl.innerHTML = ''
       + '<section class="me-own-places-card" aria-label="' + escapeHtml(COPY.ownPlacesTitle) + '">'
       +   '<div class="me-own-places-head">'
