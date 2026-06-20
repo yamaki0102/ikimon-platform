@@ -54,7 +54,15 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /quickCaptureStateStrip\.hidden = !hasDraft/);
         assert.match(response.body, /setQuickCaptureState\(button\.getAttribute\('data-quick-capture-state'\)/);
         assert.match(response.body, /名前はあとで確かめられます。写真と場所を保存できます。/);
-        assert.match(response.body, /写真があると名前を確かめやすくなります。今はメモだけでも保存できます。/);
+        assert.match(response.body, /写真なしでも、このまま保存できます。あとで写真や名前を足せます。/);
+        assert.match(response.body, /名前が分からなくても保存できます。写真はあとで足せます。/);
+        assert.match(response.body, /見つからなかったことを保存できます。次に同じ場所で比べやすくなります。/);
+        assert.match(response.body, /写真なしで保存/);
+        assert.match(response.body, /名前はあとで保存/);
+        assert.match(response.body, /見つからなかった記録/);
+        assert.match(response.body, /noteOnlySummaryText/);
+        assert.match(response.body, /noteOnlySubmitHelp/);
+        assert.match(response.body, /renderPreviewFile\(first, hasNoteDraft\(\) && !files\.length \? noteOnlySummaryText\(\) : ''\)/);
         assert.match(response.body, /次に見返す手がかり/);
         assert.match(response.body, /この記録の役割/);
         assert.match(response.body, /name="activityIntent"/);
@@ -172,6 +180,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /record-video-simple #record-video-guide/);
         assert.match(response.body, /record-video-simple #record-video-primary-photo/);
         assert.match(response.body, /record-video-simple \.record-later-details/);
+        assert.match(response.body, /record-has-media \.global-record-launcher \{ display: none; \}/);
         assert.match(response.body, /const isVideoSimpleMode = \(\) => selectedVideoFile instanceof File && isVideoFile\(selectedVideoFile\) && selectedPhotoFiles\(\)\.length === 0/);
         assert.match(response.body, /videoPrimaryPhotoWrap\) videoPrimaryPhotoWrap\.hidden = !hasVideo \|\| simpleVideo/);
         assert.match(response.body, /classList\.toggle\('record-video-simple', isVideoSimpleMode\(\)\)/);
@@ -281,6 +290,8 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.doesNotMatch(response.body, /Exact coordinates stay off public pages/);
         assert.match(response.body, /Fields you can complete later/);
         assert.match(response.body, /No media selected/);
+        assert.match(response.body, /Save without photo/);
+        assert.match(response.body, /You can save this without a photo\. Add photos or names later\./);
         assert.match(response.body, /Save and complete later/);
         assert.match(response.body, /Role of this record/);
         assert.match(response.body, /Today&#39;s purpose/);

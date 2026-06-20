@@ -5015,6 +5015,8 @@ type RecordFormCopy = {
   submitPanelTitle: string;
   submitPanelHelpMedia: string;
   submitPanelHelpNote: string;
+  submitPanelHelpNoteUnknown: string;
+  submitPanelHelpNoteNoDetection: string;
   submitPanelHelpEmpty: string;
   publicStateTitle: string;
   publicStateIdle: string;
@@ -5079,6 +5081,9 @@ type RecordFormCopy = {
   submitDockSave: string;
   locationSelected: string;
   mediaNoteOnly: string;
+  mediaNoteFound: string;
+  mediaNoteUnknown: string;
+  mediaNoteNoDetection: string;
   mediaLocationMissing: string;
   recordRoleTitle: string;
   recordRoleHelp: string;
@@ -5435,7 +5440,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "送信前チェック",
       submitPanelTitle: "メディア未選択",
       submitPanelHelpMedia: "日時と地点を確認して記録として保存します。周囲・音・動き・気づきはあとで足せます。",
-      submitPanelHelpNote: "写真なしの記録として保存します。あとで写真を足せます。",
+      submitPanelHelpNote: "写真なしでも、このまま保存できます。あとで写真や名前を足せます。",
+      submitPanelHelpNoteUnknown: "名前が分からなくても保存できます。写真はあとで足せます。",
+      submitPanelHelpNoteNoDetection: "見つからなかったことを保存できます。次に同じ場所で比べやすくなります。",
       submitPanelHelpEmpty: "写真を選ぶと、ここから保存できます。",
       publicStateTitle: "公開状態",
       publicStateIdle: "写真・動画・メモを選ぶと、保存後の公開候補か確認待ちかをここに表示します。",
@@ -5500,6 +5507,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "保存",
       locationSelected: "記録の地点を指定済み",
       mediaNoteOnly: "メモのみ",
+      mediaNoteFound: "写真なしで保存",
+      mediaNoteUnknown: "名前はあとで保存",
+      mediaNoteNoDetection: "見つからなかった記録",
       mediaLocationMissing: "地点未指定",
       recordRoleTitle: "この記録の役割",
       recordRoleHelp: "目的と役割を軽く残すと、あとで定点比較・授業・管理記録に束ねやすくなります。",
@@ -5602,7 +5612,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "Before saving",
       submitPanelTitle: "No media selected",
       submitPanelHelpMedia: "Check time and place, then save. Names and notes can come later.",
-      submitPanelHelpNote: "Save this as a note without a photo. You can add a photo later.",
+      submitPanelHelpNote: "You can save this without a photo. Add photos or names later.",
+      submitPanelHelpNoteUnknown: "You can save this even if the name is unclear. Add a photo later.",
+      submitPanelHelpNoteNoDetection: "Save that you did not find it today, so the next visit is easier to compare.",
       submitPanelHelpEmpty: "Choose a photo or note to save from here.",
       publicStateTitle: "Public state",
       publicStateIdle: "Choose a photo, video, or note to see whether this will be a public candidate or waiting for review.",
@@ -5667,6 +5679,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "Save",
       locationSelected: "Place set",
       mediaNoteOnly: "Note only",
+      mediaNoteFound: "Save without photo",
+      mediaNoteUnknown: "Name later",
+      mediaNoteNoDetection: "Not found today",
       mediaLocationMissing: "Place missing",
       recordRoleTitle: "Role of this record",
       recordRoleHelp: "A light purpose and role make it easier to reuse later for revisits, classes, or management notes.",
@@ -5769,7 +5784,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "Antes de guardar",
       submitPanelTitle: "Sin medio elegido",
       submitPanelHelpMedia: "Revisa hora y lugar, luego guarda. El nombre y las notas pueden venir despues.",
-      submitPanelHelpNote: "Guarda esto como nota sin foto. Puedes agregar una foto despues.",
+      submitPanelHelpNote: "Puedes guardar esto sin foto. Agrega fotos o nombres despues.",
+      submitPanelHelpNoteUnknown: "Puedes guardar aunque el nombre no este claro. Agrega una foto despues.",
+      submitPanelHelpNoteNoDetection: "Guarda que hoy no lo encontraste para comparar mejor la proxima visita.",
       submitPanelHelpEmpty: "Elige una foto o nota para guardar desde aqui.",
       publicStateTitle: "Estado publico",
       publicStateIdle: "Elige foto, video o nota para ver si sera candidato publico o quedara en revision.",
@@ -5834,6 +5851,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "Guardar",
       locationSelected: "Lugar definido",
       mediaNoteOnly: "Solo nota",
+      mediaNoteFound: "Guardar sin foto",
+      mediaNoteUnknown: "Nombre despues",
+      mediaNoteNoDetection: "No encontrado hoy",
       mediaLocationMissing: "Falta lugar",
       recordRoleTitle: "Rol de este registro",
       recordRoleHelp: "Un proposito y rol ligeros ayudan a reutilizarlo despues para visitas, clases o gestion.",
@@ -5936,7 +5956,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "Antes de salvar",
       submitPanelTitle: "Nenhuma midia selecionada",
       submitPanelHelpMedia: "Confira horario e local, depois salve. Nome e notas podem vir depois.",
-      submitPanelHelpNote: "Salve isto como nota sem foto. Voce pode adicionar foto depois.",
+      submitPanelHelpNote: "Voce pode salvar isto sem foto. Adicione fotos ou nomes depois.",
+      submitPanelHelpNoteUnknown: "Voce pode salvar mesmo sem saber o nome. Adicione uma foto depois.",
+      submitPanelHelpNoteNoDetection: "Salve que hoje nao encontrou para comparar melhor na proxima visita.",
       submitPanelHelpEmpty: "Escolha uma foto ou nota para salvar daqui.",
       publicStateTitle: "Estado publico",
       publicStateIdle: "Escolha foto, video ou nota para ver se sera candidato publico ou aguardara revisao.",
@@ -6001,6 +6023,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "Salvar",
       locationSelected: "Local definido",
       mediaNoteOnly: "Somente nota",
+      mediaNoteFound: "Salvar sem foto",
+      mediaNoteUnknown: "Nome depois",
+      mediaNoteNoDetection: "Nao encontrado hoje",
       mediaLocationMissing: "Falta local",
       recordRoleTitle: "Papel deste registro",
       recordRoleHelp: "Um proposito e papel simples ajudam a reutilizar depois em revisitas, aulas ou gestao.",
@@ -14867,6 +14892,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           locationSelected: ${JSON.stringify(recordForm.locationSelected)},
           submitPanelHelpMedia: ${JSON.stringify(recordForm.submitPanelHelpMedia)},
           submitPanelHelpNote: ${JSON.stringify(recordForm.submitPanelHelpNote)},
+          submitPanelHelpNoteUnknown: ${JSON.stringify(recordForm.submitPanelHelpNoteUnknown)},
+          submitPanelHelpNoteNoDetection: ${JSON.stringify(recordForm.submitPanelHelpNoteNoDetection)},
           submitPanelHelpEmpty: ${JSON.stringify(recordForm.submitPanelHelpEmpty)},
           publicStateTitle: ${JSON.stringify(recordForm.publicStateTitle)},
           publicStateIdle: ${JSON.stringify(recordForm.publicStateIdle)},
@@ -14878,6 +14905,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           publicStateSuccessHidden: ${JSON.stringify(recordForm.publicStateSuccessHidden)},
           submitDockMeta: ${JSON.stringify(recordForm.submitDockMeta)},
           mediaNoteOnly: ${JSON.stringify(recordForm.mediaNoteOnly)},
+          mediaNoteFound: ${JSON.stringify(recordForm.mediaNoteFound)},
+          mediaNoteUnknown: ${JSON.stringify(recordForm.mediaNoteUnknown)},
+          mediaNoteNoDetection: ${JSON.stringify(recordForm.mediaNoteNoDetection)},
           mediaLocationMissing: ${JSON.stringify(recordForm.mediaLocationMissing)},
           locationPrivacyPreviewUnset: ${JSON.stringify(recordForm.locationPrivacyPreviewUnset)},
           locationPrivacyPreviewSet: ${JSON.stringify(recordForm.locationPrivacyPreviewSet)},
@@ -15291,6 +15321,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const recordFeedbackMediaKey = () => selectedFeedbackPhotoFiles()
           .map((file) => [file.name || 'photo', String(file.size || 0), String(file.lastModified || 0)].join(':'))
           .join('|');
+        const noteOnlyDraftState = () => {
+          if (!form) return 'present';
+          const data = new FormData(form);
+          return String(data.get('quickCaptureState') || 'present');
+        };
+        const noteOnlySummaryText = () => {
+          const state = noteOnlyDraftState();
+          if (state === 'unknown') return recordUiCopy.mediaNoteUnknown;
+          if (state === 'no_detection_note') return recordUiCopy.mediaNoteNoDetection;
+          return recordUiCopy.mediaNoteFound;
+        };
+        const noteOnlySubmitHelp = () => {
+          const state = noteOnlyDraftState();
+          if (state === 'unknown') return recordUiCopy.submitPanelHelpNoteUnknown;
+          if (state === 'no_detection_note') return recordUiCopy.submitPanelHelpNoteNoDetection;
+          return recordUiCopy.submitPanelHelpNote;
+        };
         const buildRecordFeedbackSentence = () => {
           if (!form) return '';
           const data = new FormData(form);
@@ -15302,10 +15349,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const quickCaptureState = String(data.get('quickCaptureState') || 'present');
           if (visualRecordFeedbackSentence && photoCount > 0) return visualRecordFeedbackSentence;
           if (hasNoteDraft() && !hasSelectedMedia()) {
-            if (quickCaptureState === 'unknown') return '写真があると名前を確かめやすくなります。今はメモだけでも保存できます。';
-            return hasLocation
-              ? 'メモと場所は残っています。次に同じ場所へ行ったら、見たものを1枚足すと比較しやすくなります。'
-              : 'メモだけの記録です。次は現在地か場所メモを足すと、あとから見返しやすくなります。';
+            return noteOnlySubmitHelp();
           }
           if (hasVideo && photoCount === 0) {
             return '動画で動きは残っています。名前を確かめやすくするなら、主役が止まって見える写真を1枚足すのが効きます。';
@@ -15333,7 +15377,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
           if (photoCount > 0) parts.push('写真' + String(photoCount) + '枚');
           if (selectedVideoFile instanceof File) parts.push('動画あり');
-          if (hasNoteDraft() && !hasSelectedMedia()) parts.push(recordUiCopy.mediaNoteOnly);
+          if (hasNoteDraft() && !hasSelectedMedia()) parts.push(noteOnlySummaryText());
           if (coordsMissing()) parts.push(recordUiCopy.mediaLocationMissing);
           return parts.length ? parts.join(' / ') : recordUiCopy.submitDockMeta;
         };
@@ -15379,6 +15423,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           quickCaptureStateField.value = value || 'present';
           currentCaptureNoticeText = '';
           syncQuickCaptureStateChips();
+          renderPreviewSelection();
           syncPreview();
           syncSubmitCta();
         };
@@ -15407,7 +15452,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             submitPanelHelp.textContent = hasSelectedMedia()
               ? recordUiCopy.submitPanelHelpMedia
               : hasNoteDraft()
-                ? recordUiCopy.submitPanelHelpNote
+                ? noteOnlySubmitHelp()
                 : recordUiCopy.submitPanelHelpEmpty;
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
@@ -16741,7 +16786,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (!captureLabels[kind]) return;
           if (kind === 'note') {
             showRecordFormForMedia([], 'note');
-            renderPreviewFile(null);
+            renderPreviewSelection();
             resetVideoProgress();
             resetVideoTrim();
             setAutofillStatus([]);
@@ -16805,7 +16850,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           syncModeUi();
         };
 
-        const renderPreviewFile = (file) => {
+        const renderPreviewFile = (file, emptyLabel) => {
           if (!previewPhoto) return;
           if (previewObjectUrl) {
             URL.revokeObjectURL(previewObjectUrl);
@@ -16813,7 +16858,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           if (!file) {
             previewPhoto.className = 'record-preview-photo is-empty';
-            previewPhoto.innerHTML = '写真 / 動画プレビュー';
+            previewPhoto.innerHTML = escapeHtmlText(emptyLabel || '写真 / 動画プレビュー');
             return;
           }
           if (isVideoFile(file)) {
@@ -16835,7 +16880,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const renderPreviewSelection = () => {
           const files = allSelectedMediaFiles();
           const [first = null] = files;
-          renderPreviewFile(first);
+          renderPreviewFile(first, hasNoteDraft() && !files.length ? noteOnlySummaryText() : '');
           if (previewPhoto && files.length > 1) {
             const badge = document.createElement('span');
             badge.className = 'record-preview-count';
@@ -18109,6 +18154,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-has-media .record-capture-launcher,
         .record-has-media .record-confidence-strip,
         .record-has-media .record-secondary-links { display: none; }
+        .record-has-media .global-record-launcher { display: none; }
         .record-video-simple #record-video-guide,
         .record-video-simple #record-video-primary-photo,
         .record-video-simple .record-later-details { display: none !important; }
