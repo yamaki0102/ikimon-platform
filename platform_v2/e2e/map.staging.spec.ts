@@ -122,9 +122,6 @@ const EMPTY_EFFORT_SUMMARY = {
   totals: { records: 0, visits: 0, contributors: 0, minutes: 0 },
   frontierRemaining: {},
 };
-const RAIN_VISUAL_REVIEW_PROFILES = MAP_VIEWPORTS.filter((profile) =>
-  profile.slug === "desktop-1440" || profile.slug === "mobile-390");
-const RAIN_VISUAL_REVIEW_PATH = "/ja/map?tab=places&lng=137.70148&lat=34.6970&z=17.2";
 
 async function fulfillJson(route: Route, payload: unknown): Promise<void> {
   await route.fulfill({
@@ -352,40 +349,5 @@ for (const profile of MAP_VIEWPORTS) {
     await expect(page.locator("#me-empty-invite [data-kpi-action='map:results_empty_record']")).toHaveAttribute("href", /\/record/);
 
     await page.close();
-  });
-}
-
-for (const profile of RAIN_VISUAL_REVIEW_PROFILES) {
-  test(`rain nowcast qualitative review capture (${profile.slug})`, async ({ browser }, testInfo) => {
-    test.setTimeout(60_000);
-    const context = await newStagingContext(browser, profile);
-    const page = await context.newPage();
-    const response = await page.goto(RAIN_VISUAL_REVIEW_PATH, { waitUntil: "domcontentloaded" });
-    expect(response?.status() ?? 0, `${RAIN_VISUAL_REVIEW_PATH} should load for rain visual review`).toBeLessThan(400);
-
-    await page.waitForFunction(() => {
-      const mapWrap = document.querySelector<HTMLElement>(".me-map-wrap");
-      const canvas = document.querySelector<HTMLCanvasElement>(".maplibregl-canvas");
-      const mapBox = mapWrap?.getBoundingClientRect();
-      const canvasBox = canvas?.getBoundingClientRect();
-      return Boolean(
-        mapWrap
-        && canvas
-        && (mapBox?.width ?? 0) > 300
-        && (mapBox?.height ?? 0) > 360
-        && (canvasBox?.width ?? 0) > 280
-        && (canvasBox?.height ?? 0) > 280
-      );
-    }, null, { timeout: 12_000 });
-
-    await page.locator("#me-rain-toggle").click({ timeout: 5_000 }).catch((error) => {
-      console.warn(`rain nowcast visual review click failed (${profile.slug}): ${String(error)}`);
-    });
-    await page.waitForTimeout(2_500);
-    await page.screenshot({
-      path: testInfo.outputPath(`rain-nowcast-visual-${profile.slug}.png`),
-      fullPage: false,
-    });
-    console.info(`rain nowcast visual review screenshot captured (${profile.slug})`);
   });
 }

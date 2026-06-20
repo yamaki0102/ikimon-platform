@@ -7,6 +7,7 @@ import {
 } from "./support/staging.js";
 
 test.describe.configure({ retries: 0, timeout: 75_000 });
+test.use({ trace: "off" });
 
 const MAP_PERFORMANCE_PROFILES = MAP_VIEWPORTS.filter((profile) =>
   profile.slug === "desktop-1440" || profile.slug === "mobile-390");
