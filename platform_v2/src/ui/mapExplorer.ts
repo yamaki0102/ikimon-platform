@@ -10697,6 +10697,7 @@ export const MAP_EXPLORER_STYLES = `
       --me-side-w: 0px;
       --me-topbar-h: 94px;
       --me-mobile-action-space: calc(92px + max(0px, env(safe-area-inset-bottom)));
+      --me-mobile-sheet-clearance: 14px;
     }
     .me-topbar {
       grid-template-columns: 1fr auto;
@@ -10798,14 +10799,14 @@ export const MAP_EXPLORER_STYLES = `
       border-radius: 22px 22px 0 0;
       left: 0;
       right: 0;
-      bottom: var(--me-mobile-action-space);
+      bottom: calc(var(--me-mobile-action-space) + var(--me-mobile-sheet-clearance));
       z-index: 40;
       max-height: 62%;
-      max-height: min(62dvh, calc(100dvh - var(--me-header-h) - 96px));
+      max-height: min(62dvh, calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance)));
     }
     .me-bottom-sheet--detail {
       max-height: 74%;
-      max-height: min(74dvh, calc(100dvh - var(--me-header-h) - 96px));
+      max-height: min(74dvh, calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance)));
     }
     .me-bottom-sheet--detail[data-snap="peek"] {
       height: 34vh;
@@ -10816,7 +10817,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-bottom-sheet--detail[data-snap="full"] {
       height: auto;
       max-height: calc(100% - 8px);
-      max-height: calc(100dvh - var(--me-header-h) - 96px);
+      max-height: calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance));
     }
     .me-bottom-sheet--detail.is-dragging,
     .me-bottom-sheet--area.is-dragging {
@@ -10963,9 +10964,9 @@ export const MAP_EXPLORER_STYLES = `
       left: 0;
       right: 0;
       top: auto;
-      bottom: var(--me-mobile-action-space);
+      bottom: calc(var(--me-mobile-action-space) + var(--me-mobile-sheet-clearance));
       max-height: 86%;
-      max-height: calc(100dvh - var(--me-header-h) - 96px);
+      max-height: calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance));
       overflow-y: auto;
       overscroll-behavior: contain;
       border-radius: 22px 22px 0 0;
@@ -10979,7 +10980,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="full"] {
       height: auto;
       max-height: calc(100% - 8px);
-      max-height: calc(100dvh - var(--me-header-h) - 96px);
+      max-height: calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance));
     }
     .me-bottom-sheet.me-bottom-sheet--area .me-area-hero {
       min-height: 154px;

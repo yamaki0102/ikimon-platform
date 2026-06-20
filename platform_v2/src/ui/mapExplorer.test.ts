@@ -135,9 +135,10 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
   assert.match(styles, /\.me-bottom-sheet--detail\.is-dragging,\s+\.me-bottom-sheet--area\.is-dragging \{[\s\S]*height: var\(--me-sheet-drag-height\);/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-bottom-sheet \{[\s\S]*position: fixed;/);
   assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\]\s*\{\s*height: 34vh;\s*max-height: 34vh;\s*height: min\(34dvh, 300px\);/);
-  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\s*\{[\s\S]*bottom: var\(--me-mobile-action-space\);/);
+  assert.match(styles, /--me-mobile-sheet-clearance: 14px;/);
+  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\s*\{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="peek"\]\s*\{\s*height: 44vh;\s*max-height: 44vh;\s*height: min\(44dvh, calc\(100dvh - var\(--me-header-h\) - 112px\), 380px\);/);
-  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: auto;\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - 96px\);/);
+  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: auto;\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);/);
 });
 
 test("map home opens as a regional encyclopedia instead of a raw point finder", () => {
@@ -585,7 +586,7 @@ test("mobile map filters open from the thumb zone above the record launcher", ()
 
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-filter-panel \{[\s\S]*position: fixed;[\s\S]*top: auto;[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);[\s\S]*z-index: 80;/);
   assert.match(styles, /\.me-filter-panel \{[\s\S]*backdrop-filter: blur\(12px\);/);
-  assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: var\(--me-mobile-action-space\);/);
+  assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\); \}/);
 });
 
