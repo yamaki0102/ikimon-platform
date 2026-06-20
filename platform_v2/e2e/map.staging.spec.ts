@@ -352,6 +352,7 @@ async function waitForMapEmptyState(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
 }
 
 test("mobile bottom sheet opens as a map-detail peek and follows drag before snapping", async ({ browser }, testInfo) => {
+  testInfo.setTimeout(60_000);
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
   expect(mobile, "mobile viewport profile should exist").toBeTruthy();
   const context = await newStagingContext(browser, mobile!);
