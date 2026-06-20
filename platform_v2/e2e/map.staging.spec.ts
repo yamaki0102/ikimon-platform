@@ -457,7 +457,7 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
   test.setTimeout(90_000);
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
   expect(mobile, "mobile viewport profile should exist").toBeTruthy();
-  const context = await newStagingContext(browser, mobile!);
+  const context = await newStagingContext(browser, mobile!, { serviceWorkers: "block" });
   const page = await context.newPage();
   await installMapLibreStubForSmoke(page);
   await installDeterministicMapApiFixtures(page);
@@ -520,7 +520,7 @@ test("mobile bottom sheet evidence captures peek drag and full states", async ({
   testInfo.setTimeout(180_000);
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
   expect(mobile, "mobile viewport profile should exist").toBeTruthy();
-  const context = await newStagingContext(browser, mobile!);
+  const context = await newStagingContext(browser, mobile!, { serviceWorkers: "block" });
   const page = await context.newPage();
   await installMapLibreStubForSmoke(page);
   await installDeterministicMapApiFixtures(page);
@@ -558,7 +558,7 @@ test("mobile bottom sheet evidence captures peek drag and full states", async ({
 });
 
 test("JMA nowcast staging API exposes times and a sample tile", async ({ browser }) => {
-  const context = await newStagingContext(browser, MAP_VIEWPORTS[0]);
+  const context = await newStagingContext(browser, MAP_VIEWPORTS[0], { serviceWorkers: "block" });
   const page = await context.newPage();
   await expectLiveRainNowcastGate(page);
   await context.close();
@@ -566,7 +566,7 @@ test("JMA nowcast staging API exposes times and a sample tile", async ({ browser
 
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
-    const context = await newStagingContext(browser, profile);
+    const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
     const page = await context.newPage();
     await installMapLibreStubForSmoke(page);
     await installDeterministicMapApiFixtures(page);
@@ -595,7 +595,7 @@ for (const profile of MAP_VIEWPORTS) {
   });
 
   test(`map empty state invites candidate discovery (${profile.slug})`, async ({ browser }) => {
-    const context = await newStagingContext(browser, profile);
+    const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
     const page = await context.newPage();
     await installMapLibreStubForSmoke(page);
     await installEmptyMapApiFixtures(page);
