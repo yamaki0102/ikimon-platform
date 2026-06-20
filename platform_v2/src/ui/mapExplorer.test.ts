@@ -150,6 +150,25 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /tab: 'places'/);
 });
 
+test("map explorer exposes JMA rain overlay without making ikimon the forecaster", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /id="me-rain-toggle"[^>]*>雨雲</);
+  assert.match(html, /data-api-jma-nowcast-times="\/api\/v1\/map\/weather\/jma-nowcast\/times"/);
+  assert.match(script, /jma-rain-nowcast-layer/);
+  assert.match(script, /rainAttribution/);
+  assert.match(script, /ikimon独自予報ではありません/);
+  assert.match(script, /雷・風は公式情報も確認してください/);
+  assert.match(script, /rainIndeterminate/);
+  assert.match(script, /rainLocationFallback/);
+  assert.match(script, /function checkRainAt\(lng, lat\)/);
+  assert.match(script, /canvas\.getContext\('2d', \{ willReadFrequently: true \}\)/);
+  assert.match(script, /hasRain === null/);
+  assert.doesNotMatch(html, /www\.jma\.go\.jp\/bosai\/jmatile/);
+  assert.doesNotMatch(script, /tiles: \['https:\/\/www\.jma\.go\.jp\/bosai\/jmatile/);
+});
+
 test("area sheets gate contribution CTAs behind public access evidence", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 

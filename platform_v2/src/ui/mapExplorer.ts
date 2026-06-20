@@ -977,6 +977,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
   const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
   const apiGuideSpots = withBasePath(props.basePath, "/api/v1/map/guide-spots");
+  const apiJmaNowcastTimes = withBasePath(props.basePath, "/api/v1/map/weather/jma-nowcast/times");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
   const eventsOrganizerHref = appendLangToHref(
@@ -1164,6 +1165,20 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       : lang === "pt-BR"
         ? "Toque em um pino ou célula no mapa para ver os detalhes aqui."
         : "Tap a pin or cell on the map to see details here.";
+  const rainLabels = {
+    toggle: lang === "ja" ? "雨雲" : lang === "es" ? "Lluvia" : lang === "pt-BR" ? "Chuva" : "Rain",
+    source: lang === "ja" ? "気象庁データ" : lang === "es" ? "Datos JMA" : lang === "pt-BR" ? "Dados JMA" : "JMA data",
+    current: lang === "ja" ? "現在地" : lang === "es" ? "Mi ubicación" : lang === "pt-BR" ? "Minha localização" : "Current place",
+    target: lang === "ja" ? "行き先" : lang === "es" ? "Destino" : lang === "pt-BR" ? "Destino" : "Target",
+    timeline: lang === "ja" ? "表示時刻" : lang === "es" ? "Hora" : lang === "pt-BR" ? "Hora" : "Time",
+    status: lang === "ja"
+      ? "地図に重ねて、外へ出る前の判断に使えます。"
+      : lang === "es"
+        ? "Superponlo al mapa antes de salir."
+        : lang === "pt-BR"
+          ? "Sobreponha ao mapa antes de sair."
+          : "Overlay it before heading out.",
+  };
 
   return `<section class="section me-section" data-side="rail" aria-label="Map Explorer">
     <div class="me-topbar">
@@ -1334,7 +1349,19 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <section class="me-rain-card" id="me-rain-card" data-enabled="0" aria-label="${escapeHtml(rainLabels.toggle)}">
+          <div class="me-rain-head">
+            <button type="button" class="me-rain-toggle" id="me-rain-toggle" aria-pressed="false">${escapeHtml(rainLabels.toggle)}</button>
+            <span>${escapeHtml(rainLabels.source)}</span>
+          </div>
+          <div class="me-rain-timeline" id="me-rain-timeline" role="group" aria-label="${escapeHtml(rainLabels.timeline)}"></div>
+          <div class="me-rain-actions">
+            <button type="button" id="me-rain-current">${escapeHtml(rainLabels.current)}</button>
+            <button type="button" id="me-rain-target">${escapeHtml(rainLabels.target)}</button>
+          </div>
+          <p class="me-rain-status" id="me-rain-status">${escapeHtml(rainLabels.status)}</p>
+        </section>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
@@ -1459,6 +1486,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var yearAllEl = document.getElementById('me-year-all');
   var shareStateEl = document.getElementById('me-share-state');
   var searchAreaBtnEl = document.getElementById('me-search-area-btn');
+  var rainCardEl = document.getElementById('me-rain-card');
+  var rainToggleEl = document.getElementById('me-rain-toggle');
+  var rainTimelineEl = document.getElementById('me-rain-timeline');
+  var rainStatusEl = document.getElementById('me-rain-status');
+  var rainCurrentEl = document.getElementById('me-rain-current');
+  var rainTargetEl = document.getElementById('me-rain-target');
   var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
@@ -1467,6 +1500,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
   var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
   var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
+  var apiJmaNowcastTimes = root.getAttribute('data-api-jma-nowcast-times') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
 
@@ -1572,6 +1606,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     seasonWinter: copy.seasonWinter,
     shareCopied: copy.shareCopied,
     shareError: copy.shareError,
+    rainNow: props.lang === "ja" ? "現在" : props.lang === "es" ? "Ahora" : props.lang === "pt-BR" ? "Agora" : "Now",
+    rainMinute: props.lang === "ja" ? "__MIN__分後" : props.lang === "es" ? "+__MIN__ min" : props.lang === "pt-BR" ? "+__MIN__ min" : "+__MIN__ min",
+    rainLoading: props.lang === "ja" ? "気象庁データを読み込み中…" : props.lang === "es" ? "Cargando datos JMA…" : props.lang === "pt-BR" ? "Carregando dados JMA…" : "Loading JMA data…",
+    rainUnavailable: props.lang === "ja" ? "雨雲を取得できませんでした。時間をおいて確認してください。" : props.lang === "es" ? "No se pudo cargar la lluvia. Inténtalo más tarde." : props.lang === "pt-BR" ? "Não foi possível carregar a chuva. Tente mais tarde." : "Rain data could not be loaded. Try again later.",
+    rainCheckLoading: props.lang === "ja" ? "この地点の雨雲を確認中…" : props.lang === "es" ? "Comprobando este punto…" : props.lang === "pt-BR" ? "Verificando este ponto…" : "Checking this point…",
+    rainAtNow: props.lang === "ja" ? "気象庁の表示上、この地点には現在の降水域が重なっています。" : props.lang === "es" ? "La capa JMA muestra precipitación sobre este punto ahora." : props.lang === "pt-BR" ? "A camada JMA mostra precipitação sobre este ponto agora." : "The JMA layer shows precipitation over this point now.",
+    rainWithin: props.lang === "ja" ? "気象庁の表示上、この地点には__MIN__分以内の降水域が重なります。" : props.lang === "es" ? "La capa JMA muestra precipitación sobre este punto en __MIN__ min." : props.lang === "pt-BR" ? "A camada JMA mostra precipitação sobre este ponto em __MIN__ min." : "The JMA layer shows precipitation over this point within __MIN__ min.",
+    rainClear: props.lang === "ja" ? "気象庁の表示上、この地点に重なる降水域は60分先まで見当たりません。" : props.lang === "es" ? "La capa JMA no muestra precipitación superpuesta hasta 60 min." : props.lang === "pt-BR" ? "A camada JMA não mostra precipitação sobreposta até 60 min." : "The JMA layer does not show overlapping precipitation through 60 min.",
+    rainIndeterminate: props.lang === "ja" ? "この地点の雨雲判定を最後まで確認できませんでした。地図表示と公式情報も見てください。" : props.lang === "es" ? "No se pudo completar la comprobación de este punto. Mira también el mapa y la información oficial." : props.lang === "pt-BR" ? "Não foi possível completar a verificação deste ponto. Veja também o mapa e informações oficiais." : "This point check could not be completed. Check the map and official information too.",
+    rainMapCenter: props.lang === "ja" ? "地図中心" : props.lang === "es" ? "centro del mapa" : props.lang === "pt-BR" ? "centro do mapa" : "map center",
+    rainLocationFallback: props.lang === "ja" ? "現在地を使えないため、地図中心の雨雲を確認します。" : props.lang === "es" ? "No se pudo usar tu ubicación; se comprobará el centro del mapa." : props.lang === "pt-BR" ? "Não foi possível usar sua localização; vamos verificar o centro do mapa." : "Location is unavailable, so the map center will be checked.",
+    rainAttribution: props.lang === "ja" ? "出典: 気象庁 高解像度降水ナウキャスト。降水域の簡易確認で、ikimon独自予報ではありません。雷・風は公式情報も確認してください。" : props.lang === "es" ? "Source: JMA High-resolution Precipitation Nowcast. This is a simple precipitation check, not an ikimon forecast. Check official thunder and wind info too." : props.lang === "pt-BR" ? "Fonte: JMA High-resolution Precipitation Nowcast. É uma verificação simples de precipitação, não previsão do ikimon. Confira também informações oficiais de raios e vento." : "Source: JMA High-resolution Precipitation Nowcast. This is a simple precipitation check, not an ikimon forecast. Check official thunder and wind info too.",
     selfLabel: ambient.selfLabel,
     communityLabel: ambient.communityLabel,
     frontierLabel: ambient.frontierLabel,
@@ -2134,6 +2180,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     nearbyAreaOrigin: null,
     nearbyAreaLocateMovePending: false,
     guideSpotMarkers: [],
+    rainEnabled: false,
+    rainTimes: [],
+    rainSelectedIndex: 0,
+    rainLoading: false,
+    rainTileTemplate: '',
     overlapChoicePopup: null,
     _cellsRequestSeq: 0,
     _cellsAppliedSeq: 0,
@@ -2149,6 +2200,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var activeGuideStopContext = null;
   var activeGuideSpeech = null;
   var activeGuideAudio = null;
+  var rainTimesPromise = null;
   var SIDE_RAIL_SIGNAL_MIN_RECORDS = 6;
   var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
   var RECORDS_LOAD_WATCHDOG_MS = 8000;
@@ -2210,6 +2262,188 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
+  function setRainStatus(text) { if (rainStatusEl) rainStatusEl.textContent = text || ''; }
+  function rainTimeLabel(offsetMinutes) {
+    var n = Number(offsetMinutes || 0);
+    return n <= 0 ? COPY.rainNow : String(COPY.rainMinute || '+__MIN__ min').replace('__MIN__', String(n));
+  }
+  function selectedRainTime() {
+    if (!Array.isArray(state.rainTimes) || !state.rainTimes.length) return null;
+    return state.rainTimes[Math.max(0, Math.min(state.rainSelectedIndex || 0, state.rainTimes.length - 1))] || null;
+  }
+  function renderRainTimeline() {
+    if (!rainTimelineEl) return;
+    if (!state.rainTimes.length) {
+      rainTimelineEl.innerHTML = '';
+      return;
+    }
+    rainTimelineEl.innerHTML = state.rainTimes.map(function (entry, index) {
+      var active = index === state.rainSelectedIndex;
+      return '<button type="button" class="me-rain-time' + (active ? ' is-active' : '') + '" data-rain-time-index="' + index + '" aria-pressed="' + (active ? 'true' : 'false') + '">' + escapeHtml(rainTimeLabel(entry.offsetMinutes)) + '</button>';
+    }).join('');
+    rainTimelineEl.querySelectorAll('[data-rain-time-index]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.rainSelectedIndex = Number(btn.getAttribute('data-rain-time-index') || '0') || 0;
+        renderRainTimeline();
+        updateRainLayer();
+      });
+    });
+  }
+  function rainTileUrl(entry, z, x, y) {
+    var tpl = state.rainTileTemplate || '/api/v1/map/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}';
+    return tpl
+      .replace('{basetime}', encodeURIComponent(entry.basetime || ''))
+      .replace('{validtime}', encodeURIComponent(entry.validtime || ''))
+      .replace('{z}', String(z))
+      .replace('{x}', String(x))
+      .replace('{y}', String(y));
+  }
+  function removeRainLayer() {
+    if (!state.map) return;
+    try {
+      if (state.map.getLayer('jma-rain-nowcast-layer')) state.map.removeLayer('jma-rain-nowcast-layer');
+      if (state.map.getSource('jma-rain-nowcast')) state.map.removeSource('jma-rain-nowcast');
+    } catch (e) {}
+  }
+  function updateRainLayer() {
+    if (!state.map) return;
+    removeRainLayer();
+    if (!state.rainEnabled) return;
+    var entry = selectedRainTime();
+    if (!entry) return;
+    try {
+      state.map.addSource('jma-rain-nowcast', {
+        type: 'raster',
+        tiles: [rainTileUrl(entry, '{z}', '{x}', '{y}')],
+        tileSize: 256,
+        minzoom: 0,
+        maxzoom: 14,
+        attribution: 'JMA High-resolution Precipitation Nowcast'
+      });
+      var before = state.map.getLayer('observation-cell-fill') ? 'observation-cell-fill' : undefined;
+      state.map.addLayer({
+        id: 'jma-rain-nowcast-layer',
+        type: 'raster',
+        source: 'jma-rain-nowcast',
+        paint: { 'raster-opacity': 0.62 }
+      }, before);
+      setRainStatus(COPY.rainAttribution);
+    } catch (err) {
+      console.warn('rain layer add failed', err);
+      setRainStatus(COPY.rainUnavailable);
+    }
+  }
+  function loadRainTimes() {
+    if (!apiJmaNowcastTimes) return Promise.resolve(state.rainTimes);
+    if (state.rainLoading && rainTimesPromise) return rainTimesPromise;
+    state.rainLoading = true;
+    setRainStatus(COPY.rainLoading);
+    rainTimesPromise = fetch(apiJmaNowcastTimes, { credentials: 'same-origin', headers: { accept: 'application/json' } })
+      .then(function (res) {
+        if (!res.ok) throw new Error('rain_times_failed');
+        return res.json();
+      })
+      .then(function (json) {
+        state.rainTimes = Array.isArray(json && json.times) ? json.times : [];
+        state.rainTileTemplate = String(json && json.tileUrlTemplate || state.rainTileTemplate || '');
+        state.rainSelectedIndex = Math.max(0, Math.min(state.rainSelectedIndex || 0, state.rainTimes.length - 1));
+        renderRainTimeline();
+        if (state.rainEnabled) updateRainLayer();
+        setRainStatus(COPY.rainAttribution);
+        return state.rainTimes;
+      })
+      .catch(function () {
+        state.rainTimes = [];
+        renderRainTimeline();
+        setRainStatus(COPY.rainUnavailable);
+        return [];
+      })
+      .finally(function () {
+        state.rainLoading = false;
+        rainTimesPromise = null;
+      });
+    return rainTimesPromise;
+  }
+  function lngLatToTile(lng, lat, z) {
+    var latRad = lat * Math.PI / 180;
+    var n = Math.pow(2, z);
+    var xFloat = (lng + 180) / 360 * n;
+    var yFloat = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+    return {
+      x: Math.floor(xFloat),
+      y: Math.floor(yFloat),
+      px: Math.floor((xFloat - Math.floor(xFloat)) * 256),
+      py: Math.floor((yFloat - Math.floor(yFloat)) * 256)
+    };
+  }
+  function imageHasRainAt(url, px, py) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 256;
+          var ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(img, 0, 0);
+          for (var dy = -2; dy <= 2; dy++) {
+            for (var dx = -2; dx <= 2; dx++) {
+              var sx = Math.max(0, Math.min(255, px + dx));
+              var sy = Math.max(0, Math.min(255, py + dy));
+              var data = ctx.getImageData(sx, sy, 1, 1).data;
+              if (data[3] > 20 && (data[0] + data[1] + data[2]) > 20) {
+                resolve(true);
+                return;
+              }
+            }
+          }
+          resolve(false);
+        } catch (e) {
+          resolve(null);
+        }
+      };
+      img.onerror = function () { resolve(null); };
+      img.decoding = 'async';
+      img.src = url;
+    });
+  }
+  function checkRainAt(lng, lat) {
+    var z = 10;
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+    loadRainTimes().then(function () {
+      if (!state.rainTimes.length) {
+        setRainStatus(COPY.rainUnavailable);
+        return;
+      }
+      setRainStatus(COPY.rainCheckLoading);
+      var tile = lngLatToTile(lng, lat, z);
+      var sequence = state.rainTimes.slice().sort(function (a, b) {
+        return Number(a.offsetMinutes || 0) - Number(b.offsetMinutes || 0);
+      });
+      var checkState = { incomplete: false };
+      var chain = Promise.resolve(null);
+      sequence.forEach(function (entry) {
+        chain = chain.then(function (found) {
+          if (found) return found;
+          return imageHasRainAt(rainTileUrl(entry, z, tile.x, tile.y), tile.px, tile.py)
+            .then(function (hasRain) {
+              if (hasRain === null) checkState.incomplete = true;
+              return hasRain === true ? entry : null;
+            });
+        });
+      });
+      chain.then(function (found) {
+        if (!found) {
+          setRainStatus(checkState.incomplete ? COPY.rainIndeterminate : COPY.rainClear);
+          return;
+        }
+        var offset = Number(found.offsetMinutes || 0);
+        if (offset <= 0) setRainStatus(COPY.rainAtNow);
+        else setRainStatus(String(COPY.rainWithin).replace('__MIN__', String(offset)));
+      });
+    });
+  }
   function normalizeAreaSources(values) {
     var out = [];
     (values || []).forEach(function (raw) {
@@ -7129,6 +7363,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   reapplyOverlays = function (map) {
     _origReapplyOverlays(map);
     if (state.tracesVisible) loadTraces();
+    if (state.rainEnabled) updateRainLayer();
   };
 
   function hydrate() {
@@ -7164,6 +7399,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       overlayCatalog.forEach(function (def) {
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
+      if (state.rainEnabled) updateRainLayer();
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
       runInitialMapDataLoad('load');
@@ -7783,10 +8019,62 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         var el = document.createElement('div');
         el.className = 'me-locate-marker';
         state._meMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(state.map);
+        if (state.rainEnabled) checkRainAt(lng, lat);
       }, function () {
         locateFab.classList.remove('is-loading');
         setStatus(COPY.locateError);
       }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 });
+    });
+  }
+
+  if (rainToggleEl) {
+    rainToggleEl.addEventListener('click', function () {
+      state.rainEnabled = !state.rainEnabled;
+      rainToggleEl.setAttribute('aria-pressed', state.rainEnabled ? 'true' : 'false');
+      if (rainCardEl) rainCardEl.setAttribute('data-enabled', state.rainEnabled ? '1' : '0');
+      if (state.rainEnabled) loadRainTimes().then(updateRainLayer);
+      else {
+        removeRainLayer();
+        setRainStatus(COPY.rainAttribution);
+      }
+      sendMapKpi('map_rain_toggle', state.rainEnabled ? 'map:rain:on' : 'map:rain:off', {
+        enabled: state.rainEnabled
+      });
+    });
+  }
+  if (rainCurrentEl) {
+    rainCurrentEl.addEventListener('click', function () {
+      if (!navigator.geolocation) {
+        setRainStatus(COPY.locateError);
+        return;
+      }
+      if (!state.rainEnabled && rainToggleEl) rainToggleEl.click();
+      setRainStatus(COPY.rainCheckLoading);
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        var lng = pos.coords.longitude;
+        var lat = pos.coords.latitude;
+        checkRainAt(lng, lat);
+        if (state.map) {
+          state.map.flyTo({ center: [lng, lat], zoom: Math.max(Number(state.map.getZoom() || 0), 12.8), duration: 520 });
+          dropMeMarker(lng, lat);
+        }
+      }, function () {
+        if (state.map && typeof state.map.getCenter === 'function') {
+          var center = state.map.getCenter();
+          setRainStatus(COPY.rainLocationFallback);
+          checkRainAt(Number(center.lng), Number(center.lat));
+          return;
+        }
+        setRainStatus(COPY.locateError);
+      }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 });
+    });
+  }
+  if (rainTargetEl) {
+    rainTargetEl.addEventListener('click', function () {
+      if (!state.map || typeof state.map.getCenter !== 'function') return;
+      if (!state.rainEnabled && rainToggleEl) rainToggleEl.click();
+      var center = state.map.getCenter();
+      checkRainAt(Number(center.lng), Number(center.lat));
     });
   }
 
@@ -8262,6 +8550,98 @@ export const MAP_EXPLORER_STYLES = `
     transition: width .25s ease, margin .25s ease;
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
+  .me-rain-card {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 5;
+    display: grid;
+    gap: 8px;
+    width: min(332px, calc(100% - 116px));
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.93);
+    border: 1px solid rgba(15,23,42,.10);
+    box-shadow: 0 12px 28px rgba(15,23,42,.13);
+    backdrop-filter: blur(12px);
+    color: #0f172a;
+  }
+  .me-rain-card[data-enabled="0"] .me-rain-timeline,
+  .me-rain-card[data-enabled="0"] .me-rain-actions {
+    opacity: .55;
+  }
+  .me-rain-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .me-rain-head span {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+  .me-rain-toggle {
+    min-height: 32px;
+    border: 1px solid rgba(14,165,233,.30);
+    border-radius: 8px;
+    padding: 6px 11px;
+    background: rgba(14,165,233,.10);
+    color: #075985;
+    font-size: 13px;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .me-rain-toggle[aria-pressed="true"] {
+    background: #0369a1;
+    border-color: #0369a1;
+    color: #fff;
+  }
+  .me-rain-timeline {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .me-rain-time {
+    min-height: 28px;
+    border: 1px solid rgba(148,163,184,.28);
+    border-radius: 7px;
+    background: rgba(248,250,252,.92);
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.1;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  .me-rain-time.is-active {
+    background: rgba(14,165,233,.13);
+    border-color: rgba(14,165,233,.45);
+    color: #075985;
+  }
+  .me-rain-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .me-rain-actions button {
+    min-height: 32px;
+    border: 1px solid rgba(15,23,42,.10);
+    border-radius: 8px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  .me-rain-status {
+    margin: 0;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+    font-weight: 750;
+  }
   .me-map-panel {
     position: absolute;
     z-index: 5;
@@ -10243,6 +10623,15 @@ export const MAP_EXPLORER_STYLES = `
     .me-main { display: block; }
     .me-map-wrap { position: relative; width: 100%; margin-left: 0; }
     .me-map { min-height: var(--me-map-height); height: var(--me-map-height); }
+    .me-rain-card {
+      top: 10px;
+      left: 10px;
+      width: min(318px, calc(100% - 86px));
+      padding: 8px;
+      gap: 6px;
+    }
+    .me-rain-timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .me-rain-status { font-size: 10.5px; }
     .me-side { display: none; }
     .me-side-toggle { display: none; }
     .me-map-panel-selection { display: none; }
