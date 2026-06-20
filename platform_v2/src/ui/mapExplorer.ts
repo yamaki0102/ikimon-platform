@@ -4666,6 +4666,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function setSheetSnap(snap) {
     if (!sheetSupportsSnap()) return;
     var next = snap === 'full' ? 'full' : 'peek';
+    sheetEl.classList.remove('is-dragging');
+    sheetEl.style.removeProperty('--me-sheet-drag-height');
     sheetEl.setAttribute('data-snap', next);
     if (sheetGripEl) {
         sheetGripEl.setAttribute('aria-label', next === 'full' ? COPY.bottomSheetCollapseLabel : COPY.bottomSheetExpandLabel);
@@ -5232,38 +5234,102 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!sheetEl) return;
     resetAreaGuideStopSession();
     sheetEl.classList.remove('is-open');
+    sheetEl.classList.remove('is-dragging');
     sheetEl.classList.remove('me-bottom-sheet--area');
     sheetEl.classList.remove('me-bottom-sheet--detail');
+    sheetEl.style.removeProperty('--me-sheet-drag-height');
     sheetEl.removeAttribute('data-snap');
     sheetEl.setAttribute('aria-hidden', 'true');
     setSelectedAreaPolygonFilter('__none__');
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
   if (sheetGripEl) {
-    sheetGripEl.addEventListener('click', function () {
+    var sheetDragState = null;
+    var sheetSuppressClick = false;
+    function sheetDragClamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+    function mobileSheetDragEnabled() {
+      return !window.matchMedia || window.matchMedia('(max-width: 900px)').matches;
+    }
+    function sheetMinHeight() {
+      if (!sheetEl) return 180;
+      var viewport = Math.max(320, window.innerHeight || document.documentElement.clientHeight || 640);
+      var header = Math.max(0, document.querySelector('.site-header')?.getBoundingClientRect().height || 0);
+      var available = Math.max(220, viewport - header - 112);
+      if (sheetEl.classList.contains('me-bottom-sheet--area')) return sheetDragClamp(Math.round(viewport * 0.44), 240, Math.min(380, available));
+      return sheetDragClamp(Math.round(viewport * 0.34), 210, Math.min(300, available));
+    }
+    function sheetMaxHeight() {
+      var viewport = Math.max(320, window.innerHeight || document.documentElement.clientHeight || 640);
+      var header = Math.max(0, document.querySelector('.site-header')?.getBoundingClientRect().height || 0);
+      return Math.max(sheetMinHeight() + 80, viewport - header - 96);
+    }
+    function clearSheetDrag() {
+      if (!sheetEl) return;
+      sheetEl.classList.remove('is-dragging');
+      sheetEl.style.removeProperty('--me-sheet-drag-height');
+    }
+    sheetGripEl.addEventListener('click', function (event) {
+      if (sheetSuppressClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        sheetSuppressClick = false;
+        return;
+      }
       toggleSheetSnap();
     });
-    var sheetDragStartY = null;
     sheetGripEl.addEventListener('pointerdown', function (event) {
       if (!sheetSupportsSnap()) return;
-      sheetDragStartY = event.clientY;
+      if (!mobileSheetDragEnabled()) return;
+      var rect = sheetEl.getBoundingClientRect();
+      var minHeight = sheetMinHeight();
+      var maxHeight = sheetMaxHeight();
+      sheetDragState = {
+        pointerId: event.pointerId,
+        startY: event.clientY,
+        startHeight: sheetDragClamp(rect.height || minHeight, minHeight, maxHeight),
+        currentHeight: sheetDragClamp(rect.height || minHeight, minHeight, maxHeight),
+        minHeight: minHeight,
+        maxHeight: maxHeight,
+        moved: false,
+      };
+      sheetEl.classList.add('is-dragging');
+      sheetEl.style.setProperty('--me-sheet-drag-height', sheetDragState.startHeight + 'px');
       try { sheetGripEl.setPointerCapture(event.pointerId); } catch (_) {}
     });
+    sheetGripEl.addEventListener('pointermove', function (event) {
+      if (!sheetDragState || sheetDragState.pointerId !== event.pointerId || !sheetEl) return;
+      var deltaY = event.clientY - sheetDragState.startY;
+      var nextHeight = sheetDragClamp(sheetDragState.startHeight - deltaY, 92, sheetDragState.maxHeight);
+      sheetDragState.currentHeight = nextHeight;
+      if (Math.abs(deltaY) > 5) sheetDragState.moved = true;
+      sheetEl.style.setProperty('--me-sheet-drag-height', Math.round(nextHeight) + 'px');
+      event.preventDefault();
+    });
     sheetGripEl.addEventListener('pointerup', function (event) {
-      if (sheetDragStartY == null) return;
-      var deltaY = event.clientY - sheetDragStartY;
-      sheetDragStartY = null;
-      if (deltaY < -28) {
-        setDetailSheetSnap('full');
-      } else if (deltaY > 56 && sheetEl && sheetEl.getAttribute('data-snap') === 'peek') {
+      if (!sheetDragState || sheetDragState.pointerId !== event.pointerId) return;
+      var drag = sheetDragState;
+      var deltaY = event.clientY - drag.startY;
+      sheetDragState = null;
+      if (drag.moved) {
+        sheetSuppressClick = true;
+        window.setTimeout(function () { sheetSuppressClick = false; }, 0);
+      }
+      if (drag.currentHeight < Math.max(110, drag.minHeight * 0.58) && sheetEl && sheetEl.getAttribute('data-snap') === 'peek') {
         closeBottomSheet();
-      } else if (deltaY > 28) {
-        setDetailSheetSnap('peek');
+      } else if (deltaY < -34 || drag.currentHeight > (drag.minHeight + drag.maxHeight) / 2) {
+        setSheetSnap('full');
+      } else if (deltaY > 34 || drag.currentHeight <= drag.minHeight + 32) {
+        setSheetSnap('peek');
+      } else {
+        setSheetSnap(sheetEl && sheetEl.getAttribute('data-snap') === 'full' ? 'full' : 'peek');
       }
       try { sheetGripEl.releasePointerCapture(event.pointerId); } catch (_) {}
     });
     sheetGripEl.addEventListener('pointercancel', function () {
-      sheetDragStartY = null;
+      sheetDragState = null;
+      clearSheetDrag();
     });
   }
   document.addEventListener('click', function (event) {
@@ -9257,12 +9323,14 @@ export const MAP_EXPLORER_STYLES = `
     position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 5;
     padding: 16px 18px; border-radius: 20px;
     background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 18px 38px rgba(15,23,42,.16);
-    transform: translateY(20px); opacity: 0; pointer-events: none;
-    transition: transform .25s ease, opacity .25s ease;
+    transform: translate3d(0, 28px, 0); opacity: 0; pointer-events: none;
+    transition: transform .34s cubic-bezier(.22,.61,.36,1), opacity .22s ease;
+    will-change: transform, opacity, height;
     max-height: 50%;
     overflow-y: auto;
   }
-  .me-bottom-sheet.is-open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  .me-bottom-sheet.is-open { transform: translate3d(0, 0, 0); opacity: 1; pointer-events: auto; }
+  .me-bottom-sheet.is-dragging { transition: none; }
   .me-bottom-grip { display: none; }
   .me-bottom-sheet--detail {
     left: 0;
@@ -9271,13 +9339,13 @@ export const MAP_EXPLORER_STYLES = `
     padding: 0;
     border-radius: 22px 22px 0 0;
     max-height: min(76%, 680px);
-    transform: translateY(105%);
+    transform: translate3d(0, 105%, 0);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
   .me-bottom-sheet--detail[data-snap="peek"] {
-    height: min(35dvh, 320px);
-    max-height: min(35dvh, 320px);
+    height: min(34dvh, 300px);
+    max-height: min(34dvh, 300px);
   }
   .me-bottom-sheet--detail[data-snap="full"] {
     height: auto;
@@ -9311,7 +9379,7 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-bottom-sheet--detail .me-bottom-grip:active,
   .me-bottom-sheet--area .me-bottom-grip:active { cursor: grabbing; }
-  .me-bottom-sheet--detail.is-open { transform: translateY(0); }
+  .me-bottom-sheet--detail.is-open { transform: translate3d(0, 0, 0); }
   .me-bottom-sheet--detail .me-bottom-close {
     right: 12px;
     top: 12px;
@@ -10740,15 +10808,22 @@ export const MAP_EXPLORER_STYLES = `
       max-height: min(74dvh, calc(100dvh - var(--me-header-h) - 96px));
     }
     .me-bottom-sheet--detail[data-snap="peek"] {
-      height: 35vh;
-      max-height: 35vh;
-      height: min(35dvh, 320px);
-      max-height: min(35dvh, 320px);
+      height: 34vh;
+      max-height: 34vh;
+      height: min(34dvh, 300px);
+      max-height: min(34dvh, 300px);
     }
     .me-bottom-sheet--detail[data-snap="full"] {
       height: auto;
       max-height: calc(100% - 8px);
       max-height: calc(100dvh - var(--me-header-h) - 96px);
+    }
+    .me-bottom-sheet--detail.is-dragging,
+    .me-bottom-sheet--area.is-dragging {
+      height: var(--me-sheet-drag-height);
+      max-height: var(--me-sheet-drag-height);
+      overflow-y: hidden;
+      touch-action: none;
     }
   }
 
@@ -10888,7 +10963,7 @@ export const MAP_EXPLORER_STYLES = `
       left: 0;
       right: 0;
       top: auto;
-      bottom: 88px;
+      bottom: var(--me-mobile-action-space);
       max-height: 86%;
       max-height: calc(100dvh - var(--me-header-h) - 96px);
       overflow-y: auto;
@@ -10896,10 +10971,10 @@ export const MAP_EXPLORER_STYLES = `
       border-radius: 22px 22px 0 0;
     }
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="peek"] {
-      height: 58vh;
-      max-height: 58vh;
-      height: min(58dvh, calc(100dvh - var(--me-header-h) - 100px), 460px);
-      max-height: min(58dvh, calc(100dvh - var(--me-header-h) - 100px), 460px);
+      height: 44vh;
+      max-height: 44vh;
+      height: min(44dvh, calc(100dvh - var(--me-header-h) - 112px), 380px);
+      max-height: min(44dvh, calc(100dvh - var(--me-header-h) - 112px), 380px);
     }
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="full"] {
       height: auto;
