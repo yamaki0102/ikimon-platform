@@ -14422,6 +14422,40 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   </details>
                 </div>
               </div>
+              <div class="record-field record-field-wide record-quick-fields" data-quick-only>
+                <div class="record-survey-box record-quick-box">
+                  <div class="record-survey-head">
+                    <div>
+                      <span class="record-label">${escapeHtml(recordForm.quickReviewTitle)}</span>
+                      <p class="record-help">${escapeHtml(recordForm.quickReviewHelp)}</p>
+                    </div>
+                    <span class="record-survey-pill">${escapeHtml(recordForm.quickReviewPill)}</span>
+                  </div>
+                  <div class="record-survey-grid">
+                    <label class="record-field">
+                      <span class="record-label">${escapeHtml(recordForm.quickCaptureStateLabel)}</span>
+                      <select name="quickCaptureState">
+                        <option value="present">${escapeHtml(recordForm.quickCaptureStateOptions.present)}</option>
+                        <option value="unknown">${escapeHtml(recordForm.quickCaptureStateOptions.unknown)}</option>
+                        <option value="no_detection_note">${escapeHtml(recordForm.quickCaptureStateOptions.no_detection_note)}</option>
+                      </select>
+                    </label>
+                    <label class="record-field record-field-wide">
+                      <span class="record-label">${escapeHtml(recordForm.nextLookForLabel)}</span>
+                      <input name="nextLookFor" type="text" placeholder="${escapeHtml(recordForm.nextLookForPlaceholder)}" data-next-look-for />
+                    </label>
+                    <section class="record-field record-field-wide record-season-clues" aria-label="${escapeHtml(recordForm.seasonClueLabel)}">
+                      <div class="record-season-clues-head">
+                        <span class="record-label">${escapeHtml(recordForm.seasonClueLabel)}</span>
+                        <p class="record-help">${escapeHtml(recordForm.seasonClueHelp)}</p>
+                      </div>
+                      <div class="record-season-clue-row">
+                        ${recordForm.seasonClueOptions.map((item) => `<button type="button" data-season-clue="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("")}
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              </div>
               <details class="record-field record-field-wide record-later-details">
                 <summary>${escapeHtml(recordForm.laterSummary)}</summary>
                 <div class="record-later-grid">
@@ -14524,40 +14558,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                             <option value="participant">${escapeHtml(recordForm.participantRoleOptions.participant)}</option>
                           </select>
                         </label>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="record-field record-field-wide record-quick-fields" data-quick-only>
-                    <div class="record-survey-box record-quick-box">
-                      <div class="record-survey-head">
-                        <div>
-                          <span class="record-label">${escapeHtml(recordForm.quickReviewTitle)}</span>
-                          <p class="record-help">${escapeHtml(recordForm.quickReviewHelp)}</p>
-                        </div>
-                        <span class="record-survey-pill">${escapeHtml(recordForm.quickReviewPill)}</span>
-                      </div>
-                      <div class="record-survey-grid">
-                        <label class="record-field">
-                          <span class="record-label">${escapeHtml(recordForm.quickCaptureStateLabel)}</span>
-                          <select name="quickCaptureState">
-                            <option value="present">${escapeHtml(recordForm.quickCaptureStateOptions.present)}</option>
-                            <option value="unknown">${escapeHtml(recordForm.quickCaptureStateOptions.unknown)}</option>
-                            <option value="no_detection_note">${escapeHtml(recordForm.quickCaptureStateOptions.no_detection_note)}</option>
-                          </select>
-                        </label>
-                        <label class="record-field record-field-wide">
-                          <span class="record-label">${escapeHtml(recordForm.nextLookForLabel)}</span>
-                          <input name="nextLookFor" type="text" placeholder="${escapeHtml(recordForm.nextLookForPlaceholder)}" data-next-look-for />
-                        </label>
-                        <section class="record-field record-field-wide record-season-clues" aria-label="${escapeHtml(recordForm.seasonClueLabel)}">
-                          <div class="record-season-clues-head">
-                            <span class="record-label">${escapeHtml(recordForm.seasonClueLabel)}</span>
-                            <p class="record-help">${escapeHtml(recordForm.seasonClueHelp)}</p>
-                          </div>
-                          <div class="record-season-clue-row">
-                            ${recordForm.seasonClueOptions.map((item) => `<button type="button" data-season-clue="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("")}
-                          </div>
-                        </section>
                       </div>
                     </div>
                   </div>

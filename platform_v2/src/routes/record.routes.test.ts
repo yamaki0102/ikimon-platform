@@ -252,6 +252,42 @@ test("record route exposes quick revisit fields in staging mode", async () => {
   );
 });
 
+test("record note start renders seasonal clue chips in the visible quick form", async () => {
+  await withEnv(
+    {
+      ALLOW_QUERY_USER_ID: "1",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/ja/record?start=note&userId=staging-user",
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /<html lang="ja">/);
+        assert.match(response.body, /今見えた変化/);
+        assert.match(response.body, /data-season-clue="花・実"/);
+        assert.match(response.body, /data-season-clue="葉の色"/);
+        assert.match(response.body, /data-season-clue="水の量"/);
+        assert.match(response.body, /data-season-clue="土の湿り"/);
+        assert.match(response.body, /data-season-clue="音・におい"/);
+        assert.match(response.body, /data-season-clue="虫・鳥"/);
+        assert.ok(
+          response.body.indexOf('class="record-field record-field-wide record-quick-fields" data-quick-only') <
+            response.body.indexOf('class="record-field record-field-wide record-later-details"'),
+          "seasonal clue chips should not be hidden inside the collapsed later-details section",
+        );
+        assert.doesNotMatch(response.body, /育つ余白/);
+        assert.doesNotMatch(response.body, /少ない事実 \+ 次に探す方向/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
 test("record route honors English language prefix for logged-in recording", async () => {
   await withEnv(
     {
