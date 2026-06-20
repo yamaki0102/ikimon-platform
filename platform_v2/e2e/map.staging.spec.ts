@@ -273,6 +273,46 @@ async function expectRainNowcastGate(page: Page): Promise<void> {
   expect(tileResponse.headers()["content-type"] ?? "").toContain("image/png");
 }
 
+async function readMobileSheetMotionState(page: Page): Promise<{
+  bannedCopyPresent: boolean;
+  launcherVisible: boolean;
+  overlapPx: number;
+  sheetClass: string;
+  sheetHeight: number;
+  sheetTop: number;
+  snap: string | null;
+  viewportHeight: number;
+}> {
+  return page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>("#me-bottom-sheet");
+    const launcher = document.querySelector<HTMLElement>(".global-record-launcher");
+    const sheetBox = sheet?.getBoundingClientRect();
+    const launcherBox = launcher?.getBoundingClientRect();
+    const launcherStyle = launcher ? window.getComputedStyle(launcher) : null;
+    const launcherVisible = Boolean(
+      launcher
+      && launcherStyle
+      && launcherStyle.display !== "none"
+      && launcherStyle.visibility !== "hidden"
+      && (launcherBox?.width ?? 0) > 0
+      && (launcherBox?.height ?? 0) > 0
+    );
+    const sheetBottom = sheetBox?.bottom ?? 0;
+    const launcherTop = launcherBox?.top ?? window.innerHeight;
+    const bodyText = document.body.innerText || "";
+    return {
+      bannedCopyPresent: bodyText.includes("育つ余白") || bodyText.includes("少ない事実 + 次に探す方向"),
+      launcherVisible,
+      overlapPx: Math.max(0, sheetBottom - launcherTop),
+      sheetClass: sheet?.className || "",
+      sheetHeight: Math.round(sheetBox?.height ?? 0),
+      sheetTop: Math.round(sheetBox?.top ?? 0),
+      snap: sheet?.getAttribute("data-snap") ?? null,
+      viewportHeight: window.innerHeight,
+    };
+  });
+}
+
 async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH, isMobile = false): Promise<void> {
   const response = await page.goto(mapPath, { waitUntil: "domcontentloaded" });
   expect(response?.status() ?? 0, `${mapPath} should load before map shell assertions`).toBeLessThan(400);
@@ -310,6 +350,64 @@ async function waitForMapEmptyState(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
   await expect(page.locator("#me-empty-invite")).toBeVisible();
   await expect(page.locator(".me-results-empty")).toBeAttached();
 }
+
+test("mobile bottom sheet opens as a map-detail peek and follows drag before snapping", async ({ browser }) => {
+  const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
+  expect(mobile, "mobile viewport profile should exist").toBeTruthy();
+  const context = await newStagingContext(browser, mobile!);
+  const page = await context.newPage();
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, true);
+
+  await page.locator(".me-result-row").first().click({ force: true });
+  const sheet = page.locator("#me-bottom-sheet");
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toHaveAttribute("aria-hidden", "false");
+  await expect(sheet).toHaveAttribute("data-snap", "peek");
+  await expect(sheet).toHaveClass(/me-bottom-sheet--detail/);
+
+  const peek = await readMobileSheetMotionState(page);
+  expect(peek.bannedCopyPresent).toBe(false);
+  expect(peek.launcherVisible).toBe(true);
+  expect(peek.overlapPx, "peek sheet should stay above the record launcher").toBeLessThanOrEqual(2);
+  expect(peek.sheetHeight, "first sheet should open as a compact peek, not a full takeover").toBeGreaterThan(200);
+  expect(peek.sheetHeight, "first sheet should leave map context visible").toBeLessThanOrEqual(330);
+  expect(peek.sheetTop, "map should remain visible above the first sheet").toBeGreaterThan(260);
+
+  const gripBox = await page.locator("#me-bottom-grip").boundingBox();
+  expect(gripBox, "bottom sheet grip should be measurable").toBeTruthy();
+  const x = Math.round(gripBox!.x + gripBox!.width / 2);
+  const y = Math.round(gripBox!.y + gripBox!.height / 2);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 96, { steps: 6 });
+  await page.waitForTimeout(80);
+
+  const dragging = await page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>("#me-bottom-sheet");
+    const box = sheet?.getBoundingClientRect();
+    return {
+      className: sheet?.className || "",
+      dragHeight: sheet?.style.getPropertyValue("--me-sheet-drag-height") || "",
+      height: Math.round(box?.height ?? 0),
+      snap: sheet?.getAttribute("data-snap"),
+      transition: sheet ? window.getComputedStyle(sheet).transition : "",
+    };
+  });
+  expect(dragging.className).toContain("is-dragging");
+  expect(dragging.dragHeight).toMatch(/px$/);
+  expect(dragging.height, "sheet height should follow the finger during pointermove").toBeGreaterThan(peek.sheetHeight + 45);
+  expect(dragging.transition, "dragging should not animate behind the finger").toBe("none");
+
+  await page.mouse.up();
+  await expect(sheet).toHaveAttribute("data-snap", "full");
+  await expect(sheet).not.toHaveClass(/is-dragging/);
+  const full = await readMobileSheetMotionState(page);
+  expect(full.overlapPx, "full sheet should still avoid covering the record launcher").toBeLessThanOrEqual(2);
+
+  await context.close();
+});
 
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
