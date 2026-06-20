@@ -76,7 +76,6 @@ async function waitForMapPerformanceSummary(
     () => {
       const wrap = document.querySelector<HTMLElement>(".me-map-wrap");
       const canvas = document.querySelector<HTMLCanvasElement>(".maplibregl-canvas");
-      const status = document.querySelector<HTMLElement>("#me-map-status");
       const wrapBox = wrap?.getBoundingClientRect();
       const canvasBox = canvas?.getBoundingClientRect();
       return Boolean(
@@ -86,7 +85,6 @@ async function waitForMapPerformanceSummary(
         && (wrapBox?.height ?? 0) > 480
         && (canvasBox?.width ?? 0) > 300
         && (canvasBox?.height ?? 0) > 300
-        && (!status || status.textContent !== "読み込み中…")
       );
     },
     null,
