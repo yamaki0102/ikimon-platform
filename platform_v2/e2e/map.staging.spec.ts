@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Route } from "@playwright/test";
+import { test, expect, type Page, type Route, type TestInfo } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
   installMapLibreStubForSmoke,
@@ -313,6 +313,31 @@ async function readMobileSheetMotionState(page: Page): Promise<{
   });
 }
 
+async function attachC112MobileSheetEvidence(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+  const clip = await page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>("#me-bottom-sheet");
+    const box = sheet?.getBoundingClientRect();
+    const y = Math.max(0, Math.floor((box?.top ?? window.innerHeight * 0.55) - 88));
+    const height = Math.max(180, Math.min(Math.floor(window.innerHeight - y), window.innerHeight));
+    return {
+      x: 0,
+      y,
+      width: Math.max(320, Math.floor(window.innerWidth)),
+      height,
+    };
+  });
+  await testInfo.attach(name, {
+    body: await page.screenshot({
+      animations: "disabled",
+      clip,
+      quality: 72,
+      timeout: 8_000,
+      type: "jpeg",
+    }),
+    contentType: "image/jpeg",
+  });
+}
+
 async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH, isMobile = false): Promise<void> {
   const response = await page.goto(mapPath, { waitUntil: "domcontentloaded" });
   expect(response?.status() ?? 0, `${mapPath} should load before map shell assertions`).toBeLessThan(400);
@@ -351,8 +376,7 @@ async function waitForMapEmptyState(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
   await expect(page.locator(".me-results-empty")).toBeAttached();
 }
 
-test("mobile bottom sheet opens as a map-detail peek and follows drag before snapping", async ({ browser }, testInfo) => {
-  testInfo.setTimeout(60_000);
+test("mobile bottom sheet opens as a map-detail peek and follows drag before snapping", async ({ browser }) => {
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
   expect(mobile, "mobile viewport profile should exist").toBeTruthy();
   const context = await newStagingContext(browser, mobile!);
@@ -380,10 +404,6 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
   expect(peek.sheetHeight, "first sheet should open as a compact peek, not a full takeover").toBeGreaterThan(200);
   expect(peek.sheetHeight, "first sheet should leave map context visible").toBeLessThanOrEqual(330);
   expect(peek.sheetTop, "map should remain visible above the first sheet").toBeGreaterThan(260);
-  await testInfo.attach("c112-mobile-map-sheet-peek", {
-    body: await page.screenshot({ fullPage: false }),
-    contentType: "image/png",
-  });
 
   const gripBox = await page.locator("#me-bottom-grip").boundingBox();
   expect(gripBox, "bottom sheet grip should be measurable").toBeTruthy();
@@ -409,21 +429,60 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
   expect(dragging.dragHeight).toMatch(/px$/);
   expect(dragging.height, "sheet height should follow the finger during pointermove").toBeGreaterThan(peek.sheetHeight + 45);
   expect(dragging.transition, "dragging should not animate behind the finger").toBe("none");
-  await testInfo.attach("c112-mobile-map-sheet-dragging", {
-    body: await page.screenshot({ fullPage: false }),
-    contentType: "image/png",
-  });
 
   await page.mouse.up();
   await expect(sheet).toHaveAttribute("data-snap", "full");
-  await testInfo.attach("c112-mobile-map-sheet-full", {
-    body: await page.screenshot({ fullPage: false }),
-    contentType: "image/png",
-  });
   const fullClass = await sheet.evaluate((element) => element.className);
   expect(fullClass).not.toContain("is-dragging");
   const full = await readMobileSheetMotionState(page);
   expect(full.overlapPx, "full sheet should still avoid covering the record launcher").toBeLessThanOrEqual(2);
+
+  await context.close();
+});
+
+test("mobile bottom sheet evidence captures peek drag and full states", async ({ browser }, testInfo) => {
+  testInfo.setTimeout(180_000);
+  const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
+  expect(mobile, "mobile viewport profile should exist").toBeTruthy();
+  const context = await newStagingContext(browser, mobile!);
+  const page = await context.newPage();
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, true);
+
+  const canvasBox = await page.locator("[data-maplibre-smoke-stub='1']").boundingBox();
+  expect(canvasBox, "stubbed map canvas should be measurable").toBeTruthy();
+  await page.mouse.click(
+    Math.round(canvasBox!.x + canvasBox!.width / 2),
+    Math.round(canvasBox!.y + canvasBox!.height / 2),
+  );
+  const sheet = page.locator("#me-bottom-sheet");
+  await expect(sheet).toHaveAttribute("data-snap", "peek");
+  await attachC112MobileSheetEvidence(page, testInfo, "c112-mobile-map-sheet-peek");
+
+  const gripBox = await page.locator("#me-bottom-grip").boundingBox();
+  expect(gripBox, "bottom sheet grip should be measurable").toBeTruthy();
+  const x = Math.round(gripBox!.x + gripBox!.width / 2);
+  const y = Math.round(gripBox!.y + gripBox!.height / 2);
+  const peek = await readMobileSheetMotionState(page);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 96, { steps: 3 });
+  const dragging = await page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>("#me-bottom-sheet");
+    const box = sheet?.getBoundingClientRect();
+    return {
+      className: sheet?.className || "",
+      height: Math.round(box?.height ?? 0),
+    };
+  });
+  expect(dragging.className).toContain("is-dragging");
+  expect(dragging.height, "evidence capture should show the sheet following the drag").toBeGreaterThan(peek.sheetHeight + 45);
+  await attachC112MobileSheetEvidence(page, testInfo, "c112-mobile-map-sheet-dragging");
+
+  await page.mouse.up();
+  await expect(sheet).toHaveAttribute("data-snap", "full");
+  await attachC112MobileSheetEvidence(page, testInfo, "c112-mobile-map-sheet-full");
 
   await context.close();
 });
