@@ -329,6 +329,11 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /directPostInFlight/);
   assert.match(html, /photoDraftRetryDetailId/);
   assert.match(html, /photoDraftRetryHasUploadedPhoto/);
+  assert.match(html, /const normalizeSavedObservationTargetId = \(json, fallbackId\) =>/);
+  assert.match(html, /detailId = normalizeSavedObservationTargetId\(observationJson, observationId\)/);
+  assert.match(html, /photoDraftRetryDetailId = detailId/);
+  assert.match(html, /formatPhotoUploadFailureReason/);
+  assert.doesNotMatch(html, /observation not found: ' \+ detailId/);
   assert.match(html, /clientSubmissionId/);
   assert.match(html, /client_photo_sha256s/);
   assert.match(html, /\/api\/v1\/observations\/upsert/);
