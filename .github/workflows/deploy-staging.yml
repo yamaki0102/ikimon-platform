@@ -906,6 +906,11 @@ jobs:
         with:
           install-with-deps: "false"
 
+      - name: Install Japanese screenshot fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
       - name: Capture desktop/mobile staging UX evidence
         working-directory: platform_v2
         env:
@@ -990,6 +995,7 @@ jobs:
             const entry = { profile: profile.slug, ok: false, errors: [] };
             let context = null;
             let screenshotCaptured = false;
+            const screenshotTimeoutMs = profile.slug.startsWith("mobile") ? 45000 : 15000;
             try {
               context = await bounded(browser.newContext({
                 baseURL: baseUrl,
@@ -1009,7 +1015,7 @@ jobs:
                 entry.errors.push(`rain click: ${String(error)}`);
               });
               await page.waitForTimeout(1500);
-              await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}.png`), fullPage: false }), 15000, `${profile.slug} screenshot`);
+              await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}.png`), fullPage: false, animations: "disabled" }), screenshotTimeoutMs, `${profile.slug} screenshot`);
               screenshotCaptured = true;
               entry.state = await bounded(page.evaluate(collectState), 8000, `${profile.slug} state`).catch((error) => {
                 entry.errors.push(`state: ${String(error)}`);
@@ -1021,7 +1027,7 @@ jobs:
               try {
                 const page = context?.pages()?.[0];
                 if (page) {
-                  await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false }), 10000, `${profile.slug} error screenshot`);
+                  await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false, animations: "disabled" }), screenshotTimeoutMs, `${profile.slug} error screenshot`);
                   screenshotCaptured = true;
                   entry.state = await bounded(page.evaluate(collectState), 5000, `${profile.slug} error state`).catch((stateError) => {
                     entry.errors.push(`error state: ${String(stateError)}`);
