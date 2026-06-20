@@ -46,6 +46,18 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /まだ分からないまま残す/);
         assert.match(response.body, /今日は見なかったメモを記録として残す/);
         assert.match(response.body, /次に見返す手がかり/);
+        assert.match(response.body, /今見えた変化/);
+        assert.match(response.body, /当てはまるものを押すと、手がかりに入ります。自宅・学校名は入れないでください。/);
+        assert.match(response.body, /data-season-clue="花・実"/);
+        assert.match(response.body, /data-season-clue="葉の色"/);
+        assert.match(response.body, /data-season-clue="水の量"/);
+        assert.match(response.body, /data-season-clue="土の湿り"/);
+        assert.match(response.body, /data-season-clue="音・におい"/);
+        assert.match(response.body, /data-season-clue="虫・鳥"/);
+        assert.match(response.body, /seasonClueManagedValue/);
+        assert.match(response.body, /selectedSeasonClues/);
+        assert.match(response.body, /season_clue_selected/);
+        assert.match(response.body, /aria-pressed/);
         assert.match(response.body, /この記録の役割/);
         assert.match(response.body, /name="activityIntent"/);
         assert.match(response.body, /name="participantRole"/);

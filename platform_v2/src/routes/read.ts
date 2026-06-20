@@ -5094,6 +5094,9 @@ type RecordFormCopy = {
   quickCaptureStateOptions: Record<"present" | "unknown" | "no_detection_note", string>;
   nextLookForLabel: string;
   nextLookForPlaceholder: string;
+  seasonClueLabel: string;
+  seasonClueHelp: string;
+  seasonClueOptions: string[];
   surveyBlockTitle: string;
   surveyBlockHelp: string;
   surveyBlockPill: string;
@@ -5535,6 +5538,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       },
       nextLookForLabel: "次に見返す手がかり",
       nextLookForPlaceholder: "例: 同じ水辺の音 / 葉の裏 / 同じ木の花",
+      seasonClueLabel: "今見えた変化",
+      seasonClueHelp: "当てはまるものを押すと、手がかりに入ります。自宅・学校名は入れないでください。",
+      seasonClueOptions: ["花・実", "葉の色", "水の量", "土の湿り", "音・におい", "虫・鳥"],
       surveyBlockTitle: "比べるための記録",
       surveyBlockHelp: "同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。",
       surveyBlockPill: "比較用",
@@ -5697,6 +5703,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       },
       nextLookForLabel: "What to look for next",
       nextLookForPlaceholder: "Example: the waterside bird from last week / a leaf to identify / the same tree flower",
+      seasonClueLabel: "What changed today",
+      seasonClueHelp: "Tap any that fit. Avoid home or school names.",
+      seasonClueOptions: ["flowers / fruit", "leaf color", "water level", "wet ground", "sound / smell", "insects / birds"],
       surveyBlockTitle: "Record for comparison",
       surveyBlockHelp: "Use this when you want to compare the same place later. It stays separate from everyday records.",
       surveyBlockPill: "Compare",
@@ -5859,6 +5868,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       },
       nextLookForLabel: "Que buscar despues",
       nextLookForPlaceholder: "Ejemplo: el ave del agua de la semana pasada / una hoja por identificar / la flor del mismo arbol",
+      seasonClueLabel: "Que cambio hoy",
+      seasonClueHelp: "Toca lo que encaje. Evita nombres de casa o escuela.",
+      seasonClueOptions: ["flores / frutos", "color de hojas", "nivel del agua", "suelo humedo", "sonido / olor", "insectos / aves"],
       surveyBlockTitle: "Registro para comparar",
       surveyBlockHelp: "Usalo cuando quieras comparar el mismo lugar despues. Queda separado del registro diario.",
       surveyBlockPill: "Comparar",
@@ -6021,6 +6033,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       },
       nextLookForLabel: "O que procurar depois",
       nextLookForPlaceholder: "Exemplo: ave da agua da semana passada / folha para identificar / flor da mesma arvore",
+      seasonClueLabel: "O que mudou hoje",
+      seasonClueHelp: "Toque no que combina. Evite nomes de casa ou escola.",
+      seasonClueOptions: ["flores / frutos", "cor das folhas", "nivel da agua", "solo umido", "som / cheiro", "insetos / aves"],
       surveyBlockTitle: "Registro para comparar",
       surveyBlockHelp: "Use quando quiser comparar o mesmo local depois. Fica separado do registro diario.",
       surveyBlockPill: "Comparar",
@@ -14532,8 +14547,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                         </label>
                         <label class="record-field record-field-wide">
                           <span class="record-label">${escapeHtml(recordForm.nextLookForLabel)}</span>
-                          <input name="nextLookFor" type="text" placeholder="${escapeHtml(recordForm.nextLookForPlaceholder)}" />
+                          <input name="nextLookFor" type="text" placeholder="${escapeHtml(recordForm.nextLookForPlaceholder)}" data-next-look-for />
                         </label>
+                        <section class="record-field record-field-wide record-season-clues" aria-label="${escapeHtml(recordForm.seasonClueLabel)}">
+                          <div class="record-season-clues-head">
+                            <span class="record-label">${escapeHtml(recordForm.seasonClueLabel)}</span>
+                            <p class="record-help">${escapeHtml(recordForm.seasonClueHelp)}</p>
+                          </div>
+                          <div class="record-season-clue-row">
+                            ${recordForm.seasonClueOptions.map((item) => `<button type="button" data-season-clue="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("")}
+                          </div>
+                        </section>
                       </div>
                     </div>
                   </div>
@@ -14780,6 +14804,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const publicStateLabel = document.getElementById('record-public-state-label');
         const publicStateHelp = document.getElementById('record-public-state-help');
         const submitDockMeta = document.getElementById('record-submit-dock-meta');
+        const nextLookForInput = form ? form.querySelector('[data-next-look-for]') : null;
+        const seasonClueButtons = form ? Array.from(form.querySelectorAll('[data-season-clue]')) : [];
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
@@ -14921,6 +14947,59 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const sendRecordFunnelError = (actionKey, metadata) => sendRecordKpi('funnel_error', actionKey, metadata);
         const sendRecordTaskCompletion = (actionKey, metadata) => sendRecordKpi('task_completion', actionKey, metadata);
         const sendRecordCtaClick = (actionKey, metadata) => sendRecordKpi('primary_cta_click', actionKey, metadata);
+        const selectedSeasonClues = new Set();
+        let seasonClueManagedValue = '';
+        let renderingSeasonClues = false;
+        const nextLookForValue = () => String(nextLookForInput && 'value' in nextLookForInput ? nextLookForInput.value || '' : '').trim();
+        const seasonClueValue = () => Array.from(selectedSeasonClues).join(' / ');
+        const readManualLookForValue = () => {
+          const value = nextLookForValue();
+          if (!seasonClueManagedValue) return value;
+          if (value === seasonClueManagedValue) return '';
+          const managedSuffix = ' / ' + seasonClueManagedValue;
+          if (value.endsWith(managedSuffix)) return value.slice(0, -managedSuffix.length).trim();
+          return value;
+        };
+        const syncSeasonClueButtons = () => {
+          seasonClueButtons.forEach((button) => {
+            const clue = button.getAttribute('data-season-clue') || '';
+            const active = selectedSeasonClues.has(clue);
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
+        };
+        const renderSeasonClues = () => {
+          if (!nextLookForInput) return;
+          const manualValue = readManualLookForValue();
+          const managedValue = seasonClueValue();
+          seasonClueManagedValue = managedValue;
+          renderingSeasonClues = true;
+          nextLookForInput.value = [manualValue, managedValue].filter(Boolean).join(' / ');
+          nextLookForInput.dispatchEvent(new Event('input', { bubbles: true }));
+          renderingSeasonClues = false;
+          syncSeasonClueButtons();
+        };
+        const toggleSeasonClue = (clue) => {
+          if (!nextLookForInput || !clue) return;
+          if (selectedSeasonClues.has(clue)) selectedSeasonClues.delete(clue);
+          else selectedSeasonClues.add(clue);
+          renderSeasonClues();
+          sendRecordFunnelStep('season_clue_selected', { clueCount: selectedSeasonClues.size });
+        };
+        seasonClueButtons.forEach((button) => {
+          button.setAttribute('aria-pressed', 'false');
+          button.addEventListener('click', () => toggleSeasonClue(button.getAttribute('data-season-clue') || ''));
+        });
+        if (nextLookForInput) {
+          nextLookForInput.addEventListener('input', () => {
+            if (renderingSeasonClues) return;
+            if (seasonClueManagedValue && !nextLookForValue().includes(seasonClueManagedValue)) {
+              selectedSeasonClues.clear();
+              seasonClueManagedValue = '';
+            }
+            syncSeasonClueButtons();
+          });
+        }
         const recordSubmitButtons = () => form ? Array.from(form.querySelectorAll('button[type="submit"]')) : [];
         const setRecordSubmitting = (submitting) => {
           recordSubmitInFlight = Boolean(submitting);
@@ -18192,6 +18271,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-survey-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
         .record-survey-pill { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.08); color: #0f172a; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
         .record-survey-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .record-season-clues { display: grid; gap: 10px; padding: 12px; border-radius: 8px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
+        .record-season-clues-head { display: grid; gap: 4px; }
+        .record-season-clue-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-season-clue-row button { min-height: 40px; padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 900; cursor: pointer; }
+        .record-season-clue-row button.is-active { border-color: rgba(16,185,129,.42); background: #ecfdf5; color: #065f46; box-shadow: 0 8px 16px rgba(16,185,129,.1); }
+        .record-season-clue-row button:focus-visible { outline: 3px solid #0284c7; outline-offset: 2px; }
         .record-survey-caution { display: grid; gap: 4px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
         .record-survey-caution strong { color: #0f172a; font-size: 13px; }
         .record-survey-caution span { color: #475569; font-size: 12px; line-height: 1.7; font-weight: 700; }
@@ -18345,6 +18430,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-video-publication-steps li { min-height: auto; grid-template-columns: auto 1fr; align-items: center; }
           .record-video-publication-steps small { grid-column: 2; }
           .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-later-grid, .record-media-role-grid, .record-place-memory-notes { grid-template-columns: 1fr; }
+          .record-season-clue-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .record-place-memory-head { flex-direction: column; }
           .record-place-memory-photo { width: 100%; justify-content: center; white-space: nowrap; }
           .record-place-memory-tags { grid-template-columns: repeat(2, minmax(0, 1fr)); }
