@@ -894,7 +894,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [plan, verify-ssh]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.capture_ux_review == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 6
     environment: staging
     steps:
       - uses: actions/checkout@v5
@@ -916,7 +916,7 @@ jobs:
         run: |
           node <<'NODE'
           const { chromium } = require("@playwright/test");
-          const { mkdirSync, writeFileSync } = require("node:fs");
+          const { appendFileSync, mkdirSync, writeFileSync } = require("node:fs");
           const path = require("node:path");
 
           const baseUrl = process.env.STAGING_BASE_URL || "https://staging.ikimon.life";
@@ -925,6 +925,37 @@ jobs:
           const password = process.env.STAGING_BASIC_AUTH_PASS || "";
           const outDir = path.resolve("test-results", "staging-ux-review");
           mkdirSync(outDir, { recursive: true });
+          const progressPath = path.join(outDir, "progress.log");
+          const reviewJsonPath = path.join(outDir, "rain-nowcast-review.json");
+          const results = [];
+          let browser = null;
+          let fatalError = null;
+
+          function log(message) {
+            const line = `${new Date().toISOString()} ${message}`;
+            console.log(line);
+            appendFileSync(progressPath, `${line}\n`);
+          }
+
+          function writeReview(extra = {}) {
+            writeFileSync(reviewJsonPath, JSON.stringify({
+              generatedAt: new Date().toISOString(),
+              baseUrl,
+              reviewPath,
+              results,
+              ...extra,
+            }, null, 2));
+          }
+
+          function timeoutAfter(ms, label) {
+            return new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+            });
+          }
+
+          async function bounded(promise, ms, label) {
+            return Promise.race([promise, timeoutAfter(ms, label)]);
+          }
 
           const profiles = [
             { slug: "desktop-1440", viewport: { width: 1440, height: 900 } },
@@ -954,56 +985,87 @@ jobs:
             };
           }
 
-          (async () => {
-            const browser = await chromium.launch();
-            const results = [];
-            for (const profile of profiles) {
-              const context = await browser.newContext({
+          async function captureProfile(profile) {
+            log(`profile ${profile.slug}: start`);
+            const entry = { profile: profile.slug, ok: false, errors: [] };
+            let context = null;
+            try {
+              context = await bounded(browser.newContext({
                 baseURL: baseUrl,
                 viewport: profile.viewport,
                 isMobile: profile.isMobile,
                 hasTouch: profile.hasTouch,
                 ignoreHTTPSErrors: true,
                 httpCredentials: username && password ? { username, password } : undefined,
+              }), 15000, `${profile.slug} context`);
+              const page = await bounded(context.newPage(), 10000, `${profile.slug} page`);
+              const response = await page.goto(reviewPath, { waitUntil: "domcontentloaded", timeout: 20000 });
+              entry.status = response ? response.status() : null;
+              await page.waitForSelector(".me-map-wrap", { state: "visible", timeout: 8000 }).catch((error) => {
+                entry.errors.push(`map wait: ${String(error)}`);
               });
-              const page = await context.newPage();
-              const entry = { profile: profile.slug, ok: false, errors: [] };
+              await page.locator("#me-rain-toggle").click({ timeout: 5000 }).catch((error) => {
+                entry.errors.push(`rain click: ${String(error)}`);
+              });
+              await page.waitForTimeout(1500);
+              entry.state = await bounded(page.evaluate(collectState), 8000, `${profile.slug} state`);
+              await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}.png`), fullPage: false }), 15000, `${profile.slug} screenshot`);
+              entry.ok = true;
+            } catch (error) {
+              entry.errors.push(String(error));
               try {
-                const response = await page.goto(reviewPath, { waitUntil: "domcontentloaded", timeout: 45000 });
-                entry.status = response ? response.status() : null;
-                await page.waitForSelector(".me-map-wrap", { state: "visible", timeout: 15000 }).catch((error) => {
-                  entry.errors.push(`map wait: ${String(error)}`);
-                });
-                await page.locator("#me-rain-toggle").click({ timeout: 8000 }).catch((error) => {
-                  entry.errors.push(`rain click: ${String(error)}`);
-                });
-                await page.waitForTimeout(3000);
-                entry.state = await page.evaluate(collectState);
-                await page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}.png`), fullPage: false });
-                entry.ok = true;
-              } catch (error) {
-                entry.errors.push(String(error));
-                try {
-                  entry.state = await page.evaluate(collectState);
-                  await page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false });
-                } catch (captureError) {
-                  entry.errors.push(`error capture: ${String(captureError)}`);
+                const page = context?.pages()?.[0];
+                if (page) {
+                  entry.state = await bounded(page.evaluate(collectState), 5000, `${profile.slug} error state`);
+                  await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false }), 10000, `${profile.slug} error screenshot`);
                 }
-              } finally {
-                results.push(entry);
-                await context.close().catch(() => {});
+              } catch (captureError) {
+                entry.errors.push(`error capture: ${String(captureError)}`);
               }
+            } finally {
+              results.push(entry);
+              writeReview({ status: "partial" });
+              if (context) {
+                await bounded(context.close().catch(() => {}), 8000, `${profile.slug} context close`).catch((error) => {
+                  entry.errors.push(`context close: ${String(error)}`);
+                });
+              }
+              log(`profile ${profile.slug}: ${entry.ok ? "ok" : "error"}`);
             }
-            await browser.close();
-            writeFileSync(path.join(outDir, "rain-nowcast-review.json"), JSON.stringify({
-              generatedAt: new Date().toISOString(),
-              baseUrl,
-              reviewPath,
-              results,
-            }, null, 2));
-          })().catch((error) => {
-            writeFileSync(path.join(outDir, "rain-nowcast-review-crash.txt"), String(error));
-          });
+          }
+
+          async function main() {
+            log("capture job started");
+            writeReview({ status: "started" });
+            log("launching chromium");
+            browser = await chromium.launch({ headless: true, timeout: 30000 });
+            log("chromium launched");
+            for (const profile of profiles) {
+              await captureProfile(profile);
+            }
+            await bounded(browser.close(), 15000, "browser close").catch((error) => {
+              fatalError = String(error);
+              log(`browser close error: ${fatalError}`);
+            });
+            browser = null;
+          }
+
+          Promise.race([main(), timeoutAfter(210000, "capture hard limit")])
+            .then(() => {
+              writeReview({ status: fatalError ? "completed_with_errors" : "completed", fatalError });
+              log("capture job completed");
+              process.exit(fatalError ? 1 : 0);
+            })
+            .catch(async (error) => {
+              fatalError = String(error);
+              log(`capture job failed: ${fatalError}`);
+              writeFileSync(path.join(outDir, "rain-nowcast-review-crash.txt"), fatalError);
+              writeReview({ status: "failed", fatalError });
+              if (browser) {
+                await bounded(browser.close().catch(() => {}), 10000, "browser close after failure").catch(() => {});
+              }
+              process.exit(1);
+            });
           NODE
 
       - name: Upload UX review artifacts
