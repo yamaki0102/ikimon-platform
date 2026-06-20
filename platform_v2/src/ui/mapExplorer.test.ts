@@ -759,7 +759,10 @@ test("map explorer surfaces own place thumbnails without old shortcut copy", () 
 
   assert.match(html, /id="me-own-places-panel"/);
   assert.match(html, /data-api-my-places="\/api\/v1\/map\/my-places"/);
-  assert.match(script, /function loadOwnPlaces\(\)/);
+  assert.match(script, /function retryOwnPlacesAfterSessionCheck\(attempt\)/);
+  assert.match(script, /\/api\/v1\/auth\/session\?optional=1/);
+  assert.match(script, /loadOwnPlaces\(attempt \+ 1\)/);
+  assert.match(script, /function loadOwnPlaces\(attempt\)/);
   assert.match(script, /function jumpToOwnPlace\(place\)/);
   assert.match(script, /latestPhotoUrl/);
   assert.match(script, /自分の場所/);

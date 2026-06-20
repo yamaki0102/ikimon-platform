@@ -2108,6 +2108,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownPlaces: [],
     ownPlacesSignedIn: false,
     ownPlacesLoaded: false,
+    ownPlacesRetryCount: 0,
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -2818,9 +2819,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
-  function loadOwnPlaces() {
+  function retryOwnPlacesAfterSessionCheck(attempt) {
+    if (attempt >= 2) return false;
+    fetch(BASE + '/api/v1/auth/session?optional=1', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (payload) {
+        if (payload && payload.ok && payload.session && payload.session.userId) {
+          window.setTimeout(function () {
+            state.ownPlacesLoaded = false;
+            loadOwnPlaces(attempt + 1);
+          }, attempt === 0 ? 450 : 1200);
+        } else {
+          renderOwnPlacesPanel();
+        }
+      })
+      .catch(function () {
+        renderOwnPlacesPanel();
+      });
+    return true;
+  }
+
+  function loadOwnPlaces(attempt) {
+    attempt = Number(attempt || 0);
     if (!apiMyPlaces || !ownPlacesPanelEl || state.ownPlacesLoaded) return;
     state.ownPlacesLoaded = true;
+    state.ownPlacesRetryCount = attempt;
     if (state.ownPlacesAbort) { try { state.ownPlacesAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     state.ownPlacesAbort = controller;
@@ -2829,6 +2852,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (payload) {
         state.ownPlacesSignedIn = !!(payload && payload.signedIn);
         state.ownPlaces = payload && Array.isArray(payload.items) ? payload.items : [];
+        if (!state.ownPlacesSignedIn && retryOwnPlacesAfterSessionCheck(attempt)) return;
         renderOwnPlacesPanel();
       })
       .catch(function (err) {
