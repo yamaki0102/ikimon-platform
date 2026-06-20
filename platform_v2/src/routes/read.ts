@@ -5026,6 +5026,14 @@ type RecordFormCopy = {
   publicStateSuccessCandidate: string;
   publicStateSuccessReview: string;
   publicStateSuccessHidden: string;
+  successReturnTitle: string;
+  successReturnCandidate: string;
+  successReturnReview: string;
+  successReturnHidden: string;
+  successMineCta: string;
+  successDetailCta: string;
+  successMapCta: string;
+  successRevisitCta: string;
   submitButton: string;
   observedAtLabel: string;
   placeLabel: string;
@@ -5452,6 +5460,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       publicStateSuccessCandidate: "公開候補として保存しました。公開地図は広い表示ですが、写真GPSや写り込みから場所が分かる場合があります。",
       publicStateSuccessReview: "自分の記録に保存しました。公開カードはメディア準備または確認後に表示対象になります。",
       publicStateSuccessHidden: "自分だけの記録として保存されています。公開一覧には出ません。",
+      successReturnTitle: "この場所の記録が増えました。",
+      successReturnCandidate: "自分の記録に残り、地図でこの場所を見返せます。",
+      successReturnReview: "自分の記録から今すぐ見返せます。公開表示は確認後に反映されます。",
+      successReturnHidden: "自分だけの記録として残りました。公開地図には出ません。",
+      successMineCta: "自分の記録を見る",
+      successDetailCta: "この記録を開く",
+      successMapCta: "周辺の地図を見る",
+      successRevisitCta: "同じ場所でもう1件",
       submitButton: "記録を保存",
       observedAtLabel: "観察した日時",
       placeLabel: "記録の地点",
@@ -5624,6 +5640,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       publicStateSuccessCandidate: "Saved as a public candidate. Public maps use a broad view, but photo GPS metadata or visible clues can still reveal a place.",
       publicStateSuccessReview: "Saved to your records. The public card waits for media readiness or review.",
       publicStateSuccessHidden: "Saved as yours only. It does not appear in public lists.",
+      successReturnTitle: "This place now has one more record.",
+      successReturnCandidate: "It is in your records, and the map can take you back to this place.",
+      successReturnReview: "You can revisit it from your records now. Public display updates after review.",
+      successReturnHidden: "It is saved for you only and stays off the public map.",
+      successMineCta: "View my records",
+      successDetailCta: "Open this record",
+      successMapCta: "View nearby map",
+      successRevisitCta: "Record here again",
       submitButton: "Save and complete later",
       observedAtLabel: "Observed time",
       placeLabel: "Observation place",
@@ -5796,6 +5820,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       publicStateSuccessCandidate: "Guardado como candidato publico. El mapa publico usa vista amplia, pero GPS de foto o pistas visibles pueden revelar el lugar.",
       publicStateSuccessReview: "Guardado en tus registros. La tarjeta publica espera medios listos o revision.",
       publicStateSuccessHidden: "Guardado solo para ti. No aparece en listas publicas.",
+      successReturnTitle: "Este lugar tiene un registro mas.",
+      successReturnCandidate: "Queda en tus registros, y el mapa puede llevarte de vuelta a este lugar.",
+      successReturnReview: "Ya puedes volver a verlo desde tus registros. La vista publica se actualiza despues de la revision.",
+      successReturnHidden: "Queda guardado solo para ti y no aparece en el mapa publico.",
+      successMineCta: "Ver mis registros",
+      successDetailCta: "Abrir este registro",
+      successMapCta: "Ver mapa cercano",
+      successRevisitCta: "Registrar aqui otra vez",
       submitButton: "Guardar y completar despues",
       observedAtLabel: "Hora observada",
       placeLabel: "Lugar de observacion",
@@ -5968,6 +6000,14 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       publicStateSuccessCandidate: "Salvo como candidato publico. O mapa publico usa vista ampla, mas GPS da foto ou pistas visiveis ainda podem revelar o local.",
       publicStateSuccessReview: "Salvo nos seus registros. O cartao publico aguarda midia pronta ou revisao.",
       publicStateSuccessHidden: "Salvo somente para voce. Nao aparece em listas publicas.",
+      successReturnTitle: "Este lugar ganhou mais um registro.",
+      successReturnCandidate: "Fica nos seus registros, e o mapa pode levar voce de volta a este lugar.",
+      successReturnReview: "Voce ja pode rever nos seus registros. A exibicao publica atualiza depois da revisao.",
+      successReturnHidden: "Fica salvo somente para voce e nao aparece no mapa publico.",
+      successMineCta: "Ver meus registros",
+      successDetailCta: "Abrir este registro",
+      successMapCta: "Ver mapa proximo",
+      successRevisitCta: "Registrar aqui de novo",
       submitButton: "Salvar e completar depois",
       observedAtLabel: "Horario observado",
       placeLabel: "Local da observacao",
@@ -14903,6 +14943,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           publicStateSuccessCandidate: ${JSON.stringify(recordForm.publicStateSuccessCandidate)},
           publicStateSuccessReview: ${JSON.stringify(recordForm.publicStateSuccessReview)},
           publicStateSuccessHidden: ${JSON.stringify(recordForm.publicStateSuccessHidden)},
+          successReturnTitle: ${JSON.stringify(recordForm.successReturnTitle)},
+          successReturnCandidate: ${JSON.stringify(recordForm.successReturnCandidate)},
+          successReturnReview: ${JSON.stringify(recordForm.successReturnReview)},
+          successReturnHidden: ${JSON.stringify(recordForm.successReturnHidden)},
+          successMineCta: ${JSON.stringify(recordForm.successMineCta)},
+          successDetailCta: ${JSON.stringify(recordForm.successDetailCta)},
+          successMapCta: ${JSON.stringify(recordForm.successMapCta)},
+          successRevisitCta: ${JSON.stringify(recordForm.successRevisitCta)},
           submitDockMeta: ${JSON.stringify(recordForm.submitDockMeta)},
           mediaNoteOnly: ${JSON.stringify(recordForm.mediaNoteOnly)},
           mediaNoteFound: ${JSON.stringify(recordForm.mediaNoteFound)},
@@ -14921,6 +14969,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const setStatus = (html) => {
           if (status) status.innerHTML = html;
+        };
+        const scrollStatusIntoView = () => {
+          if (!status) return;
+          window.requestAnimationFrame(() => {
+            const target = status.querySelector('.record-success-return') || status;
+            if (target && typeof target.scrollIntoView === 'function') {
+              target.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'smooth' });
+            }
+          });
         };
         const recordKpiEndpoint = withBasePath('/api/v1/ui-kpi/events');
         const recordKpiStartedAt = Date.now();
@@ -15441,6 +15498,38 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             state = 'candidate';
           }
           return '<div class="record-success-public-state" data-public-state="' + escapeHtmlText(state) + '"><strong>' + escapeHtmlText(recordUiCopy.publicStateTitle) + '</strong><span>' + escapeHtmlText(body) + '</span></div>';
+        };
+
+        const publicStateSuccessKind = (observation) => {
+          const publicVisibility = String(observation && observation.publicVisibility || '');
+          const qualityReviewStatus = String(observation && observation.qualityReviewStatus || '');
+          if (publicVisibility === 'hidden') return 'hidden';
+          if (publicVisibility === 'public' && qualityReviewStatus === 'accepted') return 'candidate';
+          return 'review';
+        };
+
+        const buildRecordReturnHtml = (observation, links) => {
+          const state = publicStateSuccessKind(observation);
+          const body = state === 'candidate'
+            ? recordUiCopy.successReturnCandidate
+            : state === 'hidden'
+              ? recordUiCopy.successReturnHidden
+              : recordUiCopy.successReturnReview;
+          const actionLinks = [
+            { href: links.observationHref, key: 'observation_detail', label: recordUiCopy.successDetailCta, primary: true },
+            { href: links.notesHref, key: 'notes', label: recordUiCopy.successMineCta, primary: false },
+          ];
+          if (state !== 'hidden' && links.mapHref) {
+            actionLinks.push({ href: links.mapHref, key: 'map_nearby', label: recordUiCopy.successMapCta, primary: false });
+          }
+          actionLinks.push({ href: links.revisitHref, key: 'revisit_same_place', label: recordUiCopy.successRevisitCta, primary: false });
+          return '<div class="record-success-return" data-success-return-state="' + escapeHtmlText(state) + '">' +
+            '<strong>' + escapeHtmlText(recordUiCopy.successReturnTitle) + '</strong>' +
+            '<span>' + escapeHtmlText(body) + '</span>' +
+            '<div class="record-success-actions">' + actionLinks.map((link) =>
+              '<a class="' + (link.primary ? 'is-primary' : '') + '" href="' + escapeHtmlText(link.href) + '" data-record-success-cta="' + escapeHtmlText(link.key) + '">' + escapeHtmlText(link.label) + '</a>'
+            ).join('') + '</div>' +
+          '</div>';
         };
 
         const syncSubmitCta = () => {
@@ -18017,13 +18106,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 : '';
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
+              const successReturnState = publicStateSuccessKind(observationJson || {});
+              const canUsePreciseMapReturn = successReturnState === 'candidate' && hasRecordCoordinates;
+              const mapQuery = canUsePreciseMapReturn
+                ? '?tab=places&lng=' + encodeURIComponent(longitude.toFixed(6)) + '&lat=' + encodeURIComponent(latitude.toFixed(6)) + '&z=17'
+                : '?tab=places';
+              const mapHref = successReturnState === 'hidden' ? '' : withBasePath('/map' + mapQuery);
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              const recordReturnHtml = buildRecordReturnHtml(observationJson || {}, { notesHref, observationHref, mapHref, revisitHref });
+              setStatus('<div class="row"><div>' + recordReturnHtml + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '</div></div>');
+              scrollStatusIntoView();
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['observation_detail', 'revisit_same_place', 'notes'].concat(contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
+                successCtas: ['observation_detail', 'notes'].concat(mapHref ? ['map_nearby'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
                 contributionReceiptCount: contributionReceipts.length,
                 contributionReceiptKinds,
               });
@@ -18367,6 +18464,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-video-publication-help a { color: #0369a1; text-decoration: underline; text-underline-offset: 3px; font-weight: 950; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
         .record-status-inline { grid-column: 1 / -1; margin: 14px 0 0 16px; }
+        .record-success-return { scroll-margin-top: 92px; margin: 0 0 10px; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); border: 1px solid rgba(16,185,129,.24); display: grid; gap: 7px; }
+        .record-success-return strong { color: #064e3b; font-size: 15px; line-height: 1.35; font-weight: 950; }
+        .record-success-return span { color: #334155; font-size: 13px; line-height: 1.65; font-weight: 780; }
+        .record-success-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+        .record-success-actions a { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 10px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; font-size: 12.5px; line-height: 1.2; font-weight: 950; text-align: center; overflow-wrap: anywhere; }
+        .record-success-actions a.is-primary { background: #059669; border-color: #059669; color: #fff; }
         .record-upload-feedback { margin: 10px 0 8px; padding: 12px 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); display: grid; gap: 4px; }
         .record-upload-feedback strong { color: #065f46; font-size: 12px; line-height: 1.35; }
         .record-upload-feedback span { color: #0f172a; font-size: 13px; line-height: 1.7; font-weight: 750; }
@@ -18408,6 +18511,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-page { padding-bottom: 104px; }
           .record-has-media .record-page { padding-bottom: 118px; }
           .record-has-media .hero-panel { display: none; }
+          .record-success-actions { grid-template-columns: 1fr; }
           .record-card { padding: 20px; border-radius: 24px; }
           .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
           .record-capture-photo-primary { grid-column: 1 / -1; }
