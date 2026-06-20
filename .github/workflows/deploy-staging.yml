@@ -962,6 +962,20 @@ jobs:
             return Promise.race([promise, timeoutAfter(ms, label)]);
           }
 
+          async function captureViewportPng(context, page, outputPath, timeoutMs) {
+            const client = await context.newCDPSession(page);
+            try {
+              const result = await bounded(client.send("Page.captureScreenshot", {
+                format: "png",
+                fromSurface: true,
+                captureBeyondViewport: false,
+              }), timeoutMs, "cdp screenshot");
+              writeFileSync(outputPath, Buffer.from(result.data, "base64"));
+            } finally {
+              await client.detach().catch(() => {});
+            }
+          }
+
           const profiles = [
             { slug: "desktop-1440", viewport: { width: 1440, height: 900 } },
             { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
@@ -1023,7 +1037,7 @@ jobs:
                 entry.errors.push(`rain click: ${String(error)}`);
               });
               await page.waitForTimeout(1500);
-              await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}.png`), fullPage: false, timeout: screenshotTimeoutMs }), screenshotTimeoutMs + 5000, `${profile.slug} screenshot`);
+              await captureViewportPng(context, page, path.join(outDir, `rain-nowcast-${profile.slug}.png`), screenshotTimeoutMs);
               screenshotCaptured = true;
               entry.state = await bounded(page.evaluate(collectState), 8000, `${profile.slug} state`).catch((error) => {
                 entry.errors.push(`state: ${String(error)}`);
@@ -1035,7 +1049,7 @@ jobs:
               try {
                 const page = context?.pages()?.[0];
                 if (page && !String(error).includes("screenshot")) {
-                  await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false, timeout: screenshotTimeoutMs }), screenshotTimeoutMs + 5000, `${profile.slug} error screenshot`);
+                  await captureViewportPng(context, page, path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), screenshotTimeoutMs);
                   screenshotCaptured = true;
                   entry.state = await bounded(page.evaluate(collectState), 5000, `${profile.slug} error state`).catch((stateError) => {
                     entry.errors.push(`error state: ${String(stateError)}`);
