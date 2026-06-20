@@ -124,6 +124,7 @@ export function stagingContextOptions(overrides: Partial<BrowserContextOptions> 
 export async function newStagingContext(
   browser: Browser,
   profile: ViewportProfile,
+  overrides: Partial<BrowserContextOptions> = {},
 ): Promise<BrowserContext> {
   return browser.newContext(
     stagingContextOptions({
@@ -132,6 +133,7 @@ export async function newStagingContext(
       isMobile: profile.isMobile,
       hasTouch: profile.hasTouch,
       userAgent: profile.userAgent,
+      ...overrides,
     }),
   );
 }
