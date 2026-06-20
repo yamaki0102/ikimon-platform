@@ -351,7 +351,7 @@ async function waitForMapEmptyState(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
   await expect(page.locator(".me-results-empty")).toBeAttached();
 }
 
-test("mobile bottom sheet opens as a map-detail peek and follows drag before snapping", async ({ browser }) => {
+test("mobile bottom sheet opens as a map-detail peek and follows drag before snapping", async ({ browser }, testInfo) => {
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
   expect(mobile, "mobile viewport profile should exist").toBeTruthy();
   const context = await newStagingContext(browser, mobile!);
@@ -379,6 +379,10 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
   expect(peek.sheetHeight, "first sheet should open as a compact peek, not a full takeover").toBeGreaterThan(200);
   expect(peek.sheetHeight, "first sheet should leave map context visible").toBeLessThanOrEqual(330);
   expect(peek.sheetTop, "map should remain visible above the first sheet").toBeGreaterThan(260);
+  await testInfo.attach("c112-mobile-map-sheet-peek", {
+    body: await page.screenshot({ fullPage: false }),
+    contentType: "image/png",
+  });
 
   const gripBox = await page.locator("#me-bottom-grip").boundingBox();
   expect(gripBox, "bottom sheet grip should be measurable").toBeTruthy();
@@ -404,12 +408,20 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
   expect(dragging.dragHeight).toMatch(/px$/);
   expect(dragging.height, "sheet height should follow the finger during pointermove").toBeGreaterThan(peek.sheetHeight + 45);
   expect(dragging.transition, "dragging should not animate behind the finger").toBe("none");
+  await testInfo.attach("c112-mobile-map-sheet-dragging", {
+    body: await page.screenshot({ fullPage: false }),
+    contentType: "image/png",
+  });
 
   await page.mouse.up();
   await expect(sheet).toHaveAttribute("data-snap", "full");
   await expect(sheet).not.toHaveClass(/is-dragging/);
   const full = await readMobileSheetMotionState(page);
   expect(full.overlapPx, "full sheet should still avoid covering the record launcher").toBeLessThanOrEqual(2);
+  await testInfo.attach("c112-mobile-map-sheet-full", {
+    body: await page.screenshot({ fullPage: false }),
+    contentType: "image/png",
+  });
 
   await context.close();
 });
