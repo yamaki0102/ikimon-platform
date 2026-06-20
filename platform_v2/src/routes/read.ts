@@ -14838,6 +14838,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let visualRecordFeedbackPending = false;
         let mediaAutofillSequence = 0;
         let pendingMediaRetryObservationId = '';
+        let pendingMediaRetryVisitId = '';
+        let pendingMediaRetryDetailId = '';
         let videoTrimState = null;
         let recordMap = null;
         let recordMapMarker = null;
@@ -14847,6 +14849,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let localityLookupSequence = 0;
         let recordLocationProvenance = null;
         let recordSubmitInFlight = false;
+        let recordDraftAutosaveTimer = 0;
         const visitIdFromObservationTargetId = (targetId) => {
           const value = String(targetId || '').trim();
           const match = value.match(/^occ:([^:]+):\\d+$/);
@@ -14866,6 +14869,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const visitId = json && typeof json.visitId === 'string' ? json.visitId.trim() : '';
           if (visitId) return visitId;
           return String(fallbackId || '').trim();
+        };
+        const clearPendingMediaRetryTarget = () => {
+          pendingMediaRetryObservationId = '';
+          pendingMediaRetryVisitId = '';
+          pendingMediaRetryDetailId = '';
         };
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = ${JSON.stringify(recordCopy.captureLabels)};
@@ -15221,6 +15229,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             locationSource: recordLocationProvenance ? recordLocationProvenance.source : 'unknown',
             hasCoordinates: true,
           });
+          scheduleRecordDraftAutosave('location_set');
           if (recordMapReady && recordMap && window.maplibregl) {
             recordMap.jumpTo({ center: [Number(lng), Number(lat)], zoom: opts && opts.zoom ? opts.zoom : Math.max(recordMap.getZoom(), 15) });
             if (!recordMapMarker) recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).addTo(recordMap);
@@ -15247,6 +15256,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           updateLocationText('');
           syncPreview();
           syncLocationNudge();
+          scheduleRecordDraftAutosave('location_clear');
         };
 
         const setAutofillStatus = (items) => {
@@ -15339,6 +15349,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const selectedPhotoFiles = () => selectedMediaFiles.filter((file) => file instanceof File && isImageFile(file));
         const allSelectedMediaFiles = () => [
           ...selectedPhotoFiles(),
+          ...(selectedVideoFile instanceof File ? [selectedVideoFile] : []),
+        ];
+        const allMediaRetryFiles = () => [
+          ...selectedPhotoFiles(),
+          ...(selectedPrimaryPhotoFile instanceof File ? [selectedPrimaryPhotoFile] : []),
           ...(selectedVideoFile instanceof File ? [selectedVideoFile] : []),
         ];
         const firstSelectedMediaFile = () => allSelectedMediaFiles()[0] || null;
@@ -16732,6 +16747,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         };
 
         const showRecordFormForMedia = (files, kind, notices) => {
+          setMediaRetryFormLock(false);
           const normalized = normalizeSelectedFiles(files, kind);
           selectedMediaFiles = normalized.photos;
           selectedVideoFile = normalized.video;
@@ -16782,6 +16798,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const setPendingCaptureKind = (kind) => {
           if (!captureLabels[kind]) return;
+          setMediaRetryFormLock(false);
           if (kind === 'note') {
             showRecordFormForMedia([], 'note');
             renderPreviewFile(null);
@@ -16813,12 +16830,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           syncModeUi();
         };
 
-        const clearSelectedMedia = () => {
+        const clearSelectedMedia = (options) => {
+          const preserveMediaRetry = Boolean(options && options.preserveMediaRetry);
+          setMediaRetryFormLock(false);
           mediaAutofillSequence += 1;
           selectedMediaFiles = [];
           selectedVideoFile = null;
           selectedPrimaryPhotoFile = null;
-          pendingMediaRetryObservationId = '';
+          if (!preserveMediaRetry) clearPendingMediaRetryTarget();
           selectedCaptureKind = '';
           currentCaptureNoticeText = '';
           resetVisualRecordFeedback();
@@ -16844,6 +16863,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           syncVideoPrimaryPhotoUi();
           syncSubmitCta();
           syncModeUi();
+          if (preserveMediaRetry) {
+            markMediaRetryUrl();
+            setStatus('<div class="row"><div>未送信メディアはこの端末に残っています。別の写真や動画を選ぶと、同じ保存済み記録へ再送できます。</div></div>');
+          } else {
+            deleteRecordDraft().catch(() => undefined);
+            clearRecordDraftUrl();
+          }
         };
 
         const renderPreviewFile = (file) => {
@@ -17126,10 +17152,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               let value = null;
               request.onsuccess = () => {
                 value = request.result || null;
-                store.delete(RECORD_DRAFT_KEY);
-                if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.delete === 'function') {
-                  window.ikimonAppOutbox.delete('record:' + RECORD_DRAFT_KEY).catch(() => undefined);
-                }
               };
               request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
               transaction.oncomplete = () => resolve(value);
@@ -17138,6 +17160,242 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           } finally {
             db.close();
           }
+        };
+        const saveRecordDraft = async (draft) => {
+          const db = await openRecordDraftDb();
+          try {
+            await new Promise((resolve, reject) => {
+              const transaction = db.transaction(RECORD_DRAFT_STORE, 'readwrite');
+              transaction.objectStore(RECORD_DRAFT_STORE).put(draft, RECORD_DRAFT_KEY);
+              transaction.oncomplete = () => resolve(true);
+              transaction.onerror = () => reject(transaction.error || new Error('indexeddb_write_failed'));
+            });
+            if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
+              const metadata = draft && draft.metadata && typeof draft.metadata === 'object' ? draft.metadata : {};
+              const isMediaRetryDraft = Boolean(metadata.mediaRetry || metadata.pendingMediaRetryObservationId || metadata.pendingMediaRetryVisitId || metadata.pendingMediaRetryDetailId);
+              window.ikimonAppOutbox.enqueue({
+                id: 'record:' + RECORD_DRAFT_KEY,
+                source: 'record',
+                kind: isMediaRetryDraft ? 'media_retry' : 'record_draft',
+                sourceId: RECORD_DRAFT_KEY,
+                status: 'queued',
+                payloadMeta: {
+                  kind: draft && draft.kind || null,
+                  fileCount: draft && Array.isArray(draft.files) ? draft.files.length : (draft && draft.file ? 1 : 0),
+                  pendingMediaRetryObservationId: metadata.pendingMediaRetryObservationId || null,
+                  pendingMediaRetryVisitId: metadata.pendingMediaRetryVisitId || null,
+                  pendingMediaRetryDetailId: metadata.pendingMediaRetryDetailId || null,
+                  hasFormValues: Boolean(metadata.formValues && typeof metadata.formValues === 'object'),
+                  draftReason: metadata.draftReason || metadata.mediaRetryReason || null,
+                  savedAt: draft && draft.savedAt || Date.now()
+                }
+              }).catch(() => undefined);
+            }
+          } finally {
+            db.close();
+          }
+        };
+        const deleteRecordDraft = async () => {
+          const db = await openRecordDraftDb();
+          try {
+            await new Promise((resolve, reject) => {
+              const transaction = db.transaction(RECORD_DRAFT_STORE, 'readwrite');
+              transaction.objectStore(RECORD_DRAFT_STORE).delete(RECORD_DRAFT_KEY);
+              transaction.oncomplete = () => resolve(true);
+              transaction.onerror = () => reject(transaction.error || new Error('indexeddb_delete_failed'));
+            });
+            if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.delete === 'function') {
+              window.ikimonAppOutbox.delete('record:' + RECORD_DRAFT_KEY).catch(() => undefined);
+            }
+          } finally {
+            db.close();
+          }
+        };
+        const markRecordDraftUrl = (retry) => {
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('draft', '1');
+            if (retry) url.searchParams.set('retry', 'media');
+            else url.searchParams.delete('retry');
+            window.history.replaceState(window.history.state, document.title, url.pathname + url.search + url.hash);
+          } catch (_) {}
+        };
+        const markMediaRetryUrl = () => markRecordDraftUrl(true);
+        const clearRecordDraftUrl = () => {
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('draft');
+            url.searchParams.delete('retry');
+            window.history.replaceState(window.history.state, document.title, url.pathname + url.search + url.hash);
+          } catch (_) {}
+        };
+        const setMediaRetryFormLock = (locked) => {
+          document.documentElement.classList.toggle('record-media-retry-mode', Boolean(locked));
+          if (!form) return;
+          Array.from(form.elements || []).forEach((field) => {
+            if (!field || !field.tagName) return;
+            const tag = String(field.tagName || '').toLowerCase();
+            const type = String(field.type || '').toLowerCase();
+            if (tag === 'button' || type === 'button' || type === 'submit' || type === 'hidden' || type === 'file') return;
+            if (!field.dataset) return;
+            if (locked) {
+              if (field.dataset.mediaRetryLocked !== '1') {
+                field.dataset.mediaRetryLocked = '1';
+                field.dataset.mediaRetryWasDisabled = field.disabled ? '1' : '0';
+                field.dataset.mediaRetryWasReadOnly = 'readOnly' in field && field.readOnly ? '1' : '0';
+              }
+              if ('readOnly' in field && tag !== 'select') {
+                field.readOnly = true;
+                field.setAttribute('aria-readonly', 'true');
+              } else {
+                field.disabled = true;
+              }
+              return;
+            }
+            if (field.dataset.mediaRetryLocked === '1') {
+              field.disabled = field.dataset.mediaRetryWasDisabled === '1';
+              if ('readOnly' in field) field.readOnly = field.dataset.mediaRetryWasReadOnly === '1';
+              field.removeAttribute('aria-readonly');
+              delete field.dataset.mediaRetryLocked;
+              delete field.dataset.mediaRetryWasDisabled;
+              delete field.dataset.mediaRetryWasReadOnly;
+            }
+          });
+        };
+        const normalizeRecordDraftFormValues = (values) => values && typeof values === 'object' ? values : {};
+        const collectRecordDraftFormValues = () => {
+          const values = {};
+          if (!form) return values;
+          Array.from(form.elements || []).forEach((field) => {
+            if (!field || !field.name || String(field.type || '').toLowerCase() === 'file') return;
+            const name = String(field.name);
+            const type = String(field.type || '').toLowerCase();
+            if (type === 'checkbox') {
+              if (!Array.isArray(values[name])) values[name] = [];
+              if (field.checked) values[name].push(field.value || 'on');
+              return;
+            }
+            if (type === 'radio') {
+              if (field.checked) values[name] = field.value || '';
+              return;
+            }
+            if ('value' in field) values[name] = field.value || '';
+          });
+          return values;
+        };
+        const namedFormControls = (name) => {
+          if (!form || !name) return [];
+          const named = form.elements.namedItem(name);
+          if (!named) return [];
+          if (named instanceof Element) return [named];
+          return Array.from(named).filter((field) => field instanceof Element);
+        };
+        const applyRecordDraftFormValues = (values) => {
+          const draftValues = normalizeRecordDraftFormValues(values);
+          Object.keys(draftValues).forEach((name) => {
+            const controls = namedFormControls(name);
+            if (!controls.length) return;
+            const value = draftValues[name];
+            controls.forEach((field) => {
+              const type = String(field.type || '').toLowerCase();
+              if (type === 'file') return;
+              if (type === 'checkbox') {
+                const selected = Array.isArray(value) ? value.map((item) => String(item)) : [String(value || '')];
+                field.checked = selected.includes(field.value || 'on');
+                return;
+              }
+              if (type === 'radio') {
+                field.checked = String(field.value || '') === String(value || '');
+                return;
+              }
+              if ('value' in field) field.value = value == null ? '' : String(value);
+            });
+          });
+          if (draftValues.recordMode && modeInput) modeInput.value = draftValues.recordMode === 'survey' ? 'survey' : 'quick';
+          if (draftValues.mediaRole) setSelectedMediaRole(draftValues.mediaRole);
+          selectedSeasonClues.clear();
+          seasonClueManagedValue = '';
+          syncSeasonClueButtons();
+          syncModeUi();
+          const coords = readCoords();
+          if (coords) {
+            setRecordLocationProvenance('record_draft_restore', coords.lat, coords.lng, {
+              label: '保存済み下書きの地点',
+              reverseGeocode: false,
+            });
+            updateLocationText('保存済み下書きの地点');
+            if (recordMapReady && recordMap && window.maplibregl) {
+              recordMap.jumpTo({ center: [coords.lng, coords.lat], zoom: Math.max(recordMap.getZoom(), 15) });
+              if (!recordMapMarker) recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).addTo(recordMap);
+              recordMapMarker.setLngLat([coords.lng, coords.lat]);
+            }
+          }
+          syncPreview();
+          syncLocationNudge();
+          syncLocationPrivacyNotice();
+        };
+        const hasRecordDraftFormValues = (metadata) => {
+          const values = metadata && metadata.formValues;
+          return Boolean(values && typeof values === 'object' && Object.keys(values).length > 0);
+        };
+        const buildRecordDraftPayload = (reason, extraMetadata) => {
+          const files = allMediaRetryFiles();
+          if (files.length === 0 && !hasNoteDraft()) return null;
+          const retryKind = selectedVideoFile instanceof File ? 'video' : (selectedCaptureKind || 'gallery');
+          const [firstDraftFile = null] = files;
+          return {
+            file: firstDraftFile,
+            files,
+            kind: retryKind,
+            savedAt: Date.now(),
+            metadata: {
+              mediaRole: selectedMediaRole || 'primary_subject',
+              mediaRetry: false,
+              draftReason: String(reason || 'media_selected').slice(0, 80),
+              formValues: collectRecordDraftFormValues(),
+              ...(extraMetadata && typeof extraMetadata === 'object' ? extraMetadata : {})
+            }
+          };
+        };
+        const persistCurrentRecordDraft = async (reason) => {
+          const retryMetadata = pendingMediaRetryObservationId || pendingMediaRetryVisitId || pendingMediaRetryDetailId
+            ? {
+                pendingMediaRetryObservationId: pendingMediaRetryObservationId || pendingMediaRetryVisitId || pendingMediaRetryDetailId,
+                pendingMediaRetryVisitId,
+                pendingMediaRetryDetailId,
+                mediaRetry: true,
+              }
+            : null;
+          const draft = buildRecordDraftPayload(reason, retryMetadata);
+          if (!draft) return false;
+          await saveRecordDraft(draft);
+          if (retryMetadata) markMediaRetryUrl();
+          else markRecordDraftUrl(false);
+          return true;
+        };
+        const persistCurrentMediaDraft = persistCurrentRecordDraft;
+        const persistMediaRetryDraft = async (visitId, detailId, reason) => {
+          const retryId = String(visitId || detailId || '').trim();
+          if (!retryId) return false;
+          const draft = buildRecordDraftPayload(reason, {
+            pendingMediaRetryObservationId: retryId,
+            pendingMediaRetryVisitId: String(visitId || '').trim(),
+            pendingMediaRetryDetailId: String(detailId || '').trim(),
+            mediaRetry: true,
+            mediaRetryReason: String(reason || '').slice(0, 160)
+          });
+          if (!draft) return false;
+          await saveRecordDraft(draft);
+          markMediaRetryUrl();
+          return true;
+        };
+        const scheduleRecordDraftAutosave = (reason) => {
+          if (!hasRecordDraft()) return;
+          if (recordDraftAutosaveTimer) window.clearTimeout(recordDraftAutosaveTimer);
+          recordDraftAutosaveTimer = window.setTimeout(() => {
+            recordDraftAutosaveTimer = 0;
+            persistCurrentRecordDraft(reason || 'autosave').catch(() => undefined);
+          }, 900);
         };
         const importGlobalRecordDraft = async () => {
           const params = new URLSearchParams(window.location.search);
@@ -17153,23 +17411,48 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const files = draftFiles.length ? draftFiles : (file ? [file] : []);
           const kind = draft && captureLabels[draft.kind] ? draft.kind : (params.get('start') || 'gallery');
           const metadata = normalizeDraftMetadata(draft && draft.metadata);
+          const hasDraftValues = hasRecordDraftFormValues(metadata);
           setSelectedMediaRole(metadata.mediaRole || (kind === 'video' ? 'sound_motion' : 'primary_subject'));
+          const retryVisitId = String(metadata.pendingMediaRetryVisitId || '').trim()
+            || visitIdFromObservationTargetId(metadata.pendingMediaRetryObservationId || metadata.pendingMediaRetryDetailId || '');
+          const retryDetailId = String(metadata.pendingMediaRetryDetailId || '').trim();
+          const retryObservationId = String(metadata.pendingMediaRetryObservationId || retryVisitId || retryDetailId || '').trim();
+          if (retryObservationId) {
+            pendingMediaRetryObservationId = retryObservationId;
+            pendingMediaRetryVisitId = retryVisitId;
+            pendingMediaRetryDetailId = retryDetailId;
+            saveRecordDraft(draft).catch(() => undefined);
+          }
           if (!files.length) {
             setPendingCaptureKind(kind);
+            if (hasDraftValues) {
+              applyRecordDraftFormValues(metadata.formValues);
+              setStatus('<div class="row"><div>残っていた入力内容を復元しました。このまま保存できます。</div></div>');
+            }
             return;
           }
+          const retryNotice = retryObservationId
+            ? ['記録本体は保存済みです。この画面ではメディアだけ再送できます。']
+            : [];
           selectedMediaCapturedAt = null;
           clearMediaInputsExcept(null);
           const normalized = normalizeSelectedFiles(files, kind);
-          showRecordFormForMedia(files, kind);
+          showRecordFormForMedia(files, kind, retryNotice);
+          if (hasDraftValues) applyRecordDraftFormValues(metadata.formValues);
           renderPreviewSelection();
+          if (retryObservationId) {
+            setStatus('<div class="row"><div>記録本体は保存済みです。残っていたメディアを同じ記録に再送できます。入力内容は保存済みなので、この画面ではメディアだけ送ります。</div></div>');
+            setMediaRetryFormLock(true);
+          } else if (hasDraftValues) {
+            setStatus('<div class="row"><div>残っていた入力内容とメディアを復元しました。このまま保存できます。</div></div>');
+          }
           const firstAutofillFile = normalized.photos[0] || normalized.video || null;
           if (!normalized.video) {
             resetVideoTrim();
             resetVideoProgress();
-            scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
+            if (!hasDraftValues) scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
           } else if (videoProgressWrap) {
-            scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'video' });
+            if (!hasDraftValues) scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'video' });
             let trimReady = true;
             try {
               await loadVideoTrimEditor(normalized.video);
@@ -17331,7 +17614,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           });
 
         if (form) {
-          form.addEventListener('input', syncPreview);
+          form.addEventListener('input', () => {
+            syncPreview();
+            scheduleRecordDraftAutosave('form_input');
+          });
+          form.addEventListener('change', () => {
+            scheduleRecordDraftAutosave('form_change');
+          });
         }
         modeButtons.forEach((button) => {
           button.addEventListener('click', () => {
@@ -17339,6 +17628,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             modeInput.value = button.getAttribute('data-record-mode') || 'quick';
             syncModeUi();
             syncPreview();
+            scheduleRecordDraftAutosave('record_mode_change');
           });
         });
         const delegateToGlobalRecordLauncher = (action) => {
@@ -17362,6 +17652,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               resetVideoProgress();
               resetVideoTrim();
               setAutofillStatus([]);
+              scheduleRecordDraftAutosave('note_start');
               return;
             }
             if (delegateToGlobalRecordLauncher(action)) return;
@@ -17394,18 +17685,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               resetVideoProgress();
               resetVideoTrim();
               setAutofillStatus([]);
+              scheduleRecordDraftAutosave('media_clear');
             } else if (!normalized.video) {
               setSelectedMediaRole('primary_subject');
               showRecordFormForMedia(files, kind);
               renderPreviewSelection();
               resetVideoProgress();
               resetVideoTrim();
+              persistCurrentMediaDraft('media_selected').catch(() => undefined);
               void requestVisualRecordFeedback();
               scheduleMediaAutofill(normalized.photos[0] || null, {}, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
             } else if (videoProgressWrap) {
               setSelectedMediaRole(kind === 'video' ? 'sound_motion' : 'primary_subject');
               showRecordFormForMedia(files, kind);
               renderPreviewSelection();
+              persistCurrentMediaDraft('media_selected').catch(() => undefined);
               void requestVisualRecordFeedback();
               scheduleMediaAutofill(normalized.photos[0] || normalized.video, {}, { autoLocateFreshCapture: kind === 'video' });
               let trimReady = true;
@@ -17441,6 +17735,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             syncVideoPrimaryPhotoUi();
             visualRecordFeedbackSentence = '';
             visualRecordFeedbackMediaKey = '';
+            scheduleRecordDraftAutosave('primary_photo_selected');
             void requestVisualRecordFeedback();
             scheduleMediaAutofill(file, {}, { autoLocateFreshCapture: false });
           });
@@ -17451,11 +17746,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (videoPrimaryPhotoInput) videoPrimaryPhotoInput.value = '';
             syncVideoPrimaryPhotoUi();
             resetVisualRecordFeedback();
+            scheduleRecordDraftAutosave('primary_photo_clear');
             void requestVisualRecordFeedback();
           });
         }
         if (captureChange) {
-          captureChange.addEventListener('click', clearSelectedMedia);
+          captureChange.addEventListener('click', () => {
+            clearSelectedMedia({
+              preserveMediaRetry: Boolean(pendingMediaRetryObservationId || pendingMediaRetryVisitId || pendingMediaRetryDetailId),
+            });
+          });
         }
         if (videoTrimStart) {
           videoTrimStart.addEventListener('input', () => syncVideoTrimControls('start'));
@@ -17492,6 +17792,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         mediaRoleInputs.forEach((input) => {
           input.addEventListener('change', () => {
             if (input.checked) setSelectedMediaRole(input.value);
+            scheduleRecordDraftAutosave('media_role_change');
           });
         });
         locateButtons.forEach((button) => {
@@ -17565,7 +17866,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (recordSubmitInFlight) return;
             const data = new FormData(form);
             const userId = form.dataset.userId || '';
-            const observationId = pendingMediaRetryObservationId || 'record-' + Date.now();
+            const mediaRetryVisitTargetId = pendingMediaRetryVisitId || visitIdFromObservationTargetId(pendingMediaRetryObservationId || pendingMediaRetryDetailId);
+            const mediaRetryDetailTargetId = pendingMediaRetryDetailId || (pendingMediaRetryObservationId && pendingMediaRetryObservationId !== mediaRetryVisitTargetId ? pendingMediaRetryObservationId : '');
+            const isMediaRetrySubmit = Boolean(mediaRetryVisitTargetId || mediaRetryDetailTargetId);
+            const observationId = isMediaRetrySubmit ? '' : 'record-' + Date.now();
             let savedDetailId = '';
             let savedVisitId = '';
             if (!userId) {
@@ -17574,8 +17878,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             }
             setRecordSubmitting(true);
             setStatus('<div class="row"><div>記録を送信中...</div></div>');
+            await persistCurrentRecordDraft('submit_attempt').catch(() => false);
             sendRecordFunnelStep('submit_attempt', {
-              pendingMediaRetry: Boolean(pendingMediaRetryObservationId),
+              pendingMediaRetry: isMediaRetrySubmit,
               mediaCount: safeAllSelectedMediaFiles().length,
             });
             try {
@@ -17659,56 +17964,85 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 preparedPhotoUploads.push({ upload: item.upload, role: item.role });
                 clientPhotoHashes.push(item.hash);
               });
-              const observedAtIso = new Date(String(data.get('observedAt'))).toISOString();
-              const parseRecordCoordinate = (name) => {
-                const raw = String(data.get(name) || '').trim();
-                if (!raw) return null;
-                const value = Number(raw);
-                if (!Number.isFinite(value)) {
-                  throw new Error(name === 'latitude' ? 'invalid_latitude' : 'invalid_longitude');
-                }
-                if (name === 'latitude' && (value < -90 || value > 90)) throw new Error('invalid_latitude');
-                if (name === 'longitude' && (value < -180 || value > 180)) throw new Error('invalid_longitude');
-                return Number(value.toFixed(6));
+              let observationJson = {
+                ok: true,
+                mediaRetry: isMediaRetrySubmit,
+                contributionReceipts: [],
+                placeMemorySample: [],
+                impact: null,
+                placeId: null,
               };
-              const latitude = parseRecordCoordinate('latitude');
-              const longitude = parseRecordCoordinate('longitude');
-              const hasRecordCoordinates = latitude !== null && longitude !== null;
-              if ((latitude === null) !== (longitude === null)) {
-                throw new Error('record_location_pair_required');
-              }
-              if (hasRecordCoordinates && latitude === 0 && longitude === 0) {
-                throw new Error('invalid_location');
-              }
-              const videoFingerprint = selectedVideoFile instanceof File
-                ? ['video', selectedVideoFile.name || '', String(selectedVideoFile.size || 0), String(selectedVideoFile.lastModified || 0)].join(':')
-                : '';
-              const clientSubmissionSeed = [
-                userId,
-                observedAtIso,
-                latitude !== null ? latitude.toFixed(6) : '',
-                longitude !== null ? longitude.toFixed(6) : '',
-                clientPhotoHashes.join(','),
-                videoFingerprint,
-              ].join('|');
-              const clientSubmissionId = 'record-form:' + ((await sha256Hex(clientSubmissionSeed)) || observationId);
-              const civicContextKind = activityIntent === 'manage'
-                ? 'satoyama'
-                : activityIntent === 'confirm'
-                  ? 'risk'
-                  : activityIntent === 'learn'
-                    ? 'school'
-                    : activityIntent === 'share'
-                      ? 'event'
-                      : 'ordinary';
-              const payload = {
-                observationId,
-                legacyObservationId: observationId,
-                clientSubmissionId,
-                userId,
-                observedAt: observedAtIso,
-                latitude,
-                longitude,
+              let visitId = '';
+              let detailId = '';
+              let photoUploadTargetId = '';
+              if (isMediaRetrySubmit) {
+                if (preparedPhotoUploads.length === 0 && !(selectedVideoFile instanceof File && selectedVideoFile.size > 0)) {
+                  throw new Error('media_retry_requires_media');
+                }
+                visitId = mediaRetryVisitTargetId || visitIdFromObservationTargetId(mediaRetryDetailTargetId);
+                detailId = mediaRetryDetailTargetId || visitId;
+                photoUploadTargetId = visitId || detailId;
+                if (!photoUploadTargetId || !detailId) {
+                  throw new Error('media_retry_target_missing');
+                }
+                savedDetailId = detailId;
+                savedVisitId = visitId;
+                sendRecordFunnelStep('media_retry_target_ready', {
+                  visitId,
+                  occurrenceId: detailId,
+                  mediaCount: safeAllSelectedMediaFiles().length,
+                });
+              } else {
+                const observedAtIso = new Date(String(data.get('observedAt'))).toISOString();
+                const parseRecordCoordinate = (name) => {
+                  const raw = String(data.get(name) || '').trim();
+                  if (!raw) return null;
+                  const value = Number(raw);
+                  if (!Number.isFinite(value)) {
+                    throw new Error(name === 'latitude' ? 'invalid_latitude' : 'invalid_longitude');
+                  }
+                  if (name === 'latitude' && (value < -90 || value > 90)) throw new Error('invalid_latitude');
+                  if (name === 'longitude' && (value < -180 || value > 180)) throw new Error('invalid_longitude');
+                  return Number(value.toFixed(6));
+                };
+                const latitude = parseRecordCoordinate('latitude');
+                const longitude = parseRecordCoordinate('longitude');
+                const hasRecordCoordinates = latitude !== null && longitude !== null;
+                if ((latitude === null) !== (longitude === null)) {
+                  throw new Error('record_location_pair_required');
+                }
+                if (hasRecordCoordinates && latitude === 0 && longitude === 0) {
+                  throw new Error('invalid_location');
+                }
+                const videoFingerprint = selectedVideoFile instanceof File
+                  ? ['video', selectedVideoFile.name || '', String(selectedVideoFile.size || 0), String(selectedVideoFile.lastModified || 0)].join(':')
+                  : '';
+                const clientSubmissionSeed = [
+                  userId,
+                  observedAtIso,
+                  latitude !== null ? latitude.toFixed(6) : '',
+                  longitude !== null ? longitude.toFixed(6) : '',
+                  clientPhotoHashes.join(','),
+                  videoFingerprint,
+                ].join('|');
+                const clientSubmissionId = 'record-form:' + ((await sha256Hex(clientSubmissionSeed)) || observationId);
+                const civicContextKind = activityIntent === 'manage'
+                  ? 'satoyama'
+                  : activityIntent === 'confirm'
+                    ? 'risk'
+                    : activityIntent === 'learn'
+                      ? 'school'
+                      : activityIntent === 'share'
+                        ? 'event'
+                        : 'ordinary';
+                const payload = {
+                  observationId,
+                  legacyObservationId: observationId,
+                  clientSubmissionId,
+                  userId,
+                  observedAt: observedAtIso,
+                  latitude,
+                  longitude,
                 prefecture: String(data.get('prefecture') || ''),
                 municipality: String(data.get('municipality') || ''),
                 localityNote: String(data.get('localityNote') || ''),
@@ -17851,16 +18185,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 credentials: 'include',
                 body: JSON.stringify(payload),
               });
-              const observationJson = await observationResponse.json();
+              observationJson = await observationResponse.json();
               if (!observationResponse.ok || !observationJson.ok) {
                 throw new Error(observationJson.error || 'observation_upsert_failed');
               }
-              const visitId = normalizeSavedObservationVisitId(observationJson, observationId);
-              const detailId = normalizeSavedObservationTargetId(observationJson, visitId || observationId);
+              visitId = normalizeSavedObservationVisitId(observationJson, observationId);
+              detailId = normalizeSavedObservationTargetId(observationJson, visitId || observationId);
               if (!detailId) {
                 throw new Error('observation_target_missing');
               }
-              const photoUploadTargetId = visitId || detailId;
+              photoUploadTargetId = visitId || detailId;
               savedDetailId = detailId;
               savedVisitId = visitId;
               sendRecordFunnelStep('observation_upsert_success', {
@@ -17869,6 +18203,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 placeId: observationJson.placeId || null,
                 occurrenceCount: Array.isArray(observationJson.occurrenceIds) ? observationJson.occurrenceIds.length : 1,
               });
+              }
               let extraStatus = '';
 
               const uploadPhotoFile = async (upload, mediaRoleForPhoto, index, total) => {
@@ -18010,7 +18345,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              const successHeading = isMediaRetrySubmit ? 'メディアを保存しました。' : '記録を保存しました。';
+              setStatus('<div class="row"><div><strong>' + successHeading + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
@@ -18026,8 +18362,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 mediaCount: safeAllSelectedMediaFiles().length,
                 photoUploadCount: preparedPhotoUploads.length,
                 hasVideo: Boolean(selectedVideoFile),
+                mediaRetry: isMediaRetrySubmit,
               });
-              pendingMediaRetryObservationId = '';
+              deleteRecordDraft().catch(() => undefined);
+              clearRecordDraftUrl();
+              clearPendingMediaRetryTarget();
               form.reset();
               clearRecordLocation();
               if (modeInput) modeInput.value = 'quick';
@@ -18080,14 +18419,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (message === 'invalid_latitude') userMessage = '緯度は -90 から 90 の範囲で入力してください。';
               if (message === 'invalid_longitude') userMessage = '経度は -180 から 180 の範囲で入力してください。';
               if (message === 'invalid_location') userMessage = 'この座標は記録に使えません。位置を指定し直すか、場所なしで保存してください。';
+              if (message === 'media_retry_requires_media') userMessage = '再送する写真または動画を選んでください。';
+              if (message === 'media_retry_target_missing') userMessage = '保存済みの記録を確認できませんでした。記録一覧から対象を開き直してください。';
               const partialLink = savedDetailId
                 ? '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(savedDetailId)) + '">保存済みの見つけたものを見る</a> · メディアだけ再試行する場合はこの画面のまま再送信してください。</div>'
+                : '';
+              const retryDraftSaved = savedDetailId
+                ? await persistMediaRetryDraft(savedVisitId, savedDetailId, message).catch(() => false)
+                : false;
+              const retryDraftNote = retryDraftSaved
+                ? '<div class="meta">画面を閉じたり読み込み直しても、残っているメディアを次に開いた記録画面で再送できます。</div>'
+                : '';
+              const unsavedDraftSaved = !savedDetailId
+                ? await persistCurrentRecordDraft(message).catch(() => false)
+                : false;
+              const unsavedDraftNote = unsavedDraftSaved
+                ? '<div class="meta">入力内容はこの端末に残っています。読み込み直してもこの画面から続けられます。</div>'
                 : '';
               const invasiveReportingNote = savedDetailId
                 ? '<div class="meta">AI判定で外来種候補になった場合、許可済みの自治体・機関へ写真・日時・詳細位置を自動共有することがあります。公開ページに詳細位置は出ません。</div>'
                 : '';
               const statusHeading = savedDetailId ? '記録本体は保存済みです。' : '送信に失敗しました。';
-              if (savedDetailId) pendingMediaRetryObservationId = savedVisitId || savedDetailId;
+              if (savedDetailId) {
+                pendingMediaRetryVisitId = savedVisitId || visitIdFromObservationTargetId(savedDetailId);
+                pendingMediaRetryDetailId = savedDetailId;
+                pendingMediaRetryObservationId = pendingMediaRetryVisitId || pendingMediaRetryDetailId;
+              }
               const funnelErrorAction = message.startsWith('photo_upload_failed_at_')
                 ? 'photo_upload_error'
                 : (message.indexOf('video') >= 0 || message.indexOf('cloudflare') >= 0 || message.indexOf('tus') >= 0)
@@ -18103,7 +18460,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 occurrenceId: savedDetailId || null,
                 partialRecordSaved: Boolean(savedDetailId),
               });
-              setStatus('<div class="row"><div>' + statusHeading + '<div class="meta">' + userMessage + '</div>' + partialLink + invasiveReportingNote + '</div></div>');
+              setStatus('<div class="row"><div>' + statusHeading + '<div class="meta">' + userMessage + '</div>' + partialLink + retryDraftNote + unsavedDraftNote + invasiveReportingNote + '</div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
               activeTusUpload = null;
