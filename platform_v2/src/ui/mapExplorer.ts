@@ -1626,8 +1626,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     rainIndeterminate: props.lang === "ja" ? "この地点の雨雲判定を完了できませんでした。" : props.lang === "es" ? "No se pudo completar la comprobación de este punto." : props.lang === "pt-BR" ? "Não foi possível completar a verificação deste ponto." : "This point check could not be completed.",
     rainMapCenter: props.lang === "ja" ? "地図中心" : props.lang === "es" ? "centro del mapa" : props.lang === "pt-BR" ? "centro do mapa" : "map center",
     rainLocationFallback: props.lang === "ja" ? "現在地を使えないため、地図中心の雨雲を確認します。" : props.lang === "es" ? "No se pudo usar tu ubicación; se comprobará el centro del mapa." : props.lang === "pt-BR" ? "Não foi possível usar sua localização; vamos verificar o centro do mapa." : "Location is unavailable, so the map center will be checked.",
-    rainForecastNotice: props.lang === "ja" ? "ikimon独自予報ではありません。" : props.lang === "es" ? "No es un pronóstico de ikimon." : props.lang === "pt-BR" ? "Não é previsão do ikimon." : "This is not an ikimon forecast.",
-    rainAttribution: props.lang === "ja" ? "出典: 気象庁。ikimon独自予報ではありません。" : props.lang === "es" ? "Source: JMA. This is not an ikimon forecast." : props.lang === "pt-BR" ? "Fonte: JMA. Não é previsão do ikimon." : "Source: JMA. This is not an ikimon forecast.",
+    rainForecastNotice: props.lang === "ja" ? "ikimon独自予報ではありません。強い雨・雷は公式情報も確認してください。" : props.lang === "es" ? "No es un pronóstico de ikimon. Revisa avisos oficiales si hay lluvia fuerte o tormentas." : props.lang === "pt-BR" ? "Não é previsão do ikimon. Consulte alertas oficiais em chuva forte ou trovoadas." : "This is not an ikimon forecast. Check official alerts for heavy rain or thunder.",
+    rainAttribution: props.lang === "ja" ? "出典: 気象庁。ikimon独自予報ではありません。強い雨・雷は公式情報も確認してください。" : props.lang === "es" ? "Source: JMA. This is not an ikimon forecast. Check official alerts for storms." : props.lang === "pt-BR" ? "Fonte: JMA. Não é previsão do ikimon. Consulte alertas oficiais." : "Source: JMA. This is not an ikimon forecast. Check official alerts.",
     selfLabel: ambient.selfLabel,
     communityLabel: ambient.communityLabel,
     frontierLabel: ambient.frontierLabel,
@@ -10749,15 +10749,31 @@ export const MAP_EXPLORER_STYLES = `
       --me-mobile-action-space: calc(92px + max(0px, env(safe-area-inset-bottom)));
       --me-mobile-sheet-clearance: 14px;
     }
+    .me-rain-mode .me-section {
+      --me-topbar-h: 44px;
+      --me-mobile-action-space: calc(102px + max(0px, env(safe-area-inset-bottom)));
+    }
     .me-topbar {
       grid-template-columns: 1fr auto;
       grid-template-rows: 40px 38px;
       gap: 8px;
       padding: 5px 10px;
     }
+    .me-rain-mode .me-topbar {
+      grid-template-columns: 1fr;
+      grid-template-rows: 34px;
+      gap: 0;
+      padding: 4px 8px 5px;
+      background: rgba(248,255,254,.9);
+      backdrop-filter: blur(10px);
+    }
     .me-topbar-primary { display: contents; }
     .me-map-kicker { display: none; }
     .me-search-shell { grid-column: 1; grid-row: 1; }
+    .me-rain-mode .me-search-shell,
+    .me-rain-mode .me-topbar-secondary {
+      display: none;
+    }
     .me-topbar-secondary { grid-column: 2; grid-row: 1; }
     .me-tabs {
       grid-column: 1 / -1;
@@ -10768,8 +10784,25 @@ export const MAP_EXPLORER_STYLES = `
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
     }
+    .me-rain-mode .me-tabs {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: center;
+      gap: 3px;
+      padding: 2px;
+      background: rgba(255,255,255,.86);
+      border: 1px solid rgba(15,23,42,.06);
+      box-shadow: 0 8px 22px rgba(15,23,42,.08);
+    }
     .me-tabs::-webkit-scrollbar { display: none; }
     .me-tab { flex: 1 0 auto; min-height: 34px; padding: 4px 12px; font-size: 12px; }
+    .me-rain-mode .me-tab {
+      flex: 0 0 auto;
+      min-height: 29px;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11.5px;
+    }
     .me-filter-drawer { flex: 0 0 auto; }
     .me-filter-panel {
       position: fixed;
@@ -10804,6 +10837,18 @@ export const MAP_EXPLORER_STYLES = `
       background: rgba(255,255,255,.92);
       transform: translate3d(0, 0, 0);
     }
+    .me-rain-mode .me-rain-card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        "label timeline update"
+        "source actions actions"
+        "status status status";
+      align-items: center;
+      gap: 5px 7px;
+      padding: 7px;
+      border-radius: 18px;
+    }
     .me-rain-card[data-sheet-open="1"] {
       opacity: 0;
       visibility: hidden;
@@ -10815,17 +10860,35 @@ export const MAP_EXPLORER_STYLES = `
       grid-template-columns: minmax(0, 1fr) auto auto;
       gap: 6px;
     }
+    .me-rain-mode .me-rain-head { display: contents; }
+    .me-rain-mode .me-rain-head strong {
+      grid-area: label;
+      white-space: nowrap;
+      font-size: 12px;
+      line-height: 1.2;
+    }
     .me-rain-head span {
       padding: 5px 7px;
       border-radius: 999px;
       background: rgba(15,23,42,.06);
       font-size: 10px;
     }
+    .me-rain-mode .me-rain-head span {
+      grid-area: source;
+      padding: 4px 7px;
+      justify-self: start;
+    }
     .me-rain-toggle {
       min-height: 28px;
       padding: 5px 9px;
       border-radius: 999px;
       font-size: 11px;
+    }
+    .me-rain-mode .me-rain-toggle {
+      grid-area: update;
+      min-height: 29px;
+      padding: 4px 9px;
+      justify-self: end;
     }
     .me-rain-timeline {
       display: flex;
@@ -10840,6 +10903,11 @@ export const MAP_EXPLORER_STYLES = `
       -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 22px), transparent 100%);
       mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 22px), transparent 100%);
     }
+    .me-rain-mode .me-rain-timeline {
+      grid-area: timeline;
+      min-width: 0;
+      padding-right: 16px;
+    }
     .me-rain-timeline::-webkit-scrollbar { display: none; }
     .me-rain-time {
       flex: 0 0 auto;
@@ -10848,9 +10916,20 @@ export const MAP_EXPLORER_STYLES = `
       border-radius: 999px;
     }
     .me-rain-actions { gap: 7px; }
+    .me-rain-mode .me-rain-actions {
+      grid-area: actions;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      min-width: 0;
+    }
     .me-rain-actions button {
       min-height: 34px;
       border-radius: 999px;
+    }
+    .me-rain-mode .me-rain-actions button {
+      min-height: 30px;
+      padding: 5px 9px;
+      font-size: 12px;
     }
     .me-rain-status {
       max-height: 18px;
@@ -10859,6 +10938,11 @@ export const MAP_EXPLORER_STYLES = `
       line-height: 1.35;
       white-space: nowrap;
       text-overflow: ellipsis;
+    }
+    .me-rain-mode .me-rain-status {
+      grid-area: status;
+      margin: 0;
+      max-height: 16px;
     }
     .me-side { display: none; }
     .me-side-toggle { display: none; }

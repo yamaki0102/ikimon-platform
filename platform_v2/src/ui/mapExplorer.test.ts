@@ -173,6 +173,10 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(MAP_EXPLORER_STYLES, /\.me-rain-card\[data-sheet-open="1"\] \{[\s\S]*opacity: 0;[\s\S]*visibility: hidden;[\s\S]*pointer-events: none;/);
   assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-rain-timeline \{[\s\S]*display: flex;[\s\S]*overflow-x: auto;/);
   assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-rain-timeline \{[\s\S]*mask-image: linear-gradient\(to right, #000 0, #000 calc\(100% - 22px\), transparent 100%\);/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-section \{[\s\S]*--me-topbar-h: 44px;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-search-shell,\s+\.me-rain-mode \.me-topbar-secondary \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-rain-card \{[\s\S]*grid-template-areas:[\s\S]*"label timeline update"[\s\S]*"source actions actions"[\s\S]*"status status status"/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-rain-head \{ display: contents; \}/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.site-shell\.is-map-surface \.global-record-launcher \{[\s\S]*display: none;/);
   assert.match(script, /jma-rain-nowcast-layer/);
   assert.match(script, /state\.tab === 'rain'/);
@@ -196,6 +200,7 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /rainAttribution/);
   assert.match(script, /ikimon独自予報ではありません/);
   assert.match(script, /出典: 気象庁。ikimon独自予報ではありません/);
+  assert.match(script, /強い雨・雷は公式情報も確認してください/);
   assert.match(script, /6時間先/);
   assert.match(script, /rainIndeterminate/);
   assert.match(script, /rainLocationFallback/);
