@@ -360,7 +360,12 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
   await installDeterministicMapApiFixtures(page);
   await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, true);
 
-  await page.locator(".me-result-row").first().click({ force: true });
+  const canvasBox = await page.locator("[data-maplibre-smoke-stub='1']").boundingBox();
+  expect(canvasBox, "stubbed map canvas should be measurable").toBeTruthy();
+  await page.mouse.click(
+    Math.round(canvasBox!.x + canvasBox!.width / 2),
+    Math.round(canvasBox!.y + canvasBox!.height / 2),
+  );
   const sheet = page.locator("#me-bottom-sheet");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("aria-hidden", "false");
