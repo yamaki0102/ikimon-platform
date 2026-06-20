@@ -184,9 +184,10 @@ function chooseShortRangeTarget(targets: JmaNowcastTarget[], offsetMinutes: numb
 async function getJmaNowcastTimes(): Promise<JmaNowcastTimesResponse> {
   const now = Date.now();
   if (jmaNowcastTimesCache && jmaNowcastTimesCache.expiresAt > now) return jmaNowcastTimesCache.payload;
-  const [currentTargets, forecastTargets] = await Promise.all([
+  const [currentTargets, forecastTargets, shortRangeTargets] = await Promise.all([
     fetchJsonWithTimeout<JmaNowcastTarget[]>(JMA_NOWCAST_TARGET_N1),
     fetchJsonWithTimeout<JmaNowcastTarget[]>(JMA_NOWCAST_TARGET_N2),
+    fetchJsonWithTimeout<JmaNowcastTarget[]>(JMA_SHORT_RANGE_TARGET),
   ]);
   const times: JmaNowcastTimesResponse["times"] = [];
   for (const offsetMinutes of JMA_NOWCAST_OFFSETS) {
@@ -202,7 +203,6 @@ async function getJmaNowcastTimes(): Promise<JmaNowcastTimesResponse> {
       highResolution: offsetMinutes <= 30,
     });
   }
-  const shortRangeTargets = await fetchJsonWithTimeout<JmaNowcastTarget[]>(JMA_SHORT_RANGE_TARGET);
   for (const offsetMinutes of JMA_SHORT_RANGE_OFFSETS) {
     const target = chooseShortRangeTarget(shortRangeTargets, offsetMinutes);
     if (!target) continue;

@@ -130,6 +130,7 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
   assert.match(script, /sheetGripEl\.addEventListener\('pointermove'/);
   assert.match(script, /sheetEl\.style\.setProperty\('--me-sheet-drag-height', Math\.round\(nextHeight\) \+ 'px'\)/);
   assert.match(script, /setSheetSnap\('full'\)/);
+  assert.match(styles, /transition: transform \.34s cubic-bezier\(\.22,\.61,\.36,1\), opacity \.22s ease, height \.28s cubic-bezier\(\.2,\.8,\.2,1\), max-height \.28s cubic-bezier\(\.2,\.8,\.2,1\);/);
   assert.match(styles, /\.me-bottom-sheet--detail \.me-bottom-grip,\s+\.me-bottom-sheet--area \.me-bottom-grip/);
   assert.match(styles, /\.me-bottom-sheet\.is-dragging \{ transition: none; \}/);
   assert.match(styles, /\.me-bottom-sheet--detail\.is-dragging,\s+\.me-bottom-sheet--area\.is-dragging \{[\s\S]*height: var\(--me-sheet-drag-height\);/);
@@ -138,7 +139,7 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
   assert.match(styles, /--me-mobile-sheet-clearance: 14px;/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\s*\{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="peek"\]\s*\{\s*height: 44vh;\s*max-height: 44vh;\s*height: min\(44dvh, calc\(100dvh - var\(--me-header-h\) - 112px\), 380px\);/);
-  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: auto;\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);/);
+  assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);/);
 });
 
 test("map home opens as a regional encyclopedia instead of a raw point finder", () => {
@@ -175,6 +176,11 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /state\.tab === 'rain'/);
   assert.match(script, /if \(!state\.rainEnabled \|\| state\.tab !== 'rain'\) return;/);
   assert.match(script, /function syncRainModeClass\(\)/);
+  assert.match(script, /function shouldKeepMapClearForRain\(\)/);
+  assert.match(script, /return state\.tab === 'rain' && shouldUseBottomSheet\(\);/);
+  assert.match(script, /if \(shouldKeepMapClearForRain\(\)\) \{\s+closeBottomSheet\(\);\s+return;\s+\}/);
+  assert.match(script, /if \(visible && state\.tab === 'rain'\) \{\s+visible = false;/);
+  assert.match(script, /if \(state\.tab === 'rain'\) \{\s+closeBottomSheet\(\);\s+setMapEmptyInviteVisible\(false\);\s+hideLayerHint\(\);\s+enableRainLayer\(\);/);
   assert.match(script, /function rainStatusWithNotice\(text\)/);
   assert.match(script, /rainForecastNotice/);
   assert.match(script, /data-sheet-open/);

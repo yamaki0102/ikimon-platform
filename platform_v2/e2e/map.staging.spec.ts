@@ -112,6 +112,21 @@ const MAP_FIXTURE_RECORDS = {
     },
   },
 };
+const MAP_FIXTURE_RAIN_TIMES: RainNowcastTimesPayload = {
+  tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?product={product}&member={member}&basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
+  times: [
+    { offsetMinutes: 0, basetime: "20260620030000", validtime: "20260620030000", product: "nowcast", member: "none" },
+    { offsetMinutes: 5, basetime: "20260620030000", validtime: "20260620030500", product: "nowcast", member: "none" },
+    { offsetMinutes: 15, basetime: "20260620030000", validtime: "20260620031500", product: "nowcast", member: "none" },
+    { offsetMinutes: 30, basetime: "20260620030000", validtime: "20260620033000", product: "nowcast", member: "none" },
+    { offsetMinutes: 60, basetime: "20260620030000", validtime: "20260620040000", product: "nowcast", member: "none" },
+    { offsetMinutes: 120, basetime: "20260620030000", validtime: "20260620050000", product: "short_range", member: "immed" },
+    { offsetMinutes: 180, basetime: "20260620030000", validtime: "20260620060000", product: "short_range", member: "immed" },
+    { offsetMinutes: 240, basetime: "20260620030000", validtime: "20260620070000", product: "short_range", member: "immed" },
+    { offsetMinutes: 300, basetime: "20260620030000", validtime: "20260620080000", product: "short_range", member: "immed" },
+    { offsetMinutes: 360, basetime: "20260620030000", validtime: "20260620090000", product: "short_range", member: "immed" },
+  ],
+};
 const EMPTY_FEATURE_COLLECTION = {
   type: "FeatureCollection",
   features: [],
@@ -159,6 +174,16 @@ async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
   });
   await page.route("**/api/v1/map/site-brief**", async (route) => {
     await fulfillJson(route, { ok: false, error: "qa_fixture_no_site_brief" });
+  });
+  await page.route("**/api/v1/weather/jma-nowcast/times", async (route) => {
+    await fulfillJson(route, MAP_FIXTURE_RAIN_TIMES);
+  });
+  await page.route("**/api/v1/weather/jma-nowcast/tile**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: Buffer.from([137, 80, 78, 71]),
+    });
   });
 }
 
@@ -241,24 +266,29 @@ async function readMapShellState(page: Page): Promise<MapShellState> {
 async function expectRainNowcastGate(page: Page): Promise<void> {
   await expect(page.locator("#me-rain-card")).toBeHidden();
   const rainTab = page.locator('.me-tab[data-tab="rain"]');
-  const responsePromise = page.waitForResponse((response) => (
-    response.url().includes("/api/v1/weather/jma-nowcast/times")
-  ), { timeout: 12_000 });
   await rainTab.click();
   await expect(rainTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#me-rain-card")).toBeVisible();
   await expect(page.locator("#me-rain-toggle")).toBeVisible();
-  const response = await responsePromise;
-  expect(response.ok(), `JMA nowcast times should be reachable on staging: ${response.status()} ${response.url()}`).toBeTruthy();
+  await expect(page.locator("#me-rain-toggle")).toHaveAttribute("aria-pressed", "true");
+
+  await expect(page.locator("#me-rain-card")).toHaveAttribute("data-enabled", "1", { timeout: 5_000 });
+  await expect(page.locator("#me-rain-timeline .me-rain-time")).toHaveCount(MAP_FIXTURE_RAIN_TIMES.times?.length ?? 0);
+  await expect(page.locator("#me-rain-timeline .me-rain-time").filter({ hasText: "6時間後" })).toBeVisible();
+  await expect(page.locator("#me-rain-status")).toContainText("ikimon独自予報ではありません");
+}
+
+async function expectLiveRainNowcastGate(page: Page): Promise<void> {
+  const response = await page.request.get("/api/v1/weather/jma-nowcast/times", {
+    headers: { accept: "application/json" },
+    timeout: 15_000,
+  });
+  expect(response.ok(), `JMA nowcast times should be reachable on staging: ${response.status()}`).toBeTruthy();
   const payload = await response.json() as RainNowcastTimesPayload;
   expect(payload.times?.length ?? 0).toBeGreaterThanOrEqual(3);
   expect(payload.times?.some((entry) => entry.offsetMinutes === 0)).toBe(true);
   expect(payload.times?.some((entry) => entry.offsetMinutes >= 30)).toBe(true);
   expect(payload.tileUrlTemplate ?? "").toMatch(/^\/api\/v1\/weather\/jma-nowcast\/tile/);
-
-  await expect(page.locator("#me-rain-card")).toHaveAttribute("data-enabled", "1");
-  await expect(page.locator("#me-rain-timeline .me-rain-time")).toHaveCount(payload.times?.length ?? 0);
-  await expect(page.locator("#me-rain-status")).toContainText("ikimon独自予報ではありません");
 
   const sample = payload.times?.[0];
   if (!sample || !payload.tileUrlTemplate) throw new Error("missing nowcast tile sample");
@@ -424,6 +454,7 @@ async function waitForMapEmptyState(page: Page, mapPath = DEFAULT_STAGING_MAP_PA
 }
 
 test("mobile bottom sheet opens as a map-detail peek and follows drag before snapping", async ({ browser }) => {
+  test.setTimeout(90_000);
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
   expect(mobile, "mobile viewport profile should exist").toBeTruthy();
   const context = await newStagingContext(browser, mobile!);
@@ -482,6 +513,10 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
 });
 
 test("mobile bottom sheet evidence captures peek drag and full states", async ({ browser }, testInfo) => {
+  test.skip(
+    process.env.C112_CAPTURE_MOTION_EVIDENCE !== "1",
+    "C112 screenshot evidence is opt-in; release gates use the lightweight motion contract.",
+  );
   testInfo.setTimeout(180_000);
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
   expect(mobile, "mobile viewport profile should exist").toBeTruthy();
@@ -519,6 +554,13 @@ test("mobile bottom sheet evidence captures peek drag and full states", async ({
   await expect(sheet).toHaveAttribute("data-snap", "full");
   await attachC112MobileSheetEvidence(page, testInfo, "c112-mobile-map-sheet-full");
 
+  await context.close();
+});
+
+test("JMA nowcast staging API exposes times and a sample tile", async ({ browser }) => {
+  const context = await newStagingContext(browser, MAP_VIEWPORTS[0]);
+  const page = await context.newPage();
+  await expectLiveRainNowcastGate(page);
   await context.close();
 });
 

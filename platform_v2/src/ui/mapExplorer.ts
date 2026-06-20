@@ -2797,6 +2797,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function shouldUseBottomSheet() {
     return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
   }
+  function shouldKeepMapClearForRain() {
+    return state.tab === 'rain' && shouldUseBottomSheet();
+  }
 
   function updateSearchAreaUi() {
     if (!searchAreaBtnEl) return;
@@ -3127,6 +3130,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function setMapEmptyInviteVisible(visible) {
     if (!emptyInviteEl) return;
+    if (visible && state.tab === 'rain') {
+      visible = false;
+    }
     emptyInviteEl.hidden = !visible;
     emptyInviteEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
   }
@@ -4707,6 +4713,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function showDetailBottomSheet() {
     if (!sheetEl) return;
+    if (shouldKeepMapClearForRain()) {
+      closeBottomSheet();
+      return;
+    }
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--area');
     sheetEl.classList.add('me-bottom-sheet--detail');
@@ -4717,6 +4727,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function showAreaBottomSheet() {
     if (!sheetEl) return;
+    if (shouldKeepMapClearForRain()) {
+      closeBottomSheet();
+      return;
+    }
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--detail');
     sheetEl.classList.add('me-bottom-sheet--area');
@@ -5400,7 +5414,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       b.classList.toggle('is-active', active);
       b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    if (state.tab === 'rain') enableRainLayer();
+    if (state.tab === 'rain') {
+      closeBottomSheet();
+      setMapEmptyInviteVisible(false);
+      hideLayerHint();
+      enableRainLayer();
+    }
     else disableRainLayer();
     if (state.map) {
       applyTab(state.map, state.tab);
@@ -9347,7 +9366,7 @@ export const MAP_EXPLORER_STYLES = `
     padding: 16px 18px; border-radius: 20px;
     background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 18px 38px rgba(15,23,42,.16);
     transform: translate3d(0, 28px, 0); opacity: 0; pointer-events: none;
-    transition: transform .34s cubic-bezier(.22,.61,.36,1), opacity .22s ease;
+    transition: transform .34s cubic-bezier(.22,.61,.36,1), opacity .22s ease, height .28s cubic-bezier(.2,.8,.2,1), max-height .28s cubic-bezier(.2,.8,.2,1);
     will-change: transform, opacity, height;
     max-height: 50%;
     overflow-y: auto;
@@ -9371,7 +9390,7 @@ export const MAP_EXPLORER_STYLES = `
     max-height: min(34dvh, 300px);
   }
   .me-bottom-sheet--detail[data-snap="full"] {
-    height: auto;
+    height: min(76dvh, 680px);
     max-height: calc(100% - 10px);
   }
   .me-bottom-sheet--detail .me-bottom-grip,
@@ -10898,7 +10917,7 @@ export const MAP_EXPLORER_STYLES = `
       max-height: min(34dvh, 300px);
     }
     .me-bottom-sheet--detail[data-snap="full"] {
-      height: auto;
+      height: calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance));
       max-height: calc(100% - 8px);
       max-height: calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance));
     }
@@ -11061,7 +11080,7 @@ export const MAP_EXPLORER_STYLES = `
       max-height: min(44dvh, calc(100dvh - var(--me-header-h) - 112px), 380px);
     }
     .me-bottom-sheet.me-bottom-sheet--area[data-snap="full"] {
-      height: auto;
+      height: calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance));
       max-height: calc(100% - 8px);
       max-height: calc(100dvh - var(--me-header-h) - var(--me-mobile-action-space) - var(--me-mobile-sheet-clearance));
     }
