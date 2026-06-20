@@ -7,6 +7,7 @@ const EXCLUDED_SPECS = new Set([
   "e2e/map-performance.staging.spec.ts",
   "e2e/notes-map-regression.staging.spec.ts",
   "e2e/sitemap-registry-visual.staging.spec.ts",
+  "e2e/existing-user-review.staging.spec.ts",
 ]);
 
 const SPEC_WEIGHT_SECONDS = new Map([
