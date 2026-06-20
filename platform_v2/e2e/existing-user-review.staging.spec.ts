@@ -25,6 +25,26 @@ type ObservationPayload = {
   occurrenceId?: string;
 };
 
+type OwnPlaceFixture = {
+  placeId: string;
+  placeName: string;
+  municipality: string;
+  lastObservedAt: string;
+  visitCount: number;
+  latestVisitId: string;
+  latestDisplayName: string;
+  latestPhotoUrl: string;
+  revisitReason: string | null;
+  nextLookFor: string;
+  lastRecordMode: string;
+  lastSurveyResult: string | null;
+  absenceSemantics: string | null;
+  latitude: number;
+  longitude: number;
+  seasonalVisitCount: number;
+  currentSeasonVisited: boolean;
+};
+
 function cookieHeader(rawCookie: string): string {
   return rawCookie.split(";")[0] ?? rawCookie;
 }
@@ -154,6 +174,21 @@ async function expectOwnPlacesPanel(page: Page, expectedCount: number): Promise<
   await expect(ownPlaces).toContainText("もう一度記録");
 }
 
+async function installOwnPlacesFixtureRoute(page: Page, ownPlaces: OwnPlaceFixture[]): Promise<void> {
+  await page.route(/\/api\/v1\/map\/my-places(?:\?.*)?$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        signedIn: true,
+        sort: "recent",
+        items: ownPlaces,
+        fixture: "existing-user-review",
+      }),
+    });
+  });
+}
+
 test.describe.serial("existing user own-place visual review", () => {
   let api: APIRequestContext;
   let writeKey = "";
@@ -161,6 +196,7 @@ test.describe.serial("existing user own-place visual review", () => {
   let userId = "";
   let rawCookie = "";
   let sessionCookie = "";
+  let ownPlacesFixture: OwnPlaceFixture[] = [];
 
   test.beforeAll(async ({ playwright }) => {
     writeKey = requireEnv("V2_PRIVILEGED_WRITE_API_KEY");
@@ -176,6 +212,7 @@ test.describe.serial("existing user own-place visual review", () => {
       { latitude: 34.6971, longitude: 137.7014, taxon: "タンポポ", observedAt: "2026-06-02T10:30:00.000Z" },
       { latitude: 34.7219, longitude: 137.8589, taxon: "アオサギ", observedAt: "2026-06-08T07:15:00.000Z" },
     ];
+    const ownPlaces: OwnPlaceFixture[] = [];
     for (const [index, record] of records.entries()) {
       const created = await createObservation(api, sessionCookie, {
         fixturePrefix,
@@ -184,7 +221,27 @@ test.describe.serial("existing user own-place visual review", () => {
         ...record,
       });
       await uploadPhoto(api, sessionCookie, created.visitId!, index);
+      ownPlaces.push({
+        placeId: `geo:${record.latitude.toFixed(3)}:${record.longitude.toFixed(3)}`,
+        placeName: index === 2 ? "磐田市 / 静岡県" : "浜松市 / 静岡県",
+        municipality: index === 2 ? "磐田市" : "浜松市",
+        lastObservedAt: record.observedAt,
+        visitCount: 1,
+        latestVisitId: created.visitId!,
+        latestDisplayName: record.taxon,
+        latestPhotoUrl: `data:image/jpeg;base64,${await visualPhotoBase64(index)}`,
+        revisitReason: null,
+        nextLookFor: record.taxon,
+        lastRecordMode: "manual",
+        lastSurveyResult: null,
+        absenceSemantics: null,
+        latitude: record.latitude,
+        longitude: record.longitude,
+        seasonalVisitCount: 1,
+        currentSeasonVisited: true,
+      });
     }
+    ownPlacesFixture = ownPlaces;
   });
 
   test.afterAll(async () => {
@@ -200,6 +257,7 @@ test.describe.serial("existing user own-place visual review", () => {
       await addSessionCookie(context, rawCookie);
       const page = await context.newPage();
       try {
+        await installOwnPlacesFixtureRoute(page, ownPlacesFixture);
         await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
         await expect(page.locator("#map-explorer")).toBeVisible();
         await expectOwnPlacesPanel(page, 3);
@@ -227,6 +285,7 @@ test.describe.serial("existing user own-place visual review", () => {
       await addSessionCookie(context, rawCookie);
       const page = await context.newPage();
       try {
+        await installOwnPlacesFixtureRoute(page, ownPlacesFixture);
         await page.goto("/map?tab=places&lng=137.7261&lat=34.7108&z=15.8", { waitUntil: "domcontentloaded" });
         await expect(page.locator("#map-explorer")).toBeVisible();
         await page.locator("#map-explorer canvas").first().waitFor({ state: "visible", timeout: 60_000 });
