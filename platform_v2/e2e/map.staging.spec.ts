@@ -239,10 +239,15 @@ async function readMapShellState(page: Page): Promise<MapShellState> {
 }
 
 async function expectRainNowcastGate(page: Page): Promise<void> {
+  await expect(page.locator("#me-rain-card")).toBeHidden();
+  const rainTab = page.locator('.me-tab[data-tab="rain"]');
   const responsePromise = page.waitForResponse((response) => (
     response.url().includes("/api/v1/weather/jma-nowcast/times")
   ), { timeout: 12_000 });
-  await page.locator("#me-rain-toggle").click();
+  await rainTab.click();
+  await expect(rainTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#me-rain-card")).toBeVisible();
+  await expect(page.locator("#me-rain-toggle")).toBeVisible();
   const response = await responsePromise;
   expect(response.ok(), `JMA nowcast times should be reachable on staging: ${response.status()} ${response.url()}`).toBeTruthy();
   const payload = await response.json() as RainNowcastTimesPayload;

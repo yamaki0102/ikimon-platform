@@ -158,8 +158,10 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(html, /id="me-rain-card"[^>]*hidden/);
   assert.match(html, /id="me-rain-toggle"[^>]*>更新</);
   assert.match(html, /data-api-jma-nowcast-times="\/api\/v1\/weather\/jma-nowcast\/times"/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-card\[hidden\]\s*\{\s*display: none;\s*\}/);
   assert.match(script, /jma-rain-nowcast-layer/);
   assert.match(script, /state\.tab === 'rain'/);
+  assert.match(script, /if \(!state\.rainEnabled \|\| state\.tab !== 'rain'\) return;/);
   assert.match(script, /map:rain:tab_open/);
   assert.match(script, /map:rain:refresh/);
   assert.doesNotMatch(script, /map_rain_toggle/);
