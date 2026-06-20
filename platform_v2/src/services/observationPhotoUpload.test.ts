@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { observationPhotoUploadTargetIds } from "./observationPhotoUpload.js";
+
+test("photo upload target ids fall back from occurrence id to visit id", () => {
+  assert.deepEqual(observationPhotoUploadTargetIds("occ:record-1781909848532:0"), [
+    "occ:record-1781909848532:0",
+    "record-1781909848532",
+  ]);
+  assert.deepEqual(observationPhotoUploadTargetIds("record-1781909848532"), ["record-1781909848532"]);
+  assert.deepEqual(observationPhotoUploadTargetIds(""), []);
+});
 
 test("photo upload promotes native no-photo reviews after adding evidence", () => {
   const source = readFileSync(path.join(process.cwd(), "src/services/observationPhotoUpload.ts"), "utf8");
@@ -36,6 +46,11 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
   assert.match(source, /enqueueMediaProcessingJobsStandalone/);
   assert.match(source, /photo_ready_reassess/);
+  assert.match(source, /observationPhotoUploadTargetIds/);
+  assert.match(source, /v\.visit_id = any\(\$1::text\[\]\)/);
+  assert.match(source, /o\.occurrence_id = any\(\$1::text\[\]\)/);
+  assert.match(source, /throw new Error\("observation_not_found"\)/);
+  assert.doesNotMatch(source, /observation not found: \$\{input\.observationId\}/);
 
   const worker = readFileSync(path.join(process.cwd(), "src/scripts/processMediaProcessingJobs.ts"), "utf8");
   const service = readFileSync(path.join(process.cwd(), "../ops/deploy/ikimon_v2_media_worker.service"), "utf8");

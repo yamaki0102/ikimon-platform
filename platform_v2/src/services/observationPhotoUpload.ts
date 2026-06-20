@@ -41,6 +41,17 @@ export type ObservationPhotoUploadResult = {
   facePrivacy: FacePrivacySummary | null;
 };
 
+export function observationPhotoUploadTargetIds(observationId: string): string[] {
+  const primary = observationId.trim();
+  if (!primary) return [];
+  const candidates = [primary];
+  const occurrenceMatch = /^occ:([^:]+):\d+$/.exec(primary);
+  if (occurrenceMatch?.[1]) {
+    candidates.push(occurrenceMatch[1]);
+  }
+  return [...new Set(candidates)];
+}
+
 function sanitizeFilename(filename: string): string {
   const trimmed = filename.trim();
   const safe = trimmed.replace(/[^A-Za-z0-9._-]/g, "-");
@@ -183,6 +194,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   try {
     await client.query("begin");
 
+    const targetIds = observationPhotoUploadTargetIds(input.observationId);
     const targetResult = await client.query<{
       visit_id: string;
       occurrence_id: string;
@@ -192,17 +204,22 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           o.occurrence_id
        from visits v
        join occurrences o on o.visit_id = v.visit_id
-       where v.visit_id = $1
-          or v.legacy_observation_id = $1
-          or o.occurrence_id = $1
-       order by o.subject_index asc, o.created_at asc
+       where v.visit_id = any($1::text[])
+          or v.legacy_observation_id = any($1::text[])
+          or o.occurrence_id = any($1::text[])
+       order by case
+          when o.occurrence_id = $2 then 0
+          when v.visit_id = $2 or v.legacy_observation_id = $2 then 1
+          else 2
+       end,
+       o.subject_index asc, o.created_at asc
        limit 1`,
-      [input.observationId],
+      [targetIds, input.observationId.trim()],
     );
 
     const target = targetResult.rows[0];
     if (!target) {
-      throw new Error(`observation not found: ${input.observationId}`);
+      throw new Error("observation_not_found");
     }
 
     visitId = target.visit_id;
