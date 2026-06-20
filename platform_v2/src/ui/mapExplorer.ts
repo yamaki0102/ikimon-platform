@@ -1171,9 +1171,9 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Toque em um pino ou célula no mapa para ver os detalhes aqui."
         : "Tap a pin or cell on the map to see details here.";
   const rainLabels = {
-    panel: lang === "ja" ? "外へ出る前に確認" : lang === "es" ? "Antes de salir" : lang === "pt-BR" ? "Antes de sair" : "Before heading out",
+    panel: lang === "ja" ? "レーダー" : lang === "es" ? "Radar" : lang === "pt-BR" ? "Radar" : "Radar",
     refresh: lang === "ja" ? "更新" : lang === "es" ? "Actualizar" : lang === "pt-BR" ? "Atualizar" : "Refresh",
-    source: lang === "ja" ? "気象庁データ" : lang === "es" ? "Datos JMA" : lang === "pt-BR" ? "Dados JMA" : "JMA data",
+    source: lang === "ja" ? "気象庁" : lang === "es" ? "JMA" : lang === "pt-BR" ? "JMA" : "JMA",
     current: lang === "ja" ? "現在地" : lang === "es" ? "Mi ubicación" : lang === "pt-BR" ? "Minha localização" : "Current place",
     target: lang === "ja" ? "行き先" : lang === "es" ? "Destino" : lang === "pt-BR" ? "Destino" : "Target",
     timeline: lang === "ja" ? "表示時刻" : lang === "es" ? "Hora" : lang === "pt-BR" ? "Hora" : "Time",
@@ -2272,10 +2272,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
   function setRainStatus(text) { if (rainStatusEl) rainStatusEl.textContent = text || ''; }
+  function syncRainModeClass() {
+    try { document.documentElement.classList.toggle('me-rain-mode', state.tab === 'rain'); } catch (_) {}
+  }
   function syncRainUi() {
+    syncRainModeClass();
     if (rainCardEl) {
       rainCardEl.hidden = state.tab !== 'rain';
       rainCardEl.setAttribute('data-enabled', state.rainEnabled ? '1' : '0');
+      rainCardEl.setAttribute(
+        'data-sheet-open',
+        sheetEl && sheetEl.classList.contains('is-open') && sheetEl.getAttribute('aria-hidden') !== 'true' ? '1' : '0'
+      );
     }
     if (rainToggleEl) rainToggleEl.setAttribute('aria-pressed', state.rainEnabled ? 'true' : 'false');
   }
@@ -4696,6 +4704,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.classList.add('me-bottom-sheet--detail');
     sheetEl.classList.add('is-open');
     setDetailSheetSnap('peek');
+    syncRainUi();
     if (sheetInnerEl) sheetInnerEl.scrollTop = 0;
   }
   function showAreaBottomSheet() {
@@ -4705,6 +4714,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.classList.add('me-bottom-sheet--area');
     sheetEl.classList.add('is-open');
     setAreaSheetSnap('peek');
+    syncRainUi();
     try { sheetEl.scrollTop = 0; } catch (_) {}
     if (sheetInnerEl) sheetInnerEl.scrollTop = 0;
   }
@@ -5241,6 +5251,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.removeAttribute('data-snap');
     sheetEl.setAttribute('aria-hidden', 'true');
     setSelectedAreaPolygonFilter('__none__');
+    syncRainUi();
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
   if (sheetGripEl) {
@@ -8278,6 +8289,9 @@ export const MAP_EXPLORER_STYLES = `
   .site-shell.is-map-surface .global-record-launcher {
     display: none;
   }
+  .me-rain-mode .site-shell.is-map-surface .global-record-launcher {
+    display: none;
+  }
 
   .site-header-inner {
     max-width: none;
@@ -8667,6 +8681,7 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 12px 28px rgba(15,23,42,.13);
     backdrop-filter: blur(12px);
     color: #0f172a;
+    transition: opacity .18s ease, transform .18s ease;
   }
   .me-rain-card[hidden] {
     display: none;
@@ -10692,6 +10707,9 @@ export const MAP_EXPLORER_STYLES = `
       right: 10px;
       bottom: max(8px, env(safe-area-inset-bottom));
     }
+    .me-rain-mode .site-shell.is-map-surface .global-record-launcher {
+      display: none;
+    }
 
     .me-section {
       --me-side-w: 0px;
@@ -10739,14 +10757,71 @@ export const MAP_EXPLORER_STYLES = `
     .me-map-wrap { position: relative; width: 100%; margin-left: 0; }
     .me-map { min-height: var(--me-map-height); height: var(--me-map-height); }
     .me-rain-card {
-      top: 10px;
+      position: fixed;
+      top: auto;
       left: 10px;
-      width: min(318px, calc(100% - 86px));
+      right: 10px;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      z-index: 38;
+      width: auto;
+      max-width: none;
       padding: 8px;
       gap: 6px;
+      border-radius: 18px;
+      box-shadow: 0 16px 34px rgba(15,23,42,.18);
+      background: rgba(255,255,255,.9);
+      transform: translate3d(0, 0, 0);
     }
-    .me-rain-timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .me-rain-status { font-size: 10.5px; }
+    .me-rain-card[data-sheet-open="1"] {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate3d(0, 10px, 0);
+    }
+    .me-rain-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 6px;
+    }
+    .me-rain-head span {
+      padding: 5px 7px;
+      border-radius: 999px;
+      background: rgba(15,23,42,.06);
+      font-size: 10px;
+    }
+    .me-rain-toggle {
+      min-height: 28px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+    .me-rain-timeline {
+      display: flex;
+      grid-template-columns: none;
+      gap: 5px;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .me-rain-timeline::-webkit-scrollbar { display: none; }
+    .me-rain-time {
+      flex: 0 0 auto;
+      min-width: 58px;
+      min-height: 30px;
+      border-radius: 999px;
+    }
+    .me-rain-actions { gap: 7px; }
+    .me-rain-actions button {
+      min-height: 34px;
+      border-radius: 999px;
+    }
+    .me-rain-status {
+      max-height: 30px;
+      overflow: hidden;
+      font-size: 10px;
+      line-height: 1.45;
+    }
     .me-side { display: none; }
     .me-side-toggle { display: none; }
     .me-map-panel-selection { display: none; }

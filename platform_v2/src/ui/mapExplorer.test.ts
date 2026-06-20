@@ -164,11 +164,19 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
 
   assert.match(html, /id="me-rain-card"[^>]*hidden/);
   assert.match(html, /id="me-rain-toggle"[^>]*>更新</);
+  assert.match(html, /<strong>レーダー<\/strong>/);
   assert.match(html, /data-api-jma-nowcast-times="\/api\/v1\/weather\/jma-nowcast\/times"/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-rain-card\[hidden\]\s*\{\s*display: none;\s*\}/);
+  assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-rain-card \{[\s\S]*position: fixed;[\s\S]*bottom: max\(12px, env\(safe-area-inset-bottom\)\);/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-card\[data-sheet-open="1"\] \{[\s\S]*opacity: 0;[\s\S]*pointer-events: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-rain-timeline \{[\s\S]*display: flex;[\s\S]*overflow-x: auto;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.site-shell\.is-map-surface \.global-record-launcher \{[\s\S]*display: none;/);
   assert.match(script, /jma-rain-nowcast-layer/);
   assert.match(script, /state\.tab === 'rain'/);
   assert.match(script, /if \(!state\.rainEnabled \|\| state\.tab !== 'rain'\) return;/);
+  assert.match(script, /function syncRainModeClass\(\)/);
+  assert.match(script, /data-sheet-open/);
+  assert.match(script, /syncRainUi\(\);/);
   assert.match(script, /map:rain:tab_open/);
   assert.match(script, /map:rain:refresh/);
   assert.doesNotMatch(script, /map_rain_toggle/);
