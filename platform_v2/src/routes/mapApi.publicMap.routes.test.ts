@@ -90,7 +90,22 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
         { basetime: "20260620030000", validtime: "20260620040000", elements: ["hrpns"] },
       ]), { status: 200, headers: { "content-type": "application/json" } });
     }
+    if (url.endsWith("/rasrf/targetTimes.json")) {
+      return new Response(JSON.stringify([
+        { basetime: "20260620030000", validtime: "20260620050000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620060000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620070000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620080000", member: "immed", elements: ["rasrf"] },
+        { basetime: "20260620030000", validtime: "20260620090000", member: "immed", elements: ["rasrf"] },
+      ]), { status: 200, headers: { "content-type": "application/json" } });
+    }
     if (url.includes("/surf/hrpns/5/28/12.png")) {
+      return new Response(new Uint8Array([137, 80, 78, 71]), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
+    }
+    if (url.includes("/surf/rasrf/5/28/12.png")) {
       return new Response(new Uint8Array([137, 80, 78, 71]), {
         status: 200,
         headers: { "content-type": "image/png" },
@@ -107,9 +122,11 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
     });
     assert.equal(times.statusCode, 200);
     const payload = times.json() as Record<string, unknown>;
-    assert.equal(payload.source, "jma_high_resolution_precipitation_nowcast");
+    assert.equal(payload.source, "jma_precipitation_map");
     assert.match(String(payload.tileUrlTemplate), /^\/api\/v1\/weather\/jma-nowcast\/tile/);
-    assert.deepEqual((payload.times as Array<{ offsetMinutes: number }>).map((item) => item.offsetMinutes), [0, 5, 15, 30, 60]);
+    assert.match(String(payload.tileUrlTemplate), /product=\{product\}/);
+    assert.deepEqual((payload.times as Array<{ offsetMinutes: number }>).map((item) => item.offsetMinutes), [0, 5, 15, 30, 60, 120, 180, 240, 300, 360]);
+    assert.deepEqual((payload.times as Array<{ product: string }>).map((item) => item.product).slice(-5), ["short_range", "short_range", "short_range", "short_range", "short_range"]);
 
     const invalidTile = await app.inject({
       method: "GET",
@@ -134,6 +151,13 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
     assert.equal(cachedTile.headers["x-ikimon-weather-cache"], "hit");
     assert.equal(fetched.length, fetchCountAfterMiss);
     assert.ok(fetched.some((url) => url.includes("www.jma.go.jp/bosai/jmatile/data/nowc/20260620030000/none/20260620030000/surf/hrpns/5/28/12.png")));
+
+    const shortRangeTile = await app.inject({
+      method: "GET",
+      url: "/api/v1/weather/jma-nowcast/tile?product=short_range&member=immed&basetime=20260620030000&validtime=20260620050000&z=5&x=28&y=12",
+    });
+    assert.equal(shortRangeTile.statusCode, 200);
+    assert.ok(fetched.some((url) => url.includes("www.jma.go.jp/bosai/jmatile/data/rasrf/20260620030000/immed/20260620050000/surf/rasrf/5/28/12.png")));
   } finally {
     globalThis.fetch = originalFetch;
     await app.close();
