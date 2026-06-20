@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import sharp from "sharp";
 import {
   addSessionCookie,
@@ -145,6 +145,15 @@ async function screenshotPath(fileName: string): Promise<string> {
   return path.join(dir, fileName);
 }
 
+async function expectOwnPlacesPanel(page: Page, expectedCount: number): Promise<void> {
+  const ownPlaces = page.locator("#me-own-places-panel");
+  await expect(ownPlaces).toBeVisible({ timeout: 60_000 });
+  await expect(ownPlaces.locator(".me-own-place")).toHaveCount(expectedCount);
+  await expect(ownPlaces.locator("img")).toHaveCount(expectedCount);
+  await expect(ownPlaces).toContainText("自分の場所");
+  await expect(ownPlaces).toContainText("もう一度記録");
+}
+
 test.describe.serial("existing user own-place visual review", () => {
   let api: APIRequestContext;
   let writeKey = "";
@@ -191,13 +200,9 @@ test.describe.serial("existing user own-place visual review", () => {
       await addSessionCookie(context, rawCookie);
       const page = await context.newPage();
       try {
-        await page.goto("/?lang=ja", { waitUntil: "networkidle" });
-        const ownPlaces = page.locator(".prototype-own-places");
-        await expect(ownPlaces).toBeVisible();
-        await expect(ownPlaces.locator(".prototype-own-place-card")).toHaveCount(3);
-        await expect(ownPlaces.locator("img")).toHaveCount(3);
-        await expect(ownPlaces).toContainText("自分が残した場所");
-        await expect(ownPlaces).toContainText("もう一度記録");
+        await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
+        await expect(page.locator("#map-explorer")).toBeVisible();
+        await expectOwnPlacesPanel(page, 3);
         await expect(page.locator("body")).not.toContainText("行った場所へ");
         await expect(page.locator("body")).not.toContainText("季節で再訪");
 
@@ -208,7 +213,7 @@ test.describe.serial("existing user own-place visual review", () => {
           fullPage: true,
           animations: "disabled",
         });
-        await ownPlaces.screenshot({
+        await page.locator("#me-own-places-panel").screenshot({
           path: await screenshotPath(`home-own-places-section-${profile.slug}.png`),
           animations: "disabled",
         });
@@ -225,12 +230,7 @@ test.describe.serial("existing user own-place visual review", () => {
         await page.goto("/map?tab=places&lng=137.7261&lat=34.7108&z=15.8", { waitUntil: "domcontentloaded" });
         await expect(page.locator("#map-explorer")).toBeVisible();
         await page.locator("#map-explorer canvas").first().waitFor({ state: "visible", timeout: 60_000 });
-        const ownPlaces = page.locator("#me-own-places-panel");
-        await expect(ownPlaces).toBeVisible({ timeout: 60_000 });
-        await expect(ownPlaces.locator(".me-own-place")).toHaveCount(3);
-        await expect(ownPlaces.locator("img")).toHaveCount(3);
-        await expect(ownPlaces).toContainText("自分の場所");
-        await expect(ownPlaces).toContainText("もう一度記録");
+        await expectOwnPlacesPanel(page, 3);
 
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow).toBeLessThanOrEqual(1);
@@ -239,7 +239,7 @@ test.describe.serial("existing user own-place visual review", () => {
           fullPage: true,
           animations: "disabled",
         });
-        await ownPlaces.screenshot({
+        await page.locator("#me-own-places-panel").screenshot({
           path: await screenshotPath(`map-own-places-panel-${profile.slug}.png`),
           animations: "disabled",
         });
