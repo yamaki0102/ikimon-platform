@@ -1,4 +1,4 @@
-import { test, expect, type Browser } from "@playwright/test";
+import { test, expect, type Browser, type BrowserContext } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
   MAP_VIEWPORTS,
@@ -17,6 +17,8 @@ const MAP_LOAD_BUDGET_MS = {
   firstMapApi: 8_000,
   firstMapTile: 12_000,
 };
+
+const CONTEXT_CLOSE_BUDGET_MS = 3_000;
 
 type MapPerfMarker = {
   ms: number;
@@ -45,6 +47,20 @@ function isMapTileUrl(url: string): boolean {
     || /cyberjapandata\.gsi\.go\.jp\/xyz\//i.test(url)
     || /tile\.openstreetmap\.org\//i.test(url)
   );
+}
+
+async function closeContextBestEffort(context: BrowserContext, label: string): Promise<void> {
+  const closePromise = context.close();
+  closePromise.catch((error) => {
+    console.warn(`map-performance context close failed after summary (${label}): ${String(error)}`);
+  });
+  const result = await Promise.race([
+    closePromise.then(() => "closed" as const),
+    new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), CONTEXT_CLOSE_BUDGET_MS)),
+  ]);
+  if (result === "timeout") {
+    console.warn(`map-performance context close timed out after summary (${label})`);
+  }
 }
 
 async function waitForMapPerformanceSummary(
@@ -122,7 +138,7 @@ async function waitForMapPerformanceSummary(
     profile: profile.slug,
   };
   console.info(`map-performance ${JSON.stringify(summary)}`);
-  await context.close();
+  await closeContextBestEffort(context, profile.slug);
   return summary;
 }
 
