@@ -1626,6 +1626,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     rainIndeterminate: props.lang === "ja" ? "この地点の雨雲判定を最後まで確認できませんでした。地図表示と公式情報も見てください。" : props.lang === "es" ? "No se pudo completar la comprobación de este punto. Mira también el mapa y la información oficial." : props.lang === "pt-BR" ? "Não foi possível completar a verificação deste ponto. Veja também o mapa e informações oficiais." : "This point check could not be completed. Check the map and official information too.",
     rainMapCenter: props.lang === "ja" ? "地図中心" : props.lang === "es" ? "centro del mapa" : props.lang === "pt-BR" ? "centro do mapa" : "map center",
     rainLocationFallback: props.lang === "ja" ? "現在地を使えないため、地図中心の雨雲を確認します。" : props.lang === "es" ? "No se pudo usar tu ubicación; se comprobará el centro del mapa." : props.lang === "pt-BR" ? "Não foi possível usar sua localização; vamos verificar o centro do mapa." : "Location is unavailable, so the map center will be checked.",
+    rainForecastNotice: props.lang === "ja" ? "ikimon独自予報ではありません。" : props.lang === "es" ? "No es un pronóstico de ikimon." : props.lang === "pt-BR" ? "Não é previsão do ikimon." : "This is not an ikimon forecast.",
     rainAttribution: props.lang === "ja" ? "出典: 気象庁 高解像度降水ナウキャスト・降水短時間予報。ikimon独自予報ではありません。雷・風は公式情報も確認してください。" : props.lang === "es" ? "Source: JMA nowcast and very short-range precipitation forecast. This is not an ikimon forecast. Check official thunder and wind info too." : props.lang === "pt-BR" ? "Fonte: JMA nowcast e previsão de precipitação de curtíssimo prazo. Não é previsão do ikimon. Confira também raios e vento oficiais." : "Source: JMA nowcast and very short-range precipitation forecast. This is not an ikimon forecast. Check official thunder and wind info too.",
     selfLabel: ambient.selfLabel,
     communityLabel: ambient.communityLabel,
@@ -2271,7 +2272,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
-  function setRainStatus(text) { if (rainStatusEl) rainStatusEl.textContent = text || ''; }
+  function rainStatusWithNotice(text) {
+    var out = String(text || '');
+    var notice = String(COPY.rainForecastNotice || '');
+    if (!notice) return out;
+    if (!out) return notice;
+    return out.indexOf(notice) >= 0 ? out : out + ' ' + notice;
+  }
+  function setRainStatus(text) { if (rainStatusEl) rainStatusEl.textContent = rainStatusWithNotice(text); }
   function syncRainModeClass() {
     try { document.documentElement.classList.toggle('me-rain-mode', state.tab === 'rain'); } catch (_) {}
   }

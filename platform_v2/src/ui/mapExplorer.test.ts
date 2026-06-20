@@ -175,6 +175,8 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /state\.tab === 'rain'/);
   assert.match(script, /if \(!state\.rainEnabled \|\| state\.tab !== 'rain'\) return;/);
   assert.match(script, /function syncRainModeClass\(\)/);
+  assert.match(script, /function rainStatusWithNotice\(text\)/);
+  assert.match(script, /rainForecastNotice/);
   assert.match(script, /data-sheet-open/);
   assert.match(script, /syncRainUi\(\);/);
   assert.match(script, /map:rain:tab_open/);
