@@ -187,7 +187,7 @@ jobs:
           console.log("");
           console.log("- Worker: `ikimon-life-cloudflare-prod`");
           console.log("- R2 bucket: `ikimon-prod-media`");
-          console.log("- Original UI scope: `core`");
+          console.log(`- Original UI scope: \`${json.scope}\``);
           console.log("- VPS SSH/deploy: `not used`");
           console.log("- Preflight artifact: `cloudflare-production-preflight`");
           console.log("");
@@ -370,6 +370,31 @@ jobs:
             exit 1
           fi
           echo "Map materialized HTML verified."
+
+      - name: Record UI C110 marker check
+        run: |
+          set -euo pipefail
+          for record_url in \
+            "https://ikimon.life/record?deploy_smoke_record=${GITHUB_SHA}" \
+            "https://ikimon.life/ja/record?start=note&deploy_smoke_record=${GITHUB_SHA}"
+          do
+            record_headers="$(mktemp)"
+            record_body="$(curl -fsS -D "$record_headers" -H 'cache-control: no-store' "$record_url")"
+            if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$record_headers"; then
+              echo "Record shell is not served from materialized original UI HTML: $record_url"
+              cat "$record_headers"
+              exit 1
+            fi
+            if [[ "$record_body" != *"photoDraftRetryDetailId = detailId"* ]]; then
+              echo "Record shell is missing the C110 saved detail retry marker: $record_url"
+              exit 1
+            fi
+            if [[ "$record_body" == *"String(observationJson.occurrenceId || observationId)"* ]]; then
+              echo "Record shell still contains the stale C110 fallback marker: $record_url"
+              exit 1
+            fi
+          done
+          echo "Record materialized HTML C110 marker verified."
 
       - name: Map data checks
         run: |
