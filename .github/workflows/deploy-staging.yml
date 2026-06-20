@@ -972,7 +972,7 @@ jobs:
               }), timeoutMs, "cdp screenshot");
               writeFileSync(outputPath, Buffer.from(result.data, "base64"));
             } finally {
-              await client.detach().catch(() => {});
+              await bounded(client.detach().catch(() => {}), 1000, "cdp detach").catch(() => {});
             }
           }
 
