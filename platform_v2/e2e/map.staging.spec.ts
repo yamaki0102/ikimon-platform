@@ -415,13 +415,14 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
 
   await page.mouse.up();
   await expect(sheet).toHaveAttribute("data-snap", "full");
-  await expect(sheet).not.toHaveClass(/is-dragging/);
-  const full = await readMobileSheetMotionState(page);
-  expect(full.overlapPx, "full sheet should still avoid covering the record launcher").toBeLessThanOrEqual(2);
   await testInfo.attach("c112-mobile-map-sheet-full", {
     body: await page.screenshot({ fullPage: false }),
     contentType: "image/png",
   });
+  const fullClass = await sheet.evaluate((element) => element.className);
+  expect(fullClass).not.toContain("is-dragging");
+  const full = await readMobileSheetMotionState(page);
+  expect(full.overlapPx, "full sheet should still avoid covering the record launcher").toBeLessThanOrEqual(2);
 
   await context.close();
 });
