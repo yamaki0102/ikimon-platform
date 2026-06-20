@@ -5044,6 +5044,9 @@ type RecordFormCopy = {
   locationSearchButton: string;
   locationMapAria: string;
   locationMapFallback: string;
+  revisitContextTitle: string;
+  revisitContextBody: string;
+  revisitLocationLabel: string;
   locationPrivacyTitle: string;
   locationPrivacyExactLabel: string;
   locationPrivacyExactBody: string;
@@ -5478,6 +5481,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "検索",
       locationMapAria: "記録の地点を地図で指定",
       locationMapFallback: "地図を読み込み中。表示されたらタップして記録の地点を指定できます。",
+      revisitContextTitle: "前回の場所から続けます",
+      revisitContextBody: "場所と見返す手がかりを入れています。写真やメモを足すと、前回との違いを残せます。",
+      revisitLocationLabel: "前回の記録地点",
       locationPrivacyTitle: "公開される位置",
       locationPrivacyExactLabel: "正確な地点",
       locationPrivacyExactBody: "保存と自分の記録整理に使います。公開地図では正確な地点ピンを出さない設計ですが、写真のGPS情報は別に注意が必要です。",
@@ -5658,6 +5664,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "Search",
       locationMapAria: "Choose observation place on the map",
       locationMapFallback: "Loading map. Tap it when it appears to set the place.",
+      revisitContextTitle: "Continue from the last place",
+      revisitContextBody: "Place and follow-up clues are already filled in. Add a photo or note to keep the next change.",
+      revisitLocationLabel: "Previous record place",
       locationPrivacyTitle: "What becomes public",
       locationPrivacyExactLabel: "Exact place",
       locationPrivacyExactBody: "Used for saving and your notebook. Public maps are designed not to show exact pins, but photo GPS metadata needs a separate check.",
@@ -5838,6 +5847,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "Buscar",
       locationMapAria: "Elegir lugar de observacion en el mapa",
       locationMapFallback: "Cargando mapa. Tocalo cuando aparezca para fijar el lugar.",
+      revisitContextTitle: "Continuar desde el lugar anterior",
+      revisitContextBody: "El lugar y las pistas para volver ya estan cargados. Agrega foto o nota para dejar el siguiente cambio.",
+      revisitLocationLabel: "Lugar del registro anterior",
       locationPrivacyTitle: "Que sera publico",
       locationPrivacyExactLabel: "Lugar exacto",
       locationPrivacyExactBody: "Se usa para guardar y para tu cuaderno. El mapa publico evita pines exactos, pero el GPS de la foto debe revisarse aparte.",
@@ -6018,6 +6030,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationSearchButton: "Buscar",
       locationMapAria: "Escolher local da observacao no mapa",
       locationMapFallback: "Carregando mapa. Toque nele quando aparecer para definir o local.",
+      revisitContextTitle: "Continuar do local anterior",
+      revisitContextBody: "O local e as pistas para voltar ja estao preenchidos. Adicione foto ou nota para guardar a proxima mudanca.",
+      revisitLocationLabel: "Local do registro anterior",
       locationPrivacyTitle: "O que fica publico",
       locationPrivacyExactLabel: "Local exato",
       locationPrivacyExactBody: "Usado para salvar e no seu caderno. O mapa publico evita pinos exatos, mas o GPS da foto precisa de checagem separada.",
@@ -14357,6 +14372,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <button type="button" data-record-locate>${escapeHtml(recordCopy.locationAction)}</button>
             </div>
             <div id="record-autofill-status" class="record-autofill-status" hidden aria-live="polite"></div>
+            <div id="record-revisit-context" class="record-revisit-context" hidden>
+              <strong>${escapeHtml(recordForm.revisitContextTitle)}</strong>
+              <span id="record-revisit-context-body">${escapeHtml(recordForm.revisitContextBody)}</span>
+            </div>
             <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" data-first-record-candidate="${firstRecordCandidate ? "1" : "0"}" class="record-form" hidden>
               <input id="record-media-photo" data-record-media-input data-capture-kind="photo" type="file" accept="image/*" capture="environment" multiple hidden />
               <input id="record-media-video" data-record-media-input data-capture-kind="video" type="file" accept="video/*" capture="environment" hidden />
@@ -14806,6 +14825,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const quickCaptureStateField = form ? form.elements.namedItem('quickCaptureState') : null;
         const quickCaptureStateStrip = document.getElementById('record-unknown-name-strip');
         const quickCaptureStateButtons = Array.from(document.querySelectorAll('[data-quick-capture-state]'));
+        const revisitContext = document.getElementById('record-revisit-context');
+        const revisitContextBody = document.getElementById('record-revisit-context-body');
         const mediaRoleInputs = form ? Array.from(form.querySelectorAll('input[name="mediaRole"]')) : [];
         const previewDate = document.getElementById('record-preview-date');
         const previewKicker = document.getElementById('record-preview-kicker');
@@ -14918,6 +14939,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let recordLocationProvenance = null;
         let recordSubmitInFlight = false;
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
+        const RECORD_REVISIT_CONTEXT_STORAGE_PREFIX = 'ikimon:record-revisit-context:';
         const captureLabels = ${JSON.stringify(recordCopy.captureLabels)};
         const recordUiCopy = {
           entryLabel: ${JSON.stringify(recordCopy.modeEntryLabel)},
@@ -14930,6 +14952,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           locationUnknown: ${JSON.stringify(recordForm.locationUnknown)},
           locationHelp: ${JSON.stringify(recordForm.locationHelp)},
           locationSelected: ${JSON.stringify(recordForm.locationSelected)},
+          revisitContextTitle: ${JSON.stringify(recordForm.revisitContextTitle)},
+          revisitContextBody: ${JSON.stringify(recordForm.revisitContextBody)},
+          revisitLocationLabel: ${JSON.stringify(recordForm.revisitLocationLabel)},
           submitPanelHelpMedia: ${JSON.stringify(recordForm.submitPanelHelpMedia)},
           submitPanelHelpNote: ${JSON.stringify(recordForm.submitPanelHelpNote)},
           submitPanelHelpNoteUnknown: ${JSON.stringify(recordForm.submitPanelHelpNoteUnknown)},
@@ -16084,9 +16109,77 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             '</section>';
         };
 
+        const updateRevisitContext = (params) => {
+          if (!revisitContext) return;
+          const hasRevisit = params.has('revisitObservationId') || params.has('revisit_of_visit_id');
+          revisitContext.hidden = !hasRevisit;
+          if (!hasRevisit) return;
+          const place = String(params.get('localityNote') || params.get('municipality') || '').trim();
+          const focus = String(params.get('nextLookFor') || params.get('revisitReason') || params.get('targetTaxaScope') || '').trim();
+          if (revisitContextBody) {
+            revisitContextBody.textContent = place && focus
+              ? place + ' / ' + focus + '。' + recordUiCopy.revisitContextBody
+              : place
+                ? place + '。' + recordUiCopy.revisitContextBody
+                : recordUiCopy.revisitContextBody;
+          }
+        };
+
+        const applyPrefilledLocationText = (params) => {
+          const lat = Number(params.get('latitude'));
+          const lng = Number(params.get('longitude'));
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          const label = String(params.get('localityNote') || params.get('municipality') || recordUiCopy.revisitLocationLabel).trim();
+          setRecordLocationProvenance('revisit_prefill', lat, lng, {
+            label,
+            revisitObservationId: params.get('revisitObservationId') || params.get('revisit_of_visit_id') || null,
+          });
+          updateLocationText(label || recordUiCopy.revisitLocationLabel);
+          syncLocationNudge();
+        };
+
+        const storedRevisitContextParams = (visitId) => {
+          if (!visitId) return null;
+          try {
+            const raw = window.sessionStorage ? window.sessionStorage.getItem(RECORD_REVISIT_CONTEXT_STORAGE_PREFIX + visitId) : '';
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') return null;
+            const params = new URLSearchParams();
+            Object.keys(parsed).forEach((key) => {
+              const value = parsed[key];
+              if (typeof value === 'string' && value.trim()) params.set(key, value.trim());
+            });
+            if (!params.has('revisitObservationId')) params.set('revisitObservationId', visitId);
+            return params;
+          } catch (_) {
+            return null;
+          }
+        };
+
+        const rememberRevisitContext = (visitId, context) => {
+          if (!visitId || !context || typeof context !== 'object') return;
+          try {
+            const cleaned = {};
+            Object.keys(context).forEach((key) => {
+              const value = context[key];
+              if (typeof value === 'string' && value.trim()) cleaned[key] = value.trim();
+            });
+            cleaned.revisitObservationId = visitId;
+            window.sessionStorage.setItem(RECORD_REVISIT_CONTEXT_STORAGE_PREFIX + visitId, JSON.stringify(cleaned));
+          } catch (_) {}
+        };
+
         const applyPrefillFromQuery = () => {
           if (!form) return;
           const params = new URLSearchParams(window.location.search);
+          const revisitId = params.get('revisitObservationId') || params.get('revisit_of_visit_id') || '';
+          const storedParams = storedRevisitContextParams(revisitId);
+          if (storedParams) {
+            storedParams.forEach((value, key) => {
+              if (!params.has(key)) params.set(key, value);
+            });
+          }
           const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId', 'fieldScanMode', 'fixedPointId', 'routeId', 'areaId'];
           names.forEach((name) => {
             if (!params.has(name)) return;
@@ -16116,6 +16209,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const intentField = form.elements.namedItem('activityIntent');
             if (intentField && 'value' in intentField) intentField.value = 'revisit';
           }
+          updateRevisitContext(params);
+          applyPrefilledLocationText(params);
         };
 
         const applyStartModeFromQuery = () => {
@@ -18112,6 +18207,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? '?tab=places&lng=' + encodeURIComponent(longitude.toFixed(6)) + '&lat=' + encodeURIComponent(latitude.toFixed(6)) + '&z=17'
                 : '?tab=places';
               const mapHref = successReturnState === 'hidden' ? '' : withBasePath('/map' + mapQuery);
+              rememberRevisitContext(visitId, {
+                latitude: hasRecordCoordinates ? latitude.toFixed(6) : '',
+                longitude: hasRecordCoordinates ? longitude.toFixed(6) : '',
+                placeId: String(observationJson.placeId || data.get('placeId') || ''),
+                municipality: String(data.get('municipality') || ''),
+                localityNote: String(data.get('localityNote') || ''),
+                nextLookFor: String(data.get('nextLookFor') || ''),
+                revisitReason: String(data.get('revisitReason') || ''),
+                quickCaptureState: String(data.get('quickCaptureState') || ''),
+                recordMode: String(data.get('recordMode') || ''),
+              });
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
               const recordReturnHtml = buildRecordReturnHtml(observationJson || {}, { notesHref, observationHref, mapHref, revisitHref });
               setStatus('<div class="row"><div>' + recordReturnHtml + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '</div></div>');
@@ -18470,6 +18576,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-success-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
         .record-success-actions a { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 10px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; font-size: 12.5px; line-height: 1.2; font-weight: 950; text-align: center; overflow-wrap: anywhere; }
         .record-success-actions a.is-primary { background: #059669; border-color: #059669; color: #fff; }
+        .record-revisit-context { grid-column: 1 / -1; padding: 12px 14px; border-radius: 8px; background: #f0fdfa; border: 1px solid rgba(20,184,166,.24); display: grid; gap: 4px; }
+        .record-revisit-context strong { color: #0f766e; font-size: 13px; line-height: 1.35; font-weight: 950; }
+        .record-revisit-context span { color: #334155; font-size: 12.5px; line-height: 1.65; font-weight: 760; }
         .record-upload-feedback { margin: 10px 0 8px; padding: 12px 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); display: grid; gap: 4px; }
         .record-upload-feedback strong { color: #065f46; font-size: 12px; line-height: 1.35; }
         .record-upload-feedback span { color: #0f172a; font-size: 13px; line-height: 1.7; font-weight: 750; }

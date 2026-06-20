@@ -379,6 +379,9 @@ test.describe("record funnel staging QA", () => {
           "href",
           new RegExp(`/record\\?start=gallery&revisitObservationId=${MOCK_VISIT_ID}$`),
         );
+        const revisitHref = await revisitLink.getAttribute("href");
+        expect(revisitHref).not.toContain("latitude=");
+        expect(revisitHref).not.toContain("longitude=");
         await expectNoHorizontalOverflow(page);
 
         await revisitLink.click({ noWaitAfter: true });

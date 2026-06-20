@@ -68,6 +68,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /name="activityIntent"/);
         assert.match(response.body, /name="participantRole"/);
         assert.match(response.body, /name="revisitOfVisitId"/);
+        assert.match(response.body, /id="record-revisit-context"/);
+        assert.match(response.body, /前回の場所から続けます/);
+        assert.match(response.body, /場所と見返す手がかりを入れています。写真やメモを足すと、前回との違いを残せます。/);
         assert.match(response.body, /civicContext:/);
         assert.match(response.body, /activityIntent/);
         assert.match(response.body, /participantRole/);
@@ -174,6 +177,17 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /const canUsePreciseMapReturn = successReturnState === 'candidate' && hasRecordCoordinates;/);
         assert.match(response.body, /successReturnState === 'hidden' \? '' : withBasePath\('\/map' \+ mapQuery\)/);
         assert.match(response.body, /lng=' \+ encodeURIComponent\(longitude\.toFixed\(6\)\) \+ '&lat='/);
+        assert.match(response.body, /const RECORD_REVISIT_CONTEXT_STORAGE_PREFIX = 'ikimon:record-revisit-context:';/);
+        assert.match(response.body, /const rememberRevisitContext = \(visitId, context\) =>/);
+        assert.match(response.body, /window\.sessionStorage\.setItem\(RECORD_REVISIT_CONTEXT_STORAGE_PREFIX \+ visitId, JSON\.stringify\(cleaned\)\);/);
+        assert.match(response.body, /const storedRevisitContextParams = \(visitId\) =>/);
+        assert.match(response.body, /rememberRevisitContext\(visitId, \{/);
+        assert.match(response.body, /const revisitHref = withBasePath\('\/record\?start=gallery&revisitObservationId=' \+ encodeURIComponent\(visitId\)\);/);
+        assert.doesNotMatch(response.body, /revisitParams\.set\('latitude', latitude\.toFixed\(6\)\);/);
+        assert.doesNotMatch(response.body, /const revisitCarryFields = \[/);
+        assert.match(response.body, /updateRevisitContext\(params\);/);
+        assert.match(response.body, /applyPrefilledLocationText\(params\);/);
+        assert.match(response.body, /recordUiCopy\.revisitLocationLabel/);
         assert.match(response.body, /周辺の地図を見る/);
         assert.match(response.body, /自分の記録を見る/);
         assert.match(response.body, /この記録を開く/);
@@ -186,7 +200,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /const statusHeading = savedDetailId \? '記録本体は保存済みです。' : '送信に失敗しました。'/);
         assert.match(response.body, /revisit_same_place/);
         assert.match(response.body, /同じ場所でもう1件/);
-        assert.match(response.body, /revisitObservationId=/);
+        assert.match(response.body, /revisitObservationId/);
         assert.match(response.body, /写真を保存しています\.\.\. ' \+ String\(index\) \+ '\/' \+ String\(total\)/);
         assert.match(response.body, /photo_upload_failed_at_/);
         assert.match(response.body, /動画アップロードの準備ができませんでした/);
