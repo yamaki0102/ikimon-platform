@@ -298,8 +298,7 @@ test.describe.serial("existing user own-place visual review", () => {
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow).toBeLessThanOrEqual(1);
         await page.screenshot({
-          path: await screenshotPath(`map-own-places-full-${profile.slug}.png`),
-          fullPage: true,
+          path: await screenshotPath(`map-own-places-viewport-${profile.slug}.png`),
           animations: "disabled",
         });
         await page.locator("#me-own-places-panel").screenshot({
