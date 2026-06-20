@@ -894,7 +894,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [plan, verify-ssh]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.capture_ux_review == 'true'
-    timeout-minutes: 6
+    timeout-minutes: 8
     environment: staging
     steps:
       - uses: actions/checkout@v5
@@ -995,7 +995,7 @@ jobs:
             const entry = { profile: profile.slug, ok: false, errors: [] };
             let context = null;
             let screenshotCaptured = false;
-            const screenshotTimeoutMs = profile.slug.startsWith("mobile") ? 45000 : 15000;
+            const screenshotTimeoutMs = 60000;
             try {
               context = await bounded(browser.newContext({
                 baseURL: baseUrl,
@@ -1015,7 +1015,7 @@ jobs:
                 entry.errors.push(`rain click: ${String(error)}`);
               });
               await page.waitForTimeout(1500);
-              await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}.png`), fullPage: false, animations: "disabled" }), screenshotTimeoutMs, `${profile.slug} screenshot`);
+              await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}.png`), fullPage: false, timeout: screenshotTimeoutMs }), screenshotTimeoutMs + 5000, `${profile.slug} screenshot`);
               screenshotCaptured = true;
               entry.state = await bounded(page.evaluate(collectState), 8000, `${profile.slug} state`).catch((error) => {
                 entry.errors.push(`state: ${String(error)}`);
@@ -1027,7 +1027,7 @@ jobs:
               try {
                 const page = context?.pages()?.[0];
                 if (page) {
-                  await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false, animations: "disabled" }), screenshotTimeoutMs, `${profile.slug} error screenshot`);
+                  await bounded(page.screenshot({ path: path.join(outDir, `rain-nowcast-${profile.slug}-error.png`), fullPage: false, timeout: screenshotTimeoutMs }), screenshotTimeoutMs + 5000, `${profile.slug} error screenshot`);
                   screenshotCaptured = true;
                   entry.state = await bounded(page.evaluate(collectState), 5000, `${profile.slug} error state`).catch((stateError) => {
                     entry.errors.push(`error state: ${String(stateError)}`);
@@ -1058,6 +1058,13 @@ jobs:
             log("chromium launched");
             for (const profile of profiles) {
               await captureProfile(profile);
+            }
+            const missingScreenshots = profiles
+              .filter((profile) => !results.find((entry) => entry.profile === profile.slug && entry.ok))
+              .map((profile) => profile.slug);
+            if (missingScreenshots.length > 0) {
+              fatalError = `missing required screenshots: ${missingScreenshots.join(", ")}`;
+              log(fatalError);
             }
             await bounded(browser.close(), 15000, "browser close").catch((error) => {
               fatalError = String(error);
