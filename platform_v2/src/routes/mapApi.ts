@@ -174,7 +174,7 @@ async function getJmaNowcastTimes(): Promise<JmaNowcastTimesResponse> {
   }
   const payload: JmaNowcastTimesResponse = {
     source: "jma_high_resolution_precipitation_nowcast",
-    attribution: "出典: 気象庁 高解像度降水ナウキャスト",
+    attribution: "Source: JMA High-resolution Precipitation Nowcast",
     attributionUrl: "https://www.jma.go.jp/jma/kishou/know/kurashi/highres_nowcast.html",
     generatedAt: new Date().toISOString(),
     tileUrlTemplate: "/api/v1/map/weather/jma-nowcast/tile?basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
