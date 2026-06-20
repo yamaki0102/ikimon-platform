@@ -671,7 +671,8 @@ jobs:
     steps:
       - name: Skip when Cloudflare shadow is unchanged
         if: env.SHOULD_DEPLOY_WEATHER_WORKER != 'true'
-        run: echo "Skip staging weather Worker deploy: platform_v2/cloudflare_shadow unchanged."
+        run: |
+          echo "Skip staging weather Worker deploy: platform_v2/cloudflare_shadow unchanged."
 
       - uses: actions/checkout@v5
         if: env.SHOULD_DEPLOY_WEATHER_WORKER == 'true'
