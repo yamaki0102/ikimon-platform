@@ -820,7 +820,7 @@ test("map explorer omits visited place shortcuts while keeping side collapse con
   assert.match(script, /function buildPlaceMemoryRecordHref\(place\)/);
   assert.match(script, /revisitObservationId/);
   assert.match(html, /id="me-side-toggle"/);
-  assert.match(script, /function setSideRailMode\(rail\)/);
+  assert.match(script, /function setSideRailMode\(rail, options\)/);
   assert.match(script, /setSideRailMode\(nowRail\);/);
 });
 
@@ -836,6 +836,10 @@ test("map explorer loads owner-only map observations without turning them into p
   assert.match(script, /function renderOwnObservationsPanel\(\)/);
   assert.match(script, /function refreshOwnObservationMarkers\(\)/);
   assert.match(script, /function ownObservationHasShotPoint\(item\)/);
+  assert.match(script, /ownObservationsAutoOpened: false/);
+  assert.match(script, /state\.ownObservationsAutoOpened = true;/);
+  assert.match(script, /setSideTab\('results'\);/);
+  assert.match(script, /setSideRailMode\(false, \{ persist: false \}\);/);
   assert.match(script, /ここで撮った/);
   assert.match(script, /本人だけに正確な位置を表示/);
   assert.match(script, /\.filter\(ownObservationHasShotPoint\)/);

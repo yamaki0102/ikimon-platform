@@ -1465,11 +1465,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (available) btn.removeAttribute('disabled');
     else btn.setAttribute('disabled', 'disabled');
   }
-  function setSideRailMode(rail) {
+  function setSideRailMode(rail, options) {
     if (!sideSectionEl) return;
     sideSectionEl.setAttribute('data-side', rail ? 'rail' : 'open');
     if (sideToggleEl) sideToggleEl.setAttribute('aria-expanded', rail ? 'false' : 'true');
-    try { window.localStorage.setItem('me-side-rail', rail ? '1' : '0'); } catch (e) {}
+    if (!options || options.persist !== false) {
+      try { window.localStorage.setItem('me-side-rail', rail ? '1' : '0'); } catch (e) {}
+    }
     // Resize map after panel size change so MapLibre picks up new dimensions.
     setTimeout(function () {
       try { if (state && state.map && state.map.resize) state.map.resize(); } catch (e) {}
@@ -2200,6 +2202,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     nearbyAreaLocateMovePending: false,
     guideSpotMarkers: [],
     ownObservationMarkers: [],
+    ownObservationsAutoOpened: false,
     rainEnabled: false,
     rainTimes: [],
     rainSelectedIndex: 0,
@@ -3074,6 +3077,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ownObservationsEl.hidden = true;
       ownObservationsEl.innerHTML = '';
       return;
+    }
+    if (!state.ownObservationsAutoOpened) {
+      state.ownObservationsAutoOpened = true;
+      setSideTab('results');
+      setSideRailMode(false, { persist: false });
     }
     ownObservationsEl.hidden = false;
     ownObservationsEl.innerHTML = ''
