@@ -9,6 +9,7 @@ import {
   normalizeFieldName,
   validateAreaPolygon,
 } from "./observationEventAreaGeometry.js";
+import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 
 export type FieldSource =
   | "user_defined"
@@ -227,6 +228,14 @@ const SELECT = `
   payload,
   created_at::text AS created_at, updated_at::text AS updated_at
 `;
+
+const FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "s.organizer_user_id",
+  visitIdColumn: "s.session_id",
+  eventCodeColumn: "s.event_code",
+  titleColumn: "s.title",
+  configColumn: "s.config::text",
+});
 
 function isFieldSource(value: unknown): value is FieldSource {
   return typeof value === "string" &&
@@ -931,8 +940,9 @@ export async function getFieldStats(fieldId: string): Promise<FieldStats | null>
       `SELECT
          COUNT(*)::text AS total,
          COUNT(*) FILTER (WHERE ended_at IS NULL)::text AS live
-       FROM observation_event_sessions
-       WHERE field_id = $1`,
+       FROM observation_event_sessions s
+       WHERE s.field_id = $1
+         AND ${FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL}`,
       [fieldId],
     ),
     pool.query<{
@@ -945,8 +955,9 @@ export async function getFieldStats(fieldId: string): Promise<FieldStats | null>
       `SELECT session_id, title, event_code,
               started_at::text AS started_at,
               ended_at::text AS ended_at
-       FROM observation_event_sessions
-       WHERE field_id = $1
+       FROM observation_event_sessions s
+       WHERE s.field_id = $1
+         AND ${FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL}
        ORDER BY started_at DESC
        LIMIT 12`,
       [fieldId],
@@ -956,7 +967,9 @@ export async function getFieldStats(fieldId: string): Promise<FieldStats | null>
          SELECT e.payload
          FROM observation_event_live_events e
          JOIN observation_event_sessions s ON s.session_id = e.session_id
-         WHERE s.field_id = $1 AND e.type = 'observation_added'
+         WHERE s.field_id = $1
+           AND ${FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL}
+           AND e.type = 'observation_added'
        )
        SELECT COUNT(*)::text AS obs_count,
               COUNT(DISTINCT (payload->>'taxon_name'))::text AS species_count
@@ -968,7 +981,8 @@ export async function getFieldStats(fieldId: string): Promise<FieldStats | null>
       `SELECT COUNT(*)::text AS absence_count
        FROM observation_event_absences a
        JOIN observation_event_sessions s ON s.session_id = a.session_id
-       WHERE s.field_id = $1`,
+       WHERE s.field_id = $1
+         AND ${FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL}`,
       [fieldId],
     ),
     pool.query<{ taxon_name: string; cnt: string }>(
@@ -976,6 +990,7 @@ export async function getFieldStats(fieldId: string): Promise<FieldStats | null>
        FROM observation_event_live_events e
        JOIN observation_event_sessions s ON s.session_id = e.session_id
        WHERE s.field_id = $1
+         AND ${FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL}
          AND e.type = 'observation_added'
          AND e.payload->>'taxon_name' IS NOT NULL
        GROUP BY e.payload->>'taxon_name'
@@ -987,7 +1002,8 @@ export async function getFieldStats(fieldId: string): Promise<FieldStats | null>
       `SELECT COUNT(*)::text AS participants
        FROM observation_event_participants p
        JOIN observation_event_sessions s ON s.session_id = p.session_id
-       WHERE s.field_id = $1`,
+       WHERE s.field_id = $1
+         AND ${FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL}`,
       [fieldId],
     ),
   ]);
@@ -1010,3 +1026,7 @@ export async function getFieldStats(fieldId: string): Promise<FieldStats | null>
     })),
   };
 }
+
+export const __test__ = {
+  FIELD_STATS_SESSION_FIXTURE_EXCLUSION_SQL,
+};

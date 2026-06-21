@@ -2,7 +2,15 @@ import { getPool } from "../db.js";
 import type { ObservationField } from "./observationFieldRegistry.js";
 import { computeBbox } from "./geoJsonBbox.js";
 import { haversineMeters } from "./observationEventAreaGeometry.js";
+import {
+  PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
+  PUBLIC_OBSERVATION_QUALITY_SQL,
+} from "./observationQualityGate.js";
 import { pointInGeoJsonPolygon } from "./pointInPolygon.js";
+import {
+  buildPublicSyntheticObservationExclusionSql,
+  buildStagingFixtureExclusionSql,
+} from "./stagingFixtureGuard.js";
 
 type CandidateVisitRow = {
   visit_id: string;
@@ -12,12 +20,26 @@ type CandidateVisitRow = {
   resolved_match: boolean | null;
 };
 
+const AREA_SNAPSHOT_VISIT_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v.user_id",
+  visitIdColumn: "v.visit_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+});
+
+const AREA_SNAPSHOT_VISIT_SYNTHETIC_EXCLUSION_SQL = buildPublicSyntheticObservationExclusionSql({
+  userSeedColumn: "u.is_seed",
+  visitLegacyObservationIdColumn: "v.legacy_observation_id",
+  visitImportSourceColumn: "coalesce(v.source_payload->>'import_source', '')",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+});
+
 const AREA_SNAPSHOT_VISIT_SCOPE_SQL = `select v.visit_id,
             v.point_latitude::text as point_latitude,
             v.point_longitude::text as point_longitude,
             v.source_payload->>'field_id' as source_field_id,
             $1::uuid = any(coalesce(v.resolved_field_ids, array[]::uuid[])) as resolved_match
        from visits v
+       left join users u on u.user_id = v.user_id
       where (
             v.source_payload->>'field_id' = $1::text
          or ($2::text is not null and v.place_id = $2)
@@ -28,7 +50,16 @@ const AREA_SNAPSHOT_VISIT_SCOPE_SQL = `select v.visit_id,
          )
         )
         and ($7::timestamptz is null or v.observed_at >= $7::timestamptz)
-        and ($8::timestamptz is null or v.observed_at < $8::timestamptz)`;
+        and ($8::timestamptz is null or v.observed_at < $8::timestamptz)
+        and ${AREA_SNAPSHOT_VISIT_FIXTURE_EXCLUSION_SQL}
+        and ${AREA_SNAPSHOT_VISIT_SYNTHETIC_EXCLUSION_SQL}
+        and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+        and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
+        and exists (
+          select 1
+            from occurrences area_scope_o
+           where area_scope_o.visit_id = v.visit_id
+        )`;
 
 function radiusBbox(field: Pick<ObservationField, "lat" | "lng" | "radiusM">): {
   minLat: number; maxLat: number; minLng: number; maxLng: number;
@@ -91,6 +122,8 @@ export async function loadAreaSnapshotVisitIds(
 
 export const __test__ = {
   AREA_SNAPSHOT_VISIT_SCOPE_SQL,
+  AREA_SNAPSHOT_VISIT_FIXTURE_EXCLUSION_SQL,
+  AREA_SNAPSHOT_VISIT_SYNTHETIC_EXCLUSION_SQL,
   fieldSearchBbox,
   radiusBbox,
   visitMatchesAreaScope,
