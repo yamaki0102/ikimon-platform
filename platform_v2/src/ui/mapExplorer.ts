@@ -2213,6 +2213,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     _restoredZoom: null,
     _restoredCellId: null,
     _fittedOnce: false,
+    _ownObservationFirstViewApplied: false,
     _meMarker: null,
   };
   var areaGuideWatchId = null;
@@ -3303,6 +3304,47 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         var lng = Number(record && record.longitude);
         return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
       });
+  }
+
+  function maybeFitOwnObservationsOnFirstOpen() {
+    if (!state.map || state._ownObservationFirstViewApplied) return;
+    if (state.tab === 'rain') return;
+    if (state._restoredCenter || state._restoredCellId) return;
+    if (state.selectedPoint || state._meMarker) return;
+    var records = validOwnObservationRecords();
+    if (!records.length) return;
+    state._ownObservationFirstViewApplied = true;
+    if (records.length === 1) {
+      var oneLat = Number(records[0].latitude);
+      var oneLng = Number(records[0].longitude);
+      if (Number.isFinite(oneLat) && Number.isFinite(oneLng)) {
+        state.map.flyTo({ center: [oneLng, oneLat], zoom: 15, duration: 720, essential: true });
+      }
+      return;
+    }
+    var minLng = Infinity;
+    var minLat = Infinity;
+    var maxLng = -Infinity;
+    var maxLat = -Infinity;
+    records.forEach(function (record) {
+      var lat = Number(record.latitude);
+      var lng = Number(record.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      minLng = Math.min(minLng, lng);
+      minLat = Math.min(minLat, lat);
+      maxLng = Math.max(maxLng, lng);
+      maxLat = Math.max(maxLat, lat);
+    });
+    if (!Number.isFinite(minLng) || !Number.isFinite(minLat) || !Number.isFinite(maxLng) || !Number.isFinite(maxLat)) return;
+    if (Math.abs(maxLng - minLng) < 0.0008) {
+      minLng -= 0.0008;
+      maxLng += 0.0008;
+    }
+    if (Math.abs(maxLat - minLat) < 0.0008) {
+      minLat -= 0.0008;
+      maxLat += 0.0008;
+    }
+    state.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 74, maxZoom: 15.2, duration: 760 });
   }
 
   function ownObservationGroups(records) {
@@ -7318,6 +7360,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (payload) {
         state.myObservations = payload && payload.signedIn ? (payload.items || []) : [];
         renderOwnObservationMarkers();
+        maybeFitOwnObservationsOnFirstOpen();
       })
       .catch(function () {
         state.myObservations = [];
@@ -8307,6 +8350,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var lat = pos.coords.latitude;
       if (!isFinite(lng) || !isFinite(lat)) return;
       if (lng < -180 || lng > 180 || lat < -85 || lat > 85) return;
+      if (state._ownObservationFirstViewApplied) {
+        dropMeMarker(lng, lat);
+        return;
+      }
       // Suppress later data-driven auto-fit so the user's location wins.
       state._fittedOnce = true;
       state.map.flyTo({ center: [lng, lat], zoom: 13, duration: 900, essential: true });

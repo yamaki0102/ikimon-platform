@@ -178,6 +178,14 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /data-own-observation-choice/);
   assert.match(script, /setSheetSnap\('full'\)/);
   assert.match(script, /openOwnObservationStackSheet\(group\.records\)/);
+  assert.match(script, /function maybeFitOwnObservationsOnFirstOpen\(\)/);
+  assert.match(script, /state\._ownObservationFirstViewApplied/);
+  assert.match(script, /state\.map\.fitBounds\(\[\[minLng, minLat\], \[maxLng, maxLat\]\]/);
+  assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId\) return;/);
+  assert.match(script, /if \(state\.tab === 'rain'\) return;/);
+  assert.match(script, /if \(state\.selectedPoint \|\| state\._meMarker\) return;/);
+  assert.match(script, /maybeFitOwnObservationsOnFirstOpen\(\);/);
+  assert.match(script, /if \(state\._ownObservationFirstViewApplied\) \{\s+dropMeMarker\(lng, lat\);\s+return;\s+\}/);
   assert.match(script, /state\.tab === 'rain'/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
 });

@@ -150,6 +150,26 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
     expect(payload.items?.some((item) => item.visitId === fixture.smoke.visitId)).toBe(false);
   });
 
+  test("map opens around owner records when no viewport is specified", async ({ browser }) => {
+    const context = await newStagingContext(browser, VIEWPORTS[0], { serviceWorkers: "block" });
+    await addSessionCookie(context, sessionCookie);
+    const page = await context.newPage();
+    await installMapLibreStubForSmoke(page);
+
+    try {
+      await page.goto("/ja/map?tab=places", { waitUntil: "domcontentloaded" });
+      await waitForOwnerMarkers(page);
+
+      const fit = await page.evaluate(() => (window as any).__ikimonMapSmokeLastFitBounds ?? null);
+      expect(fit, "owner observations should drive first map viewport when no lng/lat/z is provided").toBeTruthy();
+      expect(fit.options?.maxZoom).toBeCloseTo(15.2, 1);
+      expect(fit.center?.latitude ?? fit.center?.lat).toBeCloseTo(35.0104, 1);
+      expect(fit.center?.longitude ?? fit.center?.lng).toBeCloseTo(138.3929, 1);
+    } finally {
+      await context.close();
+    }
+  });
+
   for (const profile of VIEWPORTS) {
     test(`own observation markers are visible with thumbnails and hidden in rain mode (${profile.slug})`, async ({ browser }) => {
       const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
