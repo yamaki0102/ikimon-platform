@@ -41,6 +41,7 @@ import { getReactionSummary, type ReactionType } from "../services/observationRe
 import { getIdentificationConsensus, type IdentificationConsensusResult } from "../services/identificationConsensus.js";
 import { getObserverStats } from "../services/observerStats.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
+import { appendSharedArrivalContext, collectSharedArrivalContext } from "../services/sharedArrivalContext.js";
 import { getTaxonInsight, type TaxonInsight } from "../services/taxonInsights.js";
 import { lookupLocalTaxonName } from "../services/taxonNameNormalizer.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
@@ -19631,16 +19632,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const viewerUserId = viewerSession?.userId ?? null;
+    const sharedArrivalContext = collectSharedArrivalContext(request.query as Record<string, unknown>);
+    const withSharedArrivalContext = (href: string): string => appendSharedArrivalContext(href, sharedArrivalContext);
     const requestedSubjectId = request.query.subject ?? request.query.occurrence ?? null;
     const bundle = await getObservationVisitBundle(request.params.id, requestedSubjectId);
     if (!bundle) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
-    const canonicalHref = appendLangToHref(
+    const canonicalHref = withSharedArrivalContext(appendLangToHref(
       withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`),
       lang,
-    );
+    ));
     if (request.params.id !== bundle.visitId || request.query.subject || request.query.occurrence) {
       return reply.redirect(canonicalHref, 302);
     }
@@ -19944,7 +19947,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     // 画像内の枠クリックや下部の記録カードへの連動は残す。
     const mediaDiscoveryBlock = "";
 
-    const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
+    const revisitRecordHref = withSharedArrivalContext(buildPlaceRecordHref(basePath, lang, viewerUserId, {
       placeId: snapshot.placeId,
       placeName: snapshot.placeName || heroPlaceLabel || "この場所",
       municipality: snapshot.municipality,
@@ -19956,7 +19959,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       nextLookFor: snapshotDisplay.primaryLabel,
       latestDisplayName: snapshotDisplay.primaryLabel,
       absenceSemantics: snapshot.absenceSemantics,
-    });
+    }));
     const nextActions: ObservationNextAction[] = [
       {
         href: revisitRecordHref,
@@ -19966,7 +19969,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         primary: true,
       },
       {
-        href: appendLangToHref(withBasePath(basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(bundle.visitId)}`), lang),
+        href: withSharedArrivalContext(appendLangToHref(withBasePath(basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(bundle.visitId)}`), lang)),
         label: "追加写真を撮る",
         body: "足りない角度や証拠を補う",
         key: "add_media",
@@ -19978,7 +19981,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         key: "identify",
       },
       {
-        href: relatedObservationsHref,
+        href: withSharedArrivalContext(relatedObservationsHref),
         label: "似た観察を見る",
         body: "近い記録から読み方を広げる",
         key: "explore_related",
