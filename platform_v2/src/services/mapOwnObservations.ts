@@ -117,7 +117,7 @@ export async function listMapOwnObservations(
         and coalesce(v.visit_mode, 'manual') in ('manual', 'survey')
         and coalesce(v.point_latitude, p.center_latitude) is not null
         and coalesce(v.point_longitude, p.center_longitude) is not null
-        and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|smoke|fixture|dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|regression[-_]?seed|regression[-_]?fixture|test[-_]?fixture)([-_]|$)'
+        and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|smoke|fixture|dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|test[-_]?fixture)([-_]|$)'
         and coalesce(
           nullif(o.vernacular_name, ''),
           nullif(o.scientific_name, ''),

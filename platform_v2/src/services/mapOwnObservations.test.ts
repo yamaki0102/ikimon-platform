@@ -8,7 +8,6 @@ const source = readFileSync(new URL("./mapOwnObservations.ts", import.meta.url),
 test("owner map observations reject smoke and placeholder records even for the signed-in owner", () => {
   assert.match(source, /source_payload->>'source'/);
   assert.match(source, /e2e\|smoke\|fixture\|dummy\|placeholder/);
-  assert.match(source, /regression\[-_\]\?seed/);
 });
 
 test("owner map observations require a meaningful label source before drawing exact points", () => {
