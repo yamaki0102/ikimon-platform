@@ -165,9 +165,16 @@ test("map explorer overlays signed-in owner observations separately from public 
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(html, /data-api-my-observations="\/api\/v1\/me\/map-observations"/);
+  assert.match(html, /id="me-own-trail"/);
+  assert.match(html, /id="me-own-trail-list"/);
+  assert.match(html, /自分の撮影/);
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
   assert.match(script, /credentials: 'same-origin'/);
+  assert.match(script, /function renderOwnObservationTrail\(records\)/);
+  assert.match(script, /function hideOwnObservationTrail\(\)/);
+  assert.match(script, /data-own-trail-id/);
+  assert.match(script, /map:own_observation_trail_focus/);
   assert.match(script, /function ownObservationGroups/);
   assert.match(script, /function renderOwnObservationMarkers\(\)/);
   assert.match(script, /var maplibre = state\.maplibreRuntime \|\| window\.maplibregl/);
@@ -190,6 +197,8 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /renderOwnObservationGroup\(group, true\)/);
   assert.match(script, /renderNearCenterOwnObservationPins\(records\)/);
   assert.match(script, /setOwnObservationMarkerState\(state\.ownObservationMarkers\.length \? 'ready' : 'render-empty'/);
+  assert.match(script, /renderOwnObservationTrail\(records\)/);
+  assert.match(script, /hideOwnObservationTrail\(\)/);
   assert.match(script, /me-own-observation-marker/);
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);

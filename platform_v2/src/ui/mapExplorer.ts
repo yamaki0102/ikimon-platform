@@ -1386,6 +1386,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
             <a class="me-results-empty-action" href="${escapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:results_empty_record" data-kpi-funnel="map_empty_results" data-kpi-target="${escapeHtml(recordHref)}">${escapeHtml(copy.emptyActionRecord)}</a>
           </div>
         </section>
+        <section class="me-own-trail is-hidden" id="me-own-trail" aria-hidden="true">
+          <div class="me-own-trail-head">
+            <strong>${escapeHtml(props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos")}</strong>
+            <span id="me-own-trail-count"></span>
+          </div>
+          <div class="me-own-trail-list" id="me-own-trail-list"></div>
+        </section>
         <div class="me-legend is-hidden" id="me-legend" aria-hidden="true">
           <div class="me-legend-main">
             <span class="me-legend-label" id="me-legend-label">${escapeHtml(copy.legendLabel)}</span>
@@ -1427,6 +1434,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var legendLowEl = document.getElementById('me-legend-low');
   var legendHighEl = document.getElementById('me-legend-high');
   var legendDetailEl = document.getElementById('me-legend-detail');
+  var ownTrailEl = document.getElementById('me-own-trail');
+  var ownTrailListEl = document.getElementById('me-own-trail-list');
+  var ownTrailCountEl = document.getElementById('me-own-trail-count');
   var layerHintEl = document.getElementById('me-layer-hint');
   var layerHintTextEl = document.getElementById('me-layer-hint-text');
   var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
@@ -1558,6 +1568,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
     ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
     ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
+    ownObservationTrailHeading: props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos",
     siteBriefHeading: copy.siteBriefHeading,
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
@@ -3314,6 +3325,56 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
+  function hideOwnObservationTrail() {
+    if (!ownTrailEl) return;
+    ownTrailEl.classList.add('is-hidden');
+    ownTrailEl.setAttribute('aria-hidden', 'true');
+    if (ownTrailListEl) ownTrailListEl.innerHTML = '';
+    if (ownTrailCountEl) ownTrailCountEl.textContent = '';
+  }
+
+  function renderOwnObservationTrail(records) {
+    if (!ownTrailEl || !ownTrailListEl) return;
+    var list = (Array.isArray(records) ? records : [])
+      .filter(function (record) {
+        var lat = Number(record && record.latitude);
+        var lng = Number(record && record.longitude);
+        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
+      })
+      .slice(0, 6);
+    if (state.tab === 'rain' || !list.length) {
+      hideOwnObservationTrail();
+      return;
+    }
+    if (ownTrailCountEl) {
+      ownTrailCountEl.textContent = props.lang === "ja"
+        ? String(list.length) + '件'
+        : String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
+    }
+    ownTrailListEl.innerHTML = list.map(function (record) {
+      var label = recordDisplayName(record, COPY.discoveryFallback);
+      var meta = ownObservationMeta(record);
+      return '<button type="button" class="me-own-trail-item" data-own-trail-id="' + escapeHtml(String(record && record.occurrenceId || '')) + '" data-own-trail-lat="' + escapeHtml(String(record && record.latitude || '')) + '" data-own-trail-lng="' + escapeHtml(String(record && record.longitude || '')) + '">' +
+        '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-trail-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' +
+        '<span><strong>' + escapeHtml(label) + '</strong>' + (meta ? '<small>' + escapeHtml(meta) + '</small>' : '') + '</span>' +
+      '</button>';
+    }).join('');
+    ownTrailListEl.querySelectorAll('.me-own-trail-item').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var lat = Number(button.getAttribute('data-own-trail-lat'));
+        var lng = Number(button.getAttribute('data-own-trail-lng'));
+        var id = String(button.getAttribute('data-own-trail-id') || '');
+        if (!state.map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        try {
+          state.map.flyTo({ center: [lng, lat], zoom: Math.max(Number(state.map.getZoom && state.map.getZoom() || 0), 16), duration: 620, essential: true });
+          sendMapKpi('map_interaction', 'map:own_observation_trail_focus', { occurrenceId: id || null });
+        } catch (_) {}
+      });
+    });
+    ownTrailEl.classList.remove('is-hidden');
+    ownTrailEl.setAttribute('aria-hidden', 'false');
+  }
+
   function currentOwnObservationCenter() {
     if (state._restoredCenter && state._restoredCenter.length >= 2) {
       var restoredLng = Number(state._restoredCenter[0]);
@@ -3530,13 +3591,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderOwnObservationMarkers() {
     clearOwnObservationMarkers();
     var maplibre = state.maplibreRuntime || window.maplibregl;
-    if (!state.map || state.tab === 'rain') return;
+    if (!state.map || state.tab === 'rain') {
+      hideOwnObservationTrail();
+      return;
+    }
     var records = prioritizeOwnObservationRecordsForView(validOwnObservationRecords());
     if (root) root.setAttribute('data-own-observation-record-count', String(records.length));
     if (!records.length) {
       setOwnObservationMarkerState('empty', 0);
+      hideOwnObservationTrail();
       return;
     }
+    renderOwnObservationTrail(records);
     setOwnObservationMarkerState('rendering', 0);
     function addOwnObservationFallbackMarker(el, lng, lat) {
       if (!root || !el) return null;
@@ -7552,6 +7618,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           root.setAttribute('data-own-observations-fetch', 'error');
           root.setAttribute('data-own-observation-record-count', '0');
         }
+        hideOwnObservationTrail();
         clearOwnObservationMarkers();
       });
   }
@@ -9543,6 +9610,99 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 950;
     white-space: nowrap;
   }
+  .me-own-trail {
+    position: absolute;
+    left: 18px;
+    bottom: 34px;
+    z-index: 4;
+    width: min(520px, calc(100% - 36px));
+    padding: 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(15,23,42,.08);
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 18px 44px rgba(15,23,42,.14);
+    backdrop-filter: blur(16px);
+  }
+  .me-own-trail.is-hidden { display: none; }
+  .me-own-trail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .me-own-trail-head strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .me-own-trail-head span {
+    color: #047857;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .me-own-trail-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(132px, 1fr);
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .me-own-trail-item {
+    min-width: 0;
+    min-height: 62px;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 7px;
+    border-radius: 14px;
+    border: 1px solid rgba(16,185,129,.16);
+    background: rgba(236,253,245,.76);
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-own-trail-item:hover {
+    background: rgba(209,250,229,.92);
+    border-color: rgba(5,150,105,.28);
+  }
+  .me-own-trail-item img {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    display: block;
+    background: #e0f2fe;
+  }
+  .me-own-trail-item span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .me-own-trail-item strong,
+  .me-own-trail-item small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+  .me-own-trail-item strong {
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .me-own-trail-item small {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 800;
+  }
   .me-nearby-area-marker {
     max-width: 150px;
     min-width: 98px;
@@ -11432,6 +11592,28 @@ export const MAP_EXPLORER_STYLES = `
       visibility: hidden;
       pointer-events: none;
       transform: translate3d(0, 10px, 0);
+    }
+    .me-own-trail {
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: calc(var(--me-mobile-action-space) + 10px);
+      width: auto;
+      padding: 8px;
+      border-radius: 16px;
+      z-index: 34;
+    }
+    .me-own-trail-list {
+      grid-auto-columns: minmax(124px, 44vw);
+    }
+    .me-own-trail-item {
+      min-height: 58px;
+      grid-template-columns: 44px minmax(0, 1fr);
+      padding: 6px;
+    }
+    .me-own-trail-item img {
+      width: 44px;
+      height: 44px;
     }
     .me-rain-head {
       display: grid;

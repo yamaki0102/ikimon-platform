@@ -231,6 +231,12 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
         await page.goto("/ja/map?tab=places&lng=138.3929&lat=35.0104&z=16", { waitUntil: "domcontentloaded" });
         await waitForOwnerMarkers(page);
 
+        const trail = page.locator("#me-own-trail");
+        await expect(trail).toBeVisible();
+        await expect(trail).toContainText("自分の撮影");
+        await expect(page.locator(`[data-own-trail-id="${fixture.manual.occurrenceId}"]`)).toBeVisible();
+        await expect(page.locator(`[data-own-trail-id="${fixture.manual.occurrenceId}"] img`)).toBeVisible();
+
         const marker = ownerObservationMarker(page, fixture.manual.occurrenceId);
         await expect(marker).toBeVisible();
         await expect(marker).toContainText(fixture.manual.subjectLabel);
