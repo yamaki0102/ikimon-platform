@@ -74,6 +74,12 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /場所と時間が残る/);
         assert.match(response.body, /周囲も手がかり/);
         assert.match(response.body, /対象はあとで分ける/);
+        assert.match(response.body, /record-first-success/);
+        assert.match(response.body, /最短で残す/);
+        assert.match(response.body, /写真かメモを選ぶ/);
+        assert.match(response.body, /気づきを1つ入れる/);
+        assert.match(response.body, /保存して見返す/);
+        assert.match(response.body, /\.record-has-media \.record-first-success/);
         assert.match(response.body, /buildRecordFeedbackSentence/);
         assert.match(response.body, /requestVisualRecordFeedback/);
         assert.match(response.body, /\/api\/v1\/record\/photo-feedback/);
