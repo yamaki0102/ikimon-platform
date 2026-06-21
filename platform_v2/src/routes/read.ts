@@ -5007,6 +5007,9 @@ type RecordPageCopy = {
   modeSurveyLead: string;
   confidenceAria: string;
   confidenceItems: RecordConfidenceItem[];
+  firstSuccessAria: string;
+  firstSuccessLabel: string;
+  firstSuccessItems: string[];
   captureLabels: Record<"note" | "photo" | "video" | "gallery", { title: string; help: string }>;
 };
 
@@ -5285,6 +5288,9 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       modeSurveyLead: "見た条件も一緒に残して、あとで同じ場所・同じ対象を比べやすくするための入力です。",
       confidenceAria: start.confidenceAria,
       confidenceItems: start.confidenceItems,
+      firstSuccessAria: "最短で残す流れ",
+      firstSuccessLabel: "最短で残す",
+      firstSuccessItems: ["写真かメモを選ぶ", "気づきを1つ入れる", "保存して見返す"],
       captureLabels: {
         note: { title: "メモだけ残す", help: "写真なしでも、場所・時間・ひとことで記録を残せます。" },
         photo: { title: "写真で記録する", help: "撮った写真、または端末上の写真を記録に添付します。" },
@@ -5330,6 +5336,9 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       modeSurveyLead: "Add viewing conditions so you can compare this place later.",
       confidenceAria: start.confidenceAria,
       confidenceItems: start.confidenceItems,
+      firstSuccessAria: "Fast path to save",
+      firstSuccessLabel: "Fast path",
+      firstSuccessItems: ["Choose photo or note", "Add one clue", "Save and revisit"],
       captureLabels: {
         note: { title: "Leave a note", help: "Record place, time, and a short note even without a photo." },
         photo: { title: "Record with photo", help: "Attach a new photo or a photo from this device." },
@@ -5375,6 +5384,9 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       modeSurveyLead: "Agrega condiciones para comparar este lugar despues.",
       confidenceAria: start.confidenceAria,
       confidenceItems: start.confidenceItems,
+      firstSuccessAria: "Ruta rapida para guardar",
+      firstSuccessLabel: "Ruta rapida",
+      firstSuccessItems: ["Foto o nota", "Una pista", "Guardar y volver"],
       captureLabels: {
         note: { title: "Dejar nota", help: "Registra lugar, hora y una nota corta aunque no haya foto." },
         photo: { title: "Registrar con foto", help: "Adjunta una foto nueva o una foto del dispositivo." },
@@ -5420,6 +5432,9 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       modeSurveyLead: "Adicione condicoes para comparar este lugar depois.",
       confidenceAria: start.confidenceAria,
       confidenceItems: start.confidenceItems,
+      firstSuccessAria: "Caminho rapido para salvar",
+      firstSuccessLabel: "Caminho rapido",
+      firstSuccessItems: ["Foto ou nota", "Uma pista", "Salvar e rever"],
       captureLabels: {
         note: { title: "Deixar nota", help: "Registre local, horario e uma nota curta mesmo sem foto." },
         photo: { title: "Registrar com foto", help: "Anexe uma foto nova ou uma foto deste dispositivo." },
@@ -6102,6 +6117,12 @@ function renderRecordConfidenceStrip(lang: SiteLang): string {
   return `<div class="record-confidence-strip" aria-label="${escapeHtml(copy.confidenceAria)}">${copy.confidenceItems
     .map((item) => `<div class="record-confidence-item"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></div>`)
     .join("")}</div>`;
+}
+
+function renderRecordFirstSuccess(copy: RecordPageCopy): string {
+  return `<div class="record-first-success" aria-label="${escapeHtml(copy.firstSuccessAria)}"><strong>${escapeHtml(copy.firstSuccessLabel)}</strong><ol>${copy.firstSuccessItems
+    .map((item) => `<li><span>${escapeHtml(item)}</span></li>`)
+    .join("")}</ol></div>`;
 }
 
 function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "/record"): string {
@@ -14226,6 +14247,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </div>
             ${renderRecordConfidenceStrip(lang)}
+            ${renderRecordFirstSuccess(recordCopy)}
             <div class="record-capture-launcher" aria-label="${escapeHtml(recordCopy.captureAria)}">
               <button type="button" class="record-capture-option record-capture-photo-primary is-primary" data-capture-action="photo">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
@@ -18497,11 +18519,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-confidence-item { flex: 1 1 112px; min-height: 58px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); }
         .record-confidence-item strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
         .record-confidence-item span { display: block; margin-top: 3px; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 750; }
+        .record-first-success { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; margin: -4px 0 14px 16px; padding: 8px 10px; border-radius: 10px; background: rgba(240,253,250,.86); border: 1px solid rgba(20,184,166,.18); }
+        .record-first-success strong { color: #0f766e; font-size: 12px; line-height: 1.25; font-weight: 950; white-space: nowrap; }
+        .record-first-success ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; counter-reset: record-success-step; }
+        .record-first-success li { counter-increment: record-success-step; min-height: 34px; display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.06); color: #0f172a; font-size: 11px; line-height: 1.3; font-weight: 850; }
+        .record-first-success li::before { content: counter(record-success-step); flex: 0 0 20px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #ccfbf1; color: #0f766e; font-size: 10px; line-height: 1; font-weight: 950; }
+        .record-first-success span { min-width: 0; overflow-wrap: anywhere; }
         .record-secondary-links { display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 0 0 18px 16px; }
         .record-secondary-links a { color: #047857; font-size: 13px; font-weight: 900; text-decoration: none; }
         .record-secondary-links a:hover { text-decoration: underline; }
         .record-has-media .record-capture-launcher,
         .record-has-media .record-confidence-strip,
+        .record-has-media .record-first-success,
         .record-has-media .record-secondary-links { display: none; }
         .record-video-simple #record-video-guide,
         .record-video-simple #record-video-primary-photo,
@@ -18760,6 +18789,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
           .record-capture-photo-primary { grid-column: 1 / -1; }
           .record-confidence-strip { margin-left: 0; }
+          .record-first-success { grid-template-columns: 1fr; gap: 8px; margin-left: 0; }
+          .record-first-success ol { grid-template-columns: 1fr; }
           .record-secondary-links { margin-left: 0; }
           .record-has-media .record-card-head { display: none; }
           .record-capture-option { min-height: 124px; padding: 14px; border-radius: 18px; }
