@@ -55,6 +55,8 @@ export type SiteShellOptions = {
   /** Skip the global site footer. Immersive surfaces also suppress it
    *  automatically so primary circulation stays in the header/side menu. */
   hideFooter?: boolean;
+  /** Suppress the fixed quick record launcher when a page provides its own focused record entry. */
+  hideGlobalRecordLauncher?: boolean;
 };
 
 type ShellCopy = {
@@ -330,6 +332,10 @@ type SideNavDirectoryCopy = {
     notes: string;
     guideOutcomes: string;
     needsId: string;
+    map: string;
+    publicFinds: string;
+    todayRecord: string;
+    savedPlaces: string;
     nearbyAreas: string;
     identifyQueue: string;
     taxaSearch: string;
@@ -349,8 +355,8 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
     ja: {
       primaryTitle: "今日使う",
       groups: {
-        guest: "はじめる",
-        signedIn: "今日の続き",
+        guest: "まず見る",
+        signedIn: "自分の続き",
         personalized: "フォロー中",
         find: "探す・見る",
         learn: "読み物",
@@ -358,18 +364,22 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "更新・連絡",
       },
       links: {
-        register: "新しく登録",
+        register: "残し始める",
         login: "ログイン",
-        howTo: "使い方を見る",
+        howTo: "使い方",
         myPage: "マイページ",
-        notes: "記録を見る",
+        notes: "自分の記録",
         guideOutcomes: "ガイド成果",
         needsId: "名前を待つ記録",
+        map: "地図を見る",
+        publicFinds: "みんなの発見",
+        todayRecord: "今日残す",
+        savedPlaces: "残した場所",
         nearbyAreas: "近くの観察エリア",
         identifyQueue: "名前を待つ記録",
         taxaSearch: "分類群を探す",
         explore: "見つける",
-        observations: "記録を見る",
+        observations: "みんなの発見",
         lens: "その場で見る",
         guide: "ライブガイド",
         events: "観察会",
@@ -381,8 +391,8 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
     en: {
       primaryTitle: "Daily",
       groups: {
-        guest: "Start",
-        signedIn: "Continue",
+        guest: "Browse first",
+        signedIn: "Your next step",
         personalized: "Following",
         find: "Find and view",
         learn: "Read",
@@ -390,13 +400,17 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Updates and contact",
       },
       links: {
-        register: "Create account",
+        register: "Start saving",
         login: "Sign in",
         howTo: "How it works",
         myPage: "My page",
-        notes: "Observation library",
+        notes: "My records",
         guideOutcomes: "Guide outcomes",
         needsId: "Records needing a name",
+        map: "Open map",
+        publicFinds: "Public finds",
+        todayRecord: "Save today",
+        savedPlaces: "Saved places",
         nearbyAreas: "Nearby areas",
         identifyQueue: "Records needing a name",
         taxaSearch: "Search taxa",
@@ -413,8 +427,8 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
     es: {
       primaryTitle: "Diario",
       groups: {
-        guest: "Empezar",
-        signedIn: "Continuar",
+        guest: "Ver primero",
+        signedIn: "Tu siguiente paso",
         personalized: "Siguiendo",
         find: "Buscar y ver",
         learn: "Leer",
@@ -422,13 +436,17 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Novedades y contacto",
       },
       links: {
-        register: "Crear cuenta",
+        register: "Empezar a guardar",
         login: "Entrar",
         howTo: "Como funciona",
         myPage: "Mi pagina",
-        notes: "Biblioteca",
+        notes: "Mis registros",
         guideOutcomes: "Resultados de guia",
         needsId: "Registros sin nombre",
+        map: "Abrir mapa",
+        publicFinds: "Hallazgos publicos",
+        todayRecord: "Guardar hoy",
+        savedPlaces: "Lugares guardados",
         nearbyAreas: "Areas cercanas",
         identifyQueue: "Registros sin nombre",
         taxaSearch: "Buscar taxones",
@@ -445,8 +463,8 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
     "pt-BR": {
       primaryTitle: "Diario",
       groups: {
-        guest: "Comecar",
-        signedIn: "Continuar",
+        guest: "Ver primeiro",
+        signedIn: "Seu proximo passo",
         personalized: "Seguindo",
         find: "Buscar e ver",
         learn: "Ler",
@@ -454,13 +472,17 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Novidades e contato",
       },
       links: {
-        register: "Criar conta",
+        register: "Comecar a salvar",
         login: "Entrar",
         howTo: "Como funciona",
         myPage: "Minha pagina",
-        notes: "Biblioteca",
+        notes: "Meus registros",
         guideOutcomes: "Resultados do guia",
         needsId: "Registros sem nome",
+        map: "Abrir mapa",
+        publicFinds: "Achados publicos",
+        todayRecord: "Salvar hoje",
+        savedPlaces: "Lugares salvos",
         nearbyAreas: "Areas proximas",
         identifyQueue: "Registros sem nome",
         taxaSearch: "Buscar taxons",
@@ -536,7 +558,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     ja: {
       home: "ホーム",
       record: "記録",
-      observations: "記録を見る",
+      observations: "発見を見る",
       identify: "同定",
       map: "マップ",
       notes: "記録を見る",
@@ -606,17 +628,20 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
       title: directoryCopy.groups.guest,
       className: "desktop-side-nav-section--guest",
       items: [
-        { href: "/register?redirect=/profile", label: directoryCopy.links.register, match: ["/register"] },
-        { href: "/login?redirect=/profile", label: directoryCopy.links.login, match: ["/login"] },
-        { href: "/learn/field-loop", label: directoryCopy.links.howTo, match: ["/learn/field-loop"] },
+        { href: "/map", label: directoryCopy.links.map, match: ["/map"] },
+        { href: "/records?view=public", label: directoryCopy.links.publicFinds, match: ["/records?view=public"] },
+        { href: "/register?redirect=/record", label: directoryCopy.links.register, match: ["/register"] },
+        { href: "/login?redirect=/record", label: directoryCopy.links.login, match: ["/login"] },
       ],
     },
     {
       title: directoryCopy.groups.signedIn,
       className: "desktop-side-nav-section--signed-in",
       items: [
-        { href: "/home", label: directoryCopy.links.myPage, match: ["/home"] },
+        { href: "/record", label: directoryCopy.links.todayRecord, match: ["/record"] },
         { href: "/records?view=mine", label: directoryCopy.links.notes, match: ["/records?view=mine"] },
+        { href: "/map?tab=places", label: directoryCopy.links.savedPlaces, match: ["/map?tab=places"] },
+        { href: "/home", label: directoryCopy.links.myPage, match: ["/home"] },
         { href: "/guide/outcomes", label: directoryCopy.links.guideOutcomes, match: ["/guide/outcomes"] },
         { href: "/records?view=needs_id", label: directoryCopy.links.needsId, match: ["/records?view=needs_id"] },
       ],
@@ -3333,7 +3358,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const robotsMeta = options.noindex || lang !== "ja" ? `\n  <meta name="robots" content="noindex,follow" />` : "";
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;
-  const globalRecordNav = globalRecordEntry(options.basePath, lang, currentPath);
+  const globalRecordNav = options.hideGlobalRecordLauncher ? "" : globalRecordEntry(options.basePath, lang, currentPath);
   const installCopy = appInstallCopy[lang];
   const manifestHref = `/manifest.webmanifest?lang=${encodeURIComponent(lang)}`;
   const installPromptHtml = `<div class="app-install-prompt" data-app-install-prompt hidden>
