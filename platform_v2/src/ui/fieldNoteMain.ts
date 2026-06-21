@@ -30,6 +30,7 @@ type MainCopy = {
   seeMore: string;
   hypothesisLabel: string;
   hypothesisLoading: string;
+  hypothesisAction: string;
   hypothesisChecksLabel: string;
   hypothesisCapturesLabel: string;
   hypothesisReasonsLabel: string;
@@ -60,6 +61,7 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     seeMore: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
     hypothesisLabel: "この場所で見てみる",
     hypothesisLoading: "現在地を読み解き中…",
+    hypothesisAction: "現在地で見る",
     hypothesisChecksLabel: "現地で確かめる",
     hypothesisCapturesLabel: "撮るなら",
     hypothesisReasonsLabel: "根拠",
@@ -88,6 +90,7 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     seeMore: "Open the full notebook",
     hypothesisLabel: "Today's hypothesis",
     hypothesisLoading: "Reading your location…",
+    hypothesisAction: "Use my location",
     hypothesisChecksLabel: "Check on the ground",
     hypothesisCapturesLabel: "If you shoot",
     hypothesisReasonsLabel: "Why",
@@ -116,6 +119,7 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     seeMore: "Abrir el cuaderno completo",
     hypothesisLabel: "Hipótesis de hoy",
     hypothesisLoading: "Leyendo tu ubicación…",
+    hypothesisAction: "Usar mi ubicación",
     hypothesisChecksLabel: "Verifica en el sitio",
     hypothesisCapturesLabel: "Si disparas",
     hypothesisReasonsLabel: "Por qué",
@@ -144,6 +148,7 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     seeMore: "Abrir o caderno completo",
     hypothesisLabel: "Hipótese de hoje",
     hypothesisLoading: "Lendo sua localização…",
+    hypothesisAction: "Usar minha localização",
     hypothesisChecksLabel: "Verifique no campo",
     hypothesisCapturesLabel: "Se for fotografar",
     hypothesisReasonsLabel: "Por quê",
@@ -358,7 +363,9 @@ export function renderFieldNoteMain(
       </div>
       <div class="fn-hypothesis-wrap" id="fn-hypothesis-wrap">
         <div class="fn-subhead"><h3>${escapeHtml(copy.hypothesisLabel)}</h3></div>
-        <div class="fn-hypothesis-card is-loading" id="fn-hypothesis-card">${escapeHtml(copy.hypothesisLoading)}</div>
+        <div class="fn-hypothesis-card" id="fn-hypothesis-card">
+          <button type="button" class="fn-hypothesis-action" id="fn-hypothesis-action">${escapeHtml(copy.hypothesisAction)}</button>
+        </div>
         <div class="fn-official-notice-slot" id="fn-official-notice-slot" style="display:none"></div>
       </div>
       ${isLoggedIn ? `<div class="fn-walk-wrap" id="fn-walk-wrap" style="display:none">
@@ -380,7 +387,9 @@ export function renderFieldNoteMain(
     var copyChecks = section.getAttribute('data-copy-checks') || '';
     var copyCaptures = section.getAttribute('data-copy-captures') || '';
     var copyReasons = section.getAttribute('data-copy-reasons') || '';
+    var copyLoading = section.getAttribute('data-copy-loading') || '';
     var card = document.getElementById('fn-hypothesis-card');
+    var action = document.getElementById('fn-hypothesis-action');
     var noticeSlot = document.getElementById('fn-official-notice-slot');
     ${buildOfficialNoticeClientRenderer("renderFieldNoteOfficialNotices", noticeCopy, { kpiNamespace: "fieldnote" })}
     function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -403,17 +412,25 @@ export function renderFieldNoteMain(
         noticeSlot.style.display = noticeHtml ? '' : 'none';
       }
     }
-    navigator.geolocation.getCurrentPosition(function(pos) {
-      var lat = pos.coords.latitude;
-      var lng = pos.coords.longitude;
-      fetch(api + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&lang=' + encodeURIComponent(briefLang), { credentials: 'same-origin' })
-        .then(function(r){ return r.ok ? r.json() : null; })
-        .then(renderBrief)
-        .catch(function(){ var w = document.getElementById('fn-hypothesis-wrap'); if (w) w.style.display = 'none'; });
-    }, function() {
-      var w = document.getElementById('fn-hypothesis-wrap');
-      if (w) w.style.display = 'none';
-    }, { timeout: 8000, maximumAge: 60000 });
+    function requestBrief() {
+      if (card) {
+        card.classList.add('is-loading');
+        card.textContent = copyLoading;
+      }
+      if (action) action.disabled = true;
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        fetch(api + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&lang=' + encodeURIComponent(briefLang), { credentials: 'same-origin' })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(renderBrief)
+          .catch(function(){ var w = document.getElementById('fn-hypothesis-wrap'); if (w) w.style.display = 'none'; });
+      }, function() {
+        var w = document.getElementById('fn-hypothesis-wrap');
+        if (w) w.style.display = 'none';
+      }, { timeout: 8000, maximumAge: 60000 });
+    }
+    if (action) action.addEventListener('click', requestBrief);
   })();
 
   // Walk today widget
@@ -515,6 +532,8 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-hypothesis-wrap { max-width: 760px; margin-top: 18px; padding-left: 18px; }
   .fn-hypothesis-card { padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(16,185,129,.06) 0%, rgba(14,165,233,.06) 100%); border: 1px solid rgba(16,185,129,.18); font-size: 13px; }
   .fn-hypothesis-card.is-loading { color: #94a3b8; font-style: italic; }
+  .fn-hypothesis-action { border: 0; border-radius: 999px; padding: 10px 14px; background: #0f766e; color: #fff; font-weight: 800; cursor: pointer; box-shadow: 0 10px 24px rgba(15,118,110,.18); }
+  .fn-hypothesis-action:disabled { opacity: .62; cursor: default; }
   .fn-official-notice-slot { margin-top: 12px; }
   .fn-hyp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .fn-hyp-label { font-size: 14px; font-weight: 800; color: #0f172a; }
