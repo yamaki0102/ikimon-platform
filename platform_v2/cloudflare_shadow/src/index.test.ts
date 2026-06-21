@@ -1775,8 +1775,11 @@ test("v1 public map read routes expose current shell contracts without exact coo
 });
 
 test("owner map observations route falls back to origin with session cookie", async () => {
-  const { env } = createEnv();
-  env.ORIGIN_FALLBACK_BASE_URL = "https://ikimon.life";
+  const { env: baseEnv } = createEnv();
+  const env = {
+    ...baseEnv,
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life"
+  };
 
   const originalFetch = globalThis.fetch;
   const fetched: Array<{ url: string; cookie: string | null; fallbackReason: string | null }> = [];
@@ -1811,9 +1814,11 @@ test("owner map observations route falls back to origin with session cookie", as
     assert.equal(payload.signedIn, true);
     assert.equal(payload.items[0].visitId, "owner-map-visit");
     assert.equal(fetched.length, 1);
-    assert.equal(fetched[0].url, "https://ikimon.life/api/v1/map/my-observations?limit=48");
-    assert.equal(fetched[0].cookie, "ikimon_session=session-fixture");
-    assert.equal(fetched[0].fallbackReason, "map_my_observations_origin");
+    const firstFetch = fetched[0];
+    assert.ok(firstFetch);
+    assert.equal(firstFetch.url, "https://ikimon.life/api/v1/map/my-observations?limit=48");
+    assert.equal(firstFetch.cookie, "ikimon_session=session-fixture");
+    assert.equal(firstFetch.fallbackReason, "map_my_observations_origin");
   } finally {
     globalThis.fetch = originalFetch;
   }
