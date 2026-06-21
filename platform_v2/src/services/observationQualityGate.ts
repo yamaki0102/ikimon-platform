@@ -101,7 +101,7 @@ export function hasNativeObservationPhoto(photos: unknown): boolean {
 
 const PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL = '(smoke[-_]?ui)';
 const PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL =
-  '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|regression[-_]?seed|regression[-_]?fixture|test[-_]?fixture)([-_]|$)';
+  '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|test[-_]?fixture)([-_]|$)';
 
 function cleanQualityText(value: unknown): string {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";

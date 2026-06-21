@@ -1553,7 +1553,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     bottomSheetCloseLabel: copy.bottomSheetCloseLabel,
     bottomSheetExpandLabel: copy.bottomSheetExpandLabel,
     bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
-    ownObservationStackSuffix: props.lang === "ja" ? "件の記録" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
+    ownObservationStackSuffix: props.lang === "ja" ? "件" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
     ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
     ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
     ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
@@ -3414,7 +3414,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderOwnObservationStackSheet(records) {
     var list = (Array.isArray(records) ? records : []).filter(Boolean).slice(0, 12);
     var title = COPY.ownObservationStackHeading || COPY.sideRecentLabel;
-    var meta = String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
+    var meta = props.lang === "ja" ? String(list.length) + '件' : String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
     return '<article class="me-detail-panel me-bottom-detail me-own-stack-sheet" data-own-observation-stack-sheet="1">' +
       renderDetailHero({
         title: title,
@@ -3460,7 +3460,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var el = document.createElement('a');
       el.className = 'me-own-observation-marker' + (count > 1 ? ' is-stack' : '');
       el.href = ownObservationHref(record);
-      el.setAttribute('aria-label', (count > 1 ? String(count) + ' ' + COPY.ownObservationStackSuffix + ': ' + groupLabel : label) + COPY.openDiscoverySuffix);
+      el.setAttribute('aria-label', (count > 1 ? (props.lang === "ja" ? String(count) + '件: ' : String(count) + ' ' + COPY.ownObservationStackSuffix + ': ') + groupLabel : label) + COPY.openDiscoverySuffix);
       el.setAttribute('title', count > 1 ? groupLabel : label);
       el.setAttribute('data-own-observation-count', String(count));
       el.setAttribute('data-own-observation-ids', allOccurrenceIds);

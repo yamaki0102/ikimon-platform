@@ -24,7 +24,6 @@ test("public quality gate excludes leaked test observations and smoke fixtures",
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /e2e_test_/);
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /prod\[-_\]\?media/);
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /smoke\[-_\]\?regression/);
-  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /regression\[-_\]\?seed/);
   assert.match(VALID_OBSERVATION_PHOTO_ASSET_SQL, /smoke\[-_\]\?ui/);
   assert.match(PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL, /smoke\[-_\]\?ui/);
 });
