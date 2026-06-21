@@ -527,15 +527,17 @@ function compareLandingContentSubjects(a: LandingContentWallSubject, b: LandingC
 }
 
 function landingContentWallItems(snapshot: LandingSnapshot, source: LandingContentWallItem["contentSource"]): LandingContentWallItem[] {
-  const items = (source === "mine"
+  const rawItems = source === "mine"
     ? (snapshot.myFeed.length > 0
       ? snapshot.myFeed
       : snapshot.feed.filter((obs) => snapshot.viewerUserId && obs.observerUserId === snapshot.viewerUserId)
-    ).map((obs) => ({ ...obs, contentSource: "mine" as const }))
+    )
     : snapshot.feed
-      .filter((obs) => !snapshot.viewerUserId || obs.observerUserId !== snapshot.viewerUserId)
-      .map((obs) => ({ ...obs, contentSource: "community" as const }))
-  ).sort((a, b) => landingObservationTimestamp(b).localeCompare(landingObservationTimestamp(a)));
+      .filter((obs) => !snapshot.viewerUserId || obs.observerUserId !== snapshot.viewerUserId);
+  const items = rawItems
+    .filter((obs) => obs.librarySourceKind !== "guide" && obs.librarySourceKind !== "scan")
+    .map((obs) => ({ ...obs, contentSource: source }))
+    .sort((a, b) => landingObservationTimestamp(b).localeCompare(landingObservationTimestamp(a)));
   const counts = new Map<string, number>();
   const subjectsByKey = new Map<string, LandingContentWallSubject[]>();
   const subjectIdsByKey = new Map<string, Set<string>>();
@@ -590,6 +592,12 @@ function renderLandingContentAvatar(obs: LandingContentWallItem): string {
   return `<span class="prototype-content-avatar" aria-hidden="true">${image}${fallback}</span>`;
 }
 
+function landingContentCardPlaceLine(lang: SiteLang, obs: LandingContentWallItem, placeLabel: string): string {
+  if (obs.contentSource !== "mine") return placeLabel;
+  const observed = formatLandingObservedAt(lang, landingObservationTimestamp(obs));
+  return [observed, placeLabel].filter(Boolean).join(" · ");
+}
+
 function renderLandingContentWallCard(
   basePath: string,
   lang: SiteLang,
@@ -600,6 +608,7 @@ function renderLandingContentWallCard(
   const href = observationDetailHref(basePath, lang, obs);
   const title = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, copy.heroPhotoFallback);
   const placeLabel = observationPlaceLabel(obs) || copy.heroLatestLabel;
+  const placeLine = landingContentCardPlaceLine(lang, obs, placeLabel);
   const mediaIcon = obs.hasVideo ? "video" : obs.photoUrl ? "image" : obs.entryType === "identification" ? "id" : "record";
   const imageUrl = observationImageUrl(obs, "md");
   const observerName = obs.observerName || (lang === "ja" ? "観察者" : "Observer");
@@ -623,7 +632,7 @@ function renderLandingContentWallCard(
         ${renderLandingContentAvatar(obs)}
         <span class="prototype-content-author-copy">
           <em>${escapeHtml(observerName)}</em>
-          <small>${escapeHtml(placeLabel)}</small>
+          <small>${escapeHtml(placeLine)}</small>
         </span>
       </span>
     </span>

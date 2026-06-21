@@ -344,6 +344,16 @@ test("records mine tab keeps source lanes and library controls", async () => {
   }
 });
 
+test("records owner cards separate return-place memory from public metadata", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+
+  assert.match(source, /function recordsPostMemoryLine/);
+  assert.match(source, /options\.locationMode !== "owner"/);
+  assert.match(source, /records-post-memory-line/);
+  assert.match(source, /options\.locationMode === "owner"[\s\S]*\[sourceLabel, civicLabel\]/);
+  assert.match(source, /\.records-post-memory-line \{[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;/);
+});
+
 test("records mine tab opens directly into the card grid instead of a story hero", async () => {
   await withEnv(
     {

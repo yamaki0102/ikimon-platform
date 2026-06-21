@@ -11967,6 +11967,11 @@ function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
   return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
 }
 
+function recordsPostMemoryLine(options: { locationMode: "owner" | "public" }, dateLabel: string, placeLine: string): string {
+  if (options.locationMode !== "owner") return "";
+  return `<span class="records-post-memory-line">${escapeHtml([dateLabel, placeLine].filter(Boolean).join(" · "))}</span>`;
+}
+
 function renderRecordsPostCard(
   basePath: string,
   lang: SiteLang,
@@ -11994,7 +11999,10 @@ function renderRecordsPostCard(
     card.identificationCount > 0 || card.entryType === "identification" ? "identified" : "needs-id",
   ].join(" ");
   const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
-  const metaLine = `${observerLine}${placeLine} · ${dateLabel}`;
+  const metaLine = options.locationMode === "owner"
+    ? [sourceLabel, civicLabel].filter(Boolean).join(" · ")
+    : `${observerLine}${placeLine} · ${dateLabel}`;
+  const memoryLine = recordsPostMemoryLine(options, dateLabel, placeLine);
   const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
   const identifyActionLabel = lang === "ja" ? "同定する" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify";
   const identifyAction = view === "needs_id" && card.postNeedsId
@@ -12034,6 +12042,7 @@ function renderRecordsPostCard(
           <strong>${escapeHtml(displayName)}</strong>
           ${recordsPostSubjectsHtml(card)}
         </span>
+        ${memoryLine}
         <span class="records-post-meta">${escapeHtml(metaLine)}</span>
         ${identifyAction}
       </span>
@@ -13344,6 +13353,17 @@ const RECORDS_WORKBENCH_STYLES = `
     line-height: 1;
     font-style: normal;
     font-weight: 950;
+  }
+  .records-post-memory-line {
+    min-width: 0;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 900;
   }
   .records-post-meta {
     min-width: 0;
