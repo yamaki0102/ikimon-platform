@@ -166,6 +166,7 @@ test("map explorer overlays signed-in owner observations separately from public 
 
   assert.match(html, /data-api-my-observations="\/api\/v1\/me\/map-observations"/);
   assert.match(html, /data-own-observation-cue="1"/);
+  assert.doesNotMatch(html, /<div class="me-side-body">[\s\S]{0,900}data-own-observation-cue="1"/);
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
   assert.match(script, /var ownObservationCueEl = document\.getElementById\('me-own-observation-cue'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
@@ -200,6 +201,11 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.doesNotMatch(script, /ownObservationCueEl\.innerHTML[\s\S]{0,500}latitude/);
   assert.doesNotMatch(script, /ownObservationCueEl\.innerHTML[\s\S]{0,500}longitude/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
+
+  const styles = MAP_EXPLORER_STYLES;
+  assert.match(styles, /\.me-own-observation-cue\[hidden\] \{ display: none; \}/);
+  assert.match(styles, /\.me-section\[data-side="rail"\] \.me-own-observation-cue \{/);
+  assert.doesNotMatch(styles, /\.me-section\[data-side="rail"\] \.me-own-observation-cue \{[^}]*display: none/);
 });
 
 test("map explorer exposes JMA rain overlay without making ikimon the forecaster", () => {

@@ -1340,13 +1340,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <button type="button" class="me-side-tab is-active" data-side-tab="results" role="tab" aria-selected="true">${escapeHtml(sideTabResultsLabel)}</button>
           <button type="button" class="me-side-tab" data-side-tab="selection" role="tab" aria-selected="false" disabled>${escapeHtml(sideTabSelectionLabel)}</button>
         </div>
+        <a class="me-own-observation-cue" id="me-own-observation-cue" data-own-observation-cue="1" href="${escapeHtml(notesHref)}" hidden></a>
         <div class="me-side-body">
           <div class="me-side-pane me-side-pane-results" role="tabpanel">
             <div class="me-side-head">
               <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
               <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
             </div>
-            <a class="me-own-observation-cue" id="me-own-observation-cue" data-own-observation-cue="1" href="${escapeHtml(notesHref)}" hidden></a>
             <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
             ${activityRallyPanelHtml}
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
@@ -10931,6 +10931,29 @@ export const MAP_EXPLORER_STYLES = `
   .me-own-observation-cue:hover {
     border-color: rgba(16,185,129,.34);
     box-shadow: 0 10px 22px rgba(15,23,42,.08);
+  }
+  .me-section[data-side="rail"] .me-own-observation-cue {
+    width: 38px;
+    min-height: 38px;
+    margin: 0 auto 10px;
+    padding: 7px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 0;
+  }
+  .me-section[data-side="rail"] .me-own-observation-cue span {
+    display: block;
+    max-width: 28px;
+    font-size: 9px;
+    line-height: 1.15;
+    letter-spacing: 0;
+    text-align: center;
+  }
+  .me-section[data-side="rail"] .me-own-observation-cue strong,
+  .me-section[data-side="rail"] .me-own-observation-cue small,
+  .me-section[data-side="rail"] .me-own-observation-cue em,
+  .me-section[data-side="rail"] .me-own-observation-cue b {
+    display: none;
   }
 
   .me-section[data-side="rail"] .me-side-tabs,
