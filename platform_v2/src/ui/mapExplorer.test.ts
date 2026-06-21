@@ -160,6 +160,20 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /tab: 'places'/);
 });
 
+test("map explorer overlays signed-in owner observations separately from public cells", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /data-api-my-observations="\/api\/v1\/map\/my-observations"/);
+  assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
+  assert.match(script, /function loadMyObservations\(\)/);
+  assert.match(script, /credentials: 'same-origin'/);
+  assert.match(script, /function renderOwnObservationMarkers\(\)/);
+  assert.match(script, /me-own-observation-marker/);
+  assert.match(script, /state\.tab === 'rain'/);
+  assert.doesNotMatch(script, /my-observations[\s\S]{0,240}apiObservations \+/);
+});
+
 test("map explorer exposes JMA rain overlay without making ikimon the forecaster", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });

@@ -976,6 +976,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
+  const apiMyObservations = withBasePath(props.basePath, "/api/v1/map/my-observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
   const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
@@ -1356,7 +1357,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
         <section class="me-rain-card" id="me-rain-card" data-enabled="0" aria-label="${escapeHtml(copy.tabRain)}" hidden>
           <div class="me-rain-head">
             <strong>${escapeHtml(rainLabels.panel)}</strong>
@@ -1502,6 +1503,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var rainTargetEl = document.getElementById('me-rain-target');
   var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
+  var apiMyObservations = root.getAttribute('data-api-my-observations') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
   var apiFrontier = root.getAttribute('data-api-frontier') || '';
@@ -2153,6 +2155,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     map: null,
     features: [],
     records: [],
+    myObservations: [],
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -2185,6 +2188,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaPolygonFeatures: [],
     areaPolygonsLoaded: false,
     discoveryPreviewMarkers: [],
+    ownObservationMarkers: [],
     areaBadgeMarkers: [],
     nearbyAreaMarkers: [],
     nearbyAreaOrigin: null,
@@ -3272,6 +3276,38 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         .setLngLat([item.center.lng, item.center.lat])
         .addTo(state.map);
       state.discoveryPreviewMarkers.push(marker);
+    });
+  }
+
+  function clearOwnObservationMarkers() {
+    (state.ownObservationMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.ownObservationMarkers = [];
+  }
+
+  function ownObservationHref(record) {
+    return OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(String(record && record.occurrenceId || '')));
+  }
+
+  function renderOwnObservationMarkers() {
+    clearOwnObservationMarkers();
+    if (!state.map || !window.maplibregl || state.tab === 'rain') return;
+    (Array.isArray(state.myObservations) ? state.myObservations : []).slice(0, 48).forEach(function (record) {
+      var lat = Number(record && record.latitude);
+      var lng = Number(record && record.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !record.photoUrl) return;
+      var label = recordDisplayName(record, COPY.discoveryFallback);
+      var el = document.createElement('a');
+      el.className = 'me-own-observation-marker';
+      el.href = ownObservationHref(record);
+      el.setAttribute('aria-label', label + COPY.openDiscoverySuffix);
+      el.innerHTML = '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-observation-marker&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />'
+        + '<span>' + escapeHtml(label) + '</span>';
+      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+        .setLngLat([lng, lat])
+        .addTo(state.map);
+      state.ownObservationMarkers.push(marker);
     });
   }
 
@@ -6370,6 +6406,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       hideLegend();
     }
     refreshDiscoveryPreviewMarkers();
+    renderOwnObservationMarkers();
     refreshAreaBadgeMarkers();
     if (tab === 'markers' || tab === 'places' || tab === 'rain') loadGuideSpots();
     else clearGuideSpotMarkers();
@@ -7145,9 +7182,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
+  function loadMyObservations() {
+    if (!state.map || !apiMyObservations) return;
+    fetch(apiMyObservations + '?limit=48', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('my observations ' + r.status)); })
+      .then(function (payload) {
+        state.myObservations = payload && payload.signedIn ? (payload.items || []) : [];
+        renderOwnObservationMarkers();
+      })
+      .catch(function () {
+        state.myObservations = [];
+        clearOwnObservationMarkers();
+      });
+  }
+
   function refreshMapData() {
     loadCells();
     loadRecords(null);
+    loadMyObservations();
   }
 
   function refreshViewportSearchData() {
@@ -8964,6 +9016,49 @@ export const MAP_EXPLORER_STYLES = `
     transform: rotate(45deg);
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
+  }
+  .me-own-observation-marker {
+    width: 66px;
+    min-height: 74px;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 5px;
+    border-radius: 16px;
+    background: rgba(16,185,129,.96);
+    color: #052e1c;
+    box-shadow: 0 14px 30px rgba(5,150,105,.28), 0 0 0 3px rgba(255,255,255,.9);
+    text-decoration: none;
+    transform-origin: bottom center;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .me-own-observation-marker:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 34px rgba(5,150,105,.34), 0 0 0 3px rgba(255,255,255,.96);
+  }
+  .me-own-observation-marker img {
+    width: 56px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    display: block;
+    background: #ecfdf5;
+  }
+  .me-own-observation-marker span {
+    max-width: 56px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: center;
+    font-size: 10px;
+    line-height: 1.15;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .me-own-observation-marker.is-photo-missing {
+    min-height: 42px;
+    align-content: center;
   }
   .me-nearby-area-marker {
     max-width: 150px;

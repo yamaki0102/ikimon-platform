@@ -100,12 +100,15 @@ export function hasNativeObservationPhoto(photos: unknown): boolean {
 }
 
 const PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL = '(smoke[-_]?ui)';
+const PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL =
+  '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media)([-_]|$)';
 
 export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   coalesce(v.public_visibility, 'public') = 'public'
   and coalesce(v.quality_review_status, 'accepted') = 'accepted'
   and coalesce(v.source_payload->'taxon'->>'key', '') !~* '^e2e_test_'
   and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test|smoke[-_]?ui|smoke[-_]?regression[-_]?fixture)([-_]|$)'
+  and coalesce(v.source_payload->>'source', '') !~* '${PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL}'
   and coalesce(v.source_payload::text, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
   and coalesce(v.note, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
   and coalesce(v.locality_note, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
@@ -118,7 +121,7 @@ export const PUBLIC_OBSERVATION_QUALITY_SQL = `
 `;
 
 const PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL =
-  '(e2e[-_]?test|fixture[-_]?prefix|prod[-_]?media[-_]?smoke|smoke[-_]?regression[-_]?fixture|smoke[-_]?ui|staging[-_]?regression)';
+  '(e2e[-_]?test|fixture[-_]?prefix|prod[-_]?media[-_]?smoke|smoke[-_]?regression[-_]?fixture|smoke[-_]?ui|staging[-_]?regression|dummy[-_]?media|placeholder[-_]?media|sample[-_]?media|sample[-_]?record)';
 
 export const VALID_OBSERVATION_PHOTO_ASSET_SQL = `
   ea.asset_role = 'observation_photo'
