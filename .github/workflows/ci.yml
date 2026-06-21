@@ -1,6 +1,7 @@
 name: CI — Lint & Test
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -15,7 +16,7 @@ on:
       - 'ikimon.life.code-workspace'
       - 'README.md'
   pull_request:
-    branches: [main]
+    branches: [main, 'codex/**']
 
 jobs:
   plan:
