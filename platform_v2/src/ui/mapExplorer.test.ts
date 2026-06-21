@@ -213,6 +213,8 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /openOwnObservationStackSheet\(group\.records\)/);
   assert.match(script, /function maybeFitOwnObservationsOnFirstOpen\(\)/);
   assert.match(script, /state\._ownObservationFirstViewApplied/);
+  assert.match(script, /Math\.abs\(maxLng - minLng\) > 2\.2 \|\| Math\.abs\(maxLat - minLat\) > 1\.8/);
+  assert.match(script, /state\.map\.flyTo\(\{ center: \[latestLng, latestLat\], zoom: 12\.2/);
   assert.match(script, /state\.map\.fitBounds\(\[\[minLng, minLat\], \[maxLng, maxLat\]\]/);
   assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId\) return;/);
   assert.match(script, /if \(state\.tab === 'rain'\) return;/);

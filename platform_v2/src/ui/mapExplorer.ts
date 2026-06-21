@@ -3459,6 +3459,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       maxLat = Math.max(maxLat, lat);
     });
     if (!Number.isFinite(minLng) || !Number.isFinite(minLat) || !Number.isFinite(maxLng) || !Number.isFinite(maxLat)) return;
+    if (Math.abs(maxLng - minLng) > 2.2 || Math.abs(maxLat - minLat) > 1.8) {
+      var latestLat = Number(records[0].latitude);
+      var latestLng = Number(records[0].longitude);
+      if (Number.isFinite(latestLat) && Number.isFinite(latestLng)) {
+        state.map.flyTo({ center: [latestLng, latestLat], zoom: 12.2, duration: 720, essential: true });
+      }
+      return;
+    }
     if (Math.abs(maxLng - minLng) < 0.0008) {
       minLng -= 0.0008;
       maxLng += 0.0008;
