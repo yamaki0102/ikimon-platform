@@ -219,6 +219,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /state\.maplibreRuntime = window\.maplibregl/);
   assert.match(script, /if \(state\._ownObservationFirstViewApplied\) \{\s+dropMeMarker\(lng, lat\);\s+return;\s+\}/);
   assert.match(script, /state\.tab === 'rain'/);
+  assert.doesNotMatch(script, /ownTrailCountEl\.textContent = props\.lang/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
 });
 

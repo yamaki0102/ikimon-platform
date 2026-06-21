@@ -3347,9 +3347,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     if (ownTrailCountEl) {
-      ownTrailCountEl.textContent = props.lang === "ja"
-        ? String(list.length) + '件'
-        : String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
+      ownTrailCountEl.textContent = String(list.length) + (COPY.ownObservationStackSuffix || '');
     }
     ownTrailListEl.innerHTML = list.map(function (record) {
       var label = recordDisplayName(record, COPY.discoveryFallback);
