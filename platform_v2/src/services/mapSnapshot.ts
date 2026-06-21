@@ -14,7 +14,10 @@ import {
   type PublicCellKeyParts as CellKeyParts,
   type PublicLocalityScope,
 } from "./publicLocation.js";
-import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
+import {
+  buildPublicSyntheticObservationExclusionSql,
+  buildStagingFixtureExclusionSql,
+} from "./stagingFixtureGuard.js";
 import {
   PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
@@ -284,6 +287,16 @@ const MAP_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
   visitIdColumn: "v.visit_id",
   occurrenceIdColumn: "o.occurrence_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+  occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
+});
+
+const MAP_READ_SYNTHETIC_EXCLUSION_SQL = buildPublicSyntheticObservationExclusionSql({
+  userSeedColumn: "u.is_seed",
+  visitLegacyObservationIdColumn: "v.legacy_observation_id",
+  occurrenceLegacyObservationIdColumn: "o.legacy_observation_id",
+  visitImportSourceColumn: "coalesce(v.source_payload->>'import_source', '')",
+  occurrenceImportSourceColumn: "coalesce(o.source_payload->>'import_source', '')",
   visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
   occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
 });
@@ -648,6 +661,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
     "coalesce(v.point_latitude, p.center_latitude) is not null",
     "coalesce(v.point_longitude, p.center_longitude) is not null",
     MAP_READ_FIXTURE_EXCLUSION_SQL,
+    MAP_READ_SYNTHETIC_EXCLUSION_SQL,
     PUBLIC_OBSERVATION_QUALITY_SQL,
     PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   ];
@@ -1280,7 +1294,10 @@ export function buildPublicCellRecords(
   const publicEntries = scopedEntries
     .filter((entry) => (cellCounts.get(entry.cellId) ?? 0) >= PUBLIC_MAP_AGGREGATE_POLICY.minCellRecords);
   const sorted = publicEntries
-    .sort((a, b) => compareIsoDesc(a.row.observedAt, b.row.observedAt));
+    .sort((a, b) => {
+      const photoDelta = (b.row.photoUrl ? 1 : 0) - (a.row.photoUrl ? 1 : 0);
+      return photoDelta || compareIsoDesc(a.row.observedAt, b.row.observedAt);
+    });
 
   const items = sorted
     .slice(0, Math.min(Math.max(filters.limit ?? 300, 1), 1200))
@@ -1533,6 +1550,7 @@ export const __test__ = {
   publicRecordInFixedScope,
   buildPublicMapSnapshotPayload,
   publicMapSnapshotStatusFromRow,
+  MAP_READ_SYNTHETIC_EXCLUSION_SQL,
 };
 
 /**

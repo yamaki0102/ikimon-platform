@@ -976,6 +976,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
+  const apiMyObservations = withBasePath(props.basePath, "/api/v1/map/my-observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
   const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
@@ -1345,6 +1346,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
               <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
               <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
             </div>
+            <div class="me-own-observations" id="me-own-observations" data-testid="map-own-observations" hidden></div>
             <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
             ${activityRallyPanelHtml}
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
@@ -1356,7 +1358,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
         <section class="me-rain-card" id="me-rain-card" data-enabled="0" aria-label="${escapeHtml(copy.tabRain)}" hidden>
           <div class="me-rain-head">
             <strong>${escapeHtml(rainLabels.panel)}</strong>
@@ -1436,6 +1438,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sheetGripEl = document.getElementById('me-bottom-grip');
   var sideStatusEl = document.getElementById('me-side-status');
   var resultsListEl = document.getElementById('me-results-list');
+  var ownObservationsEl = document.getElementById('me-own-observations');
   var selectedCardEl = document.getElementById('me-map-selection-card');
   var mapInsightCardEl = document.getElementById('me-map-insight-card');
   var contributionPanelEl = document.getElementById('me-contribution-panel');
@@ -1502,6 +1505,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var rainTargetEl = document.getElementById('me-rain-target');
   var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
+  var apiMyObservations = root.getAttribute('data-api-my-observations') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
   var apiFrontier = root.getAttribute('data-api-frontier') || '';
@@ -1684,6 +1688,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     impactBlankStory: props.lang === "ja" ? "この場所の空白を埋める候補が見えた" : props.lang === "es" ? "Aparecieron huecos que se pueden completar" : props.lang === "pt-BR" ? "Apareceram vazios que podem ser preenchidos" : "Found gaps that can be filled",
     impactCommunityStory: props.lang === "ja" ? "最近、見え方が厚くなった場所" : props.lang === "es" ? "Lugares que se hicieron más claros hace poco" : props.lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
     impactPrivateNote: props.lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : props.lang === "es" ? "Se muestra solo agregado del área, no nombres." : props.lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
+    myObservationsTitle: props.lang === "ja" ? "ここで撮った" : props.lang === "es" ? "Fotos tuyas aquí" : props.lang === "pt-BR" ? "Suas fotos aqui" : "Your shots here",
+    myObservationsPrivateNote: props.lang === "ja" ? "本人だけに正確な位置を表示" : props.lang === "es" ? "Ubicación exacta solo para ti" : props.lang === "pt-BR" ? "Local exato só para você" : "Exact locations only for you",
+    myObservationsOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
     resultHeading: props.lang === "ja" ? "近くの発見" : props.lang === "es" ? "Hallazgos cercanos" : props.lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
     resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
@@ -2143,7 +2150,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     tab: 'places',
     role: 'mixed',
     actorClass: 'all',
-    markerProfile: 'all_research_artifacts',
+    markerProfile: 'manual_only',
     taxonGroup: '',
     year: '',
     season: '',
@@ -2153,6 +2160,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     map: null,
     features: [],
     records: [],
+    myObservations: [],
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -2165,6 +2173,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ignoreNextMoveEnd: false,
     lastAbort: null,
     recordAbort: null,
+    myObservationsAbort: null,
     frontierAbort: null,
     effortAbort: null,
     areaPolygonsAbort: null,
@@ -2190,6 +2199,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     nearbyAreaOrigin: null,
     nearbyAreaLocateMovePending: false,
     guideSpotMarkers: [],
+    ownObservationMarkers: [],
     rainEnabled: false,
     rainTimes: [],
     rainSelectedIndex: 0,
@@ -3011,6 +3021,107 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   '<div class="me-impact-grid">' + hero + '</div>'
       +   '<div class="me-impact-next"><span>' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(next) + '</strong></div>'
       + '</section>';
+  }
+
+  function clearOwnObservationMarkers() {
+    (state.ownObservationMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.ownObservationMarkers = [];
+  }
+
+  function focusOwnObservation(item) {
+    if (!state.map || !item) return;
+    var lat = Number(item.lat);
+    var lng = Number(item.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    state.map.easeTo({ center: [lng, lat], zoom: Math.max(state.map.getZoom(), 15.5), duration: 520 });
+  }
+
+  function refreshOwnObservationMarkers() {
+    clearOwnObservationMarkers();
+    if (!state.map || !window.maplibregl || !Array.isArray(state.myObservations)) return;
+    state.myObservations.forEach(function (item) {
+      var lat = Number(item && item.lat);
+      var lng = Number(item && item.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      var el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'me-own-observation-marker' + (item.photoUrl ? ' has-photo' : '');
+      el.setAttribute('aria-label', COPY.myObservationsTitle + ': ' + recordDisplayName(item, COPY.recentDiscoveryFallback));
+      el.innerHTML = item.photoUrl
+        ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-observation-marker&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" />'
+        : '<span aria-hidden="true"></span>';
+      el.addEventListener('click', function (event) {
+        event.preventDefault();
+        focusOwnObservation(item);
+      });
+      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([lng, lat])
+        .addTo(state.map);
+      state.ownObservationMarkers.push(marker);
+    });
+  }
+
+  function renderOwnObservationsPanel() {
+    if (!ownObservationsEl) return;
+    var items = (Array.isArray(state.myObservations) ? state.myObservations : [])
+      .filter(function (item) { return item && item.photoUrl; })
+      .slice(0, 8);
+    if (!items.length) {
+      ownObservationsEl.hidden = true;
+      ownObservationsEl.innerHTML = '';
+      return;
+    }
+    ownObservationsEl.hidden = false;
+    ownObservationsEl.innerHTML = ''
+      + '<section class="me-own-card" aria-label="' + escapeHtml(COPY.myObservationsTitle) + '">'
+      +   '<div class="me-own-head"><strong>' + escapeHtml(COPY.myObservationsTitle) + '</strong><span>' + escapeHtml(COPY.myObservationsPrivateNote) + '</span></div>'
+      +   '<div class="me-own-strip">'
+      +     items.map(function (item, index) {
+              var date = item.observedAt ? String(item.observedAt).slice(0, 10) : '';
+              return '<button type="button" class="me-own-shot" data-own-observation-index="' + index + '">'
+                + '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" />'
+                + '<span>' + escapeHtml(recordDisplayName(item, COPY.recentDiscoveryFallback)) + '</span>'
+                + '<small>' + escapeHtml(date || COPY.myObservationsOpen) + '</small>'
+              + '</button>';
+            }).join('')
+      +   '</div>'
+      + '</section>';
+    ownObservationsEl.querySelectorAll('[data-own-observation-index]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.getAttribute('data-own-observation-index'));
+        if (!Number.isFinite(index)) return;
+        focusOwnObservation(items[index]);
+      });
+    });
+  }
+
+  function loadMyObservations() {
+    if (!apiMyObservations || !state.map) return;
+    var bbox = currentBboxString();
+    if (!bbox) return;
+    var qs = '?limit=24&bbox=' + encodeURIComponent(bbox);
+    if (state.myObservationsAbort) { try { state.myObservationsAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.myObservationsAbort = controller;
+    fetch(apiMyObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (payload) {
+        if (!payload || payload.signedIn !== true) {
+          state.myObservations = [];
+        } else {
+          state.myObservations = Array.isArray(payload.items) ? payload.items : [];
+        }
+        renderOwnObservationsPanel();
+        refreshOwnObservationMarkers();
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        state.myObservations = [];
+        renderOwnObservationsPanel();
+        clearOwnObservationMarkers();
+      });
   }
 
   function findCellFeatureById(cellId) {
@@ -7148,6 +7259,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function refreshMapData() {
     loadCells();
     loadRecords(null);
+    loadMyObservations();
   }
 
   function refreshViewportSearchData() {
@@ -8965,6 +9077,44 @@ export const MAP_EXPLORER_STYLES = `
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
   }
+  .me-own-observation-marker {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 2px solid rgba(255,255,255,.96);
+    border-radius: 999px;
+    background: #0f766e;
+    box-shadow: 0 7px 18px rgba(15,23,42,.22);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .me-own-observation-marker.has-photo {
+    width: 34px;
+    height: 34px;
+  }
+  .me-own-observation-marker img { width: 100%; height: 100%; object-fit: cover; }
+  .me-own-observation-marker span {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #ccfbf1;
+    box-shadow: 0 0 0 4px rgba(20,184,166,.22);
+  }
+  .me-own-observation-marker::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    width: 8px;
+    height: 8px;
+    transform: translateX(-50%) rotate(45deg);
+    background: #0f766e;
+    border-right: 2px solid rgba(255,255,255,.96);
+    border-bottom: 2px solid rgba(255,255,255,.96);
+  }
   .me-nearby-area-marker {
     max-width: 150px;
     min-width: 98px;
@@ -9518,6 +9668,56 @@ export const MAP_EXPLORER_STYLES = `
   .me-sheet-card strong { font-size: 12px; font-weight: 800; color: #0f172a; }
   .me-sheet-card span { font-size: 11px; color: #64748b; line-height: 1.45; }
   .me-contribution-panel { display: block; }
+  .me-own-observations[hidden] { display: none; }
+  .me-own-card {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(240,253,250,.96);
+    border: 1px solid rgba(20,184,166,.20);
+    box-shadow: 0 8px 18px rgba(15,23,42,.055);
+  }
+  .me-own-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .me-own-head strong { color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; letter-spacing: 0; }
+  .me-own-head span { color: #0f766e; font-size: 10px; line-height: 1.25; font-weight: 850; text-align: right; }
+  .me-own-strip {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(70px, 84px);
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+  .me-own-shot {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: 56px auto auto;
+    gap: 3px;
+    padding: 5px;
+    border: 1px solid rgba(15,118,110,.16);
+    border-radius: 10px;
+    background: rgba(255,255,255,.92);
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-own-shot:hover { border-color: rgba(15,118,110,.36); background: #fff; }
+  .me-own-shot img { width: 100%; height: 56px; object-fit: cover; border-radius: 7px; background: #ecfdf5; }
+  .me-own-shot span {
+    min-height: 26px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 10px;
+    line-height: 1.25;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+  .me-own-shot small { color: #64748b; font-size: 9px; line-height: 1.15; font-weight: 750; }
   .me-impact-card {
     display: grid;
     gap: 10px;

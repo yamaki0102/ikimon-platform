@@ -24,6 +24,16 @@ export type StagingFixtureColumns = {
   configColumn?: string;
 };
 
+export type PublicSyntheticObservationColumns = {
+  userSeedColumn?: string;
+  visitLegacyObservationIdColumn?: string;
+  occurrenceLegacyObservationIdColumn?: string;
+  visitImportSourceColumn?: string;
+  occurrenceImportSourceColumn?: string;
+  visitSourceColumn?: string;
+  occurrenceSourceColumn?: string;
+};
+
 function unique(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.map((value) => value?.trim() ?? "").filter(Boolean))];
 }
@@ -104,6 +114,34 @@ export function buildStagingFixtureExclusionSql(
   fixturePrefix?: string | null,
 ): string {
   return `not ${buildStagingFixturePredicate(columns, fixturePrefix)}`;
+}
+
+export function buildPublicSyntheticObservationExclusionSql(
+  columns: PublicSyntheticObservationColumns,
+): string {
+  const clauses: string[] = [];
+  if (columns.userSeedColumn) {
+    clauses.push(`coalesce(${columns.userSeedColumn}, false) = false`);
+  }
+  if (columns.visitLegacyObservationIdColumn) {
+    clauses.push(`not (${buildRegexSql(columns.visitLegacyObservationIdColumn, "^(dummy|seed|sample[-_])", true)})`);
+  }
+  if (columns.occurrenceLegacyObservationIdColumn) {
+    clauses.push(`not (${buildRegexSql(columns.occurrenceLegacyObservationIdColumn, "^(dummy|seed|sample[-_])", true)})`);
+  }
+  if (columns.visitImportSourceColumn) {
+    clauses.push(`not (${buildRegexSql(columns.visitImportSourceColumn, "^(dummy|seed)$", true)})`);
+  }
+  if (columns.occurrenceImportSourceColumn) {
+    clauses.push(`not (${buildRegexSql(columns.occurrenceImportSourceColumn, "^(dummy|seed)$", true)})`);
+  }
+  if (columns.visitSourceColumn) {
+    clauses.push(`not (${buildRegexSql(columns.visitSourceColumn, "^(dummy|seed|sample[-_])", true)})`);
+  }
+  if (columns.occurrenceSourceColumn) {
+    clauses.push(`not (${buildRegexSql(columns.occurrenceSourceColumn, "^(dummy|seed|sample[-_])", true)})`);
+  }
+  return clauses.length > 0 ? clauses.join("\n  and ") : "true";
 }
 
 export function stagingFixtureOpsEnabled(): boolean {

@@ -71,6 +71,55 @@ test("map my-places endpoint is private-by-session and safe for guests", async (
   }
 });
 
+test("map my-observations endpoint is private-by-session and safe for guests", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/my-observations?bbox=137.70,34.70,137.75,34.75&limit=12",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { signedIn: false, items: [] });
+  } finally {
+    await app.close();
+  }
+});
+
+test("map my-observations endpoint recognizes authenticated owner sessions without exposing public point features", async () => {
+  const previousEnabled = process.env.ENABLE_DEV_DUMMY_ADMIN;
+  const previousToken = process.env.DEV_DUMMY_ADMIN_TOKEN;
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  process.env.ENABLE_DEV_DUMMY_ADMIN = "1";
+  process.env.DEV_DUMMY_ADMIN_TOKEN = "map-owner-test-token";
+  delete process.env.DATABASE_URL;
+
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/my-observations?bbox=137.70,34.70,137.75,34.75&limit=12",
+      headers: {
+        cookie: "ikimon_v2_session=map-owner-test-token",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    const payload = response.json() as Record<string, unknown>;
+    assert.equal(payload.signedIn, true);
+    assert.deepEqual(payload.items, []);
+    assert.ok(!("features" in payload));
+  } finally {
+    await app.close();
+    if (previousEnabled === undefined) delete process.env.ENABLE_DEV_DUMMY_ADMIN;
+    else process.env.ENABLE_DEV_DUMMY_ADMIN = previousEnabled;
+    if (previousToken === undefined) delete process.env.DEV_DUMMY_ADMIN_TOKEN;
+    else process.env.DEV_DUMMY_ADMIN_TOKEN = previousToken;
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
+  }
+});
+
 test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () => {
   const originalFetch = globalThis.fetch;
   const fetched: string[] = [];

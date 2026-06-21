@@ -239,6 +239,31 @@ test("buildPublicCellRecords suppresses low-count cells in viewport lists", () =
   assert.ok(list.items.every((item) => item.localityLabel === "浜松市"));
 });
 
+test("buildPublicCellRecords prefers photo-backed records before placeholder-only entries", () => {
+  const rows = sampleRows().map((row, index) => ({
+    ...row,
+    observedAt: `2026-04-${String(10 + index).padStart(2, "0")}T09:00:00.000Z`,
+  }));
+  rows[0] = { ...rows[0]!, photoUrl: null, observedAt: "2026-04-20T09:00:00.000Z" };
+  rows[1] = { ...rows[1]!, photoUrl: "/uploads/photo-backed-2.jpg", observedAt: "2026-04-09T09:00:00.000Z" };
+  rows[2] = { ...rows[2]!, photoUrl: "/uploads/photo-backed-3.jpg", observedAt: "2026-04-08T09:00:00.000Z" };
+
+  const list = buildPublicCellRecords(rows, { zoom: 13, limit: 3 });
+
+  assert.equal(list.items.length, 3);
+  assert.equal(list.items[0]!.photoUrl, "/uploads/photo-backed-2.jpg");
+  assert.equal(list.items[1]!.photoUrl, "/uploads/photo-backed-3.jpg");
+  assert.equal(list.items[2]!.photoUrl, null);
+});
+
+test("public map snapshot source excludes dummy seed and sample observations", () => {
+  assert.match(__test__.MAP_READ_SYNTHETIC_EXCLUSION_SQL, /u\.is_seed/);
+  assert.match(__test__.MAP_READ_SYNTHETIC_EXCLUSION_SQL, /v\.legacy_observation_id[\s\S]*dummy\|seed\|sample/);
+  assert.match(__test__.MAP_READ_SYNTHETIC_EXCLUSION_SQL, /o\.legacy_observation_id[\s\S]*dummy\|seed\|sample/);
+  assert.match(__test__.MAP_READ_SYNTHETIC_EXCLUSION_SQL, /import_source[\s\S]*dummy\|seed/);
+  assert.match(__test__.MAP_READ_SYNTHETIC_EXCLUSION_SQL, /source[\s\S]*dummy\|seed\|sample/);
+});
+
 test("sensitive redlist records use coarser cells and masked list fields", () => {
   const sensitiveRows = sampleRows().map((row, index) => ({
     ...row,

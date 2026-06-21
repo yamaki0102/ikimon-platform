@@ -823,3 +823,28 @@ test("map explorer omits visited place shortcuts while keeping side collapse con
   assert.match(script, /function setSideRailMode\(rail\)/);
   assert.match(script, /setSideRailMode\(nowRail\);/);
 });
+
+test("map explorer loads owner-only map observations without turning them into public records", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /id="me-own-observations"/);
+  assert.match(html, /data-api-my-observations="\/api\/v1\/map\/my-observations"/);
+  assert.match(script, /apiMyObservations/);
+  assert.match(script, /function loadMyObservations\(\)/);
+  assert.match(script, /credentials: 'same-origin'/);
+  assert.match(script, /function renderOwnObservationsPanel\(\)/);
+  assert.match(script, /function refreshOwnObservationMarkers\(\)/);
+  assert.match(script, /ここで撮った/);
+  assert.match(script, /本人だけに正確な位置を表示/);
+  assert.match(script, /\.filter\(function \(item\) \{ return item && item\.photoUrl; \}\)/);
+  assert.match(script, /loadMyObservations\(\);/);
+  assert.doesNotMatch(script, /state\.records = .*myObservations/);
+});
+
+test("map explorer defaults public records to manual observations before broader research artifacts", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /markerProfile: 'manual_only'/);
+  assert.match(script, /params\.mp === 'manual_only' \|\| params\.mp === 'trusted_only' \|\| params\.mp === 'all_research_artifacts'/);
+});
