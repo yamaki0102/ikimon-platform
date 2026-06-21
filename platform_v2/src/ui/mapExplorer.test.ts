@@ -249,6 +249,10 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-rain-head \{ display: contents; \}/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.site-shell\.is-map-surface \.global-record-launcher \{[\s\S]*display: none;/);
   assert.match(script, /jma-rain-nowcast-layer/);
+  assert.match(script, /var JMA_RAIN_TILE_MAX_ZOOM = 10;/);
+  assert.match(script, /maxzoom: JMA_RAIN_TILE_MAX_ZOOM/);
+  assert.match(script, /var z = JMA_RAIN_TILE_MAX_ZOOM;/);
+  assert.doesNotMatch(script, /maxzoom: 14,\s+attribution: 'JMA High-resolution Precipitation Nowcast'/);
   assert.match(script, /state\.tab === 'rain'/);
   assert.match(script, /if \(!state\.rainEnabled \|\| state\.tab !== 'rain'\) return;/);
   assert.match(script, /function syncRainModeClass\(\)/);
