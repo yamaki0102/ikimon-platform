@@ -1346,6 +1346,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
               <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
               <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
             </div>
+            <a class="me-own-observation-cue" id="me-own-observation-cue" data-own-observation-cue="1" href="${escapeHtml(notesHref)}" hidden></a>
             <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
             ${activityRallyPanelHtml}
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
@@ -1439,6 +1440,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var resultsListEl = document.getElementById('me-results-list');
   var selectedCardEl = document.getElementById('me-map-selection-card');
   var mapInsightCardEl = document.getElementById('me-map-insight-card');
+  var ownObservationCueEl = document.getElementById('me-own-observation-cue');
   var contributionPanelEl = document.getElementById('me-contribution-panel');
   var sideEl = document.getElementById('me-side');
   var sideToggleEl = document.getElementById('me-side-toggle');
@@ -1558,6 +1560,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
     ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
     ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
+    ownObservationCueLabel: props.lang === "ja" ? "残した場所" : props.lang === "es" ? "Lugares guardados" : props.lang === "pt-BR" ? "Lugares salvos" : "Saved places",
+    ownObservationCueCount: props.lang === "ja" ? "__COUNT__件 / __SPOTS__地点" : props.lang === "es" ? "__COUNT__ registros / __SPOTS__ puntos" : props.lang === "pt-BR" ? "__COUNT__ registros / __SPOTS__ pontos" : "__COUNT__ records / __SPOTS__ spots",
+    ownObservationCueLatest: props.lang === "ja" ? "最近: __PLACE__ · __DATE__" : props.lang === "es" ? "Reciente: __PLACE__ · __DATE__" : props.lang === "pt-BR" ? "Recente: __PLACE__ · __DATE__" : "Latest: __PLACE__ · __DATE__",
+    ownObservationCuePrivate: props.lang === "ja" ? "正確な位置は自分だけ" : props.lang === "es" ? "Solo tu ves las ubicaciones exactas" : props.lang === "pt-BR" ? "So voce ve os locais exatos" : "Exact locations are private to you",
+    ownObservationCueOpen: props.lang === "ja" ? "見る" : props.lang === "es" ? "Ver" : props.lang === "pt-BR" ? "Ver" : "Open",
     siteBriefHeading: copy.siteBriefHeading,
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
@@ -3409,6 +3416,51 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (record && record.localityLabel) parts.push(String(record.localityLabel));
     if (record && record.observedAt) parts.push(String(record.observedAt).slice(0, 10));
     return parts.join(' · ');
+  }
+
+  function clearOwnObservationRetentionCue() {
+    if (!ownObservationCueEl) return;
+    ownObservationCueEl.hidden = true;
+    ownObservationCueEl.innerHTML = '';
+    ownObservationCueEl.removeAttribute('data-own-observation-count');
+    ownObservationCueEl.removeAttribute('data-own-observation-spots');
+  }
+
+  function renderOwnObservationRetentionCue() {
+    if (!ownObservationCueEl) return;
+    var records = validOwnObservationRecords();
+    if (!records.length || state.tab === 'rain') {
+      clearOwnObservationRetentionCue();
+      return;
+    }
+    var spotKeys = {};
+    records.forEach(function (record) {
+      var lat = Number(record && record.latitude);
+      var lng = Number(record && record.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      spotKeys[lat.toFixed(4) + ',' + lng.toFixed(4)] = true;
+    });
+    var spots = Object.keys(spotKeys).length || records.length;
+    var latest = records.slice().sort(function (a, b) {
+      return String(b && b.observedAt || '').localeCompare(String(a && a.observedAt || ''));
+    })[0] || records[0];
+    var latestPlace = latest && latest.localityLabel ? String(latest.localityLabel) : COPY.selectedPointName;
+    var latestDate = latest && latest.observedAt ? String(latest.observedAt).slice(0, 10) : '';
+    var countText = String(COPY.ownObservationCueCount || '__COUNT__ records / __SPOTS__ spots')
+      .replace('__COUNT__', String(records.length))
+      .replace('__SPOTS__', String(spots));
+    var latestText = String(COPY.ownObservationCueLatest || 'Latest: __PLACE__ · __DATE__')
+      .replace('__PLACE__', latestPlace)
+      .replace('__DATE__', latestDate || '—');
+    ownObservationCueEl.hidden = false;
+    ownObservationCueEl.setAttribute('data-own-observation-count', String(records.length));
+    ownObservationCueEl.setAttribute('data-own-observation-spots', String(spots));
+    ownObservationCueEl.innerHTML =
+      '<span>' + escapeHtml(COPY.ownObservationCueLabel || 'Saved places') + '</span>' +
+      '<strong>' + escapeHtml(countText) + '</strong>' +
+      '<small>' + escapeHtml(latestText) + '</small>' +
+      '<em>' + escapeHtml(COPY.ownObservationCuePrivate || '') + '</em>' +
+      '<b>' + escapeHtml(COPY.ownObservationCueOpen || COPY.popupOpenLabel) + '</b>';
   }
 
   function renderOwnObservationStackSheet(records) {
@@ -6578,6 +6630,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     refreshDiscoveryPreviewMarkers();
     renderOwnObservationMarkers();
+    renderOwnObservationRetentionCue();
     refreshAreaBadgeMarkers();
     if (tab === 'markers' || tab === 'places' || tab === 'rain') loadGuideSpots();
     else clearGuideSpotMarkers();
@@ -7359,11 +7412,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('my observations ' + r.status)); })
       .then(function (payload) {
         state.myObservations = payload && payload.signedIn ? (payload.items || []) : [];
+        renderOwnObservationRetentionCue();
         renderOwnObservationMarkers();
         maybeFitOwnObservationsOnFirstOpen();
       })
       .catch(function () {
         state.myObservations = [];
+        clearOwnObservationRetentionCue();
         clearOwnObservationMarkers();
       });
   }
@@ -10819,6 +10874,64 @@ export const MAP_EXPLORER_STYLES = `
   .me-side[data-tab="results"] .me-side-pane-selection,
   .me-side[data-tab="selection"] .me-side-pane-results { display: none; }
   .me-side[data-tab="results"] .me-contribution-panel { display: none; }
+  .me-own-observation-cue {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 3px 10px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(240,249,255,.92));
+    border: 1px solid rgba(16,185,129,.18);
+    color: #0f172a;
+    text-decoration: none;
+  }
+  .me-own-observation-cue[hidden] { display: none; }
+  .me-own-observation-cue span {
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 950;
+    color: #047857;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .me-own-observation-cue strong {
+    min-width: 0;
+    grid-column: 1;
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 950;
+    color: #0f172a;
+    overflow-wrap: anywhere;
+  }
+  .me-own-observation-cue small,
+  .me-own-observation-cue em {
+    min-width: 0;
+    grid-column: 1;
+    font-size: 11px;
+    line-height: 1.35;
+    font-style: normal;
+    font-weight: 800;
+    color: #64748b;
+    overflow-wrap: anywhere;
+  }
+  .me-own-observation-cue b {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: center;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #fff;
+    color: #047857;
+    border: 1px solid rgba(16,185,129,.20);
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .me-own-observation-cue:hover {
+    border-color: rgba(16,185,129,.34);
+    box-shadow: 0 10px 22px rgba(15,23,42,.08);
+  }
 
   .me-section[data-side="rail"] .me-side-tabs,
   .me-section[data-side="rail"] .me-side-pane,

@@ -134,6 +134,12 @@ async function captureEvidence(page: Page, profile: ViewportProfile, fixture: Se
     return {
       url: window.location.href,
       viewport: { width: window.innerWidth, height: window.innerHeight },
+      ownerCue: {
+        visible: Boolean(document.querySelector<HTMLElement>('[data-own-observation-cue="1"]:not([hidden])')),
+        text: document.querySelector<HTMLElement>('[data-own-observation-cue="1"]')?.textContent?.replace(/\s+/g, " ").trim() ?? "",
+        count: document.querySelector<HTMLElement>('[data-own-observation-cue="1"]')?.getAttribute("data-own-observation-count") ?? null,
+        spots: document.querySelector<HTMLElement>('[data-own-observation-cue="1"]')?.getAttribute("data-own-observation-spots") ?? null,
+      },
       markerCount: markers.length,
       stackCount: markers.filter((marker) => Number(marker.count ?? "1") > 1).length,
       manualOccurrenceLinked: markers.some((marker) =>
@@ -226,6 +232,9 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
       try {
         await page.goto("/ja/map?tab=places&lng=138.3929&lat=35.0104&z=16", { waitUntil: "domcontentloaded" });
         await waitForOwnerMarkers(page);
+        await expect(page.locator('[data-own-observation-cue="1"]')).toBeVisible();
+        await expect(page.locator('[data-own-observation-cue="1"]')).toHaveAttribute("data-own-observation-count", /\d+/);
+        await expect(page.locator('[data-own-observation-cue="1"]')).toContainText("残した場所");
 
         const marker = page.locator(".me-own-observation-marker").filter({ hasText: fixture.manual.subjectLabel }).first();
         await expect(marker).toBeVisible();

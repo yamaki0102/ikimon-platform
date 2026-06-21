@@ -165,10 +165,18 @@ test("map explorer overlays signed-in owner observations separately from public 
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(html, /data-api-my-observations="\/api\/v1\/me\/map-observations"/);
+  assert.match(html, /data-own-observation-cue="1"/);
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
+  assert.match(script, /var ownObservationCueEl = document\.getElementById\('me-own-observation-cue'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
   assert.match(script, /credentials: 'same-origin'/);
   assert.match(script, /function ownObservationGroups/);
+  assert.match(script, /function renderOwnObservationRetentionCue\(\)/);
+  assert.match(script, /function clearOwnObservationRetentionCue\(\)/);
+  assert.match(script, /COPY\.ownObservationCueCount/);
+  assert.match(script, /COPY\.ownObservationCuePrivate/);
+  assert.match(script, /latest\.localityLabel/);
+  assert.match(script, /latest\.observedAt/);
   assert.match(script, /function renderOwnObservationMarkers\(\)/);
   assert.match(script, /me-own-observation-marker/);
   assert.match(script, /data-own-observation-count/);
@@ -184,9 +192,13 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId\) return;/);
   assert.match(script, /if \(state\.tab === 'rain'\) return;/);
   assert.match(script, /if \(state\.selectedPoint \|\| state\._meMarker\) return;/);
+  assert.match(script, /renderOwnObservationRetentionCue\(\);\s+renderOwnObservationMarkers\(\);/);
+  assert.match(script, /clearOwnObservationRetentionCue\(\);\s+clearOwnObservationMarkers\(\);/);
   assert.match(script, /maybeFitOwnObservationsOnFirstOpen\(\);/);
   assert.match(script, /if \(state\._ownObservationFirstViewApplied\) \{\s+dropMeMarker\(lng, lat\);\s+return;\s+\}/);
   assert.match(script, /state\.tab === 'rain'/);
+  assert.doesNotMatch(script, /ownObservationCueEl\.innerHTML[\s\S]{0,500}latitude/);
+  assert.doesNotMatch(script, /ownObservationCueEl\.innerHTML[\s\S]{0,500}longitude/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
 });
 
