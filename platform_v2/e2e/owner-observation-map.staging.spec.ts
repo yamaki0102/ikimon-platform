@@ -32,6 +32,15 @@ type OwnerObservationPayload = {
   }>;
 };
 
+type ExpectedBounds = {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+  centerLat: number;
+  centerLng: number;
+};
+
 function cookieHeader(rawCookie: string): string {
   return rawCookie.split(";")[0] ?? rawCookie;
 }
@@ -45,6 +54,34 @@ async function fetchOwnerObservations(api: APIRequestContext, rawCookie: string)
   });
   expect(response.ok(), `me/map-observations should be reachable: ${response.status()}`).toBeTruthy();
   return (await response.json()) as OwnerObservationPayload;
+}
+
+function expectedOwnerObservationBounds(payload: OwnerObservationPayload): ExpectedBounds {
+  const points = (payload.items ?? [])
+    .map((item) => ({ lat: Number(item.latitude), lng: Number(item.longitude), photoUrl: item.photoUrl }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng) && Boolean(point.photoUrl));
+  expect(points.length, JSON.stringify(payload.items?.slice(0, 8), null, 2)).toBeGreaterThan(0);
+
+  let west = Math.min(...points.map((point) => point.lng));
+  let east = Math.max(...points.map((point) => point.lng));
+  let south = Math.min(...points.map((point) => point.lat));
+  let north = Math.max(...points.map((point) => point.lat));
+  if (Math.abs(east - west) < 0.0008) {
+    west -= 0.0008;
+    east += 0.0008;
+  }
+  if (Math.abs(north - south) < 0.0008) {
+    south -= 0.0008;
+    north += 0.0008;
+  }
+  return {
+    west,
+    south,
+    east,
+    north,
+    centerLat: (south + north) / 2,
+    centerLng: (west + east) / 2,
+  };
 }
 
 async function waitForOwnerMarkers(page: Page): Promise<void> {
@@ -151,6 +188,11 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
   });
 
   test("map opens around owner records when no viewport is specified", async ({ browser }) => {
+    const payload = await fetchOwnerObservations(api, sessionCookie);
+    const expectedBounds = expectedOwnerObservationBounds(payload);
+    const manual = payload.items?.find((item) => item.visitId === fixture.manual.visitId);
+    expect(manual, JSON.stringify(payload.items?.slice(0, 8), null, 2)).toBeTruthy();
+
     const context = await newStagingContext(browser, VIEWPORTS[0], { serviceWorkers: "block" });
     await addSessionCookie(context, sessionCookie);
     const page = await context.newPage();
@@ -163,8 +205,12 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
       const fit = await page.evaluate(() => (window as any).__ikimonMapSmokeLastFitBounds ?? null);
       expect(fit, "owner observations should drive first map viewport when no lng/lat/z is provided").toBeTruthy();
       expect(fit.options?.maxZoom).toBeCloseTo(15.2, 1);
-      expect(fit.center?.latitude ?? fit.center?.lat).toBeCloseTo(35.0104, 1);
-      expect(fit.center?.longitude ?? fit.center?.lng).toBeCloseTo(138.3929, 1);
+      expect(fit.center?.latitude ?? fit.center?.lat).toBeCloseTo(expectedBounds.centerLat, 4);
+      expect(fit.center?.longitude ?? fit.center?.lng).toBeCloseTo(expectedBounds.centerLng, 4);
+      expect(fit.bounds?.[0]?.[0]).toBeLessThanOrEqual(Number(manual?.longitude));
+      expect(fit.bounds?.[1]?.[0]).toBeGreaterThanOrEqual(Number(manual?.longitude));
+      expect(fit.bounds?.[0]?.[1]).toBeLessThanOrEqual(Number(manual?.latitude));
+      expect(fit.bounds?.[1]?.[1]).toBeGreaterThanOrEqual(Number(manual?.latitude));
     } finally {
       await context.close();
     }
