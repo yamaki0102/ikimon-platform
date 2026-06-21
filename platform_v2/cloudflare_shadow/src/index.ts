@@ -968,6 +968,10 @@ export const worker = {
         return getPublicMapMyPlaces(request, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/map/my-observations") {
+        return fetchOriginFallback(request, url, env, "map_my_observations_origin");
+      }
+
       if (request.method === "GET" && url.pathname === "/api/v1/map/traces") {
         return getPublicMapEmptyGeoJson("traces");
       }
