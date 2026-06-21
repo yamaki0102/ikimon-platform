@@ -829,11 +829,19 @@ test("map explorer loads owner-only map observations without turning them into p
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(html, /id="me-own-observations"/);
+  assert.match(html, /id="me-bottom-own-slot"[^>]*hidden/);
   assert.match(html, /data-api-my-observations="\/api\/v1\/me\/map-observations"/);
   assert.match(script, /apiMyObservations/);
   assert.match(script, /function loadMyObservations\(\)/);
   assert.match(script, /credentials: 'same-origin'/);
   assert.match(script, /function renderOwnObservationsPanel\(\)/);
+  assert.match(script, /var bottomOwnSlotEl = document\.getElementById\('me-bottom-own-slot'\);/);
+  assert.match(script, /function moveOwnObservationsToSheet\(\)/);
+  assert.match(script, /bottomOwnSlotEl\.appendChild\(ownObservationsEl\);/);
+  assert.match(script, /function showOwnObservationsBottomSheet\(\)/);
+  assert.match(script, /sheetEl\.classList\.add\('me-bottom-sheet--own'\);/);
+  assert.match(script, /if \(shouldUseBottomSheet\(\)\) \{\s+if \(!isNonOwnBottomSheetOpen\(\)\) \{\s+state\.ownObservationsAutoOpened = true;\s+showOwnObservationsBottomSheet\(\);/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-bottom-sheet--own \.me-bottom-own-slot \{/);
   assert.match(script, /function refreshOwnObservationMarkers\(\)/);
   assert.match(script, /function ownObservationHasShotPoint\(item\)/);
   assert.match(script, /ownObservationsAutoOpened: false/);

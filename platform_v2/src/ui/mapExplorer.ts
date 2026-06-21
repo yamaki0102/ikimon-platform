@@ -1403,6 +1403,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <div class="me-bottom-sheet" id="me-bottom-sheet" aria-hidden="true">
           <button type="button" class="me-bottom-close" id="me-bottom-close" aria-label="${escapeHtml(copy.bottomSheetCloseLabel)}">×</button>
           <button type="button" class="me-bottom-grip" id="me-bottom-grip" aria-label="${escapeHtml(copy.bottomSheetExpandLabel)}"></button>
+          <div class="me-bottom-own-slot" id="me-bottom-own-slot" hidden></div>
           <div class="me-bottom-inner" id="me-bottom-inner"></div>
         </div>
       </div>
@@ -1434,11 +1435,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var layerHintCloseEl = document.getElementById('me-layer-hint-close');
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
+  var bottomOwnSlotEl = document.getElementById('me-bottom-own-slot');
   var sheetCloseEl = document.getElementById('me-bottom-close');
   var sheetGripEl = document.getElementById('me-bottom-grip');
   var sideStatusEl = document.getElementById('me-side-status');
   var resultsListEl = document.getElementById('me-results-list');
   var ownObservationsEl = document.getElementById('me-own-observations');
+  var ownObservationsAnchor = null;
+  if (ownObservationsEl && ownObservationsEl.parentNode) {
+    ownObservationsAnchor = document.createComment('me-own-observations-anchor');
+    ownObservationsEl.parentNode.insertBefore(ownObservationsAnchor, ownObservationsEl);
+  }
   var selectedCardEl = document.getElementById('me-map-selection-card');
   var mapInsightCardEl = document.getElementById('me-map-insight-card');
   var contributionPanelEl = document.getElementById('me-contribution-panel');
@@ -3068,6 +3075,48 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  function restoreOwnObservationsToSide() {
+    if (!ownObservationsEl || !ownObservationsAnchor || !ownObservationsAnchor.parentNode) return;
+    ownObservationsAnchor.parentNode.insertBefore(ownObservationsEl, ownObservationsAnchor.nextSibling);
+  }
+
+  function moveOwnObservationsToSheet() {
+    if (!ownObservationsEl || !bottomOwnSlotEl) return false;
+    bottomOwnSlotEl.appendChild(ownObservationsEl);
+    return true;
+  }
+
+  function setOwnObservationsSheetMode(active) {
+    if (bottomOwnSlotEl) bottomOwnSlotEl.hidden = !active;
+    if (sheetInnerEl) sheetInnerEl.hidden = !!active;
+  }
+
+  function isNonOwnBottomSheetOpen() {
+    return !!(sheetEl
+      && sheetEl.classList.contains('is-open')
+      && sheetEl.getAttribute('aria-hidden') !== 'true'
+      && !sheetEl.classList.contains('me-bottom-sheet--own'));
+  }
+
+  function showOwnObservationsBottomSheet() {
+    if (!sheetEl || !bottomOwnSlotEl || !ownObservationsEl) return;
+    if (!shouldUseBottomSheet()) return;
+    if (shouldKeepMapClearForRain()) {
+      closeBottomSheet();
+      return;
+    }
+    if (!moveOwnObservationsToSheet()) return;
+    setOwnObservationsSheetMode(true);
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.remove('me-bottom-sheet--area');
+    sheetEl.classList.add('me-bottom-sheet--detail');
+    sheetEl.classList.add('me-bottom-sheet--own');
+    sheetEl.classList.add('is-open');
+    setDetailSheetSnap('peek');
+    syncRainUi();
+    try { bottomOwnSlotEl.scrollTop = 0; } catch (_) {}
+  }
+
   function renderOwnObservationsPanel() {
     if (!ownObservationsEl) return;
     var items = (Array.isArray(state.myObservations) ? state.myObservations : [])
@@ -3076,13 +3125,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!items.length) {
       ownObservationsEl.hidden = true;
       ownObservationsEl.innerHTML = '';
+      if (!shouldUseBottomSheet()) restoreOwnObservationsToSide();
+      if (sheetEl && sheetEl.classList.contains('me-bottom-sheet--own')) closeBottomSheet();
       return;
     }
-    if (!state.ownObservationsAutoOpened) {
-      state.ownObservationsAutoOpened = true;
-      setSideTab('results');
-      setSideRailMode(false, { persist: false });
-    }
+    if (!shouldUseBottomSheet()) restoreOwnObservationsToSide();
     ownObservationsEl.hidden = false;
     ownObservationsEl.innerHTML = ''
       + '<section class="me-own-card" aria-label="' + escapeHtml(COPY.myObservationsTitle) + '">'
@@ -3105,6 +3152,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         focusOwnObservation(items[index]);
       });
     });
+    if (shouldUseBottomSheet() && sheetEl && sheetEl.classList.contains('me-bottom-sheet--own')) {
+      showOwnObservationsBottomSheet();
+    }
+    if (!state.ownObservationsAutoOpened) {
+      if (shouldUseBottomSheet()) {
+        if (!isNonOwnBottomSheetOpen()) {
+          state.ownObservationsAutoOpened = true;
+          showOwnObservationsBottomSheet();
+        }
+      } else {
+        state.ownObservationsAutoOpened = true;
+        setSideTab('results');
+        setSideRailMode(false, { persist: false });
+      }
+    }
   }
 
   function loadMyObservations() {
@@ -3649,9 +3711,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         sheetEl.classList.remove('is-open');
         sheetEl.classList.remove('me-bottom-sheet--area');
         sheetEl.classList.remove('me-bottom-sheet--detail');
+        sheetEl.classList.remove('me-bottom-sheet--own');
         sheetEl.removeAttribute('data-snap');
         sheetEl.setAttribute('aria-hidden', 'true');
       }
+      setOwnObservationsSheetMode(false);
       setSideRailMode(false);
       renderSelectedCard();
       renderSidePanels();
@@ -4840,8 +4904,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       return;
     }
+    setOwnObservationsSheetMode(false);
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--area');
+    sheetEl.classList.remove('me-bottom-sheet--own');
     sheetEl.classList.add('me-bottom-sheet--detail');
     sheetEl.classList.add('is-open');
     setDetailSheetSnap('peek');
@@ -4854,8 +4920,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       return;
     }
+    setOwnObservationsSheetMode(false);
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--detail');
+    sheetEl.classList.remove('me-bottom-sheet--own');
     sheetEl.classList.add('me-bottom-sheet--area');
     sheetEl.classList.add('is-open');
     setAreaSheetSnap('peek');
@@ -5308,8 +5376,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       sheetEl.classList.remove('is-open');
       sheetEl.classList.remove('me-bottom-sheet--area');
       sheetEl.classList.remove('me-bottom-sheet--detail');
+      sheetEl.classList.remove('me-bottom-sheet--own');
       sheetEl.removeAttribute('data-snap');
       sheetEl.setAttribute('aria-hidden', 'true');
+      setOwnObservationsSheetMode(false);
       setSideRailMode(false);
       renderSelectedCard();
       renderSidePanels();
@@ -5346,8 +5416,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       sheetEl.classList.remove('is-open');
       sheetEl.classList.remove('me-bottom-sheet--area');
       sheetEl.classList.remove('me-bottom-sheet--detail');
+      sheetEl.classList.remove('me-bottom-sheet--own');
       sheetEl.removeAttribute('data-snap');
       sheetEl.setAttribute('aria-hidden', 'true');
+      setOwnObservationsSheetMode(false);
       setSideRailMode(false);
       renderSelectedCard();
       renderSidePanels();
@@ -5392,9 +5464,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.classList.remove('is-dragging');
     sheetEl.classList.remove('me-bottom-sheet--area');
     sheetEl.classList.remove('me-bottom-sheet--detail');
+    sheetEl.classList.remove('me-bottom-sheet--own');
     sheetEl.style.removeProperty('--me-sheet-drag-height');
     sheetEl.removeAttribute('data-snap');
     sheetEl.setAttribute('aria-hidden', 'true');
+    setOwnObservationsSheetMode(false);
     setSelectedAreaPolygonFilter('__none__');
     syncRainUi();
   }
@@ -9539,6 +9613,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-bottom-sheet.is-open { transform: translate3d(0, 0, 0); opacity: 1; pointer-events: auto; }
   .me-bottom-sheet.is-dragging { transition: none; }
   .me-bottom-grip { display: none; }
+  .me-bottom-own-slot[hidden], .me-bottom-inner[hidden] { display: none; }
   .me-bottom-sheet--detail {
     left: 0;
     right: 0;
@@ -9587,6 +9662,15 @@ export const MAP_EXPLORER_STYLES = `
   .me-bottom-sheet--detail .me-bottom-grip:active,
   .me-bottom-sheet--area .me-bottom-grip:active { cursor: grabbing; }
   .me-bottom-sheet--detail.is-open { transform: translate3d(0, 0, 0); }
+  .me-bottom-sheet--own .me-bottom-own-slot {
+    display: block;
+    padding: 44px 12px 12px;
+  }
+  .me-bottom-sheet--own .me-own-card {
+    margin: 0;
+    border-radius: 16px;
+    box-shadow: none;
+  }
   .me-bottom-sheet--detail .me-bottom-close {
     right: 12px;
     top: 12px;
