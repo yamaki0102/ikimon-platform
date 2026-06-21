@@ -11469,6 +11469,31 @@ export const MAP_EXPLORER_STYLES = `
     }
     .me-side { display: none; }
     .me-side-toggle { display: none; }
+    .me-section:not(.me-rain-mode) .me-side:has(.me-own-observation-cue:not([hidden])) {
+      display: block;
+      position: fixed;
+      top: calc(var(--me-header-h) + var(--me-topbar-h) + 10px);
+      left: 10px;
+      z-index: 44;
+      width: min(232px, calc(100vw - 96px));
+      height: auto;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      pointer-events: none;
+    }
+    .me-section:not(.me-rain-mode) .me-side:has(.me-own-observation-cue:not([hidden])) .me-own-observation-cue {
+      width: 100%;
+      margin: 0;
+      pointer-events: auto;
+    }
+    .me-section:not(.me-rain-mode) .me-side:has(.me-own-observation-cue:not([hidden])) .me-side-tabs,
+    .me-section:not(.me-rain-mode) .me-side:has(.me-own-observation-cue:not([hidden])) .me-side-rail-icons,
+    .me-section:not(.me-rain-mode) .me-side:has(.me-own-observation-cue:not([hidden])) .me-side-body {
+      display: none;
+    }
     .me-map-panel-selection { display: none; }
     .me-map-panel-insight {
       left: 12px;

@@ -205,6 +205,10 @@ test("map explorer overlays signed-in owner observations separately from public 
   const styles = MAP_EXPLORER_STYLES;
   assert.match(styles, /\.me-own-observation-cue\[hidden\] \{ display: none; \}/);
   assert.match(styles, /\.me-section\[data-side="rail"\] \.me-own-observation-cue \{/);
+  assert.match(styles, /\.me-section:not\(\.me-rain-mode\) \.me-side:has\(\.me-own-observation-cue:not\(\[hidden\]\)\) \{/);
+  assert.match(styles, /\.me-section:not\(\.me-rain-mode\) \.me-side:has\(\.me-own-observation-cue:not\(\[hidden\]\)\)[\s\S]{0,260}display: block/);
+  assert.match(styles, /\.me-section:not\(\.me-rain-mode\) \.me-side:has\(\.me-own-observation-cue:not\(\[hidden\]\)\)[\s\S]{0,520}pointer-events: none/);
+  assert.match(styles, /\.me-section:not\(\.me-rain-mode\) \.me-side:has\(\.me-own-observation-cue:not\(\[hidden\]\)\) \.me-own-observation-cue[\s\S]{0,140}pointer-events: auto/);
   assert.doesNotMatch(styles, /\.me-section\[data-side="rail"\] \.me-own-observation-cue \{[^}]*display: none/);
 });
 
