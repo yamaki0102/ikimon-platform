@@ -968,6 +968,10 @@ export const worker = {
         return getPublicMapMyPlaces(request, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/map/my-observations") {
+        return getPublicMapMyObservations(request, url, env);
+      }
+
       if (request.method === "GET" && url.pathname === "/api/v1/map/traces") {
         return getPublicMapEmptyGeoJson("traces");
       }
@@ -2222,6 +2226,26 @@ async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Respons
     return json({ signedIn: false, items: [] }, 200, { "cache-control": "no-store" });
   }
   return json({ signedIn: true, sort: "recent", items: [] }, 200, { "cache-control": "no-store" });
+}
+
+async function getPublicMapMyObservations(request: Request, url: URL, env: Env): Promise<Response> {
+  if (env.ORIGIN_FALLBACK_BASE_URL) {
+    const upstream = await fetchOriginFallback(request, url, env, "map_my_observations_origin");
+    const headers = new Headers(upstream.headers);
+    headers.set("cache-control", "no-store");
+    headers.set("vary", "Cookie");
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers,
+    });
+  }
+
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session || session.banned) {
+    return json({ signedIn: false, items: [] }, 200, { "cache-control": "no-store" });
+  }
+  return json({ signedIn: true, items: [] }, 200, { "cache-control": "no-store" });
 }
 
 function getPublicMapEmptyGeoJson(kind: string, headers: Record<string, string> = { "cache-control": "no-store" }): Response {

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const EXCLUDED_SPECS = new Set([
+  "e2e/authenticated-map-own-observations.staging.spec.ts",
   "e2e/map.staging.spec.ts",
   "e2e/notes-map-regression.staging.spec.ts",
   "e2e/sitemap-registry-visual.staging.spec.ts",

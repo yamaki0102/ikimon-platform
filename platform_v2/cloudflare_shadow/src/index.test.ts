@@ -1725,6 +1725,10 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(myPlacesResponse.ok, true);
   assert.deepEqual(await myPlacesResponse.json(), { signedIn: false, items: [] });
 
+  const myObservationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-observations?bbox=137.70%2C34.70%2C137.82%2C34.72"), env);
+  assert.equal(myObservationsResponse.ok, true);
+  assert.deepEqual(await myObservationsResponse.json(), { signedIn: false, items: [] });
+
   for (const path of [
     "/api/v1/map/traces?limit=200",
     "/api/v1/map/frontier?bbox=137.70%2C34.70%2C137.82%2C34.72"
@@ -1772,6 +1776,60 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const kpiPayload = await kpiResponse.json() as any;
   assert.equal(kpiResponse.ok, true);
   assert.equal(kpiPayload.ok, true);
+});
+
+test("map my-observations proxies owner-only exact history to origin fallback with cookie", async () => {
+  const { env, core } = createEnv();
+  const originEnv = {
+    ...env,
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; cookie: string | null; reason: string | null; resolveOverride?: string }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    seen.push({
+      url: String(input),
+      cookie: headers.get("cookie"),
+      reason: headers.get("x-ikimon-cloudflare-fallback-reason"),
+      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride
+    });
+    return new Response(JSON.stringify({
+      signedIn: true,
+      items: [{
+        visitId: "visit-owner-1",
+        displayName: "アカメガシワ",
+        lat: 34.71234,
+        lng: 137.81234,
+        photoUrl: "/uploads/owner.jpg",
+        source: "visit_point"
+      }]
+    }), { status: 200, headers: { "content-type": "application/json", "cache-control": "public, max-age=60" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://shadow.test/api/v1/map/my-observations?bbox=137.70%2C34.70%2C137.82%2C34.72&limit=24",
+      { headers: { cookie: "ikimon_v2_session=owner-token" } }
+    ), originEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.ok, true, JSON.stringify(payload));
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("vary"), "Cookie");
+    assert.equal(payload.signedIn, true);
+    assert.equal(payload.items[0].source, "visit_point");
+    assert.equal(payload.items[0].lat, 34.71234);
+    assert.deepEqual(seen, [{
+      url: "https://ikimon.life/api/v1/map/my-observations?bbox=137.70%2C34.70%2C137.82%2C34.72&limit=24",
+      cookie: "ikimon_v2_session=owner-token",
+      reason: "map_my_observations_origin",
+      resolveOverride: "origin.ikimon.test"
+    }]);
+    assert.equal(core.operationAudit.some((row) => row.operation_type === "origin_fallback"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("v1 public map nowcast routes proxy fixed JMA targets without exposing a free URL fetcher", async () => {

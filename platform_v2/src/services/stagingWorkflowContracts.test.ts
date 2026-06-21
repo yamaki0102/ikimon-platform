@@ -21,3 +21,12 @@ test("deploy-staging can capture authenticated map owner history evidence on dem
   assert.match(specSource, /otherFixture/);
   assert.match(specSource, /me-own-observation-marker\.has-photo/);
 });
+
+test("authenticated map owner history evidence stays out of default full non-map shards", async () => {
+  const shardPlannerSource = await readFile(
+    new URL("../../scripts/planStagingNonMapShards.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(shardPlannerSource, /EXCLUDED_SPECS[\s\S]*e2e\/authenticated-map-own-observations\.staging\.spec\.ts/);
+});
