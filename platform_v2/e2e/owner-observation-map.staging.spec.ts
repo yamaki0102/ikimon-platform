@@ -74,7 +74,7 @@ async function captureEvidence(page: Page, profile: ViewportProfile, fixture: Se
     fullPage: false,
   });
 
-  const state = await page.evaluate((manualVisitId) => {
+  const state = await page.evaluate((manualOccurrenceId) => {
     const markers = Array.from(document.querySelectorAll<HTMLElement>(".me-own-observation-marker")).map((marker) => {
       const rect = marker.getBoundingClientRect();
       return {
@@ -96,10 +96,10 @@ async function captureEvidence(page: Page, profile: ViewportProfile, fixture: Se
       url: window.location.href,
       viewport: { width: window.innerWidth, height: window.innerHeight },
       markerCount: markers.length,
-      manualVisitLinked: markers.some((marker) => marker.href?.includes(encodeURIComponent(manualVisitId))),
+      manualOccurrenceLinked: markers.some((marker) => marker.href?.includes(encodeURIComponent(manualOccurrenceId))),
       markers,
     };
-  }, fixture.manual.visitId);
+  }, fixture.manual.occurrenceId);
 
   await writeFile(statePath, JSON.stringify(state, null, 2));
   await test.info().attach(screenshotName, { path: screenshotPath, contentType: "image/png" });
@@ -158,7 +158,7 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
         const marker = page.locator(".me-own-observation-marker").filter({ hasText: fixture.manual.subjectLabel }).first();
         await expect(marker).toBeVisible();
         await expect(marker.locator("img")).toBeVisible();
-        await expect(marker).toHaveAttribute("href", new RegExp(`/observations/${fixture.manual.visitId}`));
+        await expect(marker).toHaveAttribute("href", new RegExp(`/observations/${encodeURIComponent(fixture.manual.occurrenceId)}`));
         await captureEvidence(page, profile, fixture);
 
         await page.locator('.me-tab[data-tab="rain"]').click();
