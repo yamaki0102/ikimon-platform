@@ -36,6 +36,12 @@ type MapOwnObservationRow = {
   place_latitude: number | string | null;
   place_longitude: number | string | null;
   photo_url: string | null;
+  visit_source_payload_text?: string | null;
+  occurrence_source_payload_text?: string | null;
+  evidence_source_payload_text?: string | null;
+  asset_source_payload_text?: string | null;
+  locality_note?: string | null;
+  note?: string | null;
   source_kind: string | null;
   session_mode: string | null;
   visit_mode: string | null;
@@ -61,6 +67,18 @@ function clampLimit(value: number | undefined): number {
   return Math.min(Math.max(value ?? 24, 1), 100);
 }
 
+const OWNER_HISTORY_EXCLUDED_MARKER_PATTERN_SQL =
+  "(^|[^a-z0-9])(e2e|dummy|sample|smoke|contentless|excluded|field[-_]?guide|guide|field[-_]?scan|fieldscan|scanner|scan|legacy)([^a-z0-9]|$)";
+
+const OWNER_HISTORY_PLACEHOLDER_PHOTO_PATTERN_SQL =
+  "(^|/)assets/(img/((pwa-)?icon-192(-[^/.]+)?)[.]png|brand/(app-icon-192(-maskable)?|ikimon-mark-192)[.]png)";
+
+const OWNER_HISTORY_EXCLUDED_MARKER_PATTERN =
+  /(^|[^a-z0-9])(e2e|dummy|sample|smoke|contentless|excluded|field[-_]?guide|guide|field[-_]?scan|fieldscan|scanner|scan|legacy)([^a-z0-9]|$)/i;
+
+const OWNER_HISTORY_PLACEHOLDER_PHOTO_PATTERN =
+  /(^|\/)assets\/(img\/((pwa-)?icon-192(-[^/.]+)?)\.png|brand\/(app-icon-192(-maskable)?|ikimon-mark-192)\.png)/i;
+
 function classifyRecordSource(row: Pick<MapOwnObservationRow, "source_kind" | "session_mode" | "visit_mode">): MapOwnObservationRecordSource {
   const sourceKind = String(row.source_kind ?? "").toLowerCase();
   const sessionMode = String(row.session_mode ?? "").toLowerCase();
@@ -70,6 +88,24 @@ function classifyRecordSource(row: Pick<MapOwnObservationRow, "source_kind" | "s
   if (sessionMode.includes("guide") || visitMode.includes("guide") || sourceKind.includes("guide")) return "guide";
   if (sourceKind === "v2_observation" && sessionMode === "standard" && visitMode !== "track") return "manual";
   return "other";
+}
+
+function hasExcludedOwnerHistoryMarker(row: MapOwnObservationRow): boolean {
+  return [
+    row.source_kind,
+    row.session_mode,
+    row.visit_mode,
+    row.visit_source_payload_text,
+    row.occurrence_source_payload_text,
+    row.evidence_source_payload_text,
+    row.asset_source_payload_text,
+    row.locality_note,
+    row.note,
+  ].some((value) => OWNER_HISTORY_EXCLUDED_MARKER_PATTERN.test(String(value ?? "")));
+}
+
+function isUsableOwnerHistoryPhotoUrl(photoUrl: string): boolean {
+  return !OWNER_HISTORY_PLACEHOLDER_PHOTO_PATTERN.test(photoUrl);
 }
 
 export async function listMapOwnObservations(
@@ -95,6 +131,14 @@ export async function listMapOwnObservations(
     "v.user_id = $1",
     "v.point_latitude is not null",
     "v.point_longitude is not null",
+    "v.source_kind = 'v2_observation'",
+    "coalesce(v.session_mode, '') = 'standard'",
+    "coalesce(v.visit_mode, 'manual') = 'manual'",
+    "coalesce(v.source_payload->>'expectedVisibility', v.source_payload->>'expected_visibility', o.source_payload->>'expectedVisibility', o.source_payload->>'expected_visibility', '') <> 'excluded'",
+    `coalesce(v.source_payload::text, '') !~* '${OWNER_HISTORY_EXCLUDED_MARKER_PATTERN_SQL}'`,
+    `coalesce(o.source_payload::text, '') !~* '${OWNER_HISTORY_EXCLUDED_MARKER_PATTERN_SQL}'`,
+    `coalesce(v.note, '') !~* '${OWNER_HISTORY_EXCLUDED_MARKER_PATTERN_SQL}'`,
+    `coalesce(v.locality_note, '') !~* '${OWNER_HISTORY_EXCLUDED_MARKER_PATTERN_SQL}'`,
     "photo.public_url is not null",
   ];
   if (options.bbox) {
@@ -130,9 +174,15 @@ export async function listMapOwnObservations(
         v.source_kind,
         v.session_mode,
         v.visit_mode,
+        v.source_payload::text as visit_source_payload_text,
+        o.source_payload::text as occurrence_source_payload_text,
+        v.locality_note,
+        v.note,
         null as place_latitude,
         null as place_longitude,
-        photo.public_url as photo_url
+        photo.public_url as photo_url,
+        photo.evidence_source_payload_text,
+        photo.asset_source_payload_text
       from occurrences o
       join visits v on v.visit_id = o.visit_id
       left join lateral (
@@ -143,11 +193,17 @@ export async function listMapOwnObservations(
         limit 1
       ) ai on true
       left join lateral (
-        select coalesce(ab.public_url, ab.storage_path) as public_url
+        select
+          coalesce(ab.public_url, ab.storage_path) as public_url,
+          ea.source_payload::text as evidence_source_payload_text,
+          ab.source_payload::text as asset_source_payload_text
         from evidence_assets ea
         join asset_blobs ab on ab.blob_id = ea.blob_id
         where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
           and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+          and coalesce(ea.source_payload::text, '') !~* '${OWNER_HISTORY_EXCLUDED_MARKER_PATTERN_SQL}'
+          and coalesce(ab.source_payload::text, '') !~* '${OWNER_HISTORY_EXCLUDED_MARKER_PATTERN_SQL}'
+          and coalesce(ab.public_url, ab.storage_path, '') !~* '${OWNER_HISTORY_PLACEHOLDER_PHOTO_PATTERN_SQL}'
         order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
           ea.created_at asc
         limit 1
@@ -169,6 +225,9 @@ export async function listMapOwnObservations(
       if (lat === null || lng === null) return null;
       const photoUrl = normalizeAssetUrl(row.photo_url);
       if (!photoUrl) return null;
+      if (!isUsableOwnerHistoryPhotoUrl(photoUrl)) return null;
+      if (classifyRecordSource(row) !== "manual") return null;
+      if (hasExcludedOwnerHistoryMarker(row)) return null;
       const display = formatTaxonDisplayName({
         vernacularName: row.vernacular_name,
         scientificName: row.scientific_name,
@@ -184,7 +243,7 @@ export async function listMapOwnObservations(
         lng,
         photoUrl,
         source: "visit_point",
-        recordSource: classifyRecordSource(row),
+        recordSource: "manual",
       };
     })
     .filter((row): row is MapOwnObservation => row !== null);
