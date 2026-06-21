@@ -231,6 +231,8 @@ test("app install prompt only allows mobile return-value surfaces", () => {
   const routeEnd = html.indexOf("function showInstallPrompt()", routeStart);
   const routeLogic = html.slice(routeStart, routeEnd);
 
+  assert.ok(routeLogic.includes("replace(/\\/+$/, '')"));
+  assert.ok(!routeLogic.includes("replace(//+$/, '')"));
   assert.match(routeLogic, /pathname === '\/home'/);
   assert.match(routeLogic, /pathname === '\/records'/);
   assert.match(routeLogic, /pathname === '\/map'/);

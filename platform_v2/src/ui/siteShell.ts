@@ -3763,7 +3763,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     return window.matchMedia('(max-width: 767px), (pointer: coarse)').matches;
   }
   function isReturnValueInstallSurface() {
-    const pathname = normalizedInstallPath().replace(/\/+$/, '') || '/';
+    const pathname = normalizedInstallPath().replace(/\\/+$/, '') || '/';
     return pathname === '/home' || pathname === '/records' || pathname === '/map';
   }
   function showInstallPrompt() {
