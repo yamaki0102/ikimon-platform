@@ -4928,18 +4928,10 @@ const START_STATE_STYLES = `
   .start-guide-browse-actions .btn { min-height: 40px; padding: 9px 14px; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
   .start-guide-actions .btn-solid { min-width: 210px; }
-  .record-capture-dock { display: none !important; }
-  .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; line-height: 1.2; }
-  .record-dock-primary { background: #ecfdf5; color: #065f46; }
-  .record-dock-icon { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.06); flex: 0 0 auto; }
-  .record-dock-primary .record-dock-icon { background: rgba(16,185,129,.14); }
-  .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
   @media (max-width: 720px) {
     .start-guide { padding-bottom: 24px; }
     .site-footer { padding-bottom: 24px; }
-    .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, .82fr)); gap: 8px; }
-    .has-global-record-launcher .record-capture-dock { display: none; }
   }
 `;
 
@@ -6207,24 +6199,6 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
           ${qaHint}
         </div>
       </section>
-      <nav class="record-capture-dock" aria-label="${escapeHtml(copy.dockAria)}">
-        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-          <span>${escapeHtml(copy.dockPhoto)}</span>
-        </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("note")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-          <span>${escapeHtml(copy.dockNote)}</span>
-        </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("video")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-          <span>${escapeHtml(copy.dockVideo)}</span>
-        </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("gallery")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-          <span>${escapeHtml(copy.dockGallery)}</span>
-        </a>
-      </nav>
     </div>`,
     footerNote: copy.footerNote,
   });
@@ -14255,6 +14229,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       activeNav: recordCopy.activeNav,
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, "/record"), lang),
+      hideGlobalRecordLauncher: true,
       footerNote: recordCopy.footerNote,
       body: `<section class="record-page">
         <div class="record-shell">

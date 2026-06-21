@@ -70,6 +70,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /メモだけ残す/);
         assert.match(response.body, /動画で残す/);
         assert.match(response.body, /ファイルから選ぶ/);
+        assert.doesNotMatch(response.body, /class="global-record-launcher"/);
+        assert.doesNotMatch(response.body, /site-shell has-global-record-launcher/);
         assert.match(response.body, /record-confidence-strip/);
         assert.match(response.body, /場所と時間が残る/);
         assert.match(response.body, /周囲も手がかり/);
@@ -312,6 +314,8 @@ test("record note start renders seasonal clue chips in the visible quick form", 
         assert.match(response.body, /data-season-clue="土の湿り"/);
         assert.match(response.body, /data-season-clue="音・におい"/);
         assert.match(response.body, /data-season-clue="虫・鳥"/);
+        assert.doesNotMatch(response.body, /class="global-record-launcher"/);
+        assert.doesNotMatch(response.body, /site-shell has-global-record-launcher/);
         assert.ok(
           response.body.indexOf('class="record-field record-field-wide record-quick-fields" data-quick-only') <
             response.body.indexOf('class="record-field record-field-wide record-later-details"'),
@@ -412,6 +416,8 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         assert.doesNotMatch(response.body, /ログインして写真で記録する/);
         assert.doesNotMatch(response.body, /記録画面はログイン後に開きます。/);
         assert.doesNotMatch(response.body, /class="global-record-launcher"/);
+        assert.doesNotMatch(response.body, /site-shell has-global-record-launcher/);
+        assert.doesNotMatch(response.body, /record-capture-dock/);
         assert.doesNotMatch(response.body, /まず写真を残す/);
         assert.doesNotMatch(response.body, /主役と周囲を分ける/);
         assert.doesNotMatch(response.body, /Session required/);
