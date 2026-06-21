@@ -1774,6 +1774,56 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(kpiPayload.ok, true);
 });
 
+test("owner map observations route falls back to origin with session cookie", async () => {
+  const { env: baseEnv } = createEnv();
+  const env = {
+    ...baseEnv,
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life"
+  };
+
+  const originalFetch = globalThis.fetch;
+  const fetched: Array<{ url: string; cookie: string | null; fallbackReason: string | null }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : new Request(input, init);
+    fetched.push({
+      url: request.url,
+      cookie: request.headers.get("cookie"),
+      fallbackReason: request.headers.get("x-ikimon-cloudflare-fallback-reason")
+    });
+    return Response.json({
+      signedIn: true,
+      items: [
+        {
+          visitId: "owner-map-visit",
+          occurrenceId: "owner-map-occ",
+          displayName: "Owner map fixture",
+          latitude: 35.0104,
+          longitude: 138.3929,
+          photoUrl: "/assets/img/icon-192.png"
+        }
+      ]
+    });
+  }) as typeof fetch;
+
+  try {
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-observations?limit=48", {
+      headers: { cookie: "ikimon_session=session-fixture" }
+    }), env);
+    const payload = await response.json() as any;
+    assert.equal(response.ok, true);
+    assert.equal(payload.signedIn, true);
+    assert.equal(payload.items[0].visitId, "owner-map-visit");
+    assert.equal(fetched.length, 1);
+    const firstFetch = fetched[0];
+    assert.ok(firstFetch);
+    assert.equal(firstFetch.url, "https://ikimon.life/api/v1/map/my-observations?limit=48");
+    assert.equal(firstFetch.cookie, "ikimon_session=session-fixture");
+    assert.equal(firstFetch.fallbackReason, "map_my_observations_origin");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("v1 public map nowcast routes proxy fixed JMA targets without exposing a free URL fetcher", async () => {
   const { env } = createEnv();
   const originalFetch = globalThis.fetch;

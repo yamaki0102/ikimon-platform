@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { getEffortSummary, getFrontierMap, type EffortActorClass, type EffortRole } from "../services/mapEffort.js";
+import { listMapOwnObservations } from "../services/mapOwnObservations.js";
 import { listMapVisitedPlaces } from "../services/mapVisitedPlaces.js";
 import { normalizePlaceMemoryVisitSort } from "../services/placeMemory.js";
 import {
@@ -570,4 +571,20 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const items = await listMapVisitedPlaces(session.userId, { limit: limit ?? 12, sort });
     return { signedIn: true, sort, items };
   });
+
+  const ownObservationsHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const limit = parseInt32(q.limit);
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    reply
+      .type("application/json; charset=utf-8")
+      .header("Cache-Control", "no-store");
+    if (!session?.userId || session.banned) {
+      return { signedIn: false, items: [] };
+    }
+    const items = await listMapOwnObservations(session.userId, { limit: limit ?? 48 });
+    return { signedIn: true, items };
+  };
+  app.get("/api/v1/me/map-observations", ownObservationsHandler);
+  app.get("/api/v1/map/my-observations", ownObservationsHandler);
 }

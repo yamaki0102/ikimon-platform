@@ -976,6 +976,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
+  const apiMyObservations = withBasePath(props.basePath, "/api/v1/me/map-observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
   const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
@@ -1356,7 +1357,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
         <section class="me-rain-card" id="me-rain-card" data-enabled="0" aria-label="${escapeHtml(copy.tabRain)}" hidden>
           <div class="me-rain-head">
             <strong>${escapeHtml(rainLabels.panel)}</strong>
@@ -1502,6 +1503,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var rainTargetEl = document.getElementById('me-rain-target');
   var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
+  var apiMyObservations = root.getAttribute('data-api-my-observations') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
   var apiFrontier = root.getAttribute('data-api-frontier') || '';
@@ -1551,6 +1553,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     bottomSheetCloseLabel: copy.bottomSheetCloseLabel,
     bottomSheetExpandLabel: copy.bottomSheetExpandLabel,
     bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
+    ownObservationStackSuffix: props.lang === "ja" ? "件の記録" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
+    ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
+    ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
+    ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
+    ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
     siteBriefHeading: copy.siteBriefHeading,
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
@@ -2153,6 +2160,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     map: null,
     features: [],
     records: [],
+    myObservations: [],
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -2185,6 +2193,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaPolygonFeatures: [],
     areaPolygonsLoaded: false,
     discoveryPreviewMarkers: [],
+    ownObservationMarkers: [],
     areaBadgeMarkers: [],
     nearbyAreaMarkers: [],
     nearbyAreaOrigin: null,
@@ -3272,6 +3281,162 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         .setLngLat([item.center.lng, item.center.lat])
         .addTo(state.map);
       state.discoveryPreviewMarkers.push(marker);
+    });
+  }
+
+  function clearOwnObservationMarkers() {
+    (state.ownObservationMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.ownObservationMarkers = [];
+  }
+
+  function ownObservationHref(record) {
+    return OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(String(record && record.occurrenceId || '')));
+  }
+
+  function validOwnObservationRecords() {
+    return (Array.isArray(state.myObservations) ? state.myObservations : [])
+      .slice(0, 48)
+      .filter(function (record) {
+        var lat = Number(record && record.latitude);
+        var lng = Number(record && record.longitude);
+        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
+      });
+  }
+
+  function ownObservationGroups(records) {
+    if (!state.map || typeof state.map.project !== 'function') {
+      var fallbackGroups = [];
+      records.forEach(function (record) {
+        var lat = Number(record.latitude);
+        var lng = Number(record.longitude);
+        var matched = null;
+        for (var i = 0; i < fallbackGroups.length; i += 1) {
+          var g = fallbackGroups[i];
+          if (Math.abs(Number(g.lat) - lat) <= 0.02 && Math.abs(Number(g.lng) - lng) <= 0.02) {
+            matched = g;
+            break;
+          }
+        }
+        if (!matched) {
+          fallbackGroups.push({ records: [record], lat: lat, lng: lng });
+          return;
+        }
+        matched.records.push(record);
+        matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
+        matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
+      });
+      return fallbackGroups;
+    }
+    var groups = [];
+    records.forEach(function (record) {
+      var lat = Number(record.latitude);
+      var lng = Number(record.longitude);
+      var point = state.map.project([lng, lat]);
+      var matched = null;
+      for (var i = 0; i < groups.length; i += 1) {
+        var g = groups[i];
+        var dx = Number(point.x) - Number(g.point.x);
+        var dy = Number(point.y) - Number(g.point.y);
+        if (Math.sqrt(dx * dx + dy * dy) <= 72) {
+          matched = g;
+          break;
+        }
+      }
+      if (!matched) {
+        groups.push({ records: [record], point: point, lat: lat, lng: lng });
+        return;
+      }
+      matched.records.push(record);
+      matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
+      matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
+    });
+    return groups;
+  }
+
+  function ownObservationGroupLabel(records) {
+    var labels = records.map(function (record) { return recordDisplayName(record, COPY.discoveryFallback); }).filter(Boolean);
+    var visible = labels.slice(0, 2).join(' / ');
+    if (labels.length <= 2) return visible;
+    return visible + ' / ' + String(COPY.ownObservationStackMore || '__COUNT__ more').replace('__COUNT__', String(labels.length - 2));
+  }
+
+  function ownObservationMeta(record) {
+    var parts = [];
+    if (record && record.localityLabel) parts.push(String(record.localityLabel));
+    if (record && record.observedAt) parts.push(String(record.observedAt).slice(0, 10));
+    return parts.join(' · ');
+  }
+
+  function renderOwnObservationStackSheet(records) {
+    var list = (Array.isArray(records) ? records : []).filter(Boolean).slice(0, 12);
+    var title = COPY.ownObservationStackHeading || COPY.sideRecentLabel;
+    var meta = String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
+    return '<article class="me-detail-panel me-bottom-detail me-own-stack-sheet" data-own-observation-stack-sheet="1">' +
+      renderDetailHero({
+        title: title,
+        meta: meta,
+        badge: COPY.sideRecentLabel,
+        photoUrl: list[0] && list[0].photoUrl ? list[0].photoUrl : '',
+      }) +
+      '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationStackHint || '') + '</p>' +
+      '<div class="me-own-stack-list">' + list.map(function (record) {
+        var href = ownObservationHref(record);
+        var label = recordDisplayName(record, COPY.discoveryFallback);
+        var metaText = ownObservationMeta(record);
+        return '<a class="me-own-stack-item" href="' + escapeHtml(href) + '" data-own-observation-choice="' + escapeHtml(String(record && record.occurrenceId || '')) + '">' +
+          '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-stack-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' +
+          '<span><strong>' + escapeHtml(label) + '</strong>' + (metaText ? '<small>' + escapeHtml(metaText) + '</small>' : '') + '</span>' +
+          '<b>' + escapeHtml(COPY.ownObservationStackOpen || COPY.popupOpenLabel) + '</b>' +
+        '</a>';
+      }).join('') + '</div>' +
+    '</article>';
+  }
+
+  function openOwnObservationStackSheet(records) {
+    if (!sheetEl || !sheetInnerEl) return;
+    resetAreaGuideStopSession();
+    sheetInnerEl.innerHTML = renderOwnObservationStackSheet(records);
+    showDetailBottomSheet();
+    setSheetSnap('full');
+  }
+
+  function renderOwnObservationMarkers() {
+    clearOwnObservationMarkers();
+    if (!state.map || !window.maplibregl || state.tab === 'rain') return;
+    ownObservationGroups(validOwnObservationRecords()).forEach(function (group) {
+      var record = group.records[0];
+      var lat = Number(group.lat);
+      var lng = Number(group.lng);
+      if (!record || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      var label = recordDisplayName(record, COPY.discoveryFallback);
+      var count = group.records.length;
+      var groupLabel = count > 1 ? ownObservationGroupLabel(group.records) : label;
+      var allLabels = group.records.map(function (item) { return recordDisplayName(item, COPY.discoveryFallback); }).filter(Boolean).join(' / ');
+      var allOccurrenceIds = group.records.map(function (item) { return String(item && item.occurrenceId || ''); }).filter(Boolean).join(',');
+      var el = document.createElement('a');
+      el.className = 'me-own-observation-marker' + (count > 1 ? ' is-stack' : '');
+      el.href = ownObservationHref(record);
+      el.setAttribute('aria-label', (count > 1 ? String(count) + ' ' + COPY.ownObservationStackSuffix + ': ' + groupLabel : label) + COPY.openDiscoverySuffix);
+      el.setAttribute('title', count > 1 ? groupLabel : label);
+      el.setAttribute('data-own-observation-count', String(count));
+      el.setAttribute('data-own-observation-ids', allOccurrenceIds);
+      el.innerHTML = '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-observation-marker&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />'
+        + (count > 1 ? '<b aria-hidden="true">' + escapeHtml(String(count)) + '</b>' : '')
+        + '<span>' + escapeHtml(count > 1 ? groupLabel : label) + '</span>'
+        + (count > 1 ? '<em>' + escapeHtml(allLabels) + '</em>' : '');
+      if (count > 1) {
+        el.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          openOwnObservationStackSheet(group.records);
+        });
+      }
+      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+        .setLngLat([lng, lat])
+        .addTo(state.map);
+      state.ownObservationMarkers.push(marker);
     });
   }
 
@@ -6370,6 +6535,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       hideLegend();
     }
     refreshDiscoveryPreviewMarkers();
+    renderOwnObservationMarkers();
     refreshAreaBadgeMarkers();
     if (tab === 'markers' || tab === 'places' || tab === 'rain') loadGuideSpots();
     else clearGuideSpotMarkers();
@@ -7145,9 +7311,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
+  function loadMyObservations() {
+    if (!state.map || !apiMyObservations) return;
+    fetch(apiMyObservations + '?limit=48', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('my observations ' + r.status)); })
+      .then(function (payload) {
+        state.myObservations = payload && payload.signedIn ? (payload.items || []) : [];
+        renderOwnObservationMarkers();
+      })
+      .catch(function () {
+        state.myObservations = [];
+        clearOwnObservationMarkers();
+      });
+  }
+
   function refreshMapData() {
     loadCells();
     loadRecords(null);
+    loadMyObservations();
   }
 
   function refreshViewportSearchData() {
@@ -8916,6 +9097,7 @@ export const MAP_EXPLORER_STYLES = `
     width: 72px;
     min-height: 78px;
     display: grid;
+    position: relative;
     justify-items: center;
     align-content: start;
     gap: 4px;
@@ -8964,6 +9146,164 @@ export const MAP_EXPLORER_STYLES = `
     transform: rotate(45deg);
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
+  }
+  .me-own-observation-marker {
+    width: 66px;
+    min-height: 74px;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 5px;
+    border-radius: 16px;
+    background: rgba(16,185,129,.96);
+    color: #052e1c;
+    box-shadow: 0 14px 30px rgba(5,150,105,.28), 0 0 0 3px rgba(255,255,255,.9);
+    text-decoration: none;
+    transform-origin: bottom center;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .me-own-observation-marker:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 34px rgba(5,150,105,.34), 0 0 0 3px rgba(255,255,255,.96);
+  }
+  .me-own-observation-marker img {
+    width: 56px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    display: block;
+    background: #ecfdf5;
+  }
+  .me-own-observation-marker.is-stack {
+    background: rgba(8,145,178,.96);
+    color: #082f49;
+    box-shadow: 0 16px 34px rgba(8,145,178,.28), -8px 8px 0 rgba(255,255,255,.86), -14px 14px 0 rgba(8,145,178,.22);
+  }
+  .me-own-observation-marker.is-stack img {
+    box-shadow: 8px -5px 0 rgba(255,255,255,.58);
+  }
+  .me-own-observation-marker b {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    min-width: 24px;
+    height: 24px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.95);
+  }
+  .me-own-observation-marker span {
+    max-width: 56px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: center;
+    font-size: 10px;
+    line-height: 1.15;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .me-own-observation-marker em {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .me-own-observation-marker.is-photo-missing {
+    min-height: 42px;
+    align-content: center;
+  }
+  .me-own-stack-sheet {
+    gap: 12px;
+    padding-bottom: 14px;
+  }
+  .me-own-stack-hint {
+    margin: 0 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(236,253,245,.92);
+    border: 1px solid rgba(16,185,129,.18);
+    color: #0f3f2e;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 800;
+  }
+  .me-own-stack-list {
+    display: grid;
+    gap: 8px;
+    padding: 0 12px 12px;
+  }
+  .me-own-stack-item {
+    min-height: 72px;
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 8px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.08);
+    color: #0f172a;
+    text-decoration: none;
+    box-shadow: 0 8px 18px rgba(15,23,42,.06);
+  }
+  .me-own-stack-item:hover {
+    border-color: rgba(20,184,166,.28);
+    background: #f8fffc;
+  }
+  .me-own-stack-item img {
+    width: 58px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #ecfdf5;
+  }
+  .me-own-stack-item.is-photo-missing {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .me-own-stack-item span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .me-own-stack-item strong {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+  }
+  .me-own-stack-item small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 760;
+    overflow-wrap: anywhere;
+  }
+  .me-own-stack-item b {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+    white-space: nowrap;
   }
   .me-nearby-area-marker {
     max-width: 150px;
