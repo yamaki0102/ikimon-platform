@@ -28,11 +28,6 @@ RUNTIME_RSYNC_EXCLUDES=(
     "--exclude=*.sqlite3-wal"
     "--exclude=*.db"
 )
-RUNTIME_LIBRARY_RSYNC_EXCLUDES=(
-    # Staging can generate this large derived taxonomy extract; keep the
-    # library directory persistent without round-tripping the extract itself.
-    "--exclude=/Taxon.tsv"
-)
 
 load_runtime_allowlist() {
     if [ ! -f "$RUNTIME_ALLOWLIST" ]; then
@@ -67,16 +62,17 @@ copy_runtime_allowlist() {
         fi
 
         rel="${pattern#upload_package/data/}"
+        if [[ "$rel" == "library" || "$rel" == "library/"* ]]; then
+            # Untracked/generated library artifacts are preserved by git reset
+            # and should not be duplicated through deploy backup.
+            continue
+        fi
 
         if [[ "$rel" == *"/**" ]]; then
             rel_dir="${rel%/**}"
             if [ -d "$src_root/$rel_dir" ]; then
                 mkdir -p "$dst_root/$rel_dir"
-                if [ "$rel_dir" = "library" ]; then
-                    rsync_runtime_copy "$src_root/$rel_dir/" "$dst_root/$rel_dir/" "${RUNTIME_LIBRARY_RSYNC_EXCLUDES[@]}"
-                else
-                    rsync_runtime_copy "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
-                fi
+                rsync_runtime_copy "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
             fi
             continue
         fi
