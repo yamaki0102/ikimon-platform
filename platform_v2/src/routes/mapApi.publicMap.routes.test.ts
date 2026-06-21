@@ -71,16 +71,18 @@ test("map my-places endpoint is private-by-session and safe for guests", async (
   }
 });
 
-test("map my-observations endpoint is private-by-session and safe for guests", async () => {
+test("map my-observations endpoints are private-by-session and safe for guests", async () => {
   const app = buildApp();
   try {
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/v1/map/my-observations",
-    });
+    for (const url of ["/api/v1/me/map-observations", "/api/v1/map/my-observations"]) {
+      const response = await app.inject({
+        method: "GET",
+        url,
+      });
 
-    assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.json(), { signedIn: false, items: [] });
+      assert.equal(response.statusCode, 200, url);
+      assert.deepEqual(response.json(), { signedIn: false, items: [] });
+    }
   } finally {
     await app.close();
   }

@@ -572,7 +572,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     return { signedIn: true, sort, items };
   });
 
-  app.get("/api/v1/map/my-observations", async (request, reply) => {
+  const ownObservationsHandler = async (request: FastifyRequest, reply: FastifyReply) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
     const limit = parseInt32(q.limit);
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
@@ -584,5 +584,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     }
     const items = await listMapOwnObservations(session.userId, { limit: limit ?? 48 });
     return { signedIn: true, items };
-  });
+  };
+  app.get("/api/v1/me/map-observations", ownObservationsHandler);
+  app.get("/api/v1/map/my-observations", ownObservationsHandler);
 }

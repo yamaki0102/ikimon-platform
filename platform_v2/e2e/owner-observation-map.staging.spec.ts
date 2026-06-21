@@ -37,13 +37,13 @@ function cookieHeader(rawCookie: string): string {
 }
 
 async function fetchOwnerObservations(api: APIRequestContext, rawCookie: string): Promise<OwnerObservationPayload> {
-  const response = await api.get("/api/v1/map/my-observations?limit=48", {
+  const response = await api.get("/api/v1/me/map-observations?limit=48", {
     headers: {
       accept: "application/json",
       cookie: cookieHeader(rawCookie),
     },
   });
-  expect(response.ok(), `my-observations should be reachable: ${response.status()}`).toBeTruthy();
+  expect(response.ok(), `me/map-observations should be reachable: ${response.status()}`).toBeTruthy();
   return (await response.json()) as OwnerObservationPayload;
 }
 
