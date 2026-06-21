@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { test, expect, type Page, type Route, type TestInfo } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
@@ -415,6 +417,110 @@ async function attachC112MobileSheetEvidence(page: Page, testInfo: TestInfo, nam
   });
 }
 
+function boxesOverlap(
+  a: { x: number; y: number; width: number; height: number } | null,
+  b: { x: number; y: number; width: number; height: number } | null,
+): boolean {
+  if (!a || !b) return false;
+  return a.x < b.x + b.width
+    && a.x + a.width > b.x
+    && a.y < b.y + b.height
+    && a.y + a.height > b.y;
+}
+
+async function readPurposeHintState(page: Page) {
+  return page.evaluate(() => {
+    const boxOf = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return null;
+      const box = element.getBoundingClientRect();
+      return {
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      };
+    };
+    const hint = document.querySelector<HTMLElement>("#me-purpose-hint");
+    const hintBox = boxOf("#me-purpose-hint");
+    const mapBox = boxOf(".me-map-wrap");
+    const searchBox = boxOf(".me-search-shell");
+    const tabsBox = boxOf(".me-mode-tabs");
+    const launcherBox = boxOf(".global-record-launcher");
+    const style = hint ? window.getComputedStyle(hint) : null;
+    const visible = Boolean(
+      hint
+      && hintBox
+      && !hint.hidden
+      && style?.display !== "none"
+      && style?.visibility !== "hidden"
+      && hintBox.width > 0
+      && hintBox.height > 0,
+    );
+    const insideMap = Boolean(
+      hintBox && mapBox
+      && hintBox.x >= mapBox.x
+      && hintBox.y >= mapBox.y
+      && hintBox.x + hintBox.width <= mapBox.x + mapBox.width
+      && hintBox.y + hintBox.height <= mapBox.y + mapBox.height,
+    );
+    return {
+      exists: Boolean(hint),
+      url: location.href,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+      },
+      hidden: hint?.hidden ?? null,
+      ariaHidden: hint?.getAttribute("aria-hidden") ?? null,
+      display: style?.display ?? null,
+      visibility: style?.visibility ?? null,
+      storageValue: window.localStorage.getItem("ikimon-map-purpose-hint-v1"),
+      visible,
+      textLength: hint?.textContent?.replace(/\s+/g, " ").trim().length ?? 0,
+      hintBox,
+      mapBox,
+      searchBox,
+      tabsBox,
+      launcherBox,
+      insideMap,
+    };
+  });
+}
+
+async function attachPurposeHintEvidence(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+  const state = await readPurposeHintState(page);
+  const outDir = path.join("test-results", "c031-purpose-hint");
+  await mkdir(outDir, { recursive: true });
+  const statePath = path.join(outDir, `${name}.json`);
+  const imagePath = path.join(outDir, `${name}.jpg`);
+  const image = await page.screenshot({
+    animations: "disabled",
+    fullPage: false,
+    quality: 72,
+    timeout: 8_000,
+    type: "jpeg",
+  });
+  await writeFile(statePath, JSON.stringify(state, null, 2));
+  await writeFile(imagePath, image);
+  console.info(`c031-purpose-hint-evidence ${JSON.stringify({
+    statePath,
+    imagePath,
+    visible: state.visible,
+    ariaHidden: state.ariaHidden,
+    storageValue: state.storageValue,
+  })}`);
+  await testInfo.attach(`${name}.json`, {
+    path: statePath,
+    contentType: "application/json",
+  });
+  await testInfo.attach(`${name}.jpg`, {
+    path: imagePath,
+    contentType: "image/jpeg",
+  });
+}
+
 async function waitForMapShellReady(page: Page, mapPath = DEFAULT_STAGING_MAP_PATH, isMobile = false): Promise<void> {
   const response = await page.goto(mapPath, { waitUntil: "domcontentloaded" });
   expect(response?.status() ?? 0, `${mapPath} should load before map shell assertions`).toBeLessThan(400);
@@ -508,6 +614,48 @@ test("mobile bottom sheet opens as a map-detail peek and follows drag before sna
   expect(fullClass).not.toContain("is-dragging");
   const full = await readMobileSheetMotionState(page);
   expect(full.overlapPx, "full sheet should still avoid covering the record launcher").toBeLessThanOrEqual(2);
+
+  await context.close();
+});
+
+test("mobile first visit shows the map purpose hint without blocking map actions", async ({ browser }, testInfo) => {
+  test.setTimeout(90_000);
+  const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
+  expect(mobile, "mobile viewport profile should exist").toBeTruthy();
+  const context = await newStagingContext(browser, mobile!, { serviceWorkers: "block" });
+  const page = await context.newPage();
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, "/ja/map?tab=places&lng=137.7032&lat=34.6983&z=14.9", true);
+
+  const hint = page.locator("#me-purpose-hint");
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveAttribute("aria-hidden", "false");
+  await attachPurposeHintEvidence(page, testInfo, "c031-mobile-purpose-hint-visible");
+
+  const visibleState = await readPurposeHintState(page);
+  expect(visibleState.exists).toBe(true);
+  expect(visibleState.hidden).toBe(false);
+  expect(visibleState.visible).toBe(true);
+  expect(visibleState.textLength).toBeGreaterThan(20);
+  expect(visibleState.insideMap).toBe(true);
+  expect(boxesOverlap(visibleState.hintBox, visibleState.searchBox), "purpose hint should not cover search").toBe(false);
+  expect(boxesOverlap(visibleState.hintBox, visibleState.tabsBox), "purpose hint should not cover map tabs").toBe(false);
+  expect(boxesOverlap(visibleState.hintBox, visibleState.launcherBox), "purpose hint should not cover record launcher").toBe(false);
+
+  const canvasBox = await page.locator("[data-maplibre-smoke-stub='1']").boundingBox();
+  expect(canvasBox, "stubbed map canvas should be measurable").toBeTruthy();
+  await page.mouse.click(
+    Math.round(canvasBox!.x + canvasBox!.width / 2),
+    Math.round(canvasBox!.y + canvasBox!.height / 2),
+  );
+
+  await expect(hint).toBeHidden();
+  await expect(page.locator("#me-bottom-sheet")).toBeVisible();
+  await expect(page.locator("#me-bottom-sheet")).toHaveAttribute("aria-hidden", "false");
+  const dismissed = await page.evaluate(() => window.localStorage.getItem("ikimon-map-purpose-hint-v1"));
+  expect(dismissed).toBe("1");
+  await attachPurposeHintEvidence(page, testInfo, "c031-mobile-purpose-hint-after-map-tap");
 
   await context.close();
 });
