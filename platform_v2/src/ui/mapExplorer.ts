@@ -2211,6 +2211,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var activeGuideSpeech = null;
   var activeGuideAudio = null;
   var rainTimesPromise = null;
+  var JMA_RAIN_TILE_MAX_ZOOM = 10;
   var SIDE_RAIL_SIGNAL_MIN_RECORDS = 6;
   var SIDE_RAIL_SIGNAL_MAX_ZOOM = 14;
   var RECORDS_LOAD_WATCHDOG_MS = 8000;
@@ -2364,7 +2365,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         tiles: [rainTileUrl(entry, '{z}', '{x}', '{y}')],
         tileSize: 256,
         minzoom: 0,
-        maxzoom: 14,
+        maxzoom: JMA_RAIN_TILE_MAX_ZOOM,
         attribution: 'JMA High-resolution Precipitation Nowcast'
       });
       state.map.addLayer({
@@ -2455,7 +2456,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
   function checkRainAt(lng, lat) {
-    var z = 10;
+    var z = JMA_RAIN_TILE_MAX_ZOOM;
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
     loadRainTimes().then(function () {
       if (!state.rainTimes.length) {

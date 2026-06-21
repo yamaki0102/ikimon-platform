@@ -134,6 +134,12 @@ test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () =>
     });
     assert.equal(invalidTile.statusCode, 400);
 
+    const overscaledTile = await app.inject({
+      method: "GET",
+      url: "/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620030000&z=11&x=1807&y=813",
+    });
+    assert.equal(overscaledTile.statusCode, 400);
+
     const tile = await app.inject({
       method: "GET",
       url: "/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620030000&z=5&x=28&y=12",
