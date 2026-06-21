@@ -168,6 +168,10 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
         const markerCount = Number(await marker.getAttribute("data-own-observation-count"));
         if (markerCount > 1) {
           await expect(marker).toHaveAttribute("data-own-observation-ids", new RegExp(fixture.manual.occurrenceId));
+          await marker.click();
+          await expect(page.locator('[data-own-observation-stack-sheet="1"]')).toBeVisible();
+          await expect(page.locator(`[data-own-observation-choice="${fixture.manual.occurrenceId}"]`)).toBeVisible();
+          await page.locator("#me-bottom-close").click();
         } else {
           await expect(marker).toHaveAttribute("href", new RegExp(`/observations/${encodeURIComponent(fixture.manual.occurrenceId)}`));
         }

@@ -173,6 +173,11 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /me-own-observation-marker/);
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);
+  assert.match(script, /function openOwnObservationStackSheet\(records\)/);
+  assert.match(script, /data-own-observation-stack-sheet="1"/);
+  assert.match(script, /data-own-observation-choice/);
+  assert.match(script, /setSheetSnap\('full'\)/);
+  assert.match(script, /openOwnObservationStackSheet\(group\.records\)/);
   assert.match(script, /state\.tab === 'rain'/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
 });

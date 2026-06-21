@@ -1555,6 +1555,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
     ownObservationStackSuffix: props.lang === "ja" ? "件の記録" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
     ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
+    ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
+    ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
+    ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
     siteBriefHeading: copy.siteBriefHeading,
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
@@ -3359,6 +3362,46 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return visible + ' / ' + String(COPY.ownObservationStackMore || '__COUNT__ more').replace('__COUNT__', String(labels.length - 2));
   }
 
+  function ownObservationMeta(record) {
+    var parts = [];
+    if (record && record.localityLabel) parts.push(String(record.localityLabel));
+    if (record && record.observedAt) parts.push(String(record.observedAt).slice(0, 10));
+    return parts.join(' · ');
+  }
+
+  function renderOwnObservationStackSheet(records) {
+    var list = (Array.isArray(records) ? records : []).filter(Boolean).slice(0, 12);
+    var title = COPY.ownObservationStackHeading || COPY.sideRecentLabel;
+    var meta = String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
+    return '<article class="me-detail-panel me-bottom-detail me-own-stack-sheet" data-own-observation-stack-sheet="1">' +
+      renderDetailHero({
+        title: title,
+        meta: meta,
+        badge: COPY.sideRecentLabel,
+        photoUrl: list[0] && list[0].photoUrl ? list[0].photoUrl : '',
+      }) +
+      '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationStackHint || '') + '</p>' +
+      '<div class="me-own-stack-list">' + list.map(function (record) {
+        var href = ownObservationHref(record);
+        var label = recordDisplayName(record, COPY.discoveryFallback);
+        var metaText = ownObservationMeta(record);
+        return '<a class="me-own-stack-item" href="' + escapeHtml(href) + '" data-own-observation-choice="' + escapeHtml(String(record && record.occurrenceId || '')) + '">' +
+          '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-stack-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' +
+          '<span><strong>' + escapeHtml(label) + '</strong>' + (metaText ? '<small>' + escapeHtml(metaText) + '</small>' : '') + '</span>' +
+          '<b>' + escapeHtml(COPY.ownObservationStackOpen || COPY.popupOpenLabel) + '</b>' +
+        '</a>';
+      }).join('') + '</div>' +
+    '</article>';
+  }
+
+  function openOwnObservationStackSheet(records) {
+    if (!sheetEl || !sheetInnerEl) return;
+    resetAreaGuideStopSession();
+    sheetInnerEl.innerHTML = renderOwnObservationStackSheet(records);
+    showDetailBottomSheet();
+    setSheetSnap('full');
+  }
+
   function renderOwnObservationMarkers() {
     clearOwnObservationMarkers();
     if (!state.map || !window.maplibregl || state.tab === 'rain') return;
@@ -3383,6 +3426,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         + (count > 1 ? '<b aria-hidden="true">' + escapeHtml(String(count)) + '</b>' : '')
         + '<span>' + escapeHtml(count > 1 ? groupLabel : label) + '</span>'
         + (count > 1 ? '<em>' + escapeHtml(allLabels) + '</em>' : '');
+      if (count > 1) {
+        el.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          openOwnObservationStackSheet(group.records);
+        });
+      }
       var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
         .setLngLat([lng, lat])
         .addTo(state.map);
@@ -9173,6 +9223,87 @@ export const MAP_EXPLORER_STYLES = `
   .me-own-observation-marker.is-photo-missing {
     min-height: 42px;
     align-content: center;
+  }
+  .me-own-stack-sheet {
+    gap: 12px;
+    padding-bottom: 14px;
+  }
+  .me-own-stack-hint {
+    margin: 0 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(236,253,245,.92);
+    border: 1px solid rgba(16,185,129,.18);
+    color: #0f3f2e;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 800;
+  }
+  .me-own-stack-list {
+    display: grid;
+    gap: 8px;
+    padding: 0 12px 12px;
+  }
+  .me-own-stack-item {
+    min-height: 72px;
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 8px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.08);
+    color: #0f172a;
+    text-decoration: none;
+    box-shadow: 0 8px 18px rgba(15,23,42,.06);
+  }
+  .me-own-stack-item:hover {
+    border-color: rgba(20,184,166,.28);
+    background: #f8fffc;
+  }
+  .me-own-stack-item img {
+    width: 58px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #ecfdf5;
+  }
+  .me-own-stack-item.is-photo-missing {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .me-own-stack-item span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .me-own-stack-item strong {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+  }
+  .me-own-stack-item small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 760;
+    overflow-wrap: anywhere;
+  }
+  .me-own-stack-item b {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+    white-space: nowrap;
   }
   .me-nearby-area-marker {
     max-width: 150px;
