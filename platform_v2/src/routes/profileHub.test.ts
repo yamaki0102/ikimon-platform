@@ -68,6 +68,33 @@ function homePlace(overrides: Partial<HomePlace> = {}): HomePlace {
   };
 }
 
+type ProfileRecentObservation = ProfileSnapshot["recentObservations"][number];
+
+function recentObservation(overrides: Partial<ProfileRecentObservation> = {}): ProfileRecentObservation {
+  return {
+    occurrenceId: "occ-profile-latest",
+    visitId: "visit-profile-latest",
+    displayName: "朝の水音メモ",
+    observedAt: "2026-05-16T07:30:00.000Z",
+    observerName: "YAMAKI",
+    placeName: "静岡県の草地",
+    municipality: "静岡市",
+    publicLocation: {
+      label: "静岡市",
+      scope: "municipality",
+      cellId: "3000:1:1",
+      gridM: 3000,
+      radiusM: 3000,
+      centroidLat: 34.97,
+      centroidLng: 138.38,
+      displayMode: "area",
+    },
+    photoUrl: null,
+    identificationCount: 0,
+    ...overrides,
+  };
+}
+
 test("profile hero actions focus on continuation instead of account utilities", () => {
   const actions = profileHeroActions();
 
@@ -87,6 +114,45 @@ test("self profile hub compacts an empty bio and keeps account utilities separat
   assert.doesNotMatch(html, /自己紹介はまだありません。/);
   assert.match(html, /data-testid="profile-account-utilities"/);
   assert.match(html, /ログアウト/);
+});
+
+test("self profile channel uses real fallback labels instead of English placeholders", () => {
+  const html = renderSelfProfileHub("", "ja", profileSnapshot({
+    stats: {
+      totalObservations: 4,
+      thisMonthObservations: 1,
+      placeCount: 2,
+      uniqueTaxaAllTime: 3,
+      currentStreakDays: 0,
+      tier2PlusCount: 0,
+      tier3PlusCount: 0,
+      firstObservedAt: "2026-05-01T09:00:00.000Z",
+      latestObservedAt: "2026-05-16T07:30:00.000Z",
+    },
+    recentPlaces: [homePlace({
+      placeName: "静岡県の草地",
+      latestDisplayName: "タンポポ",
+      nextLookFor: "水辺の鳥",
+    })],
+    recentObservations: [recentObservation()],
+    lifeListPreview: [{
+      displayName: "タンポポ",
+      scientificName: null,
+      observationCount: 2,
+      latestObservedAt: "2026-05-16T07:30:00.000Z",
+      photoUrl: null,
+    }],
+  }));
+
+  assert.match(html, /data-testid="profile-channel"/);
+  assert.match(html, /<span>静岡県の草地<\/span>/);
+  assert.match(html, /<span>朝の水音メモ<\/span>/);
+  assert.match(html, /<span>水辺の鳥<\/span>/);
+  assert.match(html, /<span>タンポポ<\/span>/);
+  assert.doesNotMatch(html, />FIELD<\/span>/);
+  assert.doesNotMatch(html, />PHOTO<\/span>/);
+  assert.doesNotMatch(html, />NEXT<\/span>/);
+  assert.doesNotMatch(html, />LIFE<\/span>/);
 });
 
 test("self profile hub deduplicates repeated regional story cards before rendering", () => {
