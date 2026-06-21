@@ -835,9 +835,11 @@ test("map explorer loads owner-only map observations without turning them into p
   assert.match(script, /credentials: 'same-origin'/);
   assert.match(script, /function renderOwnObservationsPanel\(\)/);
   assert.match(script, /function refreshOwnObservationMarkers\(\)/);
+  assert.match(script, /function ownObservationHasShotPoint\(item\)/);
   assert.match(script, /ここで撮った/);
   assert.match(script, /本人だけに正確な位置を表示/);
-  assert.match(script, /\.filter\(function \(item\) \{ return item && item\.photoUrl; \}\)/);
+  assert.match(script, /\.filter\(ownObservationHasShotPoint\)/);
+  assert.doesNotMatch(script, /<span aria-hidden="true"><\/span>/);
   assert.match(script, /loadMyObservations\(\);/);
   assert.doesNotMatch(script, /state\.records = .*myObservations/);
 });

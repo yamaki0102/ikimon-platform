@@ -3038,20 +3038,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.map.easeTo({ center: [lng, lat], zoom: Math.max(state.map.getZoom(), 15.5), duration: 520 });
   }
 
+  function ownObservationHasShotPoint(item) {
+    return Boolean(item && item.photoUrl && item.source === 'visit_point');
+  }
+
   function refreshOwnObservationMarkers() {
     clearOwnObservationMarkers();
     if (!state.map || !window.maplibregl || !Array.isArray(state.myObservations)) return;
-    state.myObservations.forEach(function (item) {
+    state.myObservations.filter(ownObservationHasShotPoint).forEach(function (item) {
       var lat = Number(item && item.lat);
       var lng = Number(item && item.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       var el = document.createElement('button');
       el.type = 'button';
-      el.className = 'me-own-observation-marker' + (item.photoUrl ? ' has-photo' : '');
+      el.className = 'me-own-observation-marker has-photo';
       el.setAttribute('aria-label', COPY.myObservationsTitle + ': ' + recordDisplayName(item, COPY.recentDiscoveryFallback));
-      el.innerHTML = item.photoUrl
-        ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-observation-marker&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" />'
-        : '<span aria-hidden="true"></span>';
+      el.innerHTML = '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-observation-marker&quot;).remove()" />';
       el.addEventListener('click', function (event) {
         event.preventDefault();
         focusOwnObservation(item);
@@ -3066,7 +3068,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderOwnObservationsPanel() {
     if (!ownObservationsEl) return;
     var items = (Array.isArray(state.myObservations) ? state.myObservations : [])
-      .filter(function (item) { return item && item.photoUrl; })
+      .filter(ownObservationHasShotPoint)
       .slice(0, 8);
     if (!items.length) {
       ownObservationsEl.hidden = true;

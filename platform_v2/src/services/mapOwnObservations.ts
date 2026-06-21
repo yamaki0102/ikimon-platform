@@ -93,17 +93,18 @@ export async function listMapOwnObservations(
   const params: unknown[] = [trimmedUserId];
   const whereClauses = [
     "v.user_id = $1",
-    "coalesce(v.point_latitude, p.center_latitude) is not null",
-    "coalesce(v.point_longitude, p.center_longitude) is not null",
+    "v.point_latitude is not null",
+    "v.point_longitude is not null",
+    "photo.public_url is not null",
   ];
   if (options.bbox) {
     const [minLng, minLat, maxLng, maxLat] = options.bbox;
     params.push(minLng, minLat, maxLng, maxLat);
     whereClauses.push(
-      `coalesce(v.point_longitude, p.center_longitude) between $${params.length - 3} and $${params.length - 1}`,
+      `v.point_longitude between $${params.length - 3} and $${params.length - 1}`,
     );
     whereClauses.push(
-      `coalesce(v.point_latitude, p.center_latitude) between $${params.length - 2} and $${params.length}`,
+      `v.point_latitude between $${params.length - 2} and $${params.length}`,
     );
   }
 
@@ -129,12 +130,11 @@ export async function listMapOwnObservations(
         v.source_kind,
         v.session_mode,
         v.visit_mode,
-        p.center_latitude as place_latitude,
-        p.center_longitude as place_longitude,
+        null as place_latitude,
+        null as place_longitude,
         photo.public_url as photo_url
       from occurrences o
       join visits v on v.visit_id = o.visit_id
-      left join places p on p.place_id = v.place_id
       left join lateral (
         select recommended_taxon_name
         from observation_ai_assessments a
@@ -164,11 +164,11 @@ export async function listMapOwnObservations(
     .map((row): MapOwnObservation | null => {
       const pointLat = finiteNumber(row.point_latitude);
       const pointLng = finiteNumber(row.point_longitude);
-      const placeLat = finiteNumber(row.place_latitude);
-      const placeLng = finiteNumber(row.place_longitude);
-      const lat = pointLat ?? placeLat;
-      const lng = pointLng ?? placeLng;
+      const lat = pointLat;
+      const lng = pointLng;
       if (lat === null || lng === null) return null;
+      const photoUrl = normalizeAssetUrl(row.photo_url);
+      if (!photoUrl) return null;
       const display = formatTaxonDisplayName({
         vernacularName: row.vernacular_name,
         scientificName: row.scientific_name,
@@ -182,8 +182,8 @@ export async function listMapOwnObservations(
         observedAt: row.observed_at,
         lat,
         lng,
-        photoUrl: normalizeAssetUrl(row.photo_url),
-        source: pointLat !== null && pointLng !== null ? "visit_point" : "place_center",
+        photoUrl,
+        source: "visit_point",
         recordSource: classifyRecordSource(row),
       };
     })

@@ -71,19 +71,20 @@ test("listMapOwnObservations returns exact owner records and defensively exclude
   assert.equal(queries.length, 1);
   assert.equal(queries[0]!.params[0], "owner-user");
   assert.match(queries[0]!.sql, /v\.user_id = \$1/);
-  assert.match(queries[0]!.sql, /coalesce\(v\.point_longitude, p\.center_longitude\) between \$2 and \$4/);
-  assert.match(queries[0]!.sql, /coalesce\(v\.point_latitude, p\.center_latitude\) between \$3 and \$5/);
+  assert.match(queries[0]!.sql, /v\.point_longitude between \$2 and \$4/);
+  assert.match(queries[0]!.sql, /v\.point_latitude between \$3 and \$5/);
+  assert.match(queries[0]!.sql, /photo\.public_url is not null/);
 });
 
-test("listMapOwnObservations can classify place-center fallback without making it public", async () => {
+test("listMapOwnObservations keeps the owner map to actual photo-backed shot points", async () => {
   const db = {
     async query() {
       return {
         rows: [
           {
             user_id: "owner-user",
-            occurrence_id: "occ-place",
-            visit_id: "visit-place",
+            occurrence_id: "occ-guide-center",
+            visit_id: "visit-guide-center",
             scientific_name: null,
             vernacular_name: null,
             display_name: "同定待ち",
@@ -98,6 +99,24 @@ test("listMapOwnObservations can classify place-center fallback without making i
             session_mode: "guide",
             visit_mode: "guide",
           },
+          {
+            user_id: "owner-user",
+            occurrence_id: "occ-guide-shot",
+            visit_id: "visit-guide-shot",
+            scientific_name: null,
+            vernacular_name: null,
+            display_name: "同定待ち",
+            ai_candidate_name: "キク科の花",
+            observed_at: "2026-06-20T09:10:00.000Z",
+            point_latitude: "34.712",
+            point_longitude: "137.722",
+            place_latitude: "34.71",
+            place_longitude: "137.72",
+            photo_url: "/uploads/guide-shot.jpg",
+            source_kind: "guide_record_promotion",
+            session_mode: "guide",
+            visit_mode: "guide",
+          },
         ],
       };
     },
@@ -106,9 +125,10 @@ test("listMapOwnObservations can classify place-center fallback without making i
   const items = await listMapOwnObservations("owner-user", { db });
 
   assert.equal(items.length, 1);
-  assert.equal(items[0]!.lat, 34.71);
-  assert.equal(items[0]!.lng, 137.72);
-  assert.equal(items[0]!.source, "place_center");
+  assert.equal(items[0]!.lat, 34.712);
+  assert.equal(items[0]!.lng, 137.722);
+  assert.equal(items[0]!.source, "visit_point");
   assert.equal(items[0]!.recordSource, "guide");
   assert.equal(items[0]!.displayName, "キク科の花");
+  assert.equal(items[0]!.photoUrl, "/uploads/guide-shot.jpg");
 });
