@@ -180,9 +180,12 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /return ownObservationCoordinateGroups\(records\)/);
   assert.match(script, /function prioritizeOwnObservationRecordsForView\(records\)/);
   assert.match(script, /function prioritizeOwnObservationGroupsForView\(groups\)/);
+  assert.match(script, /var renderedOwnObservationIds = \{\}/);
+  assert.match(script, /function markOwnObservationGroupRendered\(group\)/);
+  assert.match(script, /function ownObservationGroupWasRendered\(group\)/);
   assert.match(script, /if \(root && !root\.contains\(el\)\)/);
   assert.match(script, /marker = addOwnObservationFallbackMarker\(el, lng, lat\)/);
-  assert.match(script, /prioritizeOwnObservationGroupsForView\(safeOwnObservationGroups\(records\)\)\.forEach/);
+  assert.match(script, /renderOwnObservationGroup\(group, true\)/);
   assert.match(script, /setOwnObservationMarkerState\(state\.ownObservationMarkers\.length \? 'ready' : 'render-empty'/);
   assert.match(script, /me-own-observation-marker/);
   assert.match(script, /data-own-observation-count/);

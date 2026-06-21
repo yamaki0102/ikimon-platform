@@ -3556,7 +3556,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         },
       };
     }
-    function renderOwnObservationGroup(group) {
+    var renderedOwnObservationIds = {};
+    function markOwnObservationGroupRendered(group) {
+      (group && Array.isArray(group.records) ? group.records : []).forEach(function (item) {
+        var id = String(item && item.occurrenceId || '');
+        if (id) renderedOwnObservationIds[id] = true;
+      });
+    }
+    function ownObservationGroupWasRendered(group) {
+      var ids = (group && Array.isArray(group.records) ? group.records : [])
+        .map(function (item) { return String(item && item.occurrenceId || ''); })
+        .filter(Boolean);
+      return !!ids.length && ids.every(function (id) { return !!renderedOwnObservationIds[id]; });
+    }
+    function renderOwnObservationGroup(group, forceDomFallback) {
       var record = group.records[0];
       var lat = Number(group.lat);
       var lng = Number(group.lng);
@@ -3585,7 +3598,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         });
       }
       var marker = null;
-      if (maplibre && typeof maplibre.Marker === 'function') try {
+      if (!forceDomFallback && maplibre && typeof maplibre.Marker === 'function') try {
         marker = new maplibre.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
           .setLngLat([lng, lat])
           .addTo(state.map);
@@ -3597,10 +3610,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         marker = addOwnObservationFallbackMarker(el, lng, lat);
       }
       if (!marker) marker = addOwnObservationFallbackMarker(el, lng, lat);
-      if (marker) state.ownObservationMarkers.push(marker);
+      if (marker) {
+        state.ownObservationMarkers.push(marker);
+        markOwnObservationGroupRendered(group);
+      }
     }
-    prioritizeOwnObservationGroupsForView(safeOwnObservationGroups(records)).forEach(function (group) {
-      try { renderOwnObservationGroup(group); } catch (_) {}
+    var groups = prioritizeOwnObservationGroupsForView(safeOwnObservationGroups(records));
+    groups.forEach(function (group) {
+      try { renderOwnObservationGroup(group, false); } catch (_) {
+        try { renderOwnObservationGroup(group, true); } catch (_) {}
+      }
+    });
+    groups.forEach(function (group) {
+      if (ownObservationGroupWasRendered(group)) return;
+      try { renderOwnObservationGroup(group, true); } catch (_) {}
     });
     if (!state.ownObservationMarkers.length) {
       ownObservationCoordinateGroups(records).slice(0, 6).forEach(function (group) {
