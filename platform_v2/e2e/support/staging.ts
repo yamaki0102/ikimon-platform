@@ -265,7 +265,16 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
       getCenter() { return this._center; }
       getZoom() { return this._zoom; }
       getBounds() { return makeBounds(this._center, 0.1); }
-      fitBounds() {
+      fitBounds(bounds, options) {
+        const west = Array.isArray(bounds) && Array.isArray(bounds[0]) ? Number(bounds[0][0]) : NaN;
+        const south = Array.isArray(bounds) && Array.isArray(bounds[0]) ? Number(bounds[0][1]) : NaN;
+        const east = Array.isArray(bounds) && Array.isArray(bounds[1]) ? Number(bounds[1][0]) : NaN;
+        const north = Array.isArray(bounds) && Array.isArray(bounds[1]) ? Number(bounds[1][1]) : NaN;
+        if (Number.isFinite(west) && Number.isFinite(south) && Number.isFinite(east) && Number.isFinite(north)) {
+          this._center = { lng: (west + east) / 2, lat: (south + north) / 2 };
+        }
+        if (options && Number.isFinite(Number(options.maxZoom))) this._zoom = Number(options.maxZoom);
+        (window as any).__ikimonMapSmokeLastFitBounds = { bounds, options, center: this._center, zoom: this._zoom };
         setTimeout(() => this._emit("moveend"), 0);
         return this;
       }
