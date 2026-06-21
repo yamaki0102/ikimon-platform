@@ -829,7 +829,7 @@ test("map explorer loads owner-only map observations without turning them into p
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(html, /id="me-own-observations"/);
-  assert.match(html, /data-api-my-observations="\/api\/v1\/map\/my-observations"/);
+  assert.match(html, /data-api-my-observations="\/api\/v1\/me\/map-observations"/);
   assert.match(script, /apiMyObservations/);
   assert.match(script, /function loadMyObservations\(\)/);
   assert.match(script, /credentials: 'same-origin'/);

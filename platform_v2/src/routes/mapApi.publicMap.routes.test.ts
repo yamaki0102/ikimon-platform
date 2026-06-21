@@ -71,22 +71,27 @@ test("map my-places endpoint is private-by-session and safe for guests", async (
   }
 });
 
-test("map my-observations endpoint is private-by-session and safe for guests", async () => {
+test("map owner observation endpoints are private-by-session and safe for guests", async () => {
   const app = buildApp();
   try {
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/v1/map/my-observations?bbox=137.70,34.70,137.75,34.75&limit=12",
-    });
+    for (const url of [
+      "/api/v1/map/my-observations?bbox=137.70,34.70,137.75,34.75&limit=12",
+      "/api/v1/me/map-observations?bbox=137.70,34.70,137.75,34.75&limit=12",
+    ]) {
+      const response = await app.inject({
+        method: "GET",
+        url,
+      });
 
-    assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.json(), { signedIn: false, items: [] });
+      assert.equal(response.statusCode, 200, url);
+      assert.deepEqual(response.json(), { signedIn: false, items: [] });
+    }
   } finally {
     await app.close();
   }
 });
 
-test("map my-observations endpoint recognizes authenticated owner sessions without exposing public point features", async () => {
+test("map-observations alias recognizes authenticated owner sessions without exposing public point features", async () => {
   const previousEnabled = process.env.ENABLE_DEV_DUMMY_ADMIN;
   const previousToken = process.env.DEV_DUMMY_ADMIN_TOKEN;
   const previousDatabaseUrl = process.env.DATABASE_URL;
@@ -98,7 +103,7 @@ test("map my-observations endpoint recognizes authenticated owner sessions witho
   try {
     const response = await app.inject({
       method: "GET",
-      url: "/api/v1/map/my-observations?bbox=137.70,34.70,137.75,34.75&limit=12",
+      url: "/api/v1/me/map-observations?bbox=137.70,34.70,137.75,34.75&limit=12",
       headers: {
         cookie: "ikimon_v2_session=map-owner-test-token",
       },

@@ -968,7 +968,7 @@ export const worker = {
         return getPublicMapMyPlaces(request, env);
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/my-observations") {
+      if (request.method === "GET" && isMapOwnObservationsApiPath(url.pathname)) {
         return getPublicMapMyObservations(request, url, env);
       }
 
@@ -1359,6 +1359,11 @@ function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: 
 function isMapAreaPolygonsApiPath(pathname: string): boolean {
   return pathname === "/api/v1/map/area-polygons"
     || /^\/(?:ja|en|es|pt-br)\/api\/v1\/map\/area-polygons$/.test(pathname);
+}
+
+function isMapOwnObservationsApiPath(pathname: string): boolean {
+  return pathname === "/api/v1/map/my-observations"
+    || pathname === "/api/v1/me/map-observations";
 }
 
 function mapAreaPolygonsFallbackLimit(zoom: number | null): number {

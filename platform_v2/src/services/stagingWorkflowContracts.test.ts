@@ -17,7 +17,7 @@ test("deploy-staging can capture authenticated map owner history evidence on dem
   assert.match(specSource, /seedRegressionFixtures/);
   assert.match(specSource, /issueSessionCookie/);
   assert.match(specSource, /addSessionCookie/);
-  assert.match(specSource, /\/api\/v1\/map\/my-observations/);
+  assert.match(specSource, /\/api\/v1\/me\/map-observations/);
   assert.match(specSource, /otherFixture/);
   assert.match(specSource, /me-own-observation-marker\.has-photo/);
 });

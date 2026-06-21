@@ -155,13 +155,13 @@ test.describe("authenticated map own observation staging evidence", () => {
   });
 
   test("my-observations endpoint is owner-session only and photo-backed on staging", async () => {
-    const anonymous = await api.get(`/api/v1/map/my-observations?bbox=${encodeURIComponent(OWNER_BBOX)}&limit=24`);
+    const anonymous = await api.get(`/api/v1/me/map-observations?bbox=${encodeURIComponent(OWNER_BBOX)}&limit=24`);
     expect(anonymous.ok(), `anonymous endpoint should respond safely: ${anonymous.status()}`).toBeTruthy();
     const anonymousPayload = await anonymous.json() as { signedIn?: boolean; items?: unknown[] };
     expect(anonymousPayload.signedIn).toBe(false);
     expect(anonymousPayload.items ?? []).toHaveLength(0);
 
-    const response = await api.get(`/api/v1/map/my-observations?bbox=${encodeURIComponent(OWNER_BBOX)}&limit=24`, {
+    const response = await api.get(`/api/v1/me/map-observations?bbox=${encodeURIComponent(OWNER_BBOX)}&limit=24`, {
       headers: {
         cookie: cookieHeader(sessionCookie),
         accept: "application/json",
