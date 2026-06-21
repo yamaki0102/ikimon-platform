@@ -2834,8 +2834,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function shouldUseBottomSheet() {
     return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
   }
+  function isRainInteractionMode() {
+    return state.tab === 'rain' && state.rainEnabled;
+  }
+  function checkRainTap(lngLat) {
+    if (!lngLat) return false;
+    var lng = Number(lngLat.lng);
+    var lat = Number(lngLat.lat);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
+    closeBottomSheet();
+    checkRainAt(lng, lat);
+    return true;
+  }
   function shouldKeepMapClearForRain() {
-    return false;
+    return isRainInteractionMode() && shouldUseBottomSheet();
   }
 
   function updateSearchAreaUi() {
@@ -6732,7 +6744,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       map.on('click', layerId, function (e) {
         if (hasPendingMapResults()) return;
         if (!e.features || !e.features[0]) return;
-        if (state.rainEnabled && e.lngLat) checkRainAt(Number(e.lngLat.lng), Number(e.lngLat.lat));
+        if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
         var selectedFeature = e.features[0];
         if (selectedFeature.geometry && selectedFeature.geometry.type === 'Point') {
           selectedFeature = findCellFeatureById(selectedFeature.properties && selectedFeature.properties.cellId) || selectedFeature;
@@ -7272,7 +7284,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }, beforeId);
     ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
-        if (state.rainEnabled && e.lngLat) checkRainAt(Number(e.lngLat.lng), Number(e.lngLat.lat));
+        if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
         var hitLayers = areaPolygonHitLayers();
         var hits = hitLayers.length ? map.queryRenderedFeatures(e.point, { layers: hitLayers }) : e.features;
         var pick = pickSmallestAreaFeature(hits);
@@ -7334,6 +7346,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
+      if (isRainInteractionMode() && checkRainTap(center)) return;
       openGuideSpotSheet(feature);
     });
     return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
@@ -7379,6 +7392,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
+      if (isRainInteractionMode() && checkRainTap(center)) return;
       openGuideSpotGroupSheet(list);
     });
     return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
@@ -8091,7 +8105,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       areaPolygonHitLayers().forEach(function (id) { layers.push(id); });
       var hits = layers.length > 0 ? state.map.queryRenderedFeatures(e.point, { layers: layers }) : [];
       if (hits && hits.length > 0) return;
-      if (state.rainEnabled && e.lngLat) checkRainAt(Number(e.lngLat.lng), Number(e.lngLat.lat));
+      if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
     });
   }
