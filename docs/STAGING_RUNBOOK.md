@@ -104,6 +104,8 @@ ssh ikimon-vps "STAGING_BRANCH=staging /var/www/ikimon.life-staging/deploy.sh"
 - staging v2 の process manager は `pm2` ではなく `ikimon-v2-staging.service` に固定する
 - staging v2 の DB 接続は peer auth ではなく `V2_STAGING_DATABASE_URL` に固定する
 - uploads は repo 配下でなく `persistent/uploads` に置く
+- deploy runtime backup の一時dirは `${STAGING_DEPLOY_BACKUP_ROOT:-/var/www/ikimon.life-staging/persistent/deploy-tmp}` を使い、`/tmp` 容量に依存させない
+- `upload_package/data/library/` は staging の未追跡/生成物置き場として `git reset --hard` 後もその場に残す。deploy runtime backup では複製しない
 - 本番 deploy 前に staging で UI / data / health check を通す
 
 ## Branch Policy
