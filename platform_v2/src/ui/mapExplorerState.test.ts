@@ -56,3 +56,13 @@ test("serializeSharedMapState keeps share-critical params including cell", () =>
   assert.equal(params.get("lat"), "34.7219");
   assert.equal(params.get("z"), "10.6");
 });
+
+test("serializeSharedMapState omits default marker profiles from public share URLs", () => {
+  const manualParams = new URLSearchParams(serializeSharedMapState({ markerProfile: "manual_only" }));
+  const legacyDefaultParams = new URLSearchParams(serializeSharedMapState({ markerProfile: "all_research_artifacts" }));
+  const trustedParams = new URLSearchParams(serializeSharedMapState({ markerProfile: "trusted_only" }));
+
+  assert.equal(manualParams.get("mp"), null);
+  assert.equal(legacyDefaultParams.get("mp"), null);
+  assert.equal(trustedParams.get("mp"), "trusted_only");
+});

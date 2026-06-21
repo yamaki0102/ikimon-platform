@@ -155,7 +155,7 @@ export function serializeSharedMapState(input: MapExplorerShareStateInput): stri
   pushStateParam(parts, "tab", tab && tab !== "markers" ? tab : null);
   pushStateParam(parts, "role", role && role !== "mixed" ? role : null);
   pushStateParam(parts, "actor", actorClass && actorClass !== "all" ? actorClass : null);
-  pushStateParam(parts, "mp", markerProfile && markerProfile !== "all_research_artifacts" ? markerProfile : null);
+  pushStateParam(parts, "mp", markerProfile && markerProfile !== "manual_only" && markerProfile !== "all_research_artifacts" ? markerProfile : null);
   pushStateParam(parts, "taxon", taxonGroup);
   pushStateParam(parts, "year", year);
   pushStateParam(parts, "season", season);
