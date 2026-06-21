@@ -192,7 +192,7 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(MAP_EXPLORER_STYLES, /@keyframes me-rain-tap-pulse/);
   assert.match(script, /if \(shouldKeepMapClearForRain\(\)\) \{\s+closeBottomSheet\(\);\s+return;\s+\}/);
   assert.match(script, /if \(visible && state\.tab === 'rain'\) \{\s+visible = false;/);
-  assert.match(script, /if \(state\.tab === 'rain'\) \{\s+closeBottomSheet\(\);\s+setMapEmptyInviteVisible\(false\);\s+hideLayerHint\(\);\s+enableRainLayer\(\);/);
+  assert.match(script, /if \(state\.tab === 'rain'\) \{\s+closeBottomSheet\(\);\s+setMapEmptyInviteVisible\(false\);\s+hideLayerHint\(\);\s+setStatus\(''\);\s+setStatusMeta\(''\);\s+enableRainLayer\(\);/);
   assert.match(script, /function rainStatusWithNotice\(text\)/);
   assert.match(script, /rainForecastNotice/);
   assert.match(script, /data-sheet-open/);
@@ -211,8 +211,9 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /rainIndeterminate/);
   assert.match(script, /rainLocationFallback/);
   assert.match(script, /function checkRainAt\(lng, lat\)/);
-  assert.match(script, /if \(isRainInteractionMode\(\) && checkRainTap\(e\.lngLat\)\) return;/);
-  assert.match(script, /if \(isRainInteractionMode\(\) && checkRainTap\(center\)\) return;/);
+  assert.doesNotMatch(script, /if \(isRainInteractionMode\(\) && checkRainTap\(/);
+  assert.match(script, /if \(isRainInteractionMode\(\)\) \{\s+checkRainTap\(e\.lngLat\);\s+return;\s+\}/);
+  assert.match(script, /if \(isRainInteractionMode\(\)\) \{\s+checkRainTap\(center\);\s+return;\s+\}/);
   assert.match(script, /canvas\.getContext\('2d', \{ willReadFrequently: true \}\)/);
   assert.match(script, /hasRain === null/);
   assert.doesNotMatch(html, /www\.jma\.go\.jp\/bosai\/jmatile/);
@@ -698,7 +699,7 @@ test("map initial data load stays light and defers secondary panels", () => {
   assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
 });
 
-test("map opens near current location instead of restoring stale local viewport", () => {
+test("map restores shared viewport but waits for explicit current-location action", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /function applyRestoredParams\(params, options\)/);
@@ -706,10 +707,11 @@ test("map opens near current location instead of restoring stale local viewport"
   assert.match(script, /params = parseStateString\(localStorage\.getItem\(STATE_STORAGE_KEY\) \|\| ''\);[\s\S]*restoreViewport = false;/);
   assert.match(script, /applyRestoredParams\(params, \{ restoreViewport: restoreViewport \}\);/);
   assert.match(script, /if \(restoreViewport && params\.lng && params\.lat && params\.z\)/);
-  assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId\) return;/);
+  assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);
+  assert.match(script, /locateFab\.addEventListener\('click', function \(\) \{[\s\S]*navigator\.geolocation\.getCurrentPosition/);
 });
 
-test("heatmap and rain tabs keep area polygons selectable", () => {
+test("rain tab keeps map taps focused on rain checks", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places' \|\| tab === 'rain'\);/);
@@ -718,6 +720,11 @@ test("heatmap and rain tabs keep area polygons selectable", () => {
   assert.match(script, /moveToTop\(\['jma-rain-nowcast-layer', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-name-priority', 'area-polygon-name'\]\);/);
   assert.match(script, /8, 0\.11, 11, 0\.15, 14, 0\.28, 16\.5, 0\.42/);
   assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places' \|\| tab === 'rain'/);
+  assert.match(script, /if \(state\.tab === 'rain'\) \{\s+setStatus\(''\);\s+setStatusMeta\(''\);\s+return;\s+\}/);
+  assert.match(script, /setStatus\(''\);\s+setStatusMeta\(''\);\s+enableRainLayer\(\);/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-map-status,\s+\.me-rain-mode \.me-empty-invite,\s+\.me-rain-mode \.me-layer-hint \{\s+display: none !important;/);
+  assert.match(script, /if \(isRainInteractionMode\(\)\) \{\s+checkRainTap\(e\.lngLat\);\s+return;\s+\}/);
+  assert.doesNotMatch(script, /if \(isRainInteractionMode\(\) && checkRainTap\(e\.lngLat\)\) return;/);
   assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);
   assert.match(script, /var markerDetailLayers = \['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'\]/);
   assert.match(script, /show\(markerDetailLayers, false\);/);

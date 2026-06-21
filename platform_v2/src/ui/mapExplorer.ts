@@ -2901,6 +2901,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     renderSidePanels();
     refreshDiscoveryPreviewMarkers();
     updateSearchAreaUi();
+    if (state.tab === 'rain') {
+      setStatus('');
+      setStatusMeta('');
+      return;
+    }
     var records = Array.isArray(state.records) ? state.records : [];
     var totalAll = stats && Number.isFinite(stats.totalAll) ? stats.totalAll : records.length;
     if (!records.length) setStatus(COPY.empty);
@@ -5454,6 +5459,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       setMapEmptyInviteVisible(false);
       hideLayerHint();
+      setStatus('');
+      setStatusMeta('');
       enableRainLayer();
     }
     else disableRainLayer();
@@ -6297,7 +6304,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       map.on('click', layerId, function (e) {
         if (hasPendingMapResults()) return;
         if (!e.features || !e.features[0]) return;
-        if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
+        if (isRainInteractionMode()) {
+          checkRainTap(e.lngLat);
+          return;
+        }
         var selectedFeature = e.features[0];
         if (selectedFeature.geometry && selectedFeature.geometry.type === 'Point') {
           selectedFeature = findCellFeatureById(selectedFeature.properties && selectedFeature.properties.cellId) || selectedFeature;
@@ -6449,6 +6459,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         },
       });
       map.on('click', 'frontier-fill', function (e) {
+        if (isRainInteractionMode()) {
+          checkRainTap(e.lngLat);
+          return;
+        }
         // Frontier cells can cover small park polygons. If the click also hits
         // a registered area, open the concrete area so the event creator keeps
         // its field_id instead of falling back to a generic coordinate. Broad
@@ -6836,7 +6850,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }, beforeId);
     ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
-        if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
+        if (isRainInteractionMode()) {
+          checkRainTap(e.lngLat);
+          return;
+        }
         var hitLayers = areaPolygonHitLayers();
         var hits = hitLayers.length ? map.queryRenderedFeatures(e.point, { layers: hitLayers }) : e.features;
         var pick = pickSmallestAreaFeature(hits);
@@ -6898,7 +6915,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
-      if (isRainInteractionMode() && checkRainTap(center)) return;
+      if (isRainInteractionMode()) {
+        checkRainTap(center);
+        return;
+      }
       openGuideSpotSheet(feature);
     });
     return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
@@ -6944,7 +6964,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
-      if (isRainInteractionMode() && checkRainTap(center)) return;
+      if (isRainInteractionMode()) {
+        checkRainTap(center);
+        return;
+      }
       openGuideSpotGroupSheet(list);
     });
     return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
@@ -7261,7 +7284,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.initialDataLoaded = true;
     state.initialDataLoadAttempts = 0;
     refreshMapData();
-    maybeAutoLocateOnFirstOpen();
     maybeShowLayerHint(state.tab);
     deferMapTask(function () {
       if (state.tab === 'frontier') loadFrontier(state.map);
@@ -7618,6 +7640,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // Empty-point tap → Site Brief. Skip if the click hit an observation
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
+      if (isRainInteractionMode()) {
+        checkRainTap(e.lngLat);
+        return;
+      }
       var layers = [];
       ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected', 'obs-cell-heat', 'obs-cell-heat-selected'].forEach(function (id) {
         if (state.map.getLayer(id)) layers.push(id);
@@ -7626,7 +7652,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       areaPolygonHitLayers().forEach(function (id) { layers.push(id); });
       var hits = layers.length > 0 ? state.map.queryRenderedFeatures(e.point, { layers: layers }) : [];
       if (hits && hits.length > 0) return;
-      if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
     });
   }
@@ -8145,32 +8170,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var el = document.createElement('div');
     el.className = 'me-locate-marker';
     state._meMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(state.map);
-  }
-
-  // First-open auto-locate: zoom into the user's location unless an explicit
-  // shared location was restored from URL/hash. Silent on
-  // permission denial or any failure — falls back to the default view.
-  var _autoLocateAttempted = false;
-  function maybeAutoLocateOnFirstOpen() {
-    if (_autoLocateAttempted) return;
-    _autoLocateAttempted = true;
-    if (!state.map || !navigator.geolocation) return;
-    if (state._restoredCenter || state._restoredCellId) return;
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      if (!state.map) return;
-      var lng = pos.coords.longitude;
-      var lat = pos.coords.latitude;
-      if (!isFinite(lng) || !isFinite(lat)) return;
-      if (lng < -180 || lng > 180 || lat < -85 || lat > 85) return;
-      // Suppress later data-driven auto-fit so the user's location wins.
-      state._fittedOnce = true;
-      state.map.flyTo({ center: [lng, lat], zoom: 13, duration: 900, essential: true });
-      dropMeMarker(lng, lat);
-    }, function () { /* silent: keep default view */ }, {
-      enableHighAccuracy: false,
-      maximumAge: 60000,
-      timeout: 6000,
-    });
   }
 
   // locate-me
@@ -10820,6 +10819,11 @@ export const MAP_EXPLORER_STYLES = `
       padding: 4px 8px 5px;
       background: rgba(248,255,254,.9);
       backdrop-filter: blur(10px);
+    }
+    .me-rain-mode .me-map-status,
+    .me-rain-mode .me-empty-invite,
+    .me-rain-mode .me-layer-hint {
+      display: none !important;
     }
     .me-topbar-primary { display: contents; }
     .me-map-kicker { display: none; }
