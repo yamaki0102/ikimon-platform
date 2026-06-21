@@ -80,6 +80,8 @@ async function captureEvidence(page: Page, profile: ViewportProfile, fixture: Se
       return {
         href: marker.getAttribute("href"),
         label: marker.getAttribute("aria-label"),
+        count: marker.getAttribute("data-own-observation-count"),
+        ids: marker.getAttribute("data-own-observation-ids"),
         hasImage: Boolean(marker.querySelector("img")),
         text: marker.textContent?.replace(/\s+/g, " ").trim() ?? "",
         rect: {
@@ -96,7 +98,11 @@ async function captureEvidence(page: Page, profile: ViewportProfile, fixture: Se
       url: window.location.href,
       viewport: { width: window.innerWidth, height: window.innerHeight },
       markerCount: markers.length,
-      manualOccurrenceLinked: markers.some((marker) => marker.href?.includes(encodeURIComponent(manualOccurrenceId))),
+      stackCount: markers.filter((marker) => Number(marker.count ?? "1") > 1).length,
+      manualOccurrenceLinked: markers.some((marker) =>
+        marker.href?.includes(encodeURIComponent(manualOccurrenceId)) ||
+        marker.ids?.split(",").includes(manualOccurrenceId)
+      ),
       markers,
     };
   }, fixture.manual.occurrenceId);
@@ -158,7 +164,13 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
         const marker = page.locator(".me-own-observation-marker").filter({ hasText: fixture.manual.subjectLabel }).first();
         await expect(marker).toBeVisible();
         await expect(marker.locator("img")).toBeVisible();
-        await expect(marker).toHaveAttribute("href", new RegExp(`/observations/${encodeURIComponent(fixture.manual.occurrenceId)}`));
+        await expect(marker).toHaveAttribute("data-own-observation-count", /\d+/);
+        const markerCount = Number(await marker.getAttribute("data-own-observation-count"));
+        if (markerCount > 1) {
+          await expect(marker).toHaveAttribute("data-own-observation-ids", new RegExp(fixture.manual.occurrenceId));
+        } else {
+          await expect(marker).toHaveAttribute("href", new RegExp(`/observations/${encodeURIComponent(fixture.manual.occurrenceId)}`));
+        }
         await captureEvidence(page, profile, fixture);
 
         await page.locator('.me-tab[data-tab="rain"]').click();

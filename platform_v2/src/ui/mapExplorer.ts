@@ -1553,6 +1553,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     bottomSheetCloseLabel: copy.bottomSheetCloseLabel,
     bottomSheetExpandLabel: copy.bottomSheetExpandLabel,
     bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
+    ownObservationStackSuffix: props.lang === "ja" ? "件の記録" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
+    ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
     siteBriefHeading: copy.siteBriefHeading,
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
@@ -3290,20 +3292,97 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(String(record && record.occurrenceId || '')));
   }
 
+  function validOwnObservationRecords() {
+    return (Array.isArray(state.myObservations) ? state.myObservations : [])
+      .slice(0, 48)
+      .filter(function (record) {
+        var lat = Number(record && record.latitude);
+        var lng = Number(record && record.longitude);
+        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
+      });
+  }
+
+  function ownObservationGroups(records) {
+    if (!state.map || typeof state.map.project !== 'function') {
+      var fallbackGroups = [];
+      records.forEach(function (record) {
+        var lat = Number(record.latitude);
+        var lng = Number(record.longitude);
+        var matched = null;
+        for (var i = 0; i < fallbackGroups.length; i += 1) {
+          var g = fallbackGroups[i];
+          if (Math.abs(Number(g.lat) - lat) <= 0.02 && Math.abs(Number(g.lng) - lng) <= 0.02) {
+            matched = g;
+            break;
+          }
+        }
+        if (!matched) {
+          fallbackGroups.push({ records: [record], lat: lat, lng: lng });
+          return;
+        }
+        matched.records.push(record);
+        matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
+        matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
+      });
+      return fallbackGroups;
+    }
+    var groups = [];
+    records.forEach(function (record) {
+      var lat = Number(record.latitude);
+      var lng = Number(record.longitude);
+      var point = state.map.project([lng, lat]);
+      var matched = null;
+      for (var i = 0; i < groups.length; i += 1) {
+        var g = groups[i];
+        var dx = Number(point.x) - Number(g.point.x);
+        var dy = Number(point.y) - Number(g.point.y);
+        if (Math.sqrt(dx * dx + dy * dy) <= 72) {
+          matched = g;
+          break;
+        }
+      }
+      if (!matched) {
+        groups.push({ records: [record], point: point, lat: lat, lng: lng });
+        return;
+      }
+      matched.records.push(record);
+      matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
+      matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
+    });
+    return groups;
+  }
+
+  function ownObservationGroupLabel(records) {
+    var labels = records.map(function (record) { return recordDisplayName(record, COPY.discoveryFallback); }).filter(Boolean);
+    var visible = labels.slice(0, 2).join(' / ');
+    if (labels.length <= 2) return visible;
+    return visible + ' / ' + String(COPY.ownObservationStackMore || '__COUNT__ more').replace('__COUNT__', String(labels.length - 2));
+  }
+
   function renderOwnObservationMarkers() {
     clearOwnObservationMarkers();
     if (!state.map || !window.maplibregl || state.tab === 'rain') return;
-    (Array.isArray(state.myObservations) ? state.myObservations : []).slice(0, 48).forEach(function (record) {
-      var lat = Number(record && record.latitude);
-      var lng = Number(record && record.longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !record.photoUrl) return;
+    ownObservationGroups(validOwnObservationRecords()).forEach(function (group) {
+      var record = group.records[0];
+      var lat = Number(group.lat);
+      var lng = Number(group.lng);
+      if (!record || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
       var label = recordDisplayName(record, COPY.discoveryFallback);
+      var count = group.records.length;
+      var groupLabel = count > 1 ? ownObservationGroupLabel(group.records) : label;
+      var allLabels = group.records.map(function (item) { return recordDisplayName(item, COPY.discoveryFallback); }).filter(Boolean).join(' / ');
+      var allOccurrenceIds = group.records.map(function (item) { return String(item && item.occurrenceId || ''); }).filter(Boolean).join(',');
       var el = document.createElement('a');
-      el.className = 'me-own-observation-marker';
+      el.className = 'me-own-observation-marker' + (count > 1 ? ' is-stack' : '');
       el.href = ownObservationHref(record);
-      el.setAttribute('aria-label', label + COPY.openDiscoverySuffix);
+      el.setAttribute('aria-label', (count > 1 ? String(count) + ' ' + COPY.ownObservationStackSuffix + ': ' + groupLabel : label) + COPY.openDiscoverySuffix);
+      el.setAttribute('title', count > 1 ? groupLabel : label);
+      el.setAttribute('data-own-observation-count', String(count));
+      el.setAttribute('data-own-observation-ids', allOccurrenceIds);
       el.innerHTML = '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-observation-marker&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />'
-        + '<span>' + escapeHtml(label) + '</span>';
+        + (count > 1 ? '<b aria-hidden="true">' + escapeHtml(String(count)) + '</b>' : '')
+        + '<span>' + escapeHtml(count > 1 ? groupLabel : label) + '</span>'
+        + (count > 1 ? '<em>' + escapeHtml(allLabels) + '</em>' : '');
       var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
         .setLngLat([lng, lat])
         .addTo(state.map);
@@ -8968,6 +9047,7 @@ export const MAP_EXPLORER_STYLES = `
     width: 72px;
     min-height: 78px;
     display: grid;
+    position: relative;
     justify-items: center;
     align-content: start;
     gap: 4px;
@@ -9044,6 +9124,31 @@ export const MAP_EXPLORER_STYLES = `
     display: block;
     background: #ecfdf5;
   }
+  .me-own-observation-marker.is-stack {
+    background: rgba(8,145,178,.96);
+    color: #082f49;
+    box-shadow: 0 16px 34px rgba(8,145,178,.28), -8px 8px 0 rgba(255,255,255,.86), -14px 14px 0 rgba(8,145,178,.22);
+  }
+  .me-own-observation-marker.is-stack img {
+    box-shadow: 8px -5px 0 rgba(255,255,255,.58);
+  }
+  .me-own-observation-marker b {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    min-width: 24px;
+    height: 24px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.95);
+  }
   .me-own-observation-marker span {
     max-width: 56px;
     display: -webkit-box;
@@ -9055,6 +9160,15 @@ export const MAP_EXPLORER_STYLES = `
     line-height: 1.15;
     font-weight: 950;
     letter-spacing: 0;
+  }
+  .me-own-observation-marker em {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .me-own-observation-marker.is-photo-missing {
     min-height: 42px;

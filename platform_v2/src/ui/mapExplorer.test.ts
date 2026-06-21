@@ -168,8 +168,11 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
   assert.match(script, /credentials: 'same-origin'/);
+  assert.match(script, /function ownObservationGroups/);
   assert.match(script, /function renderOwnObservationMarkers\(\)/);
   assert.match(script, /me-own-observation-marker/);
+  assert.match(script, /data-own-observation-count/);
+  assert.match(script, /data-own-observation-ids/);
   assert.match(script, /state\.tab === 'rain'/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
 });
