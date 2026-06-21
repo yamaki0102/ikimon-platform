@@ -101,7 +101,7 @@ export function hasNativeObservationPhoto(photos: unknown): boolean {
 
 const PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL = '(smoke[-_]?ui)';
 const PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL =
-  '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|test[-_]?fixture)([-_]|$)';
+  '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|test[-_]?fixture|regression[-_]?seed|regression[-_]?fixture|staging[-_]?fixture|staging[-_]?regression)([-_]|$)';
 
 function cleanQualityText(value: unknown): string {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
@@ -123,6 +123,7 @@ export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   and coalesce(v.source_payload->'taxon'->>'key', '') !~* '^e2e_test_'
   and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test|smoke[-_]?ui|smoke[-_]?regression[-_]?fixture)([-_]|$)'
   and coalesce(v.source_payload->>'source', '') !~* '${PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL}'
+  and nullif(coalesce(v.source_payload->>'fixture_prefix', v.source_payload->>'fixturePrefix', ''), '') is null
   and coalesce(v.source_payload::text, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
   and coalesce(v.note, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
   and coalesce(v.locality_note, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
