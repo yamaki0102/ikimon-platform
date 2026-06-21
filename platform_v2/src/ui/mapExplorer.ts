@@ -1171,14 +1171,14 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Toque em um pino ou célula no mapa para ver os detalhes aqui."
         : "Tap a pin or cell on the map to see details here.";
   const rainLabels = {
-    panel: lang === "ja" ? "レーダー" : lang === "es" ? "Radar" : lang === "pt-BR" ? "Radar" : "Radar",
+    panel: lang === "ja" ? "空の変化" : lang === "es" ? "Radar" : lang === "pt-BR" ? "Radar" : "Radar",
     refresh: lang === "ja" ? "更新" : lang === "es" ? "Actualizar" : lang === "pt-BR" ? "Atualizar" : "Refresh",
     source: lang === "ja" ? "気象庁" : lang === "es" ? "JMA" : lang === "pt-BR" ? "JMA" : "JMA",
     current: lang === "ja" ? "現在地" : lang === "es" ? "Mi ubicación" : lang === "pt-BR" ? "Minha localização" : "Current place",
     target: lang === "ja" ? "行き先" : lang === "es" ? "Destino" : lang === "pt-BR" ? "Destino" : "Target",
     timeline: lang === "ja" ? "表示時刻" : lang === "es" ? "Hora" : lang === "pt-BR" ? "Hora" : "Time",
     status: lang === "ja"
-      ? "現在から6時間先まで見られます。"
+      ? "地図をタップして、その地点の6時間先まで確認。"
       : lang === "es"
         ? "Mira desde ahora hasta seis horas."
         : lang === "pt-BR"
@@ -2799,8 +2799,42 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function shouldUseBottomSheet() {
     return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
   }
+  function isRainInteractionMode() {
+    return state.tab === 'rain' && state.rainEnabled;
+  }
+  function showRainTapFeedback(lngLat) {
+    if (!root || !lngLat) return;
+    var point = null;
+    if (state.map && typeof state.map.project === 'function') {
+      try { point = state.map.project(lngLat); } catch (_) { point = null; }
+    }
+    if (!point) {
+      var box = root.getBoundingClientRect();
+      point = { x: box.width / 2, y: box.height / 2 };
+    }
+    if (!point) return;
+    var pulse = document.createElement('span');
+    pulse.className = 'me-rain-tap-pulse';
+    pulse.setAttribute('aria-hidden', 'true');
+    pulse.style.left = Math.round(Number(point.x) || 0) + 'px';
+    pulse.style.top = Math.round(Number(point.y) || 0) + 'px';
+    root.appendChild(pulse);
+    window.setTimeout(function () {
+      try { pulse.remove(); } catch (_) {}
+    }, 1200);
+  }
+  function checkRainTap(lngLat) {
+    if (!lngLat) return false;
+    var lng = Number(lngLat.lng);
+    var lat = Number(lngLat.lat);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
+    closeBottomSheet();
+    showRainTapFeedback(lngLat);
+    checkRainAt(lng, lat);
+    return true;
+  }
   function shouldKeepMapClearForRain() {
-    return false;
+    return isRainInteractionMode() && shouldUseBottomSheet();
   }
 
   function updateSearchAreaUi() {
@@ -6263,7 +6297,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       map.on('click', layerId, function (e) {
         if (hasPendingMapResults()) return;
         if (!e.features || !e.features[0]) return;
-        if (state.rainEnabled && e.lngLat) checkRainAt(Number(e.lngLat.lng), Number(e.lngLat.lat));
+        if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
         var selectedFeature = e.features[0];
         if (selectedFeature.geometry && selectedFeature.geometry.type === 'Point') {
           selectedFeature = findCellFeatureById(selectedFeature.properties && selectedFeature.properties.cellId) || selectedFeature;
@@ -6802,7 +6836,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }, beforeId);
     ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
-        if (state.rainEnabled && e.lngLat) checkRainAt(Number(e.lngLat.lng), Number(e.lngLat.lat));
+        if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
         var hitLayers = areaPolygonHitLayers();
         var hits = hitLayers.length ? map.queryRenderedFeatures(e.point, { layers: hitLayers }) : e.features;
         var pick = pickSmallestAreaFeature(hits);
@@ -6864,6 +6898,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
+      if (isRainInteractionMode() && checkRainTap(center)) return;
       openGuideSpotSheet(feature);
     });
     return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
@@ -6909,6 +6944,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
+      if (isRainInteractionMode() && checkRainTap(center)) return;
       openGuideSpotGroupSheet(list);
     });
     return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
@@ -7590,7 +7626,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       areaPolygonHitLayers().forEach(function (id) { layers.push(id); });
       var hits = layers.length > 0 ? state.map.queryRenderedFeatures(e.point, { layers: layers }) : [];
       if (hits && hits.length > 0) return;
-      if (state.rainEnabled && e.lngLat) checkRainAt(Number(e.lngLat.lng), Number(e.lngLat.lat));
+      if (isRainInteractionMode() && checkRainTap(e.lngLat)) return;
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
     });
   }
@@ -8698,6 +8734,24 @@ export const MAP_EXPLORER_STYLES = `
     transition: width .25s ease, margin .25s ease;
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
+  .me-rain-tap-pulse {
+    position: absolute;
+    z-index: 6;
+    width: 42px;
+    height: 42px;
+    margin: -21px 0 0 -21px;
+    border-radius: 999px;
+    pointer-events: none;
+    border: 2px solid rgba(14,165,233,.88);
+    background: rgba(240,249,255,.42);
+    box-shadow: 0 0 0 0 rgba(14,165,233,.32);
+    animation: me-rain-tap-pulse 1.2s ease-out forwards;
+  }
+  @keyframes me-rain-tap-pulse {
+    0% { opacity: .98; transform: scale(.5); box-shadow: 0 0 0 0 rgba(14,165,233,.32); }
+    70% { opacity: .55; transform: scale(1.45); box-shadow: 0 0 0 12px rgba(14,165,233,0); }
+    100% { opacity: 0; transform: scale(1.7); box-shadow: 0 0 0 16px rgba(14,165,233,0); }
+  }
   .me-rain-card {
     position: absolute;
     top: 14px;

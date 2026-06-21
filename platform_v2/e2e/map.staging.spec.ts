@@ -278,6 +278,35 @@ async function expectRainNowcastGate(page: Page): Promise<void> {
   await expect(page.locator("#me-rain-status")).toContainText("ikimon独自予報ではありません");
 }
 
+async function readRainFocusState(page: Page): Promise<{
+  launcherDisplay: string;
+  rainCardEnabled: string | null;
+  rainCardSheetOpen: string | null;
+  rainCardVisible: boolean;
+  sheetAriaHidden: string | null;
+  sheetClass: string;
+}> {
+  return page.evaluate(() => {
+    const visible = (element: HTMLElement | null): boolean => {
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    };
+    const launcher = document.querySelector<HTMLElement>(".global-record-launcher");
+    const rainCard = document.querySelector<HTMLElement>("#me-rain-card");
+    const sheet = document.querySelector<HTMLElement>("#me-bottom-sheet");
+    return {
+      launcherDisplay: launcher ? window.getComputedStyle(launcher).display : "",
+      rainCardEnabled: rainCard?.getAttribute("data-enabled") ?? null,
+      rainCardSheetOpen: rainCard?.getAttribute("data-sheet-open") ?? null,
+      rainCardVisible: visible(rainCard),
+      sheetAriaHidden: sheet?.getAttribute("aria-hidden") ?? null,
+      sheetClass: sheet?.className ?? "",
+    };
+  });
+}
+
 async function expectLiveRainNowcastGate(page: Page): Promise<void> {
   const response = await page.request.get("/api/v1/weather/jma-nowcast/times", {
     headers: { accept: "application/json" },
@@ -561,6 +590,47 @@ test("JMA nowcast staging API exposes times and a sample tile", async ({ browser
   const context = await newStagingContext(browser, MAP_VIEWPORTS[0], { serviceWorkers: "block" });
   const page = await context.newPage();
   await expectLiveRainNowcastGate(page);
+  await context.close();
+});
+
+test("mobile rain map taps keep focus on the rain layer instead of opening a place sheet", async ({ browser }) => {
+  test.setTimeout(90_000);
+  const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
+  expect(mobile, "mobile viewport profile should exist").toBeTruthy();
+  const context = await newStagingContext(browser, mobile!, { serviceWorkers: "block" });
+  const page = await context.newPage();
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, true);
+  await expectRainNowcastGate(page);
+
+  const before = await readRainFocusState(page);
+  expect(before.rainCardVisible).toBe(true);
+  expect(before.rainCardEnabled).toBe("1");
+  expect(before.rainCardSheetOpen).toBe("0");
+  expect(before.sheetAriaHidden).toBe("true");
+  expect(before.launcherDisplay).toBe("none");
+
+  const canvasBox = await page.locator("[data-maplibre-smoke-stub='1']").boundingBox();
+  expect(canvasBox, "stubbed map canvas should be measurable").toBeTruthy();
+  await page.mouse.click(
+    Math.round(canvasBox!.x + canvasBox!.width / 2),
+    Math.round(canvasBox!.y + canvasBox!.height / 2),
+  );
+
+  await expect(page.locator("#me-rain-status")).toContainText(/この地点|降水域|判定/);
+  await expect(page.locator("#me-rain-card")).toHaveAttribute("data-sheet-open", "0");
+  await expect(page.locator("#me-bottom-sheet")).toHaveAttribute("aria-hidden", "true");
+  const after = await readRainFocusState(page);
+  expect(after.rainCardVisible).toBe(true);
+  expect(after.rainCardEnabled).toBe("1");
+  expect(after.rainCardSheetOpen).toBe("0");
+  expect(after.sheetAriaHidden).toBe("true");
+  expect(after.sheetClass).not.toContain("is-open");
+  expect(after.sheetClass).not.toContain("me-bottom-sheet--detail");
+  expect(after.sheetClass).not.toContain("me-bottom-sheet--area");
+  expect(after.launcherDisplay).toBe("none");
+
   await context.close();
 });
 
