@@ -20,6 +20,7 @@ type MapOwnObservationRow = {
   occurrence_id: string;
   visit_id: string;
   display_name: string | null;
+  note: string | null;
   observed_at: string;
   latitude: number | string | null;
   longitude: number | string | null;
@@ -35,7 +36,9 @@ function cleanText(value: unknown): string {
 
 function ownDisplayName(row: MapOwnObservationRow): string {
   const name = cleanText(row.display_name);
-  return name || "記録";
+  if (name) return name;
+  const note = cleanText(row.note).replace(/\s+/g, " ");
+  return note.length > 40 ? `${note.slice(0, 39)}…` : note;
 }
 
 function localityLabel(row: MapOwnObservationRow): string {
@@ -57,8 +60,10 @@ export async function listMapOwnObservations(
           nullif(o.vernacular_name, ''),
           nullif(o.scientific_name, ''),
           nullif(ai.recommended_taxon_name, ''),
+          nullif(v.note, ''),
           ''
         ) as display_name,
+        v.note,
         v.observed_at::text,
         coalesce(v.point_latitude, p.center_latitude) as latitude,
         coalesce(v.point_longitude, p.center_longitude) as longitude,
@@ -99,6 +104,13 @@ export async function listMapOwnObservations(
       where v.user_id = $1
         and coalesce(v.point_latitude, p.center_latitude) is not null
         and coalesce(v.point_longitude, p.center_longitude) is not null
+        and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|smoke|fixture|dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media)([-_]|$)'
+        and coalesce(
+          nullif(o.vernacular_name, ''),
+          nullif(o.scientific_name, ''),
+          nullif(ai.recommended_taxon_name, ''),
+          nullif(v.note, '')
+        ) is not null
         and (photo.public_url is not null or video.thumb_url is not null)
       order by v.observed_at desc
       limit $2
