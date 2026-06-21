@@ -414,13 +414,17 @@ test("public map request read path does not aggregate source rows directly", asy
   assert.doesNotMatch(observationsBody, /fetchPublicMapRows/);
 });
 
-test("public map source read inherits shared staging regression provenance exclusion", async () => {
+test("public map source read excludes staging regression seed provenance without blocking detail pages", async () => {
   const mapSource = await readFile(new URL("./mapSnapshot.ts", import.meta.url), "utf8");
   const qualitySource = await readFile(new URL("./observationQualityGate.ts", import.meta.url), "utf8");
+  const publicQualityBlock = qualitySource.slice(
+    qualitySource.indexOf("export const PUBLIC_OBSERVATION_QUALITY_SQL"),
+    qualitySource.indexOf("export const PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL"),
+  );
 
-  assert.match(mapSource, /PUBLIC_OBSERVATION_QUALITY_SQL/);
-  assert.match(qualitySource, /regression\[-_\]\?seed/);
-  assert.match(qualitySource, /source_payload->>'fixture_prefix'/);
+  assert.match(mapSource, /regression\[-_\]\?seed/);
+  assert.doesNotMatch(publicQualityBlock, /regression\[-_\]\?seed/);
+  assert.doesNotMatch(publicQualityBlock, /fixture_prefix/);
 });
 
 test("public map snapshot refresh is wired to app startup and write/import exits", async () => {

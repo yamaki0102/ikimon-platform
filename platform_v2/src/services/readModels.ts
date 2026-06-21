@@ -19,6 +19,7 @@ import {
 } from "./reviewerAuthorities.js";
 import {
   PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
+  PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
   VALID_OBSERVATION_VIDEO_ASSET_SQL,
@@ -1734,6 +1735,7 @@ async function loadObservationListCards(limit: number, options: ObservationListQ
               v.observed_at AS observed_at_sort
          FROM visits v
         WHERE ${PUBLIC_OBSERVATION_QUALITY_SQL}
+          AND ${PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL}
           ${visitFilters.join("\n          ")}
         ORDER BY v.observed_at DESC, v.visit_id DESC
         LIMIT $2

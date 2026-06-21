@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   assessLegacyObservationQuality,
   isMeaningfulPublicObservationLabel,
+  PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL,
   PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
@@ -24,11 +25,15 @@ test("public quality gate excludes leaked test observations and smoke fixtures",
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /e2e_test_/);
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /prod\[-_\]\?media/);
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /smoke\[-_\]\?regression/);
-  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /regression\[-_\]\?seed/);
-  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.source_payload->>'fixture_prefix'/);
-  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.source_payload->>'fixturePrefix'/);
   assert.match(VALID_OBSERVATION_PHOTO_ASSET_SQL, /smoke\[-_\]\?ui/);
   assert.match(PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL, /smoke\[-_\]\?ui/);
+});
+
+test("public discovery surfaces exclude staging regression fixtures without blocking direct details", () => {
+  assert.match(PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL, /regression\[-_\]\?seed/);
+  assert.match(PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL, /v\.source_payload->>'fixture_prefix'/);
+  assert.match(PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL, /v\.source_payload->>'fixturePrefix'/);
+  assert.doesNotMatch(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.source_payload->>'fixture_prefix'/);
 });
 
 test("public quality gate rejects labels that look empty or fixture-generated", () => {
