@@ -2574,6 +2574,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function recordDisplayName(record, fallback) {
     return localizedDisplayName(record && record.displayName, fallback);
   }
+  function isMeaningfulMapRecordLabel(value) {
+    var text = String(value || '').trim().replace(/\s+/g, ' ');
+    if (!text || text.length < 2) return false;
+    if (/^(同定待ち|名前を確認中|未同定|不明|unknown|unidentified|unresolved|awaiting id)$/i.test(text)) return false;
+    if (/^(記録|写真|動画|画像|撮影|メモ|スキャン|scan|photo|video|record|memo)$/i.test(text)) return false;
+    if (/^(test|dummy|sample|fixture|placeholder|regression)([-_\s]|$)/i.test(text)) return false;
+    return true;
+  }
+  function isRenderableMapRecord(record) {
+    if (!record || !isMeaningfulMapRecordLabel(record.displayName)) return false;
+    if (record.photoUrl) return true;
+    return String(record.displayName || '') === '大切な生きもの';
+  }
   var TAXON_GENUS_JA_FALLBACK = {
     Chloris: 'カワラヒワ属',
     Monticola: 'イソヒヨドリ属',
@@ -3321,7 +3334,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .filter(function (record) {
         var lat = Number(record && record.latitude);
         var lng = Number(record && record.longitude);
-        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
+        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl && isMeaningfulMapRecordLabel(record && record.displayName);
       });
   }
 
@@ -7549,7 +7562,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (list) {
         if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
         state.recordsRecoveryAttempts = 0;
-        state.records = (list && list.items) || [];
+        state.records = ((list && list.items) || []).filter(isRenderableMapRecord);
         state.lastStats = (list && list.stats) || null;
         if (state.selectedOccurrenceId) {
           var selectedRecord = getSelectedRecord();
@@ -7599,7 +7612,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     fetch(apiMyObservations + '?limit=48', { credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('my observations ' + r.status)); })
       .then(function (payload) {
-        state.myObservations = payload && payload.signedIn ? (payload.items || []) : [];
+        state.myObservations = payload && payload.signedIn ? (payload.items || []).filter(isRenderableMapRecord) : [];
         if (root) root.setAttribute('data-own-observations-fetch', payload && payload.signedIn ? 'signed-in' : 'signed-out');
         try {
           renderOwnObservationMarkers();
