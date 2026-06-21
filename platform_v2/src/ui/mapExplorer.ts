@@ -2158,6 +2158,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     basemap: 'standard',
     tracesVisible: false,
     map: null,
+    maplibreRuntime: null,
     features: [],
     records: [],
     myObservations: [],
@@ -3446,7 +3447,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderOwnObservationMarkers() {
     clearOwnObservationMarkers();
-    if (!state.map || !window.maplibregl || state.tab === 'rain') return;
+    var maplibre = state.maplibreRuntime || window.maplibregl;
+    if (!state.map || !maplibre || state.tab === 'rain') return;
     ownObservationGroups(validOwnObservationRecords()).forEach(function (group) {
       var record = group.records[0];
       var lat = Number(group.lat);
@@ -3475,7 +3477,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           openOwnObservationStackSheet(group.records);
         });
       }
-      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+      var marker = new maplibre.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
         .setLngLat([lng, lat])
         .addTo(state.map);
       state.ownObservationMarkers.push(marker);
@@ -7742,6 +7744,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function hydrate() {
     if (!window.maplibregl) { showMapLoadFailure(); return; }
     try {
+      state.maplibreRuntime = window.maplibregl;
       state.map = new window.maplibregl.Map({
         container: root,
         style: BASEMAPS[state.basemap] || BASEMAPS.standard,
@@ -7754,6 +7757,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state._restoredCenter = null;
       state._restoredZoom = null;
       try {
+        state.maplibreRuntime = window.maplibregl;
         state.map = new window.maplibregl.Map({
           container: root,
           style: BASEMAPS.standard,
