@@ -8,6 +8,7 @@ const source = readFileSync(new URL("./mapOwnObservations.ts", import.meta.url),
 test("owner map observations reject smoke and placeholder records even for the signed-in owner", () => {
   assert.match(source, /source_payload->>'source'/);
   assert.match(source, /e2e\|smoke\|fixture\|dummy\|placeholder/);
+  assert.match(source, /regression\[-_\]\?seed/);
 });
 
 test("owner map observations require a meaningful label source before drawing exact points", () => {
@@ -24,7 +25,7 @@ test("owner map observations only use promoted observation visits for exact owne
 });
 
 test("owner map observations reject labels that would render as empty-looking history", () => {
-  for (const label of ["", " ", "同定待ち", "名前を確認中", "写真", "記録", "scan", "dummy plant"]) {
+  for (const label of ["", " ", "同定待ち", "名前を確認中", "写真", "記録", "scan", "dummy plant", "Regression Manual Finch"]) {
     assert.equal(isMeaningfulOwnObservationLabel(label), false, label);
   }
   for (const label of ["アカメガシワ", "朝の水辺メモ", "白い花の群落"]) {

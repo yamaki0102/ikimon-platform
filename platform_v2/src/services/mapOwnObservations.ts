@@ -47,7 +47,7 @@ export function isMeaningfulOwnObservationLabel(value: unknown): boolean {
   if (text.length < 2) return false;
   if (/^(?:同定待ち|名前を確認中|未同定|不明|unknown|unidentified|unresolved|awaiting id)$/i.test(text)) return false;
   if (/^(?:記録|写真|動画|画像|撮影|メモ|スキャン|scan|photo|video|record|memo)$/i.test(text)) return false;
-  if (/^(?:test|dummy|sample|fixture|placeholder)(?:[-_\s]|$)/i.test(text)) return false;
+  if (/^(?:test|dummy|sample|fixture|placeholder|regression)(?:[-_\s]|$)/i.test(text)) return false;
   return true;
 }
 
@@ -117,7 +117,7 @@ export async function listMapOwnObservations(
         and coalesce(v.visit_mode, 'manual') in ('manual', 'survey')
         and coalesce(v.point_latitude, p.center_latitude) is not null
         and coalesce(v.point_longitude, p.center_longitude) is not null
-        and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|smoke|fixture|dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media)([-_]|$)'
+        and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|smoke|fixture|dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|regression[-_]?seed|regression[-_]?fixture|test[-_]?fixture)([-_]|$)'
         and coalesce(
           nullif(o.vernacular_name, ''),
           nullif(o.scientific_name, ''),
