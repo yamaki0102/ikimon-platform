@@ -3291,6 +3291,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       try { marker.remove(); } catch (_) {}
     });
     state.ownObservationMarkers = [];
+    setOwnObservationMarkerState(null);
+  }
+
+  function setOwnObservationMarkerState(status, count) {
+    if (!root) return;
+    if (status) root.setAttribute('data-own-observations-state', status);
+    if (typeof count === 'number') root.setAttribute('data-own-observation-marker-count', String(count));
   }
 
   function ownObservationHref(record) {
@@ -3350,27 +3357,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function ownObservationGroups(records) {
     if (!state.map || typeof state.map.project !== 'function') {
-      var fallbackGroups = [];
-      records.forEach(function (record) {
-        var lat = Number(record.latitude);
-        var lng = Number(record.longitude);
-        var matched = null;
-        for (var i = 0; i < fallbackGroups.length; i += 1) {
-          var g = fallbackGroups[i];
-          if (Math.abs(Number(g.lat) - lat) <= 0.02 && Math.abs(Number(g.lng) - lng) <= 0.02) {
-            matched = g;
-            break;
-          }
-        }
-        if (!matched) {
-          fallbackGroups.push({ records: [record], lat: lat, lng: lng });
-          return;
-        }
-        matched.records.push(record);
-        matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
-        matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
-      });
-      return fallbackGroups;
+      return ownObservationCoordinateGroups(records);
     }
     var groups = [];
     records.forEach(function (record) {
@@ -3396,6 +3383,39 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
     });
     return groups;
+  }
+
+  function ownObservationCoordinateGroups(records) {
+    var fallbackGroups = [];
+    (Array.isArray(records) ? records : []).forEach(function (record) {
+      var lat = Number(record && record.latitude);
+      var lng = Number(record && record.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      var matched = null;
+      for (var i = 0; i < fallbackGroups.length; i += 1) {
+        var g = fallbackGroups[i];
+        if (Math.abs(Number(g.lat) - lat) <= 0.02 && Math.abs(Number(g.lng) - lng) <= 0.02) {
+          matched = g;
+          break;
+        }
+      }
+      if (!matched) {
+        fallbackGroups.push({ records: [record], lat: lat, lng: lng });
+        return;
+      }
+      matched.records.push(record);
+      matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
+      matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
+    });
+    return fallbackGroups;
+  }
+
+  function safeOwnObservationGroups(records) {
+    try {
+      return ownObservationGroups(records);
+    } catch (_) {
+      return ownObservationCoordinateGroups(records);
+    }
   }
 
   function ownObservationGroupLabel(records) {
@@ -3448,7 +3468,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderOwnObservationMarkers() {
     clearOwnObservationMarkers();
     var maplibre = state.maplibreRuntime || window.maplibregl;
-    if (!state.map || !maplibre || state.tab === 'rain') return;
+    if (!state.map || state.tab === 'rain') return;
+    var records = validOwnObservationRecords();
+    if (root) root.setAttribute('data-own-observation-record-count', String(records.length));
+    if (!records.length) {
+      setOwnObservationMarkerState('empty', 0);
+      return;
+    }
+    setOwnObservationMarkerState('rendering', 0);
     function addOwnObservationFallbackMarker(el, lng, lat) {
       if (!root || !el) return null;
       var point = null;
@@ -3467,7 +3494,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         },
       };
     }
-    ownObservationGroups(validOwnObservationRecords()).forEach(function (group) {
+    function renderOwnObservationGroup(group) {
       var record = group.records[0];
       var lat = Number(group.lat);
       var lng = Number(group.lng);
@@ -3496,7 +3523,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         });
       }
       var marker = null;
-      try {
+      if (maplibre && typeof maplibre.Marker === 'function') try {
         marker = new maplibre.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
           .setLngLat([lng, lat])
           .addTo(state.map);
@@ -3509,7 +3536,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }
       if (!marker) marker = addOwnObservationFallbackMarker(el, lng, lat);
       if (marker) state.ownObservationMarkers.push(marker);
+    }
+    safeOwnObservationGroups(records).forEach(function (group) {
+      try { renderOwnObservationGroup(group); } catch (_) {}
     });
+    if (!state.ownObservationMarkers.length) {
+      ownObservationCoordinateGroups(records).slice(0, 6).forEach(function (group) {
+        try { renderOwnObservationGroup(group); } catch (_) {}
+      });
+    }
+    setOwnObservationMarkerState(state.ownObservationMarkers.length ? 'ready' : 'render-empty', state.ownObservationMarkers.length);
   }
 
   function clearAreaBadgeMarkers() {
@@ -7389,11 +7425,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('my observations ' + r.status)); })
       .then(function (payload) {
         state.myObservations = payload && payload.signedIn ? (payload.items || []) : [];
-        renderOwnObservationMarkers();
-        maybeFitOwnObservationsOnFirstOpen();
+        if (root) root.setAttribute('data-own-observations-fetch', payload && payload.signedIn ? 'signed-in' : 'signed-out');
+        try {
+          renderOwnObservationMarkers();
+        } catch (_) {
+          setOwnObservationMarkerState('render-error', 0);
+        }
+        try {
+          maybeFitOwnObservationsOnFirstOpen();
+        } catch (_) {}
       })
       .catch(function () {
         state.myObservations = [];
+        if (root) {
+          root.setAttribute('data-own-observations-fetch', 'error');
+          root.setAttribute('data-own-observation-record-count', '0');
+        }
         clearOwnObservationMarkers();
       });
   }
