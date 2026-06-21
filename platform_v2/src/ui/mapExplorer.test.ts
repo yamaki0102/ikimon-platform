@@ -178,9 +178,11 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /data-own-observation-marker-count/);
   assert.match(script, /function safeOwnObservationGroups\(records\)/);
   assert.match(script, /return ownObservationCoordinateGroups\(records\)/);
+  assert.match(script, /function prioritizeOwnObservationRecordsForView\(records\)/);
+  assert.match(script, /function prioritizeOwnObservationGroupsForView\(groups\)/);
   assert.match(script, /if \(root && !root\.contains\(el\)\)/);
   assert.match(script, /marker = addOwnObservationFallbackMarker\(el, lng, lat\)/);
-  assert.match(script, /safeOwnObservationGroups\(records\)\.forEach/);
+  assert.match(script, /prioritizeOwnObservationGroupsForView\(safeOwnObservationGroups\(records\)\)\.forEach/);
   assert.match(script, /setOwnObservationMarkerState\(state\.ownObservationMarkers\.length \? 'ready' : 'render-empty'/);
   assert.match(script, /me-own-observation-marker/);
   assert.match(script, /data-own-observation-count/);
@@ -197,6 +199,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /if \(state\.tab === 'rain'\) return;/);
   assert.match(script, /if \(state\.selectedPoint \|\| state\._meMarker\) return;/);
   assert.match(script, /maybeFitOwnObservationsOnFirstOpen\(\);/);
+  assert.match(script, /renderOwnObservationMarkers\(\);\s+if \(state\.areaPolygonsDebounce\)/);
   assert.match(script, /data-own-observations-fetch/);
   assert.match(script, /state\.maplibreRuntime = window\.maplibregl/);
   assert.match(script, /if \(state\._ownObservationFirstViewApplied\) \{\s+dropMeMarker\(lng, lat\);\s+return;\s+\}/);

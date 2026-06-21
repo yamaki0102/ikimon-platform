@@ -265,6 +265,25 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
       getCenter() { return this._center; }
       getZoom() { return this._zoom; }
       getBounds() { return makeBounds(this._center, 0.1); }
+      project(value) {
+        const pair = Array.isArray(value)
+          ? value
+          : [value && value.lng, value && value.lat];
+        const lng = Number(pair[0]);
+        const lat = Number(pair[1]);
+        const width = this._canvas && this._canvas.width ? this._canvas.width : 800;
+        const height = this._canvas && this._canvas.height ? this._canvas.height : 600;
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+          return { x: width / 2, y: height / 2 };
+        }
+        const zoom = Number.isFinite(Number(this._zoom)) ? Number(this._zoom) : 10;
+        const scale = Math.max(320, Math.min(4800, 24 * Math.pow(2, Math.max(0, zoom - 8))));
+        const latScale = Math.max(0.2, Math.cos(this._center.lat * Math.PI / 180));
+        return {
+          x: width / 2 + (lng - this._center.lng) * scale * latScale,
+          y: height / 2 - (lat - this._center.lat) * scale,
+        };
+      }
       fitBounds(bounds, options) {
         const west = Array.isArray(bounds) && Array.isArray(bounds[0]) ? Number(bounds[0][0]) : NaN;
         const south = Array.isArray(bounds) && Array.isArray(bounds[0]) ? Number(bounds[0][1]) : NaN;
@@ -325,9 +344,10 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
       addTo(map) {
         this._map = map;
         if (this._element && map && map._container && !map._container.contains(this._element)) {
+          const point = typeof map.project === "function" ? map.project(this._lngLat) : null;
           this._element.style.position = this._element.style.position || "absolute";
-          this._element.style.left = this._element.style.left || "50%";
-          this._element.style.top = this._element.style.top || "50%";
+          this._element.style.left = this._element.style.left || (point && Number.isFinite(point.x) ? `${Math.round(point.x)}px` : "50%");
+          this._element.style.top = this._element.style.top || (point && Number.isFinite(point.y) ? `${Math.round(point.y)}px` : "50%");
           map._container.appendChild(this._element);
         }
         return this;

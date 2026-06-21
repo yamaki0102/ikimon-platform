@@ -92,6 +92,10 @@ async function waitForOwnerMarkers(page: Page): Promise<void> {
   ).toBeGreaterThan(0);
 }
 
+function ownerObservationMarker(page: Page, occurrenceId: string): ReturnType<Page["locator"]> {
+  return page.locator(`.me-own-observation-marker[data-own-observation-ids*="${occurrenceId}"]`).first();
+}
+
 async function captureEvidence(page: Page, profile: ViewportProfile, fixture: SeededRegressionFixtureBundle): Promise<void> {
   const outputDir = process.env.OWNER_MAP_CAPTURE_DIR?.trim();
   const screenshotName = `owner-observation-map-${profile.slug}.png`;
@@ -227,8 +231,9 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
         await page.goto("/ja/map?tab=places&lng=138.3929&lat=35.0104&z=16", { waitUntil: "domcontentloaded" });
         await waitForOwnerMarkers(page);
 
-        const marker = page.locator(".me-own-observation-marker").filter({ hasText: fixture.manual.subjectLabel }).first();
+        const marker = ownerObservationMarker(page, fixture.manual.occurrenceId);
         await expect(marker).toBeVisible();
+        await expect(marker).toContainText(fixture.manual.subjectLabel);
         await expect(marker.locator("img")).toBeVisible();
         await expect(marker).toHaveAttribute("data-own-observation-count", /\d+/);
         const markerCount = Number(await marker.getAttribute("data-own-observation-count"));

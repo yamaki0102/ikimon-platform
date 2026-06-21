@@ -3314,6 +3314,49 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
+  function currentOwnObservationCenter() {
+    if (state._restoredCenter && state._restoredCenter.length >= 2) {
+      var restoredLng = Number(state._restoredCenter[0]);
+      var restoredLat = Number(state._restoredCenter[1]);
+      if (Number.isFinite(restoredLng) && Number.isFinite(restoredLat)) return { lng: restoredLng, lat: restoredLat };
+    }
+    try {
+      if (state.map && typeof state.map.getCenter === 'function') {
+        var center = state.map.getCenter();
+        var lng = Number(center && center.lng);
+        var lat = Number(center && center.lat);
+        if (Number.isFinite(lng) && Number.isFinite(lat)) return { lng: lng, lat: lat };
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function ownObservationDistanceScore(record, center) {
+    if (!center) return 0;
+    var lat = Number(record && record.latitude);
+    var lng = Number(record && record.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return Number.POSITIVE_INFINITY;
+    var latScale = Math.max(0.2, Math.cos(Number(center.lat) * Math.PI / 180));
+    var dx = (lng - Number(center.lng)) * latScale;
+    var dy = lat - Number(center.lat);
+    return dx * dx + dy * dy;
+  }
+
+  function prioritizeOwnObservationRecordsForView(records) {
+    var list = Array.isArray(records) ? records.slice() : [];
+    var center = currentOwnObservationCenter();
+    if (!center) return list;
+    return list
+      .map(function (record, index) {
+        return { record: record, index: index, score: ownObservationDistanceScore(record, center) };
+      })
+      .sort(function (a, b) {
+        if (a.score !== b.score) return a.score - b.score;
+        return a.index - b.index;
+      })
+      .map(function (item) { return item.record; });
+  }
+
   function maybeFitOwnObservationsOnFirstOpen() {
     if (!state.map || state._ownObservationFirstViewApplied) return;
     if (state.tab === 'rain') return;
@@ -3418,6 +3461,25 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
   }
 
+  function prioritizeOwnObservationGroupsForView(groups) {
+    var list = Array.isArray(groups) ? groups.slice() : [];
+    var center = currentOwnObservationCenter();
+    if (!center) return list;
+    return list
+      .map(function (group, index) {
+        return {
+          group: group,
+          index: index,
+          score: ownObservationDistanceScore({ latitude: group && group.lat, longitude: group && group.lng }, center),
+        };
+      })
+      .sort(function (a, b) {
+        if (a.score !== b.score) return a.score - b.score;
+        return a.index - b.index;
+      })
+      .map(function (item) { return item.group; });
+  }
+
   function ownObservationGroupLabel(records) {
     var labels = records.map(function (record) { return recordDisplayName(record, COPY.discoveryFallback); }).filter(Boolean);
     var visible = labels.slice(0, 2).join(' / ');
@@ -3469,7 +3531,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     clearOwnObservationMarkers();
     var maplibre = state.maplibreRuntime || window.maplibregl;
     if (!state.map || state.tab === 'rain') return;
-    var records = validOwnObservationRecords();
+    var records = prioritizeOwnObservationRecordsForView(validOwnObservationRecords());
     if (root) root.setAttribute('data-own-observation-record-count', String(records.length));
     if (!records.length) {
       setOwnObservationMarkerState('empty', 0);
@@ -3537,7 +3599,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (!marker) marker = addOwnObservationFallbackMarker(el, lng, lat);
       if (marker) state.ownObservationMarkers.push(marker);
     }
-    safeOwnObservationGroups(records).forEach(function (group) {
+    prioritizeOwnObservationGroupsForView(safeOwnObservationGroups(records)).forEach(function (group) {
       try { renderOwnObservationGroup(group); } catch (_) {}
     });
     if (!state.ownObservationMarkers.length) {
@@ -7875,6 +7937,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       updateSearchAreaUi();
       scheduleViewportRefresh();
       refreshDiscoveryPreviewMarkers();
+      renderOwnObservationMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
       if (state.tab === 'markers' || state.tab === 'places' || state.tab === 'rain') loadGuideSpots();
