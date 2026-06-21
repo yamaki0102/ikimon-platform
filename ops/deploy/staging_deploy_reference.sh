@@ -20,6 +20,13 @@ HEALTH_BASE_URL="${STAGING_BASE_URL:-http://127.0.0.1:8081}"
 BACKUP_DIR="$(mktemp -d /tmp/ikimon-staging-deploy-XXXX)"
 CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
 RUNTIME_ALLOWLIST="$REPO_DIR/ops/deploy/runtime_persistent_allowlist.txt"
+RUNTIME_RSYNC_EXCLUDES=(
+    "--exclude=*.sqlite"
+    "--exclude=*.sqlite3"
+    "--exclude=*.sqlite3-shm"
+    "--exclude=*.sqlite3-wal"
+    "--exclude=*.db"
+)
 
 load_runtime_allowlist() {
     if [ ! -f "$RUNTIME_ALLOWLIST" ]; then
@@ -34,7 +41,7 @@ rsync_runtime_copy() {
     local dest="$2"
     local rc=0
 
-    rsync -a "$source" "$dest" || rc=$?
+    rsync -a "${RUNTIME_RSYNC_EXCLUDES[@]}" "$source" "$dest" || rc=$?
     if [ "$rc" -eq 24 ]; then
         echo "Warning: runtime file vanished during backup/restore: $source"
         return 0

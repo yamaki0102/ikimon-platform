@@ -61,10 +61,7 @@ upload_package/data/taxa_cache.json
 upload_package/data/taxon_resolver.json
 upload_package/data/taxon_search_cache.json
 upload_package/data/users.json
-upload_package/data/geo_cache.sqlite3
-upload_package/data/ikimon.db
-upload_package/data/master_extraction_queue.sqlite3
-upload_package/data/weather_cache.sqlite3
-upload_package/data/*.db
-upload_package/data/*.sqlite3-shm
-upload_package/data/*.sqlite3-wal
+
+# SQLite/DB runtime files are intentionally not copied through deploy temp
+# backup. They are untracked runtime state, and duplicating large DBs into
+# /tmp can block staging/production deploys with ENOSPC.

@@ -101,7 +101,21 @@ export function hasNativeObservationPhoto(photos: unknown): boolean {
 
 const PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL = '(smoke[-_]?ui)';
 const PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL =
-  '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media)([-_]|$)';
+  '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|test[-_]?fixture)([-_]|$)';
+
+function cleanQualityText(value: unknown): string {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+}
+
+export function isMeaningfulPublicObservationLabel(value: unknown): boolean {
+  const text = cleanQualityText(value);
+  if (!text) return false;
+  if (text.length < 2) return false;
+  if (/^(?:同定待ち|名前を確認中|未同定|不明|unknown|unidentified|unresolved|awaiting id)$/i.test(text)) return false;
+  if (/^(?:記録|写真|動画|画像|撮影|メモ|スキャン|scan|photo|video|record|memo)$/i.test(text)) return false;
+  if (/^(?:test|dummy|sample|fixture|placeholder|regression)(?:[-_\s]|$)/i.test(text)) return false;
+  return true;
+}
 
 export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   coalesce(v.public_visibility, 'public') = 'public'

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assessLegacyObservationQuality,
+  isMeaningfulPublicObservationLabel,
   PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
@@ -25,6 +26,15 @@ test("public quality gate excludes leaked test observations and smoke fixtures",
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /smoke\[-_\]\?regression/);
   assert.match(VALID_OBSERVATION_PHOTO_ASSET_SQL, /smoke\[-_\]\?ui/);
   assert.match(PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL, /smoke\[-_\]\?ui/);
+});
+
+test("public quality gate rejects labels that look empty or fixture-generated", () => {
+  for (const label of ["", "同定待ち", "名前を確認中", "写真", "記録", "scan", "Regression Manual Finch", "dummy plant"]) {
+    assert.equal(isMeaningfulPublicObservationLabel(label), false, label);
+  }
+  for (const label of ["ヒメイワダレソウ", "モンシロチョウ", "朝の水辺メモ"]) {
+    assert.equal(isMeaningfulPublicObservationLabel(label), true, label);
+  }
 });
 
 test("public photo gates reject known 1x1 placeholder assets without requiring legacy dimensions", () => {

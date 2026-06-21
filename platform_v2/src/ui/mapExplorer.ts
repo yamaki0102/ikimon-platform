@@ -1386,6 +1386,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
             <a class="me-results-empty-action" href="${escapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:results_empty_record" data-kpi-funnel="map_empty_results" data-kpi-target="${escapeHtml(recordHref)}">${escapeHtml(copy.emptyActionRecord)}</a>
           </div>
         </section>
+        <section class="me-own-trail is-hidden" id="me-own-trail" aria-hidden="true">
+          <div class="me-own-trail-head">
+            <strong>${escapeHtml(props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos")}</strong>
+            <span id="me-own-trail-count"></span>
+          </div>
+          <div class="me-own-trail-list" id="me-own-trail-list"></div>
+        </section>
         <div class="me-legend is-hidden" id="me-legend" aria-hidden="true">
           <div class="me-legend-main">
             <span class="me-legend-label" id="me-legend-label">${escapeHtml(copy.legendLabel)}</span>
@@ -1427,6 +1434,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var legendLowEl = document.getElementById('me-legend-low');
   var legendHighEl = document.getElementById('me-legend-high');
   var legendDetailEl = document.getElementById('me-legend-detail');
+  var ownTrailEl = document.getElementById('me-own-trail');
+  var ownTrailListEl = document.getElementById('me-own-trail-list');
+  var ownTrailCountEl = document.getElementById('me-own-trail-count');
   var layerHintEl = document.getElementById('me-layer-hint');
   var layerHintTextEl = document.getElementById('me-layer-hint-text');
   var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
@@ -1553,11 +1563,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     bottomSheetCloseLabel: copy.bottomSheetCloseLabel,
     bottomSheetExpandLabel: copy.bottomSheetExpandLabel,
     bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
-    ownObservationStackSuffix: props.lang === "ja" ? "件の記録" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
+    ownObservationStackSuffix: props.lang === "ja" ? "件" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
     ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
     ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
     ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
     ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
+    ownObservationTrailHeading: props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos",
     siteBriefHeading: copy.siteBriefHeading,
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
@@ -2158,6 +2169,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     basemap: 'standard',
     tracesVisible: false,
     map: null,
+    maplibreRuntime: null,
     features: [],
     records: [],
     myObservations: [],
@@ -2213,6 +2225,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     _restoredZoom: null,
     _restoredCellId: null,
     _fittedOnce: false,
+    _ownObservationFirstViewApplied: false,
     _meMarker: null,
   };
   var areaGuideWatchId = null;
@@ -2560,6 +2573,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function recordDisplayName(record, fallback) {
     return localizedDisplayName(record && record.displayName, fallback);
+  }
+  function isMeaningfulMapRecordLabel(value) {
+    var text = String(value || '').trim().replace(/\s+/g, ' ');
+    if (!text || text.length < 2) return false;
+    if (/^(同定待ち|名前を確認中|未同定|不明|unknown|unidentified|unresolved|awaiting id)$/i.test(text)) return false;
+    if (/^(記録|写真|動画|画像|撮影|メモ|スキャン|scan|photo|video|record|memo)$/i.test(text)) return false;
+    if (/^(test|dummy|sample|fixture|placeholder|regression)([-_\s]|$)/i.test(text)) return false;
+    return true;
+  }
+  function isRenderableMapRecord(record) {
+    if (!record || !isMeaningfulMapRecordLabel(record.displayName)) return false;
+    if (record.photoUrl) return true;
+    return String(record.displayName || '') === '大切な生きもの';
   }
   var TAXON_GENUS_JA_FALLBACK = {
     Chloris: 'カワラヒワ属',
@@ -3289,6 +3315,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       try { marker.remove(); } catch (_) {}
     });
     state.ownObservationMarkers = [];
+    setOwnObservationMarkerState(null);
+  }
+
+  function setOwnObservationMarkerState(status, count) {
+    if (!root) return;
+    if (status) root.setAttribute('data-own-observations-state', status);
+    if (typeof count === 'number') root.setAttribute('data-own-observation-marker-count', String(count));
   }
 
   function ownObservationHref(record) {
@@ -3301,33 +3334,153 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .filter(function (record) {
         var lat = Number(record && record.latitude);
         var lng = Number(record && record.longitude);
-        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
+        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl && isMeaningfulMapRecordLabel(record && record.displayName);
       });
+  }
+
+  function hideOwnObservationTrail() {
+    if (!ownTrailEl) return;
+    ownTrailEl.classList.add('is-hidden');
+    ownTrailEl.setAttribute('aria-hidden', 'true');
+    if (ownTrailListEl) ownTrailListEl.innerHTML = '';
+    if (ownTrailCountEl) ownTrailCountEl.textContent = '';
+  }
+
+  function renderOwnObservationTrail(records) {
+    if (!ownTrailEl || !ownTrailListEl) return;
+    var list = (Array.isArray(records) ? records : [])
+      .filter(function (record) {
+        var lat = Number(record && record.latitude);
+        var lng = Number(record && record.longitude);
+        return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
+      })
+      .slice(0, 6);
+    if (state.tab === 'rain' || !list.length) {
+      hideOwnObservationTrail();
+      return;
+    }
+    if (ownTrailCountEl) {
+      ownTrailCountEl.textContent = String(list.length) + (COPY.ownObservationStackSuffix || '');
+    }
+    ownTrailListEl.innerHTML = list.map(function (record) {
+      var label = recordDisplayName(record, COPY.discoveryFallback);
+      var meta = ownObservationMeta(record);
+      return '<button type="button" class="me-own-trail-item" data-own-trail-id="' + escapeHtml(String(record && record.occurrenceId || '')) + '" data-own-trail-lat="' + escapeHtml(String(record && record.latitude || '')) + '" data-own-trail-lng="' + escapeHtml(String(record && record.longitude || '')) + '">' +
+        '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-trail-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' +
+        '<span><strong>' + escapeHtml(label) + '</strong>' + (meta ? '<small>' + escapeHtml(meta) + '</small>' : '') + '</span>' +
+      '</button>';
+    }).join('');
+    ownTrailListEl.querySelectorAll('.me-own-trail-item').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var lat = Number(button.getAttribute('data-own-trail-lat'));
+        var lng = Number(button.getAttribute('data-own-trail-lng'));
+        var id = String(button.getAttribute('data-own-trail-id') || '');
+        if (!state.map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        try {
+          state.map.flyTo({ center: [lng, lat], zoom: Math.max(Number(state.map.getZoom && state.map.getZoom() || 0), 16), duration: 620, essential: true });
+          sendMapKpi('map_interaction', 'map:own_observation_trail_focus', { occurrenceId: id || null });
+        } catch (_) {}
+      });
+    });
+    ownTrailEl.classList.remove('is-hidden');
+    ownTrailEl.setAttribute('aria-hidden', 'false');
+  }
+
+  function currentOwnObservationCenter() {
+    if (state._restoredCenter && state._restoredCenter.length >= 2) {
+      var restoredLng = Number(state._restoredCenter[0]);
+      var restoredLat = Number(state._restoredCenter[1]);
+      if (Number.isFinite(restoredLng) && Number.isFinite(restoredLat)) return { lng: restoredLng, lat: restoredLat };
+    }
+    try {
+      if (state.map && typeof state.map.getCenter === 'function') {
+        var center = state.map.getCenter();
+        var lng = Number(center && center.lng);
+        var lat = Number(center && center.lat);
+        if (Number.isFinite(lng) && Number.isFinite(lat)) return { lng: lng, lat: lat };
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function ownObservationDistanceScore(record, center) {
+    if (!center) return 0;
+    var lat = Number(record && record.latitude);
+    var lng = Number(record && record.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return Number.POSITIVE_INFINITY;
+    var latScale = Math.max(0.2, Math.cos(Number(center.lat) * Math.PI / 180));
+    var dx = (lng - Number(center.lng)) * latScale;
+    var dy = lat - Number(center.lat);
+    return dx * dx + dy * dy;
+  }
+
+  function prioritizeOwnObservationRecordsForView(records) {
+    var list = Array.isArray(records) ? records.slice() : [];
+    var center = currentOwnObservationCenter();
+    if (!center) return list;
+    return list
+      .map(function (record, index) {
+        return { record: record, index: index, score: ownObservationDistanceScore(record, center) };
+      })
+      .sort(function (a, b) {
+        if (a.score !== b.score) return a.score - b.score;
+        return a.index - b.index;
+      })
+      .map(function (item) { return item.record; });
+  }
+
+  function maybeFitOwnObservationsOnFirstOpen() {
+    if (!state.map || state._ownObservationFirstViewApplied) return;
+    if (state.tab === 'rain') return;
+    if (state._restoredCenter || state._restoredCellId) return;
+    if (state.selectedPoint || state._meMarker) return;
+    var records = validOwnObservationRecords();
+    if (!records.length) return;
+    state._ownObservationFirstViewApplied = true;
+    if (records.length === 1) {
+      var oneLat = Number(records[0].latitude);
+      var oneLng = Number(records[0].longitude);
+      if (Number.isFinite(oneLat) && Number.isFinite(oneLng)) {
+        state.map.flyTo({ center: [oneLng, oneLat], zoom: 15, duration: 720, essential: true });
+      }
+      return;
+    }
+    var minLng = Infinity;
+    var minLat = Infinity;
+    var maxLng = -Infinity;
+    var maxLat = -Infinity;
+    records.forEach(function (record) {
+      var lat = Number(record.latitude);
+      var lng = Number(record.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      minLng = Math.min(minLng, lng);
+      minLat = Math.min(minLat, lat);
+      maxLng = Math.max(maxLng, lng);
+      maxLat = Math.max(maxLat, lat);
+    });
+    if (!Number.isFinite(minLng) || !Number.isFinite(minLat) || !Number.isFinite(maxLng) || !Number.isFinite(maxLat)) return;
+    if (Math.abs(maxLng - minLng) > 2.2 || Math.abs(maxLat - minLat) > 1.8) {
+      var latestLat = Number(records[0].latitude);
+      var latestLng = Number(records[0].longitude);
+      if (Number.isFinite(latestLat) && Number.isFinite(latestLng)) {
+        state.map.flyTo({ center: [latestLng, latestLat], zoom: 12.2, duration: 720, essential: true });
+      }
+      return;
+    }
+    if (Math.abs(maxLng - minLng) < 0.0008) {
+      minLng -= 0.0008;
+      maxLng += 0.0008;
+    }
+    if (Math.abs(maxLat - minLat) < 0.0008) {
+      minLat -= 0.0008;
+      maxLat += 0.0008;
+    }
+    state.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 74, maxZoom: 15.2, duration: 760 });
   }
 
   function ownObservationGroups(records) {
     if (!state.map || typeof state.map.project !== 'function') {
-      var fallbackGroups = [];
-      records.forEach(function (record) {
-        var lat = Number(record.latitude);
-        var lng = Number(record.longitude);
-        var matched = null;
-        for (var i = 0; i < fallbackGroups.length; i += 1) {
-          var g = fallbackGroups[i];
-          if (Math.abs(Number(g.lat) - lat) <= 0.02 && Math.abs(Number(g.lng) - lng) <= 0.02) {
-            matched = g;
-            break;
-          }
-        }
-        if (!matched) {
-          fallbackGroups.push({ records: [record], lat: lat, lng: lng });
-          return;
-        }
-        matched.records.push(record);
-        matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
-        matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
-      });
-      return fallbackGroups;
+      return ownObservationCoordinateGroups(records);
     }
     var groups = [];
     records.forEach(function (record) {
@@ -3355,6 +3508,58 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return groups;
   }
 
+  function ownObservationCoordinateGroups(records) {
+    var fallbackGroups = [];
+    (Array.isArray(records) ? records : []).forEach(function (record) {
+      var lat = Number(record && record.latitude);
+      var lng = Number(record && record.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      var matched = null;
+      for (var i = 0; i < fallbackGroups.length; i += 1) {
+        var g = fallbackGroups[i];
+        if (Math.abs(Number(g.lat) - lat) <= 0.02 && Math.abs(Number(g.lng) - lng) <= 0.02) {
+          matched = g;
+          break;
+        }
+      }
+      if (!matched) {
+        fallbackGroups.push({ records: [record], lat: lat, lng: lng });
+        return;
+      }
+      matched.records.push(record);
+      matched.lat = matched.records.reduce(function (sum, item) { return sum + Number(item.latitude || 0); }, 0) / matched.records.length;
+      matched.lng = matched.records.reduce(function (sum, item) { return sum + Number(item.longitude || 0); }, 0) / matched.records.length;
+    });
+    return fallbackGroups;
+  }
+
+  function safeOwnObservationGroups(records) {
+    try {
+      return ownObservationGroups(records);
+    } catch (_) {
+      return ownObservationCoordinateGroups(records);
+    }
+  }
+
+  function prioritizeOwnObservationGroupsForView(groups) {
+    var list = Array.isArray(groups) ? groups.slice() : [];
+    var center = currentOwnObservationCenter();
+    if (!center) return list;
+    return list
+      .map(function (group, index) {
+        return {
+          group: group,
+          index: index,
+          score: ownObservationDistanceScore({ latitude: group && group.lat, longitude: group && group.lng }, center),
+        };
+      })
+      .sort(function (a, b) {
+        if (a.score !== b.score) return a.score - b.score;
+        return a.index - b.index;
+      })
+      .map(function (item) { return item.group; });
+  }
+
   function ownObservationGroupLabel(records) {
     var labels = records.map(function (record) { return recordDisplayName(record, COPY.discoveryFallback); }).filter(Boolean);
     var visible = labels.slice(0, 2).join(' / ');
@@ -3372,7 +3577,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderOwnObservationStackSheet(records) {
     var list = (Array.isArray(records) ? records : []).filter(Boolean).slice(0, 12);
     var title = COPY.ownObservationStackHeading || COPY.sideRecentLabel;
-    var meta = String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
+    var meta = props.lang === "ja" ? String(list.length) + '件' : String(list.length) + ' ' + (COPY.ownObservationStackSuffix || 'records');
     return '<article class="me-detail-panel me-bottom-detail me-own-stack-sheet" data-own-observation-stack-sheet="1">' +
       renderDetailHero({
         title: title,
@@ -3404,8 +3609,77 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderOwnObservationMarkers() {
     clearOwnObservationMarkers();
-    if (!state.map || !window.maplibregl || state.tab === 'rain') return;
-    ownObservationGroups(validOwnObservationRecords()).forEach(function (group) {
+    var maplibre = state.maplibreRuntime || window.maplibregl;
+    if (!state.map || state.tab === 'rain') {
+      hideOwnObservationTrail();
+      return;
+    }
+    var records = prioritizeOwnObservationRecordsForView(validOwnObservationRecords());
+    if (root) root.setAttribute('data-own-observation-record-count', String(records.length));
+    if (!records.length) {
+      setOwnObservationMarkerState('empty', 0);
+      hideOwnObservationTrail();
+      return;
+    }
+    renderOwnObservationTrail(records);
+    setOwnObservationMarkerState('rendering', 0);
+    function addOwnObservationFallbackMarker(el, lng, lat) {
+      if (!root || !el) return null;
+      var point = null;
+      try {
+        if (state.map && typeof state.map.project === 'function') point = state.map.project([lng, lat]);
+      } catch (_) { point = null; }
+      el.style.position = 'absolute';
+      el.style.left = Number.isFinite(Number(point && point.x)) ? Math.round(Number(point.x)) + 'px' : '50%';
+      el.style.top = Number.isFinite(Number(point && point.y)) ? Math.round(Number(point.y)) + 'px' : '50%';
+      el.style.transform = 'translate(-50%, -100%)';
+      el.style.zIndex = '8';
+      root.appendChild(el);
+      return {
+        remove: function () {
+          if (el && el.parentElement) el.parentElement.removeChild(el);
+        },
+      };
+    }
+    var renderedOwnObservationIds = {};
+    function markOwnObservationGroupRendered(group) {
+      (group && Array.isArray(group.records) ? group.records : []).forEach(function (item) {
+        var id = String(item && item.occurrenceId || '');
+        if (id) renderedOwnObservationIds[id] = true;
+      });
+    }
+    function ownObservationGroupWasRendered(group) {
+      var ids = (group && Array.isArray(group.records) ? group.records : [])
+        .map(function (item) { return String(item && item.occurrenceId || ''); })
+        .filter(Boolean);
+      return !!ids.length && ids.every(function (id) { return !!renderedOwnObservationIds[id]; });
+    }
+    function ownObservationIdExistsInDom(occurrenceId) {
+      var id = String(occurrenceId || '');
+      if (!root || !id) return false;
+      var markers = root.querySelectorAll('.me-own-observation-marker[data-own-observation-ids]');
+      for (var i = 0; i < markers.length; i += 1) {
+        var ids = String(markers[i].getAttribute('data-own-observation-ids') || '').split(',');
+        if (ids.indexOf(id) >= 0) return true;
+      }
+      return false;
+    }
+    function renderNearCenterOwnObservationPins(records) {
+      if (!state._restoredCenter) return;
+      var center = currentOwnObservationCenter();
+      if (!center) return;
+      (Array.isArray(records) ? records : []).slice(0, 8).forEach(function (record) {
+        var id = String(record && record.occurrenceId || '');
+        if (!id || ownObservationIdExistsInDom(id)) return;
+        var score = ownObservationDistanceScore(record, center);
+        if (!Number.isFinite(score) || score > 0.0016) return;
+        var lat = Number(record && record.latitude);
+        var lng = Number(record && record.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        try { renderOwnObservationGroup({ records: [record], lat: lat, lng: lng }, true); } catch (_) {}
+      });
+    }
+    function renderOwnObservationGroup(group, forceDomFallback) {
       var record = group.records[0];
       var lat = Number(group.lat);
       var lng = Number(group.lng);
@@ -3418,7 +3692,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var el = document.createElement('a');
       el.className = 'me-own-observation-marker' + (count > 1 ? ' is-stack' : '');
       el.href = ownObservationHref(record);
-      el.setAttribute('aria-label', (count > 1 ? String(count) + ' ' + COPY.ownObservationStackSuffix + ': ' + groupLabel : label) + COPY.openDiscoverySuffix);
+      el.setAttribute('aria-label', (count > 1 ? (props.lang === "ja" ? String(count) + '件: ' : String(count) + ' ' + COPY.ownObservationStackSuffix + ': ') + groupLabel : label) + COPY.openDiscoverySuffix);
       el.setAttribute('title', count > 1 ? groupLabel : label);
       el.setAttribute('data-own-observation-count', String(count));
       el.setAttribute('data-own-observation-ids', allOccurrenceIds);
@@ -3433,11 +3707,41 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           openOwnObservationStackSheet(group.records);
         });
       }
-      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
-        .setLngLat([lng, lat])
-        .addTo(state.map);
-      state.ownObservationMarkers.push(marker);
+      var marker = null;
+      if (!forceDomFallback && maplibre && typeof maplibre.Marker === 'function') try {
+        marker = new maplibre.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+          .setLngLat([lng, lat])
+          .addTo(state.map);
+        if (root && !root.contains(el)) {
+          try { marker.remove(); } catch (_) {}
+          marker = addOwnObservationFallbackMarker(el, lng, lat);
+        }
+      } catch (_) {
+        marker = addOwnObservationFallbackMarker(el, lng, lat);
+      }
+      if (!marker) marker = addOwnObservationFallbackMarker(el, lng, lat);
+      if (marker) {
+        state.ownObservationMarkers.push(marker);
+        markOwnObservationGroupRendered(group);
+      }
+    }
+    var groups = prioritizeOwnObservationGroupsForView(safeOwnObservationGroups(records));
+    groups.forEach(function (group) {
+      try { renderOwnObservationGroup(group, false); } catch (_) {
+        try { renderOwnObservationGroup(group, true); } catch (_) {}
+      }
     });
+    groups.forEach(function (group) {
+      if (ownObservationGroupWasRendered(group)) return;
+      try { renderOwnObservationGroup(group, true); } catch (_) {}
+    });
+    renderNearCenterOwnObservationPins(records);
+    if (!state.ownObservationMarkers.length) {
+      ownObservationCoordinateGroups(records).slice(0, 6).forEach(function (group) {
+        try { renderOwnObservationGroup(group); } catch (_) {}
+      });
+    }
+    setOwnObservationMarkerState(state.ownObservationMarkers.length ? 'ready' : 'render-empty', state.ownObservationMarkers.length);
   }
 
   function clearAreaBadgeMarkers() {
@@ -7266,7 +7570,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (list) {
         if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
         state.recordsRecoveryAttempts = 0;
-        state.records = (list && list.items) || [];
+        state.records = ((list && list.items) || []).filter(isRenderableMapRecord);
         state.lastStats = (list && list.stats) || null;
         if (state.selectedOccurrenceId) {
           var selectedRecord = getSelectedRecord();
@@ -7316,11 +7620,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     fetch(apiMyObservations + '?limit=48', { credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('my observations ' + r.status)); })
       .then(function (payload) {
-        state.myObservations = payload && payload.signedIn ? (payload.items || []) : [];
-        renderOwnObservationMarkers();
+        state.myObservations = payload && payload.signedIn ? (payload.items || []).filter(isRenderableMapRecord) : [];
+        if (root) root.setAttribute('data-own-observations-fetch', payload && payload.signedIn ? 'signed-in' : 'signed-out');
+        try {
+          renderOwnObservationMarkers();
+        } catch (_) {
+          setOwnObservationMarkerState('render-error', 0);
+        }
+        try {
+          maybeFitOwnObservationsOnFirstOpen();
+        } catch (_) {}
       })
       .catch(function () {
         state.myObservations = [];
+        if (root) {
+          root.setAttribute('data-own-observations-fetch', 'error');
+          root.setAttribute('data-own-observation-record-count', '0');
+        }
+        hideOwnObservationTrail();
         clearOwnObservationMarkers();
       });
   }
@@ -7699,6 +8016,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function hydrate() {
     if (!window.maplibregl) { showMapLoadFailure(); return; }
     try {
+      state.maplibreRuntime = window.maplibregl;
       state.map = new window.maplibregl.Map({
         container: root,
         style: BASEMAPS[state.basemap] || BASEMAPS.standard,
@@ -7711,6 +8029,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state._restoredCenter = null;
       state._restoredZoom = null;
       try {
+        state.maplibreRuntime = window.maplibregl;
         state.map = new window.maplibregl.Map({
           container: root,
           style: BASEMAPS.standard,
@@ -7753,6 +8072,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       updateSearchAreaUi();
       scheduleViewportRefresh();
       refreshDiscoveryPreviewMarkers();
+      renderOwnObservationMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
       if (state.tab === 'markers' || state.tab === 'places' || state.tab === 'rain') loadGuideSpots();
@@ -8307,6 +8627,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var lat = pos.coords.latitude;
       if (!isFinite(lng) || !isFinite(lat)) return;
       if (lng < -180 || lng > 180 || lat < -85 || lat > 85) return;
+      if (state._ownObservationFirstViewApplied) {
+        dropMeMarker(lng, lat);
+        return;
+      }
       // Suppress later data-driven auto-fit so the user's location wins.
       state._fittedOnce = true;
       state.map.flyTo({ center: [lng, lat], zoom: 13, duration: 900, essential: true });
@@ -9304,6 +9628,99 @@ export const MAP_EXPLORER_STYLES = `
     line-height: 1;
     font-weight: 950;
     white-space: nowrap;
+  }
+  .me-own-trail {
+    position: absolute;
+    left: 18px;
+    bottom: 34px;
+    z-index: 4;
+    width: min(520px, calc(100% - 36px));
+    padding: 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(15,23,42,.08);
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 18px 44px rgba(15,23,42,.14);
+    backdrop-filter: blur(16px);
+  }
+  .me-own-trail.is-hidden { display: none; }
+  .me-own-trail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .me-own-trail-head strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .me-own-trail-head span {
+    color: #047857;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .me-own-trail-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(132px, 1fr);
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .me-own-trail-item {
+    min-width: 0;
+    min-height: 62px;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 7px;
+    border-radius: 14px;
+    border: 1px solid rgba(16,185,129,.16);
+    background: rgba(236,253,245,.76);
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-own-trail-item:hover {
+    background: rgba(209,250,229,.92);
+    border-color: rgba(5,150,105,.28);
+  }
+  .me-own-trail-item img {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    display: block;
+    background: #e0f2fe;
+  }
+  .me-own-trail-item span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .me-own-trail-item strong,
+  .me-own-trail-item small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+  .me-own-trail-item strong {
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .me-own-trail-item small {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 800;
   }
   .me-nearby-area-marker {
     max-width: 150px;
@@ -11194,6 +11611,28 @@ export const MAP_EXPLORER_STYLES = `
       visibility: hidden;
       pointer-events: none;
       transform: translate3d(0, 10px, 0);
+    }
+    .me-own-trail {
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: calc(var(--me-mobile-action-space) + 10px);
+      width: auto;
+      padding: 8px;
+      border-radius: 16px;
+      z-index: 34;
+    }
+    .me-own-trail-list {
+      grid-auto-columns: minmax(124px, 44vw);
+    }
+    .me-own-trail-item {
+      min-height: 58px;
+      grid-template-columns: 44px minmax(0, 1fr);
+      padding: 6px;
+    }
+    .me-own-trail-item img {
+      width: 44px;
+      height: 44px;
     }
     .me-rain-head {
       display: grid;

@@ -9,6 +9,7 @@ import {
 test.describe.configure({ retries: 0, timeout: 30_000 });
 
 const MAP_FIXTURE_CELL_ID = "3000:5121:1377";
+const MAP_FIXTURE_PHOTO_BASE = "/uploads/qa-map-shell";
 const MAP_FIXTURE_COLLECTION = {
   type: "FeatureCollection",
   features: [
@@ -69,7 +70,7 @@ const MAP_FIXTURE_RECORDS = {
       isAwaitingId: false,
       localityLabel: "浜松市",
       observedAt: "2026-06-10T09:00:00.000Z",
-      photoUrl: null,
+      photoUrl: `${MAP_FIXTURE_PHOTO_BASE}/kusamoto.jpg`,
       taxonGroup: "plant",
       cellId: MAP_FIXTURE_CELL_ID,
     },
@@ -81,7 +82,7 @@ const MAP_FIXTURE_RECORDS = {
       isAwaitingId: false,
       localityLabel: "浜松市",
       observedAt: "2026-06-09T09:00:00.000Z",
-      photoUrl: null,
+      photoUrl: `${MAP_FIXTURE_PHOTO_BASE}/konchu.jpg`,
       taxonGroup: "insect",
       cellId: MAP_FIXTURE_CELL_ID,
     },
@@ -93,7 +94,7 @@ const MAP_FIXTURE_RECORDS = {
       isAwaitingId: false,
       localityLabel: "浜松市",
       observedAt: "2026-06-08T09:00:00.000Z",
-      photoUrl: null,
+      photoUrl: `${MAP_FIXTURE_PHOTO_BASE}/jumoku.jpg`,
       taxonGroup: "plant",
       cellId: MAP_FIXTURE_CELL_ID,
     },

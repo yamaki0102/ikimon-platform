@@ -16,6 +16,7 @@ import {
 } from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 import {
+  isMeaningfulPublicObservationLabel,
   PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
@@ -650,6 +651,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
     MAP_READ_FIXTURE_EXCLUSION_SQL,
     PUBLIC_OBSERVATION_QUALITY_SQL,
     PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
+    "coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(regression[-_]?seed|regression[-_]?fixture)([-_]|$)'",
   ];
   const params: unknown[] = [];
 
@@ -786,6 +788,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
           displayName: row.display_name,
           aiCandidateName: row.ai_candidate_name,
         }, "ja");
+        if (!isMeaningfulPublicObservationLabel(display.primaryLabel)) return null;
         return {
           occurrenceId: row.occurrence_id,
           visitId: row.visit_id,

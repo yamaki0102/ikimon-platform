@@ -32,6 +32,15 @@ type OwnerObservationPayload = {
   }>;
 };
 
+type ExpectedBounds = {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+  centerLat: number;
+  centerLng: number;
+};
+
 function cookieHeader(rawCookie: string): string {
   return rawCookie.split(";")[0] ?? rawCookie;
 }
@@ -47,12 +56,44 @@ async function fetchOwnerObservations(api: APIRequestContext, rawCookie: string)
   return (await response.json()) as OwnerObservationPayload;
 }
 
+function expectedOwnerObservationBounds(payload: OwnerObservationPayload): ExpectedBounds {
+  const points = (payload.items ?? [])
+    .map((item) => ({ lat: Number(item.latitude), lng: Number(item.longitude), photoUrl: item.photoUrl }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng) && Boolean(point.photoUrl));
+  expect(points.length, JSON.stringify(payload.items?.slice(0, 8), null, 2)).toBeGreaterThan(0);
+
+  let west = Math.min(...points.map((point) => point.lng));
+  let east = Math.max(...points.map((point) => point.lng));
+  let south = Math.min(...points.map((point) => point.lat));
+  let north = Math.max(...points.map((point) => point.lat));
+  if (Math.abs(east - west) < 0.0008) {
+    west -= 0.0008;
+    east += 0.0008;
+  }
+  if (Math.abs(north - south) < 0.0008) {
+    south -= 0.0008;
+    north += 0.0008;
+  }
+  return {
+    west,
+    south,
+    east,
+    north,
+    centerLat: (south + north) / 2,
+    centerLng: (west + east) / 2,
+  };
+}
+
 async function waitForOwnerMarkers(page: Page): Promise<void> {
   await page.locator("#map-explorer").waitFor({ state: "visible" });
   await expect.poll(
     async () => page.locator(".me-own-observation-marker").count(),
     { timeout: 20_000 },
   ).toBeGreaterThan(0);
+}
+
+function ownerObservationMarker(page: Page, occurrenceId: string): ReturnType<Page["locator"]> {
+  return page.locator(`.me-own-observation-marker[data-own-observation-ids*="${occurrenceId}"]`).first();
 }
 
 async function captureEvidence(page: Page, profile: ViewportProfile, fixture: SeededRegressionFixtureBundle): Promise<void> {
@@ -150,6 +191,35 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
     expect(payload.items?.some((item) => item.visitId === fixture.smoke.visitId)).toBe(false);
   });
 
+  test("map opens around owner records when no viewport is specified", async ({ browser }) => {
+    const payload = await fetchOwnerObservations(api, sessionCookie);
+    const expectedBounds = expectedOwnerObservationBounds(payload);
+    const manual = payload.items?.find((item) => item.visitId === fixture.manual.visitId);
+    expect(manual, JSON.stringify(payload.items?.slice(0, 8), null, 2)).toBeTruthy();
+
+    const context = await newStagingContext(browser, VIEWPORTS[0], { serviceWorkers: "block" });
+    await addSessionCookie(context, sessionCookie);
+    const page = await context.newPage();
+    await installMapLibreStubForSmoke(page);
+
+    try {
+      await page.goto("/ja/map?tab=places", { waitUntil: "domcontentloaded" });
+      await waitForOwnerMarkers(page);
+
+      const fit = await page.evaluate(() => (window as any).__ikimonMapSmokeLastFitBounds ?? null);
+      expect(fit, "owner observations should drive first map viewport when no lng/lat/z is provided").toBeTruthy();
+      expect(fit.options?.maxZoom).toBeCloseTo(15.2, 1);
+      expect(fit.center?.latitude ?? fit.center?.lat).toBeCloseTo(expectedBounds.centerLat, 4);
+      expect(fit.center?.longitude ?? fit.center?.lng).toBeCloseTo(expectedBounds.centerLng, 4);
+      expect(fit.bounds?.[0]?.[0]).toBeLessThanOrEqual(Number(manual?.longitude));
+      expect(fit.bounds?.[1]?.[0]).toBeGreaterThanOrEqual(Number(manual?.longitude));
+      expect(fit.bounds?.[0]?.[1]).toBeLessThanOrEqual(Number(manual?.latitude));
+      expect(fit.bounds?.[1]?.[1]).toBeGreaterThanOrEqual(Number(manual?.latitude));
+    } finally {
+      await context.close();
+    }
+  });
+
   for (const profile of VIEWPORTS) {
     test(`own observation markers are visible with thumbnails and hidden in rain mode (${profile.slug})`, async ({ browser }) => {
       const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
@@ -161,8 +231,15 @@ test.describe.serial("authenticated owner observation map staging evidence", () 
         await page.goto("/ja/map?tab=places&lng=138.3929&lat=35.0104&z=16", { waitUntil: "domcontentloaded" });
         await waitForOwnerMarkers(page);
 
-        const marker = page.locator(".me-own-observation-marker").filter({ hasText: fixture.manual.subjectLabel }).first();
+        const trail = page.locator("#me-own-trail");
+        await expect(trail).toBeVisible();
+        await expect(trail).toContainText("自分の撮影");
+        await expect(page.locator(`[data-own-trail-id="${fixture.manual.occurrenceId}"]`)).toBeVisible();
+        await expect(page.locator(`[data-own-trail-id="${fixture.manual.occurrenceId}"] img`)).toBeVisible();
+
+        const marker = ownerObservationMarker(page, fixture.manual.occurrenceId);
         await expect(marker).toBeVisible();
+        await expect(marker).toContainText(fixture.manual.subjectLabel);
         await expect(marker.locator("img")).toBeVisible();
         await expect(marker).toHaveAttribute("data-own-observation-count", /\d+/);
         const markerCount = Number(await marker.getAttribute("data-own-observation-count"));
