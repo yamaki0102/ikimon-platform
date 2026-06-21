@@ -41,6 +41,16 @@ function ownDisplayName(row: MapOwnObservationRow): string {
   return note.length > 40 ? `${note.slice(0, 39)}…` : note;
 }
 
+export function isMeaningfulOwnObservationLabel(value: unknown): boolean {
+  const text = cleanText(value).replace(/\s+/g, " ");
+  if (!text) return false;
+  if (text.length < 2) return false;
+  if (/^(?:同定待ち|名前を確認中|未同定|不明|unknown|unidentified|unresolved|awaiting id)$/i.test(text)) return false;
+  if (/^(?:記録|写真|動画|画像|撮影|メモ|スキャン|scan|photo|video|record|memo)$/i.test(text)) return false;
+  if (/^(?:test|dummy|sample|fixture|placeholder)(?:[-_\s]|$)/i.test(text)) return false;
+  return true;
+}
+
 function localityLabel(row: MapOwnObservationRow): string {
   return cleanText(row.municipality) || cleanText(row.prefecture);
 }
@@ -102,6 +112,9 @@ export async function listMapOwnObservations(
         limit 1
       ) video on true
       where v.user_id = $1
+        and v.source_kind = 'v2_observation'
+        and coalesce(v.session_mode, '') = 'standard'
+        and coalesce(v.visit_mode, 'manual') in ('manual', 'survey')
         and coalesce(v.point_latitude, p.center_latitude) is not null
         and coalesce(v.point_longitude, p.center_longitude) is not null
         and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|smoke|fixture|dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media)([-_]|$)'
@@ -125,10 +138,12 @@ export async function listMapOwnObservations(
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
       const photoUrl = row.photo_url || row.video_thumb_url || null;
       if (!photoUrl) return null;
+      const displayName = ownDisplayName(row);
+      if (!isMeaningfulOwnObservationLabel(displayName)) return null;
       return {
         occurrenceId: row.occurrence_id,
         visitId: row.visit_id,
-        displayName: ownDisplayName(row),
+        displayName,
         observedAt: row.observed_at,
         latitude,
         longitude,
