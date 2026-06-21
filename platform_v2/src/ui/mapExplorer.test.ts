@@ -172,6 +172,8 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /function renderOwnObservationMarkers\(\)/);
   assert.match(script, /var maplibre = state\.maplibreRuntime \|\| window\.maplibregl/);
   assert.match(script, /new maplibre\.Marker\(\{ element: el, anchor: 'bottom', offset: \[0, -10\] \}\)/);
+  assert.match(script, /function addOwnObservationFallbackMarker\(el, lng, lat\)/);
+  assert.match(script, /marker = addOwnObservationFallbackMarker\(el, lng, lat\)/);
   assert.match(script, /me-own-observation-marker/);
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);

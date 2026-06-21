@@ -3449,6 +3449,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     clearOwnObservationMarkers();
     var maplibre = state.maplibreRuntime || window.maplibregl;
     if (!state.map || !maplibre || state.tab === 'rain') return;
+    function addOwnObservationFallbackMarker(el, lng, lat) {
+      if (!root || !el) return null;
+      var point = null;
+      try {
+        if (state.map && typeof state.map.project === 'function') point = state.map.project([lng, lat]);
+      } catch (_) { point = null; }
+      el.style.position = 'absolute';
+      el.style.left = Number.isFinite(Number(point && point.x)) ? Math.round(Number(point.x)) + 'px' : '50%';
+      el.style.top = Number.isFinite(Number(point && point.y)) ? Math.round(Number(point.y)) + 'px' : '50%';
+      el.style.transform = 'translate(-50%, -100%)';
+      el.style.zIndex = '8';
+      root.appendChild(el);
+      return {
+        remove: function () {
+          if (el && el.parentElement) el.parentElement.removeChild(el);
+        },
+      };
+    }
     ownObservationGroups(validOwnObservationRecords()).forEach(function (group) {
       var record = group.records[0];
       var lat = Number(group.lat);
@@ -3477,10 +3495,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           openOwnObservationStackSheet(group.records);
         });
       }
-      var marker = new maplibre.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
-        .setLngLat([lng, lat])
-        .addTo(state.map);
-      state.ownObservationMarkers.push(marker);
+      var marker = null;
+      try {
+        marker = new maplibre.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+          .setLngLat([lng, lat])
+          .addTo(state.map);
+      } catch (_) {
+        marker = addOwnObservationFallbackMarker(el, lng, lat);
+      }
+      if (!marker) marker = addOwnObservationFallbackMarker(el, lng, lat);
+      if (marker) state.ownObservationMarkers.push(marker);
     });
   }
 
