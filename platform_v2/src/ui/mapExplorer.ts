@@ -3569,6 +3569,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         .filter(Boolean);
       return !!ids.length && ids.every(function (id) { return !!renderedOwnObservationIds[id]; });
     }
+    function ownObservationIdExistsInDom(occurrenceId) {
+      var id = String(occurrenceId || '');
+      if (!root || !id) return false;
+      var markers = root.querySelectorAll('.me-own-observation-marker[data-own-observation-ids]');
+      for (var i = 0; i < markers.length; i += 1) {
+        var ids = String(markers[i].getAttribute('data-own-observation-ids') || '').split(',');
+        if (ids.indexOf(id) >= 0) return true;
+      }
+      return false;
+    }
+    function renderNearCenterOwnObservationPins(records) {
+      if (!state._restoredCenter) return;
+      var center = currentOwnObservationCenter();
+      if (!center) return;
+      (Array.isArray(records) ? records : []).slice(0, 8).forEach(function (record) {
+        var id = String(record && record.occurrenceId || '');
+        if (!id || ownObservationIdExistsInDom(id)) return;
+        var score = ownObservationDistanceScore(record, center);
+        if (!Number.isFinite(score) || score > 0.0016) return;
+        var lat = Number(record && record.latitude);
+        var lng = Number(record && record.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        try { renderOwnObservationGroup({ records: [record], lat: lat, lng: lng }, true); } catch (_) {}
+      });
+    }
     function renderOwnObservationGroup(group, forceDomFallback) {
       var record = group.records[0];
       var lat = Number(group.lat);
@@ -3625,6 +3650,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (ownObservationGroupWasRendered(group)) return;
       try { renderOwnObservationGroup(group, true); } catch (_) {}
     });
+    renderNearCenterOwnObservationPins(records);
     if (!state.ownObservationMarkers.length) {
       ownObservationCoordinateGroups(records).slice(0, 6).forEach(function (group) {
         try { renderOwnObservationGroup(group); } catch (_) {}
