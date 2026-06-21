@@ -3500,6 +3500,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         marker = new maplibre.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
           .setLngLat([lng, lat])
           .addTo(state.map);
+        if (root && !root.contains(el)) {
+          try { marker.remove(); } catch (_) {}
+          marker = addOwnObservationFallbackMarker(el, lng, lat);
+        }
       } catch (_) {
         marker = addOwnObservationFallbackMarker(el, lng, lat);
       }
