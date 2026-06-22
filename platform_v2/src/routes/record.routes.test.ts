@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
@@ -236,6 +238,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-public-state"/);
         assert.match(response.body, /公開状態/);
         assert.match(response.body, /公開候補として保存しました/);
+        assert.match(response.body, /data-record-success-cta="profile">マイページへ/);
+        assert.match(response.body, /data-record-success-cta="notes">記録を見る/);
+        assert.match(response.body, /自分の記録一覧をすぐ見返せます/);
         assert.match(response.body, /buildPublicStateSuccessHtml/);
         assert.match(response.body, /qualityReviewStatus/);
         assert.match(response.body, /recordUiCopy\.publicStatePhotoCandidate/);
@@ -522,6 +527,19 @@ test("profile route gives unauthenticated visitors a mypage start guide", async 
   } finally {
     await app.close();
   }
+});
+
+test("observation detail route has a saved fallback for public map records still preparing", async () => {
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const observationRoute = readRoute.slice(
+    readRoute.indexOf('app.get<{ Params: { id: string }; Querystring: { subject?: string; occurrence?: string } }>("/observations/:id"'),
+    readRoute.indexOf("const mediaContext = mediaContextForSnapshot"),
+  );
+
+  assert.match(observationRoute, /findPublicMapObservationRecord\(request\.params\.id\)/);
+  assert.match(observationRoute, /findPublicMapObservationRecord\(bundle\.visitId\)/);
+  assert.match(observationRoute, /記録は残っています。詳細表示を準備しています/);
+  assert.match(observationRoute, /マイページの記録一覧から確認してください。/);
 });
 
 test("profile settings route gives unauthenticated visitors a login guide", async () => {

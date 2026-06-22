@@ -153,6 +153,7 @@ function desktopSideNavIcon(key: string): string {
     identify: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="m8.4 11.2 2.1 2.1 4-4.2"/>',
     map: '<path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15"/><path d="M15 6v15"/>',
     notes: '<path d="M4 5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h8"/><path d="M8 11h8"/>',
+    profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     guide: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/>',
     learn: '<path d="M22 10 12 5 2 10l10 5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
     community: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -535,6 +536,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const labels: Record<SiteLang, Record<string, string>> = {
     ja: {
       home: "ホーム",
+      profile: "マイページ",
       record: "記録",
       observations: "記録を見る",
       identify: "同定",
@@ -548,6 +550,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     },
     en: {
       home: "Home",
+      profile: "My page",
       record: "Record",
       observations: "Observations",
       identify: "Identify",
@@ -561,6 +564,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     },
     es: {
       home: "Inicio",
+      profile: "Mi pagina",
       record: "Registro",
       observations: "Observaciones",
       identify: "Identificar",
@@ -574,6 +578,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     },
     "pt-BR": {
       home: "Inicio",
+      profile: "Minha pagina",
       record: "Registrar",
       observations: "Observacoes",
       identify: "Identificar",
@@ -588,6 +593,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   };
   const copy = labels[lang] ?? labels.ja;
   const primaryItems: SideNavPrimaryItem[] = [
+    ...(mode === "mobile" ? [{ key: "profile", href: "/profile", match: ["/profile", "/home"] }] : []),
     { key: "home", href: "/", match: ["/"] },
     { key: "record", href: "/record", match: ["/record"] },
     { key: "observations", href: "/records", match: ["/records", "/observations"] },
@@ -615,7 +621,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
       title: directoryCopy.groups.signedIn,
       className: "desktop-side-nav-section--signed-in",
       items: [
-        { href: "/home", label: directoryCopy.links.myPage, match: ["/home"] },
+        { href: "/profile", label: directoryCopy.links.myPage, match: ["/profile", "/home"] },
         { href: "/records?view=mine", label: directoryCopy.links.notes, match: ["/records?view=mine"] },
         { href: "/guide/outcomes", label: directoryCopy.links.guideOutcomes, match: ["/guide/outcomes"] },
         { href: "/records?view=needs_id", label: directoryCopy.links.needsId, match: ["/records?view=needs_id"] },

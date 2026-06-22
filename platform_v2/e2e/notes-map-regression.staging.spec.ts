@@ -155,7 +155,7 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     await notesPage.goto(`/records?view=mine&userId=${encodeURIComponent(fixture.user.userId)}`, { waitUntil: "domcontentloaded" });
     await expect(notesPage.getByTestId("records-workbench")).toContainText(fixture.manual.subjectLabel);
     await expect(notesPage.getByTestId("records-workbench")).toContainText(fixture.historical.subjectLabel);
-    await expect(notesPage.getByTestId("records-workbench")).toContainText(fixture.user.displayName);
+    await expect(notesPage.locator(".records-post-memory-line").first()).toContainText(" · ");
     await expect(notesPage.getByTestId("records-workbench")).not.toContainText(fixture.user.userId);
     await expect(notesPage.getByTestId("records-workbench")).not.toContainText(fixture.smoke.subjectLabel);
 

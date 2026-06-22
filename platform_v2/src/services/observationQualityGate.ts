@@ -102,6 +102,8 @@ export function hasNativeObservationPhoto(photos: unknown): boolean {
 const PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL = '(smoke[-_]?ui)';
 const PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL =
   '(^|[-_])(dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|test[-_]?fixture)([-_]|$)';
+const PUBLIC_DISCOVERY_FIXTURE_SOURCE_MARKER_PATTERN_SQL =
+  '(^|[-_])(regression[-_]?seed|regression[-_]?fixture|staging[-_]?fixture|staging[-_]?regression)([-_]|$)';
 
 function cleanQualityText(value: unknown): string {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
@@ -132,6 +134,11 @@ export const PUBLIC_OBSERVATION_QUALITY_SQL = `
      where public_quality_user.user_id = v.user_id
        and coalesce(public_quality_user.display_name, '') ~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
   )
+`;
+
+export const PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL = `
+  coalesce(v.source_payload->>'source', '') !~* '${PUBLIC_DISCOVERY_FIXTURE_SOURCE_MARKER_PATTERN_SQL}'
+  and nullif(coalesce(v.source_payload->>'fixture_prefix', v.source_payload->>'fixturePrefix', ''), '') is null
 `;
 
 const PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL =

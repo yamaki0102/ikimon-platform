@@ -396,6 +396,39 @@ test("landing top renders signed-in own and community posts as thumbnail content
   assert.match(html, /ナナホシテントウ/);
   assert.match(html, /テスト観察者/);
   assert.match(html, /別の観察者/);
+  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<small>4月8日 · 浜松市<\/small>/);
+  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<small>浜松市<\/small>/);
+});
+
+test("landing top keeps guide and scan outputs out of the photo-first content wall", () => {
+  const scanObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-scan",
+    visitId: "visit-scan",
+    displayName: "スキャンだけの候補",
+    photoUrl: "/uploads/scan-output.jpg",
+    librarySourceKind: "scan",
+  };
+  const guideObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-guide",
+    visitId: "visit-guide",
+    displayName: "ガイドだけの候補",
+    photoUrl: "/uploads/guide-output.jpg",
+    librarySourceKind: "guide",
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: "user-1",
+    myFeed: [scanObservation, { ...photoObservation, observerAvatarUrl: "/uploads/my-avatar.jpg" }],
+    feed: [guideObservation, alternatePhotoObservation],
+  });
+
+  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?モンシロチョウ/);
+  assert.doesNotMatch(html, /スキャンだけの候補/);
+  assert.doesNotMatch(html, /ガイドだけの候補/);
+  assert.doesNotMatch(html, /scan-output/);
+  assert.doesNotMatch(html, /guide-output/);
 });
 
 test("landing top gives signed-in own and community posts two desktop rows each", () => {

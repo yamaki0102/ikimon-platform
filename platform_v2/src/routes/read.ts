@@ -95,6 +95,7 @@ import {
   type VisibleRecordItem,
 } from "../services/observationSceneReadModel.js";
 import { buildPublicMapCellHref } from "../services/publicLocation.js";
+import { getMapObservations } from "../services/mapSnapshot.js";
 import {
   getHomeSnapshot,
   getObservationDetailSnapshot,
@@ -2223,6 +2224,22 @@ function stateCard(eyebrow: string, title: string, body: string): string {
       <div style="margin-top:8px;color:#475569;line-height:1.7">${body}</div>
     </div>
   </section>`;
+}
+
+async function findPublicMapObservationRecord(id: string): Promise<Awaited<ReturnType<typeof getMapObservations>>["items"][number] | null> {
+  const raw = String(id ?? "").trim();
+  if (!raw) return null;
+  const normalizedVisitId = raw.match(/^occ:(.+):\d+$/)?.[1] ?? raw;
+  const world = await getMapObservations({
+    bbox: [-180, -90, 180, 90],
+    zoom: 4,
+    limit: 1200,
+  }).catch(() => null);
+  return world?.items.find((item) =>
+    item.visitId === normalizedVisitId ||
+    item.occurrenceId === raw ||
+    item.occurrenceId === id,
+  ) ?? null;
 }
 
 type RankedSubject = SiblingSubject & {
@@ -12029,6 +12046,11 @@ function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
   return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
 }
 
+function recordsPostMemoryLine(options: { locationMode: "owner" | "public" }, dateLabel: string, placeLine: string): string {
+  if (options.locationMode !== "owner") return "";
+  return `<span class="records-post-memory-line">${escapeHtml([dateLabel, placeLine].filter(Boolean).join(" · "))}</span>`;
+}
+
 function renderRecordsPostCard(
   basePath: string,
   lang: SiteLang,
@@ -12056,7 +12078,10 @@ function renderRecordsPostCard(
     card.identificationCount > 0 || card.entryType === "identification" ? "identified" : "needs-id",
   ].join(" ");
   const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
-  const metaLine = `${observerLine}${placeLine} · ${dateLabel}`;
+  const metaLine = options.locationMode === "owner"
+    ? [sourceLabel, civicLabel].filter(Boolean).join(" · ")
+    : `${observerLine}${placeLine} · ${dateLabel}`;
+  const memoryLine = recordsPostMemoryLine(options, dateLabel, placeLine);
   const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
   const identifyActionLabel = lang === "ja" ? "同定する" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify";
   const identifyAction = view === "needs_id" && card.postNeedsId
@@ -12096,6 +12121,7 @@ function renderRecordsPostCard(
           <strong>${escapeHtml(displayName)}</strong>
           ${recordsPostSubjectsHtml(card)}
         </span>
+        ${memoryLine}
         <span class="records-post-meta">${escapeHtml(metaLine)}</span>
         ${identifyAction}
       </span>
@@ -13406,6 +13432,17 @@ const RECORDS_WORKBENCH_STYLES = `
     line-height: 1;
     font-style: normal;
     font-weight: 950;
+  }
+  .records-post-memory-line {
+    min-width: 0;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 900;
   }
   .records-post-meta {
     min-width: 0;
@@ -18406,15 +18443,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? '<div class="record-upload-feedback"><strong>次のヒント</strong><span>' + escapeHtmlText(uploadFeedback) + '</span></div>'
                 : '';
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
+              const profileHref = withBasePath('/profile');
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
               const successHeading = isMediaRetrySubmit ? 'メディアを保存しました。' : '記録を保存しました。';
-              setStatus('<div class="row"><div><strong>' + successHeading + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>' + successHeading + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + profileHref + '" data-record-success-cta="profile">マイページへ</a> · <a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div><div class="meta">記録を見るから、自分の記録一覧をすぐ見返せます。</div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['observation_detail', 'revisit_same_place', 'notes'].concat(contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
+                successCtas: ['profile', 'notes', 'observation_detail', 'revisit_same_place'].concat(contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
                 contributionReceiptCount: contributionReceipts.length,
                 contributionReceiptKinds,
               });
@@ -19706,6 +19744,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const requestedSubjectId = request.query.subject ?? request.query.occurrence ?? null;
     const bundle = await getObservationVisitBundle(request.params.id, requestedSubjectId);
     if (!bundle) {
+      const mapRecord = await findPublicMapObservationRecord(request.params.id);
+      if (mapRecord) {
+        reply.type("text/html; charset=utf-8");
+        return layout(
+          basePath,
+          "記録を準備中 | ikimon",
+          stateCard(
+            "保存済み",
+            "記録は残っています。詳細表示を準備しています",
+            `${mapRecord.displayName} / ${mapRecord.localityLabel} / ${mapRecord.observedAt}。マップには反映済みです。少し時間をおいても開けない場合は、マイページの記録一覧から確認してください。`,
+          ),
+          "みつける",
+        );
+      }
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
@@ -19719,6 +19771,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const snapshot = await getObservationDetailSnapshot(bundle.canonicalSubjectId, { viewerUserId });
     if (!snapshot) {
+      const mapRecord = await findPublicMapObservationRecord(bundle.visitId);
+      if (mapRecord) {
+        reply.type("text/html; charset=utf-8");
+        return layout(
+          basePath,
+          "記録を準備中 | ikimon",
+          stateCard(
+            "保存済み",
+            "記録は残っています。詳細表示を準備しています",
+            `${mapRecord.displayName} / ${mapRecord.localityLabel} / ${mapRecord.observedAt}。マップには反映済みです。少し時間をおいても開けない場合は、マイページの記録一覧から確認してください。`,
+          ),
+          "みつける",
+        );
+      }
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
