@@ -5045,6 +5045,18 @@ type RecordFormCopy = {
   submitPanelHelpMedia: string;
   submitPanelHelpNote: string;
   submitPanelHelpEmpty: string;
+  prepublishChecklistTitle: string;
+  prepublishPrivateLabel: string;
+  prepublishPrivateBody: string;
+  prepublishPublicLabel: string;
+  prepublishLocationLabel: string;
+  prepublishLocationSet: string;
+  prepublishLocationUnset: string;
+  prepublishMediaLabel: string;
+  prepublishMediaPhoto: string;
+  prepublishMediaVideo: string;
+  prepublishMediaNote: string;
+  prepublishMediaEmpty: string;
   publicStateTitle: string;
   publicStateIdle: string;
   publicStatePhotoCandidate: string;
@@ -5500,6 +5512,18 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "日時と地点を確認して記録として保存します。周囲・音・動き・気づきはあとで足せます。",
       submitPanelHelpNote: "写真なしの記録として保存します。あとで写真を足せます。",
       submitPanelHelpEmpty: "写真を選ぶと、ここから保存できます。",
+      prepublishChecklistTitle: "保存前チェック",
+      prepublishPrivateLabel: "自分用",
+      prepublishPrivateBody: "日時、正確な地点、メモは自分の記録として残ります。",
+      prepublishPublicLabel: "公開側",
+      prepublishLocationLabel: "位置",
+      prepublishLocationSet: "公開地図は広い表示です。正確な地点ピンは出しません。",
+      prepublishLocationUnset: "地点未指定でも保存できます。あとで場所を足せます。",
+      prepublishMediaLabel: "添付",
+      prepublishMediaPhoto: "写真は公開候補になります。GPS情報や写り込みを確認してください。",
+      prepublishMediaVideo: "動画は処理後に公開候補になります。処理中は自分の記録です。",
+      prepublishMediaNote: "メモだけの記録は自分用に保存され、公開カードは確認待ちです。",
+      prepublishMediaEmpty: "写真・動画・メモを入れると保存前チェックが更新されます。",
       publicStateTitle: "公開状態",
       publicStateIdle: "写真・動画・メモを選ぶと、保存後の公開候補か確認待ちかをここに表示します。",
       publicStatePhotoCandidate: "写真つきの記録は公開候補として保存されます。公開地図は広い表示ですが、写真GPSや写り込みは確認してください。",
@@ -5673,6 +5697,18 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "Check time and place, then save. Names and notes can come later.",
       submitPanelHelpNote: "Save this as a note without a photo. You can add a photo later.",
       submitPanelHelpEmpty: "Choose a photo or note to save from here.",
+      prepublishChecklistTitle: "Before saving",
+      prepublishPrivateLabel: "Yours",
+      prepublishPrivateBody: "Time, exact place, and notes stay in your own record.",
+      prepublishPublicLabel: "Public side",
+      prepublishLocationLabel: "Place",
+      prepublishLocationSet: "The public map uses a broad view. Exact pins are not shown.",
+      prepublishLocationUnset: "You can save without a place and add it later.",
+      prepublishMediaLabel: "Attachment",
+      prepublishMediaPhoto: "Photos become public candidates. Check GPS metadata and visible clues.",
+      prepublishMediaVideo: "Videos become public candidates after processing. While processing, they stay yours.",
+      prepublishMediaNote: "Note-only records are saved to yours and wait before becoming public cards.",
+      prepublishMediaEmpty: "Choose a photo, video, or note to update this check.",
       publicStateTitle: "Public state",
       publicStateIdle: "Choose a photo, video, or note to see whether this will be a public candidate or waiting for review.",
       publicStatePhotoCandidate: "Photo records are saved as public candidates. Public maps use a broad view, but check photo GPS metadata and visible clues.",
@@ -5846,6 +5882,18 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "Revisa hora y lugar, luego guarda. El nombre y las notas pueden venir despues.",
       submitPanelHelpNote: "Guarda esto como nota sin foto. Puedes agregar una foto despues.",
       submitPanelHelpEmpty: "Elige una foto o nota para guardar desde aqui.",
+      prepublishChecklistTitle: "Antes de guardar",
+      prepublishPrivateLabel: "Para ti",
+      prepublishPrivateBody: "Hora, lugar exacto y notas quedan en tu propio registro.",
+      prepublishPublicLabel: "Lado publico",
+      prepublishLocationLabel: "Lugar",
+      prepublishLocationSet: "El mapa publico usa vista amplia. No muestra pines exactos.",
+      prepublishLocationUnset: "Puedes guardar sin lugar y agregarlo despues.",
+      prepublishMediaLabel: "Adjunto",
+      prepublishMediaPhoto: "Las fotos pasan a candidato publico. Revisa GPS y pistas visibles.",
+      prepublishMediaVideo: "Los videos pasan a candidato publico despues del proceso. Mientras tanto son tuyos.",
+      prepublishMediaNote: "Las notas solas se guardan para ti y esperan antes de ser tarjetas publicas.",
+      prepublishMediaEmpty: "Elige foto, video o nota para actualizar esta revision.",
       publicStateTitle: "Estado publico",
       publicStateIdle: "Elige foto, video o nota para ver si sera candidato publico o quedara en revision.",
       publicStatePhotoCandidate: "Los registros con foto se guardan como candidatos publicos. El mapa publico usa vista amplia, pero revisa GPS de foto y pistas visibles.",
@@ -6019,6 +6067,18 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitPanelHelpMedia: "Confira horario e local, depois salve. Nome e notas podem vir depois.",
       submitPanelHelpNote: "Salve isto como nota sem foto. Voce pode adicionar foto depois.",
       submitPanelHelpEmpty: "Escolha uma foto ou nota para salvar daqui.",
+      prepublishChecklistTitle: "Antes de salvar",
+      prepublishPrivateLabel: "Seu registro",
+      prepublishPrivateBody: "Horario, local exato e notas ficam no seu proprio registro.",
+      prepublishPublicLabel: "Lado publico",
+      prepublishLocationLabel: "Local",
+      prepublishLocationSet: "O mapa publico usa vista ampla. Pinos exatos nao aparecem.",
+      prepublishLocationUnset: "Voce pode salvar sem local e adicionar depois.",
+      prepublishMediaLabel: "Anexo",
+      prepublishMediaPhoto: "Fotos viram candidatas publicas. Confira GPS e pistas visiveis.",
+      prepublishMediaVideo: "Videos viram candidatos publicos depois do processamento. Enquanto isso ficam seus.",
+      prepublishMediaNote: "Notas sem midia ficam no seu registro e aguardam antes de virar cartoes publicos.",
+      prepublishMediaEmpty: "Escolha foto, video ou nota para atualizar esta checagem.",
       publicStateTitle: "Estado publico",
       publicStateIdle: "Escolha foto, video ou nota para ver se sera candidato publico ou aguardara revisao.",
       publicStatePhotoCandidate: "Registros com foto sao salvos como candidatos publicos. O mapa publico usa vista ampla, mas confira GPS da foto e pistas visiveis.",
@@ -14447,6 +14507,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <span class="record-label">${escapeHtml(recordForm.publicStateTitle)}</span>
                 <strong id="record-public-state-label">${escapeHtml(recordForm.publicStateTitle)}</strong>
                 <p id="record-public-state-help">${escapeHtml(recordForm.publicStateIdle)}</p>
+                <div id="record-prepublish-checklist" class="record-prepublish-checklist" aria-label="${escapeHtml(recordForm.prepublishChecklistTitle)}">
+                  <div class="record-prepublish-checklist-head">
+                    <span class="record-label">${escapeHtml(recordForm.prepublishChecklistTitle)}</span>
+                  </div>
+                  <div class="record-prepublish-item is-private">
+                    <b>${escapeHtml(recordForm.prepublishPrivateLabel)}</b>
+                    <span>${escapeHtml(recordForm.prepublishPrivateBody)}</span>
+                  </div>
+                  <div class="record-prepublish-item" data-prepublish-item="public">
+                    <b>${escapeHtml(recordForm.prepublishPublicLabel)}</b>
+                    <span id="record-prepublish-public">${escapeHtml(recordForm.publicStateIdle)}</span>
+                  </div>
+                  <div class="record-prepublish-item" data-prepublish-item="location">
+                    <b>${escapeHtml(recordForm.prepublishLocationLabel)}</b>
+                    <span id="record-prepublish-location">${escapeHtml(recordForm.prepublishLocationUnset)}</span>
+                  </div>
+                  <div class="record-prepublish-item" data-prepublish-item="media">
+                    <b>${escapeHtml(recordForm.prepublishMediaLabel)}</b>
+                    <span id="record-prepublish-media">${escapeHtml(recordForm.prepublishMediaEmpty)}</span>
+                  </div>
+                </div>
               </div>
               <div id="record-video-primary-photo" class="record-video-primary-photo" hidden>
                 <div>
@@ -14928,6 +15009,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const publicState = document.getElementById('record-public-state');
         const publicStateLabel = document.getElementById('record-public-state-label');
         const publicStateHelp = document.getElementById('record-public-state-help');
+        const prepublishChecklist = document.getElementById('record-prepublish-checklist');
+        const prepublishPublic = document.getElementById('record-prepublish-public');
+        const prepublishLocation = document.getElementById('record-prepublish-location');
+        const prepublishMedia = document.getElementById('record-prepublish-media');
         const submitDockMeta = document.getElementById('record-submit-dock-meta');
         const nextLookForInput = form ? form.querySelector('[data-next-look-for]') : null;
         const seasonClueButtons = form ? Array.from(form.querySelectorAll('[data-season-clue]')) : [];
@@ -15016,6 +15101,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           submitPanelHelpMedia: ${JSON.stringify(recordForm.submitPanelHelpMedia)},
           submitPanelHelpNote: ${JSON.stringify(recordForm.submitPanelHelpNote)},
           submitPanelHelpEmpty: ${JSON.stringify(recordForm.submitPanelHelpEmpty)},
+          prepublishLocationSet: ${JSON.stringify(recordForm.prepublishLocationSet)},
+          prepublishLocationUnset: ${JSON.stringify(recordForm.prepublishLocationUnset)},
+          prepublishMediaPhoto: ${JSON.stringify(recordForm.prepublishMediaPhoto)},
+          prepublishMediaVideo: ${JSON.stringify(recordForm.prepublishMediaVideo)},
+          prepublishMediaNote: ${JSON.stringify(recordForm.prepublishMediaNote)},
+          prepublishMediaEmpty: ${JSON.stringify(recordForm.prepublishMediaEmpty)},
           publicStateTitle: ${JSON.stringify(recordForm.publicStateTitle)},
           publicStateIdle: ${JSON.stringify(recordForm.publicStateIdle)},
           publicStatePhotoCandidate: ${JSON.stringify(recordForm.publicStatePhotoCandidate)},
@@ -15580,6 +15671,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           return { state: 'idle', label: recordUiCopy.publicStateTitle, body: recordUiCopy.publicStateIdle };
         };
 
+        const buildRecordPrepublishMediaText = () => {
+          const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
+          const hasVideo = selectedVideoFile instanceof File && isVideoFile(selectedVideoFile);
+          if (photoCount > 0) return recordUiCopy.prepublishMediaPhoto;
+          if (hasVideo) return recordUiCopy.prepublishMediaVideo;
+          if (hasNoteDraft()) return recordUiCopy.prepublishMediaNote;
+          return recordUiCopy.prepublishMediaEmpty;
+        };
+
         const syncRecordPublicState = () => {
           if (!publicState) return;
           const draft = buildRecordPublicStateDraft();
@@ -15587,6 +15687,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           publicState.setAttribute('data-public-state', draft.state);
           if (publicStateLabel) publicStateLabel.textContent = draft.label;
           if (publicStateHelp) publicStateHelp.textContent = draft.body;
+          const hasLocation = Boolean(readCoords());
+          if (prepublishChecklist) prepublishChecklist.setAttribute('data-public-state', draft.state);
+          if (prepublishPublic) prepublishPublic.textContent = draft.body;
+          if (prepublishLocation) {
+            prepublishLocation.textContent = hasLocation
+              ? recordUiCopy.prepublishLocationSet
+              : recordUiCopy.prepublishLocationUnset;
+            const locationItem = prepublishLocation.closest('[data-prepublish-item="location"]');
+            if (locationItem) locationItem.setAttribute('data-prepublish-ready', hasLocation ? '1' : '0');
+          }
+          if (prepublishMedia) prepublishMedia.textContent = buildRecordPrepublishMediaText();
         };
 
         const publicStateSuccessKind = (observation) => {
@@ -18752,6 +18863,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-public-state[data-public-state="review"] { background: #fff7ed; border-color: rgba(234,88,12,.22); }
         .record-public-state strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; }
         .record-public-state p { margin: 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 780; }
+        .record-prepublish-checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+        .record-prepublish-checklist-head { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
+        .record-prepublish-item { min-width: 0; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); display: grid; gap: 4px; align-content: start; }
+        .record-prepublish-item.is-private { background: rgba(236,253,245,.88); border-color: rgba(16,185,129,.18); }
+        .record-prepublish-item[data-prepublish-ready="0"] { background: rgba(255,251,235,.9); border-color: rgba(245,158,11,.22); }
+        .record-prepublish-item b { color: #0f172a; font-size: 11px; line-height: 1.25; font-weight: 950; }
+        .record-prepublish-item span { color: #475569; font-size: 11px; line-height: 1.48; font-weight: 760; overflow-wrap: anywhere; }
         .record-success-privacy { margin-top: 8px; padding: 9px 11px; border-radius: 12px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); color: #065f46; font-size: 12px; line-height: 1.55; font-weight: 850; }
         .record-success-public-state { margin-top: 8px; padding: 9px 11px; border-radius: 12px; background: #fff7ed; border: 1px solid rgba(234,88,12,.22); display: grid; gap: 3px; }
         .record-success-public-state[data-public-state="candidate"] { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
@@ -18966,6 +19084,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-location-privacy-head span { max-width: none; text-align: left; }
           .record-location-privacy-grid { grid-template-columns: 1fr; }
           .record-location-privacy-item { min-height: auto; }
+          .record-prepublish-checklist { grid-template-columns: 1fr; }
           .record-place-search { grid-template-columns: 1fr; }
           .record-location-map { min-height: 220px; }
           .record-submit-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 42; display: grid; grid-template-columns: minmax(0, .65fr) minmax(0, .95fr) minmax(0, 1.1fr); gap: 8px; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.96); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); }
