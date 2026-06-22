@@ -49,6 +49,7 @@ const corePaths = [
   "/guide",
   "/login",
   "/record",
+  "/records",
   "/register",
   "/map",
   "/profile",
@@ -58,6 +59,7 @@ const corePaths = [
   "/ja/guide",
   "/ja/login",
   "/ja/record",
+  "/ja/records",
   "/ja/register",
   "/ja/map",
   "/ja/profile",
@@ -70,6 +72,7 @@ const corePaths = [
   "/en/profile/settings",
   "/en/register",
   "/en/record",
+  "/en/records",
   "/es/",
   "/es/guide",
   "/es/login",
@@ -78,6 +81,7 @@ const corePaths = [
   "/es/profile/settings",
   "/es/register",
   "/es/record",
+  "/es/records",
   "/pt-br/",
   "/pt-br/guide",
   "/pt-br/login",
@@ -85,7 +89,8 @@ const corePaths = [
   "/pt-br/profile",
   "/pt-br/profile/settings",
   "/pt-br/register",
-  "/pt-br/record"
+  "/pt-br/record",
+  "/pt-br/records"
 ];
 const staticAssetPaths = ["/app-sw.js"];
 
@@ -103,7 +108,7 @@ function renderUrlForPath(pathname) {
     const segment = localizedMatch[1];
     const rest = localizedMatch[2] || "/";
     const lang = segment === "pt-br" ? "pt-BR" : segment;
-    if (["/", "/guide", "/login", "/map", "/profile", "/profile/settings", "/record", "/register"].includes(rest)) {
+    if (["/", "/guide", "/login", "/map", "/profile", "/profile/settings", "/record", "/records", "/register"].includes(rest)) {
       return `${rest}?lang=${encodeURIComponent(lang)}`;
     }
   }
