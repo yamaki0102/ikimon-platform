@@ -157,11 +157,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /自分の記録へすぐ戻る/);
   assert.match(html, /href="\/ja\/profile"/);
   assert.match(html, /href="\/ja\/records\?view=mine"/);
-  assert.match(html, /class="me-map-momentum"/);
-  assert.match(html, /記録が地域の図鑑を育てています/);
-  assert.match(html, /投稿が増えるほど、地図に季節や場所の手がかりが重なります。/);
-  assert.match(html, /data-kpi-action="map:momentum_record"/);
-  assert.match(html, /data-kpi-action="map:momentum_mine"/);
+  assert.doesNotMatch(html, /class="me-map-momentum"/);
+  assert.doesNotMatch(html, /記録が地域の図鑑を育てています/);
+  assert.doesNotMatch(html, /投稿が増えるほど、地図に季節や場所の手がかりが重なります。/);
+  assert.doesNotMatch(html, /data-kpi-action="map:momentum_/);
   assert.match(html, /ここは、これから育つ場所です/);
   assert.match(html, /記録は地域単位で集計しています/);
   assert.doesNotMatch(html, /余白 = これから育つ場所/);
@@ -171,9 +170,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="places"/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" data-tab="rain">雨雲</);
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers"/);
-  assert.match(styles, /\.me-map-momentum \{[\s\S]*left: calc\(var\(--me-side-w\) \+ 18px\);/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map-momentum \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 10px\);/);
-  assert.match(styles, /\.me-rain-mode \.me-map-momentum \{ display: none; \}/);
+  assert.doesNotMatch(styles, /\.me-map-momentum/);
   assert.match(script, /tab: 'places'/);
   assert.match(script, /PURPOSE_HINT_STORAGE_KEY = 'ikimon-map-purpose-hint-v1'/);
   assert.match(script, /function canShowPurposeHint\(\)/);
