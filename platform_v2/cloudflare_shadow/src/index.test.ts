@@ -4500,7 +4500,11 @@ test("production original UI html serves localized auth and guest profile shells
 
     const queryRecords = await worker.fetch(new Request("https://ikimon.life/records?lang=en"), productionEnv);
     assert.equal(queryRecords.status, 200);
-    assert.equal(await queryRecords.text(), "<!doctype html><title>Records | ikimon</title><script>beforeinstallprompt</script>");
+    const queryRecordsBody = await queryRecords.text();
+    assert.match(queryRecordsBody, /Records \| ikimon/);
+    assert.match(queryRecordsBody, /data-cloudflare-records-live/);
+    assert.match(queryRecordsBody, /No recent public records yet/);
+    assert.match(queryRecordsBody, /beforeinstallprompt/);
     assert.equal(queryRecords.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     assert.equal(fallbackCalls, 0);
@@ -4508,6 +4512,43 @@ test("production original UI html serves localized auth and guest profile shells
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("production records materialized html includes recent Cloudflare D1 records", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><body><main><h1>記録を見る</h1></main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "record-live-materialized",
+    userId: "records-user",
+    observedAt: "2026-06-22T09:38:45.358Z",
+    latitude: 34.81234,
+    longitude: 137.73234,
+    taxon: { vernacularName: "最近の投稿テスト", rank: "species" }
+  });
+  await post("/api/v1/observations/record-live-materialized/photos/upload", env, {
+    filename: "records.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("records-image").toString("base64")
+  });
+  await worker.queue({ messages: env.MEDIA_QUEUE.messages.map((body) => ({ body: body as any })) }, env);
+
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/records"), productionEnv);
+  const body = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(body, /data-cloudflare-records-live/);
+  assert.match(body, /最近の投稿テスト/);
+  assert.match(body, /record-live-materialized/);
+  assert.match(body, /\/derived\/.+\/display\.webp/);
+  assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 });
 
 test("production app refresh page serves materialized reset shell from R2", async () => {
