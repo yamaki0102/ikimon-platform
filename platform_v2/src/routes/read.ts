@@ -18447,7 +18447,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
               const successHeading = isMediaRetrySubmit ? 'メディアを保存しました。' : '記録を保存しました。';
-              setStatus('<div class="row"><div><strong>' + successHeading + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + profileHref + '" data-record-success-cta="profile">マイページへ</a> · <a href="' + notesHref + '" data-record-success-cta="notes">自分の記録一覧</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>' + successHeading + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + profileHref + '" data-record-success-cta="profile">マイページへ</a> · <a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div><div class="meta">記録を見るから、自分の記録一覧をすぐ見返せます。</div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
