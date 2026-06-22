@@ -266,8 +266,10 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /state\.tab === 'rain'/);
   assert.match(script, /if \(!state\.rainEnabled \|\| state\.tab !== 'rain'\) return;/);
   assert.match(script, /function syncRainModeClass\(\)/);
+  assert.match(script, /function isRainInteractionMode\(\)/);
+  assert.match(script, /function checkRainTap\(lngLat\)/);
   assert.match(script, /function shouldKeepMapClearForRain\(\)/);
-  assert.match(script, /function shouldKeepMapClearForRain\(\) \{\s+return false;/);
+  assert.match(script, /return isRainInteractionMode\(\) && shouldUseBottomSheet\(\);/);
   assert.match(script, /if \(shouldKeepMapClearForRain\(\)\) \{\s+closeBottomSheet\(\);\s+return;\s+\}/);
   assert.match(script, /if \(visible && state\.tab === 'rain'\) \{\s+visible = false;/);
   assert.match(script, /if \(state\.tab === 'rain'\) \{\s+closeBottomSheet\(\);\s+setMapEmptyInviteVisible\(false\);\s+hideLayerHint\(\);\s+enableRainLayer\(\);/);
@@ -291,7 +293,8 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /rainIndeterminate/);
   assert.match(script, /rainLocationFallback/);
   assert.match(script, /function checkRainAt\(lng, lat\)/);
-  assert.match(script, /if \(state\.rainEnabled && e\.lngLat\) checkRainAt\(Number\(e\.lngLat\.lng\), Number\(e\.lngLat\.lat\)\);/);
+  assert.match(script, /if \(isRainInteractionMode\(\) && checkRainTap\(e\.lngLat\)\) return;/);
+  assert.match(script, /if \(isRainInteractionMode\(\) && checkRainTap\(center\)\) return;/);
   assert.match(script, /canvas\.getContext\('2d', \{ willReadFrequently: true \}\)/);
   assert.match(script, /hasRain === null/);
   assert.doesNotMatch(html, /www\.jma\.go\.jp\/bosai\/jmatile/);
