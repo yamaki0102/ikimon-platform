@@ -113,6 +113,22 @@ const MAP_FIXTURE_RECORDS = {
     },
   },
 };
+const MAP_FIXTURE_OWN_OBSERVATIONS = {
+  signedIn: true,
+  items: [
+    {
+      occurrenceId: "qa-own-map-fixture-001",
+      visitId: "qa-own-map-fixture-visit-001",
+      displayName: "自分の記録ピン",
+      localityLabel: "自分だけに表示",
+      observedAt: "2026-06-11T09:00:00.000Z",
+      latitude: 34.72191,
+      longitude: 137.85892,
+      photoUrl: "/thumb/sm/qa-own-map-fixture-001.jpg",
+      taxonGroup: "insect",
+    },
+  ],
+};
 const MAP_FIXTURE_RAIN_TIMES: RainNowcastTimesPayload = {
   tileUrlTemplate: "/api/v1/weather/jma-nowcast/tile?product={product}&member={member}&basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}",
   times: [
@@ -161,6 +177,12 @@ async function installDeterministicMapApiFixtures(page: Page): Promise<void> {
       },
     });
   });
+  await page.route("**/api/v1/map/my-observations**", async (route) => {
+    await fulfillJson(route, MAP_FIXTURE_OWN_OBSERVATIONS);
+  });
+  await page.route("**/api/v1/me/map-observations**", async (route) => {
+    await fulfillJson(route, MAP_FIXTURE_OWN_OBSERVATIONS);
+  });
   await page.route("**/api/v1/map/frontier**", async (route) => {
     await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
   });
@@ -204,6 +226,12 @@ async function installEmptyMapApiFixtures(page: Page): Promise<void> {
       },
     });
   });
+  await page.route("**/api/v1/map/my-observations**", async (route) => {
+    await fulfillJson(route, { signedIn: false, items: [] });
+  });
+  await page.route("**/api/v1/me/map-observations**", async (route) => {
+    await fulfillJson(route, { signedIn: false, items: [] });
+  });
   await page.route("**/api/v1/map/frontier**", async (route) => {
     await fulfillJson(route, EMPTY_FEATURE_COLLECTION);
   });
@@ -235,7 +263,9 @@ type RainNowcastTimesPayload = {
   tileUrlTemplate?: string;
   times?: Array<{
     basetime: string;
+    member?: string;
     offsetMinutes: number;
+    product?: string;
     validtime: string;
   }>;
 };
@@ -323,6 +353,8 @@ async function expectLiveRainNowcastGate(page: Page): Promise<void> {
   const sample = payload.times?.[0];
   if (!sample || !payload.tileUrlTemplate) throw new Error("missing nowcast tile sample");
   const tilePath = payload.tileUrlTemplate
+    .replace("{product}", sample.product || "nowcast")
+    .replace("{member}", sample.member || "none")
     .replace("{basetime}", sample.basetime)
     .replace("{validtime}", sample.validtime)
     .replace("{z}", "5")
@@ -634,6 +666,44 @@ test("mobile rain map taps keep focus on the rain layer instead of opening a pla
   await context.close();
 });
 
+test("signed-in owner observations render as private photo markers and stay out of rain mode", async ({ browser }) => {
+  const context = await newStagingContext(browser, MAP_VIEWPORTS[0], { serviceWorkers: "block" });
+  const page = await context.newPage();
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, DEFAULT_STAGING_MAP_PATH, false);
+
+  const root = page.locator("#map-explorer");
+  await expect(root).toHaveAttribute("data-own-observations-fetch", "signed-in");
+  await expect(root).toHaveAttribute("data-own-observation-record-count", "1");
+  await expect(root).toHaveAttribute("data-own-observation-marker-count", "1");
+  await expect(page.locator(".me-map-privacy-strip")).toContainText("自分だけに表示");
+  await expect(page.locator(".me-map-privacy-strip")).toContainText("みんなの写真は場所をぼかして表示");
+
+  const trail = page.locator("#me-own-trail");
+  await expect(trail).toBeVisible();
+  await expect(trail).toContainText("自分の撮影");
+  await expect(page.locator('[data-own-trail-id="qa-own-map-fixture-001"]')).toBeVisible();
+  await expect(page.locator('[data-own-trail-id="qa-own-map-fixture-001"] img')).toBeVisible();
+
+  const marker = page.locator('.me-own-observation-marker[data-own-observation-ids="qa-own-map-fixture-001"]');
+  await expect(marker).toBeVisible();
+  await expect(marker).toHaveClass(/me-my-photo-marker/);
+  await expect(marker).toContainText("自分の記録ピン");
+  await expect(marker.locator("img")).toHaveAttribute("src", /\/thumb\/sm\/qa-own-map-fixture-001\.jpg/);
+  await expect(marker).toHaveAttribute("href", /\/observations\/qa-own-map-fixture-001/);
+
+  await page.locator('.me-tab[data-tab="rain"]').click();
+  await expect(page.locator('.me-tab[data-tab="rain"]')).toHaveAttribute("aria-selected", "true");
+  await expect.poll(
+    async () => page.locator(".me-own-observation-marker").count(),
+    { timeout: 10_000 },
+  ).toBe(0);
+  await expect(trail).toBeHidden();
+
+  await context.close();
+});
+
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
@@ -671,7 +741,7 @@ for (const profile of MAP_VIEWPORTS) {
     await installEmptyMapApiFixtures(page);
     await waitForMapEmptyState(page, DEFAULT_STAGING_MAP_PATH);
 
-    await expect(page.locator(".me-results-empty")).toContainText("近くの記録を探せます");
+    await expect(page.locator(".me-results-empty")).toContainText("少し広げると近くの記録が見え");
     await expect(page.locator("#me-empty-invite [data-results-empty-areas]")).toBeVisible();
     await expect(page.locator("#me-empty-invite [data-results-empty-widen]")).toBeVisible();
     await expect(page.locator("#me-empty-invite [data-kpi-action='map:results_empty_record']")).toHaveAttribute("href", /\/record/);
