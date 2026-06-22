@@ -5078,6 +5078,7 @@ type RecordFormCopy = {
   successProfileCta: string;
   successRecordsCta: string;
   successObservationCta: string;
+  successMapCta: string;
   successRevisitCta: string;
   successRecordsHelp: string;
   coordinateSummary: string;
@@ -5532,6 +5533,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "マイページへ",
       successRecordsCta: "自分の記録を見る",
       successObservationCta: "見つけたものを確認する",
+      successMapCta: "周辺の地図を見る",
       successRevisitCta: "同じ場所でもう1件記録する",
       successRecordsHelp: "自分の記録一覧から、投稿した記録をすぐ見返せます。",
       coordinateSummary: "座標を直接編集",
@@ -5704,6 +5706,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "My page",
       successRecordsCta: "View my records",
       successObservationCta: "Check what you found",
+      successMapCta: "View nearby map",
       successRevisitCta: "Record this place again",
       successRecordsHelp: "Your records list lets you return to this saved record right away.",
       coordinateSummary: "Edit coordinates directly",
@@ -5876,6 +5879,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "Mi pagina",
       successRecordsCta: "Ver mis registros",
       successObservationCta: "Revisar lo encontrado",
+      successMapCta: "Ver mapa cercano",
       successRevisitCta: "Registrar este lugar otra vez",
       successRecordsHelp: "Tu lista de registros te permite volver enseguida al registro guardado.",
       coordinateSummary: "Editar coordenadas directamente",
@@ -6048,6 +6052,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successProfileCta: "Minha pagina",
       successRecordsCta: "Ver meus registros",
       successObservationCta: "Conferir o que encontrei",
+      successMapCta: "Ver mapa proximo",
       successRevisitCta: "Registrar este lugar de novo",
       successRecordsHelp: "Sua lista de registros permite voltar rapidamente ao registro salvo.",
       coordinateSummary: "Editar coordenadas diretamente",
@@ -15030,6 +15035,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           successProfileCta: ${JSON.stringify(recordForm.successProfileCta)},
           successRecordsCta: ${JSON.stringify(recordForm.successRecordsCta)},
           successObservationCta: ${JSON.stringify(recordForm.successObservationCta)},
+          successMapCta: ${JSON.stringify(recordForm.successMapCta)},
           successRevisitCta: ${JSON.stringify(recordForm.successRevisitCta)},
           successRecordsHelp: ${JSON.stringify(recordForm.successRecordsHelp)},
         };
@@ -15045,6 +15051,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const setStatus = (html) => {
           if (status) status.innerHTML = html;
+        };
+        const scrollStatusIntoView = () => {
+          if (!status) return;
+          window.requestAnimationFrame(() => {
+            const target = status.querySelector('.record-success-return') || status;
+            if (target && typeof target.scrollIntoView === 'function') {
+              target.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'smooth' });
+            }
+          });
         };
         const recordKpiEndpoint = withBasePath('/api/v1/ui-kpi/events');
         const recordKpiStartedAt = Date.now();
@@ -15574,19 +15589,39 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (publicStateHelp) publicStateHelp.textContent = draft.body;
         };
 
-        const buildPublicStateSuccessHtml = (observation) => {
+        const publicStateSuccessKind = (observation) => {
           const publicVisibility = String(observation && observation.publicVisibility || '');
           const qualityReviewStatus = String(observation && observation.qualityReviewStatus || '');
-          let body = recordUiCopy.publicStateSuccessReview;
-          let state = 'review';
-          if (publicVisibility === 'hidden') {
-            body = recordUiCopy.publicStateSuccessHidden;
-            state = 'hidden';
-          } else if (publicVisibility === 'public' && qualityReviewStatus === 'accepted') {
-            body = recordUiCopy.publicStateSuccessCandidate;
-            state = 'candidate';
-          }
+          if (publicVisibility === 'hidden') return 'hidden';
+          if (publicVisibility === 'public' && qualityReviewStatus === 'accepted') return 'candidate';
+          return 'review';
+        };
+
+        const buildPublicStateSuccessHtml = (observation) => {
+          const state = publicStateSuccessKind(observation);
+          const body = state === 'hidden'
+            ? recordUiCopy.publicStateSuccessHidden
+            : state === 'candidate'
+              ? recordUiCopy.publicStateSuccessCandidate
+              : recordUiCopy.publicStateSuccessReview;
           return '<div class="record-success-public-state" data-public-state="' + escapeHtmlText(state) + '"><strong>' + escapeHtmlText(recordUiCopy.publicStateTitle) + '</strong><span>' + escapeHtmlText(body) + '</span></div>';
+        };
+
+        const buildRecordSuccessReturnHtml = (options) => {
+          const links = [
+            { href: options.notesHref, key: 'notes', label: recordUiCopy.successRecordsCta, primary: true },
+            { href: options.profileHref, key: 'profile', label: recordUiCopy.successProfileCta, primary: false },
+            { href: options.observationHref, key: 'observation_detail', label: recordUiCopy.successObservationCta, primary: false },
+            { href: options.mapHref, key: 'map_nearby', label: recordUiCopy.successMapCta, primary: false },
+            { href: options.revisitHref, key: 'revisit_same_place', label: recordUiCopy.successRevisitCta, primary: false },
+          ].filter((link) => link.href);
+          return '<div class="record-success-return" data-success-return-state="' + escapeHtmlText(options.state || 'review') + '">' +
+            '<strong>' + escapeHtmlText(options.heading) + '</strong>' +
+            '<span>' + escapeHtmlText(recordUiCopy.successRecordsHelp) + '</span>' +
+            '<div class="record-success-actions">' + links.map((link) =>
+              '<a class="' + (link.primary ? 'is-primary' : '') + '" href="' + escapeHtmlText(link.href) + '" data-record-success-cta="' + escapeHtmlText(link.key) + '">' + escapeHtmlText(link.label) + '</a>'
+            ).join('') + '</div>' +
+          '</div>';
         };
 
         const syncSubmitCta = () => {
@@ -18478,12 +18513,24 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const notesHref = recordSuccessRecordsHref;
               const revisitHref = recordSuccessRevisitHrefPrefix + encodeURIComponent(visitId);
               const successHeading = isMediaRetrySubmit ? recordUiCopy.successMediaHeading : recordUiCopy.successHeading;
-              setStatus('<div class="row"><div><strong>' + escapeHtmlText(successHeading) + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + escapeHtmlText(profileHref) + '" data-record-success-cta="profile">' + escapeHtmlText(recordUiCopy.successProfileCta) + '</a> · <a href="' + escapeHtmlText(notesHref) + '" data-record-success-cta="notes">' + escapeHtmlText(recordUiCopy.successRecordsCta) + '</a> · <a href="' + escapeHtmlText(observationHref) + '" data-record-success-cta="observation_detail">' + escapeHtmlText(recordUiCopy.successObservationCta) + '</a> · <a href="' + escapeHtmlText(revisitHref) + '" data-record-success-cta="revisit_same_place">' + escapeHtmlText(recordUiCopy.successRevisitCta) + '</a></div><div class="meta">' + escapeHtmlText(recordUiCopy.successRecordsHelp) + '</div></div></div>');
+              const successReturnState = publicStateSuccessKind(observationJson || {});
+              const mapHref = successReturnState === 'hidden' ? '' : withBasePath('/map?tab=places');
+              const recordReturnHtml = buildRecordSuccessReturnHtml({
+                state: successReturnState,
+                heading: successHeading,
+                profileHref,
+                notesHref,
+                observationHref,
+                mapHref,
+                revisitHref,
+              });
+              setStatus('<div class="row"><div>' + recordReturnHtml + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '</div></div>');
+              scrollStatusIntoView();
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['profile', 'notes', 'observation_detail', 'revisit_same_place'].concat(contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
+                successCtas: ['notes', 'profile', 'observation_detail'].concat(mapHref ? ['map_nearby'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
                 contributionReceiptCount: contributionReceipts.length,
                 contributionReceiptKinds,
               });
@@ -18854,6 +18901,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-video-publication-help a { color: #0369a1; text-decoration: underline; text-underline-offset: 3px; font-weight: 950; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
         .record-status-inline { grid-column: 1 / -1; margin: 14px 0 0 16px; }
+        .record-success-return { scroll-margin-top: 92px; margin: 0 0 10px; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); border: 1px solid rgba(16,185,129,.24); display: grid; gap: 8px; }
+        .record-success-return strong { color: #064e3b; font-size: 15px; line-height: 1.35; font-weight: 950; }
+        .record-success-return span { color: #334155; font-size: 13px; line-height: 1.65; font-weight: 780; }
+        .record-success-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+        .record-success-actions a { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 10px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; font-size: 12.5px; line-height: 1.2; font-weight: 950; text-align: center; overflow-wrap: anywhere; }
+        .record-success-actions a.is-primary { background: #059669; border-color: #059669; color: #fff; }
         .record-upload-feedback { margin: 10px 0 8px; padding: 12px 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); display: grid; gap: 4px; }
         .record-upload-feedback strong { color: #065f46; font-size: 12px; line-height: 1.35; }
         .record-upload-feedback span { color: #0f172a; font-size: 13px; line-height: 1.7; font-weight: 750; }
@@ -18895,6 +18948,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-page { padding-bottom: 104px; }
           .record-has-media .record-page { padding-bottom: 118px; }
           .record-has-media .hero-panel { display: none; }
+          .record-success-actions { grid-template-columns: 1fr; }
           .record-card { padding: 20px; border-radius: 24px; }
           .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
           .record-capture-photo-primary { grid-column: 1 / -1; }
