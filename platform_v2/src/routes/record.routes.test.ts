@@ -156,10 +156,13 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /const scrollStatusIntoView = \(\) =>/);
         assert.match(response.body, /scrollStatusIntoView\(\);/);
         assert.match(response.body, /buildRecordSuccessReturnHtml/);
+        assert.match(response.body, /buildRecordSuccessSavedCardHtml/);
         assert.match(response.body, /publicStateSuccessKind/);
         assert.match(response.body, /record-success-return/);
+        assert.match(response.body, /record-success-saved-card/);
         assert.match(response.body, /record-success-actions/);
         assert.match(response.body, /data-record-success-cta/);
+        assert.match(response.body, /data-record-success-cta="saved_record_card"/);
         assert.match(response.body, /key: 'observation_detail', label: recordUiCopy\.successObservationCta, primary: true/);
         assert.match(response.body, /key: 'notes', label: recordUiCopy\.successRecordsCta, primary: !hasObservationHref/);
         assert.match(response.body, /key: 'profile', label: recordUiCopy\.successProfileCta, primary: false/);
@@ -176,6 +179,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /contributionReceiptKinds/);
         assert.match(response.body, /contributionReceiptCount/);
         assert.match(response.body, /contribution_receipt_/);
+        assert.match(response.body, /successCtas: \['observation_detail', 'saved_record_card', 'notes', 'profile'\]/);
         assert.match(response.body, /record_submit_error/);
         assert.match(response.body, /photo_upload_error/);
         assert.match(response.body, /video_upload_error/);
@@ -266,6 +270,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /successProfileCta: "マイページへ"/);
         assert.match(response.body, /successRecordsCta: "自分の記録を見る"/);
         assert.match(response.body, /保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも見返せます/);
+        assert.match(response.body, /successSavedCardEyebrow: "保存済みの1件"/);
+        assert.match(response.body, /successSavedCardFallbackTitle: "対象を整理中の記録"/);
         assert.match(response.body, /buildPublicStateSuccessHtml/);
         assert.match(response.body, /qualityReviewStatus/);
         assert.match(response.body, /recordUiCopy\.publicStatePhotoCandidate/);
@@ -412,6 +418,8 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /successRecordsCta: "View my records"/);
         assert.match(response.body, /successMapCta: "View nearby map"/);
         assert.match(response.body, /Open the saved record right away. You can also return from your records list or My page later/);
+        assert.match(response.body, /successSavedCardEyebrow: "Saved record"/);
+        assert.match(response.body, /successSavedCardFallbackTitle: "Record still being organized"/);
         assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
         assert.doesNotMatch(response.body, /<h2>写真で記録する<\/h2>/);
         assert.doesNotMatch(response.body, /写真を撮るか選ぶだけで始められます/);
