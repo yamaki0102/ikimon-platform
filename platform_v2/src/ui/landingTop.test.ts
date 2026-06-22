@@ -481,6 +481,53 @@ test("landing top keeps signed-in fallback records split by owner", () => {
   assert.doesNotMatch(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?自分のfallback記録/);
 });
 
+test("landing top does not show contentless own records in the first signed-in lane", () => {
+  const contentlessOwnObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-contentless-own",
+    visitId: "visit-contentless-own",
+    displayName: "同定待ち",
+    observerUserId: "user-1",
+    observerName: "テスト観察者",
+    photoUrl: null,
+    photoUrls: [],
+    photoCount: 0,
+    placeName: "",
+    municipality: null,
+    publicLocation: {
+      label: "",
+      scope: "blurred",
+      cellId: null,
+      gridM: null,
+      radiusM: null,
+      centroidLat: null,
+      centroidLng: null,
+      displayMode: "area",
+    },
+    identificationCount: 0,
+    librarySourceKind: "note",
+  };
+  const namedOwnObservation: LandingObservation = {
+    ...contentlessOwnObservation,
+    occurrenceId: "occ-named-own",
+    visitId: "visit-named-own",
+    displayName: "朝の水音メモ",
+    observedAt: "2026-04-09T09:00:00.000Z",
+  };
+
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: "user-1",
+    myFeed: [contentlessOwnObservation, namedOwnObservation],
+    feed: [],
+  });
+
+  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?朝の水音メモ/);
+  assert.doesNotMatch(html, /visit-contentless-own/);
+  assert.doesNotMatch(html, /occ-contentless-own/);
+  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 1);
+});
+
 test("landing top groups multiple occurrences from the same visit into one content card", () => {
   const sameVisitSecondOccurrence: LandingObservation = {
     ...photoObservation,

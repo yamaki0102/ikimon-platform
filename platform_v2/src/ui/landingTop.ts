@@ -118,6 +118,30 @@ function displayObservationName(obs: LandingObservation | null | undefined, fall
   return obs?.displayName || obs?.aiCandidateName || fallback;
 }
 
+function hasSpecificLandingContentName(obs: LandingObservation): boolean {
+  const name = displayObservationName(obs, "").trim().toLowerCase();
+  if (!name) return false;
+  return ![
+    "同定待ち",
+    "未同定",
+    "発見",
+    "記録",
+    "小さな発見",
+    "awaiting id",
+    "unresolved",
+    "unknown",
+    "find",
+    "record",
+    "observation",
+  ].includes(name);
+}
+
+function isReturnableOwnLandingContent(obs: LandingObservation): boolean {
+  if (Boolean(obs.photoUrl || obs.mediaUrl || obs.hasVideo)) return true;
+  if (observationPlaceLabel(obs).trim()) return true;
+  return hasSpecificLandingContentName(obs);
+}
+
 function displayLandingItemName(item: LandingTopShelfItem | null | undefined, fallback: string): string {
   if (!item) return fallback;
   if (isLandingObservationItem(item)) return displayObservationName(item, fallback);
@@ -527,14 +551,17 @@ function compareLandingContentSubjects(a: LandingContentWallSubject, b: LandingC
 }
 
 function landingContentWallItems(snapshot: LandingSnapshot, source: LandingContentWallItem["contentSource"]): LandingContentWallItem[] {
-  const items = (source === "mine"
+  const baseItems = source === "mine"
     ? (snapshot.myFeed.length > 0
       ? snapshot.myFeed
       : snapshot.feed.filter((obs) => snapshot.viewerUserId && obs.observerUserId === snapshot.viewerUserId)
     ).map((obs) => ({ ...obs, contentSource: "mine" as const }))
     : snapshot.feed
       .filter((obs) => !snapshot.viewerUserId || obs.observerUserId !== snapshot.viewerUserId)
-      .map((obs) => ({ ...obs, contentSource: "community" as const }))
+      .map((obs) => ({ ...obs, contentSource: "community" as const }));
+  const items = (source === "mine"
+    ? baseItems.filter(isReturnableOwnLandingContent)
+    : baseItems
   ).sort((a, b) => landingObservationTimestamp(b).localeCompare(landingObservationTimestamp(a)));
   const counts = new Map<string, number>();
   const subjectsByKey = new Map<string, LandingContentWallSubject[]>();
