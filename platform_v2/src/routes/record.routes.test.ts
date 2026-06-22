@@ -249,6 +249,14 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.doesNotMatch(response.body, /現在地を入れると、あとで同じ場所を見返しやすくなります。/);
         assert.match(response.body, /id="record-location-privacy"/);
         assert.match(response.body, /id="record-public-state"/);
+        assert.match(response.body, /id="record-prepublish-checklist"/);
+        assert.match(response.body, /保存前チェック/);
+        assert.match(response.body, /自分用/);
+        assert.match(response.body, /公開側/);
+        assert.match(response.body, /id="record-prepublish-location"/);
+        assert.match(response.body, /id="record-prepublish-media"/);
+        assert.match(response.body, /recordUiCopy\.prepublishMediaPhoto/);
+        assert.match(response.body, /prepublishLocationSet/);
         assert.match(response.body, /公開状態/);
         assert.match(response.body, /公開候補として保存しました/);
         assert.match(response.body, /recordSuccessProfileHref = "\/ja\/profile"/);
