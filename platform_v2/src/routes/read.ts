@@ -5044,6 +5044,8 @@ type RecordFormCopy = {
   submitPanelTitle: string;
   submitPanelHelpMedia: string;
   submitPanelHelpNote: string;
+  submitPanelHelpNoteUnknown: string;
+  submitPanelHelpNoteNoDetection: string;
   submitPanelHelpEmpty: string;
   prepublishChecklistTitle: string;
   prepublishPrivateLabel: string;
@@ -5138,6 +5140,9 @@ type RecordFormCopy = {
   submitDockSave: string;
   locationSelected: string;
   mediaNoteOnly: string;
+  mediaNoteFound: string;
+  mediaNoteUnknown: string;
+  mediaNoteNoDetection: string;
   mediaLocationMissing: string;
   recordRoleTitle: string;
   recordRoleHelp: string;
@@ -5324,12 +5329,12 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       activeNav: "記録",
       footerNote: "いつもの道で見つけた自然を、あとで対象ごとの記録や観察レコードへ育てられる形に残す。",
       heading: "記録する",
-      lead: "写真・動画・音声・場所・時刻・メモをまとめて1件の記録として保存します。名前や対象の切り分けはあとからで大丈夫です。",
+      lead: "写真・動画・場所・時刻・聞こえた音のメモを、1件の記録として保存します。名前や対象の切り分けはあとからで大丈夫です。",
       sessionLabel: "ログイン中",
       captureAria: "記録の始め方",
       photoTitle: "写真で記録する",
       photoSub: "撮る / 選ぶ",
-      noteTitle: "メモだけ残す",
+      noteTitle: "音や様子をメモ",
       noteSub: "写真なし",
       videoTitle: "動画で残す",
       videoSub: "最大60秒",
@@ -5361,7 +5366,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       firstSuccessLabel: "最短で残す",
       firstSuccessItems: ["写真かメモを選ぶ", "気づきを1つ入れる", "保存して見返す"],
       captureLabels: {
-        note: { title: "メモだけ残す", help: "写真なしでも、場所・時間・ひとことで記録を残せます。" },
+        note: { title: "音や様子をメモ", help: "写真なしでも、聞こえた音・周囲の様子・場所を残せます。" },
         photo: { title: "写真で記録する", help: "撮った写真、または端末上の写真を記録に添付します。" },
         video: { title: "動画で記録する", help: "動画を選ぶと、長さ・地点・公開までの状態を順番に案内します。" },
         gallery: { title: "ファイルを選ぶ", help: "撮影済みの写真または動画を記録に添付します。" },
@@ -5371,13 +5376,13 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       title: "Record | ikimon",
       activeNav: "Record",
       footerNote: "Save nearby nature in a form you can revisit later.",
-      heading: "Record with photo",
-      lead: "Take or choose a photo first. The extra fields appear only after that.",
+      heading: "Record",
+      lead: "Start with a photo, video, place, time, or a note about what you heard. Names and subjects can come later.",
       sessionLabel: "Signed in",
       captureAria: "Ways to start a record",
       photoTitle: "Record with photo",
       photoSub: "Take / choose",
-      noteTitle: "Leave a note",
+      noteTitle: "Sound or scene note",
       noteSub: "No photo",
       videoTitle: "Record video",
       videoSub: "Up to 60 sec",
@@ -5409,7 +5414,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       firstSuccessLabel: "Fast path",
       firstSuccessItems: ["Choose photo or note", "Add one clue", "Save and revisit"],
       captureLabels: {
-        note: { title: "Leave a note", help: "Record place, time, and a short note even without a photo." },
+        note: { title: "Sound or scene note", help: "Write what you heard, the surrounding scene, and the place even without a photo." },
         photo: { title: "Record with photo", help: "Attach a new photo or a photo from this device." },
         video: { title: "Record video", help: "After choosing a video, we guide length, place, and publishing status." },
         gallery: { title: "Choose files", help: "Attach saved photos or videos to this record." },
@@ -5419,13 +5424,13 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       title: "Registrar | ikimon",
       activeNav: "Registro",
       footerNote: "Guarda la naturaleza cercana para volver a verla despues.",
-      heading: "Registrar con foto",
-      lead: "Toma o elige una foto primero. Los campos extra aparecen despues.",
+      heading: "Registrar",
+      lead: "Empieza con foto, video, lugar, hora o una nota sobre lo que oiste. El nombre y el sujeto pueden venir despues.",
       sessionLabel: "Sesion iniciada",
       captureAria: "Formas de empezar un registro",
       photoTitle: "Registrar con foto",
       photoSub: "Tomar / elegir",
-      noteTitle: "Dejar nota",
+      noteTitle: "Nota de sonido o escena",
       noteSub: "Sin foto",
       videoTitle: "Registrar video",
       videoSub: "Hasta 60 s",
@@ -5457,7 +5462,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       firstSuccessLabel: "Ruta rapida",
       firstSuccessItems: ["Foto o nota", "Una pista", "Guardar y volver"],
       captureLabels: {
-        note: { title: "Dejar nota", help: "Registra lugar, hora y una nota corta aunque no haya foto." },
+        note: { title: "Nota de sonido o escena", help: "Anota lo que oiste, la escena alrededor y el lugar aunque no haya foto." },
         photo: { title: "Registrar con foto", help: "Adjunta una foto nueva o una foto del dispositivo." },
         video: { title: "Registrar video", help: "Despues de elegir video, guiamos duracion, lugar y estado de publicacion." },
         gallery: { title: "Elegir archivos", help: "Adjunta fotos o videos guardados a este registro." },
@@ -5467,13 +5472,13 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       title: "Registrar | ikimon",
       activeNav: "Registrar",
       footerNote: "Salve a natureza por perto para rever depois.",
-      heading: "Registrar com foto",
-      lead: "Tire ou escolha uma foto primeiro. Os campos extras aparecem depois.",
+      heading: "Registrar",
+      lead: "Comece com foto, video, local, horario ou uma nota sobre o que voce ouviu. Nome e tema podem vir depois.",
       sessionLabel: "Conectado",
       captureAria: "Formas de comecar um registro",
       photoTitle: "Registrar com foto",
       photoSub: "Tirar / escolher",
-      noteTitle: "Deixar nota",
+      noteTitle: "Nota de som ou cena",
       noteSub: "Sem foto",
       videoTitle: "Registrar video",
       videoSub: "Ate 60 s",
@@ -5505,7 +5510,7 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       firstSuccessLabel: "Caminho rapido",
       firstSuccessItems: ["Foto ou nota", "Uma pista", "Salvar e rever"],
       captureLabels: {
-        note: { title: "Deixar nota", help: "Registre local, horario e uma nota curta mesmo sem foto." },
+        note: { title: "Nota de som ou cena", help: "Anote o que ouviu, a cena ao redor e o local mesmo sem foto." },
         photo: { title: "Registrar com foto", help: "Anexe uma foto nova ou uma foto deste dispositivo." },
         video: { title: "Registrar video", help: "Depois de escolher video, guiamos duracao, local e status de publicacao." },
         gallery: { title: "Escolher arquivos", help: "Anexe fotos ou videos salvos a este registro." },
@@ -5521,7 +5526,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "送信前チェック",
       submitPanelTitle: "メディア未選択",
       submitPanelHelpMedia: "日時と地点を確認して記録として保存します。周囲・音・動き・気づきはあとで足せます。",
-      submitPanelHelpNote: "写真なしの記録として保存します。あとで写真を足せます。",
+      submitPanelHelpNote: "写真なしでも、このまま保存できます。あとで写真や名前を足せます。",
+      submitPanelHelpNoteUnknown: "名前が分からなくても保存できます。写真はあとで足せます。",
+      submitPanelHelpNoteNoDetection: "見つからなかったことを保存できます。次に同じ場所で比べやすくなります。",
       submitPanelHelpEmpty: "写真を選ぶと、ここから保存できます。",
       prepublishChecklistTitle: "保存前チェック",
       prepublishPrivateLabel: "自分用",
@@ -5587,7 +5594,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       coordinatePlaceholder: "自動取得 or 手入力",
       laterSummary: "あとで補完する項目",
       localityNoteLabel: "場所のメモ",
-      localityNotePlaceholder: "例: 公園の入口付近 / 水辺の柵のそば",
+      localityNotePlaceholder: "例: 公園の入口付近 / 水辺の柵のそば / 鳥の声 / 草刈り直後",
       mediaRoleLabel: "このメディアの役割",
       mediaRolePrimaryTitle: "主役",
       mediaRolePrimaryBody: "この記録の中心",
@@ -5616,6 +5623,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "保存",
       locationSelected: "記録の地点を指定済み",
       mediaNoteOnly: "メモのみ",
+      mediaNoteFound: "音や様子のメモを保存",
+      mediaNoteUnknown: "名前はあとで保存",
+      mediaNoteNoDetection: "見つからなかった記録",
       mediaLocationMissing: "地点未指定",
       recordRoleTitle: "この記録の役割",
       recordRoleHelp: "目的と役割を軽く残すと、あとで定点比較・授業・管理記録に束ねやすくなります。",
@@ -5721,7 +5731,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "Before saving",
       submitPanelTitle: "No media selected",
       submitPanelHelpMedia: "Check time and place, then save. Names and notes can come later.",
-      submitPanelHelpNote: "Save this as a note without a photo. You can add a photo later.",
+      submitPanelHelpNote: "You can save this without a photo. Add photos or names later.",
+      submitPanelHelpNoteUnknown: "Save it even before you know the name. Add a photo later.",
+      submitPanelHelpNoteNoDetection: "Save that you did not find it today, so the same place is easier to compare next time.",
       submitPanelHelpEmpty: "Choose a photo or note to save from here.",
       prepublishChecklistTitle: "Before saving",
       prepublishPrivateLabel: "Yours",
@@ -5787,7 +5799,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       coordinatePlaceholder: "Auto or manual",
       laterSummary: "Fields you can complete later",
       localityNoteLabel: "Place note",
-      localityNotePlaceholder: "Example: near the park entrance / by the waterside fence",
+      localityNotePlaceholder: "Example: near the park entrance / by the waterside fence / bird call / just after mowing",
       mediaRoleLabel: "Role of this media",
       mediaRolePrimaryTitle: "Main subject",
       mediaRolePrimaryBody: "Center of this record",
@@ -5816,6 +5828,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "Save",
       locationSelected: "Place set",
       mediaNoteOnly: "Note only",
+      mediaNoteFound: "Save sound/scene note",
+      mediaNoteUnknown: "Save name later",
+      mediaNoteNoDetection: "Not-found record",
       mediaLocationMissing: "Place missing",
       recordRoleTitle: "Role of this record",
       recordRoleHelp: "A light purpose and role make it easier to reuse later for revisits, classes, or management notes.",
@@ -5921,7 +5936,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "Antes de guardar",
       submitPanelTitle: "Sin medio elegido",
       submitPanelHelpMedia: "Revisa hora y lugar, luego guarda. El nombre y las notas pueden venir despues.",
-      submitPanelHelpNote: "Guarda esto como nota sin foto. Puedes agregar una foto despues.",
+      submitPanelHelpNote: "Puedes guardarlo sin foto. Agrega fotos o nombres despues.",
+      submitPanelHelpNoteUnknown: "Guardalo aunque todavia no sepas el nombre. Puedes agregar foto despues.",
+      submitPanelHelpNoteNoDetection: "Guarda que hoy no lo encontraste para comparar mejor este lugar la proxima vez.",
       submitPanelHelpEmpty: "Elige una foto o nota para guardar desde aqui.",
       prepublishChecklistTitle: "Antes de guardar",
       prepublishPrivateLabel: "Para ti",
@@ -5987,7 +6004,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       coordinatePlaceholder: "Automatico o manual",
       laterSummary: "Campos que puedes completar despues",
       localityNoteLabel: "Nota del lugar",
-      localityNotePlaceholder: "Ejemplo: cerca de la entrada del parque / junto al agua",
+      localityNotePlaceholder: "Ejemplo: cerca de la entrada del parque / junto al agua / canto de ave / despues de cortar pasto",
       mediaRoleLabel: "Rol de este medio",
       mediaRolePrimaryTitle: "Sujeto principal",
       mediaRolePrimaryBody: "Centro de este registro",
@@ -6016,6 +6033,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "Guardar",
       locationSelected: "Lugar definido",
       mediaNoteOnly: "Solo nota",
+      mediaNoteFound: "Guardar nota de sonido o escena",
+      mediaNoteUnknown: "Guardar nombre despues",
+      mediaNoteNoDetection: "Registro sin hallazgo",
       mediaLocationMissing: "Falta lugar",
       recordRoleTitle: "Rol de este registro",
       recordRoleHelp: "Un proposito y rol ligeros ayudan a reutilizarlo despues para visitas, clases o gestion.",
@@ -6121,7 +6141,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       preSubmitLabel: "Antes de salvar",
       submitPanelTitle: "Nenhuma midia selecionada",
       submitPanelHelpMedia: "Confira horario e local, depois salve. Nome e notas podem vir depois.",
-      submitPanelHelpNote: "Salve isto como nota sem foto. Voce pode adicionar foto depois.",
+      submitPanelHelpNote: "Voce pode salvar sem foto. Adicione fotos ou nomes depois.",
+      submitPanelHelpNoteUnknown: "Salve mesmo antes de saber o nome. A foto pode vir depois.",
+      submitPanelHelpNoteNoDetection: "Salve que hoje nao encontrou para comparar melhor este local na proxima vez.",
       submitPanelHelpEmpty: "Escolha uma foto ou nota para salvar daqui.",
       prepublishChecklistTitle: "Antes de salvar",
       prepublishPrivateLabel: "Seu registro",
@@ -6187,7 +6209,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       coordinatePlaceholder: "Automatico ou manual",
       laterSummary: "Campos que voce pode completar depois",
       localityNoteLabel: "Nota do local",
-      localityNotePlaceholder: "Exemplo: perto da entrada do parque / junto a agua",
+      localityNotePlaceholder: "Exemplo: perto da entrada do parque / junto a agua / canto de ave / logo apos cortar grama",
       mediaRoleLabel: "Papel desta midia",
       mediaRolePrimaryTitle: "Tema principal",
       mediaRolePrimaryBody: "Centro deste registro",
@@ -6216,6 +6238,9 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       submitDockSave: "Salvar",
       locationSelected: "Local definido",
       mediaNoteOnly: "Somente nota",
+      mediaNoteFound: "Salvar nota de som ou cena",
+      mediaNoteUnknown: "Salvar nome depois",
+      mediaNoteNoDetection: "Registro sem achado",
       mediaLocationMissing: "Falta local",
       recordRoleTitle: "Papel deste registro",
       recordRoleHelp: "Um proposito e papel simples ajudam a reutilizar depois em revisitas, aulas ou gestao.",
@@ -15378,6 +15403,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           locationSelected: ${JSON.stringify(recordForm.locationSelected)},
           submitPanelHelpMedia: ${JSON.stringify(recordForm.submitPanelHelpMedia)},
           submitPanelHelpNote: ${JSON.stringify(recordForm.submitPanelHelpNote)},
+          submitPanelHelpNoteUnknown: ${JSON.stringify(recordForm.submitPanelHelpNoteUnknown)},
+          submitPanelHelpNoteNoDetection: ${JSON.stringify(recordForm.submitPanelHelpNoteNoDetection)},
           submitPanelHelpEmpty: ${JSON.stringify(recordForm.submitPanelHelpEmpty)},
           prepublishLocationSet: ${JSON.stringify(recordForm.prepublishLocationSet)},
           prepublishLocationUnset: ${JSON.stringify(recordForm.prepublishLocationUnset)},
@@ -15395,6 +15422,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           publicStateSuccessHidden: ${JSON.stringify(recordForm.publicStateSuccessHidden)},
           submitDockMeta: ${JSON.stringify(recordForm.submitDockMeta)},
           mediaNoteOnly: ${JSON.stringify(recordForm.mediaNoteOnly)},
+          mediaNoteFound: ${JSON.stringify(recordForm.mediaNoteFound)},
+          mediaNoteUnknown: ${JSON.stringify(recordForm.mediaNoteUnknown)},
+          mediaNoteNoDetection: ${JSON.stringify(recordForm.mediaNoteNoDetection)},
           mediaLocationMissing: ${JSON.stringify(recordForm.mediaLocationMissing)},
           locationPrivacyPreviewUnset: ${JSON.stringify(recordForm.locationPrivacyPreviewUnset)},
           locationPrivacyPreviewSet: ${JSON.stringify(recordForm.locationPrivacyPreviewSet)},
@@ -15546,7 +15576,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         if (quickCaptureStateField && quickCaptureStateField.addEventListener) {
           quickCaptureStateField.addEventListener('change', () => {
             syncQuickCaptureStateChips();
+            renderPreviewSelection();
             syncPreview();
+            syncSubmitCta();
             scheduleRecordDraftAutosave('quick_capture_state_select');
           });
         }
@@ -15855,6 +15887,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             quickCaptureStateField.value = state === 'unknown' ? 'unknown' : 'present';
           }
           syncQuickCaptureStateChips();
+          renderPreviewSelection();
           syncPreview();
           syncSubmitCta();
           scheduleRecordDraftAutosave('quick_capture_state');
@@ -15975,12 +16008,29 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           return '';
         };
+        const currentQuickCaptureState = () => {
+          if (!form) return 'present';
+          const field = form.elements.namedItem('quickCaptureState');
+          return field && 'value' in field ? String(field.value || 'present') : 'present';
+        };
+        const noteOnlySummaryText = () => {
+          const state = currentQuickCaptureState();
+          if (state === 'unknown') return recordUiCopy.mediaNoteUnknown;
+          if (state === 'no_detection_note') return recordUiCopy.mediaNoteNoDetection;
+          return recordUiCopy.mediaNoteFound || recordUiCopy.mediaNoteOnly;
+        };
+        const noteOnlySubmitHelp = () => {
+          const state = currentQuickCaptureState();
+          if (state === 'unknown') return recordUiCopy.submitPanelHelpNoteUnknown;
+          if (state === 'no_detection_note') return recordUiCopy.submitPanelHelpNoteNoDetection;
+          return recordUiCopy.submitPanelHelpNote;
+        };
         const selectedMediaSummaryText = () => {
           const parts = [];
           const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
           if (photoCount > 0) parts.push('写真' + String(photoCount) + '枚');
           if (selectedVideoFile instanceof File) parts.push('動画あり');
-          if (hasNoteDraft() && !hasSelectedMedia()) parts.push(recordUiCopy.mediaNoteOnly);
+          if (hasNoteDraft() && !hasSelectedMedia()) parts.push(noteOnlySummaryText());
           if (coordsMissing()) parts.push(recordUiCopy.mediaLocationMissing);
           return parts.length ? parts.join(' / ') : recordUiCopy.submitDockMeta;
         };
@@ -16101,7 +16151,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             submitPanelHelp.textContent = hasSelectedMedia()
               ? recordUiCopy.submitPanelHelpMedia
               : hasNoteDraft()
-                ? recordUiCopy.submitPanelHelpNote
+                ? noteOnlySubmitHelp()
                 : recordUiCopy.submitPanelHelpEmpty;
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
@@ -17498,7 +17548,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
         };
 
-        const renderPreviewFile = (file) => {
+        const renderPreviewFile = (file, emptyText) => {
           if (!previewPhoto) return;
           if (previewObjectUrl) {
             URL.revokeObjectURL(previewObjectUrl);
@@ -17506,7 +17556,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           if (!file) {
             previewPhoto.className = 'record-preview-photo is-empty';
-            previewPhoto.innerHTML = '写真 / 動画プレビュー';
+            previewPhoto.innerHTML = escapeHtmlText(emptyText || '写真 / 動画プレビュー');
             return;
           }
           if (isVideoFile(file)) {
@@ -17528,7 +17578,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const renderPreviewSelection = () => {
           const files = allSelectedMediaFiles();
           const [first = null] = files;
-          renderPreviewFile(first);
+          renderPreviewFile(first, hasNoteDraft() && !files.length ? noteOnlySummaryText() : '');
           if (previewPhoto && files.length > 1) {
             const badge = document.createElement('span');
             badge.className = 'record-preview-count';
@@ -19161,7 +19211,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-has-media .record-capture-launcher,
         .record-has-media .record-confidence-strip,
         .record-has-media .record-first-success,
-        .record-has-media .record-secondary-links { display: none; }
+        .record-has-media .record-secondary-links,
+        .record-has-media .global-record-launcher { display: none; }
         .record-video-simple #record-video-guide,
         .record-video-simple #record-video-primary-photo,
         .record-video-simple .record-later-details { display: none !important; }

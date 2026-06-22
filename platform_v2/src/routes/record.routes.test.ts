@@ -69,7 +69,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /participantRole/);
         assert.match(response.body, /revisitObservationId/);
         assert.match(response.body, /写真で記録する/);
-        assert.match(response.body, /メモだけ残す/);
+        assert.match(response.body, /音や様子をメモ/);
+        assert.match(response.body, /聞こえた音・周囲の様子・場所を残せます。/);
+        assert.match(response.body, /水辺の柵のそば \/ 鳥の声 \/ 草刈り直後/);
+        assert.doesNotMatch(response.body, /録音して保存/);
+        assert.doesNotMatch(response.body, /音声を録/);
         assert.match(response.body, /動画で残す/);
         assert.match(response.body, /ファイルから選ぶ/);
         assert.match(response.body, /record-confidence-strip/);
@@ -135,6 +139,15 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /let selectedVideoFile = null/);
         assert.match(response.body, /写真' \+ String\(photoCount\) \+ '枚/);
         assert.match(response.body, /id="record-submit-panel"/);
+        assert.match(response.body, /写真なしでも、このまま保存できます。あとで写真や名前を足せます。/);
+        assert.match(response.body, /名前が分からなくても保存できます。写真はあとで足せます。/);
+        assert.match(response.body, /見つからなかったことを保存できます。次に同じ場所で比べやすくなります。/);
+        assert.match(response.body, /音や様子のメモを保存/);
+        assert.match(response.body, /名前はあとで保存/);
+        assert.match(response.body, /見つからなかった記録/);
+        assert.match(response.body, /noteOnlySummaryText/);
+        assert.match(response.body, /noteOnlySubmitHelp/);
+        assert.match(response.body, /renderPreviewFile\(first, hasNoteDraft\(\) && !files\.length \? noteOnlySummaryText\(\) : ''\)/);
         assert.match(response.body, /id="record-unknown-name-strip"/);
         assert.match(response.body, /data-quick-capture-state="present"/);
         assert.match(response.body, /data-quick-capture-state="unknown"/);
@@ -238,6 +251,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /record-video-simple #record-video-guide/);
         assert.match(response.body, /record-video-simple #record-video-primary-photo/);
         assert.match(response.body, /record-video-simple \.record-later-details/);
+        assert.match(response.body, /record-has-media \.global-record-launcher \{ display: none; \}/);
         assert.match(response.body, /const isVideoSimpleMode = \(\) => selectedVideoFile instanceof File && isVideoFile\(selectedVideoFile\) && selectedPhotoFiles\(\)\.length === 0/);
         assert.match(response.body, /videoPrimaryPhotoWrap\) videoPrimaryPhotoWrap\.hidden = !hasVideo \|\| simpleVideo/);
         assert.match(response.body, /classList\.toggle\('record-video-simple', isVideoSimpleMode\(\)\)/);
@@ -393,7 +407,7 @@ test("record route honors English language prefix for logged-in recording", asyn
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /<html lang="en">/);
-        assert.match(response.body, /Record with photo/);
+        assert.match(response.body, /Record/);
         assert.match(response.body, /Use current location for this record/);
         assert.match(response.body, /If you allow it, we use it to fill in this record&#39;s location\./);
         assert.match(response.body, /Current location is used after you allow it to fill in this record&#39;s location\./);
@@ -411,6 +425,10 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.doesNotMatch(response.body, /Exact coordinates stay off public pages/);
         assert.match(response.body, /Fields you can complete later/);
         assert.match(response.body, /No media selected/);
+        assert.match(response.body, /Save sound\/scene note/);
+        assert.match(response.body, /You can save this without a photo\. Add photos or names later\./);
+        assert.match(response.body, /Sound or scene note/);
+        assert.match(response.body, /Write what you heard, the surrounding scene, and the place even without a photo\./);
         assert.match(response.body, /Save and complete later/);
         assert.match(response.body, /Role of this record/);
         assert.match(response.body, /Today&#39;s purpose/);
