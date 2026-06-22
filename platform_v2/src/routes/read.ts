@@ -5571,7 +5571,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successObservationCta: "見つけたものを確認する",
       successMapCta: "周辺の地図を見る",
       successRevisitCta: "同じ場所でもう1件記録する",
-      successRecordsHelp: "自分の記録一覧から、投稿した記録をすぐ見返せます。",
+      successRecordsHelp: "保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも見返せます。",
       coordinateSummary: "座標を直接編集",
       latitudeLabel: "緯度",
       longitudeLabel: "経度",
@@ -5762,7 +5762,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successObservationCta: "Check what you found",
       successMapCta: "View nearby map",
       successRevisitCta: "Record this place again",
-      successRecordsHelp: "Your records list lets you return to this saved record right away.",
+      successRecordsHelp: "Open the saved record right away. You can also return from your records list or My page later.",
       coordinateSummary: "Edit coordinates directly",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -5953,7 +5953,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successObservationCta: "Revisar lo encontrado",
       successMapCta: "Ver mapa cercano",
       successRevisitCta: "Registrar este lugar otra vez",
-      successRecordsHelp: "Tu lista de registros te permite volver enseguida al registro guardado.",
+      successRecordsHelp: "Abre enseguida el registro guardado. Luego tambien puedes volver desde tu lista o Mi pagina.",
       coordinateSummary: "Editar coordenadas directamente",
       latitudeLabel: "Latitud",
       longitudeLabel: "Longitud",
@@ -6144,7 +6144,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successObservationCta: "Conferir o que encontrei",
       successMapCta: "Ver mapa proximo",
       successRevisitCta: "Registrar este lugar de novo",
-      successRecordsHelp: "Sua lista de registros permite voltar rapidamente ao registro salvo.",
+      successRecordsHelp: "Abra o registro salvo agora. Depois voce tambem pode voltar pela lista ou Minha pagina.",
       coordinateSummary: "Editar coordenadas diretamente",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -15837,10 +15837,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         };
 
         const buildRecordSuccessReturnHtml = (options) => {
+          const hasObservationHref = Boolean(options.observationHref);
           const links = [
-            { href: options.notesHref, key: 'notes', label: recordUiCopy.successRecordsCta, primary: true },
+            { href: options.observationHref, key: 'observation_detail', label: recordUiCopy.successObservationCta, primary: true },
+            { href: options.notesHref, key: 'notes', label: recordUiCopy.successRecordsCta, primary: !hasObservationHref },
             { href: options.profileHref, key: 'profile', label: recordUiCopy.successProfileCta, primary: false },
-            { href: options.observationHref, key: 'observation_detail', label: recordUiCopy.successObservationCta, primary: false },
             { href: options.mapHref, key: 'map_nearby', label: recordUiCopy.successMapCta, primary: false },
             { href: options.revisitHref, key: 'revisit_same_place', label: recordUiCopy.successRevisitCta, primary: false },
           ].filter((link) => link.href);

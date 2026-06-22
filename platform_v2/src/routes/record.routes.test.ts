@@ -160,7 +160,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /record-success-return/);
         assert.match(response.body, /record-success-actions/);
         assert.match(response.body, /data-record-success-cta/);
-        assert.match(response.body, /key: 'notes', label: recordUiCopy\.successRecordsCta, primary: true/);
+        assert.match(response.body, /key: 'observation_detail', label: recordUiCopy\.successObservationCta, primary: true/);
+        assert.match(response.body, /key: 'notes', label: recordUiCopy\.successRecordsCta, primary: !hasObservationHref/);
         assert.match(response.body, /key: 'profile', label: recordUiCopy\.successProfileCta, primary: false/);
         assert.match(response.body, /key: 'map_nearby', label: recordUiCopy\.successMapCta, primary: false/);
         assert.match(response.body, /withBasePath\('\/map\?tab=places'\)/);
@@ -264,7 +265,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/ja\/observations\/"/);
         assert.match(response.body, /successProfileCta: "マイページへ"/);
         assert.match(response.body, /successRecordsCta: "自分の記録を見る"/);
-        assert.match(response.body, /自分の記録一覧から、投稿した記録をすぐ見返せます/);
+        assert.match(response.body, /保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも見返せます/);
         assert.match(response.body, /buildPublicStateSuccessHtml/);
         assert.match(response.body, /qualityReviewStatus/);
         assert.match(response.body, /recordUiCopy\.publicStatePhotoCandidate/);
@@ -410,7 +411,7 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /successProfileCta: "My page"/);
         assert.match(response.body, /successRecordsCta: "View my records"/);
         assert.match(response.body, /successMapCta: "View nearby map"/);
-        assert.match(response.body, /Your records list lets you return to this saved record right away/);
+        assert.match(response.body, /Open the saved record right away. You can also return from your records list or My page later/);
         assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
         assert.doesNotMatch(response.body, /<h2>写真で記録する<\/h2>/);
         assert.doesNotMatch(response.body, /写真を撮るか選ぶだけで始められます/);
