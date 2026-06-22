@@ -5076,6 +5076,13 @@ type RecordFormCopy = {
   locationPrivacyPreviewUnset: string;
   locationPrivacyPreviewSet: string;
   locationPrivacyAfterSave: string;
+  successHeading: string;
+  successMediaHeading: string;
+  successProfileCta: string;
+  successRecordsCta: string;
+  successObservationCta: string;
+  successRevisitCta: string;
+  successRecordsHelp: string;
   coordinateSummary: string;
   latitudeLabel: string;
   longitudeLabel: string;
@@ -5511,6 +5518,13 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacyPreviewUnset: "公開地図は広い表示にします。写真ファイルにGPSが残る場合があります。",
       locationPrivacyPreviewSet: "公開地図は広い表示です。写真のGPS情報や写り込みも確認してください。",
       locationPrivacyAfterSave: "公開地図は広い表示ですが、写真ファイルのGPS情報や写り込みから場所が分かる場合があります。学校・自宅付近・希少種は投稿後も公開状態を確認してください。",
+      successHeading: "記録を保存しました。",
+      successMediaHeading: "メディアを保存しました。",
+      successProfileCta: "マイページへ",
+      successRecordsCta: "自分の記録を見る",
+      successObservationCta: "見つけたものを確認する",
+      successRevisitCta: "同じ場所でもう1件記録する",
+      successRecordsHelp: "自分の記録一覧から、投稿した記録をすぐ見返せます。",
       coordinateSummary: "座標を直接編集",
       latitudeLabel: "緯度",
       longitudeLabel: "経度",
@@ -5676,6 +5690,13 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacyPreviewUnset: "Public maps use a broad view. Photo files may still contain GPS metadata.",
       locationPrivacyPreviewSet: "Public maps use a broad view. Check photo GPS metadata and visible clues too.",
       locationPrivacyAfterSave: "Public maps use a broad view, but photo GPS metadata or visible clues can still reveal a place. Recheck school, home-area, and rare-species records after saving.",
+      successHeading: "Record saved.",
+      successMediaHeading: "Media saved.",
+      successProfileCta: "My page",
+      successRecordsCta: "View my records",
+      successObservationCta: "Check what you found",
+      successRevisitCta: "Record this place again",
+      successRecordsHelp: "Your records list lets you return to this saved record right away.",
       coordinateSummary: "Edit coordinates directly",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -5841,6 +5862,13 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacyPreviewUnset: "El mapa publico usa vista amplia. La foto puede conservar GPS en sus metadatos.",
       locationPrivacyPreviewSet: "El mapa publico usa vista amplia. Revisa tambien GPS de la foto y pistas visibles.",
       locationPrivacyAfterSave: "El mapa publico usa vista amplia, pero el GPS de la foto o pistas visibles pueden revelar el lugar. Revisa registros de escuela, hogar y especies raras despues de guardar.",
+      successHeading: "Registro guardado.",
+      successMediaHeading: "Medio guardado.",
+      successProfileCta: "Mi pagina",
+      successRecordsCta: "Ver mis registros",
+      successObservationCta: "Revisar lo encontrado",
+      successRevisitCta: "Registrar este lugar otra vez",
+      successRecordsHelp: "Tu lista de registros te permite volver enseguida al registro guardado.",
       coordinateSummary: "Editar coordenadas directamente",
       latitudeLabel: "Latitud",
       longitudeLabel: "Longitud",
@@ -6006,6 +6034,13 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacyPreviewUnset: "O mapa publico usa vista ampla. A foto pode manter GPS nos metadados.",
       locationPrivacyPreviewSet: "O mapa publico usa vista ampla. Confira tambem GPS da foto e pistas visiveis.",
       locationPrivacyAfterSave: "O mapa publico usa vista ampla, mas GPS da foto ou pistas visiveis ainda podem revelar o local. Revise registros de escola, casa e especies raras depois de salvar.",
+      successHeading: "Registro salvo.",
+      successMediaHeading: "Midia salva.",
+      successProfileCta: "Minha pagina",
+      successRecordsCta: "Ver meus registros",
+      successObservationCta: "Conferir o que encontrei",
+      successRevisitCta: "Registrar este lugar de novo",
+      successRecordsHelp: "Sua lista de registros permite voltar rapidamente ao registro salvo.",
       coordinateSummary: "Editar coordenadas diretamente",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -14993,7 +15028,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           locationPrivacyPreviewUnset: ${JSON.stringify(recordForm.locationPrivacyPreviewUnset)},
           locationPrivacyPreviewSet: ${JSON.stringify(recordForm.locationPrivacyPreviewSet)},
           locationPrivacyAfterSave: ${JSON.stringify(recordForm.locationPrivacyAfterSave)},
+          successHeading: ${JSON.stringify(recordForm.successHeading)},
+          successMediaHeading: ${JSON.stringify(recordForm.successMediaHeading)},
+          successProfileCta: ${JSON.stringify(recordForm.successProfileCta)},
+          successRecordsCta: ${JSON.stringify(recordForm.successRecordsCta)},
+          successObservationCta: ${JSON.stringify(recordForm.successObservationCta)},
+          successRevisitCta: ${JSON.stringify(recordForm.successRevisitCta)},
+          successRecordsHelp: ${JSON.stringify(recordForm.successRecordsHelp)},
         };
+        const recordSuccessProfileHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/profile"), lang))};
+        const recordSuccessRecordsHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang))};
+        const recordSuccessObservationHrefPrefix = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/observations/"), lang))};
+        const recordSuccessRevisitHrefPrefix = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/record?start=gallery&revisitObservationId="), lang))};
 
         if (observedAt && !observedAt.value) {
           const now = new Date();
@@ -18430,12 +18476,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const uploadFeedbackHtml = uploadFeedback
                 ? '<div class="record-upload-feedback"><strong>次のヒント</strong><span>' + escapeHtmlText(uploadFeedback) + '</span></div>'
                 : '';
-              const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
-              const profileHref = withBasePath('/profile');
-              const notesHref = withBasePath('/records?view=mine');
-              const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              const successHeading = isMediaRetrySubmit ? 'メディアを保存しました。' : '記録を保存しました。';
-              setStatus('<div class="row"><div><strong>' + successHeading + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + profileHref + '" data-record-success-cta="profile">マイページへ</a> · <a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div><div class="meta">記録を見るから、自分の記録一覧をすぐ見返せます。</div></div></div>');
+              const observationHref = recordSuccessObservationHrefPrefix + encodeURIComponent(detailId);
+              const profileHref = recordSuccessProfileHref;
+              const notesHref = recordSuccessRecordsHref;
+              const revisitHref = recordSuccessRevisitHrefPrefix + encodeURIComponent(visitId);
+              const successHeading = isMediaRetrySubmit ? recordUiCopy.successMediaHeading : recordUiCopy.successHeading;
+              setStatus('<div class="row"><div><strong>' + escapeHtmlText(successHeading) + '</strong>' + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + escapeHtmlText(profileHref) + '" data-record-success-cta="profile">' + escapeHtmlText(recordUiCopy.successProfileCta) + '</a> · <a href="' + escapeHtmlText(notesHref) + '" data-record-success-cta="notes">' + escapeHtmlText(recordUiCopy.successRecordsCta) + '</a> · <a href="' + escapeHtmlText(observationHref) + '" data-record-success-cta="observation_detail">' + escapeHtmlText(recordUiCopy.successObservationCta) + '</a> · <a href="' + escapeHtmlText(revisitHref) + '" data-record-success-cta="revisit_same_place">' + escapeHtmlText(recordUiCopy.successRevisitCta) + '</a></div><div class="meta">' + escapeHtmlText(recordUiCopy.successRecordsHelp) + '</div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
