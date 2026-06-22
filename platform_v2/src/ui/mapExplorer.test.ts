@@ -27,6 +27,23 @@ test("approximate school area boundaries get a separate dashed outline layer", (
   assert.match(script, /area-polygon-approximate-outline/);
 });
 
+test("JMA rain layer caps tile zoom at the API-supported max for overzooming", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const rainSourceStart = script.indexOf("state.map.addSource('jma-rain-nowcast'");
+  const rainLayerStart = script.indexOf("state.map.addLayer({", rainSourceStart);
+  const rainSourceScript = script.slice(rainSourceStart, rainLayerStart);
+  const checkRainStart = script.indexOf("function checkRainAt(lng, lat)");
+  const checkRainEnd = script.indexOf("function normalizeAreaSources", checkRainStart);
+  const checkRainScript = script.slice(checkRainStart, checkRainEnd);
+
+  assert.match(script, /var JMA_RAIN_TILE_MAX_ZOOM = 10;/);
+  assert.match(rainSourceScript, /maxzoom: JMA_RAIN_TILE_MAX_ZOOM/);
+  assert.match(rainSourceScript, /tiles: \[rainTileUrl\(entry, '\{z\}', '\{x\}', '\{y\}'\)\]/);
+  assert.match(checkRainScript, /var z = 10;/);
+  assert.match(checkRainScript, /rainTileUrl\(entry, z, tile\.x, tile\.y\)/);
+  assert.doesNotMatch(rainSourceScript, /maxzoom: 22/);
+});
+
 test("collapsed side rail uses a nonnumeric area signal", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });

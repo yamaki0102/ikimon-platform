@@ -626,6 +626,30 @@ test("JMA nowcast staging API exposes times and a sample tile", async ({ browser
   await context.close();
 });
 
+test("rain layer keeps JMA tile zoom capped on high-zoom maps", async ({ browser }) => {
+  const context = await newStagingContext(browser, MAP_VIEWPORTS[0], { serviceWorkers: "block" });
+  const page = await context.newPage();
+  await installMapLibreStubForSmoke(page);
+  await installDeterministicMapApiFixtures(page);
+  await waitForMapShellReady(page, "/map?tab=places&lng=137.8589&lat=34.7219&z=16.2", false);
+  await expectRainNowcastGate(page);
+
+  const rainSource = await page.evaluate(() => {
+    const map = (window as any).__ikimonMapSmokeLastMap;
+    const source = map?.getSource?.("jma-rain-nowcast");
+    return {
+      zoom: Number(map?.getZoom?.()),
+      maxzoom: source?.maxzoom,
+      tiles: Array.isArray(source?.tiles) ? source.tiles : [],
+    };
+  });
+  expect(rainSource.zoom, "smoke map should stay at a high zoom").toBeGreaterThan(16);
+  expect(rainSource.maxzoom, "JMA rain source must cap tile requests at the API-supported zoom").toBe(10);
+  expect(rainSource.tiles.join("\n"), "rain source should use the proxied JMA tile template").toContain("/api/v1/weather/jma-nowcast/tile");
+  expect(rainSource.tiles.join("\n"), "tile template should still let MapLibre overzoom from the capped source").toContain("z={z}");
+  await context.close();
+});
+
 test("mobile rain map taps keep focus on the rain layer instead of opening a place sheet", async ({ browser }) => {
   test.setTimeout(90_000);
   const mobile = MAP_VIEWPORTS.find((profile) => profile.slug === "mobile-390");
