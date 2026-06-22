@@ -239,6 +239,20 @@ test("buildPublicCellRecords suppresses low-count cells in viewport lists", () =
   assert.ok(list.items.every((item) => item.localityLabel === "浜松市"));
 });
 
+test("public map observation id lookup reads the snapshot without aggregate list filtering", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "mapSnapshot.ts"), "utf8");
+  const functionSource = source.slice(
+    source.indexOf("export async function findPublicMapObservationRecordById"),
+    source.indexOf("export type PublicAreaNameCandidate"),
+  );
+
+  assert.match(functionSource, /loadPublicMapSnapshotPayload\(\)/);
+  assert.match(functionSource, /record\.visitId === normalizedVisitId/);
+  assert.match(functionSource, /record\.occurrenceId === raw/);
+  assert.doesNotMatch(functionSource, /buildPublicCellRecords/);
+  assert.match(functionSource, /publicCellKeyForRuntimeRecord\(row, gridM\)/);
+});
+
 test("sensitive redlist records use coarser cells and masked list fields", () => {
   const sensitiveRows = sampleRows().map((row, index) => ({
     ...row,
