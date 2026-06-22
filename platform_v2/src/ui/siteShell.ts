@@ -4790,6 +4790,7 @@ ${alternateLinks}
       top: calc(100% + 9px);
       right: 0;
       width: min(340px, calc(100vw - 28px));
+      max-height: calc(100dvh - 76px);
       padding: 12px;
       border-radius: 20px;
       border: 1px solid rgba(148,163,184,.22);
@@ -4797,6 +4798,9 @@ ${alternateLinks}
       box-shadow: 0 20px 42px rgba(15,23,42,.16);
       display: grid;
       gap: 12px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     }
     .site-mobile-menu-directory {
       display: grid;
