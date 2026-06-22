@@ -749,7 +749,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const profileHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/profile"), lang));
   const myRecordsHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang));
   const mobileQuickLabels: Record<SiteLang, { profile: string; records: string }> = {
-    ja: { profile: "マイページ", records: "記録一覧" },
+    ja: { profile: "マイページ", records: "自分の記録" },
     en: { profile: "My page", records: "My records" },
     es: { profile: "Mi pagina", records: "Mis registros" },
     "pt-BR": { profile: "Minha pagina", records: "Meus registros" },
@@ -796,9 +796,9 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
               <a class="site-mobile-menu-account site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
               <nav class="site-mobile-account-actions" aria-label="${escapeHtml(accountCopy.accountNav)}">${profileIcon}${notificationIcon}${settingsIcon}</nav>
             </div>
-            <div class="site-mobile-quick-links" aria-label="${escapeHtml(accountCopy.accountNav)}">
-              <a class="site-mobile-quick-link" href="${profileHref}">${escapeHtml(mobileQuick.profile)}</a>
-              <a class="site-mobile-quick-link" href="${myRecordsHref}">${escapeHtml(mobileQuick.records)}</a>
+            <div class="site-mobile-return-links" aria-label="${escapeHtml(accountCopy.accountNav)}">
+              <a class="site-mobile-return-link" href="${profileHref}">${desktopSideNavIcon("profile")}<span>${escapeHtml(mobileQuick.profile)}</span></a>
+              <a class="site-mobile-return-link" href="${myRecordsHref}">${desktopSideNavIcon("notes")}<span>${escapeHtml(mobileQuick.records)}</span></a>
             </div>
             <nav class="site-nav site-nav-mobile">${mobileSideNav}</nav>
             <div class="site-mobile-menu-meta">
@@ -4657,25 +4657,33 @@ ${alternateLinks}
     .site-mobile-account-actions .site-notification-panel {
       right: -6px;
     }
-    .site-mobile-quick-links {
+    .site-mobile-return-links {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
-    .site-mobile-quick-link {
-      min-height: 42px;
+    .site-mobile-return-link {
+      min-height: 54px;
       display: inline-flex;
       align-items: center;
+      gap: 8px;
       justify-content: center;
-      padding: 0 10px;
-      border-radius: 8px;
-      border: 1px solid rgba(5,150,105,.24);
-      background: #f0fdf4;
-      color: #065f46;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(13,148,136,.28);
+      background: linear-gradient(180deg, #f0fdfa, #ecfdf5);
+      color: #0f766e;
       font-size: 13px;
-      font-weight: 900;
+      font-weight: 950;
       text-align: center;
       line-height: 1.2;
+      box-shadow: 0 8px 18px rgba(15,118,110,.08);
+    }
+    .site-mobile-return-link .desktop-side-nav-icon {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      color: #0f766e;
     }
     .site-mobile-menu-toggle { list-style: none; }
     .site-mobile-menu-toggle::-webkit-details-marker { display: none; }
