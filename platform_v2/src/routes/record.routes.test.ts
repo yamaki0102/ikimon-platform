@@ -135,6 +135,15 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /let selectedVideoFile = null/);
         assert.match(response.body, /写真' \+ String\(photoCount\) \+ '枚/);
         assert.match(response.body, /id="record-submit-panel"/);
+        assert.match(response.body, /id="record-unknown-name-strip"/);
+        assert.match(response.body, /data-quick-capture-state="present"/);
+        assert.match(response.body, /data-quick-capture-state="unknown"/);
+        assert.match(response.body, /名前はあとで/);
+        assert.doesNotMatch(response.body, /data-quick-capture-state="no_detection_note"/);
+        assert.match(response.body, /syncQuickCaptureStateChips/);
+        assert.match(response.body, /setQuickCaptureState/);
+        assert.match(response.body, /写真があると名前を確かめやすくなります。今はメモだけでも保存できます。/);
+        assert.match(response.body, /名前はあとで確かめられます。写真と場所を保存できます。/);
         assert.match(response.body, /id="record-submit-dock-meta"/);
         assert.match(response.body, /class="record-submit-primary">保存/);
         assert.match(response.body, /data-first-record-candidate="1"/);
@@ -406,6 +415,9 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /Role of this record/);
         assert.match(response.body, /Today&#39;s purpose/);
         assert.match(response.body, /Save while unsure/);
+        assert.match(response.body, /Name later/);
+        assert.doesNotMatch(response.body, /data-quick-capture-state="no_detection_note"/);
+        assert.doesNotMatch(response.body, /Not seen/);
         assert.match(response.body, /Record for comparison/);
         assert.match(response.body, /Field scan/);
         assert.match(response.body, /Waterside \/ catch/);

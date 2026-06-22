@@ -5151,6 +5151,7 @@ type RecordFormCopy = {
   quickReviewPill: string;
   quickCaptureStateLabel: string;
   quickCaptureStateOptions: Record<"present" | "unknown" | "no_detection_note", string>;
+  quickCaptureChipOptions: Record<"present" | "unknown" | "no_detection_note", string>;
   nextLookForLabel: string;
   nextLookForPlaceholder: string;
   seasonClueLabel: string;
@@ -5649,6 +5650,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         unknown: "まだ分からないまま残す",
         no_detection_note: "今日は見なかったメモを記録として残す",
       },
+      quickCaptureChipOptions: {
+        present: "見つけた",
+        unknown: "名前はあとで",
+        no_detection_note: "今日は見なかった",
+      },
       nextLookForLabel: "次に見返す手がかり",
       nextLookForPlaceholder: "例: 同じ水辺の音 / 葉の裏 / 同じ木の花",
       seasonClueLabel: "今見えた変化",
@@ -5843,6 +5849,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         present: "Found and noted",
         unknown: "Save while unsure",
         no_detection_note: "Not found today",
+      },
+      quickCaptureChipOptions: {
+        present: "Found",
+        unknown: "Name later",
+        no_detection_note: "Not seen",
       },
       nextLookForLabel: "What to look for next",
       nextLookForPlaceholder: "Example: the waterside bird from last week / a leaf to identify / the same tree flower",
@@ -6039,6 +6050,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         unknown: "Guardar aunque no sepa",
         no_detection_note: "No encontrado hoy",
       },
+      quickCaptureChipOptions: {
+        present: "Encontrado",
+        unknown: "Nombre despues",
+        no_detection_note: "No visto",
+      },
       nextLookForLabel: "Que buscar despues",
       nextLookForPlaceholder: "Ejemplo: el ave del agua de la semana pasada / una hoja por identificar / la flor del mismo arbol",
       seasonClueLabel: "Que cambio hoy",
@@ -6233,6 +6249,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
         present: "Encontrado e anotado",
         unknown: "Salvar mesmo sem saber",
         no_detection_note: "Nao encontrado hoje",
+      },
+      quickCaptureChipOptions: {
+        present: "Encontrado",
+        unknown: "Nome depois",
+        no_detection_note: "Nao visto",
       },
       nextLookForLabel: "O que procurar depois",
       nextLookForPlaceholder: "Exemplo: ave da agua da semana passada / folha para identificar / flor da mesma arvore",
@@ -14670,6 +14691,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 </div>
                 <button type="submit" class="btn btn-solid">${escapeHtml(recordForm.submitButton)}</button>
               </div>
+              <div id="record-unknown-name-strip" class="record-unknown-name-strip" hidden>
+                <span class="record-label">${escapeHtml(recordForm.quickCaptureStateLabel)}</span>
+                <div class="record-unknown-name-actions" role="group" aria-label="${escapeHtml(recordForm.quickCaptureStateLabel)}">
+                  <button type="button" data-quick-capture-state="present">${escapeHtml(recordForm.quickCaptureChipOptions.present)}</button>
+                  <button type="button" data-quick-capture-state="unknown">${escapeHtml(recordForm.quickCaptureChipOptions.unknown)}</button>
+                </div>
+              </div>
               <div id="record-public-state" class="record-public-state" data-public-state="idle" hidden aria-live="polite">
                 <span class="record-label">${escapeHtml(recordForm.publicStateTitle)}</span>
                 <strong id="record-public-state-label">${escapeHtml(recordForm.publicStateTitle)}</strong>
@@ -15190,6 +15218,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const submitDockMeta = document.getElementById('record-submit-dock-meta');
         const nextLookForInput = form ? form.querySelector('[data-next-look-for]') : null;
         const seasonClueButtons = form ? Array.from(form.querySelectorAll('[data-season-clue]')) : [];
+        const quickCaptureStateField = form ? form.elements.namedItem('quickCaptureState') : null;
+        const quickCaptureStateStrip = document.getElementById('record-unknown-name-strip');
+        const quickCaptureStateButtons = Array.from(document.querySelectorAll('[data-quick-capture-state]'));
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
@@ -15508,6 +15539,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           button.setAttribute('aria-pressed', 'false');
           button.addEventListener('click', () => toggleSeasonClue(button.getAttribute('data-season-clue') || ''));
         });
+        quickCaptureStateButtons.forEach((button) => {
+          button.setAttribute('aria-pressed', 'false');
+          button.addEventListener('click', () => setQuickCaptureState(button.getAttribute('data-quick-capture-state') || 'present'));
+        });
+        if (quickCaptureStateField && quickCaptureStateField.addEventListener) {
+          quickCaptureStateField.addEventListener('change', () => {
+            syncQuickCaptureStateChips();
+            syncPreview();
+            scheduleRecordDraftAutosave('quick_capture_state_select');
+          });
+        }
         if (nextLookForInput) {
           nextLookForInput.addEventListener('input', () => {
             if (renderingSeasonClues) return;
@@ -15791,7 +15833,31 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             button.classList.toggle('is-active', active);
             button.setAttribute('aria-pressed', active ? 'true' : 'false');
           });
+          syncQuickCaptureStateChips();
           syncLocationNudge();
+        };
+
+        const syncQuickCaptureStateChips = () => {
+          const current = quickCaptureStateField && 'value' in quickCaptureStateField
+            ? String(quickCaptureStateField.value || 'present')
+            : 'present';
+          const showStrip = hasRecordDraft() && !isSurveyMode();
+          if (quickCaptureStateStrip) quickCaptureStateStrip.hidden = !showStrip;
+          quickCaptureStateButtons.forEach((button) => {
+            const active = button.getAttribute('data-quick-capture-state') === current;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
+        };
+
+        const setQuickCaptureState = (state) => {
+          if (quickCaptureStateField && 'value' in quickCaptureStateField) {
+            quickCaptureStateField.value = state === 'unknown' ? 'unknown' : 'present';
+          }
+          syncQuickCaptureStateChips();
+          syncPreview();
+          syncSubmitCta();
+          scheduleRecordDraftAutosave('quick_capture_state');
         };
 
         const normalizeError = (error) => {
@@ -15880,6 +15946,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const hasNote = Boolean(String(data.get('localityNote') || data.get('nextLookFor') || data.get('revisitReason') || '').trim());
           const quickCaptureState = String(data.get('quickCaptureState') || 'present');
           if (visualRecordFeedbackSentence && photoCount > 0) return visualRecordFeedbackSentence;
+          if (hasNoteDraft() && !hasSelectedMedia() && quickCaptureState === 'unknown') {
+            return '写真があると名前を確かめやすくなります。今はメモだけでも保存できます。';
+          }
           if (hasNoteDraft() && !hasSelectedMedia()) {
             return hasLocation
               ? 'メモと場所は残っています。次に同じ場所へ行ったら、見たものを1枚足すと比較しやすくなります。'
@@ -15900,6 +15969,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           if (photoCount === 1) {
             if (!hasLocation) return '写真は入っています。次は現在地か場所メモを足すと、記録として使いやすくなります。';
+            if (!hasName && quickCaptureState === 'unknown') return '名前はあとで確かめられます。写真と場所を保存できます。';
             if (!hasName && !hasNote && quickCaptureState !== 'unknown') return '写真と場所は残っています。分からない点を一言メモすると、あとで確認しやすくなります。';
             return '写真と場所が残っています。次は別角度や周囲の様子を足すと、見分ける手がかりが増えます。';
           }
@@ -15957,6 +16027,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (locationItem) locationItem.setAttribute('data-prepublish-ready', hasLocation ? '1' : '0');
           }
           if (prepublishMedia) prepublishMedia.textContent = buildRecordPrepublishMediaText();
+          syncQuickCaptureStateChips();
         };
 
         const publicStateSuccessKind = (observation) => {
@@ -18173,6 +18244,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             scheduleRecordDraftAutosave('form_input');
           });
           form.addEventListener('change', () => {
+            syncQuickCaptureStateChips();
             scheduleRecordDraftAutosave('form_change');
           });
         }
@@ -19162,6 +19234,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-submit-panel strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
         .record-submit-panel p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 750; }
         .record-submit-panel .btn { min-width: 140px; }
+        .record-unknown-name-strip { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border-radius: 16px; background: rgba(255,251,235,.92); border: 1px solid rgba(245,158,11,.22); }
+        .record-unknown-name-strip[hidden] { display: none; }
+        .record-unknown-name-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+        .record-unknown-name-actions button { min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font: inherit; font-size: 12px; line-height: 1; font-weight: 950; cursor: pointer; }
+        .record-unknown-name-actions button.is-active { background: #0f766e; border-color: #0f766e; color: #fff; }
         .record-public-state { grid-column: 1 / -1; display: grid; gap: 5px; padding: 12px 14px; border-radius: 16px; background: #f8fafc; border: 1px solid rgba(15,23,42,.1); }
         .record-public-state[hidden] { display: none; }
         .record-public-state[data-public-state="candidate"] { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
@@ -19406,6 +19483,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-submit-dock-meta { min-height: 58px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px 8px; border-radius: 17px; background: #ecfdf5; color: #064e3b; font-size: 11px; line-height: 1.25; font-weight: 950; }
           .record-submit-panel { align-items: flex-start; flex-direction: column; }
           .record-submit-panel .btn { width: 100%; }
+          .record-unknown-name-strip { align-items: flex-start; flex-direction: column; }
+          .record-unknown-name-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-status-inline { margin-left: 0; }
           .record-impact-receipts-head { align-items: flex-start; flex-direction: column; }
