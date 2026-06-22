@@ -780,16 +780,19 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/map",
   "/app-refresh",
   "/login",
+  "/en",
   "/en/",
   "/en/guide",
   "/en/login",
   "/en/map",
   "/en/record",
+  "/es",
   "/es/",
   "/es/guide",
   "/es/login",
   "/es/map",
   "/es/record",
+  "/pt-br",
   "/pt-br/",
   "/pt-br/guide",
   "/pt-br/login",
@@ -804,6 +807,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/for-business",
   "/for-business/field-programs",
   "/for-business/invasive-reporting",
+  "/ja",
   "/ja/",
   "/ja/about",
   "/ja/cases",
@@ -2565,7 +2569,7 @@ function hasPersonalizedHtmlHeaders(request: Request): boolean {
 function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
   return pathname === "/app-refresh"
     || pathname === "/"
-    || /^\/(?:ja|en|es|pt-br)\/$/.test(pathname)
+    || /^\/(?:ja|en|es|pt-br)\/?$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/guide$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname);
 }

@@ -4717,6 +4717,13 @@ test("production original UI app shells serve materialized HTML even with sessio
     assert.equal(await localizedHomeResponse.text(), "<!doctype html><title>materialized ja home</title>");
     assert.equal(localizedHomeResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
+    const localizedHomeNoSlashResponse = await worker.fetch(new Request("https://ikimon.life/ja?source=pwa", {
+      headers: { cookie: "ikimon_v2_session=secret" }
+    }), productionEnv);
+    assert.equal(localizedHomeNoSlashResponse.status, 200);
+    assert.equal(await localizedHomeNoSlashResponse.text(), "<!doctype html><title>materialized ja home</title>");
+    assert.equal(localizedHomeNoSlashResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
     const mapResponse = await worker.fetch(new Request("https://ikimon.life/map", {
       headers: { cookie: "ikimon_v2_session=secret" }
     }), productionEnv);
