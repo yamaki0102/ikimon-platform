@@ -450,12 +450,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityTitle: "場所の今を残す記録",
       minePulse: "投稿した記録をここから見返せます。",
       communityPulse: "今日も写真・動画つきの記録が届いています。",
-      emptyPulse: "最初の投稿が入ると、ここに地域の動きが並びます。",
-      emptyTitle: "ここから地域の記録が育ちます",
-      emptyBody: "写真や動画が1つ増えるだけで、場所の手がかりになり、次に歩く人を助けます。",
+      emptyPulse: "まだ少ない場所ほど、次に見に行く楽しみがあります。",
+      emptyTitle: "この場所の余白を見つける",
+      emptyBody: "記録がないことも、季節や場所を見返す手がかりです。気になったら、写真1枚や短いメモから残せます。",
       mineEmptyTitle: "自分の場所の記録はまだありません",
-      communityEmptyTitle: "ここから地域の記録が育ちます",
-      emptyCta: "記録する",
+      communityEmptyTitle: "この場所の余白を見つける",
+      emptyCta: "近くを見る",
       allCta: "すべて見る",
     },
     en: {
@@ -467,12 +467,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityTitle: "Everyone's records",
       minePulse: "Your saved records are always one tap away.",
       communityPulse: "New photo and video records are arriving.",
-      emptyPulse: "The first post will start this local stream.",
-      emptyTitle: "This local stream grows from here",
-      emptyBody: "Even one photo or video becomes a clue for the next person nearby.",
+      emptyPulse: "Quieter places are often the best places to look next.",
+      emptyTitle: "Find the open space in this place",
+      emptyBody: "A blank area is still a clue. Browse the map first, then save a photo or short note when something catches your eye.",
       mineEmptyTitle: "No place records from you yet",
-      communityEmptyTitle: "Waiting for the first place record",
-      emptyCta: "Save a place record",
+      communityEmptyTitle: "Find the open space in this place",
+      emptyCta: "Browse nearby",
       allCta: "See all",
     },
     es: {
@@ -484,12 +484,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityTitle: "Registros de todos",
       minePulse: "Tus registros guardados quedan a un toque.",
       communityPulse: "Siguen llegando registros con foto y video.",
-      emptyPulse: "La primera publicacion abre este flujo local.",
-      emptyTitle: "Este flujo local crece desde aqui",
-      emptyBody: "Una foto o un video ya ayuda a la siguiente persona cercana.",
+      emptyPulse: "Los lugares tranquilos tambien dicen donde mirar despues.",
+      emptyTitle: "Encuentra el espacio abierto de este lugar",
+      emptyBody: "Un area vacia tambien es una pista. Mira el mapa primero y guarda una foto o nota breve cuando algo te llame.",
       mineEmptyTitle: "Aun no tienes publicaciones",
-      communityEmptyTitle: "Esperando el primer registro del lugar",
-      emptyCta: "Registrar",
+      communityEmptyTitle: "Encuentra el espacio abierto de este lugar",
+      emptyCta: "Ver cerca",
       allCta: "Ver todo",
     },
     "pt-BR": {
@@ -501,12 +501,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityTitle: "Registros de todos",
       minePulse: "Seus registros salvos ficam a um toque.",
       communityPulse: "Novos registros com foto e video estao chegando.",
-      emptyPulse: "A primeira publicacao inicia este fluxo local.",
-      emptyTitle: "Este fluxo local cresce a partir daqui",
-      emptyBody: "Uma foto ou um video ja vira pista para a proxima pessoa perto dali.",
+      emptyPulse: "Lugares mais quietos tambem mostram onde olhar depois.",
+      emptyTitle: "Encontre o espaco aberto deste lugar",
+      emptyBody: "Uma area vazia tambem e uma pista. Veja o mapa primeiro e salve uma foto ou nota curta quando algo chamar atencao.",
       mineEmptyTitle: "Ainda nao ha publicacoes suas",
-      communityEmptyTitle: "Aguardando o primeiro registro do lugar",
-      emptyCta: "Registrar",
+      communityEmptyTitle: "Encontre o espaco aberto deste lugar",
+      emptyCta: "Ver perto",
       allCta: "Ver tudo",
     },
   };
@@ -695,11 +695,11 @@ function renderLandingContentWallLane(
   source: LandingContentWallItem["contentSource"],
   items: LandingContentWallItem[],
 ): string {
-  const recordHref = landingHref(basePath, lang, "/record");
   const title = source === "mine" ? wallCopy.mineTitle : wallCopy.communityTitle;
   const eyebrow = source === "mine" ? wallCopy.mineEyebrow : wallCopy.communityEyebrow;
   const pulse = source === "mine" ? wallCopy.minePulse : items.length > 0 ? wallCopy.communityPulse : wallCopy.emptyPulse;
   const emptyTitle = source === "mine" ? wallCopy.mineEmptyTitle : wallCopy.communityEmptyTitle;
+  const emptyHref = landingHref(basePath, lang, source === "mine" ? "/record" : "/map");
   const moreHref = landingHref(basePath, lang, source === "mine" ? "/records?view=mine" : "/records?view=public");
   const moreLabel = lang === "ja" ? "もっと見る" : lang === "en" ? "View more" : lang === "es" ? "Ver mas" : "Ver mais";
   const moreAria = lang === "ja"
@@ -707,7 +707,7 @@ function renderLandingContentWallLane(
     : source === "mine" ? "View more of your place records" : "View more community place records";
   const cardsHtml = items.length > 0
     ? items.map((obs, index) => renderLandingContentWallCard(basePath, lang, copy, obs, index)).join("")
-    : renderLandingContentWallEmpty(emptyTitle, wallCopy.emptyBody, recordHref, wallCopy.emptyCta);
+    : renderLandingContentWallEmpty(emptyTitle, wallCopy.emptyBody, emptyHref, wallCopy.emptyCta);
   return `<section class="prototype-content-lane is-${escapeHtml(source)}" aria-label="${escapeHtml(title)}">
       <div class="prototype-content-lane-head">
         <div class="prototype-content-lane-title">
@@ -2522,6 +2522,7 @@ export const LANDING_TOP_STYLES = `
     text-align: left;
   }
   .prototype-content-empty {
+    grid-column: 1 / -1;
     min-height: 160px;
     display: grid;
     align-content: center;
