@@ -24,8 +24,8 @@ script を skip し、runtime data/config を保持したまま production repo 
 - low-token deploy entry: `docs/DEPLOY_LOW_TOKEN_PROTOCOL.md`
 - deploy manifest: `ops/deploy/deploy_manifest.json`
 - server deploy reference: `ops/deploy/production_deploy_reference.sh`
-- production v2 blue/green deploy script: `ops/deploy/deploy_platform_v2_blue_green.sh`
-- production v2 systemd units: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`
+- production platform blue/green deploy script: `ops/deploy/deploy_platform_v2_blue_green.sh`
+- production platform systemd units: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`
 - staging manifest: `ops/deploy/staging_manifest.json`
 - staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
 - production workflow: `.github/workflows/deploy.yml`
@@ -33,7 +33,7 @@ script を skip し、runtime data/config を保持したまま production repo 
 - production deploy timing: `docs/PRODUCTION_DEPLOY_TIMING.md`
 - branch hygiene audit workflow: `.github/workflows/branch-hygiene-audit.yml`
 - CI guardrail: `scripts/check_deploy_guardrails.ps1`
-- platform_v2 migration guardrail: `scripts/check_platform_v2_migration_guardrails.ps1`
+- platform migration guardrail: `scripts/check_platform_migration_guardrails.ps1`
 - manifest/workflow sync check: `scripts/check_deploy_manifest_sync.ps1`
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_worktree_clean.ps1
 php tools/lint.php
 composer test
 powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_guardrails.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\check_platform_v2_migration_guardrails.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\check_platform_migration_guardrails.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_manifest_sync.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_staging_manifest_sync.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_remote_deploy_reference.ps1
@@ -131,7 +131,7 @@ Weekly audit:
 ## Migration Guardrails
 
 `platform_v2/db/migrations/` の新規 migration は、CI / staging / production の
-pre-flight で `scripts/check_platform_v2_migration_guardrails.ps1` を通す。
+pre-flight で `scripts/check_platform_migration_guardrails.ps1` を通す。
 
 このガードは次を merge 前に止める。
 
@@ -153,7 +153,7 @@ rollback plan をPR本文または incident / runbook に残す。
 repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を repo に置いた。  
 サーバ側を変更するときは `ops/deploy/production_deploy_reference.sh` も同時に更新する。
 
-`platform_v2` の本番 runtime は blue/green systemd unit と
+本番 platform runtime は blue/green systemd unit と
 `/etc/ikimon/production-v2.env` を正本にする。旧 `pm2 ikimon-v2-production-api` は
 既存 env の移行元であり、通常 deploy の実行単位ではない。
 

@@ -58,7 +58,7 @@ export function buildPlaceName(input: {
     return [municipality, prefecture].filter(Boolean).join(" / ");
   }
 
-  return "V2 Place";
+  return "Platform Place";
 }
 
 export function normalizeTimestamp(value: string | null | undefined): string {

@@ -23,7 +23,7 @@ function parseArgs(argv: string[]): SmokeOptions {
   const stamp = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}${String(now.getUTCSeconds()).padStart(2, "0")}`;
 
   const options: SmokeOptions = {
-    baseUrl: process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
+    baseUrl: process.env.PLATFORM_BASE_URL ?? process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
     fixturePrefix: `smoke-${stamp}`,
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY ?? "",
     cleanup: true,
@@ -283,7 +283,7 @@ async function main(): Promise<void> {
       rank: "species",
     },
     sourcePayload: {
-      source: "smoke_v2_write_lane",
+      source: "smoke_platform_write_lane",
     },
   };
   const noteOnlyObservationPayload = {
@@ -305,7 +305,7 @@ async function main(): Promise<void> {
     substrateTags: ["test"],
     taxon: null,
     sourcePayload: {
-      source: "smoke_v2_write_lane",
+      source: "smoke_platform_write_lane",
       scenario: "note_only",
     },
   };
@@ -347,7 +347,7 @@ async function main(): Promise<void> {
       },
     ],
     sourcePayload: {
-      source: "smoke_v2_write_lane",
+      source: "smoke_platform_write_lane",
     },
   };
 
@@ -395,7 +395,7 @@ async function main(): Promise<void> {
         rawToken,
         expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
         ipAddress: "127.0.0.1",
-        userAgent: "smoke-v2-write-lane",
+        userAgent: "smoke-platform-write-lane",
       },
       validate: validateRememberTokenResponse,
       headers: () => privilegedHeaders(options),

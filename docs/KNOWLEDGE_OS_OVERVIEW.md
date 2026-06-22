@@ -180,7 +180,7 @@ Tier 4   → 論文・標本等の外部エビデンス紐付き
 
 ---
 
-## 7. Platform v2（TypeScript側）
+## 7. Platform runtime（TypeScript側）
 
 ```
 platform_v2/src/

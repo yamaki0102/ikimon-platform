@@ -73,30 +73,30 @@ jobs:
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
 
-      - name: Check platform_v2 migration guardrails
+      - name: Check platform migration guardrails
         shell: pwsh
-        run: ./scripts/check_platform_v2_migration_guardrails.ps1
+        run: ./scripts/check_platform_migration_guardrails.ps1
 
       - name: PHP Syntax Check
         run: php tools/lint.php
 
-      - name: Install platform_v2 dependencies
+      - name: Install platform dependencies
         working-directory: platform_v2
         run: npm ci
 
-      - name: Typecheck platform_v2
+      - name: Typecheck platform
         working-directory: platform_v2
         run: npm run typecheck
 
-      - name: Build platform_v2
+      - name: Build platform
         working-directory: platform_v2
         run: npm run build
 
-      - name: Run platform_v2 node tests
+      - name: Run platform node tests
         working-directory: platform_v2
         run: npm run test:node
 
-      - name: Test platform_v2 curator validators
+      - name: Test platform curator validators
         working-directory: platform_v2
         run: npm run test:curator
 
@@ -138,11 +138,11 @@ jobs:
             platform_v2/package-lock.json
             platform_v2/cloudflare_shadow/package-lock.json
 
-      - name: Install platform_v2 dependencies
+      - name: Install platform dependencies
         working-directory: platform_v2
         run: npm ci
 
-      - name: Build platform_v2
+      - name: Build platform
         working-directory: platform_v2
         run: npm run build
 
@@ -293,7 +293,7 @@ jobs:
             esac
           done
           health_payload="$(curl -fsS -H 'cache-control: no-store' "https://ikimon.life/healthz?deploy_smoke=${GITHUB_SHA}")"
-          if [[ "$health_payload" != *'"buildMarker":"map-shell-cookie-safe-v2"'* ]]; then
+          if [[ "$health_payload" != *'"buildMarker":"map-shell-cookie-safe"'* ]]; then
             echo "Production Worker build marker is stale: $health_payload"
             exit 1
           fi

@@ -15,7 +15,7 @@ export function getPool(): Pool {
 
   pool = new Pool({
     connectionString: config.databaseUrl,
-    application_name: "ikimon-platform-v2",
+    application_name: "ikimon-platform",
   });
 
   return pool;

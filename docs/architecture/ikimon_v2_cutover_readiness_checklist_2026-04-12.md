@@ -206,23 +206,23 @@ Go 条件は、次の 6 gate を **すべて** 満たした時だけ成立する
 
 - 現行 PHP の staging parity は進んだ
 - Fastify の staging lane は `:3200` で起動中
-- [smokeV2Lane.ts](/E:/Projects/Playground/platform_v2/src/scripts/smokeV2Lane.ts) を追加し、`/`, `/healthz`, `/readyz`, `/ops/readiness` の read-only smoke を固定した
+- [smokePlatformLane.ts](/E:/Projects/Playground/platform_v2/src/scripts/smokePlatformLane.ts) を追加し、`/`, `/healthz`, `/readyz`, `/ops/readiness` の read-only smoke を固定した
 - staging 実行 `npm run smoke:v2-lane -- --base-url=http://127.0.0.1:3200` で `passed` を確認した
 - `/ops/readiness` は `latestDriftReport.summary` まで返すので、lane health と data plane health を同時に見られる
 - [read.ts](/E:/Projects/Playground/platform_v2/src/routes/read.ts) と [readModels.ts](/E:/Projects/Playground/platform_v2/src/services/readModels.ts) を追加し、`/home`, `/observations/:id`, `/profile/:userId` の minimal read lane を v2 に生やした
-- [smokeV2ReadLane.ts](/E:/Projects/Playground/platform_v2/src/scripts/smokeV2ReadLane.ts) を追加し、user-facing read shell を DB 実データ起点で確認できるようにした
-- [smokeV2WriteLane.ts](/E:/Projects/Playground/platform_v2/src/scripts/smokeV2WriteLane.ts) を追加し、`/api/v1/users/upsert -> /api/v1/observations/upsert -> /api/v1/tracks/upsert` の最小 write smoke を固定した
+- [smokePlatformReadLane.ts](/E:/Projects/Playground/platform_v2/src/scripts/smokePlatformReadLane.ts) を追加し、user-facing read shell を DB 実データ起点で確認できるようにした
+- [smokePlatformWriteLane.ts](/E:/Projects/Playground/platform_v2/src/scripts/smokePlatformWriteLane.ts) を追加し、`/api/v1/users/upsert -> /api/v1/observations/upsert -> /api/v1/tracks/upsert` の最小 write smoke を固定した
 - その後 `remember token issue / revoke` も smoke に追加し、`login / logout` の最小代替まで同じ fixture で確認できるようにした
 - [observationPhotoUpload.ts](/E:/Projects/Playground/platform_v2/src/services/observationPhotoUpload.ts) と [write.ts](/E:/Projects/Playground/platform_v2/src/routes/write.ts) で `/api/v1/observations/:id/photos/upload` を追加し、`asset_blobs / evidence_assets / compatibility write` まで通る最小 photo upload lane を v2 に生やした
-- `smokeV2WriteLane.ts` は `observations/photos/upload` を fixture に含めるようになり、write lane smoke で photo upload も同時検証できる
+- `smokePlatformWriteLane.ts` は `observations/photos/upload` を fixture に含めるようになり、write lane smoke で photo upload も同時検証できる
 - [authSession.ts](/E:/Projects/Playground/platform_v2/src/services/authSession.ts) と [write.ts](/E:/Projects/Playground/platform_v2/src/routes/write.ts) で `auth/session/issue`, `auth/session`, `auth/session/logout` を追加し、`remember_tokens` を再利用した cookie-based session lane を v2 に生やした
 - [read.ts](/E:/Projects/Playground/platform_v2/src/routes/read.ts) は `/home` と `/profile` が session cookie fallback で開けるようになった
 - [read.ts](/E:/Projects/Playground/platform_v2/src/routes/read.ts) に `/record` を追加し、session cookie または `?userId=...` で開ける minimal quick capture shell を v2 に生やした
-- `smokeV2WriteLane.ts` は session issue/current/logout も fixture に含めるようになり、auth session 本体を same-lane で検証できる
+- `smokePlatformWriteLane.ts` は session issue/current/logout も fixture に含めるようになり、auth session 本体を same-lane で検証できる
 - local `npm run typecheck` は photo upload lane 追加後も通過した
 - staging 実行 `npm run smoke:v2-write-lane -- --base-url=http://127.0.0.1:3200 --fixture-prefix=staging-write-smoke-20260412b` で `users/upsert`, `auth/remember-tokens/issue`, `observations/upsert`, `tracks/upsert`, `auth/remember-tokens/revoke` の全件 `passed` を確認し、`compatibility.attempted=true / succeeded=true` まで見た
 - staging 実行 `npm run smoke:v2-write-lane -- --base-url=http://127.0.0.1:3200 --fixture-prefix=staging-session-smoke-20260412c` では `auth/session/issue`, `auth/session/current`, `auth/session/logout` を含む全 9 checks が `passed` し、`compatibility.attempted=true / succeeded=true` まで確認した
-- staging 実行 `npx tsx src/scripts/smokeV2ReadLane.ts -- --base-url=http://127.0.0.1:3200` では `record`, `explore`, `home`, `observation detail`, `profile` の全 5 checks が `passed` した
+- staging 実行 `npx tsx src/scripts/smokePlatformReadLane.ts -- --base-url=http://127.0.0.1:3200` では `record`, `explore`, `home`, `observation detail`, `profile` の全 5 checks が `passed` した
 - つまり v2 staging lane は read-only ではなく、`record + explore + user-facing read lane + minimal read-write lane + login/logout 代替 lane + photo upload lane + auth session lane` まで staging 実測で通った
 
 判定:

@@ -172,8 +172,8 @@ function renderAuthPage(options: {
     </section>
     <aside class="auth-note">
       <div class="eyebrow">record lane</div>
-      <h3>${isProfileRedirect ? "ログイン後は v2 のマイページへ進みます。" : "ログイン後は PHP ではなく v2 の記録画面へ進みます。"}</h3>
-      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "記録、写真アップロード、同定参加は v2 の session cookie で扱います。"}</p>
+      <h3>${isProfileRedirect ? "ログイン後はマイページへ進みます。" : "ログイン後は記録画面へ進みます。"}</h3>
+      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "記録、写真アップロード、同定参加は ikimon のログイン状態で扱います。"}</p>
       <ul>
         <li>cookie は HttpOnly / SameSite=Lax / production Secure</li>
         <li>メール有無が分からない失敗表示</li>
@@ -242,7 +242,7 @@ function renderAuthPage(options: {
       align: "center",
     },
     body,
-    footerNote: "認証後は v2 の記録導線へ戻ります。",
+    footerNote: "認証後は記録導線へ戻ります。",
   });
 }
 

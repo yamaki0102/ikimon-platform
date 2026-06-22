@@ -21,10 +21,10 @@ ikimon.life の改装は **staging 先行** に切り替える。
 
 - app root: `/var/www/ikimon.life-staging`
 - internal PHP lane: `127.0.0.1:8081`
-- internal v2 lane: `127.0.0.1:3200`
-- canonical v2 runtime: `systemd` service `ikimon-v2-staging.service`
-- canonical v2 env file: `/etc/ikimon/staging-v2.env`
-- canonical v2 OS user: `ikimon-staging`
+- internal platform lane: `127.0.0.1:3200`
+- canonical platform runtime: `systemd` service `ikimon-v2-staging.service`
+- canonical platform env file: `/etc/ikimon/staging-v2.env`
+- canonical platform OS user: `ikimon-staging`
 - formal public access: `https://staging.ikimon.life/`
 - fallback review URL: `https://staging.162-43-44-131.sslip.io/`
 - protection: `noindex + basic auth`
@@ -101,8 +101,8 @@ ssh ikimon-vps "STAGING_BRANCH=staging /var/www/ikimon.life-staging/deploy.sh"
 - `staging` branch に独自差分を積む場合は短期 review 目的に限定し、review 後は `main` 追従へ戻す
 - staging public root は `platform_v2`、PHP lane は `/legacy/` に固定する
 - staging は `8081` / `3200` で内部 listen するが、公開面は `noindex + basic auth` に留める
-- staging v2 の process manager は `pm2` ではなく `ikimon-v2-staging.service` に固定する
-- staging v2 の DB 接続は peer auth ではなく `V2_STAGING_DATABASE_URL` に固定する
+- staging platform の process manager は `pm2` ではなく `ikimon-v2-staging.service` に固定する
+- staging platform の DB 接続は peer auth ではなく `V2_STAGING_DATABASE_URL` に固定する
 - uploads は repo 配下でなく `persistent/uploads` に置く
 - deploy runtime backup の一時dirは `${STAGING_DEPLOY_BACKUP_ROOT:-/var/www/ikimon.life-staging/persistent/deploy-tmp}` を使い、`/tmp` 容量に依存させない
 - `upload_package/data/library/` は staging の未追跡/生成物置き場として `git reset --hard` 後もその場に残す。deploy runtime backup では複製しない
@@ -127,7 +127,7 @@ GitHub Actions の `Deploy to Staging` で review branch を指定する。
 
 ## Canonical verify
 
-staging v2 の正常系確認は以下を canonical とする。
+staging platform の正常系確認は以下を canonical とする。
 
 ```bash
 sudo systemctl is-active ikimon-v2-staging.service
@@ -151,6 +151,7 @@ set -a
 set +a
 runuser -u ikimon-staging -- env \
   "DATABASE_URL=${DATABASE_URL}" \
+  "PLATFORM_BASE_URL=http://127.0.0.1:3200" \
   "V2_BASE_URL=http://127.0.0.1:3200" \
   "IKIMON_OPS_STALENESS_WEBHOOK_URL=${IKIMON_OPS_STALENESS_WEBHOOK_URL:-}" \
   bash -lc "cd /var/www/ikimon.life-staging/repo/platform_v2 && npm run smoke:public-map-snapshot-alert -- --apply --confirm=public-map-snapshot-staging-smoke --base-url=http://127.0.0.1:3200 --allow-local"

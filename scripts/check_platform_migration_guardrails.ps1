@@ -91,7 +91,7 @@ $resolvedBaseRef = if ([string]::IsNullOrWhiteSpace($BaseRef)) { Get-DefaultBase
 $migrationFiles = Get-ChangedMigrationFiles -ResolvedBaseRef $resolvedBaseRef
 
 if ($migrationFiles.Count -eq 0) {
-    Write-Output "Platform v2 migration guardrails passed: no changed migrations."
+    Write-Output "Platform migration guardrails passed: no changed migrations."
     $global:LASTEXITCODE = 0
     exit 0
 }
@@ -160,6 +160,6 @@ if ($issues.Count -gt 0) {
     exit 1
 }
 
-Write-Output "Platform v2 migration guardrails passed: $($migrationFiles.Count) changed migration(s)."
+Write-Output "Platform migration guardrails passed: $($migrationFiles.Count) changed migration(s)."
 $global:LASTEXITCODE = 0
 exit 0

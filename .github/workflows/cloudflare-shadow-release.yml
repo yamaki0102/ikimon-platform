@@ -1,0 +1,96 @@
+name: Cloudflare Shadow Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_shadow:
+        description: "Deploy to the non-production Cloudflare shadow Worker after preflight"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      test_profile:
+        description: "Shadow preflight test profile"
+        required: true
+        default: "quick"
+        type: choice
+        options:
+          - quick
+          - full
+  pull_request:
+    branches: [main, "codex/**"]
+    paths:
+      - ".github/workflows/cloudflare-shadow-release.yml"
+      - "platform_v2/cloudflare_shadow/**"
+
+concurrency:
+  group: cloudflare-shadow-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shadow:
+    name: Shadow Worker Preflight
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DEPLOY_SHADOW: ${{ github.event.inputs.deploy_shadow || 'false' }}
+      TEST_PROFILE: ${{ github.event.inputs.test_profile || 'quick' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Require Cloudflare API token
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "CLOUDFLARE_API_TOKEN is required for Wrangler shadow validation."
+            exit 1
+          fi
+
+      - name: Install Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+
+      - name: Run shadow preflight or deploy
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          set -euo pipefail
+          if [ "${DEPLOY_SHADOW}" = "true" ]; then
+            node scripts/deploy-shadow-guard.mjs --execute --test-profile "${TEST_PROFILE}" --write-preflight-report .deploy/shadow-preflight-latest.json
+          else
+            node scripts/deploy-shadow-guard.mjs --test-profile "${TEST_PROFILE}" --write-preflight-report .deploy/shadow-preflight-latest.json
+          fi
+
+      - name: Upload shadow preflight artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-shadow-preflight
+          path: platform_v2/cloudflare_shadow/.deploy/shadow-preflight-latest.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Write shadow summary
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(".deploy/shadow-preflight-latest.json", "utf8"));
+          console.log("## Cloudflare Shadow Release");
+          console.log("");
+          console.log(`- Status: \`${report.status}\``);
+          console.log(`- Git HEAD: \`${report.gitHead}\``);
+          console.log(`- Test profile: \`${report.testProfile}\``);
+          console.log(`- Worker URL: ${report.shadowWorkerUrl}`);
+          console.log(`- Production mutation: \`${!report.noProductionMutation}\``);
+          console.log(`- DNS change: \`${!report.noDnsChange}\``);
+          console.log(`- VPS SSH: \`${!report.noVpsSsh}\``);
+          NODE
