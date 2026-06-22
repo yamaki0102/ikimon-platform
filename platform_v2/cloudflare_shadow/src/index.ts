@@ -777,6 +777,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
   "/guide",
   "/record",
+  "/records",
   "/map",
   "/app-refresh",
   "/login",
@@ -790,6 +791,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/en/profile",
   "/en/profile/settings",
   "/en/record",
+  "/en/records",
   "/en/register",
   "/es",
   "/es/",
@@ -799,6 +801,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/es/profile",
   "/es/profile/settings",
   "/es/record",
+  "/es/records",
   "/es/register",
   "/pt-br",
   "/pt-br/",
@@ -808,6 +811,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/pt-br/profile",
   "/pt-br/profile/settings",
   "/pt-br/record",
+  "/pt-br/records",
   "/pt-br/register",
   "/register",
   "/learn",
@@ -2618,6 +2622,7 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
     "/profile",
     "/profile/settings",
     "/record",
+    "/records",
     "/register"
   ]);
   if (!localizable.has(pathname)) return null;

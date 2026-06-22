@@ -4468,6 +4468,9 @@ test("production original UI html serves localized auth and guest profile shells
   await env.ASSET_BUCKET.put("original-ui/html/en/profile.html", "<!doctype html><title>My page | ikimon</title><a href=\"/en/login?redirect=%2Fprofile\">Log in</a>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/en/records.html", "<!doctype html><title>Records | ikimon</title><script>beforeinstallprompt</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -4490,6 +4493,11 @@ test("production original UI html serves localized auth and guest profile shells
     assert.equal(queryProfile.status, 200);
     assert.match(await queryProfile.text(), /\/en\/login\?redirect=%2Fprofile/);
     assert.equal(queryProfile.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const queryRecords = await worker.fetch(new Request("https://ikimon.life/records?lang=en"), productionEnv);
+    assert.equal(queryRecords.status, 200);
+    assert.equal(await queryRecords.text(), "<!doctype html><title>Records | ikimon</title><script>beforeinstallprompt</script>");
+    assert.equal(queryRecords.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
