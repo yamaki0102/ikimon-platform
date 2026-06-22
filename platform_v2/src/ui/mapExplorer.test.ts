@@ -263,6 +263,8 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /if \(visible && state\.tab === 'rain'\) \{\s+visible = false;/);
   assert.match(script, /if \(state\.tab === 'rain'\) \{\s+closeBottomSheet\(\);\s+setMapEmptyInviteVisible\(false\);\s+hideLayerHint\(\);\s+enableRainLayer\(\);/);
   assert.match(script, /function rainStatusWithNotice\(text\)/);
+  assert.match(script, /JMA_RAIN_TILE_MAX_ZOOM = 10/);
+  assert.match(script, /maxzoom: JMA_RAIN_TILE_MAX_ZOOM/);
   assert.match(script, /rainForecastNotice/);
   assert.match(script, /data-sheet-open/);
   assert.match(script, /classList\.toggle\('me-sheet-open', Boolean\(sheetOpen\)\)/);
