@@ -16,9 +16,9 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /class="site-mobile-menu-account site-login-link"/);
   assert.match(html, /class="site-mobile-account-row"/);
   assert.match(html, /class="site-mobile-account-actions"/);
-  assert.match(html, /class="site-mobile-quick-links"/);
-  assert.match(html, /<a class="site-mobile-quick-link" href="\/ja\/profile">マイページ<\/a>/);
-  assert.match(html, /<a class="site-mobile-quick-link" href="\/ja\/records\?view=mine">記録一覧<\/a>/);
+  assert.match(html, /class="site-mobile-return-links"/);
+  assert.match(html, /<a class="site-mobile-return-link" href="\/ja\/profile">[\s\S]*<span>マイページ<\/span><\/a>/);
+  assert.match(html, /<a class="site-mobile-return-link" href="\/ja\/records\?view=mine">[\s\S]*<span>自分の記録<\/span><\/a>/);
   assert.match(html, /class="site-account-icons"/);
   assert.match(html, /data-account-profile/);
   assert.match(html, /data-account-alerts/);
@@ -148,6 +148,8 @@ test("mobile menu panel can render outside the sticky header", () => {
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*background: #ffffff;/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*max-height: calc\(100dvh - 76px\);[^}]*overflow-y: auto;/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*overscroll-behavior: contain;/);
+  assert.match(html, /\.site-mobile-return-link \{[^}]*min-height: 54px;[^}]*border-radius: 12px;/);
+  assert.match(html, /\.site-mobile-return-link \.desktop-side-nav-icon \{[^}]*width: 18px;[^}]*height: 18px;/);
 });
 
 test("language switch is user-facing while SEO stays Japanese canonical", () => {
