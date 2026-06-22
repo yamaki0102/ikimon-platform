@@ -153,6 +153,19 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /visitId = normalizeSavedObservationVisitId\(observationJson, observationId\)/);
         assert.match(response.body, /detailId = normalizeSavedObservationTargetId\(observationJson, visitId \|\| observationId\)/);
         assert.match(response.body, /record_success_rendered/);
+        assert.match(response.body, /const scrollStatusIntoView = \(\) =>/);
+        assert.match(response.body, /scrollStatusIntoView\(\);/);
+        assert.match(response.body, /buildRecordSuccessReturnHtml/);
+        assert.match(response.body, /publicStateSuccessKind/);
+        assert.match(response.body, /record-success-return/);
+        assert.match(response.body, /record-success-actions/);
+        assert.match(response.body, /data-record-success-cta/);
+        assert.match(response.body, /key: 'notes', label: recordUiCopy\.successRecordsCta, primary: true/);
+        assert.match(response.body, /key: 'profile', label: recordUiCopy\.successProfileCta, primary: false/);
+        assert.match(response.body, /key: 'map_nearby', label: recordUiCopy\.successMapCta, primary: false/);
+        assert.match(response.body, /withBasePath\('\/map\?tab=places'\)/);
+        assert.match(response.body, /周辺の地図を見る/);
+        assert.match(response.body, /自分の記録を見る/);
         assert.match(response.body, /record_saved/);
         assert.match(response.body, /buildContributionReceiptsHtml/);
         assert.match(response.body, /observationJson\.contributionReceipts/);
@@ -191,7 +204,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /pendingMediaRetryObservationId = pendingMediaRetryVisitId \|\| pendingMediaRetryDetailId/);
         assert.doesNotMatch(response.body, /pendingMediaRetryObservationId = observationId/);
         assert.doesNotMatch(response.body, /const observationId = pendingMediaRetryObservationId \|\| 'record-'/);
-        assert.match(response.body, /data-record-success-cta="revisit_same_place"/);
+        assert.match(response.body, /key: 'revisit_same_place', label: recordUiCopy\.successRevisitCta, primary: false/);
         assert.match(response.body, /同じ場所でもう1件記録する/);
         assert.match(response.body, /revisitObservationId=/);
         assert.match(response.body, /写真を保存しています\.\.\. ' \+ String\(index\) \+ '\/' \+ String\(total\)/);
@@ -376,6 +389,7 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/en\/observations\/"/);
         assert.match(response.body, /successProfileCta: "My page"/);
         assert.match(response.body, /successRecordsCta: "View my records"/);
+        assert.match(response.body, /successMapCta: "View nearby map"/);
         assert.match(response.body, /Your records list lets you return to this saved record right away/);
         assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
         assert.doesNotMatch(response.body, /<h2>写真で記録する<\/h2>/);
