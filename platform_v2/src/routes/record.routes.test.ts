@@ -273,6 +273,14 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /写真のGPS情報は別に注意が必要です/);
         assert.match(response.body, /学校・自宅・希少種/);
         assert.match(response.body, /record-location-privacy-preview/);
+        assert.match(response.body, /record-location-public-preview/);
+        assert.match(response.body, /公開の目安/);
+        assert.match(response.body, /水色の範囲だけでは、写真のGPS情報や写り込みまでは隠せません。/);
+        assert.match(response.body, /PUBLIC_LOCATION_PREVIEW_SOURCE/);
+        assert.match(response.body, /record-public-location-preview-fill/);
+        assert.match(response.body, /buildPublicLocationPreviewFeature/);
+        assert.match(response.body, /syncLocationPublicPreviewMap/);
+        assert.match(response.body, /syncRecordMapMarker/);
         assert.match(response.body, /syncLocationPrivacyNotice/);
         assert.match(response.body, /locationPrivacyAfterSave/);
         assert.match(response.body, /写真ファイルのGPS情報や写り込みから場所が分かる場合があります/);
@@ -381,6 +389,8 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /What becomes public/);
         assert.match(response.body, /Exact place/);
         assert.match(response.body, /Photo files may still contain GPS metadata/);
+        assert.match(response.body, /Public guide/);
+        assert.match(response.body, /The blue guide does not hide photo GPS metadata or visible clues/);
         assert.match(response.body, /Schools, homes, rare species/);
         assert.doesNotMatch(response.body, /Exact coordinates stay off public pages/);
         assert.match(response.body, /Fields you can complete later/);
