@@ -1314,6 +1314,38 @@ export function buildPublicCellRecords(
   };
 }
 
+export async function findPublicMapObservationRecordById(
+  id: string,
+  options: { zoom?: number } = {},
+): Promise<PublicMapObservationRecord | null> {
+  const raw = String(id ?? "").trim();
+  if (!raw) return null;
+  const normalizedVisitId = raw.match(/^occ:(.+):\d+$/)?.[1] ?? raw;
+  const snapshot = await loadPublicMapSnapshotPayload();
+  const row = snapshot?.records.find((record) =>
+    record.visitId === normalizedVisitId ||
+    record.visitId === raw ||
+    record.occurrenceId === raw ||
+    record.occurrenceId === id,
+  );
+  if (!row) return null;
+
+  const gridM = pickPublicGridMeters(options.zoom);
+  const cellId = formatPublicCellId(publicCellKeyForRuntimeRecord(row, gridM));
+  return {
+    occurrenceId: row.occurrenceId,
+    visitId: row.visitId,
+    displayName: publicMapDisplayName(row),
+    isAiCandidate: row.publicCoordReason === "rare_redlist" ? false : row.isAiCandidate,
+    isAwaitingId: row.publicCoordReason === "rare_redlist" ? false : row.displayName === "同定待ち",
+    localityLabel: row.localityLabel,
+    observedAt: row.observedAt,
+    photoUrl: publicMapPhotoUrl(row),
+    taxonGroup: row.taxonGroup,
+    cellId,
+  };
+}
+
 export type PublicAreaNameCandidate = {
   name: string;
   admin_level: string | null;
