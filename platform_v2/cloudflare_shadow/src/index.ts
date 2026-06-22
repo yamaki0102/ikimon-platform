@@ -2546,7 +2546,7 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
 
   const object = await env.ASSET_BUCKET.get(originalUiHtmlKeyForRequest(url));
   if (object?.body) {
-    const body = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, url);
+    const body = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, url, env);
     return new Response(body, {
       headers: {
         "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
@@ -2568,7 +2568,11 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
 }
 
-async function originalUiHtmlBodyForRequest(object: R2ObjectBody, url: URL): Promise<ReadableStream | string | null> {
+async function originalUiHtmlBodyForRequest(object: R2ObjectBody, url: URL, env: Env): Promise<ReadableStream | string | null> {
+  if (isRecordsHtmlPath(url.pathname)) {
+    const text = await new Response(object.body).text();
+    return injectRecentObservationRecords(text, url, env);
+  }
   if (!isAuthHtmlPath(url.pathname) || !url.searchParams.has("redirect")) return object.body;
   const text = await new Response(object.body).text();
   return personalizeAuthRedirectHtml(text, postAuthRedirect(url.searchParams.get("redirect")));
@@ -2576,6 +2580,96 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, url: URL): Pro
 
 function isAuthHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/(?:login|register)$/.test(pathname);
+}
+
+function isRecordsHtmlPath(pathname: string): boolean {
+  return /^(?:\/(?:ja|en|es|pt-br))?\/records$/.test(pathname);
+}
+
+function recordsInjectionCopy(url: URL) {
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  if (lang === "en") {
+    return {
+      eyebrow: "Live records",
+      title: "Recent records are already here",
+      body: "New posts appear here from Cloudflare immediately after their public media is ready.",
+      empty: "No recent public records yet.",
+      open: "Open",
+      map: "Map",
+      unknown: "Awaiting ID"
+    };
+  }
+  return {
+    eyebrow: "記録が動いています",
+    title: "最近の投稿",
+    body: "投稿後、公開用の写真処理が終わった記録からここに出ます。",
+    empty: "まだ最近の公開記録はありません。",
+    open: "開く",
+    map: "地図",
+    unknown: "同定待ち"
+  };
+}
+
+function publicLangFromPath(pathname: string): "ja" | "en" | "es" | "pt-br" | null {
+  const match = pathname.match(/^\/(ja|en|es|pt-br)(?:\/|$)/);
+  return match ? match[1] as "ja" | "en" | "es" | "pt-br" : null;
+}
+
+async function injectRecentObservationRecords(html: string, url: URL, env: Env): Promise<string> {
+  const items = await recentPublicRecordCards(env).catch(() => []);
+  const copy = recordsInjectionCopy(url);
+  const cards = items.length > 0
+    ? items.map((item) => renderRecentRecordCard(item, copy)).join("")
+    : `<p class="cf-records-empty">${escapeHtml(copy.empty)}</p>`;
+  const section = `<section class="cf-records-live" data-cloudflare-records-live>
+    <style>
+      .cf-records-live{margin:10px auto 14px;padding:14px;max-width:min(1120px,calc(100% - 24px));border:1px solid rgba(15,23,42,.1);border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(15,23,42,.08)}
+      .cf-records-live-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:12px}
+      .cf-records-live small{display:block;color:#047857;font-weight:900;letter-spacing:.02em}
+      .cf-records-live h2{margin:2px 0 0;color:#10251a;font-size:22px;line-height:1.15}
+      .cf-records-live p{margin:0;color:#475569;font-size:13px;line-height:1.55}
+      .cf-records-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+      .cf-record-card{min-width:0;border:1px solid rgba(15,23,42,.08);border-radius:12px;overflow:hidden;background:#f8fafc;text-decoration:none;color:#0f172a}
+      .cf-record-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#dbeafe}
+      .cf-record-card-body{padding:10px}
+      .cf-record-card strong{display:block;font-size:14px;line-height:1.3}
+      .cf-record-card span{display:block;margin-top:4px;color:#64748b;font-size:12px;line-height:1.4}
+      .cf-records-empty{padding:10px;border-radius:10px;background:#f8fafc}
+      @media (max-width:720px){.cf-records-live{margin:8px 8px 12px;padding:12px;border-radius:12px}.cf-records-live-head{display:block}.cf-records-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cf-records-live h2{font-size:18px}.cf-record-card-body{padding:8px}.cf-record-card strong{font-size:13px}}
+    </style>
+    <div class="cf-records-live-head"><div><small>${escapeHtml(copy.eyebrow)}</small><h2>${escapeHtml(copy.title)}</h2></div><p>${escapeHtml(copy.body)}</p></div>
+    <div class="cf-records-grid">${cards}</div>
+  </section>`;
+  if (html.includes("<main")) {
+    return html.replace(/(<main\b[^>]*>)/i, `$1${section}`);
+  }
+  if (html.includes("<body")) {
+    return html.replace(/(<body\b[^>]*>)/i, `$1${section}`);
+  }
+  return `${section}${html}`;
+}
+
+async function recentPublicRecordCards(env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
+  const rows = (await queryPublicMapRows(env)).slice(0, 6);
+  if (rows.length === 0) return [];
+  const photoUrls = await queryPublicMapPhotoUrls(env);
+  return rows.map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null));
+}
+
+function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
+  const href = `/observations/${encodeURIComponent(item.visitId)}`;
+  const mapHref = `/map?cell_id=${encodeURIComponent(item.cellId)}`;
+  const image = item.photoUrl
+    ? `<img src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="lazy">`
+    : "";
+  return `<a class="cf-record-card" href="${escapeHtml(href)}">
+    ${image}
+    <span class="cf-record-card-body">
+      <strong>${escapeHtml(item.displayName || copy.unknown)}</strong>
+      <span>${escapeHtml(item.observedAt)} · ${escapeHtml(item.cellId)}</span>
+      <span>${escapeHtml(copy.open)} / ${escapeHtml(copy.map)}: ${escapeHtml(mapHref)}</span>
+    </span>
+  </a>`;
 }
 
 function personalizeAuthRedirectHtml(html: string, redirect: string): string {
