@@ -9716,6 +9716,15 @@ const PROFILE_CHANNEL_STYLES = `
 const PROFILE_HUB_STYLES = `
   ${PROFILE_CHANNEL_STYLES}
   ${PLACE_REVISIT_ROW_STYLES}
+  .profile-saved-record-pulse { min-width: 0; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 18px; border-radius: 8px; border: 1px solid rgba(16,185,129,.18); background: linear-gradient(135deg, rgba(236,253,245,.94), rgba(255,255,255,.96)); box-shadow: 0 14px 32px rgba(15,23,42,.055); }
+  .profile-saved-record-pulse > div:first-child { min-width: 0; display: grid; gap: 6px; }
+  .profile-saved-record-pulse span { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
+  .profile-saved-record-pulse strong { color: #10251a; font-size: clamp(18px, 2.4vw, 26px); line-height: 1.18; font-weight: 950; overflow-wrap: anywhere; }
+  .profile-saved-record-pulse p { margin: 0; color: #475569; font-size: 13px; line-height: 1.65; font-weight: 760; overflow-wrap: anywhere; }
+  .profile-saved-record-actions { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; }
+  .profile-saved-record-pulse a { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; max-width: 100%; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #10251a; text-decoration: none; font-size: 12.5px; line-height: 1.2; font-weight: 950; text-align: center; }
+  .profile-saved-record-pulse a.is-primary { background: #10251a; border-color: #10251a; color: #fff; }
+  .profile-saved-record-pulse.is-empty a { background: #10251a; border-color: #10251a; color: #fff; }
   .profile-hub-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-width: 0; }
   .profile-hub-actions .btn { min-height: 44px; max-width: 100%; white-space: normal; }
   .profile-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
@@ -9827,6 +9836,9 @@ const PROFILE_HUB_STYLES = `
     .profile-history-line, .profile-growth-grid, .profile-contribution-grid, .profile-reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 620px) {
+    .profile-saved-record-pulse { display: grid; gap: 12px; padding: 15px; }
+    .profile-saved-record-actions { width: 100%; display: grid; grid-template-columns: 1fr; }
+    .profile-saved-record-pulse a { width: 100%; border-radius: 14px; }
     .profile-summary-grid, .profile-next-grid, .profile-life-grid { grid-template-columns: 1fr; }
     .profile-history-line, .profile-growth-grid, .profile-contribution-grid, .profile-reference-grid, .regional-story-grid { grid-template-columns: 1fr; }
     .regional-story-head { flex-direction: column; }
@@ -9937,6 +9949,110 @@ function profileObservationHref(basePath: string, item: {
     item.detailId ?? item.visitId ?? item.occurrenceId,
     item.featuredOccurrenceId ?? item.occurrenceId,
   ));
+}
+
+function profileSavedRecordCopy(lang: SiteLang): {
+  emptyEyebrow: string;
+  emptyTitle: string;
+  emptyBody: string;
+  emptyCta: string;
+  savedEyebrow: string;
+  savedTitlePrefix: string;
+  savedBodyPrefix: string;
+  savedCta: string;
+  recordsCta: string;
+  noPlace: string;
+} {
+  if (lang === "en") {
+    return {
+      emptyEyebrow: "My latest saved record",
+      emptyTitle: "Your first record will stay here.",
+      emptyBody: "After you save a photo, video, sound, place, or note, My page keeps the newest one within reach.",
+      emptyCta: "Add a record",
+      savedEyebrow: "Latest saved record",
+      savedTitlePrefix: "Saved:",
+      savedBodyPrefix: "You can reopen this record from here anytime.",
+      savedCta: "Open saved record",
+      recordsCta: "View all records",
+      noPlace: "No place set",
+    };
+  }
+  if (lang === "es") {
+    return {
+      emptyEyebrow: "Mi ultimo registro guardado",
+      emptyTitle: "Tu primer registro quedara aqui.",
+      emptyBody: "Despues de guardar una foto, video, sonido, lugar o nota, Mi pagina deja el mas reciente a mano.",
+      emptyCta: "Agregar registro",
+      savedEyebrow: "Ultimo registro guardado",
+      savedTitlePrefix: "Guardado:",
+      savedBodyPrefix: "Puedes volver a abrir este registro desde aqui cuando quieras.",
+      savedCta: "Abrir registro",
+      recordsCta: "Ver todos",
+      noPlace: "Sin lugar",
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      emptyEyebrow: "Meu ultimo registro salvo",
+      emptyTitle: "Seu primeiro registro ficara aqui.",
+      emptyBody: "Depois de salvar uma foto, video, som, lugar ou nota, Minha pagina mantem o mais recente por perto.",
+      emptyCta: "Adicionar registro",
+      savedEyebrow: "Ultimo registro salvo",
+      savedTitlePrefix: "Salvo:",
+      savedBodyPrefix: "Voce pode reabrir este registro por aqui quando quiser.",
+      savedCta: "Abrir registro",
+      recordsCta: "Ver todos",
+      noPlace: "Sem local",
+    };
+  }
+  return {
+    emptyEyebrow: "最後に保存した記録",
+    emptyTitle: "最初の記録はここに残ります。",
+    emptyBody: "写真・動画・音・場所・ひとことのどれかを保存すると、マイページの先頭からすぐ開けます。",
+    emptyCta: "記録する",
+    savedEyebrow: "最後に保存した記録",
+    savedTitlePrefix: "保存済み:",
+    savedBodyPrefix: "この1件はここからいつでも開き直せます。",
+    savedCta: "保存した記録を開く",
+    recordsCta: "記録一覧を見る",
+    noPlace: "場所は未設定",
+  };
+}
+
+function renderProfileSavedRecordPulse(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot): string {
+  const copy = profileSavedRecordCopy(lang);
+  const latest = snapshot.recentObservations[0] ?? null;
+  const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
+  const recordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
+  if (!latest) {
+    return `<section class="section" data-testid="profile-saved-record-pulse">
+      <div class="profile-saved-record-pulse is-empty">
+        <div>
+          <span>${escapeHtml(copy.emptyEyebrow)}</span>
+          <strong>${escapeHtml(copy.emptyTitle)}</strong>
+          <p>${escapeHtml(copy.emptyBody)}</p>
+        </div>
+        <a href="${escapeHtml(recordHref)}" data-kpi-action="profile:saved_record:first_record">${escapeHtml(copy.emptyCta)}</a>
+      </div>
+    </section>`;
+  }
+  const latestHref = appendLangToHref(profileObservationHref(basePath, latest), lang);
+  const title = formatTaxonDisplayName(latest, lang).primaryLabel;
+  const place = formatPlaceDisplay(latest, lang, "owner") || copy.noPlace;
+  const date = formatProfileDate(latest.observedAt);
+  return `<section class="section" data-testid="profile-saved-record-pulse">
+    <div class="profile-saved-record-pulse">
+      <div>
+        <span>${escapeHtml(copy.savedEyebrow)}</span>
+        <strong>${escapeHtml(copy.savedTitlePrefix)} ${escapeHtml(title)}</strong>
+        <p>${escapeHtml(`${copy.savedBodyPrefix} ${date} · ${place}`)}</p>
+      </div>
+      <div class="profile-saved-record-actions">
+        <a class="is-primary" href="${escapeHtml(latestHref)}" data-kpi-action="profile:saved_record:latest">${escapeHtml(copy.savedCta)}</a>
+        <a href="${escapeHtml(recordsHref)}" data-kpi-action="profile:saved_record:records">${escapeHtml(copy.recordsCta)}</a>
+      </div>
+    </div>
+  </section>`;
 }
 
 function renderChannelMediaCard(
@@ -10374,7 +10490,8 @@ export function renderSelfProfileHub(
   regionalStories: RegionalStoryCue[] = [],
   referenceSummary: ReferenceProfileSummary | null = null,
 ): string {
-  return `${renderProfileChannelHero(basePath, snapshot)}
+  return `${renderProfileSavedRecordPulse(basePath, lang, snapshot)}
+    ${renderProfileChannelHero(basePath, snapshot)}
     ${renderProfileIntro(basePath, snapshot, true)}
     ${renderProfileNextActions(basePath, snapshot, digest)}
     ${renderProfileReferenceLibrary(basePath, referenceSummary)}
