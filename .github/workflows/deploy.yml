@@ -407,6 +407,19 @@ jobs:
           if (!Array.isArray(obs.items) || obs.items.length === 0 || withMedia === 0) {
             throw new Error(`Map observation media smoke failed: items=${obs.items?.length ?? 0} withMedia=${withMedia}`);
           }
+          for (const ownerPath of ["/api/v1/map/my-observations", "/api/v1/me/map-observations"]) {
+            const ownerResponse = await fetch(`https://ikimon.life${ownerPath}`, {
+              headers: { "cache-control": "no-store" }
+            });
+            const ownerText = await ownerResponse.text();
+            if (!ownerResponse.ok) {
+              throw new Error(`Owner map observation guest smoke failed: path=${ownerPath} status=${ownerResponse.status} body=${ownerText.slice(0, 160)}`);
+            }
+            const ownerPayload = JSON.parse(ownerText);
+            if (ownerPayload.signedIn !== false || !Array.isArray(ownerPayload.items) || ownerPayload.items.length !== 0) {
+              throw new Error(`Owner map observation guest contract changed: path=${ownerPath} body=${ownerText.slice(0, 160)}`);
+            }
+          }
           const areas = await fetch("https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.55,34.61,137.91,34.85&zoom=12&limit=50", {
             headers: { "cache-control": "no-store" }
           }).then((response) => response.json());
