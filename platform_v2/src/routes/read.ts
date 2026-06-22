@@ -9810,6 +9810,14 @@ function renderChannelMediaCard(
   </a>`;
 }
 
+function profileChannelFallbackText(primary: string | null | undefined, secondary: string | null | undefined, fallback: string): string {
+  const primaryText = primary?.trim();
+  if (primaryText) return primaryText;
+  const secondaryText = secondary?.trim();
+  if (secondaryText) return secondaryText;
+  return fallback;
+}
+
 function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): string {
   const isPersonalHome = Boolean(snapshot.viewerUserId);
   const latest = snapshot.recentObservations[0] ?? null;
@@ -9931,6 +9939,15 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
   const latest = snapshot.recentObservations[0] ?? null;
   const firstPlace = snapshot.recentPlaces[0] ?? null;
   const topLife = snapshot.lifeListPreview[0] ?? null;
+  const recordCountLabel = snapshot.stats.totalObservations > 0
+    ? `${formatProfileNumber(snapshot.stats.totalObservations)}件`
+    : "記録する";
+  const placeCountLabel = snapshot.stats.placeCount > 0
+    ? `${formatProfileNumber(snapshot.stats.placeCount)}か所`
+    : "地図を見る";
+  const lifeCountLabel = snapshot.stats.uniqueTaxaAllTime > 0
+    ? `${formatProfileNumber(snapshot.stats.uniqueTaxaAllTime)}種`
+    : recordCountLabel;
   return `<section class="section" data-testid="profile-channel">
     <div class="profile-channel-grid">
       ${renderChannelMediaCard(
@@ -9939,7 +9956,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         firstPlace?.placeName ?? "これから歩く場所",
         firstPlace ? buildPlaceNextLine(firstPlace) : "場所の記録が入ると、よく歩くフィールドとして育ちます。",
         latest?.photoUrl,
-        "FIELD",
+        profileChannelFallbackText(firstPlace?.placeName, firstPlace?.municipality, placeCountLabel),
       )}
       ${renderChannelMediaCard(
         latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record"),
@@ -9947,7 +9964,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         latest?.displayName ?? "まだ記録はありません",
         latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "最初の発見から、自然との関わりが見えるページになります。",
         latest?.photoUrl,
-        "PHOTO",
+        profileChannelFallbackText(latest?.displayName, latest?.placeName, recordCountLabel),
       )}
       ${renderChannelMediaCard(
         withBasePath(basePath, firstPlace ? "/record" : "/map"),
@@ -9955,7 +9972,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         firstPlace ? buildPlaceNextLine(firstPlace) : "地図から探す",
         firstPlace ? `${firstPlace.placeName} をもう一度見る理由があります。` : "近くの発見から、次の観察地点を選べます。",
         null,
-        "NEXT",
+        profileChannelFallbackText(firstPlace?.nextLookFor, firstPlace?.latestDisplayName, firstPlace?.placeName ?? placeCountLabel),
       )}
       ${renderChannelMediaCard(
         withBasePath(basePath, "/records?view=mine"),
@@ -9963,7 +9980,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         topLife?.displayName ?? "名前が付くと並びます",
         topLife ? `${formatProfileNumber(topLife.observationCount)} 件の記録から見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
         topLife?.photoUrl ?? latest?.photoUrl,
-        "LIFE",
+        profileChannelFallbackText(topLife?.displayName, latest?.displayName, lifeCountLabel),
       )}
     </div>
   </section>`;
