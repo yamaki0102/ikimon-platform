@@ -5084,6 +5084,12 @@ type RecordFormCopy = {
   locationPrivacySensitiveBody: string;
   locationPrivacyPreviewUnset: string;
   locationPrivacyPreviewSet: string;
+  locationPrivacyPrivateBadge: string;
+  locationPrivacyPrivateBody: string;
+  locationPrivacyPublicBadge: string;
+  locationPrivacyPublicUnset: string;
+  locationPrivacyPublicSet: string;
+  locationPrivacyPublicCaution: string;
   locationPrivacyAfterSave: string;
   successHeading: string;
   successMediaHeading: string;
@@ -5551,6 +5557,12 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacySensitiveBody: "学校、自宅付近、希少種は広い表示でも特定につながることがあります。必要なら写真のGPSを消してから投稿してください。",
       locationPrivacyPreviewUnset: "公開地図は広い表示にします。写真ファイルにGPSが残る場合があります。",
       locationPrivacyPreviewSet: "公開地図は広い表示です。写真のGPS情報や写り込みも確認してください。",
+      locationPrivacyPrivateBadge: "自分用",
+      locationPrivacyPrivateBody: "緑のピンは保存と自分の記録整理に使う地点です。",
+      locationPrivacyPublicBadge: "公開の目安",
+      locationPrivacyPublicUnset: "地点を決めると、公開側の広い範囲を地図に重ねます。",
+      locationPrivacyPublicSet: "水色の範囲が公開側の見え方の目安です。",
+      locationPrivacyPublicCaution: "水色の範囲だけでは、写真のGPS情報や写り込みまでは隠せません。",
       locationPrivacyAfterSave: "公開地図は広い表示ですが、写真ファイルのGPS情報や写り込みから場所が分かる場合があります。学校・自宅付近・希少種は投稿後も公開状態を確認してください。",
       successHeading: "記録を保存しました。",
       successMediaHeading: "メディアを保存しました。",
@@ -5736,6 +5748,12 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacySensitiveBody: "Schools, home areas, and rare species can still be identifiable even from broad areas. Remove photo GPS before posting when needed.",
       locationPrivacyPreviewUnset: "Public maps use a broad view. Photo files may still contain GPS metadata.",
       locationPrivacyPreviewSet: "Public maps use a broad view. Check photo GPS metadata and visible clues too.",
+      locationPrivacyPrivateBadge: "For you",
+      locationPrivacyPrivateBody: "The green pin is used for saving and your notebook.",
+      locationPrivacyPublicBadge: "Public guide",
+      locationPrivacyPublicUnset: "Choose a place to overlay the broad public area.",
+      locationPrivacyPublicSet: "The blue area is the public-view guide.",
+      locationPrivacyPublicCaution: "The blue guide does not hide photo GPS metadata or visible clues.",
       locationPrivacyAfterSave: "Public maps use a broad view, but photo GPS metadata or visible clues can still reveal a place. Recheck school, home-area, and rare-species records after saving.",
       successHeading: "Record saved.",
       successMediaHeading: "Media saved.",
@@ -5921,6 +5939,12 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacySensitiveBody: "Escuelas, hogares y especies raras pueden identificarse aun desde areas amplias. Quita el GPS de la foto si hace falta.",
       locationPrivacyPreviewUnset: "El mapa publico usa vista amplia. La foto puede conservar GPS en sus metadatos.",
       locationPrivacyPreviewSet: "El mapa publico usa vista amplia. Revisa tambien GPS de la foto y pistas visibles.",
+      locationPrivacyPrivateBadge: "Para ti",
+      locationPrivacyPrivateBody: "El pin verde se usa para guardar y para tu cuaderno.",
+      locationPrivacyPublicBadge: "Guia publica",
+      locationPrivacyPublicUnset: "Elige un lugar para superponer el area publica amplia.",
+      locationPrivacyPublicSet: "El area azul es la guia de vista publica.",
+      locationPrivacyPublicCaution: "La guia azul no oculta el GPS de la foto ni pistas visibles.",
       locationPrivacyAfterSave: "El mapa publico usa vista amplia, pero el GPS de la foto o pistas visibles pueden revelar el lugar. Revisa registros de escuela, hogar y especies raras despues de guardar.",
       successHeading: "Registro guardado.",
       successMediaHeading: "Medio guardado.",
@@ -6106,6 +6130,12 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       locationPrivacySensitiveBody: "Escolas, areas de casa e especies raras ainda podem ser identificadas em areas amplas. Remova o GPS da foto quando necessario.",
       locationPrivacyPreviewUnset: "O mapa publico usa vista ampla. A foto pode manter GPS nos metadados.",
       locationPrivacyPreviewSet: "O mapa publico usa vista ampla. Confira tambem GPS da foto e pistas visiveis.",
+      locationPrivacyPrivateBadge: "Para voce",
+      locationPrivacyPrivateBody: "O pino verde e usado para salvar e no seu caderno.",
+      locationPrivacyPublicBadge: "Guia publica",
+      locationPrivacyPublicUnset: "Escolha um local para sobrepor a area publica ampla.",
+      locationPrivacyPublicSet: "A area azul e a guia da vista publica.",
+      locationPrivacyPublicCaution: "A guia azul nao oculta GPS da foto nem pistas visiveis.",
       locationPrivacyAfterSave: "O mapa publico usa vista ampla, mas GPS da foto ou pistas visiveis ainda podem revelar o local. Revise registros de escola, casa e especies raras depois de salvar.",
       successHeading: "Registro salvo.",
       successMediaHeading: "Midia salva.",
@@ -14611,6 +14641,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                       </div>
                     </div>
                   </details>
+                  <div id="record-location-public-preview" class="record-location-public-preview" data-location="unset" aria-live="polite">
+                    <span><b>${escapeHtml(recordForm.locationPrivacyPrivateBadge)}</b><em>${escapeHtml(recordForm.locationPrivacyPrivateBody)}</em></span>
+                    <span><b>${escapeHtml(recordForm.locationPrivacyPublicBadge)}</b><em id="record-location-public-preview-text">${escapeHtml(recordForm.locationPrivacyPublicUnset)}</em></span>
+                    <small>${escapeHtml(recordForm.locationPrivacyPublicCaution)}</small>
+                  </div>
                   <div class="record-place-search">
                     <input id="record-location-search" type="search" placeholder="${escapeHtml(recordForm.locationSearchPlaceholder)}" autocomplete="off" />
                     <button type="button" id="record-location-search-btn">${escapeHtml(recordForm.locationSearchButton)}</button>
@@ -14963,6 +14998,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const locationMapEl = document.getElementById('record-location-map');
         const locationPrivacy = document.getElementById('record-location-privacy');
         const locationPrivacyPreview = document.getElementById('record-location-privacy-preview');
+        const locationPublicPreview = document.getElementById('record-location-public-preview');
+        const locationPublicPreviewText = document.getElementById('record-location-public-preview-text');
         const locationSearchInput = document.getElementById('record-location-search');
         const locationSearchButton = document.getElementById('record-location-search-btn');
         const locationResults = document.getElementById('record-location-results');
@@ -15086,6 +15123,79 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           pendingMediaRetryDetailId = '';
         };
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
+        const PUBLIC_LOCATION_PREVIEW_SOURCE = 'record-public-location-preview';
+        const PUBLIC_LOCATION_PREVIEW_FILL = 'record-public-location-preview-fill';
+        const PUBLIC_LOCATION_PREVIEW_LINE = 'record-public-location-preview-line';
+        const buildPublicLocationPreviewFeature = (lat, lng) => {
+          const safeLat = Number(lat);
+          const safeLng = Number(lng);
+          if (!Number.isFinite(safeLat) || !Number.isFinite(safeLng)) return null;
+          if (safeLat < -90 || safeLat > 90 || safeLng < -180 || safeLng > 180) return null;
+          const boundedLat = Math.max(-85, Math.min(85, safeLat));
+          const latDelta = 0.005;
+          const lngDelta = latDelta / Math.max(0.35, Math.cos(boundedLat * Math.PI / 180));
+          const west = safeLng - lngDelta;
+          const east = safeLng + lngDelta;
+          const south = safeLat - latDelta;
+          const north = safeLat + latDelta;
+          return {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [west, south],
+                [east, south],
+                [east, north],
+                [west, north],
+                [west, south],
+              ]],
+            },
+          };
+        };
+        const publicLocationPreviewCollection = (coords) => {
+          const feature = coords ? buildPublicLocationPreviewFeature(coords.lat, coords.lng) : null;
+          return { type: 'FeatureCollection', features: feature ? [feature] : [] };
+        };
+        const syncLocationPublicPreviewMap = (coords) => {
+          if (!recordMap || !recordMapReady || typeof recordMap.isStyleLoaded !== 'function' || !recordMap.isStyleLoaded()) return;
+          const data = publicLocationPreviewCollection(coords);
+          if (!recordMap.getSource(PUBLIC_LOCATION_PREVIEW_SOURCE)) {
+            recordMap.addSource(PUBLIC_LOCATION_PREVIEW_SOURCE, { type: 'geojson', data });
+            recordMap.addLayer({
+              id: PUBLIC_LOCATION_PREVIEW_FILL,
+              type: 'fill',
+              source: PUBLIC_LOCATION_PREVIEW_SOURCE,
+              paint: {
+                'fill-color': '#0ea5e9',
+                'fill-opacity': 0.16,
+              },
+            });
+            recordMap.addLayer({
+              id: PUBLIC_LOCATION_PREVIEW_LINE,
+              type: 'line',
+              source: PUBLIC_LOCATION_PREVIEW_SOURCE,
+              paint: {
+                'line-color': '#0284c7',
+                'line-width': 2,
+                'line-dasharray': [2, 2],
+              },
+            });
+            return;
+          }
+          const source = recordMap.getSource(PUBLIC_LOCATION_PREVIEW_SOURCE);
+          if (source && typeof source.setData === 'function') source.setData(data);
+        };
+        const syncRecordMapMarker = (lat, lng) => {
+          if (!recordMap || !window.maplibregl) return;
+          const lngLat = [Number(lng), Number(lat)];
+          if (!Number.isFinite(lngLat[0]) || !Number.isFinite(lngLat[1])) return;
+          if (!recordMapMarker) {
+            recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).setLngLat(lngLat).addTo(recordMap);
+            return;
+          }
+          recordMapMarker.setLngLat(lngLat);
+        };
         const captureLabels = ${JSON.stringify(recordCopy.captureLabels)};
         const recordUiCopy = {
           entryLabel: ${JSON.stringify(recordCopy.modeEntryLabel)},
@@ -15120,6 +15230,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           mediaLocationMissing: ${JSON.stringify(recordForm.mediaLocationMissing)},
           locationPrivacyPreviewUnset: ${JSON.stringify(recordForm.locationPrivacyPreviewUnset)},
           locationPrivacyPreviewSet: ${JSON.stringify(recordForm.locationPrivacyPreviewSet)},
+          locationPrivacyPublicUnset: ${JSON.stringify(recordForm.locationPrivacyPublicUnset)},
+          locationPrivacyPublicSet: ${JSON.stringify(recordForm.locationPrivacyPublicSet)},
           locationPrivacyAfterSave: ${JSON.stringify(recordForm.locationPrivacyAfterSave)},
           successHeading: ${JSON.stringify(recordForm.successHeading)},
           successMediaHeading: ${JSON.stringify(recordForm.successMediaHeading)},
@@ -15420,11 +15532,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const syncLocationPrivacyNotice = () => {
           const coords = readCoords();
           if (locationPrivacy) locationPrivacy.classList.toggle('has-location', Boolean(coords));
+          if (locationPublicPreview) locationPublicPreview.setAttribute('data-location', coords ? 'set' : 'unset');
+          if (locationPublicPreviewText) {
+            locationPublicPreviewText.textContent = coords
+              ? recordUiCopy.locationPrivacyPublicSet
+              : recordUiCopy.locationPrivacyPublicUnset;
+          }
           if (locationPrivacyPreview) {
             locationPrivacyPreview.textContent = coords
               ? recordUiCopy.locationPrivacyPreviewSet
               : recordUiCopy.locationPrivacyPreviewUnset;
           }
+          syncLocationPublicPreviewMap(coords);
         };
 
         const setRecordLocationProvenance = (source, lat, lng, details) => {
@@ -15469,8 +15588,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           scheduleRecordDraftAutosave('location_set');
           if (recordMapReady && recordMap && window.maplibregl) {
             recordMap.jumpTo({ center: [Number(lng), Number(lat)], zoom: opts && opts.zoom ? opts.zoom : Math.max(recordMap.getZoom(), 15) });
-            if (!recordMapMarker) recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).addTo(recordMap);
-            recordMapMarker.setLngLat([Number(lng), Number(lat)]);
+            syncRecordMapMarker(lat, lng);
           }
         };
 
@@ -16871,6 +16989,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 : '撮影地点を指定済み';
               setRecordLocation(coords.lat, coords.lng, currentLabel, { zoom: 15, source: 'existing_form_coordinates' });
             }
+            syncLocationPrivacyNotice();
             recordMap.resize();
           });
           recordMap.on('click', (event) => {
@@ -17594,8 +17713,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             updateLocationText('保存済み下書きの地点');
             if (recordMapReady && recordMap && window.maplibregl) {
               recordMap.jumpTo({ center: [coords.lng, coords.lat], zoom: Math.max(recordMap.getZoom(), 15) });
-              if (!recordMapMarker) recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).addTo(recordMap);
-              recordMapMarker.setLngLat([coords.lng, coords.lat]);
+              syncRecordMapMarker(coords.lat, coords.lng);
             }
           }
           syncPreview();
@@ -18829,6 +18947,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-location-privacy-item.is-sensitive b { background: #fef3c7; color: #b45309; }
         .record-location-privacy-item strong { color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; overflow-wrap: anywhere; }
         .record-location-privacy-item span { grid-column: 2; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 760; overflow-wrap: anywhere; }
+        .record-location-public-preview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 9px; border-radius: 14px; background: rgba(248,250,252,.92); border: 1px solid rgba(15,23,42,.08); }
+        .record-location-public-preview span { min-width: 0; display: grid; gap: 3px; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 780; overflow-wrap: anywhere; }
+        .record-location-public-preview b { width: fit-content; max-width: 100%; min-height: 24px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 11px; line-height: 1; font-weight: 950; }
+        .record-location-public-preview span:first-child b { background: #ecfdf5; color: #047857; }
+        .record-location-public-preview em { font-style: normal; }
+        .record-location-public-preview small { grid-column: 1 / -1; color: #64748b; font-size: 11px; line-height: 1.5; font-weight: 780; overflow-wrap: anywhere; }
+        .record-location-public-preview[data-location="set"] { background: #f0f9ff; border-color: rgba(14,165,233,.22); }
         .record-place-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
         .record-place-search input { min-height: 48px; padding: 0 14px; border-radius: 16px; border: 1px solid rgba(15,23,42,.12); background: #fff; font: inherit; }
         .record-place-search button { min-height: 48px; padding: 0 16px; border-radius: 16px; border: 0; background: #0f766e; color: #fff; font: inherit; font-weight: 950; cursor: pointer; }
@@ -19084,6 +19209,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-location-privacy-head span { max-width: none; text-align: left; }
           .record-location-privacy-grid { grid-template-columns: 1fr; }
           .record-location-privacy-item { min-height: auto; }
+          .record-location-public-preview { grid-template-columns: 1fr; }
           .record-prepublish-checklist { grid-template-columns: 1fr; }
           .record-place-search { grid-template-columns: 1fr; }
           .record-location-map { min-height: 220px; }
