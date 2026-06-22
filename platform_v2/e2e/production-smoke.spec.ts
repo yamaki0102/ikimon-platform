@@ -43,6 +43,13 @@ type PlaceMemorySmokeRecord = {
   } | null;
   placeMemorySample?: JsonPayload[];
 };
+type OwnerMapSmokeItem = {
+  displayName?: string;
+  latitude?: number;
+  longitude?: number;
+  photoUrl?: string | null;
+  visitId?: string;
+};
 type ReferenceCaptureSmokeRecord = {
   sourceId: string;
   title: string;
@@ -290,6 +297,46 @@ async function postPlaceMemorySmokeRecord(
   expect(payload?.ok, payload?.error ?? `place memory record ${suffix}`).toBeTruthy();
   expect(payload?.placeMemory?.entryId, `place memory entry ${suffix}`).toBeTruthy();
   return payload!;
+}
+
+async function pollOwnerMapPhotoRecord(
+  api: APIRequestContext,
+  baseUrl: string,
+  account: SmokeAccount,
+  expected: { latitude: number; longitude: number },
+): Promise<OwnerMapSmokeItem> {
+  const deadline = Date.now() + 30_000;
+  let lastPayload: JsonPayload = {};
+  while (Date.now() < deadline) {
+    const response = await api.get(joinUrl(baseUrl, "/api/v1/map/my-observations?limit=48"), {
+      headers: authHeaders(baseUrl, account),
+    });
+    const payload = (await response.json().catch(() => ({}))) as JsonPayload & {
+      signedIn?: boolean;
+      items?: OwnerMapSmokeItem[];
+    };
+    expect(response.ok(), `owner map observations should be reachable: ${response.status()}`).toBeTruthy();
+    expect(payload.signedIn, "owner map observations should see the smoke session").toBe(true);
+    lastPayload = payload;
+
+    const match = (payload.items ?? []).find((item) => {
+      const lat = Number(item.latitude);
+      const lng = Number(item.longitude);
+      return Boolean(item.photoUrl)
+        && Number.isFinite(lat)
+        && Number.isFinite(lng)
+        && Math.abs(lat - expected.latitude) < 0.0002
+        && Math.abs(lng - expected.longitude) < 0.0002;
+    });
+    if (match) {
+      expect(match.photoUrl, "owner map photo URL should use a thumbnail derivative").toMatch(/\/thumb\//);
+      expect(match.photoUrl, "owner map photo URL must not expose original uploads").not.toMatch(/\/uploads\/|original\//);
+      expect(JSON.stringify(match), "owner map item must not expose observer identity").not.toMatch(/userId|ownerUserId|observer|profile/i);
+      return match;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error(`owner map photo record not found; last=${JSON.stringify(lastPayload).slice(0, 800)}`);
 }
 
 async function captureIdentificationSmokeReference(
@@ -683,6 +730,14 @@ test.describe("production candidate smoke", () => {
       await expect(page.locator("#record-status")).toContainText("記録を保存しました");
       await expect(page.locator("#record-status")).toContainText("写真1枚を同じ記録に保存しました。");
       await recordSmokeCheckpoint("photo_ui_post");
+      const ownerMapItem = await pollOwnerMapPhotoRecord(context.request, baseUrl, account, {
+        latitude: 34.7108,
+        longitude: 137.7261,
+      });
+      await recordSmokeCheckpoint("owner_map_photo_lane", {
+        visitId: ownerMapItem.visitId,
+        hasPhotoUrl: Boolean(ownerMapItem.photoUrl),
+      });
 
       await page.goto(joinUrl(baseUrl, "/record?lang=ja&start=video"), { waitUntil: "domcontentloaded" });
       await page.locator("#record-media-video").setInputFiles(smokeVideoFile(prefix));
