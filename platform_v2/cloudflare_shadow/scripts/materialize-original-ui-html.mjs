@@ -76,12 +76,16 @@ function normalizePublicPath(value) {
 
 function renderUrlForPath(pathname) {
   switch (pathname) {
+    case "/ja":
     case "/ja/":
       return "/?lang=ja";
+    case "/en":
     case "/en/":
       return "/?lang=en";
+    case "/es":
     case "/es/":
       return "/?lang=es";
+    case "/pt-br":
     case "/pt-br/":
       return "/?lang=pt-BR";
     default:
