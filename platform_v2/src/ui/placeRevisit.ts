@@ -36,6 +36,10 @@ function inferQuickCaptureState(place: Pick<HomePlace, "absenceSemantics">): str
   return "present";
 }
 
+function isCoordinatePlaceId(value: string): boolean {
+  return /^geo:/i.test(value.trim());
+}
+
 export function buildPlaceRecordHref(
   basePath: string,
   lang: SiteLang,
@@ -58,7 +62,7 @@ export function buildPlaceRecordHref(
   if (viewerUserId) {
     params.set("userId", viewerUserId);
   }
-  if (place.placeId) {
+  if (place.placeId && !isCoordinatePlaceId(place.placeId)) {
     params.set("placeId", place.placeId);
   }
   if (place.latestVisitId) {
@@ -68,13 +72,6 @@ export function buildPlaceRecordHref(
   if (place.municipality) {
     params.set("municipality", place.municipality);
   }
-  if (typeof place.latitude === "number" && Number.isFinite(place.latitude)) {
-    params.set("latitude", String(place.latitude));
-  }
-  if (typeof place.longitude === "number" && Number.isFinite(place.longitude)) {
-    params.set("longitude", String(place.longitude));
-  }
-
   const focus = pickPlaceFocus(place);
   const mode = place.lastRecordMode === "survey" ? "survey" : "quick";
   params.set("recordMode", mode);
