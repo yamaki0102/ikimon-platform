@@ -149,6 +149,9 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /地域図鑑マップ/);
+  assert.match(html, /id="me-purpose-hint"/);
+  assert.match(html, /残したい風景を探す/);
+  assert.match(html, /気になる場所を選ぶと、最近の発見と見に行く理由が見えます。/);
   assert.match(html, /この範囲の記録/);
   assert.match(html, /data-testid="map-personal-pulse-panel"/);
   assert.match(html, /自分の記録へすぐ戻る/);
@@ -172,6 +175,14 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map-momentum \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 10px\);/);
   assert.match(styles, /\.me-rain-mode \.me-map-momentum \{ display: none; \}/);
   assert.match(script, /tab: 'places'/);
+  assert.match(script, /PURPOSE_HINT_STORAGE_KEY = 'ikimon-map-purpose-hint-v1'/);
+  assert.match(script, /function canShowPurposeHint\(\)/);
+  assert.match(script, /if \(state\.tab === 'rain'\) return false;/);
+  assert.match(script, /if \(isBottomSheetOpen\(\)\) return false;/);
+  assert.match(script, /state\.map\.on\('dragstart', dismissPurposeHint\);/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\[hidden\],\s+\.me-rain-mode \.me-purpose-hint,\s+\.me-sheet-open \.me-purpose-hint \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-purpose-hint \{[\s\S]*width: min\(260px, calc\(100% - 116px\)\);/);
 });
 
 test("map explorer overlays signed-in owner observations separately from public cells", () => {
@@ -767,7 +778,7 @@ test("map viewport movement refreshes stale result panels automatically", () => 
   assert.match(script, /function refreshViewportSearchData\(\)/);
   assert.match(script, /function scheduleViewportRefresh\(\)/);
   assert.match(script, /scheduleViewportRefresh\(\);\s+refreshDiscoveryPreviewMarkers/);
-  assert.match(script, /searchAreaBtnEl\.addEventListener\('click', function \(\) \{\s+refreshViewportSearchData\(\);/);
+  assert.match(script, /searchAreaBtnEl\.addEventListener\('click', function \(\) \{\s+dismissPurposeHint\(\);\s+refreshViewportSearchData\(\);/);
 });
 
 test("map initial data load stays light and defers secondary panels", () => {
