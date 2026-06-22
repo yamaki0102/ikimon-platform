@@ -47,22 +47,45 @@ const events = [];
 const corePaths = [
   "/",
   "/guide",
+  "/login",
   "/record",
+  "/register",
   "/map",
+  "/profile",
+  "/profile/settings",
   "/app-refresh",
   "/ja/",
   "/ja/guide",
+  "/ja/login",
   "/ja/record",
+  "/ja/register",
   "/ja/map",
+  "/ja/profile",
+  "/ja/profile/settings",
   "/en/",
   "/en/guide",
+  "/en/login",
   "/en/map",
+  "/en/profile",
+  "/en/profile/settings",
+  "/en/register",
+  "/en/record",
   "/es/",
   "/es/guide",
+  "/es/login",
   "/es/map",
+  "/es/profile",
+  "/es/profile/settings",
+  "/es/register",
+  "/es/record",
   "/pt-br/",
   "/pt-br/guide",
-  "/pt-br/map"
+  "/pt-br/login",
+  "/pt-br/map",
+  "/pt-br/profile",
+  "/pt-br/profile/settings",
+  "/pt-br/register",
+  "/pt-br/record"
 ];
 const staticAssetPaths = ["/app-sw.js"];
 
@@ -75,6 +98,15 @@ function normalizePublicPath(value) {
 }
 
 function renderUrlForPath(pathname) {
+  const localizedMatch = pathname.match(/^\/(ja|en|es|pt-br)(\/.*)?$/);
+  if (localizedMatch) {
+    const segment = localizedMatch[1];
+    const rest = localizedMatch[2] || "/";
+    const lang = segment === "pt-br" ? "pt-BR" : segment;
+    if (["/", "/guide", "/login", "/map", "/profile", "/profile/settings", "/record", "/register"].includes(rest)) {
+      return `${rest}?lang=${encodeURIComponent(lang)}`;
+    }
+  }
   switch (pathname) {
     case "/ja":
     case "/ja/":

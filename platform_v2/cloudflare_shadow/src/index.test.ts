@@ -4437,6 +4437,50 @@ test("production original UI html serves materialized anonymous pages from R2 wi
   }
 });
 
+test("production original UI html serves localized auth and guest profile shells from R2", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/en/login.html", "<!doctype html><title>Log in | ikimon</title><h1>Log in to My page</h1>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/en/profile.html", "<!doctype html><title>My page | ikimon</title><a href=\"/en/login?redirect=%2Fprofile\">Log in</a>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const queryLogin = await worker.fetch(new Request("https://ikimon.life/login?redirect=/profile&lang=en"), productionEnv);
+    assert.equal(queryLogin.status, 200);
+    assert.equal(await queryLogin.text(), "<!doctype html><title>Log in | ikimon</title><h1>Log in to My page</h1>");
+    assert.equal(queryLogin.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const prefixedLogin = await worker.fetch(new Request("https://ikimon.life/en/login?redirect=/profile"), productionEnv);
+    assert.equal(prefixedLogin.status, 200);
+    assert.equal(await prefixedLogin.text(), "<!doctype html><title>Log in | ikimon</title><h1>Log in to My page</h1>");
+    assert.equal(prefixedLogin.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const queryProfile = await worker.fetch(new Request("https://ikimon.life/profile?lang=en"), productionEnv);
+    assert.equal(queryProfile.status, 200);
+    assert.match(await queryProfile.text(), /\/en\/login\?redirect=%2Fprofile/);
+    assert.equal(queryProfile.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production app refresh page serves materialized reset shell from R2", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
