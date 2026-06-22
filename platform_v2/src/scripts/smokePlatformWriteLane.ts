@@ -283,7 +283,7 @@ async function main(): Promise<void> {
       rank: "species",
     },
     sourcePayload: {
-      source: "smoke_v2_write_lane",
+      source: "smoke_platform_write_lane",
     },
   };
   const noteOnlyObservationPayload = {
@@ -305,7 +305,7 @@ async function main(): Promise<void> {
     substrateTags: ["test"],
     taxon: null,
     sourcePayload: {
-      source: "smoke_v2_write_lane",
+      source: "smoke_platform_write_lane",
       scenario: "note_only",
     },
   };
@@ -347,7 +347,7 @@ async function main(): Promise<void> {
       },
     ],
     sourcePayload: {
-      source: "smoke_v2_write_lane",
+      source: "smoke_platform_write_lane",
     },
   };
 
@@ -395,7 +395,7 @@ async function main(): Promise<void> {
         rawToken,
         expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
         ipAddress: "127.0.0.1",
-        userAgent: "smoke-v2-write-lane",
+        userAgent: "smoke-platform-write-lane",
       },
       validate: validateRememberTokenResponse,
       headers: () => privilegedHeaders(options),

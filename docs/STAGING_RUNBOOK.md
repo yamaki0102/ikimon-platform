@@ -21,7 +21,7 @@ ikimon.life の改装は **staging 先行** に切り替える。
 
 - app root: `/var/www/ikimon.life-staging`
 - internal PHP lane: `127.0.0.1:8081`
-- internal v2 lane: `127.0.0.1:3200`
+- internal platform lane: `127.0.0.1:3200`
 - canonical v2 runtime: `systemd` service `ikimon-v2-staging.service`
 - canonical v2 env file: `/etc/ikimon/staging-v2.env`
 - canonical v2 OS user: `ikimon-staging`

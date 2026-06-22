@@ -39,8 +39,8 @@ Invoke-PreflightStep -Name "Deploy guardrails" -Script {
     powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check_deploy_guardrails.ps1")
 }
 
-Invoke-PreflightStep -Name "Platform v2 migration guardrails" -Script {
-    powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check_platform_v2_migration_guardrails.ps1") -BaseRef $BaseRef
+Invoke-PreflightStep -Name "Platform migration guardrails" -Script {
+    powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check_platform_migration_guardrails.ps1") -BaseRef $BaseRef
 }
 
 Invoke-PreflightStep -Name "Legacy entrypoint reason" -Script {

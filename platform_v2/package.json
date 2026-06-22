@@ -2,7 +2,7 @@
   "name": "ikimon-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "Zero-base rebuild for ikimon.life on the existing VPS",
+  "description": "Cloudflare-ready ikimon.life platform runtime",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -57,9 +57,9 @@
     "report:visit-windows": "tsx src/scripts/reportVisitWindows.ts",
     "materialize:legacy-verify-snapshot": "tsx src/scripts/materializeLegacyVerifySnapshot.ts",
     "report:legacy-drift": "tsx src/scripts/reportLegacyDrift.ts",
-    "smoke:platform-lane": "tsx src/scripts/smokeV2Lane.ts",
-    "smoke:platform-read-lane": "tsx src/scripts/smokeV2ReadLane.ts",
-    "smoke:platform-write-lane": "tsx src/scripts/smokeV2WriteLane.ts",
+    "smoke:platform-lane": "tsx src/scripts/smokePlatformLane.ts",
+    "smoke:platform-read-lane": "tsx src/scripts/smokePlatformReadLane.ts",
+    "smoke:platform-write-lane": "tsx src/scripts/smokePlatformWriteLane.ts",
     "smoke:production-media": "tsx src/scripts/smokeProductionMediaUpload.ts",
     "cleanup:production-ui-smoke": "tsx src/scripts/cleanupProductionUiSmoke.ts",
     "monitor:production-smoke-cleanup": "tsx src/scripts/monitorProductionSmokeCleanup.ts",

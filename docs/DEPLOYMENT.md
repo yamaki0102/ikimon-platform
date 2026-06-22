@@ -33,7 +33,7 @@ script を skip し、runtime data/config を保持したまま production repo 
 - production deploy timing: `docs/PRODUCTION_DEPLOY_TIMING.md`
 - branch hygiene audit workflow: `.github/workflows/branch-hygiene-audit.yml`
 - CI guardrail: `scripts/check_deploy_guardrails.ps1`
-- platform_v2 migration guardrail: `scripts/check_platform_v2_migration_guardrails.ps1`
+- platform migration guardrail: `scripts/check_platform_migration_guardrails.ps1`
 - manifest/workflow sync check: `scripts/check_deploy_manifest_sync.ps1`
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_worktree_clean.ps1
 php tools/lint.php
 composer test
 powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_guardrails.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\check_platform_v2_migration_guardrails.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\check_platform_migration_guardrails.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_manifest_sync.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_staging_manifest_sync.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_remote_deploy_reference.ps1
@@ -131,7 +131,7 @@ Weekly audit:
 ## Migration Guardrails
 
 `platform_v2/db/migrations/` の新規 migration は、CI / staging / production の
-pre-flight で `scripts/check_platform_v2_migration_guardrails.ps1` を通す。
+pre-flight で `scripts/check_platform_migration_guardrails.ps1` を通す。
 
 このガードは次を merge 前に止める。
 

@@ -67,7 +67,7 @@ jobs:
     outputs:
       verify_level: ${{ steps.plan.outputs.verify_level }}
       php_changed: ${{ steps.plan.outputs.php_changed }}
-      v2_changed: ${{ steps.plan.outputs.v2_changed }}
+      platform_changed: ${{ steps.plan.outputs.platform_changed }}
       migration_changed: ${{ steps.plan.outputs.migration_changed }}
       deploy_changed: ${{ steps.plan.outputs.deploy_changed }}
       browser_contract_changed: ${{ steps.plan.outputs.browser_contract_changed }}
@@ -127,16 +127,16 @@ jobs:
           }
 
           PHP_CHANGED=false
-          V2_CHANGED=false
+          PLATFORM_CHANGED=false
           MIGRATION_CHANGED=false
           DEPLOY_CHANGED=false
           BROWSER_CONTRACT_CHANGED=false
 
           if matches '^(upload_package/|tests/|tools/lint\.php|composer\.(json|lock)|phpunit\.xml)'; then PHP_CHANGED=true; fi
-          if matches '^platform_v2/'; then V2_CHANGED=true; fi
+          if matches '^platform_v2/'; then PLATFORM_CHANGED=true; fi
           if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
-          if matches '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
-          if matches '^(\.github/actions/setup-platform-v2-browser/|platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json))'; then BROWSER_CONTRACT_CHANGED=true; fi
+          if matches '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
+          if matches '^(\.github/actions/setup-platform-browser/|platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json))'; then BROWSER_CONTRACT_CHANGED=true; fi
 
           RUN_PHP_LINT=false
           RUN_MANIFEST_CHECK=false
@@ -156,7 +156,7 @@ jobs:
           else
             if [ "$PHP_CHANGED" = "true" ]; then RUN_PHP_LINT=true; fi
             if [ "$DEPLOY_CHANGED" = "true" ]; then RUN_MANIFEST_CHECK=true; fi
-            if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ] || [ "$PHP_CHANGED" = "true" ]; then RUN_BROWSER_SMOKE=true; fi
+            if [ "$PLATFORM_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ] || [ "$PHP_CHANGED" = "true" ]; then RUN_BROWSER_SMOKE=true; fi
             if [ "$EVENT_NAME" = "workflow_dispatch" ]; then RUN_BROWSER_SMOKE=true; fi
             if [ "$VERIFY_LEVEL" = "auto" ] && [ "$BROWSER_CONTRACT_CHANGED" = "true" ]; then RUN_FULL_BROWSER_E2E=true; fi
           fi
@@ -164,7 +164,7 @@ jobs:
           {
             echo "verify_level=$VERIFY_LEVEL"
             echo "php_changed=$PHP_CHANGED"
-            echo "v2_changed=$V2_CHANGED"
+            echo "platform_changed=$PLATFORM_CHANGED"
             echo "migration_changed=$MIGRATION_CHANGED"
             echo "deploy_changed=$DEPLOY_CHANGED"
             echo "browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
@@ -175,7 +175,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
           echo "verify_level=$VERIFY_LEVEL"
-          echo "php_changed=$PHP_CHANGED v2_changed=$V2_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
+          echo "php_changed=$PHP_CHANGED platform_changed=$PLATFORM_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
           echo "run_php_lint=$RUN_PHP_LINT run_manifest_check=$RUN_MANIFEST_CHECK run_browser_smoke=$RUN_BROWSER_SMOKE run_full_browser_e2e=$RUN_FULL_BROWSER_E2E"
 
           {
@@ -192,7 +192,7 @@ jobs:
             fi
             echo "- verify_level: $VERIFY_LEVEL"
             echo "- PHP changed: $PHP_CHANGED"
-            echo "- platform_v2 changed: $V2_CHANGED"
+            echo "- platform changed: $PLATFORM_CHANGED"
             echo "- deploy/nginx changed: $DEPLOY_CHANGED"
             echo "- browser contract changed: $BROWSER_CONTRACT_CHANGED"
             echo "- PHP lint: $RUN_PHP_LINT"
@@ -239,10 +239,10 @@ jobs:
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
 
-      - name: Check platform_v2 migration guardrails
+      - name: Check platform migration guardrails
         if: needs.plan.outputs.verify_level != 'fast'
         shell: pwsh
-        run: ./scripts/check_platform_v2_migration_guardrails.ps1 -BaseRef origin/main
+        run: ./scripts/check_platform_migration_guardrails.ps1 -BaseRef origin/main
 
       - name: Check staging manifest sync
         if: needs.plan.outputs.run_manifest_check == 'true'
@@ -292,27 +292,27 @@ jobs:
             else
               git diff --name-only "$LOCAL_HEAD" "$REMOTE_HEAD" > "$CHANGED_FILE"
             fi
-            V2_CHANGED=false
+            PLATFORM_CHANGED=false
             PHP_CHANGED=false
             DEPLOY_CHANGED=false
             KNOWLEDGE_CHANGED=false
             BROWSER_CONTRACT_CHANGED=false
-            if grep -Eq '^platform_v2/' "$CHANGED_FILE"; then V2_CHANGED=true; fi
+            if grep -Eq '^platform_v2/' "$CHANGED_FILE"; then PLATFORM_CHANGED=true; fi
             if grep -Eq '^(upload_package/|tests/|tools/lint\.php|composer\.(json|lock)|phpunit\.xml)' "$CHANGED_FILE"; then PHP_CHANGED=true; fi
-            if grep -Eq '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)' "$CHANGED_FILE"; then DEPLOY_CHANGED=true; fi
+            if grep -Eq '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_migration_guardrails|staging_manifest_sync)\.ps1)' "$CHANGED_FILE"; then DEPLOY_CHANGED=true; fi
             if grep -Eq '^platform_v2/(src/(content|scripts/compileKnowledgeNavigation\.ts|scripts/runGuideEnvironmentPostDeploy\.ts|scripts/rebuildGuideEnvironmentMesh\.ts|services/(regional|guide|landingSnapshot|mapSnapshot))|content/)' "$CHANGED_FILE"; then KNOWLEDGE_CHANGED=true; fi
-            if grep -Eq '^(\.github/actions/setup-platform-v2-browser/|platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json))' "$CHANGED_FILE"; then BROWSER_CONTRACT_CHANGED=true; fi
+            if grep -Eq '^(\.github/actions/setup-platform-browser/|platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json))' "$CHANGED_FILE"; then BROWSER_CONTRACT_CHANGED=true; fi
             {
               echo "LOCAL_HEAD=$LOCAL_HEAD"
               echo "REMOTE_HEAD=$REMOTE_HEAD"
               echo "VERIFY_LEVEL=${STAGING_VERIFY_LEVEL:-auto}"
-              echo "V2_CHANGED=$V2_CHANGED"
+              echo "PLATFORM_CHANGED=$PLATFORM_CHANGED"
               echo "PHP_CHANGED=$PHP_CHANGED"
               echo "DEPLOY_CHANGED=$DEPLOY_CHANGED"
               echo "KNOWLEDGE_CHANGED=$KNOWLEDGE_CHANGED"
               echo "BROWSER_CONTRACT_CHANGED=$BROWSER_CONTRACT_CHANGED"
             } > "$SCOPE_FILE"
-            echo "Deploy scope: verify=${STAGING_VERIFY_LEVEL:-auto} v2=$V2_CHANGED php=$PHP_CHANGED deploy=$DEPLOY_CHANGED knowledge=$KNOWLEDGE_CHANGED browser_contract=$BROWSER_CONTRACT_CHANGED"
+            echo "Deploy scope: verify=${STAGING_VERIFY_LEVEL:-auto} platform=$PLATFORM_CHANGED php=$PHP_CHANGED deploy=$DEPLOY_CHANGED knowledge=$KNOWLEDGE_CHANGED browser_contract=$BROWSER_CONTRACT_CHANGED"
             if [ "${STAGING_VERIFY_LEVEL:-auto}" = "fast" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
               echo "staging-fast permits non-fast-forward branch switches; this run is not production promotion evidence."
             elif [ "${STAGING_ALLOW_NON_FF:-false}" != "true" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
@@ -328,7 +328,7 @@ jobs:
             rm -f /var/www/ikimon.life-staging/deploy.sh.tmp
             /var/www/ikimon.life-staging/deploy.sh
 
-      - name: Rebuild + restart platform_v2 on staging
+      - name: Rebuild + restart platform runtime on staging
         uses: appleboy/ssh-action@v1
         env:
           STAGING_MIGRATION_REPAIR_CHECKSUMS: ${{ github.event.inputs.migration_repair_checksums || '' }}
@@ -349,7 +349,7 @@ jobs:
             STAGING_ENV_FILE="$STAGING_ENV_DIR/staging-v2.env"
             SERVICE_NAME=ikimon-v2-staging.service
             VERIFY_LEVEL=auto
-            V2_CHANGED=true
+            PLATFORM_CHANGED=true
             KNOWLEDGE_CHANGED=true
             DEPLOY_CHANGED=false
             if [ -f "$SCOPE_FILE" ]; then
@@ -357,7 +357,7 @@ jobs:
             fi
             SHOULD_REBUILD=false
             SHOULD_RUN_KNOWLEDGE=false
-            if [ "$VERIFY_LEVEL" = "full" ] || [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then
+            if [ "$VERIFY_LEVEL" = "full" ] || [ "$PLATFORM_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then
               SHOULD_REBUILD=true
             fi
             if [ "$VERIFY_LEVEL" = "full" ] || [ "$KNOWLEDGE_CHANGED" = "true" ]; then
@@ -367,11 +367,11 @@ jobs:
               SHOULD_RUN_KNOWLEDGE=false
             fi
             if [ "$SHOULD_REBUILD" != "true" ]; then
-              echo "Skip platform_v2 rebuild: deployed diff does not touch v2/deploy runtime files. Use verify_level=full to force."
+              echo "Skip platform rebuild: deployed diff does not touch platform/deploy runtime files. Use verify_level=full to force."
               exit 0
             fi
             if [ ! -d "$V2_DIR" ]; then
-              echo "platform_v2 directory missing at $V2_DIR"
+              echo "platform directory missing at $V2_DIR"
               exit 1
             fi
             if ! id ikimon-staging >/dev/null 2>&1; then
@@ -452,18 +452,18 @@ jobs:
             systemctl enable --now "$SERVICE_NAME"
             systemctl restart "$SERVICE_NAME"
             systemctl is-active "$SERVICE_NAME" >/dev/null
-            echo "== v2 health probe =="
+            echo "== platform health probe =="
             for i in 1 2 3 4 5 6 7 8 9 10; do
               code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3200/healthz 2>/dev/null || true)
               if [ "$code" = "200" ]; then
-                echo "v2 healthz OK"
+                echo "platform healthz OK"
                 break
               fi
               sleep 1
             done
             exit 0
 
-      - name: Sync staging nginx (v2 primary, PHP on /legacy/)
+      - name: Sync staging nginx (platform primary, PHP on /legacy/)
         uses: appleboy/ssh-action@v1
         with:
           host: 162.43.44.131
@@ -530,7 +530,7 @@ jobs:
 
             if nginx -t; then
               systemctl reload nginx
-              echo "nginx reloaded: staging / -> v2 (3200), /legacy/ -> PHP (8081)"
+              echo "nginx reloaded: staging / -> platform (3200), /legacy/ -> PHP (8081)"
             else
               echo "nginx -t FAILED — restoring latest backup"
               LATEST_BACKUP=$(ls -1t "${DST}.bak-"* 2>/dev/null | head -1)
@@ -615,7 +615,7 @@ jobs:
                 exit 1
               fi
             done
-            echo "== v2 lane (port 3200, internal) =="
+            echo "== platform lane (port 3200, internal) =="
             for url in \
               http://127.0.0.1:3200/healthz \
               http://127.0.0.1:3200/ \
@@ -633,9 +633,9 @@ jobs:
             do
               STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "$url")
               if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
-                echo "OK v2 ${url} -> $STATUS"
+                echo "OK platform ${url} -> $STATUS"
               else
-                echo "FAIL v2 ${url} -> $STATUS"
+                echo "FAIL platform ${url} -> $STATUS"
                 exit 1
               fi
             done
@@ -687,8 +687,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
 
       - name: Cleanup stale staging UI smoke fixtures
         if: needs.plan.outputs.run_full_browser_e2e == 'true'
@@ -729,8 +729,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
         with:
           install-with-deps: "false"
 
@@ -770,8 +770,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
 
       - name: Run staging browser smoke
         working-directory: platform_v2
@@ -812,8 +812,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
         with:
           install-with-deps: "false"
 
@@ -874,8 +874,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
         with:
           install-with-deps: "false"
 
@@ -911,8 +911,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
         with:
           install-with-deps: "false"
 
@@ -954,8 +954,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
         with:
           install-with-deps: "false"
 
@@ -997,8 +997,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup platform_v2 browser smoke runtime
-        uses: ./.github/actions/setup-platform-v2-browser
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
         with:
           install-with-deps: "false"
 

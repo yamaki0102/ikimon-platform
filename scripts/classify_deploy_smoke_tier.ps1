@@ -30,7 +30,7 @@ function Test-TargetedSmokeAllowedPath {
         "^\.github/workflows/deploy\.yml$" { return $true }
         "^scripts/classify_deploy_smoke_tier\.ps1$" { return $true }
         "^scripts/run_targeted_candidate_smoke\.mjs$" { return $true }
-        "^scripts/(summarize_deploy_timing|summarize_prepare_timing|deploy_status_summary|local_deploy_preflight|check_deploy_guardrails|check_deploy_manifest_sync|check_staging_manifest_sync|check_remote_deploy_reference|check_platform_v2_migration_guardrails|check_legacy_entrypoint_reason)\.ps1$" { return $true }
+        "^scripts/(summarize_deploy_timing|summarize_prepare_timing|deploy_status_summary|local_deploy_preflight|check_deploy_guardrails|check_deploy_manifest_sync|check_staging_manifest_sync|check_remote_deploy_reference|check_platform_migration_guardrails|check_legacy_entrypoint_reason)\.ps1$" { return $true }
         "^platform_v2/scripts/ops/" { return $true }
         "^platform_v2/src/legacy/" { return $true }
         "^platform_v2/src/scripts/(bootstrapLegacyImport|syncLegacyDelta|syncLegacyUserAuth|verifyLegacyParity|verifyProductionShadowParity|reportLegacyDrift|materializeLegacyVerifySnapshot|planObservationLedger|readinessReport)\.ts$" { return $true }
