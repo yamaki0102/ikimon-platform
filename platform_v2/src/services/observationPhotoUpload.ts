@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp, { type Metadata } from "sharp";
 import { getPool } from "../db.js";
@@ -9,6 +8,7 @@ import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
 import { enqueueMediaProcessingJobsStandalone } from "./mediaProcessingJobs.js";
+import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
 
 export type ObservationPhotoUploadInput = {
   observationId: string;
@@ -164,6 +164,10 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   assertInput(input);
 
   const config = loadConfig();
+  const mediaObjectStore = createLegacyMediaObjectStore({
+    publicRoot: config.legacyPublicRoot,
+    privateRoot: config.legacyDataRoot,
+  });
   const pool = getPool();
   const client = await pool.connect();
   const normalizedBase64 = normalizeBase64(input.base64Data);
@@ -226,19 +230,23 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     occurrenceId = target.occurrence_id;
     relativePath = path.posix.join("uploads", "v2-observations", visitId, fileName);
     originalRelativePath = path.posix.join("photo-originals", "v2-observations", visitId, fileName);
-    const absolutePath = path.join(config.legacyPublicRoot, ...relativePath.split("/"));
-    const originalAbsolutePath = path.join(config.legacyDataRoot, ...originalRelativePath.split("/"));
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await mkdir(path.dirname(originalAbsolutePath), { recursive: true });
-    await writeFile(originalAbsolutePath, buffer);
-    await writeFile(absolutePath, buffer);
+    const originalObject = await mediaObjectStore.write({
+      visibility: "private",
+      storagePath: originalRelativePath,
+      buffer,
+    });
+    const publicObject = await mediaObjectStore.write({
+      visibility: "public",
+      storagePath: relativePath,
+      buffer,
+    });
 
     const originalBlobId = await upsertAssetBlob(client, {
-      storageBackend: "local_private_fs",
-      storagePath: originalRelativePath,
+      storageBackend: originalObject.storageBackend,
+      storagePath: originalObject.storagePath,
       mediaType: "image",
       mimeType: normalizedImage.mimeType,
-      publicUrl: null,
+      publicUrl: originalObject.publicUrl,
       sha256,
       bytes: buffer.byteLength,
       widthPx: normalizedImage.widthPx,
@@ -289,11 +297,11 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     );
 
     const blobId = await upsertAssetBlob(client, {
-      storageBackend: "local_fs",
-      storagePath: relativePath,
+      storageBackend: publicObject.storageBackend,
+      storagePath: publicObject.storagePath,
       mediaType: "image",
       mimeType: normalizedImage.mimeType,
-      publicUrl: `/${relativePath}`,
+      publicUrl: publicObject.publicUrl,
       sha256,
       bytes: buffer.byteLength,
       widthPx: normalizedImage.widthPx,
@@ -305,7 +313,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         face_privacy: facePrivacy,
         privacy_processing_status: "pending",
         original_relative_path: originalRelativePath,
-        original_storage_backend: "local_private_fs",
+        original_storage_backend: originalObject.storageBackend,
         normalized_max_edge_px: 2560,
         original_bytes: originalBuffer.byteLength,
       },
