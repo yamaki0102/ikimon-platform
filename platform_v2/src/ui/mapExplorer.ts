@@ -86,6 +86,10 @@ export type MapExplorerCopy = {
   personalPulseBody: string;
   personalPulseProfile: string;
   personalPulseRecords: string;
+  mapMomentumTitle: string;
+  mapMomentumBody: string;
+  mapMomentumRecord: string;
+  mapMomentumMine: string;
   sideRecentLabel: string;
   recentFindsHint: string;
   sideRevisitLabel: string;
@@ -268,6 +272,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "投稿したあとは、マイページや自分の記録一覧で見返せます。地図には最近の記録も重なっていきます。",
     personalPulseProfile: "マイページ",
     personalPulseRecords: "自分の記録",
+    mapMomentumTitle: "記録が地域の図鑑を育てています",
+    mapMomentumBody: "投稿が増えるほど、地図に季節や場所の手がかりが重なります。",
+    mapMomentumRecord: "記録する",
+    mapMomentumMine: "自分の記録",
     sideRecentLabel: "この範囲の記録",
     recentFindsHint: "この場所で見えたもの",
     sideRevisitLabel: "選んだ場所",
@@ -430,6 +438,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "After posting, My page and your record list are one tap away. Recent public finds keep adding life to the map.",
     personalPulseProfile: "My page",
     personalPulseRecords: "My records",
+    mapMomentumTitle: "Records are growing the regional guide",
+    mapMomentumBody: "Every post adds seasonal and place clues to the map.",
+    mapMomentumRecord: "Record",
+    mapMomentumMine: "My records",
     sideRecentLabel: "Nearby finds",
     recentFindsHint: "Seen here",
     sideRevisitLabel: "Place story",
@@ -592,6 +604,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "Después de publicar, tu página y tu lista de registros quedan a un toque. Los hallazgos recientes dan vida al mapa.",
     personalPulseProfile: "Mi página",
     personalPulseRecords: "Mis registros",
+    mapMomentumTitle: "Los registros hacen crecer la guía regional",
+    mapMomentumBody: "Cada publicación suma pistas de temporada y lugar al mapa.",
+    mapMomentumRecord: "Registrar",
+    mapMomentumMine: "Mis registros",
     sideRecentLabel: "Hallazgos cercanos",
     recentFindsHint: "Visto aquí",
     sideRevisitLabel: "Historia del lugar",
@@ -754,6 +770,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "Depois de publicar, sua página e sua lista de registros ficam a um toque. Descobertas recentes dão vida ao mapa.",
     personalPulseProfile: "Minha página",
     personalPulseRecords: "Meus registros",
+    mapMomentumTitle: "Os registros fazem o guia regional crescer",
+    mapMomentumBody: "Cada publicação soma pistas de estação e lugar ao mapa.",
+    mapMomentumRecord: "Registrar",
+    mapMomentumMine: "Meus registros",
     sideRecentLabel: "Descobertas por perto",
     recentFindsHint: "Visto aqui",
     sideRevisitLabel: "História do local",
@@ -1409,6 +1429,16 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span aria-hidden="true">📍</span>
         </button>
         <div class="me-map-status" id="me-map-status" role="status" aria-live="polite">${escapeHtml(copy.loading)}</div>
+        <section class="me-map-momentum" aria-label="${escapeHtml(copy.mapMomentumTitle)}">
+          <div>
+            <strong>${escapeHtml(copy.mapMomentumTitle)}</strong>
+            <p>${escapeHtml(copy.mapMomentumBody)}</p>
+          </div>
+          <div class="me-map-momentum-actions">
+            <a class="is-primary" href="${escapeHtml(recordHref)}" data-kpi-action="map:momentum_record">${escapeHtml(copy.mapMomentumRecord)}</a>
+            <a href="${escapeHtml(notesHref)}" data-kpi-action="map:momentum_mine">${escapeHtml(copy.mapMomentumMine)}</a>
+          </div>
+        </section>
         <section class="me-empty-invite" id="me-empty-invite" aria-label="${escapeHtml(copy.emptyTitle)}" aria-hidden="true" hidden>
           <span class="me-results-empty-kicker">${escapeHtml(copy.recordingGapLabel)}</span>
           <strong>${escapeHtml(copy.emptyTitle)}</strong>
@@ -11344,6 +11374,63 @@ export const MAP_EXPLORER_STYLES = `
   .me-side-rail-signal.is-active i {
     background: linear-gradient(180deg, #2dd4bf, #0ea5e9);
   }
+  .me-map-momentum {
+    position: absolute;
+    left: calc(var(--me-side-w) + 18px);
+    bottom: 18px;
+    z-index: 28;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    width: min(520px, calc(100% - var(--me-side-w) - 116px));
+    padding: 11px 12px;
+    border: 1px solid rgba(15,118,110,.13);
+    border-radius: 16px;
+    background: rgba(255,255,255,.9);
+    box-shadow: 0 16px 38px rgba(15,23,42,.13);
+    backdrop-filter: blur(14px);
+  }
+  .me-map-momentum strong {
+    display: block;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 900;
+  }
+  .me-map-momentum p {
+    margin: 3px 0 0;
+    color: #475569;
+    font-size: 11.5px;
+    line-height: 1.35;
+    font-weight: 700;
+  }
+  .me-map-momentum-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+  .me-map-momentum-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0 11px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 999px;
+    color: #0f172a;
+    background: rgba(248,250,252,.9);
+    font-size: 12px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .me-map-momentum-actions a.is-primary {
+    border-color: transparent;
+    color: #fff;
+    background: #059669;
+    box-shadow: 0 8px 18px rgba(5,150,105,.22);
+  }
 
   .me-side-head { padding: 0 2px; flex: 0 0 auto; }
   .me-side-title { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
@@ -11821,6 +11908,29 @@ export const MAP_EXPLORER_STYLES = `
     }
     .me-side { display: none; }
     .me-side-toggle { display: none; }
+    .me-map-momentum {
+      left: 10px;
+      right: 10px;
+      bottom: calc(var(--me-mobile-action-space) + 10px);
+      width: auto;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+      padding: 10px;
+      border-radius: 16px;
+    }
+    .me-map-momentum strong { font-size: 12.5px; }
+    .me-map-momentum p { font-size: 11px; }
+    .me-map-momentum-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      white-space: normal;
+    }
+    .me-map-momentum-actions a {
+      min-width: 0;
+      min-height: 34px;
+      padding: 0 8px;
+    }
+    .me-rain-mode .me-map-momentum { display: none; }
     .me-map-panel-selection { display: none; }
     .me-map-panel-insight {
       left: 12px;
