@@ -4953,20 +4953,14 @@ const START_STATE_STYLES = `
   .start-guide-panel { max-width: 760px; margin: 0 auto; padding: 24px; border-radius: 24px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.92)); border: 1px solid rgba(16,185,129,.18); }
   .start-guide-panel h2 { margin: 8px 0; color: #0f172a; }
   .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
+  .start-guide-browse-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+  .start-guide-browse-actions .btn { min-height: 40px; padding: 9px 14px; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
   .start-guide-actions .btn-solid { min-width: 210px; }
-  .record-capture-dock { display: none; }
-  .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; line-height: 1.2; }
-  .record-dock-primary { background: #ecfdf5; color: #065f46; }
-  .record-dock-icon { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.06); flex: 0 0 auto; }
-  .record-dock-primary .record-dock-icon { background: rgba(16,185,129,.14); }
-  .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
   @media (max-width: 720px) {
-    .start-guide { padding-bottom: 104px; }
-    .site-footer { padding-bottom: 104px; }
-    .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, .82fr)); gap: 8px; }
-    .has-global-record-launcher .record-capture-dock { display: none; }
+    .start-guide { padding-bottom: 24px; }
+    .site-footer { padding-bottom: 24px; }
   }
 `;
 
@@ -4984,6 +4978,9 @@ type RecordStartCopy = {
   heroLead: string;
   photoAction: string;
   registerAction: string;
+  browseAria: string;
+  mapAction: string;
+  publicFindsAction: string;
   panelEyebrow: string;
   panelHeading: string;
   panelBody: string;
@@ -5176,107 +5173,119 @@ type RecordFormCopy = {
 function recordStartCopy(lang: SiteLang): RecordStartCopy {
   const localized: Record<SiteLang, RecordStartCopy> = {
     ja: {
-      title: "記録する準備 | ikimon",
+      title: "残す準備 | ikimon",
       activeNav: "記録",
       footerNote: "詳しい使い方は読み物ページで確認できます。",
-      heroEyebrow: "記録",
-      heroHeading: "写真で記録する",
-      heroLead: "記録は、写真・動画・音声・場所・時刻・メモをまとめて残したものです。1件の記録から、あとで複数の対象ごとの記録を作れます。",
-      photoAction: "ログインして写真で記録する",
-      registerAction: "新しく登録して記録する",
-      panelEyebrow: "ログインが必要",
-      panelHeading: "記録画面はログイン後に開きます。",
-      panelBody: "写真・動画・音声・場所・時刻・メモを自分の記録ライブラリに保存するため、記録前にログインします。",
+      heroEyebrow: "風景を残す",
+      heroHeading: "写真・メモから始める",
+      heroLead: "地図や公開された発見はこのまま見られます。自分の写真、場所、時刻を残すときだけログインします。",
+      photoAction: "ログインして残す",
+      registerAction: "アカウント作成",
+      browseAria: "ログインせずに見られる入口",
+      mapAction: "地図を見る",
+      publicFindsAction: "みんなの発見",
+      panelEyebrow: "保存すると自分に返る",
+      panelHeading: "自分の記録と場所に残ります。",
+      panelBody: "あとで見返す、同じ場所を比べる、公開前に状態を確認するためにログインします。",
       noteAction: "メモで始める",
       learnAction: "使い方を読む",
-      dockAria: "ログインして記録する",
+      dockAria: "ログインして残す",
       dockPhoto: "写真",
       dockNote: "メモ",
       dockVideo: "動画",
       dockGallery: "選ぶ",
-      confidenceAria: "記録しやすくするヒント",
+      confidenceAria: "残しやすくするヒント",
       confidenceItems: [
-        { title: "場所と時間が残る", body: "あとで同じ場所を比べられます。" },
-        { title: "周囲も手がかり", body: "環境・音・動きも記録の解像度になります。" },
-        { title: "対象はあとで分ける", body: "必要になったら対象ごとの記録として切り出せます。" },
+        { title: "あとで戻れる", body: "場所と時刻が一緒に残ります。" },
+        { title: "写真なしでも残せる", body: "メモだけで始められます。" },
+        { title: "公開前に確認できる", body: "自分用に保存してから状態を選べます。" },
       ],
     },
     en: {
-      title: "Start a record | ikimon",
+      title: "Start saving | ikimon",
       activeNav: "Record",
       footerNote: "Read the guide when you want more detail.",
-      heroEyebrow: "record",
-      heroHeading: "Start with a photo",
-      heroLead: "One photo is enough. Names and details can come later.",
-      photoAction: "Sign in and record a photo",
-      registerAction: "Create account and record",
-      panelEyebrow: "sign in required",
-      panelHeading: "Sign in before opening the record screen.",
-      panelBody: "Your photo, place, and time are saved to your own notebook.",
+      heroEyebrow: "Save the scene",
+      heroHeading: "Start with a photo or note",
+      heroLead: "The map and public finds are open to browse. Sign in only when you want to save your own photo, place, and time.",
+      photoAction: "Sign in to save",
+      registerAction: "Create account",
+      browseAria: "Ways to browse without signing in",
+      mapAction: "Open map",
+      publicFindsAction: "Public finds",
+      panelEyebrow: "Saved items return to you",
+      panelHeading: "Your places and records stay together.",
+      panelBody: "Sign in when you want to revisit, compare the same place, or choose the public state before sharing.",
       noteAction: "Start with a note",
       learnAction: "Read how it works",
-      dockAria: "Sign in and start a record",
+      dockAria: "Sign in and save",
       dockPhoto: "Photo",
       dockNote: "Note",
       dockVideo: "Video",
       dockGallery: "Files",
-      confidenceAria: "Prompts that make recording easier",
+      confidenceAria: "Prompts that make saving easier",
       confidenceItems: [
-        { title: "Name can come later", body: "Save the moment first." },
-        { title: "One photo is enough", body: "Place and time stay with it." },
-        { title: "Community can help", body: "A public record can collect clues." },
+        { title: "Return later", body: "Place and time stay with it." },
+        { title: "No photo required", body: "A note can start the entry." },
+        { title: "Check before public", body: "Save for yourself, then choose the state." },
       ],
     },
     es: {
-      title: "Empezar un registro | ikimon",
+      title: "Empezar a guardar | ikimon",
       activeNav: "Registro",
       footerNote: "Lee la guia cuando quieras mas detalle.",
-      heroEyebrow: "registro",
-      heroHeading: "Empieza con una foto",
-      heroLead: "Una foto basta. El nombre y los detalles pueden venir despues.",
-      photoAction: "Iniciar sesion y registrar foto",
-      registerAction: "Crear cuenta y registrar",
-      panelEyebrow: "sesion requerida",
-      panelHeading: "Inicia sesion antes de abrir la pantalla de registro.",
-      panelBody: "Tu foto, lugar y hora se guardan en tu propio cuaderno.",
+      heroEyebrow: "Guardar el paisaje",
+      heroHeading: "Empieza con foto o nota",
+      heroLead: "El mapa y los hallazgos publicos se pueden ver sin cuenta. Entra solo cuando quieras guardar tu foto, lugar y hora.",
+      photoAction: "Entrar para guardar",
+      registerAction: "Crear cuenta",
+      browseAria: "Entradas para ver sin cuenta",
+      mapAction: "Abrir mapa",
+      publicFindsAction: "Hallazgos publicos",
+      panelEyebrow: "Lo guardado vuelve a ti",
+      panelHeading: "Tus lugares y registros quedan juntos.",
+      panelBody: "Entra para volver despues, comparar el mismo lugar o elegir el estado publico antes de compartir.",
       noteAction: "Empezar con nota",
       learnAction: "Leer como funciona",
-      dockAria: "Iniciar sesion y empezar un registro",
+      dockAria: "Entrar y guardar",
       dockPhoto: "Foto",
       dockNote: "Nota",
       dockVideo: "Video",
       dockGallery: "Archivos",
-      confidenceAria: "Pistas para registrar con confianza",
+      confidenceAria: "Pistas para guardar con confianza",
       confidenceItems: [
-        { title: "El nombre puede esperar", body: "Guarda primero el momento." },
-        { title: "Una foto basta", body: "Lugar y hora quedan juntos." },
-        { title: "La comunidad ayuda", body: "El registro puede sumar pistas." },
+        { title: "Vuelve despues", body: "Lugar y hora quedan juntos." },
+        { title: "Sin foto tambien", body: "Una nota puede iniciar la entrada." },
+        { title: "Revisa antes de publicar", body: "Guarda para ti y luego elige el estado." },
       ],
     },
     "pt-BR": {
-      title: "Comecar um registro | ikimon",
+      title: "Comecar a salvar | ikimon",
       activeNav: "Registrar",
       footerNote: "Leia o guia quando quiser mais detalhes.",
-      heroEyebrow: "registro",
-      heroHeading: "Comece com uma foto",
-      heroLead: "Uma foto basta. O nome e os detalhes podem vir depois.",
-      photoAction: "Entrar e registrar foto",
-      registerAction: "Criar conta e registrar",
-      panelEyebrow: "login necessario",
-      panelHeading: "Entre antes de abrir a tela de registro.",
-      panelBody: "Sua foto, local e horario ficam salvos no seu proprio caderno.",
+      heroEyebrow: "Salvar a cena",
+      heroHeading: "Comece com foto ou nota",
+      heroLead: "O mapa e os achados publicos ficam abertos para ver. Entre apenas quando quiser salvar sua foto, local e horario.",
+      photoAction: "Entrar para salvar",
+      registerAction: "Criar conta",
+      browseAria: "Entradas para ver sem conta",
+      mapAction: "Abrir mapa",
+      publicFindsAction: "Achados publicos",
+      panelEyebrow: "O que salva volta para voce",
+      panelHeading: "Seus lugares e registros ficam juntos.",
+      panelBody: "Entre para voltar depois, comparar o mesmo local ou escolher o estado publico antes de compartilhar.",
       noteAction: "Comecar com nota",
       learnAction: "Ler como funciona",
-      dockAria: "Entrar e comecar um registro",
+      dockAria: "Entrar e salvar",
       dockPhoto: "Foto",
       dockNote: "Nota",
       dockVideo: "Video",
       dockGallery: "Arquivos",
-      confidenceAria: "Pistas para registrar com confianca",
+      confidenceAria: "Pistas para salvar com confianca",
       confidenceItems: [
-        { title: "O nome pode vir depois", body: "Salve o momento primeiro." },
-        { title: "Uma foto basta", body: "Local e horario ficam juntos." },
-        { title: "A comunidade ajuda", body: "O registro pode ganhar pistas." },
+        { title: "Volte depois", body: "Local e horario ficam juntos." },
+        { title: "Sem foto tambem", body: "Uma nota pode iniciar a entrada." },
+        { title: "Revise antes de publicar", body: "Salve para voce e depois escolha o estado." },
       ],
     },
   };
@@ -6211,6 +6220,8 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
   const memoHref = loginFor(recordTargetForStart("note"));
   const registerHref = appendLangToHref(withBasePath(basePath, `/register?redirect=${encodeURIComponent(recordTarget)}`), lang);
   const learnHref = appendLangToHref(withBasePath(basePath, "/learn"), lang);
+  const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
+  const publicFindsHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
   const qaHint = process.env.ALLOW_QUERY_USER_ID === "1"
     ? `<p class="meta" style="margin-top:14px;font-size:12px;color:#64748b">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`
     : "";
@@ -6238,6 +6249,10 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
           <div class="eyebrow">${escapeHtml(copy.panelEyebrow)}</div>
           <h2>${escapeHtml(copy.panelHeading)}</h2>
           <p>${escapeHtml(copy.panelBody)}</p>
+          <div class="start-guide-browse-actions" aria-label="${escapeHtml(copy.browseAria)}">
+            <a class="btn btn-ghost" href="${escapeHtml(mapHref)}">${escapeHtml(copy.mapAction)}</a>
+            <a class="btn btn-ghost" href="${escapeHtml(publicFindsHref)}">${escapeHtml(copy.publicFindsAction)}</a>
+          </div>
           ${renderRecordConfidenceStrip(lang)}
           <div class="start-guide-actions">
             <a class="btn btn-solid" href="${escapeHtml(loginHref)}">${escapeHtml(copy.photoAction)}</a>
@@ -6247,24 +6262,6 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
           ${qaHint}
         </div>
       </section>
-      <nav class="record-capture-dock" aria-label="${escapeHtml(copy.dockAria)}">
-        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-          <span>${escapeHtml(copy.dockPhoto)}</span>
-        </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("note")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-          <span>${escapeHtml(copy.dockNote)}</span>
-        </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("video")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-          <span>${escapeHtml(copy.dockVideo)}</span>
-        </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("gallery")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-          <span>${escapeHtml(copy.dockGallery)}</span>
-        </a>
-      </nav>
     </div>`,
     footerNote: copy.footerNote,
   });
