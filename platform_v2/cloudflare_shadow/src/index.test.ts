@@ -2924,6 +2924,23 @@ test("v1 auth login keeps original form contract with Cloudflare-native sessions
   assert.equal(sessionPayload.session.userId, "login-user");
   assert.equal(sessionPayload.session.tokenHash, loginPayload.session.tokenHash);
 
+  const bareRecordLoginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({
+      email: "user@example.test",
+      password: "correct-password",
+      redirect: "/record"
+    })
+  }), env);
+  const bareRecordLoginPayload = await bareRecordLoginResponse.json() as any;
+  assert.equal(bareRecordLoginResponse.ok, true, JSON.stringify(bareRecordLoginPayload));
+  assert.equal(bareRecordLoginPayload.redirect, "/record?start=photo");
+
   const invalidResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/login", {
     method: "POST",
     headers: {
@@ -2986,7 +3003,7 @@ test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
   const loginPayload = await loginResponse.json() as any;
   assert.equal(loginResponse.ok, true, JSON.stringify(loginPayload));
   assert.equal(loginPayload.ok, true);
-  assert.equal(loginPayload.redirect, "/record");
+  assert.equal(loginPayload.redirect, "/record?start=photo");
   assert.equal(loginPayload.session.userId, "legacy-user");
   assert.equal(loginPayload.session.rankLabel, "観察者");
 });
@@ -4993,6 +5010,47 @@ test("production original UI html misses fall back to origin with redacted telem
     assert.match(telemetry.originalUiHtmlKeyHash, /^[0-9a-f]{16}$/);
     assert.equal(JSON.stringify(telemetry).includes(fieldId), false);
     assert.equal(JSON.stringify(telemetry).includes("viewer=1"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production materialized auth html personalizes redirect query without origin fallback", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/en/register.html", [
+    "<!doctype html><title>Register</title>",
+    "<form data-auth-form data-redirect=\"/record\"></form>",
+    "<a href=\"/en/login?redirect=%2Frecord\">login</a>",
+    "<a href=\"/auth/oauth/google/start?redirect=%2Frecord\">google</a>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 500 });
+  }) as typeof fetch;
+  try {
+    const explicitResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord%3Fstart%3Dnote&lang=en"), productionEnv);
+    const explicitHtml = await explicitResponse.text();
+    assert.equal(explicitResponse.status, 200);
+    assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(explicitHtml, /data-redirect="\/record\?start=note"/);
+    assert.match(explicitHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dnote/);
+    assert.match(explicitHtml, /\/auth\/oauth\/google\/start\?redirect=%2Frecord%3Fstart%3Dnote/);
+
+    const bareResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord&lang=en"), productionEnv);
+    const bareHtml = await bareResponse.text();
+    assert.equal(bareResponse.status, 200);
+    assert.match(bareHtml, /data-redirect="\/record\?start=photo"/);
+    assert.match(bareHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dphoto/);
+    assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
