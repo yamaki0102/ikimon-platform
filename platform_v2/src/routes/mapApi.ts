@@ -29,6 +29,7 @@ const JMA_NOWCAST_TIME_TTL_MS = 60_000;
 const JMA_NOWCAST_TILE_TTL_MS = 300_000;
 const JMA_NOWCAST_TILE_CACHE_MAX = 384;
 const JMA_NOWCAST_FETCH_TIMEOUT_MS = 3_000;
+const JMA_RAIN_TILE_MAX_ZOOM = 10;
 
 type JmaNowcastTarget = {
   basetime: string;
@@ -309,7 +310,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const member = typeof q.member === "string" && /^[a-z0-9_-]{1,24}$/i.test(q.member) ? q.member : "none";
     const basetime = typeof q.basetime === "string" ? q.basetime : "";
     const validtime = typeof q.validtime === "string" ? q.validtime : "";
-    const z = parseTileNumber(q.z, 14);
+    const z = parseTileNumber(q.z, JMA_RAIN_TILE_MAX_ZOOM);
     const maxTile = z === null ? 0 : Math.pow(2, z) - 1;
     const x = parseTileNumber(q.x, maxTile);
     const y = parseTileNumber(q.y, maxTile);
