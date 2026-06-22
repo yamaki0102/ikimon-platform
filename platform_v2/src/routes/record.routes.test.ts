@@ -536,10 +536,12 @@ test("observation detail route has a saved fallback for public map records still
     readRoute.indexOf("const mediaContext = mediaContextForSnapshot"),
   );
 
-  assert.match(observationRoute, /findPublicMapObservationRecord\(request\.params\.id\)/);
-  assert.match(observationRoute, /findPublicMapObservationRecord\(bundle\.visitId\)/);
+  assert.match(observationRoute, /findPreparingObservationSummary\(request\.params\.id\)/);
+  assert.match(observationRoute, /findPreparingObservationSummary\(bundle\.visitId\)/);
+  assert.match(readRoute, /function preparingObservationBody\(record: PreparingObservationSummary\)/);
   assert.match(observationRoute, /記録は残っています。詳細表示を準備しています/);
-  assert.match(observationRoute, /マイページの記録一覧から確認してください。/);
+  assert.match(readRoute, /マイページの記録一覧から確認してください。/);
+  assert.match(readRoute, /escapeHtml\(record\.displayName\)/);
 });
 
 test("profile settings route gives unauthenticated visitors a login guide", async () => {

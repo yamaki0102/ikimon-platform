@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { getPool } from "../db.js";
 import { registerSnapshotInvalidator } from "../services/snapshotInvalidation.js";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
@@ -95,7 +96,10 @@ import {
   type VisibleRecordItem,
 } from "../services/observationSceneReadModel.js";
 import { buildPublicMapCellHref } from "../services/publicLocation.js";
-import { getMapObservations } from "../services/mapSnapshot.js";
+import {
+  PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
+  PUBLIC_OBSERVATION_QUALITY_SQL,
+} from "../services/observationQualityGate.js";
 import {
   getHomeSnapshot,
   getObservationDetailSnapshot,
@@ -2226,20 +2230,53 @@ function stateCard(eyebrow: string, title: string, body: string): string {
   </section>`;
 }
 
-async function findPublicMapObservationRecord(id: string): Promise<Awaited<ReturnType<typeof getMapObservations>>["items"][number] | null> {
+type PreparingObservationSummary = {
+  occurrenceId: string;
+  visitId: string;
+  displayName: string;
+  localityLabel: string;
+  observedAt: string;
+};
+
+async function findPreparingObservationSummary(id: string): Promise<PreparingObservationSummary | null> {
   const raw = String(id ?? "").trim();
   if (!raw) return null;
   const normalizedVisitId = raw.match(/^occ:(.+):\d+$/)?.[1] ?? raw;
-  const world = await getMapObservations({
-    bbox: [-180, -90, 180, 90],
-    zoom: 4,
-    limit: 1200,
-  }).catch(() => null);
-  return world?.items.find((item) =>
-    item.visitId === normalizedVisitId ||
-    item.occurrenceId === raw ||
-    item.occurrenceId === id,
-  ) ?? null;
+  try {
+    const pool = getPool();
+    const result = await pool.query<PreparingObservationSummary>(
+      `select
+        o.occurrence_id as "occurrenceId",
+        v.visit_id as "visitId",
+        coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, ''), nullif(ai.recommended_taxon_name, ''), '同定待ち') as "displayName",
+        coalesce(nullif(v.observed_municipality, ''), nullif(p.municipality, ''), '位置をぼかしています') as "localityLabel",
+        v.observed_at::text as "observedAt"
+       from occurrences o
+       join visits v on v.visit_id = o.visit_id
+       left join users u on u.user_id = v.user_id
+       left join places p on p.place_id = v.place_id
+       left join lateral (
+         select recommended_taxon_name
+           from observation_ai_assessments a
+          where a.occurrence_id = o.occurrence_id
+          order by generated_at desc
+          limit 1
+       ) ai on true
+      where (v.visit_id = $1 or o.occurrence_id = $1 or v.visit_id = $2 or o.legacy_observation_id = $1 or v.legacy_observation_id = $1)
+        and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+        and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
+      order by o.subject_index asc nulls last, o.created_at asc
+      limit 1`,
+      [raw, normalizedVisitId],
+    );
+    return result.rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function preparingObservationBody(record: PreparingObservationSummary): string {
+  return `${escapeHtml(record.displayName)} / ${escapeHtml(record.localityLabel)} / ${escapeHtml(record.observedAt)}。マップには反映済みです。少し時間をおいても開けない場合は、マイページの記録一覧から確認してください。`;
 }
 
 type RankedSubject = SiblingSubject & {
@@ -19744,7 +19781,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const requestedSubjectId = request.query.subject ?? request.query.occurrence ?? null;
     const bundle = await getObservationVisitBundle(request.params.id, requestedSubjectId);
     if (!bundle) {
-      const mapRecord = await findPublicMapObservationRecord(request.params.id);
+      const mapRecord = await findPreparingObservationSummary(request.params.id);
       if (mapRecord) {
         reply.type("text/html; charset=utf-8");
         return layout(
@@ -19753,7 +19790,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           stateCard(
             "保存済み",
             "記録は残っています。詳細表示を準備しています",
-            `${mapRecord.displayName} / ${mapRecord.localityLabel} / ${mapRecord.observedAt}。マップには反映済みです。少し時間をおいても開けない場合は、マイページの記録一覧から確認してください。`,
+            preparingObservationBody(mapRecord),
           ),
           "みつける",
         );
@@ -19771,7 +19808,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const snapshot = await getObservationDetailSnapshot(bundle.canonicalSubjectId, { viewerUserId });
     if (!snapshot) {
-      const mapRecord = await findPublicMapObservationRecord(bundle.visitId);
+      const mapRecord = await findPreparingObservationSummary(bundle.visitId);
       if (mapRecord) {
         reply.type("text/html; charset=utf-8");
         return layout(
@@ -19780,7 +19817,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           stateCard(
             "保存済み",
             "記録は残っています。詳細表示を準備しています",
-            `${mapRecord.displayName} / ${mapRecord.localityLabel} / ${mapRecord.observedAt}。マップには反映済みです。少し時間をおいても開けない場合は、マイページの記録一覧から確認してください。`,
+            preparingObservationBody(mapRecord),
           ),
           "みつける",
         );
