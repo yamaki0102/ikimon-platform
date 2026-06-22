@@ -294,6 +294,15 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-camera-focus-auto/);
   assert.match(html, /data-global-record-photo-tray/);
   assert.match(html, /data-global-record-photo-grid/);
+  assert.match(html, /const savedRecordActionsHtml = \(message\) =>/);
+  assert.match(html, /data-global-record-saved-action="records"/);
+  assert.match(html, /data-global-record-saved-action="map"/);
+  assert.match(html, /\/records\?view=mine&source=record_saved/);
+  assert.match(html, /\/map\?tab=places&source=record_saved/);
+  assert.match(html, /setStatusHtml\(savedRecordActionsHtml\(message\)\)/);
+  assert.doesNotMatch(html, /escapeHtml\(message/);
+  assert.match(html, /\.global-record-saved-actions \{/);
+  assert.match(html, /\.global-record-saved-actions a \{/);
   assert.match(html, /data-photo-draft="true"/);
   assert.match(html, /data-active-kind/);
   assert.doesNotMatch(html, /ここで少し整える/);
