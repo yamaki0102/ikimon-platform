@@ -553,7 +553,7 @@ test("auth pages honor English language context", async () => {
     assert.match(register.body, /Create account and record/);
     assert.match(register.body, /Display name/);
     assert.match(register.body, /data-endpoint="\/api\/v1\/auth\/register"/);
-    assert.match(register.body, /href="\/en\/login\?redirect=%2Frecord"/);
+    assert.match(register.body, /href="\/en\/login\?redirect=%2Frecord%3Fstart%3Dphoto"/);
     assert.doesNotMatch(register.body, /新しく登録して記録する/);
   } finally {
     await app.close();

@@ -94,7 +94,8 @@ function publicAuthError(error: unknown): string {
 function postAuthRedirect(input: unknown): string {
   const redirect = safeRedirectPath(input);
   const path = redirect.split(/[?#]/, 1)[0] ?? "";
-  return path === "/login" || path === "/register" ? "/record" : redirect;
+  const normalizedRedirect = path === "/login" || path === "/register" ? "/record" : redirect;
+  return normalizedRedirect === "/record" ? "/record?start=photo" : normalizedRedirect;
 }
 
 const AUTH_STYLES = `
