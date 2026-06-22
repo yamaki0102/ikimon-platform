@@ -3767,8 +3767,27 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
+  function normalizedInstallPath() {
+    try {
+      const url = new URL(window.location.href);
+      const segments = url.pathname.split('/').filter(Boolean);
+      if (segments.length > 0 && ['ja', 'en', 'es', 'pt-br'].includes(segments[0].toLowerCase())) {
+        segments.shift();
+      }
+      return '/' + segments.join('/');
+    } catch (_) {
+      return window.location.pathname || '/';
+    }
+  }
+  function isMobileInstallSurface() {
+    return window.matchMedia('(max-width: 900px) and (pointer: coarse)').matches;
+  }
+  function isReturnValueInstallSurface() {
+    const pathname = normalizedInstallPath().replace(/\\/+$/, '') || '/';
+    return pathname === '/' || pathname === '/home' || pathname === '/records' || pathname === '/map' || pathname === '/profile';
+  }
   function showInstallPrompt() {
-    if (!promptEl || isStandalone()) return;
+    if (!promptEl || !deferredPrompt || isStandalone() || !isMobileInstallSurface() || !isReturnValueInstallSurface()) return;
     try {
       if (localStorage.getItem(storageKeys.installDismissed) === '1') return;
     } catch (_) {}
@@ -3777,7 +3796,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     deferredPrompt = event;
-    showInstallPrompt();
+    window.setTimeout(showInstallPrompt, 0);
   });
   if (dismissEl) dismissEl.addEventListener('click', () => {
     if (promptEl) promptEl.hidden = true;

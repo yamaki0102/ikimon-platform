@@ -208,6 +208,48 @@ test("browser language handling asks before switching away from Japanese SEO ent
   assert.doesNotMatch(html, /ikimon:locale-redirect-v1/);
 });
 
+test("app install prompt stores beforeinstallprompt without immediate display", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Record",
+    body: "<p>record</p>",
+    lang: "ja",
+    currentPath: "/record?lang=ja",
+  });
+  const listenerStart = html.indexOf("window.addEventListener('beforeinstallprompt'");
+  const listenerEnd = html.indexOf("if (dismissEl)", listenerStart);
+  const listener = html.slice(listenerStart, listenerEnd);
+
+  assert.match(listener, /event\.preventDefault\(\);/);
+  assert.match(listener, /deferredPrompt = event;/);
+  assert.match(listener, /window\.setTimeout\(showInstallPrompt, 0\);/);
+  assert.doesNotMatch(listener, /promptEl\.hidden = false;/);
+});
+
+test("app install prompt only allows mobile return-value surfaces", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Records",
+    body: "<p>records</p>",
+    lang: "ja",
+    currentPath: "/records?lang=ja",
+  });
+  const routeStart = html.indexOf("function isReturnValueInstallSurface()");
+  const routeEnd = html.indexOf("function showInstallPrompt()", routeStart);
+  const routeLogic = html.slice(routeStart, routeEnd);
+
+  assert.ok(routeLogic.includes("replace(/"));
+  assert.ok(routeLogic.includes("+$/, '')"));
+  assert.match(routeLogic, /pathname === '\/'/);
+  assert.match(routeLogic, /pathname === '\/home'/);
+  assert.match(routeLogic, /pathname === '\/records'/);
+  assert.match(routeLogic, /pathname === '\/map'/);
+  assert.match(routeLogic, /pathname === '\/profile'/);
+  assert.doesNotMatch(routeLogic, /pathname === '\/record'/);
+  assert.match(html, /function isMobileInstallSurface\(\) \{\s+return window\.matchMedia\('\(max-width: 900px\) and \(pointer: coarse\)'\)\.matches;\s+\}/);
+  assert.match(html, /if \(!promptEl \|\| !deferredPrompt \|\| isStandalone\(\) \|\| !isMobileInstallSurface\(\) \|\| !isReturnValueInstallSurface\(\)\) return;/);
+});
+
 test("site shell renders a global record footer nav outside the record flow", () => {
   const html = renderSiteDocument({
     basePath: "",
