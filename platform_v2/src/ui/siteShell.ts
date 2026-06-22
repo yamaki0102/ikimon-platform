@@ -1452,17 +1452,19 @@ function globalRecordEntryScript(basePath: string): string {
     const lang = document.documentElement && document.documentElement.lang ? document.documentElement.lang : 'ja';
     const langPrefix = lang && lang !== 'ja' ? '/' + encodeURIComponent(lang) : '';
     const labels = {
-      ja: { records: '自分の記録', map: '地図' },
-      en: { records: 'My records', map: 'Map' },
-      es: { records: 'Mis registros', map: 'Mapa' },
-      'pt-BR': { records: 'Meus registros', map: 'Mapa' },
+      ja: { records: '自分の記録', profile: 'マイページ', map: '地図' },
+      en: { records: 'My records', profile: 'My page', map: 'Map' },
+      es: { records: 'Mis registros', profile: 'Mi pagina', map: 'Mapa' },
+      'pt-BR': { records: 'Meus registros', profile: 'Minha pagina', map: 'Mapa' },
     };
     const copy = labels[lang] || labels.ja;
     const recordsHref = BASE_PATH + langPrefix + '/records?view=mine&source=record_saved';
+    const profileHref = BASE_PATH + langPrefix + '/profile?source=record_saved';
     const mapHref = BASE_PATH + langPrefix + '/map?tab=places&source=record_saved';
     return '<span class="global-record-saved-text">' + escapeStatusHtml(message || '') + '</span>'
       + '<span class="global-record-saved-actions">'
       + '<a href="' + recordsHref + '" data-global-record-saved-action="records">' + escapeStatusHtml(copy.records) + '</a>'
+      + '<a href="' + profileHref + '" data-global-record-saved-action="profile">' + escapeStatusHtml(copy.profile) + '</a>'
       + '<a href="' + mapHref + '" data-global-record-saved-action="map">' + escapeStatusHtml(copy.map) + '</a>'
       + '</span>';
   };
