@@ -95,6 +95,7 @@ import {
   type VisibleRecordItem,
 } from "../services/observationSceneReadModel.js";
 import { buildPublicMapCellHref } from "../services/publicLocation.js";
+import { getMapObservations } from "../services/mapSnapshot.js";
 import {
   getHomeSnapshot,
   getObservationDetailSnapshot,
@@ -2223,6 +2224,22 @@ function stateCard(eyebrow: string, title: string, body: string): string {
       <div style="margin-top:8px;color:#475569;line-height:1.7">${body}</div>
     </div>
   </section>`;
+}
+
+async function findPublicMapObservationRecord(id: string): Promise<Awaited<ReturnType<typeof getMapObservations>>["items"][number] | null> {
+  const raw = String(id ?? "").trim();
+  if (!raw) return null;
+  const normalizedVisitId = raw.match(/^occ:(.+):\d+$/)?.[1] ?? raw;
+  const world = await getMapObservations({
+    bbox: [-180, -90, 180, 90],
+    zoom: 4,
+    limit: 1200,
+  }).catch(() => null);
+  return world?.items.find((item) =>
+    item.visitId === normalizedVisitId ||
+    item.occurrenceId === raw ||
+    item.occurrenceId === id,
+  ) ?? null;
 }
 
 type RankedSubject = SiblingSubject & {
@@ -19727,6 +19744,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const requestedSubjectId = request.query.subject ?? request.query.occurrence ?? null;
     const bundle = await getObservationVisitBundle(request.params.id, requestedSubjectId);
     if (!bundle) {
+      const mapRecord = await findPublicMapObservationRecord(request.params.id);
+      if (mapRecord) {
+        reply.type("text/html; charset=utf-8");
+        return layout(
+          basePath,
+          "記録を準備中 | ikimon",
+          stateCard(
+            "保存済み",
+            "記録は残っています。詳細表示を準備しています",
+            `${mapRecord.displayName} / ${mapRecord.localityLabel} / ${mapRecord.observedAt}。マップには反映済みです。少し時間をおいても開けない場合は、マイページの記録一覧から確認してください。`,
+          ),
+          "みつける",
+        );
+      }
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
@@ -19740,6 +19771,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const snapshot = await getObservationDetailSnapshot(bundle.canonicalSubjectId, { viewerUserId });
     if (!snapshot) {
+      const mapRecord = await findPublicMapObservationRecord(bundle.visitId);
+      if (mapRecord) {
+        reply.type("text/html; charset=utf-8");
+        return layout(
+          basePath,
+          "記録を準備中 | ikimon",
+          stateCard(
+            "保存済み",
+            "記録は残っています。詳細表示を準備しています",
+            `${mapRecord.displayName} / ${mapRecord.localityLabel} / ${mapRecord.observedAt}。マップには反映済みです。少し時間をおいても開けない場合は、マイページの記録一覧から確認してください。`,
+          ),
+          "みつける",
+        );
+      }
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
