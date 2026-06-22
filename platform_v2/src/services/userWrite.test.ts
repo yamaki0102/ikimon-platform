@@ -17,6 +17,11 @@ test("profile avatar uploads are re-encoded before public storage", async () => 
   assert.match(source, /import sharp from "sharp"/);
   assert.match(source, /normalizeProfileAvatarImage/);
   assert.match(source, /\.webp\(\{ quality: 82, effort: 4 \}\)/);
+  assert.match(source, /createLegacyMediaObjectStore/);
+  assert.match(source, /mediaObjectStore\.write\(\{/);
+  assert.match(source, /visibility: "public"/);
+  assert.match(source, /storageBackend: mediaObject\.storageBackend/);
+  assert.match(source, /publicUrl: mediaObject\.publicUrl/);
   assert.match(source, /mimeType: "image\/webp"/);
   assert.doesNotMatch(source, /"image\/gif"/);
   assert.doesNotMatch(source, /return "\.gif"/);
