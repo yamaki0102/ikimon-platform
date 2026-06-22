@@ -521,6 +521,41 @@ test("login and register pages render v2 auth forms", async () => {
   }
 });
 
+test("auth pages honor English language context", async () => {
+  const app = buildApp();
+  try {
+    const login = await app.inject({
+      method: "GET",
+      url: "/login?redirect=/profile&lang=en",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(login.statusCode, 200);
+    assert.match(login.body, /<html lang="en">/);
+    assert.match(login.body, /Log in to My page/);
+    assert.match(login.body, /Email address/);
+    assert.match(login.body, /Password/);
+    assert.match(login.body, /Continue with Google/);
+    assert.match(login.body, /data-endpoint="\/api\/v1\/auth\/login"/);
+    assert.match(login.body, /href="\/en\/register\?redirect=%2Fprofile"/);
+    assert.doesNotMatch(login.body, /ログインしてマイページへ/);
+    assert.doesNotMatch(login.body, /メールアドレス/);
+
+    const register = await app.inject({
+      method: "GET",
+      url: "/register?redirect=/record&lang=en",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(register.statusCode, 200);
+    assert.match(register.body, /Create account and record/);
+    assert.match(register.body, /Display name/);
+    assert.match(register.body, /data-endpoint="\/api\/v1\/auth\/register"/);
+    assert.match(register.body, /href="\/en\/login\?redirect=%2Frecord"/);
+    assert.doesNotMatch(register.body, /新しく登録して記録する/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("profile route gives unauthenticated visitors a mypage start guide", async () => {
   const app = buildApp();
   try {
@@ -534,7 +569,25 @@ test("profile route gives unauthenticated visitors a mypage start guide", async 
     assert.match(response.body, /ログインすると、自分の記録史を読み返せます/);
     assert.match(response.body, /記録一覧を起点に/);
     assert.match(response.body, /ログインしてマイページへ/);
-    assert.match(response.body, /\/login\?redirect=\/profile/);
+    assert.match(response.body, /\/ja\/login\?redirect=%2Fprofile/);
+    assert.match(response.body, /\/ja\/register\?redirect=%2Fprofile/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("profile guest entry keeps English auth links", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/profile?lang=en",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /\/en\/login\?redirect=%2Fprofile/);
+    assert.match(response.body, /\/en\/register\?redirect=%2Fprofile/);
   } finally {
     await app.close();
   }
@@ -568,7 +621,25 @@ test("profile settings route gives unauthenticated visitors a login guide", asyn
 
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /プロフィール編集にはログインが必要です/);
-    assert.match(response.body, /\/login\?redirect=\/profile\/settings/);
+    assert.match(response.body, /\/ja\/login\?redirect=%2Fprofile%2Fsettings/);
+    assert.match(response.body, /\/ja\/profile/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("profile settings guest entry keeps English auth links", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/profile/settings?lang=en",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /\/en\/login\?redirect=%2Fprofile%2Fsettings/);
+    assert.match(response.body, /\/en\/profile/);
   } finally {
     await app.close();
   }
