@@ -237,7 +237,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /renderOwnObservationMarkers\(\);\s+if \(state\.areaPolygonsDebounce\)/);
   assert.match(script, /data-own-observations-fetch/);
   assert.match(script, /state\.maplibreRuntime = window\.maplibregl/);
-  assert.match(script, /if \(state\._ownObservationFirstViewApplied\) \{\s+dropMeMarker\(lng, lat\);\s+return;\s+\}/);
+  assert.doesNotMatch(script, /if \(state\._ownObservationFirstViewApplied\) \{\s+dropMeMarker\(lng, lat\);\s+return;\s+\}/);
   assert.match(script, /state\.tab === 'rain'/);
   assert.doesNotMatch(script, /ownTrailCountEl\.textContent = props\.lang/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
@@ -780,7 +780,7 @@ test("map initial data load stays light and defers secondary panels", () => {
   assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
 });
 
-test("map opens near current location instead of restoring stale local viewport", () => {
+test("map waits for explicit location action instead of auto-locating on open", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /function applyRestoredParams\(params, options\)/);
@@ -788,7 +788,8 @@ test("map opens near current location instead of restoring stale local viewport"
   assert.match(script, /params = parseStateString\(localStorage\.getItem\(STATE_STORAGE_KEY\) \|\| ''\);[\s\S]*restoreViewport = false;/);
   assert.match(script, /applyRestoredParams\(params, \{ restoreViewport: restoreViewport \}\);/);
   assert.match(script, /if \(restoreViewport && params\.lng && params\.lat && params\.z\)/);
-  assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId\) return;/);
+  assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);
+  assert.match(script, /locateFab\.addEventListener\('click'[\s\S]*navigator\.geolocation\.getCurrentPosition/);
 });
 
 test("heatmap and rain tabs keep area polygons selectable", () => {

@@ -16079,15 +16079,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 fileName: file && file.name ? String(file.name).slice(0, 180) : null,
               });
               filled.push('撮影時の位置');
-            } else if (opts && opts.autoLocateFreshCapture && coordsMissing() && isFreshMedia()) {
-              const located = await applyCurrentLocation('撮影時の現在地', true, {
-                enableHighAccuracy: false,
-                maximumAge: 60000,
-                timeout: 2500,
-                guard,
-              });
-              if (!guard()) return;
-              if (located) filled.push('現在地');
             }
           }
           if (!guard()) return;
@@ -17616,9 +17607,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (!normalized.video) {
             resetVideoTrim();
             resetVideoProgress();
-            if (!hasDraftValues) scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
+            if (!hasDraftValues) scheduleMediaAutofill(firstAutofillFile, metadata, {});
           } else if (videoProgressWrap) {
-            if (!hasDraftValues) scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'video' });
+            if (!hasDraftValues) scheduleMediaAutofill(firstAutofillFile, metadata, {});
             let trimReady = true;
             try {
               await loadVideoTrimEditor(normalized.video);
@@ -17860,14 +17851,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               resetVideoTrim();
               persistCurrentMediaDraft('media_selected').catch(() => undefined);
               void requestVisualRecordFeedback();
-              scheduleMediaAutofill(normalized.photos[0] || null, {}, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
+              scheduleMediaAutofill(normalized.photos[0] || null, {}, {});
             } else if (videoProgressWrap) {
               setSelectedMediaRole(kind === 'video' ? 'sound_motion' : 'primary_subject');
               showRecordFormForMedia(files, kind);
               renderPreviewSelection();
               persistCurrentMediaDraft('media_selected').catch(() => undefined);
               void requestVisualRecordFeedback();
-              scheduleMediaAutofill(normalized.photos[0] || normalized.video, {}, { autoLocateFreshCapture: kind === 'video' });
+              scheduleMediaAutofill(normalized.photos[0] || normalized.video, {}, {});
               let trimReady = true;
               try {
                 await loadVideoTrimEditor(normalized.video);
@@ -17903,7 +17894,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             visualRecordFeedbackMediaKey = '';
             scheduleRecordDraftAutosave('primary_photo_selected');
             void requestVisualRecordFeedback();
-            scheduleMediaAutofill(file, {}, { autoLocateFreshCapture: false });
+            scheduleMediaAutofill(file, {}, {});
           });
         }
         if (videoPrimaryPhotoClear) {

@@ -340,13 +340,14 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /applyCameraZoom\(cameraZoomMax\)/);
   assert.match(html, /cameraPinchDistance/);
   assert.match(html, /window\.visualViewport\.addEventListener\('resize', syncVisualViewportVars\)/);
-  assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
-  assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);[\s\S]+fillCaptureLocationLater/);
+  assert.doesNotMatch(html, /navigator\.geolocation\.getCurrentPosition/);
+  assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
+  assert.doesNotMatch(html, /fillCaptureLocationLater/);
   assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
-  assert.match(html, /timeout: 2500/);
+  assert.match(html, /地点を確認してから記録します。記録画面で場所を選べます。/);
   assert.match(html, /global_record_capture_latency/);
   assert.match(html, /capture_to_review_ms/);
-  assert.match(html, /gps_wait_ms/);
+  assert.doesNotMatch(html, /gps_wait_ms/);
   assert.match(html, /camera_start_ms/);
   assert.match(html, /photo_prepare_ms/);
   assert.match(html, /observation_upsert_ms/);

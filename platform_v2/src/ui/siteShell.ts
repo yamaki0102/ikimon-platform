@@ -2090,6 +2090,11 @@ function globalRecordEntryScript(basePath: string): string {
     }
     if (startButton) startButton.disabled = true;
     const metadata = capturedReviewMeta || {};
+    if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
+      setStatus('地点を確認してから記録します。記録画面で場所を選べます。');
+      await navigateWithDraft(files, 'photo', metadata);
+      return;
+    }
     try {
       setStatus('写真を記録用に整えています...');
       let preparedCount = 0;
@@ -2121,15 +2126,7 @@ function globalRecordEntryScript(basePath: string): string {
       let detailId = photoDraftRetryDetailId;
       let photoUploadTargetId = photoDraftRetryVisitId || photoDraftRetryDetailId;
       if (!detailId) {
-        let location = metadata.location || null;
-        if (!location) {
-          setStatus('記録に使う地点を確認しています...');
-          location = await readCaptureLocation({ enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 2500, kpiSource: 'direct_post_fallback' });
-          if (location && capturedReviewMeta === metadata) {
-            metadata.location = location;
-            metadata.locationPending = false;
-          }
-        }
+        const location = metadata.location || null;
         if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
           throw new Error('location_required');
         }
@@ -2457,68 +2454,11 @@ function globalRecordEntryScript(basePath: string): string {
       if (requestId === cameraRequestId) cameraStartInFlight = false;
     }
   };
-  const readCaptureLocation = (options) => new Promise((resolve) => {
-    const locationStartedAt = nowMs();
-    const kpiSource = options && options.kpiSource ? String(options.kpiSource) : 'capture_location';
-    if (!navigator.geolocation) {
-      sendGlobalRecordErrorKpi('gps_wait_failed', 'geolocation_unavailable', {
-        durationMs: durationSince(locationStartedAt),
-        kpiSource,
-      });
-      resolve(null);
-      return;
-    }
-    const merged = Object.assign({
-      enableHighAccuracy: true,
-      maximumAge: 30000,
-      timeout: 7000,
-    }, options || {});
-    delete merged.kpiSource;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        sendGlobalRecordKpi('gps_wait_ms', durationSince(locationStartedAt), {
-          kpiSource,
-          success: true,
-          accuracy: position.coords.accuracy,
-          enableHighAccuracy: Boolean(merged.enableHighAccuracy),
-          timeout: Number(merged.timeout || 0),
-          maximumAge: Number(merged.maximumAge || 0),
-        });
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          capturedAt: new Date().toISOString(),
-        });
-      },
-      (error) => {
-        sendGlobalRecordErrorKpi('gps_wait_failed', error && error.code ? 'geolocation_error_' + String(error.code) : 'geolocation_error', {
-          durationMs: durationSince(locationStartedAt),
-          kpiSource,
-          enableHighAccuracy: Boolean(merged.enableHighAccuracy),
-          timeout: Number(merged.timeout || 0),
-          maximumAge: Number(merged.maximumAge || 0),
-        });
-        resolve(null);
-      },
-      merged,
-    );
-  });
   const buildCaptureMetadata = () => ({
     capturedAt: new Date().toISOString(),
     location: null,
     locationPending: true,
   });
-  const fillCaptureLocationLater = (metadata, successMessage, fallbackMessage) => {
-    if (!metadata || !metadata.locationPending) return;
-    void readCaptureLocation({ kpiSource: 'capture_review_background' }).then((location) => {
-      if (capturedReviewMeta !== metadata) return;
-      metadata.location = location;
-      metadata.locationPending = false;
-      if (location) setStatus(successMessage);
-      else setStatus(fallbackMessage);
-    });
-  };
   const prepareSheetVideoTrim = (file) => {
     resetSheetVideoTrim();
     if (!file || !trimWrap || !trimStart || !trimEnd || !cameraVideo) return;
@@ -2733,11 +2673,6 @@ function globalRecordEntryScript(basePath: string): string {
         blobBytes: Number(blob.size || 0),
       });
       capturePressedAt = 0;
-      fillCaptureLocationLater(
-        metadata,
-        '撮影地点も保存しました。写真はすぐ記録できます。',
-        '写真はすぐ記録できます。位置は記録時にもう一度確認します。',
-      );
     }, 'image/jpeg', 0.9);
   };
   const stopVideoRecording = () => {
@@ -2786,11 +2721,6 @@ function globalRecordEntryScript(basePath: string): string {
         });
         capturePressedAt = 0;
       }
-      fillCaptureLocationLater(
-        metadata,
-        '撮影地点も保存しました。必要なら使う区間だけ選べます。',
-        '必要なら使う区間だけ選べます。位置は記録画面で確認します。',
-      );
     };
     recordingStartedAt = Date.now();
     mediaRecorder.start(1000);
@@ -2874,11 +2804,6 @@ function globalRecordEntryScript(basePath: string): string {
         openSheet('photo', { reviewOnly: true, keepReview: true });
         const metadata = buildCaptureMetadata();
         addPhotoDraftFiles(files, metadata);
-        fillCaptureLocationLater(
-          metadata,
-          '撮影地点も保存しました。写真' + String(selectedPhotoDraftFiles().length) + '枚をまとめています。',
-          '位置は記録時にもう一度確認します。写真' + String(selectedPhotoDraftFiles().length) + '枚をまとめています。',
-        );
         input.value = '';
         return;
       }
