@@ -1,12 +1,13 @@
 import { execFile as execFileCb } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { recordSegmentEmbedding } from "./audioEmbedding.js";
+import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 
 const execFile = promisify(execFileCb);
@@ -286,6 +287,15 @@ export function getAudioStorageRoot(): string {
   return path.resolve(config.legacyDataRoot, "..", "private_uploads");
 }
 
+function createAudioMediaObjectStore() {
+  const config = loadConfig();
+  return createLegacyMediaObjectStore({
+    publicRoot: config.legacyPublicRoot,
+    privateRoot: getAudioStorageRoot(),
+    privateStorageBackend: AUDIO_STORAGE_BACKEND,
+  });
+}
+
 function resolveAudioAbsolutePath(storagePath: string): string {
   const root = getAudioStorageRoot();
   const full = path.resolve(root, storagePath);
@@ -517,16 +527,19 @@ async function persistInlineAudio(client: PoolClient, input: AudioSegmentSubmitI
   };
 
   const storagePath = audioUploadRelativePath(input.sessionId, input.recordedAt, mimeType, input.filename);
-  const absolutePath = resolveAudioAbsolutePath(storagePath);
-  await mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, buffer);
+  const mediaObjectStore = createAudioMediaObjectStore();
+  const mediaObject = await mediaObjectStore.write({
+    visibility: "private",
+    storagePath,
+    buffer,
+  });
 
   const blobId = await upsertAssetBlob(client, {
-    storageBackend: AUDIO_STORAGE_BACKEND,
-    storagePath,
+    storageBackend: mediaObject.storageBackend,
+    storagePath: mediaObject.storagePath,
     mediaType: "audio",
     mimeType,
-    publicUrl: null,
+    publicUrl: mediaObject.publicUrl,
     sha256: createHash("sha256").update(buffer).digest("hex"),
     bytes: buffer.byteLength,
     durationMs: Math.round((input.durationSec ?? 0) * 1000),
@@ -538,11 +551,11 @@ async function persistInlineAudio(client: PoolClient, input: AudioSegmentSubmitI
   });
 
   return {
-    storagePath,
-    storageProvider: AUDIO_STORAGE_BACKEND,
+    storagePath: mediaObject.storagePath,
+    storageProvider: mediaObject.storageBackend,
     bytes: buffer.byteLength,
     blobId,
-    cleanupOnRollback: storagePath,
+    cleanupOnRollback: mediaObject.storagePath,
   };
 }
 
@@ -579,15 +592,12 @@ function isAnalysisOnlyRawAudio(row: Pick<AudioSegmentRow, "meta">): boolean {
 }
 
 async function deletePendingFiles(paths: PendingDeletion[]): Promise<void> {
+  const mediaObjectStore = createAudioMediaObjectStore();
   for (const item of paths) {
-    try {
-      await unlink(resolveAudioAbsolutePath(item.storagePath));
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== "ENOENT") {
-        throw error;
-      }
-    }
+    await mediaObjectStore.delete({
+      visibility: "private",
+      storagePath: item.storagePath,
+    });
   }
 }
 
@@ -1261,7 +1271,10 @@ export async function loadAudioSegmentForPlayback(segmentId: string, userId: str
   if (row.storage_provider !== AUDIO_STORAGE_BACKEND || !row.storage_path) {
     return null;
   }
-  const data = await readFile(resolveAudioAbsolutePath(row.storage_path));
+  const data = await createAudioMediaObjectStore().read({
+    visibility: "private",
+    storagePath: row.storage_path,
+  });
   return {
     mimeType: canonicalAudioMimeType(row.mime_type),
     data,

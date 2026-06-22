@@ -10,6 +10,11 @@ test("live guide analysis-only audio deletes raw media after detections", async 
   assert.match(source, /function isAnalysisOnlyRawAudio/);
   assert.match(source, /analysis_only_delete_after_detection/);
   assert.match(source, /function markAnalysisOnlyRawAudioDeleted/);
+  assert.match(source, /function createAudioMediaObjectStore/);
+  assert.match(source, /privateStorageBackend: AUDIO_STORAGE_BACKEND/);
+  assert.match(source, /mediaObjectStore\.write\(\{/);
+  assert.match(source, /mediaObjectStore\.delete\(\{/);
+  assert.match(source, /createAudioMediaObjectStore\(\)\.read\(\{/);
   assert.match(source, /delete from asset_blobs where blob_id = \$1/);
   assert.match(source, /storage_provider = 'analysis_deleted'/);
   assert.match(source, /rawAudioStored: false/);
