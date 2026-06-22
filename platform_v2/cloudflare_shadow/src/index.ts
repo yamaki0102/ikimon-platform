@@ -780,24 +780,35 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/map",
   "/app-refresh",
   "/login",
+  "/profile",
+  "/profile/settings",
   "/en",
   "/en/",
   "/en/guide",
   "/en/login",
   "/en/map",
+  "/en/profile",
+  "/en/profile/settings",
   "/en/record",
+  "/en/register",
   "/es",
   "/es/",
   "/es/guide",
   "/es/login",
   "/es/map",
+  "/es/profile",
+  "/es/profile/settings",
   "/es/record",
+  "/es/register",
   "/pt-br",
   "/pt-br/",
   "/pt-br/guide",
   "/pt-br/login",
   "/pt-br/map",
+  "/pt-br/profile",
+  "/pt-br/profile/settings",
   "/pt-br/record",
+  "/pt-br/register",
   "/register",
   "/learn",
   "/community",
@@ -828,6 +839,10 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/ja/for-business/monitoring/apply",
   "/ja/for-business/pricing",
   "/ja/for-business/status",
+  "/ja/login",
+  "/ja/profile",
+  "/ja/profile/settings",
+  "/ja/register",
   "/ja/for-researcher/apply",
   "/ja/guide",
   "/ja/home",
@@ -2524,7 +2539,7 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
     return json({ ok: false, error: "html_requires_origin_for_personalized_request" }, 404, { "cache-control": "no-store" });
   }
 
-  const object = await env.ASSET_BUCKET.get(originalUiHtmlKey(url.pathname));
+  const object = await env.ASSET_BUCKET.get(originalUiHtmlKeyForRequest(url));
   if (object?.body) {
     return new Response(request.method === "HEAD" ? null : object.body, {
       headers: {
@@ -2557,6 +2572,38 @@ function isOriginalUiHtmlPath(pathname: string): boolean {
 function originalUiHtmlKey(pathname: string): string {
   const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   return `original-ui/html/${cleanPath}.html`;
+}
+
+function originalUiHtmlKeyForRequest(url: URL): string {
+  const langSegment = langQueryToUrlSegment(url.searchParams.get("lang"));
+  if (!langSegment) return originalUiHtmlKey(url.pathname);
+  const localizedPath = localizedMaterializedPath(url.pathname, langSegment);
+  return originalUiHtmlKey(localizedPath ?? url.pathname);
+}
+
+function langQueryToUrlSegment(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.trim();
+  if (normalized === "ja" || normalized === "en" || normalized === "es") return normalized;
+  if (normalized === "pt-BR" || normalized.toLowerCase() === "pt-br" || normalized === "pt") return "pt-br";
+  return null;
+}
+
+function localizedMaterializedPath(pathname: string, langSegment: string): string | null {
+  if (pathname.startsWith(`/${langSegment}/`) || pathname === `/${langSegment}`) return pathname;
+  const localizable = new Set([
+    "/",
+    "/guide",
+    "/login",
+    "/map",
+    "/profile",
+    "/profile/settings",
+    "/record",
+    "/register"
+  ]);
+  if (!localizable.has(pathname)) return null;
+  if (pathname === "/") return `/${langSegment}`;
+  return `/${langSegment}${pathname}`;
 }
 
 function hasPersonalizedHtmlHeaders(request: Request): boolean {
