@@ -182,14 +182,17 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /publicStateSuccessKind/);
         assert.match(response.body, /record-success-return/);
         assert.match(response.body, /record-success-saved-card/);
+        assert.match(response.body, /record-success-shortcuts/);
         assert.match(response.body, /record-success-actions/);
         assert.match(response.body, /data-record-success-cta/);
         assert.match(response.body, /data-record-success-cta="saved_record_card"/);
-        assert.match(response.body, /key: 'observation_detail', label: recordUiCopy\.successObservationCta, primary: true/);
-        assert.match(response.body, /key: 'notes', label: recordUiCopy\.successRecordsCta, primary: !hasObservationHref/);
+        assert.match(response.body, /const returnLinks = \[/);
+        assert.match(response.body, /key: 'notes', label: recordUiCopy\.successRecordsCta, primary: true/);
         assert.match(response.body, /key: 'profile', label: recordUiCopy\.successProfileCta, primary: false/);
         assert.match(response.body, /key: 'map_nearby', label: recordUiCopy\.successMapCta, primary: false/);
-        assert.match(response.body, /withBasePath\('\/map\?tab=places'\)/);
+        assert.match(response.body, /const nextLinks = \[/);
+        assert.match(response.body, /key: 'observation_detail', label: recordUiCopy\.successObservationCta, primary: hasObservationHref/);
+        assert.match(response.body, /recordSuccessMapHref/);
         assert.match(response.body, /周辺の地図を見る/);
         assert.match(response.body, /自分の記録を見る/);
         assert.match(response.body, /record_saved/);
@@ -296,6 +299,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /公開候補として保存しました/);
         assert.match(response.body, /recordSuccessProfileHref = "\/ja\/profile"/);
         assert.match(response.body, /recordSuccessRecordsHref = "\/ja\/records\?view=mine"/);
+        assert.match(response.body, /recordSuccessMapHref = "\/ja\/map\?tab=places"/);
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/ja\/observations\/"/);
         assert.match(response.body, /successProfileCta: "マイページへ"/);
         assert.match(response.body, /successRecordsCta: "自分の記録を見る"/);
@@ -450,6 +454,7 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /href="\/en\/learn"/);
         assert.match(response.body, /recordSuccessProfileHref = "\/en\/profile"/);
         assert.match(response.body, /recordSuccessRecordsHref = "\/en\/records\?view=mine"/);
+        assert.match(response.body, /recordSuccessMapHref = "\/en\/map\?tab=places"/);
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/en\/observations\/"/);
         assert.match(response.body, /successProfileCta: "My page"/);
         assert.match(response.body, /successRecordsCta: "View my records"/);

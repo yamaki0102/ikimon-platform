@@ -435,8 +435,10 @@ test.describe("production candidate smoke", () => {
     expect(response?.status(), "home status").toBeLessThan(500);
     const html = await page.content();
     expect(html, "saved record should link back to own records").toContain('data-global-record-saved-action="records"');
+    expect(html, "saved record should link back to My page").toContain('data-global-record-saved-action="profile"');
     expect(html, "saved record should link back to map").toContain('data-global-record-saved-action="map"');
     expect(html, "records return URL should preserve source attribution").toContain("/records?view=mine&source=record_saved");
+    expect(html, "profile return URL should preserve source attribution").toContain("/profile?source=record_saved");
     expect(html, "map return URL should preserve source attribution").toContain("/map?tab=places&source=record_saved");
   });
 

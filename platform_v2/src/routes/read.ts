@@ -15464,6 +15464,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         };
         const recordSuccessProfileHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/profile"), lang))};
         const recordSuccessRecordsHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang))};
+        const recordSuccessMapHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang))};
         const recordSuccessObservationHrefPrefix = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/observations/"), lang))};
         const recordSuccessRevisitHrefPrefix = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/record?start=gallery&revisitObservationId="), lang))};
 
@@ -16118,19 +16119,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const buildRecordSuccessReturnHtml = (options) => {
           const hasObservationHref = Boolean(options.observationHref);
-          const links = [
-            { href: options.observationHref, key: 'observation_detail', label: recordUiCopy.successObservationCta, primary: true },
-            { href: options.notesHref, key: 'notes', label: recordUiCopy.successRecordsCta, primary: !hasObservationHref },
+          const returnLinks = [
+            { href: options.notesHref, key: 'notes', label: recordUiCopy.successRecordsCta, primary: true },
             { href: options.profileHref, key: 'profile', label: recordUiCopy.successProfileCta, primary: false },
             { href: options.mapHref, key: 'map_nearby', label: recordUiCopy.successMapCta, primary: false },
+          ].filter((link) => link.href);
+          const nextLinks = [
+            { href: options.observationHref, key: 'observation_detail', label: recordUiCopy.successObservationCta, primary: hasObservationHref },
             { href: options.revisitHref, key: 'revisit_same_place', label: recordUiCopy.successRevisitCta, primary: false },
           ].filter((link) => link.href);
+          const renderLink = (link) =>
+            '<a class="' + (link.primary ? 'is-primary' : '') + '" href="' + escapeHtmlText(link.href) + '" data-record-success-cta="' + escapeHtmlText(link.key) + '">' + escapeHtmlText(link.label) + '</a>';
           return '<div class="record-success-return" data-success-return-state="' + escapeHtmlText(options.state || 'review') + '">' +
             '<strong>' + escapeHtmlText(options.heading) + '</strong>' +
-            '<span>' + escapeHtmlText(recordUiCopy.successRecordsHelp) + '</span>' +
-            '<div class="record-success-actions">' + links.map((link) =>
-              '<a class="' + (link.primary ? 'is-primary' : '') + '" href="' + escapeHtmlText(link.href) + '" data-record-success-cta="' + escapeHtmlText(link.key) + '">' + escapeHtmlText(link.label) + '</a>'
-            ).join('') + '</div>' +
+            '<div class="record-success-shortcuts">' + returnLinks.map(renderLink).join('') + '</div>' +
+            '<div class="record-success-actions">' + nextLinks.map(renderLink).join('') + '</div>' +
           '</div>';
         };
 
@@ -19110,7 +19113,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const revisitHref = recordSuccessRevisitHrefPrefix + encodeURIComponent(visitId);
               const successHeading = isMediaRetrySubmit ? recordUiCopy.successMediaHeading : recordUiCopy.successHeading;
               const successReturnState = publicStateSuccessKind(observationJson || {});
-              const mapHref = successReturnState === 'hidden' ? '' : withBasePath('/map?tab=places');
+              const mapHref = successReturnState === 'hidden' ? '' : recordSuccessMapHref;
               const successCardTitle = observationJson && observationJson.impact && observationJson.impact.focusLabel
                 ? observationJson.impact.focusLabel
                 : String(data.get('vernacularName') || data.get('scientificName') || data.get('nextLookFor') || data.get('localityNote') || '').trim();
@@ -19533,6 +19536,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-success-return { scroll-margin-top: 92px; margin: 0 0 10px; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); border: 1px solid rgba(16,185,129,.24); display: grid; gap: 8px; }
         .record-success-return strong { color: #064e3b; font-size: 15px; line-height: 1.35; font-weight: 950; }
         .record-success-return span { color: #334155; font-size: 13px; line-height: 1.65; font-weight: 780; }
+        .record-success-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
+        .record-success-shortcuts a { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 8px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; font-size: 12px; line-height: 1.18; font-weight: 950; text-align: center; overflow-wrap: anywhere; }
+        .record-success-shortcuts a.is-primary { background: #064e3b; border-color: #064e3b; color: #fff; box-shadow: 0 10px 22px rgba(6,78,59,.18); }
         .record-success-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
         .record-success-actions a { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 10px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; font-size: 12.5px; line-height: 1.2; font-weight: 950; text-align: center; overflow-wrap: anywhere; }
         .record-success-actions a.is-primary { background: #059669; border-color: #059669; color: #fff; }
@@ -19584,6 +19590,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-page { padding-bottom: 104px; }
           .record-has-media .record-page { padding-bottom: 118px; }
           .record-has-media .hero-panel { display: none; }
+          .record-success-shortcuts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
           .record-success-actions { grid-template-columns: 1fr; }
           .record-card { padding: 20px; border-radius: 24px; }
           .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
