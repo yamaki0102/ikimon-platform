@@ -6867,10 +6867,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         ? ['interpolate', ['linear'], ['zoom'], 8, 0.55, 12, 0.72, 15, 0.96]
         : 0.42);
       map.setPaintProperty('area-polygon-outline', 'line-width', tab === 'places' || tab === 'rain'
-        ? ['case',
-          ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
-          ['interpolate', ['linear'], ['zoom'], 8, 1.4, 14, 2.4, 17, 3.2],
-          ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 1.6, 17, 2.2]]
+        ? ['interpolate', ['linear'], ['zoom'],
+          8, ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 1.4, 1.2],
+          14, ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 2.4, 1.6],
+          17, ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 3.2, 2.2]]
         : ['case', ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]], 2.4, 1.4]);
     }
     if (map.getLayer('area-polygon-approximate-outline')) {

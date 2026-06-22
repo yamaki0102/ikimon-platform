@@ -816,8 +816,10 @@ test("area density and labels are staged by zoom instead of appearing all at onc
   assert.match(script, /'text-opacity': \['interpolate', \['linear'\], \['zoom'\], 13\.2, 0, 13\.8, 0\.72, 15\.4, 0\.88\]/);
   assert.match(script, /'line-opacity', tab === 'places'[\s\S]*?8, 0\.55, 12, 0\.72, 15, 0\.96/);
   assert.match(script, /\['in', \['get', 'access'\], \['literal', \['private', 'no', 'restricted'\]\]\],[\s\S]*?'#dc2626'/);
-  assert.match(script, /8, 1\.4, 14, 2\.4, 17, 3\.2/);
-  assert.match(script, /8, 1\.2, 14, 1\.6, 17, 2\.2/);
+  assert.match(script, /'line-width', tab === 'places' \|\| tab === 'rain'[\s\S]*?\['interpolate', \['linear'\], \['zoom'\]/);
+  assert.match(script, /8, \['case'[\s\S]*?1\.4, 1\.2\]/);
+  assert.match(script, /14, \['case'[\s\S]*?2\.4, 1\.6\]/);
+  assert.match(script, /17, \['case'[\s\S]*?3\.2, 2\.2\]/);
   assert.match(script, /'area-polygon-hitbox'[\s\S]*?'line-width': 14/);
 });
 
