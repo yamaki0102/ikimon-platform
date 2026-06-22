@@ -632,6 +632,54 @@ test("unified search separates current-area and other-area results", () => {
   assert.match(styles, /\.me-search-group-heading/);
 });
 
+test("place search selection opens the area encyclopedia around the result", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const placeBody = script.slice(
+    script.indexOf("function buildPlaceSearchRows"),
+    script.indexOf("function runUnifiedSearch"),
+  );
+
+  assert.match(placeBody, /state\.tab = 'places';/);
+  assert.match(script, /function isSensitivePlaceSearchRow\(row\)/);
+  assert.match(script, /function safePlaceSearchOrigin\(row, lat, lng\)/);
+  assert.match(script, /var precision = isSensitivePlaceSearchRow\(row\) \? 1000 : 10000;/);
+  assert.match(placeBody, /state\.nearbyAreaOrigin = safePlaceSearchOrigin\(row, lat, lng\);/);
+  assert.match(placeBody, /state\.nearbyAreaLocateMovePending = true;/);
+  assert.match(placeBody, /syncUiFromState\(\);\s+applyTab\(state\.map, state\.tab\);/);
+  assert.match(placeBody, /function refreshSearchAreaDiscovery\(\)/);
+  assert.match(placeBody, /if \(areaDiscoveryFallbackTimer\) clearTimeout\(areaDiscoveryFallbackTimer\);/);
+  assert.match(placeBody, /loadAreaPolygons\(\);\s+refreshNearbyAreaMarkers\(state\.nearbyAreaOrigin\);/);
+  assert.match(placeBody, /var staysInPlace = currentCenter/);
+  assert.match(placeBody, /state\.map\.once\('moveend', refreshSearchAreaDiscovery\);/);
+  assert.match(placeBody, /areaDiscoveryFallbackTimer = setTimeout\(refreshSearchAreaDiscovery, 2000\);/);
+  assert.match(placeBody, /maxZoom: sensitivePlaceSearch \? 12 : 14/);
+  assert.match(placeBody, /state\.map\.fitBounds/);
+  assert.match(placeBody, /state\.map\.flyTo/);
+});
+
+test("place search origin stays local and is not persisted or sent as map telemetry", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const serializeBody = script.slice(
+    script.indexOf("function serializeMapState"),
+    script.indexOf("function saveMapState"),
+  );
+  const kpiBody = script.slice(
+    script.indexOf("function sendMapKpi"),
+    script.indexOf("function trackAreaDetailOpen"),
+  );
+
+  assert.doesNotMatch(serializeBody, /nearbyAreaOrigin/);
+  assert.doesNotMatch(kpiBody, /nearbyAreaOrigin/);
+});
+
+test("map status distinguishes visible map readiness from record loading", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /"recordsLoading":"記録を読み込み中…"/);
+  assert.match(script, /setStatus\(COPY\.recordsLoading\);/);
+  assert.doesNotMatch(script, /setStatus\(COPY\.loading\);\s+setResultsLoadState\('loading'/);
+});
+
 test("frontier and heatmap layers gain stronger zoom-sensitive visual feedback", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 

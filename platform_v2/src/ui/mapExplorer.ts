@@ -78,6 +78,7 @@ export type MapExplorerCopy = {
   purposeHintBody: string;
   purposeHintDismiss: string;
   loading: string;
+  recordsLoading: string;
   statsLabel: (returned: number, total: number) => string;
   empty: string;
   emptyTitle: string;
@@ -267,6 +268,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     purposeHintBody: "気になる場所を選ぶと、最近の発見と見に行く理由が見えます。",
     purposeHintDismiss: "この案内を閉じる",
     loading: "読み込み中…",
+    recordsLoading: "記録を読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "記録が少ない場所でも、近くの発見や季節を変えると歩く理由が見つかります。",
     emptyTitle: "ここは、これから育つ場所です",
@@ -436,6 +438,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     purposeHintBody: "Pick a place to see recent finds and why it may be worth visiting.",
     purposeHintDismiss: "Close this hint",
     loading: "Loading…",
+    recordsLoading: "Loading records…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
     empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
     emptyTitle: "This is room for the guide to grow",
@@ -605,6 +608,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     purposeHintBody: "Elige un lugar para ver hallazgos recientes y motivos para visitarlo.",
     purposeHintDismiss: "Cerrar esta pista",
     loading: "Cargando…",
+    recordsLoading: "Cargando registros…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
     empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
     emptyTitle: "Aquí la guía aún puede crecer",
@@ -774,6 +778,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     purposeHintBody: "Escolha um lugar para ver achados recentes e motivos para visitar.",
     purposeHintDismiss: "Fechar esta dica",
     loading: "Carregando…",
+    recordsLoading: "Carregando registros…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
     empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
     emptyTitle: "Este guia ainda tem espaço para crescer",
@@ -1611,6 +1616,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
+    recordsLoading: copy.recordsLoading,
     empty: copy.empty,
     emptyTitle: copy.emptyTitle,
     emptyLead: copy.emptyLead,
@@ -7695,7 +7701,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.recordsRecoveryKey = requestKey;
       state.recordsRecoveryAttempts = 0;
     }
-    setStatus(COPY.loading);
+    setStatus(COPY.recordsLoading);
     setResultsLoadState('loading', state.records && state.records.length ? state.records.length : 0);
     if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
     clearRecordsLoadWatchdog();
@@ -8559,6 +8565,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return !!(bounds && bounds.contains && bounds.contains([lng, lat]));
   }
 
+  function placeSearchTypeKey(row) {
+    return [row && row.type, row && row.category, row && row.class].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function isSensitivePlaceSearchRow(row) {
+    return /\b(school|kindergarten|childcare|college|university|residential|house|apartments|dormitory|address|building)\b/.test(placeSearchTypeKey(row));
+  }
+
+  function safePlaceSearchOrigin(row, lat, lng) {
+    var precision = isSensitivePlaceSearchRow(row) ? 1000 : 10000;
+    return {
+      lat: Math.round(lat * precision) / precision,
+      lng: Math.round(lng * precision) / precision
+    };
+  }
+
   function groupSearchRows(localRows, placeRows) {
     var current = [];
     var other = [];
@@ -8659,15 +8681,44 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           var lat = Number(row.lat);
           var lng = Number(row.lon);
           if (!isFinite(lat) || !isFinite(lng)) return;
+          state.tab = 'places';
+          state.nearbyAreaOrigin = safePlaceSearchOrigin(row, lat, lng);
+          state.nearbyAreaLocateMovePending = true;
+          syncUiFromState();
+          applyTab(state.map, state.tab);
+          var sensitivePlaceSearch = isSensitivePlaceSearchRow(row);
+          var targetZoom = 12;
+          var currentCenter = typeof state.map.getCenter === 'function' ? state.map.getCenter() : null;
+          var currentZoom = typeof state.map.getZoom === 'function' ? state.map.getZoom() : NaN;
+          var staysInPlace = currentCenter
+            ? distanceMeters({ lat: currentCenter.lat, lng: currentCenter.lng }, state.nearbyAreaOrigin) <= 25
+              && Math.abs(currentZoom - targetZoom) <= 0.25
+              && !(row.boundingbox && row.boundingbox.length === 4)
+            : false;
+          var areaDiscoveryRefreshed = false;
+          var areaDiscoveryFallbackTimer = null;
+          function refreshSearchAreaDiscovery() {
+            if (areaDiscoveryRefreshed) return;
+            areaDiscoveryRefreshed = true;
+            if (areaDiscoveryFallbackTimer) clearTimeout(areaDiscoveryFallbackTimer);
+            loadAreaPolygons();
+            refreshNearbyAreaMarkers(state.nearbyAreaOrigin);
+          }
+          if (staysInPlace) {
+            refreshSearchAreaDiscovery();
+          } else {
+            state.map.once('moveend', refreshSearchAreaDiscovery);
+            areaDiscoveryFallbackTimer = setTimeout(refreshSearchAreaDiscovery, 2000);
+          }
           if (row.boundingbox && row.boundingbox.length === 4) {
             var b = row.boundingbox.map(Number);
             if (b.every(isFinite)) {
-              state.map.fitBounds([[b[2], b[0]], [b[3], b[1]]], { padding: 48, maxZoom: 14, duration: 500 });
+              state.map.fitBounds([[b[2], b[0]], [b[3], b[1]]], { padding: 48, maxZoom: sensitivePlaceSearch ? 12 : 14, duration: 500 });
             } else {
-              state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
+              state.map.flyTo({ center: [lng, lat], zoom: targetZoom, duration: 500 });
             }
           } else {
-            state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
+            state.map.flyTo({ center: [lng, lat], zoom: targetZoom, duration: 500 });
           }
           searchResultsEl.classList.remove('is-open');
           if (searchInputEl) searchInputEl.value = row.display_name || '';
