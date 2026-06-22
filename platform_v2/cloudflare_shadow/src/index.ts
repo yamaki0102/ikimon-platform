@@ -2541,7 +2541,8 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
 
   const object = await env.ASSET_BUCKET.get(originalUiHtmlKeyForRequest(url));
   if (object?.body) {
-    return new Response(request.method === "HEAD" ? null : object.body, {
+    const body = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, url);
+    return new Response(body, {
       headers: {
         "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
         "cache-control": "no-store",
@@ -2560,6 +2561,24 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
     return fetchOriginFallback(request, url, env, "html_materialized_miss");
   }
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+async function originalUiHtmlBodyForRequest(object: R2ObjectBody, url: URL): Promise<ReadableStream | string | null> {
+  if (!isAuthHtmlPath(url.pathname) || !url.searchParams.has("redirect")) return object.body;
+  const text = await new Response(object.body).text();
+  return personalizeAuthRedirectHtml(text, postAuthRedirect(url.searchParams.get("redirect")));
+}
+
+function isAuthHtmlPath(pathname: string): boolean {
+  return /^(?:\/(?:ja|en|es|pt-br))?\/(?:login|register)$/.test(pathname);
+}
+
+function personalizeAuthRedirectHtml(html: string, redirect: string): string {
+  const encodedRedirect = encodeURIComponent(redirect);
+  return html
+    .replace(/\bdata-redirect="[^"]*"/g, `data-redirect="${escapeHtml(redirect)}"`)
+    .replace(/(href="[^"]*\/(?:login|register)\?redirect=)[^"&]*/g, `$1${encodedRedirect}`)
+    .replace(/(href="[^"]*\/auth\/oauth\/(?:google|twitter)\/start\?redirect=)[^"&]*/g, `$1${encodedRedirect}`);
 }
 
 function isOriginalUiHtmlPath(pathname: string): boolean {
@@ -3354,7 +3373,7 @@ async function loginWithPassword(request: Request, env: Env): Promise<Response> 
 
   return json({
     ok: true,
-    redirect: safeRedirectPath(input.redirect),
+    redirect: postAuthRedirect(input.redirect),
     session: session.session
   }, 200, {
     "cache-control": "no-store",
@@ -3761,6 +3780,13 @@ function safeRedirectPath(value: unknown, fallback = "/record"): string {
   } catch {
     return fallback;
   }
+}
+
+function postAuthRedirect(input: unknown): string {
+  const redirect = safeRedirectPath(input);
+  const path = redirect.split(/[?#]/, 1)[0] ?? "";
+  const normalizedRedirect = path === "/login" || path === "/register" ? "/record" : redirect;
+  return normalizedRedirect === "/record" ? "/record?start=photo" : normalizedRedirect;
 }
 
 async function recordUiKpiEventShim(request: Request): Promise<Response> {
