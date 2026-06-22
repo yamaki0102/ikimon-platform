@@ -2389,6 +2389,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     });
   }
+  var JMA_RAIN_TILE_MAX_ZOOM = 10;
   function rainTileUrl(entry, z, x, y) {
     var tpl = state.rainTileTemplate || '/api/v1/weather/jma-nowcast/tile?product={product}&member={member}&basetime={basetime}&validtime={validtime}&z={z}&x={x}&y={y}';
     return tpl
@@ -2419,7 +2420,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         tiles: [rainTileUrl(entry, '{z}', '{x}', '{y}')],
         tileSize: 256,
         minzoom: 0,
-        maxzoom: 14,
+        maxzoom: JMA_RAIN_TILE_MAX_ZOOM,
         attribution: 'JMA High-resolution Precipitation Nowcast'
       });
       state.map.addLayer({
