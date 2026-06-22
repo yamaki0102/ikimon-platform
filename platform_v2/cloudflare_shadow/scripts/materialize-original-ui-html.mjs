@@ -74,6 +74,21 @@ function normalizePublicPath(value) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
+function renderUrlForPath(pathname) {
+  switch (pathname) {
+    case "/ja/":
+      return "/?lang=ja";
+    case "/en/":
+      return "/?lang=en";
+    case "/es/":
+      return "/?lang=es";
+    case "/pt-br/":
+      return "/?lang=pt-BR";
+    default:
+      return pathname;
+  }
+}
+
 function originalUiHtmlKey(pathname) {
   const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   return `original-ui/html/${cleanPath}.html`;
@@ -180,9 +195,10 @@ const renderedStatic = [];
 
 try {
   for (const pathname of targets) {
+    const renderUrl = renderUrlForPath(pathname);
     const response = await app.inject({
       method: "GET",
-      url: pathname,
+      url: renderUrl,
       headers: {
         accept: "text/html",
         "cache-control": "no-store"
@@ -191,7 +207,7 @@ try {
     const contentType = String(response.headers["content-type"] ?? "");
     const ok = response.statusCode >= 200 && response.statusCode < 300 && contentType.includes("text/html");
     events.push({
-      command: `render ${pathname}`,
+      command: renderUrl === pathname ? `render ${pathname}` : `render ${pathname} via ${renderUrl}`,
       exitCode: ok ? 0 : 1,
       durationMs: 0,
       status: response.statusCode,
