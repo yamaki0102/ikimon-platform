@@ -164,6 +164,18 @@ async function jsonFromResponse(response: import("@playwright/test").Response, l
   return payload!;
 }
 
+function collectForbiddenJsonKeyPaths(value: unknown, forbiddenKeys: RegExp[], pathLabel = "$"): string[] {
+  if (!value || typeof value !== "object") return [];
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => collectForbiddenJsonKeyPaths(item, forbiddenKeys, `${pathLabel}[${index}]`));
+  }
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, nested]) => {
+    const keyPath = `${pathLabel}.${key}`;
+    const current = forbiddenKeys.some((pattern) => pattern.test(key)) ? [keyPath] : [];
+    return current.concat(collectForbiddenJsonKeyPaths(nested, forbiddenKeys, keyPath));
+  });
+}
+
 function sessionCookieFromResponse(response: import("@playwright/test").APIResponse): string {
   const setCookie = response.headers()["set-cookie"] ?? "";
   const match = setCookie.match(/(?:^|,\s*)(ikimon_v2_session=[^;,\s]+)/);
@@ -416,6 +428,53 @@ test.describe("production candidate smoke", () => {
     expect(response?.status(), "/map status").toBeLessThan(500);
     await expect(page.locator("body")).toBeVisible();
     await expect(page.locator("#map-explorer")).toBeVisible();
+  });
+
+  test("global quick record success ships return links", async ({ page }) => {
+    const response = await page.goto("/ja/", { waitUntil: "domcontentloaded" });
+    expect(response?.status(), "home status").toBeLessThan(500);
+    const html = await page.content();
+    expect(html, "saved record should link back to own records").toContain('data-global-record-saved-action="records"');
+    expect(html, "saved record should link back to map").toContain('data-global-record-saved-action="map"');
+    expect(html, "records return URL should preserve source attribution").toContain("/records?view=mine&source=record_saved");
+    expect(html, "map return URL should preserve source attribution").toContain("/map?tab=places&source=record_saved");
+  });
+
+  test("public map payload stays public-safe", async ({ request }) => {
+    const observations = await request.get("/api/v1/map/observations?bbox=122.9,24.0,146.0,45.6&zoom=6&limit=48");
+    expect(observations.status(), "public map observations status").toBeLessThan(500);
+    const observationPayload = await observations.json() as JsonPayload & { items?: unknown[] };
+    expect(Array.isArray(observationPayload.items), "public map observations should return list items").toBe(true);
+    expect(observationPayload.items?.length ?? 0, "public map should expose at least one public-safe item").toBeGreaterThan(0);
+    expect(collectForbiddenJsonKeyPaths(observationPayload, [
+      /^latitude$/i,
+      /^longitude$/i,
+      /^userId$/i,
+      /^ownerUserId$/i,
+      /^observerUserId$/i,
+      /^observerName$/i,
+      /^observerAvatarUrl$/i,
+      /^profileHref$/i,
+      /^profileUrl$/i,
+      /^profileLink$/i,
+    ])).toEqual([]);
+    expect(JSON.stringify(observationPayload), "public map photos must not expose original uploads").not.toMatch(/\/uploads\/|\/original\//i);
+
+    const cells = await request.get("/api/v1/map/cells?bbox=122.9,24.0,146.0,45.6&zoom=6&limit=48");
+    expect(cells.status(), "public map cells status").toBeLessThan(500);
+    const cellPayload = await cells.json() as JsonPayload & { features?: unknown[] };
+    expect(Array.isArray(cellPayload.features), "public map cells should return feature collection").toBe(true);
+    expect(cellPayload.features?.length ?? 0, "public map should expose at least one public-safe cell").toBeGreaterThan(0);
+    expect(collectForbiddenJsonKeyPaths(cellPayload, [
+      /^userId$/i,
+      /^ownerUserId$/i,
+      /^observerUserId$/i,
+      /^observerName$/i,
+      /^observerAvatarUrl$/i,
+      /^profileHref$/i,
+      /^profileUrl$/i,
+      /^profileLink$/i,
+    ])).toEqual([]);
   });
 
   test("guide relay static GSI map loads real tile images", async ({ page, request }) => {
