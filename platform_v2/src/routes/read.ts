@@ -5099,6 +5099,10 @@ type RecordFormCopy = {
   successMapCta: string;
   successRevisitCta: string;
   successRecordsHelp: string;
+  successSavedCardEyebrow: string;
+  successSavedCardFallbackTitle: string;
+  successSavedCardNoPlace: string;
+  successSavedCardMedia: string;
   coordinateSummary: string;
   latitudeLabel: string;
   longitudeLabel: string;
@@ -5572,6 +5576,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successMapCta: "周辺の地図を見る",
       successRevisitCta: "同じ場所でもう1件記録する",
       successRecordsHelp: "保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも見返せます。",
+      successSavedCardEyebrow: "保存済みの1件",
+      successSavedCardFallbackTitle: "対象を整理中の記録",
+      successSavedCardNoPlace: "場所は未設定",
+      successSavedCardMedia: "メディア",
       coordinateSummary: "座標を直接編集",
       latitudeLabel: "緯度",
       longitudeLabel: "経度",
@@ -5763,6 +5771,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successMapCta: "View nearby map",
       successRevisitCta: "Record this place again",
       successRecordsHelp: "Open the saved record right away. You can also return from your records list or My page later.",
+      successSavedCardEyebrow: "Saved record",
+      successSavedCardFallbackTitle: "Record still being organized",
+      successSavedCardNoPlace: "No place set",
+      successSavedCardMedia: "Media",
       coordinateSummary: "Edit coordinates directly",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -5954,6 +5966,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successMapCta: "Ver mapa cercano",
       successRevisitCta: "Registrar este lugar otra vez",
       successRecordsHelp: "Abre enseguida el registro guardado. Luego tambien puedes volver desde tu lista o Mi pagina.",
+      successSavedCardEyebrow: "Registro guardado",
+      successSavedCardFallbackTitle: "Registro en organizacion",
+      successSavedCardNoPlace: "Sin lugar",
+      successSavedCardMedia: "Medios",
       coordinateSummary: "Editar coordenadas directamente",
       latitudeLabel: "Latitud",
       longitudeLabel: "Longitud",
@@ -6145,6 +6161,10 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       successMapCta: "Ver mapa proximo",
       successRevisitCta: "Registrar este lugar de novo",
       successRecordsHelp: "Abra o registro salvo agora. Depois voce tambem pode voltar pela lista ou Minha pagina.",
+      successSavedCardEyebrow: "Registro salvo",
+      successSavedCardFallbackTitle: "Registro em organizacao",
+      successSavedCardNoPlace: "Sem local",
+      successSavedCardMedia: "Midia",
       coordinateSummary: "Editar coordenadas diretamente",
       latitudeLabel: "Latitude",
       longitudeLabel: "Longitude",
@@ -15241,6 +15261,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           successMapCta: ${JSON.stringify(recordForm.successMapCta)},
           successRevisitCta: ${JSON.stringify(recordForm.successRevisitCta)},
           successRecordsHelp: ${JSON.stringify(recordForm.successRecordsHelp)},
+          successSavedCardEyebrow: ${JSON.stringify(recordForm.successSavedCardEyebrow)},
+          successSavedCardFallbackTitle: ${JSON.stringify(recordForm.successSavedCardFallbackTitle)},
+          successSavedCardNoPlace: ${JSON.stringify(recordForm.successSavedCardNoPlace)},
+          successSavedCardMedia: ${JSON.stringify(recordForm.successSavedCardMedia)},
         };
         const recordSuccessProfileHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/profile"), lang))};
         const recordSuccessRecordsHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang))};
@@ -15852,6 +15876,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               '<a class="' + (link.primary ? 'is-primary' : '') + '" href="' + escapeHtmlText(link.href) + '" data-record-success-cta="' + escapeHtmlText(link.key) + '">' + escapeHtmlText(link.label) + '</a>'
             ).join('') + '</div>' +
           '</div>';
+        };
+
+        const formatRecordSuccessDate = (value) => {
+          const raw = String(value || '').trim();
+          if (!raw) return '';
+          const date = new Date(raw);
+          if (Number.isNaN(date.getTime())) return raw;
+          try {
+            return date.toLocaleString(document.documentElement.lang || undefined, { dateStyle: 'medium', timeStyle: 'short' });
+          } catch (_) {
+            return raw;
+          }
+        };
+
+        const buildRecordSuccessSavedCardHtml = (options) => {
+          if (!options || !options.href) return '';
+          const title = String(options.title || '').trim() || recordUiCopy.successSavedCardFallbackTitle;
+          const place = String(options.place || '').trim() || recordUiCopy.successSavedCardNoPlace;
+          const date = formatRecordSuccessDate(options.observedAt);
+          const mediaCount = Number(options.mediaCount || 0);
+          const media = mediaCount > 0 ? String(mediaCount) + ' ' + recordUiCopy.successSavedCardMedia : '';
+          return '<a class="record-success-saved-card" href="' + escapeHtmlText(options.href) + '" data-record-success-cta="saved_record_card">' +
+            '<span>' + escapeHtmlText(recordUiCopy.successSavedCardEyebrow) + '</span>' +
+            '<strong>' + escapeHtmlText(title) + '</strong>' +
+            '<em>' + escapeHtmlText([place, date, media].filter(Boolean).join(' · ')) + '</em>' +
+          '</a>';
         };
 
         const syncSubmitCta = () => {
@@ -18736,6 +18786,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const successHeading = isMediaRetrySubmit ? recordUiCopy.successMediaHeading : recordUiCopy.successHeading;
               const successReturnState = publicStateSuccessKind(observationJson || {});
               const mapHref = successReturnState === 'hidden' ? '' : withBasePath('/map?tab=places');
+              const successCardTitle = observationJson && observationJson.impact && observationJson.impact.focusLabel
+                ? observationJson.impact.focusLabel
+                : String(data.get('vernacularName') || data.get('scientificName') || data.get('nextLookFor') || data.get('localityNote') || '').trim();
+              const successCardPlace = observationJson && observationJson.impact && observationJson.impact.placeName
+                ? observationJson.impact.placeName
+                : String(data.get('municipality') || data.get('localityNote') || '').trim();
+              const successSavedCardHtml = buildRecordSuccessSavedCardHtml({
+                href: observationHref,
+                title: successCardTitle,
+                place: successCardPlace,
+                observedAt: String(data.get('observedAt') || '').trim(),
+                mediaCount: safeAllSelectedMediaFiles().length,
+              });
               const recordReturnHtml = buildRecordSuccessReturnHtml({
                 state: successReturnState,
                 heading: successHeading,
@@ -18745,13 +18808,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 mapHref,
                 revisitHref,
               });
-              setStatus('<div class="row"><div>' + recordReturnHtml + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '</div></div>');
+              setStatus('<div class="row"><div>' + recordReturnHtml + successSavedCardHtml + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '</div></div>');
               scrollStatusIntoView();
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['notes', 'profile', 'observation_detail'].concat(mapHref ? ['map_nearby'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
+                successCtas: ['observation_detail', 'saved_record_card', 'notes', 'profile'].concat(mapHref ? ['map_nearby'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
                 contributionReceiptCount: contributionReceipts.length,
                 contributionReceiptKinds,
               });
@@ -19142,6 +19205,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-success-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
         .record-success-actions a { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 10px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; font-size: 12.5px; line-height: 1.2; font-weight: 950; text-align: center; overflow-wrap: anywhere; }
         .record-success-actions a.is-primary { background: #059669; border-color: #059669; color: #fff; }
+        .record-success-saved-card { min-width: 0; display: grid; gap: 4px; margin: 8px 0 10px; padding: 12px 14px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
+        .record-success-saved-card span { color: #047857; font-size: 11px; line-height: 1.3; font-weight: 950; }
+        .record-success-saved-card strong { color: #0f172a; font-size: 16px; line-height: 1.25; font-weight: 950; overflow-wrap: anywhere; }
+        .record-success-saved-card em { color: #475569; font-size: 12px; line-height: 1.5; font-style: normal; font-weight: 800; overflow-wrap: anywhere; }
         .record-upload-feedback { margin: 10px 0 8px; padding: 12px 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); display: grid; gap: 4px; }
         .record-upload-feedback strong { color: #065f46; font-size: 12px; line-height: 1.35; }
         .record-upload-feedback span { color: #0f172a; font-size: 13px; line-height: 1.7; font-weight: 750; }
