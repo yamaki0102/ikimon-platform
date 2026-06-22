@@ -1882,6 +1882,10 @@ test("v1 public map nowcast routes proxy fixed JMA targets without exposing a fr
     const invalidTile = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?basetime=https://evil.test&validtime=20260620031500&z=5&x=28&y=12"), env);
     assert.equal(invalidTile.status, 400);
 
+    const overscaledTile = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620031500&z=11&x=1807&y=813"), env);
+    assert.equal(overscaledTile.status, 400);
+    assert.equal(fetchedUrls.some((url) => url.includes("/11/1807/813.png")), false);
+
     const tileResponse = await worker.fetch(new Request("https://shadow.test/api/v1/weather/jma-nowcast/tile?basetime=20260620030000&validtime=20260620031500&z=5&x=28&y=12"), env);
     assert.equal(tileResponse.ok, true);
     assert.equal(tileResponse.headers.get("content-type"), "image/png");
