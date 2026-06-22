@@ -199,6 +199,7 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
         this._zoom = Number(options && options.zoom) || 10;
         const center = Array.isArray(options && options.center) ? options.center : [138.38, 35.34];
         this._center = { lng: Number(center[0]) || 138.38, lat: Number(center[1]) || 35.34 };
+        (window as any).__ikimonMapSmokeLastMap = this;
         this._container = typeof options.container === "string"
           ? document.getElementById(options.container)
           : options.container;
@@ -307,6 +308,7 @@ export async function installMapLibreStubForSmoke(page: Page): Promise<void> {
       }
       addSource(id, source) {
         this._sources[id] = {
+          ...(source || {}),
           id,
           data: source && source.data,
           setData(data) { this.data = data; },
