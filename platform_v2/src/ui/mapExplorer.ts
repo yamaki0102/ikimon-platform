@@ -1017,7 +1017,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
-  const apiMyObservations = withBasePath(props.basePath, "/api/v1/me/map-observations");
+  const apiMyObservations = withBasePath(props.basePath, "/api/v1/map/my-observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
   const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
@@ -1032,12 +1032,30 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     props.lang,
   );
   const activityRallyPanelHtml = "";
+  const ownOnlyLabel = lang === "ja"
+    ? "自分だけに表示"
+    : lang === "es"
+      ? "Solo para ti"
+      : lang === "pt-BR"
+        ? "So para voce"
+        : "Only you see this";
+  const communityBlurLabel = lang === "ja"
+    ? "みんなの写真は場所をぼかして表示"
+    : lang === "es"
+      ? "Community photos are blurred by area"
+      : lang === "pt-BR"
+        ? "Fotos da comunidade aparecem por area"
+        : "Community photos are shown by area";
   const personalPulsePanelHtml = `<section class="me-personal-pulse" data-testid="map-personal-pulse-panel">
       <div class="me-personal-pulse-head">
         <span aria-hidden="true">●</span>
         <strong>${escapeHtml(copy.personalPulseTitle)}</strong>
       </div>
       <p>${escapeHtml(copy.personalPulseBody)}</p>
+      <div class="me-map-privacy-strip" aria-label="${escapeHtml(ownOnlyLabel + " / " + communityBlurLabel)}">
+        <span>${escapeHtml(ownOnlyLabel)}</span>
+        <span>${escapeHtml(communityBlurLabel)}</span>
+      </div>
       <div class="me-personal-pulse-actions">
         <a href="${escapeHtml(profileHref)}" data-kpi-action="map:personal_pulse_profile">${escapeHtml(copy.personalPulseProfile)}</a>
         <a href="${escapeHtml(notesHref)}" data-kpi-action="map:personal_pulse_records">${escapeHtml(copy.personalPulseRecords)}</a>
@@ -1447,6 +1465,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <section class="me-own-trail is-hidden" id="me-own-trail" aria-hidden="true">
           <div class="me-own-trail-head">
             <strong>${escapeHtml(props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos")}</strong>
+            <small>${escapeHtml(ownOnlyLabel)}</small>
             <span id="me-own-trail-count"></span>
           </div>
           <div class="me-own-trail-list" id="me-own-trail-list"></div>
@@ -3425,7 +3444,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var record = item.record;
       var el = document.createElement('button');
       el.type = 'button';
-      el.className = 'me-discovery-preview' + (record.photoUrl ? ' has-photo' : '');
+      el.className = 'me-discovery-preview me-community-photo-marker' + (record.photoUrl ? ' has-photo' : '');
       el.setAttribute('aria-label', recordDisplayName(record, COPY.recentDiscoveryFallback) + COPY.openDiscoverySuffix);
       el.innerHTML = record.photoUrl
         ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span>'
@@ -3822,7 +3841,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var allLabels = group.records.map(function (item) { return recordDisplayName(item, COPY.discoveryFallback); }).filter(Boolean).join(' / ');
       var allOccurrenceIds = group.records.map(function (item) { return String(item && item.occurrenceId || ''); }).filter(Boolean).join(',');
       var el = document.createElement('a');
-      el.className = 'me-own-observation-marker' + (count > 1 ? ' is-stack' : '');
+      el.className = 'me-own-observation-marker me-my-photo-marker' + (count > 1 ? ' is-stack' : '');
       el.href = ownObservationHref(record);
       el.setAttribute('aria-label', (count > 1 ? (props.lang === "ja" ? String(count) + '件: ' : String(count) + ' ' + COPY.ownObservationStackSuffix + ': ') + groupLabel : label) + COPY.openDiscoverySuffix);
       el.setAttribute('title', count > 1 ? groupLabel : label);
@@ -7463,7 +7482,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     el.className = 'me-guide-spot-marker is-pin';
     el.setAttribute('aria-label', String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel);
     el.innerHTML = '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '" aria-label="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
-      '<span class="me-guide-dot" aria-hidden="true"></span>' +
+      '<span class="me-guide-dot" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9 4.9-2.1Z"></path></svg></span>' +
     '</button>';
     el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
       event.preventDefault();
@@ -9675,6 +9694,24 @@ export const MAP_EXPLORER_STYLES = `
     line-height: 1.55;
     font-weight: 760;
   }
+  .me-map-privacy-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .me-map-privacy-strip span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.82);
+    border: 1px solid rgba(16,185,129,.18);
+    color: #0f766e;
+    font-size: 10.5px;
+    line-height: 1.1;
+    font-weight: 900;
+  }
   .me-personal-pulse-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -9929,7 +9966,8 @@ export const MAP_EXPLORER_STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 6px;
+    flex-wrap: wrap;
     margin-bottom: 8px;
   }
   .me-own-trail-head strong {
@@ -9937,6 +9975,16 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 13px;
     font-weight: 950;
     letter-spacing: 0;
+  }
+  .me-own-trail-head small {
+    margin-left: auto;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(209,250,229,.78);
+    color: #047857;
+    font-size: 10px;
+    line-height: 1.15;
+    font-weight: 950;
   }
   .me-own-trail-head span {
     color: #047857;
@@ -10065,22 +10113,36 @@ export const MAP_EXPLORER_STYLES = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    min-height: 26px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0;
     border-radius: 999px;
-    border: 2px solid rgba(255,255,255,.92);
-    background: #0f172a;
-    box-shadow: 0 10px 20px rgba(15,23,42,.20);
+    border: 1px solid rgba(20,184,166,.32);
+    background: rgba(240,253,250,.96);
+    color: #0f766e;
+    box-shadow: 0 10px 22px rgba(15,118,110,.16);
+    backdrop-filter: blur(10px);
   }
   .me-guide-dot {
-    width: 8px;
-    height: 8px;
+    width: 22px;
+    height: 22px;
     border-radius: 999px;
-    background: #2dd4bf;
-    box-shadow: 0 0 0 4px rgba(45,212,191,.24);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.72);
+    color: #0f766e;
+  }
+  .me-guide-dot svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .me-guide-cluster-count {
     min-width: 16px;

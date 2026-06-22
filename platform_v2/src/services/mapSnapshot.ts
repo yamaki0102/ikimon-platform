@@ -426,9 +426,28 @@ function publicMapDisplayName(row: PublicMapRuntimeRecord): string {
   return row.displayName;
 }
 
+function publicMapDerivedPhotoUrl(value: string | null | undefined): string | null {
+  const url = normalizeAssetUrl(value);
+  if (!url) return null;
+  if (/^\/thumb\/(?:sm|md|lg)\//i.test(url)) return url;
+  const localOriginal = /^\/(?:uploads|data\/uploads)\/(.+\.(?:jpe?g|png|webp|gif))$/i.exec(url);
+  if (localOriginal?.[1]) return `/thumb/sm/${localOriginal[1]}`;
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname;
+    const query = parsed.search;
+    if (/\/thumb(?:nail)?s?\//i.test(path) || /(?:[?&](?:w|width|variant|thumb|thumbnail)=)/i.test(query)) {
+      return url;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function publicMapPhotoUrl(row: PublicMapRuntimeRecord): string | null {
   if (row.publicCoordReason === "rare_redlist") return null;
-  return row.photoUrl;
+  return publicMapDerivedPhotoUrl(row.photoUrl);
 }
 
 function buildPublicMapSnapshotRecord(row: PublicMapPreparedRecord): PublicMapSnapshotRecord {

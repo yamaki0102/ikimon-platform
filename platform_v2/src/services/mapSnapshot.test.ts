@@ -202,8 +202,14 @@ test("buildPublicCellRecords drops exact coordinates and site-level names from p
   assert.equal(record.localityLabel, "浜松市");
   assert.ok(!("lat" in record));
   assert.ok(!("lng" in record));
+  assert.ok(!("latitude" in record));
+  assert.ok(!("longitude" in record));
   assert.ok(!("placeName" in record));
   assert.ok(!("siteName" in record));
+  assert.ok(!("userId" in record));
+  assert.ok(!("observerId" in record));
+  assert.ok(!("profileHref" in record));
+  assert.ok(!("profileUrl" in record));
 });
 
 test("buildPublicCellRecords hides selected cells below the aggregate threshold", () => {
@@ -237,6 +243,25 @@ test("buildPublicCellRecords suppresses low-count cells in viewport lists", () =
   assert.equal(list.items.length, 3);
   assert.equal(list.stats.totalAll, 3);
   assert.ok(list.items.every((item) => item.localityLabel === "浜松市"));
+});
+
+test("public map photo URLs are derived thumbnails, not original upload paths", () => {
+  const list = buildPublicCellRecords([
+    ...sampleRows(),
+    {
+      ...sampleRows()[0]!,
+      occurrenceId: "occ-absolute-original",
+      visitId: "visit-absolute-original",
+      observedAt: "2026-04-11T09:00:00.000Z",
+      photoUrl: "https://cdn.example.test/original/photo.jpg",
+    },
+  ], { zoom: 13 });
+
+  assert.ok(list.items.length >= 3);
+  assert.ok(list.items.some((item) => item.photoUrl === "/thumb/sm/sample-1.jpg"));
+  assert.ok(list.items.every((item) => item.photoUrl === null || !/^\/(?:uploads|data\/uploads)\//i.test(item.photoUrl)));
+  assert.ok(list.items.every((item) => item.photoUrl === null || !/\/original\//i.test(item.photoUrl)));
+  assert.equal(list.items.find((item) => item.occurrenceId === "occ-absolute-original")?.photoUrl, null);
 });
 
 test("public map observation id lookup reads the snapshot without aggregate list filtering", async () => {

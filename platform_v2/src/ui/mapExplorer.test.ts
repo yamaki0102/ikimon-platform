@@ -186,10 +186,13 @@ test("map explorer overlays signed-in owner observations separately from public 
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(html, /data-api-my-observations="\/api\/v1\/me\/map-observations"/);
+  assert.match(html, /data-api-my-observations="\/api\/v1\/map\/my-observations"/);
   assert.match(html, /id="me-own-trail"/);
   assert.match(html, /id="me-own-trail-list"/);
   assert.match(html, /自分の撮影/);
+  assert.match(html, /自分だけに表示/);
+  assert.match(html, /みんなの写真は場所をぼかして表示/);
+  assert.match(html, /class="me-map-privacy-strip"/);
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
   assert.match(script, /credentials: 'same-origin'/);
@@ -226,6 +229,8 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /renderOwnObservationTrail\(records\)/);
   assert.match(script, /hideOwnObservationTrail\(\)/);
   assert.match(script, /me-own-observation-marker/);
+  assert.match(script, /me-my-photo-marker/);
+  assert.match(script, /me-community-photo-marker/);
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);
   assert.match(script, /function openOwnObservationStackSheet\(records\)/);
@@ -250,6 +255,19 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.doesNotMatch(script, /ownTrailCountEl\.textContent = props\.lang/);
   assert.doesNotMatch(script, /map-observations[\s\S]{0,240}apiObservations \+/);
   assert.doesNotMatch(script, /Number\.isFinite\(lat\) && Number\.isFinite\(lng\) && !!record\.photoUrl;\s+\}\);\s+\}/);
+});
+
+test("shared map state does not serialize private owner observation coordinates", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const serializeBody = script.slice(
+    script.indexOf("function serializeMapState()"),
+    script.indexOf("function saveMapState()"),
+  );
+
+  assert.match(serializeBody, /MapExplorerStateHelpers\.serializeSharedMapState/);
+  assert.doesNotMatch(serializeBody, /myObservations/);
+  assert.doesNotMatch(serializeBody, /ownObservation/);
+  assert.doesNotMatch(serializeBody, /record\.latitude|record\.longitude/);
 });
 
 test("map explorer exposes JMA rain overlay without making ikimon the forecaster", () => {
@@ -474,6 +492,14 @@ test("guide area badges are disabled in favor of guide spot pins", () => {
   assert.match(script, /me-guide-dot/);
   assert.doesNotMatch(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
   assert.match(styles, /me-guide-dot/);
+  assert.match(script, /<svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"><\/circle><path d="m15\.5 8\.5-2\.1 4\.9-4\.9 2\.1 2\.1-4\.9 4\.9-2\.1Z"><\/path><\/svg>/);
+  const pinStyle = styles.slice(
+    styles.indexOf(".me-guide-spot-marker.is-pin .me-guide-spot-main"),
+    styles.indexOf(".me-guide-cluster-count"),
+  );
+  assert.match(pinStyle, /background: rgba\(240,253,250,\.96\)/);
+  assert.match(pinStyle, /color: #0f766e/);
+  assert.doesNotMatch(pinStyle, /background: #0f172a/);
 });
 
 test("map guide spots render independently from area polygons", () => {

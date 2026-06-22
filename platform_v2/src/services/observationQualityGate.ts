@@ -122,6 +122,10 @@ export function isMeaningfulPublicObservationLabel(value: unknown): boolean {
 export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   coalesce(v.public_visibility, 'public') = 'public'
   and coalesce(v.quality_review_status, 'accepted') = 'accepted'
+  and coalesce(lower(v.source_payload->>'map_photo_visibility'), '') not in ('hidden', 'private', 'owner_only', 'off', 'false', '0', 'no')
+  and coalesce(lower(v.source_payload->>'public_map_visibility'), '') not in ('hidden', 'private', 'owner_only', 'off', 'false', '0', 'no')
+  and coalesce(lower(v.source_payload->>'public_map_opt_out'), '') not in ('true', '1', 'yes')
+  and coalesce(lower(v.source_payload->>'map_public_photo'), '') not in ('false', '0', 'no')
   and coalesce(v.source_payload->'taxon'->>'key', '') !~* '^e2e_test_'
   and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test|smoke[-_]?ui|smoke[-_]?regression[-_]?fixture)([-_]|$)'
   and coalesce(v.source_payload->>'source', '') !~* '${PUBLIC_PLACEHOLDER_SOURCE_MARKER_PATTERN_SQL}'

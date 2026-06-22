@@ -29,6 +29,15 @@ test("public quality gate excludes leaked test observations and smoke fixtures",
   assert.match(PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL, /smoke\[-_\]\?ui/);
 });
 
+test("public quality gate honors map photo opt-out flags in visit payloads", () => {
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.source_payload->>'map_photo_visibility'/);
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.source_payload->>'public_map_visibility'/);
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.source_payload->>'public_map_opt_out'/);
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.source_payload->>'map_public_photo'/);
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /not in \('hidden', 'private', 'owner_only', 'off', 'false', '0', 'no'\)/);
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /not in \('true', '1', 'yes'\)/);
+});
+
 test("public discovery surfaces exclude staging regression fixtures without blocking direct details", () => {
   assert.match(PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL, /regression\[-_\]\?seed/);
   assert.match(PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL, /v\.source_payload->>'fixture_prefix'/);
