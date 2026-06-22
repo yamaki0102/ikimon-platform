@@ -281,6 +281,16 @@ interface PublicMapPhotoRow {
   public_derivative_key: string;
 }
 
+interface OwnMapObservationRow {
+  observation_id: string;
+  observed_at: string;
+  taxon_label: string | null;
+  note: string | null;
+  exact_lat: number | null;
+  exact_lng: number | null;
+  public_derivative_key: string | null;
+}
+
 interface PublicDetailRow extends PublicMapRow {
   owner_user_id: string;
   note: string | null;
@@ -999,8 +1009,11 @@ export const worker = {
         return getPublicMapMyPlaces(request, env);
       }
 
-      if (request.method === "GET" && nativePathname === "/api/v1/map/my-observations") {
-        return fetchOriginFallback(request, url, env, "map_my_observations_origin");
+      if (request.method === "GET" && (
+        nativePathname === "/api/v1/map/my-observations"
+        || nativePathname === "/api/v1/me/map-observations"
+      )) {
+        return getPublicMapMyObservations(request, url, env);
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/traces") {
@@ -2257,6 +2270,55 @@ async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Respons
     return json({ signedIn: false, items: [] }, 200, { "cache-control": "no-store" });
   }
   return json({ signedIn: true, sort: "recent", items: [] }, 200, { "cache-control": "no-store" });
+}
+
+async function getPublicMapMyObservations(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session || session.banned) {
+    return json({ signedIn: false, items: [] }, 200, { "cache-control": "no-store" });
+  }
+
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "48"), 1, 120);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.exact_lat, o.exact_lng,
+            a.public_derivative_key
+       FROM observations o
+       JOIN asset_ledger a ON a.observation_id = o.observation_id
+      WHERE o.owner_user_id = ?
+        AND o.exact_lat IS NOT NULL
+        AND o.exact_lng IS NOT NULL
+        AND o.emergency_hidden = 0
+        AND a.processing_state = 'uploaded'
+        AND a.public_derivative_key IS NOT NULL
+        AND a.exif_scrub_state = 'scrubbed'
+        AND a.public_ready_at IS NOT NULL
+        AND a.mime LIKE 'image/%'
+      ORDER BY o.observed_at DESC, a.public_ready_at DESC
+      LIMIT ?`
+  ).bind(session.userId, limit).all<OwnMapObservationRow>();
+
+  const seen = new Set<string>();
+  const items = [];
+  for (const row of rows.results) {
+    if (seen.has(row.observation_id)) continue;
+    seen.add(row.observation_id);
+    const latitude = Number(row.exact_lat);
+    const longitude = Number(row.exact_lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !row.public_derivative_key) continue;
+    items.push({
+      occurrenceId: `occ:${row.observation_id}:0`,
+      visitId: row.observation_id,
+      displayName: publicTaxonDisplayName(row.taxon_label || row.note),
+      observedAt: row.observed_at,
+      latitude,
+      longitude,
+      photoUrl: publicMediaUrl(row.public_derivative_key),
+      mediaKind: "photo",
+      localityLabel: "自分だけに表示"
+    });
+  }
+
+  return json({ signedIn: true, items }, 200, { "cache-control": "no-store" });
 }
 
 function getPublicMapEmptyGeoJson(kind: string, headers: Record<string, string> = { "cache-control": "no-store" }): Response {

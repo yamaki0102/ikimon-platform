@@ -1150,6 +1150,40 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.exact_lat, o.exact_lng")) {
+      const ownerUserId = string(this.values[0]);
+      const limit = number(this.values[1]);
+      const rows = [...this.db.observations.values()]
+        .filter((observation) =>
+          observation.owner_user_id === ownerUserId &&
+          observation.exact_lat !== null &&
+          observation.exact_lng !== null &&
+          observation.emergency_hidden === 0
+        )
+        .flatMap((observation) =>
+          [...this.db.assets.values()]
+            .filter((asset) =>
+              asset.observation_id === observation.observation_id &&
+              asset.processing_state === "uploaded" &&
+              asset.public_derivative_key &&
+              asset.exif_scrub_state === "scrubbed" &&
+              asset.public_ready_at &&
+              asset.mime.startsWith("image/")
+            )
+            .map((asset) => ({
+              observation_id: observation.observation_id,
+              observed_at: observation.observed_at,
+              taxon_label: observation.taxon_label,
+              note: observation.note,
+              exact_lat: observation.exact_lat,
+              exact_lng: observation.exact_lng,
+              public_derivative_key: asset.public_derivative_key
+            }))
+        )
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT metric_type, metric_key, metric_value, detail_json FROM production_restore_parity_metrics")) {
       const rows = this.db.parityMetrics
         .filter((row) => row.run_id === string(this.values[0]))
@@ -1774,54 +1808,76 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(kpiPayload.ok, true);
 });
 
-test("owner map observations route falls back to origin with session cookie", async () => {
-  const { env: baseEnv } = createEnv();
-  const env = {
-    ...baseEnv,
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life"
+test("owner map observations route is native, guest-safe, and owner-scoped", async () => {
+  const { env, obs } = createEnv();
+  const guest = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-observations?limit=48"), env);
+  assert.equal(guest.ok, true);
+  assert.deepEqual(await guest.json(), { signedIn: false, items: [] });
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-map-visit",
+    userId: "owner-user",
+    observedAt: "2026-06-22T10:00:00.000Z",
+    latitude: 35.0104,
+    longitude: 138.3929,
+    taxon: { vernacularName: "モンシロチョウ" }
+  });
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "other-map-visit",
+    userId: "other-user",
+    observedAt: "2026-06-22T11:00:00.000Z",
+    latitude: 36.0104,
+    longitude: 139.3929,
+    taxon: { vernacularName: "ヒヨドリ" }
+  });
+
+  const ownerAsset = {
+    asset_id: "asset-owner-map",
+    draft_id: "draft-owner-map",
+    observation_id: "owner-map-visit",
+    owner_user_id: "owner-user",
+    object_key: "original/owner-map.jpg",
+    partition_month: "2026-06",
+    sha256: "sha-owner",
+    mime: "image/jpeg",
+    bytes: 1024,
+    processing_state: "uploaded",
+    public_derivative_key: "thumb/sm/owner-map.jpg",
+    public_derivative_sha256: "sha-derivative",
+    public_derivative_verified_at: "2026-06-22T10:01:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-22T10:01:00.000Z"
   };
+  obs.assets.set(ownerAsset.asset_id, ownerAsset);
+  obs.assets.set("asset-other-map", {
+    ...ownerAsset,
+    asset_id: "asset-other-map",
+    observation_id: "other-map-visit",
+    owner_user_id: "other-user",
+    public_derivative_key: "thumb/sm/other-map.jpg"
+  });
 
-  const originalFetch = globalThis.fetch;
-  const fetched: Array<{ url: string; cookie: string | null; fallbackReason: string | null }> = [];
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = input instanceof Request ? input : new Request(input, init);
-    fetched.push({
-      url: request.url,
-      cookie: request.headers.get("cookie"),
-      fallbackReason: request.headers.get("x-ikimon-cloudflare-fallback-reason")
-    });
-    return Response.json({
-      signedIn: true,
-      items: [
-        {
-          visitId: "owner-map-visit",
-          occurrenceId: "owner-map-occ",
-          displayName: "Owner map fixture",
-          latitude: 35.0104,
-          longitude: 138.3929,
-          photoUrl: "/assets/img/icon-192.png"
-        }
-      ]
-    });
-  }) as typeof fetch;
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "owner-user", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-observations?limit=48", {
+    headers: { cookie }
+  }), env);
+  const payload = await response.json() as any;
 
-  try {
-    const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-observations?limit=48", {
-      headers: { cookie: "ikimon_session=session-fixture" }
-    }), env);
-    const payload = await response.json() as any;
-    assert.equal(response.ok, true);
-    assert.equal(payload.signedIn, true);
-    assert.equal(payload.items[0].visitId, "owner-map-visit");
-    assert.equal(fetched.length, 1);
-    const firstFetch = fetched[0];
-    assert.ok(firstFetch);
-    assert.equal(firstFetch.url, "https://ikimon.life/api/v1/map/my-observations?limit=48");
-    assert.equal(firstFetch.cookie, "ikimon_session=session-fixture");
-    assert.equal(firstFetch.fallbackReason, "map_my_observations_origin");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.equal(response.ok, true);
+  assert.equal(payload.signedIn, true);
+  assert.equal(payload.items.length, 1);
+  assert.equal(payload.items[0].visitId, "owner-map-visit");
+  assert.equal(payload.items[0].photoUrl, "/thumb/sm/owner-map.jpg");
+  assert.equal(payload.items[0].latitude, 35.0104);
+  assert.equal(payload.items[0].longitude, 138.3929);
+  assert.equal(payload.items[0].localityLabel, "自分だけに表示");
+  assert.ok(!JSON.stringify(payload).includes("other-map-visit"));
 });
 
 test("v1 public map nowcast routes proxy fixed JMA targets without exposing a free URL fetcher", async () => {
