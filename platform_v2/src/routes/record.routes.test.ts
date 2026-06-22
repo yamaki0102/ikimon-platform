@@ -640,6 +640,25 @@ test("profile guest entry keeps English auth links", async () => {
   }
 });
 
+test("self profile hub promotes the latest saved record", async () => {
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const profileHub = readRoute.slice(
+    readRoute.indexOf("function profileSavedRecordCopy"),
+    readRoute.indexOf("function renderProfileSettingsForm"),
+  );
+
+  assert.match(profileHub, /function renderProfileSavedRecordPulse/);
+  assert.match(profileHub, /data-testid="profile-saved-record-pulse"/);
+  assert.match(profileHub, /最後に保存した記録/);
+  assert.match(profileHub, /Latest saved record/);
+  assert.match(profileHub, /profile:saved_record:latest/);
+  assert.match(profileHub, /profile:saved_record:records/);
+  assert.match(profileHub, /profile:saved_record:first_record/);
+  assert.match(profileHub, /renderProfileSavedRecordPulse\(basePath, lang, snapshot\)/);
+  assert.match(profileHub, /appendLangToHref\(profileObservationHref\(basePath, latest\), lang\)/);
+  assert.match(readRoute, /\.profile-saved-record-pulse/);
+});
+
 test("observation detail route has a saved fallback for public map records still preparing", async () => {
   const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
   const observationRoute = readRoute.slice(
