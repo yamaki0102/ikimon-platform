@@ -149,6 +149,11 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
 
   assert.match(html, /地域図鑑マップ/);
   assert.match(html, /この範囲の記録/);
+  assert.match(html, /data-testid="map-personal-pulse-panel"/);
+  assert.match(html, /自分の記録へすぐ戻る/);
+  assert.match(html, /href="\/ja\/profile"/);
+  assert.match(html, /href="\/ja\/records\?view=mine"/);
+  assert.match(html, /ここは、これから育つ場所です/);
   assert.match(html, /記録は地域単位で集計しています/);
   assert.doesNotMatch(html, /余白 = これから育つ場所/);
   assert.doesNotMatch(html, /色 = 季節と記録の厚み/);

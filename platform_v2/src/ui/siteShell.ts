@@ -594,6 +594,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const copy = labels[lang] ?? labels.ja;
   const primaryItems: SideNavPrimaryItem[] = [
     ...(mode === "mobile" ? [{ key: "profile", href: "/profile", match: ["/profile", "/home"] }] : []),
+    ...(mode === "mobile" ? [{ key: "notes", href: "/records?view=mine", match: ["/records?view=mine"] }] : []),
     { key: "home", href: "/", match: ["/"] },
     { key: "record", href: "/record", match: ["/record"] },
     { key: "observations", href: "/records", match: ["/records", "/observations"] },
@@ -745,6 +746,15 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
+  const profileHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/profile"), lang));
+  const myRecordsHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang));
+  const mobileQuickLabels: Record<SiteLang, { profile: string; records: string }> = {
+    ja: { profile: "マイページ", records: "記録一覧" },
+    en: { profile: "My page", records: "My records" },
+    es: { profile: "Mi pagina", records: "Mis registros" },
+    "pt-BR": { profile: "Minha pagina", records: "Meus registros" },
+  };
+  const mobileQuick = mobileQuickLabels[lang] ?? mobileQuickLabels.ja;
   const profileIcon = siteAccountIcon(basePath, lang, "account", "/login?redirect=/profile", accountCopy.profile, "data-account-profile");
   const notificationIcon = siteNotificationMenu(basePath, lang);
   const settingsIcon = siteAccountIcon(basePath, lang, "settings", "/login?redirect=/profile/settings", accountCopy.settings, "data-account-settings");
@@ -785,6 +795,10 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
             <div class="site-mobile-account-row">
               <a class="site-mobile-menu-account site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
               <nav class="site-mobile-account-actions" aria-label="${escapeHtml(accountCopy.accountNav)}">${profileIcon}${notificationIcon}${settingsIcon}</nav>
+            </div>
+            <div class="site-mobile-quick-links" aria-label="${escapeHtml(accountCopy.accountNav)}">
+              <a class="site-mobile-quick-link" href="${profileHref}">${escapeHtml(mobileQuick.profile)}</a>
+              <a class="site-mobile-quick-link" href="${myRecordsHref}">${escapeHtml(mobileQuick.records)}</a>
             </div>
             <nav class="site-nav site-nav-mobile">${mobileSideNav}</nav>
             <div class="site-mobile-menu-meta">
@@ -4698,6 +4712,26 @@ ${alternateLinks}
     }
     .site-mobile-account-actions .site-notification-panel {
       right: -6px;
+    }
+    .site-mobile-quick-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .site-mobile-quick-link {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(5,150,105,.24);
+      background: #f0fdf4;
+      color: #065f46;
+      font-size: 13px;
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.2;
     }
     .site-mobile-menu-toggle { list-style: none; }
     .site-mobile-menu-toggle::-webkit-details-marker { display: none; }

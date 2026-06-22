@@ -82,6 +82,10 @@ export type MapExplorerCopy = {
   emptyActionAreas: string;
   emptyActionWiden: string;
   emptyActionRecord: string;
+  personalPulseTitle: string;
+  personalPulseBody: string;
+  personalPulseProfile: string;
+  personalPulseRecords: string;
   sideRecentLabel: string;
   recentFindsHint: string;
   sideRevisitLabel: string;
@@ -254,12 +258,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintDismiss: "閉じる",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "近くに視野を広げると、見に行ける場所や季節の記録を見つけやすくなります。",
-    emptyTitle: "近くの記録を探せます",
-    emptyLead: "地図を少し広げるか、季節を変えて、この周辺で見つかった記録を見てみましょう。",
+    empty: "記録が少ない場所でも、近くの発見や季節を変えると歩く理由が見つかります。",
+    emptyTitle: "ここは、これから育つ場所です",
+    emptyLead: "空っぽではありません。少し広げると近くの記録が見え、見つけたものを足すとこの地域図鑑が育ちます。",
     emptyActionAreas: "候補エリアを見る",
     emptyActionWiden: "少し広げる",
     emptyActionRecord: "見つけたものを記録",
+    personalPulseTitle: "自分の記録へすぐ戻る",
+    personalPulseBody: "投稿したあとは、マイページや自分の記録一覧で見返せます。地図には最近の記録も重なっていきます。",
+    personalPulseProfile: "マイページ",
+    personalPulseRecords: "自分の記録",
     sideRecentLabel: "この範囲の記録",
     recentFindsHint: "この場所で見えたもの",
     sideRevisitLabel: "選んだ場所",
@@ -418,6 +426,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     emptyActionAreas: "View candidate areas",
     emptyActionWiden: "Widen a little",
     emptyActionRecord: "Record a find",
+    personalPulseTitle: "Return to your records",
+    personalPulseBody: "After posting, My page and your record list are one tap away. Recent public finds keep adding life to the map.",
+    personalPulseProfile: "My page",
+    personalPulseRecords: "My records",
     sideRecentLabel: "Nearby finds",
     recentFindsHint: "Seen here",
     sideRevisitLabel: "Place story",
@@ -576,6 +588,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     emptyActionAreas: "Ver áreas candidatas",
     emptyActionWiden: "Ampliar un poco",
     emptyActionRecord: "Registrar hallazgo",
+    personalPulseTitle: "Volver a tus registros",
+    personalPulseBody: "Después de publicar, tu página y tu lista de registros quedan a un toque. Los hallazgos recientes dan vida al mapa.",
+    personalPulseProfile: "Mi página",
+    personalPulseRecords: "Mis registros",
     sideRecentLabel: "Hallazgos cercanos",
     recentFindsHint: "Visto aquí",
     sideRevisitLabel: "Historia del lugar",
@@ -734,6 +750,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     emptyActionAreas: "Ver áreas candidatas",
     emptyActionWiden: "Ampliar um pouco",
     emptyActionRecord: "Registrar achado",
+    personalPulseTitle: "Voltar aos seus registros",
+    personalPulseBody: "Depois de publicar, sua página e sua lista de registros ficam a um toque. Descobertas recentes dão vida ao mapa.",
+    personalPulseProfile: "Minha página",
+    personalPulseRecords: "Meus registros",
     sideRecentLabel: "Descobertas por perto",
     recentFindsHint: "Visto aqui",
     sideRevisitLabel: "História do local",
@@ -973,6 +993,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const overlayLabels = overlayPanelLabels(lang);
   const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
+  const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
@@ -991,6 +1012,17 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     props.lang,
   );
   const activityRallyPanelHtml = "";
+  const personalPulsePanelHtml = `<section class="me-personal-pulse" data-testid="map-personal-pulse-panel">
+      <div class="me-personal-pulse-head">
+        <span aria-hidden="true">●</span>
+        <strong>${escapeHtml(copy.personalPulseTitle)}</strong>
+      </div>
+      <p>${escapeHtml(copy.personalPulseBody)}</p>
+      <div class="me-personal-pulse-actions">
+        <a href="${escapeHtml(profileHref)}" data-kpi-action="map:personal_pulse_profile">${escapeHtml(copy.personalPulseProfile)}</a>
+        <a href="${escapeHtml(notesHref)}" data-kpi-action="map:personal_pulse_records">${escapeHtml(copy.personalPulseRecords)}</a>
+      </div>
+    </section>`;
 
   const taxonChipsHtml = copy.taxonChips
     .map(
@@ -1346,6 +1378,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
               <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
               <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
             </div>
+            ${personalPulsePanelHtml}
             <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
             ${activityRallyPanelHtml}
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
@@ -9417,6 +9450,68 @@ export const MAP_EXPLORER_STYLES = `
   .me-empty-invite[hidden] { display: none; }
   .me-empty-invite strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 900; }
   .me-empty-invite p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 700; }
+  .me-personal-pulse {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 12px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(255,255,255,.98) 58%, rgba(240,249,255,.92));
+    border: 1px solid rgba(16,185,129,.18);
+    box-shadow: 0 8px 22px rgba(15,23,42,.05);
+  }
+  .me-personal-pulse-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .me-personal-pulse-head span {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    color: transparent;
+    background: #10b981;
+    box-shadow: 0 0 0 5px rgba(16,185,129,.12);
+    flex: 0 0 9px;
+  }
+  .me-personal-pulse-head strong {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 950;
+  }
+  .me-personal-pulse p {
+    margin: 0;
+    color: #475569;
+    font-size: 11.5px;
+    line-height: 1.55;
+    font-weight: 760;
+  }
+  .me-personal-pulse-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .me-personal-pulse-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #0f172a;
+    color: #fff !important;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .me-personal-pulse-actions a:nth-child(2) {
+    background: rgba(255,255,255,.92);
+    color: #0f766e !important;
+    border: 1px solid rgba(16,185,129,.18);
+  }
   .me-discovery-preview {
     width: 72px;
     min-height: 78px;

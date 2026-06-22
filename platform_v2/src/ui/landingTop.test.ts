@@ -163,6 +163,8 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /WATCH/);
   assert.doesNotMatch(html, /すべて見る/);
   assert.match(html, /<h3>場所の今を残す記録<\/h3>/);
+  assert.match(html, /最初の投稿が入ると、ここに地域の動きが並びます。/);
+  assert.match(html, /ここから地域の記録が育ちます/);
   assert.match(html, />PLACE MEMORY<\/span>/);
   assert.doesNotMatch(html, /<h3>自分の記録<\/h3>/);
   assert.match(html, /prototype-content-grid/);
@@ -310,6 +312,7 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.match(html, /\/observations\/visit-1/);
   assert.match(html, /data-kpi-action="landing:content_wall:community"/);
   assert.match(html, /prototype-content-icon is-image/);
+  assert.match(html, /今日も写真・動画つきの記録が届いています。/);
   assert.doesNotMatch(html, /prototype-content-icon is-globe/);
   assert.doesNotMatch(html, /prototype-content-icon is-user/);
   assert.doesNotMatch(html, /写真と動画/);
