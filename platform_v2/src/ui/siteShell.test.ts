@@ -146,6 +146,8 @@ test("mobile menu panel can render outside the sticky header", () => {
   assert.match(html, /class="site-mobile-menu-toggle" aria-label="メニュー" title="メニュー"/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*position: absolute;[^}]*z-index: 2;[^}]*top: calc\(100% \+ 9px\);/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*background: #ffffff;/);
+  assert.match(html, /\.site-mobile-menu-panel \{[^}]*max-height: calc\(100dvh - 76px\);[^}]*overflow-y: auto;/);
+  assert.match(html, /\.site-mobile-menu-panel \{[^}]*overscroll-behavior: contain;/);
 });
 
 test("language switch is user-facing while SEO stays Japanese canonical", () => {
