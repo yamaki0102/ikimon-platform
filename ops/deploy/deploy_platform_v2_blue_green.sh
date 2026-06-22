@@ -418,8 +418,8 @@ prepare_release() {
   timed_step "repair_hamamatsu_ward_labels" npm run repair:hamamatsu-ward-labels -- --apply
   timed_step "verify_production_shadow" npm run verify:production-shadow -- --import-version=production_shadow_live
   timed_step "report_legacy_drift" npm run report:legacy-drift -- --json
-  timed_step "smoke_v2_lane_candidate" npm run smoke:v2-lane -- --base-url="http://127.0.0.1:${port}"
-  timed_step "smoke_v2_read_lane_candidate" env IKIMON_SCENE_READ_SMOKE=required npm run smoke:v2-read-lane -- --base-url="http://127.0.0.1:${port}"
+  timed_step "smoke_platform_lane_candidate" npm run smoke:platform-lane -- --base-url="http://127.0.0.1:${port}"
+  timed_step "smoke_platform_read_lane_candidate" env IKIMON_SCENE_READ_SMOKE=required npm run smoke:platform-read-lane -- --base-url="http://127.0.0.1:${port}"
 
   printf '%s\n' "${active}" > "${STATE_DIR}/previous_color"
   printf '%s\n' "${inactive}" > "${STATE_DIR}/candidate_color"
@@ -497,8 +497,8 @@ promote_candidate() {
 
   rm -f "${rendered}"
   export_runtime_env
-  if ! npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-lane -- --base-url="${PUBLIC_BASE_URL}" ||
-     ! IKIMON_ORIGIN_FALLBACK_SMOKE=1 IKIMON_SCENE_READ_SMOKE=required npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-read-lane -- --base-url="${PUBLIC_BASE_URL}"; then
+  if ! npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:platform-lane -- --base-url="${PUBLIC_BASE_URL}" ||
+     ! IKIMON_ORIGIN_FALLBACK_SMOKE=1 IKIMON_SCENE_READ_SMOKE=required npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:platform-read-lane -- --base-url="${PUBLIC_BASE_URL}"; then
     restore_nginx_snapshot "${snapshot}" || true
     printf '%s\n' "${previous}" > "${STATE_DIR}/active_color"
     exit 1

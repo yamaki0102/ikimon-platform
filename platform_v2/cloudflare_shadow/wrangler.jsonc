@@ -49,6 +49,52 @@
     ]
   },
   "env": {
+    "shadow": {
+      "name": "ikimon-life-cloudflare-shadow-lab",
+      "workers_dev": true,
+      "vars": {
+        "ENVIRONMENT": "shadow",
+        "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
+        "OBSERVATION_DB_NAME": "ikimon_shadow_observations_2026_06",
+        "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",
+        "PUBLIC_WRITE_MODE": "origin_fallback"
+      },
+      "d1_databases": [
+        {
+          "binding": "CORE_DB",
+          "database_name": "ikimon_shadow_core",
+          "database_id": "e06a7372-6964-4db1-92dd-3491d058f412",
+          "migrations_dir": "migrations/core"
+        },
+        {
+          "binding": "OBS_DB",
+          "database_name": "ikimon_shadow_observations_2026_06",
+          "database_id": "a6d64135-4420-47f7-b2fd-3155c0e0a3be",
+          "migrations_dir": "migrations/observations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ASSET_BUCKET",
+          "bucket_name": "ikimon-shadow-media"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "MEDIA_QUEUE",
+            "queue": "ikimon-shadow-media-jobs"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "ikimon-shadow-media-jobs",
+            "max_batch_size": 25,
+            "max_batch_timeout": 10
+          }
+        ]
+      }
+    },
     "production": {
       "name": "ikimon-life-cloudflare-prod",
       "workers_dev": true,

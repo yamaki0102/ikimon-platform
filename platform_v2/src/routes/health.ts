@@ -8,7 +8,7 @@ export async function registerHealthRoutes(app: FastifyInstance): Promise<void> 
     const config = loadConfig();
     return {
       ok: true,
-      service: "ikimon-platform-v2",
+      service: "ikimon-platform",
       env: config.nodeEnv,
     };
   });

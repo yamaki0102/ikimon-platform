@@ -101,7 +101,7 @@ export async function fetchWeatherSnapshot(lat: number, lng: number): Promise<Jm
   try {
     const resp = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`, {
       signal: controller.signal,
-      headers: { "User-Agent": "ikimon-platform-v2/observation-event-context" },
+      headers: { "User-Agent": "ikimon-platform/observation-event-context" },
     });
     if (!resp.ok) throw new Error(`jma_${resp.status}`);
     const data = (await resp.json()) as JmaForecastBlock[];

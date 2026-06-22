@@ -18,6 +18,6 @@ fi
 
 cd "${PROJECT_ROOT}"
 
-npm run smoke:v2-lane -- --base-url="${V2_BASE_URL}"
-npm run smoke:v2-read-lane -- --base-url="${V2_BASE_URL}"
-npm run smoke:v2-write-lane -- --base-url="${V2_BASE_URL}" --fixture-prefix="${SAMPLE_FIXTURE_PREFIX}"
+npm run smoke:platform-lane -- --base-url="${V2_BASE_URL}"
+npm run smoke:platform-read-lane -- --base-url="${V2_BASE_URL}"
+npm run smoke:platform-write-lane -- --base-url="${V2_BASE_URL}" --fixture-prefix="${SAMPLE_FIXTURE_PREFIX}"

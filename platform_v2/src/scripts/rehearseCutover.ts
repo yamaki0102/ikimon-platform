@@ -113,11 +113,11 @@ async function main() {
   await runNpmScript("sync:legacy", sharedArgs);
   await runNpmScript("verify:legacy", sharedArgs);
   if (!options.skipReadSmoke && options.baseUrl) {
-    await runNpmScript("smoke:v2-lane", readSmokeArgs);
-    await runNpmScript("smoke:v2-read-lane", readSmokeArgs);
+    await runNpmScript("smoke:platform-lane", readSmokeArgs);
+    await runNpmScript("smoke:platform-read-lane", readSmokeArgs);
   }
   if (!options.skipWriteSmoke && options.baseUrl) {
-    await runNpmScript("smoke:v2-write-lane", writeSmokeArgs);
+    await runNpmScript("smoke:platform-write-lane", writeSmokeArgs);
   }
 
   try {

@@ -144,7 +144,7 @@ jobs:
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
 
-      - name: Check platform_v2 migration guardrails
+      - name: Check platform migration guardrails
         if: needs.plan.outputs.v2_changed == 'true' || needs.plan.outputs.deploy_changed == 'true'
         shell: pwsh
         run: ./scripts/check_platform_v2_migration_guardrails.ps1
@@ -191,7 +191,7 @@ jobs:
         run: composer test
 
   platform-v2:
-    name: platform_v2 Typecheck & Curator Tests
+    name: Platform Typecheck & Curator Tests
     runs-on: ubuntu-latest
     needs: [plan, lint]
     if: needs.plan.outputs.run_platform_v2 == 'true'
@@ -205,11 +205,11 @@ jobs:
           cache: npm
           cache-dependency-path: platform_v2/package-lock.json
 
-      - name: Install platform_v2 dependencies
+      - name: Install platform dependencies
         working-directory: platform_v2
         run: npm ci
 
-      - name: Typecheck platform_v2
+      - name: Typecheck platform
         working-directory: platform_v2
         run: npm run typecheck
 
@@ -217,15 +217,15 @@ jobs:
         working-directory: platform_v2
         run: npm run check:prompt-schema-leakage
 
-      - name: Build platform_v2
+      - name: Build platform
         working-directory: platform_v2
         run: npm run build
 
-      - name: Run platform_v2 node tests
+      - name: Run platform node tests
         working-directory: platform_v2
         run: npm run test:node
 
-      - name: Test platform_v2 curator validators
+      - name: Test platform curator validators
         working-directory: platform_v2
         run: npm run test:curator
 
@@ -260,10 +260,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Setup platform_v2 browser smoke runtime
+      - name: Setup platform browser smoke runtime
         uses: ./.github/actions/setup-platform-v2-browser
 
-      - name: Build platform_v2
+      - name: Build platform
         working-directory: platform_v2
         run: npm run build
 
@@ -285,7 +285,7 @@ jobs:
         working-directory: platform_v2
         run: npm run migrate -- --allow-destructive
 
-      - name: Start local platform_v2 runtime
+      - name: Start local platform runtime
         working-directory: platform_v2
         run: |
           npm run start > ../platform-v2-scene-read-smoke.log 2>&1 &
@@ -318,7 +318,7 @@ jobs:
           IKIMON_SCENE_READ_SUBJECT_ID="occ:${SCENE_READ_FIXTURE_PREFIX}-scene:0" \
           IKIMON_SCENE_READ_REQUIRED_MARKERS="ヒメイワダレソウ|セイヨウミツバチ|イネ科の一種|保留する|別レコードを追加|IDENTIFICATION|同定に参加する|EVENT / OCCURRENCE|日時・場所・環境を土台にする" \
           IKIMON_SCENE_READ_FORBIDDEN_MARKERS="\"status\":\"bootstrapping\"|AI 主役 100%|訪花中の候補|この映像で読む対象を切り替える|候補を確かめる材料|AIが写真・動画から拾った候補です" \
-          npm run smoke:v2-read-lane -- --base-url=http://127.0.0.1:3200
+          npm run smoke:platform-read-lane -- --base-url=http://127.0.0.1:3200
 
       - name: Run observation candidate tab browser QA
         working-directory: platform_v2
@@ -362,7 +362,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Setup platform_v2 browser QA runtime
+      - name: Setup platform browser QA runtime
         uses: ./.github/actions/setup-platform-v2-browser
 
       - name: Run /record funnel staging QA
@@ -393,7 +393,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Setup platform_v2 browser QA runtime
+      - name: Setup platform browser QA runtime
         uses: ./.github/actions/setup-platform-v2-browser
 
       - name: Run /map performance production QA
@@ -425,7 +425,7 @@ jobs:
           }
 
           if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}" || ! ok_result "${{ needs.scene-read-smoke.result }}" || ! ok_result "${{ needs.record-funnel-browser-qa.result }}" || ! ok_result "${{ needs.map-performance-browser-qa.result }}"; then
-            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, map-performance-browser-qa=${{ needs.map-performance-browser-qa.result }}"
+            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, map-performance-browser-qa=${{ needs.map-performance-browser-qa.result }}"
             exit 1
           fi
-          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, map-performance-browser-qa=${{ needs.map-performance-browser-qa.result }}"
+          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}, map-performance-browser-qa=${{ needs.map-performance-browser-qa.result }}"
