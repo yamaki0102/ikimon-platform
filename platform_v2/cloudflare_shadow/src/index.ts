@@ -426,6 +426,7 @@ const JMA_SHORT_RANGE_TARGET = "https://www.jma.go.jp/bosai/jmatile/data/rasrf/t
 const JMA_SHORT_RANGE_ROOT = "https://www.jma.go.jp/bosai/jmatile/data/rasrf";
 const JMA_NOWCAST_OFFSETS = [0, 5, 15, 30, 60] as const;
 const JMA_SHORT_RANGE_OFFSETS = [120, 180, 240, 300, 360] as const;
+const JMA_RAIN_TILE_MAX_ZOOM = 10;
 const PUBLIC_LANG_PREFIX_PATTERN = /^\/(?:ja|en|es|pt-br)(?=\/|$)/;
 
 function stripPublicLangPrefix(pathname: string): string {
@@ -2119,7 +2120,7 @@ async function getJmaNowcastTileResponse(url: URL): Promise<Response> {
     : /^[a-z0-9_-]{1,24}$/i.test(rawMember) ? rawMember : null;
   const basetime = url.searchParams.get("basetime");
   const validtime = url.searchParams.get("validtime");
-  const z = parseJmaTileNumber(url.searchParams.get("z"), 14);
+  const z = parseJmaTileNumber(url.searchParams.get("z"), JMA_RAIN_TILE_MAX_ZOOM);
   const maxTile = z === null ? 0 : (2 ** z) - 1;
   const x = parseJmaTileNumber(url.searchParams.get("x"), maxTile);
   const y = parseJmaTileNumber(url.searchParams.get("y"), maxTile);
