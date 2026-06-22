@@ -1438,6 +1438,34 @@ function globalRecordEntryScript(basePath: string): string {
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
   };
+  const escapeStatusHtml = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char] || char);
+  const setStatusHtml = (html) => {
+    if (status) status.innerHTML = html || '';
+  };
+  const savedRecordActionsHtml = (message) => {
+    const lang = document.documentElement && document.documentElement.lang ? document.documentElement.lang : 'ja';
+    const langPrefix = lang && lang !== 'ja' ? '/' + encodeURIComponent(lang) : '';
+    const labels = {
+      ja: { records: '自分の記録', map: '地図' },
+      en: { records: 'My records', map: 'Map' },
+      es: { records: 'Mis registros', map: 'Mapa' },
+      'pt-BR': { records: 'Meus registros', map: 'Mapa' },
+    };
+    const copy = labels[lang] || labels.ja;
+    const recordsHref = BASE_PATH + langPrefix + '/records?view=mine&source=record_saved';
+    const mapHref = BASE_PATH + langPrefix + '/map?tab=places&source=record_saved';
+    return '<span class="global-record-saved-text">' + escapeStatusHtml(message || '') + '</span>'
+      + '<span class="global-record-saved-actions">'
+      + '<a href="' + recordsHref + '" data-global-record-saved-action="records">' + escapeStatusHtml(copy.records) + '</a>'
+      + '<a href="' + mapHref + '" data-global-record-saved-action="map">' + escapeStatusHtml(copy.map) + '</a>'
+      + '</span>';
+  };
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const formatZoom = (value) => {
     const number = Number(value);
@@ -2076,7 +2104,7 @@ function globalRecordEntryScript(basePath: string): string {
       captureButton.textContent = '写真を撮る';
     }
     setFooterActionMode('start');
-    setStatus(message);
+    setStatusHtml(savedRecordActionsHtml(message));
   };
   const directPostPhotoDraft = async () => {
     if (directPostInFlight) return;
@@ -5898,6 +5926,26 @@ ${alternateLinks}
       font-size: 12px;
       line-height: 1.5;
       font-weight: 850;
+    }
+    .global-record-saved-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .global-record-saved-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      border: 1px solid rgba(13,148,136,.24);
+      color: #0f766e;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 950;
     }
     .global-record-inline-edit {
       display: grid;
