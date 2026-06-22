@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { buildApp } from "../app.js";
 import { PUBLIC_MAP_AGGREGATE_POLICY } from "../services/mapSnapshot.js";
@@ -86,6 +87,15 @@ test("map my-observations endpoints are private-by-session and safe for guests",
   } finally {
     await app.close();
   }
+});
+
+test("map my-observations reads only the signed-in user's records", async () => {
+  const source = await readFile(new URL("../services/mapOwnObservations.ts", import.meta.url), "utf8");
+
+  assert.match(source, /where v\.user_id = \$1/);
+  assert.match(source, /\[userId, limit\]/);
+  assert.doesNotMatch(source, /public_visibility/);
+  assert.doesNotMatch(source, /display_name from users|join users/i);
 });
 
 test("JMA nowcast endpoints expose sanitized times and proxy tiles", async () => {
