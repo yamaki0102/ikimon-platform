@@ -2658,7 +2658,6 @@ async function recentPublicRecordCards(env: Env): Promise<Array<ReturnType<typeo
 
 function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
   const href = `/observations/${encodeURIComponent(item.visitId)}`;
-  const mapHref = `/map?cell_id=${encodeURIComponent(item.cellId)}`;
   const image = item.photoUrl
     ? `<img src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="lazy">`
     : "";
@@ -2667,7 +2666,7 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
     <span class="cf-record-card-body">
       <strong>${escapeHtml(item.displayName || copy.unknown)}</strong>
       <span>${escapeHtml(item.observedAt)} · ${escapeHtml(item.cellId)}</span>
-      <span>${escapeHtml(copy.open)} / ${escapeHtml(copy.map)}: ${escapeHtml(mapHref)}</span>
+      <span>${escapeHtml(copy.open)} / ${escapeHtml(copy.map)}</span>
     </span>
   </a>`;
 }
