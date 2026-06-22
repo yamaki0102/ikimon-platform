@@ -2060,6 +2060,11 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(jsonPayload.observation.photoAssets[0].url, /^\/derived\/v1-compat\/visit-detail-contract\/asset_/);
   assert.doesNotMatch(JSON.stringify(jsonPayload), /34\.71234|137\.81234/);
 
+  const localizedJsonResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/observations/visit-detail-contract/public-detail"), env);
+  const localizedJsonPayload = await localizedJsonResponse.json() as any;
+  assert.equal(localizedJsonResponse.ok, true, JSON.stringify(localizedJsonPayload));
+  assert.equal(localizedJsonPayload.observation.visitId, "visit-detail-contract");
+
   const imageResponse = await worker.fetch(new Request(`https://shadow.test${jsonPayload.observation.photoAssets[0].url}`), env);
   const imageBody = await imageResponse.text();
   assert.equal(imageResponse.ok, true, imageBody);
@@ -2074,6 +2079,12 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /cell:34\.71,137\.81/);
   assert.match(pageHtml, /exact location is not exposed/);
   assert.doesNotMatch(pageHtml, /34\.71234|137\.81234/);
+
+  const localizedPageResponse = await worker.fetch(new Request("https://shadow.test/ja/observations/visit-detail-contract"), env);
+  const localizedPageHtml = await localizedPageResponse.text();
+  assert.equal(localizedPageResponse.ok, true, localizedPageHtml);
+  assert.match(localizedPageHtml, /data-shadow-observation-detail="1"/);
+  assert.match(localizedPageHtml, /詳細テスト植物/);
 
   const missingResponse = await worker.fetch(new Request("https://shadow.test/observations/not-found"), env);
   assert.equal(missingResponse.status, 404);
@@ -4586,39 +4597,73 @@ test("production public fallback blocks suspicious probe paths instead of forwar
   }
 });
 
-test("production original UI observation detail HTML stays on origin fallback to avoid static exact-coordinate caching", async () => {
-  const { env, core } = createEnv();
+test("production language-prefixed observation detail stays native and public-safe", async () => {
+  const { env, core, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "record-native-public",
+    userId: "detail-user",
+    observedAt: "2026-06-15T03:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    note: "public detail note",
+    taxon: { vernacularName: "言語prefix記録", rank: "species" }
+  });
+  await post("/api/v1/observations/record-native-public/photos/upload", env, {
+    filename: "detail.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("detail-image").toString("base64")
+  });
+  for (const suffix of ["peer-a", "peer-b"]) {
+    await post("/api/v1/observations/upsert", env, {
+      observationId: `record-native-public-${suffix}`,
+      userId: "detail-user",
+      observedAt: "2026-06-15T03:05:00.000Z",
+      latitude: 34.71236,
+      longitude: 137.81236,
+      taxon: { vernacularName: "言語prefix記録", rank: "species" }
+    });
+    await post(`/api/v1/observations/record-native-public-${suffix}/photos/upload`, env, {
+      filename: `${suffix}.jpg`,
+      mimeType: "image/jpeg",
+      base64Data: Buffer.from(`detail-image-${suffix}`).toString("base64")
+    });
+  }
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  await env.ASSET_BUCKET.put("original-ui/html/ja/observations/record-native-public.html", "should-not-be-served", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
-  await env.ASSET_BUCKET.put("original-ui/html/ja/observations/record-secret.html", "should-not-be-served", {
-    httpMetadata: { contentType: "text/html; charset=utf-8" }
-  });
 
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  let fallbackCalls = 0;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    void input;
+    void init;
+    fallbackCalls += 1;
     return new Response("<!doctype html><title>origin observation detail</title>", {
       headers: { "content-type": "text/html; charset=utf-8" }
     });
   }) as typeof fetch;
   try {
-    const response = await worker.fetch(new Request("https://ikimon.life/ja/observations/record-secret"), productionEnv);
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), "<!doctype html><title>origin observation detail</title>");
-    assert.equal(seen.url, "https://ikimon.life/ja/observations/record-secret");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.reason, "public_custom_domain_path");
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.routePattern, "/ja/observations/:id");
-    assert.equal(JSON.stringify(telemetry).includes("record-secret"), false);
+    const mapResponse = await worker.fetch(new Request("https://ikimon.life/ja/api/v1/map/observations?bbox=137.80,34.70,137.83,34.73&zoom=13&limit=20"), productionEnv);
+    const mapPayload = await mapResponse.json() as any;
+    assert.equal(mapResponse.ok, true, JSON.stringify(mapPayload));
+    assert.equal(mapPayload.items.some((item: any) => item.visitId === "record-native-public"), true);
+
+    const response = await worker.fetch(new Request("https://ikimon.life/ja/observations/record-native-public"), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    assert.match(body, /data-shadow-observation-detail="1"/);
+    assert.match(body, /言語prefix記録/);
+    assert.match(body, /cell:34\.71,137\.81/);
+    assert.doesNotMatch(body, /34\.71234|137\.81234|should-not-be-served/);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }

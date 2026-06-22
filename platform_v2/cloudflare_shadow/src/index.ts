@@ -426,6 +426,12 @@ const JMA_SHORT_RANGE_TARGET = "https://www.jma.go.jp/bosai/jmatile/data/rasrf/t
 const JMA_SHORT_RANGE_ROOT = "https://www.jma.go.jp/bosai/jmatile/data/rasrf";
 const JMA_NOWCAST_OFFSETS = [0, 5, 15, 30, 60] as const;
 const JMA_SHORT_RANGE_OFFSETS = [120, 180, 240, 300, 360] as const;
+const PUBLIC_LANG_PREFIX_PATTERN = /^\/(?:ja|en|es|pt-br)(?=\/|$)/;
+
+function stripPublicLangPrefix(pathname: string): string {
+  const stripped = pathname.replace(PUBLIC_LANG_PREFIX_PATTERN, "");
+  return stripped === "" ? "/" : stripped;
+}
 
 type ShadowMapGuideSpot = {
   id: string;
@@ -912,6 +918,7 @@ export const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
       const url = new URL(request.url);
+      const nativePathname = stripPublicLangPrefix(url.pathname);
 
       if (request.method === "GET" && url.pathname === "/health") {
         return json({ ok: true, environment: env.ENVIRONMENT });
@@ -938,45 +945,41 @@ export const worker = {
         return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
       }
 
-      const weatherApiPath = url.pathname.startsWith("/ja/api/v1/weather/") || url.pathname.startsWith("/ja/api/v1/map/weather/")
-        ? url.pathname.slice(3)
-        : url.pathname;
-
       if (request.method === "GET" && (
-        weatherApiPath === "/api/v1/weather/jma-nowcast/times"
-        || weatherApiPath === "/api/v1/map/weather/jma-nowcast/times"
+        nativePathname === "/api/v1/weather/jma-nowcast/times"
+        || nativePathname === "/api/v1/map/weather/jma-nowcast/times"
       )) {
         return getJmaNowcastTimesResponse();
       }
 
       if (request.method === "GET" && (
-        weatherApiPath === "/api/v1/weather/jma-nowcast/tile"
-        || weatherApiPath === "/api/v1/map/weather/jma-nowcast/tile"
+        nativePathname === "/api/v1/weather/jma-nowcast/tile"
+        || nativePathname === "/api/v1/map/weather/jma-nowcast/tile"
       )) {
         return getJmaNowcastTileResponse(url);
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/cells") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/cells") {
         return getPublicMapCells(url, env);
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/observations") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/observations") {
         return getPublicMapObservations(url, env);
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/my-places") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/my-places") {
         return getPublicMapMyPlaces(request, env);
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/my-observations") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/my-observations") {
         return fetchOriginFallback(request, url, env, "map_my_observations_origin");
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/traces") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/traces") {
         return getPublicMapEmptyGeoJson("traces");
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/frontier") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/frontier") {
         return getPublicMapEmptyGeoJson("frontier");
       }
 
@@ -991,15 +994,15 @@ export const worker = {
         return getPublicMapEmptyGeoJson("area-polygons");
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/effort-summary") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/effort-summary") {
         return getPublicMapEffortSummaryShim();
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/site-brief") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/site-brief") {
         return getPublicMapSiteBriefShim(url);
       }
 
-      if (request.method === "GET" && url.pathname === "/api/v1/map/guide-spots") {
+      if (request.method === "GET" && nativePathname === "/api/v1/map/guide-spots") {
         return getPublicMapGuideSpots(url);
       }
 
@@ -1097,9 +1100,14 @@ export const worker = {
         return getShadowVideoThumbnail(decodeURIComponent(shadowVideoThumbnailMatch[1]), env);
       }
 
-      const publicDetailApiMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/public-detail$/);
+      const publicDetailApiMatch = nativePathname.match(/^\/api\/v1\/observations\/([^/]+)\/public-detail$/);
       if (request.method === "GET" && publicDetailApiMatch?.[1]) {
         return getPublicObservationDetailJson(decodeURIComponent(publicDetailApiMatch[1]), env);
+      }
+
+      const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
+      if (request.method === "GET" && publicDetailPageMatch?.[1]) {
+        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
@@ -1126,11 +1134,6 @@ export const worker = {
 
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "public_custom_domain_path");
-      }
-
-      const publicDetailPageMatch = url.pathname.match(/^\/observations\/([^/]+)$/);
-      if (request.method === "GET" && publicDetailPageMatch?.[1]) {
-        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v0/draft-observations") {
