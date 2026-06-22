@@ -46,17 +46,22 @@ const events = [];
 
 const corePaths = [
   "/",
+  "/guide",
   "/record",
   "/map",
   "/app-refresh",
   "/ja/",
+  "/ja/guide",
   "/ja/record",
   "/ja/map",
   "/en/",
+  "/en/guide",
   "/en/map",
   "/es/",
+  "/es/guide",
   "/es/map",
   "/pt-br/",
+  "/pt-br/guide",
   "/pt-br/map"
 ];
 const staticAssetPaths = ["/app-sw.js"];

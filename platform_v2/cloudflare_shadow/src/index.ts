@@ -775,19 +775,23 @@ const SHADOW_MAP_GUIDE_SPOTS: ShadowMapGuideSpot[] = [
 ];
 const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
+  "/guide",
   "/record",
   "/map",
   "/app-refresh",
   "/login",
   "/en/",
+  "/en/guide",
   "/en/login",
   "/en/map",
   "/en/record",
   "/es/",
+  "/es/guide",
   "/es/login",
   "/es/map",
   "/es/record",
   "/pt-br/",
+  "/pt-br/guide",
   "/pt-br/login",
   "/pt-br/map",
   "/pt-br/record",
@@ -2562,6 +2566,7 @@ function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
   return pathname === "/app-refresh"
     || pathname === "/"
     || /^\/(?:ja|en|es|pt-br)\/$/.test(pathname)
+    || /^(?:\/(?:ja|en|es|pt-br))?\/guide$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname);
 }
 

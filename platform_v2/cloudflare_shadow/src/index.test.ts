@@ -4689,6 +4689,12 @@ test("production original UI app shells serve materialized HTML even with sessio
   await env.ASSET_BUCKET.put("original-ui/html/ja/map.html", "<!doctype html><title>materialized ja map</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/guide.html", "<!doctype html><title>materialized guide</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/guide.html", "<!doctype html><title>materialized ja guide</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -4724,6 +4730,20 @@ test("production original UI app shells serve materialized HTML even with sessio
     assert.equal(localizedMapResponse.status, 200);
     assert.equal(await localizedMapResponse.text(), "<!doctype html><title>materialized ja map</title>");
     assert.equal(localizedMapResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const guideResponse = await worker.fetch(new Request("https://ikimon.life/guide", {
+      headers: { cookie: "ikimon_v2_session=secret" }
+    }), productionEnv);
+    assert.equal(guideResponse.status, 200);
+    assert.equal(await guideResponse.text(), "<!doctype html><title>materialized guide</title>");
+    assert.equal(guideResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const localizedGuideResponse = await worker.fetch(new Request("https://ikimon.life/ja/guide", {
+      headers: { authorization: "Bearer secret" }
+    }), productionEnv);
+    assert.equal(localizedGuideResponse.status, 200);
+    assert.equal(await localizedGuideResponse.text(), "<!doctype html><title>materialized ja guide</title>");
+    assert.equal(localizedGuideResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
