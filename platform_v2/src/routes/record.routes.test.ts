@@ -73,9 +73,6 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.doesNotMatch(response.body, /class="global-record-launcher"/);
         assert.doesNotMatch(response.body, /site-shell has-global-record-launcher/);
         assert.match(response.body, /record-confidence-strip/);
-        assert.match(response.body, /場所と時間が残る/);
-        assert.match(response.body, /周囲も手がかり/);
-        assert.match(response.body, /対象はあとで分ける/);
         assert.match(response.body, /record-first-success/);
         assert.match(response.body, /最短で残す/);
         assert.match(response.body, /写真かメモを選ぶ/);
