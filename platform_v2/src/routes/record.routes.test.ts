@@ -236,6 +236,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-public-state"/);
         assert.match(response.body, /公開状態/);
         assert.match(response.body, /公開候補として保存しました/);
+        assert.match(response.body, /data-record-success-cta="profile">マイページへ/);
+        assert.match(response.body, /data-record-success-cta="notes">自分の記録一覧/);
         assert.match(response.body, /buildPublicStateSuccessHtml/);
         assert.match(response.body, /qualityReviewStatus/);
         assert.match(response.body, /recordUiCopy\.publicStatePhotoCandidate/);

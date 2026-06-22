@@ -1755,7 +1755,7 @@ async function loadObservationListCards(limit: number, options: ObservationListQ
               end AS media_url
          FROM recent_public_visits rpv
          JOIN occurrences o ON o.visit_id = rpv.visit_id
-         JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
+         JOIN evidence_assets ea ON (ea.occurrence_id = o.occurrence_id OR ea.visit_id = rpv.visit_id)
          JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
         WHERE ea.occurrence_id IS NOT NULL
           AND coalesce(o.occurrence_status, 'present') <> 'absent'
