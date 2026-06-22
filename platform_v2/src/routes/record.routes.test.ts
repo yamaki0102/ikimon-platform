@@ -238,9 +238,12 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-public-state"/);
         assert.match(response.body, /公開状態/);
         assert.match(response.body, /公開候補として保存しました/);
-        assert.match(response.body, /data-record-success-cta="profile">マイページへ/);
-        assert.match(response.body, /data-record-success-cta="notes">記録を見る/);
-        assert.match(response.body, /自分の記録一覧をすぐ見返せます/);
+        assert.match(response.body, /recordSuccessProfileHref = "\/ja\/profile"/);
+        assert.match(response.body, /recordSuccessRecordsHref = "\/ja\/records\?view=mine"/);
+        assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/ja\/observations\/"/);
+        assert.match(response.body, /successProfileCta: "マイページへ"/);
+        assert.match(response.body, /successRecordsCta: "自分の記録を見る"/);
+        assert.match(response.body, /自分の記録一覧から、投稿した記録をすぐ見返せます/);
         assert.match(response.body, /buildPublicStateSuccessHtml/);
         assert.match(response.body, /qualityReviewStatus/);
         assert.match(response.body, /recordUiCopy\.publicStatePhotoCandidate/);
@@ -368,11 +371,19 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /Waterside \/ catch/);
         assert.match(response.body, /href="\/en\/guide"/);
         assert.match(response.body, /href="\/en\/learn"/);
+        assert.match(response.body, /recordSuccessProfileHref = "\/en\/profile"/);
+        assert.match(response.body, /recordSuccessRecordsHref = "\/en\/records\?view=mine"/);
+        assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/en\/observations\/"/);
+        assert.match(response.body, /successProfileCta: "My page"/);
+        assert.match(response.body, /successRecordsCta: "View my records"/);
+        assert.match(response.body, /Your records list lets you return to this saved record right away/);
         assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
         assert.doesNotMatch(response.body, /<h2>写真で記録する<\/h2>/);
         assert.doesNotMatch(response.body, /写真を撮るか選ぶだけで始められます/);
         assert.doesNotMatch(response.body, />観察した日時</);
         assert.doesNotMatch(response.body, />見つける</);
+        assert.doesNotMatch(response.body, /自分の記録を見る/);
+        assert.doesNotMatch(response.body, /マイページへ/);
         assert.doesNotMatch(response.body, new RegExp("フィールド" + "スキャン"));
       } finally {
         await app.close();
