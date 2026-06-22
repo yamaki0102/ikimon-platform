@@ -12,7 +12,7 @@ type SmokeCheck = {
 
 function parseArgs(argv: string[]): SmokeOptions {
   const options: SmokeOptions = {
-    baseUrl: process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
+    baseUrl: process.env.PLATFORM_BASE_URL ?? process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
   };
 
   for (const arg of argv) {

@@ -23,7 +23,7 @@ function parseArgs(argv: string[]): SmokeOptions {
   const stamp = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}${String(now.getUTCSeconds()).padStart(2, "0")}`;
 
   const options: SmokeOptions = {
-    baseUrl: process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
+    baseUrl: process.env.PLATFORM_BASE_URL ?? process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
     fixturePrefix: `smoke-${stamp}`,
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY ?? "",
     cleanup: true,
