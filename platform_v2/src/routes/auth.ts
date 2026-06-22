@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
-import { detectLangFromUrl, type SiteLang } from "../i18n.js";
+import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getSessionFromCookie, issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
 import { authenticateWithPassword, findOrCreateOAuthUser, registerWithPassword } from "../services/authUsers.js";
 import {
@@ -120,11 +120,288 @@ const AUTH_STYLES = `
   @media (max-width: 820px) { .auth-wrap { grid-template-columns: 1fr; } }
 `;
 
-function oauthLink(basePath: string, provider: OAuthProvider, redirect: string, label: string): string {
+type AuthPageCopy = {
+  titleLogin: string;
+  titleRegister: string;
+  tabAria: string;
+  loginTab: string;
+  registerTab: string;
+  socialAria: string;
+  disabledSuffix: string;
+  google: string;
+  twitter: string;
+  profileLoginHeading: string;
+  profileRegisterHeading: string;
+  recordLoginHeading: string;
+  recordRegisterHeading: string;
+  profileLead: string;
+  recordLoginLead: string;
+  recordRegisterLead: string;
+  displayName: string;
+  email: string;
+  password: string;
+  profileLoginSubmit: string;
+  profileRegisterSubmit: string;
+  recordLoginSubmit: string;
+  recordRegisterSubmit: string;
+  noteEyebrow: string;
+  profileNoteHeading: string;
+  recordNoteHeading: string;
+  profileNoteLead: string;
+  recordNoteLead: string;
+  safetyCookie: string;
+  safetyFailure: string;
+  safetyOrigin: string;
+  switchToRegister: string;
+  switchToLogin: string;
+  heroEyebrow: string;
+  profileHeroLogin: string;
+  profileHeroRegister: string;
+  recordHeroLogin: string;
+  recordHeroRegister: string;
+  profileHeroLead: string;
+  recordHeroLead: string;
+  footerNote: string;
+  statusChecking: string;
+  fallbackError: string;
+  errors: Record<string, string>;
+};
+
+function authPageCopy(lang: SiteLang): AuthPageCopy {
+  const localized: Record<SiteLang, AuthPageCopy> = {
+    ja: {
+      titleLogin: "ログイン | ikimon",
+      titleRegister: "新規登録 | ikimon",
+      tabAria: "認証切替",
+      loginTab: "ログイン",
+      registerTab: "新規登録",
+      socialAria: "ソーシャルログイン",
+      disabledSuffix: "は設定中",
+      google: "Google で続ける",
+      twitter: "X(Twitter) で続ける",
+      profileLoginHeading: "マイページへ入る",
+      profileRegisterHeading: "マイページを作る",
+      recordLoginHeading: "記録を続ける",
+      recordRegisterHeading: "記録用アカウントを作る",
+      profileLead: "ログインすると、あなたの場所・記録・Life List をまとめたマイページへ進みます。",
+      recordLoginLead: "ログインすると、そのまま記録画面へ戻ります。",
+      recordRegisterLead: "登録後すぐに記録画面へ進みます。",
+      displayName: "表示名",
+      email: "メールアドレス",
+      password: "パスワード",
+      profileLoginSubmit: "ログインしてマイページへ",
+      profileRegisterSubmit: "登録してマイページへ",
+      recordLoginSubmit: "ログインして記録する",
+      recordRegisterSubmit: "登録して記録する",
+      noteEyebrow: "record lane",
+      profileNoteHeading: "ログイン後はマイページへ進みます。",
+      recordNoteHeading: "ログイン後は記録画面へ進みます。",
+      profileNoteLead: "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。",
+      recordNoteLead: "記録、写真アップロード、同定参加は ikimon のログイン状態で扱います。",
+      safetyCookie: "cookie は HttpOnly / SameSite=Lax / production Secure",
+      safetyFailure: "メール有無が分からない失敗表示",
+      safetyOrigin: "外部 origin からの書き込みを拒否",
+      switchToRegister: "新しく登録する",
+      switchToLogin: "既存アカウントでログイン",
+      heroEyebrow: "account",
+      profileHeroLogin: "ログインしてマイページへ",
+      profileHeroRegister: "新しく登録してマイページへ",
+      recordHeroLogin: "ログインして記録する",
+      recordHeroRegister: "新しく登録して記録する",
+      profileHeroLead: "自分の場所、記録、Life List を見返すための入口です。",
+      recordHeroLead: "足もとの発見を、自分の記録として残すための入口です。",
+      footerNote: "認証後は記録導線へ戻ります。",
+      statusChecking: "確認中...",
+      fallbackError: "認証に失敗しました。",
+      errors: {
+        invalid_credentials: "メールアドレスまたはパスワードが違います。",
+        account_disabled: "このアカウントは現在利用できません。",
+        email_already_registered: "このメールアドレスは既に登録されています。",
+        invalid_email: "メールアドレスの形式を確認してください。",
+        password_too_short: "パスワードは8文字以上にしてください。",
+        display_name_required: "表示名を入力してください。",
+        rate_limited: "試行回数が多すぎます。少し待ってから再試行してください。",
+        same_origin_required: "ページを再読み込みしてからもう一度試してください。",
+      },
+    },
+    en: {
+      titleLogin: "Log in | ikimon",
+      titleRegister: "Create account | ikimon",
+      tabAria: "Authentication switch",
+      loginTab: "Log in",
+      registerTab: "Create account",
+      socialAria: "Social login",
+      disabledSuffix: "is being set up",
+      google: "Continue with Google",
+      twitter: "Continue with X",
+      profileLoginHeading: "Open your My page",
+      profileRegisterHeading: "Create your My page",
+      recordLoginHeading: "Continue recording",
+      recordRegisterHeading: "Create a recording account",
+      profileLead: "Log in to open the page that brings together your places, records, Life List, and next actions.",
+      recordLoginLead: "Log in and return directly to the recording screen.",
+      recordRegisterLead: "Create an account and start recording right away.",
+      displayName: "Display name",
+      email: "Email address",
+      password: "Password",
+      profileLoginSubmit: "Log in to My page",
+      profileRegisterSubmit: "Create My page",
+      recordLoginSubmit: "Log in and record",
+      recordRegisterSubmit: "Create account and record",
+      noteEyebrow: "record lane",
+      profileNoteHeading: "After login, you will continue to My page.",
+      recordNoteHeading: "After login, you will return to the recording screen.",
+      profileNoteLead: "My page keeps your places, recent observations, Life List, and next actions in one place.",
+      recordNoteLead: "Records, photo uploads, and identification participation use your ikimon login state.",
+      safetyCookie: "Cookies are HttpOnly / SameSite=Lax / Secure in production",
+      safetyFailure: "Failure messages do not reveal whether an email exists",
+      safetyOrigin: "Writes from external origins are rejected",
+      switchToRegister: "Create a new account",
+      switchToLogin: "Log in with an existing account",
+      heroEyebrow: "account",
+      profileHeroLogin: "Log in to My page",
+      profileHeroRegister: "Create your My page",
+      recordHeroLogin: "Log in and record",
+      recordHeroRegister: "Create account and record",
+      profileHeroLead: "The entrance for returning to your places, records, and Life List.",
+      recordHeroLead: "The entrance for saving what you found underfoot as your own record.",
+      footerNote: "After authentication, you will return to the recording flow.",
+      statusChecking: "Checking...",
+      fallbackError: "Authentication failed.",
+      errors: {
+        invalid_credentials: "The email address or password is incorrect.",
+        account_disabled: "This account is not available right now.",
+        email_already_registered: "This email address is already registered.",
+        invalid_email: "Check the email address format.",
+        password_too_short: "Use at least 8 characters for the password.",
+        display_name_required: "Enter a display name.",
+        rate_limited: "Too many attempts. Please wait and try again.",
+        same_origin_required: "Reload the page and try again.",
+      },
+    },
+    es: {
+      titleLogin: "Iniciar sesion | ikimon",
+      titleRegister: "Crear cuenta | ikimon",
+      tabAria: "Cambiar autenticacion",
+      loginTab: "Iniciar sesion",
+      registerTab: "Crear cuenta",
+      socialAria: "Inicio de sesion social",
+      disabledSuffix: "esta en configuracion",
+      google: "Continuar con Google",
+      twitter: "Continuar con X",
+      profileLoginHeading: "Abrir mi pagina",
+      profileRegisterHeading: "Crear mi pagina",
+      recordLoginHeading: "Continuar registrando",
+      recordRegisterHeading: "Crear cuenta para registrar",
+      profileLead: "Inicia sesion para abrir la pagina que reune tus lugares, registros, Life List y proximas acciones.",
+      recordLoginLead: "Inicia sesion y vuelve directamente a la pantalla de registro.",
+      recordRegisterLead: "Crea una cuenta y empieza a registrar de inmediato.",
+      displayName: "Nombre visible",
+      email: "Correo electronico",
+      password: "Contrasena",
+      profileLoginSubmit: "Iniciar sesion en mi pagina",
+      profileRegisterSubmit: "Crear mi pagina",
+      recordLoginSubmit: "Iniciar sesion y registrar",
+      recordRegisterSubmit: "Crear cuenta y registrar",
+      noteEyebrow: "record lane",
+      profileNoteHeading: "Despues de iniciar sesion, continuaras a mi pagina.",
+      recordNoteHeading: "Despues de iniciar sesion, volveras a la pantalla de registro.",
+      profileNoteLead: "Mi pagina mantiene tus lugares, observaciones recientes, Life List y proximas acciones en un solo lugar.",
+      recordNoteLead: "Registros, subidas de fotos e identificaciones usan tu sesion de ikimon.",
+      safetyCookie: "Las cookies son HttpOnly / SameSite=Lax / Secure en produccion",
+      safetyFailure: "Los errores no revelan si existe un correo",
+      safetyOrigin: "Se rechazan escrituras desde origenes externos",
+      switchToRegister: "Crear una cuenta nueva",
+      switchToLogin: "Iniciar sesion con una cuenta existente",
+      heroEyebrow: "account",
+      profileHeroLogin: "Iniciar sesion en mi pagina",
+      profileHeroRegister: "Crear mi pagina",
+      recordHeroLogin: "Iniciar sesion y registrar",
+      recordHeroRegister: "Crear cuenta y registrar",
+      profileHeroLead: "La entrada para volver a tus lugares, registros y Life List.",
+      recordHeroLead: "La entrada para guardar lo que encontraste como tu propio registro.",
+      footerNote: "Despues de autenticarte, volveras al flujo de registro.",
+      statusChecking: "Comprobando...",
+      fallbackError: "No se pudo autenticar.",
+      errors: {
+        invalid_credentials: "El correo o la contrasena no son correctos.",
+        account_disabled: "Esta cuenta no esta disponible ahora.",
+        email_already_registered: "Este correo ya esta registrado.",
+        invalid_email: "Revisa el formato del correo.",
+        password_too_short: "Usa al menos 8 caracteres para la contrasena.",
+        display_name_required: "Ingresa un nombre visible.",
+        rate_limited: "Demasiados intentos. Espera y vuelve a intentar.",
+        same_origin_required: "Recarga la pagina y vuelve a intentar.",
+      },
+    },
+    "pt-BR": {
+      titleLogin: "Entrar | ikimon",
+      titleRegister: "Criar conta | ikimon",
+      tabAria: "Alternar autenticacao",
+      loginTab: "Entrar",
+      registerTab: "Criar conta",
+      socialAria: "Login social",
+      disabledSuffix: "esta em configuracao",
+      google: "Continuar com Google",
+      twitter: "Continuar com X",
+      profileLoginHeading: "Abrir minha pagina",
+      profileRegisterHeading: "Criar minha pagina",
+      recordLoginHeading: "Continuar registrando",
+      recordRegisterHeading: "Criar conta para registrar",
+      profileLead: "Entre para abrir a pagina que reune seus locais, registros, Life List e proximas acoes.",
+      recordLoginLead: "Entre e volte direto para a tela de registro.",
+      recordRegisterLead: "Crie uma conta e comece a registrar imediatamente.",
+      displayName: "Nome exibido",
+      email: "E-mail",
+      password: "Senha",
+      profileLoginSubmit: "Entrar na minha pagina",
+      profileRegisterSubmit: "Criar minha pagina",
+      recordLoginSubmit: "Entrar e registrar",
+      recordRegisterSubmit: "Criar conta e registrar",
+      noteEyebrow: "record lane",
+      profileNoteHeading: "Depois de entrar, voce continua para minha pagina.",
+      recordNoteHeading: "Depois de entrar, voce volta para a tela de registro.",
+      profileNoteLead: "Minha pagina mantem seus locais, observacoes recentes, Life List e proximas acoes em um so lugar.",
+      recordNoteLead: "Registros, uploads de fotos e identificacoes usam seu login do ikimon.",
+      safetyCookie: "Cookies sao HttpOnly / SameSite=Lax / Secure em producao",
+      safetyFailure: "Mensagens de erro nao revelam se um e-mail existe",
+      safetyOrigin: "Escritas de origens externas sao rejeitadas",
+      switchToRegister: "Criar uma nova conta",
+      switchToLogin: "Entrar com uma conta existente",
+      heroEyebrow: "account",
+      profileHeroLogin: "Entrar na minha pagina",
+      profileHeroRegister: "Criar minha pagina",
+      recordHeroLogin: "Entrar e registrar",
+      recordHeroRegister: "Criar conta e registrar",
+      profileHeroLead: "A entrada para voltar aos seus locais, registros e Life List.",
+      recordHeroLead: "A entrada para salvar o que voce encontrou como seu proprio registro.",
+      footerNote: "Depois da autenticacao, voce volta ao fluxo de registro.",
+      statusChecking: "Verificando...",
+      fallbackError: "Falha na autenticacao.",
+      errors: {
+        invalid_credentials: "O e-mail ou a senha esta incorreto.",
+        account_disabled: "Esta conta nao esta disponivel agora.",
+        email_already_registered: "Este e-mail ja esta registrado.",
+        invalid_email: "Confira o formato do e-mail.",
+        password_too_short: "Use pelo menos 8 caracteres na senha.",
+        display_name_required: "Digite um nome exibido.",
+        rate_limited: "Muitas tentativas. Aguarde e tente de novo.",
+        same_origin_required: "Recarregue a pagina e tente novamente.",
+      },
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function localizedAuthHref(basePath: string, path: string, lang: SiteLang): string {
+  return appendLangToHref(withBasePath(basePath, path), lang);
+}
+
+function oauthLink(basePath: string, provider: OAuthProvider, redirect: string, label: string, copy: AuthPageCopy, lang: SiteLang): string {
   if (!oauthProviderEnabled(provider)) {
-    return `<span class="auth-social-disabled">${escapeHtml(label)} は設定中</span>`;
+    return `<span class="auth-social-disabled">${escapeHtml(`${label} ${copy.disabledSuffix}`)}</span>`;
   }
-  const href = withBasePath(basePath, `/auth/oauth/${provider}/start?redirect=${encodeURIComponent(redirect)}`);
+  const href = localizedAuthHref(basePath, `/auth/oauth/${provider}/start?redirect=${encodeURIComponent(redirect)}`, lang);
   return `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
 }
 
@@ -135,51 +412,53 @@ function renderAuthPage(options: {
   redirect: string;
 }): string {
   const isLogin = options.mode === "login";
+  const copy = authPageCopy(options.lang);
   const redirectPath = options.redirect.split(/[?#]/, 1)[0] ?? "";
   const isProfileRedirect = redirectPath === "/profile" || redirectPath.startsWith("/profile/");
-  const title = isLogin ? "ログイン | ikimon" : "新規登録 | ikimon";
+  const title = isLogin ? copy.titleLogin : copy.titleRegister;
   const endpoint = withBasePath(options.basePath, isLogin ? "/api/v1/auth/login" : "/api/v1/auth/register");
-  const switchHref = withBasePath(
+  const switchHref = localizedAuthHref(
     options.basePath,
     `${isLogin ? "/register" : "/login"}?redirect=${encodeURIComponent(options.redirect)}`,
+    options.lang,
   );
-  const loginHref = withBasePath(options.basePath, `/login?redirect=${encodeURIComponent(options.redirect)}`);
-  const registerHref = withBasePath(options.basePath, `/register?redirect=${encodeURIComponent(options.redirect)}`);
+  const loginHref = localizedAuthHref(options.basePath, `/login?redirect=${encodeURIComponent(options.redirect)}`, options.lang);
+  const registerHref = localizedAuthHref(options.basePath, `/register?redirect=${encodeURIComponent(options.redirect)}`, options.lang);
   const displayNameField = isLogin
     ? ""
-    : `<label class="auth-field"><span>表示名</span><input name="displayName" type="text" autocomplete="name" required /></label>`;
-  const socialLogin = `<div class="auth-social" aria-label="ソーシャルログイン">
-    ${oauthLink(options.basePath, "google", options.redirect, "Google で続ける")}
-    ${oauthLink(options.basePath, "twitter", options.redirect, "X(Twitter) で続ける")}
+    : `<label class="auth-field"><span>${escapeHtml(copy.displayName)}</span><input name="displayName" type="text" autocomplete="name" required /></label>`;
+  const socialLogin = `<div class="auth-social" aria-label="${escapeHtml(copy.socialAria)}">
+    ${oauthLink(options.basePath, "google", options.redirect, copy.google, copy, options.lang)}
+    ${oauthLink(options.basePath, "twitter", options.redirect, copy.twitter, copy, options.lang)}
   </div>`;
   const body = `<div class="auth-wrap">
     <section class="auth-panel">
-      <div class="auth-tabs" aria-label="認証切替">
-        <a class="auth-tab${isLogin ? " is-active" : ""}" href="${escapeHtml(loginHref)}">ログイン</a>
-        <a class="auth-tab${!isLogin ? " is-active" : ""}" href="${escapeHtml(registerHref)}">新規登録</a>
+      <div class="auth-tabs" aria-label="${escapeHtml(copy.tabAria)}">
+        <a class="auth-tab${isLogin ? " is-active" : ""}" href="${escapeHtml(loginHref)}">${escapeHtml(copy.loginTab)}</a>
+        <a class="auth-tab${!isLogin ? " is-active" : ""}" href="${escapeHtml(registerHref)}">${escapeHtml(copy.registerTab)}</a>
       </div>
       <div class="eyebrow">${isLogin ? "sign in" : "create account"}</div>
-      <h2>${isProfileRedirect ? (isLogin ? "マイページへ入る" : "マイページを作る") : (isLogin ? "記録を続ける" : "記録用アカウントを作る")}</h2>
-      <p>${isProfileRedirect ? "ログインすると、あなたの場所・記録・Life List をまとめたマイページへ進みます。" : (isLogin ? "ログインすると、そのまま記録画面へ戻ります。" : "登録後すぐに記録画面へ進みます。")}</p>
+      <h2>${escapeHtml(isProfileRedirect ? (isLogin ? copy.profileLoginHeading : copy.profileRegisterHeading) : (isLogin ? copy.recordLoginHeading : copy.recordRegisterHeading))}</h2>
+      <p>${escapeHtml(isProfileRedirect ? copy.profileLead : (isLogin ? copy.recordLoginLead : copy.recordRegisterLead))}</p>
       <form class="auth-form" data-auth-form data-endpoint="${escapeHtml(endpoint)}" data-redirect="${escapeHtml(options.redirect)}">
         ${displayNameField}
-        <label class="auth-field"><span>メールアドレス</span><input name="email" type="email" autocomplete="email" required /></label>
-        <label class="auth-field"><span>パスワード</span><input name="password" type="password" autocomplete="${isLogin ? "current-password" : "new-password"}" minlength="8" required /></label>
-        <button class="btn btn-solid auth-submit" type="submit">${isProfileRedirect ? (isLogin ? "ログインしてマイページへ" : "登録してマイページへ") : (isLogin ? "ログインして記録する" : "登録して記録する")}</button>
+        <label class="auth-field"><span>${escapeHtml(copy.email)}</span><input name="email" type="email" autocomplete="email" required /></label>
+        <label class="auth-field"><span>${escapeHtml(copy.password)}</span><input name="password" type="password" autocomplete="${isLogin ? "current-password" : "new-password"}" minlength="8" required /></label>
+        <button class="btn btn-solid auth-submit" type="submit">${escapeHtml(isProfileRedirect ? (isLogin ? copy.profileLoginSubmit : copy.profileRegisterSubmit) : (isLogin ? copy.recordLoginSubmit : copy.recordRegisterSubmit))}</button>
         <div class="auth-status" data-auth-status aria-live="polite"></div>
       </form>
       ${socialLogin}
     </section>
     <aside class="auth-note">
-      <div class="eyebrow">record lane</div>
-      <h3>${isProfileRedirect ? "ログイン後はマイページへ進みます。" : "ログイン後は記録画面へ進みます。"}</h3>
-      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "記録、写真アップロード、同定参加は ikimon のログイン状態で扱います。"}</p>
+      <div class="eyebrow">${escapeHtml(copy.noteEyebrow)}</div>
+      <h3>${escapeHtml(isProfileRedirect ? copy.profileNoteHeading : copy.recordNoteHeading)}</h3>
+      <p>${escapeHtml(isProfileRedirect ? copy.profileNoteLead : copy.recordNoteLead)}</p>
       <ul>
-        <li>cookie は HttpOnly / SameSite=Lax / production Secure</li>
-        <li>メール有無が分からない失敗表示</li>
-        <li>外部 origin からの書き込みを拒否</li>
+        <li>${escapeHtml(copy.safetyCookie)}</li>
+        <li>${escapeHtml(copy.safetyFailure)}</li>
+        <li>${escapeHtml(copy.safetyOrigin)}</li>
       </ul>
-      <a class="btn btn-ghost" href="${escapeHtml(switchHref)}">${isLogin ? "新しく登録する" : "既存アカウントでログイン"}</a>
+      <a class="btn btn-ghost" href="${escapeHtml(switchHref)}">${escapeHtml(isLogin ? copy.switchToRegister : copy.switchToLogin)}</a>
     </aside>
   </div>
   <script>
@@ -187,19 +466,12 @@ function renderAuthPage(options: {
   const form = document.querySelector('[data-auth-form]');
   if (!form) return;
   const status = form.querySelector('[data-auth-status]');
-  const messages = {
-    invalid_credentials: 'メールアドレスまたはパスワードが違います。',
-    account_disabled: 'このアカウントは現在利用できません。',
-    email_already_registered: 'このメールアドレスは既に登録されています。',
-    invalid_email: 'メールアドレスの形式を確認してください。',
-    password_too_short: 'パスワードは8文字以上にしてください。',
-    display_name_required: '表示名を入力してください。',
-    rate_limited: '試行回数が多すぎます。少し待ってから再試行してください。',
-    same_origin_required: 'ページを再読み込みしてからもう一度試してください。'
-  };
+  const messages = ${JSON.stringify(copy.errors)};
+  const checkingMessage = ${JSON.stringify(copy.statusChecking)};
+  const fallbackErrorMessage = ${JSON.stringify(copy.fallbackError)};
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (status) status.textContent = '確認中...';
+    if (status) status.textContent = checkingMessage;
     const data = new FormData(form);
     const payload = {
       displayName: String(data.get('displayName') || ''),
@@ -221,7 +493,7 @@ function renderAuthPage(options: {
       location.assign(result.redirect || '/record');
     } catch (error) {
       const key = error && error.message ? error.message : 'invalid_credentials';
-      if (status) status.textContent = messages[key] || '認証に失敗しました。';
+      if (status) status.textContent = messages[key] || fallbackErrorMessage;
     }
   });
 })();
@@ -235,14 +507,14 @@ function renderAuthPage(options: {
     currentPath: withBasePath(options.basePath, isLogin ? "/login" : "/register"),
     extraStyles: AUTH_STYLES,
     hero: {
-      eyebrow: "account",
-      heading: isProfileRedirect ? (isLogin ? "ログインしてマイページへ" : "新しく登録してマイページへ") : (isLogin ? "ログインして記録する" : "新しく登録して記録する"),
-      lead: isProfileRedirect ? "自分の場所、記録、Life List を見返すための入口です。" : "足もとの発見を、自分の記録として残すための入口です。",
+      eyebrow: copy.heroEyebrow,
+      heading: isProfileRedirect ? (isLogin ? copy.profileHeroLogin : copy.profileHeroRegister) : (isLogin ? copy.recordHeroLogin : copy.recordHeroRegister),
+      lead: isProfileRedirect ? copy.profileHeroLead : copy.recordHeroLead,
       tone: "light",
       align: "center",
     },
     body,
-    footerNote: "認証後は記録導線へ戻ります。",
+    footerNote: copy.footerNote,
   });
 }
 

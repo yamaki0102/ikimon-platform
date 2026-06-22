@@ -21031,6 +21031,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const session = await getSessionFromCookie(request.headers.cookie);
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     if (!session) {
+      const loginHref = appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang);
+      const registerHref = appendLangToHref(withBasePath(basePath, "/register?redirect=/profile"), lang);
       reply.type("text/html; charset=utf-8");
       return layout(
         basePath,
@@ -21040,8 +21042,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "ログインすると、自分の記録史を読み返せます",
           `<p style="margin:0 0 12px">記録一覧を起点に、マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile"))}">ログインしてマイページへ</a>
-            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/profile"))}">新しく登録する</a>
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインしてマイページへ</a>
+            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}">新しく登録する</a>
           </div>`,
         ),
         "ホーム",
@@ -21083,7 +21085,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/profile/settings", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const session = await getSessionFromCookie(request.headers.cookie);
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     if (!session) {
+      const loginHref = appendLangToHref(withBasePath(basePath, "/login?redirect=/profile/settings"), lang);
+      const profileHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
       reply.type("text/html; charset=utf-8");
       return layout(
         basePath,
@@ -21092,8 +21097,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "プロフィール編集",
           "プロフィール編集にはログインが必要です",
           `<div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile/settings"))}">ログインする</a>
-            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/profile"))}">マイページへ</a>
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインする</a>
+            <a class="btn btn-ghost" href="${escapeHtml(profileHref)}">マイページへ</a>
           </div>`,
         ),
         "ホーム",
