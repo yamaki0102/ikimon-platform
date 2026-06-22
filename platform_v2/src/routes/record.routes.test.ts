@@ -298,8 +298,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /video_trim_required/);
         assert.match(response.body, /const scheduleMediaAutofill = \(file, metadata, opts\) =>/);
         assert.match(response.body, /requestAnimationFrame\(\(\) =>/);
-        assert.match(response.body, /timeout: 2500/);
-        assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{ autoLocateFreshCapture: kind === 'photo' \|\| kind === 'gallery' \}\)/);
+        assert.doesNotMatch(response.body, /autoLocateFreshCapture/);
+        assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{\}\)/);
+        assert.match(response.body, /document\.querySelectorAll\('\[data-record-locate\]'\)/);
+        assert.match(response.body, /locateButtons\.forEach\(\(button\) => \{[\s\S]*button\.addEventListener\('click'/);
         assert.doesNotMatch(response.body, /await applyMediaAutofill\(normalized\.photos\[0\] \|\| null/);
       } finally {
         await app.close();

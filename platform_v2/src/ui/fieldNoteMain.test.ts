@@ -97,3 +97,19 @@ test("field note guest ambient links open the guest notebook instead of a missin
   assert.match(html, /href="\/ja\/guest\/guest_abc123"/);
   assert.doesNotMatch(html, /\/profile\/guest_abc123/);
 });
+
+test("field note asks for location only after an explicit hypothesis action", () => {
+  const html = renderFieldNoteMain("", "ja", snapshot);
+
+  assert.match(html, /id="fn-hypothesis-action"/);
+  assert.match(html, />現在地で見る<\/button>/);
+  assert.match(html, /function requestBrief\(\) \{[\s\S]*navigator\.geolocation\.getCurrentPosition/);
+  assert.match(html, /action\.addEventListener\('click', requestBrief\)/);
+  assert.doesNotMatch(html, /navigator\.geolocation\.getCurrentPosition\(function\(pos\) \{[\s\S]*\}\s*,\s*function\(\) \{[\s\S]*\}\s*,\s*\{ timeout: 8000, maximumAge: 60000 \}\);\s+\}\)\(\);/);
+});
+
+test("field note localizes explicit location action", () => {
+  assert.match(renderFieldNoteMain("", "en", snapshot), />Use my location<\/button>/);
+  assert.match(renderFieldNoteMain("", "es", snapshot), />Usar mi ubicación<\/button>/);
+  assert.match(renderFieldNoteMain("", "pt-BR", snapshot), />Usar minha localização<\/button>/);
+});

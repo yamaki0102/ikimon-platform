@@ -7801,7 +7801,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.initialDataLoaded = true;
     state.initialDataLoadAttempts = 0;
     refreshMapData();
-    maybeAutoLocateOnFirstOpen();
     maybeShowLayerHint(state.tab);
     deferMapTask(function () {
       if (state.tab === 'frontier') loadFrontier(state.map);
@@ -8688,36 +8687,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var el = document.createElement('div');
     el.className = 'me-locate-marker';
     state._meMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(state.map);
-  }
-
-  // First-open auto-locate: zoom into the user's location unless an explicit
-  // shared location was restored from URL/hash. Silent on
-  // permission denial or any failure — falls back to the default view.
-  var _autoLocateAttempted = false;
-  function maybeAutoLocateOnFirstOpen() {
-    if (_autoLocateAttempted) return;
-    _autoLocateAttempted = true;
-    if (!state.map || !navigator.geolocation) return;
-    if (state._restoredCenter || state._restoredCellId) return;
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      if (!state.map) return;
-      var lng = pos.coords.longitude;
-      var lat = pos.coords.latitude;
-      if (!isFinite(lng) || !isFinite(lat)) return;
-      if (lng < -180 || lng > 180 || lat < -85 || lat > 85) return;
-      if (state._ownObservationFirstViewApplied) {
-        dropMeMarker(lng, lat);
-        return;
-      }
-      // Suppress later data-driven auto-fit so the user's location wins.
-      state._fittedOnce = true;
-      state.map.flyTo({ center: [lng, lat], zoom: 13, duration: 900, essential: true });
-      dropMeMarker(lng, lat);
-    }, function () { /* silent: keep default view */ }, {
-      enableHighAccuracy: false,
-      maximumAge: 60000,
-      timeout: 6000,
-    });
   }
 
   // locate-me
