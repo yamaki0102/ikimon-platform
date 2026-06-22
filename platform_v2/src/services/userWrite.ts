@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
 import sharp from "sharp";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyUser } from "../legacy/compatibilityWriter.js";
+import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
 import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
 
 export type UserUpsertInput = {
@@ -133,17 +133,23 @@ async function persistProfileAvatar(
   const normalizedAvatar = await normalizeProfileAvatarImage(buffer);
   const sha256 = createHash("sha256").update(normalizedAvatar.buffer).digest("hex");
   const config = loadConfig();
+  const mediaObjectStore = createLegacyMediaObjectStore({
+    publicRoot: config.legacyPublicRoot,
+    privateRoot: config.legacyDataRoot,
+  });
   const relativePath = path.posix.join("uploads", "avatars", `${userId}_${sha256.slice(0, 12)}.webp`);
-  const absolutePath = path.join(config.legacyPublicRoot, ...relativePath.split("/"));
-  await mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, normalizedAvatar.buffer);
+  const mediaObject = await mediaObjectStore.write({
+    visibility: "public",
+    storagePath: relativePath,
+    buffer: normalizedAvatar.buffer,
+  });
 
   const blobId = await upsertAssetBlob(client, {
-    storageBackend: "local_fs",
-    storagePath: relativePath,
+    storageBackend: mediaObject.storageBackend,
+    storagePath: mediaObject.storagePath,
     mediaType: "image",
     mimeType: normalizedAvatar.mimeType,
-    publicUrl: `/${relativePath}`,
+    publicUrl: mediaObject.publicUrl,
     sha256,
     bytes: normalizedAvatar.buffer.byteLength,
     sourcePayload: {

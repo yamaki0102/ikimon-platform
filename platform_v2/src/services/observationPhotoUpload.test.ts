@@ -32,11 +32,15 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /normalizeFacePrivacy/);
   assert.match(source, /face_privacy: facePrivacy/);
   assert.match(source, /"pending", "redacted", "no_faces", "unavailable"/);
+  assert.match(source, /createLegacyMediaObjectStore/);
+  assert.match(source, /mediaObjectStore\.write/);
   assert.match(source, /photo-originals/);
-  assert.match(source, /storageBackend: "local_private_fs"/);
+  assert.match(source, /storageBackend: originalObject\.storageBackend/);
+  assert.match(source, /storageBackend: publicObject\.storageBackend/);
   assert.match(source, /observation_photo_original/);
   assert.match(source, /privacy_processing_status: "pending"/);
   assert.match(source, /original_relative_path: originalRelativePath/);
+  assert.match(source, /original_storage_backend: originalObject\.storageBackend/);
   assert.match(source, /set public_visibility = case[\s\S]*else 'public'[\s\S]*end/);
   assert.match(source, /quality_review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
   assert.match(source, /visit_id like 'prod-media-smoke-%'[\s\S]*then 'hidden'/);
