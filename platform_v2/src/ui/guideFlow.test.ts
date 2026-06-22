@@ -126,7 +126,10 @@ test("guide start sheet presents the Japanese field UX as one clear decision", (
   const html = renderGuideFlow("", "ja");
 
   assert.match(html, /歩いた場所の自然の手がかりを、AIと一緒に残します/);
+  assert.match(html, /まずはカメラだけで歩き始める/);
+  assert.match(html, /今日の発見を自分の記録に戻せます/);
   assert.match(html, /今日のミッション/);
+  assert.match(html, /迷ったら「歩きながら見る」で始めてください/);
   assert.match(html, /🚶 歩きながら見る/);
   assert.match(html, /🎧 ポケット音声/);
   assert.match(html, /🔎 1地点を詳しく見る/);
@@ -135,6 +138,7 @@ test("guide start sheet presents the Japanese field UX as one clear decision", (
   assert.match(html, /運転者は操作しないでください/);
   assert.match(html, /細かく調整する/);
   assert.match(html, /カメラだけで開始する/);
+  assert.match(html, /自然音も使いますか？/);
   assert.match(html, /人の声らしい音は保存しません/);
   assert.match(html, /仕組みを見る/);
   assert.match(html, /音声ONで、録った音が研究まで届きます/);

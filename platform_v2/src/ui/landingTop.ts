@@ -428,6 +428,9 @@ type LandingContentWallCopy = {
   mineTitle: string;
   communityEyebrow: string;
   communityTitle: string;
+  minePulse: string;
+  communityPulse: string;
+  emptyPulse: string;
   emptyTitle: string;
   emptyBody: string;
   mineEmptyTitle: string;
@@ -445,10 +448,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       mineTitle: "自分の記録",
       communityEyebrow: "PLACE MEMORY",
       communityTitle: "場所の今を残す記録",
-      emptyTitle: "表示できる場所の記録を準備中です",
-      emptyBody: "場所の手がかりが残ると、ここにサムネイルで並びます。",
+      minePulse: "投稿した記録をここから見返せます。",
+      communityPulse: "今日も写真・動画つきの記録が届いています。",
+      emptyPulse: "最初の投稿が入ると、ここに地域の動きが並びます。",
+      emptyTitle: "ここから地域の記録が育ちます",
+      emptyBody: "写真や動画が1つ増えるだけで、場所の手がかりになり、次に歩く人を助けます。",
       mineEmptyTitle: "自分の場所の記録はまだありません",
-      communityEmptyTitle: "みんなの場所の記録を準備中です",
+      communityEmptyTitle: "ここから地域の記録が育ちます",
       emptyCta: "記録する",
       allCta: "すべて見る",
     },
@@ -459,10 +465,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       mineTitle: "My records",
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "Everyone's records",
-      emptyTitle: "Place records are still warming up",
-      emptyBody: "Place clues will appear here as thumbnails.",
+      minePulse: "Your saved records are always one tap away.",
+      communityPulse: "New photo and video records are arriving.",
+      emptyPulse: "The first post will start this local stream.",
+      emptyTitle: "This local stream grows from here",
+      emptyBody: "Even one photo or video becomes a clue for the next person nearby.",
       mineEmptyTitle: "No place records from you yet",
-      communityEmptyTitle: "Everyone's place records are still warming up",
+      communityEmptyTitle: "Waiting for the first place record",
       emptyCta: "Save a place record",
       allCta: "See all",
     },
@@ -473,10 +482,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       mineTitle: "Mis registros",
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "Registros de todos",
-      emptyTitle: "Aun no hay publicaciones",
-      emptyBody: "Los registros con foto o video apareceran aqui.",
+      minePulse: "Tus registros guardados quedan a un toque.",
+      communityPulse: "Siguen llegando registros con foto y video.",
+      emptyPulse: "La primera publicacion abre este flujo local.",
+      emptyTitle: "Este flujo local crece desde aqui",
+      emptyBody: "Una foto o un video ya ayuda a la siguiente persona cercana.",
       mineEmptyTitle: "Aun no tienes publicaciones",
-      communityEmptyTitle: "Aun no hay publicaciones de todos",
+      communityEmptyTitle: "Esperando el primer registro del lugar",
       emptyCta: "Registrar",
       allCta: "Ver todo",
     },
@@ -487,10 +499,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       mineTitle: "Meus registros",
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "Registros de todos",
-      emptyTitle: "Ainda nao ha publicacoes",
-      emptyBody: "Registros com foto ou video aparecerao aqui.",
+      minePulse: "Seus registros salvos ficam a um toque.",
+      communityPulse: "Novos registros com foto e video estao chegando.",
+      emptyPulse: "A primeira publicacao inicia este fluxo local.",
+      emptyTitle: "Este fluxo local cresce a partir daqui",
+      emptyBody: "Uma foto ou um video ja vira pista para a proxima pessoa perto dali.",
       mineEmptyTitle: "Ainda nao ha publicacoes suas",
-      communityEmptyTitle: "Ainda nao ha publicacoes de todos",
+      communityEmptyTitle: "Aguardando o primeiro registro do lugar",
       emptyCta: "Registrar",
       allCta: "Ver tudo",
     },
@@ -683,6 +698,7 @@ function renderLandingContentWallLane(
   const recordHref = landingHref(basePath, lang, "/record");
   const title = source === "mine" ? wallCopy.mineTitle : wallCopy.communityTitle;
   const eyebrow = source === "mine" ? wallCopy.mineEyebrow : wallCopy.communityEyebrow;
+  const pulse = source === "mine" ? wallCopy.minePulse : items.length > 0 ? wallCopy.communityPulse : wallCopy.emptyPulse;
   const emptyTitle = source === "mine" ? wallCopy.mineEmptyTitle : wallCopy.communityEmptyTitle;
   const moreHref = landingHref(basePath, lang, source === "mine" ? "/records?view=mine" : "/records?view=public");
   const moreLabel = lang === "ja" ? "もっと見る" : lang === "en" ? "View more" : lang === "es" ? "Ver mas" : "Ver mais";
@@ -697,6 +713,7 @@ function renderLandingContentWallLane(
         <div class="prototype-content-lane-title">
           <span>${escapeHtml(eyebrow)}</span>
           <h3>${escapeHtml(title)}</h3>
+          <p>${escapeHtml(pulse)}</p>
         </div>
         <a class="prototype-content-lane-more" href="${escapeHtml(moreHref)}" aria-label="${escapeHtml(moreAria)}" data-kpi-action="landing:content_wall:${escapeHtml(source)}:more">${escapeHtml(moreLabel)}</a>
       </div>
@@ -2273,6 +2290,13 @@ export const LANDING_TOP_STYLES = `
     line-height: 1.25;
     letter-spacing: 0;
     font-weight: 950;
+  }
+  .prototype-content-lane-title p {
+    margin: 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.55;
+    font-weight: 650;
   }
   .prototype-content-lane-more {
     min-height: 32px;
