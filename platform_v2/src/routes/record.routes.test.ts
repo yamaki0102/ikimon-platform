@@ -234,6 +234,13 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /key: 'revisit_same_place', label: recordUiCopy\.successRevisitCta, primary: false/);
         assert.match(response.body, /同じ場所でもう1件記録する/);
         assert.match(response.body, /revisitObservationId=/);
+        assert.match(response.body, /RECORD_REVISIT_CONTEXT_STORAGE_PREFIX = 'ikimon:record-revisit-context:'/);
+        assert.match(response.body, /rememberRevisitContext\(visitId, \{/);
+        assert.match(response.body, /storedRevisitContextParams\(revisitId\)/);
+        assert.match(response.body, /if \(!params\.has\(key\)\) params\.set\(key, value\)/);
+        assert.match(response.body, /recordSuccessRevisitHrefPrefix = "\/ja\/record\?start=gallery&revisitObservationId="/);
+        assert.doesNotMatch(response.body, /recordSuccessRevisitHrefPrefix = "[^"]*(?:latitude|longitude)=/);
+        assert.doesNotMatch(response.body, /const revisitHref = recordSuccessRevisitHrefPrefix \+ encodeURIComponent\(visitId\) \+ [^;]*(?:latitude|longitude)/);
         assert.match(response.body, /写真を保存しています\.\.\. ' \+ String\(index\) \+ '\/' \+ String\(total\)/);
         assert.match(response.body, /photo_upload_failed_at_/);
         assert.match(response.body, /動画アップロードの準備ができませんでした/);
