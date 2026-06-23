@@ -1147,7 +1147,10 @@ export const worker = {
       }
 
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
-      if (request.method === "GET" && publicDetailPageMatch?.[1]) {
+      if ((request.method === "GET" || request.method === "HEAD") && publicDetailPageMatch?.[1]) {
+        if (shouldFallbackObservationDetailPageToOrigin(env)) {
+          return fetchOriginFallback(request, url, env, "observation_detail_origin_ui");
+        }
         return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), env);
       }
 
@@ -1449,6 +1452,10 @@ function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL
 
 function shouldUseOriginFallback(url: URL, env: Env): boolean {
   return Boolean(env.ORIGIN_FALLBACK_BASE_URL) && PUBLIC_CUSTOM_HOSTS.has(url.hostname);
+}
+
+function shouldFallbackObservationDetailPageToOrigin(env: Env): boolean {
+  return env.ENVIRONMENT === "production" && Boolean(env.ORIGIN_FALLBACK_BASE_URL);
 }
 
 function isSuspiciousPublicProbePath(pathname: string): boolean {
