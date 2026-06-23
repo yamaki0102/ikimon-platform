@@ -292,7 +292,6 @@ interface OwnMapObservationRow {
 }
 
 interface PublicDetailRow extends PublicMapRow {
-  owner_user_id: string;
   note: string | null;
   visibility: string;
 }
@@ -3202,7 +3201,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
   const visitId = detailIdToVisitId(rawId);
   const row = await env.OBS_DB.prepare(
     `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count,
-            o.owner_user_id, o.note, o.visibility
+            o.note, o.visibility
      FROM readmodel_public_observations r
      JOIN observations o ON o.observation_id = r.observation_id
      WHERE r.observation_id = ?
@@ -3249,6 +3248,10 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
         mediaRole: "observation_video"
       };
     });
+  const relatedRows = (await queryPublicMapRows(env))
+    .filter((related) => related.public_cell === row.public_cell && related.observation_id !== visitId)
+    .slice(0, 6);
+  const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
 
   return {
     schemaVersion: "shadow_public_observation_detail/v1",
@@ -3259,8 +3262,6 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
     isAwaitingId: !row.taxon_label,
     observedAt: row.observed_at,
     note: row.note,
-    observerUserId: row.owner_user_id,
-    observerName: "ikimon user",
     placeName: "位置をぼかしています",
     municipality: null,
     publicLocation: {
@@ -3273,6 +3274,10 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
     videoAssets,
     audioAssets: [],
     assetCount: row.asset_count,
+    relatedObservations: relatedRows.map((related) => publicMapObservationItem(
+      related,
+      relatedPhotoUrls.get(related.observation_id) ?? null
+    )),
     privacy: {
       exactLocationExposed: false,
       source: "readmodel_public_observations.public_cell"
@@ -6971,7 +6976,7 @@ loadMap().catch((error) => {
 
 function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnType<typeof buildPublicObservationDetail>>>): string {
   const photos = detail.photoAssets.length > 0
-    ? detail.photoAssets.map((asset, index) => `<figure class="obs-photo ${index === 0 ? "obs-photo--main" : ""}">
+    ? detail.photoAssets.map((asset, index) => `<figure class="obs-photo ${index === 0 ? "obs-photo--main" : ""}" data-obs-media-item="${escapeHtml(asset.assetId)}">
         <img src="${escapeHtml(asset.url)}" alt="${escapeHtml(detail.displayName)}" loading="${index === 0 ? "eager" : "lazy"}">
       </figure>`).join("")
     : `<div class="obs-empty">公開できる写真はまだありません。</div>`;
@@ -6983,6 +6988,21 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
   const videoCount = detail.videoAssets.length;
   const assetCount = Math.max(detail.assetCount ?? 0, photoCount + videoCount);
   const mapHref = `/map?tab=places&cell=${encodeURIComponent(detail.publicLocation.cellId)}`;
+  const recordHref = `/record?from=observation&cell=${encodeURIComponent(detail.publicLocation.cellId)}`;
+  const related = detail.relatedObservations ?? [];
+  const observedLabel = formatPublicObservationDate(detail.observedAt);
+  const stateLabel = detail.isAwaitingId ? "同定待ち" : "名前あり";
+  const relatedCards = related.length > 0
+    ? related.map((item) => `<a class="obs-nearby-card" href="/observations/${encodeURIComponent(item.visitId)}">
+        ${item.photoUrl
+          ? `<img class="obs-area-thumb" src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy">`
+          : `<span class="obs-nearby-nophoto" aria-hidden="true">+</span>`}
+        <span class="obs-nearby-body">
+          <strong>${escapeHtml(item.displayName)}</strong>
+          <span>${escapeHtml(formatPublicObservationDate(item.observedAt))} / ${escapeHtml(item.cellId)}</span>
+        </span>
+      </a>`).join("")
+    : `<div class="obs-empty obs-empty--compact">この公開セルの関連記録はまだ少ない状態です。</div>`;
   const mediaLedger = `<div class="obs-media-ledger" aria-label="メディア台帳">
     <div class="obs-media-ledger-item"><strong>写真</strong><span>${escapeHtml(`${photoCount}枚`)}</span><small>${escapeHtml(photoCount > 0 ? "公開中" : "未公開")}</small></div>
     <div class="obs-media-ledger-item"><strong>動画</strong><span>${escapeHtml(`${videoCount}本`)}</span><small>${escapeHtml(videoCount > 0 ? "公開中" : "未公開")}</small></div>
@@ -6996,7 +7016,7 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escapeHtml(detail.displayName)} - ikimon</title>
   <style>
-    :root { color-scheme: light; --ink: #0f172a; --muted: #64748b; --line: rgba(15,23,42,.1); --teal: #0f766e; --mint: #ecfdf5; --sky: #eff6ff; --paper: rgba(255,255,255,.94); --shell: min(1180px, calc(100% - 28px)); }
+    :root { color-scheme: light; --ink: #0f172a; --muted: #64748b; --line: rgba(15,23,42,.1); --teal: #0f766e; --mint: #ecfdf5; --sky: #eff6ff; --paper: rgba(255,255,255,.94); --shell: min(1180px, calc(100% - 28px)); --content: min(860px, calc(100vw - 28px)); }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: linear-gradient(180deg, #f8fffc 0%, #f6f8fb 58%, #eef6f3 100%); }
     a { color: inherit; }
@@ -7007,29 +7027,37 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
     .header-link { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; border-radius: 999px; background: #0f9f78; color: #fff; text-decoration: none; font-size: 13px; font-weight: 900; }
     .header-link--ghost { background: #eef8f5; color: #0f766e; border: 1px solid rgba(15,118,110,.16); }
     main { width: var(--shell); margin: 0 auto; padding: 18px 0 58px; }
-    .obs-read-progress { width: var(--shell); margin: 10px auto 0; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+    .obs-read-progress { position: sticky; top: 63px; z-index: 9; width: var(--shell); margin: 0 auto 10px; display: flex; gap: 6px; overflow-x: auto; padding: 5px 0; background: rgba(248,255,252,.88); backdrop-filter: blur(12px); scrollbar-width: none; }
     .obs-read-progress::-webkit-scrollbar { display: none; }
-    .obs-read-progress a { flex: 0 0 auto; min-height: 34px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); color: #334155; text-decoration: none; font-size: 12px; font-weight: 900; }
-    .obs-reading-hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: clamp(16px, 3vw, 30px); align-items: start; }
-    .obs-reading-media { display: grid; gap: 10px; min-width: 0; }
+    .obs-read-progress a { flex: 0 0 auto; min-height: 32px; display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #334155; text-decoration: none; font-size: 11.5px; line-height: 1; font-weight: 900; }
+    .obs-read-progress a:hover, .obs-read-progress a:focus-visible { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.24); outline: none; }
+    .obs-reading-hero { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr); gap: 28px; align-items: start; margin-top: 16px; margin-bottom: 16px; scroll-margin-top: 96px; }
+    .obs-reading-media { display: grid; gap: 10px; min-width: 0; order: 1; }
+    .obs-media-evidence-shell { display: grid; gap: 10px; }
     .obs-photo-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
     .obs-photo { margin: 0; min-width: 0; overflow: hidden; border: 1px solid rgba(15,23,42,.08); border-radius: 16px; background: #e8f3ef; box-shadow: 0 18px 44px rgba(15,23,42,.08); }
     .obs-photo--main { grid-column: 1 / -1; border-radius: 22px; }
     .obs-photo:not(.obs-photo--main) { grid-column: span 2; }
     .obs-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #dbeafe; }
     .obs-photo--main img { aspect-ratio: 16 / 11; }
-    .obs-reading-panel { display: grid; gap: 12px; padding: clamp(16px, 2.4vw, 22px); border: 1px solid rgba(15,23,42,.08); border-radius: 22px; background: var(--paper); box-shadow: 0 22px 60px rgba(15,23,42,.09); }
-    .obs-record-brief { display: grid; gap: 7px; padding-bottom: 2px; }
-    .obs-record-compact-meta { display: flex; flex-wrap: wrap; gap: 7px; color: var(--teal); font-size: 11px; line-height: 1.3; font-weight: 950; }
-    .obs-record-compact-meta span { display: inline-flex; min-height: 24px; align-items: center; padding: 0 8px; border-radius: 999px; background: rgba(20,184,166,.11); border: 1px solid rgba(20,184,166,.16); }
+    .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
+    .obs-reading-panel > h1.sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+    .obs-record-brief { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: linear-gradient(135deg, rgba(236,253,245,.78), rgba(239,246,255,.78)); border: 1px solid rgba(16,185,129,.18); }
+    .obs-record-brief-compact { gap: 8px; padding: 10px 12px; border-radius: 14px; }
+    .obs-record-compact-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+    .obs-record-compact-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; min-width: 0; }
+    .obs-record-compact-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .obs-hero-observer { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: #0f172a; text-decoration: none; }
+    .obs-hero-avatar { width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 11px; flex-shrink: 0; overflow: hidden; }
     .obs-reading-kicker { color: var(--teal); font-size: 11px; line-height: 1.3; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
-    .obs-reading-title { margin: 0; color: var(--ink); font-size: clamp(27px, 4vw, 48px); line-height: 1.06; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
-    .obs-reading-lead { margin: 0; color: #475569; font-size: 14px; line-height: 1.7; font-weight: 760; }
-    .obs-media-ledger { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-    .obs-media-ledger-item { min-width: 0; display: grid; gap: 2px; padding: 9px; border-radius: 13px; background: rgba(248,250,252,.9); border: 1px solid rgba(15,23,42,.07); text-align: center; }
-    .obs-media-ledger-item strong { color: #64748b; font-size: 10px; line-height: 1.25; font-weight: 950; }
-    .obs-media-ledger-item span { color: #0f172a; font-size: 13px; line-height: 1.3; font-weight: 950; }
-    .obs-media-ledger-item small { min-width: 0; color: #64748b; font-size: 9.5px; line-height: 1.25; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .obs-reading-title { margin: 0; color: var(--ink); font-size: clamp(24px, 3.6vw, 44px); line-height: 1.08; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
+    .obs-reading-lead { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.6; font-weight: 700; }
+    .obs-reading-panel > .obs-media-ledger { display: flex; flex-wrap: nowrap; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+    .obs-reading-panel > .obs-media-ledger::-webkit-scrollbar { display: none; }
+    .obs-reading-panel .obs-media-ledger-item { flex: 1 1 0; min-width: 0; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 7px; border-radius: 999px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.075); text-align: center; white-space: nowrap; }
+    .obs-reading-panel .obs-media-ledger-item strong { flex: 0 0 auto; color: #475569; font-size: 10px; line-height: 1.2; font-weight: 950; }
+    .obs-reading-panel .obs-media-ledger-item span { flex: 0 0 auto; color: #0f172a; font-size: 11.5px; line-height: 1.2; font-weight: 950; }
+    .obs-reading-panel .obs-media-ledger-item small { display: none; }
     .obs-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
     .obs-fact { display: grid; gap: 3px; min-width: 0; padding: 11px 12px; border: 1px solid rgba(15,23,42,.07); border-radius: 14px; background: rgba(248,250,252,.86); }
     .obs-fact span { color: var(--muted); font-size: 10.5px; line-height: 1.3; font-weight: 900; }
@@ -7038,31 +7066,70 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
     .obs-action { min-width: 0; min-height: 58px; display: grid; gap: 4px; place-items: center; padding: 9px; border-radius: 15px; border: 1px solid rgba(15,23,42,.08); background: #fff; text-decoration: none; color: #0f172a; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
     .obs-action span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 999px; background: rgba(20,184,166,.13); color: #0f766e; font-size: 15px; line-height: 1; }
     .obs-action strong { font-size: 11.5px; line-height: 1.25; font-weight: 950; text-align: center; }
-    .obs-note, .obs-privacy, .obs-media-links { display: grid; gap: 7px; padding: 12px 13px; border-radius: 14px; border: 1px solid rgba(15,23,42,.07); background: linear-gradient(135deg, rgba(236,253,245,.82), rgba(239,246,255,.82)); }
+    .obs-record-insight, .obs-note, .obs-privacy, .obs-media-links { display: grid; gap: 7px; padding: 12px 13px; border-radius: 14px; border: 1px solid rgba(15,23,42,.07); background: linear-gradient(135deg, rgba(236,253,245,.82), rgba(239,246,255,.82)); }
     .obs-note h2, .obs-privacy h2, .obs-media-links h2 { margin: 0; font-size: 12px; line-height: 1.35; font-weight: 950; color: var(--ink); letter-spacing: 0; }
-    .obs-note p, .obs-privacy p { margin: 0; color: #334155; font-size: 13px; line-height: 1.65; font-weight: 700; }
+    .obs-note p, .obs-privacy p, .obs-record-insight p { margin: 0; color: #334155; font-size: 13px; line-height: 1.65; font-weight: 700; }
     .obs-media-link { display: inline-flex; width: fit-content; min-height: 34px; align-items: center; padding: 0 12px; border-radius: 999px; background: #0f766e; color: #fff; text-decoration: none; font-size: 12px; font-weight: 900; }
     .obs-empty { display: grid; min-height: 280px; place-items: center; border: 1px dashed rgba(15,23,42,.16); border-radius: 20px; background: rgba(255,255,255,.7); color: var(--muted); font-size: 13px; font-weight: 800; }
-    .obs-reading-flow { display: grid; gap: 14px; margin-top: 18px; }
-    .obs-layer { display: grid; gap: 10px; padding: 16px; border-radius: 20px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 36px rgba(15,23,42,.06); }
+    .obs-empty--compact { min-height: 116px; }
+    .obs-local-quality-inline { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr); gap: 12px; align-items: stretch; min-width: 0; margin-top: 12px; }
+    .obs-local-quality-inline.is-full-width { order: 3; width: 100%; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); margin-top: 16px; }
+    .obs-local-quality-left, .obs-local-quality-card { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); box-shadow: 0 10px 26px rgba(15,23,42,.04); }
+    .obs-local-quality-card h2, .obs-local-quality-left h2 { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; letter-spacing: 0; }
+    .obs-local-quality-card p, .obs-local-quality-left p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+    .obs-reading-flow { display: grid; gap: 18px; max-width: var(--content); margin: 0 auto; }
+    .obs-reading-section, .obs-layer { display: grid; gap: 14px; scroll-margin-top: 96px; }
+    .obs-layer { padding: 16px; border-radius: 20px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 36px rgba(15,23,42,.06); }
     .obs-layer h2 { margin: 0; color: #0f172a; font-size: 16px; line-height: 1.35; font-weight: 950; letter-spacing: 0; }
     .obs-layer p { margin: 0; color: #334155; font-size: 13px; line-height: 1.72; font-weight: 700; }
     .obs-layer-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .obs-layer-card { min-width: 0; display: grid; gap: 5px; padding: 12px; border-radius: 14px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
     .obs-layer-card span { color: #64748b; font-size: 10.5px; line-height: 1.3; font-weight: 900; }
     .obs-layer-card strong { color: #0f172a; font-size: 13px; line-height: 1.45; font-weight: 950; overflow-wrap: anywhere; }
+    .obs-record-story { display: grid; gap: 12px; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,253,244,.86)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 16px 44px rgba(15,23,42,.06); }
+    .obs-record-story-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .obs-record-story-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
+    .obs-record-story-title { margin: 3px 0 0; color: #0f172a; font-size: 18px; line-height: 1.35; font-weight: 950; letter-spacing: 0; }
+    .obs-record-story-pill { flex-shrink: 0; min-height: 28px; display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(14,165,233,.1); color: #0369a1; font-size: 11px; font-weight: 950; }
+    .obs-record-story-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .obs-record-story-card { display: grid; gap: 7px; padding: 13px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+    .obs-record-story-card strong { color: #0f172a; font-size: 13.5px; line-height: 1.35; font-weight: 950; }
+    .obs-record-story-card p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 740; }
+    .obs-area-records { display: grid; gap: 12px; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,253,244,.86)); border: 1px solid rgba(16,185,129,.16); box-shadow: 0 16px 40px rgba(15,23,42,.045); }
+    .obs-area-records-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .obs-area-records-eye { color: #047857; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .1em; text-transform: uppercase; }
+    .obs-area-records-head h2 { margin: 3px 0 0; color: #0f172a; font-size: 18px; line-height: 1.35; letter-spacing: 0; }
+    .obs-area-count { flex-shrink: 0; min-height: 30px; display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: #fff; border: 1px solid rgba(16,185,129,.22); color: #047857; font-size: 11px; font-weight: 950; }
+    .obs-nearby-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .obs-nearby-card { display: flex; align-items: stretch; min-height: 132px; padding: 0; gap: 0; border: 1px solid rgba(16,185,129,.14); border-radius: 14px; background: #fff; color: inherit; overflow: hidden; text-decoration: none; box-shadow: 0 10px 24px rgba(15,23,42,.035); }
+    .obs-nearby-card:hover, .obs-nearby-card:focus-visible { border-color: rgba(16,185,129,.28); box-shadow: 0 14px 28px rgba(15,23,42,.06); outline: none; }
+    .obs-area-thumb { width: 210px; flex: 0 0 210px; min-height: 0; aspect-ratio: 4 / 3; object-fit: cover; background: #e2e8f0; }
+    .obs-nearby-nophoto { width: 52px; height: 52px; aspect-ratio: auto; flex: 0 0 52px; margin: auto 16px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); color: #047857; font-size: 18px; display: grid; place-items: center; font-weight: 950; }
+    .obs-nearby-body { display: grid; align-content: center; gap: 5px; padding: 15px 16px; min-width: 0; }
+    .obs-nearby-body strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+    .obs-nearby-body span { color: #64748b; font-size: 11.5px; line-height: 1.45; font-weight: 760; }
     @media (max-width: 860px) {
       main { width: min(100% - 20px, 680px); padding-top: 14px; }
       .obs-read-progress { width: min(100% - 20px, 680px); }
       .header-actions .header-link--ghost { display: none; }
       .obs-reading-hero { grid-template-columns: 1fr; gap: 12px; }
-      .obs-reading-panel { order: 1; border-radius: 18px; }
-      .obs-reading-media { order: 2; }
+      .obs-reading-panel { display: contents; }
+      .obs-record-brief-compact { order: 1; display: grid; gap: 7px; padding: 9px 10px; }
+      .obs-reading-panel > .obs-media-ledger { order: 2; }
+      .obs-reading-media { order: 3; }
+      .obs-record-insight-desktop { order: 5; display: grid; }
+      .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 7; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
       .obs-reading-title { font-size: 25px; }
       .obs-photo--main img { aspect-ratio: 4 / 3; }
       .obs-photo:not(.obs-photo--main) { grid-column: span 3; }
       .obs-facts, .obs-action-rail, .obs-layer-grid { grid-template-columns: 1fr; }
-      .obs-media-ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .obs-record-story-head { display: grid; justify-content: stretch; gap: 8px; }
+      .obs-record-story-title { font-size: 17px; line-height: 1.45; overflow-wrap: anywhere; }
+      .obs-record-story-pill { justify-self: start; max-width: 100%; white-space: normal; }
+      .obs-record-story-cards, .obs-nearby-grid { grid-template-columns: 1fr; }
+      .obs-nearby-card { flex-direction: column; min-height: 0; }
+      .obs-area-thumb { width: 100%; flex: 0 0 auto; min-height: 0; height: auto; aspect-ratio: 16 / 9; }
+      .obs-nearby-body { padding: 11px 12px; gap: 4px; }
     }
   </style>
 </head>
@@ -7075,44 +7142,81 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
   </nav>
 </header>
 <nav class="obs-read-progress" aria-label="記録ページの読み進め">
-  <a href="#photos">写真</a>
-  <a href="#summary">記録</a>
-  <a href="#privacy">公開範囲</a>
+  <a href="#summary">場面の記録</a>
+  <a href="#photos">写真・動画</a>
+  <a href="#trust">状態</a>
+  <a href="#story">記録</a>
+  <a href="#identify">同定</a>
+  <a href="#place">場所</a>
   <a href="#meta">情報</a>
 </nav>
 <main data-cloudflare-observation-detail="1" data-visit-id="${escapeHtml(detail.visitId)}" data-occurrence-id="${escapeHtml(detail.occurrenceId)}">
   <article id="photos" class="obs-reading-hero">
-    <section class="obs-reading-media" aria-label="公開メディア">
+    <section class="obs-reading-media obs-media-evidence-shell" aria-label="公開メディア">
       <div class="obs-photo-grid">${photos}</div>
     </section>
-    <section class="obs-reading-panel" aria-label="観察記録">
-      <div id="summary" class="obs-record-brief">
-        <div class="obs-record-compact-meta">
-          <span>${escapeHtml(detail.observedAt)}</span>
-          <span>${escapeHtml(detail.publicLocation.label)}</span>
+    <aside class="obs-reading-panel" aria-label="観察記録">
+      <h1 class="sr-only">${escapeHtml(detail.displayName)}</h1>
+      <div id="summary" class="obs-record-brief obs-record-brief-compact" data-obs-section="summary" aria-label="この記録">
+        <div class="obs-record-compact-main">
+          <div class="obs-record-compact-meta">
+            <span>${escapeHtml(observedLabel)}</span>
+            <span>${escapeHtml(detail.publicLocation.label)}</span>
+          </div>
+          <span class="obs-hero-observer" aria-label="投稿者は公開していません">
+            <span class="obs-hero-avatar" aria-hidden="true">i</span>
+            <span>公開記録</span>
+          </span>
         </div>
       </div>
       <div class="obs-reading-kicker">観察記録</div>
       <h1 class="obs-reading-title">${escapeHtml(detail.displayName)}</h1>
-      <p class="obs-reading-lead">${escapeHtml(detail.isAwaitingId ? "同定待ちの公開記録です。" : "公開されている観察記録です。")}</p>
+      <p class="obs-reading-lead">${escapeHtml(detail.isAwaitingId ? "名前はまだ確定していない公開記録です。" : "公開範囲をぼかした観察記録です。")}</p>
       ${mediaLedger}
+      <section id="trust" class="obs-record-insight obs-record-insight-desktop">
+        <p>${escapeHtml(detail.isAwaitingId ? "この記録は、公開写真と日時だけを見られる状態です。名前は今後の確認で更新されることがあります。" : `${detail.displayName}として公開されています。公開ページでは、写真とセル単位の場所だけを扱います。`)}</p>
+      </section>
       <div class="obs-action-rail" aria-label="関連操作">
         <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
         <a class="obs-action" href="/records"><span>▦</span><strong>記録一覧</strong></a>
-        <a class="obs-action" href="/record"><span>＋</span><strong>記録する</strong></a>
+        <a class="obs-action" href="${escapeHtml(recordHref)}"><span>＋</span><strong>記録する</strong></a>
       </div>
       <div class="obs-facts">
-        <div class="obs-fact"><span>日時</span><strong>${escapeHtml(detail.observedAt)}</strong></div>
+        <div class="obs-fact"><span>日時</span><strong>${escapeHtml(observedLabel)}</strong></div>
         <div class="obs-fact"><span>公開範囲</span><strong>${escapeHtml(detail.publicLocation.label)} / ${escapeHtml(detail.publicLocation.cellId)}</strong></div>
         <div class="obs-fact"><span>写真</span><strong>${escapeHtml(String(detail.photoAssets.length))}</strong></div>
-        <div class="obs-fact"><span>公開ID</span><strong>${escapeHtml(detail.visitId)}</strong></div>
+        <div class="obs-fact"><span>状態</span><strong>${escapeHtml(stateLabel)}</strong></div>
       </div>
       ${note ? `<section class="obs-note"><h2>メモ</h2><p>${escapeHtml(note)}</p></section>` : ""}
       ${videos ? `<section class="obs-media-links"><h2>動画</h2>${videos}</section>` : ""}
       <section class="obs-privacy"><h2>公開位置</h2><p>このページでは、精密な座標や投稿者のプロフィールリンクは表示していません。</p></section>
-    </section>
+    </aside>
+    <div id="identify" class="obs-local-quality-inline is-full-width">
+      <section class="obs-local-quality-left">
+        <h2>同定</h2>
+        <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${detail.displayName} として表示しています。`)}</p>
+      </section>
+      <section class="obs-local-quality-card">
+        <h2>公開データ</h2>
+        <p>公開写真、公開セル、日時だけを使います。投稿者ID、精密座標、元画像URLは表示しません。</p>
+      </section>
+    </div>
   </article>
   <section class="obs-reading-flow" aria-label="記録の情報">
+    <section id="story" class="obs-record-story">
+      <div class="obs-record-story-head">
+        <div>
+          <div class="obs-record-story-eye">記録</div>
+          <h2 class="obs-record-story-title">${escapeHtml(detail.displayName)}</h2>
+        </div>
+        <span class="obs-record-story-pill">${escapeHtml(stateLabel)}</span>
+      </div>
+      <div class="obs-record-story-cards">
+        <div class="obs-record-story-card"><strong>写真</strong><p>${escapeHtml(`${photoCount}枚の公開サムネイルを表示しています。`)}</p></div>
+        <div class="obs-record-story-card"><strong>日時</strong><p>${escapeHtml(observedLabel)}</p></div>
+        <div class="obs-record-story-card"><strong>場所</strong><p>${escapeHtml(detail.publicLocation.cellId)}</p></div>
+      </div>
+    </section>
     <section id="privacy" class="obs-layer">
       <h2>公開範囲</h2>
       <div class="obs-layer-grid">
@@ -7121,6 +7225,16 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
         <div class="obs-layer-card"><span>精密座標</span><strong>非表示</strong></div>
       </div>
       <p>公開ページでは、観察地点をそのまま表示せず、地域図鑑用の公開セルで扱います。</p>
+    </section>
+    <section id="place" class="section obs-layer obs-layer-3 obs-area-records" data-obs-section="place">
+      <div class="obs-area-records-head">
+        <div>
+          <div class="obs-area-records-eye">同じ公開セル</div>
+          <h2>近くの公開記録</h2>
+        </div>
+        <span class="obs-area-count">${escapeHtml(`${related.length}件`)}</span>
+      </div>
+      <div class="obs-nearby-grid">${relatedCards}</div>
     </section>
     <section id="meta" class="obs-layer">
       <h2>記録情報</h2>
@@ -7134,6 +7248,13 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
 </main>
 </body>
 </html>`;
+}
+
+function formatPublicObservationDate(value: string | null | undefined): string {
+  if (!value) return "日時不明";
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return value;
+  return `${match[1]}-${match[2]}-${match[3]}`;
 }
 
 function escapeHtml(value: unknown): string {

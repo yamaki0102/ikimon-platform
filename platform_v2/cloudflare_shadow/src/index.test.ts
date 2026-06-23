@@ -2118,7 +2118,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(jsonPayload.observation.privacy.exactLocationExposed, false);
   assert.equal(jsonPayload.observation.photoAssets.length, 1);
   assert.match(jsonPayload.observation.photoAssets[0].url, /^\/derived\/v1-compat\/visit-detail-contract\/asset_/);
-  assert.doesNotMatch(JSON.stringify(jsonPayload), /34\.71234|137\.81234/);
+  assert.doesNotMatch(JSON.stringify(jsonPayload), /ownerUserId|observerUserId|observerName|profile|34\.71234|137\.81234/);
 
   const localizedJsonResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/observations/visit-detail-contract/public-detail"), env);
   const localizedJsonPayload = await localizedJsonResponse.json() as any;
@@ -2140,10 +2140,13 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /obs-media-ledger/);
   assert.match(pageHtml, /obs-action-rail/);
   assert.match(pageHtml, /obs-reading-flow/);
+  assert.match(pageHtml, /obs-record-story/);
+  assert.match(pageHtml, /obs-local-quality-inline is-full-width/);
+  assert.match(pageHtml, /obs-area-records/);
   assert.match(pageHtml, /詳細テスト植物/);
   assert.match(pageHtml, /cell:34\.71,137\.81/);
   assert.match(pageHtml, /精密な座標/);
-  assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|34\.71234|137\.81234/);
+  assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|ownerUserId|observerUserId|profile\/detail-user|34\.71234|137\.81234/);
 
   const localizedPageResponse = await worker.fetch(new Request("https://shadow.test/ja/observations/visit-detail-contract"), env);
   const localizedPageHtml = await localizedPageResponse.text();
@@ -4840,10 +4843,14 @@ test("production language-prefixed observation detail stays native and public-sa
     assert.match(body, /obs-read-progress/);
     assert.match(body, /obs-media-ledger/);
     assert.match(body, /obs-action-rail/);
+    assert.match(body, /obs-record-story/);
+    assert.match(body, /obs-local-quality-inline is-full-width/);
+    assert.match(body, /obs-area-records/);
+    assert.match(body, /record-native-public-peer-a|record-native-public-peer-b/);
     assert.match(body, /言語prefix記録/);
     assert.match(body, /cell:34\.71,137\.81/);
     assert.match(body, /精密な座標/);
-    assert.doesNotMatch(body, /data-shadow-observation-detail="1"|ikimon shadow|34\.71234|137\.81234|should-not-be-served|origin observation detail/);
+    assert.doesNotMatch(body, /data-shadow-observation-detail="1"|ikimon shadow|ownerUserId|observerUserId|profile\/detail-user|34\.71234|137\.81234|should-not-be-served|origin observation detail/);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
