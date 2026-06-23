@@ -2798,7 +2798,9 @@ function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
     || pathname === "/"
     || /^\/(?:ja|en|es|pt-br)\/?$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/guide$/.test(pathname)
-    || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname);
+    || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname)
+    || /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname)
+    || /^(?:\/(?:ja|en|es|pt-br))?\/records?$/.test(pathname);
 }
 
 async function getPublicDerivedMedia(url: URL, env: Env): Promise<Response> {

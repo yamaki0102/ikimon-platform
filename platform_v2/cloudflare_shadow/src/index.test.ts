@@ -4932,7 +4932,7 @@ test("production original UI app shells serve materialized HTML even with sessio
   }
 });
 
-test("production original UI html keeps personalized non-app-shell requests on origin fallback", async () => {
+test("production original UI profile shell stays materialized even with session cookies", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -4943,32 +4943,43 @@ test("production original UI html keeps personalized non-app-shell requests on o
   await env.ASSET_BUCKET.put("original-ui/html/ja/profile.html", "<!doctype html><title>materialized profile</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/profile/settings.html", "<!doctype html><title>materialized settings</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><main><title>materialized records</title></main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/record.html", "<!doctype html><title>materialized record</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  let fallbackCalls = 0;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    void input;
+    void init;
+    fallbackCalls += 1;
     return new Response("<!doctype html><title>personalized origin profile</title>", {
       headers: { "content-type": "text/html; charset=utf-8" }
     });
   }) as typeof fetch;
   try {
-    const response = await worker.fetch(new Request("https://ikimon.life/ja/profile", {
-      headers: { cookie: "ikimon_v2_session=secret" }
-    }), productionEnv);
-    const body = await response.text();
-    assert.equal(response.status, 200);
-    assert.equal(body.includes("personalized origin profile"), true);
-    assert.equal(seen.url, "https://ikimon.life/ja/profile");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.reason, "html_personalized_request");
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "html_personalized_request");
-    assert.equal(telemetry.routePattern, "/ja/profile");
-    assert.equal(JSON.stringify(telemetry).includes("secret"), false);
+    for (const check of [
+      { path: "/ja/profile", expected: "materialized profile" },
+      { path: "/ja/profile/settings", expected: "materialized settings" },
+      { path: "/ja/records", expected: "materialized records" },
+      { path: "/ja/record", expected: "materialized record" }
+    ]) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${check.path}`, {
+        headers: { cookie: "ikimon_v2_session=secret" }
+      }), productionEnv);
+      const body = await response.text();
+      assert.equal(response.status, 200, check.path);
+      assert.match(body, new RegExp(check.expected), check.path);
+      assert.doesNotMatch(body, /personalized origin profile/, check.path);
+    }
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
