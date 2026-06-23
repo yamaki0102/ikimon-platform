@@ -3456,7 +3456,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       el.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
-        selectRecord(record, { focusMap: false, openSheet: shouldUseBottomSheet() });
+        selectRecord(record, { focusMap: false, openSheet: shouldUseBottomSheet(), preserveSurroundings: true });
       });
       var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
         .setLngLat([item.center.lng, item.center.lat])
@@ -5471,12 +5471,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function selectRecord(record, options) {
     if (!record) return;
     closeOverlapChoice();
+    var preserveSurroundings = !!(options && options.preserveSurroundings);
     state.selectedOccurrenceId = record.occurrenceId || null;
-    state.selectedCellId = record.cellId || null;
-    var feature = findSelectableCellFeatureById(state.selectedCellId);
-    if (state.selectedCellId && (!feature || feature.properties.cellId !== state.selectedCellId)) {
+    var recordCellId = record.cellId || null;
+    state.selectedCellId = preserveSurroundings ? null : recordCellId;
+    var feature = findSelectableCellFeatureById(recordCellId);
+    if (recordCellId && (!feature || feature.properties.cellId !== recordCellId)) {
       for (var i = 0; i < state.features.length; i += 1) {
-        if (state.features[i] && state.features[i].properties && state.features[i].properties.cellId === state.selectedCellId) {
+        if (state.features[i] && state.features[i].properties && state.features[i].properties.cellId === recordCellId) {
           feature = state.features[i];
           break;
         }
@@ -5495,8 +5497,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     renderResultList();
     renderSelectedCard();
     renderSidePanels();
+    if (!shouldUseBottomSheet()) {
+      setSideRailMode(false);
+      setSideTab('selection');
+    }
     if (state.map && options && options.focusMap !== false) focusCellFeature(feature);
-    if (state.lastStats && state.lastStats.selectedCellId !== state.selectedCellId) {
+    if (!preserveSurroundings && state.lastStats && state.lastStats.selectedCellId !== state.selectedCellId) {
       loadRecords({ cellId: state.selectedCellId });
     }
     if (options && options.openSheet && shouldUseBottomSheet()) openBottomSheet(record);
