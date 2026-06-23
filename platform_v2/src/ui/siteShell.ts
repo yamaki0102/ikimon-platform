@@ -1272,6 +1272,32 @@ function globalRecordEntryScript(basePath: string): string {
     if (message === 'observation_not_found' || message.indexOf('observation not found:') === 0 || message === 'observation_not_owned') {
       return '保存した記録への写真の紐づけを確認できませんでした。';
     }
+    if (isDatabaseTemporarilyUnavailable(message)) {
+      return '保存先の準備が一時的に追いついていません。写真はこの画面に残しています。少し待ってもう一度押してください。';
+    }
+    if (message === 'Internal Server Error' || message === 'internal_server_error' || /^5\d\d$/.test(message)) {
+      return '保存先で一時的なエラーが起きました。写真はこの画面に残しています。少し待ってもう一度試してください。';
+    }
+    return message;
+  };
+  const isDatabaseTemporarilyUnavailable = (message) => {
+    const text = String(message || '');
+    return text.indexOf('57P03') >= 0
+      || text.indexOf('データベースシステムはまだ接続を受け付けていません') >= 0
+      || text.toLowerCase().indexOf('database system is starting up') >= 0
+      || text.toLowerCase().indexOf('database system is not yet accepting connections') >= 0;
+  };
+  const formatRecordSaveFailureReason = (error) => {
+    const message = String(error || '').trim();
+    if (!message || message === 'observation_upsert_failed') {
+      return '記録の保存に失敗しました。写真はこの画面に残しています。通信状態を確認してもう一度試してください。';
+    }
+    if (isDatabaseTemporarilyUnavailable(message)) {
+      return '保存先の準備が一時的に追いついていません。写真はこの画面に残しています。少し待ってもう一度押してください。';
+    }
+    if (message === 'Internal Server Error' || message === 'internal_server_error' || /^5\d\d$/.test(message)) {
+      return '保存先で一時的なエラーが起きました。写真はこの画面に残しています。少し待ってもう一度試してください。';
+    }
     return message;
   };
   let capturedReviewFile = null;
@@ -2210,7 +2236,7 @@ function globalRecordEntryScript(basePath: string): string {
           fileCount: files.length,
         });
         if (!observationResponse.ok || !observationJson.ok) {
-          throw new Error(observationJson.error || 'observation_upsert_failed');
+          throw new Error(observationJson.message || observationJson.error || observationJson.code || String(observationResponse.status || '') || 'observation_upsert_failed');
         }
         photoUploadTargetId = normalizeSavedObservationVisitId(observationJson, observationId);
         detailId = normalizeSavedObservationTargetId(observationJson, photoUploadTargetId || observationId);
@@ -2788,7 +2814,7 @@ function globalRecordEntryScript(basePath: string): string {
         else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
         else if (photoDraftRetryDetailId) setStatus('記録本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります。もう一度押すと同じ記録に再送します。');
-        else setStatus('記録に失敗しました。通信状態を確認してもう一度試してください。');
+        else setStatus(formatRecordSaveFailureReason(message));
       }
       return;
     }
