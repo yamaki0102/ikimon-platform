@@ -15462,9 +15462,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           successSavedCardNoPlace: ${JSON.stringify(recordForm.successSavedCardNoPlace)},
           successSavedCardMedia: ${JSON.stringify(recordForm.successSavedCardMedia)},
         };
-        const recordSuccessProfileHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/profile"), lang))};
-        const recordSuccessRecordsHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang))};
-        const recordSuccessMapHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang))};
+        const recordSuccessProfileHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/profile?source=record_saved"), lang))};
+        const recordSuccessRecordsHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/records?view=mine&source=record_saved"), lang))};
+        const recordSuccessMapHref = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/map?tab=places&source=record_saved"), lang))};
         const recordSuccessObservationHrefPrefix = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/observations/"), lang))};
         const recordSuccessRevisitHrefPrefix = ${JSON.stringify(appendLangToHref(withBasePath(basePath, "/record?start=gallery&revisitObservationId="), lang))};
 
