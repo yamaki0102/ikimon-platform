@@ -2136,6 +2136,10 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(pageResponse.ok, true, pageHtml);
   assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
   assert.match(pageHtml, /obs-reading-hero/);
+  assert.match(pageHtml, /obs-read-progress/);
+  assert.match(pageHtml, /obs-media-ledger/);
+  assert.match(pageHtml, /obs-action-rail/);
+  assert.match(pageHtml, /obs-reading-flow/);
   assert.match(pageHtml, /詳細テスト植物/);
   assert.match(pageHtml, /cell:34\.71,137\.81/);
   assert.match(pageHtml, /精密な座標/);
@@ -2146,6 +2150,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(localizedPageResponse.ok, true, localizedPageHtml);
   assert.match(localizedPageHtml, /data-cloudflare-observation-detail="1"/);
   assert.match(localizedPageHtml, /obs-reading-hero/);
+  assert.match(localizedPageHtml, /obs-media-ledger/);
   assert.match(localizedPageHtml, /詳細テスト植物/);
 
   const missingResponse = await worker.fetch(new Request("https://shadow.test/observations/not-found"), env);
@@ -4832,6 +4837,9 @@ test("production language-prefixed observation detail stays native and public-sa
     assert.equal(response.status, 200, body);
     assert.match(body, /data-cloudflare-observation-detail="1"/);
     assert.match(body, /obs-reading-hero/);
+    assert.match(body, /obs-read-progress/);
+    assert.match(body, /obs-media-ledger/);
+    assert.match(body, /obs-action-rail/);
     assert.match(body, /言語prefix記録/);
     assert.match(body, /cell:34\.71,137\.81/);
     assert.match(body, /精密な座標/);
