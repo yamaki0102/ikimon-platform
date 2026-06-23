@@ -39,6 +39,9 @@ test("JMA rain layer caps tile zoom at the API-supported max for overzooming", (
   assert.match(script, /var JMA_RAIN_TILE_MAX_ZOOM = 10;/);
   assert.match(rainSourceScript, /maxzoom: JMA_RAIN_TILE_MAX_ZOOM/);
   assert.match(rainSourceScript, /tiles: \[rainTileUrl\(entry, '\{z\}', '\{x\}', '\{y\}'\)\]/);
+  assert.match(script, /'raster-opacity': \['interpolate', \['linear'\], \['zoom'\], 4, 0\.5, 10, 0\.62, 14, 0\.68, 18, 0\.74\]/);
+  assert.match(script, /'raster-resampling': 'nearest'/);
+  assert.match(script, /'raster-fade-duration': 0/);
   assert.match(checkRainScript, /var z = 10;/);
   assert.match(checkRainScript, /rainTileUrl\(entry, z, tile\.x, tile\.y\)/);
   assert.doesNotMatch(rainSourceScript, /maxzoom: 22/);
@@ -248,6 +251,8 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /me-own-observation-marker/);
   assert.match(script, /me-my-photo-marker/);
   assert.match(script, /me-community-photo-marker/);
+  assert.match(script, /state\.tab !== 'markers' && state\.tab !== 'places'/);
+  assert.match(script, /zoom < 11\.5/);
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);
   assert.match(script, /function openOwnObservationStackSheet\(records\)/);
@@ -532,6 +537,7 @@ test("map guide spots render independently from area polygons", () => {
   assert.match(script, /renderGuideSourceLinks/);
   assert.match(script, /groupGuideSpotFeatures/);
   assert.match(script, /guideSpotClusterKey/);
+  assert.match(script, /zoom < 10 \? 0\.12 : zoom < 12 \? 0\.04 : zoom < 14 \? 0\.012 : 0\.002/);
   assert.match(script, /is-pin/);
   assert.match(script, /me-guide-cluster-count/);
   assert.doesNotMatch(script, /GUIDE_SPOT_LABEL_ZOOM/);
