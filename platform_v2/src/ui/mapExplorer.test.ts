@@ -253,6 +253,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /me-community-photo-marker/);
   assert.match(script, /state\.tab !== 'markers' && state\.tab !== 'places'/);
   assert.match(script, /zoom < 11\.5/);
+  assert.match(script, /selectRecord\(record, \{ focusMap: false, openSheet: shouldUseBottomSheet\(\), preserveSurroundings: true \}\)/);
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);
   assert.match(script, /function openOwnObservationStackSheet\(records\)/);
@@ -756,6 +757,20 @@ test("area polygon selection reopens the side panel before showing selection", (
   assert.match(script, /function openAreaFeatureSheet\(feature, lat, lng\)/);
   assert.match(script, /openAreaSheet\(fieldId, lat, lng, feature\)/);
   assert.match(openAreaSheetBody, /setSideRailMode\(false\);\s+renderSelectedCard\(\);\s+renderSidePanels\(\);\s+setSideTab\('selection'\);/);
+});
+
+test("community photo selection keeps nearby map context and opens the side panel", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const selectRecordBody = script.slice(
+    script.indexOf("function selectRecord(record, options)"),
+    script.indexOf("function openBottomSheet(record)"),
+  );
+
+  assert.match(selectRecordBody, /var preserveSurroundings = !!\(options && options\.preserveSurroundings\)/);
+  assert.match(selectRecordBody, /var recordCellId = record\.cellId \|\| null/);
+  assert.match(selectRecordBody, /state\.selectedCellId = preserveSurroundings \? null : recordCellId/);
+  assert.match(selectRecordBody, /setSideRailMode\(false\);\s+setSideTab\('selection'\);/);
+  assert.match(selectRecordBody, /if \(!preserveSurroundings && state\.lastStats && state\.lastStats\.selectedCellId !== state\.selectedCellId\) \{\s+loadRecords\(\{ cellId: state\.selectedCellId \}\);/);
 });
 
 test("map explorer keeps the regional guide label in the header and leaves the map canvas unobstructed", () => {
