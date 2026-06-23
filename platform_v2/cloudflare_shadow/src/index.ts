@@ -1148,9 +1148,6 @@ export const worker = {
 
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && publicDetailPageMatch?.[1]) {
-        if (shouldFallbackObservationDetailPageToOrigin(env)) {
-          return fetchOriginFallback(request, url, env, "observation_detail_origin_ui");
-        }
         return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), env);
       }
 
@@ -1452,10 +1449,6 @@ function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL
 
 function shouldUseOriginFallback(url: URL, env: Env): boolean {
   return Boolean(env.ORIGIN_FALLBACK_BASE_URL) && PUBLIC_CUSTOM_HOSTS.has(url.hostname);
-}
-
-function shouldFallbackObservationDetailPageToOrigin(env: Env): boolean {
-  return env.ENVIRONMENT === "production" && Boolean(env.ORIGIN_FALLBACK_BASE_URL);
 }
 
 function isSuspiciousPublicProbePath(pathname: string): boolean {
@@ -6976,39 +6969,88 @@ loadMap().catch((error) => {
 
 function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnType<typeof buildPublicObservationDetail>>>): string {
   const photos = detail.photoAssets.length > 0
-    ? detail.photoAssets.map((asset) => `<figure><img src="${escapeHtml(asset.url)}" alt="${escapeHtml(detail.displayName)}"><figcaption>公開用に処理済みの写真</figcaption></figure>`).join("")
-    : `<p class="empty">公開できる写真はまだありません。</p>`;
+    ? detail.photoAssets.map((asset, index) => `<figure class="obs-photo ${index === 0 ? "obs-photo--main" : ""}">
+        <img src="${escapeHtml(asset.url)}" alt="${escapeHtml(detail.displayName)}" loading="${index === 0 ? "eager" : "lazy"}">
+      </figure>`).join("")
+    : `<div class="obs-empty">公開できる写真はまだありません。</div>`;
   const videos = detail.videoAssets.length > 0
-    ? detail.videoAssets.map((asset) => `<li><a href="${escapeHtml(asset.watchUrl)}">${escapeHtml(asset.providerUid)}</a></li>`).join("")
+    ? detail.videoAssets.map((asset) => `<a class="obs-media-link" href="${escapeHtml(asset.watchUrl)}">動画を開く</a>`).join("")
     : "";
+  const note = typeof detail.note === "string" && detail.note.trim() !== "" ? detail.note.trim() : "";
   return `<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(detail.displayName)} - ikimon shadow</title>
+  <title>${escapeHtml(detail.displayName)} - ikimon</title>
   <style>
-    body { margin: 0; font-family: system-ui, sans-serif; color: #17201a; background: #f6f8f5; }
-    main { max-width: 880px; margin: 0 auto; padding: 32px 18px 56px; }
-    h1 { font-size: 28px; margin: 0 0 12px; letter-spacing: 0; }
-    .meta { color: #53615a; line-height: 1.7; }
-    .media { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 24px; }
-    figure { margin: 0; background: #fff; border: 1px solid #d8e0da; border-radius: 8px; overflow: hidden; }
-    img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #e8eee9; }
-    figcaption { padding: 10px 12px; color: #53615a; font-size: 13px; }
-    .notice { margin-top: 22px; padding: 14px 16px; background: #fff; border: 1px solid #d8e0da; border-radius: 8px; }
-    .empty { color: #53615a; }
+    :root { color-scheme: light; --ink: #0f172a; --muted: #64748b; --line: rgba(15,23,42,.1); --teal: #0f766e; --mint: #ecfdf5; --sky: #eff6ff; --paper: rgba(255,255,255,.94); }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: radial-gradient(circle at 12% 0%, rgba(20,184,166,.1), transparent 32%), linear-gradient(180deg, #f8fffc 0%, #f6f8fb 58%, #eef6f3 100%); }
+    a { color: inherit; }
+    .site-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px clamp(14px, 3vw, 32px); border-bottom: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.86); backdrop-filter: blur(14px); }
+    .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 950; }
+    .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #22d3ee 0%, #2dd4bf 46%, #bef264 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.55); }
+    .header-link { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; border-radius: 999px; background: #0f9f78; color: #fff; text-decoration: none; font-size: 13px; font-weight: 900; }
+    main { width: min(1180px, calc(100% - 28px)); margin: 0 auto; padding: 22px 0 58px; }
+    .obs-reading-hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: clamp(16px, 3vw, 30px); align-items: start; }
+    .obs-reading-media { display: grid; gap: 10px; min-width: 0; }
+    .obs-photo-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
+    .obs-photo { margin: 0; min-width: 0; overflow: hidden; border: 1px solid rgba(15,23,42,.08); border-radius: 16px; background: #e8f3ef; box-shadow: 0 18px 44px rgba(15,23,42,.08); }
+    .obs-photo--main { grid-column: 1 / -1; border-radius: 22px; }
+    .obs-photo:not(.obs-photo--main) { grid-column: span 2; }
+    .obs-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #dbeafe; }
+    .obs-photo--main img { aspect-ratio: 16 / 11; }
+    .obs-reading-panel { display: grid; gap: 12px; padding: clamp(16px, 2.4vw, 22px); border: 1px solid rgba(15,23,42,.08); border-radius: 22px; background: var(--paper); box-shadow: 0 22px 60px rgba(15,23,42,.09); }
+    .obs-reading-kicker { color: var(--teal); font-size: 11px; line-height: 1.3; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+    .obs-reading-title { margin: 0; color: var(--ink); font-size: clamp(27px, 4vw, 48px); line-height: 1.06; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
+    .obs-reading-lead { margin: 0; color: #475569; font-size: 14px; line-height: 1.7; font-weight: 760; }
+    .obs-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .obs-fact { display: grid; gap: 3px; min-width: 0; padding: 11px 12px; border: 1px solid rgba(15,23,42,.07); border-radius: 14px; background: rgba(248,250,252,.86); }
+    .obs-fact span { color: var(--muted); font-size: 10.5px; line-height: 1.3; font-weight: 900; }
+    .obs-fact strong { color: var(--ink); font-size: 13px; line-height: 1.45; font-weight: 900; overflow-wrap: anywhere; }
+    .obs-note, .obs-privacy, .obs-media-links { display: grid; gap: 7px; padding: 12px 13px; border-radius: 14px; border: 1px solid rgba(15,23,42,.07); background: linear-gradient(135deg, rgba(236,253,245,.82), rgba(239,246,255,.82)); }
+    .obs-note h2, .obs-privacy h2, .obs-media-links h2 { margin: 0; font-size: 12px; line-height: 1.35; font-weight: 950; color: var(--ink); letter-spacing: 0; }
+    .obs-note p, .obs-privacy p { margin: 0; color: #334155; font-size: 13px; line-height: 1.65; font-weight: 700; }
+    .obs-media-link { display: inline-flex; width: fit-content; min-height: 34px; align-items: center; padding: 0 12px; border-radius: 999px; background: #0f766e; color: #fff; text-decoration: none; font-size: 12px; font-weight: 900; }
+    .obs-empty { display: grid; min-height: 280px; place-items: center; border: 1px dashed rgba(15,23,42,.16); border-radius: 20px; background: rgba(255,255,255,.7); color: var(--muted); font-size: 13px; font-weight: 800; }
+    @media (max-width: 860px) {
+      main { width: min(100% - 20px, 680px); padding-top: 14px; }
+      .obs-reading-hero { grid-template-columns: 1fr; gap: 12px; }
+      .obs-reading-panel { order: 1; border-radius: 18px; }
+      .obs-reading-media { order: 2; }
+      .obs-reading-title { font-size: 25px; }
+      .obs-photo--main img { aspect-ratio: 4 / 3; }
+      .obs-photo:not(.obs-photo--main) { grid-column: span 3; }
+      .obs-facts { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-<main data-shadow-observation-detail="1" data-visit-id="${escapeHtml(detail.visitId)}" data-occurrence-id="${escapeHtml(detail.occurrenceId)}">
-  <p class="meta">ikimon shadow public observation</p>
-  <h1>${escapeHtml(detail.displayName)}</h1>
-  <p class="meta">観察日時: ${escapeHtml(detail.observedAt)}<br>公開位置: ${escapeHtml(detail.publicLocation.label)} (${escapeHtml(detail.publicLocation.cellId)})</p>
-  ${detail.note ? `<p>${escapeHtml(detail.note)}</p>` : ""}
-  <section class="media" aria-label="公開メディア">${photos}</section>
-  ${videos ? `<section class="notice"><h2>動画</h2><ul>${videos}</ul></section>` : ""}
-  <section class="notice"><strong>Privacy:</strong> exact location is not exposed in this public shadow page.</section>
+<header class="site-header">
+  <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>ikimon</span></a>
+  <a class="header-link" href="/map">地図へ</a>
+</header>
+<main data-cloudflare-observation-detail="1" data-visit-id="${escapeHtml(detail.visitId)}" data-occurrence-id="${escapeHtml(detail.occurrenceId)}">
+  <article class="obs-reading-hero">
+    <section class="obs-reading-media" aria-label="公開メディア">
+      <div class="obs-photo-grid">${photos}</div>
+    </section>
+    <section class="obs-reading-panel" aria-label="観察記録">
+      <div class="obs-reading-kicker">Observation</div>
+      <h1 class="obs-reading-title">${escapeHtml(detail.displayName)}</h1>
+      <p class="obs-reading-lead">${escapeHtml(detail.isAwaitingId ? "同定待ちの公開記録です。" : "公開されている観察記録です。")}</p>
+      <div class="obs-facts">
+        <div class="obs-fact"><span>日時</span><strong>${escapeHtml(detail.observedAt)}</strong></div>
+        <div class="obs-fact"><span>公開範囲</span><strong>${escapeHtml(detail.publicLocation.label)} / ${escapeHtml(detail.publicLocation.cellId)}</strong></div>
+        <div class="obs-fact"><span>写真</span><strong>${escapeHtml(String(detail.photoAssets.length))}</strong></div>
+        <div class="obs-fact"><span>公開ID</span><strong>${escapeHtml(detail.visitId)}</strong></div>
+      </div>
+      ${note ? `<section class="obs-note"><h2>メモ</h2><p>${escapeHtml(note)}</p></section>` : ""}
+      ${videos ? `<section class="obs-media-links"><h2>動画</h2>${videos}</section>` : ""}
+      <section class="obs-privacy"><h2>公開位置</h2><p>このページでは、精密な座標や投稿者のプロフィールリンクは表示していません。</p></section>
+    </section>
+  </article>
 </main>
 </body>
 </html>`;

@@ -2134,16 +2134,18 @@ test("public observation detail route exposes a safe read page and JSON without 
   const pageResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract"), env);
   const pageHtml = await pageResponse.text();
   assert.equal(pageResponse.ok, true, pageHtml);
-  assert.match(pageHtml, /data-shadow-observation-detail="1"/);
+  assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
+  assert.match(pageHtml, /obs-reading-hero/);
   assert.match(pageHtml, /詳細テスト植物/);
   assert.match(pageHtml, /cell:34\.71,137\.81/);
-  assert.match(pageHtml, /exact location is not exposed/);
-  assert.doesNotMatch(pageHtml, /34\.71234|137\.81234/);
+  assert.match(pageHtml, /精密な座標/);
+  assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|34\.71234|137\.81234/);
 
   const localizedPageResponse = await worker.fetch(new Request("https://shadow.test/ja/observations/visit-detail-contract"), env);
   const localizedPageHtml = await localizedPageResponse.text();
   assert.equal(localizedPageResponse.ok, true, localizedPageHtml);
-  assert.match(localizedPageHtml, /data-shadow-observation-detail="1"/);
+  assert.match(localizedPageHtml, /data-cloudflare-observation-detail="1"/);
+  assert.match(localizedPageHtml, /obs-reading-hero/);
   assert.match(localizedPageHtml, /詳細テスト植物/);
 
   const missingResponse = await worker.fetch(new Request("https://shadow.test/observations/not-found"), env);
@@ -3163,50 +3165,6 @@ test("production personal runtime returns native guest auth boundary without ori
     assert.equal(observationsBase.status, 404);
     assert.deepEqual(await observationsBase.json(), { ok: false, error: "not_found" });
     assert.equal(fallbackCalls, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("production observation detail pages fall back to origin SSR instead of shadow detail html", async () => {
-  const { env, core } = createEnv();
-  const productionEnv = {
-    ...env,
-    ENVIRONMENT: "production",
-    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
-  };
-  const originalFetch = globalThis.fetch;
-  const seen: Array<{ url: string; reason: string | null; resolveOverride: string | null }> = [];
-  globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    const request = input instanceof Request ? input : new Request(input, init);
-    seen.push({
-      url: request.url,
-      reason: request.headers.get("x-ikimon-cloudflare-fallback-reason"),
-      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride ?? null
-    });
-    return new Response("<!doctype html><main class=\"obs-reading-hero\">origin observation detail</main>", {
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8" }
-    });
-  }) as typeof fetch;
-
-  try {
-    const response = await worker.fetch(new Request("https://ikimon.life/ja/observations/record-1?subject=occ%3Arecord-1%3A0"), productionEnv);
-    const body = await response.text();
-
-    assert.equal(response.status, 200);
-    assert.match(body, /obs-reading-hero/);
-    assert.doesNotMatch(body, /data-shadow-observation-detail/);
-    assert.equal(seen.length, 1);
-    assert.equal(seen[0]?.url, "https://ikimon.life/ja/observations/record-1?subject=occ%3Arecord-1%3A0");
-    assert.equal(seen[0]?.reason, "observation_detail_origin_ui");
-    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "observation_detail_origin_ui");
-    assert.equal(telemetry.routePattern, "/ja/observations/:id");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -4811,7 +4769,7 @@ test("production public fallback blocks suspicious probe paths instead of forwar
   }
 });
 
-test("production language-prefixed observation detail page falls back to origin UI", async () => {
+test("production language-prefixed observation detail stays native and public-safe", async () => {
   const { env, core, queue } = createEnv();
   await post("/api/v1/observations/upsert", env, {
     observationId: "record-native-public",
@@ -4872,13 +4830,14 @@ test("production language-prefixed observation detail page falls back to origin 
     const response = await worker.fetch(new Request("https://ikimon.life/ja/observations/record-native-public"), productionEnv);
     const body = await response.text();
     assert.equal(response.status, 200, body);
-    assert.match(body, /origin observation detail/);
-    assert.doesNotMatch(body, /data-shadow-observation-detail="1"|言語prefix記録|cell:34\.71,137\.81|34\.71234|137\.81234|should-not-be-served/);
-    assert.equal(fallbackCalls, 1);
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "observation_detail_origin_ui");
-    assert.equal(telemetry.routePattern, "/ja/observations/:id");
+    assert.match(body, /data-cloudflare-observation-detail="1"/);
+    assert.match(body, /obs-reading-hero/);
+    assert.match(body, /言語prefix記録/);
+    assert.match(body, /cell:34\.71,137\.81/);
+    assert.match(body, /精密な座標/);
+    assert.doesNotMatch(body, /data-shadow-observation-detail="1"|ikimon shadow|34\.71234|137\.81234|should-not-be-served|origin observation detail/);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
