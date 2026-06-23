@@ -297,9 +297,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /prepublishLocationSet/);
         assert.match(response.body, /公開状態/);
         assert.match(response.body, /公開候補として保存しました/);
-        assert.match(response.body, /recordSuccessProfileHref = "\/ja\/profile"/);
-        assert.match(response.body, /recordSuccessRecordsHref = "\/ja\/records\?view=mine"/);
-        assert.match(response.body, /recordSuccessMapHref = "\/ja\/map\?tab=places"/);
+        assert.match(response.body, /recordSuccessProfileHref = "\/ja\/profile\?source=record_saved"/);
+        assert.match(response.body, /recordSuccessRecordsHref = "\/ja\/records\?view=mine&source=record_saved"/);
+        assert.match(response.body, /recordSuccessMapHref = "\/ja\/map\?tab=places&source=record_saved"/);
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/ja\/observations\/"/);
         assert.match(response.body, /successProfileCta: "マイページへ"/);
         assert.match(response.body, /successRecordsCta: "自分の記録を見る"/);
@@ -452,9 +452,9 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.match(response.body, /Waterside \/ catch/);
         assert.match(response.body, /href="\/en\/guide"/);
         assert.match(response.body, /href="\/en\/learn"/);
-        assert.match(response.body, /recordSuccessProfileHref = "\/en\/profile"/);
-        assert.match(response.body, /recordSuccessRecordsHref = "\/en\/records\?view=mine"/);
-        assert.match(response.body, /recordSuccessMapHref = "\/en\/map\?tab=places"/);
+        assert.match(response.body, /recordSuccessProfileHref = "\/en\/profile\?source=record_saved"/);
+        assert.match(response.body, /recordSuccessRecordsHref = "\/en\/records\?view=mine&source=record_saved"/);
+        assert.match(response.body, /recordSuccessMapHref = "\/en\/map\?tab=places&source=record_saved"/);
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/en\/observations\/"/);
         assert.match(response.body, /successProfileCta: "My page"/);
         assert.match(response.body, /successRecordsCta: "View my records"/);
