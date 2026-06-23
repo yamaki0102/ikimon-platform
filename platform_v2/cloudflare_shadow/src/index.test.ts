@@ -3168,6 +3168,50 @@ test("production personal runtime returns native guest auth boundary without ori
   }
 });
 
+test("production observation detail pages fall back to origin SSR instead of shadow detail html", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; reason: string | null; resolveOverride: string | null }> = [];
+  globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const request = input instanceof Request ? input : new Request(input, init);
+    seen.push({
+      url: request.url,
+      reason: request.headers.get("x-ikimon-cloudflare-fallback-reason"),
+      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride ?? null
+    });
+    return new Response("<!doctype html><main class=\"obs-reading-hero\">origin observation detail</main>", {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+  }) as typeof fetch;
+
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/ja/observations/record-1?subject=occ%3Arecord-1%3A0"), productionEnv);
+    const body = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(body, /obs-reading-hero/);
+    assert.doesNotMatch(body, /data-shadow-observation-detail/);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0]?.url, "https://ikimon.life/ja/observations/record-1?subject=occ%3Arecord-1%3A0");
+    assert.equal(seen[0]?.reason, "observation_detail_origin_ui");
+    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "observation_detail_origin_ui");
+    assert.equal(telemetry.routePattern, "/ja/observations/:id");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production personal runtime serves signed-in data from Cloudflare D1 without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
@@ -4767,7 +4811,7 @@ test("production public fallback blocks suspicious probe paths instead of forwar
   }
 });
 
-test("production language-prefixed observation detail stays native and public-safe", async () => {
+test("production language-prefixed observation detail page falls back to origin UI", async () => {
   const { env, core, queue } = createEnv();
   await post("/api/v1/observations/upsert", env, {
     observationId: "record-native-public",
@@ -4828,12 +4872,13 @@ test("production language-prefixed observation detail stays native and public-sa
     const response = await worker.fetch(new Request("https://ikimon.life/ja/observations/record-native-public"), productionEnv);
     const body = await response.text();
     assert.equal(response.status, 200, body);
-    assert.match(body, /data-shadow-observation-detail="1"/);
-    assert.match(body, /言語prefix記録/);
-    assert.match(body, /cell:34\.71,137\.81/);
-    assert.doesNotMatch(body, /34\.71234|137\.81234|should-not-be-served/);
-    assert.equal(fallbackCalls, 0);
-    assert.equal(core.operationAudit.length, 0);
+    assert.match(body, /origin observation detail/);
+    assert.doesNotMatch(body, /data-shadow-observation-detail="1"|言語prefix記録|cell:34\.71,137\.81|34\.71234|137\.81234|should-not-be-served/);
+    assert.equal(fallbackCalls, 1);
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "observation_detail_origin_ui");
+    assert.equal(telemetry.routePattern, "/ja/observations/:id");
   } finally {
     globalThis.fetch = originalFetch;
   }
