@@ -208,6 +208,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /record_submit_error/);
         assert.match(response.body, /photo_upload_error/);
         assert.match(response.body, /video_upload_error/);
+        assert.match(response.body, /isDatabaseTemporarilyUnavailable/);
+        assert.match(response.body, /57P03/);
+        assert.match(response.body, /formatRecordSaveFailureReason/);
+        assert.match(response.body, /escapeHtmlText\(userMessage\)/);
         assert.match(response.body, /const statusHeading = savedDetailId \? '記録本体は保存済みです。' : '送信に失敗しました。'/);
         assert.match(response.body, /const saveRecordDraft = async \(draft\) =>/);
         assert.match(response.body, /const deleteRecordDraft = async \(\) =>/);

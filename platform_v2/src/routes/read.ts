@@ -15926,6 +15926,36 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#39;');
 
+        const isDatabaseTemporarilyUnavailable = (message) => {
+          const text = String(message || '');
+          return text.indexOf('57P03') >= 0
+            || text.indexOf('データベースシステムはまだ接続を受け付けていません') >= 0
+            || text.toLowerCase().indexOf('database system is starting up') >= 0
+            || text.toLowerCase().indexOf('database system is not yet accepting connections') >= 0;
+        };
+
+        const apiFailureMessage = (json, response, fallback) => {
+          if (json && typeof json.message === 'string' && json.message.trim()) return json.message.trim();
+          if (json && typeof json.error === 'string' && json.error.trim()) return json.error.trim();
+          if (json && typeof json.code === 'string' && json.code.trim()) return json.code.trim();
+          if (response && response.status) return String(response.status);
+          return fallback || 'request_failed';
+        };
+
+        const formatRecordSaveFailureReason = (message) => {
+          const text = String(message || '').trim();
+          if (!text || text === 'observation_upsert_failed') {
+            return '記録の保存に失敗しました。入力内容と写真はこの画面に残しています。通信状態を確認してもう一度試してください。';
+          }
+          if (isDatabaseTemporarilyUnavailable(text)) {
+            return '保存先の準備が一時的に追いついていません。入力内容と写真はこの画面に残しています。少し待ってもう一度押してください。';
+          }
+          if (text === 'Internal Server Error' || text === 'internal_server_error' || /^5\d\d$/.test(text)) {
+            return '保存先で一時的なエラーが起きました。入力内容と写真はこの画面に残しています。少し待ってもう一度試してください。';
+          }
+          return text;
+        };
+
         const formatObservedDate = (value) => {
           if (!value) return '';
           const parsed = new Date(String(value));
@@ -18934,9 +18964,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 credentials: 'include',
                 body: JSON.stringify(payload),
               });
-              observationJson = await observationResponse.json();
+              observationJson = await observationResponse.json().catch(() => ({}));
               if (!observationResponse.ok || !observationJson.ok) {
-                throw new Error(observationJson.error || 'observation_upsert_failed');
+                throw new Error(apiFailureMessage(observationJson, observationResponse, 'observation_upsert_failed'));
               }
               visitId = normalizeSavedObservationVisitId(observationJson, observationId);
               detailId = normalizeSavedObservationTargetId(observationJson, visitId || observationId);
@@ -18969,9 +18999,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     facePrivacy: upload.facePrivacy || null,
                   }),
                 });
-                const photoJson = await photoResponse.json();
+                const photoJson = await photoResponse.json().catch(() => ({}));
                 if (!photoResponse.ok || !photoJson.ok) {
-                  throw new Error('photo_upload_failed_at_' + String(index) + ':' + (photoJson.error || 'photo_upload_failed'));
+                  throw new Error('photo_upload_failed_at_' + String(index) + ':' + apiFailureMessage(photoJson, photoResponse, 'photo_upload_failed'));
                 }
                 sendRecordFunnelStep('photo_upload_success', {
                   visitId,
@@ -19179,7 +19209,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               syncPreview();
             } catch (error) {
               const message = normalizeError(error);
-              let userMessage = message;
+              let userMessage = formatRecordSaveFailureReason(message);
               if (message === 'video_file_too_large') userMessage = '動画サイズが大きすぎます。短く切り出すか、画質を下げてください。';
               if (message === 'video_duration_too_long') userMessage = '動画の長さは 60 秒以内にしてください。';
               if (message === 'video_trim_required') userMessage = '動画は記録前に最大60秒の区間を選んでください。';
@@ -19251,7 +19281,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 occurrenceId: savedDetailId || null,
                 partialRecordSaved: Boolean(savedDetailId),
               });
-              setStatus('<div class="row"><div>' + statusHeading + '<div class="meta">' + userMessage + '</div>' + partialLink + retryDraftNote + unsavedDraftNote + invasiveReportingNote + '</div></div>');
+              setStatus('<div class="row"><div>' + escapeHtmlText(statusHeading) + '<div class="meta">' + escapeHtmlText(userMessage) + '</div>' + partialLink + retryDraftNote + unsavedDraftNote + invasiveReportingNote + '</div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
               activeTusUpload = null;
