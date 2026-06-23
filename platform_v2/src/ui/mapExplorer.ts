@@ -2506,7 +2506,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         id: 'jma-rain-nowcast-layer',
         type: 'raster',
         source: 'jma-rain-nowcast',
-        paint: { 'raster-opacity': 0.62 }
+        paint: {
+          'raster-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0.5, 10, 0.62, 14, 0.68, 18, 0.74],
+          'raster-resampling': 'nearest',
+          'raster-fade-duration': 0
+        }
       });
       setRainStatus(COPY.rainAttribution);
     } catch (err) {
@@ -3437,9 +3441,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function refreshDiscoveryPreviewMarkers() {
     clearDiscoveryPreviewMarkers();
-    if (!state.map || !window.maplibregl || state.tab !== 'markers') return;
+    if (!state.map || !window.maplibregl || (state.tab !== 'markers' && state.tab !== 'places')) return;
     var zoom = state.map.getZoom();
-    if (!Number.isFinite(zoom) || zoom < 14.4) return;
+    if (!Number.isFinite(zoom) || zoom < 11.5) return;
     pickDiscoveryPreviewRecords().forEach(function (item) {
       var record = item.record;
       var el = document.createElement('button');
@@ -7501,7 +7505,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var areaId = String(spot.guideAreaId || spot.guide_area_id || '').trim();
     if (areaId) return 'area:' + areaId;
     if (!center) return 'unknown';
-    return 'grid:' + Math.round(center.lat / 0.002) + ':' + Math.round(center.lng / 0.002);
+    var zoom = state.map && typeof state.map.getZoom === 'function' ? Number(state.map.getZoom()) : 14;
+    var grid = !Number.isFinite(zoom) ? 0.012 : zoom < 10 ? 0.12 : zoom < 12 ? 0.04 : zoom < 14 ? 0.012 : 0.002;
+    return 'grid:' + String(grid) + ':' + Math.round(center.lat / grid) + ':' + Math.round(center.lng / grid);
   }
 
   function groupGuideSpotFeatures(features) {
