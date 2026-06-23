@@ -261,12 +261,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintJump: "見える場所へ",
     layerHintDismiss: "閉じる",
     purposeHintTitle: "残したい風景を探す",
-    purposeHintBody: "気になる場所を選ぶと、最近の発見と見に行く理由が見えます。",
+    purposeHintBody: "気になる場所を選ぶと、記録と季節の手がかりが見えます。",
     purposeHintDismiss: "この案内を閉じる",
     loading: "読み込み中…",
     recordsLoading: "記録を読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "記録が少ない場所でも、近くの発見や季節を変えると歩く理由が見つかります。",
+    empty: "記録が少ない場所でも、近くの記録や季節を変えると手がかりが見つかります。",
     emptyTitle: "ここは、これから育つ場所です",
     emptyLead: "空っぽではありません。少し広げると近くの記録が見え、見つけたものを足すとこの地域図鑑が育ちます。",
     emptyActionAreas: "候補エリアを見る",
@@ -277,7 +277,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseProfile: "マイページ",
     personalPulseRecords: "自分の記録",
     sideRecentLabel: "この範囲の記録",
-    recentFindsHint: "この場所で見えたもの",
+    recentFindsHint: "記録",
     sideRevisitLabel: "選んだ場所",
     crossEyebrow: "この場所で、次の自然体験を残す",
     crossLensLabel: JA_PUBLIC_SHARED_COPY.cta.openGuide,
@@ -292,14 +292,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetExpandLabel: "詳細を広げる",
     bottomSheetCollapseLabel: "詳細を半分に戻す",
     siteBriefHeading: "地図だけではわからないこと",
-    siteBriefReasonsLabel: "最近の発見",
+    siteBriefReasonsLabel: "記録",
     siteBriefChecksLabel: "現地で安全に確かめること",
     siteBriefCapturesLabel: "撮るなら",
     siteBriefEnvironmentLabel: "衛星・地図の手がかり",
-    siteBriefWhyHereLabel: "行きたくなる理由",
-    siteBriefWhyNowLabel: "今の季節",
+    siteBriefWhyHereLabel: "記録",
+    siteBriefWhyNowLabel: "季節",
     siteBriefOneVisitLabel: "今日できること",
-    siteBriefNextHookLabel: "また見たくなること",
+    siteBriefNextHookLabel: "次の手がかり",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "地図だけでは読み解けません。立入可否と現地の安全を優先してください。",
     searchPlaceholder: "場所や生きものを探す（例: 静岡市 谷津山、モンシロチョウ）",
@@ -328,7 +328,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaNextStepScopeLine: "現地の案内板・公開範囲・管理者のルールを優先する。",
     areaNextStepRecordLine: "公開範囲で見つけたものだけを記録し、正確な立入場所を無理に残さない。",
     areaNextStepFirstRecordLine: "まだ記録が少ない場所です。公開範囲で見つけたものが最初の手がかりになります。",
-    areaNextStepBrowseLine: "先に写真や季節の記録を見て、見に行く理由を決める。",
+    areaNextStepBrowseLine: "先に写真や季節の記録を見て、場所の状態をつかむ。",
     areaNextStepGuideLine: "現地ガイドがある場所は、近づいてから音声や説明を開く。",
     areaNextStepRestrictedLine: "学校・私有地・未確認区域では、敷地内へ入らず、許可された観察だけを扱う。",
     areaNextStepRecordCta: "安全に記録する",
@@ -458,14 +458,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetExpandLabel: "Expand details",
     bottomSheetCollapseLabel: "Return details to half height",
     siteBriefHeading: "What you may find here",
-    siteBriefReasonsLabel: "Why",
+    siteBriefReasonsLabel: "Records",
     siteBriefChecksLabel: "Check on the ground",
     siteBriefCapturesLabel: "If you shoot",
     siteBriefEnvironmentLabel: "Satellite/map clues",
-    siteBriefWhyHereLabel: "why go",
-    siteBriefWhyNowLabel: "this season",
+    siteBriefWhyHereLabel: "records",
+    siteBriefWhyNowLabel: "season",
     siteBriefOneVisitLabel: "what to do",
-    siteBriefNextHookLabel: "why return",
+    siteBriefNextHookLabel: "next clue",
     siteBriefLoading: "Reading this place…",
     siteBriefError: "Could not read this place. Trust your field sense.",
     searchPlaceholder: "Find a place or species (e.g. Shizuoka, swallowtail)",
@@ -624,14 +624,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetExpandLabel: "Ampliar detalles",
     bottomSheetCollapseLabel: "Volver a media altura",
     siteBriefHeading: "Qué puedes encontrar aquí",
-    siteBriefReasonsLabel: "Por qué",
+    siteBriefReasonsLabel: "Registros",
     siteBriefChecksLabel: "Verifica en el sitio",
     siteBriefCapturesLabel: "Si disparas",
     siteBriefEnvironmentLabel: "Pistas de satélite/mapa",
-    siteBriefWhyHereLabel: "por qué ir",
-    siteBriefWhyNowLabel: "esta estación",
+    siteBriefWhyHereLabel: "registros",
+    siteBriefWhyNowLabel: "estación",
     siteBriefOneVisitLabel: "qué hacer",
-    siteBriefNextHookLabel: "por qué volver",
+    siteBriefNextHookLabel: "siguiente pista",
     siteBriefLoading: "Leyendo este lugar…",
     siteBriefError: "No pude leer este lugar. Confía en tu campo.",
     searchPlaceholder: "Buscar lugar o especie (p. ej. Shizuoka, mariposa)",
@@ -790,14 +790,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetExpandLabel: "Expandir detalhes",
     bottomSheetCollapseLabel: "Voltar para meia altura",
     siteBriefHeading: "O que você pode encontrar aqui",
-    siteBriefReasonsLabel: "Porquê",
+    siteBriefReasonsLabel: "Registros",
     siteBriefChecksLabel: "Verifique no campo",
     siteBriefCapturesLabel: "Se for fotografar",
     siteBriefEnvironmentLabel: "Pistas de satélite/mapa",
-    siteBriefWhyHereLabel: "por que ir",
-    siteBriefWhyNowLabel: "esta estação",
+    siteBriefWhyHereLabel: "registros",
+    siteBriefWhyNowLabel: "estação",
     siteBriefOneVisitLabel: "o que fazer",
-    siteBriefNextHookLabel: "por que voltar",
+    siteBriefNextHookLabel: "próxima pista",
     siteBriefLoading: "Lendo este lugar…",
     siteBriefError: "Não consegui ler este lugar. Confie no campo.",
     searchPlaceholder: "Buscar local ou espécie (ex.: Shizuoka, borboleta)",
@@ -1664,7 +1664,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     siteBriefLoading: copy.siteBriefLoading,
     siteBriefError: copy.siteBriefError,
     loopHookTravelerFallback: props.lang === "ja" ? "今回の 1 回を、次の寄り道の理由に変える" : props.lang === "es" ? "Convierte esta visita en motivo para volver" : props.lang === "pt-BR" ? "Transforme esta visita em motivo para voltar" : "Turn this one visit into a reason to return",
-    loopHookLocalFallback: props.lang === "ja" ? "次にまた見に来る理由を 1 行残す" : props.lang === "es" ? "Deja una razón breve para volver" : props.lang === "pt-BR" ? "Deixe um motivo curto para voltar" : "Leave one short reason to return",
+    loopHookLocalFallback: props.lang === "ja" ? "次の人の手がかりを 1 行残す" : props.lang === "es" ? "Deja una pista breve para la siguiente persona" : props.lang === "pt-BR" ? "Deixe uma pista curta para a próxima pessoa" : "Leave one short clue for the next person",
     loopHookLocalPrefix: props.lang === "ja" ? "次は " : props.lang === "es" ? "Lo siguiente: " : props.lang === "pt-BR" ? "Próximo: " : "Next: ",
     searchNoResult: copy.searchNoResult,
     searchError: copy.searchError,
@@ -1815,7 +1815,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     searchRecentPrefix: props.lang === "ja" ? "直近" : props.lang === "es" ? "Último" : props.lang === "pt-BR" ? "Recente" : "Latest",
     openDiscoverySuffix: props.lang === "ja" ? "を開く" : props.lang === "es" ? ": abrir" : props.lang === "pt-BR" ? ": abrir" : " - open",
     walkableFindsAria: props.lang === "ja" ? "徒歩5分圏の発見" : props.lang === "es" ? "Hallazgos a cinco minutos a pie" : props.lang === "pt-BR" ? "Descobertas a cinco minutos a pé" : "Finds within a five-minute walk",
-    walkableFindsTitle: props.lang === "ja" ? "近くで見えたもの" : props.lang === "es" ? "Lo visto cerca" : props.lang === "pt-BR" ? "O que apareceu por perto" : "What appeared nearby",
+    walkableFindsTitle: props.lang === "ja" ? "近くの記録" : props.lang === "es" ? "Lo visto cerca" : props.lang === "pt-BR" ? "O que apareceu por perto" : "What appeared nearby",
     nearDistanceImmediate: props.lang === "ja" ? "すぐ近く" : props.lang === "es" ? "muy cerca" : props.lang === "pt-BR" ? "bem perto" : "nearby",
     nearDistanceApproxPrefix: props.lang === "ja" ? "約" : props.lang === "es" ? "aprox. " : props.lang === "pt-BR" ? "aprox. " : "about ",
     placeStoryTitle: props.lang === "ja" ? "場所ストーリー" : props.lang === "es" ? "Historia del lugar" : props.lang === "pt-BR" ? "História do local" : "Place story",
@@ -2293,6 +2293,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     nearbyAreaMarkers: [],
     nearbyAreaOrigin: null,
     nearbyAreaLocateMovePending: false,
+    suppressViewportSearchUntil: 0,
+    suppressNextViewportSearch: false,
     guideSpotMarkers: [],
     rainEnabled: false,
     rainTimes: [],
@@ -3421,18 +3423,25 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function pickDiscoveryPreviewRecords() {
     var picked = [];
-    var seenCells = {};
+    var cellCounts = {};
     var seenGroups = {};
     var candidates = sortedDiscoveryPreviewCandidates();
     var pushIfUsable = function (record, preferNewGroup) {
-      if (!record || picked.length >= 12 || !record.cellId || seenCells[record.cellId]) return;
+      if (!record || picked.length >= 24 || !record.cellId) return;
+      var cellCount = cellCounts[record.cellId] || 0;
+      if (cellCount >= 3) return;
       var group = record.taxonGroup || record.dominantTaxonGroup || '';
       if (preferNewGroup && group && seenGroups[group]) return;
       var center = recordCellCenter(record);
       if (!center) return;
-      seenCells[record.cellId] = true;
+      cellCounts[record.cellId] = cellCount + 1;
+      var offset = [
+        [0, 0],
+        [0.0045, 0.0032],
+        [-0.0045, -0.0032],
+      ][cellCount] || [0, 0];
       if (group) seenGroups[group] = true;
-      picked.push({ record: record, center: center });
+      picked.push({ record: record, center: { lng: center.lng + offset[0], lat: center.lat + offset[1] } });
     };
     candidates.forEach(function (record) { pushIfUsable(record, true); });
     candidates.forEach(function (record) { pushIfUsable(record, false); });
@@ -5498,6 +5507,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     renderSelectedCard();
     renderSidePanels();
     if (!shouldUseBottomSheet()) {
+      if (preserveSurroundings) {
+        state.suppressViewportSearchUntil = Date.now() + 5000;
+        state.suppressNextViewportSearch = true;
+        state.pendingViewportSearch = false;
+        clearViewportRefreshTimer();
+        updateSearchAreaUi();
+      }
       setSideRailMode(false);
       setSideTab('selection');
     }
@@ -7820,8 +7836,32 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     loadMyObservations();
   }
 
+  function clearSuppressedViewportSearch() {
+    state.suppressViewportSearchUntil = 0;
+    state.suppressNextViewportSearch = false;
+  }
+
+  function consumeSuppressedViewportSearch() {
+    var suppressViewportSearch = state.suppressViewportSearchUntil
+      && Date.now() <= state.suppressViewportSearchUntil;
+    if (!suppressViewportSearch) {
+      clearSuppressedViewportSearch();
+      return false;
+    }
+    state.suppressNextViewportSearch = false;
+    state.pendingViewportSearch = false;
+    clearViewportRefreshTimer();
+    var resizedBbox = currentBboxString();
+    if (resizedBbox) state.lastSearchedBbox = resizedBbox;
+    updateSearchAreaUi();
+    refreshDiscoveryPreviewMarkers();
+    renderOwnObservationMarkers();
+    return true;
+  }
+
   function refreshViewportSearchData() {
     if (!state.map) return;
+    if (consumeSuppressedViewportSearch()) return;
     clearViewportRefreshTimer();
     var bbox = currentBboxString();
     if (bbox) state.lastSearchedBbox = bbox;
@@ -8235,6 +8275,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         return;
       }
       saveMapState();
+      if (consumeSuppressedViewportSearch()) return;
       if (state.nearbyAreaLocateMovePending) {
         state.nearbyAreaLocateMovePending = false;
       } else if (state.nearbyAreaOrigin) {
@@ -8254,6 +8295,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
       if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);
     });
+    state.map.on('dragstart', clearSuppressedViewportSearch);
+    state.map.on('zoomstart', clearSuppressedViewportSearch);
     // Empty-point tap → Site Brief. Skip if the click hit an observation
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
@@ -9749,55 +9792,55 @@ export const MAP_EXPLORER_STYLES = `
     border: 1px solid rgba(16,185,129,.18);
   }
   .me-discovery-preview {
-    width: 72px;
-    min-height: 78px;
+    width: 50px;
+    min-height: 58px;
     display: grid;
     position: relative;
     justify-items: center;
     align-content: start;
-    gap: 4px;
-    padding: 5px;
+    gap: 3px;
+    padding: 4px;
     border: 0;
-    border-radius: 14px;
+    border-radius: 12px;
     background: rgba(255,255,255,.96);
-    box-shadow: 0 10px 24px rgba(15,23,42,.18);
+    box-shadow: 0 8px 18px rgba(15,23,42,.16);
     color: #0f172a;
     cursor: pointer;
     transform-origin: bottom center;
     transition: transform .15s ease, box-shadow .15s ease;
   }
-  .me-discovery-preview:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(15,23,42,.22); }
+  .me-discovery-preview:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(15,23,42,.20); }
   .me-discovery-preview img,
   .me-discovery-preview i {
-    width: 62px;
-    height: 48px;
-    border-radius: 10px;
+    width: 42px;
+    height: 31px;
+    border-radius: 8px;
     object-fit: cover;
     display: grid;
     place-items: center;
     background: linear-gradient(135deg, #e0f2fe, #dcfce7);
     color: #0f766e;
     font-style: normal;
-    font-size: 22px;
+    font-size: 16px;
   }
   .me-discovery-preview span {
-    max-width: 62px;
-    min-height: 24px;
+    max-width: 42px;
+    min-height: 18px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-align: center;
-    font-size: 10px;
-    line-height: 1.2;
+    font-size: 8.5px;
+    line-height: 1.1;
     font-weight: 900;
     letter-spacing: 0;
   }
   .me-discovery-preview::after {
     content: "";
-    width: 10px;
-    height: 10px;
-    margin-bottom: -10px;
+    width: 8px;
+    height: 8px;
+    margin-bottom: -8px;
     transform: rotate(45deg);
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);

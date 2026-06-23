@@ -171,7 +171,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /地域図鑑マップ/);
   assert.match(html, /id="me-purpose-hint"/);
   assert.match(html, /残したい風景を探す/);
-  assert.match(html, /気になる場所を選ぶと、最近の発見と見に行く理由が見えます。/);
+  assert.match(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
   assert.match(html, /この範囲の記録/);
   assert.match(html, /data-testid="map-personal-pulse-panel"/);
   assert.match(html, /自分の記録へすぐ戻る/);
@@ -765,12 +765,54 @@ test("community photo selection keeps nearby map context and opens the side pane
     script.indexOf("function selectRecord(record, options)"),
     script.indexOf("function openBottomSheet(record)"),
   );
+  const moveendBody = script.slice(
+    script.indexOf("state.map.on('moveend', function ()"),
+    script.indexOf("// Empty-point tap"),
+  );
+  const consumeSuppressedViewportSearchBody = script.slice(
+    script.indexOf("function consumeSuppressedViewportSearch()"),
+    script.indexOf("function refreshViewportSearchData()"),
+  );
+  const refreshViewportSearchDataBody = script.slice(
+    script.indexOf("function refreshViewportSearchData()"),
+    script.indexOf("function scheduleViewportRefresh()"),
+  );
 
   assert.match(selectRecordBody, /var preserveSurroundings = !!\(options && options\.preserveSurroundings\)/);
   assert.match(selectRecordBody, /var recordCellId = record\.cellId \|\| null/);
   assert.match(selectRecordBody, /state\.selectedCellId = preserveSurroundings \? null : recordCellId/);
+  assert.match(selectRecordBody, /state\.suppressViewportSearchUntil = Date\.now\(\) \+ 5000;/);
+  assert.match(selectRecordBody, /state\.suppressNextViewportSearch = true;/);
+  assert.match(selectRecordBody, /state\.pendingViewportSearch = false;\s+clearViewportRefreshTimer\(\);\s+updateSearchAreaUi\(\);/);
   assert.match(selectRecordBody, /setSideRailMode\(false\);\s+setSideTab\('selection'\);/);
   assert.match(selectRecordBody, /if \(!preserveSurroundings && state\.lastStats && state\.lastStats\.selectedCellId !== state\.selectedCellId\) \{\s+loadRecords\(\{ cellId: state\.selectedCellId \}\);/);
+  assert.match(consumeSuppressedViewportSearchBody, /var suppressViewportSearch = state\.suppressViewportSearchUntil\s+&& Date\.now\(\) <= state\.suppressViewportSearchUntil;/);
+  assert.match(consumeSuppressedViewportSearchBody, /state\.pendingViewportSearch = false;[\s\S]+state\.lastSearchedBbox = resizedBbox;[\s\S]+return true;/);
+  assert.match(refreshViewportSearchDataBody, /if \(consumeSuppressedViewportSearch\(\)\) return;/);
+  assert.match(moveendBody, /if \(consumeSuppressedViewportSearch\(\)\) return;/);
+});
+
+test("community photo preview markers stay compact while allowing more visible places", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /picked\.length >= 24/);
+  assert.match(script, /var cellCounts = \{\};/);
+  assert.match(script, /if \(cellCount >= 3\) return;/);
+  assert.match(script, /\[0\.0045, 0\.0032\]/);
+  assert.match(script, /center: \{ lng: center\.lng \+ offset\[0\], lat: center\.lat \+ offset\[1\] \}/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview \{\s+width: 50px;\s+min-height: 58px;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview img,\s+\.me-discovery-preview i \{\s+width: 42px;\s+height: 31px;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview span \{\s+max-width: 42px;\s+min-height: 18px;[\s\S]+font-size: 8\.5px;/);
+});
+
+test("Japanese map detail labels avoid service-authored motivation headings", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.doesNotMatch(script, /行きたくなる理由|また見たくなること|見に行く理由|歩く理由|近くで見えたもの|この場所で見えたもの/);
+  assert.match(script, /"siteBriefWhyHereLabel":"記録"/);
+  assert.match(script, /"siteBriefWhyNowLabel":"季節"/);
+  assert.match(script, /"siteBriefNextHookLabel":"次の手がかり"/);
+  assert.match(script, /"walkableFindsTitle":"近くの記録"/);
 });
 
 test("map explorer keeps the regional guide label in the header and leaves the map canvas unobstructed", () => {
