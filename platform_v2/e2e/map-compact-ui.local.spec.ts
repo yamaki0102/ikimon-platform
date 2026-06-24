@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { installMapLibreStubForSmoke, suppressMapLibreForSmoke } from "./support/staging.js";
 
-test("map start controls stay compact while legend starts collapsed", async ({ browser }) => {
+test("map first view uses top tabs instead of a floating start panel", async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: process.env.STAGING_BASE_URL ?? "http://127.0.0.1:4322",
     serviceWorkers: "block",
@@ -13,19 +13,12 @@ test("map start controls stay compact while legend starts collapsed", async ({ b
 
   await page.goto("/ja/map", { waitUntil: "domcontentloaded" });
   const startPanel = page.getByTestId("map-start-panel");
-  await expect(startPanel).toBeVisible();
-  await expect(startPanel).toHaveClass(/is-collapsed/);
-  const panelBox = await startPanel.boundingBox();
-  expect(panelBox?.width).toBeLessThanOrEqual(48);
-  expect(panelBox?.height).toBeLessThanOrEqual(48);
-  await startPanel.getByRole("button", { name: "地図メニュー" }).click();
-  await expect(startPanel).not.toHaveClass(/is-collapsed/);
-  await expect(startPanel).toContainText("散策");
-  const expandedPanelBox = await startPanel.boundingBox();
-  expect(expandedPanelBox?.width).toBeLessThanOrEqual(230);
-  expect(expandedPanelBox?.height).toBeLessThanOrEqual(54);
-  await startPanel.getByRole("button", { name: "地図メニュー" }).click();
-  await expect(startPanel).toHaveClass(/is-collapsed/);
+  await expect(startPanel).toBeHidden();
+  await expect(page.getByRole("tab", { name: "写真" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "季節" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "ガイド" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "散策" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "未確認" })).toBeVisible();
 
   const legend = page.locator("#me-legend");
   await expect(legend).toBeVisible();

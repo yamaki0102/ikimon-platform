@@ -204,11 +204,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
-    tabMarkers: "最近の発見",
-    tabHeatmap: "季節の気配",
-    tabPlaces: "エリア図鑑",
+    tabMarkers: "写真",
+    tabHeatmap: "季節",
+    tabPlaces: "ガイド",
     tabRain: "雨雲",
-    tabCoverage: "記録の余白",
+    tabCoverage: "未確認",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
@@ -370,11 +370,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Observation events, posting rallies, and outdoor local activities can be tied to the regional guide here. Organizer inquiries start from this guide.",
     activityRallyMeta: "Events / posting rallies",
     activityRallyLinkLabel: "For organizers",
-    tabMarkers: "Recent finds",
-    tabHeatmap: "Seasonal signs",
-    tabPlaces: "Area Albums",
+    tabMarkers: "Photos",
+    tabHeatmap: "Season",
+    tabPlaces: "Guides",
     tabRain: "Rain",
-    tabCoverage: "Open gaps",
+    tabCoverage: "Open areas",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
     yearFilterLabel: "Year",
@@ -536,11 +536,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Las salidas, los rallies de publicaciones y las actividades locales al aire libre pueden vincularse a la guía regional desde aquí. Las consultas empiezan en la guía para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    tabMarkers: "Hallazgos recientes",
-    tabHeatmap: "Señales de estación",
-    tabPlaces: "Álbumes de áreas",
+    tabMarkers: "Fotos",
+    tabHeatmap: "Estación",
+    tabPlaces: "Guías",
     tabRain: "Lluvia",
-    tabCoverage: "Huecos por mirar",
+    tabCoverage: "Zonas abiertas",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Año",
@@ -702,11 +702,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Eventos de observação, rallies de publicações e atividades locais ao ar livre podem ser vinculados ao guia regional aqui. Consultas começam pela página para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    tabMarkers: "Descobertas recentes",
-    tabHeatmap: "Sinais da estação",
-    tabPlaces: "Álbuns de áreas",
+    tabMarkers: "Fotos",
+    tabHeatmap: "Estação",
+    tabPlaces: "Guias",
     tabRain: "Chuva",
-    tabCoverage: "Lacunas para olhar",
+    tabCoverage: "Áreas abertas",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Ano",
@@ -1128,6 +1128,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       : lang === "pt-BR"
         ? "Passeios"
         : "Walks";
+  const topWalkLabel = lang === "ja"
+    ? "散策"
+    : lang === "es"
+      ? "Paseos"
+      : lang === "pt-BR"
+        ? "Passeios"
+        : "Walks";
   const startPanelRouteLinks = [
     { label: lang === "ja" ? "水辺" : lang === "es" ? "Agua" : lang === "pt-BR" ? "Agua" : "Waterfront", href: asahataWalkHref, action: "map:start_panel:route_asahata", region: "shizuoka" },
     { label: lang === "ja" ? "谷津山" : lang === "es" ? "Yatsuyama" : lang === "pt-BR" ? "Yatsuyama" : "Yatsuyama", href: yatsuyamaWalkHref, action: "map:start_panel:route_yatsuyama", region: "shizuoka" },
@@ -1159,7 +1166,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       action: "map:start_panel:record",
     },
   ];
-  const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}">
+  const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}" hidden>
       <div class="me-start-panel-head">
         <strong>${escapeHtml(startPanelTitle)}</strong>
         <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">
@@ -8820,7 +8827,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   document.querySelectorAll('.me-tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var t = btn.getAttribute('data-tab') || 'markers';
+      var t = btn.getAttribute('data-tab');
+      if (!t) return;
       dismissStartPanel();
       dismissPurposeHint();
       switchMapTab(t);

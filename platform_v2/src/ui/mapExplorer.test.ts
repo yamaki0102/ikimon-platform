@@ -177,7 +177,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /地域図鑑マップ/);
-  assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel"/);
+  assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel"[^>]*hidden/);
   assert.match(html, /地図メニュー/);
   assert.match(html, /class="me-start-panel-brief">写真・ガイド・散策<\/span>/);
   assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">＋<\/span>/);
@@ -260,6 +260,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
   assert.match(script, /startPanelCloseEl\.querySelector\('\.me-start-panel-symbol'\)/);
   assert.match(script, /startPanelSymbolEl\.textContent = collapsed \? '＋' : '×';/);
+  assert.match(script, /var t = btn\.getAttribute\('data-tab'\);/);
+  assert.match(script, /if \(!t\) return;/);
   assert.match(script, /function canShowPurposeHint\(\)/);
   assert.match(script, /function canShowPurposeHint\(\) \{\s*return false;\s*\}/);
   assert.match(script, /function refreshPurposeHint\(\) \{\s*setPurposeHintVisible\(false\);\s*\}/);
