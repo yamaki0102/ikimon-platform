@@ -169,22 +169,40 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /地域図鑑マップ/);
+  assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel"/);
+  assert.match(html, /地図メニュー/);
+  assert.match(html, /aria-expanded="false">＋<\/button>/);
+  assert.match(html, /近く/);
+  assert.match(html, /押したときだけ現在地を使います。/);
+  assert.match(html, /写真/);
+  assert.match(html, /ガイド/);
+  assert.match(html, /散策/);
+  assert.match(html, /📍/);
+  assert.match(html, /📷/);
+  assert.match(html, /🧭/);
+  assert.match(html, /🚶/);
+  assert.doesNotMatch(html, />G<\/span>/);
+  assert.doesNotMatch(html, />R<\/span>/);
+  assert.match(html, /href="\/ja\/walk-maps"/);
+  assert.match(html, /記録/);
+  assert.doesNotMatch(html, new RegExp("写真、ガイド、散策の" + "手がかり、記録の" + "入口"));
   assert.match(html, /id="me-purpose-hint"/);
-  assert.match(html, /残したい風景を探す/);
-  assert.match(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
+  assert.match(html, /写真・ガイド・散策/);
+  assert.doesNotMatch(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
   assert.match(html, /この範囲の記録/);
   assert.match(html, /data-testid="map-personal-pulse-panel"/);
   assert.match(html, /自分の記録へすぐ戻る/);
   assert.match(html, /href="\/ja\/profile"/);
   assert.match(html, /href="\/ja\/records\?view=mine"/);
   assert.doesNotMatch(html, /class="me-map-momentum"/);
-  assert.doesNotMatch(html, /記録が地域の図鑑を育てています/);
+  assert.doesNotMatch(html, new RegExp("記録が地域の図鑑を" + "育" + "てています"));
   assert.doesNotMatch(html, /投稿が増えるほど、地図に季節や場所の手がかりが重なります。/);
   assert.doesNotMatch(html, /data-kpi-action="map:momentum_/);
-  assert.match(html, /ここは、これから育つ場所です/);
-  assert.match(html, /記録は地域単位で集計しています/);
-  assert.doesNotMatch(html, /余白 = これから育つ場所/);
-  assert.doesNotMatch(html, /色 = 季節と記録の厚み/);
+  assert.doesNotMatch(html, /<section class="me-empty-invite"[\s\S]*?<strong>近くを探索中<\/strong>/);
+  assert.doesNotMatch(html, new RegExp("ここは、これから" + "育つ場所です"));
+  assert.doesNotMatch(html, /記録は地域単位で集計しています/);
+  assert.doesNotMatch(html, new RegExp("余白 = これから" + "育つ場所"));
+  assert.doesNotMatch(html, new RegExp("色 = 季節と記録の" + "厚" + "み"));
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="places"/);
@@ -192,14 +210,37 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
   assert.match(script, /tab: 'places'/);
+  assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
+  assert.match(script, /var DEFAULT_MAP_ZOOM = 12\.8;/);
+  assert.match(script, /var STARTUP_LOCATION_ZOOM = 14\.2;/);
+  assert.match(script, /function readLastStartupLocation\(\)/);
+  assert.match(script, /function requestStartupCurrentLocation\(options\)/);
+  assert.match(script, /navigator\.geolocation\.getCurrentPosition\(applyPosition, fail/);
+  assert.match(script, /startPanelLocationEl\.addEventListener\('click'/);
+  assert.match(script, /requestStartupCurrentLocation\(\{ force: true \}\)/);
+  assert.doesNotMatch(script, /center: state\._restoredCenter \|\| \[138\.38, 35\.34\]/);
+  assert.doesNotMatch(script, /zoom: state\._restoredZoom != null \? state\._restoredZoom : 5\.2/);
   assert.match(script, /PURPOSE_HINT_STORAGE_KEY = 'ikimon-map-purpose-hint-v1'/);
+  assert.match(script, /function dismissStartPanel\(\)/);
+  assert.match(script, /function setStartPanelCollapsed\(collapsed\)/);
+  assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
+  assert.match(script, /startPanelCloseEl\.textContent = collapsed \? '＋' : '×';/);
   assert.match(script, /function canShowPurposeHint\(\)/);
-  assert.match(script, /if \(state\.tab === 'rain'\) return false;/);
-  assert.match(script, /if \(isBottomSheetOpen\(\)\) return false;/);
+  assert.match(script, /function canShowPurposeHint\(\) \{\s*return false;\s*\}/);
+  assert.match(script, /function refreshPurposeHint\(\) \{\s*setPurposeHintVisible\(false\);\s*\}/);
   assert.match(script, /state\.map\.on\('dragstart', dismissPurposeHint\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-legend\.is-collapsed \.me-legend-gradient,/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\[hidden\],\s+\.me-rain-mode \.me-purpose-hint,\s+\.me-sheet-open \.me-purpose-hint \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-start-panel,\s+\.me-sheet-open \.me-start-panel \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-purpose-hint \{[\s\S]*width: min\(260px, calc\(100% - 116px\)\);/);
+  assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-start-panel \{[\s\S]*width: auto;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid a strong \{[\s\S]*clip: rect\(0 0 0 0\);/);
 });
 
 test("map explorer overlays signed-in owner observations separately from public cells", () => {
@@ -448,7 +489,7 @@ test("cell and blank map selections are aggregate and safety surfaces", () => {
   assert.doesNotMatch(script, /title: COPY\.cellAggregateTitle, meta: coordLabel/);
 });
 
-test("area sheet includes contribution feedback surface", () => {
+test("area sheet includes local feedback surface", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /function renderAreaPositiveFeedback/);
@@ -456,11 +497,11 @@ test("area sheet includes contribution feedback surface", () => {
   assert.match(script, /communityPerspective/);
   assert.match(script, /overlapInsight/);
   assert.match(script, /あなたの視点/);
-  assert.match(script, /あなたのおかげで/);
+  assert.match(script, /あなたの記録から/);
   assert.match(script, /みんなの視点/);
   assert.match(script, /重なると見えること/);
   assert.match(script, /記録の手応え/);
-  assert.match(script, /自分の記録を見返す/);
+  assert.match(script, /自分の記録を見る/);
 });
 
 test("map UX interactions emit area open and selected-place CTA KPI events", () => {
@@ -552,10 +593,14 @@ test("map guide spots render independently from area polygons", () => {
 test("map legend stays within the map viewport", () => {
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(styles, /max-width: min\(520px, calc\(100% - 24px\)\)/);
+  assert.match(styles, /max-width: min\(360px, calc\(100% - 24px\)\)/);
   assert.match(styles, /flex-wrap: wrap/);
   assert.match(styles, /#me-legend-low,\s+#me-legend-high/);
   assert.match(styles, /overflow-wrap: anywhere/);
+  assert.match(styles, /\.me-legend-toggle/);
+  assert.match(styles, /\.me-legend\.is-collapsed/);
+  assert.match(styles, /\.me-legend\.is-collapsed \.me-legend-toggle \{[\s\S]*width: 38px;/);
+  assert.match(styles, /\.me-legend\.is-collapsed \.me-legend-toggle::after \{[\s\S]*content: "\?";/);
 });
 
 test("area legend explains place meanings and safety states", () => {
@@ -565,6 +610,7 @@ test("area legend explains place meanings and safety states", () => {
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /id="me-legend-detail"/);
+  assert.match(html, /id="me-legend-toggle" aria-expanded="false"/);
   assert.match(script, /function renderAreaLegendDetail\(\)/);
   assert.match(script, /<dl class="me-legend-list">/);
   assert.match(script, /<dt><i aria-hidden="true"><\/i><strong>/);
@@ -573,6 +619,8 @@ test("area legend explains place meanings and safety states", () => {
   assert.match(script, /areaLegendWaterLabel/);
   assert.match(script, /showLegend\(COPY\.areaTrustLegendLow, COPY\.areaTrustLegendHigh,[\s\S]*?'areas'\)/);
   assert.match(script, /data-legend-mode', 'areas'/);
+  assert.match(script, /legendToggleEl\.addEventListener\('click'/);
+  assert.match(script, /legendEl\.classList\.toggle\('is-collapsed'/);
   assert.match(script, /公園・緑地/);
   assert.match(script, /学校・教育施設/);
   assert.match(script, /水辺・水路/);
@@ -624,6 +672,8 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /data-results-empty-areas/);
   assert.match(script, /data-results-empty-widen/);
   assert.match(script, /me-empty-invite/);
+  assert.match(script, /statusEl\.hidden = !!visible;/);
+  assert.match(script, /statusEl\.setAttribute\('aria-hidden', visible \? 'true' : 'false'\);/);
   assert.match(script, /data-kpi-action="map:results_empty_record"/);
   assert.match(script, /function switchMapTab\(tab\)/);
   assert.match(script, /switchMapTab\('places'\)/);
@@ -671,6 +721,9 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(styles, /\.me-results-empty-actions/);
   assert.match(styles, /\.me-results-empty-action\.is-primary/);
   assert.match(styles, /\.me-empty-invite/);
+  assert.match(styles, /\.me-empty-invite \.me-results-empty-kicker,\s+\.me-empty-invite p,\s+\.me-empty-invite strong \{[\s\S]*display: none;/);
+  assert.match(styles, /\.me-empty-invite \.me-results-empty-actions \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
+  assert.match(styles, /\.me-empty-invite \.me-results-empty-action \{[\s\S]*min-height: 44px;/);
   assert.doesNotMatch(script, /縺|繧|譁|髱|蝗|遽/);
 });
 
@@ -953,7 +1006,7 @@ test("map initial data load stays light and defers secondary panels", () => {
   assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
 });
 
-test("map waits for explicit location action instead of auto-locating on open", () => {
+test("map uses nearby startup location while keeping record page location explicit", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /function applyRestoredParams\(params, options\)/);
@@ -961,6 +1014,11 @@ test("map waits for explicit location action instead of auto-locating on open", 
   assert.match(script, /params = parseStateString\(localStorage\.getItem\(STATE_STORAGE_KEY\) \|\| ''\);[\s\S]*restoreViewport = false;/);
   assert.match(script, /applyRestoredParams\(params, \{ restoreViewport: restoreViewport \}\);/);
   assert.match(script, /if \(restoreViewport && params\.lng && params\.lat && params\.z\)/);
+  assert.match(script, /function initialStartupViewport\(\)/);
+  assert.match(script, /readLastStartupLocation\(\)/);
+  assert.doesNotMatch(script, /requestStartupCurrentLocation\(\);/);
+  assert.match(script, /LAST_LOCATION_MAX_AGE_MS = 1000 \* 60 \* 60 \* 24 \* 30/);
+  assert.match(script, /rememberLastStartupLocation\(lng, lat/);
   assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);
   assert.match(script, /locateFab\.addEventListener\('click'[\s\S]*navigator\.geolocation\.getCurrentPosition/);
 });

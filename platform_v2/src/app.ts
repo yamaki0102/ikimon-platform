@@ -15,6 +15,7 @@ import { registerLlmoRoutes } from "./routes/llmo.js";
 import { registerInvasiveSpeciesRoutes } from "./routes/invasiveSpecies.js";
 import { registerMapApiRoutes } from "./routes/mapApi.js";
 import { registerMarketingRoutes } from "./routes/marketing.js";
+import { registerMunicipalWalkMapRoutes } from "./routes/municipalWalkMaps.js";
 import { registerOpsRoutes } from "./routes/ops.js";
 import { registerPlotMonitoringApiRoutes } from "./routes/plotMonitoringApi.js";
 import { registerReadRoutes } from "./routes/read.js";
@@ -459,7 +460,7 @@ function buildMapHomeHtml(
   return renderSiteDocument({
     basePath: options.basePath,
     title: mapPageCopy.title,
-    description: "地域の自然・風景・水・土・農・季節・活動を、場所ごとに見返す地域図鑑マップです。",
+    description: "地域の自然・風景・水・土・農・季節・活動を、地図から探せる地域図鑑マップです。",
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
@@ -768,6 +769,7 @@ export function buildApp() {
   void registerInvasiveSpeciesRoutes(app);
   void registerMapApiRoutes(app);
   void registerMarketingRoutes(app);
+  void registerMunicipalWalkMapRoutes(app);
   void registerSampleReportRoute(app);
   void registerMonitoringBusinessRoutes(app);
   void registerMonitoringWorkspaceApiRoutes(app);
