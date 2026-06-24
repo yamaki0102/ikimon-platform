@@ -343,7 +343,7 @@ test("municipal walk map admin page renders source catalog and source-reference 
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /参考元カタログ/);
-        assert.match(response.body, /data-template-source-count="5"/);
+        assert.match(response.body, /data-template-source-count="8"/);
         assert.match(response.body, /data-template-start-link="\/admin\/municipal-walk-maps\?templateId=route_species_walk"/);
         assert.match(response.body, /この型で始める/);
         assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
@@ -746,13 +746,25 @@ test("municipal walk map source catalog API returns researched official source p
         assert.equal(response.statusCode, 200);
         const body = response.json();
         assert.equal(body.ok, true);
-        assert.ok(body.sources.length >= 21);
+        assert.ok(body.sources.length >= 57);
         assert.match(JSON.stringify(body.sources), /静岡市/);
         assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.shizuoka\.lg\.jp/);
         assert.match(JSON.stringify(body.sources), /船橋市/);
         assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
         assert.match(JSON.stringify(body.sources), /世田谷区/);
         assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.setagaya\.lg\.jp\/02074\/4717\.html/);
+        assert.match(JSON.stringify(body.sources), /名古屋市/);
+        assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.nagoya\.jp\/kurashi\/kankyou\/1012463\/1034795\/1012526\.html/);
+        assert.match(JSON.stringify(body.sources), /草加市/);
+        assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.soka\.saitama\.jp\/cont\/s1701\/030\/010\/010\/040\/PAGE000000000000053060\.html/);
+        assert.match(JSON.stringify(body.sources), /春日部市/);
+        assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.kasukabe\.lg\.jp\/material\/files\/group\/31\/tyousainmanyuaru2023\.pdf/);
+        assert.match(JSON.stringify(body.sources), /市川市/);
+        assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.ichikawa\.lg\.jp\/page\/2301\.html/);
+        assert.match(JSON.stringify(body.sources), /川口市/);
+        assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.kawaguchi\.lg\.jp\/soshiki\/01100\/021\/ecosystem\/27320\.html/);
+        assert.match(JSON.stringify(body.sources), /荒川区/);
+        assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.arakawa\.tokyo\.jp\/a024\/kankyou\/tayousei\/ikimono_daizukan\.html/);
       } finally {
         await app.close();
       }

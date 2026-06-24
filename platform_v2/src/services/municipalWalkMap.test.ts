@@ -598,7 +598,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   const primaryTypes = new Set(catalog.map((entry) => entry.primaryType));
   const templateIds = new Set(catalog.map((entry) => entry.templateId));
 
-  assert.ok(catalog.length >= 41);
+  assert.ok(catalog.length >= 57);
   for (const municipality of [
     "静岡市",
     "船橋市",
@@ -636,6 +636,21 @@ test("municipal walk map source catalog covers researched official seed patterns
     "横須賀市",
     "足立区",
     "北九州市",
+    "名古屋市",
+    "草加市",
+    "東村山市",
+    "戸田市",
+    "福井市",
+    "大分市",
+    "春日部市",
+    "大和市",
+    "市川市",
+    "川口市",
+    "荒川区",
+    "飯島町",
+    "香取市",
+    "広島県",
+    "千葉市",
   ]) {
     assert.ok(municipalities.has(municipality), `missing source catalog municipality: ${municipality}`);
   }
@@ -675,6 +690,22 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.yokosuka\.kanagawa\.jp\/5540\/maedagawa\/index\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.adachi\.tokyo\.jp\/documents\/74972\/2025zukann\.pdf/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kitakyushu\.lg\.jp\/page\/walkingmap\/kokurakita\/kokurakita40\.pdf/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.nagoya\.jp\/kurashi\/kankyou\/1012463\/1034795\/1012526\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.soka\.saitama\.jp\/cont\/s1701\/030\/010\/010\/040\/PAGE000000000000053060\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.higashimurayama\.tokyo\.jp\/shisei\/keikaku\/bunya\/kankyo\/ikimonomap\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.toda\.saitama\.jp\/site\/saiko\/kyo-saiko-publish-kansatumap\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.fukui\.lg\.jp\/kurasi\/kankyo\/study\/pamphlet_1\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.oita\.oita\.jp\/o141\/oita-mijikanasizen-guide\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kasukabe\.lg\.jp\/material\/files\/group\/31\/tyousainmanyuaru2023\.pdf/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.yamato\.lg\.jp\/material\/files\/group\/26\/5_izuminomori\.pdf/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.ichikawa\.lg\.jp\/page\/2301\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.ichikawa\.lg\.jp\/page\/2303\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kawaguchi\.lg\.jp\/soshiki\/01100\/021\/ecosystem\/27320\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.arakawa\.tokyo\.jp\/a024\/kankyou\/tayousei\/ikimono_daizukan\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.town\.iijima\.lg\.jp\/soshikiichiran\/juminzeimuka\/kankyoukyouseienerugikakari\/kankyoeisei\/NaturePositive\/5145\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.katori\.lg\.jp\/living\/ahiminkatsudo\/shiminkyodo\/omigawatyuuou\.files\/20230415naturemap\.pdf/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.pref\.hiroshima\.lg\.jp\/site\/tayousei\/investigation-biodiversity-wanted\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.chiba\.jp\/kankyo\/kankyohozen\/hozen\/r1_ikimonosagashi\.html/);
 });
 
 test("municipal walk map source catalog builds a draft config without copying PDF bodies", () => {
