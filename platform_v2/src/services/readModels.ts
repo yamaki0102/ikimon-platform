@@ -31,6 +31,7 @@ import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 import { listPlaceMemoryVisits } from "./placeMemory.js";
 import { identificationReferencesFromJson, type IdentificationReferenceView } from "./identificationReferencesView.js";
 import { normalizeEnvironmentRecordSnapshot } from "./environmentRecord.js";
+import { normalizePlaceFeelingTagKeys, type PlaceFeelingTagKey } from "./placeFeelingTags.js";
 
 function publicMunicipalityLabel(input: {
   municipality?: string | null;
@@ -164,6 +165,7 @@ export type ObservationDetailSnapshot = {
   surveyResult: string | null;
   absenceSemantics: string | null;
   revisitReason: string | null;
+  placeFeelingTags: PlaceFeelingTagKey[];
   observerName: string;
   placeName: string;
   municipality: string | null;
@@ -1019,6 +1021,7 @@ export async function getObservationDetailSnapshot(
   const surveyResult = typeof visitPayload.survey_result === "string" ? visitPayload.survey_result : null;
   const absenceSemantics = typeof visitPayload.absence_semantics === "string" ? visitPayload.absence_semantics : null;
   const revisitReason = typeof visitPayload.revisit_reason === "string" ? visitPayload.revisit_reason : null;
+  const placeFeelingTags = normalizePlaceFeelingTagKeys(visitPayload.place_feeling_tags);
   const environmentRecord = normalizeEnvironmentRecordSnapshot(base.environment_record);
 
   const photosResult = await pool.query<{
@@ -1357,6 +1360,7 @@ export async function getObservationDetailSnapshot(
     surveyResult,
     absenceSemantics,
     revisitReason,
+    placeFeelingTags,
     observerName: base.observer_name ?? "",
     placeName: base.place_name ?? "",
     municipality,
