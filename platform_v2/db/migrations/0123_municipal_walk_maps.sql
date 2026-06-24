@@ -223,13 +223,6 @@ INSERT INTO municipal_walk_maps (
     source_references = EXCLUDED.source_references,
     updated_at = NOW();
 
-DELETE FROM municipal_walk_map_stops
-WHERE walk_map_id IN (
-    'jp-shizuoka-yatsuyama-sample-v0',
-    'jp-shizuoka-asahata-waterfront-sample-v0',
-    'jp-shizuoka-mariko-waterfront-sample-v0'
-);
-
 INSERT INTO municipal_walk_map_stops (
     walk_map_id,
     stop_id,
@@ -248,4 +241,15 @@ INSERT INTO municipal_walk_map_stops (
 ('jp-shizuoka-asahata-waterfront-sample-v0','asahata-water-edge',0,'水辺を外から見る場所','waterfront','sample:shizuoka-asahata-water-edge','public_access',15,ARRAY['水面','岸辺の草','鳥の声']::text[],ARRAY['水の量','見えた鳥','草地の様子']::text[],ARRAY['水際へ降りず、柵や現地案内を優先する']::text[]),
 ('jp-shizuoka-asahata-waterfront-sample-v0','asahata-open-path',1,'開けた道沿い','street_edge','sample:shizuoka-asahata-open-path','public_access',10,ARRAY['空の広がり','足元の花','風の向き']::text[],ARRAY['花','虫の動き','聞こえた音']::text[],ARRAY['通行の邪魔にならない場所で止まる']::text[]),
 ('jp-shizuoka-mariko-waterfront-sample-v0','mariko-river-edge',0,'川沿いの公開範囲','waterfront','sample:shizuoka-mariko-river-edge','public_access',15,ARRAY['川の流れ','橋の下','水辺の草']::text[],ARRAY['水の色','見えた鳥','岸辺の植物']::text[],ARRAY['増水時や足元が悪い場所には近づかない']::text[]),
-('jp-shizuoka-mariko-waterfront-sample-v0','hirono-park-open-space',1,'公園の開けた場所','park','sample:shizuoka-hirono-park-open-space','public_access',15,ARRAY['芝生','木陰','海からの風']::text[],ARRAY['花','虫','聞こえた音']::text[],ARRAY['混雑時は周囲の人が写らない向きで記録する']::text[]);
+('jp-shizuoka-mariko-waterfront-sample-v0','hirono-park-open-space',1,'公園の開けた場所','park','sample:shizuoka-hirono-park-open-space','public_access',15,ARRAY['芝生','木陰','海からの風']::text[],ARRAY['花','虫','聞こえた音']::text[],ARRAY['混雑時は周囲の人が写らない向きで記録する']::text[])
+ON CONFLICT (walk_map_id, stop_id) DO UPDATE SET
+    position = EXCLUDED.position,
+    title = EXCLUDED.title,
+    area_kind = EXCLUDED.area_kind,
+    linked_field_id = EXCLUDED.linked_field_id,
+    access = EXCLUDED.access,
+    estimated_minutes = EXCLUDED.estimated_minutes,
+    notice_cues = EXCLUDED.notice_cues,
+    record_cues = EXCLUDED.record_cues,
+    safety_notes = EXCLUDED.safety_notes,
+    updated_at = NOW();
