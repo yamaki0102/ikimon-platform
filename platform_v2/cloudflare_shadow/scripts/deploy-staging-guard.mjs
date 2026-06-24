@@ -91,7 +91,9 @@ function stripJsonComments(source) {
 function isWranglerStagingTriggerWarning(error) {
   const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
   return output.includes("Uploaded ikimon-life-cloudflare-staging")
-    && output.includes("Some triggers failed to deploy for ikimon-life-cloudflare-staging");
+    && output.includes("Some triggers failed to deploy for ikimon-life-cloudflare-staging")
+    && output.includes("/workers/routes")
+    && output.includes("All Zones");
 }
 
 function summarizeWranglerTriggerWarning(error) {
@@ -116,6 +118,8 @@ async function readStagingConfigSummary() {
   const vars = staging?.vars ?? {};
   const d1Names = (staging?.d1_databases ?? []).map((item) => item.database_name).sort();
   const r2Buckets = (staging?.r2_buckets ?? []).map((item) => item.bucket_name).sort();
+  const producerQueues = (staging?.queues?.producers ?? []).map((item) => item.queue).sort();
+  const consumerQueues = (staging?.queues?.consumers ?? []).map((item) => item.queue).sort();
   const failures = [];
 
   if (staging?.name !== "ikimon-life-cloudflare-staging") failures.push("unexpected_staging_worker_name");
@@ -125,6 +129,10 @@ async function readStagingConfigSummary() {
   if (!d1Names.includes("ikimon_shadow_core")) failures.push("missing_nonproduction_core_d1");
   if (!d1Names.includes("ikimon_shadow_observations_2026_06")) failures.push("missing_nonproduction_observations_d1");
   if (!r2Buckets.includes("ikimon-shadow-media")) failures.push("missing_nonproduction_r2_bucket");
+  if (!producerQueues.includes("ikimon-staging-media-jobs")) failures.push("missing_staging_media_queue_producer");
+  if (!consumerQueues.includes("ikimon-staging-media-jobs")) failures.push("missing_staging_media_queue_consumer");
+  if (producerQueues.includes("ikimon-prod-media-jobs") || consumerQueues.includes("ikimon-prod-media-jobs")) failures.push("staging_must_not_use_production_queue");
+  if (producerQueues.includes("ikimon-shadow-media-jobs") || consumerQueues.includes("ikimon-shadow-media-jobs")) failures.push("staging_must_not_share_shadow_queue_consumer");
   for (const route of productionRoutes) {
     if (String(route).startsWith("staging.ikimon.life/")) {
       failures.push(`production_must_not_own_staging_route:${route}`);
@@ -142,6 +150,8 @@ async function readStagingConfigSummary() {
     publicWriteMode: vars.PUBLIC_WRITE_MODE,
     d1Names,
     r2Buckets,
+    producerQueues,
+    consumerQueues,
     productionStagingRouteCount: productionRoutes.filter((route) => String(route).startsWith("staging.ikimon.life/")).length
   };
 }
@@ -184,8 +194,8 @@ async function currentDeployState() {
 async function smoke(baseUrl) {
   const checks = [
     { path: "/health", service: undefined },
-    { path: "/healthz", service: "ikimon-life-cloudflare-worker" },
-    { path: "/readyz", service: "ikimon-life-cloudflare-worker" }
+    { path: "/healthz", service: "ikimon-life-cloudflare-worker", environment: "staging" },
+    { path: "/readyz", service: "ikimon-life-cloudflare-worker", environment: "staging" }
   ];
   for (const check of checks) {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${check.path}`, {
@@ -198,7 +208,8 @@ async function smoke(baseUrl) {
       && typeof payload === "object"
       && payload !== null
       && payload.ok === true
-      && (!check.service || payload.service === check.service);
+      && (!check.service || payload.service === check.service)
+      && (!check.environment || payload.environment === check.environment);
     events.push({
       command: `smoke ${baseUrl}${check.path}`,
       exitCode: ok ? 0 : 1,

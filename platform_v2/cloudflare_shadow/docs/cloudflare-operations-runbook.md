@@ -16,7 +16,7 @@ Cloudflare staging:
 
 - Worker: `ikimon-life-cloudflare-staging`
 - Public domain: `https://staging.ikimon.life`
-- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`, `ikimon-shadow-media-jobs`
+- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`, `ikimon-staging-media-jobs`
 - Routine staging entrypoint: GitHub Actions `Deploy Cloudflare Staging`, Cloudflare-only.
 - Materialized UI target: `npm run materialize:original-ui -- --target-env staging`
 

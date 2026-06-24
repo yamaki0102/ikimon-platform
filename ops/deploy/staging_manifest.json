@@ -9,7 +9,7 @@
     "ikimon_shadow_core",
     "ikimon_shadow_observations_2026_06"
   ],
-  "queue": "ikimon-shadow-media-jobs",
+  "queue": "ikimon-staging-media-jobs",
   "stagingBaseUrl": "https://staging.ikimon.life/",
   "workerDevUrl": "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/",
   "materializedOriginalUiScope": "core",
@@ -45,7 +45,7 @@
   "notes": [
     "Cloudflare staging is the promotion gate for Cloudflare production changes.",
     "The staging public entrypoint is Cloudflare Worker ikimon-life-cloudflare-staging, not the legacy VPS staging runtime.",
-    "The staging Worker owns staging.ikimon.life/* and uses non-production shadow D1/R2/Queue resources.",
+    "The staging Worker owns staging.ikimon.life/* and uses non-production shadow D1/R2 resources plus ikimon-staging-media-jobs.",
     "Routine Cloudflare staging deploy must not use VPS SSH, /var/www/ikimon.life-staging, or VPS_SSH_KEY.",
     "Production Worker config must not own staging.ikimon.life routes.",
     "Legacy VPS staging remains only for old integration jobs until those jobs are migrated or retired.",

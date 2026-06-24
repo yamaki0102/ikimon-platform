@@ -188,8 +188,8 @@ function originalUiStaticKey(pathname) {
 }
 
 function staticContentType(pathname) {
-  if (pathname.endsWith(".js")) return "application/javascript; charset=utf-8";
-  if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
+  if (pathname.endsWith(".js")) return "application/javascript";
+  if (pathname.endsWith(".html")) return "text/html";
   if (pathname.endsWith(".png")) return "image/png";
   return "application/octet-stream";
 }
@@ -249,6 +249,9 @@ function run(command, commandArgs, options = {}) {
       } else {
         reject(new Error(`${event.command} failed with exit code ${code}`));
       }
+    });
+    child.on("error", (error) => {
+      reject(error);
     });
   });
 }
@@ -378,7 +381,7 @@ try {
         "--content-type",
         item.contentType,
         "--cache-control",
-        "no-cache, no-store, must-revalidate",
+        "no-store",
         "--force"
       ]);
     }
