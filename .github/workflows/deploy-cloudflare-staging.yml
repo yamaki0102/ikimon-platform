@@ -123,6 +123,11 @@ jobs:
           grep -q '自然散策マップ 下書き' staging-walk-map-admin.html
           grep -q '下書きに入れる' staging-walk-map-admin.html
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin.headers
+          curl -fsS -D staging-walk-map-admin-shizuoka.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route' -o staging-walk-map-admin-shizuoka.html
+          grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-admin-shizuoka.html
+          grep -q '立ち寄り先 6' staging-walk-map-admin-shizuoka.html
+          grep -q 'asahata2024-map.pdf' staging-walk-map-admin-shizuoka.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin-shizuoka.headers
           curl -fsS -D staging-brand-icon.headers https://staging.ikimon.life/assets/brand/app-icon-192.png -o staging-brand-icon.png
           grep -qi '^content-type: image/png' staging-brand-icon.headers
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
@@ -138,6 +143,7 @@ jobs:
             platform_v2/cloudflare_shadow/staging-*.json
             platform_v2/cloudflare_shadow/staging-demo.*
             platform_v2/cloudflare_shadow/staging-walk-map-admin.*
+            platform_v2/cloudflare_shadow/staging-walk-map-admin-shizuoka.*
             platform_v2/cloudflare_shadow/staging-brand-icon.*
           if-no-files-found: ignore
           retention-days: 7

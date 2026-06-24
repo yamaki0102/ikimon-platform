@@ -1650,10 +1650,87 @@ export function buildMunicipalWalkMapConfigFromTemplateV0(templateId: string): M
   return cloneWalkMapConfig(template.config);
 }
 
+function buildShizuokaIkimonoWalkRouteDraftV0(source: MunicipalWalkMapSourceCatalogEntryV0): MunicipalWalkMapConfigV0 {
+  const samples = [
+    getStaticMunicipalWalkMapConfigV0("jp-shizuoka-yatsuyama-sample-v0"),
+    getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0"),
+    getStaticMunicipalWalkMapConfigV0("jp-shizuoka-mariko-waterfront-sample-v0"),
+  ];
+  const routeStops = samples.flatMap((sample) => sample.routeStops.map((stop) => ({
+    ...stop,
+    stopId: `${sample.walkMapId.replace(/^jp-shizuoka-/, "").replace(/-sample-v0$/, "")}-${stop.stopId}`,
+    internalMemo: "静岡市公式ページ掲載資料を出典に、本文・図版・写真を転載せず、公開範囲での立ち寄り先として再構成した下書き。",
+  })));
+  const sourceReferences = [
+    {
+      label: source.title,
+      url: source.officialPageUrl,
+      note: "公式ページを引用元として使います。PDF本文、図版、写真は転載しません。",
+    },
+    ...samples.flatMap((sample) => sample.sourceReferences)
+      .filter((ref, index, refs) => refs.findIndex((candidate) => candidate.url === ref.url) === index),
+  ];
+
+  return {
+    ...buildMunicipalWalkMapConfigFromTemplateV0(source.templateId),
+    walkMapId: `draft-${source.sourceId}`,
+    municipality: source.municipality,
+    creatorName: source.municipality,
+    creatorProfile: {
+      creatorId: "municipality:shizuoka-city",
+      registrationKind: "municipality",
+      verificationStatus: "pending",
+      commercialIntent: "none",
+    },
+    title: "静岡市 いきもの散策マップ 下書き",
+    summary: "静岡市の公式ページを引用元に、八ツ山、麻機、丸子川・広野海岸公園周辺を、公開範囲で立ち寄れる複数スポットとして整理する下書きです。",
+    theme: "seasonal_walk",
+    publishMode: "draft",
+    areaScope: {
+      municipalityCodes: ["22100"],
+      placeIds: [],
+      polygonIds: [],
+    },
+    routeStops,
+    recordModes: ["photo", "audio", "memo", "unknown_species"],
+    routeFlexibility: {
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike", "car", "public_transport"],
+      offRoutePolicy: "off_route_allowed",
+      returnCues: [
+        "近い公園入口、橋、案内板、大きな道を目印に戻る",
+        "歩き、自転車、車では、それぞれ安全に止まれる公開場所だけ使う",
+        "水辺や山側で天候や足元が悪いときは近い公開道へ戻る",
+      ],
+    },
+    publicPrecisionPolicy: "mesh_or_coarser",
+    claimBoundary: [
+      "静岡市公式ページと掲載PDFを出典にした下書きで、PDF本文、図版、写真は転載していません。",
+      "現地の案内、立入条件、天候、水位、交通状況を優先します。",
+      "学校、住宅、私有地、希少種、営巣場所が推測される情報は公開前に出し方を確認します。",
+      "公式調査結果ではなく、散策と記録導線をレビューするための下書きです。",
+    ],
+    sourceReferences,
+    publicationReview: {
+      publicAccessAttested: false,
+      sourceRightsAttested: false,
+      permissionAttestedBy: null,
+      permissionAttestedAt: null,
+      publishApprovedByUserId: null,
+      publishApprovedAt: null,
+      emergencyHidden: false,
+      takedownReason: null,
+    },
+  };
+}
+
 export function buildMunicipalWalkMapConfigFromSourceCatalogV0(sourceId: string): MunicipalWalkMapConfigV0 {
   const source = getMunicipalWalkMapSourceCatalogEntryV0(sourceId);
   if (!source) {
     throw new Error(`unknown_municipal_walk_map_source:${sourceId}`);
+  }
+  if (source.sourceId === "shizuoka-ikimono-walk-route") {
+    return buildShizuokaIkimonoWalkRouteDraftV0(source);
   }
   const config = buildMunicipalWalkMapConfigFromTemplateV0(source.templateId);
   return {

@@ -5146,6 +5146,11 @@ test("staging municipal walk map admin source draft serves materialized preview 
     "<!doctype html><title>散策マップ管理</title><main>自然散策マップ 下書き 下書きに入れる</main>",
     { httpMetadata: { contentType: "text/html; charset=utf-8" } }
   );
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-maps/source/shizuoka-ikimono-walk-route.html",
+    "<!doctype html><title>散策マップ管理</title><main>静岡市 いきもの散策マップ 下書き 立ち寄り先 6</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -5162,6 +5167,15 @@ test("staging municipal walk map admin source draft serves materialized preview 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     assert.match(await response.text(), /自然散策マップ 下書き/);
+    assert.equal(fallbackCalls, 0);
+    const shizuokaResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(shizuokaResponse.status, 200);
+    assert.equal(shizuokaResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await shizuokaResponse.text(), /立ち寄り先 6/);
     assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;

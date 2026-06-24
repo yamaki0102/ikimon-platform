@@ -334,6 +334,43 @@ test("municipal walk map admin page can prefill a draft from a source catalog en
   );
 });
 
+test("municipal walk map admin page renders Shizuoka source draft with multiple stops", async () => {
+  await withEnv(
+    {
+      DATABASE_URL: undefined,
+      ENABLE_DEV_DUMMY_ADMIN: "1",
+      DEV_DUMMY_ADMIN_TOKEN: "test-admin-token",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+          headers: {
+            accept: "text/html",
+            cookie: "ikimon_v2_session=test-admin-token",
+          },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /name="walkMapId" value="draft-shizuoka-ikimono-walk-route"/);
+        assert.match(response.body, /静岡市 いきもの散策マップ 下書き/);
+        assert.match(response.body, /立ち寄り先 6/);
+        assert.match(response.body, /name="stop5Title"/);
+        assert.match(response.body, /yatsuyama-map\.pdf/);
+        assert.match(response.body, /asahata2024-map\.pdf/);
+        assert.match(response.body, /000980916\.pdf/);
+        assert.match(response.body, /data-walk-map-add-stop/);
+        assert.match(response.body, /data-walk-map-remove-stop/);
+        assert.doesNotMatch(response.body, /見返|読み返|少し厚|貢献|順番通り|育つ場所/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
 test("municipal walk map creator admin page requires an admin session before DB access", async () => {
   await withEnv({ DATABASE_URL: undefined }, async () => {
     const app = buildApp();

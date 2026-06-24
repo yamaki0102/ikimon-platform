@@ -566,6 +566,30 @@ test("municipal walk map source catalog builds a draft config without copying PD
   assert.equal(validation.ok, true);
 });
 
+test("Shizuoka source catalog draft preserves multiple reviewed stops without copying PDF body", () => {
+  const config = buildMunicipalWalkMapConfigFromSourceCatalogV0("shizuoka-ikimono-walk-route");
+  const validation = validateMunicipalWalkMapConfigV0(config);
+  const publicMap = buildMunicipalWalkMapPublicReadModelV0(config);
+
+  assert.equal(config.walkMapId, "draft-shizuoka-ikimono-walk-route");
+  assert.equal(config.municipality, "静岡市");
+  assert.equal(config.creatorProfile.creatorId, "municipality:shizuoka-city");
+  assert.equal(config.creatorProfile.verificationStatus, "pending");
+  assert.equal(config.routeStops.length, 6);
+  assert.deepEqual(config.routeFlexibility.mobilityModes, ["walk", "bike", "car", "public_transport"]);
+  assert.match(config.routeFlexibility.returnCues.join("\n"), /安全に止まれる公開場所/);
+  assert.ok(config.sourceReferences.length >= 4);
+  assert.match(JSON.stringify(config.sourceReferences), /s001494\.html/);
+  assert.match(JSON.stringify(config.sourceReferences), /yatsuyama-map\.pdf/);
+  assert.match(JSON.stringify(config.sourceReferences), /asahata2024-map\.pdf/);
+  assert.match(JSON.stringify(config.sourceReferences), /000980916\.pdf/);
+  assert.equal(config.publicationReview?.publicAccessAttested, false);
+  assert.equal(config.publicationReview?.sourceRightsAttested, false);
+  assert.equal(validation.ok, true);
+  assert.equal(publicMap.stops.length, 6);
+  assert.equal(JSON.stringify(publicMap).includes("内部メモ"), false);
+});
+
 test("municipal walk map validation blocks incomplete authoring contracts", () => {
   const config: MunicipalWalkMapConfigV0 = {
     schemaVersion: "municipal_walk_map_config/v0",
