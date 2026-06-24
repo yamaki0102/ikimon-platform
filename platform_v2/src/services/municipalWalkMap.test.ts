@@ -488,7 +488,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   const primaryTypes = new Set(catalog.map((entry) => entry.primaryType));
   const templateIds = new Set(catalog.map((entry) => entry.templateId));
 
-  assert.ok(catalog.length >= 21);
+  assert.ok(catalog.length >= 29);
   for (const municipality of [
     "静岡市",
     "船橋市",
@@ -510,6 +510,13 @@ test("municipal walk map source catalog covers researched official seed patterns
     "世田谷区",
     "豊島区",
     "堺市",
+    "半田市",
+    "鹿児島市",
+    "伊勢崎市",
+    "大阪市",
+    "いわき市",
+    "東京都",
+    "福岡市",
   ]) {
     assert.ok(municipalities.has(municipality), `missing source catalog municipality: ${municipality}`);
   }
@@ -535,6 +542,9 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.ok(routeSources.every((entry) => entry.templateId === "route_species_walk"));
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.setagaya\.lg\.jp\/02074\/4717\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.handa\.lg\.jp\/machi\/kankyo\/1002994\/1003007\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.isesaki\.lg\.jp\/soshiki\/kankyobu\/kankyo\/kikaku\/seibututayousei\/21642\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kagoshima\.lg\.jp\/machizukuri\/kankyohozen\/shizen\/hozonju\/kagoshimanomizube\/index\.html/);
 });
 
 test("municipal walk map validation blocks incomplete authoring contracts", () => {
