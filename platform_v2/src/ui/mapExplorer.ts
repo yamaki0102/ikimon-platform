@@ -2551,8 +2551,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var shortTitle = title.replace(/サンプル/g, '').replace(/周辺を歩く/g, '').replace(/を歩く/g, '').trim() || title;
       html += '<a href="' + escapeAttr(walkMapHrefForId(id)) + '" data-kpi-action="map:start_panel:route_candidate" data-route-region="candidate">' + escapeHtml(shortTitle.slice(0, 14)) + '</a>';
     }
-    var listHref = (startPanelRoutesEl ? (startPanelRoutesEl.getAttribute('data-walk-map-prefix') || '/walk-maps/') : '/walk-maps/').replace(/\/$/, '');
-    html += '<a href="' + escapeAttr(listHref) + '" data-kpi-action="map:start_panel:route_list" data-route-region="all">' + (SEARCH_LANG === 'ja' ? '一覧' : 'All') + '</a>';
+    var listHref = (startPanelRoutesEl ? (startPanelRoutesEl.getAttribute('data-walk-map-prefix') || '/walk-maps/') : '/walk-maps/').replace(/\\/$/, '');
+    var listLabel = SEARCH_LANG === 'ja' ? '一覧' : 'All';
+    html += '<a href="' + escapeAttr(listHref) + '" data-kpi-action="map:start_panel:route_list" data-route-region="all">' + listLabel + '</a>';
     if (!html) return false;
     nav.innerHTML = html;
     if (startPanelRoutesHeadingEl) startPanelRoutesHeadingEl.textContent = startPanelRoutesEl.getAttribute('data-any-heading') || '散策候補';

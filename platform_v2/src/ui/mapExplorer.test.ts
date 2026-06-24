@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
+
+test("map explorer boot script is syntactically valid JavaScript", () => {
+  const scriptHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = scriptHtml.replace(/^<script>/, "").replace(/<\/script>$/, "");
+
+  assert.doesNotThrow(() => new vm.Script(script));
+});
 
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
