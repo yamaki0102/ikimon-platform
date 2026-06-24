@@ -2300,7 +2300,14 @@ const STATIC_MUNICIPAL_WALK_MAP_SUMMARIES = [
     stopCount: 2,
     sourceReferences: [
       { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
-    ]
+    ],
+    areaHint: {
+      lat: 34.986,
+      lng: 138.407,
+      label: "谷津山周辺",
+      precision: "area_hint",
+      source: "official_source_sample"
+    }
   },
   {
     schemaVersion: "municipal_walk_map_public_summary/v0",
@@ -2315,7 +2322,14 @@ const STATIC_MUNICIPAL_WALK_MAP_SUMMARIES = [
     stopCount: 2,
     sourceReferences: [
       { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
-    ]
+    ],
+    areaHint: {
+      lat: 35.015,
+      lng: 138.389,
+      label: "麻機の水辺",
+      precision: "area_hint",
+      source: "official_source_sample"
+    }
   },
   {
     schemaVersion: "municipal_walk_map_public_summary/v0",
@@ -2330,7 +2344,14 @@ const STATIC_MUNICIPAL_WALK_MAP_SUMMARIES = [
     stopCount: 2,
     sourceReferences: [
       { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
-    ]
+    ],
+    areaHint: {
+      lat: 34.925,
+      lng: 138.379,
+      label: "丸子川・広野海岸公園周辺",
+      precision: "area_hint",
+      source: "official_source_sample"
+    }
   }
 ];
 

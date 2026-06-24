@@ -715,7 +715,7 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(html, /aria-label="閉じる"/);
   assert.match(script, /function layerHintInfo\(tab\)/);
   assert.match(script, /ズームするとエリア図鑑の範囲が見えます。/);
-  assert.match(script, /ズームすると記録の余白が面で見えます。/);
+  assert.match(script, /ズームするとまだ少ない場所が面で見えます。/);
   assert.match(script, /ズームすると季節の気配の濃淡が見えます。/);
   assert.match(script, /maybeShowLayerHint\(state\.tab\);/);
   assert.match(script, /function jumpToVisibleLayer\(tab\)/);

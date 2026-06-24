@@ -5221,13 +5221,17 @@ test("Cloudflare public municipal walk map candidate API scopes static samples b
     ok?: boolean;
     matchedMunicipalityCode?: string | null;
     locationFiltered?: boolean;
-    summaries?: Array<{ walkMapId?: string }>;
+    summaries?: Array<{ walkMapId?: string; areaHint?: { precision?: string; source?: string; lat?: number; lng?: number } }>;
   };
   assert.equal(shizuokaBody.ok, true);
   assert.equal(shizuokaBody.locationFiltered, true);
   assert.equal(shizuokaBody.matchedMunicipalityCode, "22100");
   assert.equal(shizuokaBody.summaries?.length, 2);
   assert.match(JSON.stringify(shizuokaBody.summaries), /jp-shizuoka-/);
+  assert.equal(shizuokaBody.summaries?.[0]?.areaHint?.precision, "area_hint");
+  assert.equal(shizuokaBody.summaries?.[0]?.areaHint?.source, "official_source_sample");
+  assert.match(String(shizuokaBody.summaries?.[0]?.areaHint?.lat), /^-?\d+(\.\d{1,3})?$/);
+  assert.match(String(shizuokaBody.summaries?.[0]?.areaHint?.lng), /^-?\d+(\.\d{1,3})?$/);
 
   const tokyo = await worker.fetch(new Request(
     "https://staging.ikimon.life/api/v1/municipal-walk-maps?lat=35.681&lng=139.767&limit=2"
