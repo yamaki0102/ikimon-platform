@@ -4947,7 +4947,7 @@ test("production original UI app shells serve materialized HTML even with sessio
   }
 });
 
-test("production original UI profile shell stays materialized even with session cookies", async () => {
+test("production profile shell renders signed-in Cloudflare page for valid session cookies", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -4967,6 +4967,12 @@ test("production original UI profile shell stays materialized even with session 
   await env.ASSET_BUCKET.put("original-ui/html/ja/record.html", "<!doctype html><title>materialized record</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "profile-user", displayName: "八巻テスト", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -4980,18 +4986,23 @@ test("production original UI profile shell stays materialized even with session 
   }) as typeof fetch;
   try {
     for (const check of [
-      { path: "/ja/profile", expected: "materialized profile" },
-      { path: "/ja/profile/settings", expected: "materialized settings" },
+      { path: "/ja/profile", expected: "八巻テスト", native: true },
+      { path: "/ja/profile/settings", expected: "プロフィール設定", native: true },
       { path: "/ja/records", expected: "materialized records" },
       { path: "/ja/record", expected: "materialized record" }
     ]) {
       const response = await worker.fetch(new Request(`https://ikimon.life${check.path}`, {
-        headers: { cookie: "ikimon_v2_session=secret" }
+        headers: { cookie }
       }), productionEnv);
       const body = await response.text();
       assert.equal(response.status, 200, check.path);
       assert.match(body, new RegExp(check.expected), check.path);
       assert.doesNotMatch(body, /personalized origin profile/, check.path);
+      if (check.native) {
+        assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
+        assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
+        assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
+      }
     }
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
