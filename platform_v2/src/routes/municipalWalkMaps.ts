@@ -604,6 +604,10 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-gate-item.is-ready{border-color:#bbf7d0;background:#f0fdf4}
 .wm-admin-gate-item strong{font-size:12px;color:#0f172a;line-height:1.35}
 .wm-admin-gate-item span{font-size:12px;color:#475569;line-height:1.55}
+.wm-admin-gate-next{border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:10px;display:grid;gap:7px}
+.wm-admin-gate-next strong{font-size:12px;color:#0f172a}
+.wm-admin-gate-next ol{margin:0;padding-left:20px;color:#475569;font-size:12px;line-height:1.65}
+.wm-admin-gate-next li::marker{font-weight:900;color:#0f766e}
 .wm-admin-gate-errors{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:11px!important;color:#9a3412!important;overflow-wrap:anywhere}
 .wm-admin-form{border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:16px;display:grid;gap:14px}
 .wm-admin-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -822,6 +826,16 @@ function renderAdminPublicationGate(config: MunicipalWalkMapConfigV0): string {
   const sourceReady = config.sourceReferences.length > 0 && review.sourceRightsAttested;
   const accessReady = review.publicAccessAttested && !validation.blockedStopIds.length && !review.emergencyHidden;
   const approvalReady = Boolean(review.publishApprovedByUserId && review.publishApprovedAt);
+  const nextSteps = [
+    !verifiedCreator ? "作成者登録で自治体・登録団体・登録会社を確認済みにする" : "",
+    config.routeFlexibility.routeStyle === "suggested_order" && !verifiedCreator ? "おすすめ表示は確認済み作成者に切り替える" : "",
+    config.sourceReferences.length === 0 ? "引用元に公式ページURLを入れる" : "",
+    config.sourceReferences.length > 0 && !review.sourceRightsAttested ? "PDF本文・図版・写真を転載していない確認にチェックを入れる" : "",
+    !review.publicAccessAttested ? "公開範囲と立入条件の確認にチェックを入れる" : "",
+    validation.blockedStopIds.length ? `立ち寄り先 ${validation.blockedStopIds.join(", ")} の公開範囲を直す` : "",
+    review.emergencyHidden ? "緊急非公開を外すか、非公開のまま審査へ送る" : "",
+    !approvalReady ? "公開承認者と公開承認日を入れる" : "",
+  ].filter(Boolean).slice(0, 6);
   const items = [
     {
       ready: verifiedCreator,
@@ -863,6 +877,12 @@ function renderAdminPublicationGate(config: MunicipalWalkMapConfigV0): string {
           <span>${escapeHtml(item.text)}</span>
         </div>
       `).join("")}
+    </div>
+    <div class="wm-admin-gate-next" data-walk-map-next-review-items>
+      <strong>${escapeHtml(nextSteps.length ? "次に埋める項目" : "公開前チェックは揃っています")}</strong>
+      ${nextSteps.length
+        ? `<ol>${nextSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`
+        : `<ol><li>審査画面で公開プレビューへ進められます</li></ol>`}
     </div>
     ${validation.errors.length ? `<p class="wm-admin-gate-errors">${escapeHtml(validation.errors.slice(0, 8).join(" / "))}</p>` : ""}
   </section>`;

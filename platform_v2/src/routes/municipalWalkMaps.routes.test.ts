@@ -345,6 +345,11 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
         assert.match(response.body, /自然散策マップ/);
         assert.match(response.body, /data-walk-map-publication-gate/);
+        assert.match(response.body, /data-walk-map-next-review-items/);
+        assert.match(response.body, /次に埋める項目/);
+        assert.match(response.body, /作成者登録で自治体・登録団体・登録会社を確認済みにする/);
+        assert.match(response.body, /引用元に公式ページURLを入れる/);
+        assert.match(response.body, /公開範囲と立入条件の確認にチェックを入れる/);
         assert.match(response.body, /自治体・登録団体・登録会社の確認済み登録だけが公開できます/);
         assert.match(response.body, /商業主目的は公開不可/);
         assert.match(response.body, /公開承認者と日付が入るまで公開モードでは保存できません/);
