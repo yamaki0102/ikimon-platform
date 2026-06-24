@@ -790,11 +790,12 @@ function renderWalkMapAdminBody(
       </div>
       <div class="wm-admin-draft-tools">
         <button type="button" data-walk-map-refresh-draft-json>JSONを作る</button>
+        <button type="button" data-walk-map-import-draft-json>JSONを読み込む</button>
         <button type="button" data-walk-map-preview-draft>保存せずプレビュー</button>
         <button type="button" data-walk-map-copy-draft-json>コピー</button>
         <span class="wm-admin-result" data-walk-map-draft-json-result></span>
       </div>
-      <textarea name="draftJson" data-walk-map-draft-json readonly spellcheck="false" aria-label="散策マップ下書きJSON"></textarea>
+      <textarea name="draftJson" data-walk-map-draft-json spellcheck="false" aria-label="散策マップ下書きJSON"></textarea>
     </section>
     <div class="wm-admin-actions">
       <button type="submit">保存</button>
@@ -1099,6 +1100,78 @@ function wmCreatorPayload(form) {
 function wmDraftJsonText(form) {
   return JSON.stringify(wmPayload(form), null, 2);
 }
+function wmSetField(form, name, value) {
+  var field = form.querySelector("[name='" + name + "']");
+  if (!field) return;
+  field.value = value == null ? "" : String(value);
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function wmSetChecked(form, name, value) {
+  var field = form.querySelector("[name='" + name + "']");
+  if (!field) return;
+  field.checked = Boolean(value);
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function wmJoinLines(items) {
+  return Array.isArray(items) ? items.filter(Boolean).join("\\n") : "";
+}
+function wmSourceReferencesText(items) {
+  return Array.isArray(items)
+    ? items.map(function(ref) {
+      return [ref && ref.label, ref && ref.url, ref && ref.note].filter(Boolean).join(" | ");
+    }).filter(Boolean).join("\\n")
+    : "";
+}
+function wmApplyDraftPayload(form, payload) {
+  if (!payload || typeof payload !== "object") throw new Error("JSONの形式を確認してください");
+  wmSetField(form, "walkMapId", payload.walkMapId || "");
+  wmSetField(form, "municipality", payload.municipality || "");
+  wmSetField(form, "creatorRegistryPick", "");
+  wmSetField(form, "creatorName", payload.creatorName || "");
+  wmSetField(form, "creatorId", payload.creatorProfile && payload.creatorProfile.creatorId || "");
+  wmSetField(form, "registrationKind", payload.creatorProfile && payload.creatorProfile.registrationKind || "unknown");
+  wmSetField(form, "verificationStatus", payload.creatorProfile && payload.creatorProfile.verificationStatus || "pending");
+  wmSetField(form, "commercialIntent", payload.creatorProfile && payload.creatorProfile.commercialIntent || "none");
+  wmSetField(form, "title", payload.title || "");
+  wmSetField(form, "summary", payload.summary || "");
+  wmSetField(form, "theme", payload.theme || "seasonal_walk");
+  wmSetField(form, "publishMode", payload.publishMode || "draft");
+  wmSetField(form, "routeStyle", payload.routeFlexibility && payload.routeFlexibility.routeStyle || "loose_stops");
+  wmSetField(form, "mobilityModes", Array.isArray(payload.routeFlexibility && payload.routeFlexibility.mobilityModes) ? payload.routeFlexibility.mobilityModes.join(", ") : "");
+  wmSetField(form, "offRoutePolicy", payload.routeFlexibility && payload.routeFlexibility.offRoutePolicy || "off_route_allowed");
+  wmSetField(form, "returnCues", wmJoinLines(payload.routeFlexibility && payload.routeFlexibility.returnCues));
+  wmSetField(form, "publicPrecisionPolicy", payload.publicPrecisionPolicy || "mesh_or_coarser");
+  wmSetField(form, "municipalityCodes", Array.isArray(payload.areaScope && payload.areaScope.municipalityCodes) ? payload.areaScope.municipalityCodes.join(", ") : "");
+  wmSetField(form, "placeIds", Array.isArray(payload.areaScope && payload.areaScope.placeIds) ? payload.areaScope.placeIds.join(", ") : "");
+  wmSetField(form, "polygonIds", Array.isArray(payload.areaScope && payload.areaScope.polygonIds) ? payload.areaScope.polygonIds.join(", ") : "");
+  wmSetField(form, "claimBoundary", wmJoinLines(payload.claimBoundary));
+  wmSetField(form, "sourceReferences", wmSourceReferencesText(payload.sourceReferences));
+  var review = payload.publicationReview || {};
+  wmSetChecked(form, "publicAccessAttested", review.publicAccessAttested);
+  wmSetChecked(form, "sourceRightsAttested", review.sourceRightsAttested);
+  wmSetField(form, "permissionAttestedBy", review.permissionAttestedBy || "");
+  wmSetField(form, "permissionAttestedAt", review.permissionAttestedAt || "");
+  wmSetField(form, "publishApprovedByUserId", review.publishApprovedByUserId || "");
+  wmSetField(form, "publishApprovedAt", review.publishApprovedAt || "");
+  wmSetChecked(form, "emergencyHidden", review.emergencyHidden);
+  wmSetField(form, "takedownReason", review.takedownReason || "");
+  for (var index = 0; index < 3; index += 1) {
+    var stop = Array.isArray(payload.routeStops) ? payload.routeStops[index] : null;
+    var prefix = "stop" + index;
+    wmSetField(form, prefix + "StopId", stop && stop.stopId || (index === 0 ? "start" : ""));
+    wmSetField(form, prefix + "Title", stop && stop.title || "");
+    wmSetField(form, prefix + "EstimatedMinutes", stop && stop.estimatedMinutes != null ? stop.estimatedMinutes : "");
+    wmSetField(form, prefix + "AreaKind", stop && stop.areaKind || (index === 0 ? "park" : "street_edge"));
+    wmSetField(form, prefix + "Access", stop && stop.access || "public_access");
+    wmSetField(form, prefix + "SensitiveContext", stop && stop.sensitiveContext || "none");
+    wmSetField(form, prefix + "LinkedFieldId", stop && stop.linkedFieldId || "");
+    wmSetField(form, prefix + "NoticeCues", wmJoinLines(stop && stop.noticeCues));
+    wmSetField(form, prefix + "RecordCues", wmJoinLines(stop && stop.recordCues));
+    wmSetField(form, prefix + "SafetyNotes", wmJoinLines(stop && stop.safetyNotes));
+    wmSetField(form, prefix + "InternalMemo", stop && stop.internalMemo || "");
+  }
+}
 function wmEscapeHtml(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
     return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] || ch;
@@ -1142,12 +1215,24 @@ function wmRefreshDraftJson(form, message) {
 }
 document.addEventListener("click", async function(event) {
   var refreshButton = event.target.closest("[data-walk-map-refresh-draft-json]");
+  var importButton = event.target.closest("[data-walk-map-import-draft-json]");
   var copyButton = event.target.closest("[data-walk-map-copy-draft-json]");
   var previewButton = event.target.closest("[data-walk-map-preview-draft]");
-  if (!refreshButton && !copyButton && !previewButton) return;
+  if (!refreshButton && !importButton && !copyButton && !previewButton) return;
   var form = event.target.closest("[data-walk-map-form]");
   if (!form) return;
-  var text = wmRefreshDraftJson(form, refreshButton ? "JSONを作りました" : "");
+  var text = refreshButton ? wmRefreshDraftJson(form, "JSONを作りました") : String((form.querySelector("[data-walk-map-draft-json]") || {}).value || "");
+  if (importButton) {
+    var importResult = form.querySelector("[data-walk-map-draft-json-result]");
+    try {
+      wmApplyDraftPayload(form, JSON.parse(text));
+      wmRefreshDraftJson(form, "JSONをフォームへ入れました");
+    } catch (error) {
+      if (importResult) importResult.textContent = error instanceof Error ? error.message : String(error);
+    }
+    return;
+  }
+  if (!text) text = wmRefreshDraftJson(form, "");
   if (previewButton) {
     var previewResult = form.querySelector("[data-walk-map-draft-json-result]");
     previewButton.disabled = true;

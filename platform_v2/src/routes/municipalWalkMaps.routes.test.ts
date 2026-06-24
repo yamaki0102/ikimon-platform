@@ -116,10 +116,16 @@ test("municipal walk map authoring UI posts typed config to admin API", async ()
   assert.match(routeSource, /wmCreatorPayload/);
   assert.match(routeSource, /data-walk-map-draft-json/);
   assert.match(routeSource, /data-walk-map-refresh-draft-json/);
+  assert.match(routeSource, /data-walk-map-import-draft-json/);
   assert.match(routeSource, /data-walk-map-copy-draft-json/);
   assert.match(routeSource, /data-walk-map-preview-draft/);
   assert.match(routeSource, /function wmDraftJsonText\(form\)/);
+  assert.match(routeSource, /function wmApplyDraftPayload\(form, payload\)/);
+  assert.match(routeSource, /wmSetField\(form, "walkMapId", payload\.walkMapId \|\| ""\)/);
+  assert.match(routeSource, /wmSetChecked\(form, "publicAccessAttested", review\.publicAccessAttested\)/);
+  assert.match(routeSource, /prefix \+ "NoticeCues"/);
   assert.match(routeSource, /JSON\.stringify\(wmPayload\(form\), null, 2\)/);
+  assert.match(routeSource, /JSON\.parse\(text\)/);
   assert.match(routeSource, /navigator\.clipboard\.writeText/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps\/preview/);
   assert.match(routeSource, /URL\.createObjectURL/);
@@ -310,9 +316,11 @@ test("municipal walk map admin page can prefill a draft from a source catalog en
         assert.match(response.body, /下書きJSON/);
         assert.match(response.body, /data-walk-map-draft-json/);
         assert.match(response.body, /JSONを作る/);
+        assert.match(response.body, /JSONを読み込む/);
         assert.match(response.body, /保存せずプレビュー/);
         assert.match(response.body, /コピー/);
         assert.match(response.body, /DBに保存する前に/);
+        assert.doesNotMatch(response.body, /data-walk-map-draft-json readonly/);
       } finally {
         await app.close();
       }
