@@ -11,6 +11,7 @@ type MigrationRecord = {
 type MigrationOptions = {
   allowDestructive: boolean;
   repairChecksums: Set<string>;
+  localExtensionCompat: boolean;
 };
 
 const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
@@ -53,7 +54,35 @@ function parseArgs(argv: string[]): MigrationOptions {
   return {
     allowDestructive: argv.includes("--allow-destructive"),
     repairChecksums,
+    localExtensionCompat: argv.includes("--local-extension-compat"),
   };
+}
+
+function isLocalDatabaseUrl(databaseUrl: string): boolean {
+  try {
+    const parsed = new URL(databaseUrl);
+    return ["127.0.0.1", "localhost", "::1"].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function assertLocalExtensionCompatAllowed(): void {
+  const databaseUrl = process.env.DATABASE_URL ?? "";
+  if (!isLocalDatabaseUrl(databaseUrl)) {
+    throw new Error("--local-extension-compat is allowed only for localhost scratch DATABASE_URL values.");
+  }
+}
+
+function applyLocalExtensionCompat(sql: string): string {
+  return sql
+    .replace(/CREATE\s+EXTENSION\s+IF\s+NOT\s+EXISTS\s+vector\s*;/gi, "-- local-extension-compat: pgvector extension skipped")
+    .replace(/^\s*SELECT\s+create_hypertable\([^\n;]+;\s*$/gim, "-- local-extension-compat: Timescale hypertable skipped")
+    .replace(/\bVECTOR\s*\(\s*\d+\s*\)/gi, "DOUBLE PRECISION[]")
+    .replace(
+      /CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+\S+\s+ON\s+\S+\s+USING\s+ivfflat\s*\([\s\S]*?\)\s+WITH\s*\([^;]*\)\s*(?:WHERE[\s\S]*?)?;/gi,
+      "-- local-extension-compat: pgvector ivfflat index skipped",
+    );
 }
 
 function assertSafeMigration(filename: string, sql: string, options: MigrationOptions): void {
@@ -104,6 +133,9 @@ async function loadAppliedMigrations(): Promise<Map<string, MigrationRecord>> {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  if (options.localExtensionCompat) {
+    assertLocalExtensionCompatAllowed();
+  }
   await ensureSchemaMigrationsTable();
 
   const pool = getPool();
@@ -118,8 +150,9 @@ async function main() {
 
   for (const filename of migrationFiles) {
     const fullPath = path.join(migrationsDir, filename);
-    const sql = await readFile(fullPath, "utf8");
-    const checksum = checksumFor(sql);
+    const rawSql = await readFile(fullPath, "utf8");
+    const checksum = checksumFor(rawSql);
+    const sql = options.localExtensionCompat ? applyLocalExtensionCompat(rawSql) : rawSql;
     const appliedMigration = applied.get(filename);
 
     if (appliedMigration) {
