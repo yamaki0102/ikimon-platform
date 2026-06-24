@@ -100,6 +100,8 @@ jobs:
 
       - name: Deploy staging Worker
         if: env.DEPLOY_STAGING == 'true'
+        id: deploy-staging-worker
+        continue-on-error: true
         working-directory: platform_v2/cloudflare_shadow
         run: npm run deploy:staging -- --test-profile "${TEST_PROFILE}" --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --write-preflight-report .deploy/staging-deploy-latest.json
 
@@ -134,6 +136,7 @@ jobs:
           retention-days: 7
 
       - name: Write Cloudflare staging summary
+        if: always()
         working-directory: platform_v2/cloudflare_shadow
         run: |
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
@@ -148,6 +151,7 @@ jobs:
           console.log("- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`");
           console.log("- Production DB/R2 mutation: `false`");
           console.log("- VPS SSH/deploy: `not used`");
+          console.log("- Worker deploy step conclusion: `${{ steps.deploy-staging-worker.conclusion || 'skipped' }}`");
           console.log(`- Status: \`${preflight.status}\``);
           console.log(`- Test profile: \`${preflight.testProfile}\``);
           if (materialized) {
