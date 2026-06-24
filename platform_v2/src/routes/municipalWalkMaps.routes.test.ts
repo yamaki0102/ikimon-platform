@@ -47,6 +47,7 @@ test("municipal walk map routes are registered with API and preview paths", asyn
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps\/preview/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps\/:walkMapId/);
   assert.match(routeSource, /\/api\/v1\/municipal-walk-maps"/);
+  assert.match(routeSource, /\/walk-map-source-drafts\/:sourceId/);
   assert.match(routeSource, /\/walk-maps\/:walkMapId/);
   assert.match(routeSource, /\/walk-maps"/);
   assert.match(routeSource, /renderWalkMapIndexBody/);
@@ -221,6 +222,33 @@ test("municipal walk map public preview renders static sample without DB or inte
       assert.doesNotMatch(response.body, /public_preview/);
       assert.doesNotMatch(response.body, /municipal_walk_map_location_safety/);
       assert.doesNotMatch(response.body, /school_stop_requires_permission/);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test("municipal walk map source draft review renders Shizuoka draft without admin session", async () => {
+  await withEnv({ DATABASE_URL: undefined }, async () => {
+    const app = buildApp();
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
+        headers: { accept: "text/html" },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.match(response.body, /静岡市 いきもの散策マップ 下書き/);
+      assert.match(response.body, /source_draft_review/);
+      assert.match(response.body, /6\. 公園の開けた場所/);
+      assert.match(response.body, /asahata2024-map\.pdf/);
+      assert.match(response.body, /yatsuyama-map\.pdf/);
+      assert.match(response.body, /000980916\.pdf/);
+      assert.match(response.body, /許可と公開範囲が確認できるまで記録ボタンは出しません/);
+      assert.doesNotMatch(response.body, /\/admin\/municipal-walk-maps/);
+      assert.doesNotMatch(response.body, /内部メモ/);
+      assert.doesNotMatch(response.body, /見返|読み返|少し厚|貢献|順番通り|育つ場所/);
     } finally {
       await app.close();
     }

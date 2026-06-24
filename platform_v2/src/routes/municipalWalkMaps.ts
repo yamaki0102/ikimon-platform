@@ -11,6 +11,7 @@ import {
   buildMunicipalWalkMapPublicReadModelV0,
   getMunicipalWalkMapCreatorV0,
   getMunicipalWalkMapConfigV0FromDb,
+  getMunicipalWalkMapSourceCatalogEntryV0,
   getStaticMunicipalWalkMapConfigV0,
   listPublicMunicipalWalkMapSummariesV0,
   listMunicipalWalkMapCreatorsV0,
@@ -332,10 +333,17 @@ function precisionPolicyText(policy: MunicipalWalkMapPublicReadModelV0["location
   return "市区町村単位または非表示";
 }
 
-function renderWalkMapPreviewBody(publicMap: MunicipalWalkMapPublicReadModelV0, basePath: string, lang: SiteLang, source: string): string {
+function renderWalkMapPreviewBody(
+  publicMap: MunicipalWalkMapPublicReadModelV0,
+  basePath: string,
+  lang: SiteLang,
+  source: string,
+  options: { suppressRecordCtas?: boolean } = {},
+): string {
   const stops = publicMap.stops.map((stop, index) => {
     const cueList = (items: string[]) => items.length ? items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") : `<li>${escapeHtml(lang === "en" ? "To be set" : "未設定")}</li>`;
-    const recordHref = stop.recordHref ? appendLangToHref(withBasePath(basePath, stop.recordHref), lang) : "";
+    const recordHref =
+      !options.suppressRecordCtas && stop.recordHref ? appendLangToHref(withBasePath(basePath, stop.recordHref), lang) : "";
     return `<article class="wm-stop">
       <div class="wm-stop-head">
         <h2>${index + 1}. ${escapeHtml(stop.title)}</h2>
@@ -1562,7 +1570,7 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
         title: `${publicMap.title} — ikimon.life`,
         description: publicMap.summary,
         extraStyles: WALK_MAP_STYLES,
-        body: renderWalkMapPreviewBody(publicMap, "", "ja", "admin_draft"),
+        body: renderWalkMapPreviewBody(publicMap, "", "ja", "admin_draft", { suppressRecordCtas: true }),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "municipal_walk_map_admin_preview_failed";
@@ -1643,6 +1651,35 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
       body: renderWalkMapPreviewBody(loaded.publicMap, basePath, lang, loaded.source),
     });
   });
+
+  app.get<{ Params: { sourceId: string } }>("/walk-map-source-drafts/:sourceId", async (request, reply) => {
+    const source = getMunicipalWalkMapSourceCatalogEntryV0(request.params.sourceId);
+    const lang = detectLangFromUrl(requestUrl(request));
+    const basePath = requestBasePath(request as { headers: Record<string, unknown> });
+    if (!source) {
+      reply.code(404);
+      reply.type("text/html; charset=utf-8");
+      return renderSiteDocument({
+        basePath,
+        lang,
+        title: "散策マップ下書きが見つかりません — ikimon.life",
+        body: `<main class="wm-shell"><section class="wm-hero"><h1>散策マップ下書きが見つかりません</h1><p class="wm-lead">公開レビュー用のsource IDを確認してください。</p></section></main>`,
+        extraStyles: WALK_MAP_STYLES,
+      });
+    }
+    const config = buildMunicipalWalkMapConfigFromSourceCatalogV0(source.sourceId);
+    const publicMap = buildMunicipalWalkMapPublicReadModelV0(config);
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      lang,
+      title: `${publicMap.title} — ikimon.life`,
+      description: publicMap.summary,
+      currentPath: `/walk-map-source-drafts/${encodeURIComponent(source.sourceId)}`,
+      extraStyles: WALK_MAP_STYLES,
+      body: renderWalkMapPreviewBody(publicMap, basePath, lang, "source_draft_review", { suppressRecordCtas: true }),
+    });
+  });
 }
 
 export const municipalWalkMapRouteContract = {
@@ -1659,5 +1696,6 @@ export const municipalWalkMapRouteContract = {
   adminUpdateApiPath: "/api/v1/admin/municipal-walk-maps/:walkMapId",
   indexPath: "/walk-maps",
   previewPath: "/walk-maps/:walkMapId",
+  sourceDraftReviewPath: "/walk-map-source-drafts/:sourceId",
   staticFallbackId: "jp-shizuoka-light-nature-walk-v0",
 } as const;

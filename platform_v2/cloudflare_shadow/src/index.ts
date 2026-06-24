@@ -790,6 +790,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/record",
   "/records",
   "/map",
+  "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
   "/walk-maps",
   "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
   "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",

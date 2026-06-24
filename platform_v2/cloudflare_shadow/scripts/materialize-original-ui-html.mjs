@@ -71,6 +71,7 @@ const corePaths = [
   "/guide",
   "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
   "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+  "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
   "/walk-maps",
   "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
   "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
