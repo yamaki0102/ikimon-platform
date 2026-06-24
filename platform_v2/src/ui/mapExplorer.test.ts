@@ -178,6 +178,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /写真/);
   assert.match(html, /ガイド/);
   assert.match(html, /散策/);
+  assert.match(html, /静岡の散策候補/);
+  assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-asahata-waterfront-sample-v0"/);
+  assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-yatsuyama-sample-v0"/);
+  assert.match(html, /data-kpi-action="map:start_panel:route_asahata"/);
   assert.match(html, /📍/);
   assert.match(html, /📷/);
   assert.match(html, /🧭/);
@@ -238,7 +242,9 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-brief\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-brief \{[\s\S]*display: inline;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-routes \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-routes\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-legend\.is-collapsed \.me-legend-gradient,/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\[hidden\],\s+\.me-rain-mode \.me-purpose-hint,\s+\.me-sheet-open \.me-purpose-hint \{[\s\S]*display: none;/);

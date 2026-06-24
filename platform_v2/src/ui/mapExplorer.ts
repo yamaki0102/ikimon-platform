@@ -1019,6 +1019,8 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const guideHref = appendLangToHref(withBasePath(props.basePath, "/guide"), props.lang);
   const communityRecordsHref = appendLangToHref(withBasePath(props.basePath, "/records"), props.lang);
   const routeHintsHref = appendLangToHref(withBasePath(props.basePath, "/walk-maps"), props.lang);
+  const asahataWalkHref = appendLangToHref(withBasePath(props.basePath, "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0"), props.lang);
+  const yatsuyamaWalkHref = appendLangToHref(withBasePath(props.basePath, "/walk-maps/jp-shizuoka-yatsuyama-sample-v0"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
@@ -1110,6 +1112,18 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       : lang === "pt-BR"
         ? "Fotos · guias · passeios"
         : "Photos · guides · walks";
+  const startPanelRouteHeading = lang === "ja"
+    ? "静岡の散策候補"
+    : lang === "es"
+      ? "Paseos de Shizuoka"
+      : lang === "pt-BR"
+        ? "Passeios de Shizuoka"
+        : "Shizuoka walks";
+  const startPanelRouteLinks = [
+    { label: lang === "ja" ? "水辺" : lang === "es" ? "Agua" : lang === "pt-BR" ? "Agua" : "Waterfront", href: asahataWalkHref, action: "map:start_panel:route_asahata" },
+    { label: lang === "ja" ? "谷津山" : lang === "es" ? "Yatsuyama" : lang === "pt-BR" ? "Yatsuyama" : "Yatsuyama", href: yatsuyamaWalkHref, action: "map:start_panel:route_yatsuyama" },
+    { label: lang === "ja" ? "一覧" : lang === "es" ? "Lista" : lang === "pt-BR" ? "Lista" : "All", href: routeHintsHref, action: "map:start_panel:route_list" },
+  ];
   const startCards = [
     {
       icon: "📷",
@@ -1150,6 +1164,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span aria-hidden="true">${escapeHtml(card.icon)}</span>
           <strong>${escapeHtml(card.title)}</strong>
         </a>`).join("")}
+      </div>
+      <div class="me-start-panel-routes" aria-label="${escapeHtml(startPanelRouteHeading)}">
+        <strong>${escapeHtml(startPanelRouteHeading)}</strong>
+        <nav>
+          ${startPanelRouteLinks.map((link) => `<a href="${escapeHtml(link.href)}" data-kpi-action="${escapeHtml(link.action)}">${escapeHtml(link.label)}</a>`).join("")}
+        </nav>
       </div>
     </section>`;
 
@@ -9846,6 +9866,9 @@ export const MAP_EXPLORER_STYLES = `
   .me-start-panel.is-collapsed .me-start-panel-grid {
     display: none;
   }
+  .me-start-panel.is-collapsed .me-start-panel-routes {
+    display: none;
+  }
   .me-start-panel-location {
     min-width: 0;
     width: 38px;
@@ -9913,6 +9936,45 @@ export const MAP_EXPLORER_STYLES = `
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+  .me-start-panel-routes {
+    display: grid;
+    gap: 5px;
+    margin-top: 5px;
+    padding: 7px;
+    border-radius: 10px;
+    background: rgba(240,253,250,.92);
+    border: 1px solid rgba(15,118,110,.12);
+  }
+  .me-start-panel-routes > strong {
+    color: #0f172a;
+    font-size: 11.5px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .me-start-panel-routes nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .me-start-panel-routes a {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid rgba(15,118,110,.14);
+    color: #0f766e;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 900;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .me-start-panel-routes a:hover {
+    background: rgba(204,251,241,.76);
   }
   .me-rain-mode .me-start-panel,
   .me-sheet-open .me-start-panel {
