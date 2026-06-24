@@ -119,6 +119,12 @@ test("municipal walk map authoring UI posts typed config to admin API", async ()
   assert.match(routeSource, /data-walk-map-import-draft-json/);
   assert.match(routeSource, /data-walk-map-copy-draft-json/);
   assert.match(routeSource, /data-walk-map-preview-draft/);
+  assert.match(routeSource, /data-walk-map-stops/);
+  assert.match(routeSource, /data-walk-map-add-stop/);
+  assert.match(routeSource, /data-walk-map-remove-stop/);
+  assert.match(routeSource, /function wmVisibleStopIndexes\(form\)/);
+  assert.match(routeSource, /wmEnsureStopSections\(form, stops\.length\)/);
+  assert.match(routeSource, /Math\.max\(3, config\.routeStops\.length\)/);
   assert.match(routeSource, /function wmDraftJsonText\(form\)/);
   assert.match(routeSource, /function wmApplyDraftPayload\(form, payload\)/);
   assert.match(routeSource, /wmSetField\(form, "walkMapId", payload\.walkMapId \|\| ""\)/);

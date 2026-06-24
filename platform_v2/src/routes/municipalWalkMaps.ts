@@ -528,8 +528,12 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-form input,.wm-admin-form select,.wm-admin-form textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#111827;min-height:38px;padding:8px 10px;font:inherit;font-size:14px}
 .wm-admin-form textarea{line-height:1.55;resize:vertical}
 .wm-admin-stop{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:12px;display:grid;gap:10px}
+.wm-admin-stop-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .wm-admin-stop h2{margin:0;font-size:15px;color:#111827}
+.wm-admin-stop button{min-height:32px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#334155;padding:0 10px;font-size:12px;font-weight:900;cursor:pointer}
 .wm-admin-stop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.wm-admin-stop-actions{display:flex;align-items:center;justify-content:flex-start}
+.wm-admin-stop-actions button{min-height:36px;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 12px;font-weight:900;cursor:pointer}
 .wm-admin-actions{display:flex;align-items:center;gap:10px;border-top:1px solid #eef2f7;padding-top:12px}
 .wm-admin-actions button{min-height:40px;border:1px solid #0f766e;border-radius:6px;background:#0f766e;color:#fff;padding:0 14px;font-weight:900;cursor:pointer}
 .wm-admin-result{font-size:12px;color:#475569;font-weight:800}
@@ -554,7 +558,10 @@ function renderStopFields(stop: MunicipalWalkMapConfigV0["routeStops"][number] |
   const sensitiveContext = stop?.sensitiveContext ?? "none";
   return `
 <section class="wm-admin-stop" data-stop-index="${index}">
-  <h2>立ち寄り先 ${index + 1}</h2>
+  <div class="wm-admin-stop-head">
+    <h2>立ち寄り先 ${index + 1}</h2>
+    <button type="button" data-walk-map-remove-stop>削除</button>
+  </div>
   <div class="wm-admin-stop-grid">
     <label>stop id<input name="${prefix}StopId" value="${escapeHtml(stop?.stopId ?? (index === 0 ? "start" : ""))}" placeholder="public-park-start"></label>
     <label>名称<input name="${prefix}Title" value="${escapeHtml(stop?.title ?? "")}" placeholder="公園入口"></label>
@@ -688,7 +695,8 @@ function renderWalkMapAdminBody(
     emergencyHidden: false,
     takedownReason: null,
   };
-  const stops = [0, 1, 2].map((index) => renderStopFields(config.routeStops[index], index)).join("");
+  const stopCount = Math.max(3, config.routeStops.length);
+  const stops = Array.from({ length: stopCount }, (_, index) => renderStopFields(config.routeStops[index], index)).join("");
   const templates = listMunicipalWalkMapTemplatesV0();
   const sourceCatalog = listMunicipalWalkMapSourceCatalogV0({ templateId: selectedTemplateId || undefined });
   const creatorLoadWarning = creatorLoadError
@@ -782,7 +790,12 @@ function renderWalkMapAdminBody(
       <label><input type="checkbox" name="emergencyHidden" ${publicationReview.emergencyHidden ? "checked" : ""}> 緊急非公開</label>
       <label class="wm-admin-wide">非公開理由<textarea name="takedownReason" rows="2" placeholder="公開範囲の再確認など">${escapeHtml(publicationReview.takedownReason ?? "")}</textarea></label>
     </div>
-    ${stops}
+    <section data-walk-map-stops>
+      ${stops}
+    </section>
+    <div class="wm-admin-stop-actions">
+      <button type="button" data-walk-map-add-stop>立ち寄り先を追加</button>
+    </div>
     <section class="wm-admin-draft-export">
       <div>
         <h2>下書きJSON</h2>
@@ -1039,9 +1052,57 @@ function wmStopPayload(data, index) {
     internalMemo: String(data.get(prefix + "InternalMemo") || "").trim() || null
   };
 }
+function wmVisibleStopIndexes(form) {
+  return Array.from(form.querySelectorAll("[data-stop-index]")).map(function(section) {
+    return Number(section.getAttribute("data-stop-index") || "0");
+  }).filter(function(index) { return Number.isFinite(index); });
+}
+function wmBlankStopSection(section) {
+  Array.from(section.querySelectorAll("input, textarea")).forEach(function(field) {
+    field.value = "";
+  });
+  Array.from(section.querySelectorAll("select")).forEach(function(field) {
+    if (field.name.indexOf("AreaKind") >= 0) field.value = "street_edge";
+    else if (field.name.indexOf("Access") >= 0) field.value = "public_access";
+    else if (field.name.indexOf("SensitiveContext") >= 0) field.value = "none";
+  });
+}
+function wmRenumberStops(form) {
+  Array.from(form.querySelectorAll("[data-stop-index]")).forEach(function(section, index) {
+    section.setAttribute("data-stop-index", String(index));
+    var heading = section.querySelector("h2");
+    if (heading) heading.textContent = "立ち寄り先 " + (index + 1);
+    Array.from(section.querySelectorAll("[name]")).forEach(function(field) {
+      field.name = String(field.name || "").replace(/^stop\\d+/, "stop" + index);
+    });
+    if (index === 0) {
+      var stopId = section.querySelector("[name='stop0StopId']");
+      if (stopId && !String(stopId.value || "").trim()) stopId.value = "start";
+    }
+  });
+}
+function wmEnsureStopSections(form, count) {
+  var container = form.querySelector("[data-walk-map-stops]");
+  if (!container) return;
+  var desiredCount = Math.max(3, Number(count || 0));
+  while (container.querySelectorAll("[data-stop-index]").length < desiredCount) {
+    var source = container.querySelector("[data-stop-index]:last-of-type") || container.querySelector("[data-stop-index]");
+    if (!source) break;
+    var next = source.cloneNode(true);
+    wmBlankStopSection(next);
+    container.appendChild(next);
+    wmRenumberStops(form);
+  }
+  while (container.querySelectorAll("[data-stop-index]").length > desiredCount) {
+    var last = container.querySelector("[data-stop-index]:last-of-type");
+    if (!last) break;
+    last.remove();
+  }
+  wmRenumberStops(form);
+}
 function wmPayload(form) {
   var data = new FormData(form);
-  var routeStops = [0, 1, 2].map(function(index){ return wmStopPayload(data, index); }).filter(Boolean);
+  var routeStops = wmVisibleStopIndexes(form).map(function(index){ return wmStopPayload(data, index); }).filter(Boolean);
   return {
     schemaVersion: "municipal_walk_map_config/v0",
     walkMapId: String(data.get("walkMapId") || "").trim(),
@@ -1085,6 +1146,27 @@ function wmPayload(form) {
     }
   };
 }
+document.addEventListener("click", function(event) {
+  var addButton = event.target.closest("[data-walk-map-add-stop]");
+  var removeButton = event.target.closest("[data-walk-map-remove-stop]");
+  if (!addButton && !removeButton) return;
+  var form = event.target.closest("[data-walk-map-form]");
+  if (!form) return;
+  if (addButton) {
+    wmEnsureStopSections(form, wmVisibleStopIndexes(form).length + 1);
+    var last = form.querySelector("[data-stop-index]:last-of-type input, [data-stop-index]:last-of-type textarea");
+    if (last) last.focus();
+    return;
+  }
+  var section = removeButton.closest("[data-stop-index]");
+  if (!section) return;
+  if (wmVisibleStopIndexes(form).length <= 3) {
+    wmBlankStopSection(section);
+  } else {
+    section.remove();
+  }
+  wmRenumberStops(form);
+});
 function wmCreatorPayload(form) {
   var data = new FormData(form);
   return {
@@ -1156,8 +1238,10 @@ function wmApplyDraftPayload(form, payload) {
   wmSetField(form, "publishApprovedAt", review.publishApprovedAt || "");
   wmSetChecked(form, "emergencyHidden", review.emergencyHidden);
   wmSetField(form, "takedownReason", review.takedownReason || "");
-  for (var index = 0; index < 3; index += 1) {
-    var stop = Array.isArray(payload.routeStops) ? payload.routeStops[index] : null;
+  var stops = Array.isArray(payload.routeStops) ? payload.routeStops : [];
+  wmEnsureStopSections(form, stops.length);
+  for (var index = 0; index < Math.max(3, stops.length); index += 1) {
+    var stop = stops[index] || null;
     var prefix = "stop" + index;
     wmSetField(form, prefix + "StopId", stop && stop.stopId || (index === 0 ? "start" : ""));
     wmSetField(form, prefix + "Title", stop && stop.title || "");
