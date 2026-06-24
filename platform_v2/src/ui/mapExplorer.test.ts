@@ -182,7 +182,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /class="me-start-panel-brief">写真・ガイド・散策<\/span>/);
   assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">＋<\/span>/);
   assert.match(html, /近く/);
-  assert.match(html, /押したときだけ現在地を使います。/);
+  assert.match(html, /許可済みなら近くから始めます。押すと現在地へ移動します。/);
   assert.match(html, /写真/);
   assert.match(html, /ガイド/);
   assert.match(html, /散策/);
@@ -231,8 +231,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(styles, /\.me-map-momentum/);
   assert.match(script, /tab: 'places'/);
   assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
-  assert.match(script, /var DEFAULT_MAP_ZOOM = 12\.8;/);
-  assert.match(script, /var STARTUP_LOCATION_ZOOM = 14\.2;/);
+  assert.match(script, /var DEFAULT_MAP_ZOOM = 13\.6;/);
+  assert.match(script, /var STARTUP_LOCATION_ZOOM = 15\.0;/);
   assert.match(script, /var SHIZUOKA_PREF_BBOX = \[137\.47, 34\.57, 139\.16, 35\.65\];/);
   assert.match(script, /function mapCenterIsInShizuoka\(\)/);
   assert.match(script, /function refreshStartPanelRoutes\(\)/);
@@ -245,6 +245,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /link\.hidden = region !== 'all' && region !== 'candidate' && !\(region === 'shizuoka' && inShizuoka\);/);
   assert.match(script, /function readLastStartupLocation\(\)/);
   assert.match(script, /function requestStartupCurrentLocation\(options\)/);
+  assert.match(script, /var onlyIfGranted = options && options\.onlyIfGranted === true;/);
+  assert.match(script, /if \(onlyIfGranted && \(!status \|\| status\.state !== 'granted'\)\)/);
+  assert.match(script, /if \(onlyIfGranted\) return;/);
+  assert.match(script, /requestStartupCurrentLocation\(\{ onlyIfGranted: true \}\)/);
   assert.match(script, /navigator\.geolocation\.getCurrentPosition\(applyPosition, fail/);
   assert.match(script, /startPanelLocationEl\.addEventListener\('click'/);
   assert.match(script, /requestStartupCurrentLocation\(\{ force: true \}\)/);
@@ -264,7 +268,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-brief\s*\{/);
-  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-brief \{[\s\S]*display: inline;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-brief \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-routes \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
@@ -1068,6 +1072,7 @@ test("map uses nearby startup location while keeping record page location explic
   assert.match(script, /function initialStartupViewport\(\)/);
   assert.match(script, /readLastStartupLocation\(\)/);
   assert.doesNotMatch(script, /requestStartupCurrentLocation\(\);/);
+  assert.doesNotMatch(script, /requestStartupCurrentLocation\(\{ onlyIfGranted: false \}\)/);
   assert.match(script, /LAST_LOCATION_MAX_AGE_MS = 1000 \* 60 \* 60 \* 24 \* 30/);
   assert.match(script, /rememberLastStartupLocation\(lng, lat/);
   assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);

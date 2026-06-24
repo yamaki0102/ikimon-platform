@@ -1101,12 +1101,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Ver perto"
         : "Show nearby";
   const startPanelLocationNote = lang === "ja"
-    ? "押したときだけ現在地を使います。"
+    ? "許可済みなら近くから始めます。押すと現在地へ移動します。"
     : lang === "es"
-      ? "Usa tu ubicación solo al tocar."
+      ? "Si ya diste permiso, empieza cerca. Toca para ir a tu ubicación."
       : lang === "pt-BR"
-        ? "Usa sua localização só ao tocar."
-        : "Uses location only when tapped.";
+        ? "Se já permitiu, começa por perto. Toque para ir à sua localização."
+        : "If already allowed, the map starts nearby. Tap to use your current place.";
   const startPanelBrief = lang === "ja"
     ? "写真・ガイド・散策"
     : lang === "es"
@@ -2369,8 +2369,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var VIEWPORT_RECORD_LIMIT = 600;
   var CELL_RECORD_LIMIT = 1500;
   var DEFAULT_MAP_CENTER = [138.383, 34.975];
-  var DEFAULT_MAP_ZOOM = 12.8;
-  var STARTUP_LOCATION_ZOOM = 14.2;
+  var DEFAULT_MAP_ZOOM = 13.6;
+  var STARTUP_LOCATION_ZOOM = 15.0;
   var SHIZUOKA_PREF_BBOX = [137.47, 34.57, 139.16, 35.65];
   var LAST_LOCATION_STORAGE_KEY = 'ikimon-map-last-startup-location-v1';
   var LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
@@ -8551,7 +8551,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > LAST_LOCATION_MAX_AGE_MS) return null;
       return {
         center: [lng, lat],
-        zoom: Math.max(12.8, Math.min(16, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
+        zoom: Math.max(DEFAULT_MAP_ZOOM, Math.min(16.5, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
         source: 'last_location',
       };
     } catch (_) {
@@ -8574,6 +8574,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function requestStartupCurrentLocation(options) {
     var force = options && options.force === true;
+    var onlyIfGranted = options && options.onlyIfGranted === true;
     if ((!force && (state._restoredCenter || state._restoredCellId)) || !state.map || !navigator.geolocation) return;
     var applyPosition = function (pos) {
       state.startupLocationRequestActive = false;
@@ -8612,10 +8613,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           fail();
           return;
         }
+        if (onlyIfGranted && (!status || status.state !== 'granted')) {
+          fail();
+          return;
+        }
         run();
       }).catch(run);
       return;
     }
+    if (onlyIfGranted) return;
     run();
   }
 
@@ -8666,6 +8672,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       loadAreaPolygons();
       refreshStartPanelRoutes();
       scheduleStartPanelRouteCandidates(120);
+      requestStartupCurrentLocation({ onlyIfGranted: true });
       runInitialMapDataLoad('load');
     });
     scheduleInitialMapDataLoad(180);
@@ -9904,6 +9911,7 @@ export const MAP_EXPLORER_STYLES = `
     border: 1px solid rgba(15,23,42,.08);
     box-shadow: 0 6px 18px rgba(15,23,42,.10);
     backdrop-filter: blur(14px);
+    box-sizing: border-box;
   }
   .me-start-panel.is-collapsed {
     padding: 0;
@@ -9969,7 +9977,7 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 10px 24px rgba(15,118,110,.18);
   }
   .me-start-panel.is-collapsed .me-start-panel-brief {
-    display: inline;
+    display: none;
   }
   .me-start-panel.is-collapsed .me-start-panel-grid {
     display: none;
@@ -10046,7 +10054,7 @@ export const MAP_EXPLORER_STYLES = `
     white-space: nowrap;
   }
   .me-start-panel-routes {
-    display: grid;
+    display: none;
     gap: 5px;
     margin-top: 5px;
     padding: 7px;
@@ -12764,9 +12772,7 @@ export const MAP_EXPLORER_STYLES = `
       padding: 0 10px;
     }
     .me-start-panel.is-collapsed .me-start-panel-brief {
-      max-width: 132px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      display: none;
     }
     .me-start-panel-grid {
       grid-template-columns: repeat(5, minmax(0, 1fr));
