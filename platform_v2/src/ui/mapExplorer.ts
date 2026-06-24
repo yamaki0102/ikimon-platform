@@ -1119,10 +1119,17 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       : lang === "pt-BR"
         ? "Passeios de Shizuoka"
         : "Shizuoka walks";
+  const startPanelRouteHeadingAny = lang === "ja"
+    ? "散策候補"
+    : lang === "es"
+      ? "Paseos"
+      : lang === "pt-BR"
+        ? "Passeios"
+        : "Walks";
   const startPanelRouteLinks = [
-    { label: lang === "ja" ? "水辺" : lang === "es" ? "Agua" : lang === "pt-BR" ? "Agua" : "Waterfront", href: asahataWalkHref, action: "map:start_panel:route_asahata" },
-    { label: lang === "ja" ? "谷津山" : lang === "es" ? "Yatsuyama" : lang === "pt-BR" ? "Yatsuyama" : "Yatsuyama", href: yatsuyamaWalkHref, action: "map:start_panel:route_yatsuyama" },
-    { label: lang === "ja" ? "一覧" : lang === "es" ? "Lista" : lang === "pt-BR" ? "Lista" : "All", href: routeHintsHref, action: "map:start_panel:route_list" },
+    { label: lang === "ja" ? "水辺" : lang === "es" ? "Agua" : lang === "pt-BR" ? "Agua" : "Waterfront", href: asahataWalkHref, action: "map:start_panel:route_asahata", region: "shizuoka" },
+    { label: lang === "ja" ? "谷津山" : lang === "es" ? "Yatsuyama" : lang === "pt-BR" ? "Yatsuyama" : "Yatsuyama", href: yatsuyamaWalkHref, action: "map:start_panel:route_yatsuyama", region: "shizuoka" },
+    { label: lang === "ja" ? "一覧" : lang === "es" ? "Lista" : lang === "pt-BR" ? "Lista" : "All", href: routeHintsHref, action: "map:start_panel:route_list", region: "all" },
   ];
   const startCards = [
     {
@@ -1165,10 +1172,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <strong>${escapeHtml(card.title)}</strong>
         </a>`).join("")}
       </div>
-      <div class="me-start-panel-routes" aria-label="${escapeHtml(startPanelRouteHeading)}">
-        <strong>${escapeHtml(startPanelRouteHeading)}</strong>
+      <div class="me-start-panel-routes" aria-label="${escapeHtml(startPanelRouteHeading)}" data-shizuoka-heading="${escapeHtml(startPanelRouteHeading)}" data-any-heading="${escapeHtml(startPanelRouteHeadingAny)}">
+        <strong id="me-start-panel-routes-heading">${escapeHtml(startPanelRouteHeading)}</strong>
         <nav>
-          ${startPanelRouteLinks.map((link) => `<a href="${escapeHtml(link.href)}" data-kpi-action="${escapeHtml(link.action)}">${escapeHtml(link.label)}</a>`).join("")}
+          ${startPanelRouteLinks.map((link) => `<a href="${escapeHtml(link.href)}" data-kpi-action="${escapeHtml(link.action)}" data-route-region="${escapeHtml(link.region)}">${escapeHtml(link.label)}</a>`).join("")}
         </nav>
       </div>
     </section>`;
@@ -1633,6 +1640,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var startPanelEl = document.getElementById('me-start-panel');
   var startPanelCloseEl = document.getElementById('me-start-panel-close');
   var startPanelLocationEl = document.getElementById('me-start-panel-location');
+  var startPanelRoutesEl = document.querySelector('.me-start-panel-routes');
+  var startPanelRoutesHeadingEl = document.getElementById('me-start-panel-routes-heading');
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -2356,6 +2365,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var DEFAULT_MAP_CENTER = [138.383, 34.975];
   var DEFAULT_MAP_ZOOM = 12.8;
   var STARTUP_LOCATION_ZOOM = 14.2;
+  var SHIZUOKA_PREF_BBOX = [137.47, 34.57, 139.16, 35.65];
   var LAST_LOCATION_STORAGE_KEY = 'ikimon-map-last-startup-location-v1';
   var LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -2484,6 +2494,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         startPanelCloseEl.textContent = collapsed ? '＋' : '×';
       }
     }
+  }
+
+  function mapCenterIsInShizuoka() {
+    if (!state.map) return true;
+    var center = state.map.getCenter();
+    var lng = Number(center && center.lng);
+    var lat = Number(center && center.lat);
+    return isFinite(lng) && isFinite(lat)
+      && lng >= SHIZUOKA_PREF_BBOX[0] && lng <= SHIZUOKA_PREF_BBOX[2]
+      && lat >= SHIZUOKA_PREF_BBOX[1] && lat <= SHIZUOKA_PREF_BBOX[3];
+  }
+
+  function refreshStartPanelRoutes() {
+    if (!startPanelRoutesEl) return;
+    var inShizuoka = mapCenterIsInShizuoka();
+    var heading = inShizuoka
+      ? (startPanelRoutesEl.getAttribute('data-shizuoka-heading') || '')
+      : (startPanelRoutesEl.getAttribute('data-any-heading') || '');
+    if (startPanelRoutesHeadingEl && heading) startPanelRoutesHeadingEl.textContent = heading;
+    startPanelRoutesEl.querySelectorAll('[data-route-region]').forEach(function (link) {
+      var region = link.getAttribute('data-route-region') || 'all';
+      link.hidden = region !== 'all' && !(region === 'shizuoka' && inShizuoka);
+    });
   }
 
   function sendMapKpi(eventName, actionKey, metadata) {
@@ -8561,6 +8594,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (state.rainEnabled) loadRainTimes().then(updateRainLayer);
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
+      refreshStartPanelRoutes();
       runInitialMapDataLoad('load');
     });
     scheduleInitialMapDataLoad(180);
@@ -8571,6 +8605,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         return;
       }
       saveMapState();
+      refreshStartPanelRoutes();
       if (consumeSuppressedViewportSearch()) return;
       if (state.nearbyAreaLocateMovePending) {
         state.nearbyAreaLocateMovePending = false;
@@ -8849,6 +8884,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       document.querySelectorAll('.me-region-chip').forEach(function (b) {
         b.classList.toggle('is-active', b === btn);
       });
+      refreshStartPanelRoutes();
     });
   });
   if (searchAreaBtnEl) {
@@ -9975,6 +10011,9 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-start-panel-routes a:hover {
     background: rgba(204,251,241,.76);
+  }
+  .me-start-panel-routes a[hidden] {
+    display: none;
   }
   .me-rain-mode .me-start-panel,
   .me-sheet-open .me-start-panel {

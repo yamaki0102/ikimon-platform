@@ -179,9 +179,13 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /ガイド/);
   assert.match(html, /散策/);
   assert.match(html, /静岡の散策候補/);
+  assert.match(html, /data-shizuoka-heading="静岡の散策候補"/);
+  assert.match(html, /data-any-heading="散策候補"/);
   assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-asahata-waterfront-sample-v0"/);
   assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-yatsuyama-sample-v0"/);
   assert.match(html, /data-kpi-action="map:start_panel:route_asahata"/);
+  assert.match(html, /data-route-region="shizuoka"/);
+  assert.match(html, /data-route-region="all"/);
   assert.match(html, /📍/);
   assert.match(html, /📷/);
   assert.match(html, /🧭/);
@@ -219,6 +223,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
   assert.match(script, /var DEFAULT_MAP_ZOOM = 12\.8;/);
   assert.match(script, /var STARTUP_LOCATION_ZOOM = 14\.2;/);
+  assert.match(script, /var SHIZUOKA_PREF_BBOX = \[137\.47, 34\.57, 139\.16, 35\.65\];/);
+  assert.match(script, /function mapCenterIsInShizuoka\(\)/);
+  assert.match(script, /function refreshStartPanelRoutes\(\)/);
+  assert.match(script, /link\.hidden = region !== 'all' && !\(region === 'shizuoka' && inShizuoka\);/);
   assert.match(script, /function readLastStartupLocation\(\)/);
   assert.match(script, /function requestStartupCurrentLocation\(options\)/);
   assert.match(script, /navigator\.geolocation\.getCurrentPosition\(applyPosition, fail/);
@@ -245,6 +253,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-routes \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-routes\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-routes a\[hidden\] \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-legend\.is-collapsed \.me-legend-gradient,/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\[hidden\],\s+\.me-rain-mode \.me-purpose-hint,\s+\.me-sheet-open \.me-purpose-hint \{[\s\S]*display: none;/);
