@@ -785,6 +785,7 @@ const SHADOW_MAP_GUIDE_SPOTS: ShadowMapGuideSpot[] = [
 ];
 const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
+  "/demo/place-feeling-tags",
   "/guide",
   "/record",
   "/records",
@@ -795,6 +796,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/profile/settings",
   "/en",
   "/en/",
+  "/en/demo/place-feeling-tags",
   "/en/guide",
   "/en/login",
   "/en/map",
@@ -805,6 +807,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/en/register",
   "/es",
   "/es/",
+  "/es/demo/place-feeling-tags",
   "/es/guide",
   "/es/login",
   "/es/map",
@@ -815,6 +818,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/es/register",
   "/pt-br",
   "/pt-br/",
+  "/pt-br/demo/place-feeling-tags",
   "/pt-br/guide",
   "/pt-br/login",
   "/pt-br/map",
@@ -837,6 +841,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/ja/about",
   "/ja/cases",
   "/ja/community",
+  "/ja/demo/place-feeling-tags",
   "/ja/community/events",
   "/ja/community/events/new",
   "/ja/community/fields",
@@ -2899,6 +2904,7 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
   if (pathname.startsWith(`/${langSegment}/`) || pathname === `/${langSegment}`) return pathname;
   const localizable = new Set([
     "/",
+    "/demo/place-feeling-tags",
     "/guide",
     "/login",
     "/map",
@@ -2924,6 +2930,7 @@ function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
   return pathname === "/app-refresh"
     || pathname === "/"
     || /^\/(?:ja|en|es|pt-br)\/?$/.test(pathname)
+    || /^(?:\/(?:ja|en|es|pt-br))?\/demo\/place-feeling-tags$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/guide$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname)

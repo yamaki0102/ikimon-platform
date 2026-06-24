@@ -4501,6 +4501,12 @@ test("production original UI html serves materialized anonymous pages from R2 wi
   await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>ikimon / 生きものを手がかりに、この場所の今を残す</title><script>ikimon-app-outbox-v1</script>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/demo/place-feeling-tags.html", "<!doctype html><title>ひとことタグ デモ</title><main>実データではありません</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/demo/place-feeling-tags.html", "<!doctype html><title>ひとことタグ デモ</title><main>place_feeling_tags</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -4518,6 +4524,15 @@ test("production original UI html serves materialized anonymous pages from R2 wi
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.equal(response.headers.get("vary"), "cookie, authorization");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    const demo = await worker.fetch(new Request("https://ikimon.life/demo/place-feeling-tags"), productionEnv);
+    assert.equal(demo.status, 200);
+    assert.match(await demo.text(), /実データではありません/);
+    assert.equal(demo.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const jaDemo = await worker.fetch(new Request("https://ikimon.life/ja/demo/place-feeling-tags"), productionEnv);
+    assert.equal(jaDemo.status, 200);
+    assert.match(await jaDemo.text(), /place_feeling_tags/);
+    assert.equal(jaDemo.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
