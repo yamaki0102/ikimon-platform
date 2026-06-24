@@ -62,13 +62,13 @@
     },
     "numberLocale": "pt-BR",
     "toolSectionEyebrow": "Duas formas de curtir",
-    "toolSectionTitle": "Olhar no lugar. Escolher pelo mapa.",
-    "toolSectionLead": "Confira o que chamou sua atenção ou escolha onde caminhar depois. Os dois caminhos voltam para um registro que você pode revisitar.",
+    "toolSectionTitle": "Guardar pistas do local. Escolher pelo mapa.",
+    "toolSectionLead": "Guarde foto, som, local e nota antes de precisar do nome final, ou escolha onde caminhar depois. Os dois caminhos voltam para um registro que você pode revisitar.",
     "tools": {
       "lens": {
-        "eyebrow": "Olhar de perto",
-        "title": "Olhar melhor o que chamou sua atenção",
-        "body": "Aponte a câmera e a IA devolve candidatos e pistas. Ela ajuda a guardar o momento sem fingir ser a resposta final.",
+        "eyebrow": "Guardar pistas",
+        "title": "Guardar para depois o que chamou sua atenção",
+        "body": "Aponte a câmera e a IA devolve candidatos e pistas. Ela ajuda a guardar foto, som, local e nota sem fingir ser a resposta final.",
         "badge": "pista IA"
       },
       "scan": {
@@ -130,6 +130,61 @@
       "title": "Mapa da vida | ikimon.life",
       "activeNav": "inicio",
       "footerNote": "Aproxime o mapa para ver onde registros, especies, parques e pistas perto da agua se concentram."
+    },
+    "lens": {
+      "title": "Guardar pistas | ikimon.life",
+      "activeNav": "inicio",
+      "footerNote": "A IA devolve candidatos e pistas. As pessoas decidem o que o registro significa.",
+      "hero": {
+        "eyebrow": "Guardar pistas",
+        "heading": "Guardar para depois o que chamou sua atenção",
+        "lead": "Durante uma caminhada ou viagem, aponte a câmera para uma cena e a IA devolve candidatos e pistas. Você não precisa decidir o nome aqui. Esta é a entrada para guardar primeiro foto, som, local e nota."
+      },
+      "steps": [
+        { "title": "1. Guardar primeiro", "body": "Pode continuar incerto. Guarde foto, local, hora e primeira impressão antes que se percam." },
+        { "title": "2. Ver o que vale guardar, não só o nome", "body": "A ideia não é aceitar um nome candidato. É ver quais pistas vão ajudar a revisar o registro depois." },
+        { "title": "3. Levar as pistas para um registro", "body": "Esta página não salva o registro sozinha. Use a tela de registro para manter foto, local e nota juntos." }
+      ],
+      "guidanceCards": [
+        {
+          "eyebrow": "Serve para",
+          "title": "Quando você não quer perder as pistas deste lugar",
+          "body": "Use quando guardar primeiro e comparar depois importa mais do que responder na hora."
+        },
+        {
+          "eyebrow": "Próximo passo",
+          "title": "Guardar foto e local como registro",
+          "body": "Esta página só ajuda com pistas. Guarde local, hora e foto na tela de registro.",
+          "ctaHref": "/record",
+          "ctaLabel": "Registrar"
+        }
+      ],
+      "followupCards": [
+        {
+          "eyebrow": "Onde as pistas ficam",
+          "title": "Pistas guardadas viram registros",
+          "body": "O que você notou em uma caminhada fica útil quando foto, local e nota permanecem juntos.",
+          "meta": "O ajudante de pistas e a biblioteca de registros têm papéis diferentes.",
+          "ctaHref": "/records?view=mine",
+          "ctaLabel": "Abrir registros"
+        },
+        {
+          "eyebrow": "Escolher onde caminhar",
+          "title": "Abrir o mapa primeiro",
+          "body": "Se você quer decidir onde ir antes de revisar um nome, o mapa é a entrada mais rápida.",
+          "meta": "Esta página guarda pistas; o mapa escolhe o próximo lugar.",
+          "ctaHref": "/map",
+          "ctaLabel": "Abrir mapa"
+        },
+        {
+          "eyebrow": "Caminhar continuamente",
+          "title": "Usar o guia ao vivo para registros contínuos",
+          "body": "Use esta página para uma cena de cada vez. Use o guia ao vivo quando quiser guardar vídeo ou som enquanto caminha.",
+          "meta": "Uma cena aqui, registros contínuos no guia ao vivo.",
+          "ctaHref": "/guide",
+          "ctaLabel": "Abrir guia ao vivo"
+        }
+      ]
     }
   }
 }

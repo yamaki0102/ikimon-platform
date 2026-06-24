@@ -62,13 +62,13 @@
     },
     "numberLocale": "es-ES",
     "toolSectionEyebrow": "Dos formas de disfrutar",
-    "toolSectionTitle": "Mirar en el lugar. Elegir desde el mapa.",
-    "toolSectionLead": "Revisa lo que llamó tu atención o elige dónde caminar después. Los dos caminos vuelven a un registro que podrás revisar.",
+    "toolSectionTitle": "Guardar pistas del lugar. Elegir desde el mapa.",
+    "toolSectionLead": "Guarda foto, sonido, lugar y nota antes de necesitar el nombre final, o elige dónde caminar después. Los dos caminos vuelven a un registro que podrás revisar.",
     "tools": {
       "lens": {
-        "eyebrow": "Mirar de cerca",
-        "title": "Mirar mejor lo que llamó tu atención",
-        "body": "Apunta la cámara y la IA devuelve candidatos y pistas. Ayuda a guardar el momento sin presentarse como respuesta final.",
+        "eyebrow": "Guardar pistas",
+        "title": "Guardar para después lo que llamó tu atención",
+        "body": "Apunta la cámara y la IA devuelve candidatos y pistas. Ayuda a guardar foto, sonido, lugar y nota sin presentarse como respuesta final.",
         "badge": "pista IA"
       },
       "scan": {
@@ -130,6 +130,61 @@
       "title": "Mapa de vida | ikimon.life",
       "activeNav": "inicio",
       "footerNote": "Acerca el mapa para ver dónde se reúnen registros, especies, parques y pistas junto al agua."
+    },
+    "lens": {
+      "title": "Guardar pistas | ikimon.life",
+      "activeNav": "inicio",
+      "footerNote": "La IA devuelve candidatos y pistas. Las personas deciden qué significa el registro.",
+      "hero": {
+        "eyebrow": "Guardar pistas",
+        "heading": "Guardar para después lo que llamó tu atención",
+        "lead": "Durante un paseo o viaje, apunta la cámara a una escena y la IA devuelve candidatos y pistas. No necesitas decidir el nombre aquí. Esta es la entrada para guardar primero foto, sonido, lugar y nota."
+      },
+      "steps": [
+        { "title": "1. Guardar primero", "body": "Puede seguir siendo incierto. Conserva foto, lugar, hora y primera impresión antes de perderlos." },
+        { "title": "2. Mirar qué conviene guardar, no solo el nombre", "body": "La idea no es aceptar un nombre candidato. Es ver qué pistas ayudarán a revisar el registro después." },
+        { "title": "3. Llevar las pistas a un registro", "body": "Esta página no guarda el registro por sí sola. Usa la pantalla de registro para mantener foto, lugar y nota juntos." }
+      ],
+      "guidanceCards": [
+        {
+          "eyebrow": "Sirve para",
+          "title": "Cuando no quieres perder las pistas de este lugar",
+          "body": "Úsalo cuando guardar primero y comparar después importa más que responder en el momento."
+        },
+        {
+          "eyebrow": "Siguiente paso",
+          "title": "Guardar foto y lugar como registro",
+          "body": "Esta página solo ayuda con pistas. Guarda lugar, hora y foto en la pantalla de registro.",
+          "ctaHref": "/record",
+          "ctaLabel": "Registrar"
+        }
+      ],
+      "followupCards": [
+        {
+          "eyebrow": "Dónde viven las pistas",
+          "title": "Las pistas guardadas se vuelven registros",
+          "body": "Lo que notaste durante un paseo se vuelve útil cuando foto, lugar y nota quedan juntos.",
+          "meta": "El ayudante de pistas y la biblioteca de registros tienen roles distintos.",
+          "ctaHref": "/records?view=mine",
+          "ctaLabel": "Abrir registros"
+        },
+        {
+          "eyebrow": "Elegir dónde caminar",
+          "title": "Abrir primero el mapa",
+          "body": "Si quieres decidir dónde ir antes de revisar un nombre, el mapa es la entrada más rápida.",
+          "meta": "Esta página guarda pistas; el mapa elige el siguiente lugar.",
+          "ctaHref": "/map",
+          "ctaLabel": "Abrir mapa"
+        },
+        {
+          "eyebrow": "Caminar de forma continua",
+          "title": "Usar la guía en vivo para registros continuos",
+          "body": "Usa esta página para una escena a la vez. Usa la guía en vivo cuando quieras guardar video o sonido mientras caminas.",
+          "meta": "Una escena aquí, registros continuos en la guía en vivo.",
+          "ctaHref": "/guide",
+          "ctaLabel": "Abrir guía en vivo"
+        }
+      ]
     }
   }
 }

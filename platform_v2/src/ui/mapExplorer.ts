@@ -943,7 +943,7 @@ function ambientPanelLabels(lang: SiteLang): {
     roleLabel: "役割",
     roles: [
       { value: "note", label: "記録", icon: "📖" },
-      { value: "guide", label: "その場で調べる", icon: "🔍" },
+      { value: "guide", label: "手がかりを残す", icon: "🔍" },
       { value: "scan", label: "探索", icon: "📡" },
       { value: "mixed", label: "ひと通り見る", icon: "🧭" },
     ],
@@ -1747,7 +1747,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
     actorHint_casual: props.lang === "ja" ? "生活動線の近くにある余白を見る" : props.lang === "es" ? "Ver lugares pendientes cerca de la rutina" : props.lang === "pt-BR" ? "Ver lugares pendentes perto da rotina" : "Look for nearby everyday gaps",
     roleHintScan: props.lang === "ja" ? "気になる余白を見に行くなら周辺を散歩" : props.lang === "es" ? "Pasea alrededor para conocer huecos" : props.lang === "pt-BR" ? "Caminhe ao redor para conhecer vazios" : "Walk nearby to explore the blank spots",
-    roleHintGuide: props.lang === "ja" ? "確度を上げるならその場で調べる" : props.lang === "es" ? "Consulta en el sitio para subir la certeza" : props.lang === "pt-BR" ? "Verifique no local para subir a certeza" : "Check on site to raise certainty",
+    roleHintGuide: props.lang === "ja" ? "確度を上げるなら現地の手がかりを残す" : props.lang === "es" ? "Guarda pistas del lugar para subir la certeza" : props.lang === "pt-BR" ? "Guarde pistas do local para subir a certeza" : "Save place clues to raise certainty",
     roleHintNote: props.lang === "ja" ? "比較可能にするなら記録に残す" : props.lang === "es" ? "Deja una nota para hacerlo comparable" : props.lang === "pt-BR" ? "Registre em nota para tornar comparável" : "Leave a note to make it revisitable",
     roleHintMixed: props.lang === "ja" ? "今日は周辺写真・足元動画・メモ1行で進める" : props.lang === "es" ? "Hoy avanza con una foto amplia, un video corto y una nota" : props.lang === "pt-BR" ? "Hoje avance com uma foto ampla, um vídeo curto e uma nota" : "Use one wide photo, a short clip, and a note today",
     axis_scan_pass: props.lang === "ja" ? "まだ歩かれていない道がある" : props.lang === "es" ? "Quedan caminos poco recorridos" : props.lang === "pt-BR" ? "Ainda há caminhos pouco vistos" : "some paths are still little explored",

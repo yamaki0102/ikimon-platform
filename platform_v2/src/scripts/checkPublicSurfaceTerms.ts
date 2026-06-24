@@ -11,7 +11,7 @@ type ForbiddenTerm = {
 const FORBIDDEN_TERMS: ForbiddenTerm[] = [
   {
     term: "フィールドガイド",
-    reason: "canonical pack §5.2: rename to ライブガイド (for /guide) or その場で調べる (for /lens)",
+    reason: "canonical pack §5.2: rename to ライブガイド (for /guide) or 手がかりを残す (for /lens)",
   },
   {
     term: "フィールドスキャン",

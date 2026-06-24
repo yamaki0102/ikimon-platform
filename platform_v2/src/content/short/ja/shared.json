@@ -6,7 +6,7 @@
       "openNotebook": "記録を見る",
       "openMap": "生きものと場所を見る",
       "readFaq": "FAQを見る",
-      "openGuide": "その場で調べる",
+      "openGuide": "手がかりを残す",
       "openScan": "探索マップを見る",
       "openAbout": "このサービスについて見る",
       "openGroupHelp": "企業で活用する",
@@ -78,7 +78,7 @@
     "labels": {
       "notes": "記録を見る",
       "record": "記録する",
-      "lens": "その場で調べる",
+      "lens": "手がかりを残す",
       "scan": "次の場所を探す",
       "map": "生きものと場所を見る"
     }
