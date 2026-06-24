@@ -165,11 +165,10 @@ async function readProductionConfigSummary() {
   const r2Buckets = (production?.r2_buckets ?? []).map((item) => item.bucket_name).sort();
   const requiredRoutes = [
     "ikimon.life/*",
-    "www.ikimon.life/*",
-    "staging.ikimon.life/api/v1/map/*",
-    "staging.ikimon.life/derived/*"
+    "www.ikimon.life/*"
   ];
   const missingRoutes = requiredRoutes.filter((route) => !routes.includes(route));
+  const stagingRoutes = routes.filter((route) => String(route).startsWith("staging.ikimon.life/"));
   const failures = [];
   if (production?.name !== "ikimon-life-cloudflare-prod") failures.push("unexpected_production_worker_name");
   if (vars.ENVIRONMENT !== "production") failures.push("production_environment_var_missing");
@@ -178,6 +177,7 @@ async function readProductionConfigSummary() {
   if (!d1Names.includes("ikimon_prod_observations_2026_06")) failures.push("missing_prod_observations_d1");
   if (!r2Buckets.includes("ikimon-prod-media")) failures.push("missing_prod_r2_bucket");
   failures.push(...missingRoutes.map((route) => `missing_route:${route}`));
+  failures.push(...stagingRoutes.map((route) => `production_must_not_own_staging_route:${route}`));
   if (failures.length) {
     throw new Error(`Production Cloudflare config safety check failed: ${failures.join(", ")}`);
   }

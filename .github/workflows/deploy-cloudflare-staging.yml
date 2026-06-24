@@ -1,0 +1,156 @@
+name: Deploy Cloudflare Staging
+run-name: Cloudflare staging · ${{ github.event.inputs.branch || github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy to Cloudflare staging"
+        required: false
+        default: "main"
+        type: string
+      deploy_staging:
+        description: "Deploy staging Worker and materialize staging R2"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      test_profile:
+        description: "Staging preflight test profile"
+        required: true
+        default: "quick"
+        type: choice
+        options:
+          - quick
+          - full
+  push:
+    branches:
+      - "codex/**"
+    paths:
+      - ".github/workflows/deploy-cloudflare-staging.yml"
+      - "platform_v2/cloudflare_shadow/**"
+      - "platform_v2/src/**"
+      - "platform_v2/package.json"
+      - "platform_v2/package-lock.json"
+
+concurrency:
+  group: cloudflare-staging-${{ github.event.inputs.branch || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  IKIMON_CF_STAGING_DEPLOY_APPROVAL: APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY
+
+jobs:
+  cloudflare-staging:
+    name: Deploy Cloudflare Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DEPLOY_STAGING: ${{ github.event.inputs.deploy_staging || 'false' }}
+      TEST_PROFILE: ${{ github.event.inputs.test_profile || 'quick' }}
+    steps:
+      - name: Validate workflow target
+        run: |
+          set -euo pipefail
+          BRANCH='${{ github.event.inputs.branch || github.ref_name }}'
+          if ! printf '%s' "$BRANCH" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+            echo "Invalid branch name: $BRANCH"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            platform_v2/package-lock.json
+            platform_v2/cloudflare_shadow/package-lock.json
+
+      - name: Require Cloudflare API token
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "CLOUDFLARE_API_TOKEN is required for Cloudflare staging deploy."
+            exit 1
+          fi
+
+      - name: Install platform dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Build platform original UI
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+
+      - name: Cloudflare staging preflight
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:staging:dry-run -- --test-profile "${TEST_PROFILE}" --write-preflight-report .deploy/staging-preflight-latest.json
+
+      - name: Deploy staging Worker
+        if: env.DEPLOY_STAGING == 'true'
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run deploy:staging -- --test-profile "${TEST_PROFILE}" --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --write-preflight-report .deploy/staging-deploy-latest.json
+
+      - name: Materialize original UI into staging R2
+        if: env.DEPLOY_STAGING == 'true'
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm run materialize:original-ui -- --target-env staging --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --output materialize-staging-original-ui.json
+
+      - name: Verify Cloudflare staging public routes
+        if: env.DEPLOY_STAGING == 'true'
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          set -euo pipefail
+          curl -fsS https://staging.ikimon.life/healthz | tee staging-healthz.json | grep -q '"environment":"staging"'
+          curl -fsS https://staging.ikimon.life/readyz | tee staging-readyz.json | grep -q '"environment":"staging"'
+          curl -fsS -D staging-demo.headers https://staging.ikimon.life/demo/place-feeling-tags -o staging-demo.html
+          grep -q '実データではありません' staging-demo.html
+          grep -q 'place_feeling_tags' staging-demo.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-demo.headers
+
+      - name: Upload Cloudflare staging artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-staging-evidence
+          path: |
+            platform_v2/cloudflare_shadow/.deploy/staging-preflight-latest.json
+            platform_v2/cloudflare_shadow/.deploy/staging-deploy-latest.json
+            platform_v2/cloudflare_shadow/materialize-staging-original-ui.json
+            platform_v2/cloudflare_shadow/staging-*.json
+            platform_v2/cloudflare_shadow/staging-demo.*
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write Cloudflare staging summary
+        working-directory: platform_v2/cloudflare_shadow
+        run: |
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          const preflight = JSON.parse(fs.readFileSync(".deploy/staging-preflight-latest.json", "utf8"));
+          const materializePath = "materialize-staging-original-ui.json";
+          const materialized = fs.existsSync(materializePath) ? JSON.parse(fs.readFileSync(materializePath, "utf8")) : null;
+          console.log("## Cloudflare Staging");
+          console.log("");
+          console.log("- Worker: `ikimon-life-cloudflare-staging`");
+          console.log("- Public URL: https://staging.ikimon.life");
+          console.log("- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`");
+          console.log("- Production DB/R2 mutation: `false`");
+          console.log("- VPS SSH/deploy: `not used`");
+          console.log(`- Status: \`${preflight.status}\``);
+          console.log(`- Test profile: \`${preflight.testProfile}\``);
+          if (materialized) {
+            console.log(`- Materialized paths: \`${materialized.rendered.length}\``);
+          }
+          NODE

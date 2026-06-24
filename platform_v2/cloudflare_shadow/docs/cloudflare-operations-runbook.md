@@ -12,6 +12,16 @@ Scope:
 - Public domain: `https://ikimon.life`
 - Routine production entrypoint: GitHub Actions `Deploy to Production`, Cloudflare-only.
 
+Cloudflare staging:
+
+- Worker: `ikimon-life-cloudflare-staging`
+- Public domain: `https://staging.ikimon.life`
+- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`, `ikimon-shadow-media-jobs`
+- Routine staging entrypoint: GitHub Actions `Deploy Cloudflare Staging`, Cloudflare-only.
+- Materialized UI target: `npm run materialize:original-ui -- --target-env staging`
+
+Cloudflare staging is the promotion gate for Cloudflare production changes. It owns `staging.ikimon.life/*` and must not use VPS SSH, `/var/www/ikimon.life-staging`, or `VPS_SSH_KEY`. The legacy VPS staging workflow remains only for old integration jobs until those jobs are migrated or retired. Production Worker config must not own `staging.ikimon.life` routes; `deploy-production-guard.mjs` fails when a production route begins with `staging.ikimon.life/`.
+
 Hard boundaries:
 
 - Do not run direct `wrangler deploy --env production` for routine deploys. Use the guarded npm script.

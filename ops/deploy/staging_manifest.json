@@ -1,24 +1,27 @@
 {
-  "version": 1,
-  "strategy": "staging_first_public_lightweight",
-  "stagingRoot": "/var/www/ikimon.life-staging",
-  "stagingListenHost": "0.0.0.0",
-  "stagingListenPort": 8081,
-  "stagingBaseUrl": "https://staging.ikimon.life/",
-  "sourceProductionRoot": "/var/www/ikimon.life",
-  "persistentPaths": [
-    "upload_package/data/**",
-    "upload_package/config/secret.php",
-    "upload_package/config/oauth_config.php",
-    "upload_package/config/config.php"
+  "version": 2,
+  "strategy": "github_actions_cloudflare_worker_staging",
+  "platform": "cloudflare_worker",
+  "workerName": "ikimon-life-cloudflare-staging",
+  "workerDirectory": "platform_v2/cloudflare_shadow",
+  "r2Bucket": "ikimon-shadow-media",
+  "d1Databases": [
+    "ikimon_shadow_core",
+    "ikimon_shadow_observations_2026_06"
   ],
+  "queue": "ikimon-shadow-media-jobs",
+  "stagingBaseUrl": "https://staging.ikimon.life/",
+  "workerDevUrl": "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/",
+  "materializedOriginalUiScope": "core",
   "healthChecks": [
-    "http://127.0.0.1:8081/index.php",
-    "http://127.0.0.1:8081/explore.php",
-    "http://127.0.0.1:8081/post.php",
-    "http://127.0.0.1:8081/api/get_events.php",
-    "http://127.0.0.1:3200/ops/digitized-books/data",
-    "http://127.0.0.1:3200/ops/digitized-books/rag-data"
+    "https://staging.ikimon.life/healthz",
+    "https://staging.ikimon.life/readyz",
+    "https://staging.ikimon.life/demo/place-feeling-tags"
+  ],
+  "requiredChecks": [
+    "cd platform_v2 && npm ci && npm run build",
+    "cd platform_v2/cloudflare_shadow && npm ci && npm run check && npm run test:quick && npm run deploy:staging:dry-run",
+    "cd platform_v2/cloudflare_shadow && npm run materialize:original-ui:dry-run -- --target-env staging"
   ],
   "releaseGates": [
     {
@@ -33,12 +36,19 @@
       ]
     }
   ],
+  "forbiddenProductionResources": [
+    "ikimon_prod_core",
+    "ikimon_prod_observations_2026_06",
+    "ikimon-prod-media",
+    "ikimon-prod-media-jobs"
+  ],
   "notes": [
-    "Preferred staging URL is https://staging.ikimon.life/ behind HTTPS + basic auth + noindex.",
-    "sslip.io is only a fallback review endpoint and should not be treated as the formal staging hostname.",
-    "Initial staging data is copied from production before any redesign work is deployed.",
-    "Uploads are stored outside the staging repo and symlinked into public_html/uploads.",
-    "Developer machines do not need hosts overrides because sslip.io resolves the VPS IP automatically.",
-    "Analytics and service worker are disabled on staging so review traffic does not pollute production telemetry."
+    "Cloudflare staging is the promotion gate for Cloudflare production changes.",
+    "The staging public entrypoint is Cloudflare Worker ikimon-life-cloudflare-staging, not the legacy VPS staging runtime.",
+    "The staging Worker owns staging.ikimon.life/* and uses non-production shadow D1/R2/Queue resources.",
+    "Routine Cloudflare staging deploy must not use VPS SSH, /var/www/ikimon.life-staging, or VPS_SSH_KEY.",
+    "Production Worker config must not own staging.ikimon.life routes.",
+    "Legacy VPS staging remains only for old integration jobs until those jobs are migrated or retired.",
+    "releaseGates currently documents the legacy VPS verify_level=full gate; Cloudflare staging uses requiredChecks and public route smoke until the Postgres-only smoke is migrated to D1."
   ]
 }

@@ -64,7 +64,7 @@ interface Env {
 }
 
 function isAppRuntime(env: Env): boolean {
-  return env.ENVIRONMENT === "shadow" || env.ENVIRONMENT === "production";
+  return env.ENVIRONMENT === "shadow" || env.ENVIRONMENT === "staging" || env.ENVIRONMENT === "production";
 }
 
 const IKIMON_GA4_MEASUREMENT_ID = "G-NCL0M1VJZ2";
@@ -983,7 +983,7 @@ export const worker = {
         if (guard) return guard;
       }
 
-      if (isShadowDiagnosticPath(url.pathname) && env.ENVIRONMENT === "production") {
+      if (isShadowDiagnosticPath(url.pathname) && env.ENVIRONMENT !== "shadow") {
         return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
       }
 
@@ -3751,12 +3751,12 @@ async function readOAuthState(cookieHeader: string | null, env: Env): Promise<OA
 }
 
 async function buildOAuthStateCookie(payload: OAuthStatePayload, env: Env): Promise<string> {
-  const secure = env.ENVIRONMENT === "production" ? " Secure;" : "";
+  const secure = secureCookieAttribute(env);
   return `ikimon_oauth_state=${encodeURIComponent(await encodeOAuthState(payload, env))}; Path=/; HttpOnly; SameSite=Lax;${secure} Max-Age=600`;
 }
 
 function buildClearedOAuthStateCookie(env: Env): string {
-  const secure = env.ENVIRONMENT === "production" ? " Secure;" : "";
+  const secure = secureCookieAttribute(env);
   return `ikimon_oauth_state=; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
@@ -7821,8 +7821,7 @@ function getReflectionLoopManifest(url: URL, env: Env): Response {
         worker_routes: [
           "ikimon.life/*",
           "www.ikimon.life/*",
-          "staging.ikimon.life/api/v1/map/*",
-          "staging.ikimon.life/derived/*"
+          "staging.ikimon.life/*"
         ],
         smoke_paths: [
           "/healthz",
@@ -8197,13 +8196,17 @@ function readSessionTokenFromCookie(headerValue: string | null): string | null {
 }
 
 function buildSessionCookie(rawToken: string, expiresAt: string, env: Env): string {
-  const secure = env.ENVIRONMENT === "production" ? " Secure;" : "";
+  const secure = secureCookieAttribute(env);
   return `${SESSION_COOKIE_NAME}=${encodeURIComponent(rawToken)}; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=${new Date(expiresAt).toUTCString()}`;
 }
 
 function buildClearedSessionCookie(env: Env): string {
-  const secure = env.ENVIRONMENT === "production" ? " Secure;" : "";
+  const secure = secureCookieAttribute(env);
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
+
+function secureCookieAttribute(env: Env): string {
+  return env.ENVIRONMENT === "production" || env.ENVIRONMENT === "staging" ? " Secure;" : "";
 }
 
 function randomToken(): string {

@@ -4,9 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
+const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
+const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const productionBucket = "ikimon-prod-media";
-const allowedArgs = new Set(["--execute", "--approval", "--scope", "--path", "--bucket", "--output", "--concurrency"]);
+const stagingBucket = "ikimon-shadow-media";
+const allowedArgs = new Set(["--execute", "--approval", "--target-env", "--scope", "--path", "--bucket", "--output", "--concurrency"]);
 const args = new Map();
 const explicitPaths = [];
 
@@ -30,13 +32,30 @@ for (let index = 2; index < process.argv.length; index += 1) {
 
 const execute = args.get("--execute") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
+const targetEnv = args.get("--target-env") ?? "production";
 const scope = args.get("--scope") ?? "core";
-const bucket = args.get("--bucket") ?? productionBucket;
+const bucket = args.get("--bucket") ?? (targetEnv === "staging" ? stagingBucket : productionBucket);
 const outputPath = args.get("--output") ?? "";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
 
-if (execute && approval !== requiredApproval) {
-  throw new Error(`Refusing R2 materialization. Pass --approval ${requiredApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
+if (!["production", "staging"].includes(targetEnv)) {
+  throw new Error("--target-env must be one of: production, staging.");
+}
+
+if (targetEnv === "production" && bucket !== productionBucket) {
+  throw new Error(`Production materialization must target ${productionBucket}.`);
+}
+
+if (targetEnv === "staging" && bucket === productionBucket) {
+  throw new Error("Staging materialization must not target the production R2 bucket.");
+}
+
+if (execute && targetEnv === "production" && approval !== productionApproval) {
+  throw new Error(`Refusing production R2 materialization. Pass --approval ${productionApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
+}
+
+if (execute && targetEnv === "staging" && approval !== stagingApproval) {
+  throw new Error(`Refusing staging R2 materialization. Pass --approval ${stagingApproval}.`);
 }
 
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
@@ -347,6 +366,7 @@ const result = {
   mode: execute ? "execute" : "dry-run",
   r2WritesExecuted: execute,
   bucket,
+  targetEnv,
   scope,
   concurrency,
   rendered: rendered.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
