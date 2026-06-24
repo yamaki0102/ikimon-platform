@@ -1202,8 +1202,8 @@ function buildViewerContribution(rows: AreaPerspectiveRow[], viewerUserId: strin
   const positiveFeedbackLine = recordCount === 0
     ? "自分の記録が重なると、このエリアの見え方にあなたの視点が加わります。"
     : seasons.size > 0
-      ? `あなたの${recordCount}件で、このエリアの${Array.from(seasons).map(seasonLabel).join("・")}の見え方が少し厚くなりました。`
-      : `あなたの${recordCount}件で、このエリアをあとから見返せる手がかりが増えています。`;
+      ? `あなたの${recordCount}件で、このエリアの${Array.from(seasons).map(seasonLabel).join("・")}の見え方が増えました。`
+      : `あなたの${recordCount}件で、このエリアを知る手がかりが増えています。`;
   return {
     hasViewerRecords: recordCount > 0,
     recordCount,
@@ -1244,7 +1244,7 @@ function buildCommunityPerspective(rows: AreaPerspectiveRow[], viewerUserId: str
       ? `みんなの記録で、${covered.join("・")}の顔が見え始めています。`
       : "みんなの記録で、このエリアの季節の入口をこれから作れます。",
     recentMomentumLine: recentCount > 0
-      ? `最近90日で${recentCount}件、見返せる手がかりが増えています。`
+      ? `最近90日で${recentCount}件、このエリアを知る手がかりが増えています。`
       : "最近の記録が増えると、このエリアの今の顔を比べやすくなります。",
     recordCards: rowsToGalleryCards(sourceRows),
   };

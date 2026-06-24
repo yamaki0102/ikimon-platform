@@ -177,9 +177,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /地域図鑑マップ/);
-  assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel"[^>]*hidden/);
   assert.match(html, /地図メニュー/);
-  assert.match(html, /class="me-start-panel-brief">写真・ガイド・散策<\/span>/);
+  assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
+  assert.match(html, /aria-label="散策候補を開く"/);
+  assert.match(html, /class="me-start-panel-brief">候補<\/span>/);
   assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">＋<\/span>/);
   assert.match(html, /近く/);
   assert.match(html, /許可済みなら近くから始めます。押すと現在地へ移動します。/);
@@ -229,6 +230,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="最近の発見" data-tab="markers"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
+  assert.match(styles, /\.me-start-panel\.is-collapsed \{[\s\S]*grid-template-columns: auto auto;/);
+  assert.doesNotMatch(styles, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{\s*display: none;/);
   assert.match(script, /tab: 'places'/);
   assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
   assert.match(script, /var DEFAULT_MAP_ZOOM = 13\.6;/);
@@ -759,6 +762,7 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /function widenEmptyViewport\(\)/);
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
   assert.match(script, /function runInitialMapDataLoad\(reason\)/);
+  assert.match(script, /refreshDiscoveryPreviewMarkers\(\);\s+if \(state\.tab === 'markers' \|\| state\.tab === 'places' \|\| state\.tab === 'rain'\) loadGuideSpots\(\);\s+scheduleStartPanelRouteCandidates\(reason === 'load' \? 120 : 260\);/);
   assert.match(script, /scheduleInitialMapDataLoad\(180\)/);
   assert.match(script, /runInitialMapDataLoad\('load'\)/);
   assert.match(script, /function scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\)/);

@@ -1087,7 +1087,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "O que fazer por perto"
         : "What you can do nearby";
   const startPanelCloseLabel = lang === "ja"
-    ? "地図メニュー"
+    ? "散策候補を開く"
     : lang === "es"
       ? "Cerrar guía"
       : lang === "pt-BR"
@@ -1108,7 +1108,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Se já permitiu, começa por perto. Toque para ir à sua localização."
         : "If already allowed, the map starts nearby. Tap to use your current place.";
   const startPanelBrief = lang === "ja"
-    ? "写真・ガイド・散策"
+    ? "候補"
     : lang === "es"
       ? "Fotos · guías · paseos"
       : lang === "pt-BR"
@@ -1166,7 +1166,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       action: "map:start_panel:record",
     },
   ];
-  const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}" hidden>
+  const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}" aria-hidden="false">
       <div class="me-start-panel-head">
         <strong>${escapeHtml(startPanelTitle)}</strong>
         <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">
@@ -8293,6 +8293,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.initialDataLoaded = true;
     state.initialDataLoadAttempts = 0;
     refreshMapData();
+    refreshDiscoveryPreviewMarkers();
+    if (state.tab === 'markers' || state.tab === 'places' || state.tab === 'rain') loadGuideSpots();
+    scheduleStartPanelRouteCandidates(reason === 'load' ? 120 : 260);
     maybeShowLayerHint(state.tab);
     deferMapTask(function () {
       if (state.tab === 'frontier') loadFrontier(state.map);
@@ -9978,8 +9981,12 @@ export const MAP_EXPLORER_STYLES = `
     box-sizing: border-box;
   }
   .me-start-panel.is-collapsed {
-    padding: 0;
-    border-radius: 999px;
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 14px;
     background: rgba(255,255,255,.9);
   }
   .me-start-panel[hidden] {
@@ -10033,18 +10040,15 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-start-panel.is-collapsed .me-start-panel-close {
     width: auto;
-    min-width: 42px;
-    height: 42px;
-    padding: 0 12px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 10px;
     background: #0f766e;
     color: #fff;
     box-shadow: 0 10px 24px rgba(15,118,110,.18);
   }
   .me-start-panel.is-collapsed .me-start-panel-brief {
-    display: none;
-  }
-  .me-start-panel.is-collapsed .me-start-panel-grid {
-    display: none;
+    display: inline;
   }
   .me-start-panel.is-collapsed .me-start-panel-routes {
     display: none;
@@ -12882,14 +12886,30 @@ export const MAP_EXPLORER_STYLES = `
       padding: 5px;
     }
     .me-start-panel.is-collapsed {
-      padding: 0;
+      max-width: min(286px, calc(100% - 82px));
+      padding: 4px;
     }
     .me-start-panel.is-collapsed .me-start-panel-close {
-      max-width: min(184px, calc(100vw - 114px));
+      max-width: 46px;
       padding: 0 10px;
     }
     .me-start-panel.is-collapsed .me-start-panel-brief {
       display: none;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-grid {
+      grid-template-columns: repeat(5, 34px);
+      gap: 3px;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-location,
+    .me-start-panel.is-collapsed .me-start-panel-grid a {
+      width: 34px;
+      min-height: 34px;
+      border-radius: 9px;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-location span,
+    .me-start-panel.is-collapsed .me-start-panel-grid a span {
+      width: 22px;
+      height: 22px;
     }
     .me-start-panel-grid {
       grid-template-columns: repeat(5, minmax(0, 1fr));
