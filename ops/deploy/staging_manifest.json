@@ -23,6 +23,19 @@
     "cd platform_v2/cloudflare_shadow && npm ci && npm run check && npm run test:quick && npm run deploy:staging:dry-run",
     "cd platform_v2/cloudflare_shadow && npm run materialize:original-ui:dry-run -- --target-env staging"
   ],
+  "releaseGates": [
+    {
+      "key": "public_map_snapshot_alert_lifecycle",
+      "scope": "verify_level_full",
+      "command": "npm run smoke:public-map-snapshot-alert -- --apply --confirm=public-map-snapshot-staging-smoke --base-url=http://127.0.0.1:3200 --allow-local --create-smoke-admin-session --require-admin --capture-webhook --require-webhook",
+      "workflowMarkers": [
+        "public map snapshot alert lifecycle smoke",
+        "smoke:public-map-snapshot-alert",
+        "public-map-snapshot-staging-smoke",
+        "verify_level=full"
+      ]
+    }
+  ],
   "forbiddenProductionResources": [
     "ikimon_prod_core",
     "ikimon_prod_observations_2026_06",
@@ -35,6 +48,7 @@
     "The staging Worker owns staging.ikimon.life/* and uses non-production shadow D1/R2/Queue resources.",
     "Routine Cloudflare staging deploy must not use VPS SSH, /var/www/ikimon.life-staging, or VPS_SSH_KEY.",
     "Production Worker config must not own staging.ikimon.life routes.",
-    "Legacy VPS staging remains only for old integration jobs until those jobs are migrated or retired."
+    "Legacy VPS staging remains only for old integration jobs until those jobs are migrated or retired.",
+    "releaseGates currently documents the legacy VPS verify_level=full gate; Cloudflare staging uses requiredChecks and public route smoke until the Postgres-only smoke is migrated to D1."
   ]
 }
