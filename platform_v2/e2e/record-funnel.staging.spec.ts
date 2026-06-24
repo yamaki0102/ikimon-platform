@@ -431,7 +431,10 @@ test.describe("record entry viewport reachability", () => {
             await installMapLibreStubForSmoke(page);
             await suppressMapLibreForSmoke(page);
           }
-          await page.goto(route.path, { waitUntil: "domcontentloaded" });
+          await page.goto(route.path, { waitUntil: route.usesMap ? "commit" : "domcontentloaded" });
+          if (route.usesMap) {
+            await page.locator("#map-explorer").waitFor({ state: "attached" });
+          }
           await expectRecordEntryReachable(page, profile);
         } finally {
           await context.close();
