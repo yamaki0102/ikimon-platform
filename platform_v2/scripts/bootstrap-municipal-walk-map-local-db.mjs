@@ -187,7 +187,31 @@ function main() {
     "-d", databaseName,
     "-w",
     "-v", "ON_ERROR_STOP=1",
-    "-c", "CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY);",
+    "-c", `
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+      CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        legacy_user_id TEXT UNIQUE,
+        display_name TEXT NOT NULL DEFAULT '',
+        email TEXT,
+        password_hash TEXT,
+        avatar_asset_id UUID,
+        role_name TEXT DEFAULT 'Observer',
+        rank_label TEXT DEFAULT 'Observer',
+        auth_provider TEXT DEFAULT 'local',
+        oauth_id TEXT,
+        observer_rank_json JSONB DEFAULT '{}'::jsonb,
+        stats_json JSONB DEFAULT '{}'::jsonb,
+        is_seed BOOLEAN DEFAULT FALSE,
+        banned BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        last_login_at TIMESTAMPTZ
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique
+        ON users (LOWER(email))
+        WHERE email IS NOT NULL;
+    `,
   ], { env: commonEnv });
   run(commandPath(pgBin, "psql"), [
     "-h", "127.0.0.1",
