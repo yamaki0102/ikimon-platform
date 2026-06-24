@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 import {
   addSessionCookie,
   createStagingApiContext,
+  installMapLibreStubForSmoke,
   newStagingContext,
   suppressMapLibreForSmoke,
   type ViewportProfile,
@@ -426,7 +427,10 @@ test.describe("record entry viewport reachability", () => {
         const page = await context.newPage();
 
         try {
-          if (route.usesMap) await suppressMapLibreForSmoke(page);
+          if (route.usesMap) {
+            await installMapLibreStubForSmoke(page);
+            await suppressMapLibreForSmoke(page);
+          }
           await page.goto(route.path, { waitUntil: "domcontentloaded" });
           await expectRecordEntryReachable(page, profile);
         } finally {
