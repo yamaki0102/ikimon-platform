@@ -58,6 +58,7 @@
     "sync:face-privacy-assets": "node scripts/sync-face-privacy-assets.mjs",
     "backfill:authority-rank": "tsx src/scripts/backfillAuthorityRank.ts",
     "report:replacement-readiness": "tsx src/scripts/replacementReadinessReport.ts",
+    "report:municipal-walk-map-sources": "tsx src/scripts/reportMunicipalWalkMapSourceCoverage.ts",
     "report:visit-windows": "tsx src/scripts/reportVisitWindows.ts",
     "materialize:legacy-verify-snapshot": "tsx src/scripts/materializeLegacyVerifySnapshot.ts",
     "report:legacy-drift": "tsx src/scripts/reportLegacyDrift.ts",
