@@ -39,6 +39,7 @@
     "migrate": "tsx src/scripts/applyMigrations.ts",
     "db:local:municipal-walk-map": "node scripts/bootstrap-municipal-walk-map-local-db.mjs",
     "db:local:municipal-walk-map:stop": "node scripts/bootstrap-municipal-walk-map-local-db.mjs --stop",
+    "db:verify:municipal-walk-map": "tsx src/scripts/verifyMunicipalWalkMapDbReadiness.ts",
     "import:invasive-reporting:shizuoka": "tsx src/scripts/importInvasiveReportingContacts.ts --file=db/seeds/invasive_reporting_contacts.shizuoka_2026-05-16.json",
     "import:legacy": "tsx src/scripts/bootstrapLegacyImport.ts",
     "import:plan:observations": "tsx src/scripts/planObservationLedger.ts",
