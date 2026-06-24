@@ -1043,6 +1043,8 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiJmaNowcastTimes = withBasePath(props.basePath, "/api/v1/weather/jma-nowcast/times");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
+  const apiWalkMapCandidates = withBasePath(props.basePath, "/api/v1/municipal-walk-maps");
+  const walkMapHrefPrefix = appendLangToHref(withBasePath(props.basePath, "/walk-maps/"), props.lang);
   const eventsOrganizerHref = appendLangToHref(
     withBasePath(props.basePath, "/community/events"),
     props.lang,
@@ -1172,7 +1174,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <strong>${escapeHtml(card.title)}</strong>
         </a>`).join("")}
       </div>
-      <div class="me-start-panel-routes" aria-label="${escapeHtml(startPanelRouteHeading)}" data-shizuoka-heading="${escapeHtml(startPanelRouteHeading)}" data-any-heading="${escapeHtml(startPanelRouteHeadingAny)}">
+      <div class="me-start-panel-routes" aria-label="${escapeHtml(startPanelRouteHeading)}" data-shizuoka-heading="${escapeHtml(startPanelRouteHeading)}" data-any-heading="${escapeHtml(startPanelRouteHeadingAny)}" data-walk-map-prefix="${escapeHtml(walkMapHrefPrefix)}">
         <strong id="me-start-panel-routes-heading">${escapeHtml(startPanelRouteHeading)}</strong>
         <nav>
           ${startPanelRouteLinks.map((link) => `<a href="${escapeHtml(link.href)}" data-kpi-action="${escapeHtml(link.action)}" data-route-region="${escapeHtml(link.region)}">${escapeHtml(link.label)}</a>`).join("")}
@@ -1546,7 +1548,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
         ${startPanelHtml}
         <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
           <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
@@ -1642,6 +1644,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var startPanelLocationEl = document.getElementById('me-start-panel-location');
   var startPanelRoutesEl = document.querySelector('.me-start-panel-routes');
   var startPanelRoutesHeadingEl = document.getElementById('me-start-panel-routes-heading');
+  var startPanelRoutesStaticHtml = startPanelRoutesEl && startPanelRoutesEl.querySelector('nav')
+    ? startPanelRoutesEl.querySelector('nav').innerHTML
+    : '';
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -1724,6 +1729,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiJmaNowcastTimes = root.getAttribute('data-api-jma-nowcast-times') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
+  var apiWalkMapCandidates = root.getAttribute('data-api-walk-map-candidates') || '';
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
@@ -2411,6 +2417,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     recordsHardSettleWatchdog: null,
     recordsRecoveryKey: '',
     recordsRecoveryAttempts: 0,
+    startPanelRouteKey: '',
+    startPanelRouteTimer: null,
     initialDataLoadTimer: null,
     initialDataLoadAttempts: 0,
     initialDataLoaded: false,
@@ -2515,8 +2523,65 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (startPanelRoutesHeadingEl && heading) startPanelRoutesHeadingEl.textContent = heading;
     startPanelRoutesEl.querySelectorAll('[data-route-region]').forEach(function (link) {
       var region = link.getAttribute('data-route-region') || 'all';
-      link.hidden = region !== 'all' && !(region === 'shizuoka' && inShizuoka);
+      link.hidden = region !== 'all' && region !== 'candidate' && !(region === 'shizuoka' && inShizuoka);
     });
+  }
+
+  function walkMapHrefForId(walkMapId) {
+    var prefix = startPanelRoutesEl ? (startPanelRoutesEl.getAttribute('data-walk-map-prefix') || '/walk-maps/') : '/walk-maps/';
+    return prefix + encodeURIComponent(String(walkMapId || ''));
+  }
+
+  function renderStartPanelRouteCandidates(summaries) {
+    if (!startPanelRoutesEl || !Array.isArray(summaries)) return false;
+    var nav = startPanelRoutesEl.querySelector('nav');
+    if (!nav) return false;
+    if (!summaries.length) {
+      if (startPanelRoutesStaticHtml) nav.innerHTML = startPanelRoutesStaticHtml;
+      refreshStartPanelRoutes();
+      return false;
+    }
+    var max = Math.min(3, summaries.length);
+    var html = '';
+    for (var i = 0; i < max; i++) {
+      var summary = summaries[i] || {};
+      var id = String(summary.walkMapId || '');
+      var title = String(summary.title || '').trim();
+      if (!id || !title) continue;
+      var shortTitle = title.replace(/サンプル/g, '').replace(/周辺を歩く/g, '').replace(/を歩く/g, '').trim() || title;
+      html += '<a href="' + escapeAttr(walkMapHrefForId(id)) + '" data-kpi-action="map:start_panel:route_candidate" data-route-region="candidate">' + escapeHtml(shortTitle.slice(0, 14)) + '</a>';
+    }
+    var listHref = (startPanelRoutesEl ? (startPanelRoutesEl.getAttribute('data-walk-map-prefix') || '/walk-maps/') : '/walk-maps/').replace(/\/$/, '');
+    html += '<a href="' + escapeAttr(listHref) + '" data-kpi-action="map:start_panel:route_list" data-route-region="all">' + (SEARCH_LANG === 'ja' ? '一覧' : 'All') + '</a>';
+    if (!html) return false;
+    nav.innerHTML = html;
+    if (startPanelRoutesHeadingEl) startPanelRoutesHeadingEl.textContent = startPanelRoutesEl.getAttribute('data-any-heading') || '散策候補';
+    return true;
+  }
+
+  function scheduleStartPanelRouteCandidates(delayMs) {
+    if (!apiWalkMapCandidates || !state.map) return;
+    if (state.startPanelRouteTimer) clearTimeout(state.startPanelRouteTimer);
+    state.startPanelRouteTimer = setTimeout(function () {
+      state.startPanelRouteTimer = null;
+      try {
+        var center = state.map.getCenter();
+        var lng = Number(center && center.lng);
+        var lat = Number(center && center.lat);
+        if (!isFinite(lng) || !isFinite(lat)) return;
+        var key = lat.toFixed(3) + ',' + lng.toFixed(3);
+        if (state.startPanelRouteKey === key) return;
+        state.startPanelRouteKey = key;
+        var endpoint = apiWalkMapCandidates + '?lat=' + encodeURIComponent(String(lat)) + '&lng=' + encodeURIComponent(String(lng)) + '&limit=3';
+        fetch(endpoint, { credentials: 'same-origin', headers: { accept: 'application/json' } })
+          .then(function (res) { return res.ok ? res.json() : null; })
+          .then(function (json) {
+            if (!json || !Array.isArray(json.summaries)) return;
+            renderStartPanelRouteCandidates(json.summaries);
+          })
+          .catch(function () {});
+      } catch (_) {}
+    }, Math.max(0, delayMs || 0));
   }
 
   function sendMapKpi(eventName, actionKey, metadata) {
@@ -4783,6 +4848,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s);
   }
 
   function isIkimonSourceUrl(url) {
@@ -8595,6 +8664,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
       refreshStartPanelRoutes();
+      scheduleStartPanelRouteCandidates(120);
       runInitialMapDataLoad('load');
     });
     scheduleInitialMapDataLoad(180);
@@ -8606,6 +8676,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }
       saveMapState();
       refreshStartPanelRoutes();
+      scheduleStartPanelRouteCandidates(180);
       if (consumeSuppressedViewportSearch()) return;
       if (state.nearbyAreaLocateMovePending) {
         state.nearbyAreaLocateMovePending = false;

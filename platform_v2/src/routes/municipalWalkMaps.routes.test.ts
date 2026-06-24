@@ -189,6 +189,37 @@ test("municipal walk map public list API returns static summaries while DB index
   });
 });
 
+test("municipal walk map public list API can scope candidates by map center", async () => {
+  await withEnv({ DATABASE_URL: undefined, IKIMON_ENABLE_DB_WALK_MAP_INDEX: undefined }, async () => {
+    const app = buildApp();
+    try {
+      const shizuoka = await app.inject({
+        method: "GET",
+        url: "/api/v1/municipal-walk-maps?lat=34.975&lng=138.383&limit=2",
+      });
+      assert.equal(shizuoka.statusCode, 200);
+      const shizuokaBody = shizuoka.json();
+      assert.equal(shizuokaBody.ok, true);
+      assert.equal(shizuokaBody.locationFiltered, true);
+      assert.equal(shizuokaBody.matchedMunicipalityCode, "22100");
+      assert.equal(shizuokaBody.summaries.length, 2);
+      assert.match(JSON.stringify(shizuokaBody.summaries), /jp-shizuoka-/);
+
+      const tokyo = await app.inject({
+        method: "GET",
+        url: "/api/v1/municipal-walk-maps?lat=35.681&lng=139.767&limit=2",
+      });
+      assert.equal(tokyo.statusCode, 200);
+      const tokyoBody = tokyo.json();
+      assert.equal(tokyoBody.locationFiltered, true);
+      assert.equal(tokyoBody.matchedMunicipalityCode, null);
+      assert.deepEqual(tokyoBody.summaries, []);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 test("municipal walk map public preview renders static sample without DB or internal tokens", async () => {
   await withEnv({ DATABASE_URL: undefined }, async () => {
     const app = buildApp();

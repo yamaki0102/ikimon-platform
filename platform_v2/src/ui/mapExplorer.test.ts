@@ -181,6 +181,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /静岡の散策候補/);
   assert.match(html, /data-shizuoka-heading="静岡の散策候補"/);
   assert.match(html, /data-any-heading="散策候補"/);
+  assert.match(html, /data-walk-map-prefix="\/ja\/walk-maps\/"/);
+  assert.match(html, /data-api-walk-map-candidates="\/api\/v1\/municipal-walk-maps"/);
   assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-asahata-waterfront-sample-v0"/);
   assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-yatsuyama-sample-v0"/);
   assert.match(html, /data-kpi-action="map:start_panel:route_asahata"/);
@@ -226,7 +228,13 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /var SHIZUOKA_PREF_BBOX = \[137\.47, 34\.57, 139\.16, 35\.65\];/);
   assert.match(script, /function mapCenterIsInShizuoka\(\)/);
   assert.match(script, /function refreshStartPanelRoutes\(\)/);
-  assert.match(script, /link\.hidden = region !== 'all' && !\(region === 'shizuoka' && inShizuoka\);/);
+  assert.match(script, /function renderStartPanelRouteCandidates\(summaries\)/);
+  assert.match(script, /function scheduleStartPanelRouteCandidates\(delayMs\)/);
+  assert.match(script, /apiWalkMapCandidates \+ '\?lat='/);
+  assert.match(script, /fetch\(endpoint, \{ credentials: 'same-origin'/);
+  assert.match(script, /startPanelRoutesStaticHtml/);
+  assert.match(script, /if \(!summaries\.length\) \{/);
+  assert.match(script, /link\.hidden = region !== 'all' && region !== 'candidate' && !\(region === 'shizuoka' && inShizuoka\);/);
   assert.match(script, /function readLastStartupLocation\(\)/);
   assert.match(script, /function requestStartupCurrentLocation\(options\)/);
   assert.match(script, /navigator\.geolocation\.getCurrentPosition\(applyPosition, fail/);

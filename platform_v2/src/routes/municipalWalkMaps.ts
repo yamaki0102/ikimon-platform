@@ -445,6 +445,47 @@ async function loadWalkMapPublicSummaries(): Promise<{ source: "db" | "static" |
   }
 }
 
+const WALK_MAP_LOCATION_BBOXES = [
+  { municipalityCode: "22100", label: "静岡市", bbox: [137.47, 34.57, 139.16, 35.65] as const },
+];
+
+function numberFromQuery(value: unknown): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function walkMapMunicipalityCodeForLocation(lat: number | null, lng: number | null): string | null {
+  if (lat == null || lng == null) return null;
+  const match = WALK_MAP_LOCATION_BBOXES.find((entry) => (
+    lng >= entry.bbox[0] && lng <= entry.bbox[2]
+    && lat >= entry.bbox[1] && lat <= entry.bbox[3]
+  ));
+  return match?.municipalityCode ?? null;
+}
+
+function walkMapSummaryMatchesMunicipality(summary: MunicipalWalkMapPublicSummaryV0, municipalityCode: string): boolean {
+  if (municipalityCode === "22100") {
+    return summary.municipality.includes("静岡");
+  }
+  return false;
+}
+
+function filterWalkMapSummariesForLocation(
+  summaries: MunicipalWalkMapPublicSummaryV0[],
+  query: { lat?: unknown; lng?: unknown; limit?: unknown },
+): { summaries: MunicipalWalkMapPublicSummaryV0[]; matchedMunicipalityCode: string | null; locationFiltered: boolean } {
+  const lat = numberFromQuery(query.lat);
+  const lng = numberFromQuery(query.lng);
+  const locationFiltered = lat != null && lng != null;
+  const matchedMunicipalityCode = walkMapMunicipalityCodeForLocation(lat, lng);
+  const limit = Math.max(1, Math.min(8, Number(query.limit) || 4));
+  const scoped = locationFiltered
+    ? summaries.filter((summary) => matchedMunicipalityCode && walkMapSummaryMatchesMunicipality(summary, matchedMunicipalityCode))
+    : summaries;
+  return { summaries: scoped.slice(0, limit), matchedMunicipalityCode, locationFiltered };
+}
+
 function renderWalkMapIndexBody(summaries: MunicipalWalkMapPublicSummaryV0[], basePath: string, lang: SiteLang, source: string): string {
   const cards = summaries.map((summary) => {
     const href = appendLangToHref(withBasePath(basePath, `/walk-maps/${encodeURIComponent(summary.walkMapId)}`), lang);
@@ -1602,9 +1643,16 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
     return reply.send(loaded);
   });
 
-  app.get("/api/v1/municipal-walk-maps", async (_request, reply) => {
+  app.get<{ Querystring: { lat?: string; lng?: string; limit?: string } }>("/api/v1/municipal-walk-maps", async (request, reply) => {
     const loaded = await loadWalkMapPublicSummaries();
-    return reply.send({ ok: true, source: loaded.source, summaries: loaded.summaries });
+    const filtered = filterWalkMapSummariesForLocation(loaded.summaries, request.query);
+    return reply.send({
+      ok: true,
+      source: loaded.source,
+      matchedMunicipalityCode: filtered.matchedMunicipalityCode,
+      locationFiltered: filtered.locationFiltered,
+      summaries: filtered.summaries,
+    });
   });
 
   app.get("/walk-maps", async (request, reply) => {
