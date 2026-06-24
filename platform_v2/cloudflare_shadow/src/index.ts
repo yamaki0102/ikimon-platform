@@ -7159,6 +7159,23 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
   const relatedTitle = polish?.relatedTitle ?? "近くの公開記録";
   const relatedLead = polish?.relatedLead ?? "";
   const relatedCountLabel = polish?.relatedCountLabel ?? `${relatedForDisplay.length}件`;
+  const genericInfoSections = polish ? "" : `<section id="privacy" class="obs-layer">
+      <h2>公開範囲</h2>
+      <div class="obs-layer-grid">
+        <div class="obs-layer-card"><span>位置</span><strong>${escapeHtml(detail.publicLocation.cellId)}</strong></div>
+        <div class="obs-layer-card"><span>表示</span><strong>セル単位</strong></div>
+        <div class="obs-layer-card"><span>精密座標</span><strong>非表示</strong></div>
+      </div>
+      <p>公開ページでは、観察地点をそのまま表示せず、公開セルで扱います。</p>
+    </section>`;
+  const genericMetaSection = polish ? "" : `<section id="meta" class="obs-layer">
+      <h2>記録情報</h2>
+      <div class="obs-layer-grid">
+        <div class="obs-layer-card"><span>記録ID</span><strong>${escapeHtml(detail.visitId)}</strong></div>
+        <div class="obs-layer-card"><span>メディア</span><strong>${escapeHtml(`${assetCount}件`)}</strong></div>
+        <div class="obs-layer-card"><span>公開状態</span><strong>公開中</strong></div>
+      </div>
+    </section>`;
   return `<!doctype html>
 <html lang="ja">
 <head>
@@ -7314,10 +7331,20 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       .obs-reading-hero { grid-template-columns: 1fr; gap: 12px; }
       .obs-reading-panel { display: contents; }
       .obs-record-brief-compact { order: 1; display: grid; gap: 7px; padding: 9px 10px; }
-      .obs-reading-panel > .obs-media-ledger { order: 2; }
-      .obs-reading-media { order: 3; }
-      .obs-record-insight-desktop { order: 5; display: grid; }
-      .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 7; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+      .obs-reading-kicker { order: 2; }
+      .obs-reading-title { order: 3; }
+      .obs-reading-lead { order: 4; }
+      .obs-reading-media { order: 5; }
+      .obs-reading-panel > .obs-media-ledger { order: 6; }
+      .obs-record-insight-desktop { order: 7; display: grid; }
+      .obs-record-use-status { order: 8; }
+      .obs-first-read { order: 9; }
+      .obs-ai-readout { order: 10; }
+      .obs-action-rail { order: 11; }
+      .obs-facts { order: 12; }
+      .obs-privacy { order: 13; }
+      .obs-note, .obs-media-links { order: 14; }
+      .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 15; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
       .obs-reading-title { font-size: 25px; }
       .obs-video-evidence-grid { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 2px; }
       .obs-video-evidence-frame { flex: 0 0 150px; }
@@ -7417,15 +7444,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
         <div class="obs-record-story-card"><strong>場所</strong><p>${escapeHtml(detail.publicLocation.cellId)}</p></div>
       </div>
     </section>
-    <section id="privacy" class="obs-layer">
-      <h2>公開範囲</h2>
-      <div class="obs-layer-grid">
-        <div class="obs-layer-card"><span>位置</span><strong>${escapeHtml(detail.publicLocation.cellId)}</strong></div>
-        <div class="obs-layer-card"><span>表示</span><strong>セル単位</strong></div>
-        <div class="obs-layer-card"><span>精密座標</span><strong>非表示</strong></div>
-      </div>
-      <p>公開ページでは、観察地点をそのまま表示せず、公開セルで扱います。</p>
-    </section>
+    ${genericInfoSections}
     <section id="place" class="section obs-layer obs-layer-3 obs-area-records" data-obs-section="place">
       <div class="obs-area-records-head">
         <div>
@@ -7437,14 +7456,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       ${relatedLead ? `<p>${escapeHtml(relatedLead)}</p>` : ""}
       <div class="obs-nearby-grid">${relatedCards}</div>
     </section>
-    <section id="meta" class="obs-layer">
-      <h2>記録情報</h2>
-      <div class="obs-layer-grid">
-        <div class="obs-layer-card"><span>記録ID</span><strong>${escapeHtml(detail.visitId)}</strong></div>
-        <div class="obs-layer-card"><span>メディア</span><strong>${escapeHtml(`${assetCount}件`)}</strong></div>
-        <div class="obs-layer-card"><span>公開状態</span><strong>公開中</strong></div>
-      </div>
-    </section>
+    ${genericMetaSection}
   </section>
 </main>
 ${polish?.previewDialog ?? ""}
