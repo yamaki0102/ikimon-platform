@@ -240,7 +240,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteEsri: "衛星（Esri）",
     legendLabel: "凡例",
     coverageLegendLow: "これから",
-    coverageLegendHigh: "育っている",
+    coverageLegendHigh: "記録多め",
     heatmapLegendLow: "少ない",
     heatmapLegendHigh: "多い",
     areaTrustLegendLow: "公式確認待ち・立入不明",
@@ -260,20 +260,20 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintHeatmap: "ズームすると季節の気配の濃淡が見えます。",
     layerHintJump: "見える場所へ",
     layerHintDismiss: "閉じる",
-    purposeHintTitle: "残したい風景を探す",
-    purposeHintBody: "気になる場所を選ぶと、記録と季節の手がかりが見えます。",
+    purposeHintTitle: "写真・ガイド・散策",
+    purposeHintBody: "",
     purposeHintDismiss: "この案内を閉じる",
     loading: "読み込み中…",
     recordsLoading: "記録を読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "記録が少ない場所でも、近くの記録や季節を変えると手がかりが見つかります。",
-    emptyTitle: "ここは、これから育つ場所です",
-    emptyLead: "空っぽではありません。少し広げると近くの記録が見え、見つけたものを足すとこの地域図鑑が育ちます。",
-    emptyActionAreas: "候補エリアを見る",
-    emptyActionWiden: "少し広げる",
-    emptyActionRecord: "見つけたものを記録",
+    emptyTitle: "近くを探索中",
+    emptyLead: "少し広げると近くの写真や場所が出ます。今いる場所で見えたものも残せます。",
+    emptyActionAreas: "エリア",
+    emptyActionWiden: "広げる",
+    emptyActionRecord: "記録",
     personalPulseTitle: "自分の記録へすぐ戻る",
-    personalPulseBody: "投稿したあとは、マイページや自分の記録一覧で見返せます。地図には最近の記録も重なっていきます。",
+    personalPulseBody: "投稿したあとは、マイページや自分の記録一覧から開けます。地図には最近の記録も重なります。",
     personalPulseProfile: "マイページ",
     personalPulseRecords: "自分の記録",
     sideRecentLabel: "この範囲の記録",
@@ -316,14 +316,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaSafeRecordLabel: "公開範囲を確認して記録",
     areaGalleryEmptyPublicLead: "まだ記録がありません。現地の表示と公開範囲を確認できる場所なら、最初の手がかりを残せます。",
     areaGalleryEmptyPublicSafety: "案内板・保護区域・管理者のルールを優先して、公開範囲で見えたものだけを記録する。",
-    areaGalleryEmptyPublicWiden: "この場所が薄いときは、表示範囲や季節を広げて近くの記録を探す。",
+    areaGalleryEmptyPublicWiden: "表示範囲や季節を広げて近くの記録を探す。",
     areaGalleryEmptyRestrictedLead: "安全とプライバシーのため、このエリアでは直接の記録導線を出していません。",
     areaGalleryEmptyRestrictedCheck: "看板、管理者、公開範囲、立入制限を先に確認する。",
     areaGalleryEmptyRestrictedWiden: "表示範囲や季節を広げて、近くの安全な公開場所を探す。",
     areaGalleryEmptySchoolLead: "学校・教育施設の敷地内や周辺では撮影や探索を促しません。近くの公共の公園や公開された自然エリアで観察してください。",
     areaGalleryEmptySchoolWiden: "この範囲にこだわらず、近くの公開エリアへ移動して安全に記録する。",
     areaNextStepEyebrow: "次にできること",
-    areaNextStepRecordTitle: "安全に、この場所の図鑑を育てる",
+    areaNextStepRecordTitle: "安全に、この場所の記録を残す",
     areaNextStepRestrictedTitle: "まず安全と許可を確認",
     areaNextStepScopeLine: "現地の案内板・公開範囲・管理者のルールを優先する。",
     areaNextStepRecordLine: "公開範囲で見つけたものだけを記録し、正確な立入場所を無理に残さない。",
@@ -333,7 +333,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaNextStepRestrictedLine: "学校・私有地・未確認区域では、敷地内へ入らず、許可された観察だけを扱う。",
     areaNextStepRecordCta: "安全に記録する",
     areaSchoolNotice: "学校・キャンパスは関係者区域を含みます。無許可で敷地内に入らず、公開範囲と学校・管理者の許可がある観察だけを扱います。",
-    cellAggregateTitle: "この範囲の記録の厚み",
+    cellAggregateTitle: "この範囲の記録",
     cellAggregateBadge: "地域単位の集計",
     cellAggregateSafety: "地域全体のまとまりとして表示しています。記録を足すときは、公開範囲と現地のルールを確認してください。",
     mapPointSafety: "地図だけでは現地の安全や立入可否は判断できません。案内板、管理者、公開範囲を優先してください。",
@@ -432,11 +432,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Loading…",
     recordsLoading: "Loading records…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
-    empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
-    emptyTitle: "This is room for the guide to grow",
-    emptyLead: "It is not an empty dead end. Nearby public areas or another season can reveal the first clues.",
-    emptyActionAreas: "View candidate areas",
-    emptyActionWiden: "Widen a little",
+    empty: "Try nearby photos, guides, or another season.",
+    emptyTitle: "Checking nearby",
+    emptyLead: "Nearby public areas or another season may show photos and places.",
+    emptyActionAreas: "Areas",
+    emptyActionWiden: "Widen",
     emptyActionRecord: "Record a find",
     personalPulseTitle: "Return to your records",
     personalPulseBody: "After posting, My page and your record list are one tap away. Recent public finds keep adding life to the map.",
@@ -480,7 +480,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaRestrictedActionLabel: "Check local rules",
     areaRestrictedActionHint: "For schools, restricted, or unverified places, only permitted observations are handled.",
     areaSafeRecordLabel: "Record after checking scope",
-    areaGalleryEmptyPublicLead: "No records yet. If the public scope and on-site rules are clear, your record can become the first clue.",
+    areaGalleryEmptyPublicLead: "No records yet. If the public scope and on-site rules are clear, a photo can show this place.",
     areaGalleryEmptyPublicSafety: "Follow signs, protected areas, and manager rules; record only what you see from public scope.",
     areaGalleryEmptyPublicWiden: "If this spot feels thin, widen the visible area or season to find nearby records.",
     areaGalleryEmptyRestrictedLead: "For safety and privacy, direct recording is not offered for this area.",
@@ -493,7 +493,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaNextStepRestrictedTitle: "Check safety and permission first",
     areaNextStepScopeLine: "Follow signs, public scope, and manager rules before acting.",
     areaNextStepRecordLine: "Record only what you find from public scope; do not force an exact entry point.",
-    areaNextStepFirstRecordLine: "This place has few records. A public-scope find can become the first clue.",
+    areaNextStepFirstRecordLine: "This place has few records. A public-scope photo can show the place.",
     areaNextStepBrowseLine: "Scan photos and seasonal records first, then decide why to visit.",
     areaNextStepGuideLine: "If an on-site guide is available, open audio or notes only when you are nearby.",
     areaNextStepRestrictedLine: "For schools, private land, or unverified areas, do not enter; handle only permitted observations.",
@@ -598,11 +598,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Cargando…",
     recordsLoading: "Cargando registros…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
-    empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
-    emptyTitle: "Aquí la guía aún puede crecer",
-    emptyLead: "No es un callejón sin salida. Zonas públicas cercanas u otra estación pueden mostrar las primeras pistas.",
-    emptyActionAreas: "Ver áreas candidatas",
-    emptyActionWiden: "Ampliar un poco",
+    empty: "Prueba fotos, guías o otra estación cerca.",
+    emptyTitle: "Buscando cerca",
+    emptyLead: "Zonas públicas cercanas u otra estación pueden mostrar fotos y lugares.",
+    emptyActionAreas: "Áreas",
+    emptyActionWiden: "Ampliar",
     emptyActionRecord: "Registrar hallazgo",
     personalPulseTitle: "Volver a tus registros",
     personalPulseBody: "Después de publicar, tu página y tu lista de registros quedan a un toque. Los hallazgos recientes dan vida al mapa.",
@@ -764,11 +764,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Carregando…",
     recordsLoading: "Carregando registros…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
-    empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
-    emptyTitle: "Este guia ainda tem espaço para crescer",
-    emptyLead: "Não é um beco sem saída. Áreas públicas próximas ou outra estação podem revelar as primeiras pistas.",
-    emptyActionAreas: "Ver áreas candidatas",
-    emptyActionWiden: "Ampliar um pouco",
+    empty: "Veja fotos, guias ou outra estação por perto.",
+    emptyTitle: "Buscando por perto",
+    emptyLead: "Áreas públicas próximas ou outra estação podem mostrar fotos e lugares.",
+    emptyActionAreas: "Áreas",
+    emptyActionWiden: "Ampliar",
     emptyActionRecord: "Registrar achado",
     personalPulseTitle: "Voltar aos seus registros",
     personalPulseBody: "Depois de publicar, sua página e sua lista de registros ficam a um toque. Descobertas recentes dão vida ao mapa.",
@@ -947,8 +947,8 @@ function ambientPanelLabels(lang: SiteLang): {
       { value: "scan", label: "探索", icon: "📡" },
       { value: "mixed", label: "ひと通り見る", icon: "🧭" },
     ],
-    selfLabel: "キミの記録が役立ったこと",
-    communityLabel: "みんなの記録が育てた場所",
+    selfLabel: "自分の記録",
+    communityLabel: "みんなの記録",
     frontierLabel: "次に見に行きたい余白",
     roleCardLabel: "次にできること",
   };
@@ -1012,6 +1012,9 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
   const overlayLabels = overlayPanelLabels(lang);
   const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
+  const guideHref = appendLangToHref(withBasePath(props.basePath, "/guide"), props.lang);
+  const communityRecordsHref = appendLangToHref(withBasePath(props.basePath, "/records"), props.lang);
+  const routeHintsHref = appendLangToHref(withBasePath(props.basePath, "/walk-maps"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
@@ -1059,6 +1062,73 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       <div class="me-personal-pulse-actions">
         <a href="${escapeHtml(profileHref)}" data-kpi-action="map:personal_pulse_profile">${escapeHtml(copy.personalPulseProfile)}</a>
         <a href="${escapeHtml(notesHref)}" data-kpi-action="map:personal_pulse_records">${escapeHtml(copy.personalPulseRecords)}</a>
+      </div>
+    </section>`;
+  const startPanelTitle = lang === "ja"
+    ? "地図メニュー"
+    : lang === "es"
+      ? "Qué hacer cerca"
+      : lang === "pt-BR"
+        ? "O que fazer por perto"
+        : "What you can do nearby";
+  const startPanelCloseLabel = lang === "ja"
+    ? "地図メニュー"
+    : lang === "es"
+      ? "Cerrar guía"
+      : lang === "pt-BR"
+        ? "Fechar guia"
+        : "Close guide";
+  const startPanelLocationLabel = lang === "ja"
+    ? "近く"
+    : lang === "es"
+      ? "Ver cerca"
+      : lang === "pt-BR"
+        ? "Ver perto"
+        : "Show nearby";
+  const startPanelLocationNote = lang === "ja"
+    ? "押したときだけ現在地を使います。"
+    : lang === "es"
+      ? "Usa tu ubicación solo al tocar."
+      : lang === "pt-BR"
+        ? "Usa sua localização só ao tocar."
+        : "Uses location only when tapped.";
+  const startCards = [
+    {
+      icon: "📷",
+      title: lang === "ja" ? "写真" : lang === "es" ? "Fotos" : lang === "pt-BR" ? "Fotos" : "Photos",
+      href: communityRecordsHref,
+      action: "map:start_panel:photos",
+    },
+    {
+      icon: "🧭",
+      title: lang === "ja" ? "ガイド" : lang === "es" ? "Guías" : lang === "pt-BR" ? "Guias" : "Guides",
+      href: guideHref,
+      action: "map:start_panel:guide",
+    },
+    {
+      icon: "🚶",
+      title: lang === "ja" ? "散策" : lang === "es" ? "Paseo" : lang === "pt-BR" ? "Passeio" : "Walk",
+      href: routeHintsHref,
+      action: "map:start_panel:route_hints",
+    },
+    {
+      icon: "+",
+      title: lang === "ja" ? "記録" : lang === "es" ? "Registrar" : lang === "pt-BR" ? "Registrar" : "Record",
+      href: recordHref,
+      action: "map:start_panel:record",
+    },
+  ];
+  const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}">
+      <div class="me-start-panel-head">
+        <strong>${escapeHtml(startPanelTitle)}</strong>
+        <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">＋</button>
+      </div>
+      <div class="me-start-panel-grid">
+        <button type="button" class="me-start-panel-location" id="me-start-panel-location" aria-label="${escapeHtml(startPanelLocationNote)}"><span aria-hidden="true">📍</span><strong>${escapeHtml(startPanelLocationLabel)}</strong></button>
+        ${startCards.map((card) => `<a href="${escapeHtml(card.href)}" aria-label="${escapeHtml(card.title)}" title="${escapeHtml(card.title)}" data-kpi-action="${escapeHtml(card.action)}">
+          <span aria-hidden="true">${escapeHtml(card.icon)}</span>
+          <strong>${escapeHtml(card.title)}</strong>
+        </a>`).join("")}
       </div>
     </section>`;
 
@@ -1235,7 +1305,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Recolher painel"
         : "Collapse side panel";
   const sideSelectionEmptyLabel = lang === "ja"
-    ? "エリアや記録の厚みを選ぶと、この地域の今の姿と、これから育てる記録が見えます。記録は地域単位で集計しています。"
+    ? "エリアや記録を選ぶと、この地域で見えているものが出ます。公開表示は地域単位でまとめています。"
     : lang === "es"
       ? "Toca un pin o una celda del mapa para ver los detalles aquí."
       : lang === "pt-BR"
@@ -1429,6 +1499,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        ${startPanelHtml}
         <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
           <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
           <strong>${escapeHtml(copy.purposeHintTitle)}</strong>
@@ -1453,9 +1524,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </button>
         <div class="me-map-status" id="me-map-status" role="status" aria-live="polite">${escapeHtml(copy.loading)}</div>
         <section class="me-empty-invite" id="me-empty-invite" aria-label="${escapeHtml(copy.emptyTitle)}" aria-hidden="true" hidden>
-          <span class="me-results-empty-kicker">${escapeHtml(copy.recordingGapLabel)}</span>
-          <strong>${escapeHtml(copy.emptyTitle)}</strong>
-          <p>${escapeHtml(copy.emptyLead)}</p>
           <div class="me-results-empty-actions">
             <button type="button" class="me-results-empty-action is-primary" data-results-empty-areas>${escapeHtml(copy.emptyActionAreas)}</button>
             <button type="button" class="me-results-empty-action" data-results-empty-widen>${escapeHtml(copy.emptyActionWiden)}</button>
@@ -1472,7 +1540,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </section>
         <div class="me-legend is-hidden" id="me-legend" aria-hidden="true">
           <div class="me-legend-main">
-            <span class="me-legend-label" id="me-legend-label">${escapeHtml(copy.legendLabel)}</span>
+            <button type="button" class="me-legend-toggle" id="me-legend-toggle" aria-expanded="false">${escapeHtml(copy.legendLabel)}</button>
             <span class="me-legend-gradient" id="me-legend-gradient"></span>
             <span class="me-legend-range"><span id="me-legend-low">${escapeHtml(copy.heatmapLegendLow)}</span><span id="me-legend-high">${escapeHtml(copy.heatmapLegendHigh)}</span></span>
           </div>
@@ -1508,6 +1576,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   if (!root) return;
   var statusEl = document.getElementById('me-map-status');
   var legendEl = document.getElementById('me-legend');
+  var legendToggleEl = document.getElementById('me-legend-toggle');
   var legendLowEl = document.getElementById('me-legend-low');
   var legendHighEl = document.getElementById('me-legend-high');
   var legendDetailEl = document.getElementById('me-legend-detail');
@@ -1520,6 +1589,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var layerHintCloseEl = document.getElementById('me-layer-hint-close');
   var purposeHintEl = document.getElementById('me-purpose-hint');
   var purposeHintCloseEl = document.getElementById('me-purpose-hint-close');
+  var startPanelEl = document.getElementById('me-start-panel');
+  var startPanelCloseEl = document.getElementById('me-start-panel-close');
+  var startPanelLocationEl = document.getElementById('me-start-panel-location');
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -1743,7 +1815,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     actor_traveler: props.lang === "ja" ? "Traveler" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
     actor_casual: props.lang === "ja" ? "Casual" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
     actorHint_all: props.lang === "ja" ? "地図全体のまだ知らない場所を眺める" : props.lang === "es" ? "Mirar lugares por conocer en todo el mapa" : props.lang === "pt-BR" ? "Ver lugares a conhecer no mapa todo" : "Browse unknown places across the map",
-    actorHint_local_steward: props.lang === "ja" ? "同じ場所を育てる前提で見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
+    actorHint_local_steward: props.lang === "ja" ? "同じ場所を続けて見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
     actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
     actorHint_casual: props.lang === "ja" ? "生活動線の近くにある余白を見る" : props.lang === "es" ? "Ver lugares pendientes cerca de la rutina" : props.lang === "pt-BR" ? "Ver lugares pendentes perto da rotina" : "Look for nearby everyday gaps",
     roleHintScan: props.lang === "ja" ? "気になる余白を見に行くなら周辺を散歩" : props.lang === "es" ? "Pasea alrededor para conocer huecos" : props.lang === "pt-BR" ? "Caminhe ao redor para conhecer vazios" : "Walk nearby to explore the blank spots",
@@ -1759,31 +1831,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     contributorBand_6p: props.lang === "ja" ? "6人以上" : props.lang === "es" ? "6 o más" : props.lang === "pt-BR" ? "6 ou mais" : "6+ people",
     winsLabel: props.lang === "ja" ? "前進" : props.lang === "es" ? "Avances" : props.lang === "pt-BR" ? "Avanços" : "wins",
     revisitLabel: props.lang === "ja" ? "再訪地点" : props.lang === "es" ? "Revisitas" : props.lang === "pt-BR" ? "Revisitas" : "revisits",
-    communityStrengthLabel: props.lang === "ja" ? "最近厚くなった帯" : props.lang === "es" ? "Áreas reforzadas" : props.lang === "pt-BR" ? "Faixas fortalecidas" : "strengthened bands",
+    communityStrengthLabel: props.lang === "ja" ? "最近記録が増えた帯" : props.lang === "es" ? "Áreas reforzadas" : props.lang === "pt-BR" ? "Faixas fortalecidas" : "strengthened bands",
     communityProgressLabel: props.lang === "ja" ? "共同前進" : props.lang === "es" ? "Progreso colectivo" : props.lang === "pt-BR" ? "Progresso coletivo" : "collective progress",
     aggregateContributorLabel: props.lang === "ja" ? "集計された記録者" : props.lang === "es" ? "personas agregadas" : props.lang === "pt-BR" ? "pessoas agregadas" : "aggregated contributors",
     frontierBlankLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
-    frontierBuildingLabel: props.lang === "ja" ? "育ち始め" : props.lang === "es" ? "en construcción" : props.lang === "pt-BR" ? "em construção" : "building",
+    frontierBuildingLabel: props.lang === "ja" ? "記録少なめ" : props.lang === "es" ? "en construcción" : props.lang === "pt-BR" ? "em construção" : "building",
     frontierRepeatableLabel: props.lang === "ja" ? "比較可能" : props.lang === "es" ? "comparables" : props.lang === "pt-BR" ? "comparáveis" : "repeatable",
-    frontierMatureLabel: props.lang === "ja" ? "厚い帯" : props.lang === "es" ? "maduras" : props.lang === "pt-BR" ? "maduras" : "mature",
+    frontierMatureLabel: props.lang === "ja" ? "記録多め" : props.lang === "es" ? "maduras" : props.lang === "pt-BR" ? "maduras" : "mature",
     campaign_scan_blank: props.lang === "ja" ? "まだ知らない場所をひとつ見に行く" : props.lang === "es" ? "Visitar un lugar por conocer" : props.lang === "pt-BR" ? "Visitar um lugar a conhecer" : "Visit one unknown place",
-    campaign_guide_building: props.lang === "ja" ? "育ち始めの場所の確度を上げる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
-    campaign_note_repeatable: props.lang === "ja" ? "比較できる場所をもう一段厚くする" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
+    campaign_guide_building: props.lang === "ja" ? "記録が少ない場所を確かめる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
+    campaign_note_repeatable: props.lang === "ja" ? "比較できる場所に記録を足す" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
     campaign_mixed_frontier: props.lang === "ja" ? "気になる場所の見え方を少し増やす" : props.lang === "es" ? "Añadir más mirada a un lugar curioso" : props.lang === "pt-BR" ? "Adicionar mais olhar a um lugar curioso" : "Add another view to a curious place",
     priorityCueLabel: props.lang === "ja" ? "優先理由" : props.lang === "es" ? "prioridad" : props.lang === "pt-BR" ? "prioridade" : "priority",
-    priority_steady_revisit: props.lang === "ja" ? "再訪で厚くする" : props.lang === "es" ? "Engrosar con revisitas" : props.lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
+    priority_steady_revisit: props.lang === "ja" ? "同じ場所で比べる" : props.lang === "es" ? "Engrosar con revisitas" : props.lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
     priority_fresh_gap: props.lang === "ja" ? "新しい空白を開く" : props.lang === "es" ? "Abrir un hueco nuevo" : props.lang === "pt-BR" ? "Abrir um vazio novo" : "Open a fresh gap",
     priority_nearby_gap: props.lang === "ja" ? "近くにまだ知らない場所がある" : props.lang === "es" ? "Hay lugares cercanos por conocer" : props.lang === "pt-BR" ? "Há lugares perto para conhecer" : "There are unknown places nearby",
     remainingLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
     aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
-    impactPanelTitleMine: props.lang === "ja" ? "キミの記録が役立っていること" : props.lang === "es" ? "Cómo ayudan tus registros" : props.lang === "pt-BR" ? "Como seus registros ajudam" : "How your records help",
-    impactPanelTitleGuest: props.lang === "ja" ? "みんなの記録がこの地域を育てています" : props.lang === "es" ? "Los registros de todos hacen crecer esta zona" : props.lang === "pt-BR" ? "Os registros de todos fazem esta área crescer" : "Everyone's records grow this area",
-    impactPanelLoading: props.lang === "ja" ? "この範囲で役立っていることを読み込み中…" : props.lang === "es" ? "Leyendo cómo ayuda esta zona…" : props.lang === "pt-BR" ? "Lendo como esta área ajuda…" : "Reading how this area is growing…",
+    impactPanelTitleMine: props.lang === "ja" ? "自分の記録から見えること" : props.lang === "es" ? "Cómo ayudan tus registros" : props.lang === "pt-BR" ? "Como seus registros ajudam" : "How your records help",
+    impactPanelTitleGuest: props.lang === "ja" ? "この地域で見えてきたこと" : props.lang === "es" ? "Lo que se ve en esta zona" : props.lang === "pt-BR" ? "O que aparece nesta área" : "What appears in this area",
+    impactPanelLoading: props.lang === "ja" ? "この範囲の記録を読み込み中…" : props.lang === "es" ? "Leyendo registros de esta zona…" : props.lang === "pt-BR" ? "Lendo registros desta área…" : "Loading records in this area…",
     impactRevisitStory: props.lang === "ja" ? "同じ場所を比べられるようになった" : props.lang === "es" ? "Hizo posible comparar el mismo lugar" : props.lang === "pt-BR" ? "Tornou possível comparar o mesmo lugar" : "Made the same place comparable",
     impactGuideStory: props.lang === "ja" ? "ガイド記録で季節の手がかりが増えた" : props.lang === "es" ? "La guía añadió pistas de temporada" : props.lang === "pt-BR" ? "O guia adicionou pistas da estação" : "Guide records added seasonal clues",
     impactScanStory: props.lang === "ja" ? "スキャンで未調査エリアが見えた" : props.lang === "es" ? "El escaneo mostró huecos por explorar" : props.lang === "pt-BR" ? "O escaneamento mostrou áreas a explorar" : "Scans revealed places still to explore",
     impactBlankStory: props.lang === "ja" ? "この場所の空白を埋める候補が見えた" : props.lang === "es" ? "Aparecieron huecos que se pueden completar" : props.lang === "pt-BR" ? "Apareceram vazios que podem ser preenchidos" : "Found gaps that can be filled",
-    impactCommunityStory: props.lang === "ja" ? "最近、見え方が厚くなった場所" : props.lang === "es" ? "Lugares que se hicieron más claros hace poco" : props.lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
+    impactCommunityStory: props.lang === "ja" ? "最近、記録が増えた場所" : props.lang === "es" ? "Lugares que se hicieron más claros hace poco" : props.lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
     impactPrivateNote: props.lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : props.lang === "es" ? "Se muestra solo agregado del área, no nombres." : props.lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
     resultHeading: props.lang === "ja" ? "近くの発見" : props.lang === "es" ? "Hallazgos cercanos" : props.lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
@@ -1823,9 +1895,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeStoryRecent: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgos recientes" : props.lang === "pt-BR" ? "Descobertas recentes" : "Recent finds",
     placeStoryMissing: props.lang === "ja" ? "この場所で足りない記録" : props.lang === "es" ? "Registros que faltan aquí" : props.lang === "pt-BR" ? "Registros que faltam aqui" : "What is missing here",
     placeStoryActions: props.lang === "ja" ? "次にできること" : props.lang === "es" ? "Qué hacer después" : props.lang === "pt-BR" ? "O que fazer a seguir" : "What to do next",
-    placeStoryNoTaxa: props.lang === "ja" ? "まだ代表種は少ない。最初の写真が場所の入口になります。" : props.lang === "es" ? "Aún hay pocos taxones destacados. La primera foto puede abrir este lugar." : props.lang === "pt-BR" ? "Ainda há poucos grupos destacados. A primeira foto pode abrir este local." : "Few featured taxa yet. The first photo can open this place.",
-    placeStoryNeedSeason: props.lang === "ja" ? "季節をまたいだ記録が増えると、また行く理由が強くなる。" : props.lang === "es" ? "Más estaciones harán más fuerte el motivo para volver." : props.lang === "pt-BR" ? "Mais estações tornam o motivo para voltar mais forte." : "More seasons make the reason to return stronger.",
-    placeStoryNeedGuide: props.lang === "ja" ? "ガイドでその場の手がかりを残すと、次の人が見つけやすい。" : props.lang === "es" ? "La guía deja pistas para que la siguiente persona encuentre más." : props.lang === "pt-BR" ? "O guia deixa pistas para a próxima pessoa encontrar mais." : "Guide clues help the next visitor find more.",
+    placeStoryNoTaxa: props.lang === "ja" ? "まだ代表種は少ない。まず写真で場所の様子を残せます。" : props.lang === "es" ? "Aún hay pocos taxones destacados. Una foto puede mostrar el lugar." : props.lang === "pt-BR" ? "Ainda há poucos grupos destacados. Uma foto pode mostrar o local." : "Few featured taxa yet. A photo can show the place.",
+    placeStoryNeedSeason: props.lang === "ja" ? "季節をまたいだ記録があると、変化が見えやすくなります。" : props.lang === "es" ? "Más estaciones hacen más visible el cambio." : props.lang === "pt-BR" ? "Mais estações tornam a mudança mais visível." : "More seasons make change easier to see.",
+    placeStoryNeedGuide: props.lang === "ja" ? "現地ガイドがある場所は、その場の手がかりを開けます。" : props.lang === "es" ? "Donde hay guía, puedes abrir pistas del lugar." : props.lang === "pt-BR" ? "Onde há guia, você pode abrir pistas do local." : "Where guides exist, you can open place clues.",
     guideStopEyebrow: props.lang === "ja" ? "現地ガイド" : props.lang === "es" ? "Guía en sitio" : props.lang === "pt-BR" ? "Guia no local" : "On-site guide",
     guideStopNearLabel: props.lang === "ja" ? "この場所で聞けます" : props.lang === "es" ? "Disponible aquí" : props.lang === "pt-BR" ? "Disponível aqui" : "Available here",
     guideStopFarLabel: props.lang === "ja" ? "近づくと聞けます" : props.lang === "es" ? "Acércate para escuchar" : props.lang === "pt-BR" ? "Aproxime-se para ouvir" : "Move closer to listen",
@@ -1846,14 +1918,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     coverFallbackTitle: props.lang === "ja" ? "代表写真" : props.lang === "es" ? "Foto del lugar" : props.lang === "pt-BR" ? "Foto do local" : "Place photo",
     areaGalleryTitle: props.lang === "ja" ? "このエリアで観察されたもの" : props.lang === "es" ? "Observado en esta zona" : props.lang === "pt-BR" ? "Observado nesta área" : "Observed in this area",
     areaGalleryLead: props.lang === "ja" ? "写真と記録から、この場所の顔をざっと見る。" : props.lang === "es" ? "Ver rápidamente la cara del lugar desde fotos y registros." : props.lang === "pt-BR" ? "Ver rapidamente a cara do lugar por fotos e registros." : "Scan the place through photos and records.",
-    areaGalleryEmpty: props.lang === "ja" ? "まだ記録がありません。最初の発見者になれる場所です。" : props.lang === "es" ? "Aún no hay registros. Puedes ser quien abra este lugar." : props.lang === "pt-BR" ? "Ainda não há registros. Você pode abrir este lugar." : "No records yet. You can be the first finder here.",
+    areaGalleryEmpty: props.lang === "ja" ? "まだ記録がありません。近くの写真やガイドを探せます。" : props.lang === "es" ? "Aún no hay registros. Puedes buscar fotos o guías cercanas." : props.lang === "pt-BR" ? "Ainda não há registros. Você pode buscar fotos ou guias próximos." : "No records yet. Browse nearby photos or guides.",
     areaGalleryCountSuffix: props.lang === "ja" ? "件" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
     areaSeasonNow: props.lang === "ja" ? "今の季節" : props.lang === "es" ? "Temporada actual" : props.lang === "pt-BR" ? "Estação atual" : "This season",
     areaTabRepresentative: props.lang === "ja" ? "代表種" : props.lang === "es" ? "Representativas" : props.lang === "pt-BR" ? "Representativas" : "Representative",
     areaTabRecent: props.lang === "ja" ? "最近増えた" : props.lang === "es" ? "Recientes" : props.lang === "pt-BR" ? "Recentes" : "Recent rise",
     areaTabMissing: props.lang === "ja" ? "未記録季節" : props.lang === "es" ? "Temporadas vacías" : props.lang === "pt-BR" ? "Estações vazias" : "Season gaps",
-    areaMissingSeasonLead: props.lang === "ja" ? "この季節の記録を足すと、場所の図鑑が一段強くなる。" : props.lang === "es" ? "Sumar registros de estas temporadas fortalece el álbum del lugar." : props.lang === "pt-BR" ? "Adicionar registros destas estações fortalece o álbum do lugar." : "Adding these seasons makes the place album stronger.",
-    areaCompleteSeasonLead: props.lang === "ja" ? "四季の入口があります。次は同じ季節の再訪で厚みを出せます。" : props.lang === "es" ? "Ya hay entrada para las cuatro temporadas. Ahora conviene revisitar." : props.lang === "pt-BR" ? "Já há entrada para as quatro estações. Agora vale revisitar." : "All seasons have an entry. Revisit to add depth.",
+    areaMissingSeasonLead: props.lang === "ja" ? "まだ少ない季節があります。近くの写真や記録を探せます。" : props.lang === "es" ? "Faltan algunas estaciones. Puedes buscar fotos o registros cercanos." : props.lang === "pt-BR" ? "Faltam algumas estações. Você pode buscar fotos ou registros próximos." : "Some seasons are sparse. Browse nearby photos or records.",
+    areaCompleteSeasonLead: props.lang === "ja" ? "四季の記録があります。同じ季節の違いも見られます。" : props.lang === "es" ? "Hay registros de las cuatro estaciones. También se ven diferencias dentro de una estación." : props.lang === "pt-BR" ? "Há registros das quatro estações. Também aparecem diferenças dentro da mesma estação." : "All seasons have records. Same-season differences can also show.",
     areaPublicPageLabel: props.lang === "ja" ? "エリア図鑑を見る" : props.lang === "es" ? "Ver álbum del área" : props.lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
     areaEventCreateLabel: props.lang === "ja" ? "主催者の方へ" : props.lang === "es" ? "Para organizadores" : props.lang === "pt-BR" ? "Para organizadores" : "For organizers",
     areaBadgeEventLabel: props.lang === "ja" ? "主催者" : props.lang === "es" ? "Organizadores" : props.lang === "pt-BR" ? "Organizadores" : "Organizers",
@@ -1863,11 +1935,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaPositiveTitleGuest: props.lang === "ja" ? "みんなの記録で見えてきたこと" : props.lang === "es" ? "Lo que los registros muestran" : props.lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
     areaPositiveViewer: props.lang === "ja" ? "あなたの視点" : props.lang === "es" ? "Tu mirada" : props.lang === "pt-BR" ? "Seu olhar" : "Your perspective",
     areaPositiveViewerGuest: props.lang === "ja" ? "このエリアの視点" : props.lang === "es" ? "Miradas de esta zona" : props.lang === "pt-BR" ? "Olhares desta área" : "Area perspective",
-    areaPositiveThanks: props.lang === "ja" ? "あなたのおかげで" : props.lang === "es" ? "Gracias a tus registros" : props.lang === "pt-BR" ? "Graças aos seus registros" : "Because of your records",
-    areaPositiveThanksGuest: props.lang === "ja" ? "みんなのおかげで" : props.lang === "es" ? "Gracias a todos" : props.lang === "pt-BR" ? "Graças a todos" : "Because of everyone",
+    areaPositiveThanks: props.lang === "ja" ? "あなたの記録から" : props.lang === "es" ? "Gracias a tus registros" : props.lang === "pt-BR" ? "Graças aos seus registros" : "Because of your records",
+    areaPositiveThanksGuest: props.lang === "ja" ? "みんなの記録から" : props.lang === "es" ? "Gracias a todos" : props.lang === "pt-BR" ? "Graças a todos" : "Because of everyone",
     areaPositiveCommunity: props.lang === "ja" ? "みんなの視点" : props.lang === "es" ? "Mirada colectiva" : props.lang === "pt-BR" ? "Olhar coletivo" : "Everyone's perspective",
     areaPositiveOverlap: props.lang === "ja" ? "重なると見えること" : props.lang === "es" ? "Lo que aparece al combinarse" : props.lang === "pt-BR" ? "O que aparece quando se junta" : "What overlap reveals",
-    areaPositiveMineRecords: props.lang === "ja" ? "自分の記録を見返す" : props.lang === "es" ? "Revisar mis registros" : props.lang === "pt-BR" ? "Rever meus registros" : "Review my records",
+    areaPositiveMineRecords: props.lang === "ja" ? "自分の記録を見る" : props.lang === "es" ? "Revisar mis registros" : props.lang === "pt-BR" ? "Rever meus registros" : "Review my records",
     areaPositiveCommunityRecords: props.lang === "ja" ? "みんなの記録を見る" : props.lang === "es" ? "Ver registros de todos" : props.lang === "pt-BR" ? "Ver registros de todos" : "Browse community records",
     areaPositiveEyebrow: props.lang === "ja" ? "記録の手応え" : props.lang === "es" ? "Eco de tus registros" : props.lang === "pt-BR" ? "Sinal dos registros" : "Record feedback",
     areaPositivePeopleSuffix: props.lang === "ja" ? "人" : props.lang === "es" ? " personas" : props.lang === "pt-BR" ? " pessoas" : " people",
@@ -2239,6 +2311,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   ];
   var VIEWPORT_RECORD_LIMIT = 600;
   var CELL_RECORD_LIMIT = 1500;
+  var DEFAULT_MAP_CENTER = [138.383, 34.975];
+  var DEFAULT_MAP_ZOOM = 12.8;
+  var STARTUP_LOCATION_ZOOM = 14.2;
+  var LAST_LOCATION_STORAGE_KEY = 'ikimon-map-last-startup-location-v1';
+  var LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
 
   var state = {
     tab: 'places',
@@ -2293,6 +2370,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     nearbyAreaMarkers: [],
     nearbyAreaOrigin: null,
     nearbyAreaLocateMovePending: false,
+    startupLocationRequestActive: false,
+    startupLocationUserMoved: false,
     suppressViewportSearchUntil: 0,
     suppressNextViewportSearch: false,
     guideSpotMarkers: [],
@@ -2335,20 +2414,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     purposeHintEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
   }
   function canShowPurposeHint() {
-    if (!purposeHintEl || purposeHintDismissed) return false;
-    if (state.tab === 'rain') return false;
-    if (isBottomSheetOpen()) return false;
-    if (emptyInviteEl && !emptyInviteEl.hidden) return false;
-    if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) return false;
-    return true;
+    return false;
   }
   function refreshPurposeHint() {
-    setPurposeHintVisible(canShowPurposeHint());
+    setPurposeHintVisible(false);
   }
   function dismissPurposeHint() {
     purposeHintDismissed = true;
     try { window.localStorage.setItem(PURPOSE_HINT_STORAGE_KEY, '1'); } catch (_) {}
     setPurposeHintVisible(false);
+  }
+  function dismissStartPanel() {
+    if (!startPanelEl) return;
+    startPanelEl.hidden = true;
+    startPanelEl.setAttribute('aria-hidden', 'true');
+  }
+  function setStartPanelCollapsed(collapsed) {
+    if (!startPanelEl) return;
+    startPanelEl.classList.toggle('is-collapsed', !!collapsed);
+    startPanelEl.setAttribute('aria-hidden', 'false');
+    if (startPanelCloseEl) {
+      startPanelCloseEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      startPanelCloseEl.textContent = collapsed ? '＋' : '×';
+    }
   }
 
   function sendMapKpi(eventName, actionKey, metadata) {
@@ -2786,7 +2874,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function showLegend(lowLabel, highLabel, gradient, mode) {
     if (!legendEl) return;
     legendEl.classList.remove('is-hidden');
+    legendEl.classList.add('is-collapsed');
     legendEl.setAttribute('aria-hidden', 'false');
+    if (legendToggleEl) legendToggleEl.setAttribute('aria-expanded', 'false');
     if (legendLowEl) legendLowEl.textContent = lowLabel;
     if (legendHighEl) legendHighEl.textContent = highLabel;
     var gradEl = document.getElementById('me-legend-gradient');
@@ -2796,7 +2886,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function hideLegend() {
     if (!legendEl) return;
     legendEl.classList.add('is-hidden');
+    legendEl.classList.add('is-collapsed');
     legendEl.setAttribute('aria-hidden', 'true');
+    if (legendToggleEl) legendToggleEl.setAttribute('aria-expanded', 'false');
     setLegendMode('scale');
   }
   function layerHintInfo(tab) {
@@ -3328,6 +3420,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     emptyInviteEl.hidden = !visible;
     emptyInviteEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    if (statusEl) {
+      statusEl.hidden = !!visible;
+      statusEl.setAttribute('aria-hidden', visible ? 'true' : 'false');
+    }
     refreshPurposeHint();
   }
 
@@ -6188,7 +6284,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return ''
       + '<section class="me-school-albums" aria-label="学校の図鑑">'
       +   '<div class="me-area-gallery-head">'
-      +     '<span>学校の図鑑を育てる</span>'
+      +     '<span>学校の記録を残す</span>'
       +     '<strong>授業、通学路、季節比較に分けて記録を集める。</strong>'
       +   '</div>'
       +   '<div class="me-school-albums-grid">'
@@ -6634,7 +6730,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderEffortIndicators(indicators) {
     if (!indicators) return '';
-    // 0% が並んだとき「エリアが悪い」のではなく「記録がまだ薄いだけ」と分かるように、
+    // 0% が並んだとき「エリアが悪い」のではなく「記録がまだ少ないだけ」と分かるように、
     // 各カードに「100% に近づくと何が言えるか」を hint として置く (eBird/iNaturalist 文献ベース)。
     var cards = [
       {
@@ -6643,7 +6739,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         hint: '歩いた時間や距離が添えられた記録。増えるほど、同じ場所の見え方を比べやすい',
       },
       {
-        label: '見たものメモの厚み',
+        label: '見たものメモの量',
         value: indicators.completeChecklistRate,
         hint: '見たものをまとめて残した記録。多いほど、季節ごとの顔が見えやすくなる',
       },
@@ -6683,7 +6779,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? 'まだ評価できない'
       : indexValue < 30 ? 'まだこれから'
       : indexValue < 70 ? '季節が見え始めた'
-      : 'また行く理由が育っている';
+      : '季節差が見えている';
     return ''
       + '<div class="me-area-effort">'
       +   '<div class="me-area-effort-title">'
@@ -8224,15 +8320,116 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (state.rainEnabled) updateRainLayer();
   };
 
+  function isValidMapLngLat(lng, lat) {
+    return Number.isFinite(lng) && Number.isFinite(lat) && lng >= -180 && lng <= 180 && lat >= -85 && lat <= 85;
+  }
+
+  function rememberLastStartupLocation(lng, lat, meta) {
+    lng = Number(lng);
+    lat = Number(lat);
+    if (!isValidMapLngLat(lng, lat)) return;
+    try {
+      localStorage.setItem(LAST_LOCATION_STORAGE_KEY, JSON.stringify({
+        lng: Math.round(lng * 1000000) / 1000000,
+        lat: Math.round(lat * 1000000) / 1000000,
+        zoom: meta && Number.isFinite(Number(meta.zoom)) ? Number(meta.zoom) : STARTUP_LOCATION_ZOOM,
+        accuracyM: meta && Number.isFinite(Number(meta.accuracyM)) ? Math.round(Number(meta.accuracyM)) : null,
+        source: meta && meta.source ? String(meta.source).slice(0, 48) : 'geolocation',
+        capturedAt: Date.now(),
+      }));
+    } catch (_) {}
+  }
+
+  function readLastStartupLocation() {
+    try {
+      var raw = localStorage.getItem(LAST_LOCATION_STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      var lng = Number(parsed && parsed.lng);
+      var lat = Number(parsed && parsed.lat);
+      var capturedAt = Number(parsed && parsed.capturedAt);
+      if (!isValidMapLngLat(lng, lat)) return null;
+      if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > LAST_LOCATION_MAX_AGE_MS) return null;
+      return {
+        center: [lng, lat],
+        zoom: Math.max(12.8, Math.min(16, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
+        source: 'last_location',
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function initialStartupViewport() {
+    if (state._restoredCenter && state._restoredCenter.length >= 2) {
+      return {
+        center: state._restoredCenter,
+        zoom: state._restoredZoom != null ? state._restoredZoom : DEFAULT_MAP_ZOOM,
+        source: 'explicit_viewport',
+      };
+    }
+    var last = readLastStartupLocation();
+    if (last) return last;
+    return { center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM, source: 'regional_default' };
+  }
+
+  function requestStartupCurrentLocation(options) {
+    var force = options && options.force === true;
+    if ((!force && (state._restoredCenter || state._restoredCellId)) || !state.map || !navigator.geolocation) return;
+    var applyPosition = function (pos) {
+      state.startupLocationRequestActive = false;
+      if (!state.map || state.startupLocationUserMoved) return;
+      var coords = pos && pos.coords ? pos.coords : null;
+      var lng = Number(coords && coords.longitude);
+      var lat = Number(coords && coords.latitude);
+      if (!isValidMapLngLat(lng, lat)) return;
+      rememberLastStartupLocation(lng, lat, {
+        zoom: STARTUP_LOCATION_ZOOM,
+        accuracyM: Number(coords.accuracy),
+        source: force ? 'start_panel_location' : 'startup_geolocation',
+      });
+      state.map.flyTo({
+        center: [lng, lat],
+        zoom: Math.max(Number(state.map.getZoom && state.map.getZoom() || 0), STARTUP_LOCATION_ZOOM),
+        duration: 520,
+        essential: false,
+      });
+      dropMeMarker(lng, lat);
+    };
+    var fail = function () {
+      state.startupLocationRequestActive = false;
+    };
+    var run = function () {
+      state.startupLocationRequestActive = true;
+      navigator.geolocation.getCurrentPosition(applyPosition, fail, {
+        enableHighAccuracy: false,
+        maximumAge: 1000 * 60 * 10,
+        timeout: 4500,
+      });
+    };
+    if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+      navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
+        if (status && status.state === 'denied') {
+          fail();
+          return;
+        }
+        run();
+      }).catch(run);
+      return;
+    }
+    run();
+  }
+
   function hydrate() {
     if (!window.maplibregl) { showMapLoadFailure(); return; }
+    var startupViewport = initialStartupViewport();
     try {
       state.maplibreRuntime = window.maplibregl;
       state.map = new window.maplibregl.Map({
         container: root,
         style: BASEMAPS[state.basemap] || BASEMAPS.standard,
-        center: state._restoredCenter || [138.38, 35.34],
-        zoom: state._restoredZoom != null ? state._restoredZoom : 5.2,
+        center: startupViewport.center,
+        zoom: startupViewport.zoom,
         attributionControl: true,
       });
     } catch (err) {
@@ -8244,8 +8441,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         state.map = new window.maplibregl.Map({
           container: root,
           style: BASEMAPS.standard,
-          center: [138.38, 35.34],
-          zoom: 5.2,
+          center: DEFAULT_MAP_CENTER,
+          zoom: DEFAULT_MAP_ZOOM,
           attributionControl: true,
         });
       } catch (err2) {
@@ -8255,8 +8452,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('click', dismissPurposeHint);
+    state.map.on('click', dismissStartPanel);
     state.map.on('dragstart', dismissPurposeHint);
     state.map.on('zoomstart', dismissPurposeHint);
+    state.map.on('dragstart', dismissStartPanel);
+    state.map.on('zoomstart', dismissStartPanel);
     state.map.on('load', function () {
       // Restore enabled overlays from URL/localStorage state before loading data.
       overlayCatalog.forEach(function (def) {
@@ -8297,6 +8497,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     state.map.on('dragstart', clearSuppressedViewportSearch);
     state.map.on('zoomstart', clearSuppressedViewportSearch);
+    state.map.on('dragstart', function () {
+      if (state.startupLocationRequestActive) state.startupLocationUserMoved = true;
+    });
+    state.map.on('zoomstart', function () {
+      if (state.startupLocationRequestActive) state.startupLocationUserMoved = true;
+    });
     // Empty-point tap → Site Brief. Skip if the click hit an observation
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
@@ -8405,6 +8611,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   document.querySelectorAll('.me-tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var t = btn.getAttribute('data-tab') || 'markers';
+      dismissStartPanel();
       dismissPurposeHint();
       switchMapTab(t);
     });
@@ -8421,6 +8628,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     purposeHintCloseEl.addEventListener('click', function (event) {
       event.preventDefault();
       dismissPurposeHint();
+    });
+  }
+  if (startPanelCloseEl) {
+    startPanelCloseEl.addEventListener('click', function (event) {
+      event.preventDefault();
+      setStartPanelCollapsed(!startPanelEl || !startPanelEl.classList.contains('is-collapsed'));
+      refreshPurposeHint();
+    });
+  }
+  if (startPanelLocationEl) {
+    startPanelLocationEl.addEventListener('click', function (event) {
+      event.preventDefault();
+      requestStartupCurrentLocation({ force: true });
+    });
+  }
+  if (legendToggleEl) {
+    legendToggleEl.addEventListener('click', function (event) {
+      event.preventDefault();
+      var collapsed = legendEl && legendEl.classList.contains('is-collapsed');
+      if (!legendEl) return;
+      legendEl.classList.toggle('is-collapsed', !collapsed ? true : false);
+      legendToggleEl.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
     });
   }
   document.querySelectorAll('.me-role-chip').forEach(function (btn) {
@@ -8898,6 +9127,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         locateFab.classList.remove('is-loading');
         var lng = pos.coords.longitude;
         var lat = pos.coords.latitude;
+        rememberLastStartupLocation(lng, lat, {
+          zoom: 14.8,
+          accuracyM: Number(pos.coords.accuracy),
+          source: 'locate_button',
+        });
         if (state.tab !== 'rain') state.tab = 'places';
         state.nearbyAreaOrigin = {
           lat: Math.round(lat * 10000) / 10000,
@@ -8946,6 +9180,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       navigator.geolocation.getCurrentPosition(function (pos) {
         var lng = pos.coords.longitude;
         var lat = pos.coords.latitude;
+        rememberLastStartupLocation(lng, lat, {
+          zoom: 12.8,
+          accuracyM: Number(pos.coords.accuracy),
+          source: 'rain_current',
+        });
         checkRainAt(lng, lat);
         if (state.map) {
           state.map.flyTo({ center: [lng, lat], zoom: Math.max(Number(state.map.getZoom() || 0), 12.8), duration: 520 });
@@ -9446,6 +9685,143 @@ export const MAP_EXPLORER_STYLES = `
     transition: width .25s ease, margin .25s ease;
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
+  .me-start-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 7;
+    width: auto;
+    max-width: calc(100% - 92px);
+    display: block;
+    padding: 5px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.82);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 6px 18px rgba(15,23,42,.10);
+    backdrop-filter: blur(14px);
+  }
+  .me-start-panel.is-collapsed {
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(255,255,255,.9);
+  }
+  .me-start-panel[hidden] {
+    display: none;
+  }
+  .me-start-panel-head {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    z-index: 2;
+  }
+  .me-start-panel-head strong {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .me-start-panel-close {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(15,23,42,.06);
+    color: #334155;
+    font-size: 15px;
+    line-height: 1;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  .me-start-panel.is-collapsed .me-start-panel-head {
+    position: static;
+  }
+  .me-start-panel.is-collapsed .me-start-panel-close {
+    width: 42px;
+    height: 42px;
+    background: #0f766e;
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(15,118,110,.18);
+  }
+  .me-start-panel.is-collapsed .me-start-panel-grid {
+    display: none;
+  }
+  .me-start-panel-location {
+    min-width: 0;
+    width: 38px;
+    min-height: 38px;
+    display: grid;
+    grid-template-rows: 1fr;
+    align-items: center;
+    justify-items: center;
+    padding: 0;
+    border: 1px solid rgba(15,118,110,.18);
+    border-radius: 10px;
+    background: rgba(240,253,250,.94);
+    color: #0f766e;
+    font: inherit;
+    font-size: 10.5px;
+    line-height: 1.15;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .me-start-panel-location span,
+  .me-start-panel-grid a span {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .me-start-panel-location strong {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .me-start-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .me-start-panel-grid a {
+    min-width: 0;
+    width: 38px;
+    min-height: 38px;
+    display: grid;
+    grid-template-rows: 1fr;
+    align-items: center;
+    justify-items: center;
+    padding: 0;
+    border-radius: 10px;
+    background: rgba(248,250,252,.92);
+    border: 1px solid rgba(15,23,42,.07);
+    color: inherit;
+    text-decoration: none;
+  }
+  .me-start-panel-grid a strong {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .me-rain-mode .me-start-panel,
+  .me-sheet-open .me-start-panel {
+    display: none;
+  }
+
   .me-purpose-hint {
     position: absolute;
     top: 14px;
@@ -9697,20 +10073,39 @@ export const MAP_EXPLORER_STYLES = `
     left: 18px;
     bottom: 58px;
     z-index: 5;
-    display: grid;
-    gap: 10px;
-    width: min(340px, calc(100% - 128px));
-    padding: 14px;
-    border-radius: 16px;
-    background: rgba(255,255,255,.94);
-    border: 1px solid rgba(14,165,233,.14);
-    box-shadow: 0 16px 34px rgba(15,23,42,.12);
-    backdrop-filter: blur(14px);
+    display: block;
+    align-items: center;
+    width: auto;
+    padding: 5px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 6px 16px rgba(15,23,42,.10);
+    backdrop-filter: blur(12px);
     color: #64748b;
   }
   .me-empty-invite[hidden] { display: none; }
-  .me-empty-invite strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 900; }
-  .me-empty-invite p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 700; }
+  .me-empty-invite .me-results-empty-kicker,
+  .me-empty-invite p,
+  .me-empty-invite strong {
+    display: none;
+  }
+  .me-empty-invite .me-results-empty-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .me-empty-invite .me-results-empty-action {
+    min-height: 44px;
+    min-width: 52px;
+    padding: 7px 5px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.15;
+  }
+  .me-empty-invite .me-results-empty-action:first-child {
+    grid-column: auto;
+  }
   .me-personal-pulse {
     display: grid;
     gap: 8px;
@@ -10383,9 +10778,9 @@ export const MAP_EXPLORER_STYLES = `
     /* MapLibre の OpenStreetMap attribution の上、確実に被らない位置に。
        attribution は実測で ~24-28px、上に 12px 余白を取って bottom:42px。 */
     position: absolute; right: 8px; bottom: 42px; z-index: 4;
-    max-width: min(520px, calc(100% - 24px));
+    max-width: min(360px, calc(100% - 24px));
     box-sizing: border-box;
-    padding: 5px 10px; border-radius: 8px;
+    padding: 5px 8px; border-radius: 8px;
     background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08);
     box-shadow: 0 4px 10px rgba(15,23,42,.08);
     display: flex; flex-direction: column; align-items: stretch; gap: 7px; font-size: 10px; font-weight: 700;
@@ -10393,9 +10788,52 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
   .me-legend-gradient { width: 96px; height: 6px; }
   .me-legend.is-hidden { display: none; }
-  .me-legend-label { color: #475569; letter-spacing: .1em; text-transform: uppercase; }
+  .me-legend-toggle {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #fff;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .me-legend-toggle::after {
+    content: "＋";
+    margin-left: 6px;
+    font-size: 10px;
+    line-height: 1;
+  }
+  .me-legend:not(.is-collapsed) .me-legend-toggle::after { content: "−"; }
   .me-legend-gradient { flex: 0 1 140px; min-width: 92px; height: 10px; border-radius: 999px; display: inline-block; }
   .me-legend-range { display: inline-flex; flex: 1 1 190px; min-width: 0; flex-wrap: wrap; gap: 6px 10px; color: #64748b; font-weight: 700; }
+  .me-legend.is-collapsed {
+    max-width: none;
+    padding: 4px;
+  }
+  .me-legend.is-collapsed .me-legend-toggle {
+    width: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
+    font-size: 0;
+  }
+  .me-legend.is-collapsed .me-legend-toggle::after {
+    content: "?";
+    margin-left: 0;
+    font-size: 15px;
+  }
+  .me-legend.is-collapsed .me-legend-gradient,
+  .me-legend.is-collapsed .me-legend-range,
+  .me-legend.is-collapsed .me-legend-detail {
+    display: none;
+  }
   #me-legend-low,
   #me-legend-high { min-width: 0; overflow-wrap: anywhere; }
   .me-legend-detail {
@@ -11841,6 +12279,7 @@ export const MAP_EXPLORER_STYLES = `
   @media (min-width: 1180px) {
     .me-results-empty-actions { grid-template-columns: 1fr 1fr; }
     .me-results-empty-action:first-child { grid-column: 1 / -1; }
+    .me-empty-invite .me-results-empty-action:first-child { grid-column: auto; }
   }
   @media (max-width: 520px) {
     .me-results-loading { gap: 7px; padding: 9px; }
@@ -12025,6 +12464,25 @@ export const MAP_EXPLORER_STYLES = `
     .me-main { display: block; }
     .me-map-wrap { position: relative; width: 100%; margin-left: 0; }
     .me-map { min-height: var(--me-map-height); height: var(--me-map-height); }
+    .me-start-panel {
+      top: 10px;
+      left: 10px;
+      width: auto;
+      max-width: calc(100% - 82px);
+      padding: 5px;
+    }
+    .me-start-panel.is-collapsed {
+      padding: 0;
+    }
+    .me-start-panel-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .me-start-panel-grid a {
+      width: 38px;
+      min-height: 38px;
+      padding-inline: 0;
+    }
     .me-purpose-hint {
       top: 10px;
       left: 10px;
@@ -12201,13 +12659,14 @@ export const MAP_EXPLORER_STYLES = `
     .me-empty-invite {
       left: 10px;
       bottom: calc(var(--me-mobile-action-space) + 50px);
-      width: min(360px, calc(100% - 20px));
-      max-height: min(270px, calc(100dvh - var(--me-header-h) - var(--me-topbar-h) - 170px));
-      overflow: auto;
-      padding: 12px;
+      width: auto;
+      max-width: calc(100% - 20px);
+      max-height: none;
+      overflow: visible;
+      padding: 5px;
     }
-    .me-empty-invite .me-results-empty-actions { grid-template-columns: 1fr 1fr; }
-    .me-empty-invite .me-results-empty-action:first-child { grid-column: 1 / -1; }
+    .me-empty-invite .me-results-empty-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .me-empty-invite .me-results-empty-action:first-child { grid-column: auto; }
     .me-locate-fab { bottom: calc(var(--me-mobile-action-space) + 8px); }
     .me-rain-mode.me-sheet-open .me-locate-fab {
       opacity: 0;
