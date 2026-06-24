@@ -3405,6 +3405,39 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.equal(obs.rollbackLedger.size, 4);
 });
 
+test("staging runtime uses Cloudflare app shell without exposing shadow diagnostics", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = {
+    ...env,
+    ENVIRONMENT: "staging",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/demo/place-feeling-tags.html", "<!doctype html><title>ひとことタグ デモ</title><main>実データではありません place_feeling_tags</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const health = await worker.fetch(new Request("https://staging.ikimon.life/healthz"), stagingEnv);
+  assert.equal(health.status, 200);
+  assert.equal((await health.json() as any).environment, "staging");
+
+  const demo = await worker.fetch(new Request("https://staging.ikimon.life/demo/place-feeling-tags"), stagingEnv);
+  assert.equal(demo.status, 200);
+  assert.match(await demo.text(), /実データではありません/);
+  assert.equal(demo.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+  const shadowRecord = await worker.fetch(new Request("https://staging.ikimon.life/shadow-smoke/record"), stagingEnv);
+  assert.equal(shadowRecord.status, 404);
+
+  const issueSession = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "staging-user", displayName: "Staging User" })
+  }), stagingEnv);
+  assert.equal(issueSession.status, 200);
+  assert.match(issueSession.headers.get("set-cookie") ?? "", /Secure/);
+  assert.equal(core.operationAudit.length, 0);
+});
+
 test("production runtime proxies unsupported observation API paths to the configured origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

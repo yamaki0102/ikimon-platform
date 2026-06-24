@@ -1,5 +1,5 @@
-name: Deploy to Staging
-run-name: Staging ${{ github.event.inputs.verify_level || 'auto-preview' }} · ${{ github.event.inputs.branch || github.ref_name }}
+name: Deploy Legacy VPS Staging
+run-name: Legacy VPS staging ${{ github.event.inputs.verify_level || 'auto-preview' }} · ${{ github.event.inputs.branch || github.ref_name }}
 
 concurrency:
   group: staging-deploy

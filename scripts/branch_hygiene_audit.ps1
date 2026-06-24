@@ -182,7 +182,7 @@ $openPrs = Invoke-GhJson -GhArgs @(
 $openPrs = @($openPrs)
 
 $deployRuns = @{}
-foreach ($workflow in @("deploy.yml", "deploy-staging.yml")) {
+foreach ($workflow in @("deploy.yml", "deploy-cloudflare-staging.yml", "deploy-staging.yml")) {
     $runs = Invoke-GhJson -GhArgs @(
         "run", "list",
         "--repo", $Repository,
@@ -354,9 +354,9 @@ if ($stagingDriftMessages.Count -gt 0) {
         Add-Line $lines "  ``````bash"
         Add-Line $lines "  git push --force-with-lease=refs/heads/staging:$($stagingBranch.FullSha) origin $($defaultBranchInfo.FullSha):refs/heads/staging"
         Add-Line $lines "  ``````"
-        Add-Line $lines "- Redeploy staging after an intentional non-fast-forward alignment:"
+        Add-Line $lines "- Deploy Cloudflare staging from the aligned branch:"
         Add-Line $lines "  ``````bash"
-        Add-Line $lines "  gh workflow run deploy-staging.yml --ref staging -f branch=staging -f allow_non_fast_forward=true -f verify_level=auto"
+        Add-Line $lines "  gh workflow run deploy-cloudflare-staging.yml --ref staging -f branch=staging -f deploy_staging=true -f test_profile=quick"
         Add-Line $lines "  ``````"
     }
     Add-Line $lines ""
@@ -407,7 +407,7 @@ else {
 Add-Line $lines ""
 
 Add-Line $lines "## Deploy Runs"
-foreach ($workflow in @("deploy.yml", "deploy-staging.yml")) {
+foreach ($workflow in @("deploy.yml", "deploy-cloudflare-staging.yml", "deploy-staging.yml")) {
     Add-Line $lines ""
     Add-Line $lines "### $workflow"
     $runs = @($deployRuns[$workflow])

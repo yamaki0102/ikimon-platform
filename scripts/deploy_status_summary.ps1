@@ -265,8 +265,11 @@ if ($targetSha) {
 Write-Output ""
 
 $productionRuns = Get-RunsForWorkflow -Workflow "deploy.yml" -TargetSha $targetSha -RunLimit $Limit
-$stagingRuns = Get-RunsForWorkflow -Workflow "deploy-staging.yml" -TargetSha $targetSha -RunLimit $Limit
+$stagingRuns = Get-RunsForWorkflow -Workflow "deploy-cloudflare-staging.yml" -TargetSha $targetSha -RunLimit $Limit
+$legacyStagingRuns = Get-RunsForWorkflow -Workflow "deploy-staging.yml" -TargetSha $targetSha -RunLimit $Limit
 
 Write-RunSummary -Label "production" -Run ($productionRuns | Select-Object -First 1) -IncludeFailureLog
 Write-Output ""
 Write-RunSummary -Label "staging" -Run ($stagingRuns | Select-Object -First 1) -IncludeFailureLog
+Write-Output ""
+Write-RunSummary -Label "legacy-vps-staging" -Run ($legacyStagingRuns | Select-Object -First 1) -IncludeFailureLog
