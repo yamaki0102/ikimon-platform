@@ -88,6 +88,24 @@ function stripJsonComments(source) {
     .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
+function isWranglerStagingTriggerWarning(error) {
+  const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
+  return output.includes("Uploaded ikimon-life-cloudflare-staging")
+    && output.includes("Some triggers failed to deploy for ikimon-life-cloudflare-staging");
+}
+
+function summarizeWranglerTriggerWarning(error) {
+  const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
+  const failedEndpoints = [...output.matchAll(/A request to the Cloudflare API \(([^)]+)\) failed\./g)]
+    .map((match) => match[1]);
+  return {
+    kind: "wrangler_trigger_warning",
+    tolerated: true,
+    reason: "Worker upload succeeded, but Cloudflare route or queue trigger updates returned warnings. Existing staging triggers are verified by smoke checks.",
+    failedEndpoints
+  };
+}
+
 async function readStagingConfigSummary() {
   const raw = await readFile("wrangler.jsonc", "utf8");
   const config = JSON.parse(stripJsonComments(raw));
@@ -196,6 +214,7 @@ async function smoke(baseUrl) {
 
 const startedAt = new Date().toISOString();
 let state;
+let triggerWarning = null;
 try {
   state = await currentDeployState();
   await run("npm", ["run", "check"]);
@@ -204,18 +223,35 @@ try {
   await run("npx", ["wrangler", "deploy", "--dry-run", "--env", "staging"]);
 
   if (execute) {
-    await run("npx", ["wrangler", "deploy", "--env", "staging"]);
+    try {
+      await run("npx", ["wrangler", "deploy", "--env", "staging"]);
+    } catch (error) {
+      if (!isWranglerStagingTriggerWarning(error)) {
+        throw error;
+      }
+      triggerWarning = summarizeWranglerTriggerWarning(error);
+      events.push({
+        command: "npx wrangler deploy --env staging trigger warning",
+        exitCode: 0,
+        durationMs: 0,
+        ...triggerWarning
+      });
+      console.warn(JSON.stringify(triggerWarning, null, 2));
+    }
     await smoke(stagingWorkerUrl);
     await smoke(stagingPublicUrl);
   }
 
   const report = {
-    status: execute ? "staging_deployed_and_smoked" : "staging_preflight_pass",
+    status: execute
+      ? (triggerWarning ? "staging_deployed_with_trigger_warning_and_smoked" : "staging_deployed_and_smoked")
+      : "staging_preflight_pass",
     checkedAt: startedAt,
     executedAt: execute ? new Date().toISOString() : null,
     testProfile,
     stagingWorkerUrl,
     stagingPublicUrl,
+    triggerWarning,
     noProductionDataMutation: true,
     noVpsSsh: true,
     ...state,

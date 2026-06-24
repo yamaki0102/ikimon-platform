@@ -139,6 +139,9 @@ jobs:
           node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require("node:fs");
           const preflight = JSON.parse(fs.readFileSync(".deploy/staging-preflight-latest.json", "utf8"));
+          const deployPath = ".deploy/staging-deploy-latest.json";
+          const deploy = fs.existsSync(deployPath) ? JSON.parse(fs.readFileSync(deployPath, "utf8")) : null;
+          const report = deploy || preflight;
           const materializePath = "materialize-staging-original-ui.json";
           const materialized = fs.existsSync(materializePath) ? JSON.parse(fs.readFileSync(materializePath, "utf8")) : null;
           console.log("## Cloudflare Staging");
@@ -148,8 +151,14 @@ jobs:
           console.log("- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`");
           console.log("- Production DB/R2 mutation: `false`");
           console.log("- VPS SSH/deploy: `not used`");
-          console.log(`- Status: \`${preflight.status}\``);
-          console.log(`- Test profile: \`${preflight.testProfile}\``);
+          console.log(`- Status: \`${report.status}\``);
+          console.log(`- Test profile: \`${report.testProfile}\``);
+          if (report.triggerWarning) {
+            console.log(`- Trigger warning tolerated: \`true\``);
+            if (Array.isArray(report.triggerWarning.failedEndpoints) && report.triggerWarning.failedEndpoints.length > 0) {
+              console.log(`- Trigger warning endpoints: \`${report.triggerWarning.failedEndpoints.join(", ")}\``);
+            }
+          }
           if (materialized) {
             console.log(`- Materialized paths: \`${materialized.rendered.length}\``);
           }
