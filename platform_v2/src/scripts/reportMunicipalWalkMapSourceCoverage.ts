@@ -1,6 +1,8 @@
 import {
   listMunicipalWalkMapSourceCatalogV0,
   listMunicipalWalkMapTemplatesV0,
+  sourceOperationalModelV0,
+  type MunicipalWalkMapOperationalModelV0,
   type MunicipalWalkMapSourceCatalogEntryV0,
 } from "../services/municipalWalkMap.js";
 
@@ -12,7 +14,7 @@ type CountRow = {
 };
 
 type CoverageGap = {
-  axis: "primaryType" | "templateId" | "matrix";
+  axis: "primaryType" | "templateId" | "operationalModel" | "matrix";
   id: string;
   label: string;
   count: number;
@@ -26,6 +28,7 @@ type CoverageReport = {
   totalSources: number;
   primaryTypes: CountRow[];
   templates: CountRow[];
+  operationalModels: CountRow[];
   matrix: Array<{
     primaryType: MunicipalWalkMapSourceCatalogEntryV0["primaryType"];
     templateId: string;
@@ -39,6 +42,7 @@ type CoverageReport = {
     affinityScore: number;
     templateId: string;
     primaryType: MunicipalWalkMapSourceCatalogEntryV0["primaryType"];
+    operationalModel: MunicipalWalkMapOperationalModelV0;
     sourceUrl: string;
   }>;
   gaps: CoverageGap[];
@@ -65,6 +69,22 @@ const TEMPLATE_NEXT_SEARCH: Record<string, string> = {
   seasonal_target_walk: "seasonal target species citizen survey municipality",
   citizen_campaign_walk: "Biome iNaturalist citizen biodiversity campaign municipality",
   worksheet_family_walk: "family school nature observation worksheet municipality",
+};
+
+const OPERATIONAL_MODEL_LABELS: Record<MunicipalWalkMapOperationalModelV0, string> = {
+  official_walk_pdf: "Official walk/PDF guide",
+  municipal_submission_map: "Municipal submission/public map",
+  external_app_campaign: "Biome/iNaturalist campaign",
+  national_platform_link: "National platform handoff",
+  fieldwork_worksheet_portal: "Fieldwork worksheet/library",
+};
+
+const OPERATIONAL_MODEL_NEXT_SEARCH: Record<MunicipalWalkMapOperationalModelV0, string> = {
+  official_walk_pdf: "official municipal nature walk PDF guide route",
+  municipal_submission_map: "municipal citizen submission biodiversity map public GIS",
+  external_app_campaign: "municipal Biome iNaturalist biodiversity campaign result",
+  national_platform_link: "municipal ikimono log biodiversity survey",
+  fieldwork_worksheet_portal: "municipal nature fieldwork worksheet biodiversity library",
 };
 
 const EXPECTED_MATRIX_COVERAGE: Array<{
@@ -152,6 +172,19 @@ function buildGaps(report: Omit<CoverageReport, "gaps">): CoverageGap[] {
     }
   }
 
+  for (const row of report.operationalModels) {
+    if (row.count < 2) {
+      gaps.push({
+        axis: "operationalModel",
+        id: row.id,
+        label: row.label,
+        count: row.count,
+        targetMinimum: 2,
+        nextSearchCue: OPERATIONAL_MODEL_NEXT_SEARCH[row.id as MunicipalWalkMapOperationalModelV0],
+      });
+    }
+  }
+
   for (const expected of EXPECTED_MATRIX_COVERAGE) {
     const matrixRow = report.matrix.find((row) => row.primaryType === expected.primaryType && row.templateId === expected.templateId);
     const count = matrixRow?.count ?? 0;
@@ -181,6 +214,10 @@ function buildCoverageReport(): CoverageReport {
     id: template.templateId,
     label: template.label,
   }));
+  const operationalValues = Object.entries(OPERATIONAL_MODEL_LABELS).map(([id, label]) => ({
+    id: id as MunicipalWalkMapOperationalModelV0,
+    label,
+  }));
   const matrix = primaryValues.flatMap((primary) => templateValues.map((template) => {
     const matching = sources.filter((source) => source.primaryType === primary.id && source.templateId === template.id);
     return {
@@ -196,6 +233,7 @@ function buildCoverageReport(): CoverageReport {
     totalSources: sources.length,
     primaryTypes: countBy(sources, primaryValues, (source) => source.primaryType),
     templates: countBy(sources, templateValues, (source) => source.templateId),
+    operationalModels: countBy(sources, operationalValues, sourceOperationalModelV0),
     matrix,
     highAffinitySources: [...sources]
       .sort((left, right) => (right.affinityScore - left.affinityScore) || left.sourceId.localeCompare(right.sourceId))
@@ -207,6 +245,7 @@ function buildCoverageReport(): CoverageReport {
         affinityScore: source.affinityScore,
         templateId: source.templateId,
         primaryType: source.primaryType,
+        operationalModel: sourceOperationalModelV0(source),
         sourceUrl: source.sourceUrl,
       })),
   };
@@ -235,6 +274,12 @@ function renderMarkdown(report: CoverageReport): string {
     "|---|---:|---|",
     ...report.templates.map((row) => `| ${row.label} | ${row.count} | ${row.sampleSourceIds.join(", ")} |`),
     "",
+    "## Operational Models",
+    "",
+    "| Model | Count | Samples |",
+    "|---|---:|---|",
+    ...report.operationalModels.map((row) => `| ${row.label} | ${row.count} | ${row.sampleSourceIds.join(", ")} |`),
+    "",
     "## Thin Areas",
     "",
     report.gaps.length === 0
@@ -243,9 +288,9 @@ function renderMarkdown(report: CoverageReport): string {
     "",
     "## High Affinity Sources",
     "",
-    "| Score | Municipality | Title | Source |",
-    "|---:|---|---|---|",
-    ...report.highAffinitySources.map((source) => `| ${source.affinityScore} | ${source.municipality} | ${source.title} | ${source.sourceUrl} |`),
+    "| Score | Municipality | Title | Model | Source |",
+    "|---:|---|---|---|---|",
+    ...report.highAffinitySources.map((source) => `| ${source.affinityScore} | ${source.municipality} | ${source.title} | ${OPERATIONAL_MODEL_LABELS[source.operationalModel]} | ${source.sourceUrl} |`),
     "",
   ];
   return `${lines.join("\n")}\n`;

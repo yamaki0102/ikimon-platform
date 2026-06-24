@@ -239,6 +239,13 @@ export type MunicipalWalkMapSourceCatalogEntryV0 = {
   cue: string;
 };
 
+export type MunicipalWalkMapOperationalModelV0 =
+  | "official_walk_pdf"
+  | "municipal_submission_map"
+  | "external_app_campaign"
+  | "national_platform_link"
+  | "fieldwork_worksheet_portal";
+
 const DEFAULT_WALK_MAP_ID = "jp-shizuoka-light-nature-walk-v0";
 const DEFAULT_CLAIM_BOUNDARY = [
   "公式調査結果ではなく、散策マップとして扱います。",
@@ -2026,6 +2033,36 @@ export function listMunicipalWalkMapSourceCatalogV0(options: { templateId?: stri
   return MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0
     .filter((entry) => !templateId || entry.templateId === templateId)
     .map((entry) => ({ ...entry }));
+}
+
+export function sourceOperationalModelV0(source: MunicipalWalkMapSourceCatalogEntryV0): MunicipalWalkMapOperationalModelV0 {
+  const haystack = [
+    source.sourceId,
+    source.title,
+    source.sourceUrl,
+    source.officialPageUrl,
+    source.cue,
+  ].join(" ").toLowerCase();
+  if (haystack.includes("ikilog") || haystack.includes("いきものログ")) {
+    return "national_platform_link";
+  }
+  if (haystack.includes("biome") || haystack.includes("inaturalist")) {
+    return "external_app_campaign";
+  }
+  if (source.primaryType === "worksheet_or_field_note" || haystack.includes("worksheet") || haystack.includes("field")) {
+    return "fieldwork_worksheet_portal";
+  }
+  if (
+    source.primaryType === "citizen_science_report"
+    || source.primaryType === "species_distribution_map"
+    || haystack.includes("投稿")
+    || haystack.includes("公開マップ")
+    || haystack.includes("公開型gis")
+    || haystack.includes("調査マップ")
+  ) {
+    return "municipal_submission_map";
+  }
+  return "official_walk_pdf";
 }
 
 export function getMunicipalWalkMapSourceCatalogEntryV0(sourceId: string): MunicipalWalkMapSourceCatalogEntryV0 | null {

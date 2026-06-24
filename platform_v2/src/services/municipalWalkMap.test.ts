@@ -16,6 +16,7 @@ import {
   listPublicMunicipalWalkMapSummariesV0,
   listMunicipalWalkMapTemplatesV0,
   reviewMunicipalWalkMapPublicationV0,
+  sourceOperationalModelV0,
   upsertMunicipalWalkMapConfigV0,
   upsertMunicipalWalkMapCreatorV0,
   validateMunicipalWalkMapCreatorV0,
@@ -674,6 +675,19 @@ test("municipal walk map source catalog covers researched official seed patterns
   const routeSources = listMunicipalWalkMapSourceCatalogV0({ templateId: "route_species_walk" });
   assert.ok(routeSources.length >= 4);
   assert.ok(routeSources.every((entry) => entry.templateId === "route_species_walk"));
+  const operationalModels = new Set(catalog.map(sourceOperationalModelV0));
+  assert.deepEqual([...operationalModels].sort(), [
+    "external_app_campaign",
+    "fieldwork_worksheet_portal",
+    "municipal_submission_map",
+    "national_platform_link",
+    "official_walk_pdf",
+  ]);
+  assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "shizuoka-ikimono-walk-route")!), "official_walk_pdf");
+  assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "ichikawa-living-creature-map")!), "municipal_submission_map");
+  assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "kobe-biome-summer-quest")!), "external_app_campaign");
+  assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "soka-ikimono-log-survey")!), "national_platform_link");
+  assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "koka-field-sheets")!), "fieldwork_worksheet_portal");
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p082326\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.setagaya\.lg\.jp\/02074\/4717\.html/);

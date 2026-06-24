@@ -20,10 +20,12 @@ import {
   listStaticMunicipalWalkMapPublicSummariesV0,
   listMunicipalWalkMapTemplatesV0,
   reviewMunicipalWalkMapPublicationV0,
+  sourceOperationalModelV0,
   upsertMunicipalWalkMapCreatorV0,
   upsertMunicipalWalkMapConfigV0,
   validateMunicipalWalkMapCreatorV0,
   validateMunicipalWalkMapConfigV0,
+  type MunicipalWalkMapOperationalModelV0,
   type MunicipalWalkMapConfigV0,
   type MunicipalWalkMapCreatorRegistryEntryV0,
   type MunicipalWalkMapPublicationReviewV0,
@@ -751,6 +753,14 @@ function primaryTypeLabel(type: MunicipalWalkMapSourceCatalogEntryV0["primaryTyp
   return "記入シート";
 }
 
+function operationalModelLabel(model: MunicipalWalkMapOperationalModelV0): string {
+  if (model === "official_walk_pdf") return "散策PDF";
+  if (model === "municipal_submission_map") return "投稿地図";
+  if (model === "external_app_campaign") return "外部アプリ";
+  if (model === "national_platform_link") return "国基盤";
+  return "学習資料";
+}
+
 function renderSourceCatalogPanel(
   sources: MunicipalWalkMapSourceCatalogEntryV0[],
   selectedTemplateId: string,
@@ -759,10 +769,13 @@ function renderSourceCatalogPanel(
   const scopeText = selectedTemplateId
     ? "選択中の型に近い自治体事例です。引用元として開き、PDF本文や図版は転載せず、立ち寄り先・安全メモ・記録項目へ置き換えます。"
     : "調査済みの自治体事例です。型を選ぶと関連する事例に絞れます。";
-  const cards = sources.map((source) => `
+  const cards = sources.map((source) => {
+    const operationalModel = sourceOperationalModelV0(source);
+    return `
     <article class="wm-admin-source-card${source.sourceId === selectedSourceId ? " is-selected" : ""}" data-source-template-id="${escapeHtml(source.templateId)}">
       <div class="wm-admin-source-meta">
         <span>${escapeHtml(primaryTypeLabel(source.primaryType))}</span>
+        <span data-source-operational-model="${escapeHtml(operationalModel)}">${escapeHtml(operationalModelLabel(operationalModel))}</span>
         <span>${escapeHtml(source.municipality)}</span>
         <span>${escapeHtml(String(source.affinityScore))}</span>
       </div>
@@ -774,7 +787,8 @@ function renderSourceCatalogPanel(
         <a href="${escapeHtml(source.officialPageUrl)}" target="_blank" rel="noopener noreferrer">公式ページを開く</a>
       </div>
     </article>
-  `).join("");
+  `;
+  }).join("");
   return `
 <section class="wm-admin-template" data-walk-map-source-catalog>
   <div>
@@ -1897,7 +1911,12 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
   app.get<{ Querystring: { templateId?: string } }>("/api/v1/admin/municipal-walk-map-source-catalog", async (request, reply) => {
     try {
       await assertMunicipalWalkMapAdminAccess(request);
-      return { ok: true, sources: listMunicipalWalkMapSourceCatalogV0({ templateId: request.query.templateId }) };
+      const sources = listMunicipalWalkMapSourceCatalogV0({ templateId: request.query.templateId })
+        .map((source) => ({
+          ...source,
+          operationalModel: sourceOperationalModelV0(source),
+        }));
+      return { ok: true, sources };
     } catch (error) {
       const message = error instanceof Error ? error.message : "municipal_walk_map_source_catalog_read_failed";
       reply.code(adminErrorStatus(message));

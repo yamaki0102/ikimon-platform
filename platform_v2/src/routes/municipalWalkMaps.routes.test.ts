@@ -345,6 +345,8 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /参考元カタログ/);
         assert.match(response.body, /data-template-source-count="8"/);
         assert.match(response.body, /data-template-start-link="\/admin\/municipal-walk-maps\?templateId=route_species_walk"/);
+        assert.match(response.body, /data-source-operational-model="official_walk_pdf"/);
+        assert.match(response.body, /散策PDF/);
         assert.match(response.body, /この型で始める/);
         assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
         assert.match(response.body, /自然散策マップ/);
@@ -372,6 +374,8 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /船橋市/);
         assert.match(response.body, /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
         assert.doesNotMatch(response.body, /世田谷区/);
+        assert.doesNotMatch(response.body, /順番通り/);
+        assert.doesNotMatch(response.body, /育つ場所/);
       } finally {
         await app.close();
       }
@@ -765,6 +769,11 @@ test("municipal walk map source catalog API returns researched official source p
         assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.kawaguchi\.lg\.jp\/soshiki\/01100\/021\/ecosystem\/27320\.html/);
         assert.match(JSON.stringify(body.sources), /荒川区/);
         assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.arakawa\.tokyo\.jp\/a024\/kankyou\/tayousei\/ikimono_daizukan\.html/);
+        assert.match(JSON.stringify(body.sources), /operationalModel/);
+        assert.match(JSON.stringify(body.sources), /official_walk_pdf/);
+        assert.match(JSON.stringify(body.sources), /municipal_submission_map/);
+        assert.match(JSON.stringify(body.sources), /external_app_campaign/);
+        assert.match(JSON.stringify(body.sources), /national_platform_link/);
       } finally {
         await app.close();
       }
