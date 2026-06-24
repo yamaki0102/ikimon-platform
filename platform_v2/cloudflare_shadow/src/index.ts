@@ -7159,6 +7159,26 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
   const relatedTitle = polish?.relatedTitle ?? "近くの公開記録";
   const relatedLead = polish?.relatedLead ?? "";
   const relatedCountLabel = polish?.relatedCountLabel ?? `${relatedForDisplay.length}件`;
+  const actionRailBlock = polish ? `<nav class="obs-action-strip" aria-label="関連操作">
+        <a href="${escapeHtml(recordHref)}">もう一度記録する</a>
+        <a href="${escapeHtml(mapHref)}">地図で見る</a>
+      </nav>` : `<div class="obs-action-rail" aria-label="関連操作">
+        <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
+        <a class="obs-action" href="/records"><span>▦</span><strong>記録一覧</strong></a>
+        <a class="obs-action" href="${escapeHtml(recordHref)}"><span>＋</span><strong>記録する</strong></a>
+      </div>`;
+  const readProgressLinks = polish ? `
+  <a href="#summary">記録</a>
+  <a href="#photos">動画</a>
+  <a href="#identify">候補</a>
+  <a href="#place">近く</a>` : `
+  <a href="#summary">場面の記録</a>
+  <a href="#photos">写真・動画</a>
+  <a href="#trust">状態</a>
+  <a href="#story">記録</a>
+  <a href="#identify">同定</a>
+  <a href="#place">場所</a>
+  <a href="#meta">情報</a>`;
   const genericInfoSections = polish ? "" : `<section id="privacy" class="obs-layer">
       <h2>公開範囲</h2>
       <div class="obs-layer-grid">
@@ -7274,6 +7294,9 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-action { min-width: 0; min-height: 58px; display: grid; gap: 4px; place-items: center; padding: 9px; border-radius: 15px; border: 1px solid rgba(15,23,42,.08); background: #fff; text-decoration: none; color: #0f172a; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
     .obs-action span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 999px; background: rgba(20,184,166,.13); color: #0f766e; font-size: 15px; line-height: 1; }
     .obs-action strong { font-size: 11.5px; line-height: 1.25; font-weight: 950; text-align: center; }
+    .obs-action-strip { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .obs-action-strip a { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(15,118,110,.18); background: #fff; color: #0f766e; text-decoration: none; font-size: 12px; line-height: 1.2; font-weight: 950; }
+    .obs-action-strip a:first-child { background: #0f766e; color: #fff; border-color: #0f766e; }
     .obs-record-insight, .obs-note, .obs-privacy, .obs-media-links { display: grid; gap: 7px; padding: 12px 13px; border-radius: 14px; border: 1px solid rgba(15,23,42,.07); background: linear-gradient(135deg, rgba(236,253,245,.82), rgba(239,246,255,.82)); }
     .obs-note h2, .obs-privacy h2, .obs-media-links h2 { margin: 0; font-size: 12px; line-height: 1.35; font-weight: 950; color: var(--ink); letter-spacing: 0; }
     .obs-note p, .obs-privacy p, .obs-record-insight p { margin: 0; color: #334155; font-size: 13px; line-height: 1.65; font-weight: 700; }
@@ -7312,6 +7335,9 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-local-name-activity-list li { display: grid; gap: 2px; padding: 9px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
     .obs-local-name-activity-list strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
     .obs-local-name-activity-list span { color: #64748b; font-size: 11.5px; line-height: 1.45; font-weight: 760; }
+    .obs-record-feedback-strip { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; padding: 14px; border-radius: 16px; background: rgba(236,253,245,.72); border: 1px solid rgba(15,118,110,.13); }
+    .obs-record-feedback-strip span { display: inline-grid; gap: 2px; min-width: min(150px, 100%); padding: 9px 10px; border-radius: 13px; background: #fff; border: 1px solid rgba(15,23,42,.06); color: #334155; font-size: 11.5px; line-height: 1.35; font-weight: 780; }
+    .obs-record-feedback-strip strong { color: #0f766e; font-size: 10.5px; line-height: 1.2; font-weight: 950; }
     .obs-quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .obs-quality-item, .obs-env-row { display: grid; gap: 3px; padding: 9px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
     .obs-quality-item span, .obs-env-row span { color: #64748b; font-size: 10.5px; line-height: 1.3; font-weight: 900; }
@@ -7370,7 +7396,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       .obs-record-use-status { order: 8; }
       .obs-first-read { order: 9; }
       .obs-ai-readout { order: 10; }
-      .obs-action-rail { order: 11; }
+      .obs-action-rail, .obs-action-strip { order: 11; }
       .obs-facts { order: 12; }
       .obs-privacy { order: 13; }
       .obs-note, .obs-media-links { order: 14; }
@@ -7402,13 +7428,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
   </nav>
 </header>
 <nav class="obs-read-progress" aria-label="記録ページの読み進め">
-  <a href="#summary">場面の記録</a>
-  <a href="#photos">写真・動画</a>
-  <a href="#trust">状態</a>
-  <a href="#story">記録</a>
-  <a href="#identify">同定</a>
-  <a href="#place">場所</a>
-  <a href="#meta">情報</a>
+  ${readProgressLinks}
 </nav>
 <main data-cloudflare-observation-detail="1" data-visit-id="${escapeHtml(detail.visitId)}" data-occurrence-id="${escapeHtml(detail.occurrenceId)}">
   <article id="photos" class="obs-reading-hero">
@@ -7439,11 +7459,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       ${polish?.statusBlock ?? ""}
       ${polish?.firstReadBlock ?? ""}
       ${polish?.aiReadoutBlock ?? ""}
-      <div class="obs-action-rail" aria-label="関連操作">
-        <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
-        <a class="obs-action" href="/records"><span>▦</span><strong>記録一覧</strong></a>
-        <a class="obs-action" href="${escapeHtml(recordHref)}"><span>＋</span><strong>記録する</strong></a>
-      </div>
+      ${actionRailBlock}
       ${factsBlock}
       ${note ? `<section class="obs-note"><h2>メモ</h2><p>${escapeHtml(note)}</p></section>` : ""}
       ${videos ? `<section class="obs-media-links"><h2>動画</h2>${videos}</section>` : ""}
@@ -7594,8 +7610,8 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
     <button type="button" class="obs-local-read-button">端末の声で読む</button>
   </section>`;
   const identifyBlock = `<section class="obs-frame-identify-card">
-    <h2>同定に参加する</h2>
-    <p>候補を押すだけで、この記録の見え方が少し良くなります。</p>
+    <h2>候補を試す</h2>
+    <p>違うと思ったら、近い候補へすぐ動かせます。</p>
     <div class="obs-mini-chip-row">
       <span>カワラヒワ</span>
       <span>かなり近そう</span>
@@ -7605,20 +7621,12 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
       <button type="button" class="obs-identify-button">この候補で見る</button>
       <button type="button" class="obs-identify-button is-secondary">別候補を出す</button>
     </div>
-    <ul class="obs-local-name-activity-list">
-      <li><strong>候補を下書き</strong><span>カワラヒワ / かなり近そう</span></li>
-      <li><strong>前の見方を更新</strong><span>慎重に → かなり近そう</span></li>
-    </ul>
   </section>`;
-  const qualityBlock = `<section class="obs-local-quality-card">
-    <h2>記録の手ざわり</h2>
-    <p>次に撮る時のヒントは短く返します。うまく撮れたところが分かると、次の記録が少し楽になります。</p>
-    <div class="obs-quality-grid">
-      <div class="obs-quality-item"><span>良い点</span><strong>音と動きが残った</strong></div>
-      <div class="obs-quality-item"><span>足すなら</span><strong>もう少し寄った1枚</strong></div>
-      <div class="obs-quality-item"><span>環境</span><strong>草地の縁が見える</strong></div>
-    </div>
-    <div class="obs-env-row"><span>次のメモ</span><strong>同じ場所で、鳴いていた方向をもう一度見る</strong></div>
+  const qualityBlock = `<section class="obs-record-feedback-strip" aria-label="この記録で返ってきたこと">
+    <span><strong>残った</strong>音と動き</span>
+    <span><strong>見えた</strong>翼の黄色</span>
+    <span><strong>環境</strong>草地の縁</span>
+    <span><strong>足すなら</strong>少し寄った1枚</span>
   </section>`;
   const statusBlock = `<div class="obs-record-use-status" aria-label="この記録の状態">
     <span>確認待ち</span>
@@ -7642,10 +7650,10 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
     identifyBlock,
     qualityBlock,
     relatedLimit: 2,
-    relatedEye: "次に見るなら",
-    relatedTitle: "浜松市浜名区をもう少し見る",
-    relatedLead: "近い投稿を少しだけ並べます。同じ場所の見え方を続けて見られます。",
-    relatedCountLabel: "近い投稿 2件",
+    relatedEye: "近くの記録",
+    relatedTitle: "同じあたりで見えたもの",
+    relatedLead: "",
+    relatedCountLabel: "2件",
     previewDialog: renderFramePreviewDialog(),
     previewScript: renderFramePreviewScript()
   };
