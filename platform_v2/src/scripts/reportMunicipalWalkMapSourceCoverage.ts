@@ -12,7 +12,7 @@ type CountRow = {
 };
 
 type CoverageGap = {
-  axis: "primaryType" | "templateId";
+  axis: "primaryType" | "templateId" | "matrix";
   id: string;
   label: string;
   count: number;
@@ -67,6 +67,44 @@ const TEMPLATE_NEXT_SEARCH: Record<string, string> = {
   worksheet_family_walk: "family school nature observation worksheet municipality",
 };
 
+const EXPECTED_MATRIX_COVERAGE: Array<{
+  primaryType: MunicipalWalkMapSourceCatalogEntryV0["primaryType"];
+  templateId: string;
+  targetMinimum: number;
+  nextSearchCue: string;
+}> = [
+  {
+    primaryType: "walk_route_species_map",
+    templateId: "route_species_walk",
+    targetMinimum: 5,
+    nextSearchCue: "official city nature walking course map with species PDF",
+  },
+  {
+    primaryType: "walk_route_species_map",
+    templateId: "habitat_micro_walk",
+    targetMinimum: 3,
+    nextSearchCue: "official waterfront coast river nature spot guide species municipality",
+  },
+  {
+    primaryType: "species_distribution_map",
+    templateId: "seasonal_target_walk",
+    targetMinimum: 5,
+    nextSearchCue: "official city creature map seasonal citizen sightings",
+  },
+  {
+    primaryType: "citizen_science_report",
+    templateId: "seasonal_target_walk",
+    targetMinimum: 4,
+    nextSearchCue: "municipal seasonal target species survey results",
+  },
+  {
+    primaryType: "worksheet_or_field_note",
+    templateId: "habitat_micro_walk",
+    targetMinimum: 2,
+    nextSearchCue: "municipal facility garden waterfront field guide nature observation",
+  },
+];
+
 function countBy<T extends string>(
   sources: MunicipalWalkMapSourceCatalogEntryV0[],
   values: Array<{ id: T; label: string }>,
@@ -110,6 +148,21 @@ function buildGaps(report: Omit<CoverageReport, "gaps">): CoverageGap[] {
         count: row.count,
         targetMinimum: templateTarget,
         nextSearchCue: TEMPLATE_NEXT_SEARCH[row.id] ?? `municipal biodiversity source ${row.id}`,
+      });
+    }
+  }
+
+  for (const expected of EXPECTED_MATRIX_COVERAGE) {
+    const matrixRow = report.matrix.find((row) => row.primaryType === expected.primaryType && row.templateId === expected.templateId);
+    const count = matrixRow?.count ?? 0;
+    if (count < expected.targetMinimum) {
+      gaps.push({
+        axis: "matrix",
+        id: `${expected.primaryType}:${expected.templateId}`,
+        label: `${PRIMARY_TYPE_LABELS[expected.primaryType]} x ${expected.templateId}`,
+        count,
+        targetMinimum: expected.targetMinimum,
+        nextSearchCue: expected.nextSearchCue,
       });
     }
   }

@@ -12,6 +12,8 @@ test("municipal walk map source coverage report keeps MECE axes explicit", () =>
   assert.match(source, /citizen_science_report/);
   assert.match(source, /worksheet_or_field_note/);
   assert.match(source, /species_distribution_map/);
+  assert.match(source, /EXPECTED_MATRIX_COVERAGE/);
+  assert.match(source, /axis: "matrix"/);
 });
 
 test("municipal walk map source coverage report supports json and markdown", () => {

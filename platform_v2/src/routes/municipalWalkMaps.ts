@@ -239,11 +239,11 @@ function routeStyleText(style: MunicipalWalkMapPublicReadModelV0["routeFlexibili
   if (lang === "en") {
     if (style === "suggested_order") return "Recommended";
     if (style === "free_area") return "Public area";
-    return "Walk stops";
+    return "Loose stops";
   }
   if (style === "suggested_order") return "おすすめ";
   if (style === "free_area") return "公開範囲";
-  return "散策案内";
+  return "ゆるい立ち寄り";
 }
 
 function offRoutePolicyText(policy: MunicipalWalkMapPublicReadModelV0["routeFlexibility"]["offRoutePolicy"], lang: SiteLang): string {

@@ -168,6 +168,7 @@ test("municipal walk map public index renders static samples while DB index gate
 
       assert.equal(response.statusCode, 200);
       assert.match(response.body, /公開範囲で歩ける散策ルート/);
+      assert.match(response.body, /ゆるい立ち寄り/);
       assert.match(response.body, /八ツ山周辺を歩くサンプル/);
       assert.match(response.body, /麻機の水辺を歩くサンプル/);
       assert.match(response.body, /引用元 2件/);
@@ -246,7 +247,7 @@ test("municipal walk map public preview renders static sample without DB or inte
       assert.equal(response.statusCode, 200);
       assert.match(response.body, /麻機の水辺を歩くサンプル/);
       assert.match(response.body, /公開プレビュー/);
-      assert.match(response.body, /散策案内/);
+      assert.match(response.body, /ゆるい立ち寄り/);
       assert.match(response.body, /公開された道の近くで/);
       assert.match(response.body, /移動手段/);
       assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
