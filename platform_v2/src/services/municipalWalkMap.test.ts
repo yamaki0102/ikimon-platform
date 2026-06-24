@@ -570,7 +570,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   const primaryTypes = new Set(catalog.map((entry) => entry.primaryType));
   const templateIds = new Set(catalog.map((entry) => entry.templateId));
 
-  assert.ok(catalog.length >= 29);
+  assert.ok(catalog.length >= 33);
   for (const municipality of [
     "静岡市",
     "船橋市",
@@ -596,6 +596,10 @@ test("municipal walk map source catalog covers researched official seed patterns
     "鹿児島市",
     "伊勢崎市",
     "大阪市",
+    "札幌市",
+    "神戸市",
+    "千代田区",
+    "多摩市",
     "いわき市",
     "東京都",
     "福岡市",
@@ -627,6 +631,10 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.handa\.lg\.jp\/machi\/kankyo\/1002994\/1003007\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.isesaki\.lg\.jp\/soshiki\/kankyobu\/kankyo\/kikaku\/seibututayousei\/21642\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kagoshima\.lg\.jp\/machizukuri\/kankyohozen\/shizen\/hozonju\/kagoshimanomizube\/index\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.sapporo\.jp\/kankyo\/biodiversity\/chosa\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kobe\.lg\.jp\/a66324\/kurashi\/recycle\/biodiversity\/biomequest2025\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.chiyoda\.lg\.jp\/koho\/machizukuri\/kankyo\/sebutsutayose\/monitoring2025\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.tama\.lg\.jp\/kurashi\/kankyo\/hozen\/event\/1017494\.html/);
 });
 
 test("municipal walk map source catalog builds a draft config without copying PDF bodies", () => {
