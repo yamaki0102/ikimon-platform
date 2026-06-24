@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   applyRegisteredCreatorProfileForWriteV0,
+  buildMunicipalWalkMapConfigFromSourceCatalogV0,
   buildMunicipalWalkMapPublicReadModelV0,
   creatorProfileFromRegistryEntryV0,
   getMunicipalWalkMapConfigV0FromDb,
@@ -545,6 +546,24 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.handa\.lg\.jp\/machi\/kankyo\/1002994\/1003007\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.isesaki\.lg\.jp\/soshiki\/kankyobu\/kankyo\/kikaku\/seibututayousei\/21642\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kagoshima\.lg\.jp\/machizukuri\/kankyohozen\/shizen\/hozonju\/kagoshimanomizube\/index\.html/);
+});
+
+test("municipal walk map source catalog builds a draft config without copying PDF bodies", () => {
+  const config = buildMunicipalWalkMapConfigFromSourceCatalogV0("funabashi-nature-walk-maps");
+  const validation = validateMunicipalWalkMapConfigV0(config);
+
+  assert.equal(config.walkMapId, "draft-funabashi-nature-walk-maps");
+  assert.equal(config.municipality, "船橋市");
+  assert.equal(config.creatorName, "船橋市");
+  assert.equal(config.publishMode, "draft");
+  assert.equal(config.title, "自然散策マップ 下書き");
+  assert.match(config.summary, /公式ページを引用元/);
+  assert.equal(config.sourceReferences[0]?.label, "自然散策マップ");
+  assert.equal(config.sourceReferences[0]?.url, "https://www.city.funabashi.lg.jp/machi/kankyou/010/p035951.html");
+  assert.match(config.sourceReferences[0]?.note ?? "", /PDF本文、図版、写真は転載しません/);
+  assert.equal(config.publicationReview?.publicAccessAttested, false);
+  assert.equal(config.publicationReview?.sourceRightsAttested, false);
+  assert.equal(validation.ok, true);
 });
 
 test("municipal walk map validation blocks incomplete authoring contracts", () => {

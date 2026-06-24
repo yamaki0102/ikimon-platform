@@ -1632,6 +1632,12 @@ export function listMunicipalWalkMapSourceCatalogV0(options: { templateId?: stri
     .map((entry) => ({ ...entry }));
 }
 
+export function getMunicipalWalkMapSourceCatalogEntryV0(sourceId: string): MunicipalWalkMapSourceCatalogEntryV0 | null {
+  const cleanSourceId = cleanText(sourceId, 128);
+  if (!cleanSourceId) return null;
+  return listMunicipalWalkMapSourceCatalogV0().find((entry) => entry.sourceId === cleanSourceId) ?? null;
+}
+
 export function getMunicipalWalkMapTemplateV0(templateId: string): MunicipalWalkMapTemplateV0 | null {
   return listMunicipalWalkMapTemplatesV0().find((template) => template.templateId === templateId) ?? null;
 }
@@ -1642,6 +1648,39 @@ export function buildMunicipalWalkMapConfigFromTemplateV0(templateId: string): M
     throw new Error(`unknown_municipal_walk_map_template:${templateId}`);
   }
   return cloneWalkMapConfig(template.config);
+}
+
+export function buildMunicipalWalkMapConfigFromSourceCatalogV0(sourceId: string): MunicipalWalkMapConfigV0 {
+  const source = getMunicipalWalkMapSourceCatalogEntryV0(sourceId);
+  if (!source) {
+    throw new Error(`unknown_municipal_walk_map_source:${sourceId}`);
+  }
+  const config = buildMunicipalWalkMapConfigFromTemplateV0(source.templateId);
+  return {
+    ...config,
+    walkMapId: `draft-${source.sourceId}`,
+    municipality: source.municipality,
+    creatorName: source.municipality,
+    title: `${source.title} 下書き`.slice(0, 120),
+    summary: `${source.municipality}の公式ページを引用元に、公開範囲、立入条件、記録項目をikimon.life用に整理する下書きです。`.slice(0, 240),
+    sourceReferences: [
+      {
+        label: source.title,
+        url: source.officialPageUrl,
+        note: "公式ページを引用元として使います。PDF本文、図版、写真は転載しません。",
+      },
+    ],
+    publicationReview: {
+      publicAccessAttested: false,
+      sourceRightsAttested: false,
+      permissionAttestedBy: null,
+      permissionAttestedAt: null,
+      publishApprovedByUserId: null,
+      publishApprovedAt: null,
+      emergencyHidden: false,
+      takedownReason: null,
+    },
+  };
 }
 
 export function getStaticMunicipalWalkMapConfigV0(walkMapId = DEFAULT_WALK_MAP_ID): MunicipalWalkMapConfigV0 {

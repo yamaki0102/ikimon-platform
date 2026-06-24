@@ -73,9 +73,13 @@ test("municipal walk map authoring UI posts typed config to admin API", async ()
   assert.match(routeSource, /templateId/);
   assert.match(routeSource, /listMunicipalWalkMapTemplatesV0/);
   assert.match(routeSource, /listMunicipalWalkMapSourceCatalogV0/);
+  assert.match(routeSource, /buildMunicipalWalkMapConfigFromSourceCatalogV0/);
   assert.match(routeSource, /renderSourceCatalogPanel/);
   assert.match(routeSource, /data-walk-map-source-catalog/);
   assert.match(routeSource, /data-source-template-id/);
+  assert.match(routeSource, /sourceId/);
+  assert.match(routeSource, /source_catalog/);
+  assert.match(routeSource, /下書きに入れる/);
   assert.match(routeSource, /data-add-source-reference/);
   assert.match(routeSource, /data-source-label/);
   assert.match(routeSource, /textarea\[name='sourceReferences'\]/);
@@ -240,6 +244,8 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /参考元カタログ/);
         assert.match(response.body, /data-walk-map-source-catalog/);
         assert.match(response.body, /data-add-source-reference/);
+        assert.match(response.body, /\/admin\/municipal-walk-maps\?sourceId=funabashi-nature-walk-maps/);
+        assert.match(response.body, /下書きに入れる/);
         assert.match(response.body, /引用元へ/);
         assert.match(response.body, /公式ページを開く/);
         assert.match(response.body, /textarea name="sourceReferences"/);
@@ -250,6 +256,44 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /船橋市/);
         assert.match(response.body, /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
         assert.doesNotMatch(response.body, /世田谷区/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("municipal walk map admin page can prefill a draft from a source catalog entry", async () => {
+  await withEnv(
+    {
+      DATABASE_URL: undefined,
+      ENABLE_DEV_DUMMY_ADMIN: "1",
+      DEV_DUMMY_ADMIN_TOKEN: "test-admin-token",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
+          headers: {
+            accept: "text/html",
+            cookie: "ikimon_v2_session=test-admin-token",
+          },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /data-source="source_catalog"/);
+        assert.match(response.body, /name="walkMapId" value="draft-funabashi-nature-walk-maps"/);
+        assert.match(response.body, /name="municipality" value="船橋市"/);
+        assert.match(response.body, /name="creatorName" value="船橋市"/);
+        assert.match(response.body, /自然散策マップ 下書き/);
+        assert.match(response.body, /公式ページを引用元/);
+        assert.match(response.body, /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
+        assert.match(response.body, /PDF本文、図版、写真は転載しません/);
+        assert.match(response.body, /wm-admin-source-card is-selected/);
+        assert.match(response.body, /name="publishMode"/);
+        assert.match(response.body, /value="draft" selected/);
       } finally {
         await app.close();
       }

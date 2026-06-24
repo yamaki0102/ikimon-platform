@@ -6,6 +6,7 @@ import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 import {
   applyRegisteredCreatorProfileForWriteV0,
+  buildMunicipalWalkMapConfigFromSourceCatalogV0,
   buildMunicipalWalkMapConfigFromTemplateV0,
   buildMunicipalWalkMapPublicReadModelV0,
   getMunicipalWalkMapCreatorV0,
@@ -511,11 +512,13 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-template-card span{font-size:12px;color:#64748b;line-height:1.6}
 .wm-admin-source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
 .wm-admin-source-card{border:1px solid #dbe7e2;border-radius:8px;background:#fbfefc;padding:10px;display:grid;gap:6px}
+.wm-admin-source-card.is-selected{border-color:#0f766e;background:#f0fdfa}
 .wm-admin-source-card strong{font-size:13px;color:#0f172a;line-height:1.35}
 .wm-admin-source-card span,.wm-admin-source-card small{font-size:12px;color:#64748b;line-height:1.55}
 .wm-admin-source-card a{color:#0f766e;font-weight:900;text-decoration:none;font-size:12px}
 .wm-admin-source-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .wm-admin-source-actions button{min-height:32px;border:1px solid #0f766e;border-radius:6px;background:#0f766e;color:#fff;padding:0 10px;font-size:12px;font-weight:900;cursor:pointer}
+.wm-admin-source-actions .wm-admin-source-draft{display:inline-flex;align-items:center;justify-content:center;min-height:32px;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px}
 .wm-admin-source-meta{display:flex;gap:6px;flex-wrap:wrap}
 .wm-admin-source-meta span{display:inline-flex;align-items:center;border:1px solid rgba(15,118,110,.16);border-radius:999px;background:rgba(240,253,250,.9);padding:3px 8px;color:#0f766e;font-weight:900;font-size:11px}
 .wm-admin-form{border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:16px;display:grid;gap:14px}
@@ -610,12 +613,16 @@ function primaryTypeLabel(type: MunicipalWalkMapSourceCatalogEntryV0["primaryTyp
   return "記入シート";
 }
 
-function renderSourceCatalogPanel(sources: MunicipalWalkMapSourceCatalogEntryV0[], selectedTemplateId: string): string {
+function renderSourceCatalogPanel(
+  sources: MunicipalWalkMapSourceCatalogEntryV0[],
+  selectedTemplateId: string,
+  selectedSourceId: string,
+): string {
   const scopeText = selectedTemplateId
     ? "選択中の型に近い自治体事例です。引用元として開き、PDF本文や図版は転載せず、立ち寄り先・安全メモ・記録項目へ置き換えます。"
     : "調査済みの自治体事例です。型を選ぶと関連する事例に絞れます。";
   const cards = sources.map((source) => `
-    <article class="wm-admin-source-card" data-source-template-id="${escapeHtml(source.templateId)}">
+    <article class="wm-admin-source-card${source.sourceId === selectedSourceId ? " is-selected" : ""}" data-source-template-id="${escapeHtml(source.templateId)}">
       <div class="wm-admin-source-meta">
         <span>${escapeHtml(primaryTypeLabel(source.primaryType))}</span>
         <span>${escapeHtml(source.municipality)}</span>
@@ -624,6 +631,7 @@ function renderSourceCatalogPanel(sources: MunicipalWalkMapSourceCatalogEntryV0[
       <strong>${escapeHtml(source.title)}</strong>
       <small>${escapeHtml(source.cue)}</small>
       <div class="wm-admin-source-actions">
+        <a class="wm-admin-source-draft" href="/admin/municipal-walk-maps?sourceId=${encodeURIComponent(source.sourceId)}">下書きに入れる</a>
         <button type="button" data-add-source-reference data-source-label="${escapeHtml(source.title)}" data-source-url="${escapeHtml(source.officialPageUrl)}" data-source-note="PDF本文や図版は転載しない">引用元へ</button>
         <a href="${escapeHtml(source.officialPageUrl)}" target="_blank" rel="noopener noreferrer">公式ページを開く</a>
       </div>
@@ -656,8 +664,9 @@ function renderCreatorPickerOptions(creators: MunicipalWalkMapCreatorRegistryEnt
 
 function renderWalkMapAdminBody(
   config: MunicipalWalkMapConfigV0,
-  source: "db" | "static" | "new" | "template",
+  source: "db" | "static" | "new" | "template" | "source_catalog",
   selectedTemplateId = "",
+  selectedSourceId = "",
   creators: MunicipalWalkMapCreatorRegistryEntryV0[] = [],
   creatorLoadError = "",
 ): string {
@@ -692,7 +701,7 @@ function renderWalkMapAdminBody(
     </div>
   </header>
   ${renderTemplatePicker(templates, selectedTemplateId)}
-  ${renderSourceCatalogPanel(sourceCatalog, selectedTemplateId)}
+  ${renderSourceCatalogPanel(sourceCatalog, selectedTemplateId, selectedSourceId)}
   ${creatorLoadWarning}
   <form class="wm-admin-form" data-walk-map-form data-source="${escapeHtml(source)}">
     <div class="wm-admin-fields">
@@ -887,17 +896,35 @@ function blankWalkMapConfig(): MunicipalWalkMapConfigV0 {
   };
 }
 
-function newWalkMapConfigFromTemplate(templateId: string | undefined): { config: MunicipalWalkMapConfigV0; source: "new" | "template"; selectedTemplateId: string } {
+function newWalkMapConfigFromTemplate(
+  templateId: string | undefined,
+  sourceId?: string,
+): { config: MunicipalWalkMapConfigV0; source: "new" | "template" | "source_catalog"; selectedTemplateId: string; selectedSourceId: string } {
+  const selectedSourceId = String(sourceId ?? "").trim();
+  if (selectedSourceId) {
+    try {
+      const config = buildMunicipalWalkMapConfigFromSourceCatalogV0(selectedSourceId);
+      return {
+        config,
+        source: "source_catalog",
+        selectedTemplateId: "",
+        selectedSourceId,
+      };
+    } catch {
+      return { config: blankWalkMapConfig(), source: "new", selectedTemplateId: "", selectedSourceId: "" };
+    }
+  }
   const selectedTemplateId = String(templateId ?? "").trim();
-  if (!selectedTemplateId) return { config: blankWalkMapConfig(), source: "new", selectedTemplateId: "" };
+  if (!selectedTemplateId) return { config: blankWalkMapConfig(), source: "new", selectedTemplateId: "", selectedSourceId: "" };
   try {
     return {
       config: buildMunicipalWalkMapConfigFromTemplateV0(selectedTemplateId),
       source: "template",
       selectedTemplateId,
+      selectedSourceId: "",
     };
   } catch {
-    return { config: blankWalkMapConfig(), source: "new", selectedTemplateId: "" };
+    return { config: blankWalkMapConfig(), source: "new", selectedTemplateId: "", selectedSourceId: "" };
   }
 }
 
@@ -1102,7 +1129,7 @@ document.addEventListener("submit", async function(event) {
 `;
 
 export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { templateId?: string } }>("/admin/municipal-walk-maps", async (request, reply) => {
+  app.get<{ Querystring: { templateId?: string; sourceId?: string } }>("/admin/municipal-walk-maps", async (request, reply) => {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     reply.type("text/html; charset=utf-8");
     if (!session || session.banned || !isAdminOrAnalystRole(session.roleName, session.rankLabel)) {
@@ -1114,7 +1141,7 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
         body: adminLoginGate(),
       });
     }
-    const templateConfig = newWalkMapConfigFromTemplate(request.query.templateId);
+    const templateConfig = newWalkMapConfigFromTemplate(request.query.templateId, request.query.sourceId);
     const creatorLoad = await listMunicipalWalkMapCreatorsV0()
       .then((creators) => ({ creators, error: "" }))
       .catch((error) => ({ creators: [] as MunicipalWalkMapCreatorRegistryEntryV0[], error: error instanceof Error ? error.message : "creator_list_failed" }));
@@ -1122,7 +1149,14 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
       basePath: "",
       title: "散策マップ管理 — ikimon.life",
       extraStyles: ADMIN_WALK_MAP_STYLES,
-      body: renderWalkMapAdminBody(templateConfig.config, templateConfig.source, templateConfig.selectedTemplateId, creatorLoad.creators, creatorLoad.error),
+      body: renderWalkMapAdminBody(
+        templateConfig.config,
+        templateConfig.source,
+        templateConfig.selectedTemplateId,
+        templateConfig.selectedSourceId,
+        creatorLoad.creators,
+        creatorLoad.error,
+      ),
     });
   });
 
@@ -1155,7 +1189,7 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
       basePath: "",
       title: `${loaded.config.title || "散策マップ管理"} — ikimon.life`,
       extraStyles: ADMIN_WALK_MAP_STYLES,
-      body: renderWalkMapAdminBody(loaded.config, loaded.source, "", creatorLoad.creators, creatorLoad.error),
+      body: renderWalkMapAdminBody(loaded.config, loaded.source, "", "", creatorLoad.creators, creatorLoad.error),
     });
   });
 
