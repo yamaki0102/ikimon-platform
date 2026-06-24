@@ -1064,6 +1064,10 @@ export const worker = {
         return getOriginalUiThumb(request, url, env);
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && isProfileHtmlPath(url.pathname)) {
+        return getSessionAwareProfileHtml(request, url, env);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
         return getOriginalUiHtml(request, url, env);
       }
@@ -2641,6 +2645,130 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, url: URL, env:
 
 function isAuthHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/(?:login|register)$/.test(pathname);
+}
+
+function isProfileHtmlPath(pathname: string): boolean {
+  return /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname);
+}
+
+async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session || session.banned) {
+    return getOriginalUiHtml(request, url, env);
+  }
+
+  const body = request.method === "HEAD"
+    ? null
+    : renderCloudflareProfileHtml(session, {
+      lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
+      settings: /\/profile\/settings$/.test(url.pathname)
+    });
+
+  return new Response(body, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "profile-session"
+    }
+  });
+}
+
+function renderCloudflareProfileHtml(
+  session: SessionSnapshot,
+  options: { lang: string; settings: boolean }
+): string {
+  const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const copy = lang === "ja"
+    ? {
+      title: options.settings ? "プロフィール設定" : "マイページ",
+      records: "自分の記録",
+      record: "記録する",
+      map: "地図",
+      settings: "設定",
+      signedIn: "ログイン中",
+      role: "権限",
+      rank: "ランク",
+      back: "マイページへ"
+    }
+    : {
+      title: options.settings ? "Profile Settings" : "My Page",
+      records: "My records",
+      record: "Record",
+      map: "Map",
+      settings: "Settings",
+      signedIn: "Signed in",
+      role: "Role",
+      rank: "Rank",
+      back: "Back to profile"
+    };
+  const title = escapeHtml(copy.title);
+  const displayName = escapeHtml(session.displayName || session.userId);
+  const roleName = escapeHtml(session.roleName || "Observer");
+  const rankLabel = escapeHtml(session.rankLabel ?? "-");
+  const settingsBody = options.settings
+    ? `<section class="cf-profile-panel">
+        <h2>${escapeHtml(copy.settings)}</h2>
+        <dl>
+          <div><dt>${escapeHtml(copy.signedIn)}</dt><dd>${displayName}</dd></div>
+          <div><dt>${escapeHtml(copy.role)}</dt><dd>${roleName}</dd></div>
+          <div><dt>${escapeHtml(copy.rank)}</dt><dd>${rankLabel}</dd></div>
+        </dl>
+        <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
+      </section>`
+    : `<nav class="cf-profile-actions" aria-label="${escapeHtml(copy.title)}">
+        <a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.records)}</a>
+        <a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a>
+        <a href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.map)}</a>
+        <a href="${escapeHtml(`${prefix}/profile/settings`)}">${escapeHtml(copy.settings)}</a>
+      </nav>
+      <section class="cf-profile-panel">
+        <dl>
+          <div><dt>${escapeHtml(copy.signedIn)}</dt><dd>${displayName}</dd></div>
+          <div><dt>${escapeHtml(copy.role)}</dt><dd>${roleName}</dd></div>
+          <div><dt>${escapeHtml(copy.rank)}</dt><dd>${rankLabel}</dd></div>
+        </dl>
+      </section>`;
+
+  return `<!doctype html>
+<html lang="${escapeHtml(lang)}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} - ikimon</title>
+  <style>
+    :root{color-scheme:light;--ink:#10251a;--muted:#53645d;--line:#dceee8;--mint:#effbf7;--teal:#059b8d}
+    *{box-sizing:border-box}
+    body{margin:0;background:#f7fbf9;color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    .cf-profile-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:#fff;border-bottom:1px solid var(--line)}
+    .cf-profile-brand{font-weight:900;text-decoration:none;color:var(--ink);font-size:20px}
+    .cf-profile-shell{width:min(960px,calc(100% - 32px));margin:28px auto}
+    .cf-profile-title{margin:0 0 18px}
+    .cf-profile-title small{display:block;color:var(--teal);font-size:13px;font-weight:800}
+    .cf-profile-title h1{margin:4px 0 0;font-size:32px;line-height:1.15;letter-spacing:0}
+    .cf-profile-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 14px}
+    .cf-profile-actions a,.cf-profile-link{display:flex;align-items:center;justify-content:center;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font-weight:800;text-decoration:none;box-shadow:0 10px 24px rgba(16,37,26,.06)}
+    .cf-profile-panel{padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.07)}
+    .cf-profile-panel h2{margin:0 0 14px;font-size:20px}
+    .cf-profile-panel dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+    .cf-profile-panel div{min-width:0;padding:12px;border-radius:12px;background:var(--mint)}
+    .cf-profile-panel dt{color:var(--muted);font-size:12px;font-weight:800}
+    .cf-profile-panel dd{margin:4px 0 0;font-weight:900;overflow-wrap:anywhere}
+    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:18px auto}.cf-profile-title h1{font-size:26px}.cf-profile-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-panel dl{grid-template-columns:1fr}.cf-profile-header{padding:12px 14px}}
+  </style>
+</head>
+<body data-cloudflare-profile="signed-in">
+  <header class="cf-profile-header"><a class="cf-profile-brand" href="${escapeHtml(`${prefix}/map`)}">ikimon</a></header>
+  <main class="cf-profile-shell">
+    <div class="cf-profile-title">
+      <small>${escapeHtml(copy.title)}</small>
+      <h1 data-testid="profile-heading">${displayName}</h1>
+    </div>
+    ${settingsBody}
+  </main>
+</body>
+</html>`;
 }
 
 function isRecordsHtmlPath(pathname: string): boolean {
