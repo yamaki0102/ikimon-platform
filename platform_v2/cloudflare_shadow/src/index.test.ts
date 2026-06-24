@@ -5185,6 +5185,13 @@ test("staging municipal walk map admin source draft serves materialized preview 
     assert.match(templateBody, /参考元カタログ/);
     assert.match(templateBody, /data-source-operational-model="official_walk_pdf"/);
     assert.equal(fallbackCalls, 0);
+    const anonymousTemplateResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?templateId=route_species_walk"
+    ), stagingEnv);
+    assert.equal(anonymousTemplateResponse.status, 200);
+    assert.equal(anonymousTemplateResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await anonymousTemplateResponse.text(), /散策PDF/);
+    assert.equal(fallbackCalls, 0);
     const response = await worker.fetch(new Request(
       "https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
       { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
