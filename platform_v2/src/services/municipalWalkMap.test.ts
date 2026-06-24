@@ -9,6 +9,7 @@ import {
   getMunicipalWalkMapCreatorV0,
   getStaticMunicipalWalkMapConfigV0,
   listMunicipalWalkMapCreatorsV0,
+  listMunicipalWalkMapReviewQueueV0,
   listMunicipalWalkMapSourceCatalogV0,
   listPublicMunicipalWalkMapSummariesV0,
   listMunicipalWalkMapTemplatesV0,
@@ -45,6 +46,7 @@ function createMunicipalWalkMapFakeDb() {
     claim_boundary: string[];
     source_references: MunicipalWalkMapConfigV0["sourceReferences"];
     publication_review: MunicipalWalkMapConfigV0["publicationReview"];
+    updated_at?: string;
   };
   type StopRow = {
     stop_id: string;
@@ -97,6 +99,10 @@ function createMunicipalWalkMapFakeDb() {
         .map((row) => ({ ...row, stop_count: String((stops.get(row.walk_map_id) ?? []).length) }));
       return { rows: rows as T[] };
     }
+    if (/FROM municipal_walk_maps\s+ORDER BY/.test(sql)) {
+      const rows = [...maps.values()].map((row) => ({ ...row, updated_at: row.updated_at ?? "2026-06-25T00:00:00.000Z" }));
+      return { rows: rows as T[] };
+    }
     if (/INSERT INTO municipal_walk_maps/.test(sql)) {
       const row: MapRow = {
         walk_map_id: String(params[0]),
@@ -114,6 +120,7 @@ function createMunicipalWalkMapFakeDb() {
         claim_boundary: params[12] as string[],
         source_references: JSON.parse(String(params[13])) as MunicipalWalkMapConfigV0["sourceReferences"],
         publication_review: JSON.parse(String(params[14])) as MunicipalWalkMapConfigV0["publicationReview"],
+        updated_at: "2026-06-25T00:00:00.000Z",
       };
       maps.set(row.walk_map_id, row);
       return { rows: [row] as T[] };
@@ -1058,4 +1065,47 @@ test("municipal walk map DB public summaries expose only published rows", async 
   assert.deepEqual(summaries.map((summary) => summary.walkMapId), ["db-public-map"]);
   assert.match(db.sqlLog.join("\n"), /WHERE publish_mode = 'public'/);
   assert.doesNotMatch(db.sqlLog.join("\n"), /public_preview'\)/);
+});
+
+test("municipal walk map review queue surfaces saved drafts with public readiness blockers", async () => {
+  const db = createMunicipalWalkMapFakeDb();
+  const base = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+  await upsertMunicipalWalkMapConfigV0(
+    {
+      ...base,
+      walkMapId: "db-review-draft-map",
+      publishMode: "draft",
+      creatorProfile: {
+        creatorId: "group:pending-walk-team",
+        registrationKind: "registered_group",
+        verificationStatus: "pending",
+        commercialIntent: "none",
+      },
+      publicationReview: {
+        publicAccessAttested: false,
+        sourceRightsAttested: true,
+        permissionAttestedBy: null,
+        permissionAttestedAt: null,
+        publishApprovedByUserId: null,
+        publishApprovedAt: null,
+        emergencyHidden: false,
+        takedownReason: null,
+      },
+    },
+    "admin-user",
+    db.pool,
+  );
+
+  const queue = await listMunicipalWalkMapReviewQueueV0(db.pool);
+  const item = queue.find((candidate) => candidate.walkMapId === "db-review-draft-map");
+
+  assert.ok(item);
+  assert.equal(item.readyForPublicMode, false);
+  assert.equal(item.publishMode, "draft");
+  assert.equal(item.stopCount, base.routeStops.length);
+  assert.equal(item.sourceReferenceCount, base.sourceReferences.length);
+  assert.match(item.reviewRequired.join("\n"), /public_publish_requires_verified_creator/);
+  assert.match(item.reviewRequired.join("\n"), /public_access_review_required/);
+  assert.match(item.reviewRequired.join("\n"), /publish_approval_required/);
+  assert.equal(item.editHref, "/admin/municipal-walk-maps/db-review-draft-map");
 });

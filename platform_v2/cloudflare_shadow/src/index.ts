@@ -787,6 +787,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
   "/demo/place-feeling-tags",
   "/guide",
+  "/admin/municipal-walk-map-reviews",
   "/record",
   "/records",
   "/map",
@@ -3036,6 +3037,7 @@ function hasPersonalizedHtmlHeaders(request: Request): boolean {
 function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
   return pathname === "/app-refresh"
     || pathname === "/admin/municipal-walk-maps"
+    || pathname === "/admin/municipal-walk-map-reviews"
     || pathname === "/"
     || /^\/(?:ja|en|es|pt-br)\/?$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/demo\/place-feeling-tags$/.test(pathname)

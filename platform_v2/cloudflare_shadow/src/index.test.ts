@@ -5152,6 +5152,11 @@ test("staging municipal walk map admin source draft serves materialized preview 
     { httpMetadata: { contentType: "text/html; charset=utf-8" } }
   );
   await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-map-reviews.html",
+    "<!doctype html><title>散策マップ審査</title><main>散策マップ審査 DB適用後に一覧を表示できます。</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  await env.ASSET_BUCKET.put(
     "original-ui/html/walk-map-source-drafts/shizuoka-ikimono-walk-route.html",
     "<!doctype html><title>散策マップ下書き</title><main>source_draft_review 6. 公園の開けた場所</main>",
     { httpMetadata: { contentType: "text/html; charset=utf-8" } }
@@ -5181,6 +5186,15 @@ test("staging municipal walk map admin source draft serves materialized preview 
     assert.equal(shizuokaResponse.status, 200);
     assert.equal(shizuokaResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     assert.match(await shizuokaResponse.text(), /立ち寄り先 6/);
+    assert.equal(fallbackCalls, 0);
+    const reviewQueueResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-map-reviews",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(reviewQueueResponse.status, 200);
+    assert.equal(reviewQueueResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await reviewQueueResponse.text(), /散策マップ審査/);
     assert.equal(fallbackCalls, 0);
     const reviewResponse = await worker.fetch(new Request(
       "https://staging.ikimon.life/walk-map-source-drafts/shizuoka-ikimono-walk-route"

@@ -171,6 +171,24 @@ export type MunicipalWalkMapPublicSummaryV0 = {
   sourceReferences: MunicipalWalkMapSourceReferenceV0[];
 };
 
+export type MunicipalWalkMapReviewQueueItemV0 = {
+  schemaVersion: "municipal_walk_map_review_queue_item/v0";
+  walkMapId: string;
+  municipality: string;
+  title: string;
+  creatorName: string;
+  creatorProfile: MunicipalWalkMapCreatorProfileV0;
+  publishMode: MunicipalWalkMapConfigV0["publishMode"];
+  updatedAt: string | null;
+  stopCount: number;
+  sourceReferenceCount: number;
+  blockedStopIds: string[];
+  reviewRequired: string[];
+  readyForPublicMode: boolean;
+  editHref: string;
+  previewHref: string;
+};
+
 export type MunicipalWalkMapTemplateV0 = {
   schemaVersion: "municipal_walk_map_template/v0";
   templateId: string;
@@ -1791,6 +1809,7 @@ type WalkMapRow = {
   claim_boundary: string[];
   source_references: MunicipalWalkMapSourceReferenceV0[] | null;
   publication_review: MunicipalWalkMapPublicationReviewV0 | null;
+  updated_at?: string | Date | null;
 };
 
 type WalkMapStopRow = {
@@ -1888,6 +1907,55 @@ export async function listPublicMunicipalWalkMapSummariesV0(db?: MunicipalWalkMa
     stopCount: Math.max(0, Number(row.stop_count) || 0),
     sourceReferences: cleanSourceReferences(row.source_references),
   }));
+}
+
+export async function listMunicipalWalkMapReviewQueueV0(db?: MunicipalWalkMapDbPool): Promise<MunicipalWalkMapReviewQueueItemV0[]> {
+  const pool = municipalWalkMapDbPool(db);
+  const result = await pool.query<WalkMapRow>(
+    `SELECT ${WALK_MAP_SELECT}, updated_at
+     FROM municipal_walk_maps
+     ORDER BY
+       CASE publish_mode WHEN 'draft' THEN 0 WHEN 'public_preview' THEN 1 ELSE 2 END,
+       updated_at DESC,
+       walk_map_id ASC
+     LIMIT 100`,
+  );
+  const items: MunicipalWalkMapReviewQueueItemV0[] = [];
+  for (const row of result.rows) {
+    const stopResult = await pool.query<WalkMapStopRow>(
+      `SELECT stop_id, title, area_kind, linked_field_id, access, estimated_minutes,
+              notice_cues, record_cues, safety_notes, internal_memo, sensitive_context
+       FROM municipal_walk_map_stops
+       WHERE walk_map_id = $1
+       ORDER BY position ASC, stop_id ASC`,
+      [row.walk_map_id],
+    );
+    const config = mapDbConfig(row, stopResult.rows);
+    const publicReadiness = validateMunicipalWalkMapConfigV0({
+      ...config,
+      publishMode: config.publishMode === "public" ? "public" : "public_preview",
+    });
+    const safety = buildMunicipalWalkMapLocationSafetyPolicyV0(config, publicReadiness);
+    const sourceReferenceCount = cleanSourceReferences(config.sourceReferences).length;
+    items.push({
+      schemaVersion: "municipal_walk_map_review_queue_item/v0",
+      walkMapId: config.walkMapId,
+      municipality: cleanText(config.municipality, 80),
+      title: cleanText(config.title, 120),
+      creatorName: cleanText(config.creatorName, 120),
+      creatorProfile: config.creatorProfile,
+      publishMode: config.publishMode,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : cleanText(row.updated_at, 80) || null,
+      stopCount: config.routeStops.length,
+      sourceReferenceCount,
+      blockedStopIds: publicReadiness.blockedStopIds,
+      reviewRequired: safety.reviewRequired,
+      readyForPublicMode: publicReadiness.ok,
+      editHref: `/admin/municipal-walk-maps/${encodeURIComponent(config.walkMapId)}`,
+      previewHref: `/walk-maps/${encodeURIComponent(config.walkMapId)}`,
+    });
+  }
+  return items;
 }
 
 export async function getMunicipalWalkMapCreatorV0(creatorId: string, db?: MunicipalWalkMapDbPool): Promise<MunicipalWalkMapCreatorRegistryEntryV0 | null> {

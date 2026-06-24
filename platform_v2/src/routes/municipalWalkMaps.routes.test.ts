@@ -43,7 +43,9 @@ test("municipal walk map routes are registered with API and preview paths", asyn
   assert.match(routeSource, /\/admin\/municipal-walk-maps/);
   assert.match(routeSource, /\/admin\/municipal-walk-maps\/:walkMapId/);
   assert.match(routeSource, /\/admin\/municipal-walk-map-creators/);
+  assert.match(routeSource, /\/admin\/municipal-walk-map-reviews/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-creators/);
+  assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-reviews/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-templates/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-source-catalog/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps/);
@@ -54,6 +56,7 @@ test("municipal walk map routes are registered with API and preview paths", asyn
   assert.match(routeSource, /\/walk-maps\/:walkMapId/);
   assert.match(routeSource, /\/walk-maps"/);
   assert.match(routeSource, /renderWalkMapIndexBody/);
+  assert.match(routeSource, /renderReviewQueueBody/);
   assert.match(routeSource, /IKIMON_ENABLE_DB_WALK_MAP_INDEX/);
   assert.match(routeSource, /listPublicMunicipalWalkMapSummariesV0/);
   assert.match(routeSource, /listStaticMunicipalWalkMapPublicSummariesV0/);
@@ -333,6 +336,7 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /自治体・登録団体・登録会社の確認済み登録だけが公開できます/);
         assert.match(response.body, /商業主目的は公開不可/);
         assert.match(response.body, /公開承認者と日付が入るまで公開モードでは保存できません/);
+        assert.match(response.body, /\/admin\/municipal-walk-map-reviews/);
         assert.match(response.body, /data-walk-map-source-catalog/);
         assert.match(response.body, /data-add-source-reference/);
         assert.match(response.body, /\/admin\/municipal-walk-maps\?sourceId=funabashi-nature-walk-maps/);
@@ -444,6 +448,25 @@ test("municipal walk map creator admin page requires an admin session before DB 
       const response = await app.inject({
         method: "GET",
         url: "/admin/municipal-walk-map-creators",
+        headers: { accept: "text/html" },
+      });
+
+      assert.equal(response.statusCode, 403);
+      assert.match(response.body, /散策マップ管理/);
+      assert.match(response.body, /ログインへ/);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test("municipal walk map review queue page requires an admin session before DB access", async () => {
+  await withEnv({ DATABASE_URL: undefined }, async () => {
+    const app = buildApp();
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/admin/municipal-walk-map-reviews",
         headers: { accept: "text/html" },
       });
 

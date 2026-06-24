@@ -71,6 +71,7 @@ const corePaths = [
   "/guide",
   "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
   "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+  "/admin/municipal-walk-map-reviews",
   "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
   "/walk-maps",
   "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
@@ -308,7 +309,7 @@ const renderedStatic = [];
 try {
   for (const pathname of targets) {
     const parsed = parsedPublicPath(pathname);
-    const isAdminPreview = parsed.pathname === "/admin/municipal-walk-maps";
+    const isAdminPreview = parsed.pathname === "/admin/municipal-walk-maps" || parsed.pathname === "/admin/municipal-walk-map-reviews";
     if (isAdminPreview && targetEnv !== "staging") {
       throw new Error("Admin preview materialization is staging-only.");
     }

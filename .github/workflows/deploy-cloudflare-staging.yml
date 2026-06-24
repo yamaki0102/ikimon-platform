@@ -128,6 +128,9 @@ jobs:
           grep -q '立ち寄り先 6' staging-walk-map-admin-shizuoka.html
           grep -q 'asahata2024-map.pdf' staging-walk-map-admin-shizuoka.html
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin-shizuoka.headers
+          curl -fsS -D staging-walk-map-reviews.headers 'https://staging.ikimon.life/admin/municipal-walk-map-reviews' -o staging-walk-map-reviews.html
+          grep -q '散策マップ審査' staging-walk-map-reviews.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-reviews.headers
           curl -fsS -D staging-walk-map-review-shizuoka.headers 'https://staging.ikimon.life/walk-map-source-drafts/shizuoka-ikimono-walk-route' -o staging-walk-map-review-shizuoka.html
           grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-review-shizuoka.html
           grep -q '6. 公園の開けた場所' staging-walk-map-review-shizuoka.html
@@ -149,6 +152,7 @@ jobs:
             platform_v2/cloudflare_shadow/staging-demo.*
             platform_v2/cloudflare_shadow/staging-walk-map-admin.*
             platform_v2/cloudflare_shadow/staging-walk-map-admin-shizuoka.*
+            platform_v2/cloudflare_shadow/staging-walk-map-reviews.*
             platform_v2/cloudflare_shadow/staging-walk-map-review-shizuoka.*
             platform_v2/cloudflare_shadow/staging-brand-icon.*
           if-no-files-found: ignore
