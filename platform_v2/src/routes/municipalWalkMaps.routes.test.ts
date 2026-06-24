@@ -46,6 +46,7 @@ test("municipal walk map routes are registered with API and preview paths", asyn
   assert.match(routeSource, /\/admin\/municipal-walk-map-reviews/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-creators/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-reviews/);
+  assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-reviews\/:walkMapId\/actions/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-templates/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-source-catalog/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps/);
@@ -57,6 +58,7 @@ test("municipal walk map routes are registered with API and preview paths", asyn
   assert.match(routeSource, /\/walk-maps"/);
   assert.match(routeSource, /renderWalkMapIndexBody/);
   assert.match(routeSource, /renderReviewQueueBody/);
+  assert.match(routeSource, /reviewMunicipalWalkMapPublicationV0/);
   assert.match(routeSource, /IKIMON_ENABLE_DB_WALK_MAP_INDEX/);
   assert.match(routeSource, /listPublicMunicipalWalkMapSummariesV0/);
   assert.match(routeSource, /listStaticMunicipalWalkMapPublicSummariesV0/);
@@ -473,6 +475,25 @@ test("municipal walk map review queue page requires an admin session before DB a
       assert.equal(response.statusCode, 403);
       assert.match(response.body, /散策マップ管理/);
       assert.match(response.body, /ログインへ/);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test("municipal walk map review action API requires admin access before DB access", async () => {
+  await withEnv({ DATABASE_URL: undefined }, async () => {
+    const app = buildApp();
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/admin/municipal-walk-map-reviews/test-map/actions",
+        headers: { "content-type": "application/json" },
+        payload: { action: "approve_public_preview" },
+      });
+
+      assert.equal(response.statusCode, 503);
+      assert.match(response.body, /privileged_write_api_key_not_configured/);
     } finally {
       await app.close();
     }

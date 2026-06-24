@@ -13,6 +13,7 @@ import {
   listMunicipalWalkMapSourceCatalogV0,
   listPublicMunicipalWalkMapSummariesV0,
   listMunicipalWalkMapTemplatesV0,
+  reviewMunicipalWalkMapPublicationV0,
   upsertMunicipalWalkMapConfigV0,
   upsertMunicipalWalkMapCreatorV0,
   validateMunicipalWalkMapCreatorV0,
@@ -1108,4 +1109,80 @@ test("municipal walk map review queue surfaces saved drafts with public readines
   assert.match(item.reviewRequired.join("\n"), /public_access_review_required/);
   assert.match(item.reviewRequired.join("\n"), /publish_approval_required/);
   assert.equal(item.editHref, "/admin/municipal-walk-maps/db-review-draft-map");
+});
+
+test("municipal walk map review action approves ready organization drafts for public preview", async () => {
+  const db = createMunicipalWalkMapFakeDb();
+  const base = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+  await upsertMunicipalWalkMapConfigV0(
+    {
+      ...base,
+      walkMapId: "db-review-ready-map",
+      publishMode: "draft",
+      creatorProfile: {
+        creatorId: "municipality:shizuoka",
+        registrationKind: "municipality",
+        verificationStatus: "verified",
+        commercialIntent: "none",
+      },
+      publicationReview: {
+        publicAccessAttested: false,
+        sourceRightsAttested: false,
+        permissionAttestedBy: null,
+        permissionAttestedAt: null,
+        publishApprovedByUserId: null,
+        publishApprovedAt: null,
+        emergencyHidden: false,
+        takedownReason: null,
+      },
+    },
+    "admin-user",
+    db.pool,
+  );
+
+  const result = await reviewMunicipalWalkMapPublicationV0(
+    "db-review-ready-map",
+    { action: "approve_public_preview", reviewedAt: "2026-06-25" },
+    "admin-user",
+    db.pool,
+  );
+
+  assert.equal(result.action, "approve_public_preview");
+  assert.equal(result.config.publishMode, "public_preview");
+  assert.equal(result.config.publicationReview?.publicAccessAttested, true);
+  assert.equal(result.config.publicationReview?.sourceRightsAttested, true);
+  assert.equal(result.config.publicationReview?.publishApprovedByUserId, "admin-user");
+  assert.equal(result.config.publicationReview?.publishApprovedAt, "2026-06-25");
+  assert.equal(result.reviewItem.readyForPublicMode, true);
+  assert.equal(result.reviewItem.reviewRequired.length, 0);
+});
+
+test("municipal walk map review action refuses public preview approval with unresolved blockers", async () => {
+  const db = createMunicipalWalkMapFakeDb();
+  const base = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+  await upsertMunicipalWalkMapConfigV0(
+    {
+      ...base,
+      walkMapId: "db-review-blocked-map",
+      publishMode: "draft",
+      creatorProfile: {
+        creatorId: "group:pending-walk-team",
+        registrationKind: "registered_group",
+        verificationStatus: "pending",
+        commercialIntent: "none",
+      },
+    },
+    "admin-user",
+    db.pool,
+  );
+
+  await assert.rejects(
+    () => reviewMunicipalWalkMapPublicationV0(
+      "db-review-blocked-map",
+      { action: "approve_public_preview", reviewedAt: "2026-06-25" },
+      "admin-user",
+      db.pool,
+    ),
+    /municipal_walk_map_review_not_ready:.*public_publish_requires_verified_creator/,
+  );
 });

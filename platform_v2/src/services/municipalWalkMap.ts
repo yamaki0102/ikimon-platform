@@ -189,6 +189,21 @@ export type MunicipalWalkMapReviewQueueItemV0 = {
   previewHref: string;
 };
 
+export type MunicipalWalkMapReviewDecisionActionV0 = "approve_public_preview" | "request_changes" | "emergency_hide";
+
+export type MunicipalWalkMapReviewDecisionInputV0 = {
+  action: MunicipalWalkMapReviewDecisionActionV0;
+  note?: string | null;
+  reviewedAt?: string | null;
+};
+
+export type MunicipalWalkMapReviewDecisionResultV0 = {
+  schemaVersion: "municipal_walk_map_review_decision_result/v0";
+  action: MunicipalWalkMapReviewDecisionActionV0;
+  config: MunicipalWalkMapConfigV0;
+  reviewItem: MunicipalWalkMapReviewQueueItemV0;
+};
+
 export type MunicipalWalkMapTemplateV0 = {
   schemaVersion: "municipal_walk_map_template/v0";
   templateId: string;
@@ -1931,31 +1946,129 @@ export async function listMunicipalWalkMapReviewQueueV0(db?: MunicipalWalkMapDbP
       [row.walk_map_id],
     );
     const config = mapDbConfig(row, stopResult.rows);
-    const publicReadiness = validateMunicipalWalkMapConfigV0({
-      ...config,
-      publishMode: config.publishMode === "public" ? "public" : "public_preview",
-    });
-    const safety = buildMunicipalWalkMapLocationSafetyPolicyV0(config, publicReadiness);
-    const sourceReferenceCount = cleanSourceReferences(config.sourceReferences).length;
-    items.push({
-      schemaVersion: "municipal_walk_map_review_queue_item/v0",
-      walkMapId: config.walkMapId,
-      municipality: cleanText(config.municipality, 80),
-      title: cleanText(config.title, 120),
-      creatorName: cleanText(config.creatorName, 120),
-      creatorProfile: config.creatorProfile,
-      publishMode: config.publishMode,
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : cleanText(row.updated_at, 80) || null,
-      stopCount: config.routeStops.length,
-      sourceReferenceCount,
-      blockedStopIds: publicReadiness.blockedStopIds,
-      reviewRequired: safety.reviewRequired,
-      readyForPublicMode: publicReadiness.ok,
-      editHref: `/admin/municipal-walk-maps/${encodeURIComponent(config.walkMapId)}`,
-      previewHref: `/walk-maps/${encodeURIComponent(config.walkMapId)}`,
-    });
+    items.push(buildMunicipalWalkMapReviewQueueItemV0(
+      config,
+      row.updated_at instanceof Date ? row.updated_at.toISOString() : cleanText(row.updated_at, 80) || null,
+    ));
   }
   return items;
+}
+
+function buildMunicipalWalkMapReviewQueueItemV0(
+  config: MunicipalWalkMapConfigV0,
+  updatedAt: string | null,
+): MunicipalWalkMapReviewQueueItemV0 {
+  const publicReadiness = validateMunicipalWalkMapConfigV0({
+    ...config,
+    publishMode: config.publishMode === "public" ? "public" : "public_preview",
+  });
+  const safety = buildMunicipalWalkMapLocationSafetyPolicyV0(config, publicReadiness);
+  return {
+    schemaVersion: "municipal_walk_map_review_queue_item/v0",
+    walkMapId: config.walkMapId,
+    municipality: cleanText(config.municipality, 80),
+    title: cleanText(config.title, 120),
+    creatorName: cleanText(config.creatorName, 120),
+    creatorProfile: config.creatorProfile,
+    publishMode: config.publishMode,
+    updatedAt,
+    stopCount: config.routeStops.length,
+    sourceReferenceCount: cleanSourceReferences(config.sourceReferences).length,
+    blockedStopIds: publicReadiness.blockedStopIds,
+    reviewRequired: safety.reviewRequired,
+    readyForPublicMode: publicReadiness.ok,
+    editHref: `/admin/municipal-walk-maps/${encodeURIComponent(config.walkMapId)}`,
+    previewHref: `/walk-maps/${encodeURIComponent(config.walkMapId)}`,
+  };
+}
+
+function reviewDecisionDate(reviewedAt?: string | null): string {
+  return cleanText(reviewedAt, 40) || new Date().toISOString().slice(0, 10);
+}
+
+function normalizeReviewDecisionInput(input: MunicipalWalkMapReviewDecisionInputV0): MunicipalWalkMapReviewDecisionInputV0 {
+  if (
+    input.action !== "approve_public_preview"
+    && input.action !== "request_changes"
+    && input.action !== "emergency_hide"
+  ) {
+    throw new Error("municipal_walk_map_review_action_invalid");
+  }
+  return {
+    action: input.action,
+    note: cleanText(input.note, 500) || null,
+    reviewedAt: cleanText(input.reviewedAt, 40) || null,
+  };
+}
+
+export async function reviewMunicipalWalkMapPublicationV0(
+  walkMapId: string,
+  input: MunicipalWalkMapReviewDecisionInputV0,
+  actorUserId: string,
+  db?: MunicipalWalkMapDbPool,
+): Promise<MunicipalWalkMapReviewDecisionResultV0> {
+  const decision = normalizeReviewDecisionInput(input);
+  const current = await getMunicipalWalkMapConfigV0FromDb(walkMapId, db);
+  if (!current) throw new Error("municipal_walk_map_not_found");
+
+  const reviewedAt = reviewDecisionDate(decision.reviewedAt);
+  const review = cleanPublicationReview(current.publicationReview);
+  const note = decision.note;
+  let next: MunicipalWalkMapConfigV0;
+
+  if (decision.action === "approve_public_preview") {
+    next = {
+      ...current,
+      publishMode: "public_preview",
+      publicationReview: cleanPublicationReview({
+        ...review,
+        publicAccessAttested: true,
+        sourceRightsAttested: true,
+        permissionAttestedBy: review.permissionAttestedBy || actorUserId,
+        permissionAttestedAt: review.permissionAttestedAt || reviewedAt,
+        publishApprovedByUserId: actorUserId,
+        publishApprovedAt: reviewedAt,
+        emergencyHidden: false,
+        takedownReason: null,
+      }),
+    };
+    const validation = validateMunicipalWalkMapConfigV0(next);
+    if (!validation.ok) {
+      throw new Error(`municipal_walk_map_review_not_ready:${validation.errors.join(",")}`);
+    }
+  } else if (decision.action === "request_changes") {
+    next = {
+      ...current,
+      publishMode: "draft",
+      publicationReview: cleanPublicationReview({
+        ...review,
+        publishApprovedByUserId: null,
+        publishApprovedAt: null,
+        emergencyHidden: false,
+        takedownReason: note || "修正確認中",
+      }),
+    };
+  } else {
+    next = {
+      ...current,
+      publishMode: "draft",
+      publicationReview: cleanPublicationReview({
+        ...review,
+        publishApprovedByUserId: null,
+        publishApprovedAt: null,
+        emergencyHidden: true,
+        takedownReason: note || "公開範囲の再確認",
+      }),
+    };
+  }
+
+  const saved = await upsertMunicipalWalkMapConfigV0(next, actorUserId, db);
+  return {
+    schemaVersion: "municipal_walk_map_review_decision_result/v0",
+    action: decision.action,
+    config: saved,
+    reviewItem: buildMunicipalWalkMapReviewQueueItemV0(saved, null),
+  };
 }
 
 export async function getMunicipalWalkMapCreatorV0(creatorId: string, db?: MunicipalWalkMapDbPool): Promise<MunicipalWalkMapCreatorRegistryEntryV0 | null> {

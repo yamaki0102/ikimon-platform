@@ -19,6 +19,7 @@ import {
   listMunicipalWalkMapSourceCatalogV0,
   listStaticMunicipalWalkMapPublicSummariesV0,
   listMunicipalWalkMapTemplatesV0,
+  reviewMunicipalWalkMapPublicationV0,
   upsertMunicipalWalkMapCreatorV0,
   upsertMunicipalWalkMapConfigV0,
   validateMunicipalWalkMapCreatorV0,
@@ -28,6 +29,7 @@ import {
   type MunicipalWalkMapPublicationReviewV0,
   type MunicipalWalkMapPublicReadModelV0,
   type MunicipalWalkMapPublicSummaryV0,
+  type MunicipalWalkMapReviewDecisionActionV0,
   type MunicipalWalkMapReviewQueueItemV0,
   type MunicipalWalkMapSourceCatalogEntryV0,
   type MunicipalWalkMapTemplateV0,
@@ -45,7 +47,7 @@ function requestUrl(request: { url?: string; raw?: { url?: string } }): string {
 function adminErrorStatus(message: string): number {
   if (message === "forbidden" || message === "forbidden_privileged_write") return 403;
   if (message === "privileged_write_api_key_not_configured") return 503;
-  if (message.endsWith("_required") || message.startsWith("invalid_") || message.startsWith("blocked_") || message.includes("_invalid:")) return 400;
+  if (message.endsWith("_required") || message.startsWith("invalid_") || message.startsWith("blocked_") || message.includes("_invalid:") || message.startsWith("municipal_walk_map_review_not_ready:")) return 400;
   return 500;
 }
 
@@ -66,6 +68,23 @@ function extractConfigFromBody(body: unknown): unknown {
 function extractCreatorFromBody(body: unknown): unknown {
   if (!body || typeof body !== "object") return null;
   return (body as { creator?: unknown }).creator ?? body;
+}
+
+function extractReviewDecisionFromBody(body: unknown): { action: MunicipalWalkMapReviewDecisionActionV0; note?: string | null } {
+  if (!body || typeof body !== "object") throw new Error("municipal_walk_map_review_action_required");
+  const input = body as { action?: unknown; note?: unknown };
+  const action = String(input.action || "");
+  if (
+    action !== "approve_public_preview"
+    && action !== "request_changes"
+    && action !== "emergency_hide"
+  ) {
+    throw new Error("municipal_walk_map_review_action_invalid");
+  }
+  return {
+    action,
+    note: input.note == null ? null : String(input.note),
+  };
 }
 
 function assertValidConfigForWrite(value: unknown): MunicipalWalkMapConfigV0 {
@@ -617,7 +636,11 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-review-meta span{display:inline-flex;align-items:center;border-radius:999px;background:#f1f5f9;color:#475569;padding:4px 8px;font-size:11px;font-weight:900}
 .wm-review-reasons{margin:0;padding-left:18px;color:#475569;font-size:12px;line-height:1.7}
 .wm-review-actions{display:flex;gap:8px;flex-wrap:wrap}
-.wm-review-actions a{min-height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px;font-size:12px;font-weight:900;text-decoration:none}
+.wm-review-actions a,.wm-review-actions button{min-height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px;font-size:12px;font-weight:900;text-decoration:none;cursor:pointer}
+.wm-review-actions button[data-review-action="approve_public_preview"]{background:#0f766e;color:#fff}
+.wm-review-actions button[data-review-action="emergency_hide"]{border-color:#b91c1c;color:#b91c1c}
+.wm-review-actions form{display:inline-flex}
+.wm-review-result{font-size:12px;color:#475569;font-weight:800;min-height:18px}
 @media(max-width:860px){.wm-admin-fields,.wm-admin-stop-grid{grid-template-columns:1fr}.wm-admin-top{display:grid}.wm-admin-wide{grid-column:auto}}
 `;
 
@@ -1057,7 +1080,20 @@ function renderReviewQueueBody(items: MunicipalWalkMapReviewQueueItemV0[], error
           <div class="wm-review-actions">
             <a href="${escapeHtml(item.editHref)}">編集</a>
             <a href="${escapeHtml(item.previewHref)}">プレビュー</a>
+            <form data-walk-map-review-action-form data-walk-map-id="${escapeHtml(item.walkMapId)}">
+              <input type="hidden" name="action" value="approve_public_preview">
+              <button type="submit" data-review-action="approve_public_preview">公開プレビューへ</button>
+            </form>
+            <form data-walk-map-review-action-form data-walk-map-id="${escapeHtml(item.walkMapId)}">
+              <input type="hidden" name="action" value="request_changes">
+              <button type="submit" data-review-action="request_changes">修正待ち</button>
+            </form>
+            <form data-walk-map-review-action-form data-walk-map-id="${escapeHtml(item.walkMapId)}">
+              <input type="hidden" name="action" value="emergency_hide">
+              <button type="submit" data-review-action="emergency_hide">非公開</button>
+            </form>
           </div>
+          <div class="wm-review-result" data-walk-map-review-result></div>
         </article>`;
       }).join("")}</div>`
       : `<p class="wm-muted">審査待ちの散策マップはありません。</p>`;
@@ -1559,6 +1595,34 @@ document.addEventListener("click", async function(event) {
   }
 });
 document.addEventListener("submit", async function(event) {
+  var reviewForm = event.target.closest("[data-walk-map-review-action-form]");
+  if (reviewForm) {
+    event.preventDefault();
+    var reviewButton = reviewForm.querySelector("button[type='submit']");
+    var reviewItem = reviewForm.closest(".wm-review-item");
+    var reviewResult = reviewItem ? reviewItem.querySelector("[data-walk-map-review-result]") : null;
+    var walkMapId = reviewForm.getAttribute("data-walk-map-id") || "";
+    var actionField = reviewForm.querySelector("input[name='action']");
+    var action = actionField ? actionField.value : "";
+    reviewButton.disabled = true;
+    if (reviewResult) reviewResult.textContent = "更新中...";
+    try {
+      var reviewRes = await fetch("/api/v1/admin/municipal-walk-map-reviews/" + encodeURIComponent(walkMapId) + "/actions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: action })
+      });
+      var reviewBody = await reviewRes.json().catch(function(){ return {}; });
+      if (!reviewRes.ok || reviewBody.ok === false) throw new Error(reviewBody.error || "更新できませんでした");
+      if (reviewResult) reviewResult.textContent = "更新しました";
+      window.setTimeout(function(){ window.location.reload(); }, 350);
+    } catch (error) {
+      if (reviewResult) reviewResult.textContent = error instanceof Error ? error.message : String(error);
+      reviewButton.disabled = false;
+    }
+    return;
+  }
   var creatorForm = event.target.closest("[data-walk-map-creator-form]");
   if (creatorForm) {
     event.preventDefault();
@@ -1765,6 +1829,23 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
     }
   });
 
+  app.post<{ Params: { walkMapId: string }; Body: unknown }>("/api/v1/admin/municipal-walk-map-reviews/:walkMapId/actions", async (request, reply) => {
+    try {
+      const access = await assertMunicipalWalkMapAdminAccess(request);
+      const decision = extractReviewDecisionFromBody(request.body);
+      const result = await reviewMunicipalWalkMapPublicationV0(
+        request.params.walkMapId,
+        decision,
+        access.actorUserId ?? "system_write_key",
+      );
+      return { ok: true, result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "municipal_walk_map_review_action_failed";
+      reply.code(adminErrorStatus(message));
+      return { ok: false, error: message };
+    }
+  });
+
   app.get<{ Querystring: { templateId?: string } }>("/api/v1/admin/municipal-walk-map-source-catalog", async (request, reply) => {
     try {
       await assertMunicipalWalkMapAdminAccess(request);
@@ -1928,6 +2009,7 @@ export const municipalWalkMapRouteContract = {
   adminCreatorApiPath: "/api/v1/admin/municipal-walk-map-creators",
   adminReviewIndexPath: "/admin/municipal-walk-map-reviews",
   adminReviewApiPath: "/api/v1/admin/municipal-walk-map-reviews",
+  adminReviewActionApiPath: "/api/v1/admin/municipal-walk-map-reviews/:walkMapId/actions",
   adminTemplateApiPath: "/api/v1/admin/municipal-walk-map-templates",
   adminSourceCatalogApiPath: "/api/v1/admin/municipal-walk-map-source-catalog",
   adminCreateApiPath: "/api/v1/admin/municipal-walk-maps",
