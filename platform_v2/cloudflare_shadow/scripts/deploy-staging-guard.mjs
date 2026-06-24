@@ -203,6 +203,14 @@ async function smoke(baseUrl) {
   }
 }
 
+function isTolerableWranglerRouteUpdateFailure(error) {
+  const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
+  return output.includes("Uploaded ikimon-life-cloudflare-staging")
+    && output.includes("Some triggers failed to deploy for ikimon-life-cloudflare-staging")
+    && output.includes("/workers/routes")
+    && output.includes("All Zones");
+}
+
 const startedAt = new Date().toISOString();
 let state;
 try {
@@ -213,7 +221,16 @@ try {
   await run("npx", ["wrangler", "deploy", "--dry-run", "--env", "staging"]);
 
   if (execute) {
-    await run("npx", ["wrangler", "deploy", "--env", "staging"]);
+    try {
+      await run("npx", ["wrangler", "deploy", "--env", "staging"]);
+    } catch (error) {
+      if (!isTolerableWranglerRouteUpdateFailure(error)) throw error;
+      events.push({
+        command: "tolerated staging wrangler route update failure; public smoke is authoritative",
+        exitCode: 0,
+        durationMs: 0
+      });
+    }
     await smoke(stagingWorkerUrl);
     await smoke(stagingPublicUrl);
   }
