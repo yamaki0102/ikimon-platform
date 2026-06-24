@@ -2144,8 +2144,9 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /obs-local-quality-inline is-full-width/);
   assert.match(pageHtml, /obs-area-records/);
   assert.match(pageHtml, /詳細テスト植物/);
-  assert.match(pageHtml, /cell:34\.71,137\.81/);
+  assert.match(pageHtml, /ぼかし表示/);
   assert.match(pageHtml, /精密な座標/);
+  assert.doesNotMatch(pageHtml, /cell:34\.71,137\.81|公開セル|セル単位/);
   assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|ownerUserId|observerUserId|profile\/detail-user|34\.71234|137\.81234/);
 
   const localizedPageResponse = await worker.fetch(new Request("https://shadow.test/ja/observations/visit-detail-contract"), env);
@@ -4848,8 +4849,9 @@ test("production language-prefixed observation detail stays native and public-sa
     assert.match(body, /obs-area-records/);
     assert.match(body, /record-native-public-peer-a|record-native-public-peer-b/);
     assert.match(body, /言語prefix記録/);
-    assert.match(body, /cell:34\.71,137\.81/);
+    assert.match(body, /ぼかし表示/);
     assert.match(body, /精密な座標/);
+    assert.doesNotMatch(body, /cell:34\.71,137\.81|公開セル|セル単位/);
     assert.doesNotMatch(body, /data-shadow-observation-detail="1"|ikimon shadow|ownerUserId|observerUserId|profile\/detail-user|34\.71234|137\.81234|should-not-be-served|origin observation detail/);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
@@ -4896,6 +4898,8 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.equal(response.status, 200, body);
   assert.match(body, /data-cloudflare-observation-detail="1"/);
   assert.match(body, /カワラヒワ/);
+  assert.match(body, /浜松市浜名区周辺/);
+  assert.match(body, /位置ぼかし/);
   assert.match(body, /obs-hero-video-frame/);
   assert.match(body, /obs-video-evidence-frame/);
   assert.match(body, /AIが見た動画フレーム/);
@@ -4922,6 +4926,7 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.match(body, /data-frame-zoom-in/);
   assert.match(body, /obs-frame-preview/);
   assert.match(body, /obs-nearby-nophoto|obs-area-thumb/);
+  assert.doesNotMatch(body, /cell:34\.81,137\.73|公開セル|セル単位|公開範囲|記録情報/);
   assert.doesNotMatch(body, /この映像で読む対象を切り替える|この映像に写っているもの|候補を確かめる材料|名前の記録|現場アドバイス|確定前|イネ科植物|映像フレームから拾えている手がかり/);
   assert.doesNotMatch(body, /ownerUserId|observerUserId|profile\/detail-user|34\.81234|137\.73123|\/uploads\/|original-ui\/thumb/);
 });
