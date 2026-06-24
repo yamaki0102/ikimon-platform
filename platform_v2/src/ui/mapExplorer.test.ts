@@ -225,10 +225,11 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, new RegExp("色 = 季節と記録の" + "厚" + "み"));
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
-  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="エリア図鑑" data-tab="places"/);
+  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="ガイド" data-tab="places"/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
   assert.match(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
-  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="最近の発見" data-tab="markers"/);
+  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="写真" data-tab="markers"/);
+  assert.doesNotMatch(html, /class="me-tab me-tab-link"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
   assert.match(styles, /\.me-start-panel\.is-collapsed \{[\s\S]*grid-template-columns: auto auto;/);
   assert.doesNotMatch(styles, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{\s*display: none;/);
