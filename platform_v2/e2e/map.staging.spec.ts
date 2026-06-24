@@ -715,7 +715,13 @@ test("signed-in owner observations render as private photo markers and stay out 
   await expect(marker).toHaveClass(/me-my-photo-marker/);
   await expect(marker).toContainText("自分の記録ピン");
   await expect(marker.locator("img")).toHaveAttribute("src", /\/thumb\/sm\/qa-own-map-fixture-001\.jpg/);
-  await expect(marker).toHaveAttribute("href", /\/observations\/qa-own-map-fixture-001/);
+  const markerHref = await marker.getAttribute("href");
+  expect(markerHref).toMatch(/\/(?:records\?view=mine|observations\/qa-own-map-fixture-001)/);
+  if (markerHref?.includes("/records?view=mine")) {
+    await marker.click();
+    await expect(page.locator('.me-bottom-sheet[data-snap="full"]')).toBeVisible();
+    await expect(page.locator('[data-own-observation-detail="1"]')).toContainText("自分にだけ正確な位置");
+  }
 
   await page.locator('.me-tab[data-tab="rain"]').click();
   await expect(page.locator('.me-tab[data-tab="rain"]')).toHaveAttribute("aria-selected", "true");

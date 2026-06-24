@@ -205,9 +205,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, new RegExp("色 = 季節と記録の" + "厚" + "み"));
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
-  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="places"/);
-  assert.match(html, /class="me-tab" role="tab" aria-selected="false" data-tab="rain">雨雲</);
-  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers"/);
+  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="エリア図鑑" data-tab="places"/);
+  assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
+  assert.match(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
+  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="最近の発見" data-tab="markers"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
   assert.match(script, /tab: 'places'/);
   assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
@@ -298,10 +299,18 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /data-own-observation-count/);
   assert.match(script, /data-own-observation-ids/);
   assert.match(script, /function openOwnObservationStackSheet\(records\)/);
+  assert.match(script, /function openOwnObservationDetail\(record\)/);
+  assert.match(script, /data-own-observation-detail="1"/);
+  assert.match(script, /ownObservationExactBadge/);
+  assert.match(script, /自分にだけ正確な位置/);
   assert.match(script, /data-own-observation-stack-sheet="1"/);
   assert.match(script, /data-own-observation-choice/);
+  assert.match(script, /return NOTES_HREF;/);
   assert.match(script, /setSheetSnap\('full'\)/);
   assert.match(script, /openOwnObservationStackSheet\(group\.records\)/);
+  assert.match(script, /openOwnObservationDetail\(record\)/);
+  assert.match(script, /openOwnObservationDetail\(match\)/);
+  assert.match(script, /map:own_observation_exact_open/);
   assert.match(script, /function maybeFitOwnObservationsOnFirstOpen\(\)/);
   assert.match(script, /state\._ownObservationFirstViewApplied/);
   assert.match(script, /Math\.abs\(maxLng - minLng\) > 2\.2 \|\| Math\.abs\(maxLat - minLat\) > 1\.8/);
@@ -652,6 +661,13 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(styles, /\.me-layer-hint \{/);
   assert.match(styles, /\.me-layer-hint\.is-hidden \{ display: none; \}/);
   assert.match(styles, /\.me-layer-hint-jump \{/);
+});
+
+test("mobile layer tabs fit within the topbar instead of clipping the final tab", () => {
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab \{[\s\S]*min-width: 0;[\s\S]*text-overflow: ellipsis;/);
 });
 
 test("result side panel groups dense records by date and normalizes candidate labels", () => {
