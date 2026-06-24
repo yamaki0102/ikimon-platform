@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS municipal_walk_maps (
         CHECK (public_precision_policy IN ('site_or_coarser', 'mesh_or_coarser', 'municipality_or_hidden')),
     claim_boundary TEXT[] NOT NULL DEFAULT ARRAY[]::text[],
     source_references JSONB NOT NULL DEFAULT '[]'::jsonb,
+    publication_review JSONB NOT NULL DEFAULT '{"publicAccessAttested":false,"sourceRightsAttested":false,"emergencyHidden":false}'::jsonb,
     created_by_user_id TEXT REFERENCES users(user_id) ON DELETE SET NULL,
     updated_by_user_id TEXT REFERENCES users(user_id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -94,6 +95,9 @@ CREATE INDEX IF NOT EXISTS idx_municipal_walk_map_audit_recent
 ALTER TABLE municipal_walk_maps
     ADD COLUMN IF NOT EXISTS source_references JSONB NOT NULL DEFAULT '[]'::jsonb;
 
+ALTER TABLE municipal_walk_maps
+    ADD COLUMN IF NOT EXISTS publication_review JSONB NOT NULL DEFAULT '{"publicAccessAttested":false,"sourceRightsAttested":false,"emergencyHidden":false}'::jsonb;
+
 ALTER TABLE municipal_walk_map_stops
     ADD COLUMN IF NOT EXISTS sensitive_context TEXT NOT NULL DEFAULT 'none'
         CHECK (sensitive_context IN ('none', 'school_or_minor', 'private_edge', 'rare_species'));
@@ -137,7 +141,8 @@ INSERT INTO municipal_walk_maps (
     route_flexibility,
     public_precision_policy,
     claim_boundary,
-    source_references
+    source_references,
+    publication_review
 ) VALUES
 (
     'jp-shizuoka-yatsuyama-sample-v0',
@@ -160,7 +165,8 @@ INSERT INTO municipal_walk_maps (
     '[
       {"label":"静岡市 いきもの散策マップ","url":"https://www.city.shizuoka.lg.jp/s6347/s001494.html","note":"静岡市公式ページを出典として、ikimon.life用に再構成したサンプル。PDF本文や図版は転載していません。"},
       {"label":"八ツ山 関連PDF","url":"https://www.city.shizuoka.lg.jp/documents/1483/yatsuyama-map.pdf","note":"静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。"}
-    ]'::jsonb
+    ]'::jsonb,
+    '{"publicAccessAttested":true,"sourceRightsAttested":true,"permissionAttestedBy":"ikimon.life curated sample","permissionAttestedAt":"2026-06-24","publishApprovedByUserId":"system:static-sample","publishApprovedAt":"2026-06-24","emergencyHidden":false,"takedownReason":null}'::jsonb
 ),
 (
     'jp-shizuoka-asahata-waterfront-sample-v0',
@@ -183,7 +189,8 @@ INSERT INTO municipal_walk_maps (
     '[
       {"label":"静岡市 いきもの散策マップ","url":"https://www.city.shizuoka.lg.jp/s6347/s001494.html","note":"静岡市公式ページを出典として、ikimon.life用に再構成したサンプル。PDF本文や図版は転載していません。"},
       {"label":"麻機 関連PDF","url":"https://www.city.shizuoka.lg.jp/documents/1483/asahata2024-map.pdf","note":"静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。"}
-    ]'::jsonb
+    ]'::jsonb,
+    '{"publicAccessAttested":true,"sourceRightsAttested":true,"permissionAttestedBy":"ikimon.life curated sample","permissionAttestedAt":"2026-06-24","publishApprovedByUserId":"system:static-sample","publishApprovedAt":"2026-06-24","emergencyHidden":false,"takedownReason":null}'::jsonb
 ),
 (
     'jp-shizuoka-mariko-waterfront-sample-v0',
@@ -206,7 +213,8 @@ INSERT INTO municipal_walk_maps (
     '[
       {"label":"静岡市 いきもの散策マップ","url":"https://www.city.shizuoka.lg.jp/s6347/s001494.html","note":"静岡市公式ページを出典として、ikimon.life用に再構成したサンプル。PDF本文や図版は転載していません。"},
       {"label":"丸子川・広野海岸公園 関連PDF","url":"https://www.city.shizuoka.lg.jp/documents/1483/000980916.pdf","note":"静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。"}
-    ]'::jsonb
+    ]'::jsonb,
+    '{"publicAccessAttested":true,"sourceRightsAttested":true,"permissionAttestedBy":"ikimon.life curated sample","permissionAttestedAt":"2026-06-24","publishApprovedByUserId":"system:static-sample","publishApprovedAt":"2026-06-24","emergencyHidden":false,"takedownReason":null}'::jsonb
 ) ON CONFLICT (walk_map_id) DO UPDATE SET
     municipality = EXCLUDED.municipality,
     creator_name = EXCLUDED.creator_name,
@@ -221,6 +229,7 @@ INSERT INTO municipal_walk_maps (
     public_precision_policy = EXCLUDED.public_precision_policy,
     claim_boundary = EXCLUDED.claim_boundary,
     source_references = EXCLUDED.source_references,
+    publication_review = EXCLUDED.publication_review,
     updated_at = NOW();
 
 INSERT INTO municipal_walk_map_stops (

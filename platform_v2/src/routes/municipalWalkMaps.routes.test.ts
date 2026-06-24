@@ -91,6 +91,10 @@ test("municipal walk map authoring UI posts typed config to admin API", async ()
   assert.match(routeSource, /mobilityModes/);
   assert.match(routeSource, /returnCues/);
   assert.match(routeSource, /sourceReferences/);
+  assert.match(routeSource, /publicationReview/);
+  assert.match(routeSource, /publicAccessAttested/);
+  assert.match(routeSource, /sourceRightsAttested/);
+  assert.match(routeSource, /emergencyHidden/);
   assert.match(routeSource, /wmSourceReferences/);
   assert.match(routeSource, /SensitiveContext/);
   assert.match(routeSource, /sensitiveContext/);
@@ -177,6 +181,9 @@ test("municipal walk map public preview renders static sample without DB or inte
       assert.match(response.body, /公開粒度/);
       assert.match(response.body, /学校・私有地は許可と公開範囲を先に確認する/);
       assert.match(response.body, /引用元/);
+      assert.match(response.body, /歩くときの優先/);
+      assert.match(response.body, /立ち寄り先をゆるく選ぶための案内/);
+      assert.match(response.body, /現地の状況を優先してください/);
       assert.match(response.body, /静岡市 いきもの散策マップ/);
       assert.match(response.body, /PDF本文や図版は転載していません/);
       assert.match(response.body, /context=municipal_walk_map/);
@@ -236,6 +243,10 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /引用元へ/);
         assert.match(response.body, /公式ページを開く/);
         assert.match(response.body, /textarea name="sourceReferences"/);
+        assert.match(response.body, /name="publicAccessAttested"/);
+        assert.match(response.body, /name="sourceRightsAttested"/);
+        assert.match(response.body, /name="emergencyHidden"/);
+        assert.match(response.body, /PDF本文・図版・写真を転載していない/);
         assert.match(response.body, /船橋市/);
         assert.match(response.body, /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
         assert.doesNotMatch(response.body, /世田谷区/);
@@ -458,6 +469,7 @@ test("municipal walk map migration persists maps stops and audit records", async
   assert.match(migration, /creator_profile JSONB NOT NULL/);
   assert.match(migration, /route_flexibility JSONB NOT NULL/);
   assert.match(migration, /source_references JSONB NOT NULL/);
+  assert.match(migration, /publication_review JSONB NOT NULL/);
   assert.match(migration, /jp-shizuoka-yatsuyama-sample-v0/);
   assert.match(migration, /jp-shizuoka-asahata-waterfront-sample-v0/);
   assert.match(migration, /jp-shizuoka-mariko-waterfront-sample-v0/);
@@ -470,6 +482,9 @@ test("municipal walk map migration persists maps stops and audit records", async
   assert.match(migration, /linked_field_id TEXT/);
   assert.match(migration, /internal_memo TEXT/);
   assert.match(migration, /idx_municipal_walk_map_stops_walk_order/);
+  assert.match(migration, /publicAccessAttested/);
+  assert.match(migration, /sourceRightsAttested/);
+  assert.match(migration, /publishApprovedByUserId/);
 });
 
 test("municipal walk map DB service writes parent stops and audit in one transaction", async () => {
@@ -485,6 +500,7 @@ test("municipal walk map DB service writes parent stops and audit in one transac
   assert.match(source, /creator_profile/);
   assert.match(source, /route_flexibility/);
   assert.match(source, /source_references/);
+  assert.match(source, /publication_review/);
   assert.match(source, /DELETE FROM municipal_walk_map_stops WHERE walk_map_id = \$1/);
   assert.match(source, /INSERT INTO municipal_walk_map_stops/);
   assert.match(source, /INSERT INTO municipal_walk_map_audit/);

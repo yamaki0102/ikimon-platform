@@ -66,6 +66,17 @@ export type MunicipalWalkMapSourceReferenceV0 = {
   note: string;
 };
 
+export type MunicipalWalkMapPublicationReviewV0 = {
+  publicAccessAttested: boolean;
+  sourceRightsAttested: boolean;
+  permissionAttestedBy?: string | null;
+  permissionAttestedAt?: string | null;
+  publishApprovedByUserId?: string | null;
+  publishApprovedAt?: string | null;
+  emergencyHidden?: boolean;
+  takedownReason?: string | null;
+};
+
 export type MunicipalWalkMapStopV0 = {
   stopId: string;
   title: string;
@@ -101,6 +112,7 @@ export type MunicipalWalkMapConfigV0 = {
   publicPrecisionPolicy: "site_or_coarser" | "mesh_or_coarser" | "municipality_or_hidden";
   claimBoundary: string[];
   sourceReferences: MunicipalWalkMapSourceReferenceV0[];
+  publicationReview?: MunicipalWalkMapPublicationReviewV0;
 };
 
 export type MunicipalWalkMapValidationV0 = {
@@ -257,6 +269,16 @@ const DEFAULT_CREATOR_PROFILE: MunicipalWalkMapCreatorProfileV0 = {
   verificationStatus: "pending",
   commercialIntent: "none",
 };
+const STATIC_SAMPLE_PUBLICATION_REVIEW: MunicipalWalkMapPublicationReviewV0 = {
+  publicAccessAttested: true,
+  sourceRightsAttested: true,
+  permissionAttestedBy: "ikimon.life curated sample",
+  permissionAttestedAt: "2026-06-24",
+  publishApprovedByUserId: "system:static-sample",
+  publishApprovedAt: "2026-06-24",
+  emergencyHidden: false,
+  takedownReason: null,
+};
 
 function cleanText(value: unknown, maxLength: number): string {
   return String(value ?? "").trim().slice(0, maxLength);
@@ -286,6 +308,20 @@ function cleanSourceReferences(value: unknown): MunicipalWalkMapSourceReferenceV
     if (!/^https:\/\/[^\s]+$/i.test(url)) return [];
     return [{ label, url, note }];
   });
+}
+
+function cleanPublicationReview(value: unknown): MunicipalWalkMapPublicationReviewV0 {
+  const review = (value && typeof value === "object" ? value : {}) as Partial<MunicipalWalkMapPublicationReviewV0>;
+  return {
+    publicAccessAttested: review.publicAccessAttested === true,
+    sourceRightsAttested: review.sourceRightsAttested === true,
+    permissionAttestedBy: cleanText(review.permissionAttestedBy, 160) || null,
+    permissionAttestedAt: cleanText(review.permissionAttestedAt, 40) || null,
+    publishApprovedByUserId: cleanText(review.publishApprovedByUserId, 160) || null,
+    publishApprovedAt: cleanText(review.publishApprovedAt, 40) || null,
+    emergencyHidden: review.emergencyHidden === true,
+    takedownReason: cleanText(review.takedownReason, 240) || null,
+  };
 }
 
 function hasSensitiveContext(stop: MunicipalWalkMapStopV0): boolean {
@@ -386,9 +422,11 @@ export function validateMunicipalWalkMapConfigV0(config: MunicipalWalkMapConfigV
   const creatorProfile = (candidate.creatorProfile && typeof candidate.creatorProfile === "object"
     ? candidate.creatorProfile
     : {}) as Partial<MunicipalWalkMapCreatorProfileV0>;
+  const publicationReview = cleanPublicationReview(candidate.publicationReview);
   const routeFlexibility = (candidate.routeFlexibility && typeof candidate.routeFlexibility === "object"
     ? candidate.routeFlexibility
     : {}) as Partial<MunicipalWalkMapRouteFlexibilityV0>;
+  const isPublicMode = publishMode === "public" || publishMode === "public_preview";
 
   if (candidate.schemaVersion !== "municipal_walk_map_config/v0") errors.push("schema_version_mismatch");
   if (!cleanText(candidate.walkMapId, 128)) errors.push("walk_map_id_required");
@@ -424,26 +462,33 @@ export function validateMunicipalWalkMapConfigV0(config: MunicipalWalkMapConfigV
     && (creatorProfile.registrationKind === "municipality"
       || creatorProfile.registrationKind === "registered_group"
       || creatorProfile.registrationKind === "registered_company");
-  if ((publishMode === "public" || publishMode === "public_preview") && !canPublish) {
+  if (isPublicMode && !canPublish) {
     errors.push("public_publish_requires_verified_creator");
   }
   if (routeFlexibility.routeStyle === "suggested_order" && !canUseSuggestedOrder) {
     errors.push("suggested_order_requires_verified_org");
   }
-  if ((publishMode === "public" || publishMode === "public_preview") && routeFlexibility.routeStyle === "free_area") {
+  if (isPublicMode && routeFlexibility.routeStyle === "free_area") {
     errors.push("free_area_publication_requires_area_safety_review");
   }
-  if ((publishMode === "public" || publishMode === "public_preview") && creatorProfile.commercialIntent === "primary") {
+  if (isPublicMode && creatorProfile.commercialIntent === "primary") {
     errors.push("commercial_primary_not_publishable");
   }
+  if (isPublicMode && publicationReview.emergencyHidden) errors.push("emergency_hidden_not_public");
+  if (isPublicMode && !publicationReview.publicAccessAttested) errors.push("public_access_review_required");
+  if (isPublicMode && !publicationReview.sourceRightsAttested) errors.push("source_rights_attestation_required");
+  if (isPublicMode && !publicationReview.publishApprovedByUserId) errors.push("publish_approval_required");
+  if (isPublicMode && !publicationReview.publishApprovedAt) errors.push("publish_approval_timestamp_required");
   if (!recordModes.includes("unknown_species")) warnings.push("unknown_species_mode_missing");
   if (!recordModes.includes("memo")) warnings.push("memo_mode_missing");
   if (!isValidValue(VALID_PRECISION_POLICIES, candidate.publicPrecisionPolicy)) errors.push("invalid_public_precision_policy");
+  if (isPublicMode && candidate.publicPrecisionPolicy === "site_or_coarser") errors.push("public_precision_requires_mesh_or_coarser");
   if (!isStringArray(candidate.claimBoundary)) errors.push("claim_boundary_required");
   if (!Array.isArray(candidate.sourceReferences)) errors.push("source_references_required");
   if (Array.isArray(candidate.sourceReferences) && candidate.sourceReferences.length !== cleanSourceReferences(candidate.sourceReferences).length) {
     errors.push("invalid_source_reference");
   }
+  if (isPublicMode && cleanSourceReferences(candidate.sourceReferences).length === 0) errors.push("public_source_reference_required");
 
   const stopIds = new Set<string>();
   for (const rawStop of routeStops) {
@@ -462,10 +507,10 @@ export function validateMunicipalWalkMapConfigV0(config: MunicipalWalkMapConfigV
     if (blocker) {
       blockedStopIds.push(stop.stopId);
       warnings.push(`${blocker}:${stop.stopId}`);
-      if (publishMode === "public" || publishMode === "public_preview") errors.push(`blocked_stop_not_publishable:${cleanText(stop.stopId, 80) || "unknown"}`);
+      if (isPublicMode) errors.push(`blocked_stop_not_publishable:${cleanText(stop.stopId, 80) || "unknown"}`);
     }
     if (!stop.linkedFieldId && stop.access === "public_access") warnings.push(`public_stop_without_linked_field:${stop.stopId}`);
-    if ((publishMode === "public" || publishMode === "public_preview") && stop.access === "public_access" && !cleanText(stop.linkedFieldId, 160)) {
+    if (isPublicMode && stop.access === "public_access" && !cleanText(stop.linkedFieldId, 160)) {
       errors.push(`public_stop_requires_linked_field:${cleanText(stop.stopId, 80) || "unknown"}`);
     }
     if (Array.isArray(stop.noticeCues) && Array.isArray(stop.recordCues) && !stop.noticeCues.length && !stop.recordCues.length) {
@@ -507,12 +552,17 @@ export function buildMunicipalWalkMapLocationSafetyPolicyV0(
   config: MunicipalWalkMapConfigV0,
   validation = validateMunicipalWalkMapConfigV0(config),
 ): MunicipalWalkMapLocationSafetyPolicyV0 {
+  const publicationReview = cleanPublicationReview(config.publicationReview);
   const reviewRequired = [
     ...validation.errors,
     ...validation.warnings,
     config.publicPrecisionPolicy === "site_or_coarser" ? "site_precision_public_place_review" : "",
     config.routeFlexibility.routeStyle === "free_area" ? "free_area_safety_review" : "",
     cleanSourceReferences(config.sourceReferences).length === 0 ? "source_reference_required_before_public" : "",
+    publicationReview.emergencyHidden ? "emergency_hidden" : "",
+    publicationReview.publicAccessAttested ? "" : "public_access_review_required",
+    publicationReview.sourceRightsAttested ? "" : "source_rights_attestation_required",
+    publicationReview.publishApprovedByUserId && publicationReview.publishApprovedAt ? "" : "publish_approval_required",
   ].filter(Boolean);
   return {
     schemaVersion: "municipal_walk_map_location_safety/v0",
@@ -626,13 +676,14 @@ export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
       offRoutePolicy: "off_route_allowed",
       returnCues: ["公園や大きな道を目印に戻る", "疲れたら近い入口で終える"],
     },
-    publicPrecisionPolicy: "site_or_coarser",
+    publicPrecisionPolicy: "mesh_or_coarser",
     claimBoundary: [
       "公式提出物ではなく、散策マップ作成のためのモデルです。",
       "学校、私有地、立入不明の場所には記録CTAを出しません。",
       "希少種、自宅付近、未成年が推測される情報は公開範囲を落とします。",
     ],
     sourceReferences: [SHIZUOKA_SOURCE_REFERENCE],
+    publicationReview: STATIC_SAMPLE_PUBLICATION_REVIEW,
   },
   {
     schemaVersion: "municipal_walk_map_config/v0",
@@ -699,6 +750,7 @@ export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
         note: "静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。",
       },
     ],
+    publicationReview: STATIC_SAMPLE_PUBLICATION_REVIEW,
   },
   {
     schemaVersion: "municipal_walk_map_config/v0",
@@ -765,6 +817,7 @@ export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
         note: "静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。",
       },
     ],
+    publicationReview: STATIC_SAMPLE_PUBLICATION_REVIEW,
   },
   {
     schemaVersion: "municipal_walk_map_config/v0",
@@ -831,6 +884,7 @@ export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
         note: "静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。",
       },
     ],
+    publicationReview: STATIC_SAMPLE_PUBLICATION_REVIEW,
   },
 ];
 
@@ -1463,6 +1517,7 @@ function cloneWalkMapConfig(config: MunicipalWalkMapConfigV0): MunicipalWalkMapC
     },
     claimBoundary: [...config.claimBoundary],
     sourceReferences: config.sourceReferences.map((ref) => ({ ...ref })),
+    publicationReview: cleanPublicationReview(config.publicationReview),
   };
 }
 
@@ -1523,6 +1578,7 @@ type WalkMapRow = {
   public_precision_policy: MunicipalWalkMapConfigV0["publicPrecisionPolicy"];
   claim_boundary: string[];
   source_references: MunicipalWalkMapSourceReferenceV0[] | null;
+  publication_review: MunicipalWalkMapPublicationReviewV0 | null;
 };
 
 type WalkMapStopRow = {
@@ -1550,7 +1606,8 @@ type WalkMapCreatorRow = {
 
 const WALK_MAP_SELECT = `
   walk_map_id, municipality, creator_name, creator_profile, title, summary, theme, publish_mode,
-  area_scope, record_modes, route_flexibility, public_precision_policy, claim_boundary, source_references
+  area_scope, record_modes, route_flexibility, public_precision_policy, claim_boundary, source_references,
+  publication_review
 `;
 
 function municipalWalkMapDbPool(db?: MunicipalWalkMapDbPool): MunicipalWalkMapDbPool {
@@ -1706,6 +1763,7 @@ function mapDbConfig(row: WalkMapRow, stops: WalkMapStopRow[]): MunicipalWalkMap
     publicPrecisionPolicy: row.public_precision_policy,
     claimBoundary: row.claim_boundary ?? [],
     sourceReferences: cleanSourceReferences(row.source_references),
+    publicationReview: cleanPublicationReview(row.publication_review),
   };
 }
 
@@ -1757,11 +1815,11 @@ export async function upsertMunicipalWalkMapConfigV0(
       `INSERT INTO municipal_walk_maps (
          walk_map_id, municipality, creator_name, creator_profile, title, summary, theme, publish_mode,
          area_scope, record_modes, route_flexibility, public_precision_policy, claim_boundary,
-         source_references, created_by_user_id, updated_by_user_id
+         source_references, publication_review, created_by_user_id, updated_by_user_id
        ) VALUES (
          $1, $2, $3, $4::jsonb, $5, $6, $7, $8,
          $9::jsonb, $10::text[], $11::jsonb, $12, $13::text[],
-         $14::jsonb, $15, $15
+         $14::jsonb, $15::jsonb, $16, $16
        )
        ON CONFLICT (walk_map_id) DO UPDATE SET
          municipality = EXCLUDED.municipality,
@@ -1777,6 +1835,7 @@ export async function upsertMunicipalWalkMapConfigV0(
          public_precision_policy = EXCLUDED.public_precision_policy,
          claim_boundary = EXCLUDED.claim_boundary,
          source_references = EXCLUDED.source_references,
+         publication_review = EXCLUDED.publication_review,
          updated_by_user_id = EXCLUDED.updated_by_user_id,
          updated_at = NOW()
        RETURNING ${WALK_MAP_SELECT}`,
@@ -1795,6 +1854,7 @@ export async function upsertMunicipalWalkMapConfigV0(
         config.publicPrecisionPolicy,
         config.claimBoundary,
         JSON.stringify(cleanSourceReferences(config.sourceReferences)),
+        JSON.stringify(cleanPublicationReview(config.publicationReview)),
         actorUserId,
       ],
     );

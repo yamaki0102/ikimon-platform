@@ -43,6 +43,7 @@ function createMunicipalWalkMapFakeDb() {
     public_precision_policy: MunicipalWalkMapConfigV0["publicPrecisionPolicy"];
     claim_boundary: string[];
     source_references: MunicipalWalkMapConfigV0["sourceReferences"];
+    publication_review: MunicipalWalkMapConfigV0["publicationReview"];
   };
   type StopRow = {
     stop_id: string;
@@ -111,6 +112,7 @@ function createMunicipalWalkMapFakeDb() {
         public_precision_policy: params[11] as MunicipalWalkMapConfigV0["publicPrecisionPolicy"],
         claim_boundary: params[12] as string[],
         source_references: JSON.parse(String(params[13])) as MunicipalWalkMapConfigV0["sourceReferences"],
+        publication_review: JSON.parse(String(params[14])) as MunicipalWalkMapConfigV0["publicationReview"],
       };
       maps.set(row.walk_map_id, row);
       return { rows: [row] as T[] };
@@ -391,6 +393,16 @@ test("municipal walk map public read model strips internal memo and normalizes c
         note: "テスト用の出典",
       },
     ],
+    publicationReview: {
+      publicAccessAttested: true,
+      sourceRightsAttested: true,
+      permissionAttestedBy: "テスト市",
+      permissionAttestedAt: "2026-06-24",
+      publishApprovedByUserId: "admin-user",
+      publishApprovedAt: "2026-06-24",
+      emergencyHidden: false,
+      takedownReason: null,
+    },
   };
 
   const publicMap = buildMunicipalWalkMapPublicReadModelV0(config);
@@ -641,6 +653,62 @@ test("municipal walk map public modes require a verified registered creator", ()
 
   assert.equal(validation.ok, false);
   assert.match(validation.errors.join("\n"), /public_publish_requires_verified_creator/);
+});
+
+test("municipal walk map public modes require publication review attestations", () => {
+  const base = getStaticMunicipalWalkMapConfigV0();
+  const validation = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "public_preview",
+    publicationReview: {
+      publicAccessAttested: false,
+      sourceRightsAttested: false,
+      permissionAttestedBy: null,
+      permissionAttestedAt: null,
+      publishApprovedByUserId: null,
+      publishApprovedAt: null,
+      emergencyHidden: false,
+      takedownReason: null,
+    },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /public_access_review_required/);
+  assert.match(validation.errors.join("\n"), /source_rights_attestation_required/);
+  assert.match(validation.errors.join("\n"), /publish_approval_required/);
+});
+
+test("municipal walk map emergency hidden maps are not public", () => {
+  const base = getStaticMunicipalWalkMapConfigV0();
+  const validation = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "public",
+    publicationReview: {
+      ...(base.publicationReview ?? {
+        publicAccessAttested: true,
+        sourceRightsAttested: true,
+        publishApprovedByUserId: "system:test",
+        publishApprovedAt: "2026-06-24",
+      }),
+      emergencyHidden: true,
+      takedownReason: "公開範囲を再確認中",
+    },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /emergency_hidden_not_public/);
+});
+
+test("municipal walk map public modes require coarse precision", () => {
+  const base = getStaticMunicipalWalkMapConfigV0();
+  const validation = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "public_preview",
+    publicPrecisionPolicy: "site_or_coarser",
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /public_precision_requires_mesh_or_coarser/);
 });
 
 test("municipal walk map verified creators require a registered creator id", () => {

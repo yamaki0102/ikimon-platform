@@ -22,6 +22,7 @@ import {
   validateMunicipalWalkMapConfigV0,
   type MunicipalWalkMapConfigV0,
   type MunicipalWalkMapCreatorRegistryEntryV0,
+  type MunicipalWalkMapPublicationReviewV0,
   type MunicipalWalkMapPublicReadModelV0,
   type MunicipalWalkMapPublicSummaryV0,
   type MunicipalWalkMapSourceCatalogEntryV0,
@@ -366,6 +367,15 @@ function renderWalkMapPreviewBody(publicMap: MunicipalWalkMapPublicReadModelV0, 
           <p>${escapeHtml(lang === "en" ? "Public precision" : "公開粒度")}: ${escapeHtml(precisionPolicyText(publicMap.locationSafety.publicPrecisionPolicy, lang))}</p>
           <ul>${publicMap.locationSafety.defaultHiddenContexts.map((context) => `<li>${escapeHtml(hiddenContextText(context, lang))}</li>`).join("")}</ul>
         </section>`;
+  const looseRouteNotice = `<section class="wm-flex">
+          <strong>${escapeHtml(lang === "en" ? "Field priority" : "歩くときの優先")}</strong>
+          <p>${escapeHtml(lang === "en"
+            ? "This is a loose set of stops. Use sidewalks, signs, site rules, weather, and your own judgment first."
+            : "このルートは立ち寄り先をゆるく選ぶための案内です。歩道、標識、施設のルール、天候、現地の状況を優先してください。")}</p>
+          <p>${escapeHtml(lang === "en"
+            ? "Do not enter private land, schools, restricted areas, unsafe waterfronts, or places without public access."
+            : "私有地、学校、管理区域、危ない水辺、立入が認められていない場所には入りません。")}</p>
+        </section>`;
   return `<main class="wm-shell">
     <section class="wm-hero">
       <p class="wm-eyebrow">${escapeHtml(publicMap.municipality)} / ${escapeHtml(source)}</p>
@@ -386,6 +396,7 @@ function renderWalkMapPreviewBody(publicMap: MunicipalWalkMapPublicReadModelV0, 
           <p>${escapeHtml(lang === "en" ? "Modes" : "移動手段")}: ${escapeHtml(mobilityModes || (lang === "en" ? "Walk" : "徒歩"))}</p>
           <ul>${returnCues}</ul>
         </section>
+        ${looseRouteNotice}
         ${locationSafety}
         <h2>${escapeHtml(lang === "en" ? "Boundary" : "扱いの範囲")}</h2>
         <ul>${publicMap.claimBoundary.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
@@ -651,6 +662,16 @@ function renderWalkMapAdminBody(
   creatorLoadError = "",
 ): string {
   const claimBoundary = textareaValue(config.claimBoundary);
+  const publicationReview: MunicipalWalkMapPublicationReviewV0 = config.publicationReview ?? {
+    publicAccessAttested: false,
+    sourceRightsAttested: false,
+    permissionAttestedBy: null,
+    permissionAttestedAt: null,
+    publishApprovedByUserId: null,
+    publishApprovedAt: null,
+    emergencyHidden: false,
+    takedownReason: null,
+  };
   const stops = [0, 1, 2].map((index) => renderStopFields(config.routeStops[index], index)).join("");
   const templates = listMunicipalWalkMapTemplatesV0();
   const sourceCatalog = listMunicipalWalkMapSourceCatalogV0({ templateId: selectedTemplateId || undefined });
@@ -736,6 +757,14 @@ function renderWalkMapAdminBody(
       <label class="wm-admin-wide">戻る手がかり<textarea name="returnCues" rows="3" placeholder="大きな通りへ戻る&#10;入口や案内板を目印にする">${escapeHtml(textareaValue(config.routeFlexibility.returnCues))}</textarea></label>
       <label class="wm-admin-wide">扱いの範囲<textarea name="claimBoundary" rows="4">${escapeHtml(claimBoundary)}</textarea></label>
       <label class="wm-admin-wide">引用元<textarea name="sourceReferences" rows="3" placeholder="静岡市 いきもの散策マップ | https://www.city.shizuoka.lg.jp/s6347/s001494.html | PDF本文や図版は転載しない">${escapeHtml(sourceReferencesValue(config.sourceReferences))}</textarea></label>
+      <label><input type="checkbox" name="publicAccessAttested" ${publicationReview.publicAccessAttested ? "checked" : ""}> 公開範囲と立入条件を確認済み</label>
+      <label><input type="checkbox" name="sourceRightsAttested" ${publicationReview.sourceRightsAttested ? "checked" : ""}> PDF本文・図版・写真を転載していない</label>
+      <label>許可確認者<input name="permissionAttestedBy" value="${escapeHtml(publicationReview.permissionAttestedBy ?? "")}" placeholder="環境政策課 / 管理団体名"></label>
+      <label>許可確認日<input name="permissionAttestedAt" value="${escapeHtml(publicationReview.permissionAttestedAt ?? "")}" placeholder="2026-06-24"></label>
+      <label>公開承認者<input name="publishApprovedByUserId" value="${escapeHtml(publicationReview.publishApprovedByUserId ?? "")}" placeholder="admin-user-id"></label>
+      <label>公開承認日<input name="publishApprovedAt" value="${escapeHtml(publicationReview.publishApprovedAt ?? "")}" placeholder="2026-06-24"></label>
+      <label><input type="checkbox" name="emergencyHidden" ${publicationReview.emergencyHidden ? "checked" : ""}> 緊急非公開</label>
+      <label class="wm-admin-wide">非公開理由<textarea name="takedownReason" rows="2" placeholder="公開範囲の再確認など">${escapeHtml(publicationReview.takedownReason ?? "")}</textarea></label>
     </div>
     ${stops}
     <div class="wm-admin-actions">
@@ -845,6 +874,16 @@ function blankWalkMapConfig(): MunicipalWalkMapConfigV0 {
       "希少種、自宅付近、未成年が推測される情報は場所の出し方を落とします。",
     ],
     sourceReferences: [],
+    publicationReview: {
+      publicAccessAttested: false,
+      sourceRightsAttested: false,
+      permissionAttestedBy: null,
+      permissionAttestedAt: null,
+      publishApprovedByUserId: null,
+      publishApprovedAt: null,
+      emergencyHidden: false,
+      takedownReason: null,
+    },
   };
 }
 
@@ -985,7 +1024,17 @@ function wmPayload(form) {
     },
     publicPrecisionPolicy: String(data.get("publicPrecisionPolicy") || "mesh_or_coarser"),
     claimBoundary: wmLines(data.get("claimBoundary")),
-    sourceReferences: wmSourceReferences(data.get("sourceReferences"))
+    sourceReferences: wmSourceReferences(data.get("sourceReferences")),
+    publicationReview: {
+      publicAccessAttested: data.get("publicAccessAttested") === "on",
+      sourceRightsAttested: data.get("sourceRightsAttested") === "on",
+      permissionAttestedBy: String(data.get("permissionAttestedBy") || "").trim() || null,
+      permissionAttestedAt: String(data.get("permissionAttestedAt") || "").trim() || null,
+      publishApprovedByUserId: String(data.get("publishApprovedByUserId") || "").trim() || null,
+      publishApprovedAt: String(data.get("publishApprovedAt") || "").trim() || null,
+      emergencyHidden: data.get("emergencyHidden") === "on",
+      takedownReason: String(data.get("takedownReason") || "").trim() || null
+    }
   };
 }
 function wmCreatorPayload(form) {
