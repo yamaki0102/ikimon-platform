@@ -5142,6 +5142,11 @@ test("staging municipal walk map admin source draft serves materialized preview 
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-maps/template/route_species_walk.html",
+    "<!doctype html><title>散策マップ管理</title><main>参考元カタログ data-source-operational-model=\"official_walk_pdf\" 散策PDF</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  await env.ASSET_BUCKET.put(
     "original-ui/html/admin/municipal-walk-maps/source/funabashi-nature-walk-maps.html",
     "<!doctype html><title>散策マップ管理</title><main>自然散策マップ 下書き 下書きに入れる</main>",
     { httpMetadata: { contentType: "text/html; charset=utf-8" } }
@@ -5169,6 +5174,17 @@ test("staging municipal walk map admin source draft serves materialized preview 
     return new Response("origin should not be used", { status: 599 });
   }) as typeof fetch;
   try {
+    const templateResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?templateId=route_species_walk",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(templateResponse.status, 200);
+    assert.equal(templateResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    const templateBody = await templateResponse.text();
+    assert.match(templateBody, /参考元カタログ/);
+    assert.match(templateBody, /data-source-operational-model="official_walk_pdf"/);
+    assert.equal(fallbackCalls, 0);
     const response = await worker.fetch(new Request(
       "https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
       { headers: { cookie: "ikimon_v2_session=test-admin-token" } }

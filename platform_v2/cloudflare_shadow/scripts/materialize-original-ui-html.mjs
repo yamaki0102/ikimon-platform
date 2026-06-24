@@ -70,6 +70,7 @@ const corePaths = [
   "/",
   "/demo/place-feeling-tags",
   "/guide",
+  "/admin/municipal-walk-maps?templateId=route_species_walk",
   "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
   "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
   "/admin/municipal-walk-map-reviews",
@@ -158,6 +159,7 @@ function parsedPublicPath(value) {
 
 function renderUrlForPath(pathname) {
   if (pathname.startsWith("/admin/municipal-walk-maps?sourceId=")) return pathname;
+  if (pathname.startsWith("/admin/municipal-walk-maps?templateId=")) return pathname;
   const localizedMatch = pathname.match(/^\/(ja|en|es|pt-br)(\/.*)?$/);
   if (localizedMatch) {
     const segment = localizedMatch[1];
@@ -191,6 +193,10 @@ function renderUrlForPath(pathname) {
 function originalUiHtmlKey(pathname) {
   const parsed = parsedPublicPath(pathname);
   if (parsed.pathname === "/admin/municipal-walk-maps") {
+    const templateId = parsed.searchParams.get("templateId")?.trim() ?? "";
+    if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(templateId)) {
+      return `original-ui/html/admin/municipal-walk-maps/template/${templateId}.html`;
+    }
     const sourceId = parsed.searchParams.get("sourceId")?.trim() ?? "";
     if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(sourceId)) {
       return `original-ui/html/admin/municipal-walk-maps/source/${sourceId}.html`;

@@ -3002,6 +3002,10 @@ function isOriginalUiHtmlPath(pathname: string): boolean {
 
 function municipalWalkMapAdminSourceDraftKey(url: URL): string | null {
   if (url.pathname !== "/admin/municipal-walk-maps") return null;
+  const templateId = url.searchParams.get("templateId")?.trim() ?? "";
+  if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(templateId)) {
+    return `original-ui/html/admin/municipal-walk-maps/template/${templateId}.html`;
+  }
   const sourceId = url.searchParams.get("sourceId")?.trim() ?? "";
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(sourceId)) return null;
   return `original-ui/html/admin/municipal-walk-maps/source/${sourceId}.html`;

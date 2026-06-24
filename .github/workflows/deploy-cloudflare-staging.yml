@@ -119,6 +119,11 @@ jobs:
           grep -q '実データではありません' staging-demo.html
           grep -q 'place_feeling_tags' staging-demo.html
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-demo.headers
+          curl -fsS -D staging-walk-map-admin-template.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?templateId=route_species_walk' -o staging-walk-map-admin-template.html
+          grep -q '参考元カタログ' staging-walk-map-admin-template.html
+          grep -q 'data-source-operational-model="official_walk_pdf"' staging-walk-map-admin-template.html
+          grep -q '散策PDF' staging-walk-map-admin-template.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin-template.headers
           curl -fsS -D staging-walk-map-admin.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps' -o staging-walk-map-admin.html
           grep -q '自然散策マップ 下書き' staging-walk-map-admin.html
           grep -q '下書きに入れる' staging-walk-map-admin.html
@@ -150,6 +155,7 @@ jobs:
             platform_v2/cloudflare_shadow/materialize-staging-original-ui.json
             platform_v2/cloudflare_shadow/staging-*.json
             platform_v2/cloudflare_shadow/staging-demo.*
+            platform_v2/cloudflare_shadow/staging-walk-map-admin-template.*
             platform_v2/cloudflare_shadow/staging-walk-map-admin.*
             platform_v2/cloudflare_shadow/staging-walk-map-admin-shizuoka.*
             platform_v2/cloudflare_shadow/staging-walk-map-reviews.*
