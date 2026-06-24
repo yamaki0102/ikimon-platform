@@ -46,6 +46,7 @@ import {
   type PlaceMemoryInput,
   type PlaceMemoryWriteResult,
 } from "./placeMemory.js";
+import { normalizePlaceFeelingTagKeys } from "./placeFeelingTags.js";
 import {
   appendObservationPackageEvent,
   upsertFieldScanContext,
@@ -134,6 +135,7 @@ export type ObservationUpsertInput = {
   dataRights?: ObservationDataRightsInput | null;
   waterRecord?: WaterRecordExtensionInput | null;
   placeMemory?: PlaceMemoryInput | null;
+  placeFeelingTags?: unknown;
   fieldScan?: FieldScanContextInput | null;
   governanceContext?: ObservationGovernanceContextInput | null;
   packageEvents?: ObservationPackageEventInput[];
@@ -774,11 +776,15 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     );
 
     const locationAudit = buildServerLocationAuditPayload(input, locality, observedCountry);
+    const placeFeelingTags = normalizePlaceFeelingTagKeys(
+      input.placeFeelingTags ?? input.sourcePayload?.place_feeling_tags,
+    );
     const visitSourcePayload = {
       ...(input.sourcePayload ?? {}),
       location_audit: locationAudit,
       record_mode: visitMode,
       revisit_reason: revisitReason,
+      place_feeling_tags: placeFeelingTags,
     };
 
     await client.query(

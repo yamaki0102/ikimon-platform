@@ -163,6 +163,17 @@ import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/pla
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
 import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
+import {
+  PLACE_FEELING_TAG_LIMIT,
+  PLACE_FEELING_TAGS,
+  placeFeelingTagLabel,
+  placeFeelingTagLabels,
+  type PlaceFeelingTagKey,
+} from "../services/placeFeelingTags.js";
+import {
+  PLACE_FEELING_DEMO_STYLES,
+  renderPlaceFeelingTagDemo,
+} from "../ui/placeFeelingTagDemo.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -5164,6 +5175,11 @@ type RecordFormCopy = {
   seasonClueLabel: string;
   seasonClueHelp: string;
   seasonClueOptions: string[];
+  placeFeelingLabel: string;
+  placeFeelingOptional: string;
+  placeFeelingHelp: string;
+  placeFeelingLimitMessage: string;
+  placeFeelingTags: Record<PlaceFeelingTagKey, string>;
   surveyBlockTitle: string;
   surveyBlockHelp: string;
   surveyBlockPill: string;
@@ -5674,6 +5690,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       seasonClueLabel: "今見えた変化",
       seasonClueHelp: "当てはまるものを押すと、手がかりに入ります。自宅・学校名は入れないでください。",
       seasonClueOptions: ["花・実", "葉の色", "水の量", "土の湿り", "音・におい", "虫・鳥"],
+      placeFeelingLabel: "この場所で感じたことは？",
+      placeFeelingOptional: "任意",
+      placeFeelingHelp: "あてはまるものを選んでください",
+      placeFeelingLimitMessage: "選べるのは3つまでです",
+      placeFeelingTags: placeFeelingTagLabels("ja"),
       surveyBlockTitle: "比べるための記録",
       surveyBlockHelp: "同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。",
       surveyBlockPill: "比較用",
@@ -5881,6 +5902,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       seasonClueLabel: "What changed today",
       seasonClueHelp: "Tap any that fit. Avoid home or school names.",
       seasonClueOptions: ["flowers / fruit", "leaf color", "water level", "wet ground", "sound / smell", "insects / birds"],
+      placeFeelingLabel: "What did you feel in this place?",
+      placeFeelingOptional: "Optional",
+      placeFeelingHelp: "Choose up to 3 that apply.",
+      placeFeelingLimitMessage: "You can choose up to 3.",
+      placeFeelingTags: placeFeelingTagLabels("en"),
       surveyBlockTitle: "Record for comparison",
       surveyBlockHelp: "Use this when you want to compare the same place later. It stays separate from everyday records.",
       surveyBlockPill: "Compare",
@@ -6088,6 +6114,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       seasonClueLabel: "Que cambio hoy",
       seasonClueHelp: "Toca lo que encaje. Evita nombres de casa o escuela.",
       seasonClueOptions: ["flores / frutos", "color de hojas", "nivel del agua", "suelo humedo", "sonido / olor", "insectos / aves"],
+      placeFeelingLabel: "Que sentiste en este lugar?",
+      placeFeelingOptional: "Opcional",
+      placeFeelingHelp: "Elige hasta 3 opciones.",
+      placeFeelingLimitMessage: "Puedes elegir hasta 3.",
+      placeFeelingTags: placeFeelingTagLabels("es"),
       surveyBlockTitle: "Registro para comparar",
       surveyBlockHelp: "Usalo cuando quieras comparar el mismo lugar despues. Queda separado del registro diario.",
       surveyBlockPill: "Comparar",
@@ -6295,6 +6326,11 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       seasonClueLabel: "O que mudou hoje",
       seasonClueHelp: "Toque no que combina. Evite nomes de casa ou escola.",
       seasonClueOptions: ["flores / frutos", "cor das folhas", "nivel da agua", "solo umido", "som / cheiro", "insetos / aves"],
+      placeFeelingLabel: "O que voce sentiu neste lugar?",
+      placeFeelingOptional: "Opcional",
+      placeFeelingHelp: "Escolha ate 3 opcoes.",
+      placeFeelingLimitMessage: "Voce pode escolher ate 3.",
+      placeFeelingTags: placeFeelingTagLabels("pt-BR"),
       surveyBlockTitle: "Registro para comparar",
       surveyBlockHelp: "Use quando quiser comparar o mesmo local depois. Fica separado do registro diario.",
       surveyBlockPill: "Comparar",
@@ -14901,6 +14937,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   </div>
                 </div>
               </div>
+              <section class="record-field record-field-wide record-place-feelings" aria-labelledby="record-place-feeling-title">
+                <div class="record-place-feelings-head">
+                  <div>
+                    <span class="record-label" id="record-place-feeling-title">${escapeHtml(recordForm.placeFeelingLabel)}</span>
+                    <p class="record-help">${escapeHtml(recordForm.placeFeelingHelp)}</p>
+                  </div>
+                  <div class="record-place-feelings-actions">
+                    <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/demo/place-feeling-tags"), lang))}">デモを見る</a>
+                    <span>${escapeHtml(recordForm.placeFeelingOptional)}</span>
+                  </div>
+                </div>
+                <div class="record-place-feeling-tags" role="group" aria-describedby="record-place-feeling-limit">
+                  ${PLACE_FEELING_TAGS.map((tag) => `<label data-place-feeling-tag="${escapeHtml(tag.key)}" data-place-feeling-category="${escapeHtml(tag.category)}"><input type="checkbox" name="placeFeelingTags" value="${escapeHtml(tag.key)}" />${escapeHtml(recordForm.placeFeelingTags[tag.key])}</label>`).join("")}
+                </div>
+                <p id="record-place-feeling-limit" class="record-place-feeling-limit" data-place-feeling-limit hidden>${escapeHtml(recordForm.placeFeelingLimitMessage)}</p>
+              </section>
               <details class="record-field record-field-wide record-later-details">
                 <summary>${escapeHtml(recordForm.laterSummary)}</summary>
                 <div class="record-later-grid">
@@ -15259,6 +15311,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const submitDockMeta = document.getElementById('record-submit-dock-meta');
         const nextLookForInput = form ? form.querySelector('[data-next-look-for]') : null;
         const seasonClueButtons = form ? Array.from(form.querySelectorAll('[data-season-clue]')) : [];
+        const placeFeelingInputs = form ? Array.from(form.querySelectorAll('input[name="placeFeelingTags"]')) : [];
+        const placeFeelingLimit = document.querySelector('[data-place-feeling-limit]');
         const quickCaptureStateField = form ? form.elements.namedItem('quickCaptureState') : null;
         const quickCaptureStateStrip = document.getElementById('record-unknown-name-strip');
         const quickCaptureStateButtons = Array.from(document.querySelectorAll('[data-quick-capture-state]'));
@@ -15274,6 +15328,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const MAX_VIDEO_TUS_BYTES = 1024 * 1024 * 1024;
         const TUS_CHUNK_BYTES = 8 * 1024 * 1024;
         const MAX_VIDEO_SECONDS = 60;
+        const PLACE_FEELING_LIMIT = ${JSON.stringify(PLACE_FEELING_TAG_LIMIT)};
+        const PLACE_FEELING_RECENT_STORAGE_KEY = 'ikimon.record.placeFeelingTags.v1';
         let previewObjectUrl = '';
         let videoTrimObjectUrl = '';
         let activeTusUpload = null;
@@ -16004,6 +16060,60 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const hasSelectedMedia = () => allSelectedMediaFiles().length > 0;
         const hasNoteDraft = () => selectedCaptureKind === 'note';
         const hasRecordDraft = () => hasSelectedMedia() || hasNoteDraft();
+        const selectedPlaceFeelingTags = () => placeFeelingInputs
+          .filter((input) => input && input.checked)
+          .map((input) => String(input.value || '').trim())
+          .filter(Boolean)
+          .slice(0, PLACE_FEELING_LIMIT);
+        const readRecentPlaceFeelingTags = () => {
+          try {
+            const parsed = JSON.parse(window.localStorage.getItem(PLACE_FEELING_RECENT_STORAGE_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed.map((item) => String(item || '').trim()).filter(Boolean) : [];
+          } catch (_err) {
+            return [];
+          }
+        };
+        const writeRecentPlaceFeelingTags = (keys) => {
+          try {
+            const merged = Array.from(new Set([...(keys || []), ...readRecentPlaceFeelingTags()])).slice(0, 8);
+            window.localStorage.setItem(PLACE_FEELING_RECENT_STORAGE_KEY, JSON.stringify(merged));
+          } catch (_err) {
+            // Recent tag ordering is a convenience only.
+          }
+        };
+        const applyRecentPlaceFeelingOrder = () => {
+          const recent = readRecentPlaceFeelingTags();
+          if (!recent.length || !placeFeelingInputs.length) return;
+          const root = placeFeelingInputs[0].closest('.record-place-feeling-tags');
+          if (!root) return;
+          const order = new Map(recent.map((key, index) => [key, index]));
+          Array.from(root.querySelectorAll('[data-place-feeling-tag]'))
+            .sort((a, b) => {
+              const aRank = order.has(a.getAttribute('data-place-feeling-tag')) ? order.get(a.getAttribute('data-place-feeling-tag')) : 99;
+              const bRank = order.has(b.getAttribute('data-place-feeling-tag')) ? order.get(b.getAttribute('data-place-feeling-tag')) : 99;
+              return aRank - bRank;
+            })
+            .forEach((label) => root.appendChild(label));
+        };
+        const syncPlaceFeelingLimit = () => {
+          const selected = selectedPlaceFeelingTags();
+          const atLimit = selected.length >= PLACE_FEELING_LIMIT;
+          placeFeelingInputs.forEach((input) => {
+            if (!input.checked) input.disabled = atLimit;
+            const label = input.closest('[data-place-feeling-tag]');
+            if (label) label.classList.toggle('is-disabled', !input.checked && atLimit);
+          });
+          if (placeFeelingLimit) placeFeelingLimit.hidden = !atLimit;
+        };
+        applyRecentPlaceFeelingOrder();
+        syncPlaceFeelingLimit();
+        placeFeelingInputs.forEach((input) => {
+          input.addEventListener('change', () => {
+            syncPlaceFeelingLimit();
+            scheduleRecordDraftAutosave('place_feeling_tags');
+            sendRecordFunnelStep('place_feeling_tag_selected', { tagCount: selectedPlaceFeelingTags().length });
+          });
+        });
         const isVideoSimpleMode = () => selectedVideoFile instanceof File && isVideoFile(selectedVideoFile) && selectedPhotoFiles().length === 0;
         const resetVisualRecordFeedback = () => {
           visualRecordFeedbackSentence = '';
@@ -18692,6 +18802,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const placeMemoryTags = data.getAll('placeMemoryTags')
                 .map((value) => String(value || '').trim())
                 .filter(Boolean);
+              const placeFeelingTags = data.getAll('placeFeelingTags')
+                .map((value) => String(value || '').trim())
+                .filter(Boolean)
+                .slice(0, PLACE_FEELING_LIMIT);
               const placeMemoryEchoNote = String(data.get('placeMemoryEchoNote') || '').trim().slice(0, 80);
               const placeMemoryPrivateNote = String(data.get('placeMemoryPrivateNote') || '').trim().slice(0, 600);
               const hasPlaceMemory = placeMemoryTags.length > 0 || placeMemoryEchoNote || placeMemoryPrivateNote;
@@ -18834,6 +18948,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 sourcePayload: {
                   source: 'v2_web',
                   record_mode: recordMode,
+                  place_feeling_tags: placeFeelingTags,
                   survey_result: recordMode === 'survey' ? surveyResult : null,
                   quick_capture_state: recordMode === 'survey' ? null : quickCaptureState,
                   next_look_for: recordMode === 'survey' ? null : (nextLookFor || null),
@@ -18903,6 +19018,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                       photoEchoEnabled: data.get('placeMemoryPhotoEchoEnabled') !== null,
                     }
                   : null,
+                placeFeelingTags,
                 eventCode: eventCode || null,
                 eventSessionId: eventSessionId || null,
                 teamId: eventTeamId || null,
@@ -18982,6 +19098,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 placeId: observationJson.placeId || null,
                 occurrenceCount: Array.isArray(observationJson.occurrenceIds) ? observationJson.occurrenceIds.length : 1,
               });
+              writeRecentPlaceFeelingTags(placeFeelingTags);
               }
               let extraStatus = '';
 
@@ -19506,6 +19623,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-season-clue-row button { min-height: 40px; padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 900; cursor: pointer; }
         .record-season-clue-row button.is-active { border-color: rgba(16,185,129,.42); background: #ecfdf5; color: #065f46; box-shadow: 0 8px 16px rgba(16,185,129,.1); }
         .record-season-clue-row button:focus-visible { outline: 3px solid #0284c7; outline-offset: 2px; }
+        .record-place-feelings { display: grid; gap: 10px; padding: 14px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); }
+        .record-place-feelings-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .record-place-feelings-head p { margin: 4px 0 0; }
+        .record-place-feelings-actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; }
+        .record-place-feelings-actions > span { min-height: 26px; display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 11px; line-height: 1; font-weight: 900; }
+        .record-place-feelings-actions > a { min-height: 30px; display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #14532d; font-size: 12px; line-height: 1; font-weight: 950; text-decoration: none; white-space: nowrap; }
+        .record-place-feeling-tags { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .record-place-feeling-tags label { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 9px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 900; cursor: pointer; text-align: center; }
+        .record-place-feeling-tags input { flex: 0 0 auto; accent-color: #0f766e; }
+        .record-place-feeling-tags label:has(input:checked) { border-color: rgba(16,185,129,.42); background: #ecfdf5; color: #065f46; box-shadow: 0 8px 16px rgba(16,185,129,.1); }
+        .record-place-feeling-tags label.is-disabled { opacity: .48; cursor: not-allowed; }
+        .record-place-feeling-limit { margin: 0; color: #9a3412; font-size: 12px; line-height: 1.45; font-weight: 900; }
+        .record-place-feeling-limit[hidden] { display: none; }
         .record-survey-caution { display: grid; gap: 4px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
         .record-survey-caution strong { color: #0f172a; font-size: 13px; }
         .record-survey-caution span { color: #475569; font-size: 12px; line-height: 1.7; font-weight: 700; }
@@ -19684,6 +19814,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-video-publication-steps small { grid-column: 2; }
           .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-later-grid, .record-media-role-grid, .record-place-memory-notes { grid-template-columns: 1fr; }
           .record-season-clue-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .record-place-feelings-head { flex-direction: column; }
+          .record-place-feelings-actions { width: 100%; justify-content: space-between; }
+          .record-place-feeling-tags { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .record-place-memory-head { flex-direction: column; }
           .record-place-memory-photo { width: 100%; justify-content: center; white-space: nowrap; }
           .record-place-memory-tags { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -19695,6 +19828,28 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         }
       `,
     });
+  });
+
+  app.get("/demo/place-feeling-tags", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const url = new URL(String((request as unknown as { url?: string }).url ?? "/demo/place-feeling-tags"), "https://ikimon.local");
+    const lang = detectLangFromUrl(url.pathname + url.search);
+    const recordHref = appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang);
+    const currentPath = appendLangToHref(withBasePath(basePath, "/demo/place-feeling-tags"), lang);
+    return reply
+      .type("text/html")
+      .send(layout(
+        basePath,
+        lang === "ja" ? "ひとことタグ デモ | ikimon" : "Place feeling tag demo | ikimon",
+        renderPlaceFeelingTagDemo({ lang, recordHref }),
+        "記録する",
+        undefined,
+        PLACE_FEELING_DEMO_STYLES,
+        currentPath,
+        false,
+        "shell-place-feeling-demo",
+        lang,
+      ));
   });
 
   app.get("/explore", async (request, reply) => {
@@ -21000,6 +21155,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            <p>${escapeHtml(snapshot.note)}</p>
          </div>`
       : "";
+    const placeFeelingLabels = snapshot.placeFeelingTags
+      .map((key) => placeFeelingTagLabel(key, lang))
+      .filter((label): label is string => Boolean(label));
+    const placeFeelingBlock = placeFeelingLabels.length > 0
+      ? `<div class="obs-story-block">
+           <div class="obs-story-eyebrow">この場所で感じたこと</div>
+           <div class="obs-focus-meta">${placeFeelingLabels.map((label) => `<span class="obs-focus-chip">${escapeHtml(label)}</span>`).join("")}</div>
+         </div>`
+      : "";
     const aiFirst = obsContext && (obsContext.environmentContexts.length > 0 || obsContext.seasonalNotes.length > 0)
       ? `<div class="obs-story-block obs-story-ai">
            <div class="obs-story-eyebrow">写真から読めそうなこと</div>
@@ -21029,10 +21193,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
          </div>`
       : "";
     const civicContextBlock = renderCivicContextBlock(civicContext, snapshot, basePath, lang);
-    const layer1 = ownerNote
+    const layer1 = ownerNote || placeFeelingBlock
       ? `<section id="story" class="section obs-layer obs-layer-1" data-obs-section="story">
-           <h2 class="obs-layer-title">この日のメモ</h2>
-           <div class="obs-layer-body">${ownerNote}</div>
+           <h2 class="obs-layer-title">この日の記録</h2>
+           <div class="obs-layer-body">${placeFeelingBlock}${ownerNote}</div>
          </section>`
       : "";
     void recordStoryBlock;
