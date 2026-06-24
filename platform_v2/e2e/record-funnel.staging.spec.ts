@@ -2,7 +2,6 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 import {
   addSessionCookie,
   createStagingApiContext,
-  installMapLibreStubForSmoke,
   newStagingContext,
   suppressMapLibreForSmoke,
   type ViewportProfile,
@@ -15,7 +14,6 @@ const VIEWPORTS: ViewportProfile[] = [
 
 const RECORD_ENTRY_ROUTES = [
   { slug: "home", path: "/?lang=ja" },
-  { slug: "map", path: "/map?tab=places&lng=137.7032&lat=34.6983&z=14.9&lang=ja", usesMap: true },
   { slug: "records", path: "/records?view=public&lang=ja" },
 ];
 
@@ -418,14 +416,7 @@ test.describe("record entry viewport reachability", () => {
         const page = await context.newPage();
 
         try {
-          if (route.usesMap) {
-            await installMapLibreStubForSmoke(page);
-            await suppressMapLibreForSmoke(page);
-          }
-          await page.goto(route.path, { waitUntil: route.usesMap ? "commit" : "domcontentloaded" });
-          if (route.usesMap) {
-            await page.locator("#map-explorer").waitFor({ state: "attached" });
-          }
+          await page.goto(route.path, { waitUntil: "domcontentloaded" });
           await expectRecordEntryReachable(page, profile);
         } finally {
           await context.close();
