@@ -1204,6 +1204,33 @@ test("municipal walk map review queue surfaces saved drafts with public readines
   assert.equal(item.editHref, "/admin/municipal-walk-maps/db-review-draft-map");
 });
 
+test("municipal walk map validation warns on heavy public copy without blocking drafts", () => {
+  const base = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+  const validation = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "draft",
+    summary: "地域に貢献し、あとで見返せる散策マップです。",
+    routeFlexibility: {
+      ...base.routeFlexibility,
+      returnCues: ["順番通りに歩かなくても大丈夫です"],
+    },
+    routeStops: [
+      {
+        ...base.routeStops[0],
+        recordCues: ["この場所が少し厚くなる記録"],
+        safetyNotes: ["これはここから育つ場所です"],
+      },
+    ],
+  });
+
+  assert.equal(validation.ok, true);
+  assert.match(validation.warnings.join("\n"), /copy_lint_heavy_expression:map:review_copy/);
+  assert.match(validation.warnings.join("\n"), /copy_lint_heavy_expression:map:contribution_copy/);
+  assert.match(validation.warnings.join("\n"), /copy_lint_heavy_expression:map:strict_route_copy/);
+  assert.match(validation.warnings.join("\n"), /copy_lint_heavy_expression:stop:asahata-water-edge:thickening_copy/);
+  assert.match(validation.warnings.join("\n"), /copy_lint_heavy_expression:stop:asahata-water-edge:growth_place_copy/);
+});
+
 test("municipal walk map review action approves ready organization drafts for public preview", async () => {
   const db = createMunicipalWalkMapFakeDb();
   const base = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");

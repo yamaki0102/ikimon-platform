@@ -2507,7 +2507,7 @@ function getPublicMapSiteBriefShim(url: URL): Response {
     },
     reasons: ["水路、緑地、建物のすき間など、身近な環境の境目を見比べられる場所です。"],
     checks: ["花、草地、水辺、日陰、人工物のまわりに小さな変化がないか見てください。"],
-    captureHints: ["気になったものを1枚撮るか、音やメモを残すと次の見返しにつながります。"],
+    captureHints: ["気になったものを1枚撮るか、音やメモを残すと次の確認に使えます。"],
     environmentEvidence: [],
     officialNotices: [],
     compatibility: {
@@ -7696,7 +7696,7 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
         <iframe src="${escapeHtml(`${streamBase}/iframe`)}" title="カワラヒワの動画" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen></iframe>
       </div>
       <div class="obs-hero-video-meta">
-        <span><span class="obs-media-role-badge is-sound-motion">音・動き</span> フレームから見返せます</span>
+        <span><span class="obs-media-role-badge is-sound-motion">音・動き</span> フレームで確認できます</span>
         <a href="${escapeHtml(`${streamBase}/watch`)}" target="_blank" rel="noreferrer">別タブで開く</a>
       </div>
     </div>
@@ -7720,7 +7720,7 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
       </div>
       <div class="obs-env-strip"><strong>環境</strong><span>草地の縁 / 小石まじり / 開けた地面 / 音あり</span></div>
     </div>
-    <p>1つの撮影から、対象と周りの環境を分けて見返せます。</p>
+    <p>1つの撮影から、対象と周りの環境を分けて確認できます。</p>
   </section>`;
   const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged is-high" aria-label="AIの読み">
     <div class="obs-ai-status">
@@ -8125,7 +8125,7 @@ function buildLegacyContributionReceipts(
       kind: input.visitMode === "survey" || normalizeOptionalText(input.revisitReason) || normalizeOptionalText(input.targetTaxaScope)
         ? "revisit_seeded"
         : "place_comparison_seeded",
-      title: input.visitMode === "survey" ? "同じ条件で見返す起点ができました" : "この場所の比較起点になりました",
+      title: input.visitMode === "survey" ? "同じ条件で比べる起点ができました" : "この場所の比較起点になりました",
       body: `${placeName || "この場所"} を次に見たとき、今日の状態と比べる起点になります。`,
       claimLevel: "immediate",
       nextAction: { label: "同じ場所でもう1件", href: revisitHref, actionKey: "revisit_same_place" }

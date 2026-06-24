@@ -305,6 +305,13 @@ const VALID_PRECISION_POLICIES: readonly MunicipalWalkMapConfigV0["publicPrecisi
   "mesh_or_coarser",
   "municipality_or_hidden",
 ];
+const HEAVY_COPY_PATTERNS: readonly { pattern: RegExp; code: string }[] = [
+  { pattern: /見返|読み返/, code: "review_copy" },
+  { pattern: /少し厚|厚くな/, code: "thickening_copy" },
+  { pattern: /貢献/, code: "contribution_copy" },
+  { pattern: /順番通り/, code: "strict_route_copy" },
+  { pattern: /育つ場所|ここから育つ/, code: "growth_place_copy" },
+];
 
 const DEFAULT_ROUTE_FLEXIBILITY: MunicipalWalkMapRouteFlexibilityV0 = {
   routeStyle: "loose_stops",
@@ -344,6 +351,18 @@ function uniqueClean(values: string[], maxItems: number, maxLength: number): str
     if (result.length >= maxItems) break;
   }
   return result;
+}
+
+function pushHeavyCopyWarnings(warnings: string[], scope: string, values: unknown[]): void {
+  const text = values
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .map((value) => cleanText(value, 240))
+    .filter(Boolean)
+    .join("\n");
+  if (!text) return;
+  for (const { pattern, code } of HEAVY_COPY_PATTERNS) {
+    if (pattern.test(text)) warnings.push(`copy_lint_heavy_expression:${scope}:${code}`);
+  }
 }
 
 function cleanSourceReferences(value: unknown): MunicipalWalkMapSourceReferenceV0[] {
@@ -538,6 +557,12 @@ export function validateMunicipalWalkMapConfigV0(config: MunicipalWalkMapConfigV
     errors.push("invalid_source_reference");
   }
   if (isPublicMode && cleanSourceReferences(candidate.sourceReferences).length === 0) errors.push("public_source_reference_required");
+  pushHeavyCopyWarnings(warnings, "map", [
+    candidate.title,
+    candidate.summary,
+    candidate.claimBoundary,
+    routeFlexibility.returnCues,
+  ]);
 
   const stopIds = new Set<string>();
   for (const rawStop of routeStops) {
@@ -565,6 +590,12 @@ export function validateMunicipalWalkMapConfigV0(config: MunicipalWalkMapConfigV
     if (Array.isArray(stop.noticeCues) && Array.isArray(stop.recordCues) && !stop.noticeCues.length && !stop.recordCues.length) {
       warnings.push(`stop_cues_missing:${stop.stopId}`);
     }
+    pushHeavyCopyWarnings(warnings, `stop:${cleanText(stop.stopId, 80) || "unknown"}`, [
+      stop.title,
+      stop.noticeCues,
+      stop.recordCues,
+      stop.safetyNotes,
+    ]);
   }
 
   if (candidate.publicPrecisionPolicy === "site_or_coarser") {

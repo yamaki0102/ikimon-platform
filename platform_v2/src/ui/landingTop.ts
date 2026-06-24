@@ -824,9 +824,9 @@ function nearbyGrowthInsight(field: Pick<LandingSnapshot["nearbyFields"][number]
   const signature = normalizeDisplaySubject(field.signatureDisplayName || field.latestDisplayName || "");
   if (species >= 8 && observers >= 2) return "次の調査で増減を比べる基準が育っています";
   if (species >= 3) return "確認済みの種を基準に、次回の変化を見られます";
-  if (signature && observations >= 3) return `${signature}を同じ場所で見返せます`;
+  if (signature && observations >= 3) return `${signature}が同じ場所の目印になっています`;
   if (species >= 2) return "同じエリアの確認種として束ねられています";
-  if (observers >= 2) return "複数人の記録を同じ場所で見返せます";
+  if (observers >= 2) return "複数人の記録が同じ場所に集まっています";
   return "次の記録が比較の起点になります";
 }
 
@@ -1682,7 +1682,7 @@ function renderSoundIntelligenceSection(basePath: string, lang: SiteLang): strin
     {
       label: "Sort",
       title: "似た音を束ねて仕訳する",
-      body: "音声 segment は bundle と cluster にまとまり、鳥・虫・水音・未知音のように、素人にも見返しやすい棚へ寄せます。",
+      body: "音声 segment は bundle と cluster にまとまり、鳥・虫・水音・未知音のように、初めてでも確認しやすい棚へ寄せます。",
     },
     {
       label: "Review",
@@ -1826,7 +1826,7 @@ function renderCommunitySection(basePath: string, lang: SiteLang): string {
       </div>
     </div>
     <div class="prototype-use-grid">
-      <article><strong>個人の図鑑</strong><span>自分が見つけた生きものを、場所と季節で見返す。</span></article>
+      <article><strong>個人の図鑑</strong><span>自分が見つけた生きものを、場所と季節で並べる。</span></article>
       <article><strong>学校の観察</strong><span>校区や遠足先で見つけた自然を、授業後も残す。</span></article>
       <article><strong>研究の入口</strong><span>市民の記録を、地域調査の手がかりにする。</span></article>
       <article><strong>企業・地域の活動</strong><span>観察データを、レポートや次のアクションへつなげる。</span></article>
