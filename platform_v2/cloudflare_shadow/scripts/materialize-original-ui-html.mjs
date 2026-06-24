@@ -69,6 +69,7 @@ const corePaths = [
   "/",
   "/demo/place-feeling-tags",
   "/guide",
+  "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
   "/walk-maps",
   "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
   "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
@@ -147,7 +148,12 @@ function normalizePublicPath(value) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
+function parsedPublicPath(value) {
+  return new URL(value, "https://ikimon.local");
+}
+
 function renderUrlForPath(pathname) {
+  if (pathname.startsWith("/admin/municipal-walk-maps?sourceId=")) return pathname;
   const localizedMatch = pathname.match(/^\/(ja|en|es|pt-br)(\/.*)?$/);
   if (localizedMatch) {
     const segment = localizedMatch[1];
@@ -179,6 +185,13 @@ function renderUrlForPath(pathname) {
 }
 
 function originalUiHtmlKey(pathname) {
+  const parsed = parsedPublicPath(pathname);
+  if (parsed.pathname === "/admin/municipal-walk-maps") {
+    const sourceId = parsed.searchParams.get("sourceId")?.trim() ?? "";
+    if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(sourceId)) {
+      return `original-ui/html/admin/municipal-walk-maps/source/${sourceId}.html`;
+    }
+  }
   const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   return `original-ui/html/${cleanPath}.html`;
 }
@@ -278,6 +291,10 @@ async function runPool(items, limit, worker) {
 }
 
 const { buildApp } = await import(new URL("../../src/app.ts", import.meta.url));
+if (targetEnv === "staging") {
+  process.env.ENABLE_DEV_DUMMY_ADMIN ||= "1";
+  process.env.DEV_DUMMY_ADMIN_TOKEN ||= "materialize-admin-preview";
+}
 const app = buildApp();
 await app.ready();
 
@@ -288,13 +305,19 @@ const renderedStatic = [];
 
 try {
   for (const pathname of targets) {
+    const parsed = parsedPublicPath(pathname);
+    const isAdminPreview = parsed.pathname === "/admin/municipal-walk-maps";
+    if (isAdminPreview && targetEnv !== "staging") {
+      throw new Error("Admin preview materialization is staging-only.");
+    }
     const renderUrl = renderUrlForPath(pathname);
     const response = await app.inject({
       method: "GET",
       url: renderUrl,
       headers: {
         accept: "text/html",
-        "cache-control": "no-store"
+        "cache-control": "no-store",
+        ...(isAdminPreview ? { cookie: `ikimon_v2_session=${process.env.DEV_DUMMY_ADMIN_TOKEN ?? ""}` } : {})
       }
     });
     const contentType = String(response.headers["content-type"] ?? "");

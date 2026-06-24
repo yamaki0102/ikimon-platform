@@ -2883,9 +2883,17 @@ function personalizeAuthRedirectHtml(html: string, redirect: string): string {
 
 function isOriginalUiHtmlPath(pathname: string): boolean {
   if (ORIGINAL_UI_HTML_STATIC_PATHS.has(pathname)) return true;
+  if (pathname === "/admin/municipal-walk-maps") return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/community\/fields\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(pathname)) return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}\/snapshot$/.test(pathname)) return true;
   return false;
+}
+
+function municipalWalkMapAdminSourceDraftKey(url: URL): string | null {
+  if (url.pathname !== "/admin/municipal-walk-maps") return null;
+  const sourceId = url.searchParams.get("sourceId")?.trim() ?? "";
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(sourceId)) return null;
+  return `original-ui/html/admin/municipal-walk-maps/source/${sourceId}.html`;
 }
 
 function originalUiHtmlKey(pathname: string): string {
@@ -2894,6 +2902,8 @@ function originalUiHtmlKey(pathname: string): string {
 }
 
 function originalUiHtmlKeyForRequest(url: URL): string {
+  const adminSourceDraftKey = municipalWalkMapAdminSourceDraftKey(url);
+  if (adminSourceDraftKey) return adminSourceDraftKey;
   const langSegment = langQueryToUrlSegment(url.searchParams.get("lang"));
   if (!langSegment) return originalUiHtmlKey(url.pathname);
   const localizedPath = localizedMaterializedPath(url.pathname, langSegment);
@@ -2936,6 +2946,7 @@ function hasPersonalizedHtmlHeaders(request: Request): boolean {
 
 function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
   return pathname === "/app-refresh"
+    || pathname === "/admin/municipal-walk-maps"
     || pathname === "/"
     || /^\/(?:ja|en|es|pt-br)\/?$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/demo\/place-feeling-tags$/.test(pathname)

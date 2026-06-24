@@ -5133,6 +5133,41 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
   }
 });
 
+test("staging municipal walk map admin source draft serves materialized preview with session cookies", async () => {
+  const { env } = createEnv();
+  const stagingEnv = {
+    ...env,
+    ENVIRONMENT: "staging",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-maps/source/funabashi-nature-walk-maps.html",
+    "<!doctype html><title>散策マップ管理</title><main>自然散策マップ 下書き 下書きに入れる</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await response.text(), /自然散策マップ 下書き/);
+    assert.equal(fallbackCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production field detail can render from Cloudflare public readmodel without origin fallback", async () => {
   const { env, obs, core } = createEnv();
   const productionEnv = {
