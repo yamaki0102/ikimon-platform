@@ -132,12 +132,12 @@
         "producers": [
           {
             "binding": "MEDIA_QUEUE",
-            "queue": "ikimon-shadow-media-jobs"
+            "queue": "ikimon-staging-media-jobs"
           }
         ],
         "consumers": [
           {
-            "queue": "ikimon-shadow-media-jobs",
+            "queue": "ikimon-staging-media-jobs",
             "max_batch_size": 25,
             "max_batch_timeout": 10
           }
