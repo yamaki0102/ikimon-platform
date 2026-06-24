@@ -4,6 +4,7 @@ import {
   applyRegisteredCreatorProfileForWriteV0,
   buildMunicipalWalkMapConfigFromSourceCatalogV0,
   buildMunicipalWalkMapPublicReadModelV0,
+  buildMunicipalWalkMapPublicSummaryV0,
   creatorProfileFromRegistryEntryV0,
   getMunicipalWalkMapConfigV0FromDb,
   getMunicipalWalkMapCreatorV0,
@@ -11,6 +12,7 @@ import {
   listMunicipalWalkMapCreatorsV0,
   listMunicipalWalkMapReviewQueueV0,
   listMunicipalWalkMapSourceCatalogV0,
+  listStaticMunicipalWalkMapPublicSummariesV0,
   listPublicMunicipalWalkMapSummariesV0,
   listMunicipalWalkMapTemplatesV0,
   reviewMunicipalWalkMapPublicationV0,
@@ -189,6 +191,32 @@ test("static municipal walk map config can publish public route stops without a 
   assert.match(publicMap.stops[0]?.recordHref ?? "", /fieldId=osm_park%3Asample-public-park/);
   assert.match(publicMap.sourceReferences[0]?.url ?? "", /city\.shizuoka\.lg\.jp/);
   assert.equal(publicMap.validation.ok, true);
+});
+
+test("static municipal walk map summaries expose area-level hints without exact stop locations", () => {
+  const config = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+  const summary = buildMunicipalWalkMapPublicSummaryV0(config);
+
+  assert.equal(summary.areaHint?.precision, "area_hint");
+  assert.equal(summary.areaHint?.source, "official_source_sample");
+  assert.match(summary.areaHint?.label ?? "", /麻機/);
+  assert.equal(summary.areaHint?.lat, 35.015);
+  assert.equal(summary.areaHint?.lng, 138.389);
+  assert.doesNotMatch(JSON.stringify(summary), /routeStops|linkedFieldId|stopId|水辺を外から見る場所/);
+});
+
+test("static municipal walk map area hints stay coarse across public summaries", () => {
+  const summaries = listStaticMunicipalWalkMapPublicSummariesV0().filter((summary) => summary.areaHint);
+  assert.ok(summaries.length >= 3);
+
+  for (const summary of summaries) {
+    const hint = summary.areaHint;
+    assert.equal(hint?.precision, "area_hint");
+    assert.equal(hint?.source, "official_source_sample");
+    assert.match(String(hint?.lat), /^-?\d+(\.\d{1,3})?$/);
+    assert.match(String(hint?.lng), /^-?\d+(\.\d{1,3})?$/);
+    assert.doesNotMatch(JSON.stringify(summary), /routeStops|linkedFieldId|stopId|public-park-start|asahata-water-edge|mariko-river-edge/);
+  }
 });
 
 test("municipal walk map suppresses strong record CTA for school and permission-required stops", () => {

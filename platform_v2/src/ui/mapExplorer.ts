@@ -2435,6 +2435,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownObservationMarkers: [],
     areaBadgeMarkers: [],
     nearbyAreaMarkers: [],
+    walkMapCandidateMarkers: [],
     nearbyAreaOrigin: null,
     nearbyAreaLocateMovePending: false,
     startupLocationRequestActive: false,
@@ -2539,10 +2540,64 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return prefix + encodeURIComponent(String(walkMapId || ''));
   }
 
+  function clearWalkMapCandidateMarkers() {
+    (state.walkMapCandidateMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.walkMapCandidateMarkers = [];
+  }
+
+  function walkMapCandidateAreaHint(summary) {
+    var hint = summary && summary.areaHint ? summary.areaHint : null;
+    var lat = Number(hint && hint.lat);
+    var lng = Number(hint && hint.lng);
+    if (!hint || !isFinite(lat) || !isFinite(lng)) return null;
+    if (hint.precision !== 'area_hint') return null;
+    return {
+      lat: lat,
+      lng: lng,
+      label: String(hint.label || '').trim()
+    };
+  }
+
+  function refreshWalkMapCandidateMarkers(summaries) {
+    clearWalkMapCandidateMarkers();
+    if (!state.map || !window.maplibregl || !Array.isArray(summaries) || state.tab !== 'places') return;
+    var maxMarkers = (window.matchMedia && window.matchMedia('(max-width: 700px)').matches) ? 1 : 2;
+    summaries.slice(0, maxMarkers).forEach(function (summary, index) {
+      var id = String(summary && summary.walkMapId || '');
+      var title = String(summary && summary.title || '').trim();
+      var hint = walkMapCandidateAreaHint(summary);
+      if (!id || !title || !hint) return;
+      var shortTitle = (hint.label || title)
+        .replace(/サンプル/g, '')
+        .replace(/周辺周辺/g, '周辺')
+        .trim() || title;
+      var el = document.createElement('a');
+      el.className = 'me-walk-map-marker';
+      el.href = walkMapHrefForId(id);
+      el.setAttribute('data-testid', 'map-walk-map-candidate-marker');
+      el.setAttribute('data-kpi-action', 'map:walk_map_candidate_marker');
+      el.setAttribute('aria-label', shortTitle + ' 周辺候補');
+      el.innerHTML = '<span>周辺</span><strong>' + escapeHtml(shortTitle.slice(0, 14)) + '</strong>';
+      el.addEventListener('click', function () {
+        sendMapKpi('map_walk_map_candidate_click', 'map:walk_map_candidate_marker', {
+          walkMapId: id,
+          label: hint.label || '',
+        });
+      });
+      var marker = new window.maplibregl.Marker({ element: el, anchor: 'center', offset: [index * 12, 0] })
+        .setLngLat([hint.lng, hint.lat])
+        .addTo(state.map);
+      state.walkMapCandidateMarkers.push(marker);
+    });
+  }
+
   function renderStartPanelRouteCandidates(summaries) {
     if (!startPanelRoutesEl || !Array.isArray(summaries)) return false;
     var nav = startPanelRoutesEl.querySelector('nav');
     if (!nav) return false;
+    refreshWalkMapCandidateMarkers(summaries);
     if (!summaries.length) {
       if (startPanelRoutesStaticHtml) nav.innerHTML = startPanelRoutesStaticHtml;
       refreshStartPanelRoutes();
@@ -6361,6 +6416,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function switchMapTab(tab) {
     state.tab = tab || 'markers';
+    if (state.tab !== 'places') clearWalkMapCandidateMarkers();
     document.querySelectorAll('.me-tab').forEach(function (b) {
       var active = b.getAttribute('data-tab') === state.tab;
       b.classList.toggle('is-active', active);
@@ -10849,6 +10905,59 @@ export const MAP_EXPLORER_STYLES = `
   .me-nearby-area-marker.is-restricted span { background: rgba(254,243,199,.86); color: #92400e; }
   .me-nearby-area-marker.is-school { border-style: dashed; border-color: #d97706; }
   .me-nearby-area-marker.is-school span { background: rgba(254,243,199,.9); color: #92400e; }
+  .me-walk-map-marker {
+    max-width: 120px;
+    min-width: 74px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 8px;
+    border: 1px solid rgba(15,118,110,.22);
+    border-radius: 999px;
+    background: rgba(255,255,255,.96);
+    color: #0f172a;
+    box-shadow: 0 10px 22px rgba(15,118,110,.14);
+    text-decoration: none;
+    cursor: pointer;
+    transform-origin: center;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .me-walk-map-marker:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(15,118,110,.18);
+    border-color: rgba(15,118,110,.36);
+  }
+  .me-walk-map-marker span {
+    min-height: 18px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(20,184,166,.13);
+    color: #0f766e;
+    font-size: 10.5px;
+    line-height: 1.1;
+    font-weight: 950;
+  }
+  .me-walk-map-marker strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 11.5px;
+    line-height: 1.2;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  @media (max-width: 700px) {
+    .me-walk-map-marker {
+      min-width: 44px;
+      max-width: 92px;
+      min-height: 34px;
+      padding: 6px 7px;
+    }
+    .me-walk-map-marker strong { display: none; }
+  }
   .me-guide-spot-marker.is-pin .me-guide-spot-main {
     display: inline-flex;
     align-items: center;

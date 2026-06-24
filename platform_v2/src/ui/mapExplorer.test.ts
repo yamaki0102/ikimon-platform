@@ -524,6 +524,28 @@ test("locate action highlights nearby discoverable places on the map", () => {
   assert.match(styles, /\.me-nearby-area-marker\.is-school/);
 });
 
+test("walk map candidates render as compact map markers from area-level hints", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /walkMapCandidateMarkers: \[\]/);
+  assert.match(script, /function refreshWalkMapCandidateMarkers\(summaries\)/);
+  assert.match(script, /function walkMapCandidateAreaHint\(summary\)/);
+  assert.match(script, /hint\.precision !== 'area_hint'/);
+  assert.match(script, /state\.tab !== 'places'/);
+  assert.match(script, /max-width: 700px/);
+  assert.match(script, /summaries\.slice\(0, maxMarkers\)/);
+  assert.match(script, /if \(state\.tab !== 'places'\) clearWalkMapCandidateMarkers\(\);/);
+  assert.match(script, /anchor: 'center'/);
+  assert.match(script, /data-testid', 'map-walk-map-candidate-marker'/);
+  assert.match(script, /<span>周辺<\/span>/);
+  assert.match(script, /map_walk_map_candidate_click/);
+  assert.match(script, /refreshWalkMapCandidateMarkers\(summaries\)/);
+  assert.match(styles, /\.me-walk-map-marker/);
+  assert.match(styles, /\.me-walk-map-marker strong/);
+  assert.doesNotMatch(styles, /\.me-walk-map-marker::after/);
+});
+
 test("cell and blank map selections are aggregate and safety surfaces", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 

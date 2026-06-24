@@ -66,6 +66,14 @@ export type MunicipalWalkMapSourceReferenceV0 = {
   note: string;
 };
 
+export type MunicipalWalkMapAreaHintV0 = {
+  lat: number;
+  lng: number;
+  label: string;
+  precision: "area_hint";
+  source: "official_source_sample";
+};
+
 export type MunicipalWalkMapPublicationReviewV0 = {
   publicAccessAttested: boolean;
   sourceRightsAttested: boolean;
@@ -169,6 +177,7 @@ export type MunicipalWalkMapPublicSummaryV0 = {
   mobilityModes: MunicipalWalkMapMobilityModeV0[];
   stopCount: number;
   sourceReferences: MunicipalWalkMapSourceReferenceV0[];
+  areaHint?: MunicipalWalkMapAreaHintV0 | null;
 };
 
 export type MunicipalWalkMapReviewQueueItemV0 = {
@@ -654,7 +663,37 @@ export function buildMunicipalWalkMapPublicSummaryV0(config: MunicipalWalkMapCon
     mobilityModes: uniqueClean(config.routeFlexibility.mobilityModes, 6, 40) as MunicipalWalkMapMobilityModeV0[],
     stopCount: config.routeStops.length,
     sourceReferences: cleanSourceReferences(config.sourceReferences),
+    areaHint: municipalWalkMapAreaHintForPublicSummary(config),
   };
+}
+
+function roundAreaHintCoordinate(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function staticAreaHint(lat: number, lng: number, label: string): MunicipalWalkMapAreaHintV0 {
+  return {
+    lat: roundAreaHintCoordinate(lat),
+    lng: roundAreaHintCoordinate(lng),
+    label: cleanText(label, 80),
+    precision: "area_hint",
+    source: "official_source_sample",
+  };
+}
+
+const STATIC_MUNICIPAL_WALK_MAP_AREA_HINTS_V0: Record<string, MunicipalWalkMapAreaHintV0> = {
+  [DEFAULT_WALK_MAP_ID]: staticAreaHint(34.981, 138.397, "静岡市中心部"),
+  "jp-shizuoka-yatsuyama-sample-v0": staticAreaHint(34.986, 138.407, "谷津山周辺"),
+  "jp-shizuoka-asahata-waterfront-sample-v0": staticAreaHint(35.015, 138.389, "麻機の水辺"),
+  "jp-shizuoka-mariko-waterfront-sample-v0": staticAreaHint(34.925, 138.379, "丸子川・広野海岸公園周辺"),
+};
+
+function municipalWalkMapAreaHintForPublicSummary(config: MunicipalWalkMapConfigV0): MunicipalWalkMapAreaHintV0 | null {
+  const hint = STATIC_MUNICIPAL_WALK_MAP_AREA_HINTS_V0[config.walkMapId];
+  if (!hint) return null;
+  if (config.publicPrecisionPolicy === "site_or_coarser") return null;
+  if (config.publishMode !== "public" && config.publishMode !== "public_preview") return null;
+  return { ...hint };
 }
 
 export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [

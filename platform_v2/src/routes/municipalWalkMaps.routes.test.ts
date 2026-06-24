@@ -218,6 +218,9 @@ test("municipal walk map public list API can scope candidates by map center", as
       assert.equal(shizuokaBody.matchedMunicipalityCode, "22100");
       assert.equal(shizuokaBody.summaries.length, 2);
       assert.match(JSON.stringify(shizuokaBody.summaries), /jp-shizuoka-/);
+      assert.equal(shizuokaBody.summaries[0]?.areaHint?.precision, "area_hint");
+      assert.equal(shizuokaBody.summaries[0]?.areaHint?.source, "official_source_sample");
+      assert.doesNotMatch(JSON.stringify(shizuokaBody.summaries), /routeStops|linkedFieldId|stopId/);
 
       const tokyo = await app.inject({
         method: "GET",
