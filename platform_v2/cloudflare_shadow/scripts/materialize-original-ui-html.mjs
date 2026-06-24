@@ -63,6 +63,8 @@ const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const workerSourcePath = join(scriptDir, "..", "src", "index.ts");
 const events = [];
 
+process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html");
+
 const corePaths = [
   "/",
   "/demo/place-feeling-tags",
@@ -124,7 +126,18 @@ const corePaths = [
   "/pt-br/record",
   "/pt-br/records"
 ];
-const staticAssetPaths = ["/app-sw.js"];
+const staticAssetPaths = [
+  "/app-sw.js",
+  "/assets/brand/app-icon-192.png",
+  "/assets/brand/app-icon-192-maskable.png",
+  "/assets/brand/app-icon-512.png",
+  "/assets/brand/app-icon-512-maskable.png",
+  "/assets/brand/apple-touch-icon.png",
+  "/assets/brand/favicon-32.png",
+  "/assets/brand/ikimon-lockup-black.png",
+  "/assets/brand/ikimon-ogp-default.png",
+  "/assets/brand/ikimon-wordmark-black.png"
+];
 
 function normalizePublicPath(value) {
   const path = String(value || "").trim();
@@ -177,6 +190,7 @@ function originalUiStaticKey(pathname) {
 function staticContentType(pathname) {
   if (pathname.endsWith(".js")) return "application/javascript; charset=utf-8";
   if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
+  if (pathname.endsWith(".png")) return "image/png";
   return "application/octet-stream";
 }
 
@@ -299,6 +313,7 @@ try {
   }
 
   for (const pathname of staticAssetPaths) {
+    const expectedContentType = staticContentType(pathname);
     const response = await app.inject({
       method: "GET",
       url: pathname,
@@ -308,7 +323,7 @@ try {
       }
     });
     const contentType = String(response.headers["content-type"] ?? "");
-    const ok = response.statusCode >= 200 && response.statusCode < 300 && contentType.includes("javascript");
+    const ok = response.statusCode >= 200 && response.statusCode < 300 && contentType.includes(expectedContentType.split(";")[0]);
     events.push({
       command: `render-static ${pathname}`,
       exitCode: ok ? 0 : 1,
@@ -321,8 +336,9 @@ try {
     }
     const key = originalUiStaticKey(pathname);
     const filePath = join(tempDir, key.replaceAll("/", "__"));
-    await writeFile(filePath, response.body, "utf8");
-    renderedStatic.push({ pathname, key, bytes: Buffer.byteLength(response.body), filePath, contentType: staticContentType(pathname) });
+    const payload = response.rawPayload ?? Buffer.from(response.body);
+    await writeFile(filePath, payload);
+    renderedStatic.push({ pathname, key, bytes: payload.byteLength, filePath, contentType: expectedContentType });
   }
 
   if (execute) {
