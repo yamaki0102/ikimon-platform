@@ -1727,6 +1727,18 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
     affinityScore: 24,
     cue: "季節の図鑑と発見マップを一体で出す型。ikimon.lifeではPDF転載ではなく、季節対象と公式引用元を分けて下書き化する。",
   },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "kitakyushu-yamada-green-walking-course",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "北九州市",
+    title: "小倉北区 山田緑地散策コース",
+    sourceUrl: "https://www.city.kitakyushu.lg.jp/page/walkingmap/kokurakita/kokurakita40.pdf",
+    officialPageUrl: "https://www.city.kitakyushu.lg.jp/page/walkingmap/kokurakita/kokurakita40.pdf",
+    affinityScore: 23,
+    cue: "市公式ウォーキングマップ内で、自然と生きものの見どころをコース化する型。ikimon.lifeでは厳密な順路ではなく、立ち寄り先と戻る手がかりに分ける。",
+  },
 ];
 
 function cloneWalkMapConfig(config: MunicipalWalkMapConfigV0): MunicipalWalkMapConfigV0 {

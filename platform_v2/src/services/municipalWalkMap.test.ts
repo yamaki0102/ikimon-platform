@@ -570,7 +570,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   const primaryTypes = new Set(catalog.map((entry) => entry.primaryType));
   const templateIds = new Set(catalog.map((entry) => entry.templateId));
 
-  assert.ok(catalog.length >= 39);
+  assert.ok(catalog.length >= 40);
   for (const municipality of [
     "静岡市",
     "船橋市",
@@ -607,6 +607,7 @@ test("municipal walk map source catalog covers researched official seed patterns
     "さいたま市",
     "横須賀市",
     "足立区",
+    "北九州市",
   ]) {
     assert.ok(municipalities.has(municipality), `missing source catalog municipality: ${municipality}`);
   }
@@ -644,6 +645,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.yokosuka\.kanagawa\.jp\/0880\/kaiganshokubutu\/mijikanasizen\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.yokosuka\.kanagawa\.jp\/5540\/maedagawa\/index\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.adachi\.tokyo\.jp\/documents\/74972\/2025zukann\.pdf/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.kitakyushu\.lg\.jp\/page\/walkingmap\/kokurakita\/kokurakita40\.pdf/);
 });
 
 test("municipal walk map source catalog builds a draft config without copying PDF bodies", () => {

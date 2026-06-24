@@ -340,7 +340,7 @@ test("municipal walk map admin page renders source catalog and source-reference 
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /参考元カタログ/);
-        assert.match(response.body, /data-template-source-count="4"/);
+        assert.match(response.body, /data-template-source-count="5"/);
         assert.match(response.body, /data-template-start-link="\/admin\/municipal-walk-maps\?templateId=route_species_walk"/);
         assert.match(response.body, /この型で始める/);
         assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
