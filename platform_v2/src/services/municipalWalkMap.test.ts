@@ -570,7 +570,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   const primaryTypes = new Set(catalog.map((entry) => entry.primaryType));
   const templateIds = new Set(catalog.map((entry) => entry.templateId));
 
-  assert.ok(catalog.length >= 40);
+  assert.ok(catalog.length >= 41);
   for (const municipality of [
     "静岡市",
     "船橋市",
@@ -632,6 +632,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.ok(routeSources.length >= 4);
   assert.ok(routeSources.every((entry) => entry.templateId === "route_species_walk"));
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p082326\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.setagaya\.lg\.jp\/02074\/4717\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.handa\.lg\.jp\/machi\/kankyo\/1002994\/1003007\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.isesaki\.lg\.jp\/soshiki\/kankyobu\/kankyo\/kikaku\/seibututayousei\/21642\.html/);

@@ -1345,6 +1345,18 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "funabashi-seasonal-monitoring",
+    templateId: "seasonal_target_walk",
+    primaryType: "citizen_science_report",
+    municipality: "船橋市",
+    title: "生きものモニタリング調査",
+    sourceUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p082326.html",
+    officialPageUrl: "https://www.city.funabashi.lg.jp/machi/kankyou/010/p082326.html",
+    affinityScore: 27,
+    cue: "季節ごとの指標種を探す継続調査型。ikimon.lifeでは対象カード、記録場所、公開範囲を分けて扱う。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
     sourceId: "machida-report-line-flow",
     templateId: "citizen_campaign_walk",
     primaryType: "citizen_science_report",
