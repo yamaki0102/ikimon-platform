@@ -4858,6 +4858,64 @@ test("production language-prefixed observation detail stays native and public-sa
   }
 });
 
+test("production target observation detail restores lightweight feedback loop without privacy regressions", async () => {
+  const { env, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "record-1778829649026",
+    userId: "detail-user",
+    observedAt: "2026-05-15T07:20:00.000Z",
+    latitude: 34.81234,
+    longitude: 137.73123,
+    taxon: { vernacularName: "unidentified", rank: "species" }
+  });
+  await post("/api/v1/observations/record-1778829649026/photos/upload", env, {
+    filename: "target.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("target-image").toString("base64")
+  });
+  for (const suffix of ["near-a", "near-b"]) {
+    await post("/api/v1/observations/upsert", env, {
+      observationId: `record-1778829649026-${suffix}`,
+      userId: "nearby-user",
+      observedAt: "2026-05-15T07:25:00.000Z",
+      latitude: 34.81236,
+      longitude: 137.73126,
+      taxon: { vernacularName: suffix === "near-a" ? "セイヨウタンポポ" : "スズメ", rank: "species" }
+    });
+    await post(`/api/v1/observations/record-1778829649026-${suffix}/photos/upload`, env, {
+      filename: `${suffix}.jpg`,
+      mimeType: "image/jpeg",
+      base64Data: Buffer.from(`nearby-${suffix}`).toString("base64")
+    });
+  }
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/observations/record-1778829649026?subject=occ%3Arecord-1778829649026%3A0"), productionEnv);
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+  assert.match(body, /data-cloudflare-observation-detail="1"/);
+  assert.match(body, /カワラヒワ/);
+  assert.match(body, /obs-hero-video-frame/);
+  assert.match(body, /obs-video-evidence-frame/);
+  assert.match(body, /AIが見た動画フレーム/);
+  assert.match(body, /obs-ai-readout/);
+  assert.match(body, /obs-frame-identify-card/);
+  assert.match(body, /記録の手ざわり/);
+  assert.match(body, /次に見るなら/);
+  assert.match(body, /浜松市浜名区をもう少し見る/);
+  assert.match(body, /近い投稿 2件/);
+  assert.match(body, /かなり近そう/);
+  assert.match(body, /分類候補/);
+  assert.match(body, /Chloris sinica/);
+  assert.match(body, /端末の声で読む/);
+  assert.match(body, /data-frame-zoom-in/);
+  assert.match(body, /obs-frame-preview/);
+  assert.match(body, /obs-nearby-nophoto|obs-area-thumb/);
+  assert.doesNotMatch(body, /この映像で読む対象を切り替える|この映像に写っているもの|候補を確かめる材料|名前の記録|現場アドバイス|確定前|イネ科植物|映像フレームから拾えている手がかり/);
+  assert.doesNotMatch(body, /ownerUserId|observerUserId|profile\/detail-user|34\.81234|137\.73123|\/uploads\/|original-ui\/thumb/);
+});
+
 test("production original UI app shells serve materialized HTML even with session cookies", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

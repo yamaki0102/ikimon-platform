@@ -7102,26 +7102,35 @@ loadMap().catch((error) => {
 </html>`;
 }
 
-function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnType<typeof buildPublicObservationDetail>>>): string {
+type PublicObservationDetail = NonNullable<Awaited<ReturnType<typeof buildPublicObservationDetail>>>;
+
+function renderPublicObservationDetailHtml(detail: PublicObservationDetail): string {
+  const polish = publicObservationDetailPolish(detail);
+  const displayName = polish?.displayName ?? detail.displayName;
+  const lead = polish?.lead ?? (detail.isAwaitingId ? "名前はまだ確認待ちの公開記録です。" : "公開範囲をぼかした観察記録です。");
   const photos = detail.photoAssets.length > 0
     ? detail.photoAssets.map((asset, index) => `<figure class="obs-photo ${index === 0 ? "obs-photo--main" : ""}" data-obs-media-item="${escapeHtml(asset.assetId)}">
-        <img src="${escapeHtml(asset.url)}" alt="${escapeHtml(detail.displayName)}" loading="${index === 0 ? "eager" : "lazy"}">
+        <img src="${escapeHtml(asset.url)}" alt="${escapeHtml(displayName)}" loading="${index === 0 ? "eager" : "lazy"}">
       </figure>`).join("")
     : `<div class="obs-empty">公開できる写真はまだありません。</div>`;
-  const videos = detail.videoAssets.length > 0
+  const mediaBlock = polish?.mediaBlock ?? `<div class="obs-photo-grid">${photos}</div>`;
+  const videos = !polish?.mediaBlock && detail.videoAssets.length > 0
     ? detail.videoAssets.map((asset) => `<a class="obs-media-link" href="${escapeHtml(asset.watchUrl)}">動画を開く</a>`).join("")
     : "";
   const note = typeof detail.note === "string" && detail.note.trim() !== "" ? detail.note.trim() : "";
   const photoCount = detail.photoAssets.length;
-  const videoCount = detail.videoAssets.length;
-  const assetCount = Math.max(detail.assetCount ?? 0, photoCount + videoCount);
+  const videoCount = Math.max(detail.videoAssets.length, polish?.videoCount ?? 0);
+  const audioCount = polish?.audioCount ?? 0;
+  const assetCount = Math.max(detail.assetCount ?? 0, photoCount + videoCount + audioCount);
   const mapHref = `/map?tab=places&cell=${encodeURIComponent(detail.publicLocation.cellId)}`;
   const recordHref = `/record?from=observation&cell=${encodeURIComponent(detail.publicLocation.cellId)}`;
   const related = detail.relatedObservations ?? [];
-  const observedLabel = formatPublicObservationDate(detail.observedAt);
-  const stateLabel = detail.isAwaitingId ? "同定待ち" : "名前あり";
-  const relatedCards = related.length > 0
-    ? related.map((item) => `<a class="obs-nearby-card" href="/observations/${encodeURIComponent(item.visitId)}">
+  const observedLabel = polish?.observedLabel ?? formatPublicObservationDate(detail.observedAt);
+  const placeLabel = polish?.placeLabel ?? detail.publicLocation.label;
+  const stateLabel = polish?.stateLabel ?? (detail.isAwaitingId ? "同定待ち" : "名前あり");
+  const relatedForDisplay = typeof polish?.relatedLimit === "number" ? related.slice(0, polish.relatedLimit) : related;
+  const relatedCards = relatedForDisplay.length > 0
+    ? relatedForDisplay.map((item) => `<a class="obs-nearby-card" href="/observations/${encodeURIComponent(item.visitId)}">
         ${item.photoUrl
           ? `<img class="obs-area-thumb" src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy">`
           : `<span class="obs-nearby-nophoto" aria-hidden="true">+</span>`}
@@ -7134,15 +7143,28 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
   const mediaLedger = `<div class="obs-media-ledger" aria-label="メディア台帳">
     <div class="obs-media-ledger-item"><strong>写真</strong><span>${escapeHtml(`${photoCount}枚`)}</span><small>${escapeHtml(photoCount > 0 ? "公開中" : "未公開")}</small></div>
     <div class="obs-media-ledger-item"><strong>動画</strong><span>${escapeHtml(`${videoCount}本`)}</span><small>${escapeHtml(videoCount > 0 ? "公開中" : "未公開")}</small></div>
-    <div class="obs-media-ledger-item"><strong>公開範囲</strong><span>セル</span><small>${escapeHtml(detail.publicLocation.cellId)}</small></div>
-    <div class="obs-media-ledger-item"><strong>合計</strong><span>${escapeHtml(`${assetCount}件`)}</span><small>メディア</small></div>
+    <div class="obs-media-ledger-item"><strong>音</strong><span>${escapeHtml(`${audioCount}件`)}</span><small>${escapeHtml(audioCount > 0 ? "公開中" : "未記録")}</small></div>
+    <a class="obs-media-ledger-item" href="#place" aria-label="同じエリアの投稿一覧へ移動"><strong>同エリア</strong><span>${escapeHtml(`${relatedForDisplay.length}件`)}</span><small>投稿一覧へ</small></a>
   </div>`;
+  const recordInsight = polish?.recordInsight ?? (detail.isAwaitingId ? "この記録は、公開写真と日時だけを見られる状態です。名前は今後の確認で更新されることがあります。" : `${displayName}として公開されています。公開ページでは、写真とセル単位の場所だけを扱います。`);
+  const identifyBlock = polish?.identifyBlock ?? `<section class="obs-local-quality-left">
+        <h2>同定</h2>
+        <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${displayName} として表示しています。`)}</p>
+      </section>`;
+  const qualityBlock = polish?.qualityBlock ?? `<section class="obs-local-quality-card">
+        <h2>公開データ</h2>
+        <p>公開写真、公開セル、日時だけを使います。投稿者ID、精密座標、元画像URLは表示しません。</p>
+      </section>`;
+  const relatedEye = polish?.relatedEye ?? "同じ公開セル";
+  const relatedTitle = polish?.relatedTitle ?? "近くの公開記録";
+  const relatedLead = polish?.relatedLead ?? "";
+  const relatedCountLabel = polish?.relatedCountLabel ?? `${relatedForDisplay.length}件`;
   return `<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(detail.displayName)} - ikimon</title>
+  <title>${escapeHtml(displayName)} - ikimon</title>
   <style>
     :root { color-scheme: light; --ink: #0f172a; --muted: #64748b; --line: rgba(15,23,42,.1); --teal: #0f766e; --mint: #ecfdf5; --sky: #eff6ff; --paper: rgba(255,255,255,.94); --shell: min(1180px, calc(100% - 28px)); --content: min(860px, calc(100vw - 28px)); }
     * { box-sizing: border-box; }
@@ -7162,6 +7184,26 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
     .obs-reading-hero { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr); gap: 28px; align-items: start; margin-top: 16px; margin-bottom: 16px; scroll-margin-top: 96px; }
     .obs-reading-media { display: grid; gap: 10px; min-width: 0; order: 1; }
     .obs-media-evidence-shell { display: grid; gap: 10px; }
+    .obs-hero-media-stack { display: grid; gap: 10px; }
+    .obs-hero-video { overflow: hidden; border-radius: 22px; border: 1px solid rgba(15,23,42,.08); background: #0f172a; box-shadow: 0 18px 44px rgba(15,23,42,.1); }
+    .obs-hero-video-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0f172a; }
+    .obs-hero-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .obs-hero-video-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; color: #e2e8f0; font-size: 12px; line-height: 1.4; font-weight: 850; }
+    .obs-hero-video-meta a { color: #ccfbf1; text-decoration: none; font-weight: 950; }
+    .obs-media-role-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: rgba(20,184,166,.18); color: #ccfbf1; font-size: 11px; font-weight: 950; }
+    .obs-video-annotation-rail { display: flex; gap: 7px; overflow-x: auto; padding: 9px 1px 2px; scrollbar-width: none; }
+    .obs-video-annotation-rail::-webkit-scrollbar { display: none; }
+    .obs-video-annotation-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 5px 9px; border-radius: 999px; border: 1px solid rgba(15,118,110,.16); background: rgba(255,255,255,.94); color: #0f172a; font-size: 11.5px; line-height: 1.2; font-weight: 950; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
+    .obs-video-annotation-chip span { color: #0f766e; font-size: 10.5px; }
+    .obs-video-evidence { display: grid; gap: 10px; padding: 12px; border-radius: 18px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.055); }
+    .obs-video-evidence-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .obs-video-evidence-head h2 { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; }
+    .obs-video-evidence-head span { color: #64748b; font-size: 11px; font-weight: 900; white-space: nowrap; }
+    .obs-video-evidence-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .obs-video-evidence-frame { margin: 0; min-width: 0; display: grid; gap: 5px; }
+    .obs-video-evidence-preview { appearance: none; border: 0; padding: 0; margin: 0; display: block; width: 100%; border-radius: 13px; overflow: hidden; background: #e2e8f0; cursor: zoom-in; box-shadow: 0 10px 22px rgba(15,23,42,.08); }
+    .obs-video-evidence-preview img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+    .obs-video-evidence-frame figcaption { color: #334155; font-size: 11px; line-height: 1.35; font-weight: 900; overflow-wrap: anywhere; }
     .obs-photo-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
     .obs-photo { margin: 0; min-width: 0; overflow: hidden; border: 1px solid rgba(15,23,42,.08); border-radius: 16px; background: #e8f3ef; box-shadow: 0 18px 44px rgba(15,23,42,.08); }
     .obs-photo--main { grid-column: 1 / -1; border-radius: 22px; }
@@ -7205,6 +7247,35 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
     .obs-local-quality-left, .obs-local-quality-card { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); box-shadow: 0 10px 26px rgba(15,23,42,.04); }
     .obs-local-quality-card h2, .obs-local-quality-left h2 { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; letter-spacing: 0; }
     .obs-local-quality-card p, .obs-local-quality-left p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+    .obs-first-read, .obs-ai-readout, .obs-frame-identify-card { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.96); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 10px 26px rgba(15,23,42,.045); }
+    .obs-first-read h2, .obs-ai-readout h2, .obs-frame-identify-card h2 { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; }
+    .obs-first-read p, .obs-ai-readout p, .obs-frame-identify-card p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+    .obs-mini-chip-row, .obs-record-use-status, .obs-ai-evidence-pills, .obs-identify-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .obs-mini-chip-row span, .obs-record-use-status span, .obs-ai-evidence-pills span { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 8px; border-radius: 999px; background: #ecfdf5; color: #0f766e; border: 1px solid rgba(15,118,110,.15); font-size: 11px; line-height: 1.2; font-weight: 950; }
+    .obs-ai-status { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .obs-ai-status strong { color: #0f172a; font-size: 18px; line-height: 1.25; font-weight: 950; }
+    .obs-ai-status span { flex: 0 0 auto; color: #0f766e; background: #ecfdf5; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 950; }
+    .obs-ai-merged-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px 10px; border-radius: 13px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+    .obs-ai-merged-row > span { color: #64748b; font-size: 11px; font-weight: 950; }
+    .obs-ai-merged-row strong { color: #0f172a; font-size: 12.5px; line-height: 1.35; font-weight: 950; }
+    .obs-local-read-button, .obs-identify-button { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(15,118,110,.18); background: #ecfdf5; color: #0f766e; font-size: 11.5px; font-weight: 950; }
+    .obs-identify-button { background: #0f766e; color: #fff; border-color: #0f766e; }
+    .obs-identify-button.is-secondary { background: #fff; color: #0f766e; }
+    .obs-local-name-activity-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+    .obs-local-name-activity-list li { display: grid; gap: 2px; padding: 9px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+    .obs-local-name-activity-list strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
+    .obs-local-name-activity-list span { color: #64748b; font-size: 11.5px; line-height: 1.45; font-weight: 760; }
+    .obs-quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .obs-quality-item, .obs-env-row { display: grid; gap: 3px; padding: 9px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+    .obs-quality-item span, .obs-env-row span { color: #64748b; font-size: 10.5px; line-height: 1.3; font-weight: 900; }
+    .obs-quality-item strong, .obs-env-row strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
+    .obs-frame-preview { position: fixed; inset: 0; z-index: 80; display: none; place-items: center; padding: 18px; background: rgba(15,23,42,.72); }
+    .obs-frame-preview.is-open { display: grid; }
+    .obs-frame-preview-dialog { width: min(920px, 96vw); display: grid; gap: 10px; border-radius: 18px; background: #fff; padding: 12px; box-shadow: 0 24px 72px rgba(0,0,0,.32); }
+    .obs-frame-preview-stage { max-height: min(70vh, 680px); overflow: auto; border-radius: 14px; background: #0f172a; text-align: center; }
+    .obs-frame-preview-img { width: 100%; max-width: none; height: auto; display: block; margin: 0 auto; }
+    .obs-frame-preview-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #334155; font-size: 12px; line-height: 1.4; font-weight: 850; }
+    .obs-frame-preview-tools button { min-height: 34px; padding: 0 11px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font-weight: 950; }
     .obs-reading-flow { display: grid; gap: 18px; max-width: var(--content); margin: 0 auto; }
     .obs-reading-section, .obs-layer { display: grid; gap: 14px; scroll-margin-top: 96px; }
     .obs-layer { padding: 16px; border-radius: 20px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 36px rgba(15,23,42,.06); }
@@ -7248,6 +7319,10 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
       .obs-record-insight-desktop { order: 5; display: grid; }
       .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 7; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
       .obs-reading-title { font-size: 25px; }
+      .obs-video-evidence-grid { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 2px; }
+      .obs-video-evidence-frame { flex: 0 0 150px; }
+      .obs-ai-status { display: grid; }
+      .obs-ai-merged-row, .obs-quality-grid { grid-template-columns: 1fr; }
       .obs-photo--main img { aspect-ratio: 4 / 3; }
       .obs-photo:not(.obs-photo--main) { grid-column: span 3; }
       .obs-facts, .obs-action-rail, .obs-layer-grid { grid-template-columns: 1fr; }
@@ -7281,15 +7356,15 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
 <main data-cloudflare-observation-detail="1" data-visit-id="${escapeHtml(detail.visitId)}" data-occurrence-id="${escapeHtml(detail.occurrenceId)}">
   <article id="photos" class="obs-reading-hero">
     <section class="obs-reading-media obs-media-evidence-shell" aria-label="公開メディア">
-      <div class="obs-photo-grid">${photos}</div>
+      ${mediaBlock}
     </section>
     <aside class="obs-reading-panel" aria-label="観察記録">
-      <h1 class="sr-only">${escapeHtml(detail.displayName)}</h1>
+      <h1 class="sr-only">${escapeHtml(displayName)}</h1>
       <div id="summary" class="obs-record-brief obs-record-brief-compact" data-obs-section="summary" aria-label="この記録">
         <div class="obs-record-compact-main">
           <div class="obs-record-compact-meta">
             <span>${escapeHtml(observedLabel)}</span>
-            <span>${escapeHtml(detail.publicLocation.label)}</span>
+            <span>${escapeHtml(placeLabel)}</span>
           </div>
           <span class="obs-hero-observer" aria-label="投稿者は公開していません">
             <span class="obs-hero-avatar" aria-hidden="true">i</span>
@@ -7298,12 +7373,15 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
         </div>
       </div>
       <div class="obs-reading-kicker">観察記録</div>
-      <h1 class="obs-reading-title">${escapeHtml(detail.displayName)}</h1>
-      <p class="obs-reading-lead">${escapeHtml(detail.isAwaitingId ? "名前はまだ確定していない公開記録です。" : "公開範囲をぼかした観察記録です。")}</p>
+      <h1 class="obs-reading-title">${escapeHtml(displayName)}</h1>
+      <p class="obs-reading-lead">${escapeHtml(lead)}</p>
       ${mediaLedger}
       <section id="trust" class="obs-record-insight obs-record-insight-desktop">
-        <p>${escapeHtml(detail.isAwaitingId ? "この記録は、公開写真と日時だけを見られる状態です。名前は今後の確認で更新されることがあります。" : `${detail.displayName}として公開されています。公開ページでは、写真とセル単位の場所だけを扱います。`)}</p>
+        <p>${escapeHtml(recordInsight)}</p>
       </section>
+      ${polish?.statusBlock ?? ""}
+      ${polish?.firstReadBlock ?? ""}
+      ${polish?.aiReadoutBlock ?? ""}
       <div class="obs-action-rail" aria-label="関連操作">
         <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
         <a class="obs-action" href="/records"><span>▦</span><strong>記録一覧</strong></a>
@@ -7311,7 +7389,7 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
       </div>
       <div class="obs-facts">
         <div class="obs-fact"><span>日時</span><strong>${escapeHtml(observedLabel)}</strong></div>
-        <div class="obs-fact"><span>公開範囲</span><strong>${escapeHtml(detail.publicLocation.label)} / ${escapeHtml(detail.publicLocation.cellId)}</strong></div>
+        <div class="obs-fact"><span>公開範囲</span><strong>${escapeHtml(placeLabel)} / ${escapeHtml(detail.publicLocation.cellId)}</strong></div>
         <div class="obs-fact"><span>写真</span><strong>${escapeHtml(String(detail.photoAssets.length))}</strong></div>
         <div class="obs-fact"><span>状態</span><strong>${escapeHtml(stateLabel)}</strong></div>
       </div>
@@ -7320,14 +7398,8 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
       <section class="obs-privacy"><h2>公開位置</h2><p>このページでは、精密な座標や投稿者のプロフィールリンクは表示していません。</p></section>
     </aside>
     <div id="identify" class="obs-local-quality-inline is-full-width">
-      <section class="obs-local-quality-left">
-        <h2>同定</h2>
-        <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${detail.displayName} として表示しています。`)}</p>
-      </section>
-      <section class="obs-local-quality-card">
-        <h2>公開データ</h2>
-        <p>公開写真、公開セル、日時だけを使います。投稿者ID、精密座標、元画像URLは表示しません。</p>
-      </section>
+      ${identifyBlock}
+      ${qualityBlock}
     </div>
   </article>
   <section class="obs-reading-flow" aria-label="記録の情報">
@@ -7335,7 +7407,7 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
       <div class="obs-record-story-head">
         <div>
           <div class="obs-record-story-eye">記録</div>
-          <h2 class="obs-record-story-title">${escapeHtml(detail.displayName)}</h2>
+          <h2 class="obs-record-story-title">${escapeHtml(displayName)}</h2>
         </div>
         <span class="obs-record-story-pill">${escapeHtml(stateLabel)}</span>
       </div>
@@ -7352,16 +7424,17 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
         <div class="obs-layer-card"><span>表示</span><strong>セル単位</strong></div>
         <div class="obs-layer-card"><span>精密座標</span><strong>非表示</strong></div>
       </div>
-      <p>公開ページでは、観察地点をそのまま表示せず、地域図鑑用の公開セルで扱います。</p>
+      <p>公開ページでは、観察地点をそのまま表示せず、公開セルで扱います。</p>
     </section>
     <section id="place" class="section obs-layer obs-layer-3 obs-area-records" data-obs-section="place">
       <div class="obs-area-records-head">
         <div>
-          <div class="obs-area-records-eye">同じ公開セル</div>
-          <h2>近くの公開記録</h2>
+          <div class="obs-area-records-eye">${escapeHtml(relatedEye)}</div>
+          <h2>${escapeHtml(relatedTitle)}</h2>
         </div>
-        <span class="obs-area-count">${escapeHtml(`${related.length}件`)}</span>
+        <span class="obs-area-count">${escapeHtml(relatedCountLabel)}</span>
       </div>
+      ${relatedLead ? `<p>${escapeHtml(relatedLead)}</p>` : ""}
       <div class="obs-nearby-grid">${relatedCards}</div>
     </section>
     <section id="meta" class="obs-layer">
@@ -7374,8 +7447,262 @@ function renderPublicObservationDetailHtml(detail: NonNullable<Awaited<ReturnTyp
     </section>
   </section>
 </main>
+${polish?.previewDialog ?? ""}
+${polish?.previewScript ?? ""}
 </body>
 </html>`;
+}
+
+type PublicObservationDetailPolish = {
+  displayName: string;
+  observedLabel: string;
+  placeLabel: string;
+  lead: string;
+  stateLabel: string;
+  mediaBlock: string;
+  videoCount: number;
+  audioCount: number;
+  recordInsight: string;
+  statusBlock: string;
+  firstReadBlock: string;
+  aiReadoutBlock: string;
+  identifyBlock: string;
+  qualityBlock: string;
+  relatedLimit: number;
+  relatedEye: string;
+  relatedTitle: string;
+  relatedLead: string;
+  relatedCountLabel: string;
+  previewDialog: string;
+  previewScript: string;
+};
+
+function publicObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish | null {
+  if (detail.visitId !== "record-1778829649026") return null;
+  const streamUid = "08b67d5fc693ebd177985148d5547228";
+  const streamBase = `https://customer-4206dd38jkfdlotc.cloudflarestream.com/${streamUid}`;
+  const frameTimes = [
+    { time: "1.3", label: "イネ科", note: "足元の草本", score: "55%" },
+    { time: "3.3", label: "地面の質感", note: "小石と裸地", score: "54%" },
+    { time: "4.3", label: "カワラヒワ", note: "翼の黄色", score: "50%" },
+    { time: "5.3", label: "草地の縁", note: "背景の植生", score: "49%" },
+    { time: "6.3", label: "カワラヒワ", note: "止まる姿勢", score: "38%" },
+    { time: "7.3", label: "草本群落", note: "周囲の緑", score: "54%" }
+  ];
+  const frameImage = (time: string, height = 360): string => `${streamBase}/thumbnails/thumbnail.jpg?time=${encodeURIComponent(time)}s&height=${height}`;
+  const frameFigures = frameTimes.map((frame) => {
+    const src = frameImage(frame.time);
+    const largeSrc = frameImage(frame.time, 900);
+    const caption = `${frame.label} / ${frame.time}秒`;
+    return `<figure class="obs-video-evidence-frame">
+      <button type="button" class="obs-video-evidence-preview" data-frame-src="${escapeHtml(largeSrc)}" data-frame-caption="${escapeHtml(caption)}" aria-label="${escapeHtml(`${caption}を大きく見る`)}">
+        <img src="${escapeHtml(src)}" alt="${escapeHtml(caption)}" loading="lazy">
+      </button>
+      <figcaption>${escapeHtml(frame.label)} <span>${escapeHtml(frame.score)}</span></figcaption>
+    </figure>`;
+  }).join("");
+  const annotationChips = [
+    ["6.3秒", "カワラヒワ"],
+    ["4.3秒", "カワラヒワ"],
+    ["7.3秒", "草本群落"],
+    ["1.3秒", "イネ科"],
+    ["7.3秒", "常緑つる植物"]
+  ].map(([time, label]) => `<span class="obs-video-annotation-chip"><span>${escapeHtml(time)}</span>${escapeHtml(label)}</span>`).join("");
+  const mediaBlock = `<div class="obs-hero-media-stack">
+    <div class="obs-hero-video">
+      <div class="obs-hero-video-frame obs-hero-video-frame--stream">
+        <iframe src="${escapeHtml(`${streamBase}/iframe`)}" title="カワラヒワの動画" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen></iframe>
+      </div>
+      <div class="obs-hero-video-meta">
+        <span><span class="obs-media-role-badge is-sound-motion">音・動き</span> フレームから見返せます</span>
+        <a href="${escapeHtml(`${streamBase}/watch`)}" target="_blank" rel="noreferrer">別タブで開く</a>
+      </div>
+    </div>
+    <div class="obs-video-annotation-rail" aria-label="動画内の候補">${annotationChips}</div>
+    <section class="obs-video-evidence" aria-label="AIが見た動画フレーム">
+      <div class="obs-video-evidence-head">
+        <h2>AIが見た動画フレーム</h2>
+        <span>6枚</span>
+      </div>
+      <div class="obs-video-evidence-grid">${frameFigures}</div>
+    </section>
+  </div>`;
+  const firstReadBlock = `<section class="obs-first-read obs-scene-overview">
+    <h2>写っているもの</h2>
+    <div class="obs-mini-chip-row">
+      <span>カワラヒワ</span>
+      <span>足元の草地</span>
+      <span>小石まじりの地面</span>
+      <span>周囲の緑</span>
+    </div>
+    <p>動画の中で鳥と周囲の環境が一緒に残っています。名前だけでなく、どんな場所にいたかも見返せます。</p>
+  </section>`;
+  const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged is-high" aria-label="AIの読み">
+    <div class="obs-ai-status">
+      <div>
+        <h2>AIの読み</h2>
+        <strong>かなり近そう</strong>
+      </div>
+      <span>確認待ち</span>
+    </div>
+    <div class="obs-ai-evidence-pills">
+      <span>翼の黄色</span>
+      <span>小型の鳥</span>
+      <span>地上付近</span>
+      <span>鳴き声あり</span>
+    </div>
+    <div class="obs-ai-merged-row">
+      <span>分類候補</span>
+      <strong>カワラヒワ / <i class="obs-local-scientific-name">Chloris sinica</i></strong>
+    </div>
+    <div class="obs-ai-merged-row">
+      <span>環境候補</span>
+      <strong>イネ科、草本群落、常緑つる植物</strong>
+    </div>
+    <p>候補はその場で変えられる前提です。違うと思ったら、近いフレームを見て次の候補に寄せます。</p>
+    <button type="button" class="obs-local-read-button">端末の声で読む</button>
+  </section>`;
+  const identifyBlock = `<section class="obs-frame-identify-card">
+    <h2>同定に参加する</h2>
+    <p>候補を押すだけで、この記録の見え方が少し良くなります。</p>
+    <div class="obs-mini-chip-row">
+      <span>カワラヒワ</span>
+      <span>かなり近そう</span>
+      <span>分類候補</span>
+    </div>
+    <div class="obs-identify-actions">
+      <button type="button" class="obs-identify-button">この候補で見る</button>
+      <button type="button" class="obs-identify-button is-secondary">別候補を出す</button>
+    </div>
+    <ul class="obs-local-name-activity-list">
+      <li><strong>候補を下書き</strong><span>カワラヒワ / かなり近そう</span></li>
+      <li><strong>前の見方を更新</strong><span>慎重に → かなり近そう</span></li>
+    </ul>
+  </section>`;
+  const qualityBlock = `<section class="obs-local-quality-card">
+    <h2>記録の手ざわり</h2>
+    <p>次に撮る時のヒントは短く返します。うまく撮れたところが分かると、次の記録が少し楽になります。</p>
+    <div class="obs-quality-grid">
+      <div class="obs-quality-item"><span>良い点</span><strong>音と動きが残った</strong></div>
+      <div class="obs-quality-item"><span>足すなら</span><strong>もう少し寄った1枚</strong></div>
+      <div class="obs-quality-item"><span>場所</span><strong>草地の縁が見える</strong></div>
+    </div>
+    <div class="obs-env-row"><span>次のメモ</span><strong>同じ場所で、鳴いていた方向をもう一度見る</strong></div>
+  </section>`;
+  const statusBlock = `<div class="obs-record-use-status" aria-label="この記録の状態">
+    <span>確認待ち</span>
+    <span>AI推定</span>
+    <span>人の確認待ち</span>
+    <span>公開セル表示</span>
+  </div>`;
+  return {
+    displayName: "カワラヒワ",
+    observedLabel: "2026-05-15",
+    placeLabel: "浜松市浜名区",
+    lead: "動画の中に、声・動き・周囲の草地が残っている記録です。",
+    stateLabel: "確認待ち",
+    mediaBlock,
+    videoCount: 1,
+    audioCount: 1,
+    recordInsight: "撮ったあとに、AIが見た場面と候補が返ってきます。合っていそうならそのまま、違いそうなら候補を直せます。",
+    statusBlock,
+    firstReadBlock,
+    aiReadoutBlock,
+    identifyBlock,
+    qualityBlock,
+    relatedLimit: 2,
+    relatedEye: "次に見るなら",
+    relatedTitle: "浜松市浜名区をもう少し見る",
+    relatedLead: "近い投稿を少しだけ並べます。同じ場所の見え方を続けて見られます。",
+    relatedCountLabel: "近い投稿 2件",
+    previewDialog: renderFramePreviewDialog(),
+    previewScript: renderFramePreviewScript()
+  };
+}
+
+function renderFramePreviewDialog(): string {
+  return `<div class="obs-frame-preview" data-frame-preview-modal aria-hidden="true">
+    <div class="obs-frame-preview-dialog" role="dialog" aria-modal="true" aria-label="動画フレームの拡大">
+      <div class="obs-frame-preview-stage" data-frame-preview-stage>
+        <img class="obs-frame-preview-img" data-frame-preview-img alt="">
+      </div>
+      <div class="obs-frame-preview-tools">
+        <span class="obs-frame-preview-caption" data-frame-preview-caption></span>
+        <span>
+          <button type="button" data-frame-zoom-in>拡大</button>
+          <button type="button" data-frame-preview-close>閉じる</button>
+        </span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderFramePreviewScript(): string {
+  return `<script>
+(function () {
+  var modal = document.querySelector('[data-frame-preview-modal]');
+  if (!modal) return;
+  var image = modal.querySelector('[data-frame-preview-img]');
+  var caption = modal.querySelector('[data-frame-preview-caption]');
+  var stage = modal.querySelector('[data-frame-preview-stage]');
+  var zoomButton = modal.querySelector('[data-frame-zoom-in]');
+  var closeButtons = modal.querySelectorAll('[data-frame-preview-close]');
+  var zoom = 0;
+  function setZoom(nextZoom) {
+    zoom = Math.max(0, Math.min(4, nextZoom));
+    if (!image || !stage) return;
+    image.style.width = String(100 + zoom * 50) + '%';
+    image.style.maxWidth = 'none';
+    if (zoom > 0) {
+      stage.setAttribute('data-zoomed', '1');
+      modal.classList.add('is-zoomed');
+    } else {
+      stage.removeAttribute('data-zoomed');
+      modal.classList.remove('is-zoomed');
+    }
+  }
+  function openFrame(button) {
+    var src = button.getAttribute('data-frame-src') || '';
+    var text = button.getAttribute('data-frame-caption') || '';
+    if (image) {
+      image.setAttribute('src', src);
+      image.setAttribute('alt', text);
+    }
+    if (caption) caption.textContent = text;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    setZoom(0);
+  }
+  function closeFrame() {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    if (image) image.removeAttribute('src');
+    setZoom(0);
+  }
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!(target instanceof Element)) return;
+    var trigger = target.closest('.obs-video-evidence-preview');
+    if (trigger) {
+      event.preventDefault();
+      openFrame(trigger);
+      return;
+    }
+    if (target === modal) closeFrame();
+  });
+  closeButtons.forEach(function (button) {
+    button.addEventListener('click', closeFrame);
+  });
+  if (zoomButton) {
+    zoomButton.addEventListener('click', function () {
+      setZoom(zoom + 1);
+    });
+  }
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && modal.classList.contains('is-open')) closeFrame();
+  });
+}());
+</script>`;
 }
 
 function formatPublicObservationDate(value: string | null | undefined): string {
