@@ -75,8 +75,8 @@ export async function listMapOwnObservations(
         ) as display_name,
         v.note,
         v.observed_at::text,
-        coalesce(v.point_latitude, p.center_latitude) as latitude,
-        coalesce(v.point_longitude, p.center_longitude) as longitude,
+        v.point_latitude as latitude,
+        v.point_longitude as longitude,
         photo.public_url as photo_url,
         video.thumb_url as video_thumb_url,
         coalesce(v.observed_municipality, p.municipality) as municipality,
@@ -115,8 +115,8 @@ export async function listMapOwnObservations(
         and v.source_kind = 'v2_observation'
         and coalesce(v.session_mode, '') = 'standard'
         and coalesce(v.visit_mode, 'manual') in ('manual', 'survey')
-        and coalesce(v.point_latitude, p.center_latitude) is not null
-        and coalesce(v.point_longitude, p.center_longitude) is not null
+        and v.point_latitude is not null
+        and v.point_longitude is not null
         and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|smoke|fixture|dummy|placeholder|sample[-_]?data|sample[-_]?record|sample[-_]?media|test[-_]?fixture)([-_]|$)'
         and coalesce(
           nullif(o.vernacular_name, ''),

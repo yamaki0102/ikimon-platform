@@ -23,6 +23,15 @@ test("owner map observations only use promoted observation visits for exact owne
   assert.match(source, /coalesce\(v\.visit_mode, 'manual'\) in \('manual', 'survey'\)/);
 });
 
+test("owner map observations never fall back to place centers for exact owner pins", () => {
+  assert.match(source, /v\.point_latitude as latitude/);
+  assert.match(source, /v\.point_longitude as longitude/);
+  assert.match(source, /and v\.point_latitude is not null/);
+  assert.match(source, /and v\.point_longitude is not null/);
+  assert.doesNotMatch(source, /coalesce\(v\.point_latitude, p\.center_latitude\) as latitude/);
+  assert.doesNotMatch(source, /coalesce\(v\.point_longitude, p\.center_longitude\) as longitude/);
+});
+
 test("owner map observations reject labels that would render as empty-looking history", () => {
   for (const label of ["", " ", "同定待ち", "名前を確認中", "写真", "記録", "scan", "dummy plant", "Regression Manual Finch"]) {
     assert.equal(isMeaningfulOwnObservationLabel(label), false, label);

@@ -194,6 +194,10 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
   return REGION_BBOXES.map((r) => ({ ...r, label: labels[r.key] ?? r.key }));
 }
 
+function renderMapLayerTab(tab: string, label: string, mobileLabel: string, active = false): string {
+  return `<button type="button" class="me-tab${active ? " is-active" : ""}" role="tab" aria-selected="${active ? "true" : "false"}" aria-label="${escapeHtml(label)}" data-tab="${escapeHtml(tab)}"><span class="me-tab-full">${escapeHtml(label)}</span><span class="me-tab-short" aria-hidden="true">${escapeHtml(mobileLabel)}</span></button>`;
+}
+
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
     activityRallyTitle: "このエリアの活動・ラリー",
@@ -1018,6 +1022,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
+  const mobileTabLabels = lang === "ja"
+    ? { markers: "発見", heatmap: "季節", places: "エリア", rain: "雨雲", frontier: "余白" }
+    : lang === "es"
+      ? { markers: "Hoy", heatmap: "Est.", places: "Área", rain: "Lluvia", frontier: "Huecos" }
+      : lang === "pt-BR"
+        ? { markers: "Hoje", heatmap: "Est.", places: "Área", rain: "Chuva", frontier: "Lacunas" }
+        : { markers: "Finds", heatmap: "Signs", places: "Areas", rain: "Rain", frontier: "Gaps" };
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
   const apiMyObservations = withBasePath(props.basePath, "/api/v1/map/my-observations");
@@ -1345,11 +1356,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <div id="me-search-results" class="me-search-results" role="listbox" aria-label="${escapeHtml(copy.searchAriaLabel)}"></div>
         </div>
         <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
-          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
-          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="heatmap">${escapeHtml(copy.tabHeatmap)}</button>
-          <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="places">${escapeHtml(copy.tabPlaces)}</button>
-          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="rain">${escapeHtml(copy.tabRain)}</button>
-          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="frontier">${escapeHtml(copy.tabCoverage)}</button>
+          ${renderMapLayerTab("markers", copy.tabMarkers, mobileTabLabels.markers)}
+          ${renderMapLayerTab("heatmap", copy.tabHeatmap, mobileTabLabels.heatmap)}
+          ${renderMapLayerTab("places", copy.tabPlaces, mobileTabLabels.places, true)}
+          ${renderMapLayerTab("rain", copy.tabRain, mobileTabLabels.rain)}
+          ${renderMapLayerTab("frontier", copy.tabCoverage, mobileTabLabels.frontier)}
         </div>
       </div>
       <div class="me-topbar-secondary">
@@ -1722,6 +1733,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
     ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
     ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
+    ownObservationExactBadge: props.lang === "ja" ? "自分にだけ正確な位置" : props.lang === "es" ? "Exacto solo para ti" : props.lang === "pt-BR" ? "Exato so para voce" : "Exact for you only",
     ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
     ownObservationTrailHeading: props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos",
     siteBriefHeading: copy.siteBriefHeading,
@@ -3585,7 +3597,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function ownObservationHref(record) {
-    return OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(String(record && record.occurrenceId || '')));
+    return NOTES_HREF;
   }
 
   function validOwnObservationRecords() {
@@ -3829,9 +3841,42 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function ownObservationMeta(record) {
     var parts = [];
-    if (record && record.localityLabel) parts.push(String(record.localityLabel));
+    parts.push(String(COPY.ownObservationExactBadge || COPY.ownObservationStackHint || ''));
     if (record && record.observedAt) parts.push(String(record.observedAt).slice(0, 10));
     return parts.join(' · ');
+  }
+
+  function renderOwnObservationDetailSheet(record) {
+    var label = recordDisplayName(record, COPY.discoveryFallback);
+    return '<article class="me-detail-panel me-bottom-detail me-own-observation-detail" data-own-observation-detail="1">' +
+      renderDetailHero({
+        title: label,
+        meta: ownObservationMeta(record),
+        badge: COPY.ownObservationTrailHeading,
+        photoUrl: record && record.photoUrl ? record.photoUrl : '',
+      }) +
+      '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationStackHint || '') + '</p>' +
+      renderDetailActions([
+        { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:own_observation:notes' },
+      ]) +
+    '</article>';
+  }
+
+  function openOwnObservationDetail(record) {
+    if (!record) return;
+    var lat = Number(record.latitude);
+    var lng = Number(record.longitude);
+    if (state.map && Number.isFinite(lat) && Number.isFinite(lng)) {
+      try {
+        state.map.flyTo({ center: [lng, lat], zoom: Math.max(Number(state.map.getZoom && state.map.getZoom() || 0), 16), duration: 620, essential: true });
+      } catch (_) {}
+    }
+    if (!sheetEl || !sheetInnerEl) return;
+    resetAreaGuideStopSession();
+    sheetInnerEl.innerHTML = renderOwnObservationDetailSheet(record);
+    showDetailBottomSheet();
+    setSheetSnap('full');
+    sendMapKpi('map_interaction', 'map:own_observation_exact_open', { occurrenceId: String(record && record.occurrenceId || '') || null });
   }
 
   function renderOwnObservationStackSheet(records) {
@@ -3847,14 +3892,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }) +
       '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationStackHint || '') + '</p>' +
       '<div class="me-own-stack-list">' + list.map(function (record) {
-        var href = ownObservationHref(record);
         var label = recordDisplayName(record, COPY.discoveryFallback);
         var metaText = ownObservationMeta(record);
-        return '<a class="me-own-stack-item" href="' + escapeHtml(href) + '" data-own-observation-choice="' + escapeHtml(String(record && record.occurrenceId || '')) + '">' +
+        return '<button type="button" class="me-own-stack-item" data-own-observation-choice="' + escapeHtml(String(record && record.occurrenceId || '')) + '">' +
           '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-stack-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' +
           '<span><strong>' + escapeHtml(label) + '</strong>' + (metaText ? '<small>' + escapeHtml(metaText) + '</small>' : '') + '</span>' +
           '<b>' + escapeHtml(COPY.ownObservationStackOpen || COPY.popupOpenLabel) + '</b>' +
-        '</a>';
+        '</button>';
       }).join('') + '</div>' +
     '</article>';
   }
@@ -3863,6 +3907,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!sheetEl || !sheetInnerEl) return;
     resetAreaGuideStopSession();
     sheetInnerEl.innerHTML = renderOwnObservationStackSheet(records);
+    sheetInnerEl.querySelectorAll('[data-own-observation-choice]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var id = String(button.getAttribute('data-own-observation-choice') || '');
+        var match = (Array.isArray(records) ? records : []).filter(function (item) {
+          return String(item && item.occurrenceId || '') === id;
+        })[0];
+        if (match) openOwnObservationDetail(match);
+      });
+    });
     showDetailBottomSheet();
     setSheetSnap('full');
   }
@@ -3965,6 +4020,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           event.preventDefault();
           event.stopPropagation();
           openOwnObservationStackSheet(group.records);
+        });
+      } else {
+        el.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          openOwnObservationDetail(record);
         });
       }
       var marker = null;
@@ -9519,6 +9580,7 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-tabs { display: inline-flex; gap: 2px; padding: 2px; border-radius: 11px; background: rgba(15,23,42,.04); }
   .me-tab { min-height: 34px; padding: 3px 12px; border-radius: 9px; border: 0; background: transparent; font-weight: 800; font-size: 12px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
+  .me-tab-short { display: none; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
   .me-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .me-filter-group-quick { display: none; }
@@ -10339,6 +10401,7 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-own-stack-item {
     min-height: 72px;
+    width: 100%;
     display: grid;
     grid-template-columns: 58px minmax(0, 1fr) auto;
     align-items: center;
@@ -10349,6 +10412,9 @@ export const MAP_EXPLORER_STYLES = `
     border: 1px solid rgba(15,23,42,.08);
     color: #0f172a;
     text-decoration: none;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
     box-shadow: 0 8px 18px rgba(15,23,42,.06);
   }
   .me-own-stack-item:hover {
@@ -12421,11 +12487,12 @@ export const MAP_EXPLORER_STYLES = `
     .me-tabs {
       grid-column: 1 / -1;
       grid-row: 2;
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       width: 100%;
-      overflow-x: auto;
+      min-width: 0;
+      overflow: hidden;
       scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
     }
     .me-rain-mode .me-tabs {
       grid-column: 1;
@@ -12438,7 +12505,17 @@ export const MAP_EXPLORER_STYLES = `
       box-shadow: 0 8px 22px rgba(15,23,42,.08);
     }
     .me-tabs::-webkit-scrollbar { display: none; }
-    .me-tab { flex: 1 0 auto; min-height: 34px; padding: 4px 12px; font-size: 12px; }
+    .me-tab {
+      min-width: 0;
+      min-height: 34px;
+      padding: 4px 5px;
+      font-size: 11px;
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .me-tab-full { display: none; }
+    .me-tab-short { display: inline; }
     .me-rain-mode .me-tab {
       flex: 0 0 auto;
       min-height: 29px;
