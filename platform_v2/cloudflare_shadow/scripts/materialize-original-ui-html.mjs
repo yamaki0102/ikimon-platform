@@ -62,6 +62,7 @@ const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const workerSourcePath = join(scriptDir, "..", "src", "index.ts");
 const events = [];
+const r2PutMaxAttempts = 4;
 
 process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html");
 
@@ -282,6 +283,28 @@ function clampInteger(value, min, max) {
   return Math.max(min, Math.min(max, Math.trunc(value)));
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function runR2PutWithRetry(commandArgs, label) {
+  let lastError;
+  for (let attempt = 1; attempt <= r2PutMaxAttempts; attempt += 1) {
+    try {
+      return await run("npx", commandArgs);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= r2PutMaxAttempts) break;
+      const delayMs = attempt * 1500;
+      console.warn(`R2 put failed for ${label}; retrying ${attempt + 1}/${r2PutMaxAttempts} in ${delayMs}ms.`);
+      await sleep(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 async function runPool(items, limit, worker) {
   const queue = [...items];
   const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
@@ -373,7 +396,7 @@ try {
   if (execute) {
     const uploadStartedAt = Date.now();
     await runPool(rendered, concurrency, async (item) => {
-      await run("npx", [
+      await runR2PutWithRetry([
         "wrangler",
         "r2",
         "object",
@@ -387,7 +410,7 @@ try {
         "--cache-control",
         "no-store",
         "--force"
-      ]);
+      ], item.key);
     });
     events.push({
       command: `parallel r2 put ${rendered.length} objects concurrency=${concurrency}`,
@@ -395,7 +418,7 @@ try {
       durationMs: Date.now() - uploadStartedAt
     });
     for (const item of renderedStatic) {
-      await run("npx", [
+      await runR2PutWithRetry([
         "wrangler",
         "r2",
         "object",
@@ -409,7 +432,7 @@ try {
         "--cache-control",
         "no-store",
         "--force"
-      ]);
+      ], item.key);
     }
   }
 } finally {
