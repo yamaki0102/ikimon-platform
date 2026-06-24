@@ -1103,6 +1103,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       : lang === "pt-BR"
         ? "Usa sua localização só ao tocar."
         : "Uses location only when tapped.";
+  const startPanelBrief = lang === "ja"
+    ? "写真・ガイド・散策"
+    : lang === "es"
+      ? "Fotos · guías · paseos"
+      : lang === "pt-BR"
+        ? "Fotos · guias · passeios"
+        : "Photos · guides · walks";
   const startCards = [
     {
       icon: "📷",
@@ -1132,7 +1139,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}">
       <div class="me-start-panel-head">
         <strong>${escapeHtml(startPanelTitle)}</strong>
-        <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">＋</button>
+        <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">
+          <span class="me-start-panel-brief">${escapeHtml(startPanelBrief)}</span>
+          <span class="me-start-panel-symbol" aria-hidden="true">＋</span>
+        </button>
       </div>
       <div class="me-start-panel-grid">
         <button type="button" class="me-start-panel-location" id="me-start-panel-location" aria-label="${escapeHtml(startPanelLocationNote)}"><span aria-hidden="true">📍</span><strong>${escapeHtml(startPanelLocationLabel)}</strong></button>
@@ -2447,7 +2457,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     startPanelEl.setAttribute('aria-hidden', 'false');
     if (startPanelCloseEl) {
       startPanelCloseEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      startPanelCloseEl.textContent = collapsed ? '＋' : '×';
+      var startPanelSymbolEl = startPanelCloseEl.querySelector('.me-start-panel-symbol');
+      if (startPanelSymbolEl) {
+        startPanelSymbolEl.textContent = collapsed ? '＋' : '×';
+      } else {
+        startPanelCloseEl.textContent = collapsed ? '＋' : '×';
+      }
     }
   }
 
@@ -9785,10 +9800,12 @@ export const MAP_EXPLORER_STYLES = `
     white-space: nowrap;
   }
   .me-start-panel-close {
-    width: 24px;
-    height: 24px;
-    display: grid;
-    place-items: center;
+    min-width: 24px;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: 0;
     border-radius: 999px;
     background: rgba(15,23,42,.06);
@@ -9798,15 +9815,33 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 900;
     cursor: pointer;
   }
+  .me-start-panel-brief {
+    display: none;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    color: inherit;
+    white-space: nowrap;
+  }
+  .me-start-panel-symbol {
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+  }
   .me-start-panel.is-collapsed .me-start-panel-head {
     position: static;
   }
   .me-start-panel.is-collapsed .me-start-panel-close {
-    width: 42px;
+    width: auto;
+    min-width: 42px;
     height: 42px;
+    padding: 0 12px;
     background: #0f766e;
     color: #fff;
     box-shadow: 0 10px 24px rgba(15,118,110,.18);
+  }
+  .me-start-panel.is-collapsed .me-start-panel-brief {
+    display: inline;
   }
   .me-start-panel.is-collapsed .me-start-panel-grid {
     display: none;
@@ -12550,6 +12585,15 @@ export const MAP_EXPLORER_STYLES = `
     }
     .me-start-panel.is-collapsed {
       padding: 0;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-close {
+      max-width: min(184px, calc(100vw - 114px));
+      padding: 0 10px;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-brief {
+      max-width: 132px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .me-start-panel-grid {
       grid-template-columns: repeat(5, minmax(0, 1fr));

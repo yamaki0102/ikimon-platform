@@ -171,7 +171,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /地域図鑑マップ/);
   assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel"/);
   assert.match(html, /地図メニュー/);
-  assert.match(html, /aria-expanded="false">＋<\/button>/);
+  assert.match(html, /class="me-start-panel-brief">写真・ガイド・散策<\/span>/);
+  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">＋<\/span>/);
   assert.match(html, /近く/);
   assert.match(html, /押したときだけ現在地を使います。/);
   assert.match(html, /写真/);
@@ -225,7 +226,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /function dismissStartPanel\(\)/);
   assert.match(script, /function setStartPanelCollapsed\(collapsed\)/);
   assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
-  assert.match(script, /startPanelCloseEl\.textContent = collapsed \? '＋' : '×';/);
+  assert.match(script, /startPanelCloseEl\.querySelector\('\.me-start-panel-symbol'\)/);
+  assert.match(script, /startPanelSymbolEl\.textContent = collapsed \? '＋' : '×';/);
   assert.match(script, /function canShowPurposeHint\(\)/);
   assert.match(script, /function canShowPurposeHint\(\) \{\s*return false;\s*\}/);
   assert.match(script, /function refreshPurposeHint\(\) \{\s*setPurposeHintVisible\(false\);\s*\}/);
@@ -233,6 +235,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-brief\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-brief \{[\s\S]*display: inline;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
