@@ -7159,6 +7159,23 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
   const relatedTitle = polish?.relatedTitle ?? "近くの公開記録";
   const relatedLead = polish?.relatedLead ?? "";
   const relatedCountLabel = polish?.relatedCountLabel ?? `${relatedForDisplay.length}件`;
+  const genericInfoSections = polish ? "" : `<section id="privacy" class="obs-layer">
+      <h2>公開範囲</h2>
+      <div class="obs-layer-grid">
+        <div class="obs-layer-card"><span>位置</span><strong>${escapeHtml(detail.publicLocation.cellId)}</strong></div>
+        <div class="obs-layer-card"><span>表示</span><strong>セル単位</strong></div>
+        <div class="obs-layer-card"><span>精密座標</span><strong>非表示</strong></div>
+      </div>
+      <p>公開ページでは、観察地点をそのまま表示せず、公開セルで扱います。</p>
+    </section>`;
+  const genericMetaSection = polish ? "" : `<section id="meta" class="obs-layer">
+      <h2>記録情報</h2>
+      <div class="obs-layer-grid">
+        <div class="obs-layer-card"><span>記録ID</span><strong>${escapeHtml(detail.visitId)}</strong></div>
+        <div class="obs-layer-card"><span>メディア</span><strong>${escapeHtml(`${assetCount}件`)}</strong></div>
+        <div class="obs-layer-card"><span>公開状態</span><strong>公開中</strong></div>
+      </div>
+    </section>`;
   return `<!doctype html>
 <html lang="ja">
 <head>
@@ -7252,6 +7269,15 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-first-read p, .obs-ai-readout p, .obs-frame-identify-card p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
     .obs-mini-chip-row, .obs-record-use-status, .obs-ai-evidence-pills, .obs-identify-actions { display: flex; flex-wrap: wrap; gap: 6px; }
     .obs-mini-chip-row span, .obs-record-use-status span, .obs-ai-evidence-pills span { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 8px; border-radius: 999px; background: #ecfdf5; color: #0f766e; border: 1px solid rgba(15,118,110,.15); font-size: 11px; line-height: 1.2; font-weight: 950; }
+    .obs-observation-set { display: grid; gap: 9px; }
+    .obs-observation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .obs-observation-card { display: grid; gap: 4px; min-width: 0; padding: 9px 10px; border-radius: 13px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+    .obs-observation-card span { color: #0f766e; font-size: 10.5px; line-height: 1.25; font-weight: 950; }
+    .obs-observation-card strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+    .obs-observation-card small { color: #64748b; font-size: 11px; line-height: 1.35; font-weight: 760; }
+    .obs-env-strip { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px 10px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); border: 1px solid rgba(15,118,110,.14); }
+    .obs-env-strip strong { color: #0f766e; font-size: 11px; line-height: 1.3; font-weight: 950; }
+    .obs-env-strip span { color: #334155; font-size: 12px; line-height: 1.45; font-weight: 850; }
     .obs-ai-status { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .obs-ai-status strong { color: #0f172a; font-size: 18px; line-height: 1.25; font-weight: 950; }
     .obs-ai-status span { flex: 0 0 auto; color: #0f766e; background: #ecfdf5; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 950; }
@@ -7314,15 +7340,25 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       .obs-reading-hero { grid-template-columns: 1fr; gap: 12px; }
       .obs-reading-panel { display: contents; }
       .obs-record-brief-compact { order: 1; display: grid; gap: 7px; padding: 9px 10px; }
-      .obs-reading-panel > .obs-media-ledger { order: 2; }
-      .obs-reading-media { order: 3; }
-      .obs-record-insight-desktop { order: 5; display: grid; }
-      .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 7; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+      .obs-reading-kicker { order: 2; }
+      .obs-reading-title { order: 3; }
+      .obs-reading-lead { order: 4; }
+      .obs-reading-media { order: 5; }
+      .obs-reading-panel > .obs-media-ledger { order: 6; }
+      .obs-record-insight-desktop { order: 7; display: grid; }
+      .obs-record-use-status { order: 8; }
+      .obs-first-read { order: 9; }
+      .obs-ai-readout { order: 10; }
+      .obs-action-rail { order: 11; }
+      .obs-facts { order: 12; }
+      .obs-privacy { order: 13; }
+      .obs-note, .obs-media-links { order: 14; }
+      .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 15; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
       .obs-reading-title { font-size: 25px; }
       .obs-video-evidence-grid { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 2px; }
       .obs-video-evidence-frame { flex: 0 0 150px; }
       .obs-ai-status { display: grid; }
-      .obs-ai-merged-row, .obs-quality-grid { grid-template-columns: 1fr; }
+      .obs-ai-merged-row, .obs-quality-grid, .obs-observation-grid, .obs-env-strip { grid-template-columns: 1fr; }
       .obs-photo--main img { aspect-ratio: 4 / 3; }
       .obs-photo:not(.obs-photo--main) { grid-column: span 3; }
       .obs-facts, .obs-action-rail, .obs-layer-grid { grid-template-columns: 1fr; }
@@ -7417,15 +7453,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
         <div class="obs-record-story-card"><strong>場所</strong><p>${escapeHtml(detail.publicLocation.cellId)}</p></div>
       </div>
     </section>
-    <section id="privacy" class="obs-layer">
-      <h2>公開範囲</h2>
-      <div class="obs-layer-grid">
-        <div class="obs-layer-card"><span>位置</span><strong>${escapeHtml(detail.publicLocation.cellId)}</strong></div>
-        <div class="obs-layer-card"><span>表示</span><strong>セル単位</strong></div>
-        <div class="obs-layer-card"><span>精密座標</span><strong>非表示</strong></div>
-      </div>
-      <p>公開ページでは、観察地点をそのまま表示せず、公開セルで扱います。</p>
-    </section>
+    ${genericInfoSections}
     <section id="place" class="section obs-layer obs-layer-3 obs-area-records" data-obs-section="place">
       <div class="obs-area-records-head">
         <div>
@@ -7437,14 +7465,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       ${relatedLead ? `<p>${escapeHtml(relatedLead)}</p>` : ""}
       <div class="obs-nearby-grid">${relatedCards}</div>
     </section>
-    <section id="meta" class="obs-layer">
-      <h2>記録情報</h2>
-      <div class="obs-layer-grid">
-        <div class="obs-layer-card"><span>記録ID</span><strong>${escapeHtml(detail.visitId)}</strong></div>
-        <div class="obs-layer-card"><span>メディア</span><strong>${escapeHtml(`${assetCount}件`)}</strong></div>
-        <div class="obs-layer-card"><span>公開状態</span><strong>公開中</strong></div>
-      </div>
-    </section>
+    ${genericMetaSection}
   </section>
 </main>
 ${polish?.previewDialog ?? ""}
@@ -7527,15 +7548,18 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
       <div class="obs-video-evidence-grid">${frameFigures}</div>
     </section>
   </div>`;
-  const firstReadBlock = `<section class="obs-first-read obs-scene-overview">
-    <h2>写っているもの</h2>
-    <div class="obs-mini-chip-row">
-      <span>カワラヒワ</span>
-      <span>足元の草地</span>
-      <span>小石まじりの地面</span>
-      <span>周囲の緑</span>
+  const firstReadBlock = `<section class="obs-first-read obs-scene-overview" aria-label="同じ撮影記録の複数観察">
+    <h2>同じ記録内</h2>
+    <div class="obs-observation-set">
+      <div class="obs-observation-grid">
+        <div class="obs-observation-card"><span>鳥</span><strong>カワラヒワ</strong><small>声と動き</small></div>
+        <div class="obs-observation-card"><span>植物</span><strong>イネ科</strong><small>足元の穂</small></div>
+        <div class="obs-observation-card"><span>植生</span><strong>草本群落</strong><small>草地の縁</small></div>
+        <div class="obs-observation-card"><span>植物</span><strong>常緑つる植物</strong><small>背景の緑</small></div>
+      </div>
+      <div class="obs-env-strip"><strong>環境</strong><span>草地の縁 / 小石まじり / 開けた地面 / 音あり</span></div>
     </div>
-    <p>動画の中で鳥と周囲の環境が一緒に残っています。名前だけでなく、どんな場所にいたかも見返せます。</p>
+    <p>1つの撮影から、対象と周りの環境を分けて見返せます。</p>
   </section>`;
   const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged is-high" aria-label="AIの読み">
     <div class="obs-ai-status">
@@ -7556,8 +7580,12 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
       <strong>カワラヒワ / <i class="obs-local-scientific-name">Chloris sinica</i></strong>
     </div>
     <div class="obs-ai-merged-row">
-      <span>環境候補</span>
-      <strong>イネ科、草本群落、常緑つる植物</strong>
+      <span>同じ記録</span>
+      <strong>イネ科 / 草本群落 / 常緑つる植物</strong>
+    </div>
+    <div class="obs-ai-merged-row">
+      <span>環境</span>
+      <strong>草地の縁、小石まじり、開けた地面、音あり</strong>
     </div>
     <p>候補はその場で変えられる前提です。違うと思ったら、近いフレームを見て次の候補に寄せます。</p>
     <button type="button" class="obs-local-read-button">端末の声で読む</button>
@@ -7585,7 +7613,7 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
     <div class="obs-quality-grid">
       <div class="obs-quality-item"><span>良い点</span><strong>音と動きが残った</strong></div>
       <div class="obs-quality-item"><span>足すなら</span><strong>もう少し寄った1枚</strong></div>
-      <div class="obs-quality-item"><span>場所</span><strong>草地の縁が見える</strong></div>
+      <div class="obs-quality-item"><span>環境</span><strong>草地の縁が見える</strong></div>
     </div>
     <div class="obs-env-row"><span>次のメモ</span><strong>同じ場所で、鳴いていた方向をもう一度見る</strong></div>
   </section>`;

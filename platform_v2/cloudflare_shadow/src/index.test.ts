@@ -4901,6 +4901,16 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.match(body, /AIが見た動画フレーム/);
   assert.match(body, /obs-ai-readout/);
   assert.match(body, /obs-frame-identify-card/);
+  assert.match(body, /同じ記録内/);
+  assert.match(body, /同じ撮影記録の複数観察/);
+  assert.match(body, /イネ科/);
+  assert.match(body, /草本群落/);
+  assert.match(body, /常緑つる植物/);
+  assert.match(body, /環境/);
+  assert.match(body, /草地の縁/);
+  assert.match(body, /小石まじり/);
+  assert.match(body, /開けた地面/);
+  assert.match(body, /音あり/);
   assert.match(body, /記録の手ざわり/);
   assert.match(body, /次に見るなら/);
   assert.match(body, /浜松市浜名区をもう少し見る/);
