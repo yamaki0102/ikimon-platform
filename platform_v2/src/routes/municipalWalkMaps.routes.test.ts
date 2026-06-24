@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { buildApp } from "../app.js";
-import { buildMunicipalWalkMapConfigFromSourceCatalogV0 } from "../services/municipalWalkMap.js";
+import {
+  buildMunicipalWalkMapConfigFromSourceCatalogV0,
+  getStaticMunicipalWalkMapConfigV0,
+} from "../services/municipalWalkMap.js";
 
 async function withEnv(
   overrides: Record<string, string | undefined>,
@@ -326,6 +329,10 @@ test("municipal walk map admin page renders source catalog and source-reference 
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /参考元カタログ/);
+        assert.match(response.body, /data-walk-map-publication-gate/);
+        assert.match(response.body, /自治体・登録団体・登録会社の確認済み登録だけが公開できます/);
+        assert.match(response.body, /商業主目的は公開不可/);
+        assert.match(response.body, /公開承認者と日付が入るまで公開モードでは保存できません/);
         assert.match(response.body, /data-walk-map-source-catalog/);
         assert.match(response.body, /data-add-source-reference/);
         assert.match(response.body, /\/admin\/municipal-walk-maps\?sourceId=funabashi-nature-walk-maps/);
@@ -484,6 +491,56 @@ test("municipal walk map admin API rejects malformed config before touching DB",
         assert.equal(response.statusCode, 400);
         assert.match(response.json().error, /invalid_walk_map/);
         assert.match(response.json().error, /invalid_theme/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("municipal walk map admin API rejects public save from unverified creator before touching DB", async () => {
+  await withEnv(
+    {
+      DATABASE_URL: undefined,
+      V2_PRIVILEGED_WRITE_API_KEY: "test-write-key",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const config = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+        const response = await app.inject({
+          method: "POST",
+          url: "/api/v1/admin/municipal-walk-maps",
+          headers: {
+            "content-type": "application/json",
+            "x-ikimon-write-key": "test-write-key",
+          },
+          payload: {
+            config: {
+              ...config,
+              publishMode: "public",
+              creatorProfile: {
+                creatorId: "group:unverified-walk-team",
+                registrationKind: "registered_group",
+                verificationStatus: "pending",
+                commercialIntent: "none",
+              },
+              publicationReview: {
+                publicAccessAttested: true,
+                sourceRightsAttested: true,
+                permissionAttestedBy: "test",
+                permissionAttestedAt: "2026-06-24",
+                publishApprovedByUserId: "admin-user",
+                publishApprovedAt: "2026-06-24",
+                emergencyHidden: false,
+                takedownReason: null,
+              },
+            },
+          },
+        });
+
+        assert.equal(response.statusCode, 400);
+        assert.match(response.json().error, /public_publish_requires_verified_creator/);
       } finally {
         await app.close();
       }

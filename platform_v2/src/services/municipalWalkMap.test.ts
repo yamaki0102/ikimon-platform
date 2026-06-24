@@ -282,6 +282,79 @@ test("municipal walk map public modes require linked public fields for record CT
   assert.equal(publicMap.stops[0]?.recordHref, null);
 });
 
+test("municipal walk map public modes require verified non-primary organization creators and approval", () => {
+  const base = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+  const unverified = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "public",
+    creatorProfile: {
+      creatorId: "group:pending-walk-team",
+      registrationKind: "registered_group",
+      verificationStatus: "pending",
+      commercialIntent: "none",
+    },
+    publicationReview: {
+      publicAccessAttested: true,
+      sourceRightsAttested: true,
+      permissionAttestedBy: "test",
+      permissionAttestedAt: "2026-06-24",
+      publishApprovedByUserId: "admin-user",
+      publishApprovedAt: "2026-06-24",
+      emergencyHidden: false,
+      takedownReason: null,
+    },
+  });
+  const commercialPrimary = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "public_preview",
+    creatorProfile: {
+      creatorId: "company:tour-sales",
+      registrationKind: "registered_company",
+      verificationStatus: "verified",
+      commercialIntent: "primary",
+    },
+  });
+  const missingApproval = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "public",
+    publicationReview: {
+      publicAccessAttested: true,
+      sourceRightsAttested: true,
+      permissionAttestedBy: "test",
+      permissionAttestedAt: "2026-06-24",
+      publishApprovedByUserId: null,
+      publishApprovedAt: null,
+      emergencyHidden: false,
+      takedownReason: null,
+    },
+  });
+
+  assert.match(unverified.errors.join("\n"), /public_publish_requires_verified_creator/);
+  assert.match(commercialPrimary.errors.join("\n"), /commercial_primary_not_publishable/);
+  assert.match(missingApproval.errors.join("\n"), /publish_approval_required/);
+});
+
+test("municipal walk map suggested order is limited to verified organization creators", () => {
+  const base = getStaticMunicipalWalkMapConfigV0("jp-shizuoka-asahata-waterfront-sample-v0");
+  const validation = validateMunicipalWalkMapConfigV0({
+    ...base,
+    publishMode: "draft",
+    creatorProfile: {
+      creatorId: null,
+      registrationKind: "individual",
+      verificationStatus: "self_declared",
+      commercialIntent: "none",
+    },
+    routeFlexibility: {
+      ...base.routeFlexibility,
+      routeStyle: "suggested_order",
+    },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /suggested_order_requires_verified_org/);
+});
+
 test("municipal walk map sensitive public-edge context blocks public publication and record CTA", () => {
   const base = getStaticMunicipalWalkMapConfigV0();
   const config: MunicipalWalkMapConfigV0 = {

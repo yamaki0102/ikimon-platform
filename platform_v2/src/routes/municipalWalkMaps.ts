@@ -570,6 +570,15 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-source-actions .wm-admin-source-draft{display:inline-flex;align-items:center;justify-content:center;min-height:32px;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px}
 .wm-admin-source-meta{display:flex;gap:6px;flex-wrap:wrap}
 .wm-admin-source-meta span{display:inline-flex;align-items:center;border:1px solid rgba(15,118,110,.16);border-radius:999px;background:rgba(240,253,250,.9);padding:3px 8px;color:#0f766e;font-weight:900;font-size:11px}
+.wm-admin-gate{border:1px solid #dbe7e2;background:#fbfefc;border-radius:8px;padding:14px;display:grid;gap:12px;margin-bottom:14px}
+.wm-admin-gate h2{margin:0;color:#111827;font-size:17px;line-height:1.35}
+.wm-admin-gate p{margin:0;color:#475569;font-size:13px;line-height:1.7}
+.wm-admin-gate-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.wm-admin-gate-item{border:1px solid #fed7aa;border-radius:8px;background:#fff7ed;padding:10px;display:grid;gap:5px}
+.wm-admin-gate-item.is-ready{border-color:#bbf7d0;background:#f0fdf4}
+.wm-admin-gate-item strong{font-size:12px;color:#0f172a;line-height:1.35}
+.wm-admin-gate-item span{font-size:12px;color:#475569;line-height:1.55}
+.wm-admin-gate-errors{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:11px!important;color:#9a3412!important;overflow-wrap:anywhere}
 .wm-admin-form{border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:16px;display:grid;gap:14px}
 .wm-admin-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .wm-admin-wide{grid-column:1/-1}
@@ -725,6 +734,78 @@ function renderCreatorPickerOptions(creators: MunicipalWalkMapCreatorRegistryEnt
   ].join("");
 }
 
+function isVerifiedRouteCreatorProfile(config: MunicipalWalkMapConfigV0): boolean {
+  const profile = config.creatorProfile;
+  return Boolean(profile.creatorId)
+    && profile.verificationStatus === "verified"
+    && (profile.registrationKind === "municipality"
+      || profile.registrationKind === "registered_group"
+      || profile.registrationKind === "registered_company")
+    && profile.commercialIntent !== "primary";
+}
+
+function renderAdminPublicationGate(config: MunicipalWalkMapConfigV0): string {
+  const validation = validateMunicipalWalkMapConfigV0(config);
+  const review = config.publicationReview ?? {
+    publicAccessAttested: false,
+    sourceRightsAttested: false,
+    permissionAttestedBy: null,
+    permissionAttestedAt: null,
+    publishApprovedByUserId: null,
+    publishApprovedAt: null,
+    emergencyHidden: false,
+    takedownReason: null,
+  };
+  const verifiedCreator = isVerifiedRouteCreatorProfile(config);
+  const sourceReady = config.sourceReferences.length > 0 && review.sourceRightsAttested;
+  const accessReady = review.publicAccessAttested && !validation.blockedStopIds.length && !review.emergencyHidden;
+  const approvalReady = Boolean(review.publishApprovedByUserId && review.publishApprovedAt);
+  const items = [
+    {
+      ready: verifiedCreator,
+      label: "作成者",
+      text: "自治体・登録団体・登録会社の確認済み登録だけが公開できます。商業主目的は公開不可です。",
+    },
+    {
+      ready: config.routeFlexibility.routeStyle !== "suggested_order" || verifiedCreator,
+      label: "おすすめ表示",
+      text: "確認済み登録者だけが使えます。外れて歩く使い方は止めません。",
+    },
+    {
+      ready: sourceReady,
+      label: "引用元",
+      text: "公式ページURLを残し、PDF本文・図版・写真は転載しません。",
+    },
+    {
+      ready: accessReady,
+      label: "公開範囲",
+      text: "学校、私有地、未確認、希少種文脈は公開前に止まります。",
+    },
+    {
+      ready: approvalReady,
+      label: "公開前レビュー",
+      text: "公開承認者と日付が入るまで公開モードでは保存できません。",
+    },
+  ];
+  const status = validation.ok ? "保存可能" : "確認が必要";
+  return `
+  <section class="wm-admin-gate" data-walk-map-publication-gate data-gate-status="${escapeHtml(validation.ok ? "ready" : "needs_review")}">
+    <div>
+      <h2>公開チェック</h2>
+      <p>${escapeHtml(status)}。DB保存時も同じ条件で判定します。</p>
+    </div>
+    <div class="wm-admin-gate-grid">
+      ${items.map((item) => `
+        <div class="wm-admin-gate-item${item.ready ? " is-ready" : ""}">
+          <strong>${escapeHtml(item.label)}</strong>
+          <span>${escapeHtml(item.text)}</span>
+        </div>
+      `).join("")}
+    </div>
+    ${validation.errors.length ? `<p class="wm-admin-gate-errors">${escapeHtml(validation.errors.slice(0, 8).join(" / "))}</p>` : ""}
+  </section>`;
+}
+
 function renderWalkMapAdminBody(
   config: MunicipalWalkMapConfigV0,
   source: "db" | "static" | "new" | "template" | "source_catalog",
@@ -767,6 +848,7 @@ function renderWalkMapAdminBody(
   ${renderTemplatePicker(templates, selectedTemplateId)}
   ${renderSourceCatalogPanel(sourceCatalog, selectedTemplateId, selectedSourceId)}
   ${creatorLoadWarning}
+  ${renderAdminPublicationGate(config)}
   <form class="wm-admin-form" data-walk-map-form data-source="${escapeHtml(source)}">
     <div class="wm-admin-fields">
       <label>walk map id<input name="walkMapId" value="${escapeHtml(config.walkMapId)}" placeholder="jp-shizuoka-park-walk-202606" required></label>
