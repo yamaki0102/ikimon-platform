@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { buildApp } from "../app.js";
+import { buildMunicipalWalkMapConfigFromSourceCatalogV0 } from "../services/municipalWalkMap.js";
 
 async function withEnv(
   overrides: Record<string, string | undefined>,
@@ -43,6 +44,7 @@ test("municipal walk map routes are registered with API and preview paths", asyn
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-templates/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-map-source-catalog/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps/);
+  assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps\/preview/);
   assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps\/:walkMapId/);
   assert.match(routeSource, /\/api\/v1\/municipal-walk-maps"/);
   assert.match(routeSource, /\/walk-maps\/:walkMapId/);
@@ -112,6 +114,17 @@ test("municipal walk map authoring UI posts typed config to admin API", async ()
   assert.match(routeSource, /作成者一覧を読み込めませんでした/);
   assert.match(routeSource, /data-walk-map-creator-form/);
   assert.match(routeSource, /wmCreatorPayload/);
+  assert.match(routeSource, /data-walk-map-draft-json/);
+  assert.match(routeSource, /data-walk-map-refresh-draft-json/);
+  assert.match(routeSource, /data-walk-map-copy-draft-json/);
+  assert.match(routeSource, /data-walk-map-preview-draft/);
+  assert.match(routeSource, /function wmDraftJsonText\(form\)/);
+  assert.match(routeSource, /JSON\.stringify\(wmPayload\(form\), null, 2\)/);
+  assert.match(routeSource, /navigator\.clipboard\.writeText/);
+  assert.match(routeSource, /\/api\/v1\/admin\/municipal-walk-maps\/preview/);
+  assert.match(routeSource, /URL\.createObjectURL/);
+  assert.match(routeSource, /window\.open\(blobUrl/);
+  assert.match(routeSource, /公式PDFの本文や図版は入れず/);
   assert.match(routeSource, /fetch\(endpoint/);
   assert.match(routeSource, /credentials: "same-origin"/);
   assert.match(routeSource, /学校、私有地、未確認の場所は公開前に止まります/);
@@ -294,6 +307,12 @@ test("municipal walk map admin page can prefill a draft from a source catalog en
         assert.match(response.body, /wm-admin-source-card is-selected/);
         assert.match(response.body, /name="publishMode"/);
         assert.match(response.body, /value="draft" selected/);
+        assert.match(response.body, /下書きJSON/);
+        assert.match(response.body, /data-walk-map-draft-json/);
+        assert.match(response.body, /JSONを作る/);
+        assert.match(response.body, /保存せずプレビュー/);
+        assert.match(response.body, /コピー/);
+        assert.match(response.body, /DBに保存する前に/);
       } finally {
         await app.close();
       }
@@ -355,6 +374,42 @@ test("municipal walk map admin API rejects malformed config before touching DB",
         assert.equal(response.statusCode, 400);
         assert.match(response.json().error, /invalid_walk_map/);
         assert.match(response.json().error, /invalid_theme/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("municipal walk map admin preview API renders public HTML without touching DB", async () => {
+  await withEnv(
+    {
+      DATABASE_URL: undefined,
+      V2_PRIVILEGED_WRITE_API_KEY: "test-write-key",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const config = buildMunicipalWalkMapConfigFromSourceCatalogV0("funabashi-nature-walk-maps");
+        config.routeStops[0]!.internalMemo = "internal memo must stay out of the preview html";
+        const response = await app.inject({
+          method: "POST",
+          url: "/api/v1/admin/municipal-walk-maps/preview",
+          headers: {
+            "content-type": "application/json",
+            "x-ikimon-write-key": "test-write-key",
+          },
+          payload: { config },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.headers["content-type"] as string, /text\/html/);
+        assert.match(response.body, /自然散策マップ 下書き/);
+        assert.match(response.body, /admin_draft/);
+        assert.match(response.body, /歩くときの優先/);
+        assert.match(response.body, /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
+        assert.doesNotMatch(response.body, /internal memo must stay out/);
+        assert.doesNotMatch(response.body, /"ok":true/);
       } finally {
         await app.close();
       }

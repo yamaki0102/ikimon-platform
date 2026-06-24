@@ -533,6 +533,13 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-actions{display:flex;align-items:center;gap:10px;border-top:1px solid #eef2f7;padding-top:12px}
 .wm-admin-actions button{min-height:40px;border:1px solid #0f766e;border-radius:6px;background:#0f766e;color:#fff;padding:0 14px;font-weight:900;cursor:pointer}
 .wm-admin-result{font-size:12px;color:#475569;font-weight:800}
+.wm-admin-draft-export{border:1px solid #dbe7e2;border-radius:8px;background:#fbfefc;padding:12px;display:grid;gap:9px}
+.wm-admin-draft-export h2{margin:0;color:#0f172a;font-size:15px;line-height:1.35}
+.wm-admin-draft-export p{margin:0;color:#475569;font-size:12px;line-height:1.7}
+.wm-admin-draft-export textarea{min-height:150px;font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:12px;line-height:1.55}
+.wm-admin-draft-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wm-admin-draft-tools button{min-height:34px;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px;font-size:12px;font-weight:900;cursor:pointer}
+.wm-admin-draft-tools button:first-child{background:#0f766e;color:#fff}
 .wm-creator-list{display:grid;gap:8px;margin-top:12px}
 .wm-creator-item{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px;display:grid;gap:4px}
 .wm-creator-item strong{font-size:13px;color:#0f172a}
@@ -776,6 +783,19 @@ function renderWalkMapAdminBody(
       <label class="wm-admin-wide">非公開理由<textarea name="takedownReason" rows="2" placeholder="公開範囲の再確認など">${escapeHtml(publicationReview.takedownReason ?? "")}</textarea></label>
     </div>
     ${stops}
+    <section class="wm-admin-draft-export">
+      <div>
+        <h2>下書きJSON</h2>
+        <p>DBに保存する前に、作成中の内容を確認・レビューできます。公式PDFの本文や図版は入れず、引用元URLと作成内容だけを扱います。</p>
+      </div>
+      <div class="wm-admin-draft-tools">
+        <button type="button" data-walk-map-refresh-draft-json>JSONを作る</button>
+        <button type="button" data-walk-map-preview-draft>保存せずプレビュー</button>
+        <button type="button" data-walk-map-copy-draft-json>コピー</button>
+        <span class="wm-admin-result" data-walk-map-draft-json-result></span>
+      </div>
+      <textarea name="draftJson" data-walk-map-draft-json readonly spellcheck="false" aria-label="散策マップ下書きJSON"></textarea>
+    </section>
     <div class="wm-admin-actions">
       <button type="submit">保存</button>
       <span class="wm-admin-result" data-walk-map-result></span>
@@ -1076,6 +1096,95 @@ function wmCreatorPayload(form) {
     notes: String(data.get("notes") || "").trim()
   };
 }
+function wmDraftJsonText(form) {
+  return JSON.stringify(wmPayload(form), null, 2);
+}
+function wmEscapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] || ch;
+  });
+}
+function wmDraftList(items) {
+  return Array.isArray(items) && items.length
+    ? items.map(function(item) { return "<li>" + wmEscapeHtml(item) + "</li>"; }).join("")
+    : "<li>未設定</li>";
+}
+function wmDraftPreviewHtml(payload) {
+  var stops = (Array.isArray(payload.routeStops) ? payload.routeStops : []).map(function(stop, index) {
+    return '<article class="wm-stop">'
+      + '<div class="wm-stop-head"><h2>' + (index + 1) + '. ' + wmEscapeHtml(stop.title || stop.stopId || "立ち寄り先") + '</h2>'
+      + '<span class="wm-access">' + wmEscapeHtml(stop.access || "unknown") + '</span></div>'
+      + '<div class="wm-cues"><section class="wm-cue"><strong>見るもの</strong><ul>' + wmDraftList(stop.noticeCues) + '</ul></section>'
+      + '<section class="wm-cue"><strong>残すもの</strong><ul>' + wmDraftList(stop.recordCues) + '</ul></section></div>'
+      + '</article>';
+  }).join("");
+  var sources = (Array.isArray(payload.sourceReferences) ? payload.sourceReferences : []).map(function(ref) {
+    return '<li><a href="' + wmEscapeHtml(ref.url) + '" target="_blank" rel="noopener noreferrer">' + wmEscapeHtml(ref.label) + '</a>'
+      + (ref.note ? '<small>' + wmEscapeHtml(ref.note) + '</small>' : '') + '</li>';
+  }).join("");
+  return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>' + wmEscapeHtml(payload.title || "散策マップ下書き") + ' — ikimon.life</title>'
+    + '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;color:#17211d;background:#f8fafc}.wm-shell{max-width:1120px;margin:0 auto;padding:28px 18px 72px}.wm-hero{display:grid;gap:10px;margin-bottom:18px}.wm-eyebrow{margin:0;color:#0f766e;font-size:12px;font-weight:900}.wm-hero h1{margin:0;font-size:32px;line-height:1.15}.wm-lead{margin:0;color:#475569;line-height:1.7}.wm-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}.wm-stops{display:grid;gap:12px}.wm-stop,.wm-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}.wm-stop-head{display:flex;justify-content:space-between;gap:10px}.wm-stop h2,.wm-panel h2{margin:0 0 10px;color:#0f172a}.wm-access{font-size:11px;font-weight:900;color:#0f766e}.wm-cues{display:grid;grid-template-columns:1fr 1fr;gap:10px}.wm-cue{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px}.wm-cue strong{font-size:12px}.wm-cue ul,.wm-panel ul{margin:6px 0 0;padding-left:18px;color:#475569;font-size:12px;line-height:1.7}.wm-sources a{color:#0f766e;font-weight:900;text-decoration:none}.wm-sources small{display:block;color:#64748b}@media(max-width:760px){.wm-grid,.wm-cues{grid-template-columns:1fr}}</style>'
+    + '</head><body><main class="wm-shell"><section class="wm-hero"><p class="wm-eyebrow">' + wmEscapeHtml(payload.municipality || "") + ' / 下書き確認</p>'
+    + '<h1>' + wmEscapeHtml(payload.title || "散策マップ下書き") + '</h1><p class="wm-lead">' + wmEscapeHtml(payload.summary || "") + '</p></section>'
+    + '<section class="wm-grid"><div class="wm-stops">' + (stops || '<article class="wm-stop"><h2>立ち寄り先は未設定です</h2></article>') + '</div>'
+    + '<aside class="wm-panel"><h2>確認事項</h2><ul><li>歩道、標識、施設のルール、天候、現地の状況を優先してください。</li><li>PDF本文、図版、写真は転載せず、公式ページURLを引用元として扱います。</li><li>学校、私有地、希少種、自宅付近の情報は公開前に出し方を確認します。</li></ul>'
+    + (sources ? '<h2>引用元</h2><ul class="wm-sources">' + sources + '</ul>' : '') + '</aside></section></main></body></html>';
+}
+function wmRefreshDraftJson(form, message) {
+  var field = form && form.querySelector("[data-walk-map-draft-json]");
+  var result = form && form.querySelector("[data-walk-map-draft-json-result]");
+  if (!field) return "";
+  var text = wmDraftJsonText(form);
+  field.value = text;
+  if (message && result) result.textContent = message;
+  return text;
+}
+document.addEventListener("click", async function(event) {
+  var refreshButton = event.target.closest("[data-walk-map-refresh-draft-json]");
+  var copyButton = event.target.closest("[data-walk-map-copy-draft-json]");
+  var previewButton = event.target.closest("[data-walk-map-preview-draft]");
+  if (!refreshButton && !copyButton && !previewButton) return;
+  var form = event.target.closest("[data-walk-map-form]");
+  if (!form) return;
+  var text = wmRefreshDraftJson(form, refreshButton ? "JSONを作りました" : "");
+  if (previewButton) {
+    var previewResult = form.querySelector("[data-walk-map-draft-json-result]");
+    previewButton.disabled = true;
+    if (previewResult) previewResult.textContent = "プレビューを作っています";
+    try {
+      var html = wmDraftPreviewHtml(JSON.parse(text));
+      var blobUrl = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      if (previewResult) previewResult.textContent = "プレビューを開きました";
+      window.setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 60000);
+    } catch (error) {
+      if (previewResult) previewResult.textContent = error instanceof Error ? error.message : String(error);
+    } finally {
+      previewButton.disabled = false;
+    }
+    return;
+  }
+  if (!copyButton) return;
+  var field = form.querySelector("[data-walk-map-draft-json]");
+  var result = form.querySelector("[data-walk-map-draft-json-result]");
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else if (field) {
+      field.focus();
+      field.select();
+      document.execCommand("copy");
+    }
+    if (result) result.textContent = "コピーしました";
+  } catch (error) {
+    if (field) {
+      field.focus();
+      field.select();
+    }
+    if (result) result.textContent = "選択してコピーできます";
+  }
+});
 document.addEventListener("submit", async function(event) {
   var creatorForm = event.target.closest("[data-walk-map-creator-form]");
   if (creatorForm) {
@@ -1273,6 +1382,26 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
     }
   });
 
+  app.post<{ Body: unknown }>("/api/v1/admin/municipal-walk-maps/preview", async (request, reply) => {
+    try {
+      await assertMunicipalWalkMapAdminAccess(request);
+      const config = assertValidConfigForWrite(extractConfigFromBody(request.body));
+      const publicMap = buildMunicipalWalkMapPublicReadModelV0(config);
+      reply.type("text/html; charset=utf-8");
+      return renderSiteDocument({
+        basePath: "",
+        title: `${publicMap.title} — ikimon.life`,
+        description: publicMap.summary,
+        extraStyles: WALK_MAP_STYLES,
+        body: renderWalkMapPreviewBody(publicMap, "", "ja", "admin_draft"),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "municipal_walk_map_admin_preview_failed";
+      reply.code(adminErrorStatus(message));
+      return `preview_failed:${escapeHtml(message)}`;
+    }
+  });
+
   app.post<{ Params: { walkMapId: string }; Body: unknown }>("/api/v1/admin/municipal-walk-maps/:walkMapId", async (request, reply) => {
     try {
       const access = await assertMunicipalWalkMapAdminAccess(request);
@@ -1357,6 +1486,7 @@ export const municipalWalkMapRouteContract = {
   adminTemplateApiPath: "/api/v1/admin/municipal-walk-map-templates",
   adminSourceCatalogApiPath: "/api/v1/admin/municipal-walk-map-source-catalog",
   adminCreateApiPath: "/api/v1/admin/municipal-walk-maps",
+  adminPreviewApiPath: "/api/v1/admin/municipal-walk-maps/preview",
   adminUpdateApiPath: "/api/v1/admin/municipal-walk-maps/:walkMapId",
   indexPath: "/walk-maps",
   previewPath: "/walk-maps/:walkMapId",
