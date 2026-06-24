@@ -5195,6 +5195,40 @@ test("staging municipal walk map admin source draft serves materialized preview 
   }
 });
 
+test("Cloudflare public municipal walk map candidate API scopes static samples by map center", async () => {
+  const { env } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
+
+  const shizuoka = await worker.fetch(new Request(
+    "https://staging.ikimon.life/api/v1/municipal-walk-maps?lat=34.975&lng=138.383&limit=2"
+  ), stagingEnv);
+  assert.equal(shizuoka.status, 200);
+  const shizuokaBody = await shizuoka.json() as {
+    ok?: boolean;
+    matchedMunicipalityCode?: string | null;
+    locationFiltered?: boolean;
+    summaries?: Array<{ walkMapId?: string }>;
+  };
+  assert.equal(shizuokaBody.ok, true);
+  assert.equal(shizuokaBody.locationFiltered, true);
+  assert.equal(shizuokaBody.matchedMunicipalityCode, "22100");
+  assert.equal(shizuokaBody.summaries?.length, 2);
+  assert.match(JSON.stringify(shizuokaBody.summaries), /jp-shizuoka-/);
+
+  const tokyo = await worker.fetch(new Request(
+    "https://staging.ikimon.life/api/v1/municipal-walk-maps?lat=35.681&lng=139.767&limit=2"
+  ), stagingEnv);
+  assert.equal(tokyo.status, 200);
+  const tokyoBody = await tokyo.json() as {
+    matchedMunicipalityCode?: string | null;
+    locationFiltered?: boolean;
+    summaries?: unknown[];
+  };
+  assert.equal(tokyoBody.locationFiltered, true);
+  assert.equal(tokyoBody.matchedMunicipalityCode, null);
+  assert.deepEqual(tokyoBody.summaries, []);
+});
+
 test("production field detail can render from Cloudflare public readmodel without origin fallback", async () => {
   const { env, obs, core } = createEnv();
   const productionEnv = {

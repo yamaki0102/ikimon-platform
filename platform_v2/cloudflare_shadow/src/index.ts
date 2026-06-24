@@ -1060,6 +1060,10 @@ export const worker = {
         return getPublicMapGuideSpots(url);
       }
 
+      if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
+        return getMunicipalWalkMapCandidates(url);
+      }
+
       const fieldDetailApiMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/public-detail$/);
       if (request.method === "GET" && fieldDetailApiMatch?.[1]) {
         return getFieldDetailJson(decodeURIComponent(fieldDetailApiMatch[1]), env);
@@ -2279,6 +2283,90 @@ function getPublicMapGuideSpots(url: URL): Response {
       coverage: "global_bbox"
     }
   }, 200, { "cache-control": "public, max-age=300" });
+}
+
+const STATIC_MUNICIPAL_WALK_MAP_SUMMARIES = [
+  {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: "jp-shizuoka-yatsuyama-sample-v0",
+    municipality: "静岡市",
+    title: "八ツ山周辺を歩くサンプル",
+    summary: "静岡市公式資料を出典として、公開範囲で木陰、足元の草地、鳥の声を軽く残すために再構成したサンプルです。",
+    theme: "satoyama",
+    publishMode: "public_preview",
+    routeStyle: "loose_stops",
+    mobilityModes: ["walk", "bike", "public_transport"],
+    stopCount: 2,
+    sourceReferences: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
+    ]
+  },
+  {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: "jp-shizuoka-asahata-waterfront-sample-v0",
+    municipality: "静岡市",
+    title: "麻機の水辺を歩くサンプル",
+    summary: "静岡市公式資料を出典として、水辺を安全に見ながら、鳥の声、水面、草地の変化を残すサンプルです。",
+    theme: "waterfront",
+    publishMode: "public_preview",
+    routeStyle: "loose_stops",
+    mobilityModes: ["walk", "bike", "public_transport"],
+    stopCount: 2,
+    sourceReferences: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
+    ]
+  },
+  {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: "jp-shizuoka-mariko-waterfront-sample-v0",
+    municipality: "静岡市",
+    title: "丸子川・広野海岸公園周辺サンプル",
+    summary: "静岡市公式資料を出典として、川と海岸公園の公開範囲で、水辺の様子や鳥の声を残すサンプルです。",
+    theme: "waterfront",
+    publishMode: "public_preview",
+    routeStyle: "loose_stops",
+    mobilityModes: ["walk", "bike", "car", "public_transport"],
+    stopCount: 2,
+    sourceReferences: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
+    ]
+  }
+];
+
+const WALK_MAP_LOCATION_BBOXES = [
+  { municipalityCode: "22100", bbox: [137.47, 34.57, 139.16, 35.65] as const }
+];
+
+function numberFromSearchParam(value: string | null): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function walkMapMunicipalityCodeForLocation(lat: number | null, lng: number | null): string | null {
+  if (lat == null || lng == null) return null;
+  const match = WALK_MAP_LOCATION_BBOXES.find((entry) => (
+    lng >= entry.bbox[0] && lng <= entry.bbox[2]
+    && lat >= entry.bbox[1] && lat <= entry.bbox[3]
+  ));
+  return match?.municipalityCode ?? null;
+}
+
+function getMunicipalWalkMapCandidates(url: URL): Response {
+  const lat = numberFromSearchParam(url.searchParams.get("lat"));
+  const lng = numberFromSearchParam(url.searchParams.get("lng"));
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "4"), 1, 8);
+  const locationFiltered = lat != null && lng != null;
+  const matchedMunicipalityCode = walkMapMunicipalityCodeForLocation(lat, lng);
+  const summaries = locationFiltered && matchedMunicipalityCode !== "22100"
+    ? []
+    : STATIC_MUNICIPAL_WALK_MAP_SUMMARIES.slice(0, limit);
+  return json({
+    ok: true,
+    source: "static",
+    matchedMunicipalityCode,
+    locationFiltered,
+    summaries
+  }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
