@@ -576,10 +576,15 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-template h2{margin:0;color:#111827;font-size:17px;line-height:1.35}
 .wm-admin-template p{margin:0;color:#475569;font-size:13px;line-height:1.7}
 .wm-admin-template select{width:100%;max-width:520px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#111827;min-height:38px;padding:8px 10px;font:inherit;font-size:14px}
-.wm-admin-template-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
-.wm-admin-template-card{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px;display:grid;gap:5px}
+.wm-admin-template-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.wm-admin-template-card{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px;display:grid;gap:7px;align-content:start}
+.wm-admin-template-card.is-selected{border-color:#0f766e;background:#f0fdfa}
 .wm-admin-template-card strong{font-size:13px;color:#0f172a;line-height:1.35}
 .wm-admin-template-card span{font-size:12px;color:#64748b;line-height:1.6}
+.wm-admin-template-meta{display:flex;gap:6px;flex-wrap:wrap}
+.wm-admin-template-meta span{display:inline-flex;align-items:center;border:1px solid rgba(15,118,110,.16);border-radius:999px;background:rgba(255,255,255,.86);padding:3px 8px;color:#0f766e;font-weight:900;font-size:11px;line-height:1.35}
+.wm-admin-template-examples{margin:0;padding-left:16px;color:#475569;font-size:12px;line-height:1.55}
+.wm-admin-template-action{min-height:32px;display:inline-flex;align-items:center;justify-content:center;justify-self:start;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px;font-size:12px;font-weight:900;text-decoration:none}
 .wm-admin-source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
 .wm-admin-source-card{border:1px solid #dbe7e2;border-radius:8px;background:#fbfefc;padding:10px;display:grid;gap:6px}
 .wm-admin-source-card.is-selected{border-color:#0f766e;background:#f0fdfa}
@@ -688,23 +693,45 @@ function renderStopFields(stop: MunicipalWalkMapConfigV0["routeStops"][number] |
 </section>`;
 }
 
-function renderTemplatePicker(templates: MunicipalWalkMapTemplateV0[], selectedTemplateId: string): string {
+function renderTemplatePicker(
+  templates: MunicipalWalkMapTemplateV0[],
+  selectedTemplateId: string,
+  sources: MunicipalWalkMapSourceCatalogEntryV0[],
+): string {
   const options = [
     `<option value="">空のフォーム</option>`,
     ...templates.map((template) => option(template.templateId, selectedTemplateId, template.label)),
   ].join("");
-  const cards = templates.map((template) => `
-    <article class="wm-admin-template-card">
+  const cards = templates.map((template) => {
+    const matchingSources = sources.filter((source) => source.templateId === template.templateId);
+    const examples = matchingSources.length > 0
+      ? matchingSources
+        .sort((left, right) => (right.affinityScore - left.affinityScore) || left.sourceId.localeCompare(right.sourceId))
+        .slice(0, 3)
+        .map((source) => source.title)
+      : template.exampleSources.slice(0, 3).map((source) => source.label);
+    const mobilityModes = template.config.routeFlexibility.mobilityModes.map((mode) => mobilityText(mode, "ja")).join(" / ");
+    return `
+    <article class="wm-admin-template-card${template.templateId === selectedTemplateId ? " is-selected" : ""}" data-template-source-count="${matchingSources.length}" data-template-start-link="/admin/municipal-walk-maps?templateId=${encodeURIComponent(template.templateId)}">
       <strong>${escapeHtml(template.label)}</strong>
       <span>${escapeHtml(template.summary)}</span>
-      <span>${escapeHtml(template.sourcePattern)}</span>
+      <div class="wm-admin-template-meta">
+        <span>事例 ${escapeHtml(String(matchingSources.length))}</span>
+        <span>${escapeHtml(routeStyleText(template.config.routeFlexibility.routeStyle, "ja"))}</span>
+        <span>${escapeHtml(mobilityModes)}</span>
+      </div>
+      <ul class="wm-admin-template-examples">
+        ${examples.map((example) => `<li>${escapeHtml(example)}</li>`).join("")}
+      </ul>
+      <a class="wm-admin-template-action" href="/admin/municipal-walk-maps?templateId=${encodeURIComponent(template.templateId)}">この型で始める</a>
     </article>
-  `).join("");
+  `;
+  }).join("");
   return `
 <section class="wm-admin-template" data-walk-map-template-picker>
   <div>
     <h2>テンプレート</h2>
-    <p>DL済み自治体マップの型から初期値を選びます。出典PDFの再配布ではなく、作成時の型として使います。</p>
+    <p>調査済み自治体マップの型から初期値を選びます。出典PDFの再配布ではなく、作成時の型として使います。</p>
   </div>
   <select name="templateId" aria-label="散策マップテンプレート">
     ${options}
@@ -863,6 +890,7 @@ function renderWalkMapAdminBody(
   const stopCount = Math.max(3, config.routeStops.length);
   const stops = Array.from({ length: stopCount }, (_, index) => renderStopFields(config.routeStops[index], index)).join("");
   const templates = listMunicipalWalkMapTemplatesV0();
+  const allSourceCatalog = listMunicipalWalkMapSourceCatalogV0();
   const sourceCatalog = listMunicipalWalkMapSourceCatalogV0({ templateId: selectedTemplateId || undefined });
   const creatorLoadWarning = creatorLoadError
     ? `<section class="wm-panel wm-warnings"><h2>作成者登録</h2><p class="wm-muted">作成者一覧を読み込めませんでした。登録IDの保存時確認はAPI側で行います。</p></section>`
@@ -881,7 +909,7 @@ function renderWalkMapAdminBody(
       <a class="wm-admin-link" href="/walk-maps/${encodeURIComponent(config.walkMapId)}">プレビュー</a>
     </div>
   </header>
-  ${renderTemplatePicker(templates, selectedTemplateId)}
+  ${renderTemplatePicker(templates, selectedTemplateId, allSourceCatalog)}
   ${renderSourceCatalogPanel(sourceCatalog, selectedTemplateId, selectedSourceId)}
   ${creatorLoadWarning}
   ${renderAdminPublicationGate(config)}

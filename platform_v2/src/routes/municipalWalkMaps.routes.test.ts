@@ -81,6 +81,11 @@ test("municipal walk map authoring UI posts typed config to admin API", async ()
   assert.match(routeSource, /data-walk-map-form/);
   assert.match(routeSource, /function wmPayload\(form\)/);
   assert.match(routeSource, /data-walk-map-template-picker/);
+  assert.match(routeSource, /data-template-source-count/);
+  assert.match(routeSource, /data-template-start-link/);
+  assert.match(routeSource, /この型で始める/);
+  assert.match(routeSource, /matchingSources\.length/);
+  assert.match(routeSource, /mobilityText\(mode, "ja"\)/);
   assert.match(routeSource, /templateId/);
   assert.match(routeSource, /listMunicipalWalkMapTemplatesV0/);
   assert.match(routeSource, /listMunicipalWalkMapSourceCatalogV0/);
@@ -334,6 +339,11 @@ test("municipal walk map admin page renders source catalog and source-reference 
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /参考元カタログ/);
+        assert.match(response.body, /data-template-source-count="4"/);
+        assert.match(response.body, /data-template-start-link="\/admin\/municipal-walk-maps\?templateId=route_species_walk"/);
+        assert.match(response.body, /この型で始める/);
+        assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
+        assert.match(response.body, /自然散策マップ/);
         assert.match(response.body, /data-walk-map-publication-gate/);
         assert.match(response.body, /自治体・登録団体・登録会社の確認済み登録だけが公開できます/);
         assert.match(response.body, /商業主目的は公開不可/);
