@@ -4396,7 +4396,7 @@ test("production oauth callback fails closed when provider secrets are not confi
   }
 });
 
-test("production full-domain fallback preserves original public UI routes without exposing internal routes", async () => {
+test("production public UI routes bound broad custom-domain fallback to legacy-safe surfaces", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -4425,18 +4425,14 @@ test("production full-domain fallback preserves original public UI routes withou
       "/record",
       "/map",
       "/login",
-      "/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5",
-      "/places/hamamatsu",
-      "/some-old-unmapped-path"
+      "/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5"
     ];
     const expectedFallbackReasons = new Map([
       ["/", "html_materialized_miss"],
       ["/record", "html_materialized_miss"],
       ["/map", "html_materialized_miss"],
       ["/login", "html_materialized_miss"],
-      ["/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5", "html_materialized_miss"],
-      ["/places/hamamatsu", "public_custom_domain_path"],
-      ["/some-old-unmapped-path", "public_custom_domain_path"]
+      ["/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5", "html_materialized_miss"]
     ]);
 
     for (const path of publicUiRoutes) {
@@ -4452,12 +4448,47 @@ test("production full-domain fallback preserves original public UI routes withou
     }
 
     const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
-    assert.equal(latestTelemetry.routePattern, "/some-old-unmapped-path");
+    assert.equal(latestTelemetry.routePattern, "/community/fields/:id");
     assert.equal(JSON.stringify(latestTelemetry).includes("535cccb1"), false);
+
+    const place = await worker.fetch(new Request("https://ikimon.life/places/hamamatsu"), productionEnv);
+    const placeBody = await place.text();
+    assert.equal(place.status, 200);
+    assert.equal(place.headers.get("x-ikimon-cloudflare-native"), "place-guide-list");
+    assert.equal(placeBody.includes("浜松のガイド地点"), true);
+    assert.equal(placeBody.includes("浜松地域遺産認定制度"), true);
+    assert.equal(placeBody.includes("34.831"), false);
+    assert.equal(placeBody.includes("137.72"), false);
+    assert.equal(seen.length, publicUiRoutes.length);
+
+    const localizedPlace = await worker.fetch(new Request("https://ikimon.life/ja/places/hamamatsu"), productionEnv);
+    assert.equal(localizedPlace.status, 200);
+    assert.equal(localizedPlace.headers.get("x-ikimon-cloudflare-native"), "place-guide-list");
+    assert.equal(seen.length, publicUiRoutes.length);
+
+    const placeSnapshot = await worker.fetch(new Request("https://ikimon.life/places/hamamatsu/snapshot"), productionEnv);
+    assert.equal(placeSnapshot.status, 200);
+    assert.equal(seen.at(-1)?.url, "https://ikimon.life/places/hamamatsu/snapshot");
+    assert.equal(seen.at(-1)?.reason, "html_materialized_miss");
+
+    const unknownPlace = await worker.fetch(new Request("https://ikimon.life/places/unknown-slug"), productionEnv);
+    assert.equal(unknownPlace.status, 404);
+    assert.equal(unknownPlace.headers.get("x-ikimon-cloudflare-native"), "not-found");
+    assert.equal(seen.length, publicUiRoutes.length + 1);
+
+    const unknown = await worker.fetch(new Request("https://ikimon.life/some-old-unmapped-path"), productionEnv);
+    assert.equal(unknown.status, 200);
+    assert.equal(seen.at(-1)?.url, "https://ikimon.life/some-old-unmapped-path");
+    assert.equal(seen.at(-1)?.reason, "public_custom_domain_path");
+
+    const localizedUnknown = await worker.fetch(new Request("https://ikimon.life/ja/some-old-unmapped-path"), productionEnv);
+    assert.equal(localizedUnknown.status, 200);
+    assert.equal(seen.at(-1)?.url, "https://ikimon.life/ja/some-old-unmapped-path");
+    assert.equal(seen.at(-1)?.reason, "public_custom_domain_path");
 
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
-    assert.equal(seen.length, publicUiRoutes.length);
+    assert.equal(seen.length, publicUiRoutes.length + 3);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -5302,10 +5333,15 @@ test("production public fallback blocks suspicious probe paths instead of forwar
       "/.env",
       "/.git/config",
       "/wp-includes/wlwmanifest.xml",
+      "/wp-json/gravitysmtp/v1/tests/mock-data",
+      "/xampp/phpinfo.php",
+      "/debug/default/view",
+      "/updates.php",
       "/data:image/jpeg;base64,/9j/secret"
     ]) {
       const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
       assert.equal(response.status, 404, path);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "not-found", path);
     }
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
