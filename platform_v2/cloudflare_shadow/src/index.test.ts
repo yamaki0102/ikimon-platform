@@ -332,6 +332,17 @@ interface MunicipalWalkMapCreatorRow {
   updated_at: string | null;
 }
 
+interface MunicipalWalkMapAuditRow {
+  audit_id: string;
+  walk_map_id: string;
+  action: string;
+  actor_label: string;
+  payload_json: string;
+  actor_user_id: string | null;
+  before_payload_json: string;
+  after_payload_json: string;
+}
+
 interface PublicMapSnapshotRecordRow {
   occurrence_id?: string;
   visit_id: string;
@@ -378,6 +389,7 @@ class FakeD1 {
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
+  municipalWalkMapAudit: MunicipalWalkMapAuditRow[] = [];
   publicMapSnapshotRecords: PublicMapSnapshotRecordRow[] = [];
   publicMapSnapshotMeta: PublicMapSnapshotMetaRow | null = null;
 
@@ -798,6 +810,28 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE municipal_walk_maps SET publish_mode = ?")) {
+      const row = requireRow(this.db.municipalWalkMaps, string(v[3]));
+      row.publish_mode = string(v[0]);
+      row.publication_review_json = string(v[1]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO municipal_walk_map_audit")) {
+      this.db.municipalWalkMapAudit.push({
+        audit_id: string(v[0]),
+        walk_map_id: string(v[1]),
+        action: string(v[2]),
+        actor_label: string(v[3]),
+        payload_json: string(v[4]),
+        actor_user_id: nullableString(v[5]),
+        before_payload_json: string(v[6]),
+        after_payload_json: string(v[7])
+      });
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE auth_sessions SET last_used_at")) {
       const row = requireRow(this.db.authSessions, string(v[0]));
       row.last_used_at = new Date().toISOString();
@@ -1200,6 +1234,27 @@ class FakeStatement {
         .filter((row) => row.user_id === string(v[0]) && row.acknowledged_at === null)
         .length;
       return ({ unread_count: count } as T);
+    }
+
+    if (normalized.startsWith("SELECT m.walk_map_id, m.municipality_code, m.municipality, m.title, m.summary, m.theme, m.publish_mode")) {
+      const row = this.db.municipalWalkMaps.get(string(v[0]));
+      if (!row) return null;
+      return ({
+        walk_map_id: row.walk_map_id,
+        municipality_code: row.municipality_code,
+        municipality: row.municipality,
+        title: row.title,
+        summary: row.summary,
+        theme: row.theme,
+        publish_mode: row.publish_mode,
+        creator_name: row.creator_name ?? null,
+        creator_profile_json: row.creator_profile_json ?? "{}",
+        route_flexibility_json: row.route_flexibility_json ?? "{}",
+        source_references_json: row.source_references_json,
+        publication_review_json: row.publication_review_json ?? "{}",
+        updated_at: row.updated_at ?? null,
+        stop_count: row.stop_count
+      } as T);
     }
 
     throw new Error(`Unhandled SQL first: ${this.query}`);
@@ -5703,6 +5758,99 @@ test("municipal walk map admin review queue reads review items from D1", async (
   assert.equal(body.reviews?.[0]?.reviewRequired, true);
   assert.equal(body.reviews?.[0]?.sourceReferenceCount, 1);
   assert.equal(body.reviews?.[0]?.stopCount, 3);
+});
+
+test("municipal walk map review actions update D1 publish state and audit only for admins", async () => {
+  const { env, obs } = createEnv();
+  obs.municipalWalkMaps.set("jp-shizuoka-action-sample", {
+    walk_map_id: "jp-shizuoka-action-sample",
+    municipality_code: "22100",
+    municipality: "静岡市",
+    title: "審査アクション用サンプル",
+    summary: "D1 review action smoke sample.",
+    theme: "waterfront",
+    publish_mode: "draft",
+    route_style: "loose_stops",
+    mobility_modes_json: "[\"walk\"]",
+    stop_count: 2,
+    source_references_json: "[{\"label\":\"静岡市 いきもの散策マップ\",\"url\":\"https://www.city.shizuoka.lg.jp/s6347/s001494.html\"}]",
+    area_hint_json: "{\"lat\":35.015,\"lng\":138.389}",
+    display_order: 1,
+    creator_name: "静岡市",
+    creator_profile_json: "{\"kind\":\"municipality\"}",
+    route_flexibility_json: "{\"routeStyle\":\"loose_stops\",\"mobilityModes\":[\"walk\"],\"offRoutePolicy\":\"off_route_allowed\"}",
+    publication_review_json: "{\"publicAccessAttested\":false,\"sourceRightsAttested\":false,\"emergencyHidden\":false}",
+    updated_at: "2026-06-25T00:00:00.000Z"
+  });
+
+  const userIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "observer-user", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const userCookie = userIssue.headers.get("set-cookie") ?? "";
+  const forbidden = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/admin/municipal-walk-map-reviews/jp-shizuoka-action-sample/actions",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: userCookie },
+      body: JSON.stringify({ action: "approve_public_preview" })
+    }
+  ), env);
+  const forbiddenBody = await forbidden.json() as { error?: string };
+  assert.equal(forbidden.status, 403);
+  assert.equal(forbiddenBody.error, "admin_required");
+  assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-action-sample")?.publish_mode, "draft");
+  assert.equal(obs.municipalWalkMapAudit.length, 0);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "admin-user", displayName: "Admin User", roleName: "Admin", ttlHours: 1 })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+  const approve = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/admin/municipal-walk-map-reviews/jp-shizuoka-action-sample/actions",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: adminCookie },
+      body: JSON.stringify({ action: "approve_public_preview", note: "公開プレビュー確認" })
+    }
+  ), env);
+  const approveBody = await approve.json() as {
+    ok?: boolean;
+    result?: { action?: string; publishMode?: string; publicationReview?: Record<string, unknown> };
+  };
+  assert.equal(approve.status, 200);
+  assert.equal(approveBody.ok, true);
+  assert.equal(approveBody.result?.action, "approve_public_preview");
+  assert.equal(approveBody.result?.publishMode, "public_preview");
+  assert.equal(approveBody.result?.publicationReview?.publicAccessAttested, true);
+  assert.equal(approveBody.result?.publicationReview?.sourceRightsAttested, true);
+  assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-action-sample")?.publish_mode, "public_preview");
+  assert.equal(obs.municipalWalkMapAudit.length, 1);
+  assert.equal(obs.municipalWalkMapAudit[0]?.action, "review.approve_public_preview");
+  assert.equal(obs.municipalWalkMapAudit[0]?.actor_user_id, "admin-user");
+
+  const requestChanges = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/admin/municipal-walk-map-reviews/jp-shizuoka-action-sample/actions",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: adminCookie },
+      body: JSON.stringify({ action: "request_changes", note: "出典リンクを確認" })
+    }
+  ), env);
+  const requestChangesBody = await requestChanges.json() as {
+    ok?: boolean;
+    result?: { publishMode?: string; publicationReview?: Record<string, unknown> };
+  };
+  assert.equal(requestChanges.status, 200);
+  assert.equal(requestChangesBody.ok, true);
+  assert.equal(requestChangesBody.result?.publishMode, "draft");
+  assert.equal(requestChangesBody.result?.publicationReview?.takedownReason, "出典リンクを確認");
+  assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-action-sample")?.publish_mode, "draft");
+  assert.equal(obs.municipalWalkMapAudit.length, 2);
+  assert.equal(obs.municipalWalkMapAudit[1]?.action, "review.request_changes");
 });
 
 test("production field detail can render from Cloudflare public readmodel without origin fallback", async () => {

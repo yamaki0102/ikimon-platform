@@ -1137,6 +1137,15 @@ export const worker = {
         return await listMunicipalWalkMapReviewsAdmin(request, url, env);
       }
 
+      const municipalWalkMapReviewActionMatch = nativePathname.match(/^\/api\/v1\/admin\/municipal-walk-map-reviews\/([^/]+)\/actions$/);
+      if (request.method === "POST" && municipalWalkMapReviewActionMatch?.[1]) {
+        return await applyMunicipalWalkMapReviewActionAdmin(
+          request,
+          decodeURIComponent(municipalWalkMapReviewActionMatch[1]),
+          env
+        );
+      }
+
       if (request.method === "GET" && nativePathname === "/ops/public-map-snapshot") {
         return getPublicMapSnapshotStatusResponse(env);
       }
@@ -2806,6 +2815,153 @@ async function listMunicipalWalkMapReviewsAdmin(request: Request, url: URL, env:
     ok: true,
     source: "d1_observations",
     reviews: rows.results.map(municipalWalkMapReviewFromD1Row)
+  }, 200, { "cache-control": "no-store" });
+}
+
+type MunicipalWalkMapReviewAction = "approve_public_preview" | "request_changes" | "emergency_hide";
+
+function extractMunicipalWalkMapReviewAction(body: unknown): { action: MunicipalWalkMapReviewAction; note: string | null } {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new HttpError(400, "municipal_walk_map_review_action_required");
+  const record = body as Record<string, unknown>;
+  const action = normalizeOptionalText(record.action);
+  if (action !== "approve_public_preview" && action !== "request_changes" && action !== "emergency_hide") {
+    throw new HttpError(400, "municipal_walk_map_review_action_invalid");
+  }
+  const rawNote = normalizeOptionalText(record.note);
+  return { action, note: rawNote ? rawNote.slice(0, 500) : null };
+}
+
+function mergeMunicipalWalkMapPublicationReview(
+  current: Record<string, unknown>,
+  action: MunicipalWalkMapReviewAction,
+  actorUserId: string,
+  reviewedAt: string,
+  note: string | null
+): { publishMode: string; review: Record<string, unknown> } {
+  if (action === "approve_public_preview") {
+    return {
+      publishMode: "public_preview",
+      review: {
+        ...current,
+        publicAccessAttested: true,
+        sourceRightsAttested: true,
+        permissionAttestedBy: normalizeOptionalText(current.permissionAttestedBy) ?? actorUserId,
+        permissionAttestedAt: normalizeOptionalText(current.permissionAttestedAt) ?? reviewedAt,
+        publishApprovedByUserId: actorUserId,
+        publishApprovedAt: reviewedAt,
+        emergencyHidden: false,
+        takedownReason: null,
+        reviewNote: note
+      }
+    };
+  }
+  if (action === "request_changes") {
+    return {
+      publishMode: "draft",
+      review: {
+        ...current,
+        publishApprovedByUserId: null,
+        publishApprovedAt: null,
+        emergencyHidden: false,
+        takedownReason: note ?? "修正確認中",
+        reviewNote: note
+      }
+    };
+  }
+  return {
+    publishMode: "draft",
+    review: {
+      ...current,
+      publishApprovedByUserId: null,
+      publishApprovedAt: null,
+      emergencyHidden: true,
+      takedownReason: note ?? "公開範囲の再確認",
+      reviewNote: note
+    }
+  };
+}
+
+async function getMunicipalWalkMapReviewRowById(env: Env, walkMapId: string): Promise<MunicipalWalkMapReviewAdminD1Row | null> {
+  return env.OBS_DB.prepare(
+    `SELECT m.walk_map_id, m.municipality_code, m.municipality, m.title, m.summary, m.theme, m.publish_mode,
+            m.creator_name, m.creator_profile_json, m.route_flexibility_json, m.source_references_json,
+            m.publication_review_json, m.updated_at,
+            COUNT(s.stop_id) AS stop_count
+       FROM municipal_walk_maps m
+       LEFT JOIN municipal_walk_map_stops s ON s.walk_map_id = m.walk_map_id
+      WHERE m.walk_map_id = ?
+      GROUP BY m.walk_map_id
+      LIMIT 1`
+  ).bind(walkMapId).first<MunicipalWalkMapReviewAdminD1Row>();
+}
+
+async function applyMunicipalWalkMapReviewActionAdmin(request: Request, walkMapId: string, env: Env): Promise<Response> {
+  const session = await requireMunicipalWalkMapAdminSession(request, env);
+  const normalizedWalkMapId = normalizeOptionalId(walkMapId);
+  if (!normalizedWalkMapId) throw new HttpError(400, "walk_map_id_required");
+  const decision = extractMunicipalWalkMapReviewAction(await readJson<unknown>(request));
+  const before = await getMunicipalWalkMapReviewRowById(env, normalizedWalkMapId);
+  if (!before) throw new HttpError(404, "municipal_walk_map_not_found");
+
+  const currentReview = parseJsonRecord(before.publication_review_json ?? "{}") ?? {};
+  const reviewedAt = new Date().toISOString().slice(0, 10);
+  const next = mergeMunicipalWalkMapPublicationReview(
+    currentReview,
+    decision.action,
+    session.userId,
+    reviewedAt,
+    decision.note
+  );
+  const nextReviewJson = JSON.stringify(next.review);
+
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      `UPDATE municipal_walk_maps
+          SET publish_mode = ?,
+              publication_review_json = ?,
+              updated_by_user_id = ?,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE walk_map_id = ?`
+    ).bind(next.publishMode, nextReviewJson, session.userId, normalizedWalkMapId),
+    env.OBS_DB.prepare(
+      `INSERT INTO municipal_walk_map_audit
+         (audit_id, walk_map_id, action, actor_label, payload_json, actor_user_id, before_payload_json, after_payload_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      newId("walkmap_audit"),
+      normalizedWalkMapId,
+      `review.${decision.action}`,
+      session.displayName,
+      JSON.stringify({ note: decision.note }),
+      session.userId,
+      JSON.stringify({
+        publishMode: before.publish_mode,
+        publicationReview: currentReview
+      }),
+      JSON.stringify({
+        publishMode: next.publishMode,
+        publicationReview: next.review
+      })
+    )
+  ]);
+
+  const after: MunicipalWalkMapReviewAdminD1Row = {
+    ...before,
+    publish_mode: next.publishMode,
+    publication_review_json: nextReviewJson,
+    updated_at: new Date().toISOString()
+  };
+  return json({
+    ok: true,
+    source: "d1_observations",
+    result: {
+      schemaVersion: "municipal_walk_map_review_decision_result/v0",
+      action: decision.action,
+      walkMapId: normalizedWalkMapId,
+      publishMode: next.publishMode,
+      publicationReview: next.review,
+      reviewItem: municipalWalkMapReviewFromD1Row(after)
+    }
   }, 200, { "cache-control": "no-store" });
 }
 
