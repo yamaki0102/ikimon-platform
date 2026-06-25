@@ -498,6 +498,57 @@ interface ReverseDeltaCountRow {
   count: number;
 }
 
+type ObservationEventMode = "discovery" | "effort_maximize" | "bingo" | "absence_confirm" | "ai_quest";
+const OBSERVATION_EVENT_MODES: readonly ObservationEventMode[] = ["discovery", "effort_maximize", "bingo", "absence_confirm", "ai_quest"];
+
+interface ObservationEventSessionD1Row {
+  session_id: string;
+  legacy_event_id: string | null;
+  event_code: string | null;
+  title: string;
+  organizer_user_id: string;
+  corporation_id: string | null;
+  plan: string;
+  primary_mode: string;
+  active_modes_json: string;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_radius_m: number;
+  started_at: string;
+  ended_at: string | null;
+  target_species_json: string;
+  config_json: string;
+  field_id: string | null;
+  template_source_session_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ObservationEventLiveD1Row {
+  live_event_id: string;
+  session_id: string;
+  type: string;
+  scope: string;
+  team_id: string | null;
+  payload_json: string;
+  created_at: string;
+}
+
+interface ObservationEventParticipantD1Row {
+  participant_id: string;
+  user_id: string | null;
+  guest_token: string | null;
+  team_id: string | null;
+  is_minor: number;
+}
+
+interface ObservationEventMeshSummaryRow {
+  visited_cells: number;
+  visit_seconds_sum: number;
+  observation_sum: number;
+  absence_sum: number;
+}
+
 const MAX_MEDIA_PER_DRAFT = 12;
 const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 const SESSION_COOKIE_NAME = "ikimon_v2_session";
@@ -1360,6 +1411,11 @@ export const worker = {
         return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
       }
 
+      const observationEventResponse = await handleObservationEventApi(request, url, env);
+      if (observationEventResponse) {
+        return observationEventResponse;
+      }
+
       if (shouldFallbackObservationEventApiToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "legacy_observation_event_api_origin_fallback");
       }
@@ -1580,6 +1636,552 @@ function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
   return false;
 }
 
+async function handleObservationEventApi(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (!pathname.startsWith("/api/v1/observation-events")) return null;
+  if (isLegacyObservationEventApiOriginFallbackPath(request, url)) return null;
+
+  if (request.method === "POST" && pathname === "/api/v1/observation-events") {
+    return createObservationEventSession(request, env);
+  }
+  const byCodeMatch = pathname.match(/^\/api\/v1\/observation-events\/by-code\/([^/]+)$/);
+  if (request.method === "GET" && byCodeMatch?.[1]) {
+    const session = await getObservationEventSessionByEventCode(env, decodeURIComponent(byCodeMatch[1]));
+    return session ? json({ session }, 200, { "cache-control": "no-store" }) : json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  }
+  const sessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)(?:\/([^/]+))?$/);
+  if (!sessionMatch?.[1]) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+
+  const sessionId = decodeURIComponent(sessionMatch[1]);
+  const action = sessionMatch[2] ? decodeURIComponent(sessionMatch[2]) : "";
+  if (request.method === "GET" && action === "") {
+    const session = await getObservationEventSessionById(env, sessionId);
+    return session ? json({ session, modes: OBSERVATION_EVENT_MODES }, 200, { "cache-control": "no-store" }) : json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  }
+  if (request.method === "PATCH" && action === "") return updateObservationEventSession(request, env, sessionId);
+  if (request.method === "GET" && action === "recent") return getObservationEventRecent(url, env, sessionId, request.headers.get("cookie"));
+  if (request.method === "GET" && action === "live") return getObservationEventLiveSnapshot(url, env, sessionId, request.headers.get("cookie"));
+  if (request.method === "POST" && action === "announce") return announceObservationEvent(request, env, sessionId);
+  if (request.method === "POST" && action === "teams") return createObservationEventTeam(request, env, sessionId);
+  if (request.method === "POST" && action === "checkin") return checkinObservationEvent(request, env, sessionId);
+  if (request.method === "POST" && action === "absences") return createObservationEventAbsence(request, env, sessionId);
+  if (request.method === "PATCH" && action === "mode") return switchObservationEventMode(request, env, sessionId);
+  if (request.method === "PATCH" && action === "role") return updateObservationEventRole(request, env, sessionId);
+  if (request.method === "POST" && action === "end") return endObservationEventSession(request, env, sessionId);
+  if (request.method === "GET" && action === "effort") return getObservationEventEffort(env, sessionId);
+  return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+}
+
+async function createObservationEventSession(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const startedAt = normalizeOptionalText(body.started_at);
+  const title = normalizeOptionalText(body.title);
+  if (!startedAt) return json({ error: "started_at required" }, 400, { "cache-control": "no-store" });
+  if (!title) return json({ error: "title required" }, 400, { "cache-control": "no-store" });
+  const fieldId = normalizeOptionalText(body.field_id);
+  const lat = numberOrNullFromUnknown(body.location_lat);
+  const lng = numberOrNullFromUnknown(body.location_lng);
+  if (!fieldId && (lat === null || lng === null)) {
+    return json({ error: "field_id or location_lat/location_lng required" }, 400, { "cache-control": "no-store" });
+  }
+  const primaryMode = observationEventMode(body.primary_mode) ?? "discovery";
+  const activeModes = observationEventModes(body.active_modes, primaryMode);
+  const id = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_sessions (
+       session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+       plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+       started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    id,
+    normalizeOptionalText(body.legacy_event_id),
+    normalizeOptionalText(body.event_code),
+    title,
+    session.userId,
+    normalizeOptionalText(body.corporation_id),
+    body.plan === "public" ? "public" : "community",
+    primaryMode,
+    JSON.stringify(activeModes),
+    lat,
+    lng,
+    Math.round(numberOrNullFromUnknown(body.location_radius_m) ?? 1000),
+    startedAt,
+    normalizeOptionalText(body.ended_at),
+    JSON.stringify(stringArray(body.target_species)),
+    JSON.stringify(asPlainObject(body.config) ?? {}),
+    fieldId,
+    normalizeOptionalText(body.template_source_session_id)
+  ).run();
+  const created = await getObservationEventSessionById(env, id);
+  return json(created, 201, { "cache-control": "no-store" });
+}
+
+async function updateObservationEventSession(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const current = auth.session;
+  const primaryMode = observationEventMode(body.primary_mode) ?? current.primaryMode;
+  await env.OBS_DB.prepare(
+    `UPDATE observation_event_sessions
+        SET title = ?, event_code = ?, primary_mode = ?, active_modes_json = ?,
+            location_lat = ?, location_lng = ?, location_radius_m = ?, started_at = ?,
+            target_species_json = ?, plan = ?, config_json = ?, field_id = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE session_id = ?`
+  ).bind(
+    typeof body.title === "string" ? body.title : current.title,
+    body.event_code === undefined ? current.eventCode : normalizeOptionalText(body.event_code),
+    primaryMode,
+    JSON.stringify(Array.isArray(body.active_modes) ? observationEventModes(body.active_modes, primaryMode) : current.activeModes),
+    body.location_lat === undefined ? current.locationLat : numberOrNullFromUnknown(body.location_lat),
+    body.location_lng === undefined ? current.locationLng : numberOrNullFromUnknown(body.location_lng),
+    body.location_radius_m === undefined ? current.locationRadiusM : Math.round(numberOrNullFromUnknown(body.location_radius_m) ?? current.locationRadiusM),
+    typeof body.started_at === "string" ? body.started_at : current.startedAt,
+    JSON.stringify(Array.isArray(body.target_species) ? stringArray(body.target_species) : current.targetSpecies),
+    body.plan === "public" || body.plan === "community" ? body.plan : current.plan,
+    JSON.stringify(asPlainObject(body.config) ?? current.config),
+    body.field_id === undefined ? current.fieldId : normalizeOptionalText(body.field_id),
+    sessionId
+  ).run();
+  return json({ session: await getObservationEventSessionById(env, sessionId) }, 200, { "cache-control": "no-store" });
+}
+
+async function switchObservationEventMode(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const next = observationEventMode(body.primary_mode);
+  if (!next) return json({ error: "invalid primary_mode" }, 400, { "cache-control": "no-store" });
+  const activeModes = [...new Set([...auth.session.activeModes, next])];
+  await env.OBS_DB.prepare(
+    "UPDATE observation_event_sessions SET primary_mode = ?, active_modes_json = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?"
+  ).bind(next, JSON.stringify(activeModes), sessionId).run();
+  await appendObservationEventLive(env, { sessionId, type: "mode_switch", scope: "all", actorUserId: auth.auth.userId, payload: { primary_mode: next, active_modes: activeModes } });
+  return json({ session: await getObservationEventSessionById(env, sessionId) }, 200, { "cache-control": "no-store" });
+}
+
+async function endObservationEventSession(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  await env.OBS_DB.prepare(
+    "UPDATE observation_event_sessions SET ended_at = COALESCE(ended_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE session_id = ?"
+  ).bind(sessionId).run();
+  return json({ session: await getObservationEventSessionById(env, sessionId) }, 200, { "cache-control": "no-store" });
+}
+
+async function createObservationEventTeam(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const name = normalizeOptionalText(body.name);
+  if (!name) return json({ error: "name required" }, 400, { "cache-control": "no-store" });
+  const teamId = crypto.randomUUID();
+  const team = {
+    team_id: teamId,
+    name,
+    color: normalizeOptionalText(body.color) ?? "#4f9d69",
+    lead_user_id: normalizeOptionalText(body.lead_user_id),
+    target_taxa: stringArray(body.target_taxa)
+  };
+  await env.OBS_DB.prepare(
+    "INSERT INTO observation_event_teams (team_id, session_id, name, color, lead_user_id, target_taxa_json) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(teamId, sessionId, team.name, team.color, team.lead_user_id, JSON.stringify(team.target_taxa)).run();
+  await appendObservationEventLive(env, { sessionId, type: "team_update", scope: "all", actorUserId: auth.auth.userId, teamId, payload: { kind: "created", team } });
+  return json({ team }, 201, { "cache-control": "no-store" });
+}
+
+async function checkinObservationEvent(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const guestToken = normalizeOptionalText(body.guest_token);
+  if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
+  const participantId = await upsertObservationEventParticipant(env, {
+    sessionId,
+    userId: auth?.userId ?? null,
+    guestToken,
+    displayName: normalizeOptionalText(body.display_name) ?? "",
+    teamId: normalizeOptionalText(body.team_id),
+    isMinor: body.is_minor === true
+  });
+  await appendObservationEventLive(env, {
+    sessionId,
+    type: "checkin",
+    scope: "organizer",
+    actorUserId: auth?.userId ?? null,
+    actorGuestToken: guestToken,
+    teamId: normalizeOptionalText(body.team_id),
+    payload: { participant_id: participantId, display_name: normalizeOptionalText(body.display_name) ?? "", team_id: normalizeOptionalText(body.team_id), location_share: false }
+  });
+  return json({ participant_id: participantId }, 200, { "cache-control": "no-store" });
+}
+
+async function updateObservationEventRole(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const guestToken = normalizeOptionalText(body.guest_token);
+  const declaredJob = normalizeOptionalText(body.declared_job);
+  if (!declaredJob || !["shoot", "identify", "map", "record", "absence", "free"].includes(declaredJob)) {
+    return json({ error: "invalid declared_job" }, 400, { "cache-control": "no-store" });
+  }
+  if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
+  const participant = await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken);
+  if (!participant) return json({ error: "participant not found" }, 404, { "cache-control": "no-store" });
+  await env.OBS_DB.prepare(
+    "UPDATE observation_event_participants SET declared_job = ?, updated_at = CURRENT_TIMESTAMP WHERE participant_id = ?"
+  ).bind(declaredJob, participant.participant_id).run();
+  await appendObservationEventLive(env, { sessionId, type: "team_update", scope: "team", teamId: participant.team_id, actorUserId: auth?.userId ?? null, actorGuestToken: guestToken, payload: { kind: "role", participant_id: participant.participant_id, declared_job: declaredJob } });
+  return json({ participant_id: participant.participant_id, declared_job: declaredJob }, 200, { "cache-control": "no-store" });
+}
+
+async function announceObservationEvent(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const message = normalizeOptionalText(body.message);
+  if (!message) return json({ error: "message required" }, 400, { "cache-control": "no-store" });
+  const event = await appendObservationEventLive(env, { sessionId, type: "announce", scope: "all", actorUserId: auth.auth.userId, payload: { message, template: normalizeOptionalText(body.template) } });
+  return json({ event }, 200, { "cache-control": "no-store" });
+}
+
+async function createObservationEventAbsence(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const guestToken = normalizeOptionalText(body.guest_token);
+  const taxon = normalizeOptionalText(body.searched_taxon);
+  const lat = numberOrNullFromUnknown(body.lat);
+  const lng = numberOrNullFromUnknown(body.lng);
+  if (!taxon || lat === null || lng === null) return json({ error: "searched_taxon, lat, lng required" }, 400, { "cache-control": "no-store" });
+  if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
+  const teamId = normalizeOptionalText(body.team_id);
+  const absenceId = crypto.randomUUID();
+  const confidenceRaw = normalizeOptionalText(body.confidence) ?? "searched";
+  const confidence = ["searched", "confirmed_absent", "expert_verified"].includes(confidenceRaw) ? confidenceRaw : "searched";
+  const publicLat = roundPublicEventCoordinate(lat);
+  const publicLng = roundPublicEventCoordinate(lng);
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_absences (
+       absence_id, session_id, user_id, guest_token, team_id, searched_taxon,
+       effort_seconds, public_lat, public_lng, confidence, notes
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(absenceId, sessionId, auth?.userId ?? null, guestToken, teamId, taxon, Math.max(0, Math.round(numberOrNullFromUnknown(body.effort_seconds) ?? 0)), publicLat, publicLng, confidence, normalizeOptionalText(body.notes) ?? "").run();
+  await recordObservationEventMeshVisit(env, { sessionId, lat: publicLat, lng: publicLng, absenceDelta: 1, teamId });
+  const event = await appendObservationEventLive(env, { sessionId, type: "absence_recorded", scope: "all", actorUserId: auth?.userId ?? null, actorGuestToken: guestToken, teamId, payload: { absence_id: absenceId, searched_taxon: taxon, confidence } });
+  return json({ absence_id: absenceId, event }, 201, { "cache-control": "no-store" });
+}
+
+async function getObservationEventRecent(url: URL, env: Env, sessionId: string, cookieHeader: string | null): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 500);
+  const ctx = await observationEventParticipantContext(env, session, cookieHeader, url.searchParams.get("guest_token"));
+  const events = (await listObservationEventLiveEvents(env, sessionId, limit)).filter((event) => shouldDeliverObservationEvent(event, ctx));
+  return json({ session, events }, 200, { "cache-control": "no-store" });
+}
+
+async function getObservationEventLiveSnapshot(url: URL, env: Env, sessionId: string, cookieHeader: string | null): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const ctx = await observationEventParticipantContext(env, session, cookieHeader, url.searchParams.get("guest_token"));
+  const events = (await listObservationEventLiveEvents(env, sessionId, 50)).filter((event) => shouldDeliverObservationEvent(event, ctx)).reverse();
+  const payload = `event: snapshot\ndata: ${JSON.stringify({ session, events })}\n\nevent: ping\ndata: ${JSON.stringify({ now: new Date().toISOString(), mode: "snapshot_only" })}\n\n`;
+  return new Response(payload, {
+    status: 200,
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      "x-ikimon-observation-event-live-mode": "snapshot-only"
+    }
+  });
+}
+
+async function getObservationEventEffort(env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const target = Math.max(1, Number(session.config.coverage_target_cells ?? 100) || 100);
+  const row = await env.OBS_DB.prepare(
+    `SELECT COUNT(*) AS visited_cells,
+            COALESCE(SUM(visit_seconds), 0) AS visit_seconds_sum,
+            COALESCE(SUM(observation_count), 0) AS observation_sum,
+            COALESCE(SUM(absence_count), 0) AS absence_sum
+       FROM observation_event_mesh_cells
+      WHERE session_id = ?`
+  ).bind(sessionId).first<ObservationEventMeshSummaryRow>();
+  const visited = Number(row?.visited_cells ?? 0);
+  const seconds = Number(row?.visit_seconds_sum ?? 0);
+  const observations = Number(row?.observation_sum ?? 0);
+  const absences = Number(row?.absence_sum ?? 0);
+  return json({
+    session,
+    effort: {
+      sessionId,
+      totalVisitedCells: visited,
+      totalEffortSeconds: seconds,
+      totalEffortPersonHours: Math.round((seconds / 3600) * 100) / 100,
+      totalObservations: observations,
+      totalAbsences: absences,
+      coveragePct: Math.min(100, Math.round((visited / target) * 1000) / 10)
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getObservationEventSessionById(env: Env, sessionId: string) {
+  const row = await env.OBS_DB.prepare(
+    `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+            plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+            started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+            created_at, updated_at
+       FROM observation_event_sessions
+      WHERE session_id = ?`
+  ).bind(sessionId).first<ObservationEventSessionD1Row>();
+  return row ? mapObservationEventSession(row) : null;
+}
+
+async function getObservationEventSessionByEventCode(env: Env, eventCode: string) {
+  const row = await env.OBS_DB.prepare(
+    `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+            plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+            started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+            created_at, updated_at
+       FROM observation_event_sessions
+      WHERE event_code = ?`
+  ).bind(eventCode).first<ObservationEventSessionD1Row>();
+  return row ? mapObservationEventSession(row) : null;
+}
+
+function mapObservationEventSession(row: ObservationEventSessionD1Row) {
+  const activeModes = jsonArray(row.active_modes_json).filter(isObservationEventMode);
+  return {
+    sessionId: row.session_id,
+    legacyEventId: row.legacy_event_id,
+    eventCode: row.event_code,
+    title: row.title,
+    organizerUserId: row.organizer_user_id,
+    corporationId: row.corporation_id,
+    plan: row.plan === "public" ? "public" : "community",
+    primaryMode: isObservationEventMode(row.primary_mode) ? row.primary_mode : "discovery",
+    activeModes: activeModes.length > 0 ? activeModes : ["discovery"],
+    locationLat: row.location_lat,
+    locationLng: row.location_lng,
+    locationRadiusM: row.location_radius_m,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    targetSpecies: jsonArray(row.target_species_json).filter((value): value is string => typeof value === "string"),
+    config: jsonObject(row.config_json),
+    fieldId: row.field_id,
+    templateSourceSessionId: row.template_source_session_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+async function requireObservationEventOrganizer(request: Request, env: Env, sessionId: string): Promise<{ auth: SessionSnapshot; session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>> } | Response> {
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!auth) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  if (session.organizerUserId !== auth.userId) return json({ error: "organizer only" }, 403, { "cache-control": "no-store" });
+  return { auth, session };
+}
+
+async function appendObservationEventLive(env: Env, input: {
+  sessionId: string;
+  type: string;
+  scope?: string;
+  actorUserId?: string | null;
+  actorGuestToken?: string | null;
+  teamId?: string | null;
+  payload?: Record<string, unknown>;
+}) {
+  const liveEventId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_live_events (
+       live_event_id, session_id, type, scope, actor_user_id, actor_guest_token, team_id, payload_json
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(liveEventId, input.sessionId, input.type, input.scope ?? "all", input.actorUserId ?? null, input.actorGuestToken ?? null, input.teamId ?? null, JSON.stringify(input.payload ?? {})).run();
+  return {
+    liveEventId,
+    sessionId: input.sessionId,
+    type: input.type,
+    scope: input.scope ?? "all",
+    teamId: input.teamId ?? null,
+    payload: input.payload ?? {},
+    createdAt: new Date().toISOString()
+  };
+}
+
+async function listObservationEventLiveEvents(env: Env, sessionId: string, limit: number) {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT live_event_id, session_id, type, scope, team_id, payload_json, created_at
+       FROM observation_event_live_events
+      WHERE session_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?`
+  ).bind(sessionId, limit).all<ObservationEventLiveD1Row>();
+  return rows.results.map((row) => ({
+    liveEventId: row.live_event_id,
+    sessionId: row.session_id,
+    type: row.type,
+    scope: row.scope,
+    teamId: row.team_id,
+    payload: jsonObject(row.payload_json),
+    createdAt: row.created_at
+  }));
+}
+
+async function upsertObservationEventParticipant(env: Env, input: {
+  sessionId: string;
+  userId: string | null;
+  guestToken: string | null;
+  displayName: string;
+  teamId: string | null;
+  isMinor: boolean;
+}): Promise<string> {
+  const existing = await findObservationEventParticipant(env, input.sessionId, input.userId, input.guestToken);
+  if (existing) {
+    await env.OBS_DB.prepare(
+      `UPDATE observation_event_participants
+          SET display_name = ?, team_id = COALESCE(?, team_id), status = 'checked_in',
+              checked_in_at = CURRENT_TIMESTAMP, share_location = 0, is_minor = ?,
+              location_share_until = NULL, location_share_consent_type = NULL, updated_at = CURRENT_TIMESTAMP
+        WHERE participant_id = ?`
+    ).bind(input.displayName, input.teamId, input.isMinor ? 1 : 0, existing.participant_id).run();
+    return existing.participant_id;
+  }
+  const participantId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_participants (
+       participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
+       checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
+     ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, 0, ?, NULL, NULL)`
+  ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, input.isMinor ? 1 : 0).run();
+  return participantId;
+}
+
+async function findObservationEventParticipant(env: Env, sessionId: string, userId: string | null, guestToken: string | null) {
+  if (!userId && !guestToken) return null;
+  return env.OBS_DB.prepare(
+    `SELECT participant_id, user_id, guest_token, team_id, is_minor
+       FROM observation_event_participants
+      WHERE session_id = ?
+        AND ((user_id IS NOT NULL AND user_id = ?) OR (guest_token IS NOT NULL AND guest_token = ?))
+      LIMIT 1`
+  ).bind(sessionId, userId, guestToken).first<ObservationEventParticipantD1Row>();
+}
+
+async function observationEventParticipantContext(env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, cookieHeader: string | null, guestTokenOverride?: string | null) {
+  const auth = await readCompatibleSession(new Request("https://ikimon.life/", { headers: cookieHeader ? { cookie: cookieHeader } : undefined }), env).catch(() => null);
+  const guestToken = guestTokenOverride ?? null;
+  const participant = await findObservationEventParticipant(env, session.sessionId, auth?.userId ?? null, guestToken);
+  return {
+    userId: auth?.userId ?? null,
+    guestToken,
+    teamId: participant?.team_id ?? null,
+    isOrganizer: Boolean(auth?.userId && auth.userId === session.organizerUserId)
+  };
+}
+
+function shouldDeliverObservationEvent(event: { scope: string; teamId: string | null; payload: Record<string, unknown> }, ctx: { userId: string | null; guestToken: string | null; teamId: string | null; isOrganizer: boolean }): boolean {
+  if (event.scope === "all") return true;
+  if (event.scope === "organizer") return ctx.isOrganizer;
+  if (event.scope === "team") return Boolean(ctx.teamId && ctx.teamId === event.teamId);
+  if (event.scope === "self") {
+    const targetUser = normalizeOptionalText(event.payload.target_user_id);
+    const targetGuest = normalizeOptionalText(event.payload.target_guest_token);
+    return Boolean((targetUser && targetUser === ctx.userId) || (targetGuest && targetGuest === ctx.guestToken));
+  }
+  return true;
+}
+
+async function recordObservationEventMeshVisit(env: Env, input: { sessionId: string; lat: number; lng: number; absenceDelta?: number; observationDelta?: number; visitSeconds?: number; teamId?: string | null }): Promise<void> {
+  const meshKey = observationEventMeshKey(input.lat, input.lng);
+  if (!meshKey) return;
+  const center = observationEventMeshCenter(meshKey);
+  if (!center) return;
+  const meshId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_mesh_cells (
+       mesh_cell_id, session_id, mesh_key, center_lat, center_lng, visit_seconds,
+       observation_count, absence_count, last_visited_at, visited_team_ids_json, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(session_id, mesh_key) DO UPDATE SET
+       visit_seconds = visit_seconds + excluded.visit_seconds,
+       observation_count = observation_count + excluded.observation_count,
+       absence_count = absence_count + excluded.absence_count,
+       last_visited_at = CURRENT_TIMESTAMP,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(meshId, input.sessionId, meshKey, center.lat, center.lng, Math.max(0, Math.round(input.visitSeconds ?? 0)), Math.max(0, Math.round(input.observationDelta ?? 0)), Math.max(0, Math.round(input.absenceDelta ?? 0)), JSON.stringify(input.teamId ? [input.teamId] : [])).run();
+}
+
+function isObservationEventMode(value: unknown): value is ObservationEventMode {
+  return typeof value === "string" && (OBSERVATION_EVENT_MODES as readonly string[]).includes(value);
+}
+
+function observationEventMode(value: unknown): ObservationEventMode | null {
+  return isObservationEventMode(value) ? value : null;
+}
+
+function observationEventModes(value: unknown, fallback: ObservationEventMode): ObservationEventMode[] {
+  const modes = Array.isArray(value) ? value.filter(isObservationEventMode) : [];
+  return modes.length > 0 ? modes : [fallback];
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function asPlainObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function jsonArray(value: string): unknown[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function jsonObject(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function roundPublicEventCoordinate(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function observationEventMeshKey(lat: number, lng: number): string {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+  const rounded = (v: number): string => {
+    const sign = v < 0 ? "-" : "";
+    const abs = Math.abs(v);
+    return `${sign}${Math.floor(abs * 1000) / 1000}`;
+  };
+  return `${rounded(lat)},${rounded(lng)}`;
+}
+
+function observationEventMeshCenter(meshKey: string): { lat: number; lng: number } | null {
+  const [latRaw, lngRaw] = meshKey.split(",");
+  const lat = Number(latRaw);
+  const lng = Number(lngRaw);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat: lat + 0.0005, lng: lng + 0.0005 };
+}
+
 function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: Env): boolean {
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
   return shouldUseOriginFallback(url, env) && isLegacyObservationOriginFallbackPath(request, url);
@@ -1606,7 +2208,10 @@ function isLegacyObservationOriginFallbackPath(request: Request, url: URL): bool
 
 function isLegacyObservationEventApiOriginFallbackPath(_request: Request, url: URL): boolean {
   const pathname = stripPublicLangPrefix(url.pathname);
-  return /^\/api\/v1\/observation-events(?:\/.*)?$/.test(pathname);
+  if (pathname === "/api/v1/observation-events/area-suggestions") return true;
+  if (/^\/api\/v1\/observation-events\/[^/]+\/location$/.test(pathname)) return true;
+  if (/^\/api\/v1\/observation-events\/[^/]+\/rally(?:\/.*)?$/.test(pathname)) return true;
+  return false;
 }
 
 function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
