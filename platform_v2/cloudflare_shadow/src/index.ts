@@ -188,6 +188,21 @@ interface OAuthAccountRow {
   banned: number;
 }
 
+interface MunicipalWalkMapD1Row {
+  walk_map_id: string;
+  municipality_code: string;
+  municipality: string;
+  title: string;
+  summary: string;
+  theme: string;
+  publish_mode: string;
+  route_style: string;
+  mobility_modes_json: string;
+  stop_count: number;
+  source_references_json: string;
+  area_hint_json: string;
+}
+
 interface SessionSnapshot {
   tokenHash: string;
   userId: string;
@@ -1062,7 +1077,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
-        return getMunicipalWalkMapCandidates(url);
+        return getMunicipalWalkMapCandidates(url, env);
       }
 
       const fieldDetailApiMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/public-detail$/);
@@ -2373,18 +2388,81 @@ function walkMapMunicipalityCodeForLocation(lat: number | null, lng: number | nu
   return match?.municipalityCode ?? null;
 }
 
-function getMunicipalWalkMapCandidates(url: URL): Response {
+function parseJsonArray(value: string): unknown[] {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseJsonRecord(value: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function municipalWalkMapSummaryFromD1Row(row: MunicipalWalkMapD1Row) {
+  return {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: row.walk_map_id,
+    municipality: row.municipality,
+    title: row.title,
+    summary: row.summary,
+    theme: row.theme,
+    publishMode: row.publish_mode,
+    routeStyle: row.route_style,
+    mobilityModes: parseJsonArray(row.mobility_modes_json),
+    stopCount: row.stop_count,
+    sourceReferences: parseJsonArray(row.source_references_json),
+    areaHint: parseJsonRecord(row.area_hint_json)
+  };
+}
+
+async function getMunicipalWalkMapSummariesFromD1(
+  env: Env,
+  matchedMunicipalityCode: string | null,
+  locationFiltered: boolean,
+  limit: number
+): Promise<unknown[] | null> {
+  if (locationFiltered && matchedMunicipalityCode !== "22100") return [];
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT walk_map_id, municipality_code, municipality, title, summary, theme, publish_mode, route_style,
+              mobility_modes_json, stop_count, source_references_json, area_hint_json
+         FROM municipal_walk_maps
+        WHERE publish_mode IN ('public_preview', 'public')
+          AND (? IS NULL OR municipality_code = ?)
+        ORDER BY display_order ASC, walk_map_id ASC
+        LIMIT ?`
+    ).bind(matchedMunicipalityCode, matchedMunicipalityCode, limit).all<MunicipalWalkMapD1Row>();
+    if (rows.results.length === 0) return null;
+    return rows.results.map(municipalWalkMapSummaryFromD1Row);
+  } catch (error) {
+    if (error instanceof Error && /no such table: municipal_walk_maps/i.test(error.message)) return null;
+    throw error;
+  }
+}
+
+async function getMunicipalWalkMapCandidates(url: URL, env: Env): Promise<Response> {
   const lat = numberFromSearchParam(url.searchParams.get("lat"));
   const lng = numberFromSearchParam(url.searchParams.get("lng"));
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "4"), 1, 8);
   const locationFiltered = lat != null && lng != null;
   const matchedMunicipalityCode = walkMapMunicipalityCodeForLocation(lat, lng);
-  const summaries = locationFiltered && matchedMunicipalityCode !== "22100"
-    ? []
-    : STATIC_MUNICIPAL_WALK_MAP_SUMMARIES.slice(0, limit);
+  const d1Summaries = await getMunicipalWalkMapSummariesFromD1(env, matchedMunicipalityCode, locationFiltered, limit);
+  const summaries = d1Summaries ?? (
+    locationFiltered && matchedMunicipalityCode !== "22100"
+      ? []
+      : STATIC_MUNICIPAL_WALK_MAP_SUMMARIES.slice(0, limit)
+  );
   return json({
     ok: true,
-    source: "static",
+    source: d1Summaries ? "d1_observations" : "static",
     matchedMunicipalityCode,
     locationFiltered,
     summaries
