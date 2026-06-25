@@ -332,6 +332,18 @@ interface MunicipalWalkMapCreatorRow {
   updated_at: string | null;
 }
 
+interface MunicipalWalkMapStopRow {
+  stop_id: string;
+  walk_map_id: string;
+  display_order: number;
+  title: string;
+  note: string | null;
+  area_hint_json: string;
+  position: number;
+  area_kind: string;
+  access: string;
+}
+
 interface MunicipalWalkMapAuditRow {
   audit_id: string;
   walk_map_id: string;
@@ -389,6 +401,7 @@ class FakeD1 {
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
+  municipalWalkMapStops = new Map<string, MunicipalWalkMapStopRow>();
   municipalWalkMapAudit: MunicipalWalkMapAuditRow[] = [];
   publicMapSnapshotRecords: PublicMapSnapshotRecordRow[] = [];
   publicMapSnapshotMeta: PublicMapSnapshotMetaRow | null = null;
@@ -815,6 +828,54 @@ class FakeStatement {
       row.publish_mode = string(v[0]);
       row.publication_review_json = string(v[1]);
       row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO municipal_walk_maps")) {
+      const walkMapId = string(v[0]);
+      this.db.municipalWalkMaps.set(walkMapId, {
+        walk_map_id: walkMapId,
+        municipality_code: string(v[2]),
+        municipality: string(v[3]),
+        title: string(v[4]),
+        summary: string(v[5]),
+        theme: string(v[6]),
+        publish_mode: string(v[7]),
+        route_style: string(v[8]),
+        mobility_modes_json: string(v[9]),
+        source_references_json: string(v[10]),
+        area_hint_json: string(v[11]),
+        stop_count: number(v[12]),
+        display_order: number(v[13]),
+        creator_name: nullableString(v[15]),
+        creator_profile_json: string(v[16]),
+        route_flexibility_json: string(v[19]),
+        publication_review_json: string(v[22]),
+        updated_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM municipal_walk_map_stops")) {
+      const walkMapId = string(v[0]);
+      for (const [key, row] of [...this.db.municipalWalkMapStops.entries()]) {
+        if (row.walk_map_id === walkMapId) this.db.municipalWalkMapStops.delete(key);
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO municipal_walk_map_stops")) {
+      this.db.municipalWalkMapStops.set(string(v[0]), {
+        stop_id: string(v[0]),
+        walk_map_id: string(v[1]),
+        display_order: number(v[2]),
+        title: string(v[3]),
+        note: nullableString(v[4]),
+        area_hint_json: string(v[5]),
+        position: number(v[7]),
+        area_kind: string(v[8]),
+        access: string(v[10])
+      });
       return {};
     }
 
@@ -5851,6 +5912,118 @@ test("municipal walk map review actions update D1 publish state and audit only f
   assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-action-sample")?.publish_mode, "draft");
   assert.equal(obs.municipalWalkMapAudit.length, 2);
   assert.equal(obs.municipalWalkMapAudit[1]?.action, "review.request_changes");
+});
+
+test("municipal walk map admin create and update APIs persist config and stops to D1", async () => {
+  const { env, obs } = createEnv();
+  const observerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "observer-user", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const observerCookie = observerIssue.headers.get("set-cookie") ?? "";
+  const baseConfig = {
+    walkMapId: "jp-shizuoka-d1-write-sample",
+    creatorProfile: {
+      creatorId: "creator-shizuoka-city-official-sample",
+      displayName: "静岡市",
+      registrationKind: "municipality",
+      verificationStatus: "verified",
+      commercialIntent: "none"
+    },
+    municipalityCode: "22100",
+    municipality: "静岡市",
+    title: "D1保存サンプル",
+    summary: "D1へ作成・更新する散策マップサンプルです。",
+    theme: "waterfront",
+    publishMode: "draft",
+    areaScope: { municipalityCodes: ["22100"], placeIds: [], polygonIds: [] },
+    recordModes: ["photo", "memo", "unknown_species"],
+    routeFlexibility: {
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike"],
+      offRoutePolicy: "off_route_allowed"
+    },
+    sourceReferences: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html" }
+    ],
+    publicationReview: { publicAccessAttested: false, sourceRightsAttested: true, emergencyHidden: false },
+    routeStops: [
+      {
+        stopId: "asahata-water",
+        title: "麻機の水辺",
+        areaKind: "waterfront",
+        access: "public_access",
+        areaHint: { lat: 35.015, lng: 138.389, label: "麻機" },
+        noticeCues: ["水面", "鳥の声"],
+        recordCues: ["写真", "メモ"]
+      },
+      {
+        stopId: "yatsuyama-edge",
+        title: "八ツ山の木陰",
+        areaKind: "park",
+        access: "public_access",
+        areaHint: { lat: 34.98, lng: 138.39, label: "八ツ山" },
+        noticeCues: ["木陰"],
+        recordCues: ["写真"]
+      }
+    ]
+  };
+
+  const forbidden = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-maps", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: observerCookie },
+    body: JSON.stringify({ config: baseConfig })
+  }), env);
+  const forbiddenBody = await forbidden.json() as { error?: string };
+  assert.equal(forbidden.status, 403);
+  assert.equal(forbiddenBody.error, "admin_required");
+  assert.equal(obs.municipalWalkMaps.has("jp-shizuoka-d1-write-sample"), false);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "admin-user", displayName: "Admin User", roleName: "Admin", ttlHours: 1 })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+  const create = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-maps", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: adminCookie },
+    body: JSON.stringify({ config: baseConfig })
+  }), env);
+  const createBody = await create.json() as { ok?: boolean; action?: string; publicMap?: { stopCount?: number } };
+  assert.equal(create.status, 201);
+  assert.equal(createBody.ok, true);
+  assert.equal(createBody.action, "create");
+  assert.equal(createBody.publicMap?.stopCount, 2);
+  assert.equal(obs.municipalWalkMapCreators.get("creator-shizuoka-city-official-sample")?.registration_kind, "municipality");
+  assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-d1-write-sample")?.title, "D1保存サンプル");
+  assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-d1-write-sample")?.stop_count, 2);
+  assert.equal([...obs.municipalWalkMapStops.values()].filter((row) => row.walk_map_id === "jp-shizuoka-d1-write-sample").length, 2);
+  assert.equal(obs.municipalWalkMapAudit[0]?.action, "map.create");
+
+  const update = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-maps/jp-shizuoka-d1-write-sample", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: adminCookie },
+    body: JSON.stringify({
+      config: {
+        ...baseConfig,
+        title: "D1更新サンプル",
+        publishMode: "public_preview",
+        routeStops: [baseConfig.routeStops[0]]
+      }
+    })
+  }), env);
+  const updateBody = await update.json() as { ok?: boolean; action?: string; publicMap?: { publishMode?: string; stopCount?: number } };
+  assert.equal(update.status, 200);
+  assert.equal(updateBody.ok, true);
+  assert.equal(updateBody.action, "update");
+  assert.equal(updateBody.publicMap?.publishMode, "public_preview");
+  assert.equal(updateBody.publicMap?.stopCount, 1);
+  assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-d1-write-sample")?.title, "D1更新サンプル");
+  assert.equal(obs.municipalWalkMaps.get("jp-shizuoka-d1-write-sample")?.stop_count, 1);
+  assert.equal([...obs.municipalWalkMapStops.values()].filter((row) => row.walk_map_id === "jp-shizuoka-d1-write-sample").length, 1);
+  assert.equal(obs.municipalWalkMapAudit[1]?.action, "map.update");
 });
 
 test("production field detail can render from Cloudflare public readmodel without origin fallback", async () => {
