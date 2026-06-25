@@ -8,7 +8,7 @@ export const ja: AppStrings = {
     heroEyebrow: "Enjoy Life",
     heroHeading: "生きものを手がかりに、<br><span class=\"hero-emphasis\">この場所の今を残す。</span>",
     heroHeadingPlain: "生きものを手がかりに、この場所の今を残す。",
-    heroLead: "いつもの道で見つけた小さな発見も、音だけの記録も、見つからなかった条件も、場所の今を知る手がかりになる。身近な生きものを入口に、自然を記録し、学び、地域や企業の活動に活かす。",
+    heroLead: "いつもの道で見つけた小さな発見も、旅先の風景も、音だけの記録も、場所の今を知る手がかりになる。写真・音・メモから、近くを歩く楽しみを広げる。",
     heroPromiseChips: [
       "小さな発見が残る",
       "また歩きたくなる",
@@ -28,13 +28,13 @@ export const ja: AppStrings = {
     },
     dailyDashboard: {
       eyebrow: "今日の操作盤",
-      title: "小さな発見を、場所の記憶と観察レコードに育てる。",
-      lead: "名前をその場で決めきれなくても大丈夫。写真、動画、音声、場所、時刻、気づきを1つのシーンとして残せば、あとから場所の記憶や対象ごとの観察レコードへ育てられます。",
+      title: "小さな発見を、場所つきのシーンにする。",
+      lead: "名前をその場で決めきれなくても大丈夫。写真、動画、音声、場所、時刻、気づきを1つにまとめて、歩いた場所ごとに残せます。",
       scoreLabel: "今日の選定",
       seasonalTitle: "季節の手がかり",
       seasonalEmpty: "季節の候補はまだ集計中です",
       cards: {
-        recordToday: { eyebrow: "記録", title: "今日の場所の手がかりを残す", body: "写真・動画・音声・メモを、その場のシーンとしてまとめる。", cta: "記録する", metricLabel: "今日" },
+        recordToday: { eyebrow: "記録", title: "今日見えたものを残す", body: "写真・動画・音声・メモを、その場のシーンとしてまとめる。", cta: "記録する", metricLabel: "今日" },
         revisitPlace: { eyebrow: "再訪する", title: "前に歩いた場所へ戻る", body: "同じ場所でも、季節が変わると見えるものが変わる。", cta: "記録を見る", metricLabel: "訪問" },
         nearbyPulse: { eyebrow: "近所を見る", title: "近くで動いている場所を見る", body: "観察レコードが集まっているエリアから、次に歩く理由を探す。", cta: "地図を見る", metricLabel: "記録" },
         needsId: { eyebrow: "確かめる", title: "確認待ちの観察レコードを見る", body: "記録から切り出した対象を、次の発見につなげる。", cta: "観察レコードを見る", metricLabel: "確認" },
@@ -47,7 +47,7 @@ export const ja: AppStrings = {
     actionSecondary: JA_PUBLIC_SHARED_COPY.cta.openMap,
     toolSectionEyebrow: "楽しみ方は 2 つ",
     toolSectionTitle: "その場で調べるか、次に歩く場所を探すか",
-    toolSectionLead: "気になったものをその場で確かめる入口と、今日どこを歩くか決める入口です。どちらも、あとで記録を残し、対象ごとの観察レコードへ育てやすくするためにあります。",
+    toolSectionLead: "気になったものをその場で確かめる入口と、今日どこを歩くか決める入口です。どちらも、写真・音・メモを場所と一緒に残せます。",
     tools: {
       lens: {
         eyebrow: "その場で調べる",
@@ -78,7 +78,7 @@ export const ja: AppStrings = {
   fieldLoop: {
     eyebrow: "使い方",
     title: "見つける。聞く。残す。場所の変化が読めてくる。",
-    lead: "気になったものを見つけて、その場で確かめて、場所つきのシーンに残す。続けるほど、近くの自然が前より分かり、記録から育った観察レコードは研究や保全にもつながっていきます。",
+    lead: "気になったものを見つけて、その場で確かめて、場所つきのシーンに残す。散歩中でも旅先でも、写真・音・メモから近くの楽しみ方が見えてきます。",
     primaryCta: "この考え方を見る",
     secondaryCta: JA_PUBLIC_SHARED_COPY.cta.openScan,
     loopTitle: "4 steps",
@@ -87,8 +87,8 @@ export const ja: AppStrings = {
     steps: [
       { title: "1. 見つける", body: "散歩中でも旅先でも、気になったものをまず見つける。" },
       { title: "2. 調べる", body: "AI の候補と見分けるヒントを使って、その場の気づきを深くする。" },
-      { title: "3. 残す", body: "場所・時刻・写真・動画・音声・ひとことを、あとで開けるシーンにする。" },
-      { title: "4. 役に立つ", body: "記録から育った観察レコードが、地域の見え方や研究・保全の手がかりになる。" },
+      { title: "3. 残す", body: "場所・時刻・写真・動画・音声・ひとことを、ひとつのシーンにする。" },
+      { title: "4. 次へつなぐ", body: "近くの写真や散策候補から、次に歩く場所を探す。" },
     ],
     principles: [
       "楽しさを入口にする。",

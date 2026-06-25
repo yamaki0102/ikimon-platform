@@ -1025,7 +1025,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const mobileTabLabels = lang === "ja"
-    ? { markers: "発見", heatmap: "季節", places: "エリア", rain: "雨雲", frontier: "余白" }
+    ? { markers: "写真", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "未確認" }
     : lang === "es"
       ? { markers: "Hoy", heatmap: "Est.", places: "Área", rain: "Lluvia", frontier: "Huecos" }
       : lang === "pt-BR"
@@ -1087,7 +1087,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "O que fazer por perto"
         : "What you can do nearby";
   const startPanelCloseLabel = lang === "ja"
-    ? "散策候補を開く"
+    ? "地図メニューを開く"
     : lang === "es"
       ? "Cerrar guía"
       : lang === "pt-BR"
@@ -1140,6 +1140,23 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     { label: lang === "ja" ? "谷津山" : lang === "es" ? "Yatsuyama" : lang === "pt-BR" ? "Yatsuyama" : "Yatsuyama", href: yatsuyamaWalkHref, action: "map:start_panel:route_yatsuyama", region: "shizuoka" },
     { label: lang === "ja" ? "一覧" : lang === "es" ? "Lista" : lang === "pt-BR" ? "Lista" : "All", href: routeHintsHref, action: "map:start_panel:route_list", region: "all" },
   ];
+  const displayFilterLabel = lang === "ja"
+    ? "表示"
+    : lang === "es"
+      ? "Vista"
+      : lang === "pt-BR"
+        ? "Vista"
+        : "View";
+  const filterDisplayTabs = [
+    { tab: "markers", label: copy.tabMarkers },
+    { tab: "places", label: copy.tabPlaces },
+    { tab: "heatmap", label: copy.tabHeatmap },
+    { tab: "rain", label: copy.tabRain },
+    { tab: "frontier", label: copy.tabCoverage },
+  ];
+  const filterDisplayTabsHtml = filterDisplayTabs
+    .map((item) => `<button type="button" class="me-chip me-filter-tab-chip${item.tab === "places" ? " is-active" : ""}" data-filter-tab="${escapeHtml(item.tab)}" aria-pressed="${item.tab === "places" ? "true" : "false"}">${escapeHtml(item.label)}</button>`)
+    .join("");
   const startCards = [
     {
       icon: "📷",
@@ -1159,19 +1176,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       href: routeHintsHref,
       action: "map:start_panel:route_hints",
     },
-    {
-      icon: "+",
-      title: lang === "ja" ? "記録" : lang === "es" ? "Registrar" : lang === "pt-BR" ? "Registrar" : "Record",
-      href: recordHref,
-      action: "map:start_panel:record",
-    },
   ];
   const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}" aria-hidden="false">
       <div class="me-start-panel-head">
         <strong>${escapeHtml(startPanelTitle)}</strong>
         <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">
           <span class="me-start-panel-brief">${escapeHtml(startPanelBrief)}</span>
-          <span class="me-start-panel-symbol" aria-hidden="true">＋</span>
+          <span class="me-start-panel-symbol" aria-hidden="true">⌄</span>
         </button>
       </div>
       <div class="me-start-panel-grid">
@@ -1417,6 +1428,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <details class="me-filter-drawer">
           <summary class="me-filter-toggle">${escapeHtml(filterToggleLabel)}</summary>
           <div class="me-filter-panel">
+            <div class="me-filter-group me-filter-display-group">
+              <span class="me-filter-label">${escapeHtml(displayFilterLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(displayFilterLabel)}">${filterDisplayTabsHtml}</div>
+            </div>
             <div class="me-filter-group">
               <span class="me-filter-label">${escapeHtml(ambientLabels.roleLabel)}</span>
               <div class="me-chip-row" role="group" aria-label="${escapeHtml(ambientLabels.roleLabel)}">${roleChipsHtml}</div>
@@ -2505,9 +2520,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       startPanelCloseEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       var startPanelSymbolEl = startPanelCloseEl.querySelector('.me-start-panel-symbol');
       if (startPanelSymbolEl) {
-        startPanelSymbolEl.textContent = collapsed ? '＋' : '×';
+        startPanelSymbolEl.textContent = collapsed ? '⌄' : '×';
       } else {
-        startPanelCloseEl.textContent = collapsed ? '＋' : '×';
+        startPanelCloseEl.textContent = collapsed ? '⌄' : '×';
       }
     }
   }
@@ -6422,6 +6437,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       b.classList.toggle('is-active', active);
       b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
+    document.querySelectorAll('.me-filter-tab-chip').forEach(function (b) {
+      var active = b.getAttribute('data-filter-tab') === state.tab;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
     if (state.tab === 'rain') {
       closeBottomSheet();
       setMapEmptyInviteVisible(false);
@@ -8455,6 +8475,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       btn.classList.toggle('is-active', t === state.tab);
       btn.setAttribute('aria-selected', t === state.tab ? 'true' : 'false');
     });
+    document.querySelectorAll('.me-filter-tab-chip').forEach(function (btn) {
+      var t = btn.getAttribute('data-filter-tab');
+      btn.classList.toggle('is-active', t === state.tab);
+      btn.setAttribute('aria-pressed', t === state.tab ? 'true' : 'false');
+    });
     document.querySelectorAll('.me-role-chip').forEach(function (btn) {
       var v = btn.getAttribute('data-role') || 'mixed';
       btn.classList.toggle('is-active', v === state.role);
@@ -8891,6 +8916,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       dismissStartPanel();
       dismissPurposeHint();
       switchMapTab(t);
+    });
+  });
+  document.querySelectorAll('.me-filter-tab-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var t = btn.getAttribute('data-filter-tab');
+      if (!t) return;
+      dismissStartPanel();
+      dismissPurposeHint();
+      switchMapTab(t);
+      var drawer = btn.closest && btn.closest('.me-filter-drawer');
+      if (drawer) drawer.removeAttribute('open');
     });
   });
   if (layerHintJumpEl) {
@@ -10095,7 +10131,7 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-start-panel-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
   .me-start-panel-grid a {
@@ -12825,15 +12861,19 @@ export const MAP_EXPLORER_STYLES = `
       grid-column: 1 / -1;
       grid-row: 2;
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       width: 100%;
       min-width: 0;
       overflow: hidden;
       scrollbar-width: none;
     }
+    .me-tab[data-tab="frontier"] {
+      display: none;
+    }
     .me-rain-mode .me-tabs {
       grid-column: 1;
       grid-row: 1;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       align-self: center;
       gap: 3px;
       padding: 2px;
@@ -12861,6 +12901,15 @@ export const MAP_EXPLORER_STYLES = `
       font-size: 11.5px;
     }
     .me-filter-drawer { flex: 0 0 auto; }
+    .me-filter-toggle {
+      min-width: 76px;
+      min-height: 38px;
+      padding: 0 13px;
+    }
+    .me-filter-display-group {
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(15,23,42,.06);
+    }
     .me-filter-panel {
       position: fixed;
       top: auto;

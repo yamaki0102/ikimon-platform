@@ -179,9 +179,9 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(html, /地域図鑑マップ/);
   assert.match(html, /地図メニュー/);
   assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
-  assert.match(html, /aria-label="散策候補を開く"/);
+  assert.match(html, /aria-label="地図メニューを開く"/);
   assert.match(html, /class="me-start-panel-brief">候補<\/span>/);
-  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">＋<\/span>/);
+  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">⌄<\/span>/);
   assert.match(html, /近く/);
   assert.match(html, /許可済みなら近くから始めます。押すと現在地へ移動します。/);
   assert.match(html, /写真/);
@@ -204,7 +204,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, />G<\/span>/);
   assert.doesNotMatch(html, />R<\/span>/);
   assert.match(html, /href="\/ja\/walk-maps"/);
-  assert.match(html, /記録/);
+  assert.doesNotMatch(html, /data-kpi-action="map:start_panel:record"/);
   assert.doesNotMatch(html, new RegExp("写真、ガイド、散策の" + "手がかり、記録の" + "入口"));
   assert.match(html, /id="me-purpose-hint"/);
   assert.match(html, /写真・ガイド・散策/);
@@ -227,7 +227,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, /class="me-map-cues"/);
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="ガイド" data-tab="places"/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
-  assert.match(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
+  assert.match(html, /class="me-filter-group me-filter-display-group"/);
+  assert.match(html, /data-filter-tab="rain" aria-pressed="false">雨雲<\/button>/);
+  assert.match(html, /data-filter-tab="frontier" aria-pressed="false">未確認<\/button>/);
+  assert.doesNotMatch(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="写真" data-tab="markers"/);
   assert.doesNotMatch(html, /class="me-tab me-tab-link"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
@@ -263,7 +266,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /function setStartPanelCollapsed\(collapsed\)/);
   assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
   assert.match(script, /startPanelCloseEl\.querySelector\('\.me-start-panel-symbol'\)/);
-  assert.match(script, /startPanelSymbolEl\.textContent = collapsed \? '＋' : '×';/);
+  assert.match(script, /startPanelSymbolEl\.textContent = collapsed \? '⌄' : '×';/);
   assert.match(script, /var t = btn\.getAttribute\('data-tab'\);/);
   assert.match(script, /if \(!t\) return;/);
   assert.match(script, /function canShowPurposeHint\(\)/);
@@ -733,7 +736,8 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
 test("mobile layer tabs fit within the topbar instead of clipping the final tab", () => {
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab\[data-tab="frontier"\] \{[\s\S]*display: none;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab \{[\s\S]*min-width: 0;[\s\S]*text-overflow: ellipsis;/);
 });
 
@@ -1008,12 +1012,15 @@ test("map explorer restores the quick record launcher on mobile only", () => {
 });
 
 test("mobile map filters open from the thumb zone above the record launcher", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-filter-panel \{[\s\S]*position: fixed;[\s\S]*top: auto;[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);[\s\S]*z-index: 80;/);
   assert.match(styles, /\.me-filter-panel \{[\s\S]*backdrop-filter: blur\(12px\);/);
   assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\); \}/);
+  assert.match(script, /document\.querySelectorAll\('\.me-filter-tab-chip'\)\.forEach/);
+  assert.match(script, /switchMapTab\(t\);[\s\S]*drawer\.removeAttribute\('open'\);/);
 });
 
 test("map explorer does not paint the field-guide title over the map", () => {
