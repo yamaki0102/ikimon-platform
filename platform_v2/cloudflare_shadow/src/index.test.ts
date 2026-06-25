@@ -4382,7 +4382,8 @@ test("production full-domain fallback preserves original public UI routes withou
       "/map",
       "/login",
       "/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5",
-      "/places/hamamatsu"
+      "/places/hamamatsu",
+      "/some-old-unmapped-path"
     ];
     const expectedFallbackReasons = new Map([
       ["/", "html_materialized_miss"],
@@ -4390,7 +4391,8 @@ test("production full-domain fallback preserves original public UI routes withou
       ["/map", "html_materialized_miss"],
       ["/login", "html_materialized_miss"],
       ["/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5", "html_materialized_miss"],
-      ["/places/hamamatsu", "public_custom_domain_path"]
+      ["/places/hamamatsu", "public_custom_domain_path"],
+      ["/some-old-unmapped-path", "public_custom_domain_path"]
     ]);
 
     for (const path of publicUiRoutes) {
@@ -4406,7 +4408,7 @@ test("production full-domain fallback preserves original public UI routes withou
     }
 
     const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
-    assert.equal(latestTelemetry.routePattern, "/places/hamamatsu");
+    assert.equal(latestTelemetry.routePattern, "/some-old-unmapped-path");
     assert.equal(JSON.stringify(latestTelemetry).includes("535cccb1"), false);
 
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
