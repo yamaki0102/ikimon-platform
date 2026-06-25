@@ -20,6 +20,7 @@ import {
   listStaticMunicipalWalkMapPublicSummariesV0,
   listMunicipalWalkMapTemplatesV0,
   reviewMunicipalWalkMapPublicationV0,
+  sourceAccessModelV0,
   sourceOperationalModelV0,
   upsertMunicipalWalkMapCreatorV0,
   upsertMunicipalWalkMapConfigV0,
@@ -769,6 +770,12 @@ function operationalModelLabel(model: MunicipalWalkMapOperationalModelV0): strin
   return "学習資料";
 }
 
+function sourceAccessLinkText(downloadKind: ReturnType<typeof sourceAccessModelV0>["downloadKind"]): string {
+  if (downloadKind === "direct_pdf") return "PDFを開く";
+  if (downloadKind === "official_page_with_links") return "公式ページを開く";
+  return "案内を開く";
+}
+
 function renderSourceCatalogPanel(
   sources: MunicipalWalkMapSourceCatalogEntryV0[],
   selectedTemplateId: string,
@@ -779,20 +786,23 @@ function renderSourceCatalogPanel(
     : "調査済みの自治体事例です。型を選ぶと関連する事例に絞れます。";
   const cards = sources.map((source) => {
     const operationalModel = sourceOperationalModelV0(source);
+    const accessModel = sourceAccessModelV0(source);
     return `
     <article class="wm-admin-source-card${source.sourceId === selectedSourceId ? " is-selected" : ""}" data-source-template-id="${escapeHtml(source.templateId)}">
       <div class="wm-admin-source-meta">
         <span>${escapeHtml(primaryTypeLabel(source.primaryType))}</span>
         <span data-source-operational-model="${escapeHtml(operationalModel)}">${escapeHtml(operationalModelLabel(operationalModel))}</span>
+        <span data-source-download-kind="${escapeHtml(accessModel.downloadKind)}">${escapeHtml(accessModel.label)}</span>
         <span>${escapeHtml(source.municipality)}</span>
         <span>${escapeHtml(String(source.affinityScore))}</span>
       </div>
       <strong>${escapeHtml(source.title)}</strong>
       <small>${escapeHtml(source.cue)}</small>
+      <small>${escapeHtml(accessModel.rightsNote)}</small>
       <div class="wm-admin-source-actions">
         <a class="wm-admin-source-draft" href="/admin/municipal-walk-maps?sourceId=${encodeURIComponent(source.sourceId)}">下書きに入れる</a>
         <button type="button" data-add-source-reference data-source-label="${escapeHtml(source.title)}" data-source-url="${escapeHtml(source.officialPageUrl)}" data-source-note="PDF本文や図版は転載しない">引用元へ</button>
-        <a href="${escapeHtml(source.officialPageUrl)}" target="_blank" rel="noopener noreferrer">公式ページを開く</a>
+        <a href="${escapeHtml(accessModel.downloadUrl ?? source.officialPageUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceAccessLinkText(accessModel.downloadKind))}</a>
       </div>
     </article>
   `;
@@ -1960,6 +1970,7 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
         .map((source) => ({
           ...source,
           operationalModel: sourceOperationalModelV0(source),
+          accessModel: sourceAccessModelV0(source),
         }));
       return { ok: true, sources };
     } catch (error) {

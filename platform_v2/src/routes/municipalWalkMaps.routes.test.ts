@@ -343,10 +343,14 @@ test("municipal walk map admin page renders source catalog and source-reference 
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /参考元カタログ/);
-        assert.match(response.body, /data-template-source-count="8"/);
+        assert.match(response.body, /data-template-source-count="9"/);
         assert.match(response.body, /data-template-start-link="\/admin\/municipal-walk-maps\?templateId=route_species_walk"/);
         assert.match(response.body, /data-source-operational-model="official_walk_pdf"/);
+        assert.match(response.body, /data-source-download-kind="official_page_with_links"/);
+        assert.match(response.body, /data-source-download-kind="direct_pdf"/);
         assert.match(response.body, /散策PDF/);
+        assert.match(response.body, /公式ページ/);
+        assert.match(response.body, /PDF直接/);
         assert.match(response.body, /この型で始める/);
         assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
         assert.match(response.body, /自然散策マップ/);
@@ -379,12 +383,16 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /下書きに入れる/);
         assert.match(response.body, /引用元へ/);
         assert.match(response.body, /公式ページを開く/);
+        assert.match(response.body, /PDFを開く/);
+        assert.match(response.body, /公式PDFは引用元として扱い、本文・図版・写真は転載しない/);
         assert.match(response.body, /textarea name="sourceReferences"/);
         assert.match(response.body, /name="publicAccessAttested"/);
         assert.match(response.body, /name="sourceRightsAttested"/);
         assert.match(response.body, /name="emergencyHidden"/);
         assert.match(response.body, /PDF本文・図版・写真を転載していない/);
         assert.match(response.body, /船橋市/);
+        assert.match(response.body, /大田区/);
+        assert.match(response.body, /https:\/\/www\.city\.ota\.tokyo\.jp\/seikatsu\/sumaimachinami\/kankyou\/hogo\/ikimonomap\.html/);
         assert.match(response.body, /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
         assert.doesNotMatch(response.body, /世田谷区/);
         assert.doesNotMatch(response.body, /順番通り/);
@@ -796,6 +804,8 @@ test("municipal walk map source catalog API returns researched official source p
         assert.ok(body.sources.length >= 57);
         assert.match(JSON.stringify(body.sources), /静岡市/);
         assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.shizuoka\.lg\.jp/);
+        assert.match(JSON.stringify(body.sources), /大田区/);
+        assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.ota\.tokyo\.jp\/seikatsu\/sumaimachinami\/kankyou\/hogo\/ikimonomap\.html/);
         assert.match(JSON.stringify(body.sources), /船橋市/);
         assert.match(JSON.stringify(body.sources), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
         assert.match(JSON.stringify(body.sources), /世田谷区/);
@@ -817,6 +827,11 @@ test("municipal walk map source catalog API returns researched official source p
         assert.match(JSON.stringify(body.sources), /municipal_submission_map/);
         assert.match(JSON.stringify(body.sources), /external_app_campaign/);
         assert.match(JSON.stringify(body.sources), /national_platform_link/);
+        assert.match(JSON.stringify(body.sources), /accessModel/);
+        assert.match(JSON.stringify(body.sources), /direct_pdf/);
+        assert.match(JSON.stringify(body.sources), /official_page_with_links/);
+        assert.match(JSON.stringify(body.sources), /html_or_external_form/);
+        assert.match(JSON.stringify(body.sources), /citation_only_no_body_copy/);
       } finally {
         await app.close();
       }

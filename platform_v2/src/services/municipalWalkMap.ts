@@ -246,6 +246,14 @@ export type MunicipalWalkMapOperationalModelV0 =
   | "national_platform_link"
   | "fieldwork_worksheet_portal";
 
+export type MunicipalWalkMapSourceAccessModelV0 = {
+  downloadKind: "direct_pdf" | "official_page_with_links" | "html_or_external_form";
+  label: string;
+  downloadUrl: string | null;
+  rightsNote: string;
+  importPolicy: "citation_only_no_body_copy";
+};
+
 const DEFAULT_WALK_MAP_ID = "jp-shizuoka-light-nature-walk-v0";
 const DEFAULT_CLAIM_BOUNDARY = [
   "公式調査結果ではなく、散策マップとして扱います。",
@@ -1362,6 +1370,18 @@ export const MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0: MunicipalWalkMapSourceCatalog
   },
   {
     schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "ota-ikimono-discovery-map",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "大田区",
+    title: "おおた区いきもの発見MAP",
+    sourceUrl: "https://www.city.ota.tokyo.jp/seikatsu/sumaimachinami/kankyou/hogo/ikimonomap.html",
+    officialPageUrl: "https://www.city.ota.tokyo.jp/seikatsu/sumaimachinami/kankyou/hogo/ikimonomap.html",
+    affinityScore: 28,
+    cue: "区内を5エリアに分けた都市型の散策PDF群。貴重種や外来種の扱いは位置を粗くし、エリア別の立ち寄り先に変換する。",
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
     sourceId: "yokohama-citizen-forest-guide",
     templateId: "stewardship_manners_walk",
     primaryType: "walk_route_species_map",
@@ -2094,6 +2114,52 @@ export function sourceOperationalModelV0(source: MunicipalWalkMapSourceCatalogEn
     return "municipal_submission_map";
   }
   return "official_walk_pdf";
+}
+
+export function sourceAccessModelV0(source: MunicipalWalkMapSourceCatalogEntryV0): MunicipalWalkMapSourceAccessModelV0 {
+  const sourceUrl = source.sourceUrl.trim();
+  const officialPageUrl = source.officialPageUrl.trim();
+  const haystack = [
+    source.sourceId,
+    source.title,
+    sourceUrl,
+    officialPageUrl,
+    source.cue,
+  ].join(" ").toLowerCase();
+  const isDirectPdf = /\.pdf(?:$|[?#])/i.test(sourceUrl);
+  const isExternalSubmission =
+    haystack.includes("biome")
+    || haystack.includes("inaturalist")
+    || haystack.includes("ikilog")
+    || haystack.includes("いきものログ")
+    || haystack.includes("line")
+    || haystack.includes("form")
+    || haystack.includes("フォーム");
+  if (isDirectPdf) {
+    return {
+      downloadKind: "direct_pdf",
+      label: "PDF直接",
+      downloadUrl: sourceUrl,
+      rightsNote: "公式PDFは引用元として扱い、本文・図版・写真は転載しない。",
+      importPolicy: "citation_only_no_body_copy",
+    };
+  }
+  if (isExternalSubmission) {
+    return {
+      downloadKind: "html_or_external_form",
+      label: "外部導線",
+      downloadUrl: null,
+      rightsNote: "外部アプリ、投稿フォーム、国基盤の案内を引用元として扱い、投稿データは取り込まない。",
+      importPolicy: "citation_only_no_body_copy",
+    };
+  }
+  return {
+    downloadKind: "official_page_with_links",
+    label: "公式ページ",
+    downloadUrl: null,
+    rightsNote: "公式ページ内のPDFや地図リンクを確認し、ikimon.life側には引用元URLと再構成した立ち寄り先だけを入れる。",
+    importPolicy: "citation_only_no_body_copy",
+  };
 }
 
 export function getMunicipalWalkMapSourceCatalogEntryV0(sourceId: string): MunicipalWalkMapSourceCatalogEntryV0 | null {

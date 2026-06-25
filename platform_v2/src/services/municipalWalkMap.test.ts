@@ -16,6 +16,7 @@ import {
   listPublicMunicipalWalkMapSummariesV0,
   listMunicipalWalkMapTemplatesV0,
   reviewMunicipalWalkMapPublicationV0,
+  sourceAccessModelV0,
   sourceOperationalModelV0,
   upsertMunicipalWalkMapConfigV0,
   upsertMunicipalWalkMapCreatorV0,
@@ -602,6 +603,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.ok(catalog.length >= 57);
   for (const municipality of [
     "静岡市",
+    "大田区",
     "船橋市",
     "浦添市",
     "北区",
@@ -688,7 +690,23 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "kobe-biome-summer-quest")!), "external_app_campaign");
   assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "soka-ikimono-log-survey")!), "national_platform_link");
   assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "koka-field-sheets")!), "fieldwork_worksheet_portal");
+  const accessKinds = new Set(catalog.map((entry) => sourceAccessModelV0(entry).downloadKind));
+  assert.deepEqual([...accessKinds].sort(), [
+    "direct_pdf",
+    "html_or_external_form",
+    "official_page_with_links",
+  ]);
+  const directPdf = sourceAccessModelV0(catalog.find((entry) => entry.sourceId === "kitakyushu-yamada-green-walking-course")!);
+  assert.equal(directPdf.downloadKind, "direct_pdf");
+  assert.equal(directPdf.downloadUrl, "https://www.city.kitakyushu.lg.jp/page/walkingmap/kokurakita/kokurakita40.pdf");
+  assert.equal(directPdf.importPolicy, "citation_only_no_body_copy");
+  assert.match(directPdf.rightsNote, /転載しない/);
+  assert.equal(sourceAccessModelV0(catalog.find((entry) => entry.sourceId === "shizuoka-ikimono-walk-route")!).downloadKind, "official_page_with_links");
+  assert.equal(sourceAccessModelV0(catalog.find((entry) => entry.sourceId === "kobe-biome-summer-quest")!).downloadKind, "html_or_external_form");
+  assert.equal(sourceAccessModelV0(catalog.find((entry) => entry.sourceId === "ota-ikimono-discovery-map")!).downloadKind, "official_page_with_links");
+  assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "ota-ikimono-discovery-map")!), "official_walk_pdf");
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.ota\.tokyo\.jp\/seikatsu\/sumaimachinami\/kankyou\/hogo\/ikimonomap\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p082326\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.setagaya\.lg\.jp\/02074\/4717\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.handa\.lg\.jp\/machi\/kankyo\/1002994\/1003007\.html/);
