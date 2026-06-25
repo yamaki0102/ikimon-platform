@@ -317,6 +317,23 @@ interface MunicipalWalkMapD1Row {
   display_order: number;
 }
 
+interface PublicMapSnapshotRecordRow {
+  visit_id: string;
+  cell_1000: string;
+  observed_at: string;
+  display_name: string | null;
+  asset_count: number;
+}
+
+interface PublicMapSnapshotMetaRow {
+  snapshot_key: string;
+  generated_at: string;
+  source_sample_size: number;
+  public_record_count: number;
+  refreshed_by: string | null;
+  policy_json: string;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -344,6 +361,8 @@ class FakeD1 {
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
+  publicMapSnapshotRecords: PublicMapSnapshotRecordRow[] = [];
+  publicMapSnapshotMeta: PublicMapSnapshotMetaRow | null = null;
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -841,6 +860,10 @@ class FakeStatement {
       return ({ count: this.db.readmodel.has(string(v[0])) ? 1 : 0 } as T);
     }
 
+    if (normalized.startsWith("SELECT snapshot_key, generated_at, source_sample_size, public_record_count, refreshed_by, policy_json")) {
+      return (this.db.publicMapSnapshotMeta as T | null) ?? null;
+    }
+
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
       return (this.db.productionFieldDetails.get(string(v[0])) as T | undefined) ?? null;
     }
@@ -1219,6 +1242,12 @@ class FakeStatement {
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT visit_id, cell_1000, observed_at, display_name, asset_count FROM public_map_snapshot_records_v1")) {
+      const rows = [...this.db.publicMapSnapshotRecords]
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
+        .slice(0, 5000);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT walk_map_id, municipality_code, municipality, title, summary, theme, publish_mode, route_style")) {
@@ -1847,6 +1876,55 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const kpiPayload = await kpiResponse.json() as any;
   assert.equal(kpiResponse.ok, true);
   assert.equal(kpiPayload.ok, true);
+});
+
+test("public map routes prefer D1 snapshot records when present", async () => {
+  const { env, obs } = createEnv();
+  obs.readmodel.set("legacy-readmodel-row", {
+    observation_id: "legacy-readmodel-row",
+    public_cell: "34.71,137.81",
+    observed_at: "2026-06-15T01:00:00.000Z",
+    taxon_label: "legacy fallback",
+    asset_count: 1,
+    partition_month: "2026-06"
+  });
+  obs.publicMapSnapshotMeta = {
+    snapshot_key: "public-map:v1:global",
+    generated_at: "2026-06-25T00:00:00.000Z",
+    source_sample_size: 1,
+    public_record_count: 1,
+    refreshed_by: "test",
+    policy_json: "{\"minCellRecords\":3,\"policy\":\"k_anonymous_cell_aggregate\"}"
+  };
+  obs.publicMapSnapshotRecords.push({
+    visit_id: "snapshot-visit",
+    cell_1000: "35.01,138.39",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    display_name: "D1 snapshot plant",
+    asset_count: 2
+  });
+
+  const cellsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/cells"), env);
+  const cellsPayload = await cellsResponse.json() as any;
+  assert.equal(cellsResponse.ok, true, JSON.stringify(cellsPayload));
+  assert.equal(cellsPayload.features.length, 1);
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:35.01,138.39");
+  assert.doesNotMatch(JSON.stringify(cellsPayload), /legacy-readmodel-row|34\.71,137\.81/);
+
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.01%2C138.39"), env);
+  const observationsPayload = await observationsResponse.json() as any;
+  assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
+  assert.equal(observationsPayload.items.length, 1);
+  assert.equal(observationsPayload.items[0].visitId, "snapshot-visit");
+  assert.equal(observationsPayload.items[0].displayName, "D1 snapshot plant");
+
+  const statusResponse = await worker.fetch(new Request("https://shadow.test/ops/public-map-snapshot"), env);
+  const statusPayload = await statusResponse.json() as any;
+  assert.equal(statusResponse.ok, true, JSON.stringify(statusPayload));
+  assert.equal(statusPayload.status, "fresh");
+  assert.equal(statusPayload.snapshotKey, "public-map:v1:global");
+  assert.equal(statusPayload.publicRecordCount, 1);
+  assert.equal(statusPayload.source, "cloudflare_public_map_snapshot_records_v1");
 });
 
 test("owner map observations route is native, guest-safe, and owner-scoped", async () => {

@@ -296,6 +296,23 @@ interface PublicMapPhotoRow {
   public_derivative_key: string;
 }
 
+interface PublicMapSnapshotRow {
+  visit_id: string;
+  cell_1000: string;
+  observed_at: string;
+  display_name: string | null;
+  asset_count: number;
+}
+
+interface PublicMapSnapshotMetaRow {
+  snapshot_key: string;
+  generated_at: string;
+  source_sample_size: number;
+  public_record_count: number;
+  refreshed_by: string | null;
+  policy_json: string;
+}
+
 interface OwnMapObservationRow {
   observation_id: string;
   observed_at: string;
@@ -1082,6 +1099,10 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
         return getMunicipalWalkMapCandidates(url, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/ops/public-map-snapshot") {
+        return getPublicMapSnapshotStatusResponse(env);
       }
 
       const fieldDetailApiMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/public-detail$/);
@@ -2061,6 +2082,32 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
       source: "cloudflare_readmodel_public_observations",
       exactLocationExposed: false
     }
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getPublicMapSnapshotStatusResponse(env: Env): Promise<Response> {
+  const meta = await queryPublicMapSnapshotMeta(env);
+  if (!meta) {
+    return json({
+      ok: true,
+      status: "missing",
+      snapshotKey: "public-map:v1:global",
+      generatedAt: null,
+      sourceSampleSize: 0,
+      publicRecordCount: 0,
+      source: "cloudflare_public_map_snapshot_missing"
+    }, 200, { "cache-control": "no-store" });
+  }
+  return json({
+    ok: true,
+    status: "fresh",
+    snapshotKey: meta.snapshot_key,
+    generatedAt: meta.generated_at,
+    sourceSampleSize: meta.source_sample_size,
+    publicRecordCount: meta.public_record_count,
+    refreshedBy: meta.refreshed_by,
+    policy: parseJsonRecord(meta.policy_json),
+    source: "cloudflare_public_map_snapshot_records_v1"
   }, 200, { "cache-control": "no-store" });
 }
 
@@ -3256,6 +3303,8 @@ async function getShadowVideoThumbnail(uid: string, env: Env): Promise<Response>
 }
 
 async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
+  const snapshotRows = await queryPublicMapSnapshotRows(env);
+  if (snapshotRows.length > 0) return snapshotRows;
   const rows = await env.OBS_DB.prepare(
     `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count
      FROM readmodel_public_observations
@@ -3263,6 +3312,41 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
      LIMIT 5000`
   ).all<PublicMapRow>();
   return rows.results;
+}
+
+async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT visit_id, cell_1000, observed_at, display_name, asset_count
+         FROM public_map_snapshot_records_v1
+        WHERE snapshot_key = 'public-map:v1:global'
+        ORDER BY observed_at DESC
+        LIMIT 5000`
+    ).all<PublicMapSnapshotRow>();
+    return rows.results.map((row) => ({
+      observation_id: row.visit_id,
+      public_cell: row.cell_1000,
+      observed_at: row.observed_at,
+      taxon_label: row.display_name,
+      asset_count: row.asset_count
+    }));
+  } catch (error) {
+    if (error instanceof Error && /no such table: public_map_snapshot_records_v1/i.test(error.message)) return [];
+    throw error;
+  }
+}
+
+async function queryPublicMapSnapshotMeta(env: Env): Promise<PublicMapSnapshotMetaRow | null> {
+  try {
+    return await env.OBS_DB.prepare(
+      `SELECT snapshot_key, generated_at, source_sample_size, public_record_count, refreshed_by, policy_json
+         FROM public_map_snapshot_meta
+        WHERE snapshot_key = 'public-map:v1:global'`
+    ).first<PublicMapSnapshotMetaRow>();
+  } catch (error) {
+    if (error instanceof Error && /no such table: public_map_snapshot_meta/i.test(error.message)) return null;
+    throw error;
+  }
 }
 
 async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
