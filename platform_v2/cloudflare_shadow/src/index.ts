@@ -433,6 +433,15 @@ interface OriginFallbackTelemetryPayload {
   environment: string;
 }
 
+interface AuthLoginFailureTelemetryPayload {
+  reason: "auth_login_user_missing" | "auth_login_password_mismatch" | "auth_login_store_unavailable";
+  method: string;
+  host: string;
+  routePattern: string;
+  publicWriteMode: string;
+  environment: string;
+}
+
 interface FieldDetailReadmodelRow {
   field_id: string;
   source: string;
@@ -3434,6 +3443,26 @@ async function recordOriginFallbackTelemetry(env: Env, payload: OriginFallbackTe
   } catch (error) {
     console.error(JSON.stringify({
       message: "origin_fallback_telemetry_failed",
+      error: error instanceof Error ? error.message : String(error),
+      reason: payload.reason,
+      routePattern: payload.routePattern
+    }));
+  }
+}
+
+async function recordAuthLoginFailureTelemetry(env: Env, payload: AuthLoginFailureTelemetryPayload): Promise<void> {
+  try {
+    await env.CORE_DB.prepare(
+      `INSERT INTO operation_audit (audit_id, operation_type, target_id, payload_json)
+       VALUES (?, 'auth_login_failed', ?, ?)`
+    ).bind(
+      `auth-login-failed-${crypto.randomUUID()}`,
+      payload.reason,
+      JSON.stringify(payload)
+    ).run();
+  } catch (error) {
+    console.error(JSON.stringify({
+      message: "auth_login_failure_telemetry_failed",
       error: error instanceof Error ? error.message : String(error),
       reason: payload.reason,
       routePattern: payload.routePattern
@@ -7140,7 +7169,7 @@ async function loginWithPassword(request: Request, env: Env): Promise<Response> 
   const sameOriginError = assertSameOriginRequest(request);
   if (sameOriginError) return sameOriginError;
 
-  const fallbackRequest = request.clone();
+  const url = new URL(request.url);
   const input = await readJson<AuthLoginInput>(request);
   const email = normalizeEmail(input.email);
   const password = typeof input.password === "string" ? input.password : "";
@@ -7148,16 +7177,26 @@ async function loginWithPassword(request: Request, env: Env): Promise<Response> 
   try {
     user = email && password ? await findAuthUserByEmail(email, env) : null;
   } catch {
-    if (shouldFallbackLoginToOrigin(fallbackRequest, env)) {
-      return fetchOriginFallback(fallbackRequest, new URL(fallbackRequest.url), env, "auth_store_unavailable");
-    }
-    throw new HttpError(500, "auth_store_unavailable");
+    await recordAuthLoginFailureTelemetry(env, {
+      reason: "auth_login_store_unavailable",
+      method: request.method,
+      host: url.hostname,
+      routePattern: fallbackRoutePattern(url.pathname),
+      publicWriteMode: getPublicWriteMode(env),
+      environment: env.ENVIRONMENT
+    });
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
   const passwordOk = await verifyPassword(password, user?.password_hash ?? null);
   if (!user || !passwordOk) {
-    if (shouldFallbackLoginToOrigin(fallbackRequest, env)) {
-      return fetchOriginFallback(fallbackRequest, new URL(fallbackRequest.url), env, "auth_d1_miss_or_mismatch");
-    }
+    await recordAuthLoginFailureTelemetry(env, {
+      reason: user ? "auth_login_password_mismatch" : "auth_login_user_missing",
+      method: request.method,
+      host: url.hostname,
+      routePattern: fallbackRoutePattern(url.pathname),
+      publicWriteMode: getPublicWriteMode(env),
+      environment: env.ENVIRONMENT
+    });
     return json({ ok: false, error: "invalid_credentials" }, 401, { "cache-control": "no-store" });
   }
   if (user.banned) {
@@ -7177,11 +7216,6 @@ async function loginWithPassword(request: Request, env: Env): Promise<Response> 
     "cache-control": "no-store",
     "set-cookie": session.cookie
   });
-}
-
-function shouldFallbackLoginToOrigin(request: Request, env: Env): boolean {
-  if (env.ENVIRONMENT !== "production" || !env.ORIGIN_FALLBACK_BASE_URL) return false;
-  return PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname);
 }
 
 function logOAuthProviderConfigMissing(provider: OAuthProvider, phase: "start" | "callback"): void {

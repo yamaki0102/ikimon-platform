@@ -666,7 +666,7 @@ class FakeStatement {
     if (normalized.startsWith("INSERT INTO operation_audit")) {
       this.db.operationAudit.push({
         audit_id: string(v[0]),
-        operation_type: "origin_fallback",
+        operation_type: normalized.includes("'auth_login_failed'") ? "auth_login_failed" : "origin_fallback",
         target_id: string(v[1]),
         payload_json: string(v[2]),
         created_at: new Date(Date.now() + this.db.operationAudit.length).toISOString()
@@ -4126,7 +4126,7 @@ test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
   assert.equal(loginPayload.session.rankLabel, "観察者");
 });
 
-test("production auth login falls back to origin until auth users are fully imported", async () => {
+test("production auth login rejects D1 misses without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -4136,21 +4136,10 @@ test("production auth login falls back to origin until auth users are fully impo
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; method?: string; resolveOverride?: string; body?: string; reason?: string | null } = {};
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.method = init?.method;
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    const headers = new Headers(init?.headers);
-    seen.reason = headers.get("x-ikimon-cloudflare-fallback-reason");
-    seen.body = init?.body ? await new Response(init.body).text() : undefined;
-    return new Response(JSON.stringify({ ok: true, redirect: "/record", originFallback: true }), {
-      status: 200,
-      headers: {
-        "content-type": "application/json",
-        "set-cookie": "ikimon_v2_session=origin-token; Path=/; HttpOnly; SameSite=Lax"
-      }
-    });
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
     const body = {
@@ -4168,22 +4157,73 @@ test("production auth login falls back to origin until auth users are fully impo
       body: JSON.stringify(body)
     }), productionEnv);
     const payload = await response.json() as any;
-    assert.equal(response.ok, true, JSON.stringify(payload));
-    assert.equal(payload.originFallback, true);
-    assert.equal(response.headers.get("set-cookie"), "ikimon_v2_session=origin-token; Path=/; HttpOnly; SameSite=Lax");
-    assert.equal(seen.url, "https://ikimon.life/api/v1/auth/login");
-    assert.equal(seen.method, "POST");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.reason, "auth_d1_miss_or_mismatch");
-    assert.equal(seen.body, JSON.stringify(body));
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "auth_d1_miss_or_mismatch");
-    assert.equal(telemetry.routePattern, "/api/v1/auth/login");
-    assert.equal(JSON.stringify(telemetry).includes("not-yet-imported@example.test"), false);
+    assert.equal(response.status, 401);
+    assert.deepEqual(payload, { ok: false, error: "invalid_credentials" });
   } finally {
     globalThis.fetch = originalFetch;
   }
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 1);
+  assert.equal(core.operationAudit[0]?.operation_type, "auth_login_failed");
+  assert.equal(core.operationAudit[0]?.target_id, "auth_login_user_missing");
+  const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+  assert.equal(telemetry.reason, "auth_login_user_missing");
+  assert.equal(telemetry.routePattern, "/api/v1/auth/login");
+  assert.equal(JSON.stringify(telemetry).includes("not-yet-imported@example.test"), false);
+});
+
+test("production auth login fails closed when the D1 auth user store is unavailable", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const brokenCore = {
+    prepare(query: string) {
+      if (normalize(query).startsWith("SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned FROM auth_users")) {
+        throw new Error("simulated auth store unavailable");
+      }
+      return core.prepare(query);
+    },
+    batch(statements: FakeStatement[]) {
+      return core.batch(statements);
+    }
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://ikimon.life",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        email: "user@example.test",
+        password: "password"
+      })
+    }), { ...productionEnv, CORE_DB: brokenCore });
+    const payload = await response.json() as any;
+    assert.equal(response.status, 503);
+    assert.deepEqual(payload, { ok: false, error: "auth_store_unavailable" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 1);
+  assert.equal(core.operationAudit[0]?.operation_type, "auth_login_failed");
+  assert.equal(core.operationAudit[0]?.target_id, "auth_login_store_unavailable");
+  const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+  assert.equal(telemetry.reason, "auth_login_store_unavailable");
+  assert.equal(telemetry.routePattern, "/api/v1/auth/login");
 });
 
 test("production personal runtime returns native guest auth boundary without origin fallback", async () => {
