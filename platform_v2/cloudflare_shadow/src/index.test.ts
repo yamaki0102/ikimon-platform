@@ -5821,6 +5821,62 @@ test("municipal walk map admin review queue reads review items from D1", async (
   assert.equal(body.reviews?.[0]?.stopCount, 3);
 });
 
+test("municipal walk map admin templates, source catalog, and preview are Worker-native", async () => {
+  const { env, obs } = createEnv();
+  const unauth = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-templates"), env);
+  const unauthBody = await unauth.json() as { error?: string };
+  assert.equal(unauth.status, 401);
+  assert.equal(unauthBody.error, "session_required");
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "admin-user", displayName: "Admin User", roleName: "Admin", ttlHours: 1 })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+
+  const templates = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-templates", {
+    headers: { cookie: adminCookie }
+  }), env);
+  const templatesBody = await templates.json() as { ok?: boolean; source?: string; templates?: Array<{ templateId?: string }> };
+  assert.equal(templates.status, 200);
+  assert.equal(templatesBody.ok, true);
+  assert.equal(templatesBody.source, "cloudflare_static");
+  assert.equal((templatesBody.templates ?? []).some((template) => template.templateId === "route_species_walk"), true);
+
+  const catalog = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-source-catalog?templateId=route_species_walk", {
+    headers: { cookie: adminCookie }
+  }), env);
+  const catalogBody = await catalog.json() as { ok?: boolean; source?: string; sources?: Array<{ templateId?: string; accessModel?: { importPolicy?: string } }> };
+  assert.equal(catalog.status, 200);
+  assert.equal(catalogBody.ok, true);
+  assert.equal(catalogBody.source, "cloudflare_static");
+  assert.equal((catalogBody.sources ?? []).length > 0, true);
+  assert.equal((catalogBody.sources ?? []).every((source) => source.templateId === "route_species_walk"), true);
+  assert.equal(catalogBody.sources?.[0]?.accessModel?.importPolicy, "citation_only_no_body_copy");
+
+  const preview = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-maps/preview", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: adminCookie },
+    body: JSON.stringify({
+      config: {
+        title: "Preview title",
+        summary: "Preview summary",
+        municipality: "Shizuoka city",
+        routeStops: [{ stopId: "preview-stop", title: "Preview stop", noticeCues: ["Sign"], recordCues: ["Photo"] }],
+        sourceReferences: [{ label: "Source", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html" }]
+      }
+    })
+  }), env);
+  const previewHtml = await preview.text();
+  assert.equal(preview.status, 200);
+  assert.match(preview.headers.get("content-type") ?? "", /text\/html/);
+  assert.match(previewHtml, /Preview title/);
+  assert.match(previewHtml, /Preview stop/);
+  assert.equal(obs.municipalWalkMaps.size, 0);
+  assert.equal(obs.municipalWalkMapAudit.length, 0);
+});
+
 test("municipal walk map review actions update D1 publish state and audit only for admins", async () => {
   const { env, obs } = createEnv();
   obs.municipalWalkMaps.set("jp-shizuoka-action-sample", {
