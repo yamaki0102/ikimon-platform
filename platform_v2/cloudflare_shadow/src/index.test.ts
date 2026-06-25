@@ -315,6 +315,21 @@ interface MunicipalWalkMapD1Row {
   source_references_json: string;
   area_hint_json: string;
   display_order: number;
+  creator_name?: string | null;
+  creator_profile_json?: string | null;
+  route_flexibility_json?: string | null;
+  publication_review_json?: string | null;
+  updated_at?: string | null;
+}
+
+interface MunicipalWalkMapCreatorRow {
+  creator_id: string;
+  display_name: string;
+  registration_kind: string | null;
+  verification_status: string;
+  commercial_intent: string | null;
+  notes: string | null;
+  updated_at: string | null;
 }
 
 interface PublicMapSnapshotRecordRow {
@@ -361,6 +376,7 @@ class FakeD1 {
   productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
+  municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
   publicMapSnapshotRecords: PublicMapSnapshotRecordRow[] = [];
   publicMapSnapshotMeta: PublicMapSnapshotMetaRow | null = null;
@@ -764,6 +780,20 @@ class FakeStatement {
         banned: hasExplicitBanned ? number(v[5]) : 0,
         expires_at: hasExplicitBanned ? string(v[6]) : string(v[5]),
         last_used_at: null
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO municipal_walk_map_creators")) {
+      const creatorId = string(v[0]);
+      this.db.municipalWalkMapCreators.set(creatorId, {
+        creator_id: creatorId,
+        display_name: string(v[2]),
+        verification_status: string(v[5]),
+        registration_kind: nullableString(v[7]),
+        commercial_intent: nullableString(v[8]),
+        notes: nullableString(v[11]),
+        updated_at: new Date().toISOString()
       });
       return {};
     }
@@ -1297,6 +1327,38 @@ class FakeStatement {
           (!municipalityCode || row.municipality_code === municipalityCode)
         )
         .sort((a, b) => a.display_order - b.display_order || a.walk_map_id.localeCompare(b.walk_map_id))
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT creator_id, display_name, registration_kind, verification_status, commercial_intent, notes, updated_at")) {
+      const rows = [...this.db.municipalWalkMapCreators.values()]
+        .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? "") || a.creator_id.localeCompare(b.creator_id))
+        .slice(0, 200);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT m.walk_map_id, m.municipality_code, m.municipality, m.title, m.summary, m.theme, m.publish_mode")) {
+      const limit = number(this.values[0]);
+      const rank = (publishMode: string) => publishMode === "draft" ? 0 : publishMode === "public_preview" ? 1 : 2;
+      const rows = [...this.db.municipalWalkMaps.values()]
+        .map((row) => ({
+          walk_map_id: row.walk_map_id,
+          municipality_code: row.municipality_code,
+          municipality: row.municipality,
+          title: row.title,
+          summary: row.summary,
+          theme: row.theme,
+          publish_mode: row.publish_mode,
+          creator_name: row.creator_name ?? null,
+          creator_profile_json: row.creator_profile_json ?? "{}",
+          route_flexibility_json: row.route_flexibility_json ?? "{}",
+          source_references_json: row.source_references_json,
+          publication_review_json: row.publication_review_json ?? "{}",
+          updated_at: row.updated_at ?? null,
+          stop_count: row.stop_count
+        }))
+        .sort((a, b) => rank(a.publish_mode) - rank(b.publish_mode)
+          || (b.updated_at ?? "").localeCompare(a.updated_at ?? "")
+          || a.walk_map_id.localeCompare(b.walk_map_id))
         .slice(0, limit);
       return { results: rows as T[] };
     }
@@ -5507,6 +5569,140 @@ test("Cloudflare public municipal walk map candidate API prefers OBS_DB readmode
   assert.equal(body.summaries?.[0]?.walkMapId, "jp-shizuoka-d1-sample");
   assert.deepEqual(body.summaries?.[0]?.mobilityModes, ["walk", "bike"]);
   assert.equal(body.summaries?.[0]?.areaHint?.precision, "area_hint");
+});
+
+test("municipal walk map admin creator API requires an admin session before D1 writes", async () => {
+  const { env, obs } = createEnv();
+
+  const guestResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-creators", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ creatorId: "guest-group", displayName: "Guest Group" })
+  }), env);
+  const guestBody = await guestResponse.json() as { error?: string };
+  assert.equal(guestResponse.status, 401);
+  assert.equal(guestBody.error, "session_required");
+  assert.equal(obs.municipalWalkMapCreators.size, 0);
+
+  const userIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "observer-user", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const userCookie = userIssue.headers.get("set-cookie") ?? "";
+  const userResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-creators", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: userCookie },
+    body: JSON.stringify({ creatorId: "observer-group", displayName: "Observer Group" })
+  }), env);
+  const userBody = await userResponse.json() as { error?: string };
+  assert.equal(userResponse.status, 403);
+  assert.equal(userBody.error, "admin_required");
+  assert.equal(obs.municipalWalkMapCreators.size, 0);
+});
+
+test("municipal walk map admin creator API upserts and lists creators from D1", async () => {
+  const { env } = createEnv();
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "admin-user", roleName: "Admin", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const upsertResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-creators", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      creator: {
+        creatorId: "shizuoka-city",
+        displayName: "静岡市",
+        registrationKind: "municipality",
+        verificationStatus: "verified",
+        commercialIntent: "none",
+        notes: "公式散策マップの出典確認済み"
+      }
+    })
+  }), env);
+  const upsertBody = await upsertResponse.json() as {
+    ok?: boolean;
+    source?: string;
+    creator?: { creatorId?: string; displayName?: string; registrationKind?: string; verificationStatus?: string };
+  };
+  assert.equal(upsertResponse.status, 201);
+  assert.equal(upsertBody.ok, true);
+  assert.equal(upsertBody.source, "d1_observations");
+  assert.equal(upsertBody.creator?.creatorId, "shizuoka-city");
+  assert.equal(upsertBody.creator?.registrationKind, "municipality");
+  assert.equal(upsertBody.creator?.verificationStatus, "verified");
+
+  const listResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-creators", {
+    headers: { cookie }
+  }), env);
+  const listBody = await listResponse.json() as {
+    ok?: boolean;
+    creators?: Array<{ creatorId?: string; displayName?: string; commercialIntent?: string }>;
+  };
+  assert.equal(listResponse.status, 200);
+  assert.equal(listBody.ok, true);
+  assert.equal(listBody.creators?.length, 1);
+  assert.equal(listBody.creators?.[0]?.creatorId, "shizuoka-city");
+  assert.equal(listBody.creators?.[0]?.displayName, "静岡市");
+  assert.equal(listBody.creators?.[0]?.commercialIntent, "none");
+});
+
+test("municipal walk map admin review queue reads review items from D1", async () => {
+  const { env, obs } = createEnv();
+  obs.municipalWalkMaps.set("jp-shizuoka-review-sample", {
+    walk_map_id: "jp-shizuoka-review-sample",
+    municipality_code: "22100",
+    municipality: "静岡市",
+    title: "静岡いきもの散策候補",
+    summary: "出典付きで公開前確認する散策ルート候補です。",
+    theme: "waterfront",
+    publish_mode: "draft",
+    route_style: "loose_stops",
+    mobility_modes_json: "[\"walk\"]",
+    stop_count: 3,
+    source_references_json: "[{\"label\":\"静岡市 いきもの散策マップ\",\"url\":\"https://www.city.shizuoka.lg.jp/s6347/s001494.html\"}]",
+    area_hint_json: "{\"lat\":35.015,\"lng\":138.389}",
+    display_order: 1,
+    creator_name: "静岡市",
+    creator_profile_json: "{\"kind\":\"municipality\"}",
+    route_flexibility_json: "{\"strictness\":\"loose\"}",
+    publication_review_json: "{\"status\":\"needs_review\"}",
+    updated_at: "2026-06-25T00:00:00.000Z"
+  });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "analyst-user", roleName: "Analyst", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const response = await worker.fetch(new Request("https://shadow.test/api/v1/admin/municipal-walk-map-reviews?limit=10", {
+    headers: { cookie }
+  }), env);
+  const body = await response.json() as {
+    ok?: boolean;
+    source?: string;
+    reviews?: Array<{
+      walkMapId?: string;
+      creatorName?: string | null;
+      reviewRequired?: boolean;
+      sourceReferenceCount?: number;
+      stopCount?: number;
+    }>;
+  };
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.source, "d1_observations");
+  assert.equal(body.reviews?.length, 1);
+  assert.equal(body.reviews?.[0]?.walkMapId, "jp-shizuoka-review-sample");
+  assert.equal(body.reviews?.[0]?.creatorName, "静岡市");
+  assert.equal(body.reviews?.[0]?.reviewRequired, true);
+  assert.equal(body.reviews?.[0]?.sourceReferenceCount, 1);
+  assert.equal(body.reviews?.[0]?.stopCount, 3);
 });
 
 test("production field detail can render from Cloudflare public readmodel without origin fallback", async () => {
