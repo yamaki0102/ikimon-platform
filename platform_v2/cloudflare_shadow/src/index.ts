@@ -1639,6 +1639,9 @@ function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
 async function handleObservationEventApi(request: Request, url: URL, env: Env): Promise<Response | null> {
   const pathname = stripPublicLangPrefix(url.pathname);
   if (!pathname.startsWith("/api/v1/observation-events")) return null;
+  if (request.method === "POST" && pathname === "/api/v1/observation-events/area-suggestions") {
+    return suggestObservationEventArea(request, env);
+  }
   if (isLegacyObservationEventApiOriginFallbackPath(request, url)) return null;
 
   if (request.method === "POST" && pathname === "/api/v1/observation-events") {
@@ -1670,6 +1673,70 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "POST" && action === "end") return endObservationEventSession(request, env, sessionId);
   if (request.method === "GET" && action === "effort") return getObservationEventEffort(env, sessionId);
   return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+}
+
+async function suggestObservationEventArea(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const center = asPlainObject(body.center);
+  const lat = numberOrNullFromUnknown(center?.lat);
+  const lng = numberOrNullFromUnknown(center?.lng);
+  if (lat === null || lng === null) {
+    return json({ error: "center.lat and center.lng required" }, 400, { "cache-control": "no-store" });
+  }
+  const radiusM = clampObservationEventAreaRadius(numberOrNullFromUnknown(body.radius_m) ?? numberOrNullFromUnknown(body.radiusM) ?? 300);
+  const placeLabel = normalizeOptionalText(body.place_label) ?? normalizeOptionalText(body.placeLabel);
+  const suggestions = [
+    observationEventAreaSuggestion("facility", placeLabel ? `${placeLabel}敷地寄せ` : "施設・集合場所寄せ", "集合場所と施設周辺を中心に、迷いにくい範囲へ寄せます。", lat, lng, Math.max(100, Math.round(radiusM * 0.9)), [
+      "施設管理者の案内と立入可能範囲を現地で確認してください。"
+    ]),
+    observationEventAreaSuggestion("safe_walk", "安全な徒歩圏", "親子や初参加者が歩きやすいように、範囲を締めます。", lat, lng, Math.max(180, Math.round(radiusM * 0.72)), [
+      "道路横断や私有地への立ち入りは現地で確認してください。"
+    ]),
+    observationEventAreaSuggestion("nature_rich", "自然観察寄せ", "周辺の緑や水辺も見に行けるよう、観察範囲を広げます。", lat, lng, Math.max(220, Math.round(radiusM * 1.35)), [
+      "公園・緑地を含める場合は集合場所と移動時間を確認してください。"
+    ])
+  ];
+  return json({
+    suggestions,
+    provider: "fallback",
+    promptVersion: "cloudflare_worker_area_fallback/v1",
+    compatibility: {
+      source: "cloudflare_d1_native",
+      userId: session.userId
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
+function clampObservationEventAreaRadius(radiusM: number): number {
+  return Math.max(80, Math.min(1500, Math.round(Number.isFinite(radiusM) ? radiusM : 300)));
+}
+
+function observationEventAreaSuggestion(
+  id: "facility" | "safe_walk" | "nature_rich",
+  label: string,
+  reason: string,
+  lat: number,
+  lng: number,
+  radiusM: number,
+  warnings: string[]
+) {
+  const polygon = publicAreaApproxPolygon(lat, lng, radiusM, null);
+  return {
+    id,
+    label,
+    reason,
+    geometry: {
+      type: "Polygon",
+      coordinates: [polygon]
+    },
+    center: { lat, lng },
+    radiusM,
+    areaHa: Math.round((Math.PI * radiusM * radiusM / 10000) * 10) / 10,
+    warnings,
+    source: "fallback"
+  };
 }
 
 async function createObservationEventSession(request: Request, env: Env): Promise<Response> {
@@ -2208,7 +2275,6 @@ function isLegacyObservationOriginFallbackPath(request: Request, url: URL): bool
 
 function isLegacyObservationEventApiOriginFallbackPath(_request: Request, url: URL): boolean {
   const pathname = stripPublicLangPrefix(url.pathname);
-  if (pathname === "/api/v1/observation-events/area-suggestions") return true;
   if (/^\/api\/v1\/observation-events\/[^/]+\/location$/.test(pathname)) return true;
   if (/^\/api\/v1\/observation-events\/[^/]+\/rally(?:\/.*)?$/.test(pathname)) return true;
   return false;
