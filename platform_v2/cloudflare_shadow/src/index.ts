@@ -500,6 +500,14 @@ interface ReverseDeltaCountRow {
 
 type ObservationEventMode = "discovery" | "effort_maximize" | "bingo" | "absence_confirm" | "ai_quest";
 const OBSERVATION_EVENT_MODES: readonly ObservationEventMode[] = ["discovery", "effort_maximize", "bingo", "absence_confirm", "ai_quest"];
+const RALLY_COURSE_STATUSES = ["draft", "preflight", "live", "closed"] as const;
+const RALLY_SCOPES = ["event", "team", "participant", "station"] as const;
+const RALLY_LOCATION_BINDINGS = ["none", "station_required", "within_area", "near_route", "any_registered_station"] as const;
+const RALLY_COUNT_UNITS = ["scene", "individual", "location", "comparison_pair", "station_clear", "team_completion"] as const;
+const RALLY_VERIFICATION_POLICIES = ["auto", "organizer_review", "ai_assisted", "qr"] as const;
+const RALLY_WEATHER_SENSITIVITIES = ["all_weather", "rain_ok", "dry_only", "sunny_only", "wind_sensitive", "temperature_sensitive"] as const;
+const RALLY_MISSION_STATUSES = ["draft", "published", "paused", "replaced", "closed"] as const;
+const RALLY_REVISION_ACTIONS = ["publish", "pause", "replace", "extend", "close"] as const;
 
 interface ObservationEventSessionD1Row {
   session_id: string;
@@ -538,7 +546,10 @@ interface ObservationEventParticipantD1Row {
   participant_id: string;
   user_id: string | null;
   guest_token: string | null;
+  display_name?: string | null;
   team_id: string | null;
+  share_location?: number;
+  location_share_until?: string | null;
   is_minor: number;
 }
 
@@ -547,6 +558,96 @@ interface ObservationEventMeshSummaryRow {
   visit_seconds_sum: number;
   observation_sum: number;
   absence_sum: number;
+}
+
+interface ObservationRallyCourseD1Row {
+  course_id: string;
+  session_id: string;
+  title: string;
+  status: string;
+  config_json: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ObservationRallyStationD1Row {
+  station_id: string;
+  course_id: string;
+  field_id: string | null;
+  code: string;
+  name: string;
+  description: string;
+  lat: number | null;
+  lng: number | null;
+  radius_m: number | null;
+  polygon_json: string | null;
+  route_geojson: string | null;
+  is_private: number;
+  access_note: string;
+  danger_note: string;
+  status: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ObservationRallyMissionD1Row {
+  mission_id: string;
+  course_id: string;
+  station_id: string | null;
+  replacement_for_mission_id: string | null;
+  scope: string;
+  location_binding: string;
+  title: string;
+  target: string;
+  count_unit: string;
+  goal_count: number;
+  counting_policy_json: string;
+  verification_policy: string;
+  weather_sensitivity: string;
+  fallback_group: string;
+  status: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ObservationRallyProgressD1Row {
+  progress_id: string;
+  course_id: string;
+  mission_id: string;
+  progress_scope: string;
+  team_id: string | null;
+  participant_key: string | null;
+  station_id: string | null;
+  actual_count: number;
+  goal_count: number;
+  percent: number;
+  status: string;
+  updated_at: string;
+}
+
+interface ObservationRallySubmissionD1Row {
+  submission_id: string;
+  session_id: string;
+  course_id: string;
+  mission_id: string;
+  station_id: string | null;
+  user_id: string | null;
+  guest_token: string | null;
+  team_id: string | null;
+  source_type: string;
+  source_ref: string | null;
+  count_value: number;
+  public_lat: number | null;
+  public_lng: number | null;
+  payload_json: string;
+  review_status: string;
+  created_at: string;
 }
 
 const MAX_MEDIA_PER_DRAFT = 12;
@@ -1416,10 +1517,6 @@ export const worker = {
         return observationEventResponse;
       }
 
-      if (shouldFallbackObservationEventApiToOrigin(request, url, env)) {
-        return fetchOriginFallback(request, url, env, "legacy_observation_event_api_origin_fallback");
-      }
-
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "public_custom_domain_path");
       }
@@ -1642,7 +1739,6 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "POST" && pathname === "/api/v1/observation-events/area-suggestions") {
     return suggestObservationEventArea(request, env);
   }
-  if (isLegacyObservationEventApiOriginFallbackPath(request, url)) return null;
 
   if (request.method === "POST" && pathname === "/api/v1/observation-events") {
     return createObservationEventSession(request, env);
@@ -1651,6 +1747,14 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "GET" && byCodeMatch?.[1]) {
     const session = await getObservationEventSessionByEventCode(env, decodeURIComponent(byCodeMatch[1]));
     return session ? json({ session }, 200, { "cache-control": "no-store" }) : json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  }
+  const locationMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/location$/);
+  if (request.method === "POST" && locationMatch?.[1]) {
+    return pingObservationEventLocation(request, env, decodeURIComponent(locationMatch[1]));
+  }
+  const rallyMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/rally(?:\/(.*))?$/);
+  if (rallyMatch?.[1]) {
+    return handleObservationEventRallyApi(request, env, decodeURIComponent(rallyMatch[1]), rallyMatch[2] ? decodeURIComponent(rallyMatch[2]) : "");
   }
   const sessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)(?:\/([^/]+))?$/);
   if (!sessionMatch?.[1]) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
@@ -1873,7 +1977,10 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
     guestToken,
     displayName: normalizeOptionalText(body.display_name) ?? "",
     teamId: normalizeOptionalText(body.team_id),
-    isMinor: body.is_minor === true
+    isMinor: body.is_minor === true,
+    shareLocation: body.share_location === true,
+    locationShareUntil: normalizeOptionalText(body.location_share_until),
+    locationShareConsentType: normalizeOptionalText(body.location_share_consent_type)
   });
   await appendObservationEventLive(env, {
     sessionId,
@@ -1882,7 +1989,7 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
     actorUserId: auth?.userId ?? null,
     actorGuestToken: guestToken,
     teamId: normalizeOptionalText(body.team_id),
-    payload: { participant_id: participantId, display_name: normalizeOptionalText(body.display_name) ?? "", team_id: normalizeOptionalText(body.team_id), location_share: false }
+    payload: { participant_id: participantId, display_name: normalizeOptionalText(body.display_name) ?? "", team_id: normalizeOptionalText(body.team_id), location_share: body.share_location === true }
   });
   return json({ participant_id: participantId }, 200, { "cache-control": "no-store" });
 }
@@ -2000,6 +2107,287 @@ async function getObservationEventEffort(env: Env, sessionId: string): Promise<R
   }, 200, { "cache-control": "no-store" });
 }
 
+async function pingObservationEventLocation(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  if (!isObservationEventLocationShareOpen(session)) {
+    return json({ error: "location sharing is outside event time" }, 403, { "cache-control": "no-store" });
+  }
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const guestToken = normalizeOptionalText(body.guest_token);
+  if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
+  const lat = numberOrNullFromUnknown(body.lat);
+  const lng = numberOrNullFromUnknown(body.lng);
+  if (lat === null || lng === null) return json({ error: "lat and lng required" }, 400, { "cache-control": "no-store" });
+  const participant = await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken);
+  if (!participant) return json({ error: "participant not found" }, 404, { "cache-control": "no-store" });
+  const shareUntil = participant.location_share_until ? Date.parse(participant.location_share_until) : 0;
+  if (participant.share_location !== 1 || !Number.isFinite(shareUntil) || shareUntil < Date.now()) {
+    return json({ error: "location sharing is not enabled" }, 403, { "cache-control": "no-store" });
+  }
+  const publicLat = roundPublicEventCoordinate(lat);
+  const publicLng = roundPublicEventCoordinate(lng);
+  await recordObservationEventMeshVisit(env, {
+    sessionId,
+    lat: publicLat,
+    lng: publicLng,
+    visitSeconds: numberOrNullFromUnknown(body.visit_seconds) ?? 0,
+    teamId: participant.team_id
+  });
+  const event = await appendObservationEventLive(env, {
+    sessionId,
+    type: "participant_location_ping",
+    scope: "organizer",
+    actorUserId: auth?.userId ?? null,
+    actorGuestToken: guestToken,
+    teamId: participant.team_id,
+    payload: {
+      participant_id: participant.participant_id,
+      display_name: participant.display_name ?? "",
+      team_id: participant.team_id,
+      public_lat: publicLat,
+      public_lng: publicLng,
+      precision: "public_3_decimal",
+      exact_location_stored: false
+    }
+  });
+  return json({ ok: true, event }, 200, { "cache-control": "no-store" });
+}
+
+function isObservationEventLocationShareOpen(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): boolean {
+  const started = Date.parse(session.startedAt);
+  const ended = session.endedAt ? Date.parse(session.endedAt) : Date.now() + 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  return Number.isFinite(started) && Number.isFinite(ended) && now >= started - 30 * 60 * 1000 && now <= ended + 24 * 60 * 60 * 1000;
+}
+
+async function handleObservationEventRallyApi(request: Request, env: Env, sessionId: string, pathRemainder: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const parts = pathRemainder.split("/").filter(Boolean);
+  if (request.method === "GET" && parts.length === 0) {
+    const rally = await getObservationRallySnapshot(env, sessionId);
+    return json({ session, rally }, 200, { "cache-control": "no-store" });
+  }
+  if (request.method === "POST" && parts[0] === "course" && parts.length === 1) {
+    return upsertObservationRallyCourse(request, env, sessionId);
+  }
+  if (request.method === "POST" && parts[0] === "stations" && parts.length === 1) {
+    return createObservationRallyStation(request, env, sessionId);
+  }
+  if (request.method === "POST" && parts[0] === "missions" && parts.length === 1) {
+    return createObservationRallyMission(request, env, sessionId);
+  }
+  if (request.method === "PATCH" && parts[0] === "missions" && parts[1] && parts.length === 2) {
+    return changeObservationRallyMission(request, env, sessionId, parts[1]);
+  }
+  if (request.method === "POST" && parts[0] === "preflight" && parts[1] === "weather-mode" && parts.length === 2) {
+    return switchObservationRallyWeatherMode(request, env, sessionId);
+  }
+  if (request.method === "POST" && parts[0] === "submissions" && parts.length === 1) {
+    return createObservationRallySubmission(request, env, sessionId);
+  }
+  if (request.method === "PATCH" && parts[0] === "submissions" && parts[1] && parts[2] === "review" && parts.length === 3) {
+    return reviewObservationRallySubmission(request, env, sessionId, parts[1]);
+  }
+  return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+}
+
+async function upsertObservationRallyCourse(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const course = await ensureObservationRallyCourse(env, sessionId, auth.auth.userId, {
+    title: normalizeOptionalText(body.title) ?? "観察ラリー",
+    status: normalizeRallyCourseStatus(body.status) ?? "preflight",
+    config: asPlainObject(body.config) ?? {}
+  });
+  return json({ course }, 200, { "cache-control": "no-store" });
+}
+
+async function createObservationRallyStation(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const name = normalizeOptionalText(body.name);
+  if (!name) return json({ error: "name required" }, 400, { "cache-control": "no-store" });
+  const course = await ensureObservationRallyCourse(env, sessionId, auth.auth.userId);
+  const stationId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_rally_stations (
+       station_id, course_id, field_id, code, name, description, lat, lng, radius_m,
+       polygon_json, route_geojson, is_private, access_note, danger_note, status, sort_order
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`
+  ).bind(
+    stationId,
+    course.courseId,
+    normalizeOptionalText(body.field_id),
+    normalizeOptionalText(body.code) ?? "",
+    name,
+    normalizeOptionalText(body.description) ?? "",
+    numberOrNullFromUnknown(body.lat),
+    numberOrNullFromUnknown(body.lng),
+    numberOrNullFromUnknown(body.radius_m),
+    JSON.stringify(asPlainObject(body.polygon) ?? null),
+    JSON.stringify(asPlainObject(body.route_geojson) ?? null),
+    body.is_private === true ? 1 : 0,
+    normalizeOptionalText(body.access_note) ?? "",
+    normalizeOptionalText(body.danger_note) ?? "",
+    Math.round(numberOrNullFromUnknown(body.sort_order) ?? 0)
+  ).run();
+  const station = (await listObservationRallyStations(env, course.courseId)).find((row) => row.stationId === stationId);
+  await appendObservationEventLive(env, { sessionId, type: "rally_station_opened", scope: "all", actorUserId: auth.auth.userId, payload: { station_id: stationId, name } });
+  return json({ station }, 201, { "cache-control": "no-store" });
+}
+
+async function createObservationRallyMission(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const title = normalizeOptionalText(body.title);
+  const target = normalizeOptionalText(body.target);
+  const goalCount = numberOrNullFromUnknown(body.goal_count);
+  if (!title || !target || goalCount === null || goalCount <= 0) {
+    return json({ error: "title, target, positive goal_count required" }, 400, { "cache-control": "no-store" });
+  }
+  const course = await ensureObservationRallyCourse(env, sessionId, auth.auth.userId);
+  const missionId = crypto.randomUUID();
+  const scope = normalizeRallyScope(body.scope) ?? "event";
+  const locationBinding = normalizeRallyLocationBinding(body.location_binding) ?? "none";
+  const countUnit = normalizeRallyCountUnit(body.count_unit) ?? "scene";
+  const verificationPolicy = normalizeRallyVerificationPolicy(body.verification_policy) ?? "auto";
+  const weatherSensitivity = normalizeRallyWeatherSensitivity(body.weather_sensitivity) ?? "all_weather";
+  const status = normalizeRallyMissionStatus(body.status) ?? "draft";
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_rally_missions (
+       mission_id, course_id, station_id, replacement_for_mission_id, scope, location_binding,
+       title, target, count_unit, goal_count, counting_policy_json, verification_policy,
+       weather_sensitivity, fallback_group, status, starts_at, ends_at, sort_order, created_by
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    missionId,
+    course.courseId,
+    normalizeOptionalText(body.station_id),
+    normalizeOptionalText(body.replacement_for_mission_id),
+    scope,
+    locationBinding,
+    title,
+    target,
+    countUnit,
+    goalCount,
+    JSON.stringify(asPlainObject(body.counting_policy) ?? {}),
+    verificationPolicy,
+    weatherSensitivity,
+    normalizeOptionalText(body.fallback_group) ?? "",
+    status,
+    normalizeOptionalText(body.starts_at),
+    normalizeOptionalText(body.ends_at),
+    Math.round(numberOrNullFromUnknown(body.sort_order) ?? 0),
+    auth.auth.userId
+  ).run();
+  const mission = await getObservationRallyMission(env, missionId);
+  await appendObservationEventLive(env, { sessionId, type: "rally_mission_published", scope: "all", actorUserId: auth.auth.userId, payload: { mission_id: missionId, status } });
+  return json({ mission: mission ? mapObservationRallyMission(mission) : null }, 201, { "cache-control": "no-store" });
+}
+
+async function changeObservationRallyMission(request: Request, env: Env, sessionId: string, missionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const current = await getObservationRallyMission(env, missionId);
+  if (!current) return json({ error: "mission not found" }, 404, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const action = normalizeRallyRevisionAction(body.action);
+  if (!action) return json({ error: "invalid action" }, 400, { "cache-control": "no-store" });
+  const nextStatus = action === "publish" ? "published" : action === "pause" ? "paused" : action === "replace" ? "replaced" : action === "close" ? "closed" : current.status;
+  const nextGoal = numberOrNullFromUnknown(body.goal_count) ?? current.goal_count;
+  const nextEndsAt = body.ends_at === undefined ? current.ends_at : normalizeOptionalText(body.ends_at);
+  await env.OBS_DB.prepare(
+    "UPDATE observation_rally_missions SET status = ?, goal_count = ?, ends_at = ?, updated_at = CURRENT_TIMESTAMP WHERE mission_id = ?"
+  ).bind(nextStatus, nextGoal, nextEndsAt, missionId).run();
+  await appendObservationRallyRevision(env, current.course_id, missionId, action, auth.auth.userId, normalizeOptionalText(body.reason) ?? "", mapObservationRallyMission(current), { status: nextStatus, goalCount: nextGoal, endsAt: nextEndsAt });
+  const eventType = action === "pause" ? "rally_mission_paused" : action === "replace" ? "rally_mission_replaced" : action === "extend" ? "rally_mission_extended" : action === "close" ? "rally_mission_closed" : "rally_mission_published";
+  await appendObservationEventLive(env, { sessionId, type: eventType, scope: "all", actorUserId: auth.auth.userId, payload: { mission_id: missionId, action, status: nextStatus } });
+  const mission = await getObservationRallyMission(env, missionId);
+  return json({ mission: mission ? mapObservationRallyMission(mission) : null }, 200, { "cache-control": "no-store" });
+}
+
+async function switchObservationRallyWeatherMode(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  if (normalizeOptionalText(body.mode) !== "rain") return json({ error: "invalid weather mode" }, 400, { "cache-control": "no-store" });
+  const course = await ensureObservationRallyCourse(env, sessionId, auth.auth.userId);
+  await appendObservationEventLive(env, { sessionId, type: "rally_next_action", scope: "all", actorUserId: auth.auth.userId, payload: { mode: "rain", reason: normalizeOptionalText(body.reason) ?? "" } });
+  return json({ course, mode: "rain", affectedMissions: 0 }, 200, { "cache-control": "no-store" });
+}
+
+async function createObservationRallySubmission(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const guestToken = normalizeOptionalText(body.guest_token);
+  if (!auth && !guestToken) return json({ error: "user or guest_token required" }, 400, { "cache-control": "no-store" });
+  const missionId = normalizeOptionalText(body.mission_id);
+  if (!missionId) return json({ error: "mission_id required" }, 400, { "cache-control": "no-store" });
+  const mission = await getObservationRallyMission(env, missionId);
+  if (!mission) return json({ error: "mission not found" }, 404, { "cache-control": "no-store" });
+  const course = await getObservationRallyCourseBySession(env, sessionId);
+  if (!course || course.courseId !== mission.course_id) return json({ error: "rally course not found" }, 404, { "cache-control": "no-store" });
+  const participant = await findObservationEventParticipant(env, sessionId, auth?.userId ?? null, guestToken);
+  const teamId = normalizeOptionalText(body.team_id) ?? participant?.team_id ?? null;
+  const countValue = Math.max(0.01, numberOrNullFromUnknown(body.count_value) ?? 1);
+  const lat = numberOrNullFromUnknown(body.lat);
+  const lng = numberOrNullFromUnknown(body.lng);
+  const publicLat = lat === null ? null : roundPublicEventCoordinate(lat);
+  const publicLng = lng === null ? null : roundPublicEventCoordinate(lng);
+  const submissionId = crypto.randomUUID();
+  const reviewStatus = mission.verification_policy === "organizer_review" ? "pending" : "auto_accepted";
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_rally_submissions (
+       submission_id, session_id, course_id, mission_id, station_id, user_id, guest_token, team_id,
+       source_type, source_ref, count_value, public_lat, public_lng, payload_json, review_status
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    submissionId,
+    sessionId,
+    course.courseId,
+    missionId,
+    normalizeOptionalText(body.station_id),
+    auth?.userId ?? null,
+    guestToken,
+    teamId,
+    normalizeOptionalText(body.source_type) ?? "manual_rally",
+    normalizeOptionalText(body.source_ref),
+    countValue,
+    publicLat,
+    publicLng,
+    JSON.stringify(asPlainObject(body.payload) ?? {}),
+    reviewStatus
+  ).run();
+  if (reviewStatus === "auto_accepted") {
+    await incrementObservationRallyProgress(env, course.courseId, mission, { countValue, teamId, guestToken, userId: auth?.userId ?? null, stationId: normalizeOptionalText(body.station_id) });
+  }
+  if (publicLat !== null && publicLng !== null) await recordObservationEventMeshVisit(env, { sessionId, lat: publicLat, lng: publicLng, observationDelta: 1, teamId });
+  await appendObservationEventLive(env, { sessionId, type: "rally_task_submitted", scope: "all", actorUserId: auth?.userId ?? null, actorGuestToken: guestToken, teamId, payload: { submission_id: submissionId, mission_id: missionId, review_status: reviewStatus } });
+  const submission = await getObservationRallySubmission(env, submissionId);
+  return json({ submission: submission ? mapObservationRallySubmission(submission) : null }, 201, { "cache-control": "no-store" });
+}
+
+async function reviewObservationRallySubmission(request: Request, env: Env, sessionId: string, submissionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<Record<string, unknown>>(request);
+  const next = body.review_status === "rejected" ? "rejected" : "accepted";
+  await env.OBS_DB.prepare(
+    "UPDATE observation_rally_submissions SET review_status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE submission_id = ? AND session_id = ?"
+  ).bind(next, auth.auth.userId, submissionId, sessionId).run();
+  await appendObservationEventLive(env, { sessionId, type: "rally_task_cleared", scope: "all", actorUserId: auth.auth.userId, payload: { submission_id: submissionId, review_status: next } });
+  const submission = await getObservationRallySubmission(env, submissionId);
+  return json({ submission: submission ? mapObservationRallySubmission(submission) : null }, 200, { "cache-control": "no-store" });
+}
+
 async function getObservationEventSessionById(env: Env, sessionId: string) {
   const row = await env.OBS_DB.prepare(
     `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
@@ -2022,6 +2410,242 @@ async function getObservationEventSessionByEventCode(env: Env, eventCode: string
       WHERE event_code = ?`
   ).bind(eventCode).first<ObservationEventSessionD1Row>();
   return row ? mapObservationEventSession(row) : null;
+}
+
+async function getObservationRallySnapshot(env: Env, sessionId: string) {
+  const course = await getObservationRallyCourseBySession(env, sessionId);
+  if (!course) return { course: null, stations: [], missions: [], progress: [] };
+  const [stations, missions, progress] = await Promise.all([
+    listObservationRallyStations(env, course.courseId),
+    listObservationRallyMissions(env, course.courseId),
+    listObservationRallyProgress(env, course.courseId)
+  ]);
+  return { course, stations, missions, progress };
+}
+
+async function getObservationRallyCourseBySession(env: Env, sessionId: string) {
+  const row = await env.OBS_DB.prepare(
+    `SELECT course_id, session_id, title, status, config_json, created_by, created_at, updated_at
+       FROM observation_rally_courses
+      WHERE session_id = ?`
+  ).bind(sessionId).first<ObservationRallyCourseD1Row>();
+  return row ? mapObservationRallyCourse(row) : null;
+}
+
+async function ensureObservationRallyCourse(env: Env, sessionId: string, actorUserId: string | null, input?: { title?: string; status?: string; config?: Record<string, unknown> }) {
+  const existing = await getObservationRallyCourseBySession(env, sessionId);
+  if (existing) {
+    if (input) {
+      await env.OBS_DB.prepare(
+        "UPDATE observation_rally_courses SET title = ?, status = ?, config_json = ?, updated_at = CURRENT_TIMESTAMP WHERE course_id = ?"
+      ).bind(input.title ?? existing.title, normalizeRallyCourseStatus(input.status) ?? existing.status, JSON.stringify(input.config ?? existing.config), existing.courseId).run();
+      return (await getObservationRallyCourseBySession(env, sessionId)) ?? existing;
+    }
+    return existing;
+  }
+  const courseId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    "INSERT INTO observation_rally_courses (course_id, session_id, title, status, config_json, created_by) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(courseId, sessionId, input?.title ?? "観察ラリー", normalizeRallyCourseStatus(input?.status) ?? "preflight", JSON.stringify(input?.config ?? {}), actorUserId).run();
+  return (await getObservationRallyCourseBySession(env, sessionId)) ?? {
+    courseId,
+    sessionId,
+    title: input?.title ?? "観察ラリー",
+    status: normalizeRallyCourseStatus(input?.status) ?? "preflight",
+    config: input?.config ?? {},
+    createdBy: actorUserId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function listObservationRallyStations(env: Env, courseId: string) {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT station_id, course_id, field_id, code, name, description, lat, lng, radius_m,
+            polygon_json, route_geojson, is_private, access_note, danger_note, status, sort_order, created_at, updated_at
+       FROM observation_rally_stations
+      WHERE course_id = ?
+      ORDER BY sort_order ASC, created_at ASC`
+  ).bind(courseId).all<ObservationRallyStationD1Row>();
+  return rows.results.map(mapObservationRallyStation);
+}
+
+async function listObservationRallyMissions(env: Env, courseId: string) {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT mission_id, course_id, station_id, replacement_for_mission_id, scope, location_binding,
+            title, target, count_unit, goal_count, counting_policy_json, verification_policy,
+            weather_sensitivity, fallback_group, status, starts_at, ends_at, sort_order, created_by, created_at, updated_at
+       FROM observation_rally_missions
+      WHERE course_id = ?
+      ORDER BY sort_order ASC, created_at ASC`
+  ).bind(courseId).all<ObservationRallyMissionD1Row>();
+  return rows.results.map(mapObservationRallyMission);
+}
+
+async function getObservationRallyMission(env: Env, missionId: string) {
+  return env.OBS_DB.prepare(
+    `SELECT mission_id, course_id, station_id, replacement_for_mission_id, scope, location_binding,
+            title, target, count_unit, goal_count, counting_policy_json, verification_policy,
+            weather_sensitivity, fallback_group, status, starts_at, ends_at, sort_order, created_by, created_at, updated_at
+       FROM observation_rally_missions
+      WHERE mission_id = ?`
+  ).bind(missionId).first<ObservationRallyMissionD1Row>();
+}
+
+async function getObservationRallySubmission(env: Env, submissionId: string) {
+  return env.OBS_DB.prepare(
+    `SELECT submission_id, session_id, course_id, mission_id, station_id, user_id, guest_token,
+            team_id, source_type, source_ref, count_value, public_lat, public_lng, payload_json,
+            review_status, created_at
+       FROM observation_rally_submissions
+      WHERE submission_id = ?`
+  ).bind(submissionId).first<ObservationRallySubmissionD1Row>();
+}
+
+async function listObservationRallyProgress(env: Env, courseId: string) {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT progress_id, course_id, mission_id, progress_scope, team_id, participant_key, station_id,
+            actual_count, goal_count, percent, status, updated_at
+       FROM observation_rally_progress
+      WHERE course_id = ?
+      ORDER BY updated_at DESC`
+  ).bind(courseId).all<ObservationRallyProgressD1Row>();
+  return rows.results.map(mapObservationRallyProgress);
+}
+
+async function incrementObservationRallyProgress(env: Env, courseId: string, mission: ObservationRallyMissionD1Row, input: { countValue: number; teamId: string | null; userId: string | null; guestToken: string | null; stationId: string | null }) {
+  const progressScope = normalizeRallyScope(mission.scope) ?? "event";
+  const participantKey = progressScope === "participant" ? (input.userId ? `user:${input.userId}` : input.guestToken ? `guest:${input.guestToken}` : "") : "";
+  const teamId = progressScope === "team" ? input.teamId ?? "" : "";
+  const stationId = progressScope === "station" ? input.stationId ?? mission.station_id ?? "" : "";
+  const existing = await env.OBS_DB.prepare(
+    `SELECT progress_id, actual_count
+       FROM observation_rally_progress
+      WHERE mission_id = ? AND progress_scope = ? AND COALESCE(team_id, '') = ? AND COALESCE(participant_key, '') = ? AND COALESCE(station_id, '') = ?`
+  ).bind(mission.mission_id, progressScope, teamId, participantKey, stationId).first<{ progress_id: string; actual_count: number }>();
+  const nextActual = Number(existing?.actual_count ?? 0) + input.countValue;
+  const percent = Math.round((nextActual / Number(mission.goal_count)) * 10000) / 100;
+  const status = percent > 100 ? "exceeded" : percent >= 100 ? "reached" : "active";
+  if (existing) {
+    await env.OBS_DB.prepare(
+      "UPDATE observation_rally_progress SET actual_count = ?, percent = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE progress_id = ?"
+    ).bind(nextActual, percent, status, existing.progress_id).run();
+  } else {
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_rally_progress (
+         progress_id, course_id, mission_id, progress_scope, team_id, participant_key,
+         station_id, actual_count, goal_count, percent, status
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(crypto.randomUUID(), courseId, mission.mission_id, progressScope, teamId || null, participantKey || null, stationId || null, nextActual, Number(mission.goal_count), percent, status).run();
+  }
+}
+
+async function appendObservationRallyRevision(env: Env, courseId: string, missionId: string | null, action: string, actorUserId: string | null, reason: string, before: Record<string, unknown>, after: Record<string, unknown>): Promise<void> {
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_rally_revisions (
+       revision_id, course_id, mission_id, action, reason, before_payload_json, after_payload_json, actor_user_id
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(crypto.randomUUID(), courseId, missionId, action, reason, JSON.stringify(before), JSON.stringify(after), actorUserId).run();
+}
+
+function mapObservationRallyCourse(row: ObservationRallyCourseD1Row) {
+  return {
+    courseId: row.course_id,
+    sessionId: row.session_id,
+    title: row.title,
+    status: normalizeRallyCourseStatus(row.status) ?? "draft",
+    config: jsonObject(row.config_json),
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapObservationRallyStation(row: ObservationRallyStationD1Row) {
+  return {
+    stationId: row.station_id,
+    courseId: row.course_id,
+    fieldId: row.field_id,
+    code: row.code,
+    name: row.name,
+    description: row.description,
+    lat: row.lat,
+    lng: row.lng,
+    radiusM: row.radius_m,
+    polygon: row.polygon_json ? jsonObject(row.polygon_json) : null,
+    routeGeojson: row.route_geojson ? jsonObject(row.route_geojson) : null,
+    isPrivate: row.is_private === 1,
+    accessNote: row.access_note,
+    dangerNote: row.danger_note,
+    status: row.status,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapObservationRallyMission(row: ObservationRallyMissionD1Row) {
+  return {
+    missionId: row.mission_id,
+    courseId: row.course_id,
+    stationId: row.station_id,
+    replacementForMissionId: row.replacement_for_mission_id,
+    scope: normalizeRallyScope(row.scope) ?? "event",
+    locationBinding: normalizeRallyLocationBinding(row.location_binding) ?? "none",
+    title: row.title,
+    target: row.target,
+    countUnit: normalizeRallyCountUnit(row.count_unit) ?? "scene",
+    goalCount: Number(row.goal_count),
+    countingPolicy: jsonObject(row.counting_policy_json),
+    verificationPolicy: normalizeRallyVerificationPolicy(row.verification_policy) ?? "auto",
+    weatherSensitivity: normalizeRallyWeatherSensitivity(row.weather_sensitivity) ?? "all_weather",
+    fallbackGroup: row.fallback_group,
+    status: normalizeRallyMissionStatus(row.status) ?? "draft",
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    sortOrder: row.sort_order,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapObservationRallyProgress(row: ObservationRallyProgressD1Row) {
+  return {
+    progressId: row.progress_id,
+    courseId: row.course_id,
+    missionId: row.mission_id,
+    progressScope: normalizeRallyScope(row.progress_scope) ?? "event",
+    teamId: row.team_id,
+    participantKey: row.participant_key,
+    stationId: row.station_id,
+    actualCount: Number(row.actual_count),
+    goalCount: Number(row.goal_count),
+    percent: Number(row.percent),
+    status: row.status,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapObservationRallySubmission(row: ObservationRallySubmissionD1Row) {
+  return {
+    submissionId: row.submission_id,
+    sessionId: row.session_id,
+    courseId: row.course_id,
+    missionId: row.mission_id,
+    stationId: row.station_id,
+    userId: row.user_id,
+    guestToken: row.guest_token,
+    teamId: row.team_id,
+    sourceType: row.source_type,
+    sourceRef: row.source_ref,
+    countValue: Number(row.count_value),
+    publicLat: row.public_lat,
+    publicLng: row.public_lng,
+    payload: jsonObject(row.payload_json),
+    reviewStatus: row.review_status,
+    createdAt: row.created_at
+  };
 }
 
 function mapObservationEventSession(row: ObservationEventSessionD1Row) {
@@ -2111,16 +2735,22 @@ async function upsertObservationEventParticipant(env: Env, input: {
   displayName: string;
   teamId: string | null;
   isMinor: boolean;
+  shareLocation?: boolean;
+  locationShareUntil?: string | null;
+  locationShareConsentType?: string | null;
 }): Promise<string> {
   const existing = await findObservationEventParticipant(env, input.sessionId, input.userId, input.guestToken);
+  const shareLocation = input.shareLocation === true && (!input.isMinor || input.locationShareConsentType === "guardian") ? 1 : 0;
+  const shareUntil = shareLocation ? input.locationShareUntil ?? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() : null;
+  const consentType = shareLocation ? input.locationShareConsentType ?? "self" : null;
   if (existing) {
     await env.OBS_DB.prepare(
       `UPDATE observation_event_participants
           SET display_name = ?, team_id = COALESCE(?, team_id), status = 'checked_in',
-              checked_in_at = CURRENT_TIMESTAMP, share_location = 0, is_minor = ?,
-              location_share_until = NULL, location_share_consent_type = NULL, updated_at = CURRENT_TIMESTAMP
+              checked_in_at = CURRENT_TIMESTAMP, share_location = ?, is_minor = ?,
+              location_share_until = ?, location_share_consent_type = ?, updated_at = CURRENT_TIMESTAMP
         WHERE participant_id = ?`
-    ).bind(input.displayName, input.teamId, input.isMinor ? 1 : 0, existing.participant_id).run();
+    ).bind(input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType, existing.participant_id).run();
     return existing.participant_id;
   }
   const participantId = crypto.randomUUID();
@@ -2128,15 +2758,15 @@ async function upsertObservationEventParticipant(env: Env, input: {
     `INSERT INTO observation_event_participants (
        participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
        checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
-     ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, 0, ?, NULL, NULL)`
-  ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, input.isMinor ? 1 : 0).run();
+     ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?)`
+  ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType).run();
   return participantId;
 }
 
 async function findObservationEventParticipant(env: Env, sessionId: string, userId: string | null, guestToken: string | null) {
   if (!userId && !guestToken) return null;
   return env.OBS_DB.prepare(
-    `SELECT participant_id, user_id, guest_token, team_id, is_minor
+    `SELECT participant_id, user_id, guest_token, display_name, team_id, share_location, location_share_until, is_minor
        FROM observation_event_participants
       WHERE session_id = ?
         AND ((user_id IS NOT NULL AND user_id = ?) OR (guest_token IS NOT NULL AND guest_token = ?))
@@ -2201,6 +2831,38 @@ function observationEventModes(value: unknown, fallback: ObservationEventMode): 
   return modes.length > 0 ? modes : [fallback];
 }
 
+function normalizeRallyCourseStatus(value: unknown): typeof RALLY_COURSE_STATUSES[number] | null {
+  return typeof value === "string" && (RALLY_COURSE_STATUSES as readonly string[]).includes(value) ? value as typeof RALLY_COURSE_STATUSES[number] : null;
+}
+
+function normalizeRallyScope(value: unknown): typeof RALLY_SCOPES[number] | null {
+  return typeof value === "string" && (RALLY_SCOPES as readonly string[]).includes(value) ? value as typeof RALLY_SCOPES[number] : null;
+}
+
+function normalizeRallyLocationBinding(value: unknown): typeof RALLY_LOCATION_BINDINGS[number] | null {
+  return typeof value === "string" && (RALLY_LOCATION_BINDINGS as readonly string[]).includes(value) ? value as typeof RALLY_LOCATION_BINDINGS[number] : null;
+}
+
+function normalizeRallyCountUnit(value: unknown): typeof RALLY_COUNT_UNITS[number] | null {
+  return typeof value === "string" && (RALLY_COUNT_UNITS as readonly string[]).includes(value) ? value as typeof RALLY_COUNT_UNITS[number] : null;
+}
+
+function normalizeRallyVerificationPolicy(value: unknown): typeof RALLY_VERIFICATION_POLICIES[number] | null {
+  return typeof value === "string" && (RALLY_VERIFICATION_POLICIES as readonly string[]).includes(value) ? value as typeof RALLY_VERIFICATION_POLICIES[number] : null;
+}
+
+function normalizeRallyWeatherSensitivity(value: unknown): typeof RALLY_WEATHER_SENSITIVITIES[number] | null {
+  return typeof value === "string" && (RALLY_WEATHER_SENSITIVITIES as readonly string[]).includes(value) ? value as typeof RALLY_WEATHER_SENSITIVITIES[number] : null;
+}
+
+function normalizeRallyMissionStatus(value: unknown): typeof RALLY_MISSION_STATUSES[number] | null {
+  return typeof value === "string" && (RALLY_MISSION_STATUSES as readonly string[]).includes(value) ? value as typeof RALLY_MISSION_STATUSES[number] : null;
+}
+
+function normalizeRallyRevisionAction(value: unknown): typeof RALLY_REVISION_ACTIONS[number] | null {
+  return typeof value === "string" && (RALLY_REVISION_ACTIONS as readonly string[]).includes(value) ? value as typeof RALLY_REVISION_ACTIONS[number] : null;
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
@@ -2254,11 +2916,6 @@ function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: E
   return shouldUseOriginFallback(url, env) && isLegacyObservationOriginFallbackPath(request, url);
 }
 
-function shouldFallbackObservationEventApiToOrigin(request: Request, url: URL, env: Env): boolean {
-  return shouldUseOriginFallback(url, env)
-    && isLegacyObservationEventApiOriginFallbackPath(request, url);
-}
-
 function isLegacyObservationOriginFallbackPath(request: Request, url: URL): boolean {
   const pathname = url.pathname;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reactions\/[^/]+$/.test(pathname)) return true;
@@ -2270,13 +2927,6 @@ function isLegacyObservationOriginFallbackPath(request: Request, url: URL): bool
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return true;
-  return false;
-}
-
-function isLegacyObservationEventApiOriginFallbackPath(_request: Request, url: URL): boolean {
-  const pathname = stripPublicLangPrefix(url.pathname);
-  if (/^\/api\/v1\/observation-events\/[^/]+\/location$/.test(pathname)) return true;
-  if (/^\/api\/v1\/observation-events\/[^/]+\/rally(?:\/.*)?$/.test(pathname)) return true;
   return false;
 }
 

@@ -59,11 +59,13 @@ test("public custom domain origin fallback is not registered twice", async () =>
   assert.equal(publicDomainFallbackCalls.length, 1);
 });
 
-test("legacy observation event API fallback remains an explicit P0 dependency", async () => {
+test("legacy observation event API fallback is retired from Worker source", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyFallbackReason = loadClassifyFallbackReason(script);
 
   assert.equal(classifyFallbackReason("legacy_observation_event_api_origin_fallback"), "api_origin_fallback");
+  assert.doesNotMatch(workerSource, /legacy_observation_event_api_origin_fallback/);
   assert.match(script, /inactive_public_custom_domain_origin_fallback_disabled/);
 });
 
