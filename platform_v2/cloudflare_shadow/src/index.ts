@@ -1034,6 +1034,10 @@ export const worker = {
         return getPublicMapObservations(url, env);
       }
 
+      if (request.method === "GET" && nativePathname === "/api/v1/map/coverage") {
+        return getPublicMapCoverage(url, env);
+      }
+
       if (request.method === "GET" && nativePathname === "/api/v1/map/my-places") {
         return getPublicMapMyPlaces(request, env);
       }
@@ -2014,6 +2018,48 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       gridM: MAP_DEFAULT_GRID_M,
       selectedCellId: selectedCell ? publicCellToCellId(selectedCell) : null,
       provenance: publicMapEmptyProvenance(scopedRows.length)
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
+  const rawYear = numberFromSearchParam(url.searchParams.get("year"));
+  const year = rawYear !== null && Number.isInteger(rawYear) && rawYear >= 2000 && rawYear <= 2100 ? rawYear : null;
+  const rows = await queryPublicMapRows(env);
+  const grouped = new Map<string, { lat: number; lng: number; count: number }>();
+  for (const row of rows) {
+    if (year !== null && !row.observed_at.startsWith(String(year))) continue;
+    const parsed = parsePublicCell(row.public_cell);
+    if (!parsed) continue;
+    const lat = Math.round(parsed.lat * 100) / 100;
+    const lng = Math.round(parsed.lng * 100) / 100;
+    const mesh = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    const current = grouped.get(mesh);
+    if (current) current.count += 1;
+    else grouped.set(mesh, { lat, lng, count: 1 });
+  }
+  const features = [...grouped.entries()]
+    .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
+    .slice(0, 1500)
+    .map(([mesh, group]) => ({
+      type: "Feature" as const,
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: [publicCellPolygon(group.lat, group.lng)]
+      },
+      properties: {
+        mesh,
+        count: group.count
+      }
+    }));
+  const maxCount = features.reduce((max, feature) => Math.max(max, feature.properties.count), 0);
+  return json({
+    type: "FeatureCollection",
+    features,
+    maxCount,
+    compatibility: {
+      source: "cloudflare_readmodel_public_observations",
+      exactLocationExposed: false
     }
   }, 200, { "cache-control": "no-store" });
 }
