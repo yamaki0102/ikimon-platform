@@ -62,6 +62,7 @@ const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const workerSourcePath = join(scriptDir, "..", "src", "index.ts");
 const events = [];
+const r2PutMaxAttempts = 4;
 
 process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html");
 
@@ -69,6 +70,11 @@ const corePaths = [
   "/",
   "/demo/place-feeling-tags",
   "/guide",
+  "/admin/municipal-walk-maps?templateId=route_species_walk",
+  "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
+  "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+  "/admin/municipal-walk-map-reviews",
+  "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
   "/walk-maps",
   "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
   "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
@@ -147,7 +153,13 @@ function normalizePublicPath(value) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
+function parsedPublicPath(value) {
+  return new URL(value, "https://ikimon.local");
+}
+
 function renderUrlForPath(pathname) {
+  if (pathname.startsWith("/admin/municipal-walk-maps?sourceId=")) return pathname;
+  if (pathname.startsWith("/admin/municipal-walk-maps?templateId=")) return pathname;
   const localizedMatch = pathname.match(/^\/(ja|en|es|pt-br)(\/.*)?$/);
   if (localizedMatch) {
     const segment = localizedMatch[1];
@@ -179,6 +191,17 @@ function renderUrlForPath(pathname) {
 }
 
 function originalUiHtmlKey(pathname) {
+  const parsed = parsedPublicPath(pathname);
+  if (parsed.pathname === "/admin/municipal-walk-maps") {
+    const templateId = parsed.searchParams.get("templateId")?.trim() ?? "";
+    if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(templateId)) {
+      return `original-ui/html/admin/municipal-walk-maps/template/${templateId}.html`;
+    }
+    const sourceId = parsed.searchParams.get("sourceId")?.trim() ?? "";
+    if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(sourceId)) {
+      return `original-ui/html/admin/municipal-walk-maps/source/${sourceId}.html`;
+    }
+  }
   const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   return `original-ui/html/${cleanPath}.html`;
 }
@@ -266,6 +289,28 @@ function clampInteger(value, min, max) {
   return Math.max(min, Math.min(max, Math.trunc(value)));
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function runR2PutWithRetry(commandArgs, label) {
+  let lastError;
+  for (let attempt = 1; attempt <= r2PutMaxAttempts; attempt += 1) {
+    try {
+      return await run("npx", commandArgs);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= r2PutMaxAttempts) break;
+      const delayMs = attempt * 1500;
+      console.warn(`R2 put failed for ${label}; retrying ${attempt + 1}/${r2PutMaxAttempts} in ${delayMs}ms.`);
+      await sleep(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 async function runPool(items, limit, worker) {
   const queue = [...items];
   const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
@@ -278,6 +323,10 @@ async function runPool(items, limit, worker) {
 }
 
 const { buildApp } = await import(new URL("../../src/app.ts", import.meta.url));
+if (targetEnv === "staging") {
+  process.env.ENABLE_DEV_DUMMY_ADMIN ||= "1";
+  process.env.DEV_DUMMY_ADMIN_TOKEN ||= "materialize-admin-preview";
+}
 const app = buildApp();
 await app.ready();
 
@@ -288,13 +337,19 @@ const renderedStatic = [];
 
 try {
   for (const pathname of targets) {
+    const parsed = parsedPublicPath(pathname);
+    const isAdminPreview = parsed.pathname === "/admin/municipal-walk-maps" || parsed.pathname === "/admin/municipal-walk-map-reviews";
+    if (isAdminPreview && targetEnv !== "staging") {
+      throw new Error("Admin preview materialization is staging-only.");
+    }
     const renderUrl = renderUrlForPath(pathname);
     const response = await app.inject({
       method: "GET",
       url: renderUrl,
       headers: {
         accept: "text/html",
-        "cache-control": "no-store"
+        "cache-control": "no-store",
+        ...(isAdminPreview ? { cookie: `ikimon_v2_session=${process.env.DEV_DUMMY_ADMIN_TOKEN ?? ""}` } : {})
       }
     });
     const contentType = String(response.headers["content-type"] ?? "");
@@ -347,7 +402,7 @@ try {
   if (execute) {
     const uploadStartedAt = Date.now();
     await runPool(rendered, concurrency, async (item) => {
-      await run("npx", [
+      await runR2PutWithRetry([
         "wrangler",
         "r2",
         "object",
@@ -361,7 +416,7 @@ try {
         "--cache-control",
         "no-store",
         "--force"
-      ]);
+      ], item.key);
     });
     events.push({
       command: `parallel r2 put ${rendered.length} objects concurrency=${concurrency}`,
@@ -369,7 +424,7 @@ try {
       durationMs: Date.now() - uploadStartedAt
     });
     for (const item of renderedStatic) {
-      await run("npx", [
+      await runR2PutWithRetry([
         "wrangler",
         "r2",
         "object",
@@ -383,7 +438,7 @@ try {
         "--cache-control",
         "no-store",
         "--force"
-      ]);
+      ], item.key);
     }
   }
 } finally {

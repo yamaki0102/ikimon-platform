@@ -204,11 +204,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
-    tabMarkers: "最近の発見",
-    tabHeatmap: "季節の気配",
-    tabPlaces: "エリア図鑑",
+    tabMarkers: "写真",
+    tabHeatmap: "季節",
+    tabPlaces: "ガイド",
     tabRain: "雨雲",
-    tabCoverage: "記録の余白",
+    tabCoverage: "未確認",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
@@ -260,7 +260,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaLegendWaterLabel: "水辺・水路",
     areaLegendWaterHint: "危険な水辺に近づかず足元確認",
     layerHintPlaces: "ズームするとエリア図鑑の範囲が見えます。",
-    layerHintFrontier: "ズームすると記録の余白が面で見えます。",
+    layerHintFrontier: "ズームするとまだ少ない場所が面で見えます。",
     layerHintHeatmap: "ズームすると季節の気配の濃淡が見えます。",
     layerHintJump: "見える場所へ",
     layerHintDismiss: "閉じる",
@@ -313,7 +313,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchResultSpecies: "種",
     searchResultPlace: "場所",
     unknownHypothesisLabel: "地図の手がかり",
-    recordingGapLabel: "記録の余白",
+    recordingGapLabel: "まだ少ない場所",
     selectedPointName: "地図の手がかり",
     areaRestrictedActionLabel: "地域のルールを確認",
     areaRestrictedActionHint: "学校・立入制限・未確認の場所では、許可された観察だけを扱います。",
@@ -370,11 +370,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Observation events, posting rallies, and outdoor local activities can be tied to the regional guide here. Organizer inquiries start from this guide.",
     activityRallyMeta: "Events / posting rallies",
     activityRallyLinkLabel: "For organizers",
-    tabMarkers: "Recent finds",
-    tabHeatmap: "Seasonal signs",
-    tabPlaces: "Area Albums",
+    tabMarkers: "Photos",
+    tabHeatmap: "Season",
+    tabPlaces: "Guides",
     tabRain: "Rain",
-    tabCoverage: "Open gaps",
+    tabCoverage: "Open areas",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
     yearFilterLabel: "Year",
@@ -536,11 +536,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Las salidas, los rallies de publicaciones y las actividades locales al aire libre pueden vincularse a la guía regional desde aquí. Las consultas empiezan en la guía para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    tabMarkers: "Hallazgos recientes",
-    tabHeatmap: "Señales de estación",
-    tabPlaces: "Álbumes de áreas",
+    tabMarkers: "Fotos",
+    tabHeatmap: "Estación",
+    tabPlaces: "Guías",
     tabRain: "Lluvia",
-    tabCoverage: "Huecos por mirar",
+    tabCoverage: "Zonas abiertas",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Año",
@@ -702,11 +702,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Eventos de observação, rallies de publicações e atividades locais ao ar livre podem ser vinculados ao guia regional aqui. Consultas começam pela página para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
-    tabMarkers: "Descobertas recentes",
-    tabHeatmap: "Sinais da estação",
-    tabPlaces: "Álbuns de áreas",
+    tabMarkers: "Fotos",
+    tabHeatmap: "Estação",
+    tabPlaces: "Guias",
     tabRain: "Chuva",
-    tabCoverage: "Lacunas para olhar",
+    tabCoverage: "Áreas abertas",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Ano",
@@ -1019,11 +1019,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const guideHref = appendLangToHref(withBasePath(props.basePath, "/guide"), props.lang);
   const communityRecordsHref = appendLangToHref(withBasePath(props.basePath, "/records"), props.lang);
   const routeHintsHref = appendLangToHref(withBasePath(props.basePath, "/walk-maps"), props.lang);
+  const asahataWalkHref = appendLangToHref(withBasePath(props.basePath, "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0"), props.lang);
+  const yatsuyamaWalkHref = appendLangToHref(withBasePath(props.basePath, "/walk-maps/jp-shizuoka-yatsuyama-sample-v0"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const mobileTabLabels = lang === "ja"
-    ? { markers: "発見", heatmap: "季節", places: "エリア", rain: "雨雲", frontier: "余白" }
+    ? { markers: "写真", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "未確認" }
     : lang === "es"
       ? { markers: "Hoy", heatmap: "Est.", places: "Área", rain: "Lluvia", frontier: "Huecos" }
       : lang === "pt-BR"
@@ -1041,6 +1043,8 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiJmaNowcastTimes = withBasePath(props.basePath, "/api/v1/weather/jma-nowcast/times");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
+  const apiWalkMapCandidates = withBasePath(props.basePath, "/api/v1/municipal-walk-maps");
+  const walkMapHrefPrefix = appendLangToHref(withBasePath(props.basePath, "/walk-maps/"), props.lang);
   const eventsOrganizerHref = appendLangToHref(
     withBasePath(props.basePath, "/community/events"),
     props.lang,
@@ -1083,7 +1087,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "O que fazer por perto"
         : "What you can do nearby";
   const startPanelCloseLabel = lang === "ja"
-    ? "地図メニュー"
+    ? "地図メニューを開く"
     : lang === "es"
       ? "Cerrar guía"
       : lang === "pt-BR"
@@ -1097,12 +1101,62 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Ver perto"
         : "Show nearby";
   const startPanelLocationNote = lang === "ja"
-    ? "押したときだけ現在地を使います。"
+    ? "許可済みなら近くから始めます。押すと現在地へ移動します。"
     : lang === "es"
-      ? "Usa tu ubicación solo al tocar."
+      ? "Si ya diste permiso, empieza cerca. Toca para ir a tu ubicación."
       : lang === "pt-BR"
-        ? "Usa sua localização só ao tocar."
-        : "Uses location only when tapped.";
+        ? "Se já permitiu, começa por perto. Toque para ir à sua localização."
+        : "If already allowed, the map starts nearby. Tap to use your current place.";
+  const startPanelBrief = lang === "ja"
+    ? "候補"
+    : lang === "es"
+      ? "Fotos · guías · paseos"
+      : lang === "pt-BR"
+        ? "Fotos · guias · passeios"
+        : "Photos · guides · walks";
+  const startPanelRouteHeading = lang === "ja"
+    ? "静岡の散策候補"
+    : lang === "es"
+      ? "Paseos de Shizuoka"
+      : lang === "pt-BR"
+        ? "Passeios de Shizuoka"
+        : "Shizuoka walks";
+  const startPanelRouteHeadingAny = lang === "ja"
+    ? "散策候補"
+    : lang === "es"
+      ? "Paseos"
+      : lang === "pt-BR"
+        ? "Passeios"
+        : "Walks";
+  const topWalkLabel = lang === "ja"
+    ? "散策"
+    : lang === "es"
+      ? "Paseos"
+      : lang === "pt-BR"
+        ? "Passeios"
+        : "Walks";
+  const startPanelRouteLinks = [
+    { label: lang === "ja" ? "水辺" : lang === "es" ? "Agua" : lang === "pt-BR" ? "Agua" : "Waterfront", href: asahataWalkHref, action: "map:start_panel:route_asahata", region: "shizuoka" },
+    { label: lang === "ja" ? "谷津山" : lang === "es" ? "Yatsuyama" : lang === "pt-BR" ? "Yatsuyama" : "Yatsuyama", href: yatsuyamaWalkHref, action: "map:start_panel:route_yatsuyama", region: "shizuoka" },
+    { label: lang === "ja" ? "一覧" : lang === "es" ? "Lista" : lang === "pt-BR" ? "Lista" : "All", href: routeHintsHref, action: "map:start_panel:route_list", region: "all" },
+  ];
+  const displayFilterLabel = lang === "ja"
+    ? "表示"
+    : lang === "es"
+      ? "Vista"
+      : lang === "pt-BR"
+        ? "Vista"
+        : "View";
+  const filterDisplayTabs = [
+    { tab: "markers", label: copy.tabMarkers },
+    { tab: "places", label: copy.tabPlaces },
+    { tab: "heatmap", label: copy.tabHeatmap },
+    { tab: "rain", label: copy.tabRain },
+    { tab: "frontier", label: copy.tabCoverage },
+  ];
+  const filterDisplayTabsHtml = filterDisplayTabs
+    .map((item) => `<button type="button" class="me-chip me-filter-tab-chip${item.tab === "places" ? " is-active" : ""}" data-filter-tab="${escapeHtml(item.tab)}" aria-pressed="${item.tab === "places" ? "true" : "false"}">${escapeHtml(item.label)}</button>`)
+    .join("");
   const startCards = [
     {
       icon: "📷",
@@ -1122,17 +1176,14 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       href: routeHintsHref,
       action: "map:start_panel:route_hints",
     },
-    {
-      icon: "+",
-      title: lang === "ja" ? "記録" : lang === "es" ? "Registrar" : lang === "pt-BR" ? "Registrar" : "Record",
-      href: recordHref,
-      action: "map:start_panel:record",
-    },
   ];
-  const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}">
+  const startPanelHtml = `<section class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="${escapeHtml(startPanelTitle)}" aria-hidden="false">
       <div class="me-start-panel-head">
         <strong>${escapeHtml(startPanelTitle)}</strong>
-        <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">＋</button>
+        <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">
+          <span class="me-start-panel-brief">${escapeHtml(startPanelBrief)}</span>
+          <span class="me-start-panel-symbol" aria-hidden="true">⌄</span>
+        </button>
       </div>
       <div class="me-start-panel-grid">
         <button type="button" class="me-start-panel-location" id="me-start-panel-location" aria-label="${escapeHtml(startPanelLocationNote)}"><span aria-hidden="true">📍</span><strong>${escapeHtml(startPanelLocationLabel)}</strong></button>
@@ -1140,6 +1191,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span aria-hidden="true">${escapeHtml(card.icon)}</span>
           <strong>${escapeHtml(card.title)}</strong>
         </a>`).join("")}
+      </div>
+      <div class="me-start-panel-routes" aria-label="${escapeHtml(startPanelRouteHeading)}" data-shizuoka-heading="${escapeHtml(startPanelRouteHeading)}" data-any-heading="${escapeHtml(startPanelRouteHeadingAny)}" data-walk-map-prefix="${escapeHtml(walkMapHrefPrefix)}">
+        <strong id="me-start-panel-routes-heading">${escapeHtml(startPanelRouteHeading)}</strong>
+        <nav>
+          ${startPanelRouteLinks.map((link) => `<a href="${escapeHtml(link.href)}" data-kpi-action="${escapeHtml(link.action)}" data-route-region="${escapeHtml(link.region)}">${escapeHtml(link.label)}</a>`).join("")}
+        </nav>
       </div>
     </section>`;
 
@@ -1371,6 +1428,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <details class="me-filter-drawer">
           <summary class="me-filter-toggle">${escapeHtml(filterToggleLabel)}</summary>
           <div class="me-filter-panel">
+            <div class="me-filter-group me-filter-display-group">
+              <span class="me-filter-label">${escapeHtml(displayFilterLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(displayFilterLabel)}">${filterDisplayTabsHtml}</div>
+            </div>
             <div class="me-filter-group">
               <span class="me-filter-label">${escapeHtml(ambientLabels.roleLabel)}</span>
               <div class="me-chip-row" role="group" aria-label="${escapeHtml(ambientLabels.roleLabel)}">${roleChipsHtml}</div>
@@ -1509,7 +1570,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
         ${startPanelHtml}
         <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
           <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
@@ -1534,13 +1595,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span aria-hidden="true">📍</span>
         </button>
         <div class="me-map-status" id="me-map-status" role="status" aria-live="polite">${escapeHtml(copy.loading)}</div>
-        <section class="me-empty-invite" id="me-empty-invite" aria-label="${escapeHtml(copy.emptyTitle)}" aria-hidden="true" hidden>
-          <div class="me-results-empty-actions">
-            <button type="button" class="me-results-empty-action is-primary" data-results-empty-areas>${escapeHtml(copy.emptyActionAreas)}</button>
-            <button type="button" class="me-results-empty-action" data-results-empty-widen>${escapeHtml(copy.emptyActionWiden)}</button>
-            <a class="me-results-empty-action" href="${escapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:results_empty_record" data-kpi-funnel="map_empty_results" data-kpi-target="${escapeHtml(recordHref)}">${escapeHtml(copy.emptyActionRecord)}</a>
-          </div>
-        </section>
         <section class="me-own-trail is-hidden" id="me-own-trail" aria-hidden="true">
           <div class="me-own-trail-head">
             <strong>${escapeHtml(props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos")}</strong>
@@ -1603,6 +1657,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var startPanelEl = document.getElementById('me-start-panel');
   var startPanelCloseEl = document.getElementById('me-start-panel-close');
   var startPanelLocationEl = document.getElementById('me-start-panel-location');
+  var startPanelRoutesEl = document.querySelector('.me-start-panel-routes');
+  var startPanelRoutesHeadingEl = document.getElementById('me-start-panel-routes-heading');
+  var startPanelRoutesStaticHtml = startPanelRoutesEl && startPanelRoutesEl.querySelector('nav')
+    ? startPanelRoutesEl.querySelector('nav').innerHTML
+    : '';
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
@@ -1616,7 +1675,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sideToggleEl = document.getElementById('me-side-toggle');
   var sideRailCountEl = document.getElementById('me-side-rail-count');
   var sideSelectionEmptyEl = document.getElementById('me-side-selection-empty');
-  var emptyInviteEl = document.getElementById('me-empty-invite');
   var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
   var sideTabBtns = document.querySelectorAll('[data-side-tab]');
   function setSideTab(name) {
@@ -1685,6 +1743,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiJmaNowcastTimes = root.getAttribute('data-api-jma-nowcast-times') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
+  var apiWalkMapCandidates = root.getAttribute('data-api-walk-map-candidates') || '';
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
@@ -2324,8 +2383,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var VIEWPORT_RECORD_LIMIT = 600;
   var CELL_RECORD_LIMIT = 1500;
   var DEFAULT_MAP_CENTER = [138.383, 34.975];
-  var DEFAULT_MAP_ZOOM = 12.8;
-  var STARTUP_LOCATION_ZOOM = 14.2;
+  var DEFAULT_MAP_ZOOM = 13.6;
+  var STARTUP_LOCATION_ZOOM = 15.0;
+  var SHIZUOKA_PREF_BBOX = [137.47, 34.57, 139.16, 35.65];
   var LAST_LOCATION_STORAGE_KEY = 'ikimon-map-last-startup-location-v1';
   var LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -2371,6 +2431,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     recordsHardSettleWatchdog: null,
     recordsRecoveryKey: '',
     recordsRecoveryAttempts: 0,
+    startPanelRouteKey: '',
+    startPanelRouteTimer: null,
     initialDataLoadTimer: null,
     initialDataLoadAttempts: 0,
     initialDataLoaded: false,
@@ -2380,6 +2442,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownObservationMarkers: [],
     areaBadgeMarkers: [],
     nearbyAreaMarkers: [],
+    walkMapCandidateMarkers: [],
     nearbyAreaOrigin: null,
     nearbyAreaLocateMovePending: false,
     startupLocationRequestActive: false,
@@ -2447,8 +2510,148 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     startPanelEl.setAttribute('aria-hidden', 'false');
     if (startPanelCloseEl) {
       startPanelCloseEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      startPanelCloseEl.textContent = collapsed ? '＋' : '×';
+      var startPanelSymbolEl = startPanelCloseEl.querySelector('.me-start-panel-symbol');
+      if (startPanelSymbolEl) {
+        startPanelSymbolEl.textContent = collapsed ? '⌄' : '×';
+      } else {
+        startPanelCloseEl.textContent = collapsed ? '⌄' : '×';
+      }
     }
+  }
+
+  function mapCenterIsInShizuoka() {
+    if (!state.map) return true;
+    var center = state.map.getCenter();
+    var lng = Number(center && center.lng);
+    var lat = Number(center && center.lat);
+    return isFinite(lng) && isFinite(lat)
+      && lng >= SHIZUOKA_PREF_BBOX[0] && lng <= SHIZUOKA_PREF_BBOX[2]
+      && lat >= SHIZUOKA_PREF_BBOX[1] && lat <= SHIZUOKA_PREF_BBOX[3];
+  }
+
+  function refreshStartPanelRoutes() {
+    if (!startPanelRoutesEl) return;
+    var inShizuoka = mapCenterIsInShizuoka();
+    var heading = inShizuoka
+      ? (startPanelRoutesEl.getAttribute('data-shizuoka-heading') || '')
+      : (startPanelRoutesEl.getAttribute('data-any-heading') || '');
+    if (startPanelRoutesHeadingEl && heading) startPanelRoutesHeadingEl.textContent = heading;
+    startPanelRoutesEl.querySelectorAll('[data-route-region]').forEach(function (link) {
+      var region = link.getAttribute('data-route-region') || 'all';
+      link.hidden = region !== 'all' && region !== 'candidate' && !(region === 'shizuoka' && inShizuoka);
+    });
+  }
+
+  function walkMapHrefForId(walkMapId) {
+    var prefix = startPanelRoutesEl ? (startPanelRoutesEl.getAttribute('data-walk-map-prefix') || '/walk-maps/') : '/walk-maps/';
+    return prefix + encodeURIComponent(String(walkMapId || ''));
+  }
+
+  function clearWalkMapCandidateMarkers() {
+    (state.walkMapCandidateMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.walkMapCandidateMarkers = [];
+  }
+
+  function walkMapCandidateAreaHint(summary) {
+    var hint = summary && summary.areaHint ? summary.areaHint : null;
+    var lat = Number(hint && hint.lat);
+    var lng = Number(hint && hint.lng);
+    if (!hint || !isFinite(lat) || !isFinite(lng)) return null;
+    if (hint.precision !== 'area_hint') return null;
+    return {
+      lat: lat,
+      lng: lng,
+      label: String(hint.label || '').trim()
+    };
+  }
+
+  function refreshWalkMapCandidateMarkers(summaries) {
+    clearWalkMapCandidateMarkers();
+    if (!state.map || !window.maplibregl || !Array.isArray(summaries) || state.tab !== 'places') return;
+    var maxMarkers = 2;
+    summaries.slice(0, maxMarkers).forEach(function (summary, index) {
+      var id = String(summary && summary.walkMapId || '');
+      var title = String(summary && summary.title || '').trim();
+      var hint = walkMapCandidateAreaHint(summary);
+      if (!id || !title || !hint) return;
+      var shortTitle = (hint.label || title)
+        .replace(/サンプル/g, '')
+        .replace(/周辺周辺/g, '周辺')
+        .trim() || title;
+      var el = document.createElement('a');
+      el.className = 'me-walk-map-marker';
+      el.href = walkMapHrefForId(id);
+      el.setAttribute('data-testid', 'map-walk-map-candidate-marker');
+      el.setAttribute('data-kpi-action', 'map:walk_map_candidate_marker');
+      el.setAttribute('aria-label', shortTitle + ' 散策候補');
+      el.innerHTML = '<span>散策</span><strong>' + escapeHtml(shortTitle.slice(0, 14)) + '</strong>';
+      el.addEventListener('click', function () {
+        sendMapKpi('map_walk_map_candidate_click', 'map:walk_map_candidate_marker', {
+          walkMapId: id,
+          label: hint.label || '',
+        });
+      });
+      var marker = new window.maplibregl.Marker({ element: el, anchor: 'center', offset: [index * 12, 0] })
+        .setLngLat([hint.lng, hint.lat])
+        .addTo(state.map);
+      state.walkMapCandidateMarkers.push(marker);
+    });
+  }
+
+  function renderStartPanelRouteCandidates(summaries) {
+    if (!startPanelRoutesEl || !Array.isArray(summaries)) return false;
+    var nav = startPanelRoutesEl.querySelector('nav');
+    if (!nav) return false;
+    refreshWalkMapCandidateMarkers(summaries);
+    if (!summaries.length) {
+      if (startPanelRoutesStaticHtml) nav.innerHTML = startPanelRoutesStaticHtml;
+      refreshStartPanelRoutes();
+      return false;
+    }
+    var max = Math.min(3, summaries.length);
+    var html = '';
+    for (var i = 0; i < max; i++) {
+      var summary = summaries[i] || {};
+      var id = String(summary.walkMapId || '');
+      var title = String(summary.title || '').trim();
+      if (!id || !title) continue;
+      var shortTitle = title.replace(/サンプル/g, '').replace(/周辺を歩く/g, '').replace(/を歩く/g, '').trim() || title;
+      html += '<a href="' + escapeAttr(walkMapHrefForId(id)) + '" data-kpi-action="map:start_panel:route_candidate" data-route-region="candidate">' + escapeHtml(shortTitle.slice(0, 14)) + '</a>';
+    }
+    var listHref = (startPanelRoutesEl ? (startPanelRoutesEl.getAttribute('data-walk-map-prefix') || '/walk-maps/') : '/walk-maps/').replace(/\\/$/, '');
+    var listLabel = SEARCH_LANG === 'ja' ? '一覧' : 'All';
+    html += '<a href="' + escapeAttr(listHref) + '" data-kpi-action="map:start_panel:route_list" data-route-region="all">' + listLabel + '</a>';
+    if (!html) return false;
+    nav.innerHTML = html;
+    if (startPanelRoutesHeadingEl) startPanelRoutesHeadingEl.textContent = startPanelRoutesEl.getAttribute('data-any-heading') || '散策候補';
+    return true;
+  }
+
+  function scheduleStartPanelRouteCandidates(delayMs) {
+    if (!apiWalkMapCandidates || !state.map) return;
+    if (state.startPanelRouteTimer) clearTimeout(state.startPanelRouteTimer);
+    state.startPanelRouteTimer = setTimeout(function () {
+      state.startPanelRouteTimer = null;
+      try {
+        var center = state.map.getCenter();
+        var lng = Number(center && center.lng);
+        var lat = Number(center && center.lat);
+        if (!isFinite(lng) || !isFinite(lat)) return;
+        var key = lat.toFixed(3) + ',' + lng.toFixed(3);
+        if (state.startPanelRouteKey === key) return;
+        state.startPanelRouteKey = key;
+        var endpoint = apiWalkMapCandidates + '?lat=' + encodeURIComponent(String(lat)) + '&lng=' + encodeURIComponent(String(lng)) + '&limit=3';
+        fetch(endpoint, { credentials: 'same-origin', headers: { accept: 'application/json' } })
+          .then(function (res) { return res.ok ? res.json() : null; })
+          .then(function (json) {
+            if (!json || !Array.isArray(json.summaries)) return;
+            renderStartPanelRouteCandidates(json.summaries);
+          })
+          .catch(function () {});
+      } catch (_) {}
+    }, Math.max(0, delayMs || 0));
   }
 
   function sendMapKpi(eventName, actionKey, metadata) {
@@ -3426,17 +3629,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function setMapEmptyInviteVisible(visible) {
-    if (!emptyInviteEl) return;
-    if (visible && state.tab === 'rain') {
-      visible = false;
-    }
-    emptyInviteEl.hidden = !visible;
-    emptyInviteEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
-    if (statusEl) {
-      statusEl.hidden = !!visible;
-      statusEl.setAttribute('aria-hidden', visible ? 'true' : 'false');
-    }
-    refreshPurposeHint();
+    void visible;
   }
 
   function renderResultList() {
@@ -4715,6 +4908,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s);
   }
 
   function isIkimonSourceUrl(url) {
@@ -6216,10 +6413,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function switchMapTab(tab) {
     state.tab = tab || 'markers';
+    if (state.tab !== 'places') clearWalkMapCandidateMarkers();
     document.querySelectorAll('.me-tab').forEach(function (b) {
       var active = b.getAttribute('data-tab') === state.tab;
       b.classList.toggle('is-active', active);
       b.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('.me-filter-tab-chip').forEach(function (b) {
+      var active = b.getAttribute('data-filter-tab') === state.tab;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
     if (state.tab === 'rain') {
       closeBottomSheet();
@@ -8092,6 +8295,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.initialDataLoaded = true;
     state.initialDataLoadAttempts = 0;
     refreshMapData();
+    refreshDiscoveryPreviewMarkers();
+    if (state.tab === 'markers' || state.tab === 'places' || state.tab === 'rain') loadGuideSpots();
+    scheduleStartPanelRouteCandidates(reason === 'load' ? 120 : 260);
     maybeShowLayerHint(state.tab);
     deferMapTask(function () {
       if (state.tab === 'frontier') loadFrontier(state.map);
@@ -8250,6 +8456,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var t = btn.getAttribute('data-tab');
       btn.classList.toggle('is-active', t === state.tab);
       btn.setAttribute('aria-selected', t === state.tab ? 'true' : 'false');
+    });
+    document.querySelectorAll('.me-filter-tab-chip').forEach(function (btn) {
+      var t = btn.getAttribute('data-filter-tab');
+      btn.classList.toggle('is-active', t === state.tab);
+      btn.setAttribute('aria-pressed', t === state.tab ? 'true' : 'false');
     });
     document.querySelectorAll('.me-role-chip').forEach(function (btn) {
       var v = btn.getAttribute('data-role') || 'mixed';
@@ -8413,7 +8624,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > LAST_LOCATION_MAX_AGE_MS) return null;
       return {
         center: [lng, lat],
-        zoom: Math.max(12.8, Math.min(16, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
+        zoom: Math.max(DEFAULT_MAP_ZOOM, Math.min(16.5, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
         source: 'last_location',
       };
     } catch (_) {
@@ -8436,6 +8647,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function requestStartupCurrentLocation(options) {
     var force = options && options.force === true;
+    var onlyIfGranted = options && options.onlyIfGranted === true;
     if ((!force && (state._restoredCenter || state._restoredCellId)) || !state.map || !navigator.geolocation) return;
     var applyPosition = function (pos) {
       state.startupLocationRequestActive = false;
@@ -8474,10 +8686,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           fail();
           return;
         }
+        if (onlyIfGranted && (!status || status.state !== 'granted')) {
+          fail();
+          return;
+        }
         run();
       }).catch(run);
       return;
     }
+    if (onlyIfGranted) return;
     run();
   }
 
@@ -8526,6 +8743,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (state.rainEnabled) loadRainTimes().then(updateRainLayer);
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
+      refreshStartPanelRoutes();
+      scheduleStartPanelRouteCandidates(120);
+      requestStartupCurrentLocation({ onlyIfGranted: true });
       runInitialMapDataLoad('load');
     });
     scheduleInitialMapDataLoad(180);
@@ -8536,6 +8756,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         return;
       }
       saveMapState();
+      refreshStartPanelRoutes();
+      scheduleStartPanelRouteCandidates(180);
       if (consumeSuppressedViewportSearch()) return;
       if (state.nearbyAreaLocateMovePending) {
         state.nearbyAreaLocateMovePending = false;
@@ -8671,10 +8893,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   document.querySelectorAll('.me-tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var t = btn.getAttribute('data-tab') || 'markers';
+      var t = btn.getAttribute('data-tab');
+      if (!t) return;
       dismissStartPanel();
       dismissPurposeHint();
       switchMapTab(t);
+    });
+  });
+  document.querySelectorAll('.me-filter-tab-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var t = btn.getAttribute('data-filter-tab');
+      if (!t) return;
+      dismissStartPanel();
+      dismissPurposeHint();
+      switchMapTab(t);
+      var drawer = btn.closest && btn.closest('.me-filter-drawer');
+      if (drawer) drawer.removeAttribute('open');
     });
   });
   if (layerHintJumpEl) {
@@ -8814,6 +9048,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       document.querySelectorAll('.me-region-chip').forEach(function (b) {
         b.classList.toggle('is-active', b === btn);
       });
+      refreshStartPanelRoutes();
     });
   });
   if (searchAreaBtnEl) {
@@ -9761,10 +9996,15 @@ export const MAP_EXPLORER_STYLES = `
     border: 1px solid rgba(15,23,42,.08);
     box-shadow: 0 6px 18px rgba(15,23,42,.10);
     backdrop-filter: blur(14px);
+    box-sizing: border-box;
   }
   .me-start-panel.is-collapsed {
-    padding: 0;
-    border-radius: 999px;
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 14px;
     background: rgba(255,255,255,.9);
   }
   .me-start-panel[hidden] {
@@ -9785,10 +10025,12 @@ export const MAP_EXPLORER_STYLES = `
     white-space: nowrap;
   }
   .me-start-panel-close {
-    width: 24px;
-    height: 24px;
-    display: grid;
-    place-items: center;
+    min-width: 24px;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     border: 0;
     border-radius: 999px;
     background: rgba(15,23,42,.06);
@@ -9798,17 +10040,42 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 900;
     cursor: pointer;
   }
+  .me-start-panel-brief {
+    display: none;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    color: inherit;
+    white-space: nowrap;
+  }
+  .me-start-panel-symbol {
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+  }
   .me-start-panel.is-collapsed .me-start-panel-head {
     position: static;
   }
   .me-start-panel.is-collapsed .me-start-panel-close {
-    width: 42px;
-    height: 42px;
-    background: #0f766e;
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(15,118,110,.18);
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid rgba(15,23,42,.10);
+    background: rgba(255,255,255,.92);
+    color: #64748b;
+    box-shadow: none;
+  }
+  .me-start-panel.is-collapsed .me-start-panel-brief {
+    display: inline;
   }
   .me-start-panel.is-collapsed .me-start-panel-grid {
+    grid-template-columns: 38px;
+  }
+  .me-start-panel.is-collapsed .me-start-panel-grid a {
+    display: none;
+  }
+  .me-start-panel.is-collapsed .me-start-panel-routes {
     display: none;
   }
   .me-start-panel-location {
@@ -9853,7 +10120,7 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-start-panel-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
   .me-start-panel-grid a {
@@ -9878,6 +10145,48 @@ export const MAP_EXPLORER_STYLES = `
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+  .me-start-panel-routes {
+    display: none;
+    gap: 5px;
+    margin-top: 5px;
+    padding: 7px;
+    border-radius: 10px;
+    background: rgba(240,253,250,.92);
+    border: 1px solid rgba(15,118,110,.12);
+  }
+  .me-start-panel-routes > strong {
+    color: #0f172a;
+    font-size: 11.5px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .me-start-panel-routes nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .me-start-panel-routes a {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid rgba(15,118,110,.14);
+    color: #0f766e;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 900;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .me-start-panel-routes a:hover {
+    background: rgba(204,251,241,.76);
+  }
+  .me-start-panel-routes a[hidden] {
+    display: none;
   }
   .me-rain-mode .me-start-panel,
   .me-sheet-open .me-start-panel {
@@ -10129,44 +10438,6 @@ export const MAP_EXPLORER_STYLES = `
     color: #475569; font-size: 11px; font-weight: 750; letter-spacing: 0;
     box-shadow: 0 6px 14px rgba(15,23,42,.08);
     backdrop-filter: blur(8px);
-  }
-  .me-empty-invite {
-    position: absolute;
-    left: 18px;
-    bottom: 58px;
-    z-index: 5;
-    display: block;
-    align-items: center;
-    width: auto;
-    padding: 5px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.88);
-    border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 6px 16px rgba(15,23,42,.10);
-    backdrop-filter: blur(12px);
-    color: #64748b;
-  }
-  .me-empty-invite[hidden] { display: none; }
-  .me-empty-invite .me-results-empty-kicker,
-  .me-empty-invite p,
-  .me-empty-invite strong {
-    display: none;
-  }
-  .me-empty-invite .me-results-empty-actions {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px;
-  }
-  .me-empty-invite .me-results-empty-action {
-    min-height: 44px;
-    min-width: 52px;
-    padding: 7px 5px;
-    border-radius: 10px;
-    font-size: 11px;
-    line-height: 1.15;
-  }
-  .me-empty-invite .me-results-empty-action:first-child {
-    grid-column: auto;
   }
   .me-personal-pulse {
     display: grid;
@@ -10625,6 +10896,62 @@ export const MAP_EXPLORER_STYLES = `
   .me-nearby-area-marker.is-restricted span { background: rgba(254,243,199,.86); color: #92400e; }
   .me-nearby-area-marker.is-school { border-style: dashed; border-color: #d97706; }
   .me-nearby-area-marker.is-school span { background: rgba(254,243,199,.9); color: #92400e; }
+  .me-walk-map-marker {
+    max-width: 120px;
+    min-width: 74px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 8px;
+    border: 1px solid rgba(15,118,110,.22);
+    border-radius: 999px;
+    background: rgba(255,255,255,.96);
+    color: #0f172a;
+    box-shadow: 0 10px 22px rgba(15,118,110,.14);
+    text-decoration: none;
+    cursor: pointer;
+    transform-origin: center;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .me-walk-map-marker:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(15,118,110,.18);
+    border-color: rgba(15,118,110,.36);
+  }
+  .me-walk-map-marker span {
+    min-height: 18px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(20,184,166,.13);
+    color: #0f766e;
+    font-size: 10.5px;
+    line-height: 1.1;
+    font-weight: 950;
+  }
+  .me-walk-map-marker strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 11.5px;
+    line-height: 1.2;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  @media (max-width: 700px) {
+    .me-walk-map-marker {
+      min-width: 44px;
+      max-width: 132px;
+      min-height: 34px;
+      padding: 6px 7px;
+    }
+    .me-walk-map-marker strong {
+      max-width: 70px;
+      display: -webkit-box;
+    }
+  }
   .me-guide-spot-marker.is-pin .me-guide-spot-main {
     display: inline-flex;
     align-items: center;
@@ -12345,7 +12672,6 @@ export const MAP_EXPLORER_STYLES = `
   @media (min-width: 1180px) {
     .me-results-empty-actions { grid-template-columns: 1fr 1fr; }
     .me-results-empty-action:first-child { grid-column: 1 / -1; }
-    .me-empty-invite .me-results-empty-action:first-child { grid-column: auto; }
   }
   @media (max-width: 520px) {
     .me-results-loading { gap: 7px; padding: 9px; }
@@ -12488,15 +12814,19 @@ export const MAP_EXPLORER_STYLES = `
       grid-column: 1 / -1;
       grid-row: 2;
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       width: 100%;
       min-width: 0;
       overflow: hidden;
       scrollbar-width: none;
     }
+    .me-tab[data-tab="frontier"] {
+      display: none;
+    }
     .me-rain-mode .me-tabs {
       grid-column: 1;
       grid-row: 1;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       align-self: center;
       gap: 3px;
       padding: 2px;
@@ -12524,6 +12854,15 @@ export const MAP_EXPLORER_STYLES = `
       font-size: 11.5px;
     }
     .me-filter-drawer { flex: 0 0 auto; }
+    .me-filter-toggle {
+      min-width: 76px;
+      min-height: 38px;
+      padding: 0 13px;
+    }
+    .me-filter-display-group {
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(15,23,42,.06);
+    }
     .me-filter-panel {
       position: fixed;
       top: auto;
@@ -12549,7 +12888,33 @@ export const MAP_EXPLORER_STYLES = `
       padding: 5px;
     }
     .me-start-panel.is-collapsed {
+      max-width: min(286px, calc(100% - 82px));
+      padding: 4px;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-close {
+      width: 34px;
+      min-width: 34px;
+      max-width: 34px;
+      height: 34px;
       padding: 0;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-brief {
+      display: none;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-grid {
+      grid-template-columns: 34px;
+      gap: 0;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-location,
+    .me-start-panel.is-collapsed .me-start-panel-grid a {
+      width: 34px;
+      min-height: 34px;
+      border-radius: 9px;
+    }
+    .me-start-panel.is-collapsed .me-start-panel-location span,
+    .me-start-panel.is-collapsed .me-start-panel-grid a span {
+      width: 22px;
+      height: 22px;
     }
     .me-start-panel-grid {
       grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -12733,17 +13098,6 @@ export const MAP_EXPLORER_STYLES = `
       top: auto;
       max-width: calc(100% - 96px);
     }
-    .me-empty-invite {
-      left: 10px;
-      bottom: calc(var(--me-mobile-action-space) + 50px);
-      width: auto;
-      max-width: calc(100% - 20px);
-      max-height: none;
-      overflow: visible;
-      padding: 5px;
-    }
-    .me-empty-invite .me-results-empty-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .me-empty-invite .me-results-empty-action:first-child { grid-column: auto; }
     .me-locate-fab { bottom: calc(var(--me-mobile-action-space) + 8px); }
     .me-rain-mode.me-sheet-open .me-locate-fab {
       opacity: 0;

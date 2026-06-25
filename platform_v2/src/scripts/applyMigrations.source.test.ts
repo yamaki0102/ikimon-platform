@@ -10,3 +10,12 @@ test("owner-sensitive migrations can be recorded as skipped on owner privilege e
   assert.match(source, /skip owner-sensitive migration/);
   assert.match(source, /insert into schema_migrations \(filename, checksum\)/);
 });
+
+test("local extension compatibility is explicit and localhost-only", () => {
+  assert.match(source, /localExtensionCompat/);
+  assert.match(source, /--local-extension-compat/);
+  assert.match(source, /allowed only for localhost scratch DATABASE_URL/);
+  assert.match(source, /CREATE\\s\+EXTENSION\\s\+IF\\s\+NOT\\s\+EXISTS\\s\+vector/);
+  assert.match(source, /create_hypertable/);
+  assert.match(source, /USING\\s\+ivfflat/);
+});

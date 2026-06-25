@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
+
+test("map explorer boot script is syntactically valid JavaScript", () => {
+  const scriptHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = scriptHtml.replace(/^<script>/, "").replace(/<\/script>$/, "");
+
+  assert.doesNotThrow(() => new vm.Script(script));
+});
 
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
@@ -169,14 +177,26 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /地域図鑑マップ/);
-  assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel"/);
   assert.match(html, /地図メニュー/);
-  assert.match(html, /aria-expanded="false">＋<\/button>/);
+  assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
+  assert.match(html, /aria-label="地図メニューを開く"/);
+  assert.match(html, /class="me-start-panel-brief">候補<\/span>/);
+  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">⌄<\/span>/);
   assert.match(html, /近く/);
-  assert.match(html, /押したときだけ現在地を使います。/);
+  assert.match(html, /許可済みなら近くから始めます。押すと現在地へ移動します。/);
   assert.match(html, /写真/);
   assert.match(html, /ガイド/);
   assert.match(html, /散策/);
+  assert.match(html, /静岡の散策候補/);
+  assert.match(html, /data-shizuoka-heading="静岡の散策候補"/);
+  assert.match(html, /data-any-heading="散策候補"/);
+  assert.match(html, /data-walk-map-prefix="\/ja\/walk-maps\/"/);
+  assert.match(html, /data-api-walk-map-candidates="\/api\/v1\/municipal-walk-maps"/);
+  assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-asahata-waterfront-sample-v0"/);
+  assert.match(html, /href="\/ja\/walk-maps\/jp-shizuoka-yatsuyama-sample-v0"/);
+  assert.match(html, /data-kpi-action="map:start_panel:route_asahata"/);
+  assert.match(html, /data-route-region="shizuoka"/);
+  assert.match(html, /data-route-region="all"/);
   assert.match(html, /📍/);
   assert.match(html, /📷/);
   assert.match(html, /🧭/);
@@ -184,7 +204,7 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, />G<\/span>/);
   assert.doesNotMatch(html, />R<\/span>/);
   assert.match(html, /href="\/ja\/walk-maps"/);
-  assert.match(html, /記録/);
+  assert.doesNotMatch(html, /data-kpi-action="map:start_panel:record"/);
   assert.doesNotMatch(html, new RegExp("写真、ガイド、散策の" + "手がかり、記録の" + "入口"));
   assert.match(html, /id="me-purpose-hint"/);
   assert.match(html, /写真・ガイド・散策/);
@@ -205,17 +225,37 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, new RegExp("色 = 季節と記録の" + "厚" + "み"));
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
-  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="エリア図鑑" data-tab="places"/);
+  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="ガイド" data-tab="places"/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
-  assert.match(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
-  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="最近の発見" data-tab="markers"/);
+  assert.match(html, /class="me-filter-group me-filter-display-group"/);
+  assert.match(html, /data-filter-tab="rain" aria-pressed="false">雨雲<\/button>/);
+  assert.match(html, /data-filter-tab="frontier" aria-pressed="false">未確認<\/button>/);
+  assert.doesNotMatch(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
+  assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="写真" data-tab="markers"/);
+  assert.doesNotMatch(html, /class="me-tab me-tab-link"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
+  assert.match(styles, /\.me-start-panel\.is-collapsed \{[\s\S]*grid-template-columns: auto auto;/);
+  assert.doesNotMatch(styles, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{\s*display: none;/);
   assert.match(script, /tab: 'places'/);
   assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
-  assert.match(script, /var DEFAULT_MAP_ZOOM = 12\.8;/);
-  assert.match(script, /var STARTUP_LOCATION_ZOOM = 14\.2;/);
+  assert.match(script, /var DEFAULT_MAP_ZOOM = 13\.6;/);
+  assert.match(script, /var STARTUP_LOCATION_ZOOM = 15\.0;/);
+  assert.match(script, /var SHIZUOKA_PREF_BBOX = \[137\.47, 34\.57, 139\.16, 35\.65\];/);
+  assert.match(script, /function mapCenterIsInShizuoka\(\)/);
+  assert.match(script, /function refreshStartPanelRoutes\(\)/);
+  assert.match(script, /function renderStartPanelRouteCandidates\(summaries\)/);
+  assert.match(script, /function scheduleStartPanelRouteCandidates\(delayMs\)/);
+  assert.match(script, /apiWalkMapCandidates \+ '\?lat='/);
+  assert.match(script, /fetch\(endpoint, \{ credentials: 'same-origin'/);
+  assert.match(script, /startPanelRoutesStaticHtml/);
+  assert.match(script, /if \(!summaries\.length\) \{/);
+  assert.match(script, /link\.hidden = region !== 'all' && region !== 'candidate' && !\(region === 'shizuoka' && inShizuoka\);/);
   assert.match(script, /function readLastStartupLocation\(\)/);
   assert.match(script, /function requestStartupCurrentLocation\(options\)/);
+  assert.match(script, /var onlyIfGranted = options && options\.onlyIfGranted === true;/);
+  assert.match(script, /if \(onlyIfGranted && \(!status \|\| status\.state !== 'granted'\)\)/);
+  assert.match(script, /if \(onlyIfGranted\) return;/);
+  assert.match(script, /requestStartupCurrentLocation\(\{ onlyIfGranted: true \}\)/);
   assert.match(script, /navigator\.geolocation\.getCurrentPosition\(applyPosition, fail/);
   assert.match(script, /startPanelLocationEl\.addEventListener\('click'/);
   assert.match(script, /requestStartupCurrentLocation\(\{ force: true \}\)/);
@@ -225,7 +265,10 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(script, /function dismissStartPanel\(\)/);
   assert.match(script, /function setStartPanelCollapsed\(collapsed\)/);
   assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
-  assert.match(script, /startPanelCloseEl\.textContent = collapsed \? '＋' : '×';/);
+  assert.match(script, /startPanelCloseEl\.querySelector\('\.me-start-panel-symbol'\)/);
+  assert.match(script, /startPanelSymbolEl\.textContent = collapsed \? '⌄' : '×';/);
+  assert.match(script, /var t = btn\.getAttribute\('data-tab'\);/);
+  assert.match(script, /if \(!t\) return;/);
   assert.match(script, /function canShowPurposeHint\(\)/);
   assert.match(script, /function canShowPurposeHint\(\) \{\s*return false;\s*\}/);
   assert.match(script, /function refreshPurposeHint\(\) \{\s*setPurposeHintVisible\(false\);\s*\}/);
@@ -233,8 +276,14 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \{/);
-  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-brief\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-brief \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*grid-template-columns: 38px;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid a \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-routes \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-routes\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-routes a\[hidden\] \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-legend\.is-collapsed \.me-legend-gradient,/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\[hidden\],\s+\.me-rain-mode \.me-purpose-hint,\s+\.me-sheet-open \.me-purpose-hint \{[\s\S]*display: none;/);
@@ -370,7 +419,7 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /function shouldKeepMapClearForRain\(\)/);
   assert.match(script, /return isRainInteractionMode\(\) && shouldUseBottomSheet\(\);/);
   assert.match(script, /if \(shouldKeepMapClearForRain\(\)\) \{\s+closeBottomSheet\(\);\s+return;\s+\}/);
-  assert.match(script, /if \(visible && state\.tab === 'rain'\) \{\s+visible = false;/);
+  assert.match(script, /function setMapEmptyInviteVisible\(visible\) \{\s+void visible;\s+\}/);
   assert.match(script, /if \(state\.tab === 'rain'\) \{\s+closeBottomSheet\(\);\s+setMapEmptyInviteVisible\(false\);\s+hideLayerHint\(\);\s+enableRainLayer\(\);/);
   assert.match(script, /function rainStatusWithNotice\(text\)/);
   assert.match(script, /JMA_RAIN_TILE_MAX_ZOOM = 10/);
@@ -481,6 +530,30 @@ test("locate action highlights nearby discoverable places on the map", () => {
   assert.match(styles, /\.me-nearby-area-marker/);
   assert.match(styles, /\.me-nearby-area-marker\.is-public/);
   assert.match(styles, /\.me-nearby-area-marker\.is-school/);
+});
+
+test("walk map candidates render as compact map markers from area-level hints", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /walkMapCandidateMarkers: \[\]/);
+  assert.match(script, /function refreshWalkMapCandidateMarkers\(summaries\)/);
+  assert.match(script, /function walkMapCandidateAreaHint\(summary\)/);
+  assert.match(script, /hint\.precision !== 'area_hint'/);
+  assert.match(script, /state\.tab !== 'places'/);
+  assert.match(script, /var maxMarkers = 2;/);
+  assert.match(script, /summaries\.slice\(0, maxMarkers\)/);
+  assert.match(script, /if \(state\.tab !== 'places'\) clearWalkMapCandidateMarkers\(\);/);
+  assert.match(script, /anchor: 'center'/);
+  assert.match(script, /data-testid', 'map-walk-map-candidate-marker'/);
+  assert.match(script, /<span>散策<\/span>/);
+  assert.match(script, /map_walk_map_candidate_click/);
+  assert.match(script, /refreshWalkMapCandidateMarkers\(summaries\)/);
+  assert.match(styles, /\.me-walk-map-marker/);
+  assert.match(styles, /\.me-walk-map-marker strong/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker \{[\s\S]*max-width: 132px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker strong \{[\s\S]*max-width: 70px;[\s\S]*display: -webkit-box;/);
+  assert.doesNotMatch(styles, /\.me-walk-map-marker::after/);
 });
 
 test("cell and blank map selections are aggregate and safety surfaces", () => {
@@ -652,7 +725,7 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(html, /aria-label="閉じる"/);
   assert.match(script, /function layerHintInfo\(tab\)/);
   assert.match(script, /ズームするとエリア図鑑の範囲が見えます。/);
-  assert.match(script, /ズームすると記録の余白が面で見えます。/);
+  assert.match(script, /ズームするとまだ少ない場所が面で見えます。/);
   assert.match(script, /ズームすると季節の気配の濃淡が見えます。/);
   assert.match(script, /maybeShowLayerHint\(state\.tab\);/);
   assert.match(script, /function jumpToVisibleLayer\(tab\)/);
@@ -666,7 +739,8 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
 test("mobile layer tabs fit within the topbar instead of clipping the final tab", () => {
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab\[data-tab="frontier"\] \{[\s\S]*display: none;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab \{[\s\S]*min-width: 0;[\s\S]*text-overflow: ellipsis;/);
 });
 
@@ -687,15 +761,14 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /COPY\.emptyTitle/);
   assert.match(script, /data-results-empty-areas/);
   assert.match(script, /data-results-empty-widen/);
-  assert.match(script, /me-empty-invite/);
-  assert.match(script, /statusEl\.hidden = !!visible;/);
-  assert.match(script, /statusEl\.setAttribute\('aria-hidden', visible \? 'true' : 'false'\);/);
+  assert.doesNotMatch(renderMapExplorer({ basePath: "", lang: "ja", years: [2026] }), /id="me-empty-invite"/);
   assert.match(script, /data-kpi-action="map:results_empty_record"/);
   assert.match(script, /function switchMapTab\(tab\)/);
   assert.match(script, /switchMapTab\('places'\)/);
   assert.match(script, /function widenEmptyViewport\(\)/);
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
   assert.match(script, /function runInitialMapDataLoad\(reason\)/);
+  assert.match(script, /refreshDiscoveryPreviewMarkers\(\);\s+if \(state\.tab === 'markers' \|\| state\.tab === 'places' \|\| state\.tab === 'rain'\) loadGuideSpots\(\);\s+scheduleStartPanelRouteCandidates\(reason === 'load' \? 120 : 260\);/);
   assert.match(script, /scheduleInitialMapDataLoad\(180\)/);
   assert.match(script, /runInitialMapDataLoad\('load'\)/);
   assert.match(script, /function scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\)/);
@@ -736,10 +809,7 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(styles, /\.me-results-loading-row:nth-child\(n\+3\) \{ display: none; \}/);
   assert.match(styles, /\.me-results-empty-actions/);
   assert.match(styles, /\.me-results-empty-action\.is-primary/);
-  assert.match(styles, /\.me-empty-invite/);
-  assert.match(styles, /\.me-empty-invite \.me-results-empty-kicker,\s+\.me-empty-invite p,\s+\.me-empty-invite strong \{[\s\S]*display: none;/);
-  assert.match(styles, /\.me-empty-invite \.me-results-empty-actions \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
-  assert.match(styles, /\.me-empty-invite \.me-results-empty-action \{[\s\S]*min-height: 44px;/);
+  assert.doesNotMatch(styles, /\.me-empty-invite/);
   assert.doesNotMatch(script, /縺|繧|譁|髱|蝗|遽/);
 });
 
@@ -940,12 +1010,15 @@ test("map explorer restores the quick record launcher on mobile only", () => {
 });
 
 test("mobile map filters open from the thumb zone above the record launcher", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-filter-panel \{[\s\S]*position: fixed;[\s\S]*top: auto;[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);[\s\S]*z-index: 80;/);
   assert.match(styles, /\.me-filter-panel \{[\s\S]*backdrop-filter: blur\(12px\);/);
   assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\); \}/);
+  assert.match(script, /document\.querySelectorAll\('\.me-filter-tab-chip'\)\.forEach/);
+  assert.match(script, /switchMapTab\(t\);[\s\S]*drawer\.removeAttribute\('open'\);/);
 });
 
 test("map explorer does not paint the field-guide title over the map", () => {
@@ -1033,6 +1106,7 @@ test("map uses nearby startup location while keeping record page location explic
   assert.match(script, /function initialStartupViewport\(\)/);
   assert.match(script, /readLastStartupLocation\(\)/);
   assert.doesNotMatch(script, /requestStartupCurrentLocation\(\);/);
+  assert.doesNotMatch(script, /requestStartupCurrentLocation\(\{ onlyIfGranted: false \}\)/);
   assert.match(script, /LAST_LOCATION_MAX_AGE_MS = 1000 \* 60 \* 60 \* 24 \* 30/);
   assert.match(script, /rememberLastStartupLocation\(lng, lat/);
   assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);

@@ -32,10 +32,12 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /me-discovery-preview/);
     assert.match(html, /pickDiscoveryPreviewRecords/);
     assert.match(html, /<title>ikimon - 皆で作る地域図鑑 \| ikimon/);
-    assert.match(html, /aria-label="最近の発見"/);
-    assert.match(html, /aria-label="季節の気配"/);
-    assert.match(html, /aria-label="エリア図鑑"/);
-    assert.match(html, /aria-label="記録の余白"/);
+    assert.match(html, /aria-label="写真"/);
+    assert.match(html, /aria-label="季節"/);
+    assert.match(html, /aria-label="ガイド"/);
+    assert.match(html, /aria-label="未確認"/);
+    assert.match(html, /aria-label="雨雲"/);
+    assert.doesNotMatch(html, /class="me-tab me-tab-link"/);
     assert.doesNotMatch(html, /写真カード = 最近の発見/);
     assert.doesNotMatch(html, /\.me-enjoy-strip/);
     assert.doesNotMatch(html, /\.me-map-cues/);

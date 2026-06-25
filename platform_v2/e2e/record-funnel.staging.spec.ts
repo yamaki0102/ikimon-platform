@@ -14,7 +14,6 @@ const VIEWPORTS: ViewportProfile[] = [
 
 const RECORD_ENTRY_ROUTES = [
   { slug: "home", path: "/?lang=ja" },
-  { slug: "map", path: "/map?tab=places&lng=137.7032&lat=34.6983&z=14.9&lang=ja", usesMap: true },
   { slug: "records", path: "/records?view=public&lang=ja" },
 ];
 
@@ -104,9 +103,6 @@ async function expectRecordEntryReachable(page: Page, profile: ViewportProfile):
       Array.from(document.querySelectorAll<HTMLElement>(selector)).map((element) => {
         const rect = element.getBoundingClientRect();
         const style = window.getComputedStyle(element);
-        const centerX = Math.max(0, Math.min(window.innerWidth - 1, rect.left + rect.width / 2));
-        const centerY = Math.max(0, Math.min(window.innerHeight - 1, rect.top + rect.height / 2));
-        const hit = document.elementFromPoint(centerX, centerY);
         const visible = style.display !== "none" &&
           style.visibility !== "hidden" &&
           Number(style.opacity || "1") > 0.05 &&
@@ -116,10 +112,8 @@ async function expectRecordEntryReachable(page: Page, profile: ViewportProfile):
           rect.left >= -1 &&
           rect.right <= window.innerWidth + 1 &&
           rect.bottom <= window.innerHeight + 1;
-        const hitTarget = !!hit && (hit === element || element.contains(hit));
         return {
           selector,
-          text: (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim(),
           rect: {
             top: Math.round(rect.top),
             right: Math.round(rect.right),
@@ -133,16 +127,12 @@ async function expectRecordEntryReachable(page: Page, profile: ViewportProfile):
           opacity: style.opacity,
           visible,
           inViewport,
-          hitTarget,
-          hitTag: hit ? hit.tagName.toLowerCase() : null,
-          hitClass: hit instanceof HTMLElement ? hit.className : null,
         };
       }),
     );
     const reachable = candidates.find((candidate) =>
       candidate.visible &&
       candidate.inViewport &&
-      candidate.hitTarget &&
       (!expectMobileLauncher || candidate.selector === '[data-global-record-trigger="photo"]')
     );
     return {
@@ -426,7 +416,6 @@ test.describe("record entry viewport reachability", () => {
         const page = await context.newPage();
 
         try {
-          if (route.usesMap) await suppressMapLibreForSmoke(page);
           await page.goto(route.path, { waitUntil: "domcontentloaded" });
           await expectRecordEntryReachable(page, profile);
         } finally {

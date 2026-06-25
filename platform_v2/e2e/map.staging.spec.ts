@@ -771,7 +771,7 @@ for (const profile of MAP_VIEWPORTS) {
     await installEmptyMapApiFixtures(page);
     await waitForMapEmptyState(page, DEFAULT_STAGING_MAP_PATH);
 
-    await expect(page.locator(".me-results-empty")).toContainText("少し広げると近くの記録が見え");
+    await expect(page.locator(".me-results-empty")).toContainText("少し広げると近くの写真や場所が出ます");
     await expect(page.locator("#me-empty-invite [data-results-empty-areas]")).toBeVisible();
     await expect(page.locator("#me-empty-invite [data-results-empty-widen]")).toBeVisible();
     await expect(page.locator("#me-empty-invite [data-kpi-action='map:results_empty_record']")).toHaveAttribute("href", /\/record/);

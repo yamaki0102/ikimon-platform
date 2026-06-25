@@ -119,6 +119,28 @@ jobs:
           grep -q '実データではありません' staging-demo.html
           grep -q 'place_feeling_tags' staging-demo.html
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-demo.headers
+          curl -fsS -D staging-walk-map-admin-template.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?templateId=route_species_walk' -o staging-walk-map-admin-template.html
+          grep -q '参考元カタログ' staging-walk-map-admin-template.html
+          grep -q 'data-source-operational-model="official_walk_pdf"' staging-walk-map-admin-template.html
+          grep -q '散策PDF' staging-walk-map-admin-template.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin-template.headers
+          curl -fsS -D staging-walk-map-admin.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps' -o staging-walk-map-admin.html
+          grep -q '自然散策マップ 下書き' staging-walk-map-admin.html
+          grep -q '下書きに入れる' staging-walk-map-admin.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin.headers
+          curl -fsS -D staging-walk-map-admin-shizuoka.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route' -o staging-walk-map-admin-shizuoka.html
+          grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-admin-shizuoka.html
+          grep -q '立ち寄り先 6' staging-walk-map-admin-shizuoka.html
+          grep -q 'asahata2024-map.pdf' staging-walk-map-admin-shizuoka.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin-shizuoka.headers
+          curl -fsS -D staging-walk-map-reviews.headers 'https://staging.ikimon.life/admin/municipal-walk-map-reviews' -o staging-walk-map-reviews.html
+          grep -q '散策マップ審査' staging-walk-map-reviews.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-reviews.headers
+          curl -fsS -D staging-walk-map-review-shizuoka.headers 'https://staging.ikimon.life/walk-map-source-drafts/shizuoka-ikimono-walk-route' -o staging-walk-map-review-shizuoka.html
+          grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-review-shizuoka.html
+          grep -q '6. 公園の開けた場所' staging-walk-map-review-shizuoka.html
+          grep -q 'source_draft_review' staging-walk-map-review-shizuoka.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-review-shizuoka.headers
           curl -fsS -D staging-brand-icon.headers https://staging.ikimon.life/assets/brand/app-icon-192.png -o staging-brand-icon.png
           grep -qi '^content-type: image/png' staging-brand-icon.headers
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
@@ -133,6 +155,11 @@ jobs:
             platform_v2/cloudflare_shadow/materialize-staging-original-ui.json
             platform_v2/cloudflare_shadow/staging-*.json
             platform_v2/cloudflare_shadow/staging-demo.*
+            platform_v2/cloudflare_shadow/staging-walk-map-admin-template.*
+            platform_v2/cloudflare_shadow/staging-walk-map-admin.*
+            platform_v2/cloudflare_shadow/staging-walk-map-admin-shizuoka.*
+            platform_v2/cloudflare_shadow/staging-walk-map-reviews.*
+            platform_v2/cloudflare_shadow/staging-walk-map-review-shizuoka.*
             platform_v2/cloudflare_shadow/staging-brand-icon.*
           if-no-files-found: ignore
           retention-days: 7

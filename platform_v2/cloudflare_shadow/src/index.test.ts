@@ -5133,6 +5133,143 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
   }
 });
 
+test("staging municipal walk map admin source draft serves materialized preview with session cookies", async () => {
+  const { env } = createEnv();
+  const stagingEnv = {
+    ...env,
+    ENVIRONMENT: "staging",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-maps/template/route_species_walk.html",
+    "<!doctype html><title>散策マップ管理</title><main>参考元カタログ data-source-operational-model=\"official_walk_pdf\" 散策PDF</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-maps/source/funabashi-nature-walk-maps.html",
+    "<!doctype html><title>散策マップ管理</title><main>自然散策マップ 下書き 下書きに入れる</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-maps/source/shizuoka-ikimono-walk-route.html",
+    "<!doctype html><title>散策マップ管理</title><main>静岡市 いきもの散策マップ 下書き 立ち寄り先 6</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/admin/municipal-walk-map-reviews.html",
+    "<!doctype html><title>散策マップ審査</title><main>散策マップ審査 DB適用後に一覧を表示できます。</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/walk-map-source-drafts/shizuoka-ikimono-walk-route.html",
+    "<!doctype html><title>散策マップ下書き</title><main>source_draft_review 6. 公園の開けた場所</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const templateResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?templateId=route_species_walk",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(templateResponse.status, 200);
+    assert.equal(templateResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    const templateBody = await templateResponse.text();
+    assert.match(templateBody, /参考元カタログ/);
+    assert.match(templateBody, /data-source-operational-model="official_walk_pdf"/);
+    assert.equal(fallbackCalls, 0);
+    const anonymousTemplateResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?templateId=route_species_walk"
+    ), stagingEnv);
+    assert.equal(anonymousTemplateResponse.status, 200);
+    assert.equal(anonymousTemplateResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await anonymousTemplateResponse.text(), /散策PDF/);
+    assert.equal(fallbackCalls, 0);
+    const response = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await response.text(), /自然散策マップ 下書き/);
+    assert.equal(fallbackCalls, 0);
+    const shizuokaResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(shizuokaResponse.status, 200);
+    assert.equal(shizuokaResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await shizuokaResponse.text(), /立ち寄り先 6/);
+    assert.equal(fallbackCalls, 0);
+    const reviewQueueResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/admin/municipal-walk-map-reviews",
+      { headers: { cookie: "ikimon_v2_session=test-admin-token" } }
+    ), stagingEnv);
+
+    assert.equal(reviewQueueResponse.status, 200);
+    assert.equal(reviewQueueResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await reviewQueueResponse.text(), /散策マップ審査/);
+    assert.equal(fallbackCalls, 0);
+    const reviewResponse = await worker.fetch(new Request(
+      "https://staging.ikimon.life/walk-map-source-drafts/shizuoka-ikimono-walk-route"
+    ), stagingEnv);
+
+    assert.equal(reviewResponse.status, 200);
+    assert.equal(reviewResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(await reviewResponse.text(), /source_draft_review/);
+    assert.equal(fallbackCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Cloudflare public municipal walk map candidate API scopes static samples by map center", async () => {
+  const { env } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
+
+  const shizuoka = await worker.fetch(new Request(
+    "https://staging.ikimon.life/api/v1/municipal-walk-maps?lat=34.975&lng=138.383&limit=2"
+  ), stagingEnv);
+  assert.equal(shizuoka.status, 200);
+  const shizuokaBody = await shizuoka.json() as {
+    ok?: boolean;
+    matchedMunicipalityCode?: string | null;
+    locationFiltered?: boolean;
+    summaries?: Array<{ walkMapId?: string; areaHint?: { precision?: string; source?: string; lat?: number; lng?: number } }>;
+  };
+  assert.equal(shizuokaBody.ok, true);
+  assert.equal(shizuokaBody.locationFiltered, true);
+  assert.equal(shizuokaBody.matchedMunicipalityCode, "22100");
+  assert.equal(shizuokaBody.summaries?.length, 2);
+  assert.match(JSON.stringify(shizuokaBody.summaries), /jp-shizuoka-/);
+  assert.equal(shizuokaBody.summaries?.[0]?.areaHint?.precision, "area_hint");
+  assert.equal(shizuokaBody.summaries?.[0]?.areaHint?.source, "official_source_sample");
+  assert.match(String(shizuokaBody.summaries?.[0]?.areaHint?.lat), /^-?\d+(\.\d{1,3})?$/);
+  assert.match(String(shizuokaBody.summaries?.[0]?.areaHint?.lng), /^-?\d+(\.\d{1,3})?$/);
+
+  const tokyo = await worker.fetch(new Request(
+    "https://staging.ikimon.life/api/v1/municipal-walk-maps?lat=35.681&lng=139.767&limit=2"
+  ), stagingEnv);
+  assert.equal(tokyo.status, 200);
+  const tokyoBody = await tokyo.json() as {
+    matchedMunicipalityCode?: string | null;
+    locationFiltered?: boolean;
+    summaries?: unknown[];
+  };
+  assert.equal(tokyoBody.locationFiltered, true);
+  assert.equal(tokyoBody.matchedMunicipalityCode, null);
+  assert.deepEqual(tokyoBody.summaries, []);
+});
+
 test("production field detail can render from Cloudflare public readmodel without origin fallback", async () => {
   const { env, obs, core } = createEnv();
   const productionEnv = {

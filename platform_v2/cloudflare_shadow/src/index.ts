@@ -426,7 +426,7 @@ const MAX_VIDEO_DURATION_SECONDS = 60;
 const MAP_DEFAULT_GRID_M = 1000;
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
 const WORKER_BUILD_MARKER = "map-shell-cookie-safe";
-const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life"]);
+const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
 const JMA_NOWCAST_TARGET_N2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
@@ -787,9 +787,11 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
   "/demo/place-feeling-tags",
   "/guide",
+  "/admin/municipal-walk-map-reviews",
   "/record",
   "/records",
   "/map",
+  "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
   "/walk-maps",
   "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
   "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
@@ -1057,6 +1059,10 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/guide-spots") {
         return getPublicMapGuideSpots(url);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
+        return getMunicipalWalkMapCandidates(url);
       }
 
       const fieldDetailApiMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/public-detail$/);
@@ -2280,6 +2286,111 @@ function getPublicMapGuideSpots(url: URL): Response {
   }, 200, { "cache-control": "public, max-age=300" });
 }
 
+const STATIC_MUNICIPAL_WALK_MAP_SUMMARIES = [
+  {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: "jp-shizuoka-yatsuyama-sample-v0",
+    municipality: "静岡市",
+    title: "八ツ山周辺を歩くサンプル",
+    summary: "静岡市公式資料を出典として、公開範囲で木陰、足元の草地、鳥の声を軽く残すために再構成したサンプルです。",
+    theme: "satoyama",
+    publishMode: "public_preview",
+    routeStyle: "loose_stops",
+    mobilityModes: ["walk", "bike", "public_transport"],
+    stopCount: 2,
+    sourceReferences: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
+    ],
+    areaHint: {
+      lat: 34.986,
+      lng: 138.407,
+      label: "谷津山周辺",
+      precision: "area_hint",
+      source: "official_source_sample"
+    }
+  },
+  {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: "jp-shizuoka-asahata-waterfront-sample-v0",
+    municipality: "静岡市",
+    title: "麻機の水辺を歩くサンプル",
+    summary: "静岡市公式資料を出典として、水辺を安全に見ながら、鳥の声、水面、草地の変化を残すサンプルです。",
+    theme: "waterfront",
+    publishMode: "public_preview",
+    routeStyle: "loose_stops",
+    mobilityModes: ["walk", "bike", "public_transport"],
+    stopCount: 2,
+    sourceReferences: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
+    ],
+    areaHint: {
+      lat: 35.015,
+      lng: 138.389,
+      label: "麻機の水辺",
+      precision: "area_hint",
+      source: "official_source_sample"
+    }
+  },
+  {
+    schemaVersion: "municipal_walk_map_public_summary/v0",
+    walkMapId: "jp-shizuoka-mariko-waterfront-sample-v0",
+    municipality: "静岡市",
+    title: "丸子川・広野海岸公園周辺サンプル",
+    summary: "静岡市公式資料を出典として、川と海岸公園の公開範囲で、水辺の様子や鳥の声を残すサンプルです。",
+    theme: "waterfront",
+    publishMode: "public_preview",
+    routeStyle: "loose_stops",
+    mobilityModes: ["walk", "bike", "car", "public_transport"],
+    stopCount: 2,
+    sourceReferences: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html", note: "静岡市公式ページを出典として表示します。" }
+    ],
+    areaHint: {
+      lat: 34.925,
+      lng: 138.379,
+      label: "丸子川・広野海岸公園周辺",
+      precision: "area_hint",
+      source: "official_source_sample"
+    }
+  }
+];
+
+const WALK_MAP_LOCATION_BBOXES = [
+  { municipalityCode: "22100", bbox: [137.47, 34.57, 139.16, 35.65] as const }
+];
+
+function numberFromSearchParam(value: string | null): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function walkMapMunicipalityCodeForLocation(lat: number | null, lng: number | null): string | null {
+  if (lat == null || lng == null) return null;
+  const match = WALK_MAP_LOCATION_BBOXES.find((entry) => (
+    lng >= entry.bbox[0] && lng <= entry.bbox[2]
+    && lat >= entry.bbox[1] && lat <= entry.bbox[3]
+  ));
+  return match?.municipalityCode ?? null;
+}
+
+function getMunicipalWalkMapCandidates(url: URL): Response {
+  const lat = numberFromSearchParam(url.searchParams.get("lat"));
+  const lng = numberFromSearchParam(url.searchParams.get("lng"));
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "4"), 1, 8);
+  const locationFiltered = lat != null && lng != null;
+  const matchedMunicipalityCode = walkMapMunicipalityCodeForLocation(lat, lng);
+  const summaries = locationFiltered && matchedMunicipalityCode !== "22100"
+    ? []
+    : STATIC_MUNICIPAL_WALK_MAP_SUMMARIES.slice(0, limit);
+  return json({
+    ok: true,
+    source: "static",
+    matchedMunicipalityCode,
+    locationFiltered,
+    summaries
+  }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+}
+
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
   const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session || session.banned) {
@@ -2396,7 +2507,7 @@ function getPublicMapSiteBriefShim(url: URL): Response {
     },
     reasons: ["水路、緑地、建物のすき間など、身近な環境の境目を見比べられる場所です。"],
     checks: ["花、草地、水辺、日陰、人工物のまわりに小さな変化がないか見てください。"],
-    captureHints: ["気になったものを1枚撮るか、音やメモを残すと次の見返しにつながります。"],
+    captureHints: ["気になったものを1枚撮るか、音やメモを残すと次の確認に使えます。"],
     environmentEvidence: [],
     officialNotices: [],
     compatibility: {
@@ -2883,9 +2994,21 @@ function personalizeAuthRedirectHtml(html: string, redirect: string): string {
 
 function isOriginalUiHtmlPath(pathname: string): boolean {
   if (ORIGINAL_UI_HTML_STATIC_PATHS.has(pathname)) return true;
+  if (pathname === "/admin/municipal-walk-maps") return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/community\/fields\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(pathname)) return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}\/snapshot$/.test(pathname)) return true;
   return false;
+}
+
+function municipalWalkMapAdminSourceDraftKey(url: URL): string | null {
+  if (url.pathname !== "/admin/municipal-walk-maps") return null;
+  const templateId = url.searchParams.get("templateId")?.trim() ?? "";
+  if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(templateId)) {
+    return `original-ui/html/admin/municipal-walk-maps/template/${templateId}.html`;
+  }
+  const sourceId = url.searchParams.get("sourceId")?.trim() ?? "";
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(sourceId)) return null;
+  return `original-ui/html/admin/municipal-walk-maps/source/${sourceId}.html`;
 }
 
 function originalUiHtmlKey(pathname: string): string {
@@ -2894,6 +3017,8 @@ function originalUiHtmlKey(pathname: string): string {
 }
 
 function originalUiHtmlKeyForRequest(url: URL): string {
+  const adminSourceDraftKey = municipalWalkMapAdminSourceDraftKey(url);
+  if (adminSourceDraftKey) return adminSourceDraftKey;
   const langSegment = langQueryToUrlSegment(url.searchParams.get("lang"));
   if (!langSegment) return originalUiHtmlKey(url.pathname);
   const localizedPath = localizedMaterializedPath(url.pathname, langSegment);
@@ -2936,6 +3061,8 @@ function hasPersonalizedHtmlHeaders(request: Request): boolean {
 
 function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
   return pathname === "/app-refresh"
+    || pathname === "/admin/municipal-walk-maps"
+    || pathname === "/admin/municipal-walk-map-reviews"
     || pathname === "/"
     || /^\/(?:ja|en|es|pt-br)\/?$/.test(pathname)
     || /^(?:\/(?:ja|en|es|pt-br))?\/demo\/place-feeling-tags$/.test(pathname)
@@ -7569,7 +7696,7 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
         <iframe src="${escapeHtml(`${streamBase}/iframe`)}" title="カワラヒワの動画" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen></iframe>
       </div>
       <div class="obs-hero-video-meta">
-        <span><span class="obs-media-role-badge is-sound-motion">音・動き</span> フレームから見返せます</span>
+        <span><span class="obs-media-role-badge is-sound-motion">音・動き</span> フレームで確認できます</span>
         <a href="${escapeHtml(`${streamBase}/watch`)}" target="_blank" rel="noreferrer">別タブで開く</a>
       </div>
     </div>
@@ -7593,7 +7720,7 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
       </div>
       <div class="obs-env-strip"><strong>環境</strong><span>草地の縁 / 小石まじり / 開けた地面 / 音あり</span></div>
     </div>
-    <p>1つの撮影から、対象と周りの環境を分けて見返せます。</p>
+    <p>1つの撮影から、対象と周りの環境を分けて確認できます。</p>
   </section>`;
   const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged is-high" aria-label="AIの読み">
     <div class="obs-ai-status">
@@ -7998,7 +8125,7 @@ function buildLegacyContributionReceipts(
       kind: input.visitMode === "survey" || normalizeOptionalText(input.revisitReason) || normalizeOptionalText(input.targetTaxaScope)
         ? "revisit_seeded"
         : "place_comparison_seeded",
-      title: input.visitMode === "survey" ? "同じ条件で見返す起点ができました" : "この場所の比較起点になりました",
+      title: input.visitMode === "survey" ? "同じ条件で比べる起点ができました" : "この場所の比較起点になりました",
       body: `${placeName || "この場所"} を次に見たとき、今日の状態と比べる起点になります。`,
       claimLevel: "immediate",
       nextAction: { label: "同じ場所でもう1件", href: revisitHref, actionKey: "revisit_same_place" }

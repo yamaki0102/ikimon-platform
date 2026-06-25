@@ -31,7 +31,7 @@ test("map start panel opens walk-map source links and record entry", async ({ br
   const page = await context.newPage();
   await page.goto("/ja/walk-maps", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/ja\/walk-maps$/);
-  await expect(page.getByRole("heading", { name: "公開範囲で使う散策サンプル" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "公開範囲で歩ける散策ルート" })).toBeVisible();
   await expect(page.locator(".wm-card")).toHaveCount(3);
   await expect(page.locator(".wm-card").filter({ hasText: "麻機の水辺を歩くサンプル" })).toContainText("引用元 3件");
 

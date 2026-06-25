@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { installMapLibreStubForSmoke, suppressMapLibreForSmoke } from "./support/staging.js";
 
-test("map start controls stay compact while legend starts collapsed", async ({ browser }) => {
+test("map start controls stay compact while route cues remain available", async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: process.env.STAGING_BASE_URL ?? "http://127.0.0.1:4322",
     serviceWorkers: "block",
@@ -15,17 +15,19 @@ test("map start controls stay compact while legend starts collapsed", async ({ b
   const startPanel = page.getByTestId("map-start-panel");
   await expect(startPanel).toBeVisible();
   await expect(startPanel).toHaveClass(/is-collapsed/);
+  await expect(page.getByRole("tab", { name: "最近の発見" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "季節の気配" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "エリア図鑑" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "記録の余白" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "雨雲" })).toBeVisible();
+  await expect(startPanel.getByRole("link", { name: "散策" })).toBeVisible();
   const panelBox = await startPanel.boundingBox();
-  expect(panelBox?.width).toBeLessThanOrEqual(48);
-  expect(panelBox?.height).toBeLessThanOrEqual(48);
-  await startPanel.getByRole("button", { name: "地図メニュー" }).click();
+  expect(panelBox?.width).toBeLessThanOrEqual(230);
+  expect(panelBox?.height).toBeLessThanOrEqual(54);
+  await startPanel.getByRole("button", { name: "散策候補を開く" }).click();
   await expect(startPanel).not.toHaveClass(/is-collapsed/);
-  await expect(startPanel).toContainText("散策");
-  const expandedPanelBox = await startPanel.boundingBox();
-  expect(expandedPanelBox?.width).toBeLessThanOrEqual(230);
-  expect(expandedPanelBox?.height).toBeLessThanOrEqual(54);
-  await startPanel.getByRole("button", { name: "地図メニュー" }).click();
-  await expect(startPanel).toHaveClass(/is-collapsed/);
+  await expect(startPanel).toContainText("静岡の散策候補");
+  await expect(startPanel.getByRole("link", { name: /麻機/ })).toBeVisible();
 
   const legend = page.locator("#me-legend");
   await expect(legend).toBeVisible();
