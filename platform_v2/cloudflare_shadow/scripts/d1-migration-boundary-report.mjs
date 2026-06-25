@@ -39,6 +39,25 @@ function maintenancePgDependencyReason(relativeFile) {
   return null;
 }
 
+function exclusiveMaintenancePgDependencyReason(relativeFile, importersByTarget, seen = new Set()) {
+  const explicitReason = maintenancePgDependencyReason(relativeFile);
+  if (explicitReason) return explicitReason;
+  if (seen.has(relativeFile)) return null;
+  seen.add(relativeFile);
+
+  const importers = [...(importersByTarget.get(relativeFile) ?? [])]
+    .filter((importer) => !isTestSourceFile(importer));
+  if (importers.length === 0) return null;
+
+  const importerReasons = [];
+  for (const importer of importers) {
+    const reason = exclusiveMaintenancePgDependencyReason(importer, importersByTarget, new Set(seen));
+    if (!reason) return null;
+    importerReasons.push(reason);
+  }
+  return `${[...new Set(importerReasons)].sort().join("+")}_dependency`;
+}
+
 function extractLocalImportSpecifiers(text) {
   const specifiers = [];
   const patterns = [
@@ -60,6 +79,9 @@ function resolveLocalImport(fromRelativeFile, specifier, knownRelativeFiles) {
   const candidates = [];
   if (SOURCE_EXTENSIONS.some((extension) => rawTarget.endsWith(extension))) {
     candidates.push(rawTarget);
+    const parsed = path.parse(rawTarget);
+    const extensionlessTarget = path.join(parsed.dir, parsed.name);
+    for (const extension of SOURCE_EXTENSIONS) candidates.push(`${extensionlessTarget}${extension}`);
   } else {
     for (const extension of SOURCE_EXTENSIONS) candidates.push(`${rawTarget}${extension}`);
     for (const extension of SOURCE_EXTENSIONS) candidates.push(path.join(rawTarget, `index${extension}`));
@@ -330,13 +352,20 @@ const pgSourceFiles = [...new Set(
 )].sort((a, b) => rel(a).localeCompare(rel(b)));
 const knownPgSourceFiles = new Set(pgSourceFiles.map((file) => rel(file)));
 const runtimeImportedTestSourceFiles = new Set();
+const importersByTarget = new Map();
+
+function recordImporter(target, importer) {
+  if (!importersByTarget.has(target)) importersByTarget.set(target, new Set());
+  importersByTarget.get(target).add(importer);
+}
 
 for (const file of pgSourceFiles) {
   const relativeFile = rel(file);
-  if (isTestSourceFile(relativeFile)) continue;
   for (const specifier of extractLocalImportSpecifiers(read(file))) {
     const target = resolveLocalImport(relativeFile, specifier, knownPgSourceFiles);
-    if (target && isTestSourceFile(target)) runtimeImportedTestSourceFiles.add(target);
+    if (!target) continue;
+    recordImporter(target, relativeFile);
+    if (!isTestSourceFile(relativeFile) && isTestSourceFile(target)) runtimeImportedTestSourceFiles.add(target);
   }
 }
 
@@ -368,11 +397,11 @@ for (const file of pgSourceFiles) {
 
 pgFiles.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
 const maintenancePgFiles = pgFiles
-  .filter((item) => !isTestSourceFile(item.file) && maintenancePgDependencyReason(item.file))
-  .map((item) => ({ ...item, maintenanceReason: maintenancePgDependencyReason(item.file) }));
+  .filter((item) => !isTestSourceFile(item.file) && exclusiveMaintenancePgDependencyReason(item.file, importersByTarget))
+  .map((item) => ({ ...item, maintenanceReason: exclusiveMaintenancePgDependencyReason(item.file, importersByTarget) }));
 const runtimePgFiles = pgFiles.filter((item) =>
   (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
-    && !maintenancePgDependencyReason(item.file)
+    && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
 );
 const testPgFiles = pgFiles.filter((item) => isTestSourceFile(item.file) && !runtimeImportedTestSourceFiles.has(item.file));
 const runtimeImportedTestPgFiles = pgFiles.filter((item) => runtimeImportedTestSourceFiles.has(item.file));
