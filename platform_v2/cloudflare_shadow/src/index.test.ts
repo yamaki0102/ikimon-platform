@@ -4323,7 +4323,7 @@ test("production oauth callback creates Cloudflare-native session from provider 
   }
 });
 
-test("production oauth start falls back to origin until provider secrets are configured", async () => {
+test("production oauth start fails closed when provider secrets are not configured", async () => {
   const { env } = createEnv();
   const productionEnv = {
     ...env,
@@ -4333,22 +4333,66 @@ test("production oauth start falls back to origin until provider secrets are con
     PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  const originalError = console.error;
+  let calledOrigin = false;
+  const logs: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    calledOrigin = true;
     return new Response(null, { status: 303, headers: { location: "https://accounts.google.com/o/oauth2/v2/auth?origin=1" } });
   }) as typeof fetch;
+  console.error = (...args: unknown[]) => {
+    logs.push(args.map(String).join(" "));
+  };
   try {
     const response = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=/record"), productionEnv);
     assert.equal(response.status, 303);
-    assert.equal(response.headers.get("location"), "https://accounts.google.com/o/oauth2/v2/auth?origin=1");
-    assert.equal(seen.url, "https://ikimon.life/auth/oauth/google/start?redirect=/record");
-    assert.equal(seen.reason, "oauth_provider_not_configured");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(response.headers.get("location"), "/login?error=oauth");
+    assert.equal(calledOrigin, false);
+    assert.deepEqual(logs.map((entry) => JSON.parse(entry)), [{
+      message: "oauth_provider_config_missing",
+      provider: "google",
+      phase: "start"
+    }]);
   } finally {
     globalThis.fetch = originalFetch;
+    console.error = originalError;
+  }
+});
+
+test("production oauth callback fails closed when provider secrets are not configured", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  const originalError = console.error;
+  let calledOrigin = false;
+  const logs: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calledOrigin = true;
+    return new Response(null, { status: 303, headers: { location: "https://ikimon.life/login.php?origin=1" } });
+  }) as typeof fetch;
+  console.error = (...args: unknown[]) => {
+    logs.push(args.map(String).join(" "));
+  };
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/oauth_callback.php?provider=google&state=missing-config&code=oauth-code"), productionEnv);
+    assert.equal(response.status, 303);
+    assert.equal(response.headers.get("location"), "/login?error=oauth");
+    assert.match(response.headers.get("set-cookie") ?? "", /ikimon_oauth_state=;/);
+    assert.equal(calledOrigin, false);
+    assert.deepEqual(logs.map((entry) => JSON.parse(entry)), [{
+      message: "oauth_provider_config_missing",
+      provider: "google",
+      phase: "callback"
+    }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalError;
   }
 });
 
