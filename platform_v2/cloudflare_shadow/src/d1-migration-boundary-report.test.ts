@@ -23,6 +23,21 @@ function loadMaintenancePgDependencyReason(script: string): (relativeFile: strin
   return new Function(`${match[0]}; return maintenancePgDependencyReason;`)() as (relativeFile: string) => string | null;
 }
 
+function loadExclusiveMaintenancePgDependencyReason(script: string): (
+  relativeFile: string,
+  importersByTarget: Map<string, Set<string>>,
+) => string | null {
+  const isTestMatch = script.match(/function isTestSourceFile\(relativeFile\) \{[\s\S]*?\n\}/);
+  const maintenanceMatch = script.match(/function maintenancePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  const exclusiveMatch = script.match(/function exclusiveMaintenancePgDependencyReason\(relativeFile, importersByTarget, seen = new Set\(\)\) \{[\s\S]*?\n\}/);
+  assert.ok(isTestMatch, "isTestSourceFile function is present");
+  assert.ok(maintenanceMatch, "maintenancePgDependencyReason function is present");
+  assert.ok(exclusiveMatch, "exclusiveMaintenancePgDependencyReason function is present");
+  return new Function(
+    `${isTestMatch[0]}; ${maintenanceMatch[0]}; ${exclusiveMatch[0]}; return exclusiveMaintenancePgDependencyReason;`,
+  )() as (relativeFile: string, importersByTarget: Map<string, Set<string>>) => string | null;
+}
+
 function loadClassifyFallbackReason(script: string): (reason: string) => string {
   const match = script.match(/function classifyFallbackReason\(reason\) \{[\s\S]*?\n\}/);
   assert.ok(match, "classifyFallbackReason function is present");
@@ -38,7 +53,7 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
   assert.match(script, /PostgreSQL Test Source Dependencies/);
   assert.match(script, /runtimeImportedTestSourceFiles\.has\(item\.file\)/);
   assert.match(script, /runtime_imported_test_pg_dependency_files/);
-  assert.match(script, /maintenancePgDependencyReason\(item\.file\)/);
+  assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /PostgreSQL Maintenance Dependencies/);
   assert.match(script, /blocker_scope: runtime PostgreSQL\/vector\/PostGIS\/job-locking files/);
   assert.match(script, /displayed_pg_dependencies/);
@@ -63,13 +78,46 @@ test("VPS stop readiness classifies test source paths conservatively", async () 
 test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts from runtime blockers", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const maintenancePgDependencyReason = loadMaintenancePgDependencyReason(script);
+  const exclusiveMaintenancePgDependencyReason = loadExclusiveMaintenancePgDependencyReason(script);
 
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/applyMigrations.ts"), "migration_cli_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/embedRegionalKnowledgeCards.ts"), "manual_embedding_batch");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/regionalKnowledgeEmbedding.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/videoProcessingQueue.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runAlertDeliveryWorker.ts"), null);
 
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/regionalKnowledgeEmbedding.ts",
+      new Map([
+        [
+          "platform_v2/src/services/regionalKnowledgeEmbedding.ts",
+          new Set(["platform_v2/src/scripts/embedRegionalKnowledgeCards.ts"]),
+        ],
+      ]),
+    ),
+    "manual_embedding_batch_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/regionalKnowledgeEmbedding.ts",
+      new Map([
+        [
+          "platform_v2/src/services/regionalKnowledgeEmbedding.ts",
+          new Set([
+            "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts",
+            "platform_v2/src/routes/guideApi.ts",
+          ]),
+        ],
+      ]),
+    ),
+    null,
+  );
+
   assert.match(script, /const maintenancePgFiles = pgFiles/);
+  assert.match(script, /const importersByTarget = new Map\(\)/);
+  assert.match(script, /const extensionlessTarget = path\.join\(parsed\.dir, parsed\.name\)/);
+  assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /maintenance_pg_dependency_files/);
   assert.match(script, /manual maintenance tools only/);
 });
