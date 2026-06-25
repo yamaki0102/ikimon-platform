@@ -12770,44 +12770,9 @@ export const MAP_EXPLORER_STYLES = `
     .site-shell.is-map-surface .global-record-launcher {
       display: grid;
       z-index: 72;
-      grid-template-columns: repeat(2, 42px);
-      gap: 6px;
-      left: auto;
+      left: 10px;
       right: 10px;
-      top: 252px;
-      bottom: auto;
-      width: auto;
-      padding: 6px;
-      border-radius: 16px;
-      background: rgba(255,255,255,.9);
-      box-shadow: 0 12px 28px rgba(15,23,42,.16);
-      backdrop-filter: blur(12px);
-    }
-    .site-shell.is-map-surface .global-record-choice {
-      min-height: 42px;
-      width: 42px;
-      padding: 0;
-      border-radius: 12px;
-      background: rgba(255,255,255,.94);
-      box-shadow: inset 0 0 0 1px rgba(15,23,42,.06);
-    }
-    .site-shell.is-map-surface .global-record-choice.is-primary {
-      background: #ffffff;
-      color: #047857;
-    }
-    .site-shell.is-map-surface .global-record-choice-icon {
-      width: 28px;
-      height: 28px;
-      flex-basis: 28px;
-      background: rgba(15,23,42,.06);
-    }
-    .site-shell.is-map-surface .global-record-choice > span:not(.global-record-choice-icon) {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      white-space: nowrap;
+      bottom: max(8px, env(safe-area-inset-bottom));
     }
     .me-rain-mode .site-shell.is-map-surface .global-record-launcher {
       display: none;
@@ -12816,12 +12781,12 @@ export const MAP_EXPLORER_STYLES = `
     .me-section {
       --me-side-w: 0px;
       --me-topbar-h: 94px;
-      --me-mobile-action-space: calc(16px + max(0px, env(safe-area-inset-bottom)));
+      --me-mobile-action-space: calc(92px + max(0px, env(safe-area-inset-bottom)));
       --me-mobile-sheet-clearance: 14px;
     }
     .me-rain-mode .me-section {
       --me-topbar-h: 44px;
-      --me-mobile-action-space: calc(16px + max(0px, env(safe-area-inset-bottom)));
+      --me-mobile-action-space: calc(102px + max(0px, env(safe-area-inset-bottom)));
     }
     .me-topbar {
       grid-template-columns: 1fr auto;

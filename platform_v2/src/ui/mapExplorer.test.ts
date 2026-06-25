@@ -1001,16 +1001,15 @@ test("default map surface uses a tiered simple vector style", () => {
   assert.doesNotMatch(script, /'post'/);
 });
 
-test("map explorer keeps the mobile quick record launcher compact near map controls", () => {
+test("map explorer restores the quick record launcher on mobile only", () => {
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(styles, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: none;\s*\}/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;[\s\S]*grid-template-columns: repeat\(2, 42px\);[\s\S]*right: 10px;[\s\S]*top: 252px;[\s\S]*bottom: auto;/);
-  assert.match(styles, /\.site-shell\.is-map-surface \.global-record-choice > span:not\(\.global-record-choice-icon\) \{[\s\S]*clip: rect\(0 0 0 0\);/);
-  assert.match(styles, /--me-mobile-action-space: calc\(16px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;[\s\S]*bottom: max\(8px, env\(safe-area-inset-bottom\)\);/);
+  assert.match(styles, /--me-mobile-action-space: calc\(92px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
 });
 
-test("mobile map filters open from the thumb zone without a bottom record launcher", () => {
+test("mobile map filters open from the thumb zone above the record launcher", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
