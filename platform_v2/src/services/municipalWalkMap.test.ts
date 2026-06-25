@@ -601,7 +601,7 @@ test("municipal walk map source catalog covers researched official seed patterns
   const primaryTypes = new Set(catalog.map((entry) => entry.primaryType));
   const templateIds = new Set(catalog.map((entry) => entry.templateId));
 
-  assert.ok(catalog.length >= 57);
+  assert.ok(catalog.length >= 64);
   for (const municipality of [
     "静岡市",
     "大田区",
@@ -628,6 +628,7 @@ test("municipal walk map source catalog covers researched official seed patterns
     "鹿児島市",
     "伊勢崎市",
     "大阪市",
+    "大阪府",
     "札幌市",
     "神戸市",
     "千代田区",
@@ -645,6 +646,7 @@ test("municipal walk map source catalog covers researched official seed patterns
     "東村山市",
     "戸田市",
     "福井市",
+    "福井県",
     "大分市",
     "春日部市",
     "大和市",
@@ -655,6 +657,7 @@ test("municipal walk map source catalog covers researched official seed patterns
     "香取市",
     "広島県",
     "千葉市",
+    "神奈川県",
   ]) {
     assert.ok(municipalities.has(municipality), `missing source catalog municipality: ${municipality}`);
   }
@@ -772,6 +775,13 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.katori\.lg\.jp\/living\/ahiminkatsudo\/shiminkyodo\/omigawatyuuou\.files\/20230415naturemap\.pdf/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.pref\.hiroshima\.lg\.jp\/site\/tayousei\/investigation-biodiversity-wanted\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.chiba\.jp\/kankyo\/kankyohozen\/hozen\/r1_ikimonosagashi\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.setagaya\.lg\.jp\/03666\/4863\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.setagaya\.lg\.jp\/02074\/4725\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.yokohama\.lg\.jp\/kurashi\/machizukuri-kankyo\/midori-koen\/midori_up\/1mori\/enkaizan-map\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/fncc\.pref\.fukui\.lg\.jp\/entry\/100yobako\/explanation/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.pref\.osaka\.lg\.jp\/o120030\/midori\/seibututayousei\/osakabdshiryoukan\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.chiba\.jp\/kankyo\/kankyohozen\/hozen\/shizen\/sizen_ikimono-top\.html/);
+  assert.match(JSON.stringify(catalog), /https:\/\/www\.pref\.kanagawa\.jp\/docs\/d2t\/kankyo\/p820028\.html/);
 });
 
 test("municipal walk map source catalog builds a draft config without copying PDF bodies", () => {
