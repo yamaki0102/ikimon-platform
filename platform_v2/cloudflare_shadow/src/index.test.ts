@@ -380,6 +380,74 @@ interface PublicMapSnapshotMetaRow {
   policy_json: string;
 }
 
+interface ObservationEventSessionTestRow {
+  session_id: string;
+  legacy_event_id: string | null;
+  event_code: string | null;
+  title: string;
+  organizer_user_id: string;
+  corporation_id: string | null;
+  plan: string;
+  primary_mode: string;
+  active_modes_json: string;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_radius_m: number;
+  started_at: string;
+  ended_at: string | null;
+  target_species_json: string;
+  config_json: string;
+  field_id: string | null;
+  template_source_session_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ObservationEventParticipantTestRow {
+  participant_id: string;
+  session_id: string;
+  user_id: string | null;
+  guest_token: string | null;
+  display_name: string;
+  team_id: string | null;
+  role: string;
+  declared_job: string | null;
+  status: string;
+  checked_in_at: string | null;
+  share_location: number;
+  is_minor: number;
+  location_share_until: string | null;
+  location_share_consent_type: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ObservationEventLiveTestRow {
+  live_event_id: string;
+  session_id: string;
+  type: string;
+  scope: string;
+  actor_user_id: string | null;
+  actor_guest_token: string | null;
+  team_id: string | null;
+  payload_json: string;
+  created_at: string;
+}
+
+interface ObservationEventMeshTestRow {
+  mesh_cell_id: string;
+  session_id: string;
+  mesh_key: string;
+  center_lat: number;
+  center_lng: number;
+  visit_seconds: number;
+  observation_count: number;
+  absence_count: number;
+  last_visited_at: string | null;
+  visited_team_ids_json: string;
+  updated_at: string;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -412,6 +480,11 @@ class FakeD1 {
   municipalWalkMapAudit: MunicipalWalkMapAuditRow[] = [];
   publicMapSnapshotRecords: PublicMapSnapshotRecordRow[] = [];
   publicMapSnapshotMeta: PublicMapSnapshotMetaRow | null = null;
+  observationEventSessions = new Map<string, ObservationEventSessionTestRow>();
+  observationEventParticipants = new Map<string, ObservationEventParticipantTestRow>();
+  observationEventLiveEvents: ObservationEventLiveTestRow[] = [];
+  observationEventAbsences: Array<{ absence_id: string; session_id: string; searched_taxon: string; public_lat: number; public_lng: number }> = [];
+  observationEventMeshCells = new Map<string, ObservationEventMeshTestRow>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -492,6 +565,164 @@ class FakeStatement {
         payload_json: string(v[2]),
         created_at: new Date(Date.now() + this.db.operationAudit.length).toISOString()
       });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_sessions")) {
+      const now = new Date().toISOString();
+      this.db.observationEventSessions.set(string(v[0]), {
+        session_id: string(v[0]),
+        legacy_event_id: nullableString(v[1]),
+        event_code: nullableString(v[2]),
+        title: string(v[3]),
+        organizer_user_id: string(v[4]),
+        corporation_id: nullableString(v[5]),
+        plan: string(v[6]),
+        primary_mode: string(v[7]),
+        active_modes_json: string(v[8]),
+        location_lat: nullableNumber(v[9]),
+        location_lng: nullableNumber(v[10]),
+        location_radius_m: number(v[11]),
+        started_at: string(v[12]),
+        ended_at: nullableString(v[13]),
+        target_species_json: string(v[14]),
+        config_json: string(v[15]),
+        field_id: nullableString(v[16]),
+        template_source_session_id: nullableString(v[17]),
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_sessions SET ended_at")) {
+      const row = requireRow(this.db.observationEventSessions, string(v[0]));
+      row.ended_at = row.ended_at ?? new Date().toISOString();
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_sessions SET primary_mode")) {
+      const row = requireRow(this.db.observationEventSessions, string(v[2]));
+      row.primary_mode = string(v[0]);
+      row.active_modes_json = string(v[1]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_sessions SET title")) {
+      const row = requireRow(this.db.observationEventSessions, string(v[12]));
+      row.title = string(v[0]);
+      row.event_code = nullableString(v[1]);
+      row.primary_mode = string(v[2]);
+      row.active_modes_json = string(v[3]);
+      row.location_lat = nullableNumber(v[4]);
+      row.location_lng = nullableNumber(v[5]);
+      row.location_radius_m = number(v[6]);
+      row.started_at = string(v[7]);
+      row.target_species_json = string(v[8]);
+      row.plan = string(v[9]);
+      row.config_json = string(v[10]);
+      row.field_id = nullableString(v[11]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_live_events")) {
+      this.db.observationEventLiveEvents.push({
+        live_event_id: string(v[0]),
+        session_id: string(v[1]),
+        type: string(v[2]),
+        scope: string(v[3]),
+        actor_user_id: nullableString(v[4]),
+        actor_guest_token: nullableString(v[5]),
+        team_id: nullableString(v[6]),
+        payload_json: string(v[7]),
+        created_at: new Date(Date.now() + this.db.observationEventLiveEvents.length).toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_teams")) {
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_participants")) {
+      const now = new Date().toISOString();
+      this.db.observationEventParticipants.set(string(v[0]), {
+        participant_id: string(v[0]),
+        session_id: string(v[1]),
+        user_id: nullableString(v[2]),
+        guest_token: nullableString(v[3]),
+        display_name: string(v[4]),
+        team_id: nullableString(v[5]),
+        role: "participant",
+        declared_job: null,
+        status: "checked_in",
+        checked_in_at: now,
+        share_location: 0,
+        is_minor: number(v[6]),
+        location_share_until: null,
+        location_share_consent_type: null,
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_participants SET display_name")) {
+      const row = requireRow(this.db.observationEventParticipants, string(v[3]));
+      row.display_name = string(v[0]);
+      row.team_id = nullableString(v[1]) ?? row.team_id;
+      row.status = "checked_in";
+      row.checked_in_at = new Date().toISOString();
+      row.share_location = 0;
+      row.is_minor = number(v[2]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_event_participants SET declared_job")) {
+      const row = requireRow(this.db.observationEventParticipants, string(v[1]));
+      row.declared_job = string(v[0]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_absences")) {
+      this.db.observationEventAbsences.push({
+        absence_id: string(v[0]),
+        session_id: string(v[1]),
+        searched_taxon: string(v[5]),
+        public_lat: number(v[7]),
+        public_lng: number(v[8])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_mesh_cells")) {
+      const key = `${string(v[1])}:${string(v[2])}`;
+      const existing = this.db.observationEventMeshCells.get(key);
+      if (existing) {
+        existing.visit_seconds += number(v[5]);
+        existing.observation_count += number(v[6]);
+        existing.absence_count += number(v[7]);
+        existing.updated_at = new Date().toISOString();
+      } else {
+        this.db.observationEventMeshCells.set(key, {
+          mesh_cell_id: string(v[0]),
+          session_id: string(v[1]),
+          mesh_key: string(v[2]),
+          center_lat: number(v[3]),
+          center_lng: number(v[4]),
+          visit_seconds: number(v[5]),
+          observation_count: number(v[6]),
+          absence_count: number(v[7]),
+          last_visited_at: new Date().toISOString(),
+          visited_team_ids_json: string(v[8]),
+          updated_at: new Date().toISOString()
+        });
+      }
       return {};
     }
 
@@ -1139,6 +1370,37 @@ class FakeStatement {
       return (row as T);
     }
 
+    if (normalized.startsWith("SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id")) {
+      if (normalized.includes("WHERE event_code = ?")) {
+        const row = [...this.db.observationEventSessions.values()].find((candidate) => candidate.event_code === string(v[0]));
+        return (row as T | undefined) ?? null;
+      }
+      return (this.db.observationEventSessions.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT participant_id, user_id, guest_token, team_id, is_minor")) {
+      const sessionId = string(v[0]);
+      const userId = nullableString(v[1]);
+      const guestToken = nullableString(v[2]);
+      const row = [...this.db.observationEventParticipants.values()].find((candidate) =>
+        candidate.session_id === sessionId &&
+        ((candidate.user_id !== null && candidate.user_id === userId) ||
+          (candidate.guest_token !== null && candidate.guest_token === guestToken))
+      );
+      return (row as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS visited_cells")) {
+      const sessionId = string(v[0]);
+      const rows = [...this.db.observationEventMeshCells.values()].filter((row) => row.session_id === sessionId);
+      return ({
+        visited_cells: rows.length,
+        visit_seconds_sum: rows.reduce((sum, row) => sum + row.visit_seconds, 0),
+        observation_sum: rows.reduce((sum, row) => sum + row.observation_count, 0),
+        absence_sum: rows.reduce((sum, row) => sum + row.absence_count, 0)
+      } as T);
+    }
+
     if (normalized.startsWith("SELECT COUNT(*) AS uploaded_assets")) {
       const uploaded = [...this.db.assets.values()].filter((asset) => asset.processing_state === "uploaded");
       return ({
@@ -1360,6 +1622,25 @@ class FakeStatement {
 
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
+    const v = this.values;
+    if (normalized.startsWith("SELECT live_event_id, session_id, type, scope, team_id, payload_json, created_at")) {
+      const sessionId = string(v[0]);
+      const limit = number(v[1]);
+      const rows = this.db.observationEventLiveEvents
+        .filter((row) => row.session_id === sessionId)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, limit)
+        .map((row) => ({
+          live_event_id: row.live_event_id,
+          session_id: row.session_id,
+          type: row.type,
+          scope: row.scope,
+          team_id: row.team_id,
+          payload_json: row.payload_json,
+          created_at: row.created_at
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT outbox_id, topic, target_id FROM outbox")) {
       const rows = [...this.db.outbox.values()]
         .filter((row) => row.dispatch_state === "pending")
@@ -4553,14 +4834,111 @@ test("production public UI routes keep explicit origin fallback while broad cust
       body: JSON.stringify({ title: "origin event", started_at: "2026-06-25T10:00" }),
       headers: { "content-type": "application/json" }
     }), productionEnv);
-    assert.equal(eventApiPost.status, 200);
-    assert.equal(seen.at(-1)?.url, "https://ikimon.life/api/v1/observation-events");
+    assert.equal(eventApiPost.status, 401);
+    assert.deepEqual(await eventApiPost.json(), { error: "login required" });
+    assert.equal(seen.length, publicUiRoutes.length + 1);
+
+    const eventAreaSuggestion = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/area-suggestions", {
+      method: "POST",
+      body: JSON.stringify({ center: { lat: 34.97, lng: 138.38 } }),
+      headers: { "content-type": "application/json" }
+    }), productionEnv);
+    assert.equal(eventAreaSuggestion.status, 200);
+    assert.equal(seen.at(-1)?.url, "https://ikimon.life/api/v1/observation-events/area-suggestions");
     assert.equal(seen.at(-1)?.method, "POST");
     assert.equal(seen.at(-1)?.reason, "legacy_observation_event_api_origin_fallback");
 
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
     assert.equal(seen.length, publicUiRoutes.length + 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production observation event core APIs run on D1 while advanced event routes stay explicit fallback", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
+  };
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "event-organizer", displayName: "Event Organizer", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const originalFetch = globalThis.fetch;
+  const seen: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    seen.push(String(input));
+    return Response.json({ ok: true, origin: true });
+  }) as typeof fetch;
+  try {
+    const create = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        title: "D1観察会",
+        event_code: "d1-core-event",
+        started_at: "2026-06-25T10:00:00.000Z",
+        location_lat: 34.9756,
+        location_lng: 138.3828,
+        target_species: ["セミ"]
+      })
+    }), productionEnv);
+    assert.equal(create.status, 201);
+    const created = await create.json() as any;
+    assert.equal(created.title, "D1観察会");
+    assert.equal(created.organizerUserId, "event-organizer");
+
+    const byCode = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/by-code/d1-core-event"), productionEnv);
+    const byCodePayload = await byCode.json() as any;
+    assert.equal(byCode.status, 200);
+    assert.equal(byCodePayload.session.sessionId, created.sessionId);
+
+    const checkin = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/checkin`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ guest_token: "guest-core-1", display_name: "Guest", is_minor: true, share_location: true })
+    }), productionEnv);
+    assert.equal(checkin.status, 200);
+    const checkinPayload = await checkin.json() as any;
+    assert.ok(checkinPayload.participant_id);
+
+    const absence = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/absences`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ guest_token: "guest-core-1", searched_taxon: "セミ", lat: 34.97564, lng: 138.38284, effort_seconds: 120 })
+    }), productionEnv);
+    assert.equal(absence.status, 201);
+    assert.equal(obs.observationEventAbsences[0]?.public_lat, 34.976);
+    assert.equal(obs.observationEventAbsences[0]?.public_lng, 138.383);
+
+    const recent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent?guest_token=guest-core-1`), productionEnv);
+    const recentPayload = await recent.json() as any;
+    assert.equal(recent.status, 200);
+    assert.equal(recentPayload.events.some((event: any) => event.type === "absence_recorded"), true);
+
+    const effort = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/effort`), productionEnv);
+    const effortPayload = await effort.json() as any;
+    assert.equal(effort.status, 200);
+    assert.equal(effortPayload.effort.totalAbsences, 1);
+
+    const live = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/live?guest_token=guest-core-1`), productionEnv);
+    assert.equal(live.status, 200);
+    assert.equal(live.headers.get("content-type"), "text/event-stream; charset=utf-8");
+    assert.equal(live.headers.get("x-ikimon-observation-event-live-mode"), "snapshot-only");
+    assert.match(await live.text(), /event: snapshot/);
+
+    const rally = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally`), productionEnv);
+    assert.equal(rally.status, 200);
+    assert.deepEqual(seen, [`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally`]);
   } finally {
     globalThis.fetch = originalFetch;
   }
