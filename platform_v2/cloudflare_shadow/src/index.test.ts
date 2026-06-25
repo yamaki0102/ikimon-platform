@@ -4843,14 +4843,13 @@ test("production public UI routes keep explicit origin fallback while broad cust
       body: JSON.stringify({ center: { lat: 34.97, lng: 138.38 } }),
       headers: { "content-type": "application/json" }
     }), productionEnv);
-    assert.equal(eventAreaSuggestion.status, 200);
-    assert.equal(seen.at(-1)?.url, "https://ikimon.life/api/v1/observation-events/area-suggestions");
-    assert.equal(seen.at(-1)?.method, "POST");
-    assert.equal(seen.at(-1)?.reason, "legacy_observation_event_api_origin_fallback");
+    assert.equal(eventAreaSuggestion.status, 401);
+    assert.deepEqual(await eventAreaSuggestion.json(), { error: "login required" });
+    assert.equal(seen.length, publicUiRoutes.length + 1);
 
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
-    assert.equal(seen.length, publicUiRoutes.length + 2);
+    assert.equal(seen.length, publicUiRoutes.length + 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -4935,6 +4934,18 @@ test("production observation event core APIs run on D1 while advanced event rout
     assert.equal(live.headers.get("content-type"), "text/event-stream; charset=utf-8");
     assert.equal(live.headers.get("x-ikimon-observation-event-live-mode"), "snapshot-only");
     assert.match(await live.text(), /event: snapshot/);
+
+    const areaSuggestion = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/area-suggestions", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ center: { lat: 34.97564, lng: 138.38284 }, radius_m: 300, place_label: "静岡駅" })
+    }), productionEnv);
+    assert.equal(areaSuggestion.status, 200);
+    const areaPayload = await areaSuggestion.json() as any;
+    assert.equal(areaPayload.provider, "fallback");
+    assert.equal(areaPayload.compatibility.source, "cloudflare_d1_native");
+    assert.deepEqual(areaPayload.suggestions.map((suggestion: any) => suggestion.id), ["facility", "safe_walk", "nature_rich"]);
+    assert.equal(seen.length, 0);
 
     const rally = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/rally`), productionEnv);
     assert.equal(rally.status, 200);
