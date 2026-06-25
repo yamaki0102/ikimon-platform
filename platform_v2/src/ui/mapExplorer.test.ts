@@ -278,7 +278,8 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-brief\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-brief \{[\s\S]*display: none;/);
-  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid \{[\s\S]*grid-template-columns: 38px;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-grid a \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-routes \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-routes\s*\{/);

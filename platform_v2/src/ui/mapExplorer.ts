@@ -10069,6 +10069,12 @@ export const MAP_EXPLORER_STYLES = `
   .me-start-panel.is-collapsed .me-start-panel-brief {
     display: inline;
   }
+  .me-start-panel.is-collapsed .me-start-panel-grid {
+    grid-template-columns: 38px;
+  }
+  .me-start-panel.is-collapsed .me-start-panel-grid a {
+    display: none;
+  }
   .me-start-panel.is-collapsed .me-start-panel-routes {
     display: none;
   }
@@ -12893,8 +12899,8 @@ export const MAP_EXPLORER_STYLES = `
       display: none;
     }
     .me-start-panel.is-collapsed .me-start-panel-grid {
-      grid-template-columns: repeat(5, 34px);
-      gap: 3px;
+      grid-template-columns: 34px;
+      gap: 0;
     }
     .me-start-panel.is-collapsed .me-start-panel-location,
     .me-start-panel.is-collapsed .me-start-panel-grid a {
