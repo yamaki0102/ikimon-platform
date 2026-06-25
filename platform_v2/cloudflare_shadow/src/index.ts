@@ -1454,10 +1454,6 @@ export const worker = {
         return json({ error: "not_found" }, 404);
       }
 
-      if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
-        return fetchOriginFallback(request, url, env, "public_custom_domain_path");
-      }
-
       return json({ error: "not_found" }, 404);
     } catch (error) {
       if (error instanceof HttpError) {

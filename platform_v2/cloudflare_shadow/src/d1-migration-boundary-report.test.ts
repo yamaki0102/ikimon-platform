@@ -11,3 +11,10 @@ test("VPS stop readiness counts every PostgreSQL dependency, not only displayed 
   assert.match(script, /displayed_pg_dependencies/);
   assert.doesNotMatch(script, /\.\.\.pgFiles\.slice\(0,\s*80\)\.map\(\(item\) => \(\{/);
 });
+
+test("public custom domain origin fallback is not registered twice", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const publicDomainFallbackCalls = workerSource.match(/fetchOriginFallback\([^)]*"public_custom_domain_path"/g) ?? [];
+
+  assert.equal(publicDomainFallbackCalls.length, 1);
+});
