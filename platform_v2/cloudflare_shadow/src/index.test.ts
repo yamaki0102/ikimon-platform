@@ -1744,6 +1744,18 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(cellsPayload.stats.totalRecords, 1);
   assert.doesNotMatch(JSON.stringify(cellsPayload), /34\.71234|137\.81234/);
 
+  const coverageResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/coverage?year=2026"), env);
+  const coveragePayload = await coverageResponse.json() as any;
+  assert.equal(coverageResponse.ok, true, JSON.stringify(coveragePayload));
+  assert.equal(coveragePayload.type, "FeatureCollection");
+  assert.equal(coveragePayload.features.length, 1);
+  assert.equal(coveragePayload.features[0].properties.mesh, "34.71,137.81");
+  assert.equal(coveragePayload.features[0].properties.count, 1);
+  assert.equal(coveragePayload.maxCount, 1);
+  assert.equal(coveragePayload.compatibility.source, "cloudflare_readmodel_public_observations");
+  assert.equal(coveragePayload.compatibility.exactLocationExposed, false);
+  assert.doesNotMatch(JSON.stringify(coveragePayload), /34\.71234|137\.81234/);
+
   const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
   const observationsPayload = await observationsResponse.json() as any;
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
