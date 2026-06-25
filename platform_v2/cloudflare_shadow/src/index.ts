@@ -1146,6 +1146,19 @@ export const worker = {
         );
       }
 
+      if (request.method === "POST" && nativePathname === "/api/v1/admin/municipal-walk-maps") {
+        return await upsertMunicipalWalkMapAdmin(request, null, env);
+      }
+
+      const municipalWalkMapAdminUpdateMatch = nativePathname.match(/^\/api\/v1\/admin\/municipal-walk-maps\/([^/]+)$/);
+      if (request.method === "POST" && municipalWalkMapAdminUpdateMatch?.[1] && municipalWalkMapAdminUpdateMatch[1] !== "preview") {
+        return await upsertMunicipalWalkMapAdmin(
+          request,
+          decodeURIComponent(municipalWalkMapAdminUpdateMatch[1]),
+          env
+        );
+      }
+
       if (request.method === "GET" && nativePathname === "/ops/public-map-snapshot") {
         return getPublicMapSnapshotStatusResponse(env);
       }
@@ -2710,7 +2723,7 @@ async function upsertMunicipalWalkMapCreatorAdmin(request: Request, env: Env): P
     "none"
   );
   const officialUrl = normalizeOptionalText(input.officialUrl ?? input.official_url);
-  const notes = normalizeOptionalText(input.notes);
+  const notes = normalizeOptionalText(input.notes) ?? "";
   const creatorType = registrationKind === "registered_company"
     ? "company"
     : registrationKind === "registered_group"
@@ -2963,6 +2976,329 @@ async function applyMunicipalWalkMapReviewActionAdmin(request: Request, walkMapI
       reviewItem: municipalWalkMapReviewFromD1Row(after)
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+function extractMunicipalWalkMapConfigInput(body: unknown): Record<string, unknown> {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return {};
+  const record = body as Record<string, unknown>;
+  const config = record.config;
+  if (config && typeof config === "object" && !Array.isArray(config)) {
+    return config as Record<string, unknown>;
+  }
+  return record;
+}
+
+function recordOrEmpty(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function arrayOrEmpty(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function jsonText(value: unknown, fallback: unknown): string {
+  return JSON.stringify(value ?? fallback);
+}
+
+function firstAreaHintFromConfig(config: Record<string, unknown>, stops: unknown[]): Record<string, unknown> {
+  const direct = recordOrEmpty(config.areaHint);
+  if (Object.keys(direct).length > 0) return direct;
+  const firstStop = recordOrEmpty(stops[0]);
+  const stopHint = recordOrEmpty(firstStop.areaHint ?? firstStop.area_hint);
+  if (Object.keys(stopHint).length > 0) return stopHint;
+  return { lat: null, lng: null, label: null, precision: "area_hint" };
+}
+
+function normalizeWalkMapStopForD1(value: unknown, index: number): Record<string, unknown> {
+  const stop = recordOrEmpty(value);
+  const stopId = normalizeOptionalId(stop.stopId ?? stop.stop_id) ?? `stop-${index + 1}`;
+  const title = normalizeOptionalText(stop.title) ?? `Stop ${index + 1}`;
+  return {
+    stopId,
+    title,
+    note: normalizeOptionalText(stop.note),
+    areaHint: recordOrEmpty(stop.areaHint ?? stop.area_hint),
+    safetyNote: normalizeOptionalText(stop.safetyNote ?? stop.safety_note),
+    position: clampInteger(Number(stop.position ?? stop.displayOrder ?? stop.display_order ?? index + 1), 0, 999),
+    areaKind: normalizeOptionalText(stop.areaKind ?? stop.area_kind) ?? "other",
+    linkedFieldId: normalizeOptionalText(stop.linkedFieldId ?? stop.linked_field_id),
+    access: normalizeOptionalText(stop.access) ?? "public_access",
+    sensitiveContext: normalizeOptionalText(stop.sensitiveContext ?? stop.sensitive_context) ?? "none",
+    estimatedMinutes: Number.isFinite(Number(stop.estimatedMinutes ?? stop.estimated_minutes))
+      ? clampInteger(Number(stop.estimatedMinutes ?? stop.estimated_minutes), 0, 1440)
+      : null,
+    noticeCues: arrayOrEmpty(stop.noticeCues ?? stop.notice_cues),
+    recordCues: arrayOrEmpty(stop.recordCues ?? stop.record_cues),
+    safetyNotes: arrayOrEmpty(stop.safetyNotes ?? stop.safety_notes),
+    internalMemo: normalizeOptionalText(stop.internalMemo ?? stop.internal_memo)
+  };
+}
+
+function normalizeMunicipalWalkMapConfigForD1(config: Record<string, unknown>, pathWalkMapId: string | null) {
+  const walkMapId = normalizeOptionalId(pathWalkMapId ?? config.walkMapId ?? config.walk_map_id);
+  const creatorProfile = recordOrEmpty(config.creatorProfile ?? config.creator_profile);
+  const areaScope = recordOrEmpty(config.areaScope ?? config.area_scope);
+  const routeFlexibility = recordOrEmpty(config.routeFlexibility ?? config.route_flexibility);
+  const publicationReview = recordOrEmpty(config.publicationReview ?? config.publication_review);
+  const sourceReferences = arrayOrEmpty(config.sourceReferences ?? config.source_references);
+  const recordModes = arrayOrEmpty(config.recordModes ?? config.record_modes);
+  const rawStops = arrayOrEmpty(config.routeStops ?? config.route_stops);
+  const stops = rawStops.map(normalizeWalkMapStopForD1);
+  const creatorId = normalizeOptionalId(creatorProfile.creatorId ?? creatorProfile.creator_id ?? config.creatorId ?? config.creator_id)
+    ?? "unregistered";
+  const municipalityCode = normalizeOptionalText(config.municipalityCode ?? config.municipality_code)
+    ?? normalizeOptionalText(arrayOrEmpty(areaScope.municipalityCodes ?? areaScope.municipality_codes)[0])
+    ?? "unknown";
+  const title = normalizeOptionalText(config.title);
+  const summary = normalizeOptionalText(config.summary);
+  if (!walkMapId) throw new HttpError(400, "walk_map_id_required");
+  if (!title) throw new HttpError(400, "title_required");
+  if (!summary) throw new HttpError(400, "summary_required");
+  return {
+    walkMapId,
+    creatorId,
+    municipalityCode,
+    municipality: normalizeOptionalText(config.municipality) ?? "未設定",
+    title,
+    summary,
+    theme: normalizeOptionalText(config.theme) ?? "seasonal_walk",
+    publishMode: normalizeEnum(config.publishMode ?? config.publish_mode, ["draft", "public_preview", "public"], "draft"),
+    routeStyle: normalizeOptionalText(routeFlexibility.routeStyle ?? routeFlexibility.route_style ?? config.routeStyle ?? config.route_style) ?? "loose_stops",
+    mobilityModes: arrayOrEmpty(routeFlexibility.mobilityModes ?? routeFlexibility.mobility_modes ?? config.mobilityModes ?? config.mobility_modes),
+    sourceReferences,
+    areaHint: firstAreaHintFromConfig(config, rawStops),
+    stops,
+    displayOrder: clampInteger(Number(config.displayOrder ?? config.display_order ?? 100), 0, 100000),
+    sourceLicenseNote: normalizeOptionalText(config.sourceLicenseNote ?? config.source_license_note),
+    creatorName: normalizeOptionalText(config.creatorName ?? config.creator_name)
+      ?? normalizeOptionalText(creatorProfile.displayName ?? creatorProfile.display_name)
+      ?? normalizeOptionalText(config.municipality)
+      ?? "",
+    creatorProfile,
+    areaScope,
+    recordModes,
+    routeFlexibility,
+    publicPrecisionPolicy: normalizeOptionalText(config.publicPrecisionPolicy ?? config.public_precision_policy) ?? "mesh_or_coarser",
+    claimBoundary: arrayOrEmpty(config.claimBoundary ?? config.claim_boundary),
+    publicationReview
+  };
+}
+
+function deriveMunicipalWalkMapCreatorD1Profile(
+  config: ReturnType<typeof normalizeMunicipalWalkMapConfigForD1>,
+  session: SessionSnapshot
+) {
+  const creatorProfile = recordOrEmpty(config.creatorProfile);
+  const registrationKind = normalizeEnum(
+    creatorProfile.registrationKind ?? creatorProfile.registration_kind,
+    ["municipality", "registered_group", "registered_company"],
+    config.creatorId === "unregistered" ? "registered_group" : "municipality"
+  );
+  const verificationStatus = normalizeEnum(
+    creatorProfile.verificationStatus ?? creatorProfile.verification_status,
+    ["pending", "verified", "revoked"],
+    "pending"
+  );
+  const commercialIntent = normalizeEnum(
+    creatorProfile.commercialIntent ?? creatorProfile.commercial_intent,
+    ["none", "limited", "primary"],
+    "none"
+  );
+  return {
+    registrationKind,
+    verificationStatus,
+    commercialIntent,
+    displayName: config.creatorName || config.municipality || config.creatorId,
+    officialUrl: normalizeOptionalText(creatorProfile.officialUrl ?? creatorProfile.official_url),
+    notes: normalizeOptionalText(creatorProfile.notes) ?? "",
+    creatorType: registrationKind === "registered_company"
+      ? "company"
+      : registrationKind === "registered_group"
+        ? "group"
+        : "municipality",
+    commercialPolicy: commercialIntent === "primary" ? "commercial_review_required" : "restricted",
+    verifiedBy: verificationStatus === "verified" ? session.userId : null,
+    verifiedAt: verificationStatus === "verified" ? new Date().toISOString() : null
+  };
+}
+
+async function upsertMunicipalWalkMapAdmin(request: Request, pathWalkMapId: string | null, env: Env): Promise<Response> {
+  const session = await requireMunicipalWalkMapAdminSession(request, env);
+  const input = extractMunicipalWalkMapConfigInput(await readJson<unknown>(request));
+  const config = normalizeMunicipalWalkMapConfigForD1(input, pathWalkMapId);
+  const before = await getMunicipalWalkMapReviewRowById(env, config.walkMapId);
+  const action = before ? "update" : "create";
+  const creator = deriveMunicipalWalkMapCreatorD1Profile(config, session);
+  const statements: D1PreparedStatement[] = [
+    env.OBS_DB.prepare(
+      `INSERT INTO municipal_walk_map_creators
+         (creator_id, creator_type, display_name, organization_name, official_url, verification_status,
+          commercial_policy, registration_kind, commercial_intent, verified_by_user_id, verified_at, notes, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(creator_id) DO UPDATE SET
+         creator_type = excluded.creator_type,
+         display_name = excluded.display_name,
+         organization_name = excluded.organization_name,
+         official_url = excluded.official_url,
+         verification_status = excluded.verification_status,
+         commercial_policy = excluded.commercial_policy,
+         registration_kind = excluded.registration_kind,
+         commercial_intent = excluded.commercial_intent,
+         verified_by_user_id = excluded.verified_by_user_id,
+         verified_at = excluded.verified_at,
+         notes = excluded.notes,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      config.creatorId,
+      creator.creatorType,
+      creator.displayName,
+      creator.displayName,
+      creator.officialUrl,
+      creator.verificationStatus,
+      creator.commercialPolicy,
+      creator.registrationKind,
+      creator.commercialIntent,
+      creator.verifiedBy,
+      creator.verifiedAt,
+      creator.notes
+    ),
+    env.OBS_DB.prepare(
+      `INSERT INTO municipal_walk_maps
+         (walk_map_id, creator_id, municipality_code, municipality, title, summary, theme, publish_mode,
+          route_style, mobility_modes_json, source_references_json, area_hint_json, stop_count, display_order,
+          source_license_note, creator_name, creator_profile_json, area_scope_json, record_modes_json,
+          route_flexibility_json, public_precision_policy, claim_boundary_json, publication_review_json,
+          created_by_user_id, updated_by_user_id, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(walk_map_id) DO UPDATE SET
+         creator_id = excluded.creator_id,
+         municipality_code = excluded.municipality_code,
+         municipality = excluded.municipality,
+         title = excluded.title,
+         summary = excluded.summary,
+         theme = excluded.theme,
+         publish_mode = excluded.publish_mode,
+         route_style = excluded.route_style,
+         mobility_modes_json = excluded.mobility_modes_json,
+         source_references_json = excluded.source_references_json,
+         area_hint_json = excluded.area_hint_json,
+         stop_count = excluded.stop_count,
+         display_order = excluded.display_order,
+         source_license_note = excluded.source_license_note,
+         creator_name = excluded.creator_name,
+         creator_profile_json = excluded.creator_profile_json,
+         area_scope_json = excluded.area_scope_json,
+         record_modes_json = excluded.record_modes_json,
+         route_flexibility_json = excluded.route_flexibility_json,
+         public_precision_policy = excluded.public_precision_policy,
+         claim_boundary_json = excluded.claim_boundary_json,
+         publication_review_json = excluded.publication_review_json,
+         updated_by_user_id = excluded.updated_by_user_id,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      config.walkMapId,
+      config.creatorId,
+      config.municipalityCode,
+      config.municipality,
+      config.title,
+      config.summary,
+      config.theme,
+      config.publishMode,
+      config.routeStyle,
+      jsonText(config.mobilityModes, []),
+      jsonText(config.sourceReferences, []),
+      jsonText(config.areaHint, {}),
+      config.stops.length,
+      config.displayOrder,
+      config.sourceLicenseNote,
+      config.creatorName,
+      jsonText(config.creatorProfile, {}),
+      jsonText(config.areaScope, {}),
+      jsonText(config.recordModes, []),
+      jsonText(config.routeFlexibility, {}),
+      config.publicPrecisionPolicy,
+      jsonText(config.claimBoundary, []),
+      jsonText(config.publicationReview, {}),
+      session.userId,
+      session.userId
+    ),
+    env.OBS_DB.prepare("DELETE FROM municipal_walk_map_stops WHERE walk_map_id = ?").bind(config.walkMapId)
+  ];
+  for (const [index, stop] of config.stops.entries()) {
+    statements.push(env.OBS_DB.prepare(
+      `INSERT INTO municipal_walk_map_stops
+         (stop_id, walk_map_id, display_order, title, note, area_hint_json, safety_note,
+          position, area_kind, linked_field_id, access, sensitive_context, estimated_minutes,
+          notice_cues_json, record_cues_json, safety_notes_json, internal_memo, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      normalizeOptionalId(stop.stopId) ?? `stop-${index + 1}`,
+      config.walkMapId,
+      index + 1,
+      normalizeOptionalText(stop.title) ?? `Stop ${index + 1}`,
+      normalizeOptionalText(stop.note),
+      jsonText(stop.areaHint, {}),
+      normalizeOptionalText(stop.safetyNote),
+      Number(stop.position),
+      normalizeOptionalText(stop.areaKind) ?? "other",
+      normalizeOptionalText(stop.linkedFieldId),
+      normalizeOptionalText(stop.access) ?? "public_access",
+      normalizeOptionalText(stop.sensitiveContext) ?? "none",
+      stop.estimatedMinutes == null ? null : Number(stop.estimatedMinutes),
+      jsonText(stop.noticeCues, []),
+      jsonText(stop.recordCues, []),
+      jsonText(stop.safetyNotes, []),
+      normalizeOptionalText(stop.internalMemo)
+    ));
+  }
+  statements.push(env.OBS_DB.prepare(
+    `INSERT INTO municipal_walk_map_audit
+       (audit_id, walk_map_id, action, actor_label, payload_json, actor_user_id, before_payload_json, after_payload_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    newId("walkmap_audit"),
+    config.walkMapId,
+    `map.${action}`,
+    session.displayName,
+    JSON.stringify({ stopCount: config.stops.length, publishMode: config.publishMode }),
+    session.userId,
+    before ? JSON.stringify({
+      publishMode: before.publish_mode,
+      title: before.title,
+      summary: before.summary,
+      publicationReview: parseJsonRecord(before.publication_review_json ?? "{}") ?? {}
+    }) : "{}",
+    JSON.stringify({
+      publishMode: config.publishMode,
+      title: config.title,
+      summary: config.summary,
+      publicationReview: config.publicationReview
+    })
+  ));
+  await env.OBS_DB.batch(statements);
+  return json({
+    ok: true,
+    source: "d1_observations",
+    action,
+    config: {
+      schemaVersion: "municipal_walk_map_config/v0",
+      ...config
+    },
+    publicMap: {
+      schemaVersion: "municipal_walk_map_public_summary/v0",
+      walkMapId: config.walkMapId,
+      municipality: config.municipality,
+      title: config.title,
+      summary: config.summary,
+      theme: config.theme,
+      publishMode: config.publishMode,
+      routeStyle: config.routeStyle,
+      mobilityModes: config.mobilityModes,
+      stopCount: config.stops.length,
+      sourceReferences: config.sourceReferences,
+      areaHint: config.areaHint
+    }
+  }, action === "create" ? 201 : 200, { "cache-control": "no-store" });
 }
 
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
