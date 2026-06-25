@@ -865,15 +865,9 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/",
   "/demo/place-feeling-tags",
   "/guide",
-  "/admin/municipal-walk-map-reviews",
   "/record",
   "/records",
   "/map",
-  "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
-  "/walk-maps",
-  "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
-  "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
-  "/walk-maps/jp-shizuoka-mariko-waterfront-sample-v0",
   "/app-refresh",
   "/login",
   "/profile",
@@ -1147,6 +1141,15 @@ export const worker = {
         return getMunicipalWalkMapCandidates(url, env);
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/walk-maps") {
+        return await getMunicipalWalkMapListPage(url, env);
+      }
+
+      const municipalWalkMapSourceDraftMatch = nativePathname.match(/^\/walk-map-source-drafts\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && municipalWalkMapSourceDraftMatch?.[1]) {
+        return getMunicipalWalkMapSourceDraftPage(decodeURIComponent(municipalWalkMapSourceDraftMatch[1]));
+      }
+
       const municipalWalkMapDetailApiMatch = nativePathname.match(/^\/api\/v1\/municipal-walk-maps\/([^/]+)$/);
       if (request.method === "GET" && municipalWalkMapDetailApiMatch?.[1]) {
         return await getMunicipalWalkMapPublicDetailApi(decodeURIComponent(municipalWalkMapDetailApiMatch[1]), env);
@@ -1155,6 +1158,18 @@ export const worker = {
       const municipalWalkMapDetailPageMatch = nativePathname.match(/^\/walk-maps\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && municipalWalkMapDetailPageMatch?.[1]) {
         return await getMunicipalWalkMapPublicDetailPage(decodeURIComponent(municipalWalkMapDetailPageMatch[1]), env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/municipal-walk-maps") {
+        return await getMunicipalWalkMapAdminPage(request, url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/municipal-walk-map-creators") {
+        return await getMunicipalWalkMapCreatorsAdminPage(request, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/municipal-walk-map-reviews") {
+        return await getMunicipalWalkMapReviewsAdminPage(request, url, env);
       }
 
       if (nativePathname === "/api/v1/admin/municipal-walk-map-creators") {
@@ -2996,6 +3011,145 @@ async function getMunicipalWalkMapPublicDetailPage(walkMapId: string, env: Env):
   return html(renderMunicipalWalkMapPublicDetailHtml(detail), 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
+function renderMunicipalWalkMapListHtml(summaries: unknown[]): string {
+  const cards = summaries
+    .map((raw) => recordOrEmpty(raw))
+    .map((summary) => {
+      const walkMapId = normalizeOptionalText(summary.walkMapId) ?? "";
+      const title = normalizeOptionalText(summary.title) ?? "散策マップ";
+      const municipality = normalizeOptionalText(summary.municipality) ?? "";
+      const description = normalizeOptionalText(summary.summary) ?? "";
+      const areaHint = recordOrEmpty(summary.areaHint);
+      const areaLabel = normalizeOptionalText(areaHint.label) ?? municipality;
+      const href = walkMapId ? `/walk-maps/${encodeURIComponent(walkMapId)}` : "/walk-maps";
+      return `<article class="wm-list-card">
+        <a href="${escapeHtml(href)}">
+          <span>${escapeHtml(municipality)}</span>
+          <strong>${escapeHtml(title)}</strong>
+          <small>${escapeHtml(areaLabel)} / ${escapeHtml(normalizeOptionalText(summary.routeStyle) ?? "loose_stops")}</small>
+          <p>${escapeHtml(description)}</p>
+        </a>
+      </article>`;
+    })
+    .join("");
+  return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>散策マップ - ikimon</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+.wm-list{max-width:1120px;margin:0 auto;padding:24px 16px 72px}
+.wm-list-head{display:grid;gap:8px;margin-bottom:16px}
+.wm-list-head h1{margin:0;font-size:30px;line-height:1.18;letter-spacing:0}
+.wm-list-head p{margin:0;color:#475569;line-height:1.7}
+.wm-list-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.wm-list-card a{display:grid;gap:8px;height:100%;padding:14px;border:1px solid #dbe7e2;border-radius:8px;background:#fff;color:inherit;text-decoration:none}
+.wm-list-card span{font-size:12px;font-weight:900;color:#0f766e}
+.wm-list-card strong{font-size:18px;color:#0f172a}
+.wm-list-card small{color:#64748b;font-weight:800}
+.wm-list-card p{margin:0;color:#475569;line-height:1.65}
+@media(max-width:760px){.wm-list{padding:18px 12px 56px}.wm-list-head h1{font-size:26px}}
+</style>
+</head>
+<body>
+<main class="wm-list">
+  <header class="wm-list-head">
+    <h1>散策マップ</h1>
+    <p>公開範囲を歩きながら、写真、メモ、気づいた季節を残せる場所です。</p>
+  </header>
+  <section class="wm-list-grid">${cards || "<p>公開中の散策マップはまだありません。</p>"}</section>
+</main>
+</body>
+</html>`;
+}
+
+async function getMunicipalWalkMapListPage(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "12"), 1, 24);
+  const summaries = await getMunicipalWalkMapSummariesFromD1(env, null, false, limit)
+    ?? STATIC_MUNICIPAL_WALK_MAP_SUMMARIES.slice(0, limit);
+  return html(renderMunicipalWalkMapListHtml(summaries), 200, {
+    "cache-control": "public, max-age=60, stale-while-revalidate=300",
+    "x-ikimon-cloudflare-native": "municipal-walk-map-list"
+  });
+}
+
+function municipalWalkMapSourceById(sourceId: string) {
+  const safeSourceId = normalizeOptionalId(sourceId);
+  if (!safeSourceId) return null;
+  return STATIC_MUNICIPAL_WALK_MAP_SOURCE_CATALOG.find((source) => source.sourceId === safeSourceId) ?? null;
+}
+
+function municipalWalkMapTemplateById(templateId: string | null | undefined) {
+  const safeTemplateId = normalizeOptionalId(templateId);
+  if (!safeTemplateId) return null;
+  return STATIC_MUNICIPAL_WALK_MAP_TEMPLATES.find((template) => template.templateId === safeTemplateId) ?? null;
+}
+
+function renderMunicipalWalkMapSourceDraftHtml(source: Record<string, unknown>): string {
+  const template = municipalWalkMapTemplateById(normalizeOptionalText(source.templateId));
+  const sourceUrl = normalizeOptionalText(source.sourceUrl);
+  const officialPageUrl = normalizeOptionalText(source.officialPageUrl) ?? sourceUrl;
+  const title = normalizeOptionalText(source.title) ?? "散策マップ出典";
+  const municipality = normalizeOptionalText(source.municipality) ?? "";
+  return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)} - ikimon</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+.wm-source{max-width:960px;margin:0 auto;padding:24px 16px 72px}
+.wm-source h1{margin:0 0 10px;font-size:30px;line-height:1.18;letter-spacing:0}
+.wm-source p{margin:0;color:#475569;line-height:1.7}
+.wm-source-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;margin-top:16px}
+.wm-source-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}
+.wm-source-panel h2{margin:0 0 10px;font-size:18px}
+.wm-source-panel ul{margin:0;padding-left:18px;color:#475569;line-height:1.7}
+.wm-source a{color:#0f766e;font-weight:900;text-decoration:none}
+@media(max-width:760px){.wm-source-grid{grid-template-columns:1fr}.wm-source{padding:18px 12px 56px}.wm-source h1{font-size:26px}}
+</style>
+</head>
+<body>
+<main class="wm-source">
+  <p><strong>${escapeHtml(municipality)}</strong></p>
+  <h1>${escapeHtml(title)}</h1>
+  <p>${escapeHtml(normalizeOptionalText(source.cue) ?? "公開ページを出典として、散策用の構成に変換します。")}</p>
+  <div class="wm-source-grid">
+    <section class="wm-source-panel">
+      <h2>下書きの型</h2>
+      <p>${escapeHtml(normalizeOptionalText(template?.label) ?? "散策マップ")}</p>
+      <ul>
+        <li>本文、写真、図版は転載しない</li>
+        <li>出典リンクを表示する</li>
+        <li>立入条件と公開粒度を確認する</li>
+      </ul>
+    </section>
+    <aside class="wm-source-panel">
+      <h2>出典</h2>
+      <ul>
+        ${officialPageUrl ? `<li><a href="${escapeHtml(officialPageUrl)}" rel="noopener noreferrer">${escapeHtml(title)}</a></li>` : "<li>出典URL未設定</li>"}
+      </ul>
+    </aside>
+  </div>
+</main>
+</body>
+</html>`;
+}
+
+function getMunicipalWalkMapSourceDraftPage(sourceId: string): Response {
+  const source = municipalWalkMapSourceById(sourceId);
+  if (!source) {
+    return html("<!doctype html><meta charset=\"utf-8\"><title>出典が見つかりません</title><main><h1>出典が見つかりません</h1></main>", 404, { "cache-control": "public, max-age=60" });
+  }
+  return html(renderMunicipalWalkMapSourceDraftHtml(source), 200, {
+    "cache-control": "public, max-age=300",
+    "x-ikimon-cloudflare-native": "municipal-walk-map-source-draft"
+  });
+}
+
 async function getMunicipalWalkMapSummariesFromD1(
   env: Env,
   matchedMunicipalityCode: string | null,
@@ -3053,6 +3207,103 @@ async function requireMunicipalWalkMapAdminSession(request: Request, env: Env): 
   if (!session) throw new HttpError(401, "session_required");
   if (session.banned || !isMunicipalWalkMapAdminRole(session)) throw new HttpError(403, "admin_required");
   return session;
+}
+
+function renderMunicipalWalkMapAdminShellHtml(input: {
+  title: string;
+  lead: string;
+  body: string;
+  aside?: string;
+}): string {
+  return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(input.title)} - ikimon admin</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+.wm-admin{max-width:1180px;margin:0 auto;padding:22px 16px 72px}
+.wm-admin-head{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:14px}
+.wm-admin-head h1{margin:0;font-size:28px;line-height:1.18;letter-spacing:0}
+.wm-admin-head p{margin:6px 0 0;color:#475569;line-height:1.6}
+.wm-admin-nav{display:flex;gap:8px;flex-wrap:wrap}
+.wm-admin-nav a,.wm-admin-action{border:1px solid #cfe1da;border-radius:8px;background:#fff;color:#0f766e;font-weight:900;text-decoration:none;padding:8px 10px}
+.wm-admin-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:start}
+.wm-admin-stack{display:grid;gap:10px}
+.wm-admin-card{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}
+.wm-admin-card h2{margin:0 0 8px;font-size:17px;color:#0f172a}
+.wm-admin-card p,.wm-admin-card small{color:#475569;line-height:1.65}
+.wm-admin-card p{margin:0}
+.wm-admin-card small{display:block;font-weight:800}
+.wm-admin-card ul{margin:8px 0 0;padding-left:18px;color:#475569;line-height:1.7}
+.wm-admin-card a{color:#0f766e;font-weight:900;text-decoration:none}
+@media(max-width:800px){.wm-admin-head{display:grid;align-items:start}.wm-admin-grid{grid-template-columns:1fr}.wm-admin{padding:18px 12px 56px}.wm-admin-head h1{font-size:24px}}
+</style>
+</head>
+<body>
+<main class="wm-admin">
+  <header class="wm-admin-head">
+    <div>
+      <h1>${escapeHtml(input.title)}</h1>
+      <p>${escapeHtml(input.lead)}</p>
+    </div>
+    <nav class="wm-admin-nav" aria-label="散策マップ管理">
+      <a href="/admin/municipal-walk-maps">作成</a>
+      <a href="/admin/municipal-walk-map-reviews">審査</a>
+      <a href="/admin/municipal-walk-map-creators">作成者</a>
+    </nav>
+  </header>
+  <div class="wm-admin-grid">
+    <section class="wm-admin-stack">${input.body}</section>
+    <aside class="wm-admin-stack">${input.aside ?? ""}</aside>
+  </div>
+</main>
+</body>
+</html>`;
+}
+
+function renderMunicipalWalkMapAdminPageHtml(url: URL): string {
+  const templateId = normalizeOptionalId(url.searchParams.get("templateId"));
+  const sourceId = normalizeOptionalId(url.searchParams.get("sourceId"));
+  const walkMapId = normalizeOptionalId(url.searchParams.get("walkMapId"));
+  const selectedTemplate = municipalWalkMapTemplateById(templateId);
+  const selectedSource = sourceId ? municipalWalkMapSourceById(sourceId) : null;
+  const templateCards = STATIC_MUNICIPAL_WALK_MAP_TEMPLATES.map((template) => `
+    <article class="wm-admin-card">
+      <h2>${escapeHtml(template.label)}</h2>
+      <p>${escapeHtml(template.summary)}</p>
+      <small>${escapeHtml(template.sourcePattern)}</small>
+      <p><a href="/admin/municipal-walk-maps?templateId=${encodeURIComponent(template.templateId)}">この型で作る</a></p>
+    </article>`).join("");
+  const sourceCards = STATIC_MUNICIPAL_WALK_MAP_SOURCE_CATALOG.map((source) => `
+    <article class="wm-admin-card">
+      <h2>${escapeHtml(source.title)}</h2>
+      <p>${escapeHtml(source.cue)}</p>
+      <small>${escapeHtml(source.municipality)} / score ${source.affinityScore}</small>
+      <p><a href="/admin/municipal-walk-maps?sourceId=${encodeURIComponent(source.sourceId)}">出典から下書き</a> / <a href="/walk-map-source-drafts/${encodeURIComponent(source.sourceId)}">出典を見る</a></p>
+    </article>`).join("");
+  const selected = selectedSource
+    ? `<article class="wm-admin-card"><h2>${escapeHtml(selectedSource.title)}</h2><p>${escapeHtml(selectedSource.cue)}</p><small>sourceId: ${escapeHtml(selectedSource.sourceId)}</small></article>`
+    : selectedTemplate
+      ? `<article class="wm-admin-card"><h2>${escapeHtml(selectedTemplate.label)}</h2><p>${escapeHtml(selectedTemplate.summary)}</p><small>templateId: ${escapeHtml(selectedTemplate.templateId)}</small></article>`
+      : walkMapId
+        ? `<article class="wm-admin-card"><h2>編集中</h2><p>${escapeHtml(walkMapId)}</p></article>`
+        : "";
+  return renderMunicipalWalkMapAdminShellHtml({
+    title: "散策マップ管理",
+    lead: "団体・自治体向けの散策マップを、出典リンク付きでD1に保存します。",
+    body: `${selected}<article class="wm-admin-card"><h2>作成API</h2><p>保存は <code>POST /api/v1/admin/municipal-walk-maps</code>、プレビューは <code>POST /api/v1/admin/municipal-walk-maps/preview</code> を使います。</p></article>${templateCards}`,
+    aside: `<article class="wm-admin-card"><h2>参考元</h2><p>本文や図版は転載せず、公開ページへのリンクと散策用の構成だけを扱います。</p></article>${sourceCards}`
+  });
+}
+
+async function getMunicipalWalkMapAdminPage(request: Request, url: URL, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  return html(renderMunicipalWalkMapAdminPageHtml(url), 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "municipal-walk-map-admin-html"
+  });
 }
 
 async function listMunicipalWalkMapTemplatesAdmin(request: Request, env: Env): Promise<Response> {
@@ -3130,19 +3381,50 @@ function municipalWalkMapCreatorFromD1Row(row: MunicipalWalkMapCreatorAdminD1Row
   };
 }
 
-async function listMunicipalWalkMapCreatorsAdmin(request: Request, env: Env): Promise<Response> {
-  await requireMunicipalWalkMapAdminSession(request, env);
+async function getMunicipalWalkMapCreatorAdminItems(env: Env) {
   const rows = await env.OBS_DB.prepare(
     `SELECT creator_id, display_name, registration_kind, verification_status, commercial_intent, notes, updated_at
        FROM municipal_walk_map_creators
       ORDER BY updated_at DESC, creator_id ASC
       LIMIT 200`
   ).all<MunicipalWalkMapCreatorAdminD1Row>();
+  return rows.results.map(municipalWalkMapCreatorFromD1Row);
+}
+
+async function listMunicipalWalkMapCreatorsAdmin(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const creators = await getMunicipalWalkMapCreatorAdminItems(env);
   return json({
     ok: true,
     source: "d1_observations",
-    creators: rows.results.map(municipalWalkMapCreatorFromD1Row)
+    creators
   }, 200, { "cache-control": "no-store" });
+}
+
+function renderMunicipalWalkMapCreatorsAdminHtml(creators: unknown[]): string {
+  const body = creators
+    .map((raw) => recordOrEmpty(raw))
+    .map((creator) => `<article class="wm-admin-card">
+      <h2>${escapeHtml(normalizeOptionalText(creator.displayName) ?? "作成者")}</h2>
+      <p>${escapeHtml(normalizeOptionalText(creator.creatorId) ?? "")}</p>
+      <small>${escapeHtml(normalizeOptionalText(creator.registrationKind) ?? "registered_group")} / ${escapeHtml(normalizeOptionalText(creator.verificationStatus) ?? "pending")} / ${escapeHtml(normalizeOptionalText(creator.commercialIntent) ?? "none")}</small>
+    </article>`)
+    .join("");
+  return renderMunicipalWalkMapAdminShellHtml({
+    title: "散策マップ作成者",
+    lead: "自治体、団体、会社など、散策マップを作れる主体を確認します。",
+    body: body || "<article class=\"wm-admin-card\"><h2>作成者なし</h2><p>作成APIから登録できます。</p></article>",
+    aside: "<article class=\"wm-admin-card\"><h2>登録方針</h2><ul><li>自治体、登録団体、登録会社だけを対象にする</li><li>商業色が強いものは審査で止める</li><li>出典リンクと公開範囲を必ず確認する</li></ul></article>"
+  });
+}
+
+async function getMunicipalWalkMapCreatorsAdminPage(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const creators = await getMunicipalWalkMapCreatorAdminItems(env);
+  return html(renderMunicipalWalkMapCreatorsAdminHtml(creators), 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "municipal-walk-map-creators-html"
+  });
 }
 
 function extractMunicipalWalkMapCreatorInput(body: unknown): Record<string, unknown> {
@@ -3265,6 +3547,15 @@ function municipalWalkMapReviewFromD1Row(row: MunicipalWalkMapReviewAdminD1Row) 
 
 async function listMunicipalWalkMapReviewsAdmin(request: Request, url: URL, env: Env): Promise<Response> {
   await requireMunicipalWalkMapAdminSession(request, env);
+  const reviews = await getMunicipalWalkMapReviewAdminItems(url, env);
+  return json({
+    ok: true,
+    source: "d1_observations",
+    reviews
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getMunicipalWalkMapReviewAdminItems(url: URL, env: Env) {
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 200);
   const rows = await env.OBS_DB.prepare(
     `SELECT m.walk_map_id, m.municipality_code, m.municipality, m.title, m.summary, m.theme, m.publish_mode,
@@ -3279,11 +3570,34 @@ async function listMunicipalWalkMapReviewsAdmin(request: Request, url: URL, env:
                m.walk_map_id ASC
       LIMIT ?`
   ).bind(limit).all<MunicipalWalkMapReviewAdminD1Row>();
-  return json({
-    ok: true,
-    source: "d1_observations",
-    reviews: rows.results.map(municipalWalkMapReviewFromD1Row)
-  }, 200, { "cache-control": "no-store" });
+  return rows.results.map(municipalWalkMapReviewFromD1Row);
+}
+
+function renderMunicipalWalkMapReviewsAdminHtml(reviews: unknown[]): string {
+  const body = reviews
+    .map((raw) => recordOrEmpty(raw))
+    .map((review) => `<article class="wm-admin-card">
+      <h2>${escapeHtml(normalizeOptionalText(review.title) ?? "散策マップ")}</h2>
+      <p>${escapeHtml(normalizeOptionalText(review.summary) ?? "")}</p>
+      <small>${escapeHtml(normalizeOptionalText(review.municipality) ?? "")} / ${escapeHtml(normalizeOptionalText(review.publishMode) ?? "draft")} / stops ${escapeHtml(String(review.stopCount ?? 0))}</small>
+      <p><a href="${escapeHtml(normalizeOptionalText(review.editHref) ?? "/admin/municipal-walk-maps")}">編集</a> / <a href="${escapeHtml(normalizeOptionalText(review.previewHref) ?? "/walk-maps")}">公開候補</a></p>
+    </article>`)
+    .join("");
+  return renderMunicipalWalkMapAdminShellHtml({
+    title: "散策マップ審査",
+    lead: "公開前の散策マップを、出典、立入範囲、場所の出し方で確認します。",
+    body: body || "<article class=\"wm-admin-card\"><h2>審査待ちなし</h2><p>D1に保存された下書きがここに表示されます。</p></article>",
+    aside: "<article class=\"wm-admin-card\"><h2>確認項目</h2><ul><li>出典リンクがある</li><li>公開範囲で観察できる</li><li>正確すぎる位置や内部メモを出さない</li></ul></article>"
+  });
+}
+
+async function getMunicipalWalkMapReviewsAdminPage(request: Request, url: URL, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const reviews = await getMunicipalWalkMapReviewAdminItems(url, env);
+  return html(renderMunicipalWalkMapReviewsAdminHtml(reviews), 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "municipal-walk-map-reviews-html"
+  });
 }
 
 type MunicipalWalkMapReviewAction = "approve_public_preview" | "request_changes" | "emergency_hide";
