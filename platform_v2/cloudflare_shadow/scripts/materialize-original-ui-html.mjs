@@ -78,6 +78,11 @@ const corePaths = [
   "/profile",
   "/profile/settings",
   "/app-refresh",
+  "/community/events/new",
+  "/ja/community/events/new",
+  "/en/community/events/new",
+  "/es/community/events/new",
+  "/pt-br/community/events/new",
   "/ja/",
   "/ja/demo/place-feeling-tags",
   "/ja/guide",
@@ -149,7 +154,7 @@ function renderUrlForPath(pathname) {
     const segment = localizedMatch[1];
     const rest = localizedMatch[2] || "/";
     const lang = segment === "pt-br" ? "pt-BR" : segment;
-    if (["/", "/demo/place-feeling-tags", "/guide", "/login", "/map", "/profile", "/profile/settings", "/record", "/records", "/register"].includes(rest)) {
+    if (["/", "/community/events/new", "/demo/place-feeling-tags", "/guide", "/login", "/map", "/profile", "/profile/settings", "/record", "/records", "/register"].includes(rest)) {
       return `${rest}?lang=${encodeURIComponent(lang)}`;
     }
   }
@@ -267,6 +272,23 @@ function sleep(ms) {
   });
 }
 
+function auditAnonymousHtmlShell(pathname, body) {
+  if (!/^(?:\/(?:ja|en|es|pt-br))?\/community\/events\/new$/.test(pathname)) return;
+  const lowerBody = body.toLowerCase();
+  const forbiddenPatterns = [
+    "csrf",
+    "ikimon_v2_session",
+    "set-cookie",
+    "data-user-id",
+    "current_user",
+    "vieweruserid"
+  ];
+  const matched = forbiddenPatterns.find((pattern) => lowerBody.includes(pattern));
+  if (matched) {
+    throw new Error(`Refusing to materialize ${pathname}: anonymous event shell contains ${matched}.`);
+  }
+}
+
 async function runR2PutWithRetry(commandArgs, label) {
   let lastError;
   for (let attempt = 1; attempt <= r2PutMaxAttempts; attempt += 1) {
@@ -320,6 +342,7 @@ try {
     });
     const contentType = String(response.headers["content-type"] ?? "");
     const ok = response.statusCode >= 200 && response.statusCode < 300 && contentType.includes("text/html");
+    auditAnonymousHtmlShell(pathname, response.body);
     events.push({
       command: renderUrl === pathname ? `render ${pathname}` : `render ${pathname} via ${renderUrl}`,
       exitCode: ok ? 0 : 1,

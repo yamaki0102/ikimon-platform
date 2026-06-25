@@ -4425,6 +4425,7 @@ test("production public UI routes bound broad custom-domain fallback to legacy-s
       "/record",
       "/map",
       "/login",
+      "/es/community/events/new",
       "/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5"
     ];
     const expectedFallbackReasons = new Map([
@@ -4432,6 +4433,7 @@ test("production public UI routes bound broad custom-domain fallback to legacy-s
       ["/record", "html_materialized_miss"],
       ["/map", "html_materialized_miss"],
       ["/login", "html_materialized_miss"],
+      ["/es/community/events/new", "html_materialized_miss"],
       ["/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5", "html_materialized_miss"]
     ]);
 
@@ -4486,9 +4488,20 @@ test("production public UI routes bound broad custom-domain fallback to legacy-s
     assert.equal(seen.at(-1)?.url, "https://ikimon.life/ja/some-old-unmapped-path");
     assert.equal(seen.at(-1)?.reason, "public_custom_domain_path");
 
+    const eventPost = await worker.fetch(new Request("https://ikimon.life/es/community/events/new", {
+      method: "POST",
+      body: "title=origin",
+      headers: { "content-type": "application/x-www-form-urlencoded" }
+    }), productionEnv);
+    assert.equal(eventPost.status, 200);
+    assert.equal(seen.at(-1)?.url, "https://ikimon.life/es/community/events/new");
+    assert.equal(seen.at(-1)?.method, "POST");
+    assert.equal(seen.at(-1)?.reason, "public_custom_domain_path");
+    assert.equal(eventPost.headers.get("x-ikimon-cloudflare-materialized"), null);
+
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
-    assert.equal(seen.length, publicUiRoutes.length + 3);
+    assert.equal(seen.length, publicUiRoutes.length + 4);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -5073,7 +5086,9 @@ test("production original UI html serves materialized anonymous pages from R2 wi
     assert.equal(body.includes("ikimon-app-outbox-v1"), true);
     assert.equal(body.includes("data-cloudflare-public-shell"), false);
     assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
-    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate");
+    assert.equal(response.headers.get("pragma"), "no-cache");
+    assert.equal(response.headers.get("expires"), "0");
     assert.equal(response.headers.get("vary"), "cookie, authorization");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     const demo = await worker.fetch(new Request("https://ikimon.life/demo/place-feeling-tags"), productionEnv);
@@ -5214,7 +5229,7 @@ test("production app refresh page serves materialized reset shell from R2", asyn
     assert.match(body, /<title>ikimon app refresh<\/title>/);
     assert.doesNotMatch(body, /404|ページが見つかりません|Cloudflare移行中|互換表示/);
     assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
-    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
@@ -5261,6 +5276,15 @@ test("production original UI html serves whitelisted public reading routes from 
   await env.ASSET_BUCKET.put("original-ui/html/pt-br/community/fields.html", "<!doctype html><title>Campos / ikimon</title><script>ikimon-app-outbox-v1</script>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/en/community/events/new.html", "<!doctype html><title>New event / ikimon</title><script>ikimon-app-outbox-v1</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/es/community/events/new.html", "<!doctype html><title>Nuevo evento / ikimon</title><script>ikimon-app-outbox-v1</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/pt-br/community/events/new.html", "<!doctype html><title>Novo evento / ikimon</title><script>ikimon-app-outbox-v1</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -5304,6 +5328,26 @@ test("production original UI html serves whitelisted public reading routes from 
       assert.equal(response.status, 200, path);
       assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html", path);
       assert.equal((await response.text()).includes("ikimon-app-outbox-v1"), true, path);
+    }
+
+    const eventShells = new Map([
+      ["/en/community/events/new", "New event / ikimon"],
+      ["/es/community/events/new", "Nuevo evento / ikimon"],
+      ["/pt-br/community/events/new", "Novo evento / ikimon"]
+    ]);
+    for (const [path, expectedTitle] of eventShells) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+      assert.equal(response.status, 200, path);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html", path);
+      assert.equal(response.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate", path);
+      assert.equal(response.headers.get("pragma"), "no-cache", path);
+      assert.equal(response.headers.get("expires"), "0", path);
+      assert.equal(response.headers.get("set-cookie"), null, path);
+      const body = await response.text();
+      assert.equal(body.includes(expectedTitle), true, path);
+      assert.equal(body.includes("ikimon-app-outbox-v1"), true, path);
+      assert.equal(/csrf/i.test(body), false, path);
+      assert.equal(/ikimon_v2_session|data-user-id|current_user|viewerUserId/i.test(body), false, path);
     }
 
     assert.equal(fallbackCalls, 0);

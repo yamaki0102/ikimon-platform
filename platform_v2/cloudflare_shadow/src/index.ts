@@ -923,6 +923,9 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/ja/community/events",
   "/ja/community/events/new",
   "/ja/community/fields",
+  "/en/community/events/new",
+  "/es/community/events/new",
+  "/pt-br/community/events/new",
   "/en/community/fields",
   "/es/community/fields",
   "/pt-br/community/fields",
@@ -1037,6 +1040,7 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/ja/register",
   "/ja/terms"
 ]);
+const ORIGINAL_UI_HTML_CACHE_CONTROL = "no-store, no-cache, must-revalidate, proxy-revalidate";
 
 export const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -4646,7 +4650,9 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
     return new Response(body, {
       headers: {
         "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
-        "cache-control": "no-store",
+        "cache-control": ORIGINAL_UI_HTML_CACHE_CONTROL,
+        "pragma": "no-cache",
+        "expires": "0",
         "vary": "cookie, authorization",
         "x-ikimon-cloudflare-materialized": "original-ui-html"
       }
