@@ -6,6 +6,7 @@ const repoRoot = path.resolve(shadowRoot, "..", "..");
 const platformRoot = path.join(repoRoot, "platform_v2");
 const PG_DEPENDENCY_TABLE_LIMIT = 80;
 const STOP_BLOCKER_TABLE_LIMIT = 120;
+const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".mjs"];
 
 function walk(dir, predicate, output = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -23,6 +24,42 @@ function read(file) {
 
 function rel(file) {
   return path.relative(repoRoot, file).replaceAll("\\", "/");
+}
+
+function isTestSourceFile(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  return /(?:^|\/)(?:test|tests|__tests__|__mocks__)\//.test(normalized)
+    || /\.(?:test|spec)\.(?:ts|tsx|js|mjs)$/.test(normalized);
+}
+
+function extractLocalImportSpecifiers(text) {
+  const specifiers = [];
+  const patterns = [
+    /(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?["']([^"']+)["']/g,
+    /import\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /require\s*\(\s*["']([^"']+)["']\s*\)/g
+  ];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      if (match[1]?.startsWith(".")) specifiers.push(match[1]);
+    }
+  }
+  return specifiers;
+}
+
+function resolveLocalImport(fromRelativeFile, specifier, knownRelativeFiles) {
+  const fromDir = path.dirname(path.join(repoRoot, fromRelativeFile));
+  const rawTarget = path.resolve(fromDir, specifier);
+  const candidates = [];
+  if (SOURCE_EXTENSIONS.some((extension) => rawTarget.endsWith(extension))) {
+    candidates.push(rawTarget);
+  } else {
+    for (const extension of SOURCE_EXTENSIONS) candidates.push(`${rawTarget}${extension}`);
+    for (const extension of SOURCE_EXTENSIONS) candidates.push(path.join(rawTarget, `index${extension}`));
+  }
+  return candidates
+    .map((candidate) => rel(candidate))
+    .find((candidate) => knownRelativeFiles.has(candidate)) ?? null;
 }
 
 function count(pattern, text) {
@@ -268,6 +305,21 @@ const pgSourceRoots = [
 const pgFiles = [];
 const suppressedPgSignalNoiseFiles = [];
 const originFallbackCalls = [];
+const pgSourceFiles = [...new Set(
+  pgSourceRoots.flatMap((dir) => walk(dir, (candidate) => /\.(ts|tsx|js|mjs)$/.test(candidate)))
+)].sort((a, b) => rel(a).localeCompare(rel(b)));
+const knownPgSourceFiles = new Set(pgSourceFiles.map((file) => rel(file)));
+const runtimeImportedTestSourceFiles = new Set();
+
+for (const file of pgSourceFiles) {
+  const relativeFile = rel(file);
+  if (isTestSourceFile(relativeFile)) continue;
+  for (const specifier of extractLocalImportSpecifiers(read(file))) {
+    const target = resolveLocalImport(relativeFile, specifier, knownPgSourceFiles);
+    if (target && isTestSourceFile(target)) runtimeImportedTestSourceFiles.add(target);
+  }
+}
+
 for (const dir of fallbackSourceRoots) {
   for (const file of walk(dir, (candidate) => /\.(ts|tsx|js|mjs)$/.test(candidate))) {
     const text = read(file);
@@ -275,28 +327,29 @@ for (const dir of fallbackSourceRoots) {
   }
 }
 
-for (const dir of pgSourceRoots) {
-  for (const file of walk(dir, (candidate) => /\.(ts|tsx|js|mjs)$/.test(candidate))) {
-    const text = read(file);
-    const flags = classifyPg(text);
-    const suppressedNoise = classifySuppressedPgNoise(text);
-    if (flags.length === 0 && suppressedNoise.length > 0) {
-      suppressedPgSignalNoiseFiles.push({
-        file: rel(file),
-        signals: suppressedNoise
-      });
-    }
-    if (flags.length === 0) continue;
-    pgFiles.push({
+for (const file of pgSourceFiles) {
+  const text = read(file);
+  const flags = classifyPg(text);
+  const suppressedNoise = classifySuppressedPgNoise(text);
+  if (flags.length === 0 && suppressedNoise.length > 0) {
+    suppressedPgSignalNoiseFiles.push({
       file: rel(file),
-      flags,
-      score: scorePg(flags, text),
-      queryCount: count(/\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b/gi, text)
+      signals: suppressedNoise
     });
   }
+  if (flags.length === 0) continue;
+  pgFiles.push({
+    file: rel(file),
+    flags,
+    score: scorePg(flags, text),
+    queryCount: count(/\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b/gi, text)
+  });
 }
 
 pgFiles.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
+const runtimePgFiles = pgFiles.filter((item) => !isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file));
+const testPgFiles = pgFiles.filter((item) => isTestSourceFile(item.file) && !runtimeImportedTestSourceFiles.has(item.file));
+const runtimeImportedTestPgFiles = pgFiles.filter((item) => runtimeImportedTestSourceFiles.has(item.file));
 originFallbackCalls.sort((a, b) => a.category.localeCompare(b.category) || a.reason.localeCompare(b.reason) || a.file.localeCompare(b.file) || a.line - b.line);
 
 const fallbackCategoryCounts = new Map();
@@ -330,7 +383,7 @@ const stopBlockers = [
     category: item.category,
     severity: blockerSeverity({ type: "origin_fallback", category: item.category })
   })),
-  ...pgFiles.map((item) => ({
+  ...runtimePgFiles.map((item) => ({
     type: "pg_dependency",
     key: item.file,
     category: item.flags.join(","),
@@ -371,12 +424,24 @@ const lines = [
   ]),
   "",
   ...section("PostgreSQL Runtime Dependencies"),
+  "- blocker_scope: runtime PostgreSQL/vector/PostGIS/job-locking files plus any test-named file imported by runtime source; standalone test/source-test files are reported below but excluded from blocker_count.",
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
-  `- displayed_pg_dependencies: ${Math.min(PG_DEPENDENCY_TABLE_LIMIT, pgFiles.length)} of ${pgFiles.length}`,
+  `- runtime_pg_dependency_files: ${runtimePgFiles.length}`,
+  `- test_pg_dependency_files: ${testPgFiles.length}`,
+  `- runtime_imported_test_pg_dependency_files: ${runtimeImportedTestPgFiles.length}`,
+  `- displayed_pg_dependencies: ${Math.min(PG_DEPENDENCY_TABLE_LIMIT, runtimePgFiles.length)} of ${runtimePgFiles.length}`,
   "",
   "| score | file | flags | query_count |",
   "|---:|---|---|---:|",
-  ...pgFiles.slice(0, PG_DEPENDENCY_TABLE_LIMIT).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
+  ...runtimePgFiles.slice(0, PG_DEPENDENCY_TABLE_LIMIT).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
+  "",
+  ...section("PostgreSQL Test Source Dependencies"),
+  "- blocker_scope: visible audit inventory only; these files must not be read as VPS-stop-ready while runtime blockers remain.",
+  `- test_pg_dependency_files: ${testPgFiles.length}`,
+  "",
+  "| score | file | flags | query_count |",
+  "|---:|---|---|---:|",
+  ...testPgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
   "",
   ...section("PostgreSQL Signal Noise Suppression"),
   `- js_noise_suppressed_files: ${suppressedPgSignalNoiseFiles.length}`,

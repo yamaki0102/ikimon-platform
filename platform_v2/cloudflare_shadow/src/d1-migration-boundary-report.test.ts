@@ -9,13 +9,39 @@ function loadClassifyPg(script: string): (text: string) => string[] {
   return new Function(`${match[0]}; return classifyPg;`)() as (text: string) => string[];
 }
 
-test("VPS stop readiness counts every PostgreSQL dependency, not only displayed rows", async () => {
+function loadIsTestSourceFile(script: string): (relativeFile: string) => boolean {
+  const match = script.match(/function isTestSourceFile\(relativeFile\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "isTestSourceFile function is present");
+  return new Function(`${match[0]}; return isTestSourceFile;`)() as (relativeFile: string) => boolean;
+}
+
+test("VPS stop readiness counts every runtime PostgreSQL dependency, not only displayed rows", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
 
   assert.match(script, /const PG_DEPENDENCY_TABLE_LIMIT = 80;/);
-  assert.match(script, /\.\.\.pgFiles\.map\(\(item\) => \(\{/);
+  assert.match(script, /const runtimePgFiles = pgFiles\.filter/);
+  assert.match(script, /\.\.\.runtimePgFiles\.map\(\(item\) => \(\{/);
+  assert.match(script, /PostgreSQL Test Source Dependencies/);
+  assert.match(script, /runtimeImportedTestSourceFiles\.has\(item\.file\)/);
+  assert.match(script, /runtime_imported_test_pg_dependency_files/);
+  assert.match(script, /blocker_scope: runtime PostgreSQL\/vector\/PostGIS\/job-locking files/);
   assert.match(script, /displayed_pg_dependencies/);
-  assert.doesNotMatch(script, /\.\.\.pgFiles\.slice\(0,\s*80\)\.map\(\(item\) => \(\{/);
+  assert.doesNotMatch(script, /\.\.\.runtimePgFiles\.slice\(0,\s*80\)\.map\(\(item\) => \(\{/);
+});
+
+test("VPS stop readiness classifies test source paths conservatively", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const isTestSourceFile = loadIsTestSourceFile(script);
+
+  assert.equal(isTestSourceFile("platform_v2/src/services/mapSnapshot.test.ts"), true);
+  assert.equal(isTestSourceFile("platform_v2/src/scripts/applyMigrations.source.test.ts"), true);
+  assert.equal(isTestSourceFile("platform_v2/src/routes/__tests__/guideApi.ts"), true);
+  assert.equal(isTestSourceFile("platform_v2/tests/helpers/db-setup.ts"), true);
+  assert.equal(isTestSourceFile("platform_v2/src/__mocks__/pg.ts"), true);
+
+  assert.equal(isTestSourceFile("platform_v2/src/services/mapSnapshot.ts"), false);
+  assert.equal(isTestSourceFile("platform_v2/src/services/latestObservations.ts"), false);
+  assert.equal(isTestSourceFile("platform_v2/src/services/contestEntry.ts"), false);
 });
 
 test("public custom domain origin fallback is not registered twice", async () => {
