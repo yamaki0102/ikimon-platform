@@ -52,7 +52,7 @@ jobs:
             }
 
             if (pr.draft) {
-              failures.push("PR is still draft.");
+              warnings.push("PR is draft. GitHub blocks merge until ready_for_review; risk checks still run.");
             }
 
             const files = await github.paginate(github.rest.pulls.listFiles, {
