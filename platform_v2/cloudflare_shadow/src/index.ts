@@ -1137,6 +1137,14 @@ export const worker = {
         return await listMunicipalWalkMapReviewsAdmin(request, url, env);
       }
 
+      if (request.method === "GET" && nativePathname === "/api/v1/admin/municipal-walk-map-templates") {
+        return await listMunicipalWalkMapTemplatesAdmin(request, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/admin/municipal-walk-map-source-catalog") {
+        return await listMunicipalWalkMapSourceCatalogAdmin(request, env, url);
+      }
+
       const municipalWalkMapReviewActionMatch = nativePathname.match(/^\/api\/v1\/admin\/municipal-walk-map-reviews\/([^/]+)\/actions$/);
       if (request.method === "POST" && municipalWalkMapReviewActionMatch?.[1]) {
         return await applyMunicipalWalkMapReviewActionAdmin(
@@ -1148,6 +1156,10 @@ export const worker = {
 
       if (request.method === "POST" && nativePathname === "/api/v1/admin/municipal-walk-maps") {
         return await upsertMunicipalWalkMapAdmin(request, null, env);
+      }
+
+      if (request.method === "POST" && nativePathname === "/api/v1/admin/municipal-walk-maps/preview") {
+        return await previewMunicipalWalkMapAdmin(request, env);
       }
 
       const municipalWalkMapAdminUpdateMatch = nativePathname.match(/^\/api\/v1\/admin\/municipal-walk-maps\/([^/]+)$/);
@@ -2545,6 +2557,170 @@ const STATIC_MUNICIPAL_WALK_MAP_SUMMARIES = [
   }
 ];
 
+const DEFAULT_MUNICIPAL_WALK_MAP_CLAIM_BOUNDARY = [
+  "公式調査結果ではなく、散策マップとして扱います。",
+  "学校、私有地、立入不明の場所は公開前に確認します。",
+  "希少種、自宅付近、未成年が推測される情報は場所の出し方を落とします。"
+];
+
+function municipalWalkMapTemplateConfig(input: {
+  title: string;
+  summary: string;
+  theme: string;
+  routeStyle: string;
+  mobilityModes: string[];
+  stops: Array<Record<string, unknown>>;
+}) {
+  return {
+    schemaVersion: "municipal_walk_map_config/v0",
+    walkMapId: "",
+    municipality: "",
+    creatorName: "",
+    creatorProfile: {
+      creatorId: "",
+      displayName: "",
+      registrationKind: "registered_group",
+      verificationStatus: "pending",
+      commercialIntent: "none"
+    },
+    title: input.title,
+    summary: input.summary,
+    theme: input.theme,
+    publishMode: "draft",
+    areaScope: { municipalityCodes: [], placeIds: [], polygonIds: [] },
+    routeStops: input.stops,
+    recordModes: ["photo", "memo", "unknown_species"],
+    routeFlexibility: {
+      routeStyle: input.routeStyle,
+      mobilityModes: input.mobilityModes,
+      offRoutePolicy: input.routeStyle === "guide_only" ? "guide_only" : "off_route_allowed",
+      returnCues: ["近くの公開道へ戻る", "無理に全部回らず、1か所だけで終えてよい"]
+    },
+    publicPrecisionPolicy: "mesh_or_coarser",
+    claimBoundary: DEFAULT_MUNICIPAL_WALK_MAP_CLAIM_BOUNDARY,
+    sourceReferences: []
+  };
+}
+
+const STATIC_MUNICIPAL_WALK_MAP_TEMPLATES = [
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "habitat_micro_walk",
+    label: "水辺・田んぼ・海岸の観察ルート",
+    sourcePattern: "Habitat micro walk",
+    summary: "川、池、海岸沿いで、鳥、水生生物、水位や草地の変化を扱う散策マップ。",
+    exampleSources: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html" },
+      { label: "高知市 鏡川流域いきもの図鑑", url: "https://www.city.kochi.kochi.jp/soshiki/186/r8--kagamigawaryuiki-ikimonozukan.html" }
+    ],
+    config: municipalWalkMapTemplateConfig({
+      title: "水辺を歩く散策マップ",
+      summary: "公開範囲の水辺を歩きながら、鳥の声、水面、草地の変化を軽く残します。",
+      theme: "waterfront",
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike"],
+      stops: [
+        { stopId: "waterfront-start", title: "水辺の入口", areaKind: "waterfront", access: "public_access", estimatedMinutes: 15, noticeCues: ["案内板", "水面", "岸辺の草地"], recordCues: ["鳥の声", "水の量", "水辺の植物"] },
+        { stopId: "waterfront-open-edge", title: "開けた岸辺", areaKind: "waterfront", access: "public_access", estimatedMinutes: 15, noticeCues: ["水鳥", "浅瀬", "橋の下"], recordCues: ["見えた鳥", "水際の花", "風やにおい"] }
+      ]
+    })
+  },
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "route_species_walk",
+    label: "コース散策＋見つかる生きもの",
+    sourcePattern: "Route + species walk",
+    summary: "歩く場所と見つかりやすい生きものを同じ画面で扱う、初回散策向けの型。",
+    exampleSources: [
+      { label: "静岡市 いきもの散策マップ", url: "https://www.city.shizuoka.lg.jp/s6347/s001494.html" },
+      { label: "小山市 小山のいきものさがしてみよう", url: "https://www.city.oyama.tochigi.jp/kurashi/shiminkatsudo-machizukuri/page009360.html" }
+    ],
+    config: municipalWalkMapTemplateConfig({
+      title: "コースで歩く散策マップ",
+      summary: "短い時間で歩ける公開範囲を中心に、花、虫、鳥の声、足元の変化を残します。",
+      theme: "park_walk",
+      routeStyle: "loose_stops",
+      mobilityModes: ["walk", "bike", "public_transport"],
+      stops: [
+        { stopId: "park-entrance", title: "公園入口", areaKind: "park", access: "public_access", estimatedMinutes: 10, noticeCues: ["案内板", "花壇", "木陰"], recordCues: ["咲いている花", "虫の動き", "木の実"] },
+        { stopId: "grass-edge", title: "草地のふち", areaKind: "park", access: "public_access", estimatedMinutes: 10, noticeCues: ["草の高さ", "湿った場所", "落ち葉"], recordCues: ["足元の草花", "聞こえた音", "季節の色"] }
+      ]
+    })
+  },
+  {
+    schemaVersion: "municipal_walk_map_template/v0",
+    templateId: "citizen_campaign_walk",
+    label: "市民参加型いきもの調査",
+    sourcePattern: "Citizen science campaign",
+    summary: "市内全域で、住宅地、公園、道沿いなど身近な場所の発見を集めるキャンペーン型。",
+    exampleSources: [
+      { label: "飯田市 いきもの大調査", url: "https://www.city.iida.lg.jp/soshiki/19/ikimonochousainiidasaishuuhoukoku.html" },
+      { label: "岡崎市 みんなでつくる おかざき生きもの図鑑", url: "https://www.city.okazaki.lg.jp/kurashi/gomi/1002429/1002431/1002427.html" }
+    ],
+    config: municipalWalkMapTemplateConfig({
+      title: "市内の生きものを残す散策マップ",
+      summary: "市内の公開範囲で、花、虫、鳥、身近な季節の変化を軽く残します。",
+      theme: "city_nature",
+      routeStyle: "free_area",
+      mobilityModes: ["walk", "bike", "car", "motorbike", "public_transport"],
+      stops: [
+        { stopId: "nearby-park-or-street", title: "近くの公園や道沿い", areaKind: "street_edge", access: "public_access", estimatedMinutes: 10, noticeCues: ["街路樹", "花壇", "足元の草"], recordCues: ["見えた花", "虫や鳥", "気づいた季節"] }
+      ]
+    })
+  }
+];
+
+const STATIC_MUNICIPAL_WALK_MAP_SOURCE_CATALOG = [
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "shizuoka-ikimono-walk-route",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "静岡市",
+    title: "静岡市 いきもの散策マップ",
+    sourceUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
+    officialPageUrl: "https://www.city.shizuoka.lg.jp/s6347/s001494.html",
+    affinityScore: 21,
+    cue: "コースと見つかる生きものを同時に見せる型。ikimon.lifeでは立ち寄り先と記録CTAに分ける。"
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "ota-ikimono-discovery-map",
+    templateId: "route_species_walk",
+    primaryType: "walk_route_species_map",
+    municipality: "大田区",
+    title: "おおた区いきもの発見MAP",
+    sourceUrl: "https://www.city.ota.tokyo.jp/seikatsu/sumaimachinami/kankyou/hogo/ikimonomap.html",
+    officialPageUrl: "https://www.city.ota.tokyo.jp/seikatsu/sumaimachinami/kankyou/hogo/ikimonomap.html",
+    affinityScore: 28,
+    cue: "区内をエリアに分けた都市型の散策PDF群。エリア別の立ち寄り先に変換しやすい。"
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "iida-biome-campaign-report",
+    templateId: "citizen_campaign_walk",
+    primaryType: "citizen_science_report",
+    municipality: "飯田市",
+    title: "いきもの大調査 in いいだ",
+    sourceUrl: "https://www.city.iida.lg.jp/soshiki/19/ikimonochousainiidasaishuuhoukoku.html",
+    officialPageUrl: "https://www.city.iida.lg.jp/soshiki/19/ikimonochousainiidasaishuuhoukoku.html",
+    affinityScore: 29,
+    cue: "市内全域の投稿キャンペーン型。自由エリアと安全な公開粒度をセットにする。"
+  },
+  {
+    schemaVersion: "municipal_walk_map_source_catalog/v0",
+    sourceId: "kochi-kagamigawa-biome",
+    templateId: "habitat_micro_walk",
+    primaryType: "citizen_science_report",
+    municipality: "高知市",
+    title: "鏡川流域いきもの図鑑をつくろう",
+    sourceUrl: "https://www.city.kochi.kochi.jp/soshiki/186/r8--kagamigawaryuiki-ikimonozukan.html",
+    officialPageUrl: "https://www.city.kochi.kochi.jp/soshiki/186/r8--kagamigawaryuiki-ikimonozukan.html",
+    affinityScore: 29,
+    cue: "川の流域を対象にした型。水辺、親子イベント、学校連携を分けて安全に扱う。"
+  }
+];
+
 const WALK_MAP_LOCATION_BBOXES = [
   { municipalityCode: "22100", bbox: [137.47, 34.57, 139.16, 35.65] as const }
 ];
@@ -2655,6 +2831,63 @@ async function requireMunicipalWalkMapAdminSession(request: Request, env: Env): 
   if (!session) throw new HttpError(401, "session_required");
   if (session.banned || !isMunicipalWalkMapAdminRole(session)) throw new HttpError(403, "admin_required");
   return session;
+}
+
+async function listMunicipalWalkMapTemplatesAdmin(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  return json({
+    ok: true,
+    source: "cloudflare_static",
+    templates: STATIC_MUNICIPAL_WALK_MAP_TEMPLATES
+  }, 200, { "cache-control": "no-store" });
+}
+
+function sourceAccessModelForCatalogEntry(source: Record<string, unknown>) {
+  const sourceUrl = normalizeOptionalText(source.sourceUrl);
+  return {
+    downloadKind: sourceUrl && /\.pdf(?:$|\?)/i.test(sourceUrl) ? "direct_pdf" : "official_page_with_links",
+    label: "公式ページを出典として扱う",
+    downloadUrl: sourceUrl,
+    rightsNote: "本文、写真、図版は転載せず、出典リンクと散策用の再構成だけを扱います。",
+    importPolicy: "citation_only_no_body_copy"
+  };
+}
+
+function sourceRiskModelForCatalogEntry(source: Record<string, unknown>) {
+  const primaryType = normalizeOptionalText(source.primaryType);
+  const isCampaign = primaryType === "citizen_science_report";
+  return {
+    coordinateSensitivity: isCampaign ? "medium_area_only" : "low_public_route",
+    reuseRisk: isCampaign ? "medium_pdf_or_external_terms" : "low_citation_page",
+    reviewFlags: isCampaign ? ["public_precision_required"] : [],
+    reviewNote: isCampaign
+      ? "投稿型の情報は地点を粗くし、個人や希少種が推測される内容を避けます。"
+      : "公開ルート・公開ページを出典として、立入条件と引用元を表示します。"
+  };
+}
+
+async function listMunicipalWalkMapSourceCatalogAdmin(request: Request, env: Env, url: URL): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const templateId = normalizeOptionalId(url.searchParams.get("templateId"));
+  const accessKind = normalizeOptionalText(url.searchParams.get("accessKind"));
+  const coordinateSensitivity = normalizeOptionalText(url.searchParams.get("coordinateSensitivity"));
+  const reuseRisk = normalizeOptionalText(url.searchParams.get("reuseRisk"));
+  const sources = STATIC_MUNICIPAL_WALK_MAP_SOURCE_CATALOG
+    .map((source) => ({
+      ...source,
+      operationalModel: source.primaryType === "citizen_science_report" ? "external_app_campaign" : "official_walk_pdf",
+      accessModel: sourceAccessModelForCatalogEntry(source),
+      riskModel: sourceRiskModelForCatalogEntry(source)
+    }))
+    .filter((source) => !templateId || source.templateId === templateId)
+    .filter((source) => !accessKind || source.accessModel.downloadKind === accessKind)
+    .filter((source) => !coordinateSensitivity || source.riskModel.coordinateSensitivity === coordinateSensitivity)
+    .filter((source) => !reuseRisk || source.riskModel.reuseRisk === reuseRisk);
+  return json({
+    ok: true,
+    source: "cloudflare_static",
+    sources
+  }, 200, { "cache-control": "no-store" });
 }
 
 function normalizeEnum(value: unknown, allowed: readonly string[], fallback: string): string {
@@ -3082,6 +3315,117 @@ function normalizeMunicipalWalkMapConfigForD1(config: Record<string, unknown>, p
     claimBoundary: arrayOrEmpty(config.claimBoundary ?? config.claim_boundary),
     publicationReview
   };
+}
+
+function normalizeMunicipalWalkMapPreviewConfig(config: Record<string, unknown>) {
+  const creatorProfile = recordOrEmpty(config.creatorProfile ?? config.creator_profile);
+  const routeFlexibility = recordOrEmpty(config.routeFlexibility ?? config.route_flexibility);
+  const rawStops = arrayOrEmpty(config.routeStops ?? config.route_stops);
+  const stops = rawStops.map(normalizeWalkMapStopForD1);
+  return {
+    walkMapId: normalizeOptionalId(config.walkMapId ?? config.walk_map_id) ?? "admin-draft-preview",
+    municipality: normalizeOptionalText(config.municipality) ?? "未設定",
+    title: normalizeOptionalText(config.title) ?? "散策マップの下書き",
+    summary: normalizeOptionalText(config.summary) ?? "公開前の下書きプレビューです。",
+    theme: normalizeOptionalText(config.theme) ?? "seasonal_walk",
+    publishMode: normalizeEnum(config.publishMode ?? config.publish_mode, ["draft", "public_preview", "public"], "draft"),
+    creatorName: normalizeOptionalText(config.creatorName ?? config.creator_name)
+      ?? normalizeOptionalText(creatorProfile.displayName ?? creatorProfile.display_name)
+      ?? "",
+    routeStyle: normalizeOptionalText(routeFlexibility.routeStyle ?? routeFlexibility.route_style ?? config.routeStyle ?? config.route_style) ?? "loose_stops",
+    mobilityModes: arrayOrEmpty(routeFlexibility.mobilityModes ?? routeFlexibility.mobility_modes ?? config.mobilityModes ?? config.mobility_modes),
+    sourceReferences: arrayOrEmpty(config.sourceReferences ?? config.source_references),
+    areaHint: firstAreaHintFromConfig(config, rawStops),
+    stops
+  };
+}
+
+function htmlList(items: unknown[]): string {
+  const list = items.map((item) => normalizeOptionalText(item)).filter((item): item is string => Boolean(item));
+  if (list.length === 0) return "<li>現地で確認</li>";
+  return list.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+}
+
+function renderMunicipalWalkMapPreviewHtml(config: ReturnType<typeof normalizeMunicipalWalkMapPreviewConfig>): string {
+  const stops = config.stops.length > 0 ? config.stops : [
+    { stopId: "preview-stop", title: "最初の立ち寄り先", access: "public_access", areaKind: "park", noticeCues: ["案内板", "足元", "木陰"], recordCues: ["写真", "メモ"] }
+  ];
+  const stopHtml = stops.map((stop, index) => {
+    const title = normalizeOptionalText(stop.title) ?? `立ち寄り先 ${index + 1}`;
+    const areaKind = normalizeOptionalText(stop.areaKind) ?? "other";
+    const access = normalizeOptionalText(stop.access) ?? "public_access";
+    return `<article class="wm-preview-stop">
+      <div class="wm-preview-stop-head">
+        <h2>${escapeHtml(title)}</h2>
+        <span>${escapeHtml(areaKind)} / ${escapeHtml(access)}</span>
+      </div>
+      <div class="wm-preview-cues">
+        <section><strong>見つける手がかり</strong><ul>${htmlList(arrayOrEmpty(stop.noticeCues))}</ul></section>
+        <section><strong>残すもの</strong><ul>${htmlList(arrayOrEmpty(stop.recordCues))}</ul></section>
+      </div>
+    </article>`;
+  }).join("");
+  const sources = config.sourceReferences
+    .map((source) => recordOrEmpty(source))
+    .map((source) => {
+      const label = normalizeOptionalText(source.label) ?? "出典";
+      const href = normalizeOptionalText(source.url);
+      return href
+        ? `<li><a href="${escapeHtml(href)}" rel="noopener noreferrer">${escapeHtml(label)}</a></li>`
+        : `<li>${escapeHtml(label)}</li>`;
+    })
+    .join("");
+  return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(config.title)} - ikimon</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+.wm-preview{max-width:1080px;margin:0 auto;padding:28px 18px 72px}
+.wm-preview-hero{display:grid;gap:10px;margin-bottom:18px}
+.wm-preview-hero p{margin:0;color:#475569;line-height:1.7}
+.wm-preview-eyebrow{color:#0f766e;font-size:12px;font-weight:900}
+h1{margin:0;font-size:32px;line-height:1.18}
+.wm-preview-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.wm-preview-stops{display:grid;gap:12px}
+.wm-preview-stop,.wm-preview-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}
+.wm-preview-stop-head{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.wm-preview-stop h2,.wm-preview-panel h2{margin:0 0 10px;font-size:18px;color:#0f172a}
+.wm-preview-stop-head span{font-size:11px;font-weight:900;color:#0f766e}
+.wm-preview-cues{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wm-preview-cues section{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px}
+.wm-preview-cues ul,.wm-preview-panel ul{margin:6px 0 0;padding-left:18px;color:#475569;font-size:12px;line-height:1.7}
+.wm-preview-panel{display:grid;gap:12px}
+.wm-preview-panel a{color:#0f766e;font-weight:900;text-decoration:none}
+@media(max-width:760px){.wm-preview-grid,.wm-preview-cues{grid-template-columns:1fr}.wm-preview{padding:18px 12px 56px}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<main class="wm-preview">
+  <header class="wm-preview-hero">
+    <div class="wm-preview-eyebrow">${escapeHtml(config.municipality)} / draft preview</div>
+    <h1>${escapeHtml(config.title)}</h1>
+    <p>${escapeHtml(config.summary)}</p>
+  </header>
+  <div class="wm-preview-grid">
+    <section class="wm-preview-stops">${stopHtml}</section>
+    <aside class="wm-preview-panel">
+      <section><h2>移動</h2><p>${escapeHtml(config.routeStyle)} / ${escapeHtml(config.mobilityModes.map(String).join(" / ") || "walk")}</p></section>
+      <section><h2>出典</h2><ul>${sources || "<li>公開時に出典リンクを設定</li>"}</ul></section>
+    </aside>
+  </div>
+</main>
+</body>
+</html>`;
+}
+
+async function previewMunicipalWalkMapAdmin(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const input = extractMunicipalWalkMapConfigInput(await readJson<unknown>(request));
+  const config = normalizeMunicipalWalkMapPreviewConfig(input);
+  return html(renderMunicipalWalkMapPreviewHtml(config), 200, { "cache-control": "no-store" });
 }
 
 function deriveMunicipalWalkMapCreatorD1Profile(
