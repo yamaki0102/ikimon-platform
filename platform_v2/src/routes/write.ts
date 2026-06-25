@@ -60,7 +60,6 @@ import { adoptObservationCandidate } from "../services/observationCandidateAdopt
 import { proposeObservationSubjectFromCandidate } from "../services/observationSubjectProposal.js";
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
-import { hideOwnObservation } from "../services/observationVisibility.js";
 import {
   confirmReferenceDuplicateMerge,
   createKnowledgeSourceCorrection,
@@ -997,31 +996,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { id: string; candidateId: string } }>(
     "/api/v1/observations/:id/candidates/:candidateId/adopt",
     handleCandidateAdoption,
-  );
-
-  app.post<{ Params: { id: string } }>(
-    "/api/v1/observations/:id/hide",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          throw new Error("session_required");
-        }
-        await assertMutationRateLimit(request, "observation-hide", session.userId, 10);
-        const result = await hideOwnObservation({
-          observationId: request.params.id,
-          actorUserId: session.userId,
-        });
-        invalidateUserVisibleSnapshots();
-        return { ok: true, ...result };
-      } catch (error) {
-        reply.code(errorStatus(error, 400));
-        return {
-          ok: false,
-          error: error instanceof Error ? error.message : "observation_hide_failed",
-        };
-      }
-    },
   );
 
   app.post<{

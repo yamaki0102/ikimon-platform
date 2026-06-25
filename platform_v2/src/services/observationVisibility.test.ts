@@ -1,29 +1,25 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-test("owner delete is a soft hide and keeps observation media intact", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "services", "observationVisibility.ts"), "utf8");
-  assert.match(source, /public_visibility = 'hidden'/);
-  assert.match(source, /quality_review_status = 'archived'/);
-  assert.doesNotMatch(source, /delete\s+from\s+(visits|occurrences|evidence_assets|asset_blobs)/i);
-});
+test("origin PostgreSQL owner-hide service is retired in favor of Worker native hide", async () => {
+  assert.equal(existsSync(path.join(process.cwd(), "src", "services", "observationVisibility.ts")), false);
 
-test("owner delete verifies ownership before hiding the visit", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "services", "observationVisibility.ts"), "utf8");
-  assert.match(source, /target\.user_id !== actorUserId/);
-  assert.match(source, /observation_not_owned/);
-});
+  const writeRoutes = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
+  assert.doesNotMatch(writeRoutes, /observationVisibility/);
+  assert.doesNotMatch(writeRoutes, /\/api\/v1\/observations\/:id\/hide/);
 
-test("owner delete casts jsonb_build_object parameters for postgres type inference", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "services", "observationVisibility.ts"), "utf8");
-  assert.match(source, /'owner_hidden_at',\s+\$2::text/);
-  assert.match(source, /'owner_hidden_by',\s+\$3::text/);
+  const workerSource = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  assert.match(workerSource, /hideCompatibleObservation/);
+  assert.match(workerSource, /POST \/api\/v1\/observations\/:id\/hide/);
+  assert.match(workerSource, /UPDATE observations SET emergency_hidden = 1/);
+  assert.match(workerSource, /DELETE FROM readmodel_public_observations WHERE observation_id = \?/);
 });
 
 test("observation upsert keeps an owner-hidden visit hidden on re-upsert", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "services", "observationWrite.ts"), "utf8");
+  const source = await readFile(path.join(process.cwd(), "src/services/observationWrite.ts"), "utf8");
   assert.match(source, /when visits\.public_visibility = 'hidden' then 'hidden'/);
   assert.match(source, /when visits\.public_visibility = 'hidden' then visits\.quality_review_status/);
   assert.match(source, /'owner_hidden_at', visits\.source_payload->>'owner_hidden_at'/);
