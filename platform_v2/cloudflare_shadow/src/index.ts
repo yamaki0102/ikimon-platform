@@ -1160,6 +1160,11 @@ export const worker = {
         return await getMunicipalWalkMapPublicDetailPage(decodeURIComponent(municipalWalkMapDetailPageMatch[1]), env);
       }
 
+      const nativePlacePageMatch = nativePathname.match(/^\/places\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && nativePlacePageMatch?.[1]) {
+        return getNativePlaceLandingPage(decodeURIComponent(nativePlacePageMatch[1]), request);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/municipal-walk-maps") {
         return await getMunicipalWalkMapAdminPage(request, url, env);
       }
@@ -1454,6 +1459,10 @@ export const worker = {
         return json({ error: "not_found" }, 404);
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && PUBLIC_CUSTOM_HOSTS.has(url.hostname) && !url.pathname.startsWith("/api/")) {
+        return getNativeNotFoundPage(request);
+      }
+
       return json({ error: "not_found" }, 404);
     } catch (error) {
       if (error instanceof HttpError) {
@@ -1628,6 +1637,7 @@ function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL
   if (isShadowDiagnosticPath(url.pathname)) return false;
   if (url.pathname === "/health") return false;
   if (isSuspiciousPublicProbePath(url.pathname)) return false;
+  if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[^/]+$/.test(url.pathname)) return false;
   if (url.pathname.startsWith("/api/v1/observations/")) return false;
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
   if (request.method !== "GET" && request.method !== "HEAD") return true;
@@ -1641,8 +1651,9 @@ function shouldUseOriginFallback(url: URL, env: Env): boolean {
 function isSuspiciousPublicProbePath(pathname: string): boolean {
   if (pathname.startsWith("/data:")) return true;
   if (pathname === "/app-ads.txt") return true;
-  if (/^\/(?:\.|api\/\.|app\/\.|backend\/\.|config\/|credentials\/)/.test(pathname)) return true;
-  if (/(?:^|\/)(?:wp-includes|wlwmanifest\.xml|xmlrpc\.php)(?:\/|$)/.test(pathname)) return true;
+  if (/^\/(?:\.|api\/\.|app\/\.|backend\/\.|config\/|credentials\/|debug\/|test\/|tests\/|xampp\/|www\/|web\/)/i.test(pathname)) return true;
+  if (/(?:^|\/)(?:wp|wordpress|wp-admin|wp-content|wp-includes|wp-json|wlwmanifest\.xml|xmlrpc\.php)(?:\/|$)/i.test(pathname)) return true;
+  if (/(?:^|\/)(?:phpinfo|updates?\.php|setup-config\.php|install\.php|mock-data)(?:\/|$)/i.test(pathname)) return true;
   if (/(?:^|\/)(?:client_secrets?|service[-_]?account|firebase[-_]?credentials|firebase[-_]?service[-_]?account|gcp[-_]?credentials|gcloud[-_]?service[-_]?key)\.json$/i.test(pathname)) return true;
   if (/^\/(?:firebase-adminsdk|firebase|gcp-key|credentials|application_default_credentials)\.json$/i.test(pathname)) return true;
   if (/^\/appsettings\.(?:json|development\.json|production\.json)$/i.test(pathname)) return true;
@@ -3005,6 +3016,116 @@ async function getMunicipalWalkMapPublicDetailPage(walkMapId: string, env: Env):
   const detail = await getMunicipalWalkMapPublicDetail(walkMapId, env);
   if (!detail) return html("<!doctype html><meta charset=\"utf-8\"><title>散策マップが見つかりません</title><main><h1>散策マップが見つかりません</h1></main>", 404, { "cache-control": "public, max-age=60" });
   return html(renderMunicipalWalkMapPublicDetailHtml(detail), 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+}
+
+function getNativePlaceLandingPage(slug: string, request: Request): Response {
+  const placeSlug = slug.trim().toLowerCase();
+  if (placeSlug !== "hamamatsu") {
+    return getNativeNotFoundPage(request);
+  }
+
+  const spots = SHADOW_MAP_GUIDE_SPOTS
+    .filter((spot) => spot.id.startsWith("hamamatsu-"))
+    .slice(0, 8);
+  const spotItems = spots.map((spot) => {
+    const sourceLinks = (spot.sourceLinks ?? [])
+      .slice(0, 2)
+      .map((source) => `<a href="${escapeHtml(source.url)}" rel="noopener noreferrer">${escapeHtml(source.label)}</a>`)
+      .join("");
+    return `<article class="place-card">
+      <span>${escapeHtml(spot.category)}</span>
+      <h2>${escapeHtml(spot.title)}</h2>
+      <p>${escapeHtml(spot.preview)}</p>
+      <div class="place-links">${sourceLinks}</div>
+    </article>`;
+  }).join("");
+  const body = `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>浜松のガイド地点 - ikimon</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+.place{max-width:1040px;margin:0 auto;padding:24px 16px 72px}
+.place-head{display:grid;gap:10px;margin-bottom:18px}
+.place-head h1{margin:0;font-size:30px;line-height:1.18;letter-spacing:0;color:#0f172a}
+.place-head p{margin:0;max-width:720px;color:#475569;line-height:1.75}
+.place-actions{display:flex;flex-wrap:wrap;gap:8px}
+.place-actions a{display:inline-flex;align-items:center;min-height:38px;padding:0 13px;border-radius:8px;border:1px solid #b7d8d0;background:#fff;color:#0f766e;text-decoration:none;font-weight:900}
+.place-actions a:first-child{background:#0f766e;color:#fff;border-color:#0f766e}
+.place-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.place-card{display:grid;gap:8px;padding:14px;border:1px solid #dbe7e2;border-radius:8px;background:#fff}
+.place-card span{font-size:12px;font-weight:900;color:#0f766e}
+.place-card h2{margin:0;font-size:18px;line-height:1.35;color:#0f172a}
+.place-card p{margin:0;color:#475569;line-height:1.65}
+.place-links{display:flex;flex-wrap:wrap;gap:8px}
+.place-links a{color:#0f766e;font-size:12px;font-weight:850}
+@media(max-width:760px){.place{padding:18px 12px 56px}.place-head h1{font-size:26px}.place-actions a{width:100%;justify-content:center}}
+</style>
+</head>
+<body>
+<main class="place">
+  <header class="place-head">
+    <h1>浜松のガイド地点</h1>
+    <p>文化財や地域の見どころを、出典つきで歩きやすく並べています。現地で写真やメモを残す入口として使えます。</p>
+    <nav class="place-actions" aria-label="浜松の操作">
+      <a href="/map?place=hamamatsu">地図で見る</a>
+      <a href="/walk-maps">散策マップ</a>
+    </nav>
+  </header>
+  <section class="place-grid">${spotItems}</section>
+</main>
+</body>
+</html>`;
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=300, stale-while-revalidate=600",
+      "x-ikimon-cloudflare-native": "place-guide-list"
+    }
+  });
+}
+
+function getNativeNotFoundPage(request: Request): Response {
+  const body = `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ページが見つかりません - ikimon</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+.nf{max-width:720px;margin:0 auto;padding:48px 16px 72px;display:grid;gap:14px}
+.nf h1{margin:0;font-size:28px;line-height:1.2;color:#0f172a;letter-spacing:0}
+.nf p{margin:0;color:#475569;line-height:1.75}
+.nf-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.nf-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 13px;border-radius:8px;border:1px solid #b7d8d0;background:#fff;color:#0f766e;text-decoration:none;font-weight:900}
+.nf-actions a:first-child{background:#0f766e;color:#fff;border-color:#0f766e}
+@media(max-width:760px){.nf{padding:34px 12px 56px}.nf h1{font-size:24px}.nf-actions a{width:100%}}
+</style>
+</head>
+<body>
+<main class="nf">
+  <h1>ページが見つかりません</h1>
+  <p>URLが変わったか、いまは公開されていないページです。地図や散策マップから探せます。</p>
+  <nav class="nf-actions" aria-label="移動先">
+    <a href="/map">地図へ</a>
+    <a href="/walk-maps">散策マップ</a>
+    <a href="/">トップ</a>
+  </nav>
+</main>
+</body>
+</html>`;
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 404,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=60",
+      "x-ikimon-cloudflare-native": "not-found"
+    }
+  });
 }
 
 function renderMunicipalWalkMapListHtml(summaries: unknown[]): string {
