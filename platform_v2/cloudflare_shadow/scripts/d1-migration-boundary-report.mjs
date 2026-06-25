@@ -82,6 +82,19 @@ function extractD1Bindings(wranglerText) {
   return bindings;
 }
 
+function parseWranglerConfig(wranglerText) {
+  try {
+    return JSON.parse(wranglerText);
+  } catch {
+    return {};
+  }
+}
+
+function productionVarsFromWrangler(config) {
+  const vars = config?.env?.production?.vars;
+  return vars && typeof vars === "object" ? vars : {};
+}
+
 function classifyPg(text) {
   const flags = [];
   if (/\bST_[A-Za-z0-9_]+\s*\(|PostGIS|\bgeometry\b|\bgeography\b/i.test(text)) flags.push("postgis");
@@ -171,6 +184,27 @@ function blockerSeverity(item) {
   return "P2";
 }
 
+function configuredStateForFallback(item, productionVars) {
+  const originFallbackConfigured = typeof productionVars.ORIGIN_FALLBACK_BASE_URL === "string"
+    && productionVars.ORIGIN_FALLBACK_BASE_URL.trim() !== "";
+  const publicWriteMode = String(productionVars.PUBLIC_WRITE_MODE ?? "");
+  if (!originFallbackConfigured) {
+    return { active: false, note: "origin_fallback_not_configured" };
+  }
+  if (item.reason === "public_write_origin_mode" && publicWriteMode !== "origin_fallback") {
+    return { active: false, note: `inactive_public_write_mode_${publicWriteMode || "unset"}` };
+  }
+  if (item.reason === "oauth_provider_not_configured") {
+    return { active: true, note: "active_if_oauth_secret_missing" };
+  }
+  return { active: true, note: "active_in_production_config" };
+}
+
+function configuredStateForBlocker(item, productionVars) {
+  if (item.type !== "origin_fallback") return { active: true, note: "not_config_gated" };
+  return configuredStateForFallback(item, productionVars);
+}
+
 function scorePg(flags, text) {
   let score = flags.length;
   if (flags.includes("postgis")) score += 5;
@@ -186,6 +220,8 @@ function section(title) {
 
 const wranglerPath = path.join(shadowRoot, "wrangler.jsonc");
 const wrangler = read(wranglerPath);
+const wranglerConfig = parseWranglerConfig(wrangler);
+const productionVars = productionVarsFromWrangler(wranglerConfig);
 const d1Bindings = [...new Map(
   extractD1Bindings(wrangler).map((item) => [`${item.binding}:${item.database}:${item.id}`, item])
 ).values()];
@@ -272,6 +308,7 @@ const stopBlockers = [
   ...originFallbackCalls.map((item) => ({
     type: "origin_fallback",
     key: `${item.reason}@${item.file}:${item.line}`,
+    reason: item.reason,
     category: item.category,
     severity: blockerSeverity({ type: "origin_fallback", category: item.category })
   })),
@@ -289,12 +326,17 @@ const stopBlockers = [
   }))
 ];
 
+const configuredStopBlockers = stopBlockers
+  .map((item) => ({ ...item, configured: configuredStateForBlocker(item, productionVars) }))
+  .filter((item) => item.configured.active);
+
 const stopBlockerCounts = stopBlockers.reduce((acc, item) => {
   acc[item.severity] = (acc[item.severity] ?? 0) + 1;
   return acc;
 }, {});
 
 const vpsStopReady = stopBlockers.length === 0;
+const configuredVpsStopReady = configuredStopBlockers.length === 0;
 
 const lines = [
   "# ikimon.life D1 / VPS PostgreSQL Migration Boundary Report",
@@ -325,6 +367,18 @@ const lines = [
   "|---|---|---|---:|",
   ...originFallbackCalls.map((item) => `| ${item.category} | ${item.reason} | ${item.file} | ${item.line} |`),
   "",
+  ...section("Production Fallback Configuration"),
+  `- PUBLIC_WRITE_MODE: ${productionVars.PUBLIC_WRITE_MODE ?? "unset"}`,
+  `- ORIGIN_FALLBACK_BASE_URL: ${productionVars.ORIGIN_FALLBACK_BASE_URL ? "configured" : "unset"}`,
+  `- ORIGIN_FALLBACK_RESOLVE_OVERRIDE: ${productionVars.ORIGIN_FALLBACK_RESOLVE_OVERRIDE ? "configured" : "unset"}`,
+  "",
+  "| reason | configured_state | note |",
+  "|---|---|---|",
+  ...originFallbackCalls.map((item) => {
+    const state = configuredStateForFallback(item, productionVars);
+    return `| ${item.reason} | ${state.active ? "active" : "dormant"} | ${state.note} |`;
+  }),
+  "",
   ...section("VPS / PostgreSQL Workflow Dependencies"),
   ...vpsWorkflows.map((item) => `- ${item.file}: ${item.signals.join(", ")}`),
   "",
@@ -342,6 +396,20 @@ const lines = [
     .slice(0, 120)
     .map((item) => `| ${item.severity} | ${item.type} | ${item.category} | ${item.key} |`),
   "",
+  ...section("Configured Production VPS Stop Readiness Gate"),
+  `- status: ${configuredVpsStopReady ? "ready" : "blocked"}`,
+  `- blocker_count: ${configuredStopBlockers.length}`,
+  `- p0_blockers: ${configuredStopBlockers.filter((item) => item.severity === "P0").length}`,
+  `- p1_blockers: ${configuredStopBlockers.filter((item) => item.severity === "P1").length}`,
+  `- p2_blockers: ${configuredStopBlockers.filter((item) => item.severity === "P2").length}`,
+  "",
+  "| severity | type | category | configured_note | key |",
+  "|---|---|---|---|---|",
+  ...configuredStopBlockers
+    .sort((a, b) => a.severity.localeCompare(b.severity) || a.type.localeCompare(b.type) || a.key.localeCompare(b.key))
+    .slice(0, 120)
+    .map((item) => `| ${item.severity} | ${item.type} | ${item.category} | ${item.configured.note} | ${item.key} |`),
+  "",
   ...section("Migration Priority Heuristic"),
   "- P0: public Cloudflare-native routes with small readmodels and safe fallback.",
   "- P1: authenticated user read APIs that already have D1 canonical tables.",
@@ -352,6 +420,6 @@ const lines = [
 
 console.log(lines.join("\n"));
 
-if (process.argv.includes("--fail-on-vps-blockers") && !vpsStopReady) {
+if (process.argv.includes("--fail-on-vps-blockers") && !configuredVpsStopReady) {
   process.exitCode = 2;
 }
