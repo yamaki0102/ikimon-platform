@@ -348,9 +348,13 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /data-source-operational-model="official_walk_pdf"/);
         assert.match(response.body, /data-source-download-kind="official_page_with_links"/);
         assert.match(response.body, /data-source-download-kind="direct_pdf"/);
+        assert.match(response.body, /data-source-coordinate-sensitivity="high_sensitive_or_minor"/);
+        assert.match(response.body, /data-source-reuse-risk="medium_pdf_or_external_terms"/);
         assert.match(response.body, /散策PDF/);
         assert.match(response.body, /公式ページ/);
         assert.match(response.body, /PDF直接/);
+        assert.match(response.body, /位置注意/);
+        assert.match(response.body, /要確認/);
         assert.match(response.body, /この型で始める/);
         assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
         assert.match(response.body, /自然散策マップ/);
@@ -385,6 +389,7 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /公式ページを開く/);
         assert.match(response.body, /PDFを開く/);
         assert.match(response.body, /公式PDFは引用元として扱い、本文・図版・写真は転載しない/);
+        assert.match(response.body, /公開前に位置の粗さ、立入条件、引用元、写真・図版の扱いを確認する/);
         assert.match(response.body, /textarea name="sourceReferences"/);
         assert.match(response.body, /name="publicAccessAttested"/);
         assert.match(response.body, /name="sourceRightsAttested"/);
@@ -832,6 +837,11 @@ test("municipal walk map source catalog API returns researched official source p
         assert.match(JSON.stringify(body.sources), /official_page_with_links/);
         assert.match(JSON.stringify(body.sources), /html_or_external_form/);
         assert.match(JSON.stringify(body.sources), /citation_only_no_body_copy/);
+        assert.match(JSON.stringify(body.sources), /riskModel/);
+        assert.match(JSON.stringify(body.sources), /coordinateSensitivity/);
+        assert.match(JSON.stringify(body.sources), /reuseRisk/);
+        assert.match(JSON.stringify(body.sources), /sensitive_species_location_check/);
+        assert.match(JSON.stringify(body.sources), /photo_or_illustration_reuse_check/);
       } finally {
         await app.close();
       }

@@ -254,6 +254,13 @@ export type MunicipalWalkMapSourceAccessModelV0 = {
   importPolicy: "citation_only_no_body_copy";
 };
 
+export type MunicipalWalkMapSourceRiskModelV0 = {
+  coordinateSensitivity: "low_public_route" | "medium_area_only" | "high_sensitive_or_minor";
+  reuseRisk: "low_citation_page" | "medium_pdf_or_external_terms" | "high_photo_or_minor_content";
+  reviewFlags: string[];
+  reviewNote: string;
+};
+
 const DEFAULT_WALK_MAP_ID = "jp-shizuoka-light-nature-walk-v0";
 const DEFAULT_CLAIM_BOUNDARY = [
   "公式調査結果ではなく、散策マップとして扱います。",
@@ -2159,6 +2166,50 @@ export function sourceAccessModelV0(source: MunicipalWalkMapSourceCatalogEntryV0
     downloadUrl: null,
     rightsNote: "公式ページ内のPDFや地図リンクを確認し、ikimon.life側には引用元URLと再構成した立ち寄り先だけを入れる。",
     importPolicy: "citation_only_no_body_copy",
+  };
+}
+
+export function sourceRiskModelV0(source: MunicipalWalkMapSourceCatalogEntryV0): MunicipalWalkMapSourceRiskModelV0 {
+  const access = sourceAccessModelV0(source);
+  const haystack = [
+    source.sourceId,
+    source.templateId,
+    source.primaryType,
+    source.municipality,
+    source.title,
+    source.sourceUrl,
+    source.officialPageUrl,
+    source.cue,
+  ].join(" ").toLowerCase();
+  const flags = new Set<string>();
+  if (access.downloadKind === "direct_pdf") flags.add("direct_pdf_rights_check");
+  if (access.downloadKind === "official_page_with_links" && /pdf/.test(haystack)) flags.add("official_page_pdf_links_check");
+  if (access.downloadKind === "html_or_external_form") flags.add("external_platform_terms_check");
+  if (source.primaryType === "species_distribution_map" || /希少|rare|貴重/.test(haystack)) flags.add("sensitive_species_location_check");
+  if (/学校|児童|子ども|こども|親子|園児|minor|school|children/.test(haystack)) flags.add("minor_or_school_context_check");
+  if (/私有地|住宅|自宅|private|permission|許可|立入|採取禁止/.test(haystack)) flags.add("private_or_permission_boundary_check");
+  if (/水辺|川|河川|海|干潟|湖|池|遊水地|water|waterfront|river|wetland/.test(haystack)) flags.add("waterfront_safety_check");
+  if (/写真|画像|図鑑|作品|photo|image|zukan/.test(haystack)) flags.add("photo_or_illustration_reuse_check");
+
+  const coordinateSensitivity = flags.has("sensitive_species_location_check") || flags.has("minor_or_school_context_check")
+    ? "high_sensitive_or_minor"
+    : flags.has("private_or_permission_boundary_check") || flags.has("waterfront_safety_check") || access.downloadKind !== "official_page_with_links"
+      ? "medium_area_only"
+      : "low_public_route";
+  const reuseRisk = flags.has("minor_or_school_context_check") || flags.has("photo_or_illustration_reuse_check")
+    ? "high_photo_or_minor_content"
+    : flags.has("direct_pdf_rights_check") || flags.has("official_page_pdf_links_check") || flags.has("external_platform_terms_check")
+      ? "medium_pdf_or_external_terms"
+      : "low_citation_page";
+
+  const reviewFlags = [...flags].sort();
+  return {
+    coordinateSensitivity,
+    reuseRisk,
+    reviewFlags,
+    reviewNote: reviewFlags.length > 0
+      ? "公開前に位置の粗さ、立入条件、引用元、写真・図版の扱いを確認する。"
+      : "公式ページURLの引用と、公開された道・施設の範囲で下書き化する。",
   };
 }
 

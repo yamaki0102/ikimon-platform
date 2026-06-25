@@ -22,6 +22,7 @@ import {
   reviewMunicipalWalkMapPublicationV0,
   sourceAccessModelV0,
   sourceOperationalModelV0,
+  sourceRiskModelV0,
   upsertMunicipalWalkMapCreatorV0,
   upsertMunicipalWalkMapConfigV0,
   validateMunicipalWalkMapCreatorV0,
@@ -776,6 +777,18 @@ function sourceAccessLinkText(downloadKind: ReturnType<typeof sourceAccessModelV
   return "案内を開く";
 }
 
+function sourceSensitivityLabel(sensitivity: ReturnType<typeof sourceRiskModelV0>["coordinateSensitivity"]): string {
+  if (sensitivity === "high_sensitive_or_minor") return "位置注意";
+  if (sensitivity === "medium_area_only") return "エリア表示";
+  return "公開道中心";
+}
+
+function sourceReuseRiskLabel(risk: ReturnType<typeof sourceRiskModelV0>["reuseRisk"]): string {
+  if (risk === "high_photo_or_minor_content") return "転載注意";
+  if (risk === "medium_pdf_or_external_terms") return "要確認";
+  return "引用中心";
+}
+
 function renderSourceCatalogPanel(
   sources: MunicipalWalkMapSourceCatalogEntryV0[],
   selectedTemplateId: string,
@@ -787,18 +800,22 @@ function renderSourceCatalogPanel(
   const cards = sources.map((source) => {
     const operationalModel = sourceOperationalModelV0(source);
     const accessModel = sourceAccessModelV0(source);
+    const riskModel = sourceRiskModelV0(source);
     return `
     <article class="wm-admin-source-card${source.sourceId === selectedSourceId ? " is-selected" : ""}" data-source-template-id="${escapeHtml(source.templateId)}">
       <div class="wm-admin-source-meta">
         <span>${escapeHtml(primaryTypeLabel(source.primaryType))}</span>
         <span data-source-operational-model="${escapeHtml(operationalModel)}">${escapeHtml(operationalModelLabel(operationalModel))}</span>
         <span data-source-download-kind="${escapeHtml(accessModel.downloadKind)}">${escapeHtml(accessModel.label)}</span>
+        <span data-source-coordinate-sensitivity="${escapeHtml(riskModel.coordinateSensitivity)}">${escapeHtml(sourceSensitivityLabel(riskModel.coordinateSensitivity))}</span>
+        <span data-source-reuse-risk="${escapeHtml(riskModel.reuseRisk)}">${escapeHtml(sourceReuseRiskLabel(riskModel.reuseRisk))}</span>
         <span>${escapeHtml(source.municipality)}</span>
         <span>${escapeHtml(String(source.affinityScore))}</span>
       </div>
       <strong>${escapeHtml(source.title)}</strong>
       <small>${escapeHtml(source.cue)}</small>
       <small>${escapeHtml(accessModel.rightsNote)}</small>
+      <small>${escapeHtml(riskModel.reviewNote)}</small>
       <div class="wm-admin-source-actions">
         <a class="wm-admin-source-draft" href="/admin/municipal-walk-maps?sourceId=${encodeURIComponent(source.sourceId)}">下書きに入れる</a>
         <button type="button" data-add-source-reference data-source-label="${escapeHtml(source.title)}" data-source-url="${escapeHtml(source.officialPageUrl)}" data-source-note="PDF本文や図版は転載しない">引用元へ</button>
@@ -1971,6 +1988,7 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
           ...source,
           operationalModel: sourceOperationalModelV0(source),
           accessModel: sourceAccessModelV0(source),
+          riskModel: sourceRiskModelV0(source),
         }));
       return { ok: true, sources };
     } catch (error) {

@@ -18,6 +18,7 @@ import {
   reviewMunicipalWalkMapPublicationV0,
   sourceAccessModelV0,
   sourceOperationalModelV0,
+  sourceRiskModelV0,
   upsertMunicipalWalkMapConfigV0,
   upsertMunicipalWalkMapCreatorV0,
   validateMunicipalWalkMapCreatorV0,
@@ -705,6 +706,26 @@ test("municipal walk map source catalog covers researched official seed patterns
   assert.equal(sourceAccessModelV0(catalog.find((entry) => entry.sourceId === "kobe-biome-summer-quest")!).downloadKind, "html_or_external_form");
   assert.equal(sourceAccessModelV0(catalog.find((entry) => entry.sourceId === "ota-ikimono-discovery-map")!).downloadKind, "official_page_with_links");
   assert.equal(sourceOperationalModelV0(catalog.find((entry) => entry.sourceId === "ota-ikimono-discovery-map")!), "official_walk_pdf");
+  const sensitivityKinds = new Set(catalog.map((entry) => sourceRiskModelV0(entry).coordinateSensitivity));
+  const reuseRiskKinds = new Set(catalog.map((entry) => sourceRiskModelV0(entry).reuseRisk));
+  assert.deepEqual([...sensitivityKinds].sort(), [
+    "high_sensitive_or_minor",
+    "low_public_route",
+    "medium_area_only",
+  ]);
+  assert.deepEqual([...reuseRiskKinds].sort(), [
+    "high_photo_or_minor_content",
+    "low_citation_page",
+    "medium_pdf_or_external_terms",
+  ]);
+  const otaRisk = sourceRiskModelV0(catalog.find((entry) => entry.sourceId === "ota-ikimono-discovery-map")!);
+  assert.equal(otaRisk.coordinateSensitivity, "high_sensitive_or_minor");
+  assert.equal(otaRisk.reuseRisk, "medium_pdf_or_external_terms");
+  assert.ok(otaRisk.reviewFlags.includes("sensitive_species_location_check"));
+  assert.match(otaRisk.reviewNote, /公開前/);
+  const childMapRisk = sourceRiskModelV0(catalog.find((entry) => entry.sourceId === "sakai-ikimono-web")!);
+  assert.equal(childMapRisk.reuseRisk, "high_photo_or_minor_content");
+  assert.ok(childMapRisk.reviewFlags.includes("minor_or_school_context_check") || childMapRisk.reviewFlags.includes("photo_or_illustration_reuse_check"));
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.ota\.tokyo\.jp\/seikatsu\/sumaimachinami\/kankyou\/hogo\/ikimonomap\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p082326\.html/);
