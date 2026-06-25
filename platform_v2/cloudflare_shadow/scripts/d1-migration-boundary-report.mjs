@@ -166,7 +166,7 @@ function lineForOffset(text, offset) {
 function classifyFallbackReason(reason) {
   if (/materialized_miss|html_personalized_request|static_asset|thumb|area_snapshot/i.test(reason)) return "materialized_origin_fallback";
   if (/auth|oauth|session/i.test(reason)) return "auth_origin_fallback";
-  if (/unsupported_observation_api|legacy_observation_api|public_write_origin_mode/i.test(reason)) return "api_origin_fallback";
+  if (/unsupported_observation_api|legacy_observation_api|legacy_observation_event_api|public_write_origin_mode/i.test(reason)) return "api_origin_fallback";
   if (/map_area_polygons/i.test(reason)) return "map_origin_fallback";
   if (/public_custom_domain_path/i.test(reason)) return "broad_public_origin_fallback";
   return "origin_fallback";
@@ -240,8 +240,12 @@ function configuredStateForFallback(item, productionVars) {
   const originFallbackConfigured = typeof productionVars.ORIGIN_FALLBACK_BASE_URL === "string"
     && productionVars.ORIGIN_FALLBACK_BASE_URL.trim() !== "";
   const publicWriteMode = String(productionVars.PUBLIC_WRITE_MODE ?? "");
+  const publicCustomDomainFallbackMode = String(productionVars.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE ?? "enabled").trim().toLowerCase();
   if (!originFallbackConfigured) {
     return { active: false, note: "origin_fallback_not_configured" };
+  }
+  if (item.reason === "public_custom_domain_path" && publicCustomDomainFallbackMode === "disabled") {
+    return { active: false, note: "inactive_public_custom_domain_origin_fallback_disabled" };
   }
   if (item.reason === "public_write_origin_mode" && publicWriteMode !== "origin_fallback") {
     return { active: false, note: `inactive_public_write_mode_${publicWriteMode || "unset"}` };

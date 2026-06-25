@@ -4396,14 +4396,15 @@ test("production oauth callback fails closed when provider secrets are not confi
   }
 });
 
-test("production public UI routes bound broad custom-domain fallback to legacy-safe surfaces", async () => {
+test("production public UI routes keep explicit origin fallback while broad custom-domain fallback is disabled", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled"
   };
   const originalFetch = globalThis.fetch;
   const seen: Array<{ url: string; method?: string; resolveOverride?: string; reason?: string | null }> = [];
@@ -4479,29 +4480,37 @@ test("production public UI routes bound broad custom-domain fallback to legacy-s
     assert.equal(seen.length, publicUiRoutes.length + 1);
 
     const unknown = await worker.fetch(new Request("https://ikimon.life/some-old-unmapped-path"), productionEnv);
-    assert.equal(unknown.status, 200);
-    assert.equal(seen.at(-1)?.url, "https://ikimon.life/some-old-unmapped-path");
-    assert.equal(seen.at(-1)?.reason, "public_custom_domain_path");
+    assert.equal(unknown.status, 404);
+    assert.equal(unknown.headers.get("x-ikimon-cloudflare-native"), "not-found");
+    assert.equal(seen.length, publicUiRoutes.length + 1);
 
     const localizedUnknown = await worker.fetch(new Request("https://ikimon.life/ja/some-old-unmapped-path"), productionEnv);
-    assert.equal(localizedUnknown.status, 200);
-    assert.equal(seen.at(-1)?.url, "https://ikimon.life/ja/some-old-unmapped-path");
-    assert.equal(seen.at(-1)?.reason, "public_custom_domain_path");
+    assert.equal(localizedUnknown.status, 404);
+    assert.equal(localizedUnknown.headers.get("x-ikimon-cloudflare-native"), "not-found");
+    assert.equal(seen.length, publicUiRoutes.length + 1);
 
     const eventPost = await worker.fetch(new Request("https://ikimon.life/es/community/events/new", {
       method: "POST",
       body: "title=origin",
       headers: { "content-type": "application/x-www-form-urlencoded" }
     }), productionEnv);
-    assert.equal(eventPost.status, 200);
-    assert.equal(seen.at(-1)?.url, "https://ikimon.life/es/community/events/new");
-    assert.equal(seen.at(-1)?.method, "POST");
-    assert.equal(seen.at(-1)?.reason, "public_custom_domain_path");
+    assert.equal(eventPost.status, 404);
+    assert.equal(seen.length, publicUiRoutes.length + 1);
     assert.equal(eventPost.headers.get("x-ikimon-cloudflare-materialized"), null);
+
+    const eventApiPost = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
+      method: "POST",
+      body: JSON.stringify({ title: "origin event", started_at: "2026-06-25T10:00" }),
+      headers: { "content-type": "application/json" }
+    }), productionEnv);
+    assert.equal(eventApiPost.status, 200);
+    assert.equal(seen.at(-1)?.url, "https://ikimon.life/api/v1/observation-events");
+    assert.equal(seen.at(-1)?.method, "POST");
+    assert.equal(seen.at(-1)?.reason, "legacy_observation_event_api_origin_fallback");
 
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
-    assert.equal(seen.length, publicUiRoutes.length + 4);
+    assert.equal(seen.length, publicUiRoutes.length + 2);
   } finally {
     globalThis.fetch = originalFetch;
   }
