@@ -17,6 +17,12 @@ function loadIsTestSourceFile(script: string): (relativeFile: string) => boolean
   return new Function(`${match[0]}; return isTestSourceFile;`)() as (relativeFile: string) => boolean;
 }
 
+function loadClassifyFallbackReason(script: string): (reason: string) => string {
+  const match = script.match(/function classifyFallbackReason\(reason\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "classifyFallbackReason function is present");
+  return new Function(`${match[0]}; return classifyFallbackReason;`)() as (reason: string) => string;
+}
+
 test("VPS stop readiness counts every runtime PostgreSQL dependency, not only displayed rows", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
 
@@ -51,6 +57,14 @@ test("public custom domain origin fallback is not registered twice", async () =>
   const publicDomainFallbackCalls = workerSource.match(/fetchOriginFallback\([^)]*"public_custom_domain_path"/g) ?? [];
 
   assert.equal(publicDomainFallbackCalls.length, 1);
+});
+
+test("legacy observation event API fallback remains an explicit P0 dependency", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const classifyFallbackReason = loadClassifyFallbackReason(script);
+
+  assert.equal(classifyFallbackReason("legacy_observation_event_api_origin_fallback"), "api_origin_fallback");
+  assert.match(script, /inactive_public_custom_domain_origin_fallback_disabled/);
 });
 
 test("PostgreSQL signal classifier does not count JavaScript listener or Array helpers", async () => {

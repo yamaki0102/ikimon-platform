@@ -56,6 +56,7 @@ interface Env {
   ORIGIN_FALLBACK_BASE_URL?: string;
   ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
   PUBLIC_WRITE_MODE?: string;
+  PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   TWITTER_CLIENT_ID?: string;
@@ -1358,6 +1359,10 @@ export const worker = {
         return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
       }
 
+      if (shouldFallbackObservationEventApiToOrigin(request, url, env)) {
+        return fetchOriginFallback(request, url, env, "legacy_observation_event_api_origin_fallback");
+      }
+
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "public_custom_domain_path");
       }
@@ -1579,6 +1584,11 @@ function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: E
   return shouldUseOriginFallback(url, env) && isLegacyObservationOriginFallbackPath(request, url);
 }
 
+function shouldFallbackObservationEventApiToOrigin(request: Request, url: URL, env: Env): boolean {
+  return shouldUseOriginFallback(url, env)
+    && isLegacyObservationEventApiOriginFallbackPath(request, url);
+}
+
 function isLegacyObservationOriginFallbackPath(request: Request, url: URL): boolean {
   const pathname = url.pathname;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reactions\/[^/]+$/.test(pathname)) return true;
@@ -1591,6 +1601,11 @@ function isLegacyObservationOriginFallbackPath(request: Request, url: URL): bool
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return true;
   return false;
+}
+
+function isLegacyObservationEventApiOriginFallbackPath(_request: Request, url: URL): boolean {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  return /^\/api\/v1\/observation-events(?:\/.*)?$/.test(pathname);
 }
 
 function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
@@ -1637,6 +1652,7 @@ function isShadowDiagnosticPath(pathname: string): boolean {
 
 function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL, env: Env): boolean {
   if (!shouldUseOriginFallback(url, env)) return false;
+  if (getPublicCustomDomainOriginFallbackMode(env) === "disabled") return false;
   if (url.pathname.startsWith("/internal/")) return false;
   if (isShadowDiagnosticPath(url.pathname)) return false;
   if (url.pathname === "/health") return false;
@@ -1650,6 +1666,11 @@ function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL
 
 function shouldUseOriginFallback(url: URL, env: Env): boolean {
   return Boolean(env.ORIGIN_FALLBACK_BASE_URL) && PUBLIC_CUSTOM_HOSTS.has(url.hostname);
+}
+
+function getPublicCustomDomainOriginFallbackMode(env: Env): "enabled" | "disabled" {
+  const mode = (env.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE ?? "enabled").trim().toLowerCase();
+  return mode === "disabled" ? "disabled" : "enabled";
 }
 
 function isSuspiciousPublicProbePath(pathname: string): boolean {
