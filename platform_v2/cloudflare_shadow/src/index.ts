@@ -203,6 +203,33 @@ interface MunicipalWalkMapD1Row {
   area_hint_json: string;
 }
 
+interface MunicipalWalkMapCreatorAdminD1Row {
+  creator_id: string;
+  display_name: string;
+  registration_kind: string | null;
+  verification_status: string;
+  commercial_intent: string | null;
+  notes: string | null;
+  updated_at: string | null;
+}
+
+interface MunicipalWalkMapReviewAdminD1Row {
+  walk_map_id: string;
+  municipality_code: string;
+  municipality: string;
+  title: string;
+  summary: string;
+  theme: string;
+  publish_mode: string;
+  creator_name: string | null;
+  creator_profile_json: string | null;
+  route_flexibility_json: string | null;
+  source_references_json: string;
+  publication_review_json: string | null;
+  updated_at: string | null;
+  stop_count: number;
+}
+
 interface SessionSnapshot {
   tokenHash: string;
   userId: string;
@@ -1099,6 +1126,15 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
         return getMunicipalWalkMapCandidates(url, env);
+      }
+
+      if (nativePathname === "/api/v1/admin/municipal-walk-map-creators") {
+        if (request.method === "GET") return await listMunicipalWalkMapCreatorsAdmin(request, env);
+        if (request.method === "POST") return await upsertMunicipalWalkMapCreatorAdmin(request, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/admin/municipal-walk-map-reviews") {
+        return await listMunicipalWalkMapReviewsAdmin(request, url, env);
       }
 
       if (request.method === "GET" && nativePathname === "/ops/public-map-snapshot") {
@@ -2584,6 +2620,193 @@ async function getMunicipalWalkMapCandidates(url: URL, env: Env): Promise<Respon
     locationFiltered,
     summaries
   }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+}
+
+function isMunicipalWalkMapAdminRole(session: SessionSnapshot): boolean {
+  const roleText = `${session.roleName ?? ""} ${session.rankLabel ?? ""}`.toLowerCase();
+  return /\b(admin|administrator|analyst|owner|manager)\b/.test(roleText)
+    || /管理|運営|分析|責任者/.test(roleText);
+}
+
+async function requireMunicipalWalkMapAdminSession(request: Request, env: Env): Promise<SessionSnapshot> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) throw new HttpError(401, "session_required");
+  if (session.banned || !isMunicipalWalkMapAdminRole(session)) throw new HttpError(403, "admin_required");
+  return session;
+}
+
+function normalizeEnum(value: unknown, allowed: readonly string[], fallback: string): string {
+  const text = normalizeOptionalText(value);
+  return text && allowed.includes(text) ? text : fallback;
+}
+
+function municipalWalkMapCreatorFromD1Row(row: MunicipalWalkMapCreatorAdminD1Row) {
+  return {
+    schemaVersion: "municipal_walk_map_creator/v0",
+    creatorId: row.creator_id,
+    displayName: row.display_name,
+    registrationKind: row.registration_kind ?? "registered_group",
+    verificationStatus: row.verification_status,
+    commercialIntent: row.commercial_intent ?? "none",
+    notes: row.notes,
+    updatedAt: row.updated_at
+  };
+}
+
+async function listMunicipalWalkMapCreatorsAdmin(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT creator_id, display_name, registration_kind, verification_status, commercial_intent, notes, updated_at
+       FROM municipal_walk_map_creators
+      ORDER BY updated_at DESC, creator_id ASC
+      LIMIT 200`
+  ).all<MunicipalWalkMapCreatorAdminD1Row>();
+  return json({
+    ok: true,
+    source: "d1_observations",
+    creators: rows.results.map(municipalWalkMapCreatorFromD1Row)
+  }, 200, { "cache-control": "no-store" });
+}
+
+function extractMunicipalWalkMapCreatorInput(body: unknown): Record<string, unknown> {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return {};
+  const record = body as Record<string, unknown>;
+  const creator = record.creator;
+  if (creator && typeof creator === "object" && !Array.isArray(creator)) {
+    return creator as Record<string, unknown>;
+  }
+  return record;
+}
+
+async function upsertMunicipalWalkMapCreatorAdmin(request: Request, env: Env): Promise<Response> {
+  const session = await requireMunicipalWalkMapAdminSession(request, env);
+  const input = extractMunicipalWalkMapCreatorInput(await readJson<unknown>(request));
+  const creatorId = normalizeOptionalId(input.creatorId ?? input.creator_id);
+  const displayName = normalizeOptionalText(input.displayName ?? input.display_name);
+  if (!creatorId || !displayName) throw new HttpError(400, "creator_id_and_display_name_required");
+
+  const registrationKind = normalizeEnum(
+    input.registrationKind ?? input.registration_kind,
+    ["municipality", "registered_group", "registered_company"],
+    "registered_group"
+  );
+  const verificationStatus = normalizeEnum(
+    input.verificationStatus ?? input.verification_status,
+    ["pending", "verified", "revoked"],
+    "pending"
+  );
+  const commercialIntent = normalizeEnum(
+    input.commercialIntent ?? input.commercial_intent,
+    ["none", "limited", "primary"],
+    "none"
+  );
+  const officialUrl = normalizeOptionalText(input.officialUrl ?? input.official_url);
+  const notes = normalizeOptionalText(input.notes);
+  const creatorType = registrationKind === "registered_company"
+    ? "company"
+    : registrationKind === "registered_group"
+      ? "group"
+      : "municipality";
+  const commercialPolicy = commercialIntent === "primary" ? "commercial_review_required" : "restricted";
+  const verifiedBy = verificationStatus === "verified" ? session.userId : null;
+  const verifiedAt = verificationStatus === "verified" ? new Date().toISOString() : null;
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO municipal_walk_map_creators
+       (creator_id, creator_type, display_name, organization_name, official_url, verification_status,
+        commercial_policy, registration_kind, commercial_intent, verified_by_user_id, verified_at, notes, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(creator_id) DO UPDATE SET
+       creator_type = excluded.creator_type,
+       display_name = excluded.display_name,
+       organization_name = excluded.organization_name,
+       official_url = excluded.official_url,
+       verification_status = excluded.verification_status,
+       commercial_policy = excluded.commercial_policy,
+       registration_kind = excluded.registration_kind,
+       commercial_intent = excluded.commercial_intent,
+       verified_by_user_id = excluded.verified_by_user_id,
+       verified_at = excluded.verified_at,
+       notes = excluded.notes,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    creatorId,
+    creatorType,
+    displayName,
+    displayName,
+    officialUrl,
+    verificationStatus,
+    commercialPolicy,
+    registrationKind,
+    commercialIntent,
+    verifiedBy,
+    verifiedAt,
+    notes
+  ).run();
+
+  return json({
+    ok: true,
+    source: "d1_observations",
+    creator: {
+      schemaVersion: "municipal_walk_map_creator/v0",
+      creatorId,
+      displayName,
+      registrationKind,
+      verificationStatus,
+      commercialIntent,
+      officialUrl,
+      notes,
+      updatedBy: session.userId
+    }
+  }, 201, { "cache-control": "no-store" });
+}
+
+function municipalWalkMapReviewFromD1Row(row: MunicipalWalkMapReviewAdminD1Row) {
+  const sourceReferences = parseJsonArray(row.source_references_json);
+  return {
+    schemaVersion: "municipal_walk_map_review_queue_item/v0",
+    walkMapId: row.walk_map_id,
+    municipalityCode: row.municipality_code,
+    municipality: row.municipality,
+    title: row.title,
+    summary: row.summary,
+    theme: row.theme,
+    publishMode: row.publish_mode,
+    creatorName: row.creator_name,
+    creatorProfile: parseJsonRecord(row.creator_profile_json ?? "{}"),
+    routeFlexibility: parseJsonRecord(row.route_flexibility_json ?? "{}"),
+    publicationReview: parseJsonRecord(row.publication_review_json ?? "{}"),
+    sourceReferences,
+    sourceReferenceCount: sourceReferences.length,
+    stopCount: Number(row.stop_count) || 0,
+    reviewRequired: row.publish_mode !== "public",
+    editHref: `/admin/municipal-walk-maps?walkMapId=${encodeURIComponent(row.walk_map_id)}`,
+    previewHref: `/api/v1/municipal-walk-maps?municipalityCode=${encodeURIComponent(row.municipality_code)}&limit=1`,
+    updatedAt: row.updated_at
+  };
+}
+
+async function listMunicipalWalkMapReviewsAdmin(request: Request, url: URL, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 200);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT m.walk_map_id, m.municipality_code, m.municipality, m.title, m.summary, m.theme, m.publish_mode,
+            m.creator_name, m.creator_profile_json, m.route_flexibility_json, m.source_references_json,
+            m.publication_review_json, m.updated_at,
+            COUNT(s.stop_id) AS stop_count
+       FROM municipal_walk_maps m
+       LEFT JOIN municipal_walk_map_stops s ON s.walk_map_id = m.walk_map_id
+      GROUP BY m.walk_map_id
+      ORDER BY CASE m.publish_mode WHEN 'draft' THEN 0 WHEN 'public_preview' THEN 1 ELSE 2 END,
+               m.updated_at DESC,
+               m.walk_map_id ASC
+      LIMIT ?`
+  ).bind(limit).all<MunicipalWalkMapReviewAdminD1Row>();
+  return json({
+    ok: true,
+    source: "d1_observations",
+    reviews: rows.results.map(municipalWalkMapReviewFromD1Row)
+  }, 200, { "cache-control": "no-store" });
 }
 
 async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Response> {
