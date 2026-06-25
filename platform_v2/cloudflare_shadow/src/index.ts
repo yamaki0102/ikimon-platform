@@ -57,6 +57,7 @@ interface Env {
   ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
   PUBLIC_WRITE_MODE?: string;
   PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?: string;
+  ORIGIN_SESSION_IMPORT_MODE?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   TWITTER_CLIENT_ID?: string;
@@ -6260,7 +6261,9 @@ async function readCompatibleSessionWithOriginFallback(request: Request, env: En
   return importOriginSessionIfAvailable(request, env);
 }
 
+// Remove this lazy import once the VPS origin is fully stopped.
 async function importOriginSessionIfAvailable(request: Request, env: Env): Promise<SessionSnapshot | null> {
+  if (getOriginSessionImportMode(env) === "disabled") return null;
   if (!env.ORIGIN_FALLBACK_BASE_URL) return null;
   const requestUrl = new URL(request.url);
   if (!PUBLIC_CUSTOM_HOSTS.has(requestUrl.hostname)) return null;
@@ -6334,6 +6337,11 @@ async function importOriginSessionIfAvailable(request: Request, env: Env): Promi
     )
   ]);
   return session;
+}
+
+function getOriginSessionImportMode(env: Env): "enabled" | "disabled" {
+  const mode = (env.ORIGIN_SESSION_IMPORT_MODE ?? "enabled").trim().toLowerCase();
+  return mode === "disabled" ? "disabled" : "enabled";
 }
 
 async function createCompatibleVideoDirectUpload(request: Request, env: Env): Promise<Response> {

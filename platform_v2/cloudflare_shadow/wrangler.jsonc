@@ -108,6 +108,7 @@
         "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",
         "PUBLIC_WRITE_MODE": "cloudflare_native",
         "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE": "disabled",
+        "ORIGIN_SESSION_IMPORT_MODE": "disabled",
         "ORIGIN_FALLBACK_BASE_URL": "https://ikimon.life",
         "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life"
       },
@@ -161,6 +162,7 @@
         "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",
         "PUBLIC_WRITE_MODE": "cloudflare_native",
         "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE": "disabled",
+        "ORIGIN_SESSION_IMPORT_MODE": "disabled",
         "ORIGIN_FALLBACK_BASE_URL": "https://ikimon.life",
         "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life"
       },

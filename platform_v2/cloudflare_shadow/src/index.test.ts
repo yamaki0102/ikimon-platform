@@ -4154,6 +4154,56 @@ test("production public cloudflare-native mode lazily imports valid origin sessi
   }
 });
 
+test("production origin session import mode disabled does not probe origin sessions", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
+  };
+  const rawOriginToken = "disabled-origin-import-token";
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return Response.json({
+      ok: true,
+      session: {
+        userId: "disabled-origin-user",
+        displayName: "Disabled Origin User",
+        roleName: "Observer",
+        rankLabel: null,
+        banned: false,
+        expiresAt: "2999-01-01T00:00:00.000Z"
+      }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawOriginToken}` },
+      body: JSON.stringify({
+        observationId: "disabled-origin-session-observation",
+        userId: "disabled-origin-user",
+        observedAt: "2026-06-16T00:00:00.000Z",
+        latitude: 34.71234,
+        longitude: 137.81234
+      })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 401);
+    assert.equal(payload.error, "session_required");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.authSessions.size, 0);
+    assert.equal(obs.observations.has("disabled-origin-session-observation"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production public cloudflare-native mode rejects mismatched origin session hashes", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = {
