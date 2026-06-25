@@ -70,10 +70,6 @@ const corePaths = [
   "/",
   "/demo/place-feeling-tags",
   "/guide",
-  "/admin/municipal-walk-maps?templateId=route_species_walk",
-  "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
-  "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
-  "/admin/municipal-walk-map-reviews",
   "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
   "/walk-maps",
   "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
@@ -132,6 +128,14 @@ const corePaths = [
   "/pt-br/record",
   "/pt-br/records"
 ];
+
+const stagingOnlyAdminPreviewPaths = [
+  "/admin/municipal-walk-maps?templateId=route_species_walk",
+  "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
+  "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+  "/admin/municipal-walk-map-reviews"
+];
+
 const staticAssetPaths = [
   "/app-sw.js",
   "/assets/brand/app-icon-192.png",
@@ -232,7 +236,9 @@ async function readAllOriginalUiStaticPaths() {
 
 async function resolveTargetPaths() {
   if (explicitPaths.length > 0) return [...new Set(explicitPaths)];
-  if (scope === "core") return corePaths;
+  if (scope === "core") {
+    return targetEnv === "staging" ? [...corePaths, ...stagingOnlyAdminPreviewPaths] : corePaths;
+  }
   if (scope === "all") return await readAllOriginalUiStaticPaths();
   throw new Error(`Unsupported materialize scope: ${scope}`);
 }
