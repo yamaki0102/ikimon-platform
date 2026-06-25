@@ -102,11 +102,19 @@ function classifyPg(text) {
   if (/\bST_[A-Za-z0-9_]+\s*\(|PostGIS|\bgeometry\b|\bgeography\b/i.test(text)) flags.push("postgis");
   if (/vector|embedding|pgvector|cosine|ivfflat/i.test(text)) flags.push("vector");
   if (/tsvector|to_tsvector|plainto_tsquery|websearch_to_tsquery/i.test(text)) flags.push("full_text");
-  if (/LISTEN|NOTIFY|SKIP LOCKED|FOR UPDATE/i.test(text)) flags.push("job_locking");
+  if (/(?:^|[^.\w])(?:LISTEN|NOTIFY)\s+[A-Za-z_"]|\bSKIP\s+LOCKED\b|\bFOR\s+UPDATE\b/i.test(text)) flags.push("job_locking");
   if (/DATABASE_URL|PGHOST|PGUSER|PGPASSWORD/i.test(text)) flags.push("pg_env");
-  if (/jsonb|::jsonb|\bARRAY\b|unnest\(/i.test(text)) flags.push("pg_types");
+  const hasPgArray = /\barray\s*\[/i.test(text) || /\barray\s*\(\s*select\b/i.test(text);
+  if (/jsonb|::jsonb|unnest\(/i.test(text) || hasPgArray) flags.push("pg_types");
   if (/getPool|pool\.query|client\.query|getClient|withTransaction/i.test(text)) flags.push("runtime_query");
   return flags;
+}
+
+function classifySuppressedPgNoise(text) {
+  const signals = [];
+  if (/addEventListener|\.listen\s*\(|\bnotify\s*\(/i.test(text)) signals.push("js_listener_or_notify");
+  if (/\bArray(?:\.isArray|\s*[<(])/.test(text)) signals.push("js_array_helper_or_type");
+  return signals;
 }
 
 function lineForOffset(text, offset) {
@@ -258,6 +266,7 @@ const pgSourceRoots = [
 ].filter((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory());
 
 const pgFiles = [];
+const suppressedPgSignalNoiseFiles = [];
 const originFallbackCalls = [];
 for (const dir of fallbackSourceRoots) {
   for (const file of walk(dir, (candidate) => /\.(ts|tsx|js|mjs)$/.test(candidate))) {
@@ -270,6 +279,13 @@ for (const dir of pgSourceRoots) {
   for (const file of walk(dir, (candidate) => /\.(ts|tsx|js|mjs)$/.test(candidate))) {
     const text = read(file);
     const flags = classifyPg(text);
+    const suppressedNoise = classifySuppressedPgNoise(text);
+    if (flags.length === 0 && suppressedNoise.length > 0) {
+      suppressedPgSignalNoiseFiles.push({
+        file: rel(file),
+        signals: suppressedNoise
+      });
+    }
     if (flags.length === 0) continue;
     pgFiles.push({
       file: rel(file),
@@ -361,6 +377,13 @@ const lines = [
   "| score | file | flags | query_count |",
   "|---:|---|---|---:|",
   ...pgFiles.slice(0, PG_DEPENDENCY_TABLE_LIMIT).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
+  "",
+  ...section("PostgreSQL Signal Noise Suppression"),
+  `- js_noise_suppressed_files: ${suppressedPgSignalNoiseFiles.length}`,
+  "",
+  "| file | suppressed_signals |",
+  "|---|---|",
+  ...suppressedPgSignalNoiseFiles.slice(0, 40).map((item) => `| ${item.file} | ${item.signals.join(", ")} |`),
   "",
   ...section("Origin Fallback Dependencies"),
   `- fallback_call_count: ${originFallbackCalls.length}`,
