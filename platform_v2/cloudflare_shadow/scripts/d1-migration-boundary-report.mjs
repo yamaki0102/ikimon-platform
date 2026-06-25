@@ -114,7 +114,7 @@ function lineForOffset(text, offset) {
 function classifyFallbackReason(reason) {
   if (/materialized_miss|html_personalized_request|static_asset|thumb|area_snapshot/i.test(reason)) return "materialized_origin_fallback";
   if (/auth|oauth|session/i.test(reason)) return "auth_origin_fallback";
-  if (/unsupported_observation_api|public_write_origin_mode/i.test(reason)) return "api_origin_fallback";
+  if (/unsupported_observation_api|legacy_observation_api|public_write_origin_mode/i.test(reason)) return "api_origin_fallback";
   if (/map_area_polygons/i.test(reason)) return "map_origin_fallback";
   if (/public_custom_domain_path/i.test(reason)) return "broad_public_origin_fallback";
   return "origin_fallback";
