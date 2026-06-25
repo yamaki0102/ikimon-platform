@@ -15,6 +15,7 @@
     "load:10k": "node scripts/loadtest.mjs --records=10000 --media=3 --url=http://127.0.0.1:8787",
     "build:field-detail-sql": "node scripts/build-field-detail-readmodel-sql.mjs",
     "report:d1-boundary": "node scripts/d1-migration-boundary-report.mjs",
+    "report:vps-stop-readiness": "node scripts/d1-migration-boundary-report.mjs --fail-on-vps-blockers",
     "deploy:shadow:preflight": "node scripts/deploy-shadow-guard.mjs --write-preflight-report .deploy/shadow-preflight-latest.json",
     "deploy:shadow:dry-run": "node scripts/deploy-shadow-guard.mjs",
     "deploy:shadow": "node scripts/deploy-shadow-guard.mjs --execute",

@@ -94,6 +94,83 @@ function classifyPg(text) {
   return flags;
 }
 
+function lineForOffset(text, offset) {
+  return text.slice(0, offset).split(/\r?\n/).length;
+}
+
+function classifyFallbackReason(reason) {
+  if (/materialized_miss|html_personalized_request|static_asset|thumb|area_snapshot/i.test(reason)) return "materialized_origin_fallback";
+  if (/auth|oauth|session/i.test(reason)) return "auth_origin_fallback";
+  if (/unsupported_observation_api|public_write_origin_mode/i.test(reason)) return "api_origin_fallback";
+  if (/map_area_polygons/i.test(reason)) return "map_origin_fallback";
+  if (/public_custom_domain_path/i.test(reason)) return "broad_public_origin_fallback";
+  return "origin_fallback";
+}
+
+function extractOriginFallbackCalls(file, text) {
+  const calls = [];
+  const pattern = /fetchOriginFallback\s*\(/g;
+  for (const match of text.matchAll(pattern)) {
+    const start = match.index ?? 0;
+    const lineStart = text.lastIndexOf("\n", start) + 1;
+    const linePrefix = text.slice(lineStart, start);
+    if (/\bfunction\s+$/.test(linePrefix)) continue;
+
+    const openParen = start + match[0].length - 1;
+    const args = extractBalancedCallArgs(text, openParen);
+    if (!args) continue;
+    const quoted = [...args.matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+    const reason = quoted.findLast((value) => /fallback|origin|auth|oauth|session|materialized|unsupported|polygon|path|miss|mode|personalized|html|thumb|asset/i.test(value))
+      ?? "origin_fallback_default";
+    calls.push({
+      file: rel(file),
+      line: lineForOffset(text, start),
+      reason,
+      category: classifyFallbackReason(reason)
+    });
+  }
+  return calls;
+}
+
+function extractBalancedCallArgs(text, openParen) {
+  let depth = 0;
+  let inString = false;
+  let quote = "";
+  let escape = false;
+  for (let i = openParen; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === quote) inString = false;
+      continue;
+    }
+    if (ch === "\"" || ch === "'" || ch === "`") {
+      inString = true;
+      quote = ch;
+      continue;
+    }
+    if (ch === "(") depth += 1;
+    if (ch === ")") {
+      depth -= 1;
+      if (depth === 0) return text.slice(openParen + 1, i);
+    }
+  }
+  return null;
+}
+
+function blockerSeverity(item) {
+  if (item.type === "origin_fallback" && item.category === "api_origin_fallback") return "P0";
+  if (item.type === "origin_fallback" && item.category === "auth_origin_fallback") return "P0";
+  if (item.type === "origin_fallback" && item.category === "broad_public_origin_fallback") return "P0";
+  if (item.type === "origin_fallback" && item.category === "materialized_origin_fallback") return "P1";
+  if (item.type === "origin_fallback" && item.category === "map_origin_fallback") return "P1";
+  if (item.type === "pg_dependency" && item.flags.includes("vector")) return "P0";
+  if (item.type === "pg_dependency" && item.flags.includes("job_locking")) return "P0";
+  if (item.type === "pg_dependency" && item.flags.includes("runtime_query")) return "P1";
+  return "P2";
+}
+
 function scorePg(flags, text) {
   let score = flags.length;
   if (flags.includes("postgis")) score += 5;
@@ -129,14 +206,29 @@ for (const dir of migrationDirs) {
   }
 }
 
-const sourceRoots = [
+const fallbackSourceRoots = [
+  path.join(shadowRoot, "src"),
+  path.join(platformRoot, "src", "routes"),
+  path.join(platformRoot, "src", "services"),
+  path.join(platformRoot, "src", "scripts")
+].filter((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory());
+
+const pgSourceRoots = [
   path.join(platformRoot, "src", "routes"),
   path.join(platformRoot, "src", "services"),
   path.join(platformRoot, "src", "scripts")
 ].filter((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory());
 
 const pgFiles = [];
-for (const dir of sourceRoots) {
+const originFallbackCalls = [];
+for (const dir of fallbackSourceRoots) {
+  for (const file of walk(dir, (candidate) => /\.(ts|tsx|js|mjs)$/.test(candidate))) {
+    const text = read(file);
+    originFallbackCalls.push(...extractOriginFallbackCalls(file, text));
+  }
+}
+
+for (const dir of pgSourceRoots) {
   for (const file of walk(dir, (candidate) => /\.(ts|tsx|js|mjs)$/.test(candidate))) {
     const text = read(file);
     const flags = classifyPg(text);
@@ -151,6 +243,12 @@ for (const dir of sourceRoots) {
 }
 
 pgFiles.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
+originFallbackCalls.sort((a, b) => a.category.localeCompare(b.category) || a.reason.localeCompare(b.reason) || a.file.localeCompare(b.file) || a.line - b.line);
+
+const fallbackCategoryCounts = new Map();
+for (const item of originFallbackCalls) {
+  fallbackCategoryCounts.set(item.category, (fallbackCategoryCounts.get(item.category) ?? 0) + 1);
+}
 
 const workflowsRoot = path.join(repoRoot, ".github", "workflows");
 const workflowFiles = statSync(workflowsRoot, { throwIfNoEntry: false })?.isDirectory()
@@ -169,6 +267,34 @@ const vpsWorkflows = workflowFiles
       /applyMigrations/i.test(text) ? "migrations" : null
     ].filter(Boolean)
   }));
+
+const stopBlockers = [
+  ...originFallbackCalls.map((item) => ({
+    type: "origin_fallback",
+    key: `${item.reason}@${item.file}:${item.line}`,
+    category: item.category,
+    severity: blockerSeverity({ type: "origin_fallback", category: item.category })
+  })),
+  ...pgFiles.slice(0, 80).map((item) => ({
+    type: "pg_dependency",
+    key: item.file,
+    category: item.flags.join(","),
+    severity: blockerSeverity({ type: "pg_dependency", flags: item.flags })
+  })),
+  ...vpsWorkflows.map((item) => ({
+    type: "workflow_dependency",
+    key: item.file,
+    category: item.signals.join(","),
+    severity: "P1"
+  }))
+];
+
+const stopBlockerCounts = stopBlockers.reduce((acc, item) => {
+  acc[item.severity] = (acc[item.severity] ?? 0) + 1;
+  return acc;
+}, {});
+
+const vpsStopReady = stopBlockers.length === 0;
 
 const lines = [
   "# ikimon.life D1 / VPS PostgreSQL Migration Boundary Report",
@@ -191,8 +317,30 @@ const lines = [
   "|---:|---|---|---:|",
   ...pgFiles.slice(0, 80).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
   "",
+  ...section("Origin Fallback Dependencies"),
+  `- fallback_call_count: ${originFallbackCalls.length}`,
+  `- categories: ${[...fallbackCategoryCounts.entries()].map(([category, value]) => `${category}=${value}`).join(", ") || "none"}`,
+  "",
+  "| category | reason | file | line |",
+  "|---|---|---|---:|",
+  ...originFallbackCalls.map((item) => `| ${item.category} | ${item.reason} | ${item.file} | ${item.line} |`),
+  "",
   ...section("VPS / PostgreSQL Workflow Dependencies"),
   ...vpsWorkflows.map((item) => `- ${item.file}: ${item.signals.join(", ")}`),
+  "",
+  ...section("VPS Stop Readiness Gate"),
+  `- status: ${vpsStopReady ? "ready" : "blocked"}`,
+  `- blocker_count: ${stopBlockers.length}`,
+  `- p0_blockers: ${stopBlockerCounts.P0 ?? 0}`,
+  `- p1_blockers: ${stopBlockerCounts.P1 ?? 0}`,
+  `- p2_blockers: ${stopBlockerCounts.P2 ?? 0}`,
+  "",
+  "| severity | type | category | key |",
+  "|---|---|---|---|",
+  ...stopBlockers
+    .sort((a, b) => a.severity.localeCompare(b.severity) || a.type.localeCompare(b.type) || a.key.localeCompare(b.key))
+    .slice(0, 120)
+    .map((item) => `| ${item.severity} | ${item.type} | ${item.category} | ${item.key} |`),
   "",
   ...section("Migration Priority Heuristic"),
   "- P0: public Cloudflare-native routes with small readmodels and safe fallback.",
@@ -203,3 +351,7 @@ const lines = [
 ];
 
 console.log(lines.join("\n"));
+
+if (process.argv.includes("--fail-on-vps-blockers") && !vpsStopReady) {
+  process.exitCode = 2;
+}
