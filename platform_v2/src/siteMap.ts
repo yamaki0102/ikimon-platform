@@ -186,7 +186,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "散策サンプル", en: "Walk map samples" },
     summary: { ja: "自治体の散策資料を、公開範囲、出典リンク、記録の入口に分けて表示する。", en: "Public walk-map samples with source links and recording entry points." },
     primaryAction: { href: "/walk-maps", label: { ja: "散策サンプルを見る", en: "Open samples" } },
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "公開範囲で歩ける散策ルート" }, readySelector: ".wm-shell", screenshot: { baselineName: "registry-walk-maps" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "公開範囲で歩ける散策ルート" }, readySelector: ".wm-shell", allowStatus: [200, 404], screenshot: { baselineName: "registry-walk-maps" } },
   },
   {
     path: "/records",

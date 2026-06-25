@@ -143,13 +143,7 @@ function normalizePublicPath(value) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-function parsedPublicPath(value) {
-  return new URL(value, "https://ikimon.local");
-}
-
 function renderUrlForPath(pathname) {
-  if (pathname.startsWith("/admin/municipal-walk-maps?sourceId=")) return pathname;
-  if (pathname.startsWith("/admin/municipal-walk-maps?templateId=")) return pathname;
   const localizedMatch = pathname.match(/^\/(ja|en|es|pt-br)(\/.*)?$/);
   if (localizedMatch) {
     const segment = localizedMatch[1];
@@ -178,17 +172,6 @@ function renderUrlForPath(pathname) {
 }
 
 function originalUiHtmlKey(pathname) {
-  const parsed = parsedPublicPath(pathname);
-  if (parsed.pathname === "/admin/municipal-walk-maps") {
-    const templateId = parsed.searchParams.get("templateId")?.trim() ?? "";
-    if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(templateId)) {
-      return `original-ui/html/admin/municipal-walk-maps/template/${templateId}.html`;
-    }
-    const sourceId = parsed.searchParams.get("sourceId")?.trim() ?? "";
-    if (/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(sourceId)) {
-      return `original-ui/html/admin/municipal-walk-maps/source/${sourceId}.html`;
-    }
-  }
   const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   return `original-ui/html/${cleanPath}.html`;
 }
@@ -326,11 +309,6 @@ const renderedStatic = [];
 
 try {
   for (const pathname of targets) {
-    const parsed = parsedPublicPath(pathname);
-    const isAdminPreview = parsed.pathname === "/admin/municipal-walk-maps" || parsed.pathname === "/admin/municipal-walk-map-reviews";
-    if (isAdminPreview && targetEnv !== "staging") {
-      throw new Error("Admin preview materialization is staging-only.");
-    }
     const renderUrl = renderUrlForPath(pathname);
     const response = await app.inject({
       method: "GET",
@@ -338,7 +316,6 @@ try {
       headers: {
         accept: "text/html",
         "cache-control": "no-store",
-        ...(isAdminPreview ? { cookie: `ikimon_v2_session=${process.env.DEV_DUMMY_ADMIN_TOKEN ?? ""}` } : {})
       }
     });
     const contentType = String(response.headers["content-type"] ?? "");

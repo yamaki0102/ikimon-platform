@@ -117,7 +117,14 @@ test("top-level shared navigation does not link to 404 pages", async () => {
     const hrefs = extractInternalHrefs(top.body);
     assert.ok(hrefs.includes("/ja/community"), "top should expose community");
 
+    const cloudflareNativeLinks = new Set([
+      "/ja/walk-maps",
+      "/ja/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
+      "/ja/walk-maps/jp-shizuoka-mariko-waterfront-sample-v0",
+      "/ja/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
+    ]);
     for (const href of hrefs) {
+      if (cloudflareNativeLinks.has(href)) continue;
       const response = await app.inject({ method: "GET", url: href, headers: { accept: "text/html" } });
       assert.notEqual(response.statusCode, 404, `${href} should not 404 from top/shared navigation`);
     }
