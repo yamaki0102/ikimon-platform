@@ -17,6 +17,12 @@ function loadIsTestSourceFile(script: string): (relativeFile: string) => boolean
   return new Function(`${match[0]}; return isTestSourceFile;`)() as (relativeFile: string) => boolean;
 }
 
+function loadMaintenancePgDependencyReason(script: string): (relativeFile: string) => string | null {
+  const match = script.match(/function maintenancePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "maintenancePgDependencyReason function is present");
+  return new Function(`${match[0]}; return maintenancePgDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
 function loadClassifyFallbackReason(script: string): (reason: string) => string {
   const match = script.match(/function classifyFallbackReason\(reason\) \{[\s\S]*?\n\}/);
   assert.ok(match, "classifyFallbackReason function is present");
@@ -32,6 +38,8 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
   assert.match(script, /PostgreSQL Test Source Dependencies/);
   assert.match(script, /runtimeImportedTestSourceFiles\.has\(item\.file\)/);
   assert.match(script, /runtime_imported_test_pg_dependency_files/);
+  assert.match(script, /maintenancePgDependencyReason\(item\.file\)/);
+  assert.match(script, /PostgreSQL Maintenance Dependencies/);
   assert.match(script, /blocker_scope: runtime PostgreSQL\/vector\/PostGIS\/job-locking files/);
   assert.match(script, /displayed_pg_dependencies/);
   assert.doesNotMatch(script, /\.\.\.runtimePgFiles\.slice\(0,\s*80\)\.map\(\(item\) => \(\{/);
@@ -50,6 +58,20 @@ test("VPS stop readiness classifies test source paths conservatively", async () 
   assert.equal(isTestSourceFile("platform_v2/src/services/mapSnapshot.ts"), false);
   assert.equal(isTestSourceFile("platform_v2/src/services/latestObservations.ts"), false);
   assert.equal(isTestSourceFile("platform_v2/src/services/contestEntry.ts"), false);
+});
+
+test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts from runtime blockers", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const maintenancePgDependencyReason = loadMaintenancePgDependencyReason(script);
+
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/applyMigrations.ts"), "migration_cli_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/embedRegionalKnowledgeCards.ts"), "manual_embedding_batch");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/videoProcessingQueue.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runAlertDeliveryWorker.ts"), null);
+
+  assert.match(script, /const maintenancePgFiles = pgFiles/);
+  assert.match(script, /maintenance_pg_dependency_files/);
+  assert.match(script, /manual maintenance tools only/);
 });
 
 test("public custom domain origin fallback is not registered twice", async () => {
