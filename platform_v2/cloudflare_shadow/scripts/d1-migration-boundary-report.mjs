@@ -32,6 +32,13 @@ function isTestSourceFile(relativeFile) {
     || /\.(?:test|spec)\.(?:ts|tsx|js|mjs)$/.test(normalized);
 }
 
+function maintenancePgDependencyReason(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  if (normalized === "platform_v2/src/scripts/applyMigrations.ts") return "migration_cli_tool";
+  if (normalized === "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts") return "manual_embedding_batch";
+  return null;
+}
+
 function extractLocalImportSpecifiers(text) {
   const specifiers = [];
   const patterns = [
@@ -360,7 +367,13 @@ for (const file of pgSourceFiles) {
 }
 
 pgFiles.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
-const runtimePgFiles = pgFiles.filter((item) => !isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file));
+const maintenancePgFiles = pgFiles
+  .filter((item) => !isTestSourceFile(item.file) && maintenancePgDependencyReason(item.file))
+  .map((item) => ({ ...item, maintenanceReason: maintenancePgDependencyReason(item.file) }));
+const runtimePgFiles = pgFiles.filter((item) =>
+  (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
+    && !maintenancePgDependencyReason(item.file)
+);
 const testPgFiles = pgFiles.filter((item) => isTestSourceFile(item.file) && !runtimeImportedTestSourceFiles.has(item.file));
 const runtimeImportedTestPgFiles = pgFiles.filter((item) => runtimeImportedTestSourceFiles.has(item.file));
 originFallbackCalls.sort((a, b) => a.category.localeCompare(b.category) || a.reason.localeCompare(b.reason) || a.file.localeCompare(b.file) || a.line - b.line);
@@ -440,6 +453,7 @@ const lines = [
   "- blocker_scope: runtime PostgreSQL/vector/PostGIS/job-locking files plus any test-named file imported by runtime source; standalone test/source-test files are reported below but excluded from blocker_count.",
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
   `- runtime_pg_dependency_files: ${runtimePgFiles.length}`,
+  `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
   `- test_pg_dependency_files: ${testPgFiles.length}`,
   `- runtime_imported_test_pg_dependency_files: ${runtimeImportedTestPgFiles.length}`,
   `- displayed_pg_dependencies: ${Math.min(PG_DEPENDENCY_TABLE_LIMIT, runtimePgFiles.length)} of ${runtimePgFiles.length}`,
@@ -447,6 +461,14 @@ const lines = [
   "| score | file | flags | query_count |",
   "|---:|---|---|---:|",
   ...runtimePgFiles.slice(0, PG_DEPENDENCY_TABLE_LIMIT).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
+  "",
+  ...section("PostgreSQL Maintenance Dependencies"),
+  "- blocker_scope: CLI/manual maintenance tools only; these are PostgreSQL-dependent but do not keep the production request runtime or Cloudflare Worker dependent on the VPS.",
+  `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
+  "",
+  "| score | file | flags | query_count | maintenance_reason |",
+  "|---:|---|---|---:|---|",
+  ...maintenancePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.maintenanceReason} |`),
   "",
   ...section("PostgreSQL Test Source Dependencies"),
   "- blocker_scope: visible audit inventory only; these files must not be read as VPS-stop-ready while runtime blockers remain.",
