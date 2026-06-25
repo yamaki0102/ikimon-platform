@@ -241,8 +241,12 @@ function configuredStateForFallback(item, productionVars) {
     && productionVars.ORIGIN_FALLBACK_BASE_URL.trim() !== "";
   const publicWriteMode = String(productionVars.PUBLIC_WRITE_MODE ?? "");
   const publicCustomDomainFallbackMode = String(productionVars.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE ?? "enabled").trim().toLowerCase();
+  const originSessionImportMode = String(productionVars.ORIGIN_SESSION_IMPORT_MODE ?? "enabled").trim().toLowerCase();
   if (!originFallbackConfigured) {
     return { active: false, note: "origin_fallback_not_configured" };
+  }
+  if (item.reason === "origin_session_probe" && originSessionImportMode === "disabled") {
+    return { active: false, note: "inactive_origin_session_import_disabled" };
   }
   if (item.reason === "public_custom_domain_path" && publicCustomDomainFallbackMode === "disabled") {
     return { active: false, note: "inactive_public_custom_domain_origin_fallback_disabled" };
@@ -469,6 +473,7 @@ const lines = [
   "",
   ...section("Production Fallback Configuration"),
   `- PUBLIC_WRITE_MODE: ${productionVars.PUBLIC_WRITE_MODE ?? "unset"}`,
+  `- ORIGIN_SESSION_IMPORT_MODE: ${productionVars.ORIGIN_SESSION_IMPORT_MODE ?? "unset"}`,
   `- ORIGIN_FALLBACK_BASE_URL: ${productionVars.ORIGIN_FALLBACK_BASE_URL ? "configured" : "unset"}`,
   `- ORIGIN_FALLBACK_RESOLVE_OVERRIDE: ${productionVars.ORIGIN_FALLBACK_RESOLVE_OVERRIDE ? "configured" : "unset"}`,
   "",

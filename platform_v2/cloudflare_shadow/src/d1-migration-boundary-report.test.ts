@@ -67,6 +67,15 @@ test("legacy observation event API fallback remains an explicit P0 dependency", 
   assert.match(script, /inactive_public_custom_domain_origin_fallback_disabled/);
 });
 
+test("production origin session probe is dormant when import mode is disabled", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+
+  assert.match(script, /const originSessionImportMode = String\(productionVars\.ORIGIN_SESSION_IMPORT_MODE \?\? "enabled"\)/);
+  assert.match(script, /item\.reason === "origin_session_probe" && originSessionImportMode === "disabled"/);
+  assert.match(script, /inactive_origin_session_import_disabled/);
+  assert.match(script, /ORIGIN_SESSION_IMPORT_MODE/);
+});
+
 test("PostgreSQL signal classifier does not count JavaScript listener or Array helpers", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const classifyPg = loadClassifyPg(script);
