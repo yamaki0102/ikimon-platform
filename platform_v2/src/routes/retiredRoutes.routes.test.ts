@@ -1,7 +1,22 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+
+async function listFiles(root: string): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "dist") continue;
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listFiles(fullPath));
+    } else if (entry.isFile()) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
 
 test("municipal walk map Fastify routes are retired in favor of Worker-native routes", async () => {
   const appSource = await readFile(path.join(process.cwd(), "src", "app.ts"), "utf8");
@@ -43,12 +58,55 @@ test("municipal walk map HTML is not rendered through original-ui materializatio
   assert.match(workerSource, /"x-ikimon-cloudflare-native": "municipal-walk-map-admin-html"/);
 });
 
-test("legacy PostgreSQL municipal implementation remains unregistered until removal", async () => {
-  const routeSource = await readFile(path.join(process.cwd(), "src", "routes", "municipalWalkMaps.ts"), "utf8");
+test("legacy PostgreSQL municipal implementation is removed from platform source", async () => {
+  await assert.rejects(
+    () => readFile(path.join(process.cwd(), "src", "routes", "municipalWalkMaps.ts"), "utf8"),
+    /ENOENT/,
+  );
   const serviceSource = await readFile(path.join(process.cwd(), "src", "services", "municipalWalkMap.ts"), "utf8");
 
-  assert.match(routeSource, /registerMunicipalWalkMapRoutes/);
-  assert.match(serviceSource, /INSERT INTO municipal_walk_maps/);
-  assert.match(serviceSource, /INSERT INTO municipal_walk_map_creators/);
-  assert.match(serviceSource, /INSERT INTO municipal_walk_map_audit/);
+  assert.doesNotMatch(serviceSource, /from "\.\.\/db\.js"/);
+  assert.doesNotMatch(serviceSource, /INSERT INTO municipal_walk_maps/);
+  assert.doesNotMatch(serviceSource, /INSERT INTO municipal_walk_map_creators/);
+  assert.doesNotMatch(serviceSource, /INSERT INTO municipal_walk_map_audit/);
+});
+
+test("retired municipal PostgreSQL entrypoints have no product references", async () => {
+  const platformRoot = process.cwd();
+  const repoRoot = path.resolve(platformRoot, "..");
+  const scanRoots = [
+    platformRoot,
+    path.join(repoRoot, ".github"),
+  ];
+  const files = (await Promise.all(scanRoots.map(async (root) => {
+    try {
+      return await listFiles(root);
+    } catch {
+      return [];
+    }
+  }))).flat();
+  const self = path.join(platformRoot, "src", "routes", "retiredRoutes.routes.test.ts");
+  const retiredTokens = [
+    "db:preflight:municipal-walk-map-apply",
+    "db:verify:municipal-walk-map",
+    "preflightMunicipalWalkMapDbApply",
+    "verifyMunicipalWalkMapDbReadiness",
+    "src/routes/municipalWalkMaps.ts",
+    "registerMunicipalWalkMapRoutes",
+    "upsertMunicipalWalkMapConfigV0",
+    "getMunicipalWalkMapConfigV0FromDb",
+    "listMunicipalWalkMapReviewQueueV0",
+    "reviewMunicipalWalkMapPublicationV0",
+  ];
+  const hits: string[] = [];
+  for (const file of files) {
+    if (path.normalize(file) === path.normalize(self)) continue;
+    if (!/\.(ts|tsx|js|mjs|json|yml|yaml|md)$/.test(file)) continue;
+    const body = await readFile(file, "utf8");
+    for (const token of retiredTokens) {
+      if (body.includes(token)) hits.push(`${path.relative(repoRoot, file)}:${token}`);
+    }
+  }
+
+  assert.deepEqual(hits, []);
 });
