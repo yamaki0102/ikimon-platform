@@ -4,6 +4,8 @@ import path from "node:path";
 const shadowRoot = process.cwd();
 const repoRoot = path.resolve(shadowRoot, "..", "..");
 const platformRoot = path.join(repoRoot, "platform_v2");
+const PG_DEPENDENCY_TABLE_LIMIT = 80;
+const STOP_BLOCKER_TABLE_LIMIT = 120;
 
 function walk(dir, predicate, output = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -312,7 +314,7 @@ const stopBlockers = [
     category: item.category,
     severity: blockerSeverity({ type: "origin_fallback", category: item.category })
   })),
-  ...pgFiles.slice(0, 80).map((item) => ({
+  ...pgFiles.map((item) => ({
     type: "pg_dependency",
     key: item.file,
     category: item.flags.join(","),
@@ -354,10 +356,11 @@ const lines = [
   "",
   ...section("PostgreSQL Runtime Dependencies"),
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
+  `- displayed_pg_dependencies: ${Math.min(PG_DEPENDENCY_TABLE_LIMIT, pgFiles.length)} of ${pgFiles.length}`,
   "",
   "| score | file | flags | query_count |",
   "|---:|---|---|---:|",
-  ...pgFiles.slice(0, 80).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
+  ...pgFiles.slice(0, PG_DEPENDENCY_TABLE_LIMIT).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
   "",
   ...section("Origin Fallback Dependencies"),
   `- fallback_call_count: ${originFallbackCalls.length}`,
@@ -393,7 +396,7 @@ const lines = [
   "|---|---|---|---|",
   ...stopBlockers
     .sort((a, b) => a.severity.localeCompare(b.severity) || a.type.localeCompare(b.type) || a.key.localeCompare(b.key))
-    .slice(0, 120)
+    .slice(0, STOP_BLOCKER_TABLE_LIMIT)
     .map((item) => `| ${item.severity} | ${item.type} | ${item.category} | ${item.key} |`),
   "",
   ...section("Configured Production VPS Stop Readiness Gate"),
@@ -407,7 +410,7 @@ const lines = [
   "|---|---|---|---|---|",
   ...configuredStopBlockers
     .sort((a, b) => a.severity.localeCompare(b.severity) || a.type.localeCompare(b.type) || a.key.localeCompare(b.key))
-    .slice(0, 120)
+    .slice(0, STOP_BLOCKER_TABLE_LIMIT)
     .map((item) => `| ${item.severity} | ${item.type} | ${item.category} | ${item.configured.note} | ${item.key} |`),
   "",
   ...section("Migration Priority Heuristic"),
