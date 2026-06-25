@@ -1232,7 +1232,7 @@ export const worker = {
       }
 
       if (shouldFallbackObservationApiToOrigin(request, url, env)) {
-        return fetchOriginFallback(request, url, env, "unsupported_observation_api");
+        return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
       }
 
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
@@ -1453,7 +1453,21 @@ function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
 
 function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: Env): boolean {
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
-  return shouldUseOriginFallback(url, env) && url.pathname.startsWith("/api/v1/observations/");
+  return shouldUseOriginFallback(url, env) && isLegacyObservationOriginFallbackPath(request, url);
+}
+
+function isLegacyObservationOriginFallbackPath(request: Request, url: URL): boolean {
+  const pathname = url.pathname;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reactions\/[^/]+$/.test(pathname)) return true;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return true;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/identifications$/.test(pathname)) return true;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/disputes$/.test(pathname)) return true;
+  if (request.method === "GET" && /^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return true;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return true;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return true;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return true;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return true;
+  return false;
 }
 
 function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
@@ -1504,6 +1518,7 @@ function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL
   if (isShadowDiagnosticPath(url.pathname)) return false;
   if (url.pathname === "/health") return false;
   if (isSuspiciousPublicProbePath(url.pathname)) return false;
+  if (url.pathname.startsWith("/api/v1/observations/")) return false;
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
   if (request.method !== "GET" && request.method !== "HEAD") return true;
   return true;
@@ -1938,6 +1953,15 @@ function fallbackRoutePattern(pathname: string): string {
   if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(pathname)) return "/api/v1/observations/:id/photos/upload";
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(pathname)) return "/api/v1/observations/:id/hide";
   if (/^\/api\/v1\/observations\/[^/]+\/public-detail$/.test(pathname)) return "/api/v1/observations/:id/public-detail";
+  if (/^\/api\/v1\/observations\/[^/]+\/reactions\/[^/]+$/.test(pathname)) return "/api/v1/observations/:id/reactions/:type";
+  if (/^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return "/api/v1/observations/:id/candidates/:candidateId/:action";
+  if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(pathname)) return "/api/v1/observations/:id/identifications";
+  if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(pathname)) return "/api/v1/observations/:id/disputes";
+  if (/^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return "/api/v1/observations/:id/reference-candidates";
+  if (/^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return "/api/v1/observations/:id/reassess";
+  if (/^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return "/api/v1/observations/:id/reassess-from-video";
+  if (/^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return "/api/v1/observations/:id/reading-cards";
+  if (/^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return "/api/v1/observations/:id/management-candidates/:index/confirm";
   if (/^\/api\/v1\/observations\/[^/]+/.test(pathname)) return "/api/v1/observations/:id/*";
   if (/^\/api\/v1\/videos\/[^/]+\/body$/.test(pathname)) return "/api/v1/videos/:uid/body";
   if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(pathname)) return "/api/v1/videos/:uid/finalize";

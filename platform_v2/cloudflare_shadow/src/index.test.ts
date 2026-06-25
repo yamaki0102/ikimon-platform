@@ -3608,7 +3608,7 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
   assert.equal(core.operationAudit.length, 0);
 });
 
-test("production runtime proxies unsupported observation API paths to the configured origin fallback", async () => {
+test("production runtime proxies explicit legacy observation API paths to the configured origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -3649,12 +3649,12 @@ test("production runtime proxies unsupported observation API paths to the config
     assert.equal(seen.resolveOverride, "origin.ikimon.test");
     assert.equal(seen.cookie, "ikimon_v2_session=test");
     assert.equal(seen.marker, "origin");
-    assert.equal(seen.reason, "unsupported_observation_api");
+    assert.equal(seen.reason, "legacy_observation_api_origin_fallback");
     assert.equal(seen.body, JSON.stringify({ source: "unit" }));
     assert.equal(core.operationAudit.length, 1);
     const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "unsupported_observation_api");
-    assert.equal(telemetry.routePattern, "/api/v1/observations/:id/*");
+    assert.equal(telemetry.reason, "legacy_observation_api_origin_fallback");
+    assert.equal(telemetry.routePattern, "/api/v1/observations/:id/reactions/:type");
     assert.equal(JSON.stringify(telemetry).includes("example"), false);
     assert.equal(JSON.stringify(telemetry).includes("keep=1"), false);
   } finally {
@@ -3669,8 +3669,44 @@ test("production runtime proxies unsupported observation API paths to the config
   const summary = await summaryResponse.json() as any;
   assert.equal(summaryResponse.ok, true, JSON.stringify(summary));
   assert.equal(summary.count, 1);
-  assert.equal(summary.byReason.unsupported_observation_api, 1);
-  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/*"], 1);
+  assert.equal(summary.byReason.legacy_observation_api_origin_fallback, 1);
+  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reactions/:type"], 1);
+});
+
+test("production runtime returns 404 for unknown observation API paths without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/example/not-real?keep=1", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: "ikimon_v2_session=test"
+      },
+      body: JSON.stringify({ source: "unit" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 404);
+    assert.equal(payload.error, "not_found");
+    assert.equal(fetchCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("production origin fallback protects observation write paths when broad public-detail routing is enabled", async () => {
