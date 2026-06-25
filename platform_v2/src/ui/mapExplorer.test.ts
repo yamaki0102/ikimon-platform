@@ -541,16 +541,18 @@ test("walk map candidates render as compact map markers from area-level hints", 
   assert.match(script, /function walkMapCandidateAreaHint\(summary\)/);
   assert.match(script, /hint\.precision !== 'area_hint'/);
   assert.match(script, /state\.tab !== 'places'/);
-  assert.match(script, /max-width: 700px/);
+  assert.match(script, /var maxMarkers = 2;/);
   assert.match(script, /summaries\.slice\(0, maxMarkers\)/);
   assert.match(script, /if \(state\.tab !== 'places'\) clearWalkMapCandidateMarkers\(\);/);
   assert.match(script, /anchor: 'center'/);
   assert.match(script, /data-testid', 'map-walk-map-candidate-marker'/);
-  assert.match(script, /<span>周辺<\/span>/);
+  assert.match(script, /<span>散策<\/span>/);
   assert.match(script, /map_walk_map_candidate_click/);
   assert.match(script, /refreshWalkMapCandidateMarkers\(summaries\)/);
   assert.match(styles, /\.me-walk-map-marker/);
   assert.match(styles, /\.me-walk-map-marker strong/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker \{[\s\S]*max-width: 132px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker strong \{[\s\S]*max-width: 70px;[\s\S]*display: -webkit-box;/);
   assert.doesNotMatch(styles, /\.me-walk-map-marker::after/);
 });
 

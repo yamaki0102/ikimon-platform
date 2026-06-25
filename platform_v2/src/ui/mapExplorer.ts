@@ -2570,7 +2570,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function refreshWalkMapCandidateMarkers(summaries) {
     clearWalkMapCandidateMarkers();
     if (!state.map || !window.maplibregl || !Array.isArray(summaries) || state.tab !== 'places') return;
-    var maxMarkers = (window.matchMedia && window.matchMedia('(max-width: 700px)').matches) ? 1 : 2;
+    var maxMarkers = 2;
     summaries.slice(0, maxMarkers).forEach(function (summary, index) {
       var id = String(summary && summary.walkMapId || '');
       var title = String(summary && summary.title || '').trim();
@@ -2585,8 +2585,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       el.href = walkMapHrefForId(id);
       el.setAttribute('data-testid', 'map-walk-map-candidate-marker');
       el.setAttribute('data-kpi-action', 'map:walk_map_candidate_marker');
-      el.setAttribute('aria-label', shortTitle + ' 周辺候補');
-      el.innerHTML = '<span>周辺</span><strong>' + escapeHtml(shortTitle.slice(0, 14)) + '</strong>';
+      el.setAttribute('aria-label', shortTitle + ' 散策候補');
+      el.innerHTML = '<span>散策</span><strong>' + escapeHtml(shortTitle.slice(0, 14)) + '</strong>';
       el.addEventListener('click', function () {
         sendMapKpi('map_walk_map_candidate_click', 'map:walk_map_candidate_marker', {
           walkMapId: id,
@@ -10943,11 +10943,14 @@ export const MAP_EXPLORER_STYLES = `
   @media (max-width: 700px) {
     .me-walk-map-marker {
       min-width: 44px;
-      max-width: 92px;
+      max-width: 132px;
       min-height: 34px;
       padding: 6px 7px;
     }
-    .me-walk-map-marker strong { display: none; }
+    .me-walk-map-marker strong {
+      max-width: 70px;
+      display: -webkit-box;
+    }
   }
   .me-guide-spot-marker.is-pin .me-guide-spot-main {
     display: inline-flex;
