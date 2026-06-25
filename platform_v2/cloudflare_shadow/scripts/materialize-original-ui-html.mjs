@@ -70,11 +70,6 @@ const corePaths = [
   "/",
   "/demo/place-feeling-tags",
   "/guide",
-  "/walk-map-source-drafts/shizuoka-ikimono-walk-route",
-  "/walk-maps",
-  "/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
-  "/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
-  "/walk-maps/jp-shizuoka-mariko-waterfront-sample-v0",
   "/login",
   "/record",
   "/records",
@@ -86,10 +81,6 @@ const corePaths = [
   "/ja/",
   "/ja/demo/place-feeling-tags",
   "/ja/guide",
-  "/ja/walk-maps",
-  "/ja/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
-  "/ja/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
-  "/ja/walk-maps/jp-shizuoka-mariko-waterfront-sample-v0",
   "/ja/login",
   "/ja/record",
   "/ja/records",
@@ -129,12 +120,7 @@ const corePaths = [
   "/pt-br/records"
 ];
 
-const stagingOnlyAdminPreviewPaths = [
-  "/admin/municipal-walk-maps?templateId=route_species_walk",
-  "/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps",
-  "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
-  "/admin/municipal-walk-map-reviews"
-];
+const stagingOnlyAdminPreviewPaths = [];
 
 const staticAssetPaths = [
   "/app-sw.js",
@@ -170,9 +156,6 @@ function renderUrlForPath(pathname) {
     const rest = localizedMatch[2] || "/";
     const lang = segment === "pt-br" ? "pt-BR" : segment;
     if (["/", "/demo/place-feeling-tags", "/guide", "/login", "/map", "/profile", "/profile/settings", "/record", "/records", "/register"].includes(rest)) {
-      return `${rest}?lang=${encodeURIComponent(lang)}`;
-    }
-    if (rest === "/walk-maps" || rest.startsWith("/walk-maps/")) {
       return `${rest}?lang=${encodeURIComponent(lang)}`;
     }
   }
