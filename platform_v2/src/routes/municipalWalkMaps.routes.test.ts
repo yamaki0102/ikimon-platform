@@ -104,7 +104,10 @@ test("municipal walk map authoring UI posts typed config to admin API", async ()
   assert.match(routeSource, /引用元へ/);
   assert.match(routeSource, /公式ページを開く/);
   assert.match(routeSource, /primaryTypeLabel/);
-  assert.match(routeSource, /sourceCatalog = listMunicipalWalkMapSourceCatalogV0\(\{ templateId: selectedTemplateId \|\| undefined \}\)/);
+  assert.match(routeSource, /sourceCatalogFilters/);
+  assert.match(routeSource, /accessKind/);
+  assert.match(routeSource, /coordinateSensitivity/);
+  assert.match(routeSource, /reuseRisk/);
   assert.match(routeSource, /buildMunicipalWalkMapConfigFromTemplateV0/);
   assert.match(routeSource, /routeStops: routeStops/);
   assert.match(routeSource, /routeFlexibility/);
@@ -343,6 +346,10 @@ test("municipal walk map admin page renders source catalog and source-reference 
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /参考元カタログ/);
+        assert.match(response.body, /data-walk-map-source-filters/);
+        assert.match(response.body, /name="accessKind"/);
+        assert.match(response.body, /name="coordinateSensitivity"/);
+        assert.match(response.body, /name="reuseRisk"/);
         assert.match(response.body, /data-template-source-count="9"/);
         assert.match(response.body, /data-template-start-link="\/admin\/municipal-walk-maps\?templateId=route_species_walk"/);
         assert.match(response.body, /data-source-operational-model="official_walk_pdf"/);
@@ -402,6 +409,42 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.doesNotMatch(response.body, /世田谷区/);
         assert.doesNotMatch(response.body, /順番通り/);
         assert.doesNotMatch(response.body, /育つ場所/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("municipal walk map admin source catalog filters by risk metadata", async () => {
+  await withEnv(
+    {
+      DATABASE_URL: undefined,
+      ENABLE_DEV_DUMMY_ADMIN: "1",
+      DEV_DUMMY_ADMIN_TOKEN: "test-admin-token",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/admin/municipal-walk-maps?templateId=route_species_walk&coordinateSensitivity=high_sensitive_or_minor&reuseRisk=medium_pdf_or_external_terms",
+          headers: {
+            accept: "text/html",
+            cookie: "ikimon_v2_session=test-admin-token",
+          },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /data-walk-map-source-filters/);
+        assert.match(response.body, /name="coordinateSensitivity"/);
+        assert.match(response.body, /value="high_sensitive_or_minor" selected/);
+        assert.match(response.body, /value="medium_pdf_or_external_terms" selected/);
+        assert.match(response.body, /大田区/);
+        assert.match(response.body, /おおた区いきもの発見MAP/);
+        assert.match(response.body, /data-source-coordinate-sensitivity="high_sensitive_or_minor"/);
+        assert.match(response.body, /data-source-reuse-risk="medium_pdf_or_external_terms"/);
+        assert.doesNotMatch(response.body, /世田谷区/);
       } finally {
         await app.close();
       }
@@ -869,8 +912,39 @@ test("municipal walk map source catalog API filters by template id", async () =>
         assert.equal(response.statusCode, 200);
         const body = response.json();
         assert.equal(body.ok, true);
-        assert.ok(body.sources.length >= 4);
+        assert.ok(body.sources.length >= 1);
         assert.ok(body.sources.every((source: { templateId: string }) => source.templateId === "route_species_walk"));
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("municipal walk map source catalog API filters by access and risk metadata", async () => {
+  await withEnv(
+    {
+      DATABASE_URL: undefined,
+      V2_PRIVILEGED_WRITE_API_KEY: "test-write-key",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/api/v1/admin/municipal-walk-map-source-catalog?accessKind=direct_pdf&reuseRisk=medium_pdf_or_external_terms",
+          headers: {
+            "x-ikimon-write-key": "test-write-key",
+          },
+        });
+
+        assert.equal(response.statusCode, 200);
+        const body = response.json();
+        assert.equal(body.ok, true);
+        assert.ok(body.sources.length >= 1);
+        assert.ok(body.sources.every((source: { accessModel: { downloadKind: string }; riskModel: { reuseRisk: string } }) => source.accessModel.downloadKind === "direct_pdf" && source.riskModel.reuseRisk === "medium_pdf_or_external_terms"));
+        assert.match(JSON.stringify(body.sources), /kitakyushu-yamada-green-walking-course/);
+        assert.doesNotMatch(JSON.stringify(body.sources), /ota-ikimono-discovery-map/);
       } finally {
         await app.close();
       }

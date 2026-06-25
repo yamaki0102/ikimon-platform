@@ -261,6 +261,13 @@ export type MunicipalWalkMapSourceRiskModelV0 = {
   reviewNote: string;
 };
 
+export type MunicipalWalkMapSourceCatalogFilterV0 = {
+  templateId?: string;
+  accessKind?: MunicipalWalkMapSourceAccessModelV0["downloadKind"] | "";
+  coordinateSensitivity?: MunicipalWalkMapSourceRiskModelV0["coordinateSensitivity"] | "";
+  reuseRisk?: MunicipalWalkMapSourceRiskModelV0["reuseRisk"] | "";
+};
+
 const DEFAULT_WALK_MAP_ID = "jp-shizuoka-light-nature-walk-v0";
 const DEFAULT_CLAIM_BOUNDARY = [
   "公式調査結果ではなく、散策マップとして扱います。",
@@ -2086,10 +2093,16 @@ export function listMunicipalWalkMapTemplatesV0(): MunicipalWalkMapTemplateV0[] 
   }));
 }
 
-export function listMunicipalWalkMapSourceCatalogV0(options: { templateId?: string } = {}): MunicipalWalkMapSourceCatalogEntryV0[] {
+export function listMunicipalWalkMapSourceCatalogV0(options: MunicipalWalkMapSourceCatalogFilterV0 = {}): MunicipalWalkMapSourceCatalogEntryV0[] {
   const templateId = cleanText(options.templateId, 80);
+  const accessKind = cleanText(options.accessKind, 80);
+  const coordinateSensitivity = cleanText(options.coordinateSensitivity, 80);
+  const reuseRisk = cleanText(options.reuseRisk, 80);
   return MUNICIPAL_WALK_MAP_SOURCE_CATALOG_V0
     .filter((entry) => !templateId || entry.templateId === templateId)
+    .filter((entry) => !accessKind || sourceAccessModelV0(entry).downloadKind === accessKind)
+    .filter((entry) => !coordinateSensitivity || sourceRiskModelV0(entry).coordinateSensitivity === coordinateSensitivity)
+    .filter((entry) => !reuseRisk || sourceRiskModelV0(entry).reuseRisk === reuseRisk)
     .map((entry) => ({ ...entry }));
 }
 

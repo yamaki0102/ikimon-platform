@@ -726,6 +726,19 @@ test("municipal walk map source catalog covers researched official seed patterns
   const childMapRisk = sourceRiskModelV0(catalog.find((entry) => entry.sourceId === "sakai-ikimono-web")!);
   assert.equal(childMapRisk.reuseRisk, "high_photo_or_minor_content");
   assert.ok(childMapRisk.reviewFlags.includes("minor_or_school_context_check") || childMapRisk.reviewFlags.includes("photo_or_illustration_reuse_check"));
+  const directPdfSources = listMunicipalWalkMapSourceCatalogV0({ accessKind: "direct_pdf" });
+  assert.ok(directPdfSources.length >= 4);
+  assert.ok(directPdfSources.every((entry) => sourceAccessModelV0(entry).downloadKind === "direct_pdf"));
+  const highSensitivityRouteSources = listMunicipalWalkMapSourceCatalogV0({
+    templateId: "route_species_walk",
+    coordinateSensitivity: "high_sensitive_or_minor",
+  });
+  assert.ok(highSensitivityRouteSources.some((entry) => entry.sourceId === "ota-ikimono-discovery-map"));
+  assert.ok(highSensitivityRouteSources.every((entry) => entry.templateId === "route_species_walk"));
+  assert.ok(highSensitivityRouteSources.every((entry) => sourceRiskModelV0(entry).coordinateSensitivity === "high_sensitive_or_minor"));
+  const highReuseSources = listMunicipalWalkMapSourceCatalogV0({ reuseRisk: "high_photo_or_minor_content" });
+  assert.ok(highReuseSources.some((entry) => entry.sourceId === "sakai-ikimono-web"));
+  assert.ok(highReuseSources.every((entry) => sourceRiskModelV0(entry).reuseRisk === "high_photo_or_minor_content"));
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p035951\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.ota\.tokyo\.jp\/seikatsu\/sumaimachinami\/kankyou\/hogo\/ikimonomap\.html/);
   assert.match(JSON.stringify(catalog), /https:\/\/www\.city\.funabashi\.lg\.jp\/machi\/kankyou\/010\/p082326\.html/);

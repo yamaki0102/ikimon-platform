@@ -36,6 +36,7 @@ import {
   type MunicipalWalkMapReviewDecisionActionV0,
   type MunicipalWalkMapReviewQueueItemV0,
   type MunicipalWalkMapSourceCatalogEntryV0,
+  type MunicipalWalkMapSourceCatalogFilterV0,
   type MunicipalWalkMapTemplateV0,
 } from "../services/municipalWalkMap.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
@@ -590,6 +591,10 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-template-examples{margin:0;padding-left:16px;color:#475569;font-size:12px;line-height:1.55}
 .wm-admin-template-action{min-height:32px;display:inline-flex;align-items:center;justify-content:center;justify-self:start;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px;font-size:12px;font-weight:900;text-decoration:none}
 .wm-admin-source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.wm-admin-source-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:end;border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:10px}
+.wm-admin-source-filters label{display:grid;gap:4px;color:#475569;font-size:12px;font-weight:900}
+.wm-admin-source-filters select{min-width:140px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#111827;min-height:34px;padding:6px 8px;font:inherit;font-size:13px}
+.wm-admin-source-filters button,.wm-admin-source-filters a{min-height:34px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 10px;font-size:12px;font-weight:900;text-decoration:none}
 .wm-admin-source-card{border:1px solid #dbe7e2;border-radius:8px;background:#fbfefc;padding:10px;display:grid;gap:6px}
 .wm-admin-source-card.is-selected{border-color:#0f766e;background:#f0fdfa}
 .wm-admin-source-card strong{font-size:13px;color:#0f172a;line-height:1.35}
@@ -789,10 +794,15 @@ function sourceReuseRiskLabel(risk: ReturnType<typeof sourceRiskModelV0>["reuseR
   return "引用中心";
 }
 
+function selectedFilterOption(value: string, current: string | undefined, label: string): string {
+  return `<option value="${escapeHtml(value)}" ${value === (current ?? "") ? "selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
 function renderSourceCatalogPanel(
   sources: MunicipalWalkMapSourceCatalogEntryV0[],
   selectedTemplateId: string,
   selectedSourceId: string,
+  filters: MunicipalWalkMapSourceCatalogFilterV0,
 ): string {
   const scopeText = selectedTemplateId
     ? "選択中の型に近い自治体事例です。引用元として開き、PDF本文や図版は転載せず、立ち寄り先・安全メモ・記録項目へ置き換えます。"
@@ -830,6 +840,29 @@ function renderSourceCatalogPanel(
     <h2>参考元カタログ</h2>
     <p>${escapeHtml(scopeText)}</p>
   </div>
+  <form class="wm-admin-source-filters" method="get" action="/admin/municipal-walk-maps" data-walk-map-source-filters>
+    ${selectedTemplateId ? `<input type="hidden" name="templateId" value="${escapeHtml(selectedTemplateId)}">` : ""}
+    <label>形式<select name="accessKind" aria-label="参考元の形式">
+      ${selectedFilterOption("", filters.accessKind, "すべて")}
+      ${selectedFilterOption("official_page_with_links", filters.accessKind, "公式ページ")}
+      ${selectedFilterOption("direct_pdf", filters.accessKind, "PDF直接")}
+      ${selectedFilterOption("html_or_external_form", filters.accessKind, "外部導線")}
+    </select></label>
+    <label>位置<select name="coordinateSensitivity" aria-label="位置リスク">
+      ${selectedFilterOption("", filters.coordinateSensitivity, "すべて")}
+      ${selectedFilterOption("low_public_route", filters.coordinateSensitivity, "公開道中心")}
+      ${selectedFilterOption("medium_area_only", filters.coordinateSensitivity, "エリア表示")}
+      ${selectedFilterOption("high_sensitive_or_minor", filters.coordinateSensitivity, "位置注意")}
+    </select></label>
+    <label>権利<select name="reuseRisk" aria-label="転載リスク">
+      ${selectedFilterOption("", filters.reuseRisk, "すべて")}
+      ${selectedFilterOption("low_citation_page", filters.reuseRisk, "引用中心")}
+      ${selectedFilterOption("medium_pdf_or_external_terms", filters.reuseRisk, "要確認")}
+      ${selectedFilterOption("high_photo_or_minor_content", filters.reuseRisk, "転載注意")}
+    </select></label>
+    <button type="submit">絞り込む</button>
+    <a href="/admin/municipal-walk-maps${selectedTemplateId ? `?templateId=${encodeURIComponent(selectedTemplateId)}` : ""}">解除</a>
+  </form>
   <div class="wm-admin-source-grid">${cards}</div>
 </section>`;
 }
@@ -980,6 +1013,7 @@ function renderWalkMapAdminBody(
   selectedSourceId = "",
   creators: MunicipalWalkMapCreatorRegistryEntryV0[] = [],
   creatorLoadError = "",
+  sourceCatalogFilters: MunicipalWalkMapSourceCatalogFilterV0 = {},
 ): string {
   const claimBoundary = textareaValue(config.claimBoundary);
   const publicationReview: MunicipalWalkMapPublicationReviewV0 = config.publicationReview ?? {
@@ -996,7 +1030,10 @@ function renderWalkMapAdminBody(
   const stops = Array.from({ length: stopCount }, (_, index) => renderStopFields(config.routeStops[index], index)).join("");
   const templates = listMunicipalWalkMapTemplatesV0();
   const allSourceCatalog = listMunicipalWalkMapSourceCatalogV0();
-  const sourceCatalog = listMunicipalWalkMapSourceCatalogV0({ templateId: selectedTemplateId || undefined });
+  const sourceCatalog = listMunicipalWalkMapSourceCatalogV0({
+    ...sourceCatalogFilters,
+    templateId: selectedTemplateId || undefined,
+  });
   const creatorLoadWarning = creatorLoadError
     ? `<section class="wm-panel wm-warnings"><h2>作成者登録</h2><p class="wm-muted">作成者一覧を読み込めませんでした。登録IDの保存時確認はAPI側で行います。</p></section>`
     : "";
@@ -1016,7 +1053,7 @@ function renderWalkMapAdminBody(
   </header>
   ${renderAdminCreationRail(config)}
   ${renderTemplatePicker(templates, selectedTemplateId, allSourceCatalog)}
-  ${renderSourceCatalogPanel(sourceCatalog, selectedTemplateId, selectedSourceId)}
+  ${renderSourceCatalogPanel(sourceCatalog, selectedTemplateId, selectedSourceId, sourceCatalogFilters)}
   ${creatorLoadWarning}
   ${renderAdminPublicationGate(config)}
   <form class="wm-admin-form" data-walk-map-form data-source="${escapeHtml(source)}">
@@ -1809,7 +1846,7 @@ document.addEventListener("submit", async function(event) {
 `;
 
 export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { templateId?: string; sourceId?: string } }>("/admin/municipal-walk-maps", async (request, reply) => {
+  app.get<{ Querystring: { templateId?: string; sourceId?: string; accessKind?: string; coordinateSensitivity?: string; reuseRisk?: string } }>("/admin/municipal-walk-maps", async (request, reply) => {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     reply.type("text/html; charset=utf-8");
     if (!session || session.banned || !isAdminOrAnalystRole(session.roleName, session.rankLabel)) {
@@ -1822,6 +1859,11 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
       });
     }
     const templateConfig = newWalkMapConfigFromTemplate(request.query.templateId, request.query.sourceId);
+    const sourceCatalogFilters: MunicipalWalkMapSourceCatalogFilterV0 = {
+      accessKind: request.query.accessKind as MunicipalWalkMapSourceCatalogFilterV0["accessKind"],
+      coordinateSensitivity: request.query.coordinateSensitivity as MunicipalWalkMapSourceCatalogFilterV0["coordinateSensitivity"],
+      reuseRisk: request.query.reuseRisk as MunicipalWalkMapSourceCatalogFilterV0["reuseRisk"],
+    };
     const creatorLoad = await listMunicipalWalkMapCreatorsV0()
       .then((creators) => ({ creators, error: "" }))
       .catch((error) => ({ creators: [] as MunicipalWalkMapCreatorRegistryEntryV0[], error: error instanceof Error ? error.message : "creator_list_failed" }));
@@ -1836,6 +1878,7 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
         templateConfig.selectedSourceId,
         creatorLoad.creators,
         creatorLoad.error,
+        sourceCatalogFilters,
       ),
     });
   });
@@ -1980,10 +2023,15 @@ export async function registerMunicipalWalkMapRoutes(app: FastifyInstance): Prom
     }
   });
 
-  app.get<{ Querystring: { templateId?: string } }>("/api/v1/admin/municipal-walk-map-source-catalog", async (request, reply) => {
+  app.get<{ Querystring: { templateId?: string; accessKind?: string; coordinateSensitivity?: string; reuseRisk?: string } }>("/api/v1/admin/municipal-walk-map-source-catalog", async (request, reply) => {
     try {
       await assertMunicipalWalkMapAdminAccess(request);
-      const sources = listMunicipalWalkMapSourceCatalogV0({ templateId: request.query.templateId })
+      const sources = listMunicipalWalkMapSourceCatalogV0({
+        templateId: request.query.templateId,
+        accessKind: request.query.accessKind as MunicipalWalkMapSourceCatalogFilterV0["accessKind"],
+        coordinateSensitivity: request.query.coordinateSensitivity as MunicipalWalkMapSourceCatalogFilterV0["coordinateSensitivity"],
+        reuseRisk: request.query.reuseRisk as MunicipalWalkMapSourceCatalogFilterV0["reuseRisk"],
+      })
         .map((source) => ({
           ...source,
           operationalModel: sourceOperationalModelV0(source),
