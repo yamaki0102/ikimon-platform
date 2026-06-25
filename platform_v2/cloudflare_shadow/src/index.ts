@@ -201,6 +201,25 @@ interface MunicipalWalkMapD1Row {
   stop_count: number;
   source_references_json: string;
   area_hint_json: string;
+  route_flexibility_json?: string | null;
+  public_precision_policy?: string | null;
+  claim_boundary_json?: string | null;
+  updated_at?: string | null;
+}
+
+interface MunicipalWalkMapStopD1Row {
+  stop_id: string;
+  title: string;
+  note: string | null;
+  area_hint_json: string;
+  safety_note: string | null;
+  position: number;
+  area_kind: string;
+  access: string;
+  estimated_minutes: number | null;
+  notice_cues_json: string | null;
+  record_cues_json: string | null;
+  safety_notes_json: string | null;
 }
 
 interface MunicipalWalkMapCreatorAdminD1Row {
@@ -1126,6 +1145,16 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
         return getMunicipalWalkMapCandidates(url, env);
+      }
+
+      const municipalWalkMapDetailApiMatch = nativePathname.match(/^\/api\/v1\/municipal-walk-maps\/([^/]+)$/);
+      if (request.method === "GET" && municipalWalkMapDetailApiMatch?.[1]) {
+        return await getMunicipalWalkMapPublicDetailApi(decodeURIComponent(municipalWalkMapDetailApiMatch[1]), env);
+      }
+
+      const municipalWalkMapDetailPageMatch = nativePathname.match(/^\/walk-maps\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && municipalWalkMapDetailPageMatch?.[1]) {
+        return await getMunicipalWalkMapPublicDetailPage(decodeURIComponent(municipalWalkMapDetailPageMatch[1]), env);
       }
 
       if (nativePathname === "/api/v1/admin/municipal-walk-map-creators") {
@@ -2772,6 +2801,199 @@ function municipalWalkMapSummaryFromD1Row(row: MunicipalWalkMapD1Row) {
     sourceReferences: parseJsonArray(row.source_references_json),
     areaHint: parseJsonRecord(row.area_hint_json)
   };
+}
+
+function municipalWalkMapRouteFlexibility(row: MunicipalWalkMapD1Row) {
+  const configured = parseJsonRecord(row.route_flexibility_json ?? "{}");
+  const routeStyle = normalizeOptionalText(configured?.routeStyle ?? configured?.route_style ?? row.route_style) ?? "loose_stops";
+  const mobilityModes = arrayOrEmpty(configured?.mobilityModes ?? configured?.mobility_modes);
+  const returnCues = arrayOrEmpty(configured?.returnCues ?? configured?.return_cues);
+  return {
+    routeStyle,
+    mobilityModes: mobilityModes.length > 0 ? mobilityModes : parseJsonArray(row.mobility_modes_json),
+    offRoutePolicy: normalizeOptionalText(configured?.offRoutePolicy ?? configured?.off_route_policy) ?? "off_route_allowed",
+    returnCues: returnCues.length > 0 ? returnCues : ["現地の案内と公開範囲を優先する"]
+  };
+}
+
+function municipalWalkMapStopFromD1Row(row: MunicipalWalkMapStopD1Row) {
+  return {
+    stopId: row.stop_id,
+    title: row.title,
+    note: row.note ?? "",
+    areaKind: row.area_kind,
+    access: row.access,
+    estimatedMinutes: row.estimated_minutes,
+    noticeCues: parseJsonArray(row.notice_cues_json ?? "[]"),
+    recordCues: parseJsonArray(row.record_cues_json ?? "[]"),
+    safetyNotes: parseJsonArray(row.safety_notes_json ?? "[]"),
+    areaHint: parseJsonRecord(row.area_hint_json),
+    safetyNote: row.safety_note ?? ""
+  };
+}
+
+function municipalWalkMapStaticDetail(walkMapId: string) {
+  const summary = STATIC_MUNICIPAL_WALK_MAP_SUMMARIES.find((item) => item.walkMapId === walkMapId);
+  if (!summary) return null;
+  return {
+    ...summary,
+    schemaVersion: "municipal_walk_map_public_detail/v0",
+    source: "static",
+    routeFlexibility: {
+      routeStyle: summary.routeStyle,
+      mobilityModes: summary.mobilityModes,
+      offRoutePolicy: "off_route_allowed",
+      returnCues: ["現地の案内と公開範囲を優先する"]
+    },
+    publicPrecisionPolicy: "mesh_or_coarser",
+    claimBoundary: DEFAULT_MUNICIPAL_WALK_MAP_CLAIM_BOUNDARY,
+    stops: [
+      {
+        stopId: `${summary.walkMapId}-area`,
+        title: summary.areaHint?.label ?? summary.title,
+        note: summary.summary,
+        areaKind: summary.theme === "waterfront" ? "waterfront" : "other",
+        access: "public_access",
+        estimatedMinutes: null,
+        noticeCues: ["案内板", "足元", "周辺の風景"],
+        recordCues: ["写真", "メモ"],
+        safetyNotes: ["公開範囲で観察する"],
+        areaHint: summary.areaHint,
+        safetyNote: "公開範囲で観察する"
+      }
+    ]
+  };
+}
+
+async function getMunicipalWalkMapPublicDetail(walkMapId: string, env: Env) {
+  const safeWalkMapId = normalizeOptionalId(walkMapId);
+  if (!safeWalkMapId) return null;
+  try {
+    const map = await env.OBS_DB.prepare(
+      `SELECT walk_map_id, municipality_code, municipality, title, summary, theme, publish_mode,
+              route_style, mobility_modes_json, stop_count, source_references_json, area_hint_json,
+              route_flexibility_json, public_precision_policy, claim_boundary_json, updated_at
+         FROM municipal_walk_maps
+        WHERE walk_map_id = ?
+          AND publish_mode IN ('public_preview', 'public')
+        LIMIT 1`
+    ).bind(safeWalkMapId).first<MunicipalWalkMapD1Row>();
+    if (!map) return municipalWalkMapStaticDetail(safeWalkMapId);
+    const stops = await env.OBS_DB.prepare(
+      `SELECT stop_id, title, note, area_hint_json, safety_note, position, area_kind, access,
+              estimated_minutes, notice_cues_json, record_cues_json, safety_notes_json
+         FROM municipal_walk_map_stops
+        WHERE walk_map_id = ?
+        ORDER BY position ASC, display_order ASC, stop_id ASC`
+    ).bind(safeWalkMapId).all<MunicipalWalkMapStopD1Row>();
+    return {
+      ...municipalWalkMapSummaryFromD1Row(map),
+      schemaVersion: "municipal_walk_map_public_detail/v0",
+      source: "d1_observations",
+      routeFlexibility: municipalWalkMapRouteFlexibility(map),
+      publicPrecisionPolicy: normalizeOptionalText(map.public_precision_policy) ?? "mesh_or_coarser",
+      claimBoundary: parseJsonArray(map.claim_boundary_json ?? "[]"),
+      updatedAt: map.updated_at ?? null,
+      stops: stops.results.map(municipalWalkMapStopFromD1Row)
+    };
+  } catch (error) {
+    if (error instanceof Error && /no such table: municipal_walk_maps|no such column:/i.test(error.message)) {
+      return municipalWalkMapStaticDetail(safeWalkMapId);
+    }
+    throw error;
+  }
+}
+
+async function getMunicipalWalkMapPublicDetailApi(walkMapId: string, env: Env): Promise<Response> {
+  const detail = await getMunicipalWalkMapPublicDetail(walkMapId, env);
+  if (!detail) return json({ ok: false, error: "walk_map_not_found" }, 404, { "cache-control": "public, max-age=60" });
+  return json({ ok: true, detail }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+}
+
+function renderMunicipalWalkMapPublicDetailHtml(detail: Awaited<ReturnType<typeof getMunicipalWalkMapPublicDetail>>): string {
+  if (!detail) return "";
+  const stops = arrayOrEmpty((detail as Record<string, unknown>).stops).map((raw, index) => {
+    const stop = recordOrEmpty(raw);
+    const title = normalizeOptionalText(stop.title) ?? `立ち寄り先 ${index + 1}`;
+    const note = normalizeOptionalText(stop.note) ?? "";
+    const safetyNote = normalizeOptionalText(stop.safetyNote) ?? "";
+    return `<article class="wm-detail-stop">
+      <div class="wm-detail-stop-head">
+        <h2>${index + 1}. ${escapeHtml(title)}</h2>
+        <span>${escapeHtml(normalizeOptionalText(stop.areaKind) ?? "other")} / ${escapeHtml(normalizeOptionalText(stop.access) ?? "public_access")}</span>
+      </div>
+      ${note ? `<p>${escapeHtml(note)}</p>` : ""}
+      <div class="wm-detail-cues">
+        <section><strong>見るもの</strong><ul>${htmlList(arrayOrEmpty(stop.noticeCues))}</ul></section>
+        <section><strong>残すもの</strong><ul>${htmlList(arrayOrEmpty(stop.recordCues))}</ul></section>
+      </div>
+      ${safetyNote ? `<small>${escapeHtml(safetyNote)}</small>` : ""}
+    </article>`;
+  }).join("");
+  const sources = arrayOrEmpty((detail as Record<string, unknown>).sourceReferences)
+    .map((source) => recordOrEmpty(source))
+    .map((source) => {
+      const label = normalizeOptionalText(source.label) ?? "出典";
+      const href = normalizeOptionalText(source.url);
+      return href
+        ? `<li><a href="${escapeHtml(href)}" rel="noopener noreferrer">${escapeHtml(label)}</a></li>`
+        : `<li>${escapeHtml(label)}</li>`;
+    })
+    .join("");
+  const routeFlexibility = recordOrEmpty((detail as Record<string, unknown>).routeFlexibility);
+  return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).title) ?? "散策マップ")} - ikimon</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+.wm-detail{max-width:1080px;margin:0 auto;padding:24px 16px 72px}
+.wm-detail-hero{display:grid;gap:10px;margin-bottom:18px}
+.wm-detail-hero small{color:#0f766e;font-size:12px;font-weight:900}
+.wm-detail-hero h1{margin:0;font-size:32px;line-height:1.18;letter-spacing:0}
+.wm-detail-hero p{margin:0;color:#475569;line-height:1.7}
+.wm-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.wm-detail-stops{display:grid;gap:12px}
+.wm-detail-stop,.wm-detail-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}
+.wm-detail-stop-head{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.wm-detail-stop h2,.wm-detail-panel h2{margin:0 0 10px;font-size:18px;color:#0f172a}
+.wm-detail-stop-head span{font-size:11px;font-weight:900;color:#0f766e}
+.wm-detail-cues{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wm-detail-cues section{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px}
+.wm-detail-cues ul,.wm-detail-panel ul{margin:6px 0 0;padding-left:18px;color:#475569;font-size:12px;line-height:1.7}
+.wm-detail-stop p,.wm-detail-panel p{margin:0;color:#475569;line-height:1.7}
+.wm-detail-stop small{display:block;margin-top:10px;color:#64748b;font-weight:800}
+.wm-detail-panel{display:grid;gap:12px}
+.wm-detail-panel a{color:#0f766e;font-weight:900;text-decoration:none}
+@media(max-width:760px){.wm-detail-grid,.wm-detail-cues{grid-template-columns:1fr}.wm-detail{padding:18px 12px 56px}.wm-detail-hero h1{font-size:26px}}
+</style>
+</head>
+<body>
+<main class="wm-detail">
+  <header class="wm-detail-hero">
+    <small>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).municipality) ?? "")} / ${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).publishMode) ?? "")}</small>
+    <h1>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).title) ?? "散策マップ")}</h1>
+    <p>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).summary) ?? "")}</p>
+  </header>
+  <div class="wm-detail-grid">
+    <section class="wm-detail-stops">${stops}</section>
+    <aside class="wm-detail-panel">
+      <section><h2>移動</h2><p>${escapeHtml(normalizeOptionalText(routeFlexibility.routeStyle) ?? "loose_stops")} / ${escapeHtml(arrayOrEmpty(routeFlexibility.mobilityModes).map(String).join(" / ") || "walk")}</p></section>
+      <section><h2>出典</h2><ul>${sources || "<li>出典リンクなし</li>"}</ul></section>
+      <section><h2>場所の出し方</h2><p>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).publicPrecisionPolicy) ?? "mesh_or_coarser")}</p></section>
+    </aside>
+  </div>
+</main>
+</body>
+</html>`;
+}
+
+async function getMunicipalWalkMapPublicDetailPage(walkMapId: string, env: Env): Promise<Response> {
+  const detail = await getMunicipalWalkMapPublicDetail(walkMapId, env);
+  if (!detail) return html("<!doctype html><meta charset=\"utf-8\"><title>散策マップが見つかりません</title><main><h1>散策マップが見つかりません</h1></main>", 404, { "cache-control": "public, max-age=60" });
+  return html(renderMunicipalWalkMapPublicDetailHtml(detail), 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
 async function getMunicipalWalkMapSummariesFromD1(

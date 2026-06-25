@@ -318,6 +318,8 @@ interface MunicipalWalkMapD1Row {
   creator_name?: string | null;
   creator_profile_json?: string | null;
   route_flexibility_json?: string | null;
+  public_precision_policy?: string | null;
+  claim_boundary_json?: string | null;
   publication_review_json?: string | null;
   updated_at?: string | null;
 }
@@ -342,6 +344,11 @@ interface MunicipalWalkMapStopRow {
   position: number;
   area_kind: string;
   access: string;
+  estimated_minutes?: number | null;
+  notice_cues_json?: string | null;
+  record_cues_json?: string | null;
+  safety_notes_json?: string | null;
+  safety_note?: string | null;
 }
 
 interface MunicipalWalkMapAuditRow {
@@ -850,6 +857,8 @@ class FakeStatement {
         creator_name: nullableString(v[15]),
         creator_profile_json: string(v[16]),
         route_flexibility_json: string(v[19]),
+        public_precision_policy: string(v[20]),
+        claim_boundary_json: string(v[21]),
         publication_review_json: string(v[22]),
         updated_at: new Date().toISOString()
       });
@@ -872,9 +881,14 @@ class FakeStatement {
         title: string(v[3]),
         note: nullableString(v[4]),
         area_hint_json: string(v[5]),
+        safety_note: nullableString(v[6]),
         position: number(v[7]),
         area_kind: string(v[8]),
-        access: string(v[10])
+        access: string(v[10]),
+        estimated_minutes: nullableNumber(v[12]),
+        notice_cues_json: string(v[13]),
+        record_cues_json: string(v[14]),
+        safety_notes_json: string(v[15])
       });
       return {};
     }
@@ -1318,6 +1332,29 @@ class FakeStatement {
       } as T);
     }
 
+    if (normalized.startsWith("SELECT walk_map_id, municipality_code, municipality, title, summary, theme, publish_mode")) {
+      const row = this.db.municipalWalkMaps.get(string(v[0]));
+      if (!row || (row.publish_mode !== "public_preview" && row.publish_mode !== "public")) return null;
+      return ({
+        walk_map_id: row.walk_map_id,
+        municipality_code: row.municipality_code,
+        municipality: row.municipality,
+        title: row.title,
+        summary: row.summary,
+        theme: row.theme,
+        publish_mode: row.publish_mode,
+        route_style: row.route_style,
+        mobility_modes_json: row.mobility_modes_json,
+        stop_count: row.stop_count,
+        source_references_json: row.source_references_json,
+        area_hint_json: row.area_hint_json,
+        route_flexibility_json: row.route_flexibility_json ?? "{}",
+        public_precision_policy: row.public_precision_policy ?? "mesh_or_coarser",
+        claim_boundary_json: row.claim_boundary_json ?? "[]",
+        updated_at: row.updated_at ?? null
+      } as T);
+    }
+
     throw new Error(`Unhandled SQL first: ${this.query}`);
   }
 
@@ -1476,6 +1513,27 @@ class FakeStatement {
           || (b.updated_at ?? "").localeCompare(a.updated_at ?? "")
           || a.walk_map_id.localeCompare(b.walk_map_id))
         .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT stop_id, title, note, area_hint_json, safety_note, position, area_kind, access")) {
+      const walkMapId = string(this.values[0]);
+      const rows = [...this.db.municipalWalkMapStops.values()]
+        .filter((row) => row.walk_map_id === walkMapId)
+        .sort((a, b) => a.position - b.position || a.display_order - b.display_order || a.stop_id.localeCompare(b.stop_id))
+        .map((row) => ({
+          stop_id: row.stop_id,
+          title: row.title,
+          note: row.note,
+          area_hint_json: row.area_hint_json,
+          safety_note: row.safety_note ?? null,
+          position: row.position,
+          area_kind: row.area_kind,
+          access: row.access,
+          estimated_minutes: row.estimated_minutes ?? null,
+          notice_cues_json: row.notice_cues_json ?? "[]",
+          record_cues_json: row.record_cues_json ?? "[]",
+          safety_notes_json: row.safety_notes_json ?? "[]"
+        }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, prefecture, city, center_lat, center_lng")) {
@@ -5685,6 +5743,78 @@ test("Cloudflare public municipal walk map candidate API prefers OBS_DB readmode
   assert.equal(body.summaries?.[0]?.walkMapId, "jp-shizuoka-d1-sample");
   assert.deepEqual(body.summaries?.[0]?.mobilityModes, ["walk", "bike"]);
   assert.equal(body.summaries?.[0]?.areaHint?.precision, "area_hint");
+});
+
+test("Cloudflare public municipal walk map detail API and page render D1 readmodel without origin fallback", async () => {
+  const { env, obs } = createEnv();
+  obs.municipalWalkMaps.set("jp-shizuoka-d1-detail-sample", {
+    walk_map_id: "jp-shizuoka-d1-detail-sample",
+    municipality_code: "22100",
+    municipality: "静岡市",
+    title: "D1散策ディテール",
+    summary: "公開範囲で見る散策ディテールです。",
+    theme: "waterfront",
+    publish_mode: "public_preview",
+    route_style: "loose_stops",
+    mobility_modes_json: "[\"walk\",\"bike\"]",
+    stop_count: 1,
+    source_references_json: "[{\"label\":\"静岡市 いきもの散策マップ\",\"url\":\"https://www.city.shizuoka.lg.jp/s6347/s001494.html\"}]",
+    area_hint_json: "{\"lat\":35.015,\"lng\":138.389,\"label\":\"麻機の水辺\",\"precision\":\"area_hint\",\"source\":\"official_source_sample\"}",
+    display_order: 1,
+    route_flexibility_json: "{\"routeStyle\":\"loose_stops\",\"mobilityModes\":[\"walk\",\"bike\"],\"offRoutePolicy\":\"off_route_allowed\",\"returnCues\":[\"案内板へ戻る\"]}",
+    public_precision_policy: "mesh_or_coarser",
+    claim_boundary_json: "[\"公式調査結果ではなく、散策マップとして扱います。\"]",
+    updated_at: "2026-06-25T00:00:00.000Z"
+  });
+  obs.municipalWalkMapStops.set("detail-stop-1", {
+    stop_id: "detail-stop-1",
+    walk_map_id: "jp-shizuoka-d1-detail-sample",
+    display_order: 1,
+    title: "水辺の入口",
+    note: "水面と草地を見ます。",
+    area_hint_json: "{\"lat\":35.015,\"lng\":138.389,\"precision\":\"area_hint\",\"source\":\"official_source_sample\"}",
+    safety_note: "水辺に近づきすぎない。",
+    position: 1,
+    area_kind: "waterfront",
+    access: "public_access",
+    estimated_minutes: 12,
+    notice_cues_json: "[\"水面\",\"草地\"]",
+    record_cues_json: "[\"写真\",\"メモ\"]",
+    safety_notes_json: "[\"足元確認\"]"
+  });
+
+  const api = await worker.fetch(new Request(
+    "https://staging.ikimon.life/ja/api/v1/municipal-walk-maps/jp-shizuoka-d1-detail-sample"
+  ), { ...env, ENVIRONMENT: "staging" });
+  const apiBody = await api.json() as {
+    ok?: boolean;
+    detail?: {
+      source?: string;
+      walkMapId?: string;
+      stops?: Array<{ stopId?: string; areaHint?: { precision?: string }; noticeCues?: string[] }>;
+      routeFlexibility?: { mobilityModes?: string[] };
+    };
+  };
+  assert.equal(api.status, 200);
+  assert.equal(apiBody.ok, true);
+  assert.equal(apiBody.detail?.source, "d1_observations");
+  assert.equal(apiBody.detail?.walkMapId, "jp-shizuoka-d1-detail-sample");
+  assert.equal(apiBody.detail?.stops?.[0]?.stopId, "detail-stop-1");
+  assert.equal(apiBody.detail?.stops?.[0]?.areaHint?.precision, "area_hint");
+  assert.deepEqual(apiBody.detail?.stops?.[0]?.noticeCues, ["水面", "草地"]);
+  assert.deepEqual(apiBody.detail?.routeFlexibility?.mobilityModes, ["walk", "bike"]);
+
+  const page = await worker.fetch(new Request(
+    "https://staging.ikimon.life/ja/walk-maps/jp-shizuoka-d1-detail-sample",
+    { headers: { accept: "text/html" } }
+  ), { ...env, ENVIRONMENT: "staging" });
+  const pageHtml = await page.text();
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type") ?? "", /text\/html/);
+  assert.match(pageHtml, /D1散策ディテール/);
+  assert.match(pageHtml, /水辺の入口/);
+  assert.match(pageHtml, /静岡市 いきもの散策マップ/);
+  assert.doesNotMatch(pageHtml, /exact_lat|exact_lng|internalMemo|internal_memo/);
 });
 
 test("municipal walk map admin creator API requires an admin session before D1 writes", async () => {
