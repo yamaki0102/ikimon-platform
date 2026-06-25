@@ -5,8 +5,10 @@ import test from "node:test";
 
 function loadClassifyPg(script: string): (text: string) => string[] {
   const match = script.match(/function classifyPg\(text\) \{[\s\S]*?\n\}/);
+  const vectorMatch = script.match(/function hasPgVectorSignal\(text\) \{[\s\S]*?\n\}/);
   assert.ok(match, "classifyPg function is present");
-  return new Function(`${match[0]}; return classifyPg;`)() as (text: string) => string[];
+  assert.ok(vectorMatch, "hasPgVectorSignal function is present");
+  return new Function(`${vectorMatch[0]}; ${match[0]}; return classifyPg;`)() as (text: string) => string[];
 }
 
 function loadIsTestSourceFile(script: string): (relativeFile: string) => boolean {
@@ -61,6 +63,9 @@ test("PostgreSQL signal classifier does not count JavaScript listener or Array h
   assert.equal(classifyPg("const list = Array(10);").includes("pg_types"), false);
   assert.equal(classifyPg("const ok = Array.isArray(value);").includes("pg_types"), false);
   assert.equal(classifyPg("type Items = Array<string>;").includes("pg_types"), false);
+  assert.equal(classifyPg("export function normalizeEmbeddingVector(vector: number[]) { return vector; }").includes("vector"), false);
+  assert.equal(classifyPg("const results = await env.VECTOR_INDEX.query(vector, { topK: 3 });").includes("vector"), false);
+  assert.equal(classifyPg("await openai.embeddings.create({ model: 'text-embedding-3-small', input });").includes("vector"), false);
 
   assert.equal(classifyPg("await client.query('LISTEN observation_events');").includes("job_locking"), true);
   assert.equal(classifyPg("await client.query('notify observation_events');").includes("job_locking"), true);
@@ -68,9 +73,18 @@ test("PostgreSQL signal classifier does not count JavaScript listener or Array h
   assert.equal(classifyPg("SELECT array[1, 2, 3] AS ids").includes("pg_types"), true);
   assert.equal(classifyPg("SELECT ARRAY(SELECT id FROM users)").includes("pg_types"), true);
   assert.equal(classifyPg("SELECT unnest(tags)").includes("pg_types"), true);
+  assert.equal(classifyPg("SELECT embedding <=> $1::vector FROM audio_embeddings").includes("vector"), true);
+  assert.equal(classifyPg("SELECT * FROM items ORDER BY embedding <-> $1 LIMIT 5").includes("vector"), true);
+  assert.equal(classifyPg("SELECT * FROM items ORDER BY embedding <#> $1 LIMIT 5").includes("vector"), true);
+  assert.equal(classifyPg("SELECT * FROM items ORDER BY embedding <+> $1 LIMIT 5").includes("vector"), true);
+  assert.equal(classifyPg("CREATE EXTENSION IF NOT EXISTS vector;").includes("vector"), true);
+  assert.equal(classifyPg("CREATE INDEX ON items USING hnsw (embedding vector_cosine_ops)").includes("vector"), true);
+  assert.equal(classifyPg("SELECT CAST(my_array AS vector)").includes("vector"), true);
+  assert.equal(classifyPg("CREATE INDEX ON cards USING ivfflat (retrieval_embedding vector_cosine_ops)").includes("vector"), true);
 
   assert.match(script, /PostgreSQL Signal Noise Suppression/);
   assert.match(script, /js_noise_suppressed_files/);
+  assert.match(script, /non_pg_embedding_or_vector_text/);
   assert.doesNotMatch(script, /LISTEN\|NOTIFY\|SKIP LOCKED\|FOR UPDATE\/i/);
   assert.doesNotMatch(script, /\\bARRAY\\b\|unnest\\\(\//);
 });

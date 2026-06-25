@@ -134,10 +134,14 @@ function productionVarsFromWrangler(config) {
   return vars && typeof vars === "object" ? vars : {};
 }
 
+function hasPgVectorSignal(text) {
+  return /pgvector|using\s+(?:ivfflat|hnsw)\b|vector_(?:l2|ip|cosine|l1)_ops|create\s+extension(?:\s+if\s+not\s+exists)?\s+vector\b|::\s*vector\b|\bas\s+vector\b|<=>|<->|<#>|<\+>|\bvector\s*\(/i.test(text);
+}
+
 function classifyPg(text) {
   const flags = [];
   if (/\bST_[A-Za-z0-9_]+\s*\(|PostGIS|\bgeometry\b|\bgeography\b/i.test(text)) flags.push("postgis");
-  if (/vector|embedding|pgvector|cosine|ivfflat/i.test(text)) flags.push("vector");
+  if (hasPgVectorSignal(text)) flags.push("vector");
   if (/tsvector|to_tsvector|plainto_tsquery|websearch_to_tsquery/i.test(text)) flags.push("full_text");
   if (/(?:^|[^.\w])(?:LISTEN|NOTIFY)\s+[A-Za-z_"]|\bSKIP\s+LOCKED\b|\bFOR\s+UPDATE\b/i.test(text)) flags.push("job_locking");
   if (/DATABASE_URL|PGHOST|PGUSER|PGPASSWORD/i.test(text)) flags.push("pg_env");
@@ -151,6 +155,7 @@ function classifySuppressedPgNoise(text) {
   const signals = [];
   if (/addEventListener|\.listen\s*\(|\bnotify\s*\(/i.test(text)) signals.push("js_listener_or_notify");
   if (/\bArray(?:\.isArray|\s*[<(])/.test(text)) signals.push("js_array_helper_or_type");
+  if (/\b(?:embedding|vector)\b/i.test(text) && !hasPgVectorSignal(text)) signals.push("non_pg_embedding_or_vector_text");
   return signals;
 }
 
