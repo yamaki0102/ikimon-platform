@@ -38,6 +38,14 @@ interface ObservationRow {
   processing_state: string;
 }
 
+interface ObservationReactionRow {
+  reaction_id: string;
+  occurrence_id: string;
+  user_id: string;
+  reaction_type: string;
+  created_at: string;
+}
+
 interface AssetRow {
   asset_id: string;
   draft_id: string;
@@ -550,6 +558,7 @@ class FakeD1 {
   taxonAlertSubscriptions = new Map<string, TaxonAlertSubscriptionRow>();
   drafts = new Map<string, DraftRow>();
   observations = new Map<string, ObservationRow>();
+  observationReactions = new Map<string, ObservationReactionRow>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -1120,6 +1129,39 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO observation_reactions")) {
+      const duplicate = [...this.db.observationReactions.values()].find((candidate) =>
+        candidate.occurrence_id === string(v[1])
+        && candidate.user_id === string(v[2])
+        && candidate.reaction_type === string(v[3])
+      );
+      if (duplicate) {
+        throw new Error("UNIQUE constraint failed: observation_reactions.occurrence_id, observation_reactions.user_id, observation_reactions.reaction_type");
+      }
+      this.db.observationReactions.set(string(v[0]), {
+        reaction_id: string(v[0]),
+        occurrence_id: string(v[1]),
+        user_id: string(v[2]),
+        reaction_type: string(v[3]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM observation_reactions WHERE occurrence_id = ?")) {
+      for (const [key, row] of [...this.db.observationReactions.entries()]) {
+        if (row.occurrence_id === string(v[0]) && row.user_id === string(v[1]) && row.reaction_type === string(v[2])) {
+          this.db.observationReactions.delete(key);
+        }
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM observation_reactions")) {
+      this.db.observationReactions.delete(string(v[0]));
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE draft_observations SET processing_state = 'finalized'")) {
       const draft = requireRow(this.db.drafts, string(v[0]));
       draft.processing_state = "finalized";
@@ -1499,6 +1541,24 @@ class FakeStatement {
         draft_id: observation.draft_id,
         owner_user_id: observation.owner_user_id
       } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT 1 AS ok WHERE EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)")) {
+      const target = string(v[0]);
+      const exists = this.db.observations.has(target)
+        || this.db.readmodel.has(string(v[1]))
+        || this.db.publicMapSnapshotRecords.some((row) => row.occurrence_id === string(v[2]) || row.visit_id === string(v[3]))
+        || this.db.productionPublicReadmodel.has(string(v[5]));
+      return exists ? ({ ok: 1 } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT reaction_id FROM observation_reactions")) {
+      const row = [...this.db.observationReactions.values()].find((candidate) =>
+        candidate.occurrence_id === string(v[0])
+        && candidate.user_id === string(v[1])
+        && candidate.reaction_type === string(v[2])
+      );
+      return row ? ({ reaction_id: row.reaction_id } as T) : null;
     }
 
     if (normalized.startsWith("SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count")) {
@@ -4425,7 +4485,7 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
   assert.equal(core.operationAudit.length, 0);
 });
 
-test("production runtime proxies explicit legacy observation API paths to the configured origin fallback", async () => {
+test("production runtime proxies remaining explicit legacy observation API paths to the configured origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -4450,7 +4510,7 @@ test("production runtime proxies explicit legacy observation API paths to the co
     });
   }) as typeof fetch;
   try {
-    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/example/reactions/like?keep=1", {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/example/candidates/candidate-1/propose?keep=1", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -4461,7 +4521,7 @@ test("production runtime proxies explicit legacy observation API paths to the co
     const payload = await response.json() as any;
     assert.equal(response.status, 202);
     assert.equal(payload.originFallback, true);
-    assert.equal(seen.url, "https://ikimon.life/api/v1/observations/example/reactions/like?keep=1");
+    assert.equal(seen.url, "https://ikimon.life/api/v1/observations/example/candidates/candidate-1/propose?keep=1");
     assert.equal(seen.method, "POST");
     assert.equal(seen.resolveOverride, "origin.ikimon.test");
     assert.equal(seen.cookie, "ikimon_v2_session=test");
@@ -4471,7 +4531,7 @@ test("production runtime proxies explicit legacy observation API paths to the co
     assert.equal(core.operationAudit.length, 1);
     const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
     assert.equal(telemetry.reason, "legacy_observation_api_origin_fallback");
-    assert.equal(telemetry.routePattern, "/api/v1/observations/:id/reactions/:type");
+    assert.equal(telemetry.routePattern, "/api/v1/observations/:id/candidates/:candidateId/:action");
     assert.equal(JSON.stringify(telemetry).includes("example"), false);
     assert.equal(JSON.stringify(telemetry).includes("keep=1"), false);
   } finally {
@@ -4487,7 +4547,202 @@ test("production runtime proxies explicit legacy observation API paths to the co
   assert.equal(summaryResponse.ok, true, JSON.stringify(summary));
   assert.equal(summary.count, 1);
   assert.equal(summary.byReason.legacy_observation_api_origin_fallback, 1);
-  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reactions/:type"], 1);
+  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/candidates/:candidateId/:action"], 1);
+});
+
+test("production runtime handles observation reactions natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.readmodel.set("occ-1", {
+    observation_id: "occ-1",
+    public_cell: "34.97,138.38",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    taxon_label: "reaction target",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "reaction-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const first = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reactions/like", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ source: "unit", userId: "spoofed-user" })
+    }), productionEnv);
+    const firstPayload = await first.json() as any;
+    assert.equal(first.status, 200, JSON.stringify(firstPayload));
+    assert.equal(firstPayload.added, true);
+    assert.equal(obs.observationReactions.size, 1);
+    assert.equal([...obs.observationReactions.values()][0]?.user_id, "reaction-user");
+
+    const second = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reactions/like", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ source: "unit" })
+    }), productionEnv);
+    const secondPayload = await second.json() as any;
+    assert.equal(second.status, 200, JSON.stringify(secondPayload));
+    assert.equal(secondPayload.added, false);
+    assert.equal(obs.observationReactions.size, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime rejects unknown observation reaction targets before origin fallback", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "reaction-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/missing-occ/reactions/like", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ source: "unit" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 404);
+    assert.equal(payload.error, "not_found");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalls, 0);
+  assert.equal(obs.observationReactions.size, 0);
+});
+
+test("production observation reactions fail closed when the D1 session store is unavailable", async () => {
+  const { env, core, obs } = createEnv();
+  obs.readmodel.set("occ-1", {
+    observation_id: "occ-1",
+    public_cell: "34.97,138.38",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    taxon_label: "reaction target",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "reaction-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const brokenCore = {
+    prepare(query: string) {
+      if (normalize(query).startsWith("SELECT token_hash, user_id, display_name, role_name, rank_label, banned, expires_at FROM auth_sessions")) {
+        throw new Error("simulated auth store unavailable");
+      }
+      return core.prepare(query);
+    },
+    batch(statements: FakeStatement[]) {
+      return core.batch(statements);
+    }
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reactions/like", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ source: "unit" })
+    }), { ...productionEnv, CORE_DB: brokenCore });
+    const payload = await response.json() as any;
+    assert.equal(response.status, 503);
+    assert.equal(payload.error, "auth_store_unavailable");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalls, 0);
+  assert.equal(obs.observationReactions.size, 0);
+});
+
+test("production runtime rejects invalid observation reactions before origin fallback", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reactions/not-real", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ source: "unit" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 400);
+    assert.equal(payload.error, "invalid_reaction_type");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalls, 0);
+  assert.equal(obs.observationReactions.size, 0);
 });
 
 test("production runtime returns 404 for unknown observation API paths without origin fallback", async () => {

@@ -1508,6 +1508,16 @@ export const worker = {
         return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
       }
 
+      const reactionMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/reactions\/([^/]+)$/);
+      if (request.method === "POST" && reactionMatch?.[1] && reactionMatch?.[2]) {
+        return toggleObservationReaction(
+          decodeURIComponent(reactionMatch[1]),
+          decodeURIComponent(reactionMatch[2]),
+          request,
+          env
+        );
+      }
+
       if (shouldFallbackObservationApiToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
       }
@@ -2918,7 +2928,6 @@ function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: E
 
 function isLegacyObservationOriginFallbackPath(request: Request, url: URL): boolean {
   const pathname = url.pathname;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reactions\/[^/]+$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/identifications$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/disputes$/.test(pathname)) return true;
@@ -2928,6 +2937,68 @@ function isLegacyObservationOriginFallbackPath(request: Request, url: URL): bool
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return true;
   return false;
+}
+
+function isValidObservationReactionType(value: string): boolean {
+  return ["like", "helpful", "curious", "thanks"].includes(value);
+}
+
+async function toggleObservationReaction(occurrenceId: string, reactionType: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  if (!isValidObservationReactionType(reactionType)) {
+    return json({ ok: false, error: "invalid_reaction_type" }, 400, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSession(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+
+  const targetExists = await observationReactionTargetExists(normalizedOccurrenceId, env);
+  if (!targetExists) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_reactions (reaction_id, occurrence_id, user_id, reaction_type)
+       VALUES (?, ?, ?, ?)`
+    ).bind(crypto.randomUUID(), normalizedOccurrenceId, session.userId, reactionType).run();
+    return json({ ok: true, added: true }, 200, { "cache-control": "no-store" });
+  } catch (error) {
+    if (!isD1UniqueConstraintError(error)) throw error;
+    await env.OBS_DB.prepare(
+      `DELETE FROM observation_reactions
+       WHERE occurrence_id = ? AND user_id = ? AND reaction_type = ?`
+    ).bind(normalizedOccurrenceId, session.userId, reactionType).run();
+    return json({ ok: true, added: false }, 200, { "cache-control": "no-store" });
+  }
+}
+
+async function observationReactionTargetExists(occurrenceId: string, env: Env): Promise<boolean> {
+  const row = await env.OBS_DB.prepare(
+    `SELECT 1 AS ok
+     WHERE EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)
+        OR EXISTS (SELECT 1 FROM readmodel_public_observations WHERE observation_id = ?)
+        OR EXISTS (SELECT 1 FROM public_map_snapshot_records_v1 WHERE occurrence_id = ? OR visit_id = ?)
+        OR EXISTS (SELECT 1 FROM production_import_occurrences WHERE occurrence_id = ?)
+        OR EXISTS (SELECT 1 FROM production_import_visits WHERE visit_id = ?)
+     LIMIT 1`
+  ).bind(occurrenceId, occurrenceId, occurrenceId, occurrenceId, occurrenceId, occurrenceId).first<{ ok: number }>();
+  return row?.ok === 1;
+}
+
+function isD1UniqueConstraintError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /unique constraint|constraint failed/i.test(message);
 }
 
 function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
