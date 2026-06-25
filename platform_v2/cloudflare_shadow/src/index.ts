@@ -5547,9 +5547,7 @@ async function handleOAuthStart(request: Request, providerInput: unknown, env: E
   const provider = oauthProviderFromInput(providerInput);
   if (!provider) return oauthErrorRedirect(env);
   if (!getOAuthConfig(env, provider)) {
-    if (shouldFallbackOAuthToOrigin(request, env)) {
-      return fetchOriginFallback(request, new URL(request.url), env, "oauth_provider_not_configured");
-    }
+    logOAuthProviderConfigMissing(provider, "start");
     return oauthErrorRedirect(env);
   }
 
@@ -5565,9 +5563,7 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
   const provider = oauthProviderFromInput(providerInput);
   if (!provider) return oauthErrorRedirect(env, true);
   if (!getOAuthConfig(env, provider)) {
-    if (shouldFallbackOAuthToOrigin(request, env)) {
-      return fetchOriginFallback(request, new URL(request.url), env, "oauth_provider_not_configured");
-    }
+    logOAuthProviderConfigMissing(provider, "callback");
     return oauthErrorRedirect(env, true);
   }
 
@@ -5647,9 +5643,12 @@ function shouldFallbackLoginToOrigin(request: Request, env: Env): boolean {
   return PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname);
 }
 
-function shouldFallbackOAuthToOrigin(request: Request, env: Env): boolean {
-  if (env.ENVIRONMENT !== "production" || !env.ORIGIN_FALLBACK_BASE_URL) return false;
-  return PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname);
+function logOAuthProviderConfigMissing(provider: OAuthProvider, phase: "start" | "callback"): void {
+  console.error(JSON.stringify({
+    message: "oauth_provider_config_missing",
+    provider,
+    phase
+  }));
 }
 
 function oauthProviderFromInput(input: unknown): OAuthProvider | null {
