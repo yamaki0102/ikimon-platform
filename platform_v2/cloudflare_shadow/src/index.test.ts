@@ -301,6 +301,22 @@ interface TaxonAlertSubscriptionRow {
   created_at: string | null;
 }
 
+interface MunicipalWalkMapD1Row {
+  walk_map_id: string;
+  municipality_code: string;
+  municipality: string;
+  title: string;
+  summary: string;
+  theme: string;
+  publish_mode: string;
+  route_style: string;
+  mobility_modes_json: string;
+  stop_count: number;
+  source_references_json: string;
+  area_hint_json: string;
+  display_order: number;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -327,6 +343,7 @@ class FakeD1 {
   productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
+  municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -1202,6 +1219,18 @@ class FakeStatement {
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT walk_map_id, municipality_code, municipality, title, summary, theme, publish_mode, route_style")) {
+      const municipalityCode = nullableString(this.values[0]);
+      const limit = number(this.values[2]);
+      const rows = [...this.db.municipalWalkMaps.values()]
+        .filter((row) =>
+          (row.publish_mode === "public_preview" || row.publish_mode === "public") &&
+          (!municipalityCode || row.municipality_code === municipalityCode)
+        )
+        .sort((a, b) => a.display_order - b.display_order || a.walk_map_id.localeCompare(b.walk_map_id))
+        .slice(0, limit);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, prefecture, city, center_lat, center_lng")) {
@@ -5268,6 +5297,39 @@ test("Cloudflare public municipal walk map candidate API scopes static samples b
   assert.equal(tokyoBody.locationFiltered, true);
   assert.equal(tokyoBody.matchedMunicipalityCode, null);
   assert.deepEqual(tokyoBody.summaries, []);
+});
+
+test("Cloudflare public municipal walk map candidate API prefers OBS_DB readmodel when seeded", async () => {
+  const { env, obs } = createEnv();
+  obs.municipalWalkMaps.set("jp-shizuoka-d1-sample", {
+    walk_map_id: "jp-shizuoka-d1-sample",
+    municipality_code: "22100",
+    municipality: "静岡市",
+    title: "D1散策サンプル",
+    summary: "D1の公開候補から返すサンプルです。",
+    theme: "waterfront",
+    publish_mode: "public_preview",
+    route_style: "loose_stops",
+    mobility_modes_json: "[\"walk\",\"bike\"]",
+    stop_count: 2,
+    source_references_json: "[{\"label\":\"静岡市 いきもの散策マップ\",\"url\":\"https://www.city.shizuoka.lg.jp/s6347/s001494.html\"}]",
+    area_hint_json: "{\"lat\":35.015,\"lng\":138.389,\"label\":\"麻機の水辺\",\"precision\":\"area_hint\",\"source\":\"official_source_sample\"}",
+    display_order: 1
+  });
+
+  const response = await worker.fetch(new Request(
+    "https://staging.ikimon.life/api/v1/municipal-walk-maps?lat=35.015&lng=138.389&limit=4"
+  ), { ...env, ENVIRONMENT: "staging" });
+  assert.equal(response.status, 200);
+  const body = await response.json() as {
+    source?: string;
+    summaries?: Array<{ walkMapId?: string; mobilityModes?: string[]; areaHint?: { precision?: string } }>;
+  };
+  assert.equal(body.source, "d1_observations");
+  assert.equal(body.summaries?.length, 1);
+  assert.equal(body.summaries?.[0]?.walkMapId, "jp-shizuoka-d1-sample");
+  assert.deepEqual(body.summaries?.[0]?.mobilityModes, ["walk", "bike"]);
+  assert.equal(body.summaries?.[0]?.areaHint?.precision, "area_hint");
 });
 
 test("production field detail can render from Cloudflare public readmodel without origin fallback", async () => {
