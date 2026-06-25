@@ -611,6 +611,14 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-admin-gate-next ol{margin:0;padding-left:20px;color:#475569;font-size:12px;line-height:1.65}
 .wm-admin-gate-next li::marker{font-weight:900;color:#0f766e}
 .wm-admin-gate-errors{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:11px!important;color:#9a3412!important;overflow-wrap:anywhere}
+.wm-admin-rail{border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.wm-admin-rail-card{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px;display:grid;gap:7px;align-content:start;min-height:118px}
+.wm-admin-rail-card.is-ready{border-color:#99f6e4;background:#f0fdfa}
+.wm-admin-rail-card strong{font-size:13px;color:#0f172a;line-height:1.35}
+.wm-admin-rail-card span{font-size:12px;color:#475569;line-height:1.55}
+.wm-admin-rail-card a{justify-self:start;min-height:30px;display:inline-flex;align-items:center;border:1px solid #0f766e;border-radius:6px;background:#fff;color:#0f766e;padding:0 9px;font-size:12px;font-weight:900;text-decoration:none}
+.wm-admin-rail-metric{display:flex;gap:6px;flex-wrap:wrap}
+.wm-admin-rail-metric span{display:inline-flex;align-items:center;border:1px solid rgba(15,118,110,.16);border-radius:999px;background:#fff;padding:3px 8px;color:#0f766e;font-weight:900;font-size:11px;line-height:1.35}
 .wm-admin-form{border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:16px;display:grid;gap:14px}
 .wm-admin-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .wm-admin-wide{grid-column:1/-1}
@@ -652,7 +660,7 @@ const ADMIN_WALK_MAP_STYLES = `${WALK_MAP_STYLES}
 .wm-review-actions button[data-review-action="emergency_hide"]{border-color:#b91c1c;color:#b91c1c}
 .wm-review-actions form{display:inline-flex}
 .wm-review-result{font-size:12px;color:#475569;font-weight:800;min-height:18px}
-@media(max-width:860px){.wm-admin-fields,.wm-admin-stop-grid{grid-template-columns:1fr}.wm-admin-top{display:grid}.wm-admin-wide{grid-column:auto}}
+@media(max-width:860px){.wm-admin-fields,.wm-admin-stop-grid,.wm-admin-rail{grid-template-columns:1fr}.wm-admin-top{display:grid}.wm-admin-wide{grid-column:auto}}
 `;
 
 function renderStopFields(stop: MunicipalWalkMapConfigV0["routeStops"][number] | undefined, index: number): string {
@@ -661,7 +669,7 @@ function renderStopFields(stop: MunicipalWalkMapConfigV0["routeStops"][number] |
   const access = stop?.access ?? "public_access";
   const sensitiveContext = stop?.sensitiveContext ?? "none";
   return `
-<section class="wm-admin-stop" data-stop-index="${index}">
+<section class="wm-admin-stop" data-stop-index="${index}"${index === 0 ? ' id="walk-map-stops"' : ""}>
   <div class="wm-admin-stop-head">
     <h2>立ち寄り先 ${index + 1}</h2>
     <button type="button" data-walk-map-remove-stop>削除</button>
@@ -790,7 +798,7 @@ function renderSourceCatalogPanel(
   `;
   }).join("");
   return `
-<section class="wm-admin-template" data-walk-map-source-catalog>
+<section class="wm-admin-template" id="source-catalog" data-walk-map-source-catalog>
   <div>
     <h2>参考元カタログ</h2>
     <p>${escapeHtml(scopeText)}</p>
@@ -822,6 +830,40 @@ function isVerifiedRouteCreatorProfile(config: MunicipalWalkMapConfigV0): boolea
       || profile.registrationKind === "registered_group"
       || profile.registrationKind === "registered_company")
     && profile.commercialIntent !== "primary";
+}
+
+function usefulStopCount(config: MunicipalWalkMapConfigV0): number {
+  return config.routeStops.filter((stop) => Boolean(stop.title.trim()) || stop.noticeCues.length || stop.recordCues.length).length;
+}
+
+function renderAdminCreationRail(config: MunicipalWalkMapConfigV0): string {
+  const validation = validateMunicipalWalkMapConfigV0(config);
+  const sourceCount = config.sourceReferences.length;
+  const stopCount = usefulStopCount(config);
+  const sourceReady = sourceCount > 0;
+  const stopsReady = stopCount >= 2 && validation.blockedStopIds.length === 0;
+  const reviewReady = validation.ok;
+  return `
+  <section class="wm-admin-rail" data-walk-map-creation-rail>
+    <article class="wm-admin-rail-card${sourceReady ? " is-ready" : ""}" data-walk-map-creation-step="source">
+      <strong>出典を選ぶ</strong>
+      <span>公式ページURLを引用元にします。PDF本文や図版は入れません。</span>
+      <div class="wm-admin-rail-metric"><span>引用元 ${escapeHtml(String(sourceCount))}</span></div>
+      <a href="#source-catalog">参考元へ</a>
+    </article>
+    <article class="wm-admin-rail-card${stopsReady ? " is-ready" : ""}" data-walk-map-creation-step="stops">
+      <strong>立ち寄り先を整える</strong>
+      <span>2〜4か所から始め、公開範囲と安全メモを入れます。</span>
+      <div class="wm-admin-rail-metric"><span>立ち寄り先 ${escapeHtml(String(stopCount))}</span><span>保留 ${escapeHtml(String(validation.blockedStopIds.length))}</span></div>
+      <a href="#walk-map-stops">立ち寄り先へ</a>
+    </article>
+    <article class="wm-admin-rail-card${reviewReady ? " is-ready" : ""}" data-walk-map-creation-step="review">
+      <strong>公開前に確認</strong>
+      <span>作成者、引用元、立入条件、場所の出し方をそろえます。</span>
+      <div class="wm-admin-rail-metric"><span>確認 ${escapeHtml(reviewReady ? "OK" : "要確認")}</span><span>警告 ${escapeHtml(String(validation.warnings.length))}</span></div>
+      <a href="#publication-gate">公開チェックへ</a>
+    </article>
+  </section>`;
 }
 
 function renderAdminPublicationGate(config: MunicipalWalkMapConfigV0): string {
@@ -878,8 +920,9 @@ function renderAdminPublicationGate(config: MunicipalWalkMapConfigV0): string {
     },
   ];
   const status = validation.ok ? "保存可能" : "確認が必要";
+  const copyWarnings = validation.warnings.filter((warning) => warning.startsWith("copy_lint_heavy_expression:")).slice(0, 6);
   return `
-  <section class="wm-admin-gate" data-walk-map-publication-gate data-gate-status="${escapeHtml(validation.ok ? "ready" : "needs_review")}">
+  <section class="wm-admin-gate" id="publication-gate" data-walk-map-publication-gate data-gate-status="${escapeHtml(validation.ok ? "ready" : "needs_review")}">
     <div>
       <h2>公開チェック</h2>
       <p>${escapeHtml(status)}。DB保存時も同じ条件で判定します。</p>
@@ -899,6 +942,7 @@ function renderAdminPublicationGate(config: MunicipalWalkMapConfigV0): string {
         : `<ol><li>審査画面で公開プレビューへ進められます</li></ol>`}
     </div>
     ${validation.errors.length ? `<p class="wm-admin-gate-errors">${escapeHtml(validation.errors.slice(0, 8).join(" / "))}</p>` : ""}
+    ${copyWarnings.length ? `<p class="wm-admin-gate-errors">${escapeHtml(copyWarnings.join(" / "))}</p>` : ""}
   </section>`;
 }
 
@@ -943,6 +987,7 @@ function renderWalkMapAdminBody(
       <a class="wm-admin-link" href="/walk-maps/${encodeURIComponent(config.walkMapId)}">プレビュー</a>
     </div>
   </header>
+  ${renderAdminCreationRail(config)}
   ${renderTemplatePicker(templates, selectedTemplateId, allSourceCatalog)}
   ${renderSourceCatalogPanel(sourceCatalog, selectedTemplateId, selectedSourceId)}
   ${creatorLoadWarning}

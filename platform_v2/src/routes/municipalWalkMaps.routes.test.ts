@@ -350,6 +350,19 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.match(response.body, /この型で始める/);
         assert.match(response.body, /徒歩 \/ 自転車 \/ 公共交通/);
         assert.match(response.body, /自然散策マップ/);
+        assert.match(response.body, /data-walk-map-creation-rail/);
+        assert.match(response.body, /data-walk-map-creation-step="source"/);
+        assert.match(response.body, /data-walk-map-creation-step="stops"/);
+        assert.match(response.body, /data-walk-map-creation-step="review"/);
+        assert.match(response.body, /出典を選ぶ/);
+        assert.match(response.body, /立ち寄り先を整える/);
+        assert.match(response.body, /公開前に確認/);
+        assert.match(response.body, /href="#source-catalog"/);
+        assert.match(response.body, /href="#walk-map-stops"/);
+        assert.match(response.body, /href="#publication-gate"/);
+        assert.match(response.body, /id="source-catalog"/);
+        assert.match(response.body, /id="walk-map-stops"/);
+        assert.match(response.body, /id="publication-gate"/);
         assert.match(response.body, /data-walk-map-publication-gate/);
         assert.match(response.body, /data-walk-map-next-review-items/);
         assert.match(response.body, /次に埋める項目/);
@@ -376,6 +389,36 @@ test("municipal walk map admin page renders source catalog and source-reference 
         assert.doesNotMatch(response.body, /世田谷区/);
         assert.doesNotMatch(response.body, /順番通り/);
         assert.doesNotMatch(response.body, /育つ場所/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("municipal walk map admin creation rail keeps clean source drafts warning-free", async () => {
+  await withEnv(
+    {
+      DATABASE_URL: undefined,
+      ENABLE_DEV_DUMMY_ADMIN: "1",
+      DEV_DUMMY_ADMIN_TOKEN: "test-admin-token",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route",
+          headers: {
+            accept: "text/html",
+            cookie: "ikimon_v2_session=test-admin-token",
+          },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /data-walk-map-creation-rail/);
+        assert.match(response.body, /警告 0/);
+        assert.doesNotMatch(response.body, /copy_lint_heavy_expression/);
       } finally {
         await app.close();
       }
