@@ -1595,13 +1595,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span aria-hidden="true">📍</span>
         </button>
         <div class="me-map-status" id="me-map-status" role="status" aria-live="polite">${escapeHtml(copy.loading)}</div>
-        <section class="me-empty-invite" id="me-empty-invite" aria-label="${escapeHtml(copy.emptyTitle)}" aria-hidden="true" hidden>
-          <div class="me-results-empty-actions">
-            <button type="button" class="me-results-empty-action is-primary" data-results-empty-areas>${escapeHtml(copy.emptyActionAreas)}</button>
-            <button type="button" class="me-results-empty-action" data-results-empty-widen>${escapeHtml(copy.emptyActionWiden)}</button>
-            <a class="me-results-empty-action" href="${escapeHtml(recordHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:results_empty_record" data-kpi-funnel="map_empty_results" data-kpi-target="${escapeHtml(recordHref)}">${escapeHtml(copy.emptyActionRecord)}</a>
-          </div>
-        </section>
         <section class="me-own-trail is-hidden" id="me-own-trail" aria-hidden="true">
           <div class="me-own-trail-head">
             <strong>${escapeHtml(props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos")}</strong>
@@ -1682,7 +1675,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sideToggleEl = document.getElementById('me-side-toggle');
   var sideRailCountEl = document.getElementById('me-side-rail-count');
   var sideSelectionEmptyEl = document.getElementById('me-side-selection-empty');
-  var emptyInviteEl = document.getElementById('me-empty-invite');
   var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
   var sideTabBtns = document.querySelectorAll('[data-side-tab]');
   function setSideTab(name) {
@@ -3637,17 +3629,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function setMapEmptyInviteVisible(visible) {
-    if (!emptyInviteEl) return;
-    if (visible && state.tab === 'rain') {
-      visible = false;
-    }
-    emptyInviteEl.hidden = !visible;
-    emptyInviteEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
-    if (statusEl) {
-      statusEl.hidden = !!visible;
-      statusEl.setAttribute('aria-hidden', visible ? 'true' : 'false');
-    }
-    refreshPurposeHint();
+    void visible;
   }
 
   function renderResultList() {
@@ -10075,13 +10057,14 @@ export const MAP_EXPLORER_STYLES = `
     position: static;
   }
   .me-start-panel.is-collapsed .me-start-panel-close {
-    width: auto;
+    width: 38px;
     min-width: 38px;
     height: 38px;
-    padding: 0 10px;
-    background: #0f766e;
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(15,118,110,.18);
+    padding: 0;
+    border: 1px solid rgba(15,23,42,.10);
+    background: rgba(255,255,255,.92);
+    color: #64748b;
+    box-shadow: none;
   }
   .me-start-panel.is-collapsed .me-start-panel-brief {
     display: inline;
@@ -10449,44 +10432,6 @@ export const MAP_EXPLORER_STYLES = `
     color: #475569; font-size: 11px; font-weight: 750; letter-spacing: 0;
     box-shadow: 0 6px 14px rgba(15,23,42,.08);
     backdrop-filter: blur(8px);
-  }
-  .me-empty-invite {
-    position: absolute;
-    left: 18px;
-    bottom: 58px;
-    z-index: 5;
-    display: block;
-    align-items: center;
-    width: auto;
-    padding: 5px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.88);
-    border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 6px 16px rgba(15,23,42,.10);
-    backdrop-filter: blur(12px);
-    color: #64748b;
-  }
-  .me-empty-invite[hidden] { display: none; }
-  .me-empty-invite .me-results-empty-kicker,
-  .me-empty-invite p,
-  .me-empty-invite strong {
-    display: none;
-  }
-  .me-empty-invite .me-results-empty-actions {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px;
-  }
-  .me-empty-invite .me-results-empty-action {
-    min-height: 44px;
-    min-width: 52px;
-    padding: 7px 5px;
-    border-radius: 10px;
-    font-size: 11px;
-    line-height: 1.15;
-  }
-  .me-empty-invite .me-results-empty-action:first-child {
-    grid-column: auto;
   }
   .me-personal-pulse {
     display: grid;
@@ -12718,7 +12663,6 @@ export const MAP_EXPLORER_STYLES = `
   @media (min-width: 1180px) {
     .me-results-empty-actions { grid-template-columns: 1fr 1fr; }
     .me-results-empty-action:first-child { grid-column: 1 / -1; }
-    .me-empty-invite .me-results-empty-action:first-child { grid-column: auto; }
   }
   @media (max-width: 520px) {
     .me-results-loading { gap: 7px; padding: 9px; }
@@ -12939,8 +12883,11 @@ export const MAP_EXPLORER_STYLES = `
       padding: 4px;
     }
     .me-start-panel.is-collapsed .me-start-panel-close {
-      max-width: 46px;
-      padding: 0 10px;
+      width: 34px;
+      min-width: 34px;
+      max-width: 34px;
+      height: 34px;
+      padding: 0;
     }
     .me-start-panel.is-collapsed .me-start-panel-brief {
       display: none;
@@ -13142,17 +13089,6 @@ export const MAP_EXPLORER_STYLES = `
       top: auto;
       max-width: calc(100% - 96px);
     }
-    .me-empty-invite {
-      left: 10px;
-      bottom: calc(var(--me-mobile-action-space) + 50px);
-      width: auto;
-      max-width: calc(100% - 20px);
-      max-height: none;
-      overflow: visible;
-      padding: 5px;
-    }
-    .me-empty-invite .me-results-empty-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .me-empty-invite .me-results-empty-action:first-child { grid-column: auto; }
     .me-locate-fab { bottom: calc(var(--me-mobile-action-space) + 8px); }
     .me-rain-mode.me-sheet-open .me-locate-fab {
       opacity: 0;

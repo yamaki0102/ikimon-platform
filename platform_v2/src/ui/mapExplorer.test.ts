@@ -418,7 +418,7 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
   assert.match(script, /function shouldKeepMapClearForRain\(\)/);
   assert.match(script, /return isRainInteractionMode\(\) && shouldUseBottomSheet\(\);/);
   assert.match(script, /if \(shouldKeepMapClearForRain\(\)\) \{\s+closeBottomSheet\(\);\s+return;\s+\}/);
-  assert.match(script, /if \(visible && state\.tab === 'rain'\) \{\s+visible = false;/);
+  assert.match(script, /function setMapEmptyInviteVisible\(visible\) \{\s+void visible;\s+\}/);
   assert.match(script, /if \(state\.tab === 'rain'\) \{\s+closeBottomSheet\(\);\s+setMapEmptyInviteVisible\(false\);\s+hideLayerHint\(\);\s+enableRainLayer\(\);/);
   assert.match(script, /function rainStatusWithNotice\(text\)/);
   assert.match(script, /JMA_RAIN_TILE_MAX_ZOOM = 10/);
@@ -758,9 +758,7 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /COPY\.emptyTitle/);
   assert.match(script, /data-results-empty-areas/);
   assert.match(script, /data-results-empty-widen/);
-  assert.match(script, /me-empty-invite/);
-  assert.match(script, /statusEl\.hidden = !!visible;/);
-  assert.match(script, /statusEl\.setAttribute\('aria-hidden', visible \? 'true' : 'false'\);/);
+  assert.doesNotMatch(renderMapExplorer({ basePath: "", lang: "ja", years: [2026] }), /id="me-empty-invite"/);
   assert.match(script, /data-kpi-action="map:results_empty_record"/);
   assert.match(script, /function switchMapTab\(tab\)/);
   assert.match(script, /switchMapTab\('places'\)/);
@@ -808,10 +806,7 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(styles, /\.me-results-loading-row:nth-child\(n\+3\) \{ display: none; \}/);
   assert.match(styles, /\.me-results-empty-actions/);
   assert.match(styles, /\.me-results-empty-action\.is-primary/);
-  assert.match(styles, /\.me-empty-invite/);
-  assert.match(styles, /\.me-empty-invite \.me-results-empty-kicker,\s+\.me-empty-invite p,\s+\.me-empty-invite strong \{[\s\S]*display: none;/);
-  assert.match(styles, /\.me-empty-invite \.me-results-empty-actions \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
-  assert.match(styles, /\.me-empty-invite \.me-results-empty-action \{[\s\S]*min-height: 44px;/);
+  assert.doesNotMatch(styles, /\.me-empty-invite/);
   assert.doesNotMatch(script, /縺|繧|譁|髱|蝗|遽/);
 });
 
