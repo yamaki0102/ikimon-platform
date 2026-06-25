@@ -5312,12 +5312,104 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
     publicReadyAssetCount?.count ?? 0,
     partitionMonth
   ).run();
+  await upsertPublicMapSnapshotRow(observation, publicReadyAssetCount?.count ?? 0, env);
 }
 
 async function deletePublicReadmodelRow(observationId: string, env: Env): Promise<void> {
   await env.OBS_DB.prepare(
     "DELETE FROM readmodel_public_observations WHERE observation_id = ?"
   ).bind(observationId).run();
+  await deletePublicMapSnapshotRow(observationId, env);
+}
+
+async function upsertPublicMapSnapshotRow(
+  observation: { observation_id: string; public_cell: string; observed_at: string; taxon_label: string | null },
+  assetCount: number,
+  env: Env
+): Promise<void> {
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO public_map_snapshot_records_v1 (
+         snapshot_key,
+         occurrence_id,
+         visit_id,
+         observed_at,
+         observed_year,
+         taxon_group,
+         display_name,
+         is_ai_candidate,
+         is_awaiting_id,
+         locality_label,
+         locality_scope,
+         cell_1000,
+         cell_3000,
+         cell_10000,
+         asset_count
+       )
+       VALUES ('public-map:v1:global', ?, ?, ?, ?, ?, ?, 0, ?, '位置をぼかしています', 'blurred', ?, ?, ?, ?)
+       ON CONFLICT(snapshot_key, occurrence_id) DO UPDATE SET
+         visit_id = excluded.visit_id,
+         observed_at = excluded.observed_at,
+         observed_year = excluded.observed_year,
+         taxon_group = excluded.taxon_group,
+         display_name = excluded.display_name,
+         is_awaiting_id = excluded.is_awaiting_id,
+         cell_1000 = excluded.cell_1000,
+         cell_3000 = excluded.cell_3000,
+         cell_10000 = excluded.cell_10000,
+         asset_count = excluded.asset_count`
+    ).bind(
+      `occ:${observation.observation_id}:0`,
+      observation.observation_id,
+      observation.observed_at,
+      Number(observation.observed_at.slice(0, 4)) || new Date(observation.observed_at).getUTCFullYear(),
+      taxonGroupForLabel(observation.taxon_label),
+      observation.taxon_label ?? "同定待ち",
+      isWeakTaxonLabel(observation.taxon_label) ? 1 : 0,
+      observation.public_cell,
+      observation.public_cell,
+      observation.public_cell,
+      assetCount
+    ).run();
+    await refreshPublicMapSnapshotMeta(env, "readmodel_refresh");
+  } catch (error) {
+    if (error instanceof Error && /no such table: public_map_snapshot_(?:records_v1|meta)/i.test(error.message)) return;
+    throw error;
+  }
+}
+
+async function deletePublicMapSnapshotRow(observationId: string, env: Env): Promise<void> {
+  try {
+    await env.OBS_DB.prepare(
+      "DELETE FROM public_map_snapshot_records_v1 WHERE snapshot_key = 'public-map:v1:global' AND occurrence_id = ?"
+    ).bind(`occ:${observationId}:0`).run();
+    await refreshPublicMapSnapshotMeta(env, "readmodel_refresh_delete");
+  } catch (error) {
+    if (error instanceof Error && /no such table: public_map_snapshot_(?:records_v1|meta)/i.test(error.message)) return;
+    throw error;
+  }
+}
+
+async function refreshPublicMapSnapshotMeta(env: Env, refreshedBy: string): Promise<void> {
+  await env.OBS_DB.prepare(
+    `INSERT INTO public_map_snapshot_meta (
+       snapshot_key, generated_at, source_sample_size, public_record_count, refreshed_by, policy_json
+     )
+     VALUES (
+       'public-map:v1:global',
+       CURRENT_TIMESTAMP,
+       (SELECT COUNT(*) FROM readmodel_public_observations),
+       (SELECT COUNT(*) FROM public_map_snapshot_records_v1 WHERE snapshot_key = 'public-map:v1:global'),
+       ?,
+       '{"minCellRecords":3,"sensitiveMinCellMeters":5000,"municipalityMinCellMeters":20000,"bboxScope":"fixed_public_cell_cover","policy":"k_anonymous_cell_aggregate","exposesSuppressedCounts":false}'
+     )
+     ON CONFLICT(snapshot_key) DO UPDATE SET
+       generated_at = excluded.generated_at,
+       source_sample_size = excluded.source_sample_size,
+       public_record_count = excluded.public_record_count,
+       refreshed_by = excluded.refreshed_by,
+       policy_json = excluded.policy_json`
+  ).bind(refreshedBy).run();
 }
 
 async function applyEmergencyHide(observationId: string, env: Env): Promise<void> {
@@ -5348,6 +5440,7 @@ async function applyEmergencyHide(observationId: string, env: Env): Promise<void
       replaySql: postgresObservationHideReplaySql(observationId)
     })
   ]);
+  await deletePublicMapSnapshotRow(observationId, env);
 }
 
 async function hideCompatibleObservation(observationId: string, request: Request, env: Env): Promise<Response> {

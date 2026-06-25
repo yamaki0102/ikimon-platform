@@ -318,6 +318,7 @@ interface MunicipalWalkMapD1Row {
 }
 
 interface PublicMapSnapshotRecordRow {
+  occurrence_id?: string;
   visit_id: string;
   cell_1000: string;
   observed_at: string;
@@ -680,6 +681,37 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO public_map_snapshot_records_v1")) {
+      const occurrenceId = string(v[0]);
+      const row: PublicMapSnapshotRecordRow = {
+        occurrence_id: occurrenceId,
+        visit_id: string(v[1]),
+        observed_at: string(v[2]),
+        display_name: nullableString(v[5]),
+        cell_1000: string(v[7]),
+        asset_count: number(v[10])
+      };
+      const index = this.db.publicMapSnapshotRecords.findIndex((record) => record.occurrence_id === occurrenceId);
+      if (index >= 0) {
+        this.db.publicMapSnapshotRecords[index] = row;
+      } else {
+        this.db.publicMapSnapshotRecords.push(row);
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO public_map_snapshot_meta")) {
+      this.db.publicMapSnapshotMeta = {
+        snapshot_key: "public-map:v1:global",
+        generated_at: new Date().toISOString(),
+        source_sample_size: this.db.readmodel.size,
+        public_record_count: this.db.publicMapSnapshotRecords.length,
+        refreshed_by: nullableString(v[0]),
+        policy_json: "{\"minCellRecords\":3,\"sensitiveMinCellMeters\":5000,\"municipalityMinCellMeters\":20000,\"bboxScope\":\"fixed_public_cell_cover\",\"policy\":\"k_anonymous_cell_aggregate\",\"exposesSuppressedCounts\":false}"
+      };
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE observations SET emergency_hidden = 1")) {
       const observation = requireRow(this.db.observations, string(v[0]));
       observation.emergency_hidden = 1;
@@ -688,6 +720,12 @@ class FakeStatement {
 
     if (normalized.startsWith("DELETE FROM readmodel_public_observations")) {
       this.db.readmodel.delete(string(v[0]));
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM public_map_snapshot_records_v1")) {
+      const occurrenceId = string(v[0]);
+      this.db.publicMapSnapshotRecords = this.db.publicMapSnapshotRecords.filter((row) => row.occurrence_id !== occurrenceId);
       return {};
     }
 
@@ -1708,6 +1746,11 @@ test("media processing refreshes the public read model even when queue jobs run 
   await worker.queue({ messages: [{ body: mediaJob as any }] }, env);
 
   assert.equal(obs.readmodel.get("visit-out-of-order")?.asset_count, 1);
+  const snapshot = obs.publicMapSnapshotRecords.find((row) => row.visit_id === "visit-out-of-order");
+  assert.equal(snapshot?.asset_count, 1);
+  assert.equal(snapshot?.cell_1000, "34.71,137.81");
+  assert.equal(obs.publicMapSnapshotMeta?.public_record_count, 1);
+  assert.equal(obs.publicMapSnapshotMeta?.refreshed_by, "readmodel_refresh");
 });
 
 test("v1 public map read routes expose current shell contracts without exact coordinates", async () => {
@@ -1806,6 +1849,14 @@ test("v1 public map read routes expose current shell contracts without exact coo
     taxon_label: "unidentified",
     asset_count: 0,
     partition_month: "2026-06"
+  });
+  env.OBS_DB.publicMapSnapshotRecords.push({
+    occurrence_id: "occ:visit-unidentified-contract:0",
+    visit_id: "visit-unidentified-contract",
+    cell_1000: "34.71,137.81",
+    observed_at: "2026-06-15T01:00:00.000Z",
+    display_name: "unidentified",
+    asset_count: 0
   });
   const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81&limit=10"), env);
   const unidentifiedPayload = await unidentifiedResponse.json() as any;
