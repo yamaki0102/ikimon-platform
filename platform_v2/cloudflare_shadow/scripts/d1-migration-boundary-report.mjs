@@ -148,7 +148,8 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/recordReadingCards.ts": "cloudflare_record_reading_cards_api",
     "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",
     "platform_v2/src/services/observationVisitBundle.ts": "cloudflare_observation_detail_readmodel",
-    "platform_v2/src/services/observationEventLive.ts": "cloudflare_observation_event_live_api"
+    "platform_v2/src/services/observationEventLive.ts": "cloudflare_observation_event_live_api",
+    "platform_v2/src/routes/meSubscriptionsApi.ts": "cloudflare_personal_subscription_alert_api"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;
 }

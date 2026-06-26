@@ -360,9 +360,16 @@ interface PersonalAreaSubscriptionRow {
 }
 
 interface PersonalTaxonSubscriptionRow {
+  subscription_id: string;
   label: string | null;
   scientific_name: string | null;
   taxon_rank: string | null;
+  match_field: string;
+  trigger_invasive_only: number;
+  trigger_rare_only: number;
+  channel: string;
+  is_active: number;
+  created_at: string | null;
 }
 
 interface PersonalAlertRow {
@@ -459,6 +466,16 @@ interface PublicMapPhotoRow {
   observation_id: string;
   public_derivative_key: string;
 }
+
+const VALID_PERSONAL_TAXON_MATCH_FIELDS = new Set([
+  "scientific_name",
+  "genus",
+  "family",
+  "order_name",
+  "class_name"
+]);
+const VALID_PERSONAL_TAXON_RANKS = new Set(["species", "genus", "family", "order", "class", "phylum"]);
+const VALID_PERSONAL_TAXON_CHANNELS = new Set(["email", "digest_daily", "digest_weekly", "none"]);
 
 interface LegacyThumbDerivativeRow {
   public_derivative_key: string;
@@ -1939,6 +1956,16 @@ async function handleOriginalPersonalRuntimeBoundary(request: Request, url: URL,
   if (request.method === "POST" && url.pathname === "/api/v1/me/alerts/read") {
     return markPersonalAlertsRead(session, request, env);
   }
+  if (request.method === "GET" && url.pathname === "/api/v1/me/subscriptions") {
+    return getPersonalTaxonSubscriptions(session, env);
+  }
+  if (request.method === "POST" && url.pathname === "/api/v1/me/subscriptions") {
+    return createPersonalTaxonSubscription(session, request, env);
+  }
+  const deleteTaxonMatch = url.pathname.match(/^\/api\/v1\/me\/subscriptions\/([^/]+)$/);
+  if (request.method === "DELETE" && deleteTaxonMatch?.[1]) {
+    return deletePersonalTaxonSubscription(session, decodeURIComponent(deleteTaxonMatch[1]), env);
+  }
   if (request.method === "GET" && url.pathname === "/api/v1/me/area-subscriptions") {
     return getPersonalAreaSubscriptions(session, env);
   }
@@ -1959,6 +1986,8 @@ function isOriginalPersonalRuntimePath(request: Request, url: URL): boolean {
   if (request.method === "GET" && url.pathname === "/api/v1/me/alerts") return true;
   if (request.method === "POST" && url.pathname === "/api/v1/me/alerts/read") return true;
   if (request.method === "GET" && url.pathname === "/api/v1/me/personalized-menu") return true;
+  if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/v1/me/subscriptions") return true;
+  if (request.method === "DELETE" && /^\/api\/v1\/me\/subscriptions\/[^/]+$/.test(url.pathname)) return true;
   if ((request.method === "GET" || request.method === "POST") && url.pathname === "/api/v1/me/area-subscriptions") return true;
   if (request.method === "DELETE" && /^\/api\/v1\/me\/area-subscriptions\/[^/]+$/.test(url.pathname)) return true;
   return false;
@@ -4250,6 +4279,85 @@ async function getPersonalAreaSubscriptions(session: SessionSnapshot, env: Env):
   }, 200, { "cache-control": "no-store" });
 }
 
+async function getPersonalTaxonSubscriptions(session: SessionSnapshot, env: Env): Promise<Response> {
+  const rows = await env.CORE_DB.prepare(
+    `SELECT subscription_id, scientific_name, taxon_rank, match_field,
+            trigger_invasive_only, trigger_rare_only, channel, label, is_active, created_at
+       FROM taxon_alert_subscriptions
+      WHERE user_id = ?
+      ORDER BY is_active DESC, created_at DESC
+      LIMIT 200`
+  ).bind(session.userId).all<PersonalTaxonSubscriptionRow>();
+  return json({
+    ok: true,
+    subscriptions: rows.results.map(personalTaxonSubscriptionPayload)
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function createPersonalTaxonSubscription(session: SessionSnapshot, request: Request, env: Env): Promise<Response> {
+  const body = await readJson<{
+    scientificName?: unknown;
+    taxonRank?: unknown;
+    matchField?: unknown;
+    triggerInvasiveOnly?: unknown;
+    triggerRareOnly?: unknown;
+    channel?: unknown;
+    label?: unknown;
+    geoFilter?: unknown;
+  }>(request);
+  const scientificName = normalizeOptionalText(body.scientificName) ?? "";
+  const taxonRank = normalizeOptionalText(body.taxonRank) ?? "";
+  const matchField = normalizeOptionalText(body.matchField) ?? "";
+  if (!scientificName && !taxonRank) {
+    return json({ ok: false, error: "scientificName_or_taxonRank_required" }, 400, { "cache-control": "no-store" });
+  }
+  if (!VALID_PERSONAL_TAXON_MATCH_FIELDS.has(matchField)) {
+    return json({ ok: false, error: "invalid_match_field" }, 400, { "cache-control": "no-store" });
+  }
+  if (taxonRank && !VALID_PERSONAL_TAXON_RANKS.has(taxonRank)) {
+    return json({ ok: false, error: "invalid_taxon_rank" }, 400, { "cache-control": "no-store" });
+  }
+  const channelRaw = normalizeOptionalText(body.channel) ?? "email";
+  const channel = VALID_PERSONAL_TAXON_CHANNELS.has(channelRaw) ? channelRaw : "email";
+  const subscriptionId = crypto.randomUUID();
+  await env.CORE_DB.prepare(
+    `INSERT INTO taxon_alert_subscriptions (
+        subscription_id, user_id, scientific_name, taxon_rank, match_field,
+        geo_filter_json, trigger_invasive_only, trigger_rare_only, channel,
+        label, is_active, created_at, updated_at
+     ) VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).bind(
+    subscriptionId,
+    session.userId,
+    scientificName,
+    taxonRank,
+    matchField,
+    JSON.stringify(asPlainObject(body.geoFilter) ?? {}),
+    body.triggerInvasiveOnly === true ? 1 : 0,
+    body.triggerRareOnly === true ? 1 : 0,
+    channel,
+    typeof body.label === "string" ? body.label.slice(0, 200) : ""
+  ).run();
+  return json({ ok: true, subscriptionId }, 200, { "cache-control": "no-store" });
+}
+
+async function deletePersonalTaxonSubscription(session: SessionSnapshot, id: string, env: Env): Promise<Response> {
+  const subscriptionId = normalizeOptionalText(id);
+  if (!subscriptionId) {
+    return json({ ok: false, error: "id_required" }, 400, { "cache-control": "no-store" });
+  }
+  const existing = await env.CORE_DB.prepare(
+    "SELECT subscription_id FROM taxon_alert_subscriptions WHERE subscription_id = ? AND user_id = ?"
+  ).bind(subscriptionId, session.userId).first<{ subscription_id: string }>();
+  if (!existing) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  await env.CORE_DB.prepare(
+    "DELETE FROM taxon_alert_subscriptions WHERE subscription_id = ? AND user_id = ?"
+  ).bind(subscriptionId, session.userId).run();
+  return json({ ok: true }, 200, { "cache-control": "no-store" });
+}
+
 async function upsertPersonalAreaSubscription(session: SessionSnapshot, request: Request, env: Env): Promise<Response> {
   const body = await readJson<{ targetType?: unknown; targetId?: unknown; label?: unknown; href?: unknown }>(request);
   const targetType = normalizeOptionalText(body.targetType);
@@ -4680,6 +4788,21 @@ function personalAreaSubscriptionPayload(row: PersonalAreaSubscriptionRow) {
     isActive: Boolean(row.is_active),
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+function personalTaxonSubscriptionPayload(row: PersonalTaxonSubscriptionRow) {
+  return {
+    subscriptionId: row.subscription_id,
+    scientificName: row.scientific_name,
+    taxonRank: row.taxon_rank,
+    matchField: row.match_field,
+    triggerInvasiveOnly: Boolean(row.trigger_invasive_only),
+    triggerRareOnly: Boolean(row.trigger_rare_only),
+    channel: row.channel,
+    label: row.label ?? "",
+    isActive: Boolean(row.is_active),
+    createdAt: row.created_at
   };
 }
 

@@ -1768,6 +1768,31 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO taxon_alert_subscriptions")) {
+      const row: TaxonAlertSubscriptionRow = {
+        subscription_id: string(v[0]),
+        user_id: string(v[1]),
+        scientific_name: nullableString(v[2]),
+        taxon_rank: nullableString(v[3]),
+        match_field: string(v[4]),
+        trigger_invasive_only: number(v[6]),
+        trigger_rare_only: number(v[7]),
+        channel: string(v[8]),
+        label: string(v[9]),
+        is_active: 1,
+        created_at: new Date().toISOString()
+      };
+      this.db.taxonAlertSubscriptions.set(row.subscription_id, row);
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM taxon_alert_subscriptions")) {
+      const subscriptionId = string(v[0]);
+      const row = this.db.taxonAlertSubscriptions.get(subscriptionId);
+      if (row?.user_id === string(v[1])) this.db.taxonAlertSubscriptions.delete(subscriptionId);
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE alert_deliveries SET delivery_status = 'pending'")) {
       const row = requireRow(this.db.alertDeliveries, string(v[1]));
       if (row.delivery_status === "sending") {
@@ -2333,6 +2358,11 @@ class FakeStatement {
       return row?.user_id === string(v[1]) ? ({ subscription_id: row.subscription_id } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT subscription_id FROM taxon_alert_subscriptions WHERE subscription_id = ? AND user_id = ?")) {
+      const row = this.db.taxonAlertSubscriptions.get(string(v[0]));
+      return row?.user_id === string(v[1]) ? ({ subscription_id: row.subscription_id } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT COUNT(*) AS unread_count FROM alert_deliveries")) {
       const count = [...this.db.alertDeliveries.values()]
         .filter((row) => row.user_id === string(v[0]) && row.acknowledged_at === null)
@@ -2796,6 +2826,13 @@ class FakeStatement {
         .filter((row) => row.user_id === string(this.values[0]) && row.is_active === 1)
         .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
         .slice(0, 8);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT subscription_id, scientific_name, taxon_rank, match_field")) {
+      const rows = [...this.db.taxonAlertSubscriptions.values()]
+        .filter((row) => row.user_id === string(this.values[0]))
+        .sort((a, b) => b.is_active - a.is_active || (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+        .slice(0, 200);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT delivery_id, occurrence_id, trigger_kind, delivery_status, delivered_at, acknowledged_at, created_at, payload_json")) {
@@ -4854,6 +4891,8 @@ test("production personal runtime returns native guest auth boundary without ori
     const checks: Array<{ path: string; init?: RequestInit }> = [
       { path: "/api/v1/me/alerts" },
       { path: "/api/v1/me/alerts/read", init: { method: "POST", headers: { "content-type": "application/json" }, body: "{}" } },
+      { path: "/api/v1/me/subscriptions" },
+      { path: "/api/v1/me/subscriptions", init: { method: "POST", headers: { "content-type": "application/json" }, body: "{}" } },
       { path: "/api/v1/me/area-subscriptions" },
       { path: "/api/v1/me/personalized-menu?limit=8" }
     ];
@@ -4914,6 +4953,19 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
     observation_count: 12,
     needs_id_count: 3
   });
+  core.taxonAlertSubscriptions.set("taxon-sub-1", {
+    subscription_id: "taxon-sub-1",
+    user_id: "personal-user",
+    scientific_name: "Pica serica",
+    taxon_rank: "species",
+    match_field: "scientific_name",
+    trigger_invasive_only: 0,
+    trigger_rare_only: 1,
+    channel: "email",
+    label: "カササギ",
+    is_active: 1,
+    created_at: "2026-06-17T00:00:00.000Z"
+  });
   core.alertDeliveries.set("alert-1", {
     delivery_id: "alert-1",
     occurrence_id: "occ-1",
@@ -4956,6 +5008,36 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
     const areaPayload = await areaResponse.json() as any;
     assert.equal(areaResponse.ok, true, JSON.stringify(areaPayload));
     assert.equal(areaPayload.subscriptions[0].subscriptionId, "area-sub-1");
+
+    const taxonResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/subscriptions", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const taxonPayload = await taxonResponse.json() as any;
+    assert.equal(taxonResponse.ok, true, JSON.stringify(taxonPayload));
+    assert.equal(taxonPayload.subscriptions[0].subscriptionId, "taxon-sub-1");
+    assert.equal(taxonPayload.subscriptions[0].triggerRareOnly, true);
+
+    const createTaxonResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/subscriptions", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        scientificName: "Haliaeetus albicilla",
+        taxonRank: "species",
+        matchField: "scientific_name",
+        triggerRareOnly: true,
+        label: "オジロワシ"
+      })
+    }), productionEnv);
+    const createTaxonPayload = await createTaxonResponse.json() as any;
+    assert.equal(createTaxonResponse.ok, true, JSON.stringify(createTaxonPayload));
+    assert.equal(core.taxonAlertSubscriptions.get(createTaxonPayload.subscriptionId)?.label, "オジロワシ");
+
+    const deleteTaxonResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/me/subscriptions/${createTaxonPayload.subscriptionId}`, {
+      method: "DELETE",
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(deleteTaxonResponse.ok, true, await deleteTaxonResponse.text());
+    assert.equal(core.taxonAlertSubscriptions.has(createTaxonPayload.subscriptionId), false);
 
     const readResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts/read", {
       method: "POST",
