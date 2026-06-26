@@ -1630,8 +1630,9 @@ export const worker = {
         );
       }
 
-      if (shouldFallbackObservationApiToOrigin(request, url, env)) {
-        return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
+      const legacyObservationApiFallback = await fetchLegacyObservationApiOriginFallback(request, url, env);
+      if (legacyObservationApiFallback) {
+        return legacyObservationApiFallback;
       }
 
       const observationEventResponse = await handleObservationEventApi(request, url, env);
@@ -3037,18 +3038,26 @@ function observationEventMeshCenter(meshKey: string): { lat: number; lng: number
   return { lat: lat + 0.0005, lng: lng + 0.0005 };
 }
 
-function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: Env): boolean {
-  if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
-  return shouldUseOriginFallback(url, env) && isLegacyObservationOriginFallbackPath(request, url);
-}
-
-function isLegacyObservationOriginFallbackPath(request: Request, url: URL): boolean {
+async function fetchLegacyObservationApiOriginFallback(request: Request, url: URL, env: Env): Promise<Response | null> {
+  if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return null;
+  if (!shouldUseOriginFallback(url, env)) return null;
   const pathname = url.pathname;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return true;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return true;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return true;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return true;
-  return false;
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/propose$/.test(pathname)) {
+    return fetchOriginFallback(request, url, env, "legacy_observation_candidate_propose_origin_fallback");
+  }
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/adopt$/.test(pathname)) {
+    return fetchOriginFallback(request, url, env, "legacy_observation_candidate_adopt_origin_fallback");
+  }
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) {
+    return fetchOriginFallback(request, url, env, "legacy_observation_reassess_origin_fallback");
+  }
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) {
+    return fetchOriginFallback(request, url, env, "legacy_observation_reassess_from_video_origin_fallback");
+  }
+  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) {
+    return fetchOriginFallback(request, url, env, "legacy_observation_management_confirm_origin_fallback");
+  }
+  return null;
 }
 
 async function listCompatibleReferenceCandidates(occurrenceId: string, request: Request, env: Env): Promise<Response> {
