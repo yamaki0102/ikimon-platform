@@ -69,14 +69,20 @@
     },
     {
       "key": "alert_delivery_worker",
-      "status": "blocked",
+      "status": "migrated",
       "owner": "platform",
-      "scope": "VPS sendmail/msmtp-backed alert delivery worker",
+      "scope": "VPS sendmail/msmtp-backed alert delivery worker replaced by Cloudflare Cron, Queues, D1, and Email Sending",
       "evidenceKeys": [
         "platform_v2/src/services/alertDeliveryWorker.ts",
-        "pg_dependency:platform_v2/src/services/alertDeliveryWorker.ts"
+        "pg_dependency:platform_v2/src/services/alertDeliveryWorker.ts",
+        "platform_v2/cloudflare_shadow/migrations/core/0004_alert_delivery_contract.sql",
+        "platform_v2/cloudflare_shadow/migrations/core/0005_alert_delivery_rate_limit_index.sql",
+        "platform_v2/cloudflare_shadow/src/index.ts",
+        "platform_v2/cloudflare_shadow/wrangler.jsonc"
       ],
-      "nextProofRequired": "Cloudflare-native queue/cron plus external mail API delivery proof before VPS worker retirement."
+      "proof": "Cloudflare Worker now drains alert_deliveries through scheduled Cron and ALERT_QUEUE, atomically claims pending rows in D1, rate-limits recipient sends, records invasive_reporting_events, and sends email through the ALERT_EMAIL binding from notifications@ikimon.co.jp. Staging smoke delivery staging-smoke-20260626-1847-delivery reached sent at 2026-06-26T10:00:39.286Z. Production deploy version 9b502b92-756f-46ec-ae0d-9284f6b9897d passed health/ready smoke, and production smoke delivery prod-smoke-20260626-1914-delivery reached sent at 2026-06-26T10:15:43.070Z.",
+      "verifiedAt": "2026-06-26T10:15:43Z",
+      "nextProofRequired": "Keep ALERT_QUEUE, Cron, ALERT_EMAIL sender verification, and D1 alert tables in production before VPS shutdown. Add unsubscribe/preference UI before broad public alert subscription rollout."
     },
     {
       "key": "audio_cluster_vector_search",
