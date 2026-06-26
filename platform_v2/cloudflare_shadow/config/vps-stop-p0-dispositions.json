@@ -80,9 +80,9 @@
         "platform_v2/cloudflare_shadow/src/index.ts",
         "platform_v2/cloudflare_shadow/wrangler.jsonc"
       ],
-      "proof": "Cloudflare Worker now drains alert_deliveries through scheduled Cron and ALERT_QUEUE, atomically claims pending rows in D1, rate-limits recipient sends, records invasive_reporting_events, and sends email through the ALERT_EMAIL binding from notifications@ikimon.co.jp. Staging smoke delivery staging-smoke-20260626-1847-delivery reached sent at 2026-06-26T10:00:39.286Z. Production deploy version 9b502b92-756f-46ec-ae0d-9284f6b9897d passed health/ready smoke, and production smoke delivery prod-smoke-20260626-1914-delivery reached sent at 2026-06-26T10:15:43.070Z.",
-      "verifiedAt": "2026-06-26T10:15:43Z",
-      "nextProofRequired": "Keep ALERT_QUEUE, Cron, ALERT_EMAIL sender verification, and D1 alert tables in production before VPS shutdown. Add unsubscribe/preference UI before broad public alert subscription rollout."
+      "proof": "Cloudflare Worker now drains alert_deliveries through scheduled Cron and ALERT_QUEUE, atomically claims pending rows in D1, rate-limits recipient sends, records invasive_reporting_events, and sends email through the ALERT_EMAIL binding from notifications@ikimon.co.jp. Staging smoke delivery staging-smoke-20260626-1847-delivery reached sent at 2026-06-26T10:00:39.286Z. Production deploy version 9b502b92-756f-46ec-ae0d-9284f6b9897d passed health/ready smoke, and production smoke delivery prod-smoke-20260626-1914-delivery reached sent at 2026-06-26T10:15:43.070Z. The old Node/VPS alert worker service, runner, and systemd unit files were removed from source, deploy_platform_v2_blue_green.sh no longer installs the timer, and the live VPS units were disabled and masked on 2026-06-26 with backup at /etc/systemd/system/disabled-ikimon-alert-delivery-20260626.",
+      "verifiedAt": "2026-06-26T10:30:00Z",
+      "nextProofRequired": "Keep ALERT_QUEUE, Cron, ALERT_EMAIL sender verification, and D1 alert tables in production before VPS shutdown. Do not unmask or reinstall ikimon-v2-alert-delivery-worker.timer. Add unsubscribe/preference UI before broad public alert subscription rollout."
     },
     {
       "key": "audio_cluster_vector_search",
