@@ -2999,8 +2999,6 @@ function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: E
 function isLegacyObservationOriginFallbackPath(request: Request, url: URL): boolean {
   const pathname = url.pathname;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return true;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/identifications$/.test(pathname)) return true;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/disputes$/.test(pathname)) return true;
   if (request.method === "GET" && /^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return true;
@@ -3827,8 +3825,6 @@ function fallbackRoutePattern(pathname: string): string {
   if (/^\/api\/v1\/observations\/[^/]+\/public-detail$/.test(pathname)) return "/api/v1/observations/:id/public-detail";
   if (/^\/api\/v1\/observations\/[^/]+\/reactions\/[^/]+$/.test(pathname)) return "/api/v1/observations/:id/reactions/:type";
   if (/^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return "/api/v1/observations/:id/candidates/:candidateId/:action";
-  if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(pathname)) return "/api/v1/observations/:id/identifications";
-  if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(pathname)) return "/api/v1/observations/:id/disputes";
   if (/^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return "/api/v1/observations/:id/reference-candidates";
   if (/^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return "/api/v1/observations/:id/reassess";
   if (/^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return "/api/v1/observations/:id/reassess-from-video";
