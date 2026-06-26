@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import {
@@ -41,20 +41,6 @@ import {
   switchRallyWeatherMode,
   type RallyRevisionAction,
 } from "../services/observationRally.js";
-
-const SSE_HEADERS = {
-  "Content-Type": "text/event-stream; charset=utf-8",
-  "Cache-Control": "no-cache, no-transform",
-  Connection: "keep-alive",
-  "X-Accel-Buffering": "no",
-  "X-Ikimon-Observation-Event-Live-Mode": "snapshot-only",
-};
-
-function writeSse(reply: FastifyReply, event: string, payload: unknown): void {
-  if (reply.raw.destroyed) return;
-  reply.raw.write(`event: ${event}\n`);
-  reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
-}
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -290,30 +276,6 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         session: row,
         events: events.filter((e) => shouldDeliverEvent(e, ctx)),
       });
-    },
-  );
-
-  // GET /api/v1/observation-events/:sessionId/live  — SSE
-  app.get<{ Params: { sessionId: string }; Querystring: { guest_token?: string } }>(
-    "/api/v1/observation-events/:sessionId/live",
-    async (request, reply) => {
-      const session = await getSessionById(request.params.sessionId);
-      if (!session) return reply.status(404).send({ error: "session not found" });
-      const ctx = await resolveParticipantContext(
-        session,
-        request.headers.cookie,
-        asString(request.query.guest_token),
-      );
-
-      reply.raw.writeHead(200, SSE_HEADERS);
-      const recent = await listRecentLiveEvents(request.params.sessionId, 50);
-      writeSse(reply, "snapshot", {
-        session,
-        events: recent.filter((e) => shouldDeliverEvent(e, ctx)).reverse(),
-      });
-      reply.raw.end();
-
-      return reply;
     },
   );
 

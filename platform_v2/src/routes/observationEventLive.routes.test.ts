@@ -2,14 +2,30 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { buildApp } from "../app.js";
 
-test("observation event live endpoint is snapshot-only and does not hold a PostgreSQL listener", () => {
+test("observation event live endpoint is retired from Fastify", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/observation-events/00000000-0000-0000-0000-000000000000/live",
+    });
+
+    assert.equal(response.statusCode, 404);
+  } finally {
+    await app.close();
+  }
+});
+
+test("observation event live mode is Worker-native and does not hold a PostgreSQL listener", () => {
   const apiSource = readFileSync(path.join(process.cwd(), "src", "routes", "observationEventApi.ts"), "utf8");
+  const workerSource = readFileSync(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
   const liveSource = readFileSync(path.join(process.cwd(), "src", "services", "observationEventLive.ts"), "utf8");
 
-  assert.match(apiSource, /X-Ikimon-Observation-Event-Live-Mode": "snapshot-only"/);
-  assert.match(apiSource, /writeSse\(reply, "snapshot"/);
-  assert.match(apiSource, /reply\.raw\.end\(\)/);
-  assert.doesNotMatch(apiSource, /subscribeToSession|setInterval|heartbeat|onClose/);
+  assert.doesNotMatch(apiSource, /X-Ikimon-Observation-Event-Live-Mode|writeSse|\/live/);
+  assert.match(workerSource, /getObservationEventLiveSnapshot/);
+  assert.match(workerSource, /action === "live"/);
+  assert.doesNotMatch(workerSource, /subscribeToSession|setInterval|heartbeat|onClose/);
   assert.doesNotMatch(liveSource, /LISTEN|UNLISTEN|notification|obs_evt_|PoolClient/);
 });
