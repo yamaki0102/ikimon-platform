@@ -36,7 +36,6 @@ import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { updateOwnProfile, upsertUser, type ProfileSelfUpdateInput, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, verifyContactProof, type ContactSubmitInput } from "../services/contactSubmit.js";
-import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { generateRecordReadingCards, hideRecordReadingCard } from "../services/recordReadingCards.js";
 import { getPostSavePlaceMemorySample, kickPlaceMemoryPhotoProcessingForVisit } from "../services/placeMemory.js";
 import {
@@ -1330,32 +1329,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       };
     }
   });
-
-  // 観察へのリアクション (like/helpful/curious/thanks) トグル。
-  // session 必須、同じ user が既にそのリアクションをしていれば削除、いなければ追加。
-  app.post<{ Params: { id: string; type: string } }>(
-    "/api/v1/observations/:id/reactions/:type",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          reply.code(401);
-          return { ok: false, error: "session_required" };
-        }
-        await assertMutationRateLimit(request, "observation-reaction", session.userId, 120);
-        const type = request.params.type as ReactionType;
-        if (!isValidReactionType(type)) {
-          reply.code(400);
-          return { ok: false, error: "invalid_reaction_type" };
-        }
-        const result = await toggleReaction(request.params.id, session.userId, type);
-        return { ok: true, ...result };
-      } catch (error) {
-        reply.code(500);
-        return { ok: false, error: error instanceof Error ? error.message : "reaction_failed" };
-      }
-    },
-  );
 
   // 記録詳細の「この記録を読み解く」カード生成。session + owner only。
   // 保存するのは本文・出典・生成条件のみで、展示文や検索本文は保持しない。
