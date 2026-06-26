@@ -63,6 +63,7 @@ interface Env {
   TWITTER_CLIENT_ID?: string;
   TWITTER_CLIENT_SECRET?: string;
   V2_OAUTH_STATE_SECRET?: string;
+  CLOUDFLARE_STREAM_WEBHOOK_SECRET?: string;
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -318,6 +319,26 @@ interface VideoFinalizeInput {
   durationMs?: number | null;
   readyToStream?: boolean | null;
   bytes?: number | null;
+}
+
+interface VideoStreamWebhookInput {
+  uid?: unknown;
+  readyToStream?: unknown;
+  thumbnail?: unknown;
+  preview?: unknown;
+  duration?: unknown;
+  size?: unknown;
+  uploaded?: unknown;
+  created?: unknown;
+  status?: {
+    state?: unknown;
+    pctComplete?: unknown;
+    errorReasonCode?: unknown;
+    errorReasonText?: unknown;
+    errReasonCode?: unknown;
+    errReasonText?: unknown;
+  } | null;
+  result?: unknown;
 }
 
 interface MediaJob {
@@ -1580,6 +1601,10 @@ export const worker = {
       const videoBodyMatch = url.pathname.match(/^\/api\/v1\/videos\/([^/]+)\/body$/);
       if ((request.method === "PUT" || request.method === "POST") && videoBodyMatch?.[1]) {
         return putCompatibleVideoBody(decodeURIComponent(videoBodyMatch[1]), request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/videos/stream-webhook") {
+        return handleCompatibleVideoStreamWebhook(request, env);
       }
 
       const videoFinalizeMatch = url.pathname.match(/^\/api\/v1\/videos\/([^/]+)\/finalize$/);
@@ -3105,6 +3130,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (url.pathname === "/api/v1/auth/login") return true;
   if (url.pathname === "/api/v1/videos/direct-upload") return true;
   if (/^\/api\/v1\/videos\/[^/]+\/body$/.test(url.pathname)) return true;
+  if (url.pathname === "/api/v1/videos/stream-webhook") return true;
   if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
@@ -7844,6 +7870,108 @@ async function putCompatibleVideoBody(uid: string, request: Request, env: Env): 
   return json({ ok: true, uid, bytes: body.byteLength });
 }
 
+async function handleCompatibleVideoStreamWebhook(request: Request, env: Env): Promise<Response> {
+  if (!isAppRuntime(env)) {
+    return json({ ok: false, error: "not_available" }, 404);
+  }
+  const rawBody = await request.arrayBuffer();
+  const signature = request.headers.get("webhook-signature") ?? "";
+  if (!(await verifyCompatibleStreamWebhookSignature(rawBody, signature, env.CLOUDFLARE_STREAM_WEBHOOK_SECRET))) {
+    return json({ ok: false, error: "invalid_webhook_signature" }, 401);
+  }
+
+  let parsed: VideoStreamWebhookInput;
+  try {
+    parsed = JSON.parse(arrayBufferToText(rawBody)) as VideoStreamWebhookInput;
+  } catch {
+    return json({ ok: false, error: "invalid_json" }, 400);
+  }
+
+  const payload = normalizeCompatibleStreamWebhookPayload(parsed);
+  const uid = normalizeOptionalText(payload.uid);
+  if (!uid) {
+    return json({ ok: false, error: "invalid_uid" }, 400);
+  }
+
+  const row = await env.OBS_DB.prepare(
+    `SELECT stream_uid, actor_id, observation_id, upload_status, max_duration_seconds, filename,
+            upload_protocol, object_key, bytes, duration_ms, ready_to_stream, created_at, uploaded_at
+     FROM video_upload_requests
+     WHERE stream_uid = ?`
+  ).bind(uid).first<{
+    stream_uid: string;
+    actor_id: string;
+    observation_id: string | null;
+    upload_status: string;
+    max_duration_seconds: number;
+    filename: string | null;
+    upload_protocol: string;
+    object_key: string | null;
+    bytes: number;
+    duration_ms: number;
+    ready_to_stream: number;
+    created_at: string;
+    uploaded_at: string | null;
+  }>();
+  if (!row) {
+    return json({ ok: true, uid, known: false, readyToStream: compatibleStreamWebhookReady(payload) });
+  }
+
+  const uploadStatus = compatibleStreamWebhookStatus(payload);
+  const bytes = Math.max(row.bytes ?? 0, numberOrNull(payload.size) ?? 0);
+  const durationMs = Math.max(row.duration_ms ?? 0, compatibleStreamWebhookDurationMs(payload));
+  const readyToStream = compatibleStreamWebhookReady(payload);
+  const uploadedAt = normalizeOptionalText(payload.uploaded) ?? row.uploaded_at;
+  const meta = {
+    source: "stream_webhook",
+    stream_uid: uid,
+    upload_status: uploadStatus,
+    ready_to_stream: readyToStream,
+    thumbnail_url: normalizeOptionalText(payload.thumbnail) ?? buildShadowVideoThumbnailUrl(uid),
+    watch_url: normalizeOptionalText(payload.preview) ?? buildShadowVideoWatchUrl(uid),
+    status: payload.status ?? null
+  };
+
+  await env.OBS_DB.prepare(
+    `UPDATE video_upload_requests
+     SET upload_status = ?, bytes = ?, duration_ms = ?, ready_to_stream = ?,
+         uploaded_at = COALESCE(?, uploaded_at),
+         finalized_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE finalized_at END,
+         meta_json = ?
+     WHERE stream_uid = ?`
+  ).bind(uploadStatus, bytes, durationMs, readyToStream ? 1 : 0, uploadedAt, readyToStream ? 1 : 0, JSON.stringify(meta), uid).run();
+
+  let dispatch: { sent: number; pending: number } | null = null;
+  if (readyToStream && row.observation_id && row.object_key) {
+    dispatch = await attachVideoAssetToObservation({
+      uid,
+      observationId: row.observation_id,
+      ownerUserId: row.actor_id,
+      objectKey: row.object_key,
+      bytes,
+      durationMs
+    }, env);
+  }
+
+  return json({
+    ok: true,
+    uid,
+    known: true,
+    readyToStream,
+    video: videoRecordPayload({
+      uid,
+      observationId: row.observation_id,
+      uploadStatus,
+      durationMs,
+      bytes,
+      readyToStream,
+      createdAt: row.created_at,
+      uploadedAt
+    }),
+    dispatch
+  });
+}
+
 async function finalizeCompatibleVideo(uid: string, request: Request, env: Env): Promise<Response> {
   if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
@@ -11752,6 +11880,75 @@ function constantTimeStringEqual(a: string, b: string): boolean {
     diff |= (aBytes[index] ?? 0) ^ (bBytes[index] ?? 0);
   }
   return diff === 0;
+}
+
+function normalizeCompatibleStreamWebhookPayload(payload: VideoStreamWebhookInput): VideoStreamWebhookInput {
+  const result = payload.result;
+  if (result && typeof result === "object") {
+    return result as VideoStreamWebhookInput;
+  }
+  return payload;
+}
+
+function compatibleStreamWebhookStatus(payload: VideoStreamWebhookInput): string {
+  return normalizeOptionalText(payload.status?.state) ?? (compatibleStreamWebhookReady(payload) ? "ready" : "processing");
+}
+
+function compatibleStreamWebhookReady(payload: VideoStreamWebhookInput): boolean {
+  return payload.readyToStream === true || normalizeOptionalText(payload.status?.state) === "ready";
+}
+
+function compatibleStreamWebhookDurationMs(payload: VideoStreamWebhookInput): number {
+  const durationSeconds = numberOrNull(payload.duration);
+  if (!durationSeconds || durationSeconds <= 0) return 0;
+  return Math.round(durationSeconds * 1000);
+}
+
+function parseWebhookSignatureHeader(value: string): { time: string; sig1: string } | null {
+  const parts = Object.fromEntries(
+    value.split(",")
+      .map((part) => part.trim().split("="))
+      .filter((pair): pair is [string, string] => pair.length === 2 && Boolean(pair[0]) && Boolean(pair[1]))
+  );
+  return parts.time && parts.sig1 ? { time: parts.time, sig1: parts.sig1 } : null;
+}
+
+function concatBytes(...parts: Array<ArrayBuffer | Uint8Array>): ArrayBuffer {
+  const chunks = parts.map((part) => part instanceof Uint8Array ? part : new Uint8Array(part));
+  const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer;
+}
+
+function arrayBufferToHex(value: ArrayBuffer): string {
+  return [...new Uint8Array(value)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hmacSha256Hex(secret: string, value: ArrayBuffer): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    textToArrayBuffer(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return arrayBufferToHex(await crypto.subtle.sign("HMAC", key, value));
+}
+
+async function verifyCompatibleStreamWebhookSignature(rawBody: ArrayBuffer, signatureHeader: string, secret: string | undefined): Promise<boolean> {
+  const trimmedSecret = secret?.trim();
+  if (!trimmedSecret) return false;
+  const parsed = parseWebhookSignatureHeader(signatureHeader);
+  if (!parsed || !/^[0-9a-f]+$/i.test(parsed.sig1)) return false;
+  const timestamp = Number(parsed.time);
+  if (!Number.isFinite(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 10 * 60) return false;
+  const expected = await hmacSha256Hex(trimmedSecret, concatBytes(textToArrayBuffer(`${parsed.time}.`), rawBody));
+  return constantTimeStringEqual(parsed.sig1.toLowerCase(), expected.toLowerCase());
 }
 
 async function codeChallenge(verifier: string): Promise<string> {

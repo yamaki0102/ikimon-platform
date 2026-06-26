@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import test from "node:test";
 import * as bcrypt from "bcryptjs";
 import { worker } from "./index";
@@ -1090,6 +1090,16 @@ class FakeStatement {
       row.upload_status = "uploaded";
       row.bytes = number(v[0]);
       row.uploaded_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE video_upload_requests SET upload_status = ?")) {
+      const row = requireRow(this.db.videoUploads, string(v[7]));
+      row.upload_status = string(v[0]);
+      row.bytes = number(v[1]);
+      row.duration_ms = number(v[2]);
+      row.ready_to_stream = number(v[3]);
+      row.uploaded_at = nullableString(v[4]) ?? row.uploaded_at;
       return {};
     }
 
@@ -2404,12 +2414,18 @@ function createEnv(queue = new FakeQueue()) {
       INTERNAL_AUTH_TOKEN,
       OBSERVATION_DB_NAME: "ikimon_shadow_observations_2026_06",
       OBSERVATION_ARCHIVE_TARGET: "r2_sql_export_by_partition_month",
-      PUBLIC_WRITE_MODE: "origin_fallback"
+      PUBLIC_WRITE_MODE: "origin_fallback",
+      CLOUDFLARE_STREAM_WEBHOOK_SECRET: undefined as string | undefined
     },
     core,
     obs,
     queue
   };
+}
+
+function streamWebhookSignature(body: string, secret: string, time = Math.floor(Date.now() / 1000)): string {
+  const sig1 = createHmac("sha256", secret).update(`${time}.${body}`).digest("hex");
+  return `time=${time},sig1=${sig1}`;
 }
 
 function internalRequest(path: string, init?: RequestInit): Request {
@@ -3640,6 +3656,87 @@ test("v1 video direct upload and finalize keep the current Cloudflare Stream-com
   assert.equal(unknownPayload.video.pending, true);
   assert.equal(unknownPayload.video.providerUid, "unknown-stream");
   assert.equal(unknownPayload.video.readyToStream, false);
+});
+
+test("v1 video stream webhook verifies signature and marks D1 video ready", async () => {
+  const { env, obs, queue } = createEnv();
+  env.CLOUDFLARE_STREAM_WEBHOOK_SECRET = "test-stream-secret";
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-video-webhook",
+    userId: "video-webhook-user",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8
+  });
+
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "video-webhook-user", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const directResponse = await worker.fetch(new Request("https://shadow.test/api/v1/videos/direct-upload", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "field webhook.mp4",
+      observationId: "visit-video-webhook",
+      fileSizeBytes: 12,
+      uploadProtocol: "post"
+    })
+  }), env);
+  const directPayload = await directResponse.json() as any;
+  assert.equal(directResponse.ok, true, JSON.stringify(directPayload));
+
+  const bodyResponse = await worker.fetch(new Request(directPayload.uploadUrl, {
+    method: "PUT",
+    headers: { "content-type": "video/mp4" },
+    body: "video-webhook"
+  }), env);
+  assert.equal(bodyResponse.ok, true);
+
+  const payload = JSON.stringify({
+    uid: directPayload.uid,
+    readyToStream: true,
+    duration: 8.25,
+    size: 13,
+    uploaded: "2026-06-15T02:05:00.000Z",
+    status: { state: "ready" }
+  });
+  const invalidResponse = await worker.fetch(new Request("https://shadow.test/api/v1/videos/stream-webhook", {
+    method: "POST",
+    headers: { "content-type": "application/json", "webhook-signature": "time=1,sig1=bad" },
+    body: payload
+  }), env);
+  assert.equal(invalidResponse.status, 401);
+
+  const webhookResponse = await worker.fetch(new Request("https://shadow.test/api/v1/videos/stream-webhook", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "webhook-signature": streamWebhookSignature(payload, env.CLOUDFLARE_STREAM_WEBHOOK_SECRET)
+    },
+    body: payload
+  }), env);
+  const webhookPayload = await webhookResponse.json() as any;
+  assert.equal(webhookResponse.ok, true, JSON.stringify(webhookPayload));
+  assert.equal(webhookPayload.ok, true);
+  assert.equal(webhookPayload.known, true);
+  assert.equal(webhookPayload.readyToStream, true);
+  assert.equal(webhookPayload.video.providerUid, directPayload.uid);
+  assert.equal(webhookPayload.video.uploadStatus, "ready");
+  assert.equal(webhookPayload.video.durationMs, 8250);
+  assert.equal(webhookPayload.dispatch.sent, 2);
+
+  const row = obs.videoUploads.get(directPayload.uid);
+  assert.equal(row?.upload_status, "ready");
+  assert.equal(row?.ready_to_stream, 1);
+  assert.equal(row?.duration_ms, 8250);
+  assert.equal(row?.bytes, 13);
+  assert.equal(obs.assets.get(`video_asset_${directPayload.uid}`)?.processing_state, "uploaded");
+  assert.equal(queue.messages.length, 2);
 });
 
 test("shadow video metadata proof verifies served video and poster bytes without exposing exact location", async () => {
