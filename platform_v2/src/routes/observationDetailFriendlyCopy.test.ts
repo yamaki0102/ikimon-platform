@@ -10,10 +10,9 @@ const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const writeRouteSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
 const cardSource = readFileSync(new URL("../ui/observationCard.ts", import.meta.url), "utf8");
 const mediaSource = readFileSync(new URL("../ui/observationMedia.ts", import.meta.url), "utf8");
-const subjectProposalSource = readFileSync(new URL("../services/observationSubjectProposal.ts", import.meta.url), "utf8");
-const candidateAdoptionSource = readFileSync(new URL("../services/observationCandidateAdoption.ts", import.meta.url), "utf8");
 const identificationParticipationSource = readFileSync(new URL("../services/identificationParticipation.ts", import.meta.url), "utf8");
 const observationVisitBundleSource = readFileSync(new URL("../services/observationVisitBundle.ts", import.meta.url), "utf8");
+const cloudflareWorkerSource = readFileSync(new URL("../../cloudflare_shadow/src/index.ts", import.meta.url), "utf8");
 
 function sourceBetween(startMarker: string, endMarker: string): string {
   const start = routeSource.indexOf(startMarker);
@@ -934,21 +933,15 @@ test("visible record card keeps the history after an AI candidate is adopted", (
   assert.doesNotMatch(html, /AIが写真から分けた観測レコード/);
 });
 
-test("community subject proposal is separated from owner-only candidate adoption", () => {
-  assert.match(writeRouteSource, /\/api\/v1\/observations\/:id\/candidates\/:candidateId\/propose/);
-  assert.match(writeRouteSource, /\/api\/v1\/observations\/:id\/candidates\/:candidateId\/adopt/);
-  assert.match(writeRouteSource, /adoptObservationCandidate/);
-  assert.match(writeRouteSource, /handleCandidateAdoption/);
-  assert.match(candidateAdoptionSource, /observation_not_owned/);
-  assert.match(candidateAdoptionSource, /ai_candidate_adoption/);
-  assert.match(subjectProposalSource, /community_subject_proposal/);
-  assert.match(subjectProposalSource, /proposed_by_user_id/);
-  assert.match(subjectProposalSource, /subject_proposal/);
-  assert.match(subjectProposalSource, /alert_deliveries/);
-  assert.match(subjectProposalSource, /channel,\s+delivery_status, delivered_at, payload_json/);
-  assert.match(subjectProposalSource, /proposal_status: "proposed"/);
-  assert.doesNotMatch(subjectProposalSource, /observation_not_owned/);
-  assert.doesNotMatch(subjectProposalSource, /candidate\.user_id\s*!==\s*input\.actorUserId/);
+test("candidate action writes are retired from Fastify and handled by the Worker D1 ledger", () => {
+  assert.doesNotMatch(writeRouteSource, /\/api\/v1\/observations\/:id\/candidates\/:candidateId\/propose/);
+  assert.doesNotMatch(writeRouteSource, /\/api\/v1\/observations\/:id\/candidates\/:candidateId\/adopt/);
+  assert.doesNotMatch(writeRouteSource, /adoptObservationCandidate/);
+  assert.doesNotMatch(writeRouteSource, /handleCandidateAdoption/);
+  assert.match(cloudflareWorkerSource, /requestCompatibleCandidateAction/);
+  assert.match(cloudflareWorkerSource, /candidate_action_requests/);
+  assert.match(cloudflareWorkerSource, /actionKind === "adopt" && ownerUserId !== session\.userId/);
+  assert.match(routeSource, /candidateAction/);
 });
 
 test("media annotations can be focused from AI evidence without taking over the photo surface", () => {
