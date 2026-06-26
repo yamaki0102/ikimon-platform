@@ -976,6 +976,14 @@ test("identification and dispute writes are retired from Fastify and handled by 
   assert.match(cloudflareWorkerSource, /source: "cloudflare_observation_identification_disputes"/);
 });
 
+test("observation reaction writes are retired from Fastify and handled by the Worker D1 table", () => {
+  assert.doesNotMatch(writeRouteSource, /\/api\/v1\/observations\/:id\/reactions\/:type/);
+  assert.doesNotMatch(writeRouteSource, /toggleReaction/);
+  assert.doesNotMatch(writeRouteSource, /isValidReactionType/);
+  assert.match(cloudflareWorkerSource, /toggleObservationReaction/);
+  assert.match(cloudflareWorkerSource, /observation_reactions/);
+});
+
 test("media annotations can be focused from AI evidence without taking over the photo surface", () => {
   assert.match(mediaSource, /ObservationMediaAnnotationTarget/);
   assert.match(mediaSource, /data-annotation-target/);
