@@ -129,6 +129,15 @@ interface LegacyObservationUpsertInput {
   sourcePayload?: Record<string, unknown> | null;
 }
 
+interface CompatibleObservationIdentificationInput {
+  proposedName?: unknown;
+  proposedRank?: unknown;
+  notes?: unknown;
+  stance?: unknown;
+  referenceSourceIds?: unknown;
+  referenceLocator?: unknown;
+}
+
 interface LegacyPhotoUploadInput {
   filename?: string | null;
   mimeType?: string | null;
@@ -1543,6 +1552,15 @@ export const worker = {
         return toggleObservationReaction(
           decodeURIComponent(reactionMatch[1]),
           decodeURIComponent(reactionMatch[2]),
+          request,
+          env
+        );
+      }
+
+      const identificationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/identifications$/);
+      if (request.method === "POST" && identificationMatch?.[1]) {
+        return submitCompatibleObservationIdentification(
+          decodeURIComponent(identificationMatch[1]),
           request,
           env
         );
@@ -2977,6 +2995,115 @@ function isValidObservationReactionType(value: string): boolean {
   return ["like", "helpful", "curious", "thanks"].includes(value);
 }
 
+async function submitCompatibleObservationIdentification(occurrenceId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const targetExists = await observationReactionTargetExists(normalizedOccurrenceId, env);
+  if (!targetExists) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  const input = await readJson<CompatibleObservationIdentificationInput>(request);
+  const proposedName = normalizeOptionalText(input.proposedName);
+  if (!proposedName) {
+    return json({ ok: false, error: "identification_name_required" }, 400, { "cache-control": "no-store" });
+  }
+  const proposedRank = normalizeOptionalText(input.proposedRank);
+  const notes = normalizeOptionalText(input.notes);
+  const stance = input.stance === "alternative" ? "alternative" : "support";
+  const referenceSourceIds = Array.isArray(input.referenceSourceIds)
+    ? input.referenceSourceIds.map((value) => normalizeOptionalText(value)).filter((value): value is string => Boolean(value))
+    : [];
+  const referenceLocator = normalizeOptionalText(input.referenceLocator);
+  const sourceKey = `cf_public_identification:${normalizedOccurrenceId}:${session.userId}`;
+  const identificationId = newId("identification");
+  const sourcePayload = {
+    source: "cloudflare_public_identification",
+    stance,
+    referenceSourceIds,
+    referenceLocator,
+    updatedAt: new Date().toISOString()
+  };
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_identifications (
+       identification_id, occurrence_id, actor_user_id, proposed_name, proposed_rank,
+       stance, notes, source_key, source_payload_json, is_current
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+     ON CONFLICT(source_key) DO UPDATE SET
+       proposed_name = excluded.proposed_name,
+       proposed_rank = excluded.proposed_rank,
+       stance = excluded.stance,
+       notes = excluded.notes,
+       source_payload_json = excluded.source_payload_json,
+       is_current = 1,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    identificationId,
+    normalizedOccurrenceId,
+    session.userId,
+    proposedName,
+    proposedRank,
+    stance,
+    notes,
+    sourceKey,
+    JSON.stringify(sourcePayload)
+  ).run();
+
+  await env.OBS_DB.prepare(
+    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+  ).bind(
+    newId("outbox"),
+    "readmodel.refresh",
+    normalizedOccurrenceId,
+    JSON.stringify({ observationId: normalizedOccurrenceId, reason: "identification.write" }),
+    null
+  ).run();
+
+  const countRow = await env.OBS_DB.prepare(
+    "SELECT COUNT(*) AS count FROM observation_identifications WHERE occurrence_id = ? AND is_current = 1"
+  ).bind(normalizedOccurrenceId).first<{ count: number }>();
+
+  return json({
+    ok: true,
+    occurrenceId: normalizedOccurrenceId,
+    promoted: false,
+    compatibility: {
+      source: "cloudflare_observation_identifications",
+      sourcePayloadStored: true,
+      referenceSelectionMode: referenceSourceIds.length > 0 || referenceLocator ? "payload_only" : "none"
+    },
+    consensus: {
+      occurrenceId: normalizedOccurrenceId,
+      consensusStatus: "needs_more_review",
+      hasOpenDispute: false,
+      identificationVerificationStatus: "community_reviewed",
+      communityTaxon: {
+        name: proposedName,
+        rank: proposedRank,
+        supportCount: countRow?.count ?? 1
+      },
+      neededEvidence: []
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
 async function toggleObservationReaction(occurrenceId: string, reactionType: string, request: Request, env: Env): Promise<Response> {
   const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
   if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
@@ -3134,6 +3261,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   return false;
 }
 
