@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -122,6 +123,24 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /maintenance_pg_dependency_files/);
   assert.match(script, /manual maintenance tools only/);
+});
+
+test("VPS stop readiness requires P0 capability dispositions", async () => {
+  const result = spawnSync(process.execPath, ["scripts/d1-migration-boundary-report.mjs"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /P0 Capability Disposition Gate/);
+  assert.match(result.stdout, /- status: blocked/);
+  assert.match(result.stdout, /- p0_capability_items: 15/);
+  assert.match(result.stdout, /- p0_open_capabilities: 15/);
+  assert.match(result.stdout, /- p0_terminal_capabilities: 0/);
+  assert.match(result.stdout, /- configured_p0_blockers_without_disposition: 0/);
+  assert.match(result.stdout, /legacy_observation_api_origin_fallback/);
+  assert.match(result.stdout, /video_upload_lifecycle/);
+  assert.match(result.stdout, /p0_disposition_gate: blocked/);
 });
 
 test("public custom domain origin fallback is not registered twice", async () => {
