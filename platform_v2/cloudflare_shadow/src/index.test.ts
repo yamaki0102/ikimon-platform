@@ -6653,7 +6653,7 @@ test("production oauth callback fails closed when provider secrets are not confi
   }
 });
 
-test("production public UI routes keep explicit origin fallback while broad custom-domain fallback is disabled", async () => {
+test("production public UI routes avoid origin fallback while broad custom-domain fallback is disabled", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -6686,30 +6686,14 @@ test("production public UI routes keep explicit origin fallback while broad cust
       "/es/community/events/new",
       "/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5"
     ];
-    const expectedFallbackReasons = new Map([
-      ["/", "html_materialized_miss"],
-      ["/record", "html_materialized_miss"],
-      ["/map", "html_materialized_miss"],
-      ["/login", "html_materialized_miss"],
-      ["/es/community/events/new", "html_materialized_miss"],
-      ["/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5", "html_materialized_miss"]
-    ]);
-
     for (const path of publicUiRoutes) {
       const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
-      const body = await response.text();
-      assert.equal(response.status, 200, path);
-      assert.equal(body, "<!doctype html><title>origin UI</title><meta name=\"x-origin-ui\" content=\"1\">", path);
-      assert.equal(body.includes("data-cloudflare-public-shell"), false, path);
-      assert.equal(seen.at(-1)?.url, `https://ikimon.life${path}`);
-      assert.equal(seen.at(-1)?.method, "GET", path);
-      assert.equal(seen.at(-1)?.resolveOverride, "origin.ikimon.test", path);
-      assert.equal(seen.at(-1)?.reason, expectedFallbackReasons.get(path), path);
+      assert.equal(response.status, 404, path);
+      assert.deepEqual(await response.json(), { ok: false, error: "html_not_materialized" }, path);
+      assert.equal(seen.length, 0, path);
     }
 
-    const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
-    assert.equal(latestTelemetry.routePattern, "/community/fields/:id");
-    assert.equal(JSON.stringify(latestTelemetry).includes("535cccb1"), false);
+    assert.equal(core.operationAudit.length, 0);
 
     const place = await worker.fetch(new Request("https://ikimon.life/places/hamamatsu"), productionEnv);
     const placeBody = await place.text();
@@ -6719,32 +6703,32 @@ test("production public UI routes keep explicit origin fallback while broad cust
     assert.equal(placeBody.includes("浜松地域遺産認定制度"), true);
     assert.equal(placeBody.includes("34.831"), false);
     assert.equal(placeBody.includes("137.72"), false);
-    assert.equal(seen.length, publicUiRoutes.length);
+    assert.equal(seen.length, 0);
 
     const localizedPlace = await worker.fetch(new Request("https://ikimon.life/ja/places/hamamatsu"), productionEnv);
     assert.equal(localizedPlace.status, 200);
     assert.equal(localizedPlace.headers.get("x-ikimon-cloudflare-native"), "place-guide-list");
-    assert.equal(seen.length, publicUiRoutes.length);
+    assert.equal(seen.length, 0);
 
     const placeSnapshot = await worker.fetch(new Request("https://ikimon.life/places/hamamatsu/snapshot"), productionEnv);
-    assert.equal(placeSnapshot.status, 200);
-    assert.equal(seen.at(-1)?.url, "https://ikimon.life/places/hamamatsu/snapshot");
-    assert.equal(seen.at(-1)?.reason, "html_materialized_miss");
+    assert.equal(placeSnapshot.status, 404);
+    assert.deepEqual(await placeSnapshot.json(), { ok: false, error: "html_not_materialized" });
+    assert.equal(seen.length, 0);
 
     const unknownPlace = await worker.fetch(new Request("https://ikimon.life/places/unknown-slug"), productionEnv);
     assert.equal(unknownPlace.status, 404);
     assert.equal(unknownPlace.headers.get("x-ikimon-cloudflare-native"), "not-found");
-    assert.equal(seen.length, publicUiRoutes.length + 1);
+    assert.equal(seen.length, 0);
 
     const unknown = await worker.fetch(new Request("https://ikimon.life/some-old-unmapped-path"), productionEnv);
     assert.equal(unknown.status, 404);
     assert.equal(unknown.headers.get("x-ikimon-cloudflare-native"), "not-found");
-    assert.equal(seen.length, publicUiRoutes.length + 1);
+    assert.equal(seen.length, 0);
 
     const localizedUnknown = await worker.fetch(new Request("https://ikimon.life/ja/some-old-unmapped-path"), productionEnv);
     assert.equal(localizedUnknown.status, 404);
     assert.equal(localizedUnknown.headers.get("x-ikimon-cloudflare-native"), "not-found");
-    assert.equal(seen.length, publicUiRoutes.length + 1);
+    assert.equal(seen.length, 0);
 
     const eventPost = await worker.fetch(new Request("https://ikimon.life/es/community/events/new", {
       method: "POST",
@@ -6752,7 +6736,7 @@ test("production public UI routes keep explicit origin fallback while broad cust
       headers: { "content-type": "application/x-www-form-urlencoded" }
     }), productionEnv);
     assert.equal(eventPost.status, 404);
-    assert.equal(seen.length, publicUiRoutes.length + 1);
+    assert.equal(seen.length, 0);
     assert.equal(eventPost.headers.get("x-ikimon-cloudflare-materialized"), null);
 
     const eventApiPost = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
@@ -6762,7 +6746,7 @@ test("production public UI routes keep explicit origin fallback while broad cust
     }), productionEnv);
     assert.equal(eventApiPost.status, 401);
     assert.deepEqual(await eventApiPost.json(), { error: "login required" });
-    assert.equal(seen.length, publicUiRoutes.length + 1);
+    assert.equal(seen.length, 0);
 
     const eventAreaSuggestion = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/area-suggestions", {
       method: "POST",
@@ -6771,11 +6755,11 @@ test("production public UI routes keep explicit origin fallback while broad cust
     }), productionEnv);
     assert.equal(eventAreaSuggestion.status, 401);
     assert.deepEqual(await eventAreaSuggestion.json(), { error: "login required" });
-    assert.equal(seen.length, publicUiRoutes.length + 1);
+    assert.equal(seen.length, 0);
 
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
-    assert.equal(seen.length, publicUiRoutes.length + 1);
+    assert.equal(seen.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -9032,7 +9016,7 @@ test("production field detail public-detail API exposes public-safe readmodel on
   assert.equal(text.includes("\"geom_simplified\""), false);
 });
 
-test("production original UI html misses fall back to origin with redacted telemetry", async () => {
+test("production original UI html misses return 404 without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -9042,30 +9026,84 @@ test("production original UI html misses fall back to origin with redacted telem
   };
   const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
-    return new Response("<!doctype html><title>origin field</title>", {
-      headers: { "content-type": "text/html; charset=utf-8" }
-    });
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 500 });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(`https://ikimon.life/ja/community/fields/${fieldId}?viewer=1`), productionEnv);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { ok: false, error: "html_not_materialized" });
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production place snapshot renders from D1 readmodel without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const fieldId = "84577038-21e9-4d57-92bd-d48b5ff407c0";
+  env.OBS_DB.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "natural_symbiosis_site",
+    admin_level: "certified_area",
+    name: "ビオトープながおか",
+    name_kana: null,
+    summary: "公開情報から作成した場所の概要です。",
+    prefecture: "岐阜県",
+    city: "瑞穂市",
+    public_cell: "35.25,136.69",
+    public_lat: 35.25012,
+    public_lng: 136.69098,
+    radius_m: 200,
+    area_ha: 0.1,
+    has_polygon: 0,
+    has_simplified_geometry: 0,
+    certification_id: "R5Early42_Biotope_Nagaoka",
+    certification_url: "https://example.test/certification",
+    official_url: "https://example.test/official",
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: null,
+    valid_to: null,
+    entity_key: null,
+    updated_at: "2026-04-27T03:28:48.583Z"
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 500 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/places/${fieldId}/snapshot`), productionEnv);
+    const body = await response.text();
     assert.equal(response.status, 200);
-    assert.equal(await response.text(), "<!doctype html><title>origin field</title>");
-    assert.equal(seen.url, `https://ikimon.life/ja/community/fields/${fieldId}?viewer=1`);
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.reason, "html_materialized_miss");
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "html_materialized_miss");
-    assert.equal(telemetry.routePattern, "/ja/community/fields/:id");
-    assert.match(telemetry.pathHash, /^[0-9a-f]{16}$/);
-    assert.match(telemetry.originalUiHtmlKeyHash, /^[0-9a-f]{16}$/);
-    assert.equal(JSON.stringify(telemetry).includes(fieldId), false);
-    assert.equal(JSON.stringify(telemetry).includes("viewer=1"), false);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "place-snapshot-readmodel");
+    assert.match(body, /data-ikimon-place-snapshot="1"/);
+    assert.match(body, /ビオトープながおか/);
+    assert.match(body, /35\.25,136\.69/);
+    assert.doesNotMatch(body, /35\.25012|136\.69098/);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+
+    const localized = await worker.fetch(new Request(`https://ikimon.life/en/places/${fieldId}/snapshot`), productionEnv);
+    const localizedBody = await localized.text();
+    assert.equal(localized.status, 200);
+    assert.match(localizedBody, /Place snapshot/);
+    assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }

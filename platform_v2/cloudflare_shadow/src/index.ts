@@ -7311,6 +7311,24 @@ function parseFieldDetailPath(pathname: string): { lang: string; fieldId: string
   return { lang: match[1] ?? "ja", fieldId: match[2] };
 }
 
+async function getNativePlaceSnapshotHtmlIfAvailable(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const match = parsePlaceSnapshotPath(url.pathname);
+  if (!match) return null;
+  const row = await getFieldDetailReadmodelRow(match.fieldId, env);
+  if (!row) return null;
+  return html(request.method === "HEAD" ? "" : renderPlaceSnapshotHtml(row, match.lang), 200, {
+    "cache-control": "no-store",
+    "vary": "cookie, authorization",
+    "x-ikimon-cloudflare-native": "place-snapshot-readmodel"
+  });
+}
+
+function parsePlaceSnapshotPath(pathname: string): { lang: string; fieldId: string } | null {
+  const match = pathname.match(/^\/(?:(ja|en|es|pt-br)\/)?places\/([a-zA-Z0-9][a-zA-Z0-9_-]{0,127})\/snapshot$/);
+  if (!match?.[2]) return null;
+  return { lang: match[1] ?? "ja", fieldId: match[2] };
+}
+
 async function getFieldDetailReadmodelRow(fieldId: string, env: Env): Promise<FieldDetailReadmodelRow | null> {
   if (!isSafeFieldId(fieldId)) return null;
   return env.OBS_DB.prepare(
@@ -7742,9 +7760,11 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
     return nativeFieldDetail;
   }
 
-  if (shouldUseOriginFallback(url, env)) {
-    return fetchOriginFallback(request, url, env, "html_materialized_miss");
+  const nativePlaceSnapshot = await getNativePlaceSnapshotHtmlIfAvailable(request, url, env);
+  if (nativePlaceSnapshot) {
+    return nativePlaceSnapshot;
   }
+
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
 }
 
@@ -12233,6 +12253,56 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
   <section class="panel">
     <p class="muted">${isEnglish ? "Exact coordinates and geometry are not exposed on this public page." : "この公開ページでは、正確な座標とジオメトリ本体は表示しません。"}</p>
   </section>
+</main>
+</body>
+</html>`;
+}
+
+function renderPlaceSnapshotHtml(row: FieldDetailReadmodelRow, lang: string): string {
+  const payload = fieldDetailPublicPayload(row);
+  const isEnglish = lang === "en";
+  const title = isEnglish ? `${payload.name} - place snapshot` : `${payload.name} - 場所の情報`;
+  const locationLabel = payload.publicLocation.label;
+  const officialLink = payload.links.official
+    ? `<a class="button" href="${escapeHtml(payload.links.official)}" rel="nofollow noopener">${isEnglish ? "Official information" : "公式情報"}</a>`
+    : "";
+  const certificationLink = payload.links.certification
+    ? `<a class="button secondary" href="${escapeHtml(payload.links.certification)}" rel="nofollow noopener">${isEnglish ? "Certification" : "認定情報"}</a>`
+    : "";
+  return `<!doctype html>
+<html lang="${escapeHtml(lang)}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body{margin:0;background:#f7fbf9;color:#10251a;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6}
+    main{max-width:920px;margin:0 auto;padding:28px 16px 48px}
+    h1{margin:4px 0 10px;font-size:30px;line-height:1.18;letter-spacing:0}
+    .eyebrow{margin:0;color:#047857;font-size:13px;font-weight:900}
+    .summary{margin:0 0 18px;color:#334155}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:18px 0}
+    .panel{padding:14px 15px;border:1px solid #d9e7e0;border-radius:8px;background:#fff}
+    .label{margin:0 0 4px;color:#64746d;font-size:12px;font-weight:800}
+    .value{margin:0;font-weight:900;overflow-wrap:anywhere}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 14px;border-radius:8px;background:#0f8f7e;color:#fff;font-weight:900;text-decoration:none}
+    .button.secondary{background:#e7f4ef;color:#115e52}
+    .muted{color:#64746d}
+  </style>
+</head>
+<body>
+<main data-ikimon-place-snapshot="1" data-field-id="${escapeHtml(payload.fieldId)}" data-cloudflare-source="place-snapshot-readmodel">
+  <p class="eyebrow">${isEnglish ? "Place snapshot" : "場所の情報"}</p>
+  <h1>${escapeHtml(payload.name)}</h1>
+  ${payload.summary ? `<p class="summary">${escapeHtml(payload.summary)}</p>` : ""}
+  <section class="grid" aria-label="place metadata">
+    <div class="panel"><p class="label">${isEnglish ? "Public location" : "公開位置"}</p><p class="value">${escapeHtml(locationLabel)} / ${escapeHtml(payload.publicLocation.cell)}</p></div>
+    <div class="panel"><p class="label">${isEnglish ? "Area" : "面積"}</p><p class="value">${payload.areaHa ? `${payload.areaHa}ha` : "-"}</p></div>
+    <div class="panel"><p class="label">${isEnglish ? "Verification" : "確認状態"}</p><p class="value">${escapeHtml(payload.verification.label || payload.verification.level || "-")}</p></div>
+  </section>
+  <div class="actions">${officialLink}${certificationLink}</div>
+  <p class="muted">${isEnglish ? "Exact coordinates and geometry are not exposed on this public page." : "この公開ページでは、正確な座標とジオメトリ本体は表示しません。"}</p>
 </main>
 </body>
 </html>`;
