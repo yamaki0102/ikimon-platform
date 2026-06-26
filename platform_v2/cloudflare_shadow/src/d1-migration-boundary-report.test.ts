@@ -273,6 +273,15 @@ test("map area polygon origin geometry fallback is retired from Worker source", 
   assert.doesNotMatch(workerSource, /map_area_polygons_origin_geometry/);
 });
 
+test("static asset materialized miss origin fallback is retired from Worker source", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const classifyFallbackReason = loadClassifyFallbackReason(script);
+
+  assert.equal(classifyFallbackReason("static_asset_materialized_miss"), "materialized_origin_fallback");
+  assert.doesNotMatch(workerSource, /static_asset_materialized_miss/);
+});
+
 test("production origin session probe is dormant when import mode is disabled", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
 

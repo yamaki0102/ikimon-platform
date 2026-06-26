@@ -7372,9 +7372,6 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
       }
     });
   }
-  if (shouldUseOriginFallback(url, env)) {
-    return fetchOriginFallback(request, url, env, "static_asset_materialized_miss");
-  }
   return json({ ok: false, error: "static_asset_not_materialized" }, 404, { "cache-control": "no-store" });
 }
 

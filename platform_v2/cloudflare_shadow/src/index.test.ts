@@ -7309,6 +7309,15 @@ test("production original UI static assets serve materialized bytes from R2 with
   await env.ASSET_BUCKET.put("original-ui/static/app-sw.js", "const VERSION = 'ikimon-app-v2';", {
     httpMetadata: { contentType: "application/javascript; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/static/offline.html", "<!doctype html><title>offline</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/static/manifest.webmanifest", "{\"name\":\"ikimon\"}", {
+    httpMetadata: { contentType: "application/manifest+json; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/static/assets/img/invasive/invasive-plant-thumb.webp", "webp-bytes", {
+    httpMetadata: { contentType: "image/webp" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -7336,6 +7345,25 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(appSw.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
     assert.equal(appSw.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
+    const offline = await worker.fetch(new Request("https://ikimon.life/offline.html"), productionEnv);
+    assert.equal(offline.status, 200);
+    assert.equal(await offline.text(), "<!doctype html><title>offline</title>");
+    assert.equal(offline.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
+    assert.equal(offline.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
+    const manifest = await worker.fetch(new Request("https://ikimon.life/manifest.webmanifest"), productionEnv);
+    assert.equal(manifest.status, 200);
+    assert.equal(await manifest.text(), "{\"name\":\"ikimon\"}");
+    assert.equal(manifest.headers.get("content-type"), "application/manifest+json; charset=utf-8");
+    assert.equal(manifest.headers.get("cache-control"), "public, max-age=300");
+    assert.equal(manifest.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
+    const invasive = await worker.fetch(new Request("https://ikimon.life/assets/img/invasive/invasive-plant-thumb.webp"), productionEnv);
+    assert.equal(invasive.status, 200);
+    assert.equal(await invasive.text(), "webp-bytes");
+    assert.equal(invasive.headers.get("content-type"), "image/webp");
+    assert.equal(invasive.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
@@ -7343,7 +7371,7 @@ test("production original UI static assets serve materialized bytes from R2 with
   }
 });
 
-test("production original UI static asset misses fall back to origin with redacted telemetry", async () => {
+test("production original UI static asset misses return 404 without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -7352,26 +7380,17 @@ test("production original UI static asset misses fall back to origin with redact
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
-    return new Response("origin-png", { headers: { "content-type": "image/png" } });
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request("https://ikimon.life/assets/brand/missing-icon.png?v=1"), productionEnv);
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), "origin-png");
-    assert.equal(seen.url, "https://ikimon.life/assets/brand/missing-icon.png?v=1");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.reason, "static_asset_materialized_miss");
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "static_asset_materialized_miss");
-    assert.equal(telemetry.routePattern, "/assets/brand/:asset");
-    assert.equal(JSON.stringify(telemetry).includes("missing-icon"), false);
-    assert.equal(JSON.stringify(telemetry).includes("v=1"), false);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { ok: false, error: "static_asset_not_materialized" });
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
