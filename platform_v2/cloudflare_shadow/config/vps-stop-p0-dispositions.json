@@ -152,14 +152,16 @@
     },
     {
       "key": "video_upload_lifecycle",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "media",
-      "scope": "origin Cloudflare Stream webhook and video-ready lifecycle",
+      "scope": "origin Cloudflare Stream webhook and video-ready lifecycle replaced by Worker-native video endpoints",
       "evidenceKeys": [
         "platform_v2/src/services/videoUpload.ts",
         "pg_dependency:platform_v2/src/services/videoUpload.ts"
       ],
-      "nextProofRequired": "Worker-native stream webhook/ready transition proof before origin route retirement."
+      "proof": "PR #981 added Worker-native stream webhook handling. PR #985 production deploy 28213105202 passed health, route, map UI, record UI, and map data checks on 2026-06-26. This change removes the Node/Fastify video upload/finalize/webhook route and retired PG-backed service.",
+      "verifiedAt": "2026-06-26T02:29:00Z",
+      "nextProofRequired": "Keep Cloudflare Stream webhook destination pointed at /api/v1/videos/stream-webhook before VPS shutdown."
     },
     {
       "key": "visit_place_auto_link",

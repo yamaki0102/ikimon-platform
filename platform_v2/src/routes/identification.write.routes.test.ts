@@ -128,8 +128,8 @@ test("public observation write routes apply per-user rate limits", async () => {
   assert.match(source, /"observation-photo-upload"/);
   assert.match(source, /"observation-identification"/);
   assert.match(source, /"observation-dispute"/);
-  assert.match(source, /"video-direct-upload"/);
-  assert.match(source, /"video-finalize"/);
+  assert.doesNotMatch(source, /"video-direct-upload"/);
+  assert.doesNotMatch(source, /"video-finalize"/);
 });
 
 test("reference duplicate merge preserves evidence before marking duplicate", async () => {

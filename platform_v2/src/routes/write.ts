@@ -1,7 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { invalidateUserVisibleSnapshots } from "../services/snapshotInvalidation.js";
-import { Readable } from "node:stream";
-import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import {
   getSessionFromCookie,
@@ -41,12 +39,6 @@ import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { updateOwnProfile, upsertUser, type ProfileSelfUpdateInput, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, verifyContactProof, type ContactSubmitInput } from "../services/contactSubmit.js";
-import {
-  createVideoDirectUpload,
-  finalizeVideoUpload,
-  handleStreamWebhook,
-  verifyStreamWebhookSignature,
-} from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
 import { generateRecordReadingCards, hideRecordReadingCard } from "../services/recordReadingCards.js";
@@ -219,27 +211,6 @@ function summarizeUploadBody(body: Partial<Omit<ObservationPhotoUploadInput, "ob
 function isAuthApiMutationHandledByAuthRoutes(url: string): boolean {
   const path = url.split("?", 1)[0] ?? "";
   return path === "/api/v1/auth/login" || path === "/api/v1/auth/register";
-}
-
-function pendingVideoFinalizePayload(uid: string) {
-  return {
-    provider: "cloudflare_stream",
-    providerUid: uid,
-    mediaType: "video",
-    assetRole: "observation_video",
-    uploadStatus: "processing",
-    durationMs: 0,
-    bytes: 0,
-    thumbnailUrl: "",
-    iframeUrl: "",
-    watchUrl: "",
-    readyToStream: false,
-    createdAt: new Date().toISOString(),
-    uploadedAt: null,
-    occurrenceId: null,
-    visitId: null,
-    pending: true,
-  };
 }
 
 export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
@@ -1511,113 +1482,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       };
     }
   });
-
-  // 動画アップロード（Cloudflare Stream Direct Creator Upload）。
-  // ユーザーのブラウザが直接アップロード先に送るので、サーバ帯域は消費しない。
-  // 認証必須（セッション or guest はダメ）。
-  app.post<{ Body: { maxDurationSeconds?: number; filename?: string; observationId?: string | null; mediaRole?: string | null; uploadProtocol?: "post" | "tus"; fileSizeBytes?: number | null } }>(
-    "/api/v1/videos/direct-upload",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          reply.code(401);
-          return { ok: false, error: "session_required" };
-        }
-        await assertMutationRateLimit(request, "video-direct-upload", session.userId, 12);
-        const body = request.body ?? {};
-        const observationId = typeof body.observationId === "string" ? body.observationId.trim() : "";
-        if (observationId) {
-          await assertObservationOwnedByUser(observationId, session.userId);
-        }
-        const result = await createVideoDirectUpload({
-          actorId: session.userId,
-          maxDurationSeconds: body.maxDurationSeconds,
-          filename: body.filename,
-          observationId: observationId || null,
-          mediaRole: body.mediaRole,
-          uploadProtocol: body.uploadProtocol === "tus" ? "tus" : "post",
-          fileSizeBytes: typeof body.fileSizeBytes === "number" ? body.fileSizeBytes : null,
-        });
-        return { ok: true, ...result };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "video_upload_failed";
-        reply.code(message === "session_required" ? 401 : 500);
-        return { ok: false, error: message };
-      }
-    },
-  );
-
-  app.post<{ Body: unknown }>(
-    "/api/v1/videos/stream-webhook",
-    {
-      preParsing: async (request, _reply, payload) => {
-        const chunks: Buffer[] = [];
-        for await (const chunk of payload) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        const rawBody = Buffer.concat(chunks);
-        (request as unknown as { rawBody?: Buffer }).rawBody = rawBody;
-        return Readable.from([rawBody]);
-      },
-    },
-    async (request, reply) => {
-      try {
-        const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody ?? Buffer.alloc(0);
-        const signature = Array.isArray(request.headers["webhook-signature"])
-          ? request.headers["webhook-signature"][0]
-          : request.headers["webhook-signature"];
-        const secret = loadConfig().cloudflare?.streamWebhookSecret;
-        if (!verifyStreamWebhookSignature(rawBody, signature, secret)) {
-          reply.code(401);
-          return { ok: false, error: "invalid_webhook_signature" };
-        }
-        const result = await handleStreamWebhook(request.body && typeof request.body === "object" ? request.body : {});
-        return result;
-      } catch (error) {
-        reply.code(errorStatus(error, 500));
-        return { ok: false, error: error instanceof Error ? error.message : "stream_webhook_failed" };
-      }
-    },
-  );
-
-  // アップロード完了を client から通知するルート。Stream 本体情報を取得し、
-  // upload_status / duration / bytes を DB に反映する。フロント側で tus アップロード完了後に呼ぶ。
-  app.post<{
-    Params: { uid: string };
-    Body: { observationId?: string | null; mediaRole?: string | null };
-  }>(
-    "/api/v1/videos/:uid/finalize",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          reply.code(401);
-          return { ok: false, error: "session_required" };
-        }
-        await assertMutationRateLimit(request, "video-finalize", session.userId, 30);
-        const observationId = typeof request.body?.observationId === "string"
-          ? request.body.observationId.trim()
-          : "";
-        if (observationId) {
-          await assertObservationOwnedByUser(observationId, session.userId);
-        }
-        const record = await finalizeVideoUpload({
-          uid: request.params.uid,
-          actorId: session.userId,
-          observationId: observationId || null,
-          mediaRole: request.body?.mediaRole,
-        });
-        if (!record) {
-          return { ok: true, video: pendingVideoFinalizePayload(request.params.uid) };
-        }
-        return { ok: true, video: record };
-      } catch (error) {
-        reply.code(errorStatus(error, 500));
-        return { ok: false, error: error instanceof Error ? error.message : "finalize_failed" };
-      }
-    },
-  );
 
   // 観察へのリアクション (like/helpful/curious/thanks) トグル。
   // session 必須、同じ user が既にそのリアクションをしていれば削除、いなければ追加。

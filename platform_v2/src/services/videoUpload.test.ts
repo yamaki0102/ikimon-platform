@@ -3,51 +3,38 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-test("video finalize promotes video-only observations out of native no-photo review", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "services", "videoUpload.ts"), "utf8");
+test("video upload lifecycle is owned by the Cloudflare Worker, not the Node origin", async () => {
+  const routeSource = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
+  const workerSource = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
   const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0094_publish_valid_video_observations.sql"), "utf8");
 
-  assert.match(source, /'observation_video'/);
-  assert.match(source, /set public_visibility = case[\s\S]*else 'public'[\s\S]*end/);
-  assert.match(source, /quality_review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
-  assert.match(source, /visit_id like 'prod-media-smoke-%'[\s\S]*then 'hidden'/);
-  assert.match(source, /coalesce\(source_payload->>'source', ''\) = 'prod_media_smoke'[\s\S]*then 'archived'/);
-  assert.match(source, /reason_code = 'native_no_photo'/);
-  assert.match(source, /review_status = case[\s\S]*else 'accepted'[\s\S]*end/);
-  assert.match(source, /handleStreamWebhook/);
-  assert.match(source, /upsertObservationVideoAsset\(client, record, target, mediaRole, sourcePayload\)/);
-  assert.match(source, /promoteObservationVideoTarget\(client, target\.visitId\)/);
-  assert.match(source, /void kickVideoAiAfterFinalize\(record, target\.visitId\)/);
-  assert.match(source, /v2_video_finalize_kick/);
+  assert.doesNotMatch(routeSource, /services\/videoUpload\.js/);
+  assert.doesNotMatch(routeSource, /\/api\/v1\/videos\/direct-upload/);
+  assert.doesNotMatch(routeSource, /\/api\/v1\/videos\/stream-webhook/);
+  assert.doesNotMatch(routeSource, /\/api\/v1\/videos\/:uid\/finalize/);
+  assert.match(workerSource, /\/api\/v1\/videos\/direct-upload/);
+  assert.match(workerSource, /\/api\/v1\/videos\/stream-webhook/);
+  assert.match(workerSource, /const videoFinalizeMatch = url\.pathname\.match/);
+  assert.match(workerSource, /createCompatibleVideoDirectUpload/);
+  assert.match(workerSource, /handleCompatibleVideoStreamWebhook/);
+  assert.match(workerSource, /finalizeCompatibleVideo/);
   assert.match(migration, /0094_publish_valid_video_observations/);
   assert.match(migration, /ea\.asset_role = 'observation_video'/);
   assert.match(migration, /reason_code = 'native_no_photo'/);
 });
 
-test("video upload supports official tus direct uploads and ready webhooks", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "services", "videoUpload.ts"), "utf8");
-  const routeSource = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
+test("video media processing no longer imports the retired Node video upload service", async () => {
   const queueSource = await readFile(path.join(process.cwd(), "src", "services", "mediaProcessingQueue.ts"), "utf8");
   const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0033_video_processing_jobs.sql"), "utf8");
   const mediaMigration = await readFile(path.join(process.cwd(), "db", "migrations", "0034_media_processing_jobs.sql"), "utf8");
 
-  assert.match(source, /uploadProtocol\?: "post" \| "tus"/);
-  assert.match(source, /stream\?direct_user=true/);
-  assert.match(source, /"Tus-Resumable": "1\.0\.0"/);
-  assert.match(source, /"Upload-Length": String\(Math\.trunc\(fileSizeBytes\)\)/);
-  assert.match(source, /verifyStreamWebhookSignature/);
-  assert.match(routeSource, /webhook-signature/);
-  assert.match(routeSource, /\/api\/v1\/videos\/stream-webhook/);
-  assert.match(routeSource, /pendingVideoFinalizePayload/);
-  assert.match(routeSource, /ok: true, video: pendingVideoFinalizePayload\(request\.params\.uid\)/);
-  assert.match(source, /video_thumbnail_refresh/);
-  assert.match(source, /video_ready_reassess/);
-  assert.match(source, /enqueueMediaProcessingJobs/);
   assert.match(queueSource, /processMediaProcessingJobs/);
   assert.match(queueSource, /photoDebounceSeconds/);
   assert.match(queueSource, /job_type <> 'photo_ready_reassess'/);
   assert.match(queueSource, /reassessFromVideoThumb/);
-  assert.match(queueSource, /markVideoReady/);
+  assert.match(queueSource, /cloudflare_worker_video_lifecycle/);
+  assert.doesNotMatch(queueSource, /markVideoReady/);
+  assert.doesNotMatch(queueSource, /videoUpload\.js/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS video_processing_jobs/);
   assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS media_processing_jobs/);
   assert.match(mediaMigration, /migrated_from', 'video_processing_jobs'/);
