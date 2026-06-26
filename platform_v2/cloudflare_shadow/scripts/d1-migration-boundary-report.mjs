@@ -162,6 +162,18 @@ function maintenanceWorkflowDependencyReason(relativeFile) {
   return exactMaintenanceWorkflows[normalized] ?? null;
 }
 
+function workflowDependencySignals(text) {
+  const hasRealSshOrScp = /uses:\s*appleboy\/ssh-action@/i.test(text)
+    || /^\s*(?:ssh|scp)\b/im.test(text);
+  return [
+    /DATABASE_URL/i.test(text) ? "DATABASE_URL" : null,
+    /VPS_/i.test(text) ? "VPS" : null,
+    /\bpsql\b/i.test(text) ? "psql" : null,
+    hasRealSshOrScp ? "ssh/scp" : null,
+    /applyMigrations/i.test(text) ? "migrations" : null
+  ].filter(Boolean);
+}
+
 function extractLocalImportSpecifiers(text) {
   const specifiers = [];
   const patterns = [
@@ -608,17 +620,8 @@ const workflowFiles = statSync(workflowsRoot, { throwIfNoEntry: false })?.isDire
   : [];
 const vpsWorkflows = workflowFiles
   .map((file) => ({ file: rel(file), text: read(file) }))
-  .filter(({ text }) => /VPS_|DATABASE_URL|ssh|scp|psql|applyMigrations/i.test(text))
-  .map(({ file, text }) => ({
-    file,
-    signals: [
-      /DATABASE_URL/i.test(text) ? "DATABASE_URL" : null,
-      /VPS_/i.test(text) ? "VPS" : null,
-      /\bpsql\b/i.test(text) ? "psql" : null,
-      /ssh|scp/i.test(text) ? "ssh/scp" : null,
-      /applyMigrations/i.test(text) ? "migrations" : null
-    ].filter(Boolean)
-  }));
+  .map(({ file, text }) => ({ file, signals: workflowDependencySignals(text) }))
+  .filter(({ signals }) => signals.length > 0);
 const maintenanceVpsWorkflows = vpsWorkflows
   .map((item) => ({ ...item, maintenanceReason: maintenanceWorkflowDependencyReason(item.file) }))
   .filter((item) => item.maintenanceReason);
