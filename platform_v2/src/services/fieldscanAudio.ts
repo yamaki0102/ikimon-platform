@@ -6,7 +6,6 @@ import { promisify } from "node:util";
 import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
-import { recordSegmentEmbedding } from "./audioEmbedding.js";
 import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 
@@ -1084,27 +1083,8 @@ export async function recordAudioDetections(input: AudioDetectionCallbackInput):
       inserted += 1;
     }
 
-    let embeddingsInserted = 0;
-    let embeddingsSkipped = 0;
-    for (const emb of embeddings) {
-      if (!Array.isArray(emb.vector) || emb.vector.length === 0) {
-        embeddingsSkipped += 1;
-        continue;
-      }
-      await recordSegmentEmbedding(
-        {
-          segmentId: segment.segment_id,
-          modelName: emb.modelName ?? input.embeddingModelName ?? "perch_v2",
-          modelVersion: emb.modelVersion ?? input.embeddingModelVersion ?? "v2",
-          embedding: emb.vector,
-          frameOffsetSec: emb.frameOffsetSec,
-          frameDurationSec: emb.frameDurationSec,
-          qualityScore: emb.qualityScore,
-        },
-        client,
-      );
-      embeddingsInserted += 1;
-    }
+    const embeddingsInserted = 0;
+    const embeddingsSkipped = embeddings.length;
 
     await client.query(
       `update audio_segments

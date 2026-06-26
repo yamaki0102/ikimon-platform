@@ -9,7 +9,6 @@ import {
   type AudioDetectionCallbackInput,
   type AudioPrivacyCallbackInput,
 } from "../services/fieldscanAudio.js";
-import { findSimilarSegments } from "../services/audioEmbedding.js";
 import { getSessionFromCookie, getSessionFromMobileAuth, type SessionSnapshot } from "../services/authSession.js";
 import { hookFieldScanAudioToEvent, type ObservationEventSourcePayload } from "../services/observationEventDualWrite.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
@@ -74,7 +73,7 @@ function resolveTrustedAudioUserId(body: AudioSegmentSubmitInput, session: Sessi
  * - POST /api/v1/fieldscan/audio/callback       外部同定ワーカーから detection 結果を登録 (privileged)
  * - POST /api/v1/fieldscan/audio/privacy-callback 人声 privacy 判定を反映 (privileged)
  * - GET  /api/v1/fieldscan/audio/segment/:id    owner-only playback
- * - GET  /api/v1/fieldscan/audio/segment/:id/similar  類似 segment 検索 (privileged)
+ * - GET  /api/v1/fieldscan/audio/segment/:id/similar  retired for VPS stop readiness
  * - GET  /api/v1/fieldscan/session/:id/recap    セッション単位の集計
  */
 export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<void> {
@@ -152,15 +151,13 @@ export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<
     async (request, reply) => {
       try {
         assertPrivilegedWriteAccess(request);
-        const limitRaw = Number(request.query.limit ?? "");
-        const minRaw = Number(request.query.minSimilarity ?? "");
-        const results = await findSimilarSegments(request.params.id, {
-          limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
-          minSimilarity: Number.isFinite(minRaw) ? minRaw : undefined,
-          modelName: request.query.modelName,
-          modelVersion: request.query.modelVersion,
-        });
-        return { ok: true, segmentId: request.params.id, results };
+        reply.code(410);
+        return {
+          ok: false,
+          segmentId: request.params.id,
+          error: "audio_vector_similarity_retired",
+          replacement: "cloudflare_vectorize_required_before_reenable",
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : "similar_search_failed";
         reply.code(privilegedAudioStatusCode(message));

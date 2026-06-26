@@ -135,8 +135,8 @@ test("VPS stop readiness requires P0 capability dispositions", async () => {
   assert.match(result.stdout, /P0 Capability Disposition Gate/);
   assert.match(result.stdout, /- status: blocked/);
   assert.match(result.stdout, /- p0_capability_items: 15/);
-  assert.match(result.stdout, /- p0_open_capabilities: 12/);
-  assert.match(result.stdout, /- p0_terminal_capabilities: 3/);
+  assert.match(result.stdout, /- p0_open_capabilities: 10/);
+  assert.match(result.stdout, /- p0_terminal_capabilities: 5/);
   assert.match(result.stdout, /- configured_p0_blockers_without_disposition: 0/);
   assert.match(result.stdout, /legacy_observation_api_origin_fallback/);
   assert.match(result.stdout, /video_upload_lifecycle/);

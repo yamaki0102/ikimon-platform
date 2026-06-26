@@ -1,5 +1,4 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { runClusterBatch } from "../services/audioCluster.js";
 import {
   confirmCluster,
   flagForReview,
@@ -58,7 +57,7 @@ function adminErrorStatus(message: string): number {
  * - POST /api/v1/admin/audio/clusters/:id/reject             却下
  * - POST /api/v1/admin/audio/clusters/:id/flag-for-review    要確認に上げる
  * - POST /api/v1/admin/audio/clusters/:id/propagate          代表 taxon を members に伝播
- * - POST /api/v1/admin/audio/cluster-runs                    新規バッチクラスタリング起動
+ * - POST /api/v1/admin/audio/cluster-runs                    retired for VPS stop readiness
  */
 export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise<void> {
   app.get<{
@@ -266,14 +265,12 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
   }>("/api/v1/admin/audio/cluster-runs", async (request, reply) => {
     try {
       await assertAdminAudioAccess(request);
-      const body = request.body ?? {};
-      const summary = await runClusterBatch({
-        modelName: body.modelName,
-        modelVersion: body.modelVersion,
-        similarityThreshold: body.similarityThreshold,
-        limit: body.limit,
-      });
-      return { ok: true, summary };
+      reply.code(410);
+      return {
+        ok: false,
+        error: "audio_vector_clustering_retired",
+        replacement: "cloudflare_vectorize_required_before_reenable",
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : "cluster_run_failed";
       reply.code(adminErrorStatus(message));
