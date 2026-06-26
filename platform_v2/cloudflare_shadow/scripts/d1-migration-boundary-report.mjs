@@ -46,6 +46,14 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/services/stagingRegressionFixtures.ts": "gated_staging_fixture_ops"
   };
   if (exactGatedOpsServices[normalized]) return exactGatedOpsServices[normalized];
+  const exactAdminOpsDiagnostics = {
+    "platform_v2/src/routes/adminDataHealth.ts": "admin_ops_diagnostic_dashboard",
+    "platform_v2/src/routes/adminMonitoringWorkspace.ts": "admin_monitoring_diagnostic_readonly",
+    "platform_v2/src/routes/adminSiteEvidence.ts": "admin_evidence_report",
+    "platform_v2/src/services/monitoringWorkspaceData.ts": "admin_monitoring_diagnostic_readmodel",
+    "platform_v2/src/services/readiness.ts": "legacy_cutover_readiness_report"
+  };
+  if (exactAdminOpsDiagnostics[normalized]) return exactAdminOpsDiagnostics[normalized];
   const scriptPrefix = "platform_v2/src/scripts/";
   if (!normalized.startsWith(scriptPrefix)) return null;
   if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
@@ -138,7 +146,9 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observationPhotoUpload.ts": "cloudflare_observation_photo_upload_api",
     "platform_v2/src/services/observationReactions.ts": "cloudflare_observation_reactions_api",
     "platform_v2/src/services/recordReadingCards.ts": "cloudflare_record_reading_cards_api",
-    "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api"
+    "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",
+    "platform_v2/src/services/observationVisitBundle.ts": "cloudflare_observation_detail_readmodel",
+    "platform_v2/src/services/observationEventLive.ts": "cloudflare_observation_event_live_api"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;
 }
