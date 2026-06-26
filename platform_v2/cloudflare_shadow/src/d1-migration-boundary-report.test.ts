@@ -31,12 +31,14 @@ function loadExclusiveMaintenancePgDependencyReason(script: string): (
 ) => string | null {
   const isTestMatch = script.match(/function isTestSourceFile\(relativeFile\) \{[\s\S]*?\n\}/);
   const maintenanceMatch = script.match(/function maintenancePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  const forcedRuntimeMatch = script.match(/function forcedRuntimePgDependency\(relativeFile\) \{[\s\S]*?\n\}/);
   const exclusiveMatch = script.match(/function exclusiveMaintenancePgDependencyReason\(relativeFile, importersByTarget, seen = new Set\(\)\) \{[\s\S]*?\n\}/);
   assert.ok(isTestMatch, "isTestSourceFile function is present");
   assert.ok(maintenanceMatch, "maintenancePgDependencyReason function is present");
+  assert.ok(forcedRuntimeMatch, "forcedRuntimePgDependency function is present");
   assert.ok(exclusiveMatch, "exclusiveMaintenancePgDependencyReason function is present");
   return new Function(
-    `${isTestMatch[0]}; ${maintenanceMatch[0]}; ${exclusiveMatch[0]}; return exclusiveMaintenancePgDependencyReason;`,
+    `${isTestMatch[0]}; ${maintenanceMatch[0]}; ${forcedRuntimeMatch[0]}; ${exclusiveMatch[0]}; return exclusiveMaintenancePgDependencyReason;`,
   )() as (relativeFile: string, importersByTarget: Map<string, Set<string>>) => string | null;
 }
 
@@ -87,11 +89,27 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reportMissingObservationPhotos.ts"), "manual_integrity_report");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importObservationFields.ts"), "manual_field_import");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts"), "manual_environment_ingest");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importN03Administrative.ts"), "manual_import_or_legacy_sync_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/syncLegacyDelta.ts"), "manual_import_or_legacy_sync_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/smokeProductionMediaUpload.ts"), "manual_verification_or_smoke_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/verifyProductionShadowParity.ts"), "manual_verification_or_smoke_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reportLegacyDrift.ts"), "manual_audit_report_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/repairObservationLocationLabels.ts"), "manual_repair_or_admin_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/compileKnowledgeNavigation.ts"), "deploy_or_postdeploy_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runGuideEnvironmentPostDeploy.ts"), "deploy_or_postdeploy_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/regionalKnowledgeEmbedding.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/observationMediaIntegrity.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/placeEnvironmentIngest.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runAlertDeliveryWorker.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importantDaemon.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reporterDaemon.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/verify.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importFutureRuntime.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/smokeScheduledWorker.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/importObservationFields.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
 
@@ -133,6 +151,18 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
       ]),
     ),
     "manual_integrity_report_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/scripts/cron/runCacheInvalidate.ts",
+      new Map([
+        [
+          "platform_v2/src/scripts/cron/runCacheInvalidate.ts",
+          new Set(["platform_v2/src/scripts/smokePublicMapSnapshotAlert.ts"]),
+        ],
+      ]),
+    ),
+    null,
   );
   assert.equal(
     exclusiveMaintenancePgDependencyReason(
