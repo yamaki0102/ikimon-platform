@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
-test("public identification write requires a session", async () => {
+test("public identification write is retired from Fastify", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -18,14 +18,13 @@ test("public identification write requires a session", async () => {
       },
     });
 
-    assert.equal(response.statusCode, 401);
-    assert.equal(response.json().error, "session_required");
+    assert.equal(response.statusCode, 404);
   } finally {
     await app.close();
   }
 });
 
-test("public dispute write requires a session", async () => {
+test("public dispute write is retired from Fastify", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -38,8 +37,7 @@ test("public dispute write requires a session", async () => {
       },
     });
 
-    assert.equal(response.statusCode, 401);
-    assert.equal(response.json().error, "session_required");
+    assert.equal(response.statusCode, 404);
   } finally {
     await app.close();
   }
@@ -111,12 +109,15 @@ test("alternative identifications keep selected reference evidence attached", as
   assert.match(source, /recordIdentificationReferenceSelections\(client, \{[\s\S]*sourceIds: input\.referenceSourceIds \?\? \[\]/);
 });
 
-test("dispute write route accepts reference evidence payloads", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
+test("Worker dispute write accepts reference evidence payloads", async () => {
+  const source = await readFile(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
 
-  assert.match(source, /referenceSourceIds\?: string\[\]/);
-  assert.match(source, /referenceLocator\?: string \| null/);
-  assert.match(source, /openObservationDispute\(\{[\s\S]*referenceSourceIds: Array\.isArray\(request\.body\?\.referenceSourceIds\)/);
+  assert.match(source, /referenceSourceIds\?: unknown/);
+  assert.match(source, /referenceLocator\?: unknown/);
+  assert.match(source, /async function openCompatibleObservationDispute/);
+  assert.match(source, /const referenceSourceIds = Array\.isArray\(input\.referenceSourceIds\)/);
+  assert.match(source, /const referenceLocator = normalizeOptionalText\(input\.referenceLocator\)/);
+  assert.match(source, /sourcePayload = \{[\s\S]*source: "cloudflare_public_dispute"[\s\S]*referenceSourceIds,[\s\S]*referenceLocator,/);
 });
 
 test("public observation write routes apply per-user rate limits", async () => {
@@ -126,8 +127,8 @@ test("public observation write routes apply per-user rate limits", async () => {
   assert.match(source, /assertAuthRateLimit\(\[scope, userId, request\.ip\]/);
   assert.match(source, /"observation-upsert"/);
   assert.match(source, /"observation-photo-upload"/);
-  assert.match(source, /"observation-identification"/);
-  assert.match(source, /"observation-dispute"/);
+  assert.doesNotMatch(source, /"observation-identification"/);
+  assert.doesNotMatch(source, /"observation-dispute"/);
   assert.doesNotMatch(source, /"video-direct-upload"/);
   assert.doesNotMatch(source, /"video-finalize"/);
 });
