@@ -1509,7 +1509,7 @@ export const worker = {
 
       const areaSnapshotMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/area-snapshot$/);
       if (request.method === "GET" && areaSnapshotMatch?.[1]) {
-        return getOriginalUiAreaSnapshot(decodeURIComponent(areaSnapshotMatch[1]), request, url, env);
+        return getOriginalUiAreaSnapshot(decodeURIComponent(areaSnapshotMatch[1]), env);
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
@@ -7234,7 +7234,7 @@ function getPublicMapSiteBriefShim(url: URL): Response {
   }, 200, { "cache-control": "no-store" });
 }
 
-async function getOriginalUiAreaSnapshot(fieldId: string, request: Request, url: URL, env: Env): Promise<Response> {
+async function getOriginalUiAreaSnapshot(fieldId: string, env: Env): Promise<Response> {
   if (!isSafeFieldId(fieldId)) {
     return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
   }
@@ -7248,8 +7248,17 @@ async function getOriginalUiAreaSnapshot(fieldId: string, request: Request, url:
       }
     });
   }
-  if (shouldUseOriginFallback(url, env)) {
-    return fetchOriginFallback(request, url, env, "area_snapshot_materialized_miss");
+  const row = await getFieldDetailReadmodelRow(fieldId, env);
+  if (row) {
+    return json({
+      snapshot: fieldDetailAreaSnapshotPayload(row),
+      compatibility: {
+        source: "cloudflare_field_detail_readmodel_lightweight_area_snapshot"
+      }
+    }, 200, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "area-snapshot-field-detail-readmodel"
+    });
   }
   return json({ ok: false, error: "area_snapshot_not_materialized" }, 404, { "cache-control": "no-store" });
 }
@@ -7353,6 +7362,278 @@ function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
     validTo: row.valid_to ?? "",
     entityKey: row.entity_key ?? "",
     updatedAt: row.updated_at ?? ""
+  };
+}
+
+function fieldDetailAreaSnapshotPayload(row: FieldDetailReadmodelRow) {
+  const field = fieldDetailPublicPayload(row);
+  return {
+    framing: {
+      publicLabel: "この場所のいま",
+      monitoringLabel: "場所の記録ブリーフ",
+      advancedLabel: "市民参加型の生物多様性データ"
+    },
+    field: {
+      fieldId: field.fieldId,
+      name: field.name,
+      source: field.source,
+      sourceLabel: publicFieldSourceLabel(row),
+      locationLabel: field.publicLocation.label,
+      lat: field.publicLocation.lat,
+      lng: field.publicLocation.lng,
+      radiusM: field.radiusM,
+      areaHa: field.areaHa,
+      visibility: "limited",
+      officialUrl: field.links.official,
+      ownerUrl: field.links.owner,
+      storyUrl: field.links.story,
+      certificationUrl: field.links.certification,
+      sourceConfidence: field.verification.confidence,
+      verificationLevel: field.verification.level,
+      verificationLabel: field.verification.label,
+      originalName: field.name,
+      schoolAlbumProfiles: [],
+      accessGuidance: publicFieldAccessGuidance(row)
+    },
+    observationSummary: emptyPlaceObservationSummary(),
+    machineObservationSummary: emptyPlaceMachineObservationSummary(),
+    relationshipScore: emptyPlaceRelationshipScore(field.fieldId),
+    hypotheses: [],
+    nextActions: [{
+      kind: "evidence",
+      title: "最初の記録を追加",
+      body: "写真、音、メモのどれかを残すと、この場所で見えるものを並べられます。",
+      href: "/record"
+    }],
+    stewardshipImpact: {
+      windowDays: 0,
+      comparisons: [],
+      summary: "まだ比較できる記録はありません。"
+    },
+    claimBoundary: {
+      canSay: ["公開フィールド情報から場所の概要を表示しています。"],
+      cannotSayYet: ["観察数、季節変化、環境変化はまだ集計していません。"]
+    },
+    generatedAt: new Date().toISOString(),
+    representativePhoto: null,
+    observationGallery: [],
+    seasonalCoverage: emptyAreaSeasonalCoverage(),
+    yearlyTimeline: [],
+    effortIndicators: emptyAreaEffortIndicators(),
+    sensitiveMasking: {
+      totalRare: 0,
+      maskedSpecies: 0,
+      viewerCanSeeExact: false
+    },
+    firstSeenSpecies: [],
+    environmentChange: null,
+    areaWatch: emptyAreaWatch(),
+    viewerContribution: emptyViewerAreaContribution(),
+    communityPerspective: emptyCommunityAreaPerspective(),
+    overlapInsight: {
+      viewerPerspective: null,
+      communityPerspective: null,
+      line: "観察データが増えると、地域で見えているものとの重なりを表示できます。",
+      detailHref: null
+    },
+    privacy: {
+      exactLocationExposed: false,
+      geometryExposed: false,
+      publicCellPrecision: "0.01_degree"
+    },
+    compatibility: {
+      source: "cloudflare_field_detail_readmodel_lightweight_area_snapshot"
+    }
+  };
+}
+
+function emptyPlaceObservationSummary() {
+  return {
+    totalObservations: 0,
+    totalVisits: 0,
+    totalEvents: 0,
+    liveEvents: 0,
+    uniqueTaxa: 0,
+    latestObservedAt: null,
+    taxonRankCount: 0,
+    seasonsCovered: 0,
+    seasonCoverageCap: 4,
+    seasonLabels: [],
+    effortCompletionRate: 0,
+    reviewAcceptedRate: 0,
+    nativeCount: 0,
+    exoticCount: 0,
+    unknownOriginCount: 0,
+    absentRecords: 0,
+    stewardshipActionCount: 0,
+    topTaxa: []
+  };
+}
+
+function emptyPlaceMachineObservationSummary() {
+  return {
+    totalMachineObservations: 0,
+    aiCandidateCount: 0,
+    reviewerVerifiedCount: 0,
+    rejectedCount: 0,
+    passiveAudioCount: 0,
+    effortMetadataCount: 0,
+    uniqueMachineTaxa: 0,
+    latestObservedAt: null,
+    topMachineTaxa: [],
+    methodCounts: [],
+    calibrationDecisions: []
+  };
+}
+
+function emptyPlaceRelationshipScore(fieldId: string) {
+  return {
+    source: "field_fallback",
+    placeId: fieldId,
+    score: {
+      total: 0,
+      level: "unknown",
+      axes: ["care", "knowledge", "continuity", "stewardship"].map((axis) => ({ axis, score: 0 })),
+      confidence: 0
+    },
+    inputs: {},
+    topActions: [],
+    periodStart: null,
+    periodEnd: null
+  };
+}
+
+function emptyAreaSeasonalCoverage() {
+  const current = currentAreaSeason();
+  return [
+    { season: "spring", label: "春", observations: 0, isCurrentSeason: current === "spring" },
+    { season: "summer", label: "夏", observations: 0, isCurrentSeason: current === "summer" },
+    { season: "autumn", label: "秋", observations: 0, isCurrentSeason: current === "autumn" },
+    { season: "winter", label: "冬", observations: 0, isCurrentSeason: current === "winter" }
+  ];
+}
+
+function currentAreaSeason(): "spring" | "summer" | "autumn" | "winter" {
+  const month = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1;
+  if (month >= 3 && month <= 5) return "spring";
+  if (month >= 6 && month <= 8) return "summer";
+  if (month >= 9 && month <= 11) return "autumn";
+  return "winter";
+}
+
+function emptyAreaEffortIndicators() {
+  return {
+    effortReportedRate: 0,
+    completeChecklistRate: 0,
+    temporalSpreadIndex: 0,
+    observerDiversity: 0,
+    nonDetectionRate: 0,
+    effortIndex: 0,
+    observerCount: 0,
+    topObserverShare: 0,
+    yearsCovered: 0,
+    monthsCovered: 0,
+    seasonsCovered: 0
+  };
+}
+
+function emptyAreaWatch() {
+  const dimensions = [
+    emptyAreaWatchDimension("photo_clues", "写真の手がかり", "写真や周辺の様子を1枚足す"),
+    emptyAreaWatchDimension("season_clues", "季節の手がかり", "今の季節に見えたものを残す"),
+    emptyAreaWatchDimension("freshness", "最近の手がかり", "最近の写真かメモを追加する"),
+    emptyAreaWatchDimension("method_clues", "見方の手がかり", "何分見たか、どこを歩いたかを添える"),
+    emptyAreaWatchDimension("trust_clues", "確認の手がかり", "同定待ちと確認済みを分ける"),
+    emptyAreaWatchDimension("continuity", "継続の手がかり", "同じ場所を別の日にも見る")
+  ];
+  return {
+    schemaVersion: "area_watch/v0",
+    score: 0,
+    status: "sprout",
+    label: "記録前",
+    childSummary: "公開されている場所情報を表示しています。",
+    stewardSummary: "観察データはまだ集計前です。",
+    researcherNote: "この応答はD1公開フィールド情報から作った軽量snapshotです。R2にmaterialized snapshotがある場合はそちらを優先します。",
+    nextAction: {
+      dimension: "photo_clues",
+      title: "最初の手がかりを追加",
+      body: "写真、音、メモのどれかを残す"
+    },
+    celebrations: ["公開フィールド情報があります。"],
+    gaps: dimensions.map((item) => `${item.label}: ${item.nextAction}`),
+    dimensions
+  };
+}
+
+function emptyAreaWatchDimension(key: string, label: string, nextAction: string) {
+  return {
+    key,
+    label,
+    score: 0,
+    status: "sprout",
+    childText: "まだ記録はありません。",
+    stewardText: "集計対象の観察データはありません。",
+    nextAction,
+    evidence: []
+  };
+}
+
+function emptyViewerAreaContribution() {
+  return {
+    hasViewerRecords: false,
+    recordCount: 0,
+    visitCount: 0,
+    seasonsCovered: [],
+    revisitCount: 0,
+    photoCount: 0,
+    audioOrScanCount: 0,
+    dominantPerspective: emptyAreaPerspective("mixed", "いろいろな視点"),
+    secondaryPerspective: null,
+    positiveFeedbackLine: "ログイン中の記録はまだありません。",
+    recordCards: []
+  };
+}
+
+function emptyCommunityAreaPerspective() {
+  return {
+    observerCount: 0,
+    dominantPerspective: emptyAreaPerspective("mixed", "いろいろな視点"),
+    secondaryPerspective: null,
+    seasonCoverageLine: "季節ごとの記録はまだありません。",
+    recentMomentumLine: "最近の記録はまだありません。",
+    recordCards: []
+  };
+}
+
+function emptyAreaPerspective(key: string, label: string) {
+  return {
+    key,
+    label,
+    count: 0,
+    line: "まだ記録はありません。"
+  };
+}
+
+function publicFieldSourceLabel(row: FieldDetailReadmodelRow): string {
+  if (row.source === "school" || row.admin_level === "school") return "学校・教育施設";
+  if (row.source === "nature_symbiosis_site") return "自然共生サイト";
+  if (row.source === "park" || row.source === "osm_park") return "公園・緑地";
+  if (row.source === "water") return "水辺・水路";
+  return row.source || "公開フィールド";
+}
+
+function publicFieldAccessGuidance(row: FieldDetailReadmodelRow) {
+  if (row.source === "school" || row.admin_level === "school") {
+    return {
+      status: "permission_required",
+      label: "学校・教育施設",
+      body: "学校や施設は関係者区域を含むことがあります。無許可で敷地内に入らず、公開範囲や管理者の案内に従ってください。"
+    };
+  }
+  return {
+    status: "unknown",
+    label: "公開範囲を確認",
+    body: "公開されている範囲でも、現地の案内板、立入制限、管理者の指示が優先です。入れる場所から観察してください。"
   };
 }
 

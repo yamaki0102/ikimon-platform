@@ -7256,7 +7256,72 @@ test("production area snapshot serves materialized original UI payloads from R2 
   }
 });
 
-test("production area snapshot falls back to origin when not materialized and records redacted telemetry", async () => {
+test("production area snapshot uses D1 field detail readmodel when not materialized without origin fallback", async () => {
+  const { env, obs, core } = createEnv();
+  const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "春のビオトープ",
+    name_kana: null,
+    summary: "公開フィールドの概要",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 200,
+    area_ha: 0.8,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "site-001",
+    certification_url: "https://example.test/cert",
+    official_url: "https://example.test/field",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-26T00:00:00.000Z"
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot?viewer=1`), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "area-snapshot-field-detail-readmodel");
+    assert.equal(payload.snapshot.field.fieldId, fieldId);
+    assert.equal(payload.snapshot.field.name, "春のビオトープ");
+    assert.equal(payload.snapshot.field.locationLabel, "静岡県 静岡市");
+    assert.equal(payload.snapshot.observationSummary.totalObservations, 0);
+    assert.equal(payload.snapshot.areaWatch.schemaVersion, "area_watch/v0");
+    assert.equal(payload.snapshot.privacy.exactLocationExposed, false);
+    assert.equal(payload.snapshot.compatibility.source, "cloudflare_field_detail_readmodel_lightweight_area_snapshot");
+    assert.equal(payload.snapshot.source, undefined);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production area snapshot returns 404 when neither R2 nor D1 readmodel has the field without origin fallback", async () => {
   const { env, core } = createEnv();
   const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
   const productionEnv = {
@@ -7266,27 +7331,81 @@ test("production area snapshot falls back to origin when not materialized and re
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
-    return Response.json({ snapshot: { field: { fieldId }, source: "origin" } });
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot?viewer=1`), productionEnv);
     const payload = await response.json() as any;
+    assert.equal(response.status, 404);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.error, "area_snapshot_not_materialized");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production area snapshot marks school readmodel rows as permission required without exposing geometry", async () => {
+  const { env, obs, core } = createEnv();
+  const fieldId = "school-public-field-1";
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "school",
+    admin_level: "school",
+    name: "春の里小学校",
+    name_kana: null,
+    summary: "公開範囲だけで観察する学校フィールド",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "35.02,138.40",
+    public_lat: 35.02,
+    public_lng: 138.40,
+    radius_m: 200,
+    area_ha: 1.2,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: null,
+    certification_url: null,
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "公開情報と一致",
+    source_confidence: 0.9,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-26T00:00:00.000Z"
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot`), productionEnv);
+    const payload = await response.json() as any;
+    const text = JSON.stringify(payload);
     assert.equal(response.status, 200);
-    assert.equal(payload.snapshot.source, "origin");
-    assert.equal(seen.url, `https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot?viewer=1`);
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.reason, "area_snapshot_materialized_miss");
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "area_snapshot_materialized_miss");
-    assert.equal(telemetry.routePattern, "/api/v1/fields/:id/area-snapshot");
-    assert.equal(JSON.stringify(telemetry).includes(fieldId), false);
-    assert.equal(JSON.stringify(telemetry).includes("viewer=1"), false);
+    assert.equal(payload.snapshot.field.sourceLabel, "学校・教育施設");
+    assert.equal(payload.snapshot.field.accessGuidance.status, "permission_required");
+    assert.equal(payload.snapshot.privacy.geometryExposed, false);
+    assert.equal(text.includes("geom_simplified"), false);
+    assert.equal(text.includes("polygon"), false);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
