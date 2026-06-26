@@ -75,14 +75,16 @@
     },
     {
       "key": "media_processing_queue",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "media",
-      "scope": "PostgreSQL SKIP LOCKED media processing queue",
+      "scope": "PostgreSQL SKIP LOCKED media processing queue replaced by Cloudflare Queues media/readmodel lifecycle",
       "evidenceKeys": [
         "platform_v2/src/services/mediaProcessingQueue.ts",
         "pg_dependency:platform_v2/src/services/mediaProcessingQueue.ts"
       ],
-      "nextProofRequired": "Cloudflare Queues or equivalent Worker-native media job lifecycle proof."
+      "proof": "Worker production configuration binds MEDIA_QUEUE to ikimon-prod-media-jobs. Worker-native observation photo/video finalize paths enqueue media.process and readmodel.refresh jobs, and the queue consumer refreshes media/readmodel state. The Node PostgreSQL SKIP LOCKED processor and CLI have been removed, and production media smoke no longer starts a VPS PG media worker.",
+      "verifiedAt": "2026-06-26T03:16:21Z",
+      "nextProofRequired": "Keep Cloudflare Queue bindings and consumer deploy checks in place before VPS shutdown."
     },
     {
       "key": "observation_candidate_adoption",

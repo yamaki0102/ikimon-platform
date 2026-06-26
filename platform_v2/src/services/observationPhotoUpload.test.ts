@@ -56,9 +56,11 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /throw new Error\("observation_not_found"\)/);
   assert.doesNotMatch(source, /observation not found: \$\{input\.observationId\}/);
 
-  const worker = readFileSync(path.join(process.cwd(), "src/scripts/processMediaProcessingJobs.ts"), "utf8");
-  const service = readFileSync(path.join(process.cwd(), "../ops/deploy/ikimon_v2_media_worker.service"), "utf8");
-  assert.match(worker, /AI_PHOTO_REASSESS_DEBOUNCE_SECONDS/);
-  assert.match(worker, /photo-debounce-seconds/);
-  assert.match(service, /--photo-debounce-seconds=45/);
+  const worker = readFileSync(path.join(process.cwd(), "cloudflare_shadow/src/index.ts"), "utf8");
+  const wranglerConfig = readFileSync(path.join(process.cwd(), "cloudflare_shadow/wrangler.jsonc"), "utf8");
+  assert.match(worker, /MEDIA_QUEUE/);
+  assert.match(worker, /topic === "media\.process"/);
+  assert.match(worker, /topic === "readmodel\.refresh"/);
+  assert.match(wranglerConfig, /"binding": "MEDIA_QUEUE"/);
+  assert.match(wranglerConfig, /"queue": "ikimon-prod-media-jobs"/);
 });

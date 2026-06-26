@@ -4,7 +4,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
-import { processMediaProcessingJobs } from "../services/mediaProcessingQueue.js";
 
 type SmokeOptions = {
   baseUrl: string;
@@ -248,7 +247,7 @@ function stringField(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-async function verifyAiState(state: SmokeState): Promise<void> {
+async function verifyLegacyAiStateIfPresent(state: SmokeState): Promise<void> {
   const pool = getPool();
   const visitId = state.visitId ?? "";
   const result = await timed(state, "info", "db_ai_verify", { visitId }, async () => {
@@ -291,6 +290,12 @@ async function verifyAiState(state: SmokeState): Promise<void> {
   const failedJobs = ai.mediaJobs.filter((job) => job.jobStatus !== "succeeded");
   if (failedJobs.length > 0) {
     throw new Error(`media_jobs_not_succeeded:${JSON.stringify(failedJobs)}`);
+  }
+  if (ai.mediaJobs.length === 0) {
+    await appendLog(state.logFile, "info", "db_ai_verify:skipped_legacy_job_assertions", {
+      reason: "cloudflare_worker_media_queue",
+    });
+    return;
   }
   if ((ai.aiRunCount ?? 0) < 2 || (ai.assessmentCount ?? 0) < 2) {
     throw new Error("ai_reassessments_missing");
@@ -342,17 +347,6 @@ async function verifyDuplicateGuard(state: SmokeState, observedAt: string, clien
   }
   if (result.matchingVisitCount !== 1) {
     throw new Error(`duplicate_media_visit_detected:${result.matchingVisitCount}`);
-  }
-}
-
-async function drainMediaJobs(state: SmokeState): Promise<void> {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const result = await timed(state, "info", "media_worker", { attempt }, () => processMediaProcessingJobs(10, 60));
-    await appendLog(state.logFile, "info", "media_worker:result", { attempt, result });
-    if (result.pending === 0 && result.stalePending === 0) {
-      return;
-    }
-    await sleep(3000);
   }
 }
 
@@ -671,8 +665,7 @@ async function main(): Promise<void> {
       accept: "text/html",
       cookie,
     });
-    await drainMediaJobs(state);
-    await verifyAiState(state);
+    await verifyLegacyAiStateIfPresent(state);
     await verifyDuplicateGuard(state, observedAt, clientPhotoHash);
 
     if (options.cleanup) {

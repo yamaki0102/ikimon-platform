@@ -74,8 +74,6 @@
     "smoke:specialist-authority": "tsx src/scripts/smokeSpecialistAuthority.ts",
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
     "ingest:place-environment": "tsx src/scripts/ingestPlaceEnvironmentSnapshots.ts",
-    "process:media-jobs": "tsx src/scripts/processMediaProcessingJobs.ts",
-    "process:video-jobs": "npm run process:media-jobs --",
     "process:place-memory-photos": "tsx src/scripts/processPlaceMemoryPhotos.ts",
     "process:audio-segments": "tsx src/scripts/processAudioSegments.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
