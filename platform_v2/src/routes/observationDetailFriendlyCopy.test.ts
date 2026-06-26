@@ -944,6 +944,17 @@ test("candidate action writes are retired from Fastify and handled by the Worker
   assert.match(routeSource, /candidateAction/);
 });
 
+test("reassessment request writes are retired from Fastify and handled by the Worker D1 ledger", () => {
+  assert.doesNotMatch(writeRouteSource, /\/api\/v1\/observations\/:id\/reassess/);
+  assert.doesNotMatch(writeRouteSource, /\/api\/v1\/observations\/:id\/reassess-from-video/);
+  assert.doesNotMatch(writeRouteSource, /reassessObservation/);
+  assert.doesNotMatch(writeRouteSource, /reassessFromVideoThumb/);
+  assert.match(cloudflareWorkerSource, /requestCompatibleObservationReassessment/);
+  assert.match(cloudflareWorkerSource, /observation_reassessment_requests/);
+  assert.match(cloudflareWorkerSource, /source: "cloudflare_observation_reassessment_request_ledger"/);
+  assert.match(cloudflareWorkerSource, /requestKind/);
+});
+
 test("media annotations can be focused from AI evidence without taking over the photo surface", () => {
   assert.match(mediaSource, /ObservationMediaAnnotationTarget/);
   assert.match(mediaSource, /data-annotation-target/);
