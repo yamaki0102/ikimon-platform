@@ -11,8 +11,24 @@
     "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
     "OBSERVATION_DB_NAME": "ikimon_shadow_observations_2026_06",
     "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",
-    "PUBLIC_WRITE_MODE": "origin_fallback"
+    "PUBLIC_WRITE_MODE": "origin_fallback",
+    "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
+    "ALERT_DELIVERY_BATCH_SIZE": "25",
+    "ALERT_EMAIL_ALLOWED_RECIPIENTS": "yamaki0102@gmail.com"
   },
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
+  "send_email": [
+    {
+      "name": "ALERT_EMAIL",
+      "allowed_sender_addresses": [
+        "notifications@ikimon.co.jp"
+      ]
+    }
+  ],
   "d1_databases": [
     {
       "binding": "CORE_DB",
@@ -57,8 +73,24 @@
         "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
         "OBSERVATION_DB_NAME": "ikimon_shadow_observations_2026_06",
         "OBSERVATION_ARCHIVE_TARGET": "r2_sql_export_by_partition_month",
-        "PUBLIC_WRITE_MODE": "origin_fallback"
+        "PUBLIC_WRITE_MODE": "origin_fallback",
+        "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
+        "ALERT_DELIVERY_BATCH_SIZE": "25",
+        "ALERT_EMAIL_ALLOWED_RECIPIENTS": "yamaki0102@gmail.com"
       },
+      "triggers": {
+        "crons": [
+          "*/5 * * * *"
+        ]
+      },
+      "send_email": [
+        {
+          "name": "ALERT_EMAIL",
+          "allowed_sender_addresses": [
+            "notifications@ikimon.co.jp"
+          ]
+        }
+      ],
       "d1_databases": [
         {
           "binding": "CORE_DB",
@@ -84,6 +116,10 @@
           {
             "binding": "MEDIA_QUEUE",
             "queue": "ikimon-shadow-media-jobs"
+          },
+          {
+            "binding": "ALERT_QUEUE",
+            "queue": "ikimon-shadow-alert-delivery"
           }
         ],
         "consumers": [
@@ -91,6 +127,11 @@
             "queue": "ikimon-shadow-media-jobs",
             "max_batch_size": 25,
             "max_batch_timeout": 10
+          },
+          {
+            "queue": "ikimon-shadow-alert-delivery",
+            "max_batch_size": 10,
+            "max_batch_timeout": 30
           }
         ]
       }
@@ -110,8 +151,24 @@
         "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE": "disabled",
         "ORIGIN_SESSION_IMPORT_MODE": "disabled",
         "ORIGIN_FALLBACK_BASE_URL": "https://ikimon.life",
-        "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life"
+        "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life",
+        "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
+        "ALERT_DELIVERY_BATCH_SIZE": "25",
+        "ALERT_EMAIL_ALLOWED_RECIPIENTS": "yamaki0102@gmail.com"
       },
+      "triggers": {
+        "crons": [
+          "*/5 * * * *"
+        ]
+      },
+      "send_email": [
+        {
+          "name": "ALERT_EMAIL",
+          "allowed_sender_addresses": [
+            "notifications@ikimon.co.jp"
+          ]
+        }
+      ],
       "d1_databases": [
         {
           "binding": "CORE_DB",
@@ -137,6 +194,10 @@
           {
             "binding": "MEDIA_QUEUE",
             "queue": "ikimon-staging-media-jobs"
+          },
+          {
+            "binding": "ALERT_QUEUE",
+            "queue": "ikimon-staging-alert-delivery"
           }
         ],
         "consumers": [
@@ -144,6 +205,11 @@
             "queue": "ikimon-staging-media-jobs",
             "max_batch_size": 25,
             "max_batch_timeout": 10
+          },
+          {
+            "queue": "ikimon-staging-alert-delivery",
+            "max_batch_size": 10,
+            "max_batch_timeout": 30
           }
         ]
       }
@@ -164,8 +230,24 @@
         "PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE": "disabled",
         "ORIGIN_SESSION_IMPORT_MODE": "disabled",
         "ORIGIN_FALLBACK_BASE_URL": "https://ikimon.life",
-        "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life"
+        "ORIGIN_FALLBACK_RESOLVE_OVERRIDE": "staging.ikimon.life",
+        "ALERT_EMAIL_FROM": "notifications@ikimon.co.jp",
+        "ALERT_DELIVERY_BATCH_SIZE": "25",
+        "ALERT_EMAIL_ALLOWED_RECIPIENTS": ""
       },
+      "triggers": {
+        "crons": [
+          "*/5 * * * *"
+        ]
+      },
+      "send_email": [
+        {
+          "name": "ALERT_EMAIL",
+          "allowed_sender_addresses": [
+            "notifications@ikimon.co.jp"
+          ]
+        }
+      ],
       "d1_databases": [
         {
           "binding": "CORE_DB",
@@ -191,6 +273,10 @@
           {
             "binding": "MEDIA_QUEUE",
             "queue": "ikimon-prod-media-jobs"
+          },
+          {
+            "binding": "ALERT_QUEUE",
+            "queue": "ikimon-prod-alert-delivery"
           }
         ],
         "consumers": [
@@ -198,6 +284,11 @@
             "queue": "ikimon-prod-media-jobs",
             "max_batch_size": 25,
             "max_batch_timeout": 10
+          },
+          {
+            "queue": "ikimon-prod-alert-delivery",
+            "max_batch_size": 10,
+            "max_batch_timeout": 30
           }
         ]
       }

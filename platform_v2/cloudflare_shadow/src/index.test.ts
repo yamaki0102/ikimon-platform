@@ -385,13 +385,46 @@ interface AlertDeliveryRow {
   delivery_id: string;
   occurrence_id: string;
   user_id: string | null;
+  recipient_id?: string | null;
+  subscription_id?: string | null;
   trigger_kind: string;
   channel: string;
   delivered_at: string | null;
   delivery_status: string;
+  error_message?: string | null;
   payload_json: string;
   acknowledged_at: string | null;
   created_at: string | null;
+}
+
+interface AlertRecipientRow {
+  recipient_id: string;
+  recipient_type: string;
+  display_name: string;
+  email: string | null;
+  is_active: number;
+  rate_limit_per_day: number;
+}
+
+interface UserNotificationPreferenceRow {
+  user_id: string;
+  email_enabled: number;
+  digest_hour_local: number;
+  unsubscribe_token: string;
+  locale: string;
+  updated_at: string | null;
+}
+
+interface InvasiveReportingEventRow {
+  event_id: string;
+  occurrence_id: string | null;
+  recipient_id: string | null;
+  delivery_id: string | null;
+  event_status: string;
+  trigger_source: string;
+  payload_json: string;
+  error_message: string | null;
+  created_at: string;
 }
 
 interface TaxonAlertSubscriptionRow {
@@ -654,6 +687,9 @@ class FakeD1 {
   areaSubscriptions = new Map<string, AreaSubscriptionRow>();
   areaSubscriptionStats = new Map<string, AreaSubscriptionStatsRow>();
   alertDeliveries = new Map<string, AlertDeliveryRow>();
+  alertRecipients = new Map<string, AlertRecipientRow>();
+  userNotificationPreferences = new Map<string, UserNotificationPreferenceRow>();
+  invasiveReportingEvents: InvasiveReportingEventRow[] = [];
   taxonAlertSubscriptions = new Map<string, TaxonAlertSubscriptionRow>();
   drafts = new Map<string, DraftRow>();
   observations = new Map<string, ObservationRow>();
@@ -1694,6 +1730,23 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE alert_deliveries SET delivery_status = 'pending'")) {
+      const row = requireRow(this.db.alertDeliveries, string(v[1]));
+      if (row.delivery_status === "sending") {
+        row.delivery_status = "pending";
+        row.error_message = nullableString(v[0]);
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE alert_deliveries SET delivery_status")) {
+      const row = requireRow(this.db.alertDeliveries, string(v[3]));
+      row.delivery_status = string(v[0]);
+      row.delivered_at = nullableString(v[1]) ?? row.delivered_at;
+      row.error_message = nullableString(v[2]);
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE alert_deliveries")) {
       const now = string(v[0]);
       const userId = string(v[1]);
@@ -1705,6 +1758,21 @@ class FakeStatement {
         row.acknowledged_at = row.acknowledged_at ?? now;
         if (row.delivery_status === "sent") row.delivery_status = "acknowledged";
       }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO invasive_reporting_events")) {
+      this.db.invasiveReportingEvents.push({
+        event_id: string(v[0]),
+        occurrence_id: nullableString(v[1]),
+        recipient_id: nullableString(v[2]),
+        delivery_id: nullableString(v[3]),
+        event_status: string(v[4]),
+        trigger_source: "cloudflare_alert_delivery",
+        payload_json: string(v[5]),
+        error_message: nullableString(v[6]),
+        created_at: string(v[7])
+      });
       return {};
     }
 
@@ -2234,6 +2302,27 @@ class FakeStatement {
       return ({ unread_count: count } as T);
     }
 
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM alert_deliveries")) {
+      const recipientId = nullableString(v[0]);
+      const since = string(v[1]);
+      const count = [...this.db.alertDeliveries.values()]
+        .filter((row) =>
+          row.recipient_id === recipientId &&
+          (row.delivery_status === "sent" || row.delivery_status === "acknowledged") &&
+          (row.delivered_at ?? "") >= since
+        )
+        .length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("UPDATE alert_deliveries SET delivery_status = 'sending'")) {
+      const row = requireRow(this.db.alertDeliveries, string(v[0]));
+      if (row.delivery_status !== "pending") return null;
+      row.delivery_status = "sending";
+      row.error_message = null;
+      return ({ delivery_id: row.delivery_id } as T);
+    }
+
     if (normalized.startsWith("SELECT m.walk_map_id, m.municipality_code, m.municipality, m.title, m.summary, m.theme, m.publish_mode")) {
       const row = this.db.municipalWalkMaps.get(string(v[0]));
       if (!row) return null;
@@ -2673,6 +2762,44 @@ class FakeStatement {
         .map((row) => ({ delivery_id: row.delivery_id }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT delivery_id FROM alert_deliveries WHERE delivery_status = 'pending'")) {
+      const limit = number(this.values[0]);
+      const rows = [...this.db.alertDeliveries.values()]
+        .filter((row) => row.delivery_status === "pending")
+        .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.delivery_id.localeCompare(b.delivery_id))
+        .slice(0, limit)
+        .map((row) => ({ delivery_id: row.delivery_id }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT d.delivery_id, d.occurrence_id, d.user_id")) {
+      const ids = this.values.map((value) => string(value));
+      const rows = [...this.db.alertDeliveries.values()]
+        .filter((row) => row.delivery_status === "sending" && ids.includes(row.delivery_id))
+        .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.delivery_id.localeCompare(b.delivery_id))
+        .map((row) => {
+          const recipient = row.recipient_id ? this.db.alertRecipients.get(row.recipient_id) : null;
+          const authUser = row.user_id ? this.db.authUsers.get(row.user_id) : null;
+          const preferences = row.user_id ? this.db.userNotificationPreferences.get(row.user_id) : null;
+          return {
+            delivery_id: row.delivery_id,
+            occurrence_id: row.occurrence_id,
+            user_id: row.user_id,
+            recipient_id: row.recipient_id ?? null,
+            trigger_kind: row.trigger_kind,
+            channel: row.channel,
+            payload_json: row.payload_json,
+            created_at: row.created_at,
+            recipient_email: recipient?.email ?? null,
+            recipient_display_name: recipient?.display_name ?? null,
+            recipient_active: recipient?.is_active ?? null,
+            rate_limit_per_day: recipient?.rate_limit_per_day ?? null,
+            user_email: authUser?.email ?? null,
+            user_display_name: authUser?.display_name ?? null,
+            user_email_enabled: preferences?.email_enabled ?? 1
+          };
+        });
+      return { results: rows as T[] };
+    }
     throw new Error(`Unhandled SQL all: ${this.query}`);
   }
 }
@@ -2683,6 +2810,16 @@ class FakeQueue {
 
   async send(message: unknown): Promise<void> {
     if (this.fail) throw new Error("queue unavailable");
+    this.messages.push(message);
+  }
+}
+
+class FakeEmail {
+  messages: Array<{ from: unknown; to: unknown; subject: string; text?: string; headers?: Record<string, string> }> = [];
+  fail = false;
+
+  async send(message: { from: unknown; to: unknown; subject: string; text?: string; headers?: Record<string, string> }): Promise<void> {
+    if (this.fail) throw new Error("email unavailable");
     this.messages.push(message);
   }
 }
@@ -4790,6 +4927,153 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("internal alert delivery drain sends pending email delivery from Cloudflare bindings", async () => {
+  const { env, core } = createEnv();
+  const email = new FakeEmail();
+  core.alertRecipients.set("recipient-1", {
+    recipient_id: "recipient-1",
+    recipient_type: "municipality",
+    display_name: "静岡市",
+    email: "city@example.test",
+    is_active: 1,
+    rate_limit_per_day: 50
+  });
+  core.alertDeliveries.set("delivery-1", {
+    delivery_id: "delivery-1",
+    occurrence_id: "occ-1",
+    user_id: null,
+    recipient_id: "recipient-1",
+    trigger_kind: "municipality_invasive",
+    channel: "email",
+    delivered_at: null,
+    delivery_status: "pending",
+    error_message: null,
+    payload_json: JSON.stringify({ title: "外来種らしき記録", body: "確認対象の記録があります。", href: "/observations/occ-1" }),
+    acknowledged_at: null,
+    created_at: "2026-06-26T00:00:00.000Z"
+  });
+
+  const response = await worker.fetch(internalRequest("/internal/alert-deliveries/drain?limit=5", { method: "POST" }), {
+    ...env,
+    ALERT_EMAIL: email,
+    ALERT_EMAIL_FROM: "notifications@ikimon.life",
+    ALERT_EMAIL_ALLOWED_RECIPIENTS: "city@example.test"
+  });
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(payload.configured, true);
+  assert.equal(payload.sent, 1);
+  assert.equal(email.messages.length, 1);
+  assert.equal(email.messages[0]?.to, "city@example.test");
+  assert.equal(email.messages[0]?.headers?.["X-Ikimon-Alert-Delivery-Id"], "delivery-1");
+  assert.equal(core.alertDeliveries.get("delivery-1")?.delivery_status, "sent");
+  assert.equal(core.alertDeliveries.get("delivery-1")?.delivered_at !== null, true);
+  assert.equal(core.invasiveReportingEvents.length, 1);
+  assert.equal(core.invasiveReportingEvents[0]?.event_status, "sent");
+});
+
+test("scheduled alert delivery drain defers without mutating pending rows when email binding is absent", async () => {
+  const { env, core } = createEnv();
+  core.alertDeliveries.set("delivery-2", {
+    delivery_id: "delivery-2",
+    occurrence_id: "occ-2",
+    user_id: "user-2",
+    recipient_id: null,
+    trigger_kind: "taxon_match",
+    channel: "email",
+    delivered_at: null,
+    delivery_status: "pending",
+    error_message: null,
+    payload_json: JSON.stringify({ title: "フォロー中の記録" }),
+    acknowledged_at: null,
+    created_at: "2026-06-26T00:00:00.000Z"
+  });
+  const waitUntil: Promise<unknown>[] = [];
+  await worker.scheduled?.({ cron: "*/5 * * * *" }, env, { waitUntil: (promise) => waitUntil.push(promise) });
+  await Promise.all(waitUntil);
+  assert.equal(core.alertDeliveries.get("delivery-2")?.delivery_status, "pending");
+  assert.equal(core.alertDeliveries.get("delivery-2")?.delivered_at, null);
+});
+
+test("alert delivery drain does not send to non-allowlisted recipients outside production", async () => {
+  const { env, core } = createEnv();
+  const email = new FakeEmail();
+  core.authUsers.set("user-allowlist", {
+    user_id: "user-allowlist",
+    email: "real-city@example.test",
+    password_hash: null,
+    display_name: "Recipient User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    last_login_at: null
+  });
+  core.alertDeliveries.set("delivery-allowlist", {
+    delivery_id: "delivery-allowlist",
+    occurrence_id: "occ-allowlist",
+    user_id: "user-allowlist",
+    recipient_id: null,
+    trigger_kind: "taxon_match",
+    channel: "email",
+    delivered_at: null,
+    delivery_status: "pending",
+    error_message: null,
+    payload_json: JSON.stringify({ title: "非本番送信ガード" }),
+    acknowledged_at: null,
+    created_at: "2026-06-26T00:00:00.000Z"
+  });
+
+  const response = await worker.fetch(internalRequest("/internal/alert-deliveries/drain", { method: "POST" }), {
+    ...env,
+    ALERT_EMAIL: email,
+    ALERT_EMAIL_ALLOWED_RECIPIENTS: "safe@example.test"
+  });
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(payload.deferred, 1);
+  assert.equal(email.messages.length, 0);
+  assert.equal(core.alertDeliveries.get("delivery-allowlist")?.delivery_status, "pending");
+  assert.equal(core.alertDeliveries.get("delivery-allowlist")?.error_message, "nonproduction_recipient_not_allowed");
+});
+
+test("alert delivery drain fails pending row when recipient email is unavailable", async () => {
+  const { env, core } = createEnv();
+  const email = new FakeEmail();
+  core.alertRecipients.set("recipient-no-email", {
+    recipient_id: "recipient-no-email",
+    recipient_type: "municipality",
+    display_name: "メールなし自治体",
+    email: null,
+    is_active: 1,
+    rate_limit_per_day: 50
+  });
+  core.alertDeliveries.set("delivery-3", {
+    delivery_id: "delivery-3",
+    occurrence_id: "occ-3",
+    user_id: null,
+    recipient_id: "recipient-no-email",
+    trigger_kind: "municipality_invasive",
+    channel: "email",
+    delivered_at: null,
+    delivery_status: "pending",
+    error_message: null,
+    payload_json: "{}",
+    acknowledged_at: null,
+    created_at: "2026-06-26T00:00:00.000Z"
+  });
+
+  const response = await worker.fetch(internalRequest("/internal/alert-deliveries/drain", { method: "POST" }), {
+    ...env,
+    ALERT_EMAIL: email
+  });
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(payload.failed, 1);
+  assert.equal(email.messages.length, 0);
+  assert.equal(core.alertDeliveries.get("delivery-3")?.delivery_status, "failed");
+  assert.equal(core.alertDeliveries.get("delivery-3")?.error_message, "recipient_email_unavailable");
 });
 
 test("production runtime enables app-compatible write routes while keeping shadow smoke routes closed", async () => {

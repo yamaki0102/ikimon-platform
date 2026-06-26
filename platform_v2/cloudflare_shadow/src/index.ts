@@ -43,14 +43,39 @@ interface Queue<T = unknown> {
   send(message: T): Promise<void>;
 }
 
+interface SendEmailBinding {
+  send(message: {
+    from: string | { name: string; email: string };
+    to: string | { name: string; email: string } | Array<string | { name: string; email: string }>;
+    subject: string;
+    text?: string;
+    html?: string;
+    headers?: Record<string, string>;
+  }): Promise<unknown>;
+}
+
+interface ExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
+interface ScheduledController {
+  cron?: string;
+  scheduledTime?: number;
+}
+
 interface Env {
   CORE_DB: D1Database;
   OBS_DB: D1Database;
   ASSET_BUCKET: R2Bucket;
   MEDIA_QUEUE: Queue<MediaJob>;
+  ALERT_QUEUE?: Queue<AlertDeliveryJob>;
+  ALERT_EMAIL?: SendEmailBinding;
   ENVIRONMENT: string;
   PUBLIC_LOCATION_CELL_PRECISION: string;
   INTERNAL_AUTH_TOKEN?: string;
+  ALERT_EMAIL_FROM?: string;
+  ALERT_DELIVERY_BATCH_SIZE?: string;
+  ALERT_EMAIL_ALLOWED_RECIPIENTS?: string;
   OBSERVATION_DB_NAME?: string;
   OBSERVATION_ARCHIVE_TARGET?: string;
   ORIGIN_FALLBACK_BASE_URL?: string;
@@ -349,6 +374,30 @@ interface PersonalAlertRow {
   acknowledged_at: string | null;
   created_at: string | null;
   payload_json: string | null;
+}
+
+interface AlertDeliveryCandidateRow {
+  delivery_id: string;
+  occurrence_id: string;
+  user_id: string | null;
+  recipient_id: string | null;
+  trigger_kind: string;
+  channel: string;
+  payload_json: string | null;
+  created_at: string | null;
+  recipient_email: string | null;
+  recipient_display_name: string | null;
+  recipient_active: number | null;
+  rate_limit_per_day: number | null;
+  user_email: string | null;
+  user_display_name: string | null;
+  user_email_enabled: number | null;
+}
+
+interface AlertDeliveryJob {
+  topic: "alert_delivery.drain";
+  source: "cron" | "manual" | "queue";
+  limit?: number;
 }
 
 interface VideoDirectUploadInput {
@@ -1785,6 +1834,10 @@ export const worker = {
         return originFallbackTelemetrySummary(url, env);
       }
 
+      if (request.method === "POST" && url.pathname === "/internal/alert-deliveries/drain") {
+        return internalAlertDeliveryDrain(url, env);
+      }
+
       if (url.pathname.startsWith("/internal/")) {
         return json({ error: "not_found" }, 404);
       }
@@ -1803,9 +1856,20 @@ export const worker = {
     }
   },
 
-  async queue(batch: { messages: Array<{ body: MediaJob }> }, env: Env): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
+  },
+
+  async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
     for (const message of batch.messages) {
-      await applyMediaJob(message.body, env);
+      if (isAlertDeliveryJob(message.body)) {
+        await drainAlertDeliveries(env, {
+          source: "queue",
+          limit: message.body.limit
+        });
+      } else {
+        await applyMediaJob(message.body, env);
+      }
     }
   }
 };
@@ -4255,6 +4319,254 @@ async function deletePersonalAreaSubscription(session: SessionSnapshot, id: stri
     "DELETE FROM user_area_subscriptions WHERE subscription_id = ? AND user_id = ?"
   ).bind(subscriptionId, session.userId).run();
   return json({ ok: true }, 200, { "cache-control": "no-store" });
+}
+
+async function internalAlertDeliveryDrain(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? env.ALERT_DELIVERY_BATCH_SIZE ?? "25"), 1, 100);
+  const result = await drainAlertDeliveries(env, { source: "manual", limit });
+  return json({ ok: true, ...result }, 200, { "cache-control": "no-store" });
+}
+
+async function scheduleAlertDeliveryDrain(env: Env, controller: ScheduledController): Promise<void> {
+  const limit = clampInteger(Number(env.ALERT_DELIVERY_BATCH_SIZE ?? "25"), 1, 100);
+  const job: AlertDeliveryJob = { topic: "alert_delivery.drain", source: "cron", limit };
+  if (env.ALERT_QUEUE) {
+    await env.ALERT_QUEUE.send(job);
+    return;
+  }
+  await drainAlertDeliveries(env, { source: controller.cron ? "cron" : "manual", limit });
+}
+
+function isAlertDeliveryJob(value: unknown): value is AlertDeliveryJob {
+  return Boolean(value && typeof value === "object" && (value as { topic?: unknown }).topic === "alert_delivery.drain");
+}
+
+async function drainAlertDeliveries(
+  env: Env,
+  options: { source: "cron" | "manual" | "queue"; limit?: number }
+): Promise<{ configured: boolean; scanned: number; sent: number; failed: number; suppressed: number; deferred: number }> {
+  const limit = clampInteger(Number(options.limit ?? env.ALERT_DELIVERY_BATCH_SIZE ?? "25"), 1, 100);
+  if (!env.ALERT_EMAIL) {
+    return { configured: false, scanned: 0, sent: 0, failed: 0, suppressed: 0, deferred: 0 };
+  }
+
+  const pending = await env.CORE_DB.prepare(
+    `SELECT delivery_id
+       FROM alert_deliveries
+      WHERE delivery_status = 'pending'
+      ORDER BY COALESCE(created_at, '') ASC, delivery_id ASC
+      LIMIT ?`
+  ).bind(limit).all<{ delivery_id: string }>();
+
+  const claimedIds: string[] = [];
+  for (const row of pending.results) {
+    const claimed = await env.CORE_DB.prepare(
+      `UPDATE alert_deliveries
+          SET delivery_status = 'sending',
+              error_message = NULL
+        WHERE delivery_id = ?
+          AND delivery_status = 'pending'
+      RETURNING delivery_id`
+    ).bind(row.delivery_id).first<{ delivery_id: string }>();
+    if (claimed?.delivery_id) claimedIds.push(claimed.delivery_id);
+  }
+
+  if (claimedIds.length === 0) {
+    return { configured: true, scanned: pending.results.length, sent: 0, failed: 0, suppressed: 0, deferred: 0 };
+  }
+
+  const placeholders = claimedIds.map(() => "?").join(", ");
+  const rows = await env.CORE_DB.prepare(
+    `SELECT d.delivery_id, d.occurrence_id, d.user_id, d.recipient_id, d.trigger_kind, d.channel,
+            d.payload_json, d.created_at,
+            r.email AS recipient_email,
+            r.display_name AS recipient_display_name,
+            r.is_active AS recipient_active,
+            r.rate_limit_per_day AS rate_limit_per_day,
+            u.email AS user_email,
+            u.display_name AS user_display_name,
+            COALESCE(p.email_enabled, 1) AS user_email_enabled
+       FROM alert_deliveries d
+       LEFT JOIN alert_recipients r ON r.recipient_id = d.recipient_id
+       LEFT JOIN auth_users u ON u.user_id = d.user_id
+       LEFT JOIN user_notification_preferences p ON p.user_id = d.user_id
+      WHERE d.delivery_status = 'sending'
+        AND d.delivery_id IN (${placeholders})
+      ORDER BY COALESCE(d.created_at, '') ASC, d.delivery_id ASC`
+  ).bind(...claimedIds).all<AlertDeliveryCandidateRow>();
+
+  let sent = 0;
+  let failed = 0;
+  let suppressed = 0;
+  let deferred = 0;
+  for (const row of rows.results) {
+    if (row.channel !== "email") {
+      await updateAlertDeliveryStatus(env, row, "suppressed", `unsupported_channel:${row.channel}`);
+      suppressed += 1;
+      continue;
+    }
+
+    const recipient = resolveAlertEmailRecipient(row);
+    if (!recipient) {
+      await updateAlertDeliveryStatus(env, row, "failed", "recipient_email_unavailable");
+      failed += 1;
+      continue;
+    }
+
+    if (!isAlertEmailRecipientAllowed(env, recipient)) {
+      await releaseAlertDeliveryClaim(env, row, "nonproduction_recipient_not_allowed");
+      deferred += 1;
+      continue;
+    }
+
+    if (row.recipient_id && await isAlertRecipientRateLimited(env, row)) {
+      await updateAlertDeliveryStatus(env, row, "suppressed", "recipient_daily_rate_limit");
+      suppressed += 1;
+      continue;
+    }
+
+    try {
+      const payload = parseJsonObject(row.payload_json);
+      await env.ALERT_EMAIL.send({
+        from: alertEmailFrom(env),
+        to: recipient,
+        subject: alertEmailSubject(row, payload),
+        text: alertEmailText(row, payload),
+        headers: {
+          "X-Ikimon-Alert-Delivery-Id": row.delivery_id,
+          "X-Ikimon-Alert-Source": options.source
+        }
+      });
+      await updateAlertDeliveryStatus(env, row, "sent", null);
+      await recordAlertDeliveryEvent(env, row, "sent", null);
+      sent += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await updateAlertDeliveryStatus(env, row, "failed", message.slice(0, 500));
+      await recordAlertDeliveryEvent(env, row, "failed", message.slice(0, 500));
+      failed += 1;
+    }
+  }
+  return { configured: true, scanned: pending.results.length, sent, failed, suppressed, deferred };
+}
+
+function resolveAlertEmailRecipient(row: AlertDeliveryCandidateRow): string | null {
+  if (row.recipient_id) {
+    if (row.recipient_active === 0) return null;
+    return normalizeOptionalText(row.recipient_email);
+  }
+  if (row.user_email_enabled === 0) return null;
+  return normalizeOptionalText(row.user_email);
+}
+
+async function isAlertRecipientRateLimited(env: Env, row: AlertDeliveryCandidateRow): Promise<boolean> {
+  const limit = clampInteger(Number(row.rate_limit_per_day ?? 50), 1, 1000);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const count = await env.CORE_DB.prepare(
+    `SELECT COUNT(*) AS count
+       FROM alert_deliveries
+      WHERE recipient_id = ?
+        AND delivery_status IN ('sent', 'acknowledged')
+        AND delivered_at >= ?`
+  ).bind(row.recipient_id, since).first<{ count: number }>();
+  return toSafeCount(count?.count) >= limit;
+}
+
+async function updateAlertDeliveryStatus(
+  env: Env,
+  row: AlertDeliveryCandidateRow,
+  status: "sent" | "failed" | "suppressed",
+  errorMessage: string | null
+): Promise<void> {
+  const deliveredAt = status === "sent" ? new Date().toISOString() : null;
+  await env.CORE_DB.prepare(
+    `UPDATE alert_deliveries
+        SET delivery_status = ?,
+            delivered_at = COALESCE(?, delivered_at),
+            error_message = ?
+      WHERE delivery_id = ?`
+  ).bind(status, deliveredAt, errorMessage, row.delivery_id).run();
+}
+
+async function releaseAlertDeliveryClaim(env: Env, row: AlertDeliveryCandidateRow, reason: string): Promise<void> {
+  await env.CORE_DB.prepare(
+    `UPDATE alert_deliveries
+        SET delivery_status = 'pending',
+            error_message = ?
+      WHERE delivery_id = ?
+        AND delivery_status = 'sending'`
+  ).bind(reason, row.delivery_id).run();
+}
+
+function isAlertEmailRecipientAllowed(env: Env, recipient: string): boolean {
+  if (env.ENVIRONMENT === "production") return true;
+  const allowed = new Set(
+    (env.ALERT_EMAIL_ALLOWED_RECIPIENTS ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  return allowed.has(recipient.trim().toLowerCase());
+}
+
+async function recordAlertDeliveryEvent(
+  env: Env,
+  row: AlertDeliveryCandidateRow,
+  status: "sent" | "failed",
+  errorMessage: string | null
+): Promise<void> {
+  if (row.trigger_kind !== "municipality_invasive") return;
+  try {
+    await env.CORE_DB.prepare(
+      `INSERT INTO invasive_reporting_events
+         (event_id, occurrence_id, recipient_id, delivery_id, event_status, trigger_source, payload_json, error_message, created_at)
+       VALUES (?, ?, ?, ?, ?, 'cloudflare_alert_delivery', ?, ?, ?)`
+    ).bind(
+      crypto.randomUUID(),
+      row.occurrence_id,
+      row.recipient_id,
+      row.delivery_id,
+      status,
+      row.payload_json ?? "{}",
+      errorMessage,
+      new Date().toISOString()
+    ).run();
+  } catch (error) {
+    console.error(JSON.stringify({
+      message: "alert_delivery_event_record_failed",
+      deliveryId: row.delivery_id,
+      error: error instanceof Error ? error.message : String(error)
+    }));
+  }
+}
+
+function alertEmailFrom(env: Env): string {
+  return normalizeOptionalText(env.ALERT_EMAIL_FROM) ?? "notifications@ikimon.co.jp";
+}
+
+function alertEmailSubject(row: AlertDeliveryCandidateRow, payload: Record<string, unknown>): string {
+  const title = normalizeOptionalText(payload.title) ?? normalizeOptionalText(payload.subject);
+  if (title) return title.slice(0, 120);
+  if (row.trigger_kind === "municipality_invasive") return "ikimon: 外来種らしき記録の通知";
+  if (row.trigger_kind === "taxon_match") return "ikimon: フォロー中の生きものの記録";
+  if (row.trigger_kind === "subject_proposal") return "ikimon: 記録の候補が届きました";
+  return "ikimon: 新しい通知";
+}
+
+function alertEmailText(row: AlertDeliveryCandidateRow, payload: Record<string, unknown>): string {
+  const title = alertEmailSubject(row, payload);
+  const body = normalizeOptionalText(payload.body) ?? normalizeOptionalText(payload.message) ?? "ikimonで通知対象の記録が見つかりました。";
+  const href = normalizeOptionalText(payload.href) ?? `/observations/${encodeURIComponent(row.occurrence_id)}`;
+  const absoluteHref = href.startsWith("http://") || href.startsWith("https://") ? href : `https://ikimon.life${href.startsWith("/") ? href : `/${href}`}`;
+  return [
+    title,
+    "",
+    body,
+    "",
+    absoluteHref,
+    "",
+    "このメールはikimonの通知設定にもとづいて送信されています。"
+  ].join("\n");
 }
 
 async function getPersonalizedMenu(session: SessionSnapshot, url: URL, env: Env): Promise<Response> {
