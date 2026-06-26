@@ -264,6 +264,15 @@ test("legacy observation event API fallback is retired from Worker source", asyn
   assert.match(script, /inactive_public_custom_domain_origin_fallback_disabled/);
 });
 
+test("map area polygon origin geometry fallback is retired from Worker source", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const classifyFallbackReason = loadClassifyFallbackReason(script);
+
+  assert.equal(classifyFallbackReason("map_area_polygons_origin_geometry"), "map_origin_fallback");
+  assert.doesNotMatch(workerSource, /map_area_polygons_origin_geometry/);
+});
+
 test("production origin session probe is dormant when import mode is disabled", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
 

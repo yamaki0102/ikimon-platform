@@ -337,6 +337,43 @@ interface ProductionAreaPolygonReadmodelRow {
   updated_at: string | null;
 }
 
+function productionAreaPolygonRow(
+  fieldId: string,
+  overrides: Partial<ProductionAreaPolygonReadmodelRow> = {}
+): ProductionAreaPolygonReadmodelRow {
+  return {
+    field_id: fieldId,
+    source: "school",
+    admin_level: "school",
+    name: fieldId,
+    prefecture: "静岡県",
+    city: "浜松市",
+    center_lat: 34.695,
+    center_lng: 137.705,
+    bbox_min_lat: 34.69,
+    bbox_max_lat: 34.70,
+    bbox_min_lng: 137.70,
+    bbox_max_lng: 137.71,
+    area_ha: 1.1,
+    geometry_json: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[[137.700, 34.690], [137.710, 34.691], [137.709, 34.699], [137.700, 34.690]]]
+    }),
+    approximate_boundary: 0,
+    boundary_approximation: null,
+    source_confidence: 0.9,
+    verification_level: "registry_matched",
+    verification_label: "公開情報と一致",
+    official_url: "https://example.test/field",
+    owner_url: null,
+    story_url: null,
+    certification_url: null,
+    entity_key: `field:${fieldId}`,
+    updated_at: "2026-06-18T00:00:00.000Z",
+    ...overrides
+  };
+}
+
 interface AuthUserRow {
   user_id: string;
   email: string;
@@ -3493,8 +3530,13 @@ test("v1 public map nowcast routes proxy fixed JMA targets without exposing a fr
   }
 });
 
-test("production map area polygons use filtered origin geometry while guide spots stay native", async () => {
+test("production map area polygons stay native while guide spots stay native", async () => {
   const { env, core } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-area", productionAreaPolygonRow("native-area", {
+    name: "native area",
+    source: "osm_park",
+    admin_level: "osm_park"
+  }));
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -3502,46 +3544,28 @@ test("production map area polygons use filtered origin geometry while guide spot
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
-  const seen: Array<{ url: string; method?: string; reason: string | null; resolveOverride?: string }> = [];
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const headers = new Headers(init?.headers);
-    seen.push({
-      url: String(input),
-      method: init?.method,
-      reason: headers.get("x-ikimon-cloudflare-fallback-reason"),
-      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride
-    });
-    return new Response(JSON.stringify({
-      type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        geometry: { type: "Polygon", coordinates: [[[137.70, 34.70], [137.71, 34.70], [137.71, 34.71], [137.70, 34.71], [137.70, 34.70]]] },
-        properties: { field_id: "field-origin", name: "origin area", source: "osm_park" }
-      }]
-    }), { status: 200, headers: { "content-type": "application/json" } });
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
     const cellsResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/map/cells?bbox=137.70,34.70,137.82,34.72&zoom=13"), productionEnv);
     assert.equal(cellsResponse.ok, true);
-    assert.equal(seen.length, 0);
+    assert.equal(fallbackCalls, 0);
 
     const areaResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/map/area-polygons?bbox=137.70,34.70,137.82,34.72&zoom=17.5"), productionEnv);
     const areaPayload = await areaResponse.json() as any;
     assert.equal(areaResponse.ok, true, JSON.stringify(areaPayload));
     assert.equal(areaPayload.features.length, 1);
-    assert.equal(areaPayload.features[0].properties.name, "origin area");
+    assert.equal(areaPayload.features[0].properties.name, "native area");
+    assert.equal(areaPayload.stats.source, "cloudflare_area_polygon_readmodel");
 
     const guideResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/map/guide-spots?bbox=137.70,34.70,137.82,34.72"), productionEnv);
     assert.equal(guideResponse.ok, true);
 
-    assert.deepEqual(seen.map((item) => item.url), [
-      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72&zoom=17.5&limit=72"
-    ]);
-    assert.deepEqual(seen.map((item) => item.reason), [
-      "map_area_polygons_origin_geometry"
-    ]);
-    assert.deepEqual(seen.map((item) => item.resolveOverride), ["origin.ikimon.test"]);
-    assert.equal(core.operationAudit.length, 1);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -6931,8 +6955,41 @@ test("production observation event APIs run location and rally routes on D1 with
   }
 });
 
-test("production map area polygons fall back to origin geometry with bounded display limit", async () => {
+test("production map area polygons filter D1 geometry without origin fallback", async () => {
   const { env, core } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-school", productionAreaPolygonRow("native-school", {
+    name: "native polygon school",
+    source: "school",
+    geometry_json: JSON.stringify({
+      type: "Polygon",
+      coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]]
+    })
+  }));
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", productionAreaPolygonRow("native-approx-school", {
+    name: "代表点小学校",
+    source: "school",
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    source_confidence: 0.45
+  }));
+  env.OBS_DB.productionAreaPolygons.set("osm-live-school", productionAreaPolygonRow("osm-live:way:603994619", {
+    field_id: "osm-live:way:603994619",
+    name: "OSMの学校・キャンパス",
+    source: "school",
+    verification_label: "未確認",
+    source_confidence: 0.45,
+    official_url: null
+  }));
+  env.OBS_DB.productionAreaPolygons.set("osm-live-park", productionAreaPolygonRow("osm-live:way:603028580", {
+    field_id: "osm-live:way:603028580",
+    name: "OSMの公園・緑地",
+    source: "osm_park",
+    admin_level: "osm_park",
+    verification_label: "未確認",
+    source_confidence: 0.45,
+    official_url: null
+  }));
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -6940,61 +6997,11 @@ test("production map area polygons fall back to origin geometry with bounded dis
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
     PUBLIC_WRITE_MODE: "cloudflare_native"
   };
-  const seen: Array<{ url: string; resolveOverride?: string; reason?: string }> = [];
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const target = typeof input === "string" || input instanceof URL ? String(input) : input.url;
-    seen.push({
-      url: target,
-      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
-      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason") ?? undefined
-    });
-    return Response.json({
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          properties: { field_id: "origin-school", name: "origin polygon school" },
-          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
-        },
-        {
-          type: "Feature",
-          properties: {
-            field_id: "origin-approx-school",
-            name: "代表点小学校",
-            source: "school",
-            approximate_boundary: true,
-            boundary_approximation: "point_buffer",
-            verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致"
-          },
-          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
-        },
-        {
-          type: "Feature",
-          properties: {
-            field_id: "osm-live:way:603994619",
-            name: "OSMの学校・キャンパス",
-            source: "school",
-            verification_label: "未確認",
-            source_confidence: 0.45
-          },
-          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
-        },
-        {
-          type: "Feature",
-          properties: {
-            field_id: "osm-live:way:603028580",
-            name: "OSMの公園・緑地",
-            source: "osm_park",
-            verification_label: "未確認",
-            source_confidence: 0.45
-          },
-          geometry: { type: "Polygon", coordinates: [[[137.1, 34.1], [137.2, 34.1], [137.2, 34.2], [137.1, 34.1]]] }
-        }
-      ],
-      truncated: true,
-      stats: { totalReturned: 4, totalAll: 4, source: "origin" }
-    }, { headers: { "cache-control": "public, max-age=60" } });
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
@@ -7004,39 +7011,31 @@ test("production map area polygons fall back to origin geometry with bounded dis
 
     assert.equal(response.status, 200);
     assert.equal(payload.features.length, 1);
-    assert.equal(payload.features[0].properties.name, "origin polygon school");
+    assert.equal(payload.features[0].properties.name, "native polygon school");
     assert.equal(payload.features[0].geometry.coordinates[0].length, 4);
     assert.equal(payload.stats.totalReturned, 1);
     assert.equal(payload.stats.totalAll, 1);
-    assert.equal(seen.length, 1);
-    assert.equal(seen[0]?.url, "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&limit=48");
-    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen[0]?.reason, "map_area_polygons_origin_geometry");
-    const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
-    assert.equal(latestTelemetry.reason, "map_area_polygons_origin_geometry");
-    assert.equal(latestTelemetry.routePattern, "/api/v1/map/area-polygons");
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
 
-    seen.length = 0;
     const localizedResponse = await worker.fetch(new Request(
       "https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park"
     ), productionEnv);
     const localizedPayload = await localizedResponse.json() as any;
     assert.equal(localizedResponse.status, 200);
     assert.equal(localizedPayload.features.length, 1);
-    assert.equal(localizedPayload.features[0].properties.name, "origin polygon school");
+    assert.equal(localizedPayload.features[0].properties.name, "native polygon school");
     assert.equal(localizedPayload.stats.totalReturned, 1);
     assert.equal(localizedPayload.stats.totalAll, 1);
-    assert.equal(seen.length, 1);
-    assert.equal(seen[0]?.url, "https://ikimon.life/ja/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school%2Cosm_park&limit=48");
-    assert.equal(seen[0]?.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen[0]?.reason, "map_area_polygons_origin_geometry");
-    assert.doesNotMatch(JSON.stringify(localizedPayload), /origin-approx-school|OSMの学校・キャンパス|OSMの公園・緑地|境界未確認/);
+    assert.equal(fallbackCalls, 0);
+    assert.doesNotMatch(JSON.stringify(localizedPayload), /native-approx-school|OSMの学校・キャンパス|OSMの公園・緑地|境界未確認/);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test("production map area polygons use native polygon readmodel before origin fallback", async () => {
+test("production map area polygons use native polygon readmodel without origin fallback", async () => {
   const { env } = createEnv();
   env.OBS_DB.productionAreaPolygons.set("native-approx-school", {
     field_id: "native-approx-school",
@@ -7142,38 +7141,17 @@ test("production map area polygons use native polygon readmodel before origin fa
   }
 });
 
-test("production map area polygons fall back when requested school polygons are missing from native readmodel", async () => {
+test("production map area polygons return available native features when requested school polygons are missing", async () => {
   const { env } = createEnv();
-  env.OBS_DB.productionAreaPolygons.set("native-park-only", {
-    field_id: "native-park-only",
+  env.OBS_DB.productionAreaPolygons.set("native-park-only", productionAreaPolygonRow("native-park-only", {
     source: "osm_park",
     admin_level: "osm_park",
     name: "ネイティブ公園",
-    prefecture: "静岡県",
-    city: "浜松市",
-    center_lat: 34.695,
-    center_lng: 137.705,
-    bbox_min_lat: 34.69,
-    bbox_max_lat: 34.70,
-    bbox_min_lng: 137.70,
-    bbox_max_lng: 137.71,
-    area_ha: 1.1,
-    geometry_json: JSON.stringify({
-      type: "Polygon",
-      coordinates: [[[137.700, 34.690], [137.710, 34.691], [137.709, 34.699], [137.700, 34.690]]]
-    }),
-    approximate_boundary: 0,
-    boundary_approximation: null,
     source_confidence: 0.8,
     verification_level: "unverified",
     verification_label: "未確認",
-    official_url: null,
-    owner_url: null,
-    story_url: null,
-    certification_url: null,
-    entity_key: "osm:way:park-only",
-    updated_at: "2026-06-18T00:00:00.000Z"
-  });
+    official_url: null
+  }));
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -7185,22 +7163,7 @@ test("production map area polygons fall back when requested school polygons are 
   let fallbackCalls = 0;
   globalThis.fetch = (async () => {
     fallbackCalls += 1;
-    return new Response(JSON.stringify({
-      type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: {
-          field_id: "origin-school",
-          name: "origin fallback school",
-          source: "school",
-          source_confidence: 0.45,
-          verification_level: "unverified"
-        },
-        geometry: { type: "Polygon", coordinates: [[[137.7, 34.69], [137.71, 34.69], [137.71, 34.70], [137.7, 34.69]]] }
-      }],
-      truncated: false,
-      stats: { source: "origin" }
-    }), { headers: { "content-type": "application/json" } });
+    return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
@@ -7209,9 +7172,10 @@ test("production map area polygons fall back when requested school polygons are 
     const payload = await response.json() as any;
 
     assert.equal(response.status, 200);
-    assert.equal(fallbackCalls, 1);
+    assert.equal(fallbackCalls, 0);
     assert.equal(payload.features.length, 1);
-    assert.equal(payload.features[0].properties.field_id, "origin-school");
+    assert.equal(payload.features[0].properties.field_id, "native-park-only");
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
   } finally {
     globalThis.fetch = originalFetch;
   }

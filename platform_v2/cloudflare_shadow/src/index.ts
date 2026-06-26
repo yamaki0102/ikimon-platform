@@ -1398,11 +1398,6 @@ export const worker = {
       }
 
       if (request.method === "GET" && isMapAreaPolygonsApiPath(url.pathname)) {
-        if (shouldFallbackMapAreaPolygonsToOrigin(request, url, env)) {
-          const nativeResponse = await getPublicMapAreaPolygons(url, env, { allowApproximateFallback: false });
-          if (nativeResponse) return nativeResponse;
-          return fetchMapAreaPolygonsOriginFallback(request, url, env);
-        }
         const response = await getPublicMapAreaPolygons(url, env);
         if (response) return response;
         return getPublicMapEmptyGeoJson("area-polygons");
@@ -4157,12 +4152,6 @@ function isD1UniqueConstraintError(error: unknown): boolean {
   return /unique constraint|constraint failed/i.test(message);
 }
 
-function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {
-  return request.method === "GET"
-    && isMapAreaPolygonsApiPath(url.pathname)
-    && shouldUseOriginFallback(url, env);
-}
-
 function isMapAreaPolygonsApiPath(pathname: string): boolean {
   return pathname === "/api/v1/map/area-polygons"
     || /^\/(?:ja|en|es|pt-br)\/api\/v1\/map\/area-polygons$/.test(pathname);
@@ -4174,25 +4163,6 @@ function mapAreaPolygonsFallbackLimit(zoom: number | null): number {
   if (zoom < 13) return 56;
   if (zoom < 15) return 48;
   return 72;
-}
-
-function mapAreaPolygonsFallbackUrl(url: URL): URL {
-  const next = new URL(url.toString());
-  if (!next.searchParams.has("limit")) {
-    next.searchParams.set("limit", String(mapAreaPolygonsFallbackLimit(Number(next.searchParams.get("zoom")))));
-  }
-  return next;
-}
-
-async function fetchMapAreaPolygonsOriginFallback(request: Request, url: URL, env: Env): Promise<Response> {
-  const fallbackUrl = mapAreaPolygonsFallbackUrl(url);
-  const fallbackRequest = new Request(fallbackUrl.toString(), {
-    method: request.method,
-    headers: request.headers,
-    redirect: "manual"
-  });
-  const response = await fetchOriginFallback(fallbackRequest, fallbackUrl, env, "map_area_polygons_origin_geometry");
-  return filterMapAreaPolygonsResponse(response);
 }
 
 function isShadowDiagnosticPath(pathname: string): boolean {
@@ -8072,7 +8042,7 @@ function booleanishProp(props: Record<string, unknown>, key: string): boolean {
   return false;
 }
 
-function areaFeatureProps(feature: unknown): Record<string, unknown> | null {
+function areaPolygonFeatureProps(feature: unknown): Record<string, unknown> | null {
   if (!feature || typeof feature !== "object" || Array.isArray(feature)) return null;
   const props = (feature as { properties?: unknown }).properties;
   if (!props || typeof props !== "object" || Array.isArray(props)) return null;
@@ -8080,7 +8050,7 @@ function areaFeatureProps(feature: unknown): Record<string, unknown> | null {
 }
 
 function isApproximateAreaPolygonFeature(feature: unknown): boolean {
-  const props = areaFeatureProps(feature);
+  const props = areaPolygonFeatureProps(feature);
   if (!props) return false;
   const label = textProp(props, "verification_label");
   return booleanishProp(props, "approximate_boundary")
@@ -8089,7 +8059,7 @@ function isApproximateAreaPolygonFeature(feature: unknown): boolean {
 }
 
 function isWeakLiveOsmAreaPolygonFeature(feature: unknown): boolean {
-  const props = areaFeatureProps(feature);
+  const props = areaPolygonFeatureProps(feature);
   if (!props) return false;
   if (!textProp(props, "field_id").startsWith("osm-live:")) return false;
   const name = textProp(props, "name");
@@ -8107,39 +8077,6 @@ function isWeakLiveOsmAreaPolygonFeature(feature: unknown): boolean {
 
 function isDisplayableAreaPolygonFeature(feature: unknown): boolean {
   return !isApproximateAreaPolygonFeature(feature) && !isWeakLiveOsmAreaPolygonFeature(feature);
-}
-
-function filterMapAreaPolygonsPayload(payload: unknown): unknown {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
-  const features = (payload as { features?: unknown }).features;
-  if (!Array.isArray(features)) return payload;
-  const filteredFeatures = features.filter(isDisplayableAreaPolygonFeature);
-  const stats = (payload as { stats?: unknown }).stats;
-  return {
-    ...(payload as Record<string, unknown>),
-    features: filteredFeatures,
-    stats: stats && typeof stats === "object" && !Array.isArray(stats)
-      ? {
-          ...(stats as Record<string, unknown>),
-          totalReturned: filteredFeatures.length,
-          totalAll: filteredFeatures.length
-        }
-      : stats
-  };
-}
-
-async function filterMapAreaPolygonsResponse(response: Response): Promise<Response> {
-  if (!response.ok) return response;
-  try {
-    const payload = await response.clone().json();
-    const filteredPayload = filterMapAreaPolygonsPayload(payload);
-    if (filteredPayload === payload) return response;
-    return json(filteredPayload, response.status, {
-      "cache-control": response.headers.get("cache-control") ?? "public, max-age=60"
-    });
-  } catch {
-    return response;
-  }
 }
 
 function areaPolygonFeatureFromGeometryReadmodel(row: AreaPolygonGeometryReadmodelRow) {
