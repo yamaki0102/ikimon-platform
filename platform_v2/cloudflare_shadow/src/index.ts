@@ -138,6 +138,15 @@ interface CompatibleObservationIdentificationInput {
   referenceLocator?: unknown;
 }
 
+interface CompatibleObservationDisputeInput {
+  kind?: unknown;
+  proposedName?: unknown;
+  proposedRank?: unknown;
+  reason?: unknown;
+  referenceSourceIds?: unknown;
+  referenceLocator?: unknown;
+}
+
 interface LegacyPhotoUploadInput {
   filename?: string | null;
   mimeType?: string | null;
@@ -1561,6 +1570,15 @@ export const worker = {
       if (request.method === "POST" && identificationMatch?.[1]) {
         return submitCompatibleObservationIdentification(
           decodeURIComponent(identificationMatch[1]),
+          request,
+          env
+        );
+      }
+
+      const disputeMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/disputes$/);
+      if (request.method === "POST" && disputeMatch?.[1]) {
+        return openCompatibleObservationDispute(
+          decodeURIComponent(disputeMatch[1]),
           request,
           env
         );
@@ -3104,6 +3122,137 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
   }, 200, { "cache-control": "no-store" });
 }
 
+async function openCompatibleObservationDispute(occurrenceId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const targetExists = await observationReactionTargetExists(normalizedOccurrenceId, env);
+  if (!targetExists) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  const input = await readJson<CompatibleObservationDisputeInput>(request);
+  const kind = normalizeObservationDisputeKind(input.kind);
+  const proposedName = normalizeOptionalText(input.proposedName);
+  const proposedRank = normalizeOptionalText(input.proposedRank);
+  const reason = normalizeOptionalText(input.reason);
+  if (kind === "alternative_id" && !proposedName) {
+    return json({ ok: false, error: "identification_name_required" }, 400, { "cache-control": "no-store" });
+  }
+
+  const referenceSourceIds = Array.isArray(input.referenceSourceIds)
+    ? input.referenceSourceIds.map((value) => normalizeOptionalText(value)).filter((value): value is string => Boolean(value))
+    : [];
+  const referenceLocator = normalizeOptionalText(input.referenceLocator);
+  const disputeId = newId("dispute");
+  const now = new Date().toISOString();
+  const sourcePayload = {
+    source: "cloudflare_public_dispute",
+    createdBy: session.userId,
+    referenceSourceIds,
+    referenceLocator,
+    createdAt: now
+  };
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_identification_disputes (
+       dispute_id, occurrence_id, actor_user_id, kind, proposed_name, proposed_rank,
+       reason, status, source_payload_json
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)`
+  ).bind(
+    disputeId,
+    normalizedOccurrenceId,
+    session.userId,
+    kind,
+    proposedName,
+    proposedRank,
+    reason,
+    JSON.stringify(sourcePayload)
+  ).run();
+
+  if (kind === "alternative_id" && proposedName) {
+    const sourceKey = `cf_public_dispute_alt:${normalizedOccurrenceId}:${session.userId}:${disputeId}`;
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_identifications (
+         identification_id, occurrence_id, actor_user_id, proposed_name, proposed_rank,
+         stance, notes, source_key, source_payload_json, is_current
+       ) VALUES (?, ?, ?, ?, ?, 'alternative', ?, ?, ?, 1)`
+    ).bind(
+      newId("identification"),
+      normalizedOccurrenceId,
+      session.userId,
+      proposedName,
+      proposedRank,
+      reason,
+      sourceKey,
+      JSON.stringify({
+        source: "cloudflare_public_dispute_alternative",
+        disputeId,
+        updatedAt: now
+      })
+    ).run();
+  }
+
+  await env.OBS_DB.prepare(
+    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+  ).bind(
+    newId("outbox"),
+    "readmodel.refresh",
+    normalizedOccurrenceId,
+    JSON.stringify({ observationId: normalizedOccurrenceId, reason: "identification.dispute" }),
+    null
+  ).run();
+
+  const countRow = await env.OBS_DB.prepare(
+    "SELECT COUNT(*) AS count FROM observation_identification_disputes WHERE occurrence_id = ? AND status = 'open'"
+  ).bind(normalizedOccurrenceId).first<{ count: number }>();
+
+  return json({
+    ok: true,
+    occurrenceId: normalizedOccurrenceId,
+    disputeId,
+    compatibility: {
+      source: "cloudflare_observation_identification_disputes",
+      alternativeIdentificationStored: kind === "alternative_id" && Boolean(proposedName),
+      referenceSelectionMode: referenceSourceIds.length > 0 || referenceLocator ? "payload_only" : "none"
+    },
+    consensus: {
+      occurrenceId: normalizedOccurrenceId,
+      consensusStatus: "disputed",
+      hasOpenDispute: true,
+      identificationVerificationStatus: "needs_review",
+      communityTaxon: proposedName ? {
+        name: proposedName,
+        rank: proposedRank,
+        supportCount: 1
+      } : null,
+      neededEvidence: ["open_dispute"],
+      openDisputeCount: countRow?.count ?? 1
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
+function normalizeObservationDisputeKind(value: unknown): "alternative_id" | "needs_more_evidence" | "not_organism" | "location_date_issue" {
+  return value === "needs_more_evidence" || value === "not_organism" || value === "location_date_issue"
+    ? value
+    : "alternative_id";
+}
+
 async function toggleObservationReaction(occurrenceId: string, reactionType: string, request: Request, env: Env): Promise<Response> {
   const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
   if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
@@ -3262,6 +3411,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
   return false;
 }
 
