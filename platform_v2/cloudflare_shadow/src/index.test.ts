@@ -4827,7 +4827,7 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
   assert.equal(core.operationAudit.length, 0);
 });
 
-test("production runtime proxies remaining explicit legacy observation API paths to the configured origin fallback", async () => {
+test("production runtime proxies remaining explicit legacy observation API paths to route-specific origin fallbacks", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -4836,46 +4836,79 @@ test("production runtime proxies remaining explicit legacy observation API paths
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; method?: string; cookie?: string; marker?: string; reason?: string | null; body?: string; resolveOverride?: string } = {};
+  const seen: Array<{ url?: string; method?: string; cookie?: string; marker?: string; reason?: string | null; body?: string; resolveOverride?: string }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.method = init?.method;
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    const item: { url?: string; method?: string; cookie?: string; marker?: string; reason?: string | null; body?: string; resolveOverride?: string } = {};
+    item.url = String(input);
+    item.method = init?.method;
+    item.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
     const headers = new Headers(init?.headers);
-    seen.cookie = headers.get("cookie") ?? undefined;
-    seen.marker = headers.get("x-ikimon-cloudflare-fallback") ?? undefined;
-    seen.reason = headers.get("x-ikimon-cloudflare-fallback-reason");
-    seen.body = init?.body ? await new Response(init.body).text() : undefined;
+    item.cookie = headers.get("cookie") ?? undefined;
+    item.marker = headers.get("x-ikimon-cloudflare-fallback") ?? undefined;
+    item.reason = headers.get("x-ikimon-cloudflare-fallback-reason");
+    item.body = init?.body ? await new Response(init.body).text() : undefined;
+    seen.push(item);
     return new Response(JSON.stringify({ ok: true, originFallback: true }), {
       status: 202,
       headers: { "content-type": "application/json" }
     });
   }) as typeof fetch;
   try {
-    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/example/candidates/candidate-1/propose?keep=1", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        cookie: "ikimon_v2_session=test"
+    const cases = [
+      {
+        path: "/api/v1/observations/example/candidates/candidate-1/propose?keep=1",
+        reason: "legacy_observation_candidate_propose_origin_fallback",
+        routePattern: "/api/v1/observations/:id/candidates/:candidateId/:action"
       },
-      body: JSON.stringify({ source: "unit" })
-    }), productionEnv);
-    const payload = await response.json() as any;
-    assert.equal(response.status, 202);
-    assert.equal(payload.originFallback, true);
-    assert.equal(seen.url, "https://ikimon.life/api/v1/observations/example/candidates/candidate-1/propose?keep=1");
-    assert.equal(seen.method, "POST");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.cookie, "ikimon_v2_session=test");
-    assert.equal(seen.marker, "origin");
-    assert.equal(seen.reason, "legacy_observation_api_origin_fallback");
-    assert.equal(seen.body, JSON.stringify({ source: "unit" }));
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "legacy_observation_api_origin_fallback");
-    assert.equal(telemetry.routePattern, "/api/v1/observations/:id/candidates/:candidateId/:action");
-    assert.equal(JSON.stringify(telemetry).includes("example"), false);
-    assert.equal(JSON.stringify(telemetry).includes("keep=1"), false);
+      {
+        path: "/api/v1/observations/example/candidates/candidate-1/adopt",
+        reason: "legacy_observation_candidate_adopt_origin_fallback",
+        routePattern: "/api/v1/observations/:id/candidates/:candidateId/:action"
+      },
+      {
+        path: "/api/v1/observations/example/reassess",
+        reason: "legacy_observation_reassess_origin_fallback",
+        routePattern: "/api/v1/observations/:id/reassess"
+      },
+      {
+        path: "/api/v1/observations/example/reassess-from-video",
+        reason: "legacy_observation_reassess_from_video_origin_fallback",
+        routePattern: "/api/v1/observations/:id/reassess-from-video"
+      },
+      {
+        path: "/api/v1/observations/example/management-candidates/0/confirm",
+        reason: "legacy_observation_management_confirm_origin_fallback",
+        routePattern: "/api/v1/observations/:id/management-candidates/:index/confirm"
+      }
+    ];
+    for (const [index, item] of cases.entries()) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${item.path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "ikimon_v2_session=test"
+        },
+        body: JSON.stringify({ source: "unit", index })
+      }), productionEnv);
+      const payload = await response.json() as any;
+      assert.equal(response.status, 202);
+      assert.equal(payload.originFallback, true);
+      assert.equal(seen[index]?.url, `https://ikimon.life${item.path}`);
+      assert.equal(seen[index]?.method, "POST");
+      assert.equal(seen[index]?.resolveOverride, "origin.ikimon.test");
+      assert.equal(seen[index]?.cookie, "ikimon_v2_session=test");
+      assert.equal(seen[index]?.marker, "origin");
+      assert.equal(seen[index]?.reason, item.reason);
+      assert.equal(seen[index]?.body, JSON.stringify({ source: "unit", index }));
+    }
+    assert.equal(core.operationAudit.length, cases.length);
+    for (const [index, item] of cases.entries()) {
+      const telemetry = JSON.parse(core.operationAudit[index]?.payload_json ?? "{}");
+      assert.equal(telemetry.reason, item.reason);
+      assert.equal(telemetry.routePattern, item.routePattern);
+      assert.equal(JSON.stringify(telemetry).includes("example"), false);
+      assert.equal(JSON.stringify(telemetry).includes("keep=1"), false);
+    }
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -4887,9 +4920,16 @@ test("production runtime proxies remaining explicit legacy observation API paths
   const summaryResponse = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), summaryEnv);
   const summary = await summaryResponse.json() as any;
   assert.equal(summaryResponse.ok, true, JSON.stringify(summary));
-  assert.equal(summary.count, 1);
-  assert.equal(summary.byReason.legacy_observation_api_origin_fallback, 1);
-  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/candidates/:candidateId/:action"], 1);
+  assert.equal(summary.count, 5);
+  assert.equal(summary.byReason.legacy_observation_candidate_propose_origin_fallback, 1);
+  assert.equal(summary.byReason.legacy_observation_candidate_adopt_origin_fallback, 1);
+  assert.equal(summary.byReason.legacy_observation_reassess_origin_fallback, 1);
+  assert.equal(summary.byReason.legacy_observation_reassess_from_video_origin_fallback, 1);
+  assert.equal(summary.byReason.legacy_observation_management_confirm_origin_fallback, 1);
+  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/candidates/:candidateId/:action"], 2);
+  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reassess"], 1);
+  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reassess-from-video"], 1);
+  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/management-candidates/:index/confirm"], 1);
 });
 
 test("production reference candidates route is native and never probes origin fallback", async () => {

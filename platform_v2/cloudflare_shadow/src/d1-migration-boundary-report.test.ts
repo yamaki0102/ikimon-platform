@@ -134,14 +134,15 @@ test("VPS stop readiness requires P0 capability dispositions", async () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /P0 Capability Disposition Gate/);
   assert.match(result.stdout, /- status: blocked/);
-  assert.match(result.stdout, /- p0_capability_items: 7/);
-  assert.match(result.stdout, /- p0_open_capabilities: 2/);
+  assert.match(result.stdout, /- p0_capability_items: 11/);
+  assert.match(result.stdout, /- p0_open_capabilities: 6/);
   assert.match(result.stdout, /- p0_terminal_capabilities: 5/);
   assert.match(result.stdout, /- configured_p0_blockers_without_disposition: 0/);
-  assert.match(result.stdout, /legacy_observation_api_origin_fallback/);
+  assert.match(result.stdout, /legacy_observation_candidate_propose_origin_fallback/);
+  assert.match(result.stdout, /legacy_observation_management_confirm_origin_fallback/);
   assert.match(result.stdout, /video_upload_lifecycle/);
   assert.match(result.stdout, /p0_disposition_gate: blocked/);
-  assert.match(result.stdout, /p0_blockers: 2/);
+  assert.match(result.stdout, /p0_blockers: 6/);
 });
 
 test("public custom domain origin fallback is not registered twice", async () => {

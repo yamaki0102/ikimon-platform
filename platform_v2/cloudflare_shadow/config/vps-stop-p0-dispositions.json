@@ -8,15 +8,59 @@
   ],
   "items": [
     {
-      "key": "legacy_observation_api_origin_fallback",
+      "key": "legacy_observation_candidate_propose_origin_fallback",
       "status": "blocked",
       "owner": "platform",
-      "scope": "authenticated observation action APIs still forwarded to the VPS origin",
+      "scope": "POST /api/v1/observations/:id/candidates/:candidateId/propose still forwards to the VPS origin",
       "evidenceKeys": [
-        "legacy_observation_api_origin_fallback",
-        "origin_fallback:legacy_observation_api_origin_fallback"
+        "legacy_observation_candidate_propose_origin_fallback",
+        "origin_fallback:legacy_observation_candidate_propose_origin_fallback"
       ],
-      "nextProofRequired": "D1-native implementation or explicit product-approved route removal for every remaining legacy observation action."
+      "nextProofRequired": "D1-native candidate proposal semantics or product-approved route removal with UI removal."
+    },
+    {
+      "key": "legacy_observation_candidate_adopt_origin_fallback",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "POST /api/v1/observations/:id/candidates/:candidateId/adopt still forwards to the VPS origin",
+      "evidenceKeys": [
+        "legacy_observation_candidate_adopt_origin_fallback",
+        "origin_fallback:legacy_observation_candidate_adopt_origin_fallback"
+      ],
+      "nextProofRequired": "D1-native candidate adoption semantics with occurrence/subject/media parity."
+    },
+    {
+      "key": "legacy_observation_reassess_origin_fallback",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "POST /api/v1/observations/:id/reassess still forwards to the VPS origin",
+      "evidenceKeys": [
+        "legacy_observation_reassess_origin_fallback",
+        "origin_fallback:legacy_observation_reassess_origin_fallback"
+      ],
+      "nextProofRequired": "D1-native reassess job semantics or product-approved temporary route retirement with pending UI semantics."
+    },
+    {
+      "key": "legacy_observation_reassess_from_video_origin_fallback",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "POST /api/v1/observations/:id/reassess-from-video still forwards to the VPS origin",
+      "evidenceKeys": [
+        "legacy_observation_reassess_from_video_origin_fallback",
+        "origin_fallback:legacy_observation_reassess_from_video_origin_fallback"
+      ],
+      "nextProofRequired": "D1-native video reassess job semantics or product-approved temporary route retirement with pending UI semantics."
+    },
+    {
+      "key": "legacy_observation_management_confirm_origin_fallback",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "POST /api/v1/observations/:id/management-candidates/:index/confirm still forwards to the VPS origin",
+      "evidenceKeys": [
+        "legacy_observation_management_confirm_origin_fallback",
+        "origin_fallback:legacy_observation_management_confirm_origin_fallback"
+      ],
+      "nextProofRequired": "D1-native management confirmation ledger or product-approved route removal."
     },
     {
       "key": "alert_delivery_worker",
