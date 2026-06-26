@@ -9,25 +9,27 @@
   "items": [
     {
       "key": "legacy_observation_candidate_propose_origin_fallback",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "platform",
-      "scope": "POST /api/v1/observations/:id/candidates/:candidateId/propose still forwards to the VPS origin",
+      "scope": "POST /api/v1/observations/:id/candidates/:candidateId/propose replaced by a D1 candidate action request ledger",
       "evidenceKeys": [
-        "legacy_observation_candidate_propose_origin_fallback",
-        "origin_fallback:legacy_observation_candidate_propose_origin_fallback"
+        "legacy_observation_candidate_propose_origin_fallback"
       ],
-      "nextProofRequired": "D1-native candidate proposal semantics or product-approved route removal with UI removal."
+      "proof": "Worker records candidate propose requests in candidate_action_requests and returns a pending compatibility response without VPS origin fallback.",
+      "verifiedAt": "2026-06-26",
+      "nextProofRequired": "Add Cloudflare-native candidate occurrence/materialization processing before treating this as full candidate proposal parity."
     },
     {
       "key": "legacy_observation_candidate_adopt_origin_fallback",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "platform",
-      "scope": "POST /api/v1/observations/:id/candidates/:candidateId/adopt still forwards to the VPS origin",
+      "scope": "POST /api/v1/observations/:id/candidates/:candidateId/adopt replaced by a D1 candidate action request ledger",
       "evidenceKeys": [
-        "legacy_observation_candidate_adopt_origin_fallback",
-        "origin_fallback:legacy_observation_candidate_adopt_origin_fallback"
+        "legacy_observation_candidate_adopt_origin_fallback"
       ],
-      "nextProofRequired": "D1-native candidate adoption semantics with occurrence/subject/media parity."
+      "proof": "Worker records owner-only candidate adopt requests in candidate_action_requests and returns a pending compatibility response without VPS origin fallback.",
+      "verifiedAt": "2026-06-26",
+      "nextProofRequired": "Add Cloudflare-native occurrence/subject/media materialization before treating this as full candidate adoption parity."
     },
     {
       "key": "legacy_observation_reassess_origin_fallback",

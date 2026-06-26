@@ -1630,6 +1630,17 @@ export const worker = {
         );
       }
 
+      const candidateActionMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/candidates\/([^/]+)\/(propose|adopt)$/);
+      if (request.method === "POST" && candidateActionMatch?.[1] && candidateActionMatch?.[2] && candidateActionMatch?.[3]) {
+        return requestCompatibleCandidateAction(
+          decodeURIComponent(candidateActionMatch[1]),
+          decodeURIComponent(candidateActionMatch[2]),
+          candidateActionMatch[3] === "adopt" ? "adopt" : "propose",
+          request,
+          env
+        );
+      }
+
       const managementConfirmMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/management-candidates\/([^/]+)\/confirm$/);
       if (request.method === "POST" && managementConfirmMatch?.[1] && managementConfirmMatch?.[2]) {
         return confirmCompatibleManagementCandidate(
@@ -3061,13 +3072,6 @@ function observationEventMeshCenter(meshKey: string): { lat: number; lng: number
 async function fetchLegacyObservationApiOriginFallback(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return null;
   if (!shouldUseOriginFallback(url, env)) return null;
-  const pathname = url.pathname;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/propose$/.test(pathname)) {
-    return fetchOriginFallback(request, url, env, "legacy_observation_candidate_propose_origin_fallback");
-  }
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/adopt$/.test(pathname)) {
-    return fetchOriginFallback(request, url, env, "legacy_observation_candidate_adopt_origin_fallback");
-  }
   return null;
 }
 
@@ -3180,6 +3184,79 @@ async function confirmCompatibleManagementCandidate(observationId: string, index
       stewardshipActionStatus: "not_migrated"
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+async function requestCompatibleCandidateAction(
+  observationId: string,
+  candidateId: string,
+  actionKind: "propose" | "adopt",
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const normalizedObservationId = normalizeOptionalId(observationId);
+  const normalizedCandidateId = normalizeOptionalId(candidateId);
+  if (!normalizedObservationId || normalizedObservationId.length > 160 || !normalizedCandidateId || normalizedCandidateId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const ownerUserId = await resolveCompatibleObservationOwnerUserId(normalizedObservationId, env);
+  if (!ownerUserId) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+  if (actionKind === "adopt" && ownerUserId !== session.userId) {
+    return json({ ok: false, error: "observation_not_owned" }, 403, { "cache-control": "no-store" });
+  }
+
+  const requestId = newId("candidate_action_req");
+  const sourcePayload = {
+    source: "cloudflare_candidate_action_request_ledger",
+    observationId: normalizedObservationId,
+    candidateId: normalizedCandidateId,
+    actionKind,
+    ownerUserId
+  };
+  await env.OBS_DB.prepare(
+    `INSERT INTO candidate_action_requests (
+       request_id, observation_id, candidate_id, action_kind, actor_user_id, request_state, source_payload_json
+     ) VALUES (?, ?, ?, ?, ?, 'pending', ?)
+     ON CONFLICT(observation_id, candidate_id, action_kind, actor_user_id) DO UPDATE SET
+       request_state = 'pending',
+       source_payload_json = excluded.source_payload_json,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    requestId,
+    normalizedObservationId,
+    normalizedCandidateId,
+    actionKind,
+    session.userId,
+    JSON.stringify(sourcePayload)
+  ).run();
+
+  return json({
+    ok: true,
+    candidateAction: {
+      requestId,
+      state: "pending",
+      actionKind
+    },
+    compatibility: {
+      source: "cloudflare_candidate_action_request_ledger",
+      occurrenceStatus: "not_migrated"
+    }
+  }, 202, { "cache-control": "no-store" });
 }
 
 async function requestCompatibleObservationReassessment(observationId: string, requestKind: "standard" | "video", request: Request, env: Env): Promise<Response> {
