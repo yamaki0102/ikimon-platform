@@ -244,6 +244,17 @@ interface RecordReadingCardRow {
   updated_at: string;
 }
 
+interface ManagementCandidateConfirmationRow {
+  confirmation_id: string;
+  observation_id: string;
+  candidate_index: number;
+  confirm_state: string;
+  actor_user_id: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProductionFieldDetailReadmodelRow {
   field_id: string;
   source: string;
@@ -643,6 +654,7 @@ class FakeD1 {
   productionOccurrences = new Map<string, ProductionImportOccurrenceRow>();
   productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
   recordReadingCards = new Map<string, RecordReadingCardRow>();
+  managementCandidateConfirmations = new Map<string, ManagementCandidateConfirmationRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
@@ -1281,6 +1293,23 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO management_candidate_confirmations")) {
+      const now = new Date().toISOString();
+      const key = `${string(v[1])}:${number(v[2])}:${string(v[4])}`;
+      const existing = this.db.managementCandidateConfirmations.get(key);
+      this.db.managementCandidateConfirmations.set(key, {
+        confirmation_id: existing?.confirmation_id ?? string(v[0]),
+        observation_id: string(v[1]),
+        candidate_index: number(v[2]),
+        confirm_state: string(v[3]),
+        actor_user_id: string(v[4]),
+        source_payload_json: string(v[5]),
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      });
+      return {};
+    }
+
     if (normalized.startsWith("DELETE FROM observation_reactions WHERE occurrence_id = ?")) {
       for (const [key, row] of [...this.db.observationReactions.entries()]) {
         if (row.occurrence_id === string(v[0]) && row.user_id === string(v[1]) && row.reaction_type === string(v[2])) {
@@ -1698,6 +1727,26 @@ class FakeStatement {
         draft_id: observation.draft_id,
         owner_user_id: observation.owner_user_id
       } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT owner_user_id FROM observations")) {
+      const observation = this.db.observations.get(string(v[0]));
+      return observation ? ({ owner_user_id: observation.owner_user_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT user_id FROM production_import_visits")) {
+      const target = string(v[0]);
+      const legacyTarget = string(v[1]);
+      const visit = [...this.db.productionVisits.values()].find((row) =>
+        row.visit_id === target || row.legacy_observation_id === legacyTarget
+      );
+      return visit ? ({ user_id: visit.user_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT v.user_id FROM production_import_occurrences")) {
+      const occurrence = this.db.productionOccurrences.get(string(v[0]));
+      const visit = occurrence?.visit_id ? this.db.productionVisits.get(occurrence.visit_id) : null;
+      return visit ? ({ user_id: visit.user_id } as T) : null;
     }
 
     if (normalized.startsWith("SELECT 1 AS ok WHERE EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)")) {
@@ -4874,11 +4923,6 @@ test("production runtime proxies remaining explicit legacy observation API paths
         path: "/api/v1/observations/example/reassess-from-video",
         reason: "legacy_observation_reassess_from_video_origin_fallback",
         routePattern: "/api/v1/observations/:id/reassess-from-video"
-      },
-      {
-        path: "/api/v1/observations/example/management-candidates/0/confirm",
-        reason: "legacy_observation_management_confirm_origin_fallback",
-        routePattern: "/api/v1/observations/:id/management-candidates/:index/confirm"
       }
     ];
     for (const [index, item] of cases.entries()) {
@@ -4920,16 +4964,112 @@ test("production runtime proxies remaining explicit legacy observation API paths
   const summaryResponse = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), summaryEnv);
   const summary = await summaryResponse.json() as any;
   assert.equal(summaryResponse.ok, true, JSON.stringify(summary));
-  assert.equal(summary.count, 5);
+  assert.equal(summary.count, 4);
   assert.equal(summary.byReason.legacy_observation_candidate_propose_origin_fallback, 1);
   assert.equal(summary.byReason.legacy_observation_candidate_adopt_origin_fallback, 1);
   assert.equal(summary.byReason.legacy_observation_reassess_origin_fallback, 1);
   assert.equal(summary.byReason.legacy_observation_reassess_from_video_origin_fallback, 1);
-  assert.equal(summary.byReason.legacy_observation_management_confirm_origin_fallback, 1);
   assert.equal(summary.byRoutePattern["/api/v1/observations/:id/candidates/:candidateId/:action"], 2);
   assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reassess"], 1);
   assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reassess-from-video"], 1);
-  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/management-candidates/:index/confirm"], 1);
+});
+
+test("production management candidate confirmation is D1-native for Cloudflare-owned observations", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawToken = "management-confirm-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "owner-user",
+    display_name: "Owner User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.observations.set("obs-management-1", {
+    observation_id: "obs-management-1",
+    draft_id: "draft-management-1",
+    owner_user_id: "owner-user",
+    observed_at: "2026-06-26T00:00:00.000Z",
+    partition_month: "2026_06",
+    taxon_label: "unknown",
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "35.000,138.000",
+    visibility: "private",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  obs.productionVisits.set("visit-management-imported", {
+    visit_id: "visit-management-imported",
+    legacy_observation_id: "legacy-management-1",
+    user_id: "owner-user",
+    public_visibility: "private",
+    observed_at: "2026-06-25T00:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-management-imported", {
+    occurrence_id: "occ-management-imported",
+    visit_id: "visit-management-imported",
+    scientific_name: null,
+    vernacular_name: "unknown",
+    taxon_rank: null,
+    created_at: "2026-06-25T00:00:00.000Z"
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/obs-management-1/management-candidates/2/confirm", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `ikimon_v2_session=${rawToken}`
+      },
+      body: JSON.stringify({ confirmState: "confirmed" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.ok, true, JSON.stringify(payload));
+    assert.equal(payload.candidate.confirmState, "confirmed");
+    assert.equal(payload.stewardshipActionId, null);
+    assert.equal(payload.compatibility.source, "cloudflare_management_candidate_confirmation_ledger");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+    const ledger = obs.managementCandidateConfirmations.get("obs-management-1:2:owner-user");
+    assert.equal(ledger?.confirm_state, "confirmed");
+    assert.equal(ledger?.actor_user_id, "owner-user");
+
+    const importedResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-management-imported/management-candidates/1/confirm", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `ikimon_v2_session=${rawToken}`
+      },
+      body: JSON.stringify({ confirmState: "rejected" })
+    }), productionEnv);
+    const importedPayload = await importedResponse.json() as any;
+    assert.equal(importedResponse.ok, true, JSON.stringify(importedPayload));
+    assert.equal(importedPayload.candidate.confirmState, "rejected");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+    assert.equal(obs.managementCandidateConfirmations.get("occ-management-imported:1:owner-user")?.confirm_state, "rejected");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("production reference candidates route is native and never probes origin fallback", async () => {
