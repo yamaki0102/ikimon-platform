@@ -212,7 +212,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /manual maintenance tools only/);
 });
 
-test("VPS stop readiness requires P0 capability dispositions", async () => {
+test("VPS stop readiness reports ready P0 capability dispositions", async () => {
   const result = spawnSync(process.execPath, ["scripts/d1-migration-boundary-report.mjs"], {
     cwd: process.cwd(),
     encoding: "utf8",
@@ -220,15 +220,16 @@ test("VPS stop readiness requires P0 capability dispositions", async () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /P0 Capability Disposition Gate/);
-  assert.match(result.stdout, /- status: blocked/);
+  assert.match(result.stdout, /- status: ready/);
   assert.match(result.stdout, /- p0_capability_items: 11/);
-  assert.match(result.stdout, /- p0_open_capabilities: 1/);
-  assert.match(result.stdout, /- p0_terminal_capabilities: 10/);
+  assert.match(result.stdout, /- p0_open_capabilities: 0/);
+  assert.match(result.stdout, /- p0_terminal_capabilities: 11/);
   assert.match(result.stdout, /- configured_p0_blockers_without_disposition: 0/);
   assert.match(result.stdout, /legacy_observation_candidate_propose_origin_fallback/);
   assert.match(result.stdout, /legacy_observation_management_confirm_origin_fallback/);
+  assert.match(result.stdout, /alert_delivery_worker/);
   assert.match(result.stdout, /video_upload_lifecycle/);
-  assert.match(result.stdout, /p0_disposition_gate: blocked/);
+  assert.match(result.stdout, /p0_disposition_gate: ready/);
   assert.match(result.stdout, /p0_blockers: 1/);
 });
 
