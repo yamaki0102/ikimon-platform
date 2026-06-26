@@ -36,7 +36,6 @@ import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { updateOwnProfile, upsertUser, type ProfileSelfUpdateInput, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, verifyContactProof, type ContactSubmitInput } from "../services/contactSubmit.js";
-import { generateRecordReadingCards, hideRecordReadingCard } from "../services/recordReadingCards.js";
 import { getPostSavePlaceMemorySample, kickPlaceMemoryPhotoProcessingForVisit } from "../services/placeMemory.js";
 import {
   emitAreaWatchNotificationForObservation,
@@ -1329,58 +1328,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       };
     }
   });
-
-  // 記録詳細の「この記録を読み解く」カード生成。session + owner only。
-  // 保存するのは本文・出典・生成条件のみで、展示文や検索本文は保持しない。
-  app.post<{ Params: { id: string } }>(
-    "/api/v1/observations/:id/reading-cards",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          reply.code(401);
-          return { ok: false, error: "session_required" };
-        }
-        await assertMutationRateLimit(request, "record-reading-cards", session.userId, 10);
-        await assertObservationOwnedByUser(request.params.id, session.userId);
-        const result = await generateRecordReadingCards({
-          observationId: request.params.id,
-          actorUserId: session.userId,
-        });
-        if (result.cards.length === 0) {
-          reply.code(422);
-        }
-        return { ok: result.cards.length > 0, ...result };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "record_reading_cards_failed";
-        reply.code(errorStatus(error, 500));
-        return { ok: false, error: message };
-      }
-    },
-  );
-
-  app.delete<{ Params: { cardId: string } }>(
-    "/api/v1/record-reading-cards/:cardId",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          reply.code(401);
-          return { ok: false, error: "session_required" };
-        }
-        await assertMutationRateLimit(request, "record-reading-card-hide", session.userId, 30);
-        const result = await hideRecordReadingCard({
-          cardId: request.params.cardId,
-          actorUserId: session.userId,
-        });
-        return { ok: true, ...result };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "record_reading_card_hide_failed";
-        reply.code(errorStatus(error, 500));
-        return { ok: false, error: message };
-      }
-    },
-  );
 
   // /contact フォーム POST。認証不要、Gmail SMTP relay (msmtp) 経由で通知送信。
   // 原文は contact_submissions テーブルに保存される（メール到達と独立に原本確保）。
