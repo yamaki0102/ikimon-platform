@@ -266,6 +266,18 @@ interface ObservationReassessmentRequestRow {
   updated_at: string;
 }
 
+interface CandidateActionRequestRow {
+  request_id: string;
+  observation_id: string;
+  candidate_id: string;
+  action_kind: string;
+  actor_user_id: string;
+  request_state: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProductionFieldDetailReadmodelRow {
   field_id: string;
   source: string;
@@ -667,6 +679,7 @@ class FakeD1 {
   recordReadingCards = new Map<string, RecordReadingCardRow>();
   managementCandidateConfirmations = new Map<string, ManagementCandidateConfirmationRow>();
   observationReassessmentRequests = new Map<string, ObservationReassessmentRequestRow>();
+  candidateActionRequests = new Map<string, CandidateActionRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
@@ -1333,6 +1346,24 @@ class FakeStatement {
         actor_user_id: string(v[3]),
         request_state: "pending",
         source_payload_json: string(v[4]),
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO candidate_action_requests")) {
+      const now = new Date().toISOString();
+      const key = `${string(v[1])}:${string(v[2])}:${string(v[3])}:${string(v[4])}`;
+      const existing = this.db.candidateActionRequests.get(key);
+      this.db.candidateActionRequests.set(key, {
+        request_id: existing?.request_id ?? string(v[0]),
+        observation_id: string(v[1]),
+        candidate_id: string(v[2]),
+        action_kind: string(v[3]),
+        actor_user_id: string(v[4]),
+        request_state: "pending",
+        source_payload_json: string(v[5]),
         created_at: existing?.created_at ?? now,
         updated_at: now
       });
@@ -4905,88 +4936,96 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
   assert.equal(core.operationAudit.length, 0);
 });
 
-test("production runtime proxies remaining explicit legacy observation API paths to route-specific origin fallbacks", async () => {
-  const { env, core } = createEnv();
+test("production candidate action routes write D1 requests without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
+  const rawOwnerToken = "candidate-action-owner-token";
+  const ownerTokenHash = createHash("sha256").update(rawOwnerToken).digest("hex");
+  core.authSessions.set(ownerTokenHash, {
+    token_hash: ownerTokenHash,
+    user_id: "owner-user",
+    display_name: "Owner User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  const rawProposerToken = "candidate-action-proposer-token";
+  const proposerTokenHash = createHash("sha256").update(rawProposerToken).digest("hex");
+  core.authSessions.set(proposerTokenHash, {
+    token_hash: proposerTokenHash,
+    user_id: "proposer-user",
+    display_name: "Proposer User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.productionVisits.set("visit-candidate-imported", {
+    visit_id: "visit-candidate-imported",
+    legacy_observation_id: null,
+    user_id: "owner-user",
+    public_visibility: "public",
+    observed_at: "2026-06-26T00:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-candidate-imported", {
+    occurrence_id: "occ-candidate-imported",
+    visit_id: "visit-candidate-imported",
+    scientific_name: "Test species",
+    vernacular_name: "テスト種",
+    taxon_rank: "species",
+    created_at: "2026-06-26T00:00:00.000Z"
+  });
   const originalFetch = globalThis.fetch;
-  const seen: Array<{ url?: string; method?: string; cookie?: string; marker?: string; reason?: string | null; body?: string; resolveOverride?: string }> = [];
+  const seen: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const item: { url?: string; method?: string; cookie?: string; marker?: string; reason?: string | null; body?: string; resolveOverride?: string } = {};
-    item.url = String(input);
-    item.method = init?.method;
-    item.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    const headers = new Headers(init?.headers);
-    item.cookie = headers.get("cookie") ?? undefined;
-    item.marker = headers.get("x-ikimon-cloudflare-fallback") ?? undefined;
-    item.reason = headers.get("x-ikimon-cloudflare-fallback-reason");
-    item.body = init?.body ? await new Response(init.body).text() : undefined;
-    seen.push(item);
+    seen.push(String(input));
     return new Response(JSON.stringify({ ok: true, originFallback: true }), {
       status: 202,
       headers: { "content-type": "application/json" }
     });
   }) as typeof fetch;
   try {
-    const cases = [
-      {
-        path: "/api/v1/observations/example/candidates/candidate-1/propose?keep=1",
-        reason: "legacy_observation_candidate_propose_origin_fallback",
-        routePattern: "/api/v1/observations/:id/candidates/:candidateId/:action"
-      },
-      {
-        path: "/api/v1/observations/example/candidates/candidate-1/adopt",
-        reason: "legacy_observation_candidate_adopt_origin_fallback",
-        routePattern: "/api/v1/observations/:id/candidates/:candidateId/:action"
-      }
-    ];
-    for (const [index, item] of cases.entries()) {
-      const response = await worker.fetch(new Request(`https://ikimon.life${item.path}`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          cookie: "ikimon_v2_session=test"
-        },
-        body: JSON.stringify({ source: "unit", index })
-      }), productionEnv);
-      const payload = await response.json() as any;
-      assert.equal(response.status, 202);
-      assert.equal(payload.originFallback, true);
-      assert.equal(seen[index]?.url, `https://ikimon.life${item.path}`);
-      assert.equal(seen[index]?.method, "POST");
-      assert.equal(seen[index]?.resolveOverride, "origin.ikimon.test");
-      assert.equal(seen[index]?.cookie, "ikimon_v2_session=test");
-      assert.equal(seen[index]?.marker, "origin");
-      assert.equal(seen[index]?.reason, item.reason);
-      assert.equal(seen[index]?.body, JSON.stringify({ source: "unit", index }));
-    }
-    assert.equal(core.operationAudit.length, cases.length);
-    for (const [index, item] of cases.entries()) {
-      const telemetry = JSON.parse(core.operationAudit[index]?.payload_json ?? "{}");
-      assert.equal(telemetry.reason, item.reason);
-      assert.equal(telemetry.routePattern, item.routePattern);
-      assert.equal(JSON.stringify(telemetry).includes("example"), false);
-      assert.equal(JSON.stringify(telemetry).includes("keep=1"), false);
-    }
+    const proposeResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-candidate-imported/candidates/candidate-propose/propose", {
+      method: "POST",
+      headers: { cookie: `ikimon_v2_session=${rawProposerToken}` }
+    }), productionEnv);
+    const proposePayload = await proposeResponse.json() as any;
+    assert.equal(proposeResponse.status, 202);
+    assert.equal(proposePayload.ok, true);
+    assert.equal(proposePayload.candidateAction.state, "pending");
+    assert.equal(proposePayload.candidateAction.actionKind, "propose");
+
+    const adoptResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-candidate-imported/candidates/candidate-adopt/adopt", {
+      method: "POST",
+      headers: { cookie: `ikimon_v2_session=${rawOwnerToken}` }
+    }), productionEnv);
+    const adoptPayload = await adoptResponse.json() as any;
+    assert.equal(adoptResponse.status, 202);
+    assert.equal(adoptPayload.ok, true);
+    assert.equal(adoptPayload.candidateAction.state, "pending");
+    assert.equal(adoptPayload.candidateAction.actionKind, "adopt");
+
+    const rejectedAdopt = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-candidate-imported/candidates/candidate-adopt/adopt", {
+      method: "POST",
+      headers: { cookie: `ikimon_v2_session=${rawProposerToken}` }
+    }), productionEnv);
+    assert.equal(rejectedAdopt.status, 403);
+    assert.equal(seen.length, 0);
+    assert.equal(core.operationAudit.length, 0);
+    assert.equal(obs.candidateActionRequests.get("occ-candidate-imported:candidate-propose:propose:proposer-user")?.request_state, "pending");
+    assert.equal(obs.candidateActionRequests.get("occ-candidate-imported:candidate-adopt:adopt:owner-user")?.request_state, "pending");
   } finally {
     globalThis.fetch = originalFetch;
   }
-
-  const summaryEnv = {
-    ...env,
-    CORE_DB: core
-  };
-  const summaryResponse = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), summaryEnv);
-  const summary = await summaryResponse.json() as any;
-  assert.equal(summaryResponse.ok, true, JSON.stringify(summary));
-  assert.equal(summary.count, 2);
-  assert.equal(summary.byReason.legacy_observation_candidate_propose_origin_fallback, 1);
-  assert.equal(summary.byReason.legacy_observation_candidate_adopt_origin_fallback, 1);
-  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/candidates/:candidateId/:action"], 2);
 });
 
 test("production management candidate confirmation is D1-native for Cloudflare-owned observations", async () => {

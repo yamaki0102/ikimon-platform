@@ -21631,6 +21631,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                  if (!result.ok) {
                    throw new Error(String((result.json && result.json.error) || 'candidate_record_failed'));
                  }
+                 if (result.json && result.json.candidateAction && result.json.candidateAction.state === 'pending') {
+                   button.textContent = original;
+                   buttons.forEach(function(item){ item.disabled = false; });
+                   setStatus('受け付けました。反映まで少し時間がかかります。', false);
+                   return;
+                 }
                  setStatus('記録に反映しました。対象を開きます。', false);
                  var occurrenceId = String(result.json.occurrenceId || '');
                  var visitId = String(result.json.visitId || ${JSON.stringify(bundle.visitId)});
