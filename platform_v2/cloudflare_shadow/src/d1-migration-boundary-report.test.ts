@@ -13,6 +13,14 @@ function loadClassifyPg(script: string): (text: string) => string[] {
   return new Function(`${vectorMatch[0]}; ${match[0]}; return classifyPg;`)() as (text: string) => string[];
 }
 
+function loadIsNoRuntimeQueryPgInventoryOnly(script: string): (item: { flags: string[] }) => boolean {
+  const flagsMatch = script.match(/const PG_INVENTORY_ONLY_FLAGS = new Set\(\[[\s\S]*?\]\);/);
+  const match = script.match(/function isNoRuntimeQueryPgInventoryOnly\(item\) \{[\s\S]*?\n\}/);
+  assert.ok(flagsMatch, "PG_INVENTORY_ONLY_FLAGS constant is present");
+  assert.ok(match, "isNoRuntimeQueryPgInventoryOnly function is present");
+  return new Function(`${flagsMatch[0]}; ${match[0]}; return isNoRuntimeQueryPgInventoryOnly;`)() as (item: { flags: string[] }) => boolean;
+}
+
 function loadIsTestSourceFile(script: string): (relativeFile: string) => boolean {
   const match = script.match(/function isTestSourceFile\(relativeFile\) \{[\s\S]*?\n\}/);
   assert.ok(match, "isTestSourceFile function is present");
@@ -53,15 +61,45 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
 
   assert.match(script, /const PG_DEPENDENCY_TABLE_LIMIT = 80;/);
   assert.match(script, /const runtimePgFiles = pgFiles\.filter/);
+  assert.match(script, /const noRuntimeQueryPgInventoryFiles = pgFiles\.filter/);
   assert.match(script, /\.\.\.runtimePgFiles\.map\(\(item\) => \(\{/);
   assert.match(script, /PostgreSQL Test Source Dependencies/);
+  assert.match(script, /PostgreSQL No-Runtime-Query Inventory/);
   assert.match(script, /runtimeImportedTestSourceFiles\.has\(item\.file\)/);
   assert.match(script, /runtime_imported_test_pg_dependency_files/);
+  assert.match(script, /no_runtime_query_pg_inventory_files/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /PostgreSQL Maintenance Dependencies/);
-  assert.match(script, /blocker_scope: runtime PostgreSQL\/vector\/PostGIS\/job-locking\/row-locking files/);
+  assert.match(script, /blocker_scope: files with PostgreSQL runtime query APIs, vector\/full-text signals, or locking signals/);
   assert.match(script, /displayed_pg_dependencies/);
   assert.doesNotMatch(script, /\.\.\.runtimePgFiles\.slice\(0,\s*80\)\.map\(\(item\) => \(\{/);
+});
+
+test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory, not blockers", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const isNoRuntimeQueryPgInventoryOnly = loadIsNoRuntimeQueryPgInventoryOnly(script);
+
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["postgis"] }), true);
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["postgis", "pg_types"] }), true);
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["pg_types"] }), true);
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["pg_env"] }), true);
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["postgis", "runtime_query"] }), false);
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["pg_env", "runtime_query"] }), false);
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["vector"] }), false);
+  assert.equal(isNoRuntimeQueryPgInventoryOnly({ flags: ["row_locking", "pg_types"] }), false);
+
+  const result = spawnSync(process.execPath, ["scripts/d1-migration-boundary-report.mjs"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /## PostgreSQL No-Runtime-Query Inventory/);
+  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
+  assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
+  assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 138/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {

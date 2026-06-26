@@ -273,6 +273,18 @@ function classifySuppressedPgNoise(text) {
   return signals;
 }
 
+const PG_INVENTORY_ONLY_FLAGS = new Set(["postgis", "pg_env", "pg_types"]);
+
+function isNoRuntimeQueryPgInventoryOnly(item) {
+  return !item.flags.includes("runtime_query")
+    && !item.flags.includes("vector")
+    && !item.flags.includes("full_text")
+    && !item.flags.includes("job_locking")
+    && !item.flags.includes("row_locking")
+    && item.flags.length > 0
+    && item.flags.every((flag) => PG_INVENTORY_ONLY_FLAGS.has(flag));
+}
+
 function lineForOffset(text, offset) {
   return text.slice(0, offset).split(/\r?\n/).length;
 }
@@ -554,6 +566,12 @@ const maintenancePgFiles = pgFiles
 const runtimePgFiles = pgFiles.filter((item) =>
   (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
     && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
+    && !isNoRuntimeQueryPgInventoryOnly(item)
+);
+const noRuntimeQueryPgInventoryFiles = pgFiles.filter((item) =>
+  (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
+    && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
+    && isNoRuntimeQueryPgInventoryOnly(item)
 );
 const testPgFiles = pgFiles.filter((item) => isTestSourceFile(item.file) && !runtimeImportedTestSourceFiles.has(item.file));
 const runtimeImportedTestPgFiles = pgFiles.filter((item) => runtimeImportedTestSourceFiles.has(item.file));
@@ -646,9 +664,10 @@ const lines = [
   ]),
   "",
   ...section("PostgreSQL Runtime Dependencies"),
-  "- blocker_scope: runtime PostgreSQL/vector/PostGIS/job-locking/row-locking files plus any test-named file imported by runtime source; standalone test/source-test files are reported below but excluded from blocker_count.",
+  "- blocker_scope: files with PostgreSQL runtime query APIs, vector/full-text signals, or locking signals; standalone test/source-test files and no-runtime-query inventory files are reported below but excluded from blocker_count.",
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
   `- runtime_pg_dependency_files: ${runtimePgFiles.length}`,
+  `- no_runtime_query_pg_inventory_files: ${noRuntimeQueryPgInventoryFiles.length}`,
   `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
   `- test_pg_dependency_files: ${testPgFiles.length}`,
   `- runtime_imported_test_pg_dependency_files: ${runtimeImportedTestPgFiles.length}`,
@@ -665,6 +684,14 @@ const lines = [
   "| score | file | flags | query_count | maintenance_reason |",
   "|---:|---|---|---:|---|",
   ...maintenancePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.maintenanceReason} |`),
+  "",
+  ...section("PostgreSQL No-Runtime-Query Inventory"),
+  "- blocker_scope: visible audit inventory only; these files contain PostGIS, DATABASE_URL/PG env, or PostgreSQL type SQL text but no PostgreSQL runtime query API, vector/full-text, or locking signal.",
+  `- no_runtime_query_pg_inventory_files: ${noRuntimeQueryPgInventoryFiles.length}`,
+  "",
+  "| score | file | flags | query_count |",
+  "|---:|---|---|---:|",
+  ...noRuntimeQueryPgInventoryFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
   "",
   ...section("PostgreSQL Test Source Dependencies"),
   "- blocker_scope: visible audit inventory only; these files must not be read as VPS-stop-ready while runtime blockers remain.",
@@ -755,7 +782,7 @@ const lines = [
   ...section("Migration Priority Heuristic"),
   "- P0: active origin fallbacks, PostgreSQL vector dependencies, and true background/job fanout locking such as SKIP LOCKED, LISTEN, or NOTIFY.",
   "- P1: authenticated/user-facing PostgreSQL runtime dependencies, including ordinary FOR UPDATE row-locking workflows that still need D1 parity.",
-  "- P2: admin/review workflows with PostgreSQL writes, after route-level D1 parity tests.",
+  "- P2: remaining PostgreSQL dependencies without runtime-query evidence but with vector/full-text or locking signals that still need manual disposition.",
   "- P3: PostGIS/vector/background-job heavy services; these need redesign, not mechanical SQL conversion.",
   ""
 ];
