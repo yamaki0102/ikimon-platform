@@ -142,7 +142,9 @@ function optionalRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/siteSignalsCache.ts": "optional_site_signals_cache_falls_back_without_database",
     "platform_v2/src/services/gbifBackboneMatch.ts": "optional_gbif_match_cache_falls_back_to_remote_api",
     "platform_v2/src/services/officialNoticeCache.ts": "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot",
-    "platform_v2/src/services/runtimeVersion.ts": "optional_runtime_version_migration_head"
+    "platform_v2/src/services/runtimeVersion.ts": "optional_runtime_version_migration_head",
+    "platform_v2/src/services/glossaryTerms.ts": "optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log",
+    "platform_v2/src/services/placeEnvironmentSignals.ts": "optional_place_environment_evidence_falls_back_empty"
   };
   return exactOptionalRuntime[normalized] ?? null;
 }

@@ -133,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 114/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 112/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -170,7 +170,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 114/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 112/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -255,9 +255,12 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/gbifBackboneMatch.ts"), "optional_gbif_match_cache_falls_back_to_remote_api");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/officialNoticeCache.ts"), "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/runtimeVersion.ts"), "optional_runtime_version_migration_head");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/glossaryTerms.ts"), "optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/placeEnvironmentSignals.ts"), "optional_place_environment_evidence_falls_back_empty");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/taxonPrecisionPolicy.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/sensitiveSpeciesMasking.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
 
@@ -368,6 +371,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_gbif_match_cache_falls_back_to_remote_api/);
   assert.match(script, /optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot/);
   assert.match(script, /optional_runtime_version_migration_head/);
+  assert.match(script, /optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log/);
+  assert.match(script, /optional_place_environment_evidence_falls_back_empty/);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {
