@@ -1732,6 +1732,15 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE record_reading_cards SET visibility = 'hidden'")) {
+      const card = this.db.recordReadingCards.get(string(v[0]));
+      if (card) {
+        card.visibility = "hidden";
+        card.updated_at = new Date().toISOString();
+      }
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
@@ -1758,6 +1767,15 @@ class FakeStatement {
 
     if (normalized.startsWith("SELECT * FROM draft_observations")) {
       return (this.db.drafts.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT card_id, visit_id, visibility FROM record_reading_cards")) {
+      const row = this.db.recordReadingCards.get(string(v[0]));
+      return (row ? {
+        card_id: row.card_id,
+        visit_id: row.visit_id,
+        visibility: row.visibility
+      } : null) as T | null;
     }
 
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label")) {
@@ -5525,6 +5543,137 @@ test("production runtime generates record reading cards natively without origin 
 
   assert.equal(fetchCalls, 0);
   assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime hides record reading cards natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.productionVisits.set("visit-reading-hide-1", {
+    visit_id: "visit-reading-hide-1",
+    legacy_observation_id: "legacy-reading-hide-1",
+    user_id: "reading-owner",
+    public_visibility: "public",
+    observed_at: "2026-06-25T00:00:00.000Z"
+  });
+  obs.recordReadingCards.set("reading-card-hide-1", {
+    card_id: "reading-card-hide-1",
+    visit_id: "visit-reading-hide-1",
+    axis: "organism",
+    title: "低く広がる白い花",
+    body: "シロツメクサは足元の草地の状態も伝える記録です。",
+    sources_json: "[]",
+    visibility: "public",
+    generation_condition_json: "{}",
+    quality_gate_json: "{}",
+    model_version: "record_reading_cards_v0_1_cloudflare",
+    created_by_user_id: "reading-owner",
+    created_at: "2026-06-25T00:00:01.000Z",
+    updated_at: "2026-06-25T00:00:01.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "reading-owner", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/record-reading-cards/reading-card-hide-1", {
+      method: "DELETE",
+      headers: { cookie }
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(payload.ok, true);
+    assert.equal(payload.hidden, true);
+    assert.equal(payload.compatibility.source, "cloudflare_record_reading_cards");
+    assert.equal(obs.recordReadingCards.get("reading-card-hide-1")?.visibility, "hidden");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime rejects record reading card hide from non-owner before origin fallback", async () => {
+  const { env, obs } = createEnv();
+  obs.productionVisits.set("visit-reading-hide-2", {
+    visit_id: "visit-reading-hide-2",
+    legacy_observation_id: "legacy-reading-hide-2",
+    user_id: "reading-owner",
+    public_visibility: "public",
+    observed_at: "2026-06-25T00:00:00.000Z"
+  });
+  obs.recordReadingCards.set("reading-card-hide-2", {
+    card_id: "reading-card-hide-2",
+    visit_id: "visit-reading-hide-2",
+    axis: "organism",
+    title: "低く広がる白い花",
+    body: "シロツメクサは足元の草地の状態も伝える記録です。",
+    sources_json: "[]",
+    visibility: "public",
+    generation_condition_json: "{}",
+    quality_gate_json: "{}",
+    model_version: "record_reading_cards_v0_1_cloudflare",
+    created_by_user_id: "reading-owner",
+    created_at: "2026-06-25T00:00:01.000Z",
+    updated_at: "2026-06-25T00:00:01.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "other-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/record-reading-cards/reading-card-hide-2", {
+      method: "DELETE",
+      headers: { cookie }
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 404, JSON.stringify(payload));
+    assert.equal(payload.ok, false);
+    assert.equal(payload.error, "record_reading_card_not_found");
+    assert.equal(obs.recordReadingCards.get("reading-card-hide-2")?.visibility, "public");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
 });
 
 test("production runtime rejects unknown observation reaction targets before origin fallback", async () => {
