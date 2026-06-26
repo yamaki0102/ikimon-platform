@@ -178,7 +178,8 @@ function classifyPg(text) {
   if (/\bST_[A-Za-z0-9_]+\s*\(|PostGIS|\bgeometry\b|\bgeography\b/i.test(text)) flags.push("postgis");
   if (hasPgVectorSignal(text)) flags.push("vector");
   if (/tsvector|to_tsvector|plainto_tsquery|websearch_to_tsquery/i.test(text)) flags.push("full_text");
-  if (/(?:^|[^.\w])(?:LISTEN|NOTIFY)\s+[A-Za-z_"]|\bSKIP\s+LOCKED\b|\bFOR\s+UPDATE\b/i.test(text)) flags.push("job_locking");
+  if (/(?:^|[^.\w])(?:LISTEN|NOTIFY)\s+[A-Za-z_"]|\bSKIP\s+LOCKED\b/i.test(text)) flags.push("job_locking");
+  if (/\bFOR\s+UPDATE\b/i.test(text)) flags.push("row_locking");
   if (/DATABASE_URL|PGHOST|PGUSER|PGPASSWORD/i.test(text)) flags.push("pg_env");
   const hasPgArray = /\barray\s*\[/i.test(text) || /\barray\s*\(\s*select\b/i.test(text);
   if (/jsonb|::jsonb|unnest\(/i.test(text) || hasPgArray) flags.push("pg_types");
@@ -567,7 +568,7 @@ const lines = [
   ]),
   "",
   ...section("PostgreSQL Runtime Dependencies"),
-  "- blocker_scope: runtime PostgreSQL/vector/PostGIS/job-locking files plus any test-named file imported by runtime source; standalone test/source-test files are reported below but excluded from blocker_count.",
+  "- blocker_scope: runtime PostgreSQL/vector/PostGIS/job-locking/row-locking files plus any test-named file imported by runtime source; standalone test/source-test files are reported below but excluded from blocker_count.",
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
   `- runtime_pg_dependency_files: ${runtimePgFiles.length}`,
   `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
@@ -674,8 +675,8 @@ const lines = [
     .map((item) => `| ${item.severity} | ${item.type} | ${item.category} | ${item.configured.note} | ${item.key} |`),
   "",
   ...section("Migration Priority Heuristic"),
-  "- P0: public Cloudflare-native routes with small readmodels and safe fallback.",
-  "- P1: authenticated user read APIs that already have D1 canonical tables.",
+  "- P0: active origin fallbacks, PostgreSQL vector dependencies, and true background/job fanout locking such as SKIP LOCKED, LISTEN, or NOTIFY.",
+  "- P1: authenticated/user-facing PostgreSQL runtime dependencies, including ordinary FOR UPDATE row-locking workflows that still need D1 parity.",
   "- P2: admin/review workflows with PostgreSQL writes, after route-level D1 parity tests.",
   "- P3: PostGIS/vector/background-job heavy services; these need redesign, not mechanical SQL conversion.",
   ""

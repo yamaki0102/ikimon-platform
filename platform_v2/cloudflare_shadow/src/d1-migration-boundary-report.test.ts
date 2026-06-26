@@ -57,7 +57,7 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
   assert.match(script, /runtime_imported_test_pg_dependency_files/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /PostgreSQL Maintenance Dependencies/);
-  assert.match(script, /blocker_scope: runtime PostgreSQL\/vector\/PostGIS\/job-locking files/);
+  assert.match(script, /blocker_scope: runtime PostgreSQL\/vector\/PostGIS\/job-locking\/row-locking files/);
   assert.match(script, /displayed_pg_dependencies/);
   assert.doesNotMatch(script, /\.\.\.runtimePgFiles\.slice\(0,\s*80\)\.map\(\(item\) => \(\{/);
 });
@@ -134,13 +134,14 @@ test("VPS stop readiness requires P0 capability dispositions", async () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /P0 Capability Disposition Gate/);
   assert.match(result.stdout, /- status: blocked/);
-  assert.match(result.stdout, /- p0_capability_items: 15/);
-  assert.match(result.stdout, /- p0_open_capabilities: 10/);
+  assert.match(result.stdout, /- p0_capability_items: 7/);
+  assert.match(result.stdout, /- p0_open_capabilities: 2/);
   assert.match(result.stdout, /- p0_terminal_capabilities: 5/);
   assert.match(result.stdout, /- configured_p0_blockers_without_disposition: 0/);
   assert.match(result.stdout, /legacy_observation_api_origin_fallback/);
   assert.match(result.stdout, /video_upload_lifecycle/);
   assert.match(result.stdout, /p0_disposition_gate: blocked/);
+  assert.match(result.stdout, /p0_blockers: 2/);
 });
 
 test("public custom domain origin fallback is not registered twice", async () => {
@@ -186,6 +187,8 @@ test("PostgreSQL signal classifier does not count JavaScript listener or Array h
   assert.equal(classifyPg("await client.query('LISTEN observation_events');").includes("job_locking"), true);
   assert.equal(classifyPg("await client.query('notify observation_events');").includes("job_locking"), true);
   assert.equal(classifyPg("SELECT * FROM jobs FOR UPDATE SKIP LOCKED").includes("job_locking"), true);
+  assert.equal(classifyPg("SELECT * FROM visits WHERE visit_id = $1 FOR UPDATE").includes("job_locking"), false);
+  assert.equal(classifyPg("SELECT * FROM visits WHERE visit_id = $1 FOR UPDATE").includes("row_locking"), true);
   assert.equal(classifyPg("SELECT array[1, 2, 3] AS ids").includes("pg_types"), true);
   assert.equal(classifyPg("SELECT ARRAY(SELECT id FROM users)").includes("pg_types"), true);
   assert.equal(classifyPg("SELECT unnest(tags)").includes("pg_types"), true);

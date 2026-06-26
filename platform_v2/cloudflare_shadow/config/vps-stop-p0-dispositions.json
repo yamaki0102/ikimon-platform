@@ -60,28 +60,6 @@
       "nextProofRequired": "Re-enable only after Cloudflare Vectorize/D1/R2 audio similarity parity is implemented."
     },
     {
-      "key": "guide_record_promotion",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed guide record promotion workflow",
-      "evidenceKeys": [
-        "platform_v2/src/services/guideRecordPromotion.ts",
-        "pg_dependency:platform_v2/src/services/guideRecordPromotion.ts"
-      ],
-      "nextProofRequired": "D1-native workflow parity with route-level tests."
-    },
-    {
-      "key": "management_action_confirmation",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed management candidate confirmation workflow",
-      "evidenceKeys": [
-        "platform_v2/src/services/managementActionConfirmation.ts",
-        "pg_dependency:platform_v2/src/services/managementActionConfirmation.ts"
-      ],
-      "nextProofRequired": "D1-native confirmation semantics or product-approved removal."
-    },
-    {
       "key": "media_processing_queue",
       "status": "replaced-route",
       "owner": "media",
@@ -93,17 +71,6 @@
       "proof": "Worker production configuration binds MEDIA_QUEUE to ikimon-prod-media-jobs. Worker-native observation photo/video finalize paths enqueue media.process and readmodel.refresh jobs, and the queue consumer refreshes media/readmodel state. The Node PostgreSQL SKIP LOCKED processor and CLI have been removed, and production media smoke no longer starts a VPS PG media worker.",
       "verifiedAt": "2026-06-26T03:16:21Z",
       "nextProofRequired": "Keep Cloudflare Queue bindings and consumer deploy checks in place before VPS shutdown."
-    },
-    {
-      "key": "observation_candidate_adoption",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed observation candidate adoption workflow",
-      "evidenceKeys": [
-        "platform_v2/src/services/observationCandidateAdoption.ts",
-        "pg_dependency:platform_v2/src/services/observationCandidateAdoption.ts"
-      ],
-      "nextProofRequired": "D1-native candidate adoption semantics with authenticated route tests."
     },
     {
       "key": "observation_event_live",
@@ -119,50 +86,6 @@
       "nextProofRequired": "Use Durable Objects or Worker-native push only if true real-time fanout becomes product-critical again."
     },
     {
-      "key": "observation_field_registry",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed observation field registry",
-      "evidenceKeys": [
-        "platform_v2/src/services/observationFieldRegistry.ts",
-        "pg_dependency:platform_v2/src/services/observationFieldRegistry.ts"
-      ],
-      "nextProofRequired": "D1-native registry parity or product-approved removal."
-    },
-    {
-      "key": "observation_subject_proposal",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed observation subject proposal workflow",
-      "evidenceKeys": [
-        "platform_v2/src/services/observationSubjectProposal.ts",
-        "pg_dependency:platform_v2/src/services/observationSubjectProposal.ts"
-      ],
-      "nextProofRequired": "D1-native proposal semantics with authenticated route tests."
-    },
-    {
-      "key": "observation_write",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed residual observation write service",
-      "evidenceKeys": [
-        "platform_v2/src/services/observationWrite.ts",
-        "pg_dependency:platform_v2/src/services/observationWrite.ts"
-      ],
-      "nextProofRequired": "D1-native write parity or confirmed dead-code retirement."
-    },
-    {
-      "key": "place_memory",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed place memory workflow",
-      "evidenceKeys": [
-        "platform_v2/src/services/placeMemory.ts",
-        "pg_dependency:platform_v2/src/services/placeMemory.ts"
-      ],
-      "nextProofRequired": "D1-native place memory parity or product-approved removal."
-    },
-    {
       "key": "video_upload_lifecycle",
       "status": "replaced-route",
       "owner": "media",
@@ -174,17 +97,6 @@
       "proof": "PR #981 added Worker-native stream webhook handling. PR #985 production deploy 28213105202 passed health, route, map UI, record UI, and map data checks on 2026-06-26. This change removes the Node/Fastify video upload/finalize/webhook route and retired PG-backed service.",
       "verifiedAt": "2026-06-26T02:29:00Z",
       "nextProofRequired": "Keep Cloudflare Stream webhook destination pointed at /api/v1/videos/stream-webhook before VPS shutdown."
-    },
-    {
-      "key": "visit_place_auto_link",
-      "status": "blocked",
-      "owner": "platform",
-      "scope": "PostgreSQL-backed visit/place auto-link workflow",
-      "evidenceKeys": [
-        "platform_v2/src/services/visitPlaceAutoLink.ts",
-        "pg_dependency:platform_v2/src/services/visitPlaceAutoLink.ts"
-      ],
-      "nextProofRequired": "D1-native auto-link parity or product-approved removal."
     }
   ]
 }
