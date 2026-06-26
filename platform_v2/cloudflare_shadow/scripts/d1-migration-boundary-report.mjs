@@ -136,6 +136,14 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
   return exactReplacedProductionRuntime[normalized] ?? null;
 }
 
+function optionalRuntimePgDependencyReason(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  const exactOptionalRuntime = {
+    "platform_v2/src/services/siteSignalsCache.ts": "optional_site_signals_cache_falls_back_without_database"
+  };
+  return exactOptionalRuntime[normalized] ?? null;
+}
+
 function forcedRuntimePgDependency(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
   return normalized.startsWith("platform_v2/src/scripts/cron/")
@@ -612,16 +620,21 @@ const maintenancePgFiles = pgFiles
 const replacedProductionRuntimePgFiles = pgFiles
   .filter((item) => !isTestSourceFile(item.file) && replacedProductionRuntimePgDependencyReason(item.file))
   .map((item) => ({ ...item, replacedReason: replacedProductionRuntimePgDependencyReason(item.file) }));
+const optionalRuntimePgFiles = pgFiles
+  .filter((item) => !isTestSourceFile(item.file) && optionalRuntimePgDependencyReason(item.file))
+  .map((item) => ({ ...item, optionalReason: optionalRuntimePgDependencyReason(item.file) }));
 const runtimePgFiles = pgFiles.filter((item) =>
   (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
     && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
     && !replacedProductionRuntimePgDependencyReason(item.file)
+    && !optionalRuntimePgDependencyReason(item.file)
     && !isNoRuntimeQueryPgInventoryOnly(item)
 );
 const noRuntimeQueryPgInventoryFiles = pgFiles.filter((item) =>
   (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
     && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
     && !replacedProductionRuntimePgDependencyReason(item.file)
+    && !optionalRuntimePgDependencyReason(item.file)
     && isNoRuntimeQueryPgInventoryOnly(item)
 );
 const testPgFiles = pgFiles.filter((item) => isTestSourceFile(item.file) && !runtimeImportedTestSourceFiles.has(item.file));
@@ -710,10 +723,11 @@ const lines = [
   ]),
   "",
   ...section("PostgreSQL Runtime Dependencies"),
-  "- blocker_scope: files with PostgreSQL runtime query APIs, vector/full-text signals, or locking signals; standalone test/source-test files, Cloudflare-replaced production runtime files, and no-runtime-query inventory files are reported below but excluded from blocker_count.",
+  "- blocker_scope: files with PostgreSQL runtime query APIs, vector/full-text signals, or locking signals; standalone test/source-test files, Cloudflare-replaced production runtime files, optional runtime cache files, and no-runtime-query inventory files are reported below but excluded from blocker_count.",
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
   `- runtime_pg_dependency_files: ${runtimePgFiles.length}`,
   `- replaced_production_runtime_pg_dependency_files: ${replacedProductionRuntimePgFiles.length}`,
+  `- optional_runtime_pg_dependency_files: ${optionalRuntimePgFiles.length}`,
   `- no_runtime_query_pg_inventory_files: ${noRuntimeQueryPgInventoryFiles.length}`,
   `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
   `- test_pg_dependency_files: ${testPgFiles.length}`,
@@ -739,6 +753,14 @@ const lines = [
   "| score | file | flags | query_count | replaced_reason |",
   "|---:|---|---|---:|---|",
   ...replacedProductionRuntimePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.replacedReason} |`),
+  "",
+  ...section("PostgreSQL Optional Runtime Dependencies"),
+  "- blocker_scope: visible inventory only; these production runtime files may attempt PostgreSQL cache reads/writes but are explicitly non-fatal and fall back when PostgreSQL is unavailable.",
+  `- optional_runtime_pg_dependency_files: ${optionalRuntimePgFiles.length}`,
+  "",
+  "| score | file | flags | query_count | optional_reason |",
+  "|---:|---|---|---:|---|",
+  ...optionalRuntimePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.optionalReason} |`),
   "",
   ...section("PostgreSQL No-Runtime-Query Inventory"),
   "- blocker_scope: visible audit inventory only; these files contain PostGIS, DATABASE_URL/PG env, or PostgreSQL type SQL text but no PostgreSQL runtime query API, vector/full-text, or locking signal.",

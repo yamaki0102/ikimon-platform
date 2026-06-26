@@ -39,6 +39,12 @@ function loadReplacedProductionRuntimePgDependencyReason(script: string): (relat
   return new Function(`${match[0]}; return replacedProductionRuntimePgDependencyReason;`)() as (relativeFile: string) => string | null;
 }
 
+function loadOptionalRuntimePgDependencyReason(script: string): (relativeFile: string) => string | null {
+  const match = script.match(/function optionalRuntimePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "optionalRuntimePgDependencyReason function is present");
+  return new Function(`${match[0]}; return optionalRuntimePgDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
 function loadMaintenanceWorkflowDependencyReason(script: string): (relativeFile: string) => string | null {
   const match = script.match(/function maintenanceWorkflowDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
   assert.ok(match, "maintenanceWorkflowDependencyReason function is present");
@@ -91,6 +97,9 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
   assert.match(script, /PostgreSQL Cloudflare-Replaced Production Runtime/);
   assert.match(script, /replacedProductionRuntimePgDependencyReason\(item\.file\)/);
   assert.match(script, /replaced_production_runtime_pg_dependency_files/);
+  assert.match(script, /PostgreSQL Optional Runtime Dependencies/);
+  assert.match(script, /optionalRuntimePgDependencyReason\(item\.file\)/);
+  assert.match(script, /optional_runtime_pg_dependency_files/);
   assert.match(script, /const maintenanceVpsWorkflows = vpsWorkflows/);
   assert.match(script, /const runtimeVpsWorkflows = vpsWorkflows\.filter/);
   assert.match(script, /workflowDependencySignals\(text\)/);
@@ -124,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 118/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 117/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -161,7 +170,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 118/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 117/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -183,6 +192,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const maintenancePgDependencyReason = loadMaintenancePgDependencyReason(script);
   const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+  const optionalRuntimePgDependencyReason = loadOptionalRuntimePgDependencyReason(script);
   const exclusiveMaintenancePgDependencyReason = loadExclusiveMaintenancePgDependencyReason(script);
 
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/applyMigrations.ts"), "migration_cli_tool");
@@ -241,6 +251,9 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventLive.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventRecap.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/siteSignalsCache.ts"), "optional_site_signals_cache_falls_back_without_database");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
 
@@ -347,6 +360,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /cloudflare_public_map_snapshot_readmodel/);
   assert.match(script, /cloudflare_observation_event_core_api/);
   assert.match(script, /cloudflare_observation_rally_api/);
+  assert.match(script, /optional_site_signals_cache_falls_back_without_database/);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {
