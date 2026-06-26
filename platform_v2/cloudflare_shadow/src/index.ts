@@ -1621,6 +1621,15 @@ export const worker = {
         );
       }
 
+      const referenceCandidatesMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/reference-candidates$/);
+      if (request.method === "GET" && referenceCandidatesMatch?.[1]) {
+        return listCompatibleReferenceCandidates(
+          decodeURIComponent(referenceCandidatesMatch[1]),
+          request,
+          env
+        );
+      }
+
       if (shouldFallbackObservationApiToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
       }
@@ -3036,11 +3045,37 @@ function shouldFallbackObservationApiToOrigin(request: Request, url: URL, env: E
 function isLegacyObservationOriginFallbackPath(request: Request, url: URL): boolean {
   const pathname = url.pathname;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return true;
-  if (request.method === "GET" && /^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return true;
   return false;
+}
+
+async function listCompatibleReferenceCandidates(occurrenceId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSession(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  return json({
+    ok: true,
+    candidates: [],
+    source: "cloudflare_reference_candidates_empty",
+    referenceCatalogStatus: "not_migrated"
+  }, 200, { "cache-control": "no-store" });
 }
 
 function isValidObservationReactionType(value: string): boolean {
@@ -4238,7 +4273,6 @@ function fallbackRoutePattern(pathname: string): string {
   if (/^\/api\/v1\/observations\/[^/]+\/public-detail$/.test(pathname)) return "/api/v1/observations/:id/public-detail";
   if (/^\/api\/v1\/observations\/[^/]+\/reactions\/[^/]+$/.test(pathname)) return "/api/v1/observations/:id/reactions/:type";
   if (/^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return "/api/v1/observations/:id/candidates/:candidateId/:action";
-  if (/^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return "/api/v1/observations/:id/reference-candidates";
   if (/^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return "/api/v1/observations/:id/reassess";
   if (/^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return "/api/v1/observations/:id/reassess-from-video";
   if (/^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return "/api/v1/observations/:id/management-candidates/:index/confirm";
