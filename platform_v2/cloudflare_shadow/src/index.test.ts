@@ -4892,6 +4892,57 @@ test("production runtime proxies remaining explicit legacy observation API paths
   assert.equal(summary.byRoutePattern["/api/v1/observations/:id/candidates/:candidateId/:action"], 1);
 });
 
+test("production reference candidates route is native and never probes origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const guest = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reference-candidates"), productionEnv);
+    assert.equal(guest.status, 401);
+    assert.deepEqual(await guest.json(), { ok: false, error: "session_required" });
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+
+    const rawToken = "reference-candidates-token";
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    core.authSessions.set(tokenHash, {
+      token_hash: tokenHash,
+      user_id: "reference-user",
+      display_name: "Reference User",
+      role_name: "Observer",
+      rank_label: null,
+      banned: 0,
+      expires_at: "2099-01-01T00:00:00.000Z",
+      last_used_at: null
+    });
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reference-candidates?proposedName=%E9%B3%A5", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      ok: true,
+      candidates: [],
+      source: "cloudflare_reference_candidates_empty",
+      referenceCatalogStatus: "not_migrated"
+    });
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production runtime handles observation reactions natively without origin fallback", async () => {
   const { env, core, obs } = createEnv();
   obs.readmodel.set("occ-1", {
