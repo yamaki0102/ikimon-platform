@@ -97,14 +97,16 @@
     },
     {
       "key": "observation_event_live",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "events",
-      "scope": "PostgreSQL LISTEN/NOTIFY live observation-event fanout",
+      "scope": "PostgreSQL LISTEN/NOTIFY live observation-event fanout replaced by snapshot/polling event delivery",
       "evidenceKeys": [
         "platform_v2/src/services/observationEventLive.ts",
         "pg_dependency:platform_v2/src/services/observationEventLive.ts"
       ],
-      "nextProofRequired": "Durable Objects, D1 polling, or another proven Worker-native live fanout path."
+      "proof": "Worker production observation event APIs already serve D1-native recent/live snapshot routes with x-ikimon-observation-event-live-mode=snapshot-only. Node origin SSE now emits only the initial snapshot and relies on the existing client polling fallback, removing PG LISTEN/NOTIFY fanout.",
+      "verifiedAt": "2026-06-26T02:52:00Z",
+      "nextProofRequired": "Use Durable Objects or Worker-native push only if true real-time fanout becomes product-critical again."
     },
     {
       "key": "observation_field_registry",
