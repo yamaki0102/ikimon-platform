@@ -121,7 +121,6 @@ export function renderSoundReviewBody(args: {
   <div class="sr-h1">音声クラスタレビュー</div>
   <div class="sr-sub">
     レビュアー: <strong>${escapeHtml(reviewerUserId)}</strong> ・ 件数: ${totalCount}
-    <button class="sr-tab" style="margin-left:12px;cursor:pointer;border:1px solid #111;background:#111;color:#fff;" @click="runClusterBatch()">クラスタ実行</button>
   </div>
   <div class="sr-tabs">${tabsHtml}</div>
   <div class="sr-list">${cardsHtml}</div>
@@ -288,17 +287,6 @@ function soundReview() {
         await this.post('/api/v1/admin/audio/clusters/' + clusterId + '/flag-for-review', {});
         this.showToast('要確認に上げました');
         setTimeout(() => location.reload(), 800);
-      } catch (e) {
-        this.showToast('失敗: ' + (e.message || e));
-      }
-    },
-    async runClusterBatch() {
-      this.showToast('クラスタ実行中…');
-      try {
-        const result = await this.post('/api/v1/admin/audio/cluster-runs', { limit: 200 });
-        const s = result.summary || {};
-        this.showToast('処理 ' + (s.segmentsProcessed||0) + ' / 新規 ' + (s.clustersCreated||0));
-        setTimeout(() => location.reload(), 1200);
       } catch (e) {
         this.showToast('失敗: ' + (e.message || e));
       }

@@ -31,25 +31,33 @@
     },
     {
       "key": "audio_cluster_vector_search",
-      "status": "blocked",
+      "status": "product-accepted-drop",
       "owner": "fieldscan",
       "scope": "PostgreSQL/pgvector audio clustering service",
       "evidenceKeys": [
         "platform_v2/src/services/audioCluster.ts",
         "pg_dependency:platform_v2/src/services/audioCluster.ts"
       ],
-      "nextProofRequired": "Cloudflare Vectorize or product-approved graceful feature removal."
+      "acceptedBy": "Takeshi Yamaki delegated product decision",
+      "acceptedAt": "2026-06-26",
+      "proof": "FieldScan audio pgvector clustering is retired as a non-core admin review feature for VPS stop readiness. The admin cluster-run endpoint now returns 410 with a Vectorize re-enable note, the admin UI no longer exposes the cluster-run button, and the PostgreSQL/pgvector audioCluster service is removed.",
+      "verifiedAt": "2026-06-26T04:15:00Z",
+      "nextProofRequired": "Re-enable only after Cloudflare Vectorize/D1/R2 audio review parity is implemented."
     },
     {
       "key": "audio_embedding_vector_search",
-      "status": "blocked",
+      "status": "product-accepted-drop",
       "owner": "fieldscan",
       "scope": "PostgreSQL/pgvector audio embedding service",
       "evidenceKeys": [
         "platform_v2/src/services/audioEmbedding.ts",
         "pg_dependency:platform_v2/src/services/audioEmbedding.ts"
       ],
-      "nextProofRequired": "Cloudflare Vectorize or product-approved graceful feature removal."
+      "acceptedBy": "Takeshi Yamaki delegated product decision",
+      "acceptedAt": "2026-06-26",
+      "proof": "FieldScan audio pgvector embedding/similarity search is retired as a non-core audio discovery feature for VPS stop readiness. Detection callbacks keep storing detections but skip embedding persistence, the similar-segment endpoint now returns 410 with a Vectorize re-enable note, and the PostgreSQL/pgvector audioEmbedding service is removed.",
+      "verifiedAt": "2026-06-26T04:15:00Z",
+      "nextProofRequired": "Re-enable only after Cloudflare Vectorize/D1/R2 audio similarity parity is implemented."
     },
     {
       "key": "guide_record_promotion",
