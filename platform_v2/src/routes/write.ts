@@ -40,14 +40,12 @@ import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { updateOwnProfile, upsertUser, type ProfileSelfUpdateInput, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, verifyContactProof, type ContactSubmitInput } from "../services/contactSubmit.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
-import { reassessObservation } from "../services/observationReassess.js";
 import { generateRecordReadingCards, hideRecordReadingCard } from "../services/recordReadingCards.js";
 import { getPostSavePlaceMemorySample, kickPlaceMemoryPhotoProcessingForVisit } from "../services/placeMemory.js";
 import {
   emitAreaWatchNotificationForObservation,
   ensureAreaWatchParticipationForVisit,
 } from "../services/areaWatchNotifications.js";
-import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import {
@@ -1441,30 +1439,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // 観察 AI 再判定。session + owner only。
-  // 既存 observation_ai_assessments には履歴として残しつつ、新 assessment を追加。
-  // coexisting_taxa は subject_index ≥ 1 で occurrences に追加される（ADR-0004 準拠、AI 単独昇格なし）。
-  app.post<{ Params: { id: string } }>(
-    "/api/v1/observations/:id/reassess",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          reply.code(401);
-          return { ok: false, error: "session_required" };
-        }
-        await assertMutationRateLimit(request, "observation-reassess", session.userId, 10);
-        await assertObservationOwnedByUser(request.params.id, session.userId);
-        const result = await reassessObservation(request.params.id);
-        return { ok: true, ...result };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "reassess_failed";
-        reply.code(errorStatus(error, 500));
-        return { ok: false, error: message };
-      }
-    },
-  );
-
   // 記録詳細の「この記録を読み解く」カード生成。session + owner only。
   // 保存するのは本文・出典・生成条件のみで、展示文や検索本文は保持しない。
   app.post<{ Params: { id: string } }>(
@@ -1511,29 +1485,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return { ok: true, ...result };
       } catch (error) {
         const message = error instanceof Error ? error.message : "record_reading_card_hide_failed";
-        reply.code(errorStatus(error, 500));
-        return { ok: false, error: message };
-      }
-    },
-  );
-
-  // 観察 AI 再判定（動画フレーム版）。session + owner only。
-  // Cloudflare Stream thumbnail frames を複数時点で使って candidate を更新する。
-  app.post<{ Params: { id: string } }>(
-    "/api/v1/observations/:id/reassess-from-video",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          reply.code(401);
-          return { ok: false, error: "session_required" };
-        }
-        await assertMutationRateLimit(request, "observation-reassess-video", session.userId, 10);
-        await assertObservationOwnedByUser(request.params.id, session.userId);
-        const result = await reassessFromVideoThumb(request.params.id);
-        return { ok: true, ...result };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "reassess_from_video_failed";
         reply.code(errorStatus(error, 500));
         return { ok: false, error: message };
       }
