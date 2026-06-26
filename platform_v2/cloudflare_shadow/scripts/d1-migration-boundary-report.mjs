@@ -43,7 +43,6 @@ function maintenancePgDependencyReason(relativeFile) {
   const scriptPrefix = "platform_v2/src/scripts/";
   if (!normalized.startsWith(scriptPrefix)) return null;
   if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
-  if (normalized === "platform_v2/src/scripts/runAlertDeliveryWorker.ts") return null;
   if (normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts") return null;
   if (normalized === "platform_v2/src/scripts/applyMigrations.ts") return "migration_cli_tool";
   if (normalized === "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts") return "manual_embedding_batch";
@@ -92,7 +91,6 @@ function maintenancePgDependencyReason(relativeFile) {
 function forcedRuntimePgDependency(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
   return normalized.startsWith("platform_v2/src/scripts/cron/")
-    || normalized === "platform_v2/src/scripts/runAlertDeliveryWorker.ts"
     || normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts";
 }
 

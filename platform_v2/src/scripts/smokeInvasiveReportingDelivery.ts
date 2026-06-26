@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
-import { runAlertDeliveryWorker, type SendEmailFn } from "../services/alertDeliveryWorker.js";
 import { emitInvasiveReportingForOccurrence } from "../services/invasiveReporting.js";
 
 type Args = {
@@ -228,22 +227,25 @@ async function main(): Promise<void> {
   const args = parseArgs();
   if (!args.to) throw new Error("--to=<email> is required");
   const prefix = `smoke-inv-report-${Date.now()}-${randomUUID().slice(0, 8)}`;
-  const captured: Array<{ to: string; subject: string; body: string }> = [];
-  const sendEmail: SendEmailFn | undefined = args.captureOnly
-    ? async (input) => {
-        captured.push({ to: input.to, subject: input.subject, body: input.body });
-      }
-    : undefined;
+  if (args.captureOnly) {
+    console.warn("--capture-only is retained for compatibility; VPS email delivery is retired.");
+  }
 
   let seeded: Record<string, unknown> | null = null;
   try {
     seeded = await seedAndEmit(prefix, args.to);
-    const deliverySummary = await runAlertDeliveryWorker({ batchSize: 10, sendEmail });
     const deliveries = await readDeliveryRows(prefix);
-    const ok = deliverySummary.sent >= 1 && deliverySummary.failed === 0;
-    console.log(JSON.stringify({ ok, prefix, seeded, deliverySummary, deliveries, captured }, null, 2));
+    const ok = deliveries.some((row) => row.delivery_status === "pending");
+    console.log(JSON.stringify({
+      ok,
+      prefix,
+      mode: "pending_capture_only",
+      note: "VPS sendmail delivery worker is retired. Real delivery proof now lives in Cloudflare ALERT_QUEUE / ALERT_EMAIL smoke records.",
+      seeded,
+      deliveries,
+    }, null, 2));
     if (!ok) {
-      throw new Error(`invasive_reporting_smoke_delivery_failed sent=${deliverySummary.sent} failed=${deliverySummary.failed}`);
+      throw new Error("invasive_reporting_smoke_pending_delivery_not_created");
     }
   } finally {
     if (!args.keep) {

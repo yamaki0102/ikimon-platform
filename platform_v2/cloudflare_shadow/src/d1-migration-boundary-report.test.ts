@@ -101,7 +101,6 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/observationMediaIntegrity.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/placeEnvironmentIngest.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runAlertDeliveryWorker.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importantDaemon.ts"), null);
@@ -230,7 +229,7 @@ test("VPS stop readiness reports ready P0 capability dispositions", async () => 
   assert.match(result.stdout, /alert_delivery_worker/);
   assert.match(result.stdout, /video_upload_lifecycle/);
   assert.match(result.stdout, /p0_disposition_gate: ready/);
-  assert.match(result.stdout, /p0_blockers: 1/);
+  assert.match(result.stdout, /p0_blockers: 0/);
 });
 
 test("public custom domain origin fallback is not registered twice", async () => {
