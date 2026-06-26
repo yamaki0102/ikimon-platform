@@ -133,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 108/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 101/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -170,7 +170,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 108/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 101/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -245,9 +245,19 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/publicMapSnapshotOpsAlerts.ts"), "cloudflare_public_map_snapshot_ops_inventory");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/observationEventApi.ts"), "cloudflare_observation_event_core_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationRally.ts"), "cloudflare_observation_rally_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/authSession.ts"), "cloudflare_auth_session_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/authUsers.ts"), "cloudflare_auth_user_account_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationWrite.ts"), "cloudflare_observation_write_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPhotoUpload.ts"), "cloudflare_observation_photo_upload_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationReactions.ts"), "cloudflare_observation_reactions_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/recordReadingCards.ts"), "cloudflare_record_reading_cards_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/uiKpi.ts"), "cloudflare_ui_kpi_event_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/userWrite.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventLive.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventRecap.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), null);
@@ -371,6 +381,13 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /cloudflare_public_map_snapshot_readmodel/);
   assert.match(script, /cloudflare_observation_event_core_api/);
   assert.match(script, /cloudflare_observation_rally_api/);
+  assert.match(script, /cloudflare_auth_session_api/);
+  assert.match(script, /cloudflare_auth_user_account_api/);
+  assert.match(script, /cloudflare_observation_write_api/);
+  assert.match(script, /cloudflare_observation_photo_upload_api/);
+  assert.match(script, /cloudflare_observation_reactions_api/);
+  assert.match(script, /cloudflare_record_reading_cards_api/);
+  assert.match(script, /cloudflare_ui_kpi_event_api/);
   assert.match(script, /optional_site_signals_cache_falls_back_without_database/);
   assert.match(script, /optional_gbif_match_cache_falls_back_to_remote_api/);
   assert.match(script, /optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot/);

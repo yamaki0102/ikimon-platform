@@ -131,7 +131,14 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/mapEffort.ts": "cloudflare_public_map_effort_shim",
     "platform_v2/src/services/publicMapSnapshotOpsAlerts.ts": "cloudflare_public_map_snapshot_ops_inventory",
     "platform_v2/src/routes/observationEventApi.ts": "cloudflare_observation_event_core_api",
-    "platform_v2/src/services/observationRally.ts": "cloudflare_observation_rally_api"
+    "platform_v2/src/services/observationRally.ts": "cloudflare_observation_rally_api",
+    "platform_v2/src/services/authSession.ts": "cloudflare_auth_session_api",
+    "platform_v2/src/services/authUsers.ts": "cloudflare_auth_user_account_api",
+    "platform_v2/src/services/observationWrite.ts": "cloudflare_observation_write_api",
+    "platform_v2/src/services/observationPhotoUpload.ts": "cloudflare_observation_photo_upload_api",
+    "platform_v2/src/services/observationReactions.ts": "cloudflare_observation_reactions_api",
+    "platform_v2/src/services/recordReadingCards.ts": "cloudflare_record_reading_cards_api",
+    "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;
 }

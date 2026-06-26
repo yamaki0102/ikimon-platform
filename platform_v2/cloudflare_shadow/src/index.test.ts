@@ -6327,6 +6327,80 @@ test("production public cloudflare-native mode rejects unauthenticated upserts b
   assert.equal(obs.observations.size, 0);
 });
 
+test("production public cloudflare-native mode rejects photo upload auth failures before origin fallback", async () => {
+  const { env, obs } = createEnv();
+  obs.observations.set("photo-auth-target", {
+    observation_id: "photo-auth-target",
+    draft_id: "draft-photo-auth-target",
+    owner_user_id: "photo-owner",
+    observed_at: "2026-06-16T00:00:00.000Z",
+    partition_month: "2026_06",
+    taxon_label: "photo auth target",
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "34.700,137.800",
+    visibility: "private",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const issueOtherResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "other-user", ttlHours: 1 })
+  }), productionEnv);
+  const otherCookie = issueOtherResponse.headers.get("set-cookie") ?? "";
+  assert.match(otherCookie, /^ikimon_v2_session=/);
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  const requestBody = JSON.stringify({
+    filename: "photo-auth.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("photo-auth-image").toString("base64"),
+    facePrivacy: "no_faces"
+  });
+  try {
+    const guestResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/photo-auth-target/photos/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: requestBody
+    }), productionEnv);
+    const guestPayload = await guestResponse.json() as any;
+    assert.equal(guestResponse.status, 401);
+    assert.equal(guestPayload.ok, false);
+    assert.equal(guestPayload.error, "session_required");
+
+    const otherResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/photo-auth-target/photos/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: otherCookie },
+      body: requestBody
+    }), productionEnv);
+    const otherPayload = await otherResponse.json() as any;
+    assert.equal(otherResponse.status, 403);
+    assert.equal(otherPayload.ok, false);
+    assert.equal(otherPayload.error, "forbidden");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fallbackCalls, 0);
+  assert.equal(obs.assets.size, 0);
+  assert.equal(obs.outbox.size, 0);
+  assert.equal(obs.rollbackLedger.size, 0);
+});
+
 test("production public cloudflare-native mode lazily imports valid origin sessions", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = {
