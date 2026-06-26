@@ -204,8 +204,44 @@ interface ProductionImportPublicReadmodelRow {
   unresolved_asset_count: number;
 }
 
+interface ProductionImportVisitRow {
+  visit_id: string;
+  legacy_observation_id: string | null;
+  user_id: string | null;
+  public_visibility: string | null;
+  observed_at: string | null;
+}
+
+interface ProductionImportOccurrenceRow {
+  occurrence_id: string;
+  visit_id: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  taxon_rank: string | null;
+  created_at: string | null;
+}
+
 interface ProductionImportEvidenceAssetRow {
   asset_id: string;
+  visit_id?: string | null;
+  occurrence_id?: string | null;
+  asset_role?: string | null;
+}
+
+interface RecordReadingCardRow {
+  card_id: string;
+  visit_id: string;
+  axis: string;
+  title: string;
+  body: string;
+  sources_json: string;
+  visibility: "owner_only" | "public" | "hidden";
+  generation_condition_json: string;
+  quality_gate_json: string;
+  model_version: string;
+  created_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ProductionFieldDetailReadmodelRow {
@@ -603,7 +639,10 @@ class FakeD1 {
   legacyR2Imports: LegacyR2ImportRow[] = [];
   legacyStreamInventory: LegacyStreamInventoryRow[] = [];
   productionPublicReadmodel = new Map<string, ProductionImportPublicReadmodelRow>();
+  productionVisits = new Map<string, ProductionImportVisitRow>();
+  productionOccurrences = new Map<string, ProductionImportOccurrenceRow>();
   productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
+  recordReadingCards = new Map<string, RecordReadingCardRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
@@ -1580,6 +1619,30 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO record_reading_cards")) {
+      const visitId = string(v[1]);
+      const axis = string(v[2]);
+      const existing = [...this.db.recordReadingCards.values()].find((row) => row.visit_id === visitId && row.axis === axis);
+      const now = new Date().toISOString();
+      const row: RecordReadingCardRow = {
+        card_id: existing?.card_id ?? string(v[0]),
+        visit_id: visitId,
+        axis,
+        title: string(v[3]),
+        body: string(v[4]),
+        sources_json: string(v[5]),
+        visibility: string(v[6]) as RecordReadingCardRow["visibility"],
+        generation_condition_json: string(v[7]),
+        quality_gate_json: string(v[8]),
+        model_version: string(v[9]),
+        created_by_user_id: nullableString(v[10]),
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      };
+      this.db.recordReadingCards.set(row.card_id, row);
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
@@ -1665,6 +1728,30 @@ class FakeStatement {
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM observation_identification_disputes")) {
       const count = [...this.db.observationIdentificationDisputes.values()].filter((row) =>
         row.occurrence_id === string(v[0]) && row.status === "open"
+      ).length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT occurrence_id, visit_id, scientific_name, vernacular_name, taxon_rank FROM production_import_occurrences")) {
+      return (this.db.productionOccurrences.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT visit_id, user_id, COALESCE(public_visibility, 'public') AS public_visibility, observed_at FROM production_import_visits")) {
+      const primary = this.db.productionVisits.get(string(v[0]));
+      const byLegacy = [...this.db.productionVisits.values()].find((row) => row.legacy_observation_id === string(v[1]));
+      const visit = primary ?? byLegacy;
+      return visit ? ({
+        visit_id: visit.visit_id,
+        user_id: visit.user_id,
+        public_visibility: visit.public_visibility ?? "public",
+        observed_at: visit.observed_at
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM production_import_evidence_assets")) {
+      const count = this.db.productionEvidenceAssets.filter((row) =>
+        row.visit_id === string(v[0]) &&
+        (row.asset_role === "observation_photo" || row.asset_role === "observation_video")
       ).length;
       return ({ count } as T);
     }
@@ -2107,6 +2194,26 @@ class FakeStatement {
       const rows = [...this.db.observationRallyProgress.values()]
         .filter((row) => row.course_id === courseId)
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT occurrence_id, scientific_name, vernacular_name, taxon_rank FROM production_import_occurrences")) {
+      const rows = [...this.db.productionOccurrences.values()]
+        .filter((row) => row.visit_id === string(v[0]))
+        .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.occurrence_id.localeCompare(b.occurrence_id))
+        .slice(0, 8);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT card_id, visit_id, axis, title, body, sources_json, visibility")) {
+      const visitId = string(v[0]);
+      const viewerUserId = string(v[1]);
+      const rank = (axis: string) => axis === "organism" ? 1 : axis === "environment" ? 2 : axis === "human_relation" ? 3 : 9;
+      const rows = [...this.db.recordReadingCards.values()]
+        .filter((row) =>
+          row.visit_id === visitId &&
+          row.visibility !== "hidden" &&
+          (row.visibility === "public" || row.created_by_user_id === viewerUserId)
+        )
+        .sort((a, b) => rank(a.axis) - rank(b.axis));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT outbox_id, topic, target_id FROM outbox")) {
@@ -4983,6 +5090,78 @@ test("production runtime records observation disputes natively without origin fa
     assert.equal(identification?.stance, "alternative");
     assert.equal(identification?.proposed_name, "ナミアゲハ");
     assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-1"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime generates record reading cards natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.productionVisits.set("visit-reading-1", {
+    visit_id: "visit-reading-1",
+    legacy_observation_id: "legacy-reading-1",
+    user_id: "reading-user",
+    public_visibility: "public",
+    observed_at: "2026-06-25T00:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-reading-1", {
+    occurrence_id: "occ-reading-1",
+    visit_id: "visit-reading-1",
+    scientific_name: "Trifolium repens",
+    vernacular_name: "シロツメクサ",
+    taxon_rank: "species",
+    created_at: "2026-06-25T00:00:01.000Z"
+  });
+  obs.productionEvidenceAssets.push({
+    asset_id: "asset-reading-1",
+    visit_id: "visit-reading-1",
+    occurrence_id: "occ-reading-1",
+    asset_role: "observation_photo"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "reading-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-reading-1/reading-cards", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({})
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(payload.ok, true);
+    assert.equal(payload.reason, "eligible");
+    assert.equal(payload.compatibility.source, "cloudflare_record_reading_cards");
+    assert.equal(payload.cards.length, 3);
+    assert.equal(payload.cards[0].visitId, "visit-reading-1");
+    assert.equal(payload.cards[0].axis, "organism");
+    assert.equal(payload.cards[0].sources.length, 3);
+    assert.doesNotMatch(JSON.stringify(payload), /見返せる|少し厚くなる/);
+    assert.equal(obs.recordReadingCards.size, 3);
   } finally {
     globalThis.fetch = originalFetch;
   }

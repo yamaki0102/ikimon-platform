@@ -147,6 +147,34 @@ interface CompatibleObservationDisputeInput {
   referenceLocator?: unknown;
 }
 
+type RecordReadingAxis = "organism" | "environment" | "human_relation";
+type RecordReadingSourceKind = "official" | "trusted_db" | "research";
+
+interface RecordReadingSource {
+  title: string;
+  url: string;
+  sourceKind: RecordReadingSourceKind;
+  retrievedAt: string;
+}
+
+interface D1RecordReadingCardDraft {
+  axis: RecordReadingAxis;
+  title: string;
+  body: string;
+  sources: RecordReadingSource[];
+  generationCondition: Record<string, unknown>;
+  qualityGate: Record<string, unknown>;
+  modelVersion: string;
+}
+
+interface D1RecordReadingCardPayload extends D1RecordReadingCardDraft {
+  cardId: string;
+  visitId: string;
+  visibility: "owner_only" | "public" | "hidden";
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface LegacyPhotoUploadInput {
   filename?: string | null;
   mimeType?: string | null;
@@ -1584,6 +1612,15 @@ export const worker = {
         );
       }
 
+      const readingCardsMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/reading-cards$/);
+      if (request.method === "POST" && readingCardsMatch?.[1]) {
+        return generateCompatibleRecordReadingCards(
+          decodeURIComponent(readingCardsMatch[1]),
+          request,
+          env
+        );
+      }
+
       if (shouldFallbackObservationApiToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
       }
@@ -3002,7 +3039,6 @@ function isLegacyObservationOriginFallbackPath(request: Request, url: URL): bool
   if (request.method === "GET" && /^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return true;
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return true;
   return false;
 }
@@ -3249,6 +3285,383 @@ function normalizeObservationDisputeKind(value: unknown): "alternative_id" | "ne
   return value === "needs_more_evidence" || value === "not_organism" || value === "location_date_issue"
     ? value
     : "alternative_id";
+}
+
+const RECORD_READING_MODEL_VERSION = "record_reading_cards_v0_1_cloudflare";
+const RECORD_READING_SOURCE_RETRIEVED_AT = "2026-05-23";
+
+const RECORD_READING_SOURCES = {
+  trifoliumRepens: [
+    {
+      title: "Kew Plants of the World Online - Trifolium repens",
+      url: "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:523626-1",
+      sourceKind: "trusted_db",
+      retrievedAt: RECORD_READING_SOURCE_RETRIEVED_AT
+    },
+    {
+      title: "USDA Forest Service FEIS - Trifolium repens",
+      url: "https://research.fs.usda.gov/feis/species-reviews/trirep",
+      sourceKind: "official",
+      retrievedAt: RECORD_READING_SOURCE_RETRIEVED_AT
+    },
+    {
+      title: "USDA NRCS Fact Sheet - White clover",
+      url: "https://plants.usda.gov/DocumentLibrary/factsheet/pdf/fs_trre3.pdf",
+      sourceKind: "official",
+      retrievedAt: RECORD_READING_SOURCE_RETRIEVED_AT
+    }
+  ] satisfies RecordReadingSource[],
+  satsumaSnails: [
+    {
+      title: "沖縄県 レッドデータおきなわ 貝類",
+      url: "https://www.pref.okinawa.jp/_res/projects/default_project/_page_/001/004/628/12_kairui.pdf",
+      sourceKind: "official",
+      retrievedAt: RECORD_READING_SOURCE_RETRIEVED_AT
+    },
+    {
+      title: "東邦大学 プレスリリース - 沖縄島北部の陸産貝類",
+      url: "https://www.toho-u.ac.jp/press/2021_index/20210527-1134.html",
+      sourceKind: "research",
+      retrievedAt: RECORD_READING_SOURCE_RETRIEVED_AT
+    },
+    {
+      title: "CiNii Research - ヤマタカマイマイ類の分類研究",
+      url: "https://cir.nii.ac.jp/crid/1390845712998891008",
+      sourceKind: "research",
+      retrievedAt: RECORD_READING_SOURCE_RETRIEVED_AT
+    }
+  ] satisfies RecordReadingSource[]
+};
+
+async function generateCompatibleRecordReadingCards(observationId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedObservationId = normalizeOptionalId(observationId);
+  if (!normalizedObservationId || normalizedObservationId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const signals = await resolveD1RecordReadingSignals(normalizedObservationId, env);
+  if (!signals) {
+    return json({ ok: false, error: "not_found", cards: [], reason: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  if (signals.ownerUserId !== session.userId) {
+    return json({ ok: false, error: "observation_not_owned" }, 403, { "cache-control": "no-store" });
+  }
+  if (signals.mediaCount <= 0) {
+    return json({ ok: false, cards: [], reason: "no_media" }, 422, { "cache-control": "no-store" });
+  }
+
+  const drafts = buildD1RecordReadingCardDrafts(signals).filter(hasPassingD1RecordReadingQualityGate);
+  if (drafts.length === 0) {
+    return json({ ok: false, cards: [], reason: "not_grounded" }, 422, { "cache-control": "no-store" });
+  }
+
+  const visibility = signals.publicVisibility === "public" ? "public" : "owner_only";
+  for (const draft of drafts.slice(0, 3)) {
+    await env.OBS_DB.prepare(
+      `INSERT INTO record_reading_cards (
+         card_id, visit_id, axis, title, body, sources_json, visibility,
+         generation_condition_json, quality_gate_json, model_version, created_by_user_id
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(visit_id, axis) DO UPDATE SET
+         title = excluded.title,
+         body = excluded.body,
+         sources_json = excluded.sources_json,
+         visibility = excluded.visibility,
+         generation_condition_json = excluded.generation_condition_json,
+         quality_gate_json = excluded.quality_gate_json,
+         model_version = excluded.model_version,
+         created_by_user_id = excluded.created_by_user_id,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      newId("reading_card"),
+      signals.visitId,
+      draft.axis,
+      draft.title,
+      draft.body,
+      JSON.stringify(draft.sources),
+      visibility,
+      JSON.stringify({
+        ...draft.generationCondition,
+        observedAt: signals.observedAt,
+        mediaCount: signals.mediaCount
+      }),
+      JSON.stringify(draft.qualityGate),
+      draft.modelVersion,
+      session.userId
+    ).run();
+  }
+
+  const cards = await listD1RecordReadingCards(signals.visitId, session.userId, env);
+  return json({
+    ok: cards.length > 0,
+    cards,
+    reason: cards.length > 0 ? "eligible" : "not_grounded",
+    compatibility: {
+      source: "cloudflare_record_reading_cards",
+      generationMode: "deterministic_catalog"
+    }
+  }, cards.length > 0 ? 200 : 422, { "cache-control": "no-store" });
+}
+
+async function resolveD1RecordReadingSignals(observationId: string, env: Env): Promise<{
+  visitId: string;
+  ownerUserId: string | null;
+  publicVisibility: string;
+  observedAt: string | null;
+  mediaCount: number;
+  subjects: Array<{ occurrence_id: string; scientific_name: string | null; vernacular_name: string | null; taxon_rank: string | null }>;
+} | null> {
+  const occurrence = await env.OBS_DB.prepare(
+    `SELECT occurrence_id, visit_id, scientific_name, vernacular_name, taxon_rank
+       FROM production_import_occurrences
+      WHERE occurrence_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{
+    occurrence_id: string;
+    visit_id: string | null;
+    scientific_name: string | null;
+    vernacular_name: string | null;
+    taxon_rank: string | null;
+  }>();
+
+  const visitLookupId = occurrence?.visit_id ?? observationId;
+  const visit = await env.OBS_DB.prepare(
+    `SELECT visit_id, user_id, COALESCE(public_visibility, 'public') AS public_visibility, observed_at
+       FROM production_import_visits
+      WHERE visit_id = ? OR legacy_observation_id = ?
+      LIMIT 1`
+  ).bind(visitLookupId, observationId).first<{
+    visit_id: string;
+    user_id: string | null;
+    public_visibility: string | null;
+    observed_at: string | null;
+  }>();
+  if (!visit) return null;
+
+  const subjectsResult = await env.OBS_DB.prepare(
+    `SELECT occurrence_id, scientific_name, vernacular_name, taxon_rank
+       FROM production_import_occurrences
+      WHERE visit_id = ?
+      ORDER BY created_at ASC, occurrence_id ASC
+      LIMIT 8`
+  ).bind(visit.visit_id).all<{
+    occurrence_id: string;
+    scientific_name: string | null;
+    vernacular_name: string | null;
+    taxon_rank: string | null;
+  }>();
+  const subjects = subjectsResult.results.length > 0
+    ? subjectsResult.results
+    : occurrence
+      ? [{
+        occurrence_id: occurrence.occurrence_id,
+        scientific_name: occurrence.scientific_name,
+        vernacular_name: occurrence.vernacular_name,
+        taxon_rank: occurrence.taxon_rank
+      }]
+      : [];
+
+  const assetCount = await env.OBS_DB.prepare(
+    `SELECT COUNT(*) AS count
+       FROM production_import_evidence_assets
+      WHERE visit_id = ?
+        AND asset_role IN ('observation_photo', 'observation_video')`
+  ).bind(visit.visit_id).first<{ count: number }>();
+
+  return {
+    visitId: visit.visit_id,
+    ownerUserId: visit.user_id,
+    publicVisibility: visit.public_visibility ?? "public",
+    observedAt: visit.observed_at,
+    mediaCount: Number(assetCount?.count ?? 0),
+    subjects
+  };
+}
+
+function buildD1RecordReadingCardDrafts(signals: {
+  visitId: string;
+  mediaCount: number;
+  subjects: Array<{ scientific_name: string | null; vernacular_name: string | null; taxon_rank: string | null }>;
+}): D1RecordReadingCardDraft[] {
+  const text = [signals.visitId, ...signals.subjects.flatMap((subject) => [
+    subject.scientific_name,
+    subject.vernacular_name,
+    subject.taxon_rank
+  ])].filter(Boolean).join(" ").normalize("NFKC").toLowerCase();
+
+  if (/(trifolium\s+repens|シロツメクサ|白詰草|white\s+clover|クローバー)/iu.test(text)) {
+    const sources = RECORD_READING_SOURCES.trifoliumRepens;
+    const condition = {
+      matchedTaxon: "Trifolium repens",
+      identityScope: "species_or_common_name",
+      sourcePolicy: "trusted_catalog_min_2_sources",
+      subjectCount: signals.subjects.length
+    };
+    return [
+      d1RecordReadingCardDraft(
+        "organism",
+        "低く広がる白い花",
+        "シロツメクサは、地面を這う茎から節ごとに根を出し、低く広がっていく植物です。白い花だけを見ると小さな点のようですが、足元まで写った記録では、草地の面をどう作っているかも伝わります。マメ科の植物として土の窒素循環にも関わるため、道端の小さな花が草地全体の見え方を変えています。",
+        sources,
+        condition
+      ),
+      d1RecordReadingCardDraft(
+        "environment",
+        "草地の明るさを映す植物",
+        "シロツメクサは芝地や道端など、人の利用がある明るい草地でもよく見られます。記録にまわりの草丈や裸地が少し入っていると、花そのものだけでなく、その場所がどれくらい開けているかも読み取れます。写真の端に残った足元の情報が、草地の保たれ方を知る手がかりになります。",
+        sources,
+        condition
+      ),
+      d1RecordReadingCardDraft(
+        "human_relation",
+        "身近さの中に残る関係",
+        "シロツメクサは、牧草や緑化にも使われてきた、人の暮らしと近い植物です。公園や道端で見かける身近さの一方で、花や葉、広がり方を一緒に残すと、そこがどんな使われ方をしている場所かも見えてきます。よくある花の写真が、その場所と人の関係まで含んだ記録になります。",
+        sources,
+        condition
+      )
+    ];
+  }
+
+  if (/(satsuma|オキナワヤマタカマイマイ|ヤマタカマイマイ|陸貝|かたつむり|カタツムリ|snail)/iu.test(text)) {
+    const sources = RECORD_READING_SOURCES.satsumaSnails;
+    const condition = {
+      matchedTaxon: "Satsuma / Okinawan land snails",
+      identityScope: "genus_or_group",
+      sourcePolicy: "trusted_catalog_min_2_sources",
+      subjectCount: signals.subjects.length
+    };
+    return [
+      d1RecordReadingCardDraft(
+        "organism",
+        "殻の形から読む陸貝",
+        "沖縄のヤマタカマイマイ類は、殻の形や色、巻き方などを手がかりに見られる陸貝の仲間です。この記録だけで種名まで断定するより、属や近いグループとして眺めるほうが無理がありません。小さな殻の写真でも、葉の上か幹の近くか、湿った場所かといった周辺情報が一緒に残ると、その場の状態が伝わりやすくなります。",
+        sources,
+        condition
+      ),
+      d1RecordReadingCardDraft(
+        "environment",
+        "湿り気と林の気配",
+        "陸貝は乾燥に弱く、林床や葉の裏、石や倒木の周辺など、湿り気が残る微小な環境と関係して見られます。沖縄の陸貝をめぐる資料でも、島や地域ごとの環境との結びつきが重要な背景になります。写真に写った足元や葉の状態は、貝そのものと同じくらい、その場の空気を伝えます。",
+        sources,
+        condition
+      ),
+      d1RecordReadingCardDraft(
+        "human_relation",
+        "島の自然を映す小さな存在",
+        "沖縄の陸貝は、島ごとの隔たりや環境の変化を考えるうえで注目されてきた生きものです。見慣れた小さな貝でも、どの地域で、どんな場所にいたかが残ると、単なる名前以上の意味を持ちます。施設や野外で見た一枚が、島の自然史につながる入口になります。",
+        sources,
+        condition
+      )
+    ];
+  }
+
+  return [];
+}
+
+function d1RecordReadingCardDraft(
+  axis: RecordReadingAxis,
+  title: string,
+  body: string,
+  sources: RecordReadingSource[],
+  generationCondition: Record<string, unknown>
+): D1RecordReadingCardDraft {
+  const qualityGate = {
+    sourceCount: sources.length,
+    bodyCharCount: body.length,
+    usesStoredCardOnly: true,
+    avoidsActionTone: !/(次は|今度|撮る|行くなら|再訪|また行|見返せる)/u.test(body)
+  };
+  return {
+    axis,
+    title,
+    body,
+    sources,
+    generationCondition,
+    qualityGate,
+    modelVersion: RECORD_READING_MODEL_VERSION
+  };
+}
+
+function hasPassingD1RecordReadingQualityGate(draft: D1RecordReadingCardDraft): boolean {
+  return draft.sources.length >= 2
+    && draft.body.length >= 80
+    && draft.body.length <= 520
+    && draft.qualityGate.avoidsActionTone === true;
+}
+
+async function listD1RecordReadingCards(visitId: string, viewerUserId: string, env: Env): Promise<D1RecordReadingCardPayload[]> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT card_id, visit_id, axis, title, body, sources_json, visibility,
+            generation_condition_json, quality_gate_json, model_version, created_at, updated_at
+       FROM record_reading_cards
+      WHERE visit_id = ?
+        AND visibility <> 'hidden'
+        AND (visibility = 'public' OR created_by_user_id = ?)
+      ORDER BY CASE axis
+        WHEN 'organism' THEN 1
+        WHEN 'environment' THEN 2
+        WHEN 'human_relation' THEN 3
+        ELSE 9
+      END`
+  ).bind(visitId, viewerUserId).all<{
+    card_id: string;
+    visit_id: string;
+    axis: RecordReadingAxis;
+    title: string;
+    body: string;
+    sources_json: string;
+    visibility: "owner_only" | "public" | "hidden";
+    generation_condition_json: string;
+    quality_gate_json: string;
+    model_version: string;
+    created_at: string;
+    updated_at: string;
+  }>();
+  return rows.results.map((row) => ({
+    cardId: row.card_id,
+    visitId: row.visit_id,
+    axis: row.axis,
+    title: row.title,
+    body: row.body,
+    sources: parseRecordReadingJsonArray<RecordReadingSource>(row.sources_json),
+    visibility: row.visibility,
+    generationCondition: parseRecordReadingJsonObject(row.generation_condition_json),
+    qualityGate: parseRecordReadingJsonObject(row.quality_gate_json),
+    modelVersion: row.model_version,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }));
+}
+
+function parseRecordReadingJsonArray<T>(value: string): T[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed as T[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseRecordReadingJsonObject(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
 }
 
 async function toggleObservationReaction(occurrenceId: string, reactionType: string, request: Request, env: Env): Promise<Response> {
@@ -3828,7 +4241,6 @@ function fallbackRoutePattern(pathname: string): string {
   if (/^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return "/api/v1/observations/:id/reference-candidates";
   if (/^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return "/api/v1/observations/:id/reassess";
   if (/^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return "/api/v1/observations/:id/reassess-from-video";
-  if (/^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return "/api/v1/observations/:id/reading-cards";
   if (/^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) return "/api/v1/observations/:id/management-candidates/:index/confirm";
   if (/^\/api\/v1\/observations\/[^/]+/.test(pathname)) return "/api/v1/observations/:id/*";
   if (/^\/api\/v1\/videos\/[^/]+\/body$/.test(pathname)) return "/api/v1/videos/:uid/body";
