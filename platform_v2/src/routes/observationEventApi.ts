@@ -4,7 +4,6 @@ import { getSessionFromCookie } from "../services/authSession.js";
 import {
   appendLiveEvent,
   listRecentLiveEvents,
-  subscribeToSession,
   type LiveEventRow,
   type LiveEventScope,
 } from "../services/observationEventLive.js";
@@ -48,6 +47,7 @@ const SSE_HEADERS = {
   "Cache-Control": "no-cache, no-transform",
   Connection: "keep-alive",
   "X-Accel-Buffering": "no",
+  "X-Ikimon-Observation-Event-Live-Mode": "snapshot-only",
 };
 
 function writeSse(reply: FastifyReply, event: string, payload: unknown): void {
@@ -306,43 +306,12 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       );
 
       reply.raw.writeHead(200, SSE_HEADERS);
-
       const recent = await listRecentLiveEvents(request.params.sessionId, 50);
       writeSse(reply, "snapshot", {
         session,
         events: recent.filter((e) => shouldDeliverEvent(e, ctx)).reverse(),
       });
-
-      let unsubscribe: (() => void) | null = null;
-      try {
-        unsubscribe = await subscribeToSession(request.params.sessionId, (row) => {
-          if (!shouldDeliverEvent(row, ctx)) return;
-          writeSse(reply, "live", row);
-        });
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("[obs-event-api] subscribe failed", error);
-        writeSse(reply, "error", { error: "subscribe failed" });
-        reply.raw.end();
-        return reply;
-      }
-
-      const heartbeat = setInterval(() => {
-        if (reply.raw.destroyed) {
-          clearInterval(heartbeat);
-          return;
-        }
-        writeSse(reply, "ping", { now: new Date().toISOString() });
-      }, 25_000);
-
-      const cleanup = () => {
-        clearInterval(heartbeat);
-        if (unsubscribe) {
-          try { unsubscribe(); } catch { /* noop */ }
-        }
-      };
-      request.raw.on("close", cleanup);
-      request.raw.on("error", cleanup);
+      reply.raw.end();
 
       return reply;
     },
