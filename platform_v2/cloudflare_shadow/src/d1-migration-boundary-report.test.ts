@@ -84,7 +84,13 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
 
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/applyMigrations.ts"), "migration_cli_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/embedRegionalKnowledgeCards.ts"), "manual_embedding_batch");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reportMissingObservationPhotos.ts"), "manual_integrity_report");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importObservationFields.ts"), "manual_field_import");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts"), "manual_environment_ingest");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/regionalKnowledgeEmbedding.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/observationMediaIntegrity.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/placeEnvironmentIngest.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runAlertDeliveryWorker.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
@@ -110,6 +116,57 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
           new Set([
             "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts",
             "platform_v2/src/routes/guideApi.ts",
+          ]),
+        ],
+      ]),
+    ),
+    null,
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/observationMediaIntegrity.ts",
+      new Map([
+        [
+          "platform_v2/src/services/observationMediaIntegrity.ts",
+          new Set(["platform_v2/src/scripts/reportMissingObservationPhotos.ts"]),
+        ],
+      ]),
+    ),
+    "manual_integrity_report_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/fieldVerification.ts",
+      new Map([
+        [
+          "platform_v2/src/services/fieldVerification.ts",
+          new Set(["platform_v2/src/scripts/importObservationFields.ts"]),
+        ],
+      ]),
+    ),
+    "manual_field_import_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/placeEnvironmentIngest.ts",
+      new Map([
+        [
+          "platform_v2/src/services/placeEnvironmentIngest.ts",
+          new Set(["platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts"]),
+        ],
+      ]),
+    ),
+    "manual_environment_ingest_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/fieldVerification.ts",
+      new Map([
+        [
+          "platform_v2/src/services/fieldVerification.ts",
+          new Set([
+            "platform_v2/src/scripts/importObservationFields.ts",
+            "platform_v2/src/routes/observationFieldsApi.ts",
           ]),
         ],
       ]),
