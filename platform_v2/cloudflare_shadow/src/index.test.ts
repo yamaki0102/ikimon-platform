@@ -46,6 +46,21 @@ interface ObservationReactionRow {
   created_at: string;
 }
 
+interface ObservationIdentificationRow {
+  identification_id: string;
+  occurrence_id: string;
+  actor_user_id: string;
+  proposed_name: string;
+  proposed_rank: string | null;
+  stance: string;
+  notes: string | null;
+  source_key: string;
+  source_payload_json: string;
+  is_current: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AssetRow {
   asset_id: string;
   draft_id: string;
@@ -559,6 +574,7 @@ class FakeD1 {
   drafts = new Map<string, DraftRow>();
   observations = new Map<string, ObservationRow>();
   observationReactions = new Map<string, ObservationReactionRow>();
+  observationIdentifications = new Map<string, ObservationIdentificationRow>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -1158,6 +1174,37 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO observation_identifications")) {
+      const now = new Date().toISOString();
+      const sourceKey = string(v[7]);
+      const existing = [...this.db.observationIdentifications.values()].find((candidate) => candidate.source_key === sourceKey);
+      if (existing) {
+        existing.proposed_name = string(v[3]);
+        existing.proposed_rank = nullableString(v[4]);
+        existing.stance = string(v[5]);
+        existing.notes = nullableString(v[6]);
+        existing.source_payload_json = string(v[8]);
+        existing.is_current = 1;
+        existing.updated_at = now;
+      } else {
+        this.db.observationIdentifications.set(string(v[0]), {
+          identification_id: string(v[0]),
+          occurrence_id: string(v[1]),
+          actor_user_id: string(v[2]),
+          proposed_name: string(v[3]),
+          proposed_rank: nullableString(v[4]),
+          stance: string(v[5]),
+          notes: nullableString(v[6]),
+          source_key: sourceKey,
+          source_payload_json: string(v[8]),
+          is_current: 1,
+          created_at: now,
+          updated_at: now
+        });
+      }
+      return {};
+    }
+
     if (normalized.startsWith("DELETE FROM observation_reactions WHERE occurrence_id = ?")) {
       for (const [key, row] of [...this.db.observationReactions.entries()]) {
         if (row.occurrence_id === string(v[0]) && row.user_id === string(v[1]) && row.reaction_type === string(v[2])) {
@@ -1569,6 +1616,13 @@ class FakeStatement {
         && candidate.reaction_type === string(v[2])
       );
       return row ? ({ reaction_id: row.reaction_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM observation_identifications")) {
+      const count = [...this.db.observationIdentifications.values()].filter((row) =>
+        row.occurrence_id === string(v[0]) && row.is_current === 1
+      ).length;
+      return ({ count } as T);
     }
 
     if (normalized.startsWith("SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count")) {
@@ -4742,6 +4796,75 @@ test("production runtime handles observation reactions natively without origin f
     assert.equal(second.status, 200, JSON.stringify(secondPayload));
     assert.equal(secondPayload.added, false);
     assert.equal(obs.observationReactions.size, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime records observation identifications natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.readmodel.set("occ-1", {
+    observation_id: "occ-1",
+    public_cell: "34.97,138.38",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    taxon_label: "identification target",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "identification-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/identifications", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        proposedName: "アオスジアゲハ",
+        proposedRank: "species",
+        notes: "quality card confirmation",
+        stance: "support",
+        referenceSourceIds: ["ref-1"],
+        referenceLocator: "p.12"
+      })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(payload.ok, true);
+    assert.equal(payload.occurrenceId, "occ-1");
+    assert.equal(payload.compatibility.source, "cloudflare_observation_identifications");
+    assert.equal(payload.consensus.communityTaxon.name, "アオスジアゲハ");
+    assert.equal(obs.observationIdentifications.size, 1);
+    const saved = [...obs.observationIdentifications.values()][0];
+    assert.equal(saved?.actor_user_id, "identification-user");
+    assert.equal(saved?.proposed_name, "アオスジアゲハ");
+    assert.equal(saved?.proposed_rank, "species");
+    assert.equal(saved?.stance, "support");
+    assert.match(saved?.source_payload_json ?? "", /ref-1/);
+    assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-1"), true);
   } finally {
     globalThis.fetch = originalFetch;
   }
