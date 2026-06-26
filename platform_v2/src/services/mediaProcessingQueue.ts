@@ -1,7 +1,6 @@
 import { getPool } from "../db.js";
 import { reassessObservation } from "./observationReassess.js";
 import { reassessFromVideoThumb } from "./reassessFromVideoThumb.js";
-import { markVideoReady } from "./videoUpload.js";
 
 type MediaProcessingJob = {
   jobId: string;
@@ -138,11 +137,9 @@ export async function processMediaProcessingJobs(
         continue;
       }
       if (job.jobType === "video_thumbnail_refresh") {
-        const record = await markVideoReady(job.mediaUid);
         await finishJob(job, "succeeded", {
           source: "media_processing_worker",
-          ready_to_stream: record?.readyToStream ?? null,
-          upload_status: record?.uploadStatus ?? null,
+          replaced_by: "cloudflare_worker_video_lifecycle",
         });
         result.succeeded += 1;
         continue;
