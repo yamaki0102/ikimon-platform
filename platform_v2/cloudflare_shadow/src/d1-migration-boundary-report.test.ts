@@ -33,6 +33,12 @@ function loadMaintenancePgDependencyReason(script: string): (relativeFile: strin
   return new Function(`${match[0]}; return maintenancePgDependencyReason;`)() as (relativeFile: string) => string | null;
 }
 
+function loadReplacedProductionRuntimePgDependencyReason(script: string): (relativeFile: string) => string | null {
+  const match = script.match(/function replacedProductionRuntimePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "replacedProductionRuntimePgDependencyReason function is present");
+  return new Function(`${match[0]}; return replacedProductionRuntimePgDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
 function loadMaintenanceWorkflowDependencyReason(script: string): (relativeFile: string) => string | null {
   const match = script.match(/function maintenanceWorkflowDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
   assert.ok(match, "maintenanceWorkflowDependencyReason function is present");
@@ -82,6 +88,9 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
   assert.match(script, /no_runtime_query_pg_inventory_files/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /PostgreSQL Maintenance Dependencies/);
+  assert.match(script, /PostgreSQL Cloudflare-Replaced Production Runtime/);
+  assert.match(script, /replacedProductionRuntimePgDependencyReason\(item\.file\)/);
+  assert.match(script, /replaced_production_runtime_pg_dependency_files/);
   assert.match(script, /const maintenanceVpsWorkflows = vpsWorkflows/);
   assert.match(script, /const runtimeVpsWorkflows = vpsWorkflows\.filter/);
   assert.match(script, /workflowDependencySignals\(text\)/);
@@ -115,7 +124,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 125/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 120/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -152,7 +161,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 125/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 120/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -173,6 +182,7 @@ test("VPS stop readiness classifies test source paths conservatively", async () 
 test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts from runtime blockers", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const maintenancePgDependencyReason = loadMaintenancePgDependencyReason(script);
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
   const exclusiveMaintenancePgDependencyReason = loadExclusiveMaintenancePgDependencyReason(script);
 
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/applyMigrations.ts"), "migration_cli_tool");
@@ -218,6 +228,14 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importFutureRuntime.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/smokeScheduledWorker.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/importObservationFields.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapSnapshot.ts"), "cloudflare_public_map_snapshot_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaPolygons.ts"), "cloudflare_area_polygon_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapOwnObservations.ts"), "cloudflare_owner_map_observations_native");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapEffort.ts"), "cloudflare_public_map_effort_shim");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/publicMapSnapshotOpsAlerts.ts"), "cloudflare_public_map_snapshot_ops_inventory");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
 
@@ -313,12 +331,15 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   );
 
   assert.match(script, /const maintenancePgFiles = pgFiles/);
+  assert.match(script, /const replacedProductionRuntimePgFiles = pgFiles/);
   assert.match(script, /const importersByTarget = new Map\(\)/);
   assert.match(script, /const extensionlessTarget = path\.join\(parsed\.dir, parsed\.name\)/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /maintenance_pg_dependency_files/);
   assert.match(script, /explicitly gated staging fixture ops only/);
   assert.match(script, /gated_staging_fixture_ops/);
+  assert.match(script, /Cloudflare-replaced production runtime files/);
+  assert.match(script, /cloudflare_public_map_snapshot_readmodel/);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {

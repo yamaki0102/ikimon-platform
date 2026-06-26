@@ -122,6 +122,18 @@ function maintenancePgDependencyReason(relativeFile) {
   return exactMaintenanceScripts[normalized] ?? null;
 }
 
+function replacedProductionRuntimePgDependencyReason(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  const exactReplacedProductionRuntime = {
+    "platform_v2/src/services/mapSnapshot.ts": "cloudflare_public_map_snapshot_readmodel",
+    "platform_v2/src/services/areaPolygons.ts": "cloudflare_area_polygon_readmodel",
+    "platform_v2/src/services/mapOwnObservations.ts": "cloudflare_owner_map_observations_native",
+    "platform_v2/src/services/mapEffort.ts": "cloudflare_public_map_effort_shim",
+    "platform_v2/src/services/publicMapSnapshotOpsAlerts.ts": "cloudflare_public_map_snapshot_ops_inventory"
+  };
+  return exactReplacedProductionRuntime[normalized] ?? null;
+}
+
 function forcedRuntimePgDependency(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
   return normalized.startsWith("platform_v2/src/scripts/cron/")
@@ -595,14 +607,19 @@ pgFiles.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
 const maintenancePgFiles = pgFiles
   .filter((item) => !isTestSourceFile(item.file) && exclusiveMaintenancePgDependencyReason(item.file, importersByTarget))
   .map((item) => ({ ...item, maintenanceReason: exclusiveMaintenancePgDependencyReason(item.file, importersByTarget) }));
+const replacedProductionRuntimePgFiles = pgFiles
+  .filter((item) => !isTestSourceFile(item.file) && replacedProductionRuntimePgDependencyReason(item.file))
+  .map((item) => ({ ...item, replacedReason: replacedProductionRuntimePgDependencyReason(item.file) }));
 const runtimePgFiles = pgFiles.filter((item) =>
   (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
     && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
+    && !replacedProductionRuntimePgDependencyReason(item.file)
     && !isNoRuntimeQueryPgInventoryOnly(item)
 );
 const noRuntimeQueryPgInventoryFiles = pgFiles.filter((item) =>
   (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
     && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
+    && !replacedProductionRuntimePgDependencyReason(item.file)
     && isNoRuntimeQueryPgInventoryOnly(item)
 );
 const testPgFiles = pgFiles.filter((item) => isTestSourceFile(item.file) && !runtimeImportedTestSourceFiles.has(item.file));
@@ -691,9 +708,10 @@ const lines = [
   ]),
   "",
   ...section("PostgreSQL Runtime Dependencies"),
-  "- blocker_scope: files with PostgreSQL runtime query APIs, vector/full-text signals, or locking signals; standalone test/source-test files and no-runtime-query inventory files are reported below but excluded from blocker_count.",
+  "- blocker_scope: files with PostgreSQL runtime query APIs, vector/full-text signals, or locking signals; standalone test/source-test files, Cloudflare-replaced production runtime files, and no-runtime-query inventory files are reported below but excluded from blocker_count.",
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
   `- runtime_pg_dependency_files: ${runtimePgFiles.length}`,
+  `- replaced_production_runtime_pg_dependency_files: ${replacedProductionRuntimePgFiles.length}`,
   `- no_runtime_query_pg_inventory_files: ${noRuntimeQueryPgInventoryFiles.length}`,
   `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
   `- test_pg_dependency_files: ${testPgFiles.length}`,
@@ -711,6 +729,14 @@ const lines = [
   "| score | file | flags | query_count | maintenance_reason |",
   "|---:|---|---|---:|---|",
   ...maintenancePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.maintenanceReason} |`),
+  "",
+  ...section("PostgreSQL Cloudflare-Replaced Production Runtime"),
+  "- blocker_scope: visible inventory only; these legacy Node/VPS PostgreSQL runtime files are excluded because production traffic is already owned by Cloudflare Worker + D1/R2 routes with regression tests.",
+  `- replaced_production_runtime_pg_dependency_files: ${replacedProductionRuntimePgFiles.length}`,
+  "",
+  "| score | file | flags | query_count | replaced_reason |",
+  "|---:|---|---|---:|---|",
+  ...replacedProductionRuntimePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.replacedReason} |`),
   "",
   ...section("PostgreSQL No-Runtime-Query Inventory"),
   "- blocker_scope: visible audit inventory only; these files contain PostGIS, DATABASE_URL/PG env, or PostgreSQL type SQL text but no PostgreSQL runtime query API, vector/full-text, or locking signal.",
