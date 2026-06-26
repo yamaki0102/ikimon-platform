@@ -61,6 +61,20 @@ interface ObservationIdentificationRow {
   updated_at: string;
 }
 
+interface ObservationIdentificationDisputeRow {
+  dispute_id: string;
+  occurrence_id: string;
+  actor_user_id: string;
+  kind: string;
+  proposed_name: string | null;
+  proposed_rank: string | null;
+  reason: string | null;
+  status: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AssetRow {
   asset_id: string;
   draft_id: string;
@@ -575,6 +589,7 @@ class FakeD1 {
   observations = new Map<string, ObservationRow>();
   observationReactions = new Map<string, ObservationReactionRow>();
   observationIdentifications = new Map<string, ObservationIdentificationRow>();
+  observationIdentificationDisputes = new Map<string, ObservationIdentificationDisputeRow>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -1176,14 +1191,18 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT INTO observation_identifications")) {
       const now = new Date().toISOString();
-      const sourceKey = string(v[7]);
+      const literalAlternative = normalized.includes("'alternative'");
+      const stance = literalAlternative ? "alternative" : string(v[5]);
+      const notes = nullableString(literalAlternative ? v[5] : v[6]);
+      const sourceKey = string(literalAlternative ? v[6] : v[7]);
+      const sourcePayload = string(literalAlternative ? v[7] : v[8]);
       const existing = [...this.db.observationIdentifications.values()].find((candidate) => candidate.source_key === sourceKey);
       if (existing) {
         existing.proposed_name = string(v[3]);
         existing.proposed_rank = nullableString(v[4]);
-        existing.stance = string(v[5]);
-        existing.notes = nullableString(v[6]);
-        existing.source_payload_json = string(v[8]);
+        existing.stance = stance;
+        existing.notes = notes;
+        existing.source_payload_json = sourcePayload;
         existing.is_current = 1;
         existing.updated_at = now;
       } else {
@@ -1193,15 +1212,33 @@ class FakeStatement {
           actor_user_id: string(v[2]),
           proposed_name: string(v[3]),
           proposed_rank: nullableString(v[4]),
-          stance: string(v[5]),
-          notes: nullableString(v[6]),
+          stance,
+          notes,
           source_key: sourceKey,
-          source_payload_json: string(v[8]),
+          source_payload_json: sourcePayload,
           is_current: 1,
           created_at: now,
           updated_at: now
         });
       }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_identification_disputes")) {
+      const now = new Date().toISOString();
+      this.db.observationIdentificationDisputes.set(string(v[0]), {
+        dispute_id: string(v[0]),
+        occurrence_id: string(v[1]),
+        actor_user_id: string(v[2]),
+        kind: string(v[3]),
+        proposed_name: nullableString(v[4]),
+        proposed_rank: nullableString(v[5]),
+        reason: nullableString(v[6]),
+        status: "open",
+        source_payload_json: string(v[7]),
+        created_at: now,
+        updated_at: now
+      });
       return {};
     }
 
@@ -1621,6 +1658,13 @@ class FakeStatement {
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM observation_identifications")) {
       const count = [...this.db.observationIdentifications.values()].filter((row) =>
         row.occurrence_id === string(v[0]) && row.is_current === 1
+      ).length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM observation_identification_disputes")) {
+      const count = [...this.db.observationIdentificationDisputes.values()].filter((row) =>
+        row.occurrence_id === string(v[0]) && row.status === "open"
       ).length;
       return ({ count } as T);
     }
@@ -4864,6 +4908,80 @@ test("production runtime records observation identifications natively without or
     assert.equal(saved?.proposed_rank, "species");
     assert.equal(saved?.stance, "support");
     assert.match(saved?.source_payload_json ?? "", /ref-1/);
+    assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-1"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime records observation disputes natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.readmodel.set("occ-1", {
+    observation_id: "occ-1",
+    public_cell: "34.97,138.38",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    taxon_label: "dispute target",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "dispute-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/disputes", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        kind: "alternative_id",
+        proposedName: "ナミアゲハ",
+        proposedRank: "species",
+        reason: "pattern differs",
+        referenceSourceIds: ["ref-2"],
+        referenceLocator: "p.18"
+      })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(payload.ok, true);
+    assert.equal(payload.occurrenceId, "occ-1");
+    assert.match(payload.disputeId, /^dispute_/);
+    assert.equal(payload.compatibility.source, "cloudflare_observation_identification_disputes");
+    assert.equal(payload.compatibility.alternativeIdentificationStored, true);
+    assert.equal(payload.consensus.hasOpenDispute, true);
+    assert.equal(obs.observationIdentificationDisputes.size, 1);
+    const dispute = [...obs.observationIdentificationDisputes.values()][0];
+    assert.equal(dispute?.actor_user_id, "dispute-user");
+    assert.equal(dispute?.kind, "alternative_id");
+    assert.equal(dispute?.proposed_name, "ナミアゲハ");
+    assert.match(dispute?.source_payload_json ?? "", /ref-2/);
+    assert.equal(obs.observationIdentifications.size, 1);
+    const identification = [...obs.observationIdentifications.values()][0];
+    assert.equal(identification?.stance, "alternative");
+    assert.equal(identification?.proposed_name, "ナミアゲハ");
     assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-1"), true);
   } finally {
     globalThis.fetch = originalFetch;
