@@ -40,15 +40,64 @@ function isTestSourceFile(relativeFile) {
 
 function maintenancePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
+  const scriptPrefix = "platform_v2/src/scripts/";
+  if (!normalized.startsWith(scriptPrefix)) return null;
+  if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
+  if (normalized === "platform_v2/src/scripts/runAlertDeliveryWorker.ts") return null;
+  if (normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts") return null;
   if (normalized === "platform_v2/src/scripts/applyMigrations.ts") return "migration_cli_tool";
   if (normalized === "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts") return "manual_embedding_batch";
   if (normalized === "platform_v2/src/scripts/reportMissingObservationPhotos.ts") return "manual_integrity_report";
   if (normalized === "platform_v2/src/scripts/importObservationFields.ts") return "manual_field_import";
   if (normalized === "platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts") return "manual_environment_ingest";
-  return null;
+  const exactMaintenanceScripts = {
+    "platform_v2/src/scripts/backfillGuideNonBiologicalSpecies.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/bootstrapLegacyImport.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/cleanupProductionUiSmoke.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/compileKnowledgeNavigation.ts": "deploy_or_postdeploy_tool",
+    "platform_v2/src/scripts/importGlobalAdministrativeAreas.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importInvasiveKnowledgeClaims.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importInvasiveReportingContacts.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importLegacyAiAssessments.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importN03Administrative.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importObservationEvidence.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importObservationFeedbackKnowledgeClaims.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importObservationIdentification.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importObservationMeaning.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importObservationPlaceCondition.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importOsmLeisureParks.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importRegionalKnowledgeCards.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importRememberTokens.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/importTrackSessions.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/monitorProductionSmokeCleanup.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/planObservationLedger.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/repairObservationLocationLabels.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/repairStagingNatsIdentity.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/replacementReadinessReport.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/reportLegacyDrift.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/reportVisitWindows.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/runGuideEnvironmentPostDeploy.ts": "deploy_or_postdeploy_tool",
+    "platform_v2/src/scripts/smokeInvasiveReportingDelivery.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/smokePassiveAudioIngest.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/smokeProductionMediaUpload.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/smokePublicMapSnapshotAlert.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/syncLegacyDelta.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/syncLegacyUserAuth.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/verifyLegacyParity.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/verifyProductionShadowParity.ts": "manual_verification_or_smoke_tool"
+  };
+  return exactMaintenanceScripts[normalized] ?? null;
+}
+
+function forcedRuntimePgDependency(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  return normalized.startsWith("platform_v2/src/scripts/cron/")
+    || normalized === "platform_v2/src/scripts/runAlertDeliveryWorker.ts"
+    || normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts";
 }
 
 function exclusiveMaintenancePgDependencyReason(relativeFile, importersByTarget, seen = new Set()) {
+  if (forcedRuntimePgDependency(relativeFile)) return null;
   const explicitReason = maintenancePgDependencyReason(relativeFile);
   if (explicitReason) return explicitReason;
   if (seen.has(relativeFile)) return null;
