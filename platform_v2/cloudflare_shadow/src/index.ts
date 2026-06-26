@@ -1640,6 +1640,16 @@ export const worker = {
         );
       }
 
+      const reassessRequestMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/(reassess|reassess-from-video)$/);
+      if (request.method === "POST" && reassessRequestMatch?.[1] && reassessRequestMatch?.[2]) {
+        return requestCompatibleObservationReassessment(
+          decodeURIComponent(reassessRequestMatch[1]),
+          reassessRequestMatch[2] === "reassess-from-video" ? "video" : "standard",
+          request,
+          env
+        );
+      }
+
       const legacyObservationApiFallback = await fetchLegacyObservationApiOriginFallback(request, url, env);
       if (legacyObservationApiFallback) {
         return legacyObservationApiFallback;
@@ -3058,12 +3068,6 @@ async function fetchLegacyObservationApiOriginFallback(request: Request, url: UR
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/adopt$/.test(pathname)) {
     return fetchOriginFallback(request, url, env, "legacy_observation_candidate_adopt_origin_fallback");
   }
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) {
-    return fetchOriginFallback(request, url, env, "legacy_observation_reassess_origin_fallback");
-  }
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) {
-    return fetchOriginFallback(request, url, env, "legacy_observation_reassess_from_video_origin_fallback");
-  }
   return null;
 }
 
@@ -3116,7 +3120,7 @@ async function confirmCompatibleManagementCandidate(observationId: string, index
   if (session.banned) {
     return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
   }
-  const ownerUserId = await resolveManagementConfirmationOwnerUserId(normalizedObservationId, env);
+  const ownerUserId = await resolveCompatibleObservationOwnerUserId(normalizedObservationId, env);
   if (!ownerUserId) {
     return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
   }
@@ -3178,7 +3182,70 @@ async function confirmCompatibleManagementCandidate(observationId: string, index
   }, 200, { "cache-control": "no-store" });
 }
 
-async function resolveManagementConfirmationOwnerUserId(observationId: string, env: Env): Promise<string | null> {
+async function requestCompatibleObservationReassessment(observationId: string, requestKind: "standard" | "video", request: Request, env: Env): Promise<Response> {
+  const normalizedObservationId = normalizeOptionalId(observationId);
+  if (!normalizedObservationId || normalizedObservationId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const ownerUserId = await resolveCompatibleObservationOwnerUserId(normalizedObservationId, env);
+  if (!ownerUserId) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+  if (ownerUserId !== session.userId) {
+    return json({ ok: false, error: "observation_not_owned" }, 403, { "cache-control": "no-store" });
+  }
+
+  const requestId = newId("reassess_req");
+  const sourcePayload = {
+    source: "cloudflare_observation_reassessment_request_ledger",
+    observationId: normalizedObservationId,
+    requestKind
+  };
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_reassessment_requests (
+       request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json
+     ) VALUES (?, ?, ?, ?, 'pending', ?)
+     ON CONFLICT(observation_id, request_kind, actor_user_id) DO UPDATE SET
+       request_state = 'pending',
+       source_payload_json = excluded.source_payload_json,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    requestId,
+    normalizedObservationId,
+    requestKind,
+    session.userId,
+    JSON.stringify(sourcePayload)
+  ).run();
+
+  return json({
+    ok: true,
+    reassessment: {
+      requestId,
+      state: "pending",
+      kind: requestKind
+    },
+    compatibility: {
+      source: "cloudflare_observation_reassessment_request_ledger",
+      executionStatus: "not_migrated"
+    }
+  }, 202, { "cache-control": "no-store" });
+}
+
+async function resolveCompatibleObservationOwnerUserId(observationId: string, env: Env): Promise<string | null> {
   const nativeObservation = await env.OBS_DB.prepare(
     "SELECT owner_user_id FROM observations WHERE observation_id = ?"
   ).bind(observationId).first<{ owner_user_id: string | null }>();

@@ -31,25 +31,27 @@
     },
     {
       "key": "legacy_observation_reassess_origin_fallback",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "platform",
-      "scope": "POST /api/v1/observations/:id/reassess still forwards to the VPS origin",
+      "scope": "POST /api/v1/observations/:id/reassess replaced by a D1 reassessment request ledger",
       "evidenceKeys": [
-        "legacy_observation_reassess_origin_fallback",
-        "origin_fallback:legacy_observation_reassess_origin_fallback"
+        "legacy_observation_reassess_origin_fallback"
       ],
-      "nextProofRequired": "D1-native reassess job semantics or product-approved temporary route retirement with pending UI semantics."
+      "proof": "Worker records standard reassess requests in observation_reassessment_requests and returns a pending compatibility response without VPS origin fallback.",
+      "verifiedAt": "2026-06-26",
+      "nextProofRequired": "Add Cloudflare Queue/AI execution for pending reassessment requests before treating this as full AI reassess parity."
     },
     {
       "key": "legacy_observation_reassess_from_video_origin_fallback",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "platform",
-      "scope": "POST /api/v1/observations/:id/reassess-from-video still forwards to the VPS origin",
+      "scope": "POST /api/v1/observations/:id/reassess-from-video replaced by a D1 reassessment request ledger",
       "evidenceKeys": [
-        "legacy_observation_reassess_from_video_origin_fallback",
-        "origin_fallback:legacy_observation_reassess_from_video_origin_fallback"
+        "legacy_observation_reassess_from_video_origin_fallback"
       ],
-      "nextProofRequired": "D1-native video reassess job semantics or product-approved temporary route retirement with pending UI semantics."
+      "proof": "Worker records video reassess requests in observation_reassessment_requests and returns a pending compatibility response without VPS origin fallback.",
+      "verifiedAt": "2026-06-26",
+      "nextProofRequired": "Add Cloudflare Queue/AI execution for pending video reassessment requests before treating this as full video reassess parity."
     },
     {
       "key": "legacy_observation_management_confirm_origin_fallback",

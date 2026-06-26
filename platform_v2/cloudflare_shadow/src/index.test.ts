@@ -255,6 +255,17 @@ interface ManagementCandidateConfirmationRow {
   updated_at: string;
 }
 
+interface ObservationReassessmentRequestRow {
+  request_id: string;
+  observation_id: string;
+  request_kind: string;
+  actor_user_id: string;
+  request_state: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProductionFieldDetailReadmodelRow {
   field_id: string;
   source: string;
@@ -655,6 +666,7 @@ class FakeD1 {
   productionEvidenceAssets: ProductionImportEvidenceAssetRow[] = [];
   recordReadingCards = new Map<string, RecordReadingCardRow>();
   managementCandidateConfirmations = new Map<string, ManagementCandidateConfirmationRow>();
+  observationReassessmentRequests = new Map<string, ObservationReassessmentRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
@@ -1304,6 +1316,23 @@ class FakeStatement {
         confirm_state: string(v[3]),
         actor_user_id: string(v[4]),
         source_payload_json: string(v[5]),
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_reassessment_requests")) {
+      const now = new Date().toISOString();
+      const key = `${string(v[1])}:${string(v[2])}:${string(v[3])}`;
+      const existing = this.db.observationReassessmentRequests.get(key);
+      this.db.observationReassessmentRequests.set(key, {
+        request_id: existing?.request_id ?? string(v[0]),
+        observation_id: string(v[1]),
+        request_kind: string(v[2]),
+        actor_user_id: string(v[3]),
+        request_state: "pending",
+        source_payload_json: string(v[4]),
         created_at: existing?.created_at ?? now,
         updated_at: now
       });
@@ -4913,16 +4942,6 @@ test("production runtime proxies remaining explicit legacy observation API paths
         path: "/api/v1/observations/example/candidates/candidate-1/adopt",
         reason: "legacy_observation_candidate_adopt_origin_fallback",
         routePattern: "/api/v1/observations/:id/candidates/:candidateId/:action"
-      },
-      {
-        path: "/api/v1/observations/example/reassess",
-        reason: "legacy_observation_reassess_origin_fallback",
-        routePattern: "/api/v1/observations/:id/reassess"
-      },
-      {
-        path: "/api/v1/observations/example/reassess-from-video",
-        reason: "legacy_observation_reassess_from_video_origin_fallback",
-        routePattern: "/api/v1/observations/:id/reassess-from-video"
       }
     ];
     for (const [index, item] of cases.entries()) {
@@ -4964,14 +4983,10 @@ test("production runtime proxies remaining explicit legacy observation API paths
   const summaryResponse = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), summaryEnv);
   const summary = await summaryResponse.json() as any;
   assert.equal(summaryResponse.ok, true, JSON.stringify(summary));
-  assert.equal(summary.count, 4);
+  assert.equal(summary.count, 2);
   assert.equal(summary.byReason.legacy_observation_candidate_propose_origin_fallback, 1);
   assert.equal(summary.byReason.legacy_observation_candidate_adopt_origin_fallback, 1);
-  assert.equal(summary.byReason.legacy_observation_reassess_origin_fallback, 1);
-  assert.equal(summary.byReason.legacy_observation_reassess_from_video_origin_fallback, 1);
   assert.equal(summary.byRoutePattern["/api/v1/observations/:id/candidates/:candidateId/:action"], 2);
-  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reassess"], 1);
-  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/reassess-from-video"], 1);
 });
 
 test("production management candidate confirmation is D1-native for Cloudflare-owned observations", async () => {
@@ -5067,6 +5082,78 @@ test("production management candidate confirmation is D1-native for Cloudflare-o
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
     assert.equal(obs.managementCandidateConfirmations.get("occ-management-imported:1:owner-user")?.confirm_state, "rejected");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production observation reassess routes write D1 requests without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawToken = "reassess-request-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "owner-user",
+    display_name: "Owner User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.productionVisits.set("visit-reassess-imported", {
+    visit_id: "visit-reassess-imported",
+    legacy_observation_id: null,
+    user_id: "owner-user",
+    public_visibility: "private",
+    observed_at: "2026-06-25T00:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-reassess-imported", {
+    occurrence_id: "occ-reassess-imported",
+    visit_id: "visit-reassess-imported",
+    scientific_name: null,
+    vernacular_name: "unknown",
+    taxon_rank: null,
+    created_at: "2026-06-25T00:00:00.000Z"
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const standard = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-reassess-imported/reassess", {
+      method: "POST",
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const standardPayload = await standard.json() as any;
+    assert.equal(standard.status, 202, JSON.stringify(standardPayload));
+    assert.equal(standardPayload.ok, true);
+    assert.equal(standardPayload.reassessment.state, "pending");
+    assert.equal(standardPayload.reassessment.kind, "standard");
+
+    const video = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-reassess-imported/reassess-from-video", {
+      method: "POST",
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const videoPayload = await video.json() as any;
+    assert.equal(video.status, 202, JSON.stringify(videoPayload));
+    assert.equal(videoPayload.ok, true);
+    assert.equal(videoPayload.reassessment.kind, "video");
+
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+    assert.equal(obs.observationReassessmentRequests.get("occ-reassess-imported:standard:owner-user")?.request_state, "pending");
+    assert.equal(obs.observationReassessmentRequests.get("occ-reassess-imported:video:owner-user")?.request_state, "pending");
   } finally {
     globalThis.fetch = originalFetch;
   }

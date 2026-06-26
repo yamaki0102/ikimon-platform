@@ -21580,6 +21580,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     setBusy(false);
                     return;
                   }
+                  if (res.j && res.j.reassessment && res.j.reassessment.state === 'pending') {
+                    if (statusEl) { statusEl.textContent = '更新を受け付けました'; }
+                    setBusy(false);
+                    return;
+                  }
                   if (statusEl) { statusEl.textContent = '判定完了 — ページを更新します'; }
                   setTimeout(function(){ window.location.reload(); }, 600);
                 })
