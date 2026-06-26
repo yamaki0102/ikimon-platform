@@ -963,6 +963,19 @@ test("management candidate confirmations are retired from Fastify and handled by
   assert.match(cloudflareWorkerSource, /source: "cloudflare_management_candidate_confirmation_ledger"/);
 });
 
+test("identification and dispute writes are retired from Fastify and handled by the Worker D1 ledger", () => {
+  assert.doesNotMatch(writeRouteSource, /\/api\/v1\/observations\/:id\/identifications/);
+  assert.doesNotMatch(writeRouteSource, /\/api\/v1\/observations\/:id\/disputes/);
+  assert.doesNotMatch(writeRouteSource, /submitObservationIdentification/);
+  assert.doesNotMatch(writeRouteSource, /openObservationDispute/);
+  assert.match(cloudflareWorkerSource, /submitCompatibleObservationIdentification/);
+  assert.match(cloudflareWorkerSource, /openCompatibleObservationDispute/);
+  assert.match(cloudflareWorkerSource, /observation_identifications/);
+  assert.match(cloudflareWorkerSource, /observation_identification_disputes/);
+  assert.match(cloudflareWorkerSource, /source: "cloudflare_observation_identifications"/);
+  assert.match(cloudflareWorkerSource, /source: "cloudflare_observation_identification_disputes"/);
+});
+
 test("media annotations can be focused from AI evidence without taking over the photo surface", () => {
   assert.match(mediaSource, /ObservationMediaAnnotationTarget/);
   assert.match(mediaSource, /data-annotation-target/);

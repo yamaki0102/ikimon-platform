@@ -29,11 +29,8 @@ import {
 } from "../services/authorityRecommendations.js";
 import { recordSpecialistReview, type SpecialistDecision, type SpecialistLane } from "../services/specialistReview.js";
 import {
-  openObservationDispute,
   resolveIdentificationDispute,
-  submitObservationIdentification,
   type DisputeResolution,
-  type PublicIdentificationStance,
 } from "../services/identificationParticipation.js";
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
@@ -897,84 +894,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       }
     },
   );
-
-  app.post<{
-    Params: { id: string };
-    Body: {
-      proposedName?: string | null;
-      proposedRank?: string | null;
-      notes?: string | null;
-      stance?: PublicIdentificationStance;
-      referenceSourceIds?: string[];
-      referenceLocator?: string | null;
-    };
-  }>("/api/v1/observations/:id/identifications", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        throw new Error("session_required");
-      }
-      await assertMutationRateLimit(request, "observation-identification", session.userId, 30);
-      const stance = request.body?.stance === "alternative" ? "alternative" : "support";
-      return await submitObservationIdentification({
-        occurrenceId: request.params.id,
-        actorUserId: session.userId,
-        proposedName: request.body?.proposedName ?? "",
-        proposedRank: request.body?.proposedRank ?? null,
-        notes: request.body?.notes ?? null,
-        stance,
-        referenceSourceIds: Array.isArray(request.body?.referenceSourceIds)
-          ? request.body.referenceSourceIds.map((value) => String(value))
-          : [],
-        referenceLocator: request.body?.referenceLocator ?? null,
-      });
-    } catch (error) {
-      reply.code(errorStatus(error, 400));
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "identification_submit_failed",
-      };
-    }
-  });
-
-  app.post<{
-    Params: { id: string };
-    Body: {
-      kind?: "alternative_id" | "needs_more_evidence" | "not_organism" | "location_date_issue";
-      proposedName?: string | null;
-      proposedRank?: string | null;
-      reason?: string | null;
-      referenceSourceIds?: string[];
-      referenceLocator?: string | null;
-    };
-  }>("/api/v1/observations/:id/disputes", async (request, reply) => {
-    try {
-      const session = await getSessionFromCookie(request.headers.cookie);
-      if (!session) {
-        throw new Error("session_required");
-      }
-      await assertMutationRateLimit(request, "observation-dispute", session.userId, 12);
-      const kind = request.body?.kind ?? "alternative_id";
-      return await openObservationDispute({
-        occurrenceId: request.params.id,
-        actorUserId: session.userId,
-        kind,
-        proposedName: request.body?.proposedName ?? null,
-        proposedRank: request.body?.proposedRank ?? null,
-        reason: request.body?.reason ?? null,
-        referenceSourceIds: Array.isArray(request.body?.referenceSourceIds)
-          ? request.body.referenceSourceIds.map((value) => String(value))
-          : [],
-        referenceLocator: request.body?.referenceLocator ?? null,
-      });
-    } catch (error) {
-      reply.code(errorStatus(error, 400));
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : "dispute_submit_failed",
-      };
-    }
-  });
 
   app.post<{ Body: TrackUpsertInput }>("/api/v1/tracks/upsert", async (request, reply) => {
     try {
