@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const shadowRoot = process.cwd();
@@ -7,6 +7,8 @@ const platformRoot = path.join(repoRoot, "platform_v2");
 const PG_DEPENDENCY_TABLE_LIMIT = 80;
 const STOP_BLOCKER_TABLE_LIMIT = 120;
 const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".mjs"];
+const P0_DISPOSITION_TERMINAL_STATUSES = new Set(["migrated", "replaced-route", "product-accepted-drop"]);
+const P0_DISPOSITION_ALLOWED_STATUSES = new Set(["blocked", ...P0_DISPOSITION_TERMINAL_STATUSES]);
 
 function walk(dir, predicate, output = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -20,6 +22,10 @@ function walk(dir, predicate, output = []) {
 
 function read(file) {
   return readFileSync(file, "utf8");
+}
+
+function readJson(file) {
+  return JSON.parse(read(file));
 }
 
 function rel(file) {
@@ -307,6 +313,73 @@ function section(title) {
   return [`## ${title}`, ""];
 }
 
+function loadP0DispositionManifest() {
+  const file = path.join(shadowRoot, "config", "vps-stop-p0-dispositions.json");
+  if (!existsSync(file)) {
+    return { file: rel(file), items: [], missing: true };
+  }
+  const manifest = readJson(file);
+  return {
+    file: rel(file),
+    schemaVersion: manifest.schemaVersion,
+    items: Array.isArray(manifest.items) ? manifest.items : [],
+    missing: false
+  };
+}
+
+function blockerEvidenceKeys(item) {
+  const keys = new Set([item.key, `${item.type}:${item.key}`]);
+  if (item.type === "origin_fallback") {
+    keys.add(item.reason);
+    keys.add(`${item.type}:${item.reason}`);
+  }
+  if (item.type === "pg_dependency") {
+    keys.add(`pg_dependency:${item.key}`);
+  }
+  return keys;
+}
+
+function dispositionForBlocker(item, dispositions) {
+  const evidenceKeys = blockerEvidenceKeys(item);
+  return dispositions.find((disposition) =>
+    Array.isArray(disposition.evidenceKeys)
+      && disposition.evidenceKeys.some((evidenceKey) => evidenceKeys.has(evidenceKey))
+  ) ?? null;
+}
+
+function validateP0DispositionManifest(manifest) {
+  const issues = [];
+  if (manifest.missing) issues.push("manifest_missing");
+  if (manifest.schemaVersion !== 1) issues.push(`unsupported_schema_version:${manifest.schemaVersion ?? "unset"}`);
+
+  const seenKeys = new Set();
+  for (const item of manifest.items) {
+    if (!item || typeof item !== "object") {
+      issues.push("invalid_item");
+      continue;
+    }
+    if (typeof item.key !== "string" || item.key.trim() === "") issues.push("item_missing_key");
+    else if (seenKeys.has(item.key)) issues.push(`duplicate_key:${item.key}`);
+    else seenKeys.add(item.key);
+
+    if (!P0_DISPOSITION_ALLOWED_STATUSES.has(item.status)) {
+      issues.push(`invalid_status:${item.key ?? "unknown"}:${item.status ?? "unset"}`);
+    }
+    if (!Array.isArray(item.evidenceKeys) || item.evidenceKeys.length === 0) {
+      issues.push(`missing_evidence_keys:${item.key ?? "unknown"}`);
+    }
+    if (P0_DISPOSITION_TERMINAL_STATUSES.has(item.status)) {
+      if (typeof item.proof !== "string" || item.proof.trim() === "") issues.push(`terminal_missing_proof:${item.key}`);
+      if (typeof item.verifiedAt !== "string" || item.verifiedAt.trim() === "") issues.push(`terminal_missing_verified_at:${item.key}`);
+      if (item.status === "product-accepted-drop") {
+        if (typeof item.acceptedBy !== "string" || item.acceptedBy.trim() === "") issues.push(`drop_missing_accepted_by:${item.key}`);
+        if (typeof item.acceptedAt !== "string" || item.acceptedAt.trim() === "") issues.push(`drop_missing_accepted_at:${item.key}`);
+      }
+    }
+  }
+  return issues;
+}
+
 const wranglerPath = path.join(shadowRoot, "wrangler.jsonc");
 const wrangler = read(wranglerPath);
 const wranglerConfig = parseWranglerConfig(wrangler);
@@ -456,13 +529,28 @@ const configuredStopBlockers = stopBlockers
   .map((item) => ({ ...item, configured: configuredStateForBlocker(item, productionVars) }))
   .filter((item) => item.configured.active);
 
+const p0DispositionManifest = loadP0DispositionManifest();
+const p0DispositionItems = p0DispositionManifest.items;
+const p0DispositionValidationIssues = validateP0DispositionManifest(p0DispositionManifest);
+const configuredP0StopBlockers = configuredStopBlockers.filter((item) => item.severity === "P0");
+const configuredP0StopBlockersWithDisposition = configuredP0StopBlockers.map((item) => ({
+  ...item,
+  disposition: dispositionForBlocker(item, p0DispositionItems)
+}));
+const configuredP0StopBlockersWithoutDisposition = configuredP0StopBlockersWithDisposition.filter((item) => !item.disposition);
+const openP0DispositionItems = p0DispositionItems.filter((item) => !P0_DISPOSITION_TERMINAL_STATUSES.has(item.status));
+const terminalP0DispositionItems = p0DispositionItems.filter((item) => P0_DISPOSITION_TERMINAL_STATUSES.has(item.status));
+const p0DispositionGateReady = p0DispositionValidationIssues.length === 0
+  && configuredP0StopBlockersWithoutDisposition.length === 0
+  && openP0DispositionItems.length === 0;
+
 const stopBlockerCounts = stopBlockers.reduce((acc, item) => {
   acc[item.severity] = (acc[item.severity] ?? 0) + 1;
   return acc;
 }, {});
 
 const vpsStopReady = stopBlockers.length === 0;
-const configuredVpsStopReady = configuredStopBlockers.length === 0;
+const configuredVpsStopReady = configuredStopBlockers.length === 0 && p0DispositionGateReady;
 
 const lines = [
   "# ikimon.life D1 / VPS PostgreSQL Migration Boundary Report",
@@ -538,6 +626,24 @@ const lines = [
   ...section("VPS / PostgreSQL Workflow Dependencies"),
   ...vpsWorkflows.map((item) => `- ${item.file}: ${item.signals.join(", ")}`),
   "",
+  ...section("P0 Capability Disposition Gate"),
+  "- purpose: a P0 capability is not resolved just because a file or fallback reason disappears; it must be migrated, replaced by an equivalent route, or explicitly accepted as a product drop.",
+  `- manifest: ${p0DispositionManifest.file}`,
+  `- status: ${p0DispositionGateReady ? "ready" : "blocked"}`,
+  `- p0_capability_items: ${p0DispositionItems.length}`,
+  `- p0_open_capabilities: ${openP0DispositionItems.length}`,
+  `- p0_terminal_capabilities: ${terminalP0DispositionItems.length}`,
+  `- configured_p0_blockers_without_disposition: ${configuredP0StopBlockersWithoutDisposition.length}`,
+  `- validation_issues: ${p0DispositionValidationIssues.length ? p0DispositionValidationIssues.join(", ") : "none"}`,
+  "",
+  "| key | status | owner | scope | evidence_keys | next_proof_required |",
+  "|---|---|---|---|---|---|",
+  ...p0DispositionItems.map((item) => `| ${item.key} | ${item.status} | ${item.owner ?? ""} | ${item.scope ?? ""} | ${(item.evidenceKeys ?? []).join("<br>")} | ${item.nextProofRequired ?? item.proof ?? ""} |`),
+  "",
+  "| severity | type | category | key |",
+  "|---|---|---|---|",
+  ...configuredP0StopBlockersWithoutDisposition.map((item) => `| ${item.severity} | ${item.type} | ${item.category} | ${item.key} |`),
+  "",
   ...section("VPS Stop Readiness Gate"),
   `- status: ${vpsStopReady ? "ready" : "blocked"}`,
   `- blocker_count: ${stopBlockers.length}`,
@@ -558,6 +664,7 @@ const lines = [
   `- p0_blockers: ${configuredStopBlockers.filter((item) => item.severity === "P0").length}`,
   `- p1_blockers: ${configuredStopBlockers.filter((item) => item.severity === "P1").length}`,
   `- p2_blockers: ${configuredStopBlockers.filter((item) => item.severity === "P2").length}`,
+  `- p0_disposition_gate: ${p0DispositionGateReady ? "ready" : "blocked"}`,
   "",
   "| severity | type | category | configured_note | key |",
   "|---|---|---|---|---|",

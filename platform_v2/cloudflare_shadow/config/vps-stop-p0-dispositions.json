@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-06-26",
+  "allowedTerminalStatuses": [
+    "migrated",
+    "replaced-route",
+    "product-accepted-drop"
+  ],
+  "items": [
+    {
+      "key": "legacy_observation_api_origin_fallback",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "authenticated observation action APIs still forwarded to the VPS origin",
+      "evidenceKeys": [
+        "legacy_observation_api_origin_fallback",
+        "origin_fallback:legacy_observation_api_origin_fallback"
+      ],
+      "nextProofRequired": "D1-native implementation or explicit product-approved route removal for every remaining legacy observation action."
+    },
+    {
+      "key": "alert_delivery_worker",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "VPS sendmail/msmtp-backed alert delivery worker",
+      "evidenceKeys": [
+        "platform_v2/src/services/alertDeliveryWorker.ts",
+        "pg_dependency:platform_v2/src/services/alertDeliveryWorker.ts"
+      ],
+      "nextProofRequired": "Cloudflare-native queue/cron plus external mail API delivery proof before VPS worker retirement."
+    },
+    {
+      "key": "audio_cluster_vector_search",
+      "status": "blocked",
+      "owner": "fieldscan",
+      "scope": "PostgreSQL/pgvector audio clustering service",
+      "evidenceKeys": [
+        "platform_v2/src/services/audioCluster.ts",
+        "pg_dependency:platform_v2/src/services/audioCluster.ts"
+      ],
+      "nextProofRequired": "Cloudflare Vectorize or product-approved graceful feature removal."
+    },
+    {
+      "key": "audio_embedding_vector_search",
+      "status": "blocked",
+      "owner": "fieldscan",
+      "scope": "PostgreSQL/pgvector audio embedding service",
+      "evidenceKeys": [
+        "platform_v2/src/services/audioEmbedding.ts",
+        "pg_dependency:platform_v2/src/services/audioEmbedding.ts"
+      ],
+      "nextProofRequired": "Cloudflare Vectorize or product-approved graceful feature removal."
+    },
+    {
+      "key": "guide_record_promotion",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed guide record promotion workflow",
+      "evidenceKeys": [
+        "platform_v2/src/services/guideRecordPromotion.ts",
+        "pg_dependency:platform_v2/src/services/guideRecordPromotion.ts"
+      ],
+      "nextProofRequired": "D1-native workflow parity with route-level tests."
+    },
+    {
+      "key": "management_action_confirmation",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed management candidate confirmation workflow",
+      "evidenceKeys": [
+        "platform_v2/src/services/managementActionConfirmation.ts",
+        "pg_dependency:platform_v2/src/services/managementActionConfirmation.ts"
+      ],
+      "nextProofRequired": "D1-native confirmation semantics or product-approved removal."
+    },
+    {
+      "key": "media_processing_queue",
+      "status": "blocked",
+      "owner": "media",
+      "scope": "PostgreSQL SKIP LOCKED media processing queue",
+      "evidenceKeys": [
+        "platform_v2/src/services/mediaProcessingQueue.ts",
+        "pg_dependency:platform_v2/src/services/mediaProcessingQueue.ts"
+      ],
+      "nextProofRequired": "Cloudflare Queues or equivalent Worker-native media job lifecycle proof."
+    },
+    {
+      "key": "observation_candidate_adoption",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed observation candidate adoption workflow",
+      "evidenceKeys": [
+        "platform_v2/src/services/observationCandidateAdoption.ts",
+        "pg_dependency:platform_v2/src/services/observationCandidateAdoption.ts"
+      ],
+      "nextProofRequired": "D1-native candidate adoption semantics with authenticated route tests."
+    },
+    {
+      "key": "observation_event_live",
+      "status": "blocked",
+      "owner": "events",
+      "scope": "PostgreSQL LISTEN/NOTIFY live observation-event fanout",
+      "evidenceKeys": [
+        "platform_v2/src/services/observationEventLive.ts",
+        "pg_dependency:platform_v2/src/services/observationEventLive.ts"
+      ],
+      "nextProofRequired": "Durable Objects, D1 polling, or another proven Worker-native live fanout path."
+    },
+    {
+      "key": "observation_field_registry",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed observation field registry",
+      "evidenceKeys": [
+        "platform_v2/src/services/observationFieldRegistry.ts",
+        "pg_dependency:platform_v2/src/services/observationFieldRegistry.ts"
+      ],
+      "nextProofRequired": "D1-native registry parity or product-approved removal."
+    },
+    {
+      "key": "observation_subject_proposal",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed observation subject proposal workflow",
+      "evidenceKeys": [
+        "platform_v2/src/services/observationSubjectProposal.ts",
+        "pg_dependency:platform_v2/src/services/observationSubjectProposal.ts"
+      ],
+      "nextProofRequired": "D1-native proposal semantics with authenticated route tests."
+    },
+    {
+      "key": "observation_write",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed residual observation write service",
+      "evidenceKeys": [
+        "platform_v2/src/services/observationWrite.ts",
+        "pg_dependency:platform_v2/src/services/observationWrite.ts"
+      ],
+      "nextProofRequired": "D1-native write parity or confirmed dead-code retirement."
+    },
+    {
+      "key": "place_memory",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed place memory workflow",
+      "evidenceKeys": [
+        "platform_v2/src/services/placeMemory.ts",
+        "pg_dependency:platform_v2/src/services/placeMemory.ts"
+      ],
+      "nextProofRequired": "D1-native place memory parity or product-approved removal."
+    },
+    {
+      "key": "video_upload_lifecycle",
+      "status": "blocked",
+      "owner": "media",
+      "scope": "origin Cloudflare Stream webhook and video-ready lifecycle",
+      "evidenceKeys": [
+        "platform_v2/src/services/videoUpload.ts",
+        "pg_dependency:platform_v2/src/services/videoUpload.ts"
+      ],
+      "nextProofRequired": "Worker-native stream webhook/ready transition proof before origin route retirement."
+    },
+    {
+      "key": "visit_place_auto_link",
+      "status": "blocked",
+      "owner": "platform",
+      "scope": "PostgreSQL-backed visit/place auto-link workflow",
+      "evidenceKeys": [
+        "platform_v2/src/services/visitPlaceAutoLink.ts",
+        "pg_dependency:platform_v2/src/services/visitPlaceAutoLink.ts"
+      ],
+      "nextProofRequired": "D1-native auto-link parity or product-approved removal."
+    }
+  ]
+}
