@@ -7722,13 +7722,6 @@ function contentTypeForOriginalUiThumb(pathname: string): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  if (hasPersonalizedHtmlHeaders(request) && !isCookieSafeOriginalUiAppShell(url.pathname)) {
-    if (shouldUseOriginFallback(url, env)) {
-      return fetchOriginFallback(request, url, env, "html_personalized_request");
-    }
-    return json({ ok: false, error: "html_requires_origin_for_personalized_request" }, 404, { "cache-control": "no-store" });
-  }
-
   const object = await env.ASSET_BUCKET.get(originalUiHtmlKeyForRequest(url));
   if (object?.body) {
     const body = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, url, env);
@@ -8048,26 +8041,6 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
   if (!localizable.has(pathname)) return null;
   if (pathname === "/") return `/${langSegment}`;
   return `/${langSegment}${pathname}`;
-}
-
-function hasPersonalizedHtmlHeaders(request: Request): boolean {
-  const cookie = request.headers.get("cookie")?.trim();
-  if (cookie) return true;
-  const authorization = request.headers.get("authorization")?.trim();
-  return Boolean(authorization);
-}
-
-function isCookieSafeOriginalUiAppShell(pathname: string): boolean {
-  return pathname === "/app-refresh"
-    || pathname === "/admin/municipal-walk-maps"
-    || pathname === "/admin/municipal-walk-map-reviews"
-    || pathname === "/"
-    || /^\/(?:ja|en|es|pt-br)\/?$/.test(pathname)
-    || /^(?:\/(?:ja|en|es|pt-br))?\/demo\/place-feeling-tags$/.test(pathname)
-    || /^(?:\/(?:ja|en|es|pt-br))?\/guide$/.test(pathname)
-    || /^(?:\/(?:ja|en|es|pt-br))?\/map$/.test(pathname)
-    || /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname)
-    || /^(?:\/(?:ja|en|es|pt-br))?\/records?$/.test(pathname);
 }
 
 async function getPublicDerivedMedia(url: URL, env: Env): Promise<Response> {

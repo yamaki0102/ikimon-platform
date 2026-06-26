@@ -8100,6 +8100,9 @@ test("production original UI app shells serve materialized HTML even with sessio
   await env.ASSET_BUCKET.put("original-ui/html/ja/guide.html", "<!doctype html><title>materialized ja guide</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/record.html", "<!doctype html><title>materialized record</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -8156,6 +8159,13 @@ test("production original UI app shells serve materialized HTML even with sessio
     assert.equal(localizedGuideResponse.status, 200);
     assert.equal(await localizedGuideResponse.text(), "<!doctype html><title>materialized ja guide</title>");
     assert.equal(localizedGuideResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const recordResponse = await worker.fetch(new Request("https://ikimon.life/record", {
+      headers: { cookie: "ikimon_v2_session=secret" }
+    }), productionEnv);
+    assert.equal(recordResponse.status, 200);
+    assert.equal(await recordResponse.text(), "<!doctype html><title>materialized record</title>");
+    assert.equal(recordResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
