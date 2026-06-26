@@ -124,7 +124,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 120/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 118/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -161,7 +161,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 120/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 118/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -233,9 +233,14 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapOwnObservations.ts"), "cloudflare_owner_map_observations_native");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapEffort.ts"), "cloudflare_public_map_effort_shim");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/publicMapSnapshotOpsAlerts.ts"), "cloudflare_public_map_snapshot_ops_inventory");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/observationEventApi.ts"), "cloudflare_observation_event_core_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationRally.ts"), "cloudflare_observation_rally_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventLive.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventRecap.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
 
@@ -340,6 +345,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /gated_staging_fixture_ops/);
   assert.match(script, /Cloudflare-replaced production runtime files/);
   assert.match(script, /cloudflare_public_map_snapshot_readmodel/);
+  assert.match(script, /cloudflare_observation_event_core_api/);
+  assert.match(script, /cloudflare_observation_rally_api/);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {
