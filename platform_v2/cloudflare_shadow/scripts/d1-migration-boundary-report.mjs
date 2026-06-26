@@ -139,7 +139,10 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
 function optionalRuntimePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
   const exactOptionalRuntime = {
-    "platform_v2/src/services/siteSignalsCache.ts": "optional_site_signals_cache_falls_back_without_database"
+    "platform_v2/src/services/siteSignalsCache.ts": "optional_site_signals_cache_falls_back_without_database",
+    "platform_v2/src/services/gbifBackboneMatch.ts": "optional_gbif_match_cache_falls_back_to_remote_api",
+    "platform_v2/src/services/officialNoticeCache.ts": "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot",
+    "platform_v2/src/services/runtimeVersion.ts": "optional_runtime_version_migration_head"
   };
   return exactOptionalRuntime[normalized] ?? null;
 }
