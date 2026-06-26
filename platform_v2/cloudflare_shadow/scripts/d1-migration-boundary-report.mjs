@@ -42,6 +42,9 @@ function maintenancePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
   if (normalized === "platform_v2/src/scripts/applyMigrations.ts") return "migration_cli_tool";
   if (normalized === "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts") return "manual_embedding_batch";
+  if (normalized === "platform_v2/src/scripts/reportMissingObservationPhotos.ts") return "manual_integrity_report";
+  if (normalized === "platform_v2/src/scripts/importObservationFields.ts") return "manual_field_import";
+  if (normalized === "platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts") return "manual_environment_ingest";
   return null;
 }
 
