@@ -1621,6 +1621,15 @@ export const worker = {
         );
       }
 
+      const recordReadingCardMatch = url.pathname.match(/^\/api\/v1\/record-reading-cards\/([^/]+)$/);
+      if (request.method === "DELETE" && recordReadingCardMatch?.[1]) {
+        return hideCompatibleRecordReadingCard(
+          decodeURIComponent(recordReadingCardMatch[1]),
+          request,
+          env
+        );
+      }
+
       const referenceCandidatesMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/reference-candidates$/);
       if (request.method === "GET" && referenceCandidatesMatch?.[1]) {
         return listCompatibleReferenceCandidates(
@@ -3717,6 +3726,65 @@ async function generateCompatibleRecordReadingCards(observationId: string, reque
       generationMode: "deterministic_catalog"
     }
   }, cards.length > 0 ? 200 : 422, { "cache-control": "no-store" });
+}
+
+async function hideCompatibleRecordReadingCard(cardId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedCardId = normalizeOptionalId(cardId);
+  if (!normalizedCardId || normalizedCardId.length > 160) {
+    return json({ ok: false, error: "record_reading_card_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const card = await env.OBS_DB.prepare(
+    `SELECT card_id, visit_id, visibility
+       FROM record_reading_cards
+      WHERE card_id = ?
+      LIMIT 1`
+  ).bind(normalizedCardId).first<{
+    card_id: string;
+    visit_id: string;
+    visibility: "owner_only" | "public" | "hidden";
+  }>();
+  if (!card) {
+    return json({ ok: false, error: "record_reading_card_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  const visit = await env.OBS_DB.prepare(
+    `SELECT user_id
+       FROM production_import_visits
+      WHERE visit_id = ? OR legacy_observation_id = ?
+      LIMIT 1`
+  ).bind(card.visit_id, card.visit_id).first<{ user_id: string | null }>();
+  if (visit?.user_id !== session.userId) {
+    return json({ ok: false, error: "record_reading_card_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  await env.OBS_DB.prepare(
+    `UPDATE record_reading_cards
+        SET visibility = 'hidden',
+            updated_at = CURRENT_TIMESTAMP
+      WHERE card_id = ?`
+  ).bind(normalizedCardId).run();
+
+  return json({
+    ok: true,
+    hidden: true,
+    compatibility: {
+      source: "cloudflare_record_reading_cards"
+    }
+  }, 200, { "cache-control": "no-store" });
 }
 
 async function resolveD1RecordReadingSignals(observationId: string, env: Env): Promise<{
