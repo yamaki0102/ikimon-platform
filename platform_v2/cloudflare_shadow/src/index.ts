@@ -460,6 +460,11 @@ interface PublicMapPhotoRow {
   public_derivative_key: string;
 }
 
+interface LegacyThumbDerivativeRow {
+  public_derivative_key: string;
+  mime: string | null;
+}
+
 interface PublicMapSnapshotRow {
   visit_id: string;
   cell_1000: string;
@@ -7717,9 +7722,12 @@ async function getOriginalUiThumb(request: Request, url: URL, env: Env): Promise
       }
     });
   }
-  if (shouldUseOriginFallback(url, env)) {
-    return fetchOriginFallback(request, url, env, "thumb_materialized_miss");
+
+  const nativeThumb = await getLegacyObservationThumbFromDerivative(request, url, env);
+  if (nativeThumb) {
+    return nativeThumb;
   }
+
   return json({ ok: false, error: "thumb_not_materialized" }, 404, { "cache-control": "no-store" });
 }
 
@@ -7737,6 +7745,58 @@ function contentTypeForOriginalUiThumb(pathname: string): string {
   if (pathname.endsWith(".png")) return "image/png";
   if (pathname.endsWith(".webp")) return "image/webp";
   return "application/octet-stream";
+}
+
+async function getLegacyObservationThumbFromDerivative(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const legacy = parseLegacyObservationThumbPath(url.pathname);
+  if (!legacy) return null;
+
+  const row = await env.OBS_DB.prepare(
+    `SELECT a.public_derivative_key, a.mime
+       FROM production_import_evidence_assets e
+       JOIN asset_ledger a ON a.asset_id = e.asset_id
+      WHERE e.visit_id = ?
+        AND e.legacy_relative_path = ?
+        AND a.processing_state = 'uploaded'
+        AND a.exif_scrub_state = 'scrubbed'
+        AND a.public_ready_at IS NOT NULL
+        AND a.public_derivative_key IS NOT NULL
+      ORDER BY a.public_ready_at DESC
+      LIMIT 1`
+  ).bind(legacy.recordId, legacy.legacyRelativePath).first<LegacyThumbDerivativeRow>();
+  if (!row?.public_derivative_key) return null;
+
+  const object = await env.ASSET_BUCKET.get(row.public_derivative_key);
+  if (!object?.body) return null;
+
+  return new Response(request.method === "HEAD" ? null : object.body, {
+    headers: {
+      "content-type": object.httpMetadata?.contentType ?? publicDerivativeContentType(row.public_derivative_key, row.mime),
+      "cache-control": "public, max-age=31536000, immutable",
+      "x-ikimon-cloudflare-native": "thumb-derivative-readmodel"
+    }
+  });
+}
+
+function parseLegacyObservationThumbPath(pathname: string): { recordId: string; legacyRelativePath: string } | null {
+  const match = pathname.match(/^\/thumb\/[a-zA-Z0-9._-]+\/v2-observations\/([^/]+)\/([^/]+)$/);
+  if (!match?.[1] || !match?.[2]) return null;
+  const recordId = match[1];
+  const assetFile = match[2];
+  if (!isSafeFieldId(recordId) || assetFile.includes("..") || assetFile.includes("\\") || !/^[a-zA-Z0-9._-]+$/.test(assetFile)) {
+    return null;
+  }
+  return {
+    recordId,
+    legacyRelativePath: `uploads/v2-observations/${recordId}/${assetFile}`
+  };
+}
+
+function publicDerivativeContentType(key: string, mime: string | null): string {
+  if (key.endsWith(".webp")) return "image/webp";
+  if (key.endsWith(".jpg") || key.endsWith(".jpeg")) return "image/jpeg";
+  if (key.endsWith(".png")) return "image/png";
+  return mime?.startsWith("image/") ? mime : "application/octet-stream";
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {

@@ -226,6 +226,7 @@ interface ProductionImportEvidenceAssetRow {
   visit_id?: string | null;
   occurrence_id?: string | null;
   asset_role?: string | null;
+  legacy_relative_path?: string | null;
 }
 
 interface RecordReadingCardRow {
@@ -2402,6 +2403,24 @@ class FakeStatement {
         claim_boundary_json: row.claim_boundary_json ?? "[]",
         updated_at: row.updated_at ?? null
       } as T);
+    }
+
+    if (normalized.startsWith("SELECT a.public_derivative_key, a.mime")) {
+      const visitId = string(v[0]);
+      const legacyRelativePath = string(v[1]);
+      const row = this.db.productionEvidenceAssets
+        .filter((asset) => asset.visit_id === visitId && asset.legacy_relative_path === legacyRelativePath)
+        .map((evidenceAsset) => this.db.assets.get(evidenceAsset.asset_id))
+        .find((asset): asset is AssetRow =>
+          Boolean(
+            asset &&
+            asset.processing_state === "uploaded" &&
+            asset.exif_scrub_state === "scrubbed" &&
+            asset.public_ready_at &&
+            asset.public_derivative_key
+          )
+        );
+      return row ? ({ public_derivative_key: row.public_derivative_key, mime: row.mime } as T) : null;
     }
 
     throw new Error(`Unhandled SQL first: ${this.query}`);
@@ -7530,7 +7549,61 @@ test("production original UI thumbnails serve materialized bytes from R2 without
   }
 });
 
-test("production original UI thumbnail misses fall back to origin with redacted telemetry", async () => {
+test("production legacy observation thumbnails resolve to public derivatives without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  env.OBS_DB.assets.set("asset-legacy-thumb", {
+    asset_id: "asset-legacy-thumb",
+    draft_id: "draft-legacy-thumb",
+    observation_id: "record-legacy-thumb",
+    owner_user_id: "legacy-user",
+    object_key: "original/import/record-legacy-thumb/photo-legacy.jpg",
+    partition_month: "2026-06",
+    sha256: "legacy-thumb-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260615/observation_photo/asset-legacy-thumb/display.webp",
+    public_derivative_sha256: "legacy-thumb-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T00:00:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T00:00:00.000Z"
+  });
+  env.OBS_DB.productionEvidenceAssets.push({
+    asset_id: "asset-legacy-thumb",
+    visit_id: "record-legacy-thumb",
+    asset_role: "observation_photo",
+    legacy_relative_path: "uploads/v2-observations/record-legacy-thumb/photo-legacy.jpg"
+  });
+  await env.ASSET_BUCKET.put("derived/import/20260615/observation_photo/asset-legacy-thumb/display.webp", "webp-bytes", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 500 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/record-legacy-thumb/photo-legacy.jpg?size=md"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "webp-bytes");
+    assert.equal(response.headers.get("content-type"), "image/webp");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "thumb-derivative-readmodel");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI thumbnail misses return 404 without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -7539,27 +7612,17 @@ test("production original UI thumbnail misses fall back to origin with redacted 
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
   const originalFetch = globalThis.fetch;
-  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    seen.url = String(input);
-    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
-    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
-    return new Response("origin-jpg", { headers: { "content-type": "image/jpeg" } });
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 500 });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/record-secret/photo-secret.jpg?size=md"), productionEnv);
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), "origin-jpg");
-    assert.equal(seen.url, "https://ikimon.life/thumb/md/v2-observations/record-secret/photo-secret.jpg?size=md");
-    assert.equal(seen.resolveOverride, "origin.ikimon.test");
-    assert.equal(seen.reason, "thumb_materialized_miss");
-    assert.equal(core.operationAudit.length, 1);
-    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
-    assert.equal(telemetry.reason, "thumb_materialized_miss");
-    assert.equal(telemetry.routePattern, "/thumb/:size/v2-observations/:record/:asset");
-    assert.equal(JSON.stringify(telemetry).includes("record-secret"), false);
-    assert.equal(JSON.stringify(telemetry).includes("photo-secret"), false);
-    assert.equal(JSON.stringify(telemetry).includes("size=md"), false);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { ok: false, error: "thumb_not_materialized" });
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }

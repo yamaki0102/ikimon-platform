@@ -309,6 +309,15 @@ test("html materialized miss origin fallback is retired from Worker source", asy
   assert.doesNotMatch(workerSource, /html_materialized_miss/);
 });
 
+test("thumb materialized miss origin fallback is retired from Worker source", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const classifyFallbackReason = loadClassifyFallbackReason(script);
+
+  assert.equal(classifyFallbackReason("thumb_materialized_miss"), "materialized_origin_fallback");
+  assert.doesNotMatch(workerSource, /thumb_materialized_miss/);
+});
+
 test("production origin session probe is dormant when import mode is disabled", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
 
