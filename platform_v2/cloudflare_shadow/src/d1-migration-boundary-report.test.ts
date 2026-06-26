@@ -33,6 +33,12 @@ function loadMaintenancePgDependencyReason(script: string): (relativeFile: strin
   return new Function(`${match[0]}; return maintenancePgDependencyReason;`)() as (relativeFile: string) => string | null;
 }
 
+function loadMaintenanceWorkflowDependencyReason(script: string): (relativeFile: string) => string | null {
+  const match = script.match(/function maintenanceWorkflowDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "maintenanceWorkflowDependencyReason function is present");
+  return new Function(`${match[0]}; return maintenanceWorkflowDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
 function loadExclusiveMaintenancePgDependencyReason(script: string): (
   relativeFile: string,
   importersByTarget: Map<string, Set<string>>,
@@ -70,6 +76,10 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
   assert.match(script, /no_runtime_query_pg_inventory_files/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /PostgreSQL Maintenance Dependencies/);
+  assert.match(script, /const maintenanceVpsWorkflows = vpsWorkflows/);
+  assert.match(script, /const runtimeVpsWorkflows = vpsWorkflows\.filter/);
+  assert.match(script, /VPS Workflow Runtime Dependencies/);
+  assert.match(script, /VPS Workflow Maintenance Dependencies/);
   assert.match(script, /blocker_scope: files with PostgreSQL runtime query APIs, vector\/full-text signals, or locking signals/);
   assert.match(script, /displayed_pg_dependencies/);
   assert.doesNotMatch(script, /\.\.\.runtimePgFiles\.slice\(0,\s*80\)\.map\(\(item\) => \(\{/);
@@ -98,8 +108,39 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 135/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 128/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
+});
+
+test("VPS stop readiness separates runtime deploy workflows from maintenance workflows", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const maintenanceWorkflowDependencyReason = loadMaintenanceWorkflowDependencyReason(script);
+
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/ci.yml"), "ci_local_postgres_service");
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/curator-staging-wet-run.yml"), "manual_staging_wet_run");
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/enhance-school-boundaries.yml"), "manual_import_or_repair_workflow");
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-n03-admin.yml"), "manual_import_or_repair_workflow");
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-osm-area-parks.yml"), "manual_import_or_repair_workflow");
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-school-fields.yml"), "manual_import_or_repair_workflow");
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/refresh-observation-ai.yml"), "manual_ai_batch_workflow");
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/deploy-staging.yml"), null);
+
+  const result = spawnSync(process.execPath, ["scripts/d1-migration-boundary-report.mjs"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /## VPS Workflow Runtime Dependencies/);
+  assert.match(result.stdout, /- runtime_vps_workflow_files: 4/);
+  assert.match(result.stdout, /\.github\/workflows\/cloudflare-shadow-release\.yml/);
+  assert.match(result.stdout, /\.github\/workflows\/deploy-cloudflare-staging\.yml/);
+  assert.match(result.stdout, /\.github\/workflows\/deploy-staging\.yml/);
+  assert.match(result.stdout, /\.github\/workflows\/deploy\.yml/);
+  assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
+  assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
+  assert.match(result.stdout, /manual_import_or_repair_workflow/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 128/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {

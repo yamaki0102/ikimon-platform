@@ -148,6 +148,20 @@ function exclusiveMaintenancePgDependencyReason(relativeFile, importersByTarget,
   return `${[...new Set(importerReasons)].sort().join("+")}_dependency`;
 }
 
+function maintenanceWorkflowDependencyReason(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  const exactMaintenanceWorkflows = {
+    ".github/workflows/ci.yml": "ci_local_postgres_service",
+    ".github/workflows/curator-staging-wet-run.yml": "manual_staging_wet_run",
+    ".github/workflows/enhance-school-boundaries.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/import-n03-admin.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/import-osm-area-parks.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/import-school-fields.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/refresh-observation-ai.yml": "manual_ai_batch_workflow"
+  };
+  return exactMaintenanceWorkflows[normalized] ?? null;
+}
+
 function extractLocalImportSpecifiers(text) {
   const specifiers = [];
   const patterns = [
@@ -605,6 +619,10 @@ const vpsWorkflows = workflowFiles
       /applyMigrations/i.test(text) ? "migrations" : null
     ].filter(Boolean)
   }));
+const maintenanceVpsWorkflows = vpsWorkflows
+  .map((item) => ({ ...item, maintenanceReason: maintenanceWorkflowDependencyReason(item.file) }))
+  .filter((item) => item.maintenanceReason);
+const runtimeVpsWorkflows = vpsWorkflows.filter((item) => !maintenanceWorkflowDependencyReason(item.file));
 
 const stopBlockers = [
   ...originFallbackCalls.map((item) => ({
@@ -620,7 +638,7 @@ const stopBlockers = [
     category: item.flags.join(","),
     severity: blockerSeverity({ type: "pg_dependency", flags: item.flags })
   })),
-  ...vpsWorkflows.map((item) => ({
+  ...runtimeVpsWorkflows.map((item) => ({
     type: "workflow_dependency",
     key: item.file,
     category: item.signals.join(","),
@@ -735,8 +753,21 @@ const lines = [
     return `| ${item.reason} | ${state.active ? "active" : "dormant"} | ${state.note} |`;
   }),
   "",
-  ...section("VPS / PostgreSQL Workflow Dependencies"),
-  ...vpsWorkflows.map((item) => `- ${item.file}: ${item.signals.join(", ")}`),
+  ...section("VPS Workflow Runtime Dependencies"),
+  "- blocker_scope: workflows that still deploy, call, or configure production/staging runtime paths through VPS, PostgreSQL, SSH, SCP, or migration commands.",
+  `- runtime_vps_workflow_files: ${runtimeVpsWorkflows.length}`,
+  "",
+  "| file | signals |",
+  "|---|---|",
+  ...runtimeVpsWorkflows.map((item) => `| ${item.file} | ${item.signals.join(", ")} |`),
+  "",
+  ...section("VPS Workflow Maintenance Dependencies"),
+  "- blocker_scope: CI/manual maintenance workflow inventory only; these workflows may use PostgreSQL or VPS credentials but do not keep ordinary production request runtime dependent on the VPS.",
+  `- maintenance_vps_workflow_files: ${maintenanceVpsWorkflows.length}`,
+  "",
+  "| file | signals | maintenance_reason |",
+  "|---|---|---|",
+  ...maintenanceVpsWorkflows.map((item) => `| ${item.file} | ${item.signals.join(", ")} | ${item.maintenanceReason} |`),
   "",
   ...section("P0 Capability Disposition Gate"),
   "- purpose: a P0 capability is not resolved just because a file or fallback reason disappears; it must be migrated, replaced by an equivalent route, or explicitly accepted as a product drop.",
