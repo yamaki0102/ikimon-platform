@@ -40,6 +40,12 @@ function isTestSourceFile(relativeFile) {
 
 function maintenancePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
+  const exactGatedOpsServices = {
+    "platform_v2/src/services/stagingFixtureCleanup.ts": "gated_staging_fixture_ops",
+    "platform_v2/src/services/stagingRallyFixtures.ts": "gated_staging_fixture_ops",
+    "platform_v2/src/services/stagingRegressionFixtures.ts": "gated_staging_fixture_ops"
+  };
+  if (exactGatedOpsServices[normalized]) return exactGatedOpsServices[normalized];
   const scriptPrefix = "platform_v2/src/scripts/";
   if (!normalized.startsWith(scriptPrefix)) return null;
   if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
@@ -678,7 +684,7 @@ const lines = [
   ...runtimePgFiles.slice(0, PG_DEPENDENCY_TABLE_LIMIT).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
   "",
   ...section("PostgreSQL Maintenance Dependencies"),
-  "- blocker_scope: CLI/manual maintenance tools only; these are PostgreSQL-dependent but do not keep the production request runtime or Cloudflare Worker dependent on the VPS.",
+  "- blocker_scope: CLI/manual maintenance tools and explicitly gated staging fixture ops only; these are PostgreSQL-dependent but do not keep ordinary production request runtime dependent on the VPS.",
   `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
   "",
   "| score | file | flags | query_count | maintenance_reason |",

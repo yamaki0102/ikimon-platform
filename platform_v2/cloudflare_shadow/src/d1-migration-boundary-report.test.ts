@@ -98,7 +98,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 138/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 135/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -147,6 +147,9 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runAiForMissing.ts"), "manual_ai_batch_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/smokePlatformReadLane.ts"), "manual_verification_or_smoke_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/writeLegacyCompatibility.ts"), "manual_import_or_legacy_sync_tool");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/stagingFixtureCleanup.ts"), "gated_staging_fixture_ops");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/stagingRallyFixtures.ts"), "gated_staging_fixture_ops");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/stagingRegressionFixtures.ts"), "gated_staging_fixture_ops");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/regionalKnowledgeEmbedding.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/observationMediaIntegrity.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
@@ -261,7 +264,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /const extensionlessTarget = path\.join\(parsed\.dir, parsed\.name\)/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /maintenance_pg_dependency_files/);
-  assert.match(script, /manual maintenance tools only/);
+  assert.match(script, /explicitly gated staging fixture ops only/);
+  assert.match(script, /gated_staging_fixture_ops/);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {
