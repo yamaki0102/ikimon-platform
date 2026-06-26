@@ -53,14 +53,15 @@
     },
     {
       "key": "legacy_observation_management_confirm_origin_fallback",
-      "status": "blocked",
+      "status": "replaced-route",
       "owner": "platform",
-      "scope": "POST /api/v1/observations/:id/management-candidates/:index/confirm still forwards to the VPS origin",
+      "scope": "POST /api/v1/observations/:id/management-candidates/:index/confirm replaced by a D1 confirmation ledger",
       "evidenceKeys": [
-        "legacy_observation_management_confirm_origin_fallback",
-        "origin_fallback:legacy_observation_management_confirm_origin_fallback"
+        "legacy_observation_management_confirm_origin_fallback"
       ],
-      "nextProofRequired": "D1-native management confirmation ledger or product-approved route removal."
+      "proof": "Worker handles management candidate confirmations for D1-native observations and production-imported visits/occurrences by writing management_candidate_confirmations in OBS_DB. The route no longer uses origin fallback.",
+      "verifiedAt": "2026-06-26",
+      "nextProofRequired": "If stewardship action materialization becomes product-critical, add a separate D1 stewardship action model without restoring VPS origin fallback."
     },
     {
       "key": "alert_delivery_worker",

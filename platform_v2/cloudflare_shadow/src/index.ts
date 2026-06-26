@@ -1630,6 +1630,16 @@ export const worker = {
         );
       }
 
+      const managementConfirmMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/management-candidates\/([^/]+)\/confirm$/);
+      if (request.method === "POST" && managementConfirmMatch?.[1] && managementConfirmMatch?.[2]) {
+        return confirmCompatibleManagementCandidate(
+          decodeURIComponent(managementConfirmMatch[1]),
+          decodeURIComponent(managementConfirmMatch[2]),
+          request,
+          env
+        );
+      }
+
       const legacyObservationApiFallback = await fetchLegacyObservationApiOriginFallback(request, url, env);
       if (legacyObservationApiFallback) {
         return legacyObservationApiFallback;
@@ -3054,9 +3064,6 @@ async function fetchLegacyObservationApiOriginFallback(request: Request, url: UR
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) {
     return fetchOriginFallback(request, url, env, "legacy_observation_reassess_from_video_origin_fallback");
   }
-  if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/management-candidates\/[^/]+\/confirm$/.test(pathname)) {
-    return fetchOriginFallback(request, url, env, "legacy_observation_management_confirm_origin_fallback");
-  }
   return null;
 }
 
@@ -3085,6 +3092,114 @@ async function listCompatibleReferenceCandidates(occurrenceId: string, request: 
     source: "cloudflare_reference_candidates_empty",
     referenceCatalogStatus: "not_migrated"
   }, 200, { "cache-control": "no-store" });
+}
+
+async function confirmCompatibleManagementCandidate(observationId: string, index: string, request: Request, env: Env): Promise<Response> {
+  const normalizedObservationId = normalizeOptionalId(observationId);
+  if (!normalizedObservationId || normalizedObservationId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const candidateIndex = Number(index);
+  if (!Number.isInteger(candidateIndex) || candidateIndex < 0) {
+    return json({ ok: false, error: "invalid_candidate_index" }, 400, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+  const ownerUserId = await resolveManagementConfirmationOwnerUserId(normalizedObservationId, env);
+  if (!ownerUserId) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+  if (ownerUserId !== session.userId) {
+    return json({ ok: false, error: "observation_not_owned" }, 403, { "cache-control": "no-store" });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await readJson<Record<string, unknown>>(request);
+  } catch {
+    return json({ ok: false, error: "invalid_json" }, 400, { "cache-control": "no-store" });
+  }
+  const confirmState = normalizeOptionalText(body.confirmState);
+  if (confirmState !== "suggested" && confirmState !== "confirmed" && confirmState !== "rejected") {
+    return json({ ok: false, error: "invalid_confirm_state" }, 400, { "cache-control": "no-store" });
+  }
+
+  const confirmationId = newId("mgmt_confirm");
+  const sourcePayload = {
+    source: "cloudflare_management_candidate_confirmation_ledger",
+    observationId: normalizedObservationId,
+    candidateIndex,
+    confirmState
+  };
+  await env.OBS_DB.prepare(
+    `INSERT INTO management_candidate_confirmations (
+       confirmation_id, observation_id, candidate_index, confirm_state, actor_user_id, source_payload_json
+     ) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(observation_id, candidate_index, actor_user_id) DO UPDATE SET
+       confirm_state = excluded.confirm_state,
+       source_payload_json = excluded.source_payload_json,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    confirmationId,
+    normalizedObservationId,
+    candidateIndex,
+    confirmState,
+    session.userId,
+    JSON.stringify(sourcePayload)
+  ).run();
+
+  return json({
+    ok: true,
+    candidate: {
+      actionKind: "unknown",
+      label: "",
+      why: "",
+      confidence: null,
+      source: "cloudflare_management_candidate_confirmation_ledger",
+      sourceAssetId: null,
+      confirmState
+    },
+    stewardshipActionId: null,
+    compatibility: {
+      source: "cloudflare_management_candidate_confirmation_ledger",
+      stewardshipActionStatus: "not_migrated"
+    }
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function resolveManagementConfirmationOwnerUserId(observationId: string, env: Env): Promise<string | null> {
+  const nativeObservation = await env.OBS_DB.prepare(
+    "SELECT owner_user_id FROM observations WHERE observation_id = ?"
+  ).bind(observationId).first<{ owner_user_id: string | null }>();
+  if (nativeObservation?.owner_user_id) return nativeObservation.owner_user_id;
+
+  const importedVisit = await env.OBS_DB.prepare(
+    `SELECT user_id
+     FROM production_import_visits
+     WHERE visit_id = ? OR legacy_observation_id = ?
+     LIMIT 1`
+  ).bind(observationId, observationId).first<{ user_id: string | null }>();
+  if (importedVisit?.user_id) return importedVisit.user_id;
+
+  const importedOccurrence = await env.OBS_DB.prepare(
+    `SELECT v.user_id
+     FROM production_import_occurrences o
+     JOIN production_import_visits v ON v.visit_id = o.visit_id
+     WHERE o.occurrence_id = ?
+     LIMIT 1`
+  ).bind(observationId).first<{ user_id: string | null }>();
+  return importedOccurrence?.user_id ?? null;
 }
 
 function isValidObservationReactionType(value: string): boolean {
