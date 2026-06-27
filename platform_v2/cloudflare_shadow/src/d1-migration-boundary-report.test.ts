@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 3/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 2/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 3/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 2/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -306,6 +306,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mobileFieldSessions.ts"), "cloudflare_mobile_field_session_digest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), "cloudflare_materialized_landing_and_home_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/referenceLibrary.ts"), "cloudflare_reference_library_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationFieldRegistry.ts"), "cloudflare_observation_field_registry_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaSnapshotVisitScope.ts"), "cloudflare_area_and_place_snapshot_visit_scope_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaPlaceSnapshot.ts"), "cloudflare_area_snapshot_field_detail_readmodel");

@@ -160,6 +160,57 @@ interface PlaceMemoryPreferenceTestRow {
   updated_at: string;
 }
 
+interface ReferenceSourceTestRow {
+  source_id: string;
+  title: string;
+  author_text: string;
+  publisher: string;
+  publication_year: number | null;
+  isbn: string;
+  doi: string;
+  url: string;
+  source_kind: string;
+  catalog_status: string;
+  taxon_labels_json: string;
+  commerce_links_json: string;
+  created_by_user_id: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ReferenceAccessProofTestRow {
+  proof_id: string;
+  user_id: string;
+  source_id: string;
+  batch_id: string | null;
+  proof_kind: string;
+  verification_status: string;
+  private_use_only: number;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ReferenceCorrectionTestRow {
+  correction_id: string;
+  source_id: string;
+  locator: string;
+  original_name: string;
+  corrected_name: string;
+  original_taxon_name: string;
+  corrected_taxon_name: string;
+  correction_kind: string;
+  official_source_url: string;
+  official_reference: string;
+  verification_status: string;
+  verified_by_user_id: string | null;
+  applies_from: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AssetRow {
   asset_id: string;
   draft_id: string;
@@ -1425,6 +1476,13 @@ class FakeD1 {
   placeMemoryLikes = new Set<string>();
   placeMemoryHidden = new Set<string>();
   placeMemoryReports: Array<{ report_id: string; entry_id: string; user_id: string; reason_code: string; reason_note: string; created_at: string }> = [];
+  referenceSources = new Map<string, ReferenceSourceTestRow>();
+  referenceAccessProofs = new Map<string, ReferenceAccessProofTestRow>();
+  referenceCaptureBatches = new Map<string, { batch_id: string; user_id: string; status: string; item_count: number; source_payload_json: string; created_at: string; updated_at: string }>();
+  referenceCaptureItems = new Map<string, { item_id: string; batch_id: string; source_id: string; filename: string; mime_type: string; proof_kind: string; classification_note: string; created_at: string }>();
+  referenceSelections: Array<{ selection_id: string; source_id: string; selected_by_user_id: string; locator: string }> = [];
+  referenceCorrections = new Map<string, ReferenceCorrectionTestRow>();
+  referenceDuplicateMerges = new Map<string, { merge_id: string; canonical_source_id: string; duplicate_source_id: string; actor_user_id: string; source_payload_json: string; created_at: string }>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -1634,6 +1692,119 @@ class FakeStatement {
         row.moderation_status = "hidden_by_reports";
         row.updated_at = new Date().toISOString();
       }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_capture_batches")) {
+      const now = new Date().toISOString();
+      this.db.referenceCaptureBatches.set(string(v[0]), {
+        batch_id: string(v[0]),
+        user_id: string(v[1]),
+        status: string(v[2]),
+        item_count: number(v[3]),
+        source_payload_json: string(v[4]),
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_sources")) {
+      const now = new Date().toISOString();
+      this.db.referenceSources.set(string(v[0]), {
+        source_id: string(v[0]),
+        title: string(v[1]),
+        author_text: string(v[2]),
+        publisher: string(v[3]),
+        publication_year: v[4] === null ? null : number(v[4]),
+        isbn: string(v[5]),
+        doi: string(v[6]),
+        url: string(v[7]),
+        source_kind: string(v[8]),
+        catalog_status: string(v[9]),
+        taxon_labels_json: string(v[10]),
+        commerce_links_json: string(v[11]),
+        created_by_user_id: nullableString(v[12]),
+        source_payload_json: string(v[13]),
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_access_proofs")) {
+      const now = new Date().toISOString();
+      this.db.referenceAccessProofs.set(string(v[0]), {
+        proof_id: string(v[0]),
+        user_id: string(v[1]),
+        source_id: string(v[2]),
+        batch_id: nullableString(v[3]),
+        proof_kind: string(v[4]),
+        verification_status: string(v[5]),
+        private_use_only: number(v[6]),
+        source_payload_json: string(v[7]),
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_capture_items")) {
+      this.db.referenceCaptureItems.set(string(v[0]), {
+        item_id: string(v[0]),
+        batch_id: string(v[1]),
+        source_id: string(v[2]),
+        filename: string(v[3]),
+        mime_type: string(v[4]),
+        proof_kind: string(v[5]),
+        classification_note: string(v[6]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_duplicate_merges")) {
+      this.db.referenceDuplicateMerges.set(string(v[2]), {
+        merge_id: string(v[0]),
+        canonical_source_id: string(v[1]),
+        duplicate_source_id: string(v[2]),
+        actor_user_id: string(v[3]),
+        source_payload_json: string(v[4]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE reference_sources SET catalog_status")) {
+      const row = this.db.referenceSources.get(string(v[1]));
+      if (row) {
+        row.catalog_status = "duplicate";
+        row.source_payload_json = string(v[0]);
+        row.updated_at = new Date().toISOString();
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_corrections")) {
+      const now = new Date().toISOString();
+      this.db.referenceCorrections.set(string(v[0]), {
+        correction_id: string(v[0]),
+        source_id: string(v[1]),
+        locator: string(v[2]),
+        original_name: string(v[3]),
+        corrected_name: string(v[4]),
+        original_taxon_name: string(v[5]),
+        corrected_taxon_name: string(v[6]),
+        correction_kind: string(v[7]),
+        official_source_url: string(v[8]),
+        official_reference: string(v[9]),
+        verification_status: string(v[10]),
+        verified_by_user_id: nullableString(v[11]),
+        applies_from: nullableString(v[12]),
+        source_payload_json: string(v[13]),
+        created_at: now,
+        updated_at: now
+      });
       return {};
     }
 
@@ -3676,6 +3847,23 @@ class FakeStatement {
       return row && !row.deleted_at ? (row as T) : null;
     }
 
+    if (normalized.startsWith("SELECT (SELECT COUNT(DISTINCT source_id) FROM reference_access_proofs")) {
+      const userId = string(v[0]);
+      const userIdNeedsReview = string(v[1]);
+      const owned = new Set([...this.db.referenceAccessProofs.values()]
+        .filter((row) => row.user_id === userId && ["ai_verified", "user_confirmed", "reviewer_confirmed"].includes(row.verification_status))
+        .map((row) => row.source_id));
+      const needsReview = new Set([...this.db.referenceAccessProofs.values()]
+        .filter((row) => row.user_id === userIdNeedsReview && row.verification_status === "needs_review")
+        .map((row) => row.source_id));
+      return ({ owned_verified_count: owned.size, needs_review_count: needsReview.size } as T);
+    }
+
+    if (normalized.startsWith("SELECT source_id FROM reference_sources WHERE source_id = ?")) {
+      const row = this.db.referenceSources.get(string(v[0]));
+      return row && row.catalog_status !== "withdrawn" ? ({ source_id: row.source_id } as T) : null;
+    }
+
     if (normalized.startsWith("INSERT INTO user_observation_fields")) {
       const now = new Date().toISOString();
       const row: UserObservationFieldTestRow = {
@@ -4577,6 +4765,53 @@ class FakeStatement {
           liked_by_me: this.db.placeMemoryLikes.has(`${row.entry_id}:${viewerUserId}`) ? 1 : 0,
           own_entry: row.user_id === viewerUserId ? 1 : 0
         }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT rs.source_id, rs.title, rs.author_text, rs.publisher, rs.publication_year")) {
+      const userId = string(v[0]);
+      const selectedByUserId = string(v[1]);
+      const limit = v.length >= 5 ? 80 : number(v[v.length - 1]);
+      const rows = [...this.db.referenceSources.values()]
+        .filter((row) => !["withdrawn", "duplicate"].includes(row.catalog_status))
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, limit)
+        .map((row) => {
+          const proofs = [...this.db.referenceAccessProofs.values()].filter((proof) => proof.source_id === row.source_id && proof.user_id === userId);
+          const owned = proofs.some((proof) => ["ai_verified", "user_confirmed", "reviewer_confirmed"].includes(proof.verification_status));
+          const needsReview = proofs.some((proof) => proof.verification_status === "needs_review");
+          return {
+            ...row,
+            owned_status: owned ? "owned_verified" : needsReview ? "needs_review" : "not_owned",
+            latest_proof_at: proofs.map((proof) => proof.updated_at).sort().at(-1) ?? null,
+            used_count: this.db.referenceSelections.filter((selection) => selection.source_id === row.source_id && selection.selected_by_user_id === selectedByUserId).length,
+            official_correction_count: [...this.db.referenceCorrections.values()].filter((correction) => correction.source_id === row.source_id && correction.verification_status === "official_confirmed").length
+          };
+        });
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT rs.source_id, rs.title, rs.taxon_labels_json")) {
+      const userId = string(v[0]);
+      const rows = [...this.db.referenceAccessProofs.values()]
+        .filter((proof) => proof.user_id === userId)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, 5)
+        .flatMap((proof) => {
+          const source = this.db.referenceSources.get(proof.source_id);
+          if (!source) return [];
+          return [{
+            source_id: source.source_id,
+            title: source.title,
+            taxon_labels_json: source.taxon_labels_json,
+            status: proof.verification_status,
+            used_count: this.db.referenceSelections.filter((selection) => selection.source_id === source.source_id && selection.selected_by_user_id === userId).length
+          }];
+        });
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT correction_id, source_id, locator, original_name, corrected_name")) {
+      const rows = [...this.db.referenceCorrections.values()]
+        .filter((row) => row.source_id === string(v[0]))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind")) {
@@ -9740,9 +9975,126 @@ test("production reference candidates route is native and never probes origin fa
     assert.deepEqual(await response.json(), {
       ok: true,
       candidates: [],
-      source: "cloudflare_reference_candidates_empty",
-      referenceCatalogStatus: "not_migrated"
+      source: "cloudflare_reference_library_runtime",
+      referenceCatalogStatus: "d1_native",
+      occurrenceId: "occ-1"
     });
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("reference library runtime stores D1 metadata and serves list candidates corrections and duplicate ledger", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: "reference-specialist", roleName: "Specialist Admin", ttlHours: 1 })
+    }), productionEnv);
+    const cookie = issueResponse.headers.get("set-cookie") ?? "";
+    assert.match(cookie, /^ikimon_v2_session=/);
+
+    const capture = await worker.fetch(new Request("https://ikimon.life/api/v1/references/capture-batches", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        items: [
+          {
+            filename: "birds-cover.jpg",
+            mimeType: "image/jpeg",
+            title: "静岡の鳥類図鑑",
+            isbn: "978-4-0000-0000-1",
+            authorText: "調査会",
+            publisher: "ikimon",
+            publicationYear: 2026,
+            sourceKind: "field_guide",
+            taxonHints: ["鳥", "Aves"],
+            proofKind: "cover"
+          },
+          {
+            title: "静岡の鳥類図鑑 改訂版",
+            isbn: "978-4-0000-0000-2",
+            taxonHints: ["鳥"]
+          }
+        ]
+      })
+    }), productionEnv);
+    assert.equal(capture.status, 200);
+    const capturePayload = await capture.json() as any;
+    assert.equal(capturePayload.ok, true);
+    assert.equal(capturePayload.items.length, 2);
+    assert.equal(capturePayload.compatibility.aiCoverExtractionParity, false);
+    const sourceId = capturePayload.items[0].sourceId;
+    const duplicateSourceId = capturePayload.items[1].sourceId;
+    assert.equal(obs.referenceSources.size, 2);
+    assert.equal(obs.referenceAccessProofs.size, 2);
+
+    const list = await worker.fetch(new Request("https://ikimon.life/api/v1/references?tab=catalog", {
+      headers: { cookie }
+    }), productionEnv);
+    assert.equal(list.status, 200);
+    const listPayload = await list.json() as any;
+    assert.equal(listPayload.ok, true);
+    assert.equal(listPayload.snapshot.cards.length, 2, JSON.stringify(listPayload));
+    assert.equal(listPayload.snapshot.summary.needsReviewCount, 2);
+    assert.equal(listPayload.compatibility.source, "cloudflare_reference_library_runtime");
+
+    const candidates = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reference-candidates?proposedName=%E9%B3%A5", {
+      headers: { cookie }
+    }), productionEnv);
+    assert.equal(candidates.status, 200);
+    const candidatePayload = await candidates.json() as any;
+    assert.equal(candidatePayload.referenceCatalogStatus, "d1_native");
+    assert.ok(candidatePayload.candidates.length >= 1, JSON.stringify(candidatePayload));
+    assert.equal(candidatePayload.candidates[0].reason, "共有カタログで分類群一致");
+
+    const correction = await worker.fetch(new Request(`https://ikimon.life/api/v1/references/${sourceId}/corrections`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        locator: "p.12",
+        originalName: "鳥",
+        correctedName: "鳥類",
+        correctionKind: "taxonomy_update",
+        verificationStatus: "official_confirmed",
+        officialReference: "自治体公開資料"
+      })
+    }), productionEnv);
+    assert.equal(correction.status, 200);
+    assert.equal((await correction.json() as any).ok, true);
+    assert.equal(obs.referenceCorrections.size, 1);
+
+    const corrections = await worker.fetch(new Request(`https://ikimon.life/api/v1/references/${sourceId}/corrections`, {
+      headers: { cookie }
+    }), productionEnv);
+    assert.equal(corrections.status, 200);
+    assert.equal((await corrections.json() as any).corrections[0].verificationStatus, "official_confirmed");
+
+    const merge = await worker.fetch(new Request("https://ikimon.life/api/v1/references/duplicates/merge", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ canonicalSourceId: sourceId, duplicateSourceId })
+    }), productionEnv);
+    assert.equal(merge.status, 200);
+    assert.equal((await merge.json() as any).result.duplicateSourceId, duplicateSourceId);
+    assert.equal(obs.referenceSources.get(duplicateSourceId)?.catalog_status, "duplicate");
+    assert.equal(obs.referenceDuplicateMerges.size, 1);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
