@@ -750,6 +750,27 @@ const RALLY_VERIFICATION_POLICIES = ["auto", "organizer_review", "ai_assisted", 
 const RALLY_WEATHER_SENSITIVITIES = ["all_weather", "rain_ok", "dry_only", "sunny_only", "wind_sensitive", "temperature_sensitive"] as const;
 const RALLY_MISSION_STATUSES = ["draft", "published", "paused", "replaced", "closed"] as const;
 const RALLY_REVISION_ACTIONS = ["publish", "pause", "replace", "extend", "close"] as const;
+const STEWARDSHIP_ACTION_KINDS = new Set([
+  "cleanup",
+  "mowing",
+  "water_management",
+  "pruning",
+  "planting",
+  "harvesting",
+  "tilling",
+  "trampling",
+  "bare_ground",
+  "invasive_removal",
+  "unknown",
+  "patrol",
+  "signage",
+  "monitoring",
+  "external_program",
+  "restoration",
+  "community_engagement",
+  "other"
+]);
+const STEWARDSHIP_SPECIES_STATUSES = new Set(["invasive", "dominant_native", "disturbance", "unknown"]);
 
 interface ObservationEventSessionD1Row {
   session_id: string;
@@ -1678,6 +1699,16 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && isProfileHtmlPath(url.pathname)) {
         return getSessionAwareProfileHtml(request, url, env);
+      }
+
+      const stewardshipFormMatch = nativePathname.match(/^\/sites\/([^/]+)\/stewardship\/new$/);
+      if ((request.method === "GET" || request.method === "HEAD") && stewardshipFormMatch?.[1]) {
+        return getStewardshipActionFormPage(request, url, env, decodeURIComponent(stewardshipFormMatch[1]));
+      }
+
+      const stewardshipPostMatch = nativePathname.match(/^\/sites\/([^/]+)\/stewardship_actions$/);
+      if (request.method === "POST" && stewardshipPostMatch?.[1]) {
+        return createStewardshipActionFromForm(request, url, env, decodeURIComponent(stewardshipPostMatch[1]));
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
@@ -10271,6 +10302,135 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
   }
 
   return json({ signedIn: true, items }, 200, { "cache-control": "no-store" });
+}
+
+function stewardshipLang(url: URL): "ja" | "en" | "es" | "pt-BR" {
+  const explicit = url.searchParams.get("lang")?.trim().toLowerCase();
+  if (explicit === "en" || explicit === "es") return explicit;
+  if (explicit === "pt-br" || explicit === "pt") return "pt-BR";
+  const prefix = url.pathname.match(/^\/(ja|en|es|pt-br)(?:\/|$)/i)?.[1]?.toLowerCase();
+  if (prefix === "en" || prefix === "es") return prefix;
+  if (prefix === "pt-br") return "pt-BR";
+  return "ja";
+}
+
+function stewardshipFormUrl(placeId: string, lang: string, status?: { ok?: boolean; error?: string }): string {
+  const params = new URLSearchParams({ lang });
+  if (status?.ok) params.set("ok", "1");
+  if (status?.error) params.set("error", status.error);
+  return `/sites/${encodeURIComponent(placeId)}/stewardship/new?${params.toString()}`;
+}
+
+function stewardshipMessage(lang: ReturnType<typeof stewardshipLang>, key: string | null): string | null {
+  if (!key) return null;
+  const ja: Record<string, string> = {
+    ok: "記録しました。",
+    login_required: "ログインすると記録できます。",
+    occurred_at_missing: "日時を入れてください。",
+    occurred_at_invalid: "日時を確認してください。",
+    action_kind_invalid: "種類を選んでください。",
+    insert_failed: "保存できませんでした。時間をおいてもう一度試してください。"
+  };
+  const en: Record<string, string> = {
+    ok: "Saved.",
+    login_required: "Sign in to save this record.",
+    occurred_at_missing: "Add the date and time.",
+    occurred_at_invalid: "Check the date and time.",
+    action_kind_invalid: "Choose a type.",
+    insert_failed: "Could not save. Please try again later."
+  };
+  const dictionary = lang === "ja" ? ja : en;
+  return dictionary[key] ?? dictionary.insert_failed ?? "Could not save.";
+}
+
+function renderStewardshipActionFormPage(placeId: string, url: URL, signedIn: boolean): string {
+  const lang = stewardshipLang(url);
+  const messageKey = url.searchParams.get("ok") === "1" ? "ok" : normalizeOptionalText(url.searchParams.get("error"));
+  const message = stewardshipMessage(lang, messageKey);
+  const title = lang === "ja" ? "手入れの記録" : "Care record";
+  const lead = lang === "ja"
+    ? "清掃、草刈り、巡回など、その場所で起きたことを残します。"
+    : "Save cleanup, mowing, patrol, and other care work at this place.";
+  const action = `/sites/${encodeURIComponent(placeId)}/stewardship_actions`;
+  const options = [
+    ["cleanup", "清掃 / Cleanup"],
+    ["mowing", "草刈り / Mowing"],
+    ["water_management", "水管理 / Water"],
+    ["pruning", "剪定 / Pruning"],
+    ["planting", "植栽 / Planting"],
+    ["invasive_removal", "外来種対応 / Invasive removal"],
+    ["patrol", "巡回 / Patrol"],
+    ["monitoring", "確認 / Monitoring"],
+    ["other", "その他 / Other"]
+  ].map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("");
+
+  return `<!doctype html><html lang="${lang === "pt-BR" ? "pt-BR" : escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} - ikimon</title><style>
+body{margin:0;background:#f6faf8;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.sa{max-width:720px;margin:0 auto;padding:28px 16px 72px}.sa-card{background:#fff;border:1px solid #dce8e3;border-radius:8px;padding:18px;box-shadow:0 10px 28px rgba(15,23,42,.08)}h1{font-size:26px;line-height:1.25;margin:0 0 8px}p{color:#475569;line-height:1.7}.sa-msg{border-radius:8px;background:#e7f7f1;color:#065f46;padding:10px 12px;font-weight:800}.sa-msg[data-error="true"]{background:#fff1f2;color:#9f1239}label{display:block;font-weight:800;margin:16px 0 6px}input,select,textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:11px;font:inherit;background:#fff}textarea{min-height:112px;resize:vertical}.sa-actions{display:flex;gap:10px;align-items:center;margin-top:18px}button{border:0;border-radius:999px;background:#008f7a;color:#fff;font-weight:900;padding:12px 18px;min-height:44px}.sa-note{font-size:13px;color:#64748b}</style></head><body><main class="sa"><section class="sa-card"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p>${message ? `<p class="sa-msg" data-error="${messageKey === "ok" ? "false" : "true"}">${escapeHtml(message)}</p>` : ""}<form method="post" action="${escapeHtml(action)}">
+<input type="hidden" name="lang" value="${escapeHtml(lang)}">
+<label for="occurred_at">日時</label><input id="occurred_at" name="occurred_at" type="datetime-local" required>
+<label for="action_kind">種類</label><select id="action_kind" name="action_kind" required>${options}</select>
+<label for="species_status">対象</label><select id="species_status" name="species_status"><option value="">指定なし</option><option value="invasive">外来種</option><option value="dominant_native">在来種の繁茂</option><option value="disturbance">撹乱</option><option value="unknown">不明</option></select>
+<label for="linked_visit_id">関連する記録ID</label><input id="linked_visit_id" name="linked_visit_id" autocomplete="off">
+<label for="description">メモ</label><textarea id="description" name="description"></textarea>
+<div class="sa-actions"><button type="submit">${signedIn ? "保存" : "ログインして保存"}</button><span class="sa-note">${escapeHtml(placeId)}</span></div>
+</form></section></main></body></html>`;
+}
+
+async function getStewardshipActionFormPage(request: Request, url: URL, env: Env, placeId: string): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  return html(renderStewardshipActionFormPage(placeId, url, Boolean(session && !session.banned)), 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "stewardship-action-form"
+  });
+}
+
+function formDataText(form: FormData, key: string): string {
+  const value = form.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+async function createStewardshipActionFromForm(request: Request, url: URL, env: Env, placeId: string): Promise<Response> {
+  const form = await request.formData();
+  const lang = stewardshipLang(new URL(stewardshipFormUrl(placeId, formDataText(form, "lang") || stewardshipLang(url)), url.origin));
+  const formUrl = stewardshipFormUrl(placeId, lang);
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session?.userId || session.banned) return redirect303(stewardshipFormUrl(placeId, lang, { error: "login_required" }));
+
+  const occurredAtRaw = formDataText(form, "occurred_at");
+  if (!occurredAtRaw) return redirect303(stewardshipFormUrl(placeId, lang, { error: "occurred_at_missing" }));
+  const occurredAt = new Date(occurredAtRaw);
+  if (Number.isNaN(occurredAt.getTime())) return redirect303(stewardshipFormUrl(placeId, lang, { error: "occurred_at_invalid" }));
+
+  const actionKind = formDataText(form, "action_kind");
+  if (!STEWARDSHIP_ACTION_KINDS.has(actionKind)) return redirect303(stewardshipFormUrl(placeId, lang, { error: "action_kind_invalid" }));
+  const speciesStatusRaw = formDataText(form, "species_status");
+  const speciesStatus = speciesStatusRaw && STEWARDSHIP_SPECIES_STATUSES.has(speciesStatusRaw) ? speciesStatusRaw : null;
+  const linkedVisitId = normalizeOptionalText(formDataText(form, "linked_visit_id"));
+  const description = normalizeOptionalText(formDataText(form, "description"));
+
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO stewardship_actions (
+         action_id, place_id, occurred_at, action_kind, actor_user_id,
+         linked_visit_id, description, species_status, metadata_json
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      newId("stewardship_action"),
+      placeId,
+      occurredAt.toISOString(),
+      actionKind,
+      session.userId,
+      linkedVisitId,
+      description,
+      speciesStatus,
+      JSON.stringify({ source: "cloudflare_web_form" })
+    ).run();
+  } catch (error) {
+    console.warn("[stewardshipActions] D1 insert failed", error);
+    return redirect303(stewardshipFormUrl(placeId, lang, { error: "insert_failed" }));
+  }
+
+  return redirect303(`${formUrl}&ok=1`, { "x-ikimon-cloudflare-native": "stewardship-action-write" });
 }
 
 function getPublicMapEmptyGeoJson(kind: string, headers: Record<string, string> = { "cache-control": "no-store" }): Response {

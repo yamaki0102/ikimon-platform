@@ -255,6 +255,18 @@ interface WaterRecordExtensionRow {
   source_payload_json: string;
 }
 
+interface StewardshipActionRow {
+  action_id: string;
+  place_id: string;
+  occurred_at: string;
+  action_kind: string;
+  actor_user_id: string;
+  linked_visit_id: string | null;
+  description: string | null;
+  species_status: string | null;
+  metadata_json: string;
+}
+
 interface OperationAuditRow {
   audit_id: string;
   operation_type: string;
@@ -1162,6 +1174,7 @@ class FakeD1 {
   rememberTokens = new Map<string, RememberTokenRow>();
   waterbodies = new Map<string, WaterbodyRow>();
   waterRecordExtensions = new Map<string, WaterRecordExtensionRow>();
+  stewardshipActions = new Map<string, StewardshipActionRow>();
   videoUploads = new Map<string, VideoUploadRow>();
   legacyAssetImports: LegacyAssetImportRow[] = [];
   legacyR2Imports: LegacyR2ImportRow[] = [];
@@ -1962,6 +1975,21 @@ class FakeStatement {
         public_waterbody_label: nullableString(v[10]),
         environment_snapshot_json: string(v[11]),
         source_payload_json: string(v[12])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO stewardship_actions")) {
+      this.db.stewardshipActions.set(string(v[0]), {
+        action_id: string(v[0]),
+        place_id: string(v[1]),
+        occurred_at: string(v[2]),
+        action_kind: string(v[3]),
+        actor_user_id: string(v[4]),
+        linked_visit_id: nullableString(v[5]),
+        description: nullableString(v[6]),
+        species_status: nullableString(v[7]),
+        metadata_json: string(v[8])
       });
       return {};
     }
@@ -7374,6 +7402,89 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
   assert.equal(issueSession.status, 200);
   assert.match(issueSession.headers.get("set-cookie") ?? "", /Secure/);
   assert.equal(core.operationAudit.length, 0);
+});
+
+test("production stewardship action form and post are D1-native without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawToken = "stewardship-action-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "care-user",
+    display_name: "Care User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const formResponse = await worker.fetch(new Request("https://ikimon.life/sites/place-care-1/stewardship/new?lang=ja", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(formResponse.status, 200);
+    assert.equal(formResponse.headers.get("x-ikimon-cloudflare-native"), "stewardship-action-form");
+    assert.match(await formResponse.text(), /手入れの記録/);
+
+    const guestPost = await worker.fetch(new Request("https://ikimon.life/sites/place-care-1/stewardship_actions", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        occurred_at: "2026-06-27T09:30",
+        action_kind: "cleanup",
+        lang: "ja"
+      }).toString()
+    }), productionEnv);
+    assert.equal(guestPost.status, 303);
+    assert.match(guestPost.headers.get("location") ?? "", /error=login_required/);
+
+    const postResponse = await worker.fetch(new Request("https://ikimon.life/sites/place-care-1/stewardship_actions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        cookie: `ikimon_v2_session=${rawToken}`
+      },
+      body: new URLSearchParams({
+        occurred_at: "2026-06-27T09:30",
+        action_kind: "cleanup",
+        species_status: "invasive",
+        linked_visit_id: "visit-care-1",
+        description: "河川敷のごみを拾った",
+        lang: "ja"
+      }).toString()
+    }), productionEnv);
+    assert.equal(postResponse.status, 303);
+    assert.match(postResponse.headers.get("location") ?? "", /ok=1/);
+    assert.equal(postResponse.headers.get("x-ikimon-cloudflare-native"), "stewardship-action-write");
+    assert.equal(obs.stewardshipActions.size, 1);
+    const row = [...obs.stewardshipActions.values()][0];
+    assert.ok(row);
+    assert.equal(row.place_id, "place-care-1");
+    assert.equal(row.action_kind, "cleanup");
+    assert.equal(row.actor_user_id, "care-user");
+    assert.equal(row.linked_visit_id, "visit-care-1");
+    assert.equal(row.species_status, "invasive");
+    assert.match(row.metadata_json, /cloudflare_web_form/);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("production candidate action routes write D1 requests without origin fallback", async () => {
