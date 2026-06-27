@@ -105,6 +105,22 @@ interface ObservationRecordAiReviewRow {
   updated_at: string;
 }
 
+interface ObservationSpecialistReviewRow {
+  review_id: string;
+  occurrence_id: string;
+  actor_user_id: string;
+  lane: string;
+  decision: string;
+  proposed_name: string | null;
+  proposed_rank: string | null;
+  accepted_rank: string | null;
+  notes: string | null;
+  review_class: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface PlaceManagementPolicyRow {
   place_id: string;
   user_id: string;
@@ -1192,6 +1208,7 @@ class FakeD1 {
   observationIdentificationDisputes = new Map<string, ObservationIdentificationDisputeRow>();
   observationAiReviewTargets = new Map<string, ObservationAiReviewTargetRow>();
   observationRecordAiReviews = new Map<string, ObservationRecordAiReviewRow>();
+  observationSpecialistReviews = new Map<string, ObservationSpecialistReviewRow>();
   placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
@@ -2117,6 +2134,43 @@ class FakeStatement {
           source_payload_json: string(v[6]),
           created_at: string(v[7]) || now,
           updated_at: string(v[8]) || now
+        });
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_specialist_reviews")) {
+      const now = new Date().toISOString();
+      const occurrenceId = string(v[1]);
+      const actorUserId = string(v[2]);
+      const lane = string(v[3]);
+      const existing = [...this.db.observationSpecialistReviews.values()].find((candidate) =>
+        candidate.occurrence_id === occurrenceId && candidate.actor_user_id === actorUserId && candidate.lane === lane
+      );
+      if (existing) {
+        existing.decision = string(v[4]);
+        existing.proposed_name = nullableString(v[5]);
+        existing.proposed_rank = nullableString(v[6]);
+        existing.accepted_rank = nullableString(v[7]);
+        existing.notes = nullableString(v[8]);
+        existing.review_class = string(v[9]);
+        existing.source_payload_json = string(v[10]);
+        existing.updated_at = string(v[12]) || now;
+      } else {
+        this.db.observationSpecialistReviews.set(string(v[0]), {
+          review_id: string(v[0]),
+          occurrence_id: occurrenceId,
+          actor_user_id: actorUserId,
+          lane,
+          decision: string(v[4]),
+          proposed_name: nullableString(v[5]),
+          proposed_rank: nullableString(v[6]),
+          accepted_rank: nullableString(v[7]),
+          notes: nullableString(v[8]),
+          review_class: string(v[9]),
+          source_payload_json: string(v[10]),
+          created_at: string(v[11]) || now,
+          updated_at: string(v[12]) || now
         });
       }
       return {};
@@ -8699,6 +8753,98 @@ test("production runtime resolves identification disputes natively for specialis
     assert.equal(identification?.stance, "support");
     assert.match(identification?.source_payload_json ?? "", /authority_backed/);
     assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-resolve-1"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime records specialist occurrence reviews natively for specialists only", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const observerIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "ordinary-user", roleName: "Observer", ttlHours: 1 })
+  }), productionEnv);
+  const observerCookie = observerIssue.headers.get("set-cookie") ?? "";
+  const specialistIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "specialist-user", roleName: "Specialist", ttlHours: 1 })
+  }), productionEnv);
+  const specialistCookie = specialistIssue.headers.get("set-cookie") ?? "";
+  assert.match(observerCookie, /^ikimon_v2_session=/);
+  assert.match(specialistCookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const forbidden = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/occurrences/occ-specialist-1/review", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: observerCookie },
+      body: JSON.stringify({ decision: "approve", proposedName: "Papilio xuthus", proposedRank: "species" })
+    }), productionEnv);
+    assert.equal(forbidden.status, 403);
+    assert.equal((await forbidden.json() as any).error, "specialist_required");
+    assert.equal(obs.observationSpecialistReviews.size, 0);
+
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/occurrences/occ-specialist-1/review", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: specialistCookie },
+      body: JSON.stringify({
+        lane: "public-claim",
+        decision: "approve",
+        proposedName: "Papilio xuthus",
+        proposedRank: "species",
+        notes: "authority checked"
+      })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "specialist-review-runtime");
+    assert.equal(payload.ok, true);
+    assert.equal(payload.occurrenceId, "occ-specialist-1");
+    assert.equal(payload.lane, "public-claim");
+    assert.equal(payload.decision, "approve");
+    assert.equal(payload.compatibility.source, "cloudflare_specialist_review_runtime");
+    assert.equal(payload.compatibility.reviewStored, true);
+    assert.equal(payload.compatibility.identificationStored, true);
+    assert.equal(payload.consensus.identificationVerificationStatus, "authority_reviewed");
+    assert.equal(payload.consensus.communityTaxon.name, "Papilio xuthus");
+
+    assert.equal(obs.observationSpecialistReviews.size, 1);
+    const review = [...obs.observationSpecialistReviews.values()][0];
+    assert.equal(review?.actor_user_id, "specialist-user");
+    assert.equal(review?.lane, "public-claim");
+    assert.equal(review?.decision, "approve");
+    assert.equal(review?.proposed_name, "Papilio xuthus");
+    assert.equal(review?.review_class, "authority_backed");
+    assert.match(review?.source_payload_json ?? "", /cloudflare_specialist_review_runtime/);
+
+    assert.equal(obs.observationIdentifications.size, 1);
+    const identification = [...obs.observationIdentifications.values()][0];
+    assert.equal(identification?.actor_user_id, "specialist-user");
+    assert.equal(identification?.proposed_name, "Papilio xuthus");
+    assert.equal(identification?.proposed_rank, "species");
+    assert.equal(identification?.stance, "support");
+    assert.match(identification?.source_payload_json ?? "", /authority_backed/);
+    assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-specialist-1"), true);
   } finally {
     globalThis.fetch = originalFetch;
   }

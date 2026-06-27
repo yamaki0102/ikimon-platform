@@ -1963,6 +1963,15 @@ export const worker = {
         );
       }
 
+      const specialistOccurrenceReviewMatch = url.pathname.match(/^\/api\/v1\/specialist\/occurrences\/([^/]+)\/review$/);
+      if (request.method === "POST" && specialistOccurrenceReviewMatch?.[1]) {
+        return recordCompatibleSpecialistOccurrenceReview(
+          decodeURIComponent(specialistOccurrenceReviewMatch[1]),
+          request,
+          env
+        );
+      }
+
       const aiReviewMatch = url.pathname.match(/^\/api\/v1\/observation-records\/([^/]+)\/ai-review$/);
       if (request.method === "POST" && aiReviewMatch?.[1]) {
         return submitCompatibleObservationRecordAiReview(
@@ -5547,6 +5556,14 @@ function normalizeIdentificationDisputeResolution(value: unknown): "accept_alter
   return value === "accept_alternative" || value === "reject_dispute" || value === "needs_more_evidence" ? value : null;
 }
 
+function normalizeSpecialistReviewDecision(value: unknown): "approve" | "reject" | "note" | null {
+  return value === "approve" || value === "reject" || value === "note" ? value : null;
+}
+
+function normalizeSpecialistReviewLane(value: unknown): "default" | "public-claim" | "expert-lane" | "review-queue" {
+  return value === "public-claim" || value === "expert-lane" || value === "review-queue" ? value : "default";
+}
+
 function isIdentificationSpecialistRole(session: SessionSnapshot): boolean {
   const roleText = `${session.roleName ?? ""} ${session.rankLabel ?? ""}`.toLowerCase();
   return /\b(admin|administrator|analyst|owner|manager|specialist|expert|reviewer|authority)\b/.test(roleText)
@@ -5686,6 +5703,158 @@ async function resolveCompatibleIdentificationDispute(disputeId: string, request
     },
     consensus
   }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "identification-participation-runtime" });
+}
+
+async function recordCompatibleSpecialistOccurrenceReview(occurrenceId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "occurrence_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+  if (!isIdentificationSpecialistRole(session)) {
+    return json({ ok: false, error: "specialist_required" }, 403, { "cache-control": "no-store" });
+  }
+
+  const input = await readJson<{
+    actorUserId?: unknown;
+    lane?: unknown;
+    decision?: unknown;
+    proposedName?: unknown;
+    proposedRank?: unknown;
+    notes?: unknown;
+  }>(request);
+  const actorUserId = normalizeOptionalId(input.actorUserId) ?? session.userId;
+  if (actorUserId !== session.userId) {
+    return json({ ok: false, error: "actor_mismatch" }, 403, { "cache-control": "no-store" });
+  }
+  const lane = normalizeSpecialistReviewLane(input.lane);
+  const decision = normalizeSpecialistReviewDecision(input.decision);
+  if (!decision) {
+    return json({ ok: false, error: "invalid_specialist_review_decision" }, 400, { "cache-control": "no-store" });
+  }
+
+  const proposedName = normalizeOptionalText(input.proposedName);
+  const proposedRank = normalizeOptionalText(input.proposedRank);
+  const notes = normalizeOptionalText(input.notes);
+  if (decision === "approve" && !proposedName) {
+    return json({ ok: false, error: "proposed_name_required" }, 422, { "cache-control": "no-store" });
+  }
+
+  const now = new Date().toISOString();
+  const reviewClass = lane === "public-claim" || lane === "expert-lane" ? "authority_backed" : "specialist_review";
+  const acceptedRank = decision === "approve" ? proposedRank : null;
+  const sourcePayload = {
+    source: "cloudflare_specialist_review_runtime",
+    lane,
+    decision,
+    actorUserId,
+    roleName: session.roleName ?? null,
+    rankLabel: session.rankLabel ?? null,
+    proposedName,
+    proposedRank,
+    notes,
+    reviewClass,
+    updatedAt: now
+  };
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_specialist_reviews (
+       review_id, occurrence_id, actor_user_id, lane, decision,
+       proposed_name, proposed_rank, accepted_rank, notes, review_class,
+       source_payload_json, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(occurrence_id, actor_user_id, lane) DO UPDATE SET
+       decision = excluded.decision,
+       proposed_name = excluded.proposed_name,
+       proposed_rank = excluded.proposed_rank,
+       accepted_rank = excluded.accepted_rank,
+       notes = excluded.notes,
+       review_class = excluded.review_class,
+       source_payload_json = excluded.source_payload_json,
+       updated_at = excluded.updated_at`
+  ).bind(
+    newId("specialist_review"),
+    normalizedOccurrenceId,
+    actorUserId,
+    lane,
+    decision,
+    proposedName,
+    proposedRank,
+    acceptedRank,
+    notes,
+    reviewClass,
+    JSON.stringify(sourcePayload),
+    now,
+    now
+  ).run();
+
+  if (decision === "approve" && proposedName) {
+    const sourceKey = `cf_specialist_review:${normalizedOccurrenceId}:${lane}:${actorUserId}`;
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_identifications (
+         identification_id, occurrence_id, actor_user_id, proposed_name, proposed_rank,
+         stance, notes, source_key, source_payload_json, is_current
+       ) VALUES (?, ?, ?, ?, ?, 'support', NULL, ?, ?, 1)
+       ON CONFLICT(source_key) DO UPDATE SET
+         proposed_name = excluded.proposed_name,
+         proposed_rank = excluded.proposed_rank,
+         stance = 'support',
+         notes = NULL,
+         source_payload_json = excluded.source_payload_json,
+         is_current = 1,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      newId("identification"),
+      normalizedOccurrenceId,
+      actorUserId,
+      proposedName,
+      proposedRank,
+      sourceKey,
+      JSON.stringify({
+        source: "cloudflare_specialist_review_runtime",
+        lane,
+        reviewClass,
+        acceptedRank,
+        updatedAt: now
+      })
+    ).run();
+  }
+
+  await env.OBS_DB.prepare(
+    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+  ).bind(
+    newId("outbox"),
+    "readmodel.refresh",
+    normalizedOccurrenceId,
+    JSON.stringify({ observationId: normalizedOccurrenceId, reason: "specialist.review" }),
+    null
+  ).run();
+
+  const consensus = await getD1IdentificationConsensus(env, normalizedOccurrenceId);
+  return json({
+    ok: true,
+    occurrenceId: normalizedOccurrenceId,
+    lane,
+    decision,
+    compatibility: {
+      source: "cloudflare_specialist_review_runtime",
+      reviewStored: true,
+      identificationStored: decision === "approve" && Boolean(proposedName)
+    },
+    consensus
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-review-runtime" });
 }
 
 const RECORD_READING_MODEL_VERSION = "record_reading_cards_v0_1_cloudflare";
@@ -6263,6 +6432,8 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/specialist\/occurrences\/[^/]+\/review$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/specialist\/disputes\/[^/]+\/resolve$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observation-records\/[^/]+\/ai-review$/.test(url.pathname)) return true;
   if (url.pathname === "/api/v1/walk/session/start") return true;
   if (url.pathname === "/api/v1/walk/session/end") return true;
