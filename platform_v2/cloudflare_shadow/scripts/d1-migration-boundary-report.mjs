@@ -51,6 +51,7 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/routes/adminMonitoringWorkspace.ts": "admin_monitoring_diagnostic_readonly",
     "platform_v2/src/routes/adminRegionalKnowledge.ts": "admin_regional_knowledge_review_dashboard",
     "platform_v2/src/routes/adminSiteEvidence.ts": "admin_evidence_report",
+    "platform_v2/src/routes/knowledgeNavigationApi.ts": "internal_knowledge_navigation_admin_api",
     "platform_v2/src/routes/curatorProposalsApi.ts": "internal_curator_proposal_receiver",
     "platform_v2/src/services/alertDispatcher.ts": "manual_ai_reassessment_alert_dispatcher",
     "platform_v2/src/services/monitoringWorkspaceData.ts": "admin_monitoring_diagnostic_readmodel",
@@ -194,6 +195,8 @@ function optionalRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observationContext.ts": "optional_observation_detail_context_falls_back_empty",
     "platform_v2/src/services/observationDetailHeavy.ts": "optional_observation_detail_heavy_falls_back_empty",
     "platform_v2/src/services/observerStats.ts": "optional_observation_detail_observer_stats_card",
+    "platform_v2/src/services/placeVegetationTrend.ts": "optional_place_vegetation_trend_card_falls_back_null",
+    "platform_v2/src/services/regionalStory.ts": "optional_regional_story_seed_fallback_and_nonfatal_exposure_log",
     "platform_v2/src/services/taxonInsights.ts": "optional_observation_detail_taxon_insight_card"
   };
   return exactOptionalRuntime[normalized] ?? null;

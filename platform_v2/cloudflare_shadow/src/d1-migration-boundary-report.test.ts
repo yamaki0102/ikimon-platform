@@ -133,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 65/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 61/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -171,7 +171,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 65/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 61/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -228,6 +228,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminMonitoringWorkspace.ts"), "admin_monitoring_diagnostic_readonly");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminRegionalKnowledge.ts"), "admin_regional_knowledge_review_dashboard");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminSiteEvidence.ts"), "admin_evidence_report");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/knowledgeNavigationApi.ts"), "internal_knowledge_navigation_admin_api");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/curatorProposalsApi.ts"), "internal_curator_proposal_receiver");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/alertDispatcher.ts"), "manual_ai_reassessment_alert_dispatcher");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/monitoringWorkspaceData.ts"), "admin_monitoring_diagnostic_readmodel");
@@ -292,6 +293,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observationContext.ts"), "optional_observation_detail_context_falls_back_empty");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observationDetailHeavy.ts"), "optional_observation_detail_heavy_falls_back_empty");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observerStats.ts"), "optional_observation_detail_observer_stats_card");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/placeVegetationTrend.ts"), "optional_place_vegetation_trend_card_falls_back_null");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/regionalStory.ts"), "optional_regional_story_seed_fallback_and_nonfatal_exposure_log");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/taxonInsights.ts"), "optional_observation_detail_taxon_insight_card");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
@@ -390,6 +393,65 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
     ),
     null,
   );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/knowledgeNavigation.ts",
+      new Map([
+        [
+          "platform_v2/src/services/knowledgeNavigation.ts",
+          new Set([
+            "platform_v2/src/routes/knowledgeNavigationApi.ts",
+            "platform_v2/src/scripts/compileKnowledgeNavigation.ts",
+          ]),
+        ],
+      ]),
+    ),
+    "deploy_or_postdeploy_tool+internal_knowledge_navigation_admin_api_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/knowledgeNavigation.ts",
+      new Map([
+        [
+          "platform_v2/src/services/knowledgeNavigation.ts",
+          new Set([
+            "platform_v2/src/routes/knowledgeNavigationApi.ts",
+            "platform_v2/src/routes/read.ts",
+          ]),
+        ],
+      ]),
+    ),
+    null,
+  );
+  const knowledgeClaimRetrievalReason = exclusiveMaintenancePgDependencyReason(
+    "platform_v2/src/services/knowledgeClaimRetrieval.ts",
+    new Map([
+      [
+        "platform_v2/src/services/knowledgeClaimRetrieval.ts",
+        new Set([
+          "platform_v2/src/services/knowledgeNavigation.ts",
+          "platform_v2/src/services/observationReassess.ts",
+        ]),
+      ],
+      [
+        "platform_v2/src/services/knowledgeNavigation.ts",
+        new Set([
+          "platform_v2/src/routes/knowledgeNavigationApi.ts",
+          "platform_v2/src/scripts/compileKnowledgeNavigation.ts",
+        ]),
+      ],
+      [
+        "platform_v2/src/services/observationReassess.ts",
+        new Set([
+          "platform_v2/src/scripts/refreshRecentObservationAi.ts",
+          "platform_v2/src/scripts/runAiForMissing.ts",
+        ]),
+      ],
+    ]),
+  );
+  assert.ok(knowledgeClaimRetrievalReason);
+  assert.match(knowledgeClaimRetrievalReason, /internal_knowledge_navigation_admin_api/);
+  assert.match(knowledgeClaimRetrievalReason, /manual_ai_batch_tool/);
 
   assert.match(script, /const maintenancePgFiles = pgFiles/);
   assert.match(script, /const replacedProductionRuntimePgFiles = pgFiles/);
@@ -434,6 +496,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_observation_detail_context_falls_back_empty/);
   assert.match(script, /optional_observation_detail_heavy_falls_back_empty/);
   assert.match(script, /optional_observation_detail_observer_stats_card/);
+  assert.match(script, /optional_place_vegetation_trend_card_falls_back_null/);
   assert.match(script, /optional_observation_detail_taxon_insight_card/);
 });
 
