@@ -684,8 +684,19 @@ interface ObservationEventLiveD1Row {
   session_id: string;
   type: string;
   scope: string;
+  actor_user_id?: string | null;
+  actor_guest_token?: string | null;
   team_id: string | null;
   payload_json: string;
+  created_at: string;
+}
+
+interface ObservationEventTeamD1Row {
+  team_id: string;
+  name: string;
+  color: string;
+  lead_user_id: string | null;
+  target_taxa_json: string;
   created_at: string;
 }
 
@@ -705,6 +716,25 @@ interface ObservationEventMeshSummaryRow {
   visit_seconds_sum: number;
   observation_sum: number;
   absence_sum: number;
+}
+
+interface ObservationEventCapsuleD1Row {
+  session_id: string;
+  source_counts_json: string;
+  source_clusters_json: string;
+  private_digest_json: string;
+  public_story_draft_json: string;
+  record_candidates_json: string;
+  privacy_risk_queue_json: string;
+  readiness_json: string;
+  source_hash: string;
+  model_metadata_json: string;
+  review_status: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  published_at: string | null;
+  generated_at: string;
+  updated_at: string;
 }
 
 interface ObservationRallyCourseD1Row {
@@ -2006,6 +2036,11 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "POST" && pathname === "/api/v1/observation-events") {
     return createObservationEventSession(request, env);
   }
+  const byCodeRecapMatch = pathname.match(/^\/api\/v1\/observation-events\/by-code\/([^/]+)\/recap$/);
+  if (request.method === "GET" && byCodeRecapMatch?.[1]) {
+    const session = await getObservationEventSessionByEventCode(env, decodeURIComponent(byCodeRecapMatch[1]));
+    return session ? getObservationEventRecap(request, url, env, session.sessionId) : json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  }
   const byCodeMatch = pathname.match(/^\/api\/v1\/observation-events\/by-code\/([^/]+)$/);
   if (request.method === "GET" && byCodeMatch?.[1]) {
     const session = await getObservationEventSessionByEventCode(env, decodeURIComponent(byCodeMatch[1]));
@@ -2018,6 +2053,15 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   const rallyMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/rally(?:\/(.*))?$/);
   if (rallyMatch?.[1]) {
     return handleObservationEventRallyApi(request, env, decodeURIComponent(rallyMatch[1]), rallyMatch[2] ? decodeURIComponent(rallyMatch[2]) : "");
+  }
+  const capsuleMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/capsule(?:\/(generate|review))?$/);
+  if (capsuleMatch?.[1]) {
+    const sessionId = decodeURIComponent(capsuleMatch[1]);
+    const action = capsuleMatch[2] ? decodeURIComponent(capsuleMatch[2]) : "";
+    if (request.method === "GET" && action === "") return getObservationEventCapsule(request, env, sessionId);
+    if (request.method === "POST" && action === "generate") return generateObservationEventCapsule(request, env, sessionId);
+    if (request.method === "PATCH" && action === "review") return reviewObservationEventCapsule(request, env, sessionId);
+    return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
   }
   const sessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)(?:\/([^/]+))?$/);
   if (!sessionMatch?.[1]) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
@@ -2039,6 +2083,8 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "PATCH" && action === "role") return updateObservationEventRole(request, env, sessionId);
   if (request.method === "POST" && action === "end") return endObservationEventSession(request, env, sessionId);
   if (request.method === "GET" && action === "effort") return getObservationEventEffort(env, sessionId);
+  if (request.method === "GET" && action === "recap") return getObservationEventRecap(request, url, env, sessionId);
+  if (request.method === "GET" && action === "species.csv") return getObservationEventSpeciesCsv(request, env, sessionId);
   return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
 }
 
@@ -2340,9 +2386,7 @@ async function getObservationEventLiveSnapshot(url: URL, env: Env, sessionId: st
   });
 }
 
-async function getObservationEventEffort(env: Env, sessionId: string): Promise<Response> {
-  const session = await getObservationEventSessionById(env, sessionId);
-  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+async function summarizeObservationEventEffort(env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>) {
   const target = Math.max(1, Number(session.config.coverage_target_cells ?? 100) || 100);
   const row = await env.OBS_DB.prepare(
     `SELECT COUNT(*) AS visited_cells,
@@ -2351,23 +2395,494 @@ async function getObservationEventEffort(env: Env, sessionId: string): Promise<R
             COALESCE(SUM(absence_count), 0) AS absence_sum
        FROM observation_event_mesh_cells
       WHERE session_id = ?`
-  ).bind(sessionId).first<ObservationEventMeshSummaryRow>();
+  ).bind(session.sessionId).first<ObservationEventMeshSummaryRow>();
   const visited = Number(row?.visited_cells ?? 0);
   const seconds = Number(row?.visit_seconds_sum ?? 0);
   const observations = Number(row?.observation_sum ?? 0);
   const absences = Number(row?.absence_sum ?? 0);
+  return {
+    sessionId: session.sessionId,
+    totalVisitedCells: visited,
+    totalEffortSeconds: seconds,
+    totalEffortPersonHours: Math.round((seconds / 3600) * 100) / 100,
+    totalObservations: observations,
+    totalAbsences: absences,
+    coveragePct: Math.min(100, Math.round((visited / target) * 1000) / 10)
+  };
+}
+
+async function getObservationEventEffort(env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const effort = await summarizeObservationEventEffort(env, session);
   return json({
     session,
-    effort: {
-      sessionId,
-      totalVisitedCells: visited,
-      totalEffortSeconds: seconds,
-      totalEffortPersonHours: Math.round((seconds / 3600) * 100) / 100,
-      totalObservations: observations,
-      totalAbsences: absences,
-      coveragePct: Math.min(100, Math.round((visited / target) * 1000) / 10)
+    effort
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getObservationEventRecap(request: Request, url: URL, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const guestToken = normalizeOptionalText(url.searchParams.get("guest_token"));
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "200"), 20, 500);
+  const [eventsDesc, teams, participants, absenceRows, effort] = await Promise.all([
+    listObservationEventLiveEvents(env, sessionId, limit),
+    listObservationEventTeams(env, sessionId),
+    listObservationEventParticipants(env, sessionId),
+    listObservationEventAbsences(env, sessionId),
+    summarizeObservationEventEffort(env, session)
+  ]);
+  const events = eventsDesc.reverse();
+  const observationEvents = events.filter((event) => event.type === "observation_added");
+  const guideSceneCount = events.filter((event) => event.type === "guide_scene_added").length;
+  const fieldScanCount = events.filter((event) => event.type === "field_scan_added").length;
+  const fanfareCount = events.filter((event) => ["rare_species", "target_hit", "milestone", "fanfare"].includes(event.type)).length;
+  const taxonCounts = countObservationEventTaxa(observationEvents);
+  const startedAt = session.startedAt;
+  const endedAt = session.endedAt;
+  const durationMinutes = durationMinutesBetween(startedAt, endedAt);
+  const viewer = findObservationEventViewerParticipant(participants, auth?.userId ?? null, guestToken);
+  const myEvents = viewer
+    ? observationEvents.filter((event) => (viewer.user_id && event.actorUserId === viewer.user_id) || (viewer.guest_token && event.actorGuestToken === viewer.guest_token))
+    : [];
+  const myTaxa = [...countObservationEventTaxa(myEvents).keys()];
+  await recordObservationEventRecapView(env, sessionId, auth?.userId ?? null, guestToken);
+  return json({
+    session,
+    permissions: { canManage: Boolean(auth?.userId && auth.userId === session.organizerUserId) },
+    highlights: {
+      observationCount: observationEvents.length,
+      guideSceneCount,
+      fieldScanCount,
+      uniqueSpeciesCount: taxonCounts.size,
+      absencesCount: absenceRows.length,
+      participantsCount: participants.length,
+      questsOffered: 0,
+      questsAccepted: 0,
+      questsCompleted: 0,
+      fanfareCount,
+      totalEffortPersonHours: effort.totalEffortPersonHours,
+      meshCoveragePct: effort.coveragePct,
+      topTaxa: [...taxonCounts.entries()].map(([name, count]) => ({ name, count })).slice(0, 8),
+      startedAt,
+      endedAt,
+      durationMinutes
+    },
+    effort,
+    teams: teams.map((team) => {
+      const teamEvents = observationEvents.filter((event) => event.teamId === team.team_id);
+      return {
+        teamId: team.team_id,
+        name: team.name,
+        color: team.color,
+        memberCount: participants.filter((participant) => participant.team_id === team.team_id).length,
+        observationsCount: teamEvents.length,
+        uniqueSpeciesCount: countObservationEventTaxa(teamEvents).size,
+        absencesCount: absenceRows.filter((absence) => absence.team_id === team.team_id).length,
+        questsAccepted: 0
+      };
+    }),
+    timeline: events.map((event) => ({
+      liveEventId: event.liveEventId,
+      type: event.type,
+      scope: event.scope,
+      teamId: event.teamId,
+      payload: event.payload,
+      createdAt: event.createdAt
+    })),
+    impacts: [],
+    myContribution: viewer ? {
+      participantId: viewer.participant_id,
+      displayName: viewer.display_name ?? null,
+      teamId: viewer.team_id,
+      observationsCount: myEvents.length,
+      uniqueSpeciesCount: myTaxa.length,
+      absencesCount: absenceRows.filter((absence) => (viewer.user_id && absence.user_id === viewer.user_id) || (viewer.guest_token && absence.guest_token === viewer.guest_token)).length,
+      questsAccepted: 0,
+      recentTaxa: myTaxa.slice(0, 8)
+    } : null
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function getObservationEventSpeciesCsv(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const report = await buildObservationEventOfficialReport(request, env, sessionId);
+  if (report instanceof Response) return report;
+  const header = ["observed_at", "taxon_name", "team_id", "record_kind", "match_source", "evidence_ref"];
+  const rows = report.speciesRecords.map((record) => [
+    record.observedAt,
+    record.taxonName,
+    record.teamId ?? "",
+    record.recordKind,
+    record.matchSource,
+    record.evidenceRef ?? ""
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n") + "\n";
+  return new Response(csv, {
+    status: 200,
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="observation-event-${sessionId}-species.csv"`,
+      "cache-control": "no-store"
+    }
+  });
+}
+
+async function buildObservationEventOfficialReport(request: Request, env: Env, sessionId: string) {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  if (session.plan !== "public" && auth?.userId !== session.organizerUserId) {
+    return json({ error: "not allowed" }, 403, { "cache-control": "no-store" });
+  }
+  const rows = (await listObservationEventLiveEvents(env, sessionId, 500))
+    .filter((event) => ["observation_added", "guide_scene_added", "field_scan_added"].includes(event.type))
+    .reverse();
+  const speciesRecords = rows
+    .filter((event) => event.type === "observation_added")
+    .map((event) => {
+      const taxonName = observationEventTaxonName(event.payload);
+      if (!taxonName) return null;
+      return {
+        liveEventId: event.liveEventId,
+        observedAt: event.createdAt,
+        teamId: event.teamId,
+        taxonName,
+        recordKind: "observation_added" as const,
+        matchSource: "explicit_session_event" as const,
+        evidenceRef: normalizeOptionalText(event.payload.observation_id)
+          ?? normalizeOptionalText(event.payload.visit_id)
+          ?? normalizeOptionalText(event.payload.occurrence_id)
+          ?? normalizeOptionalText(event.payload.asset_id)
+      };
+    })
+    .filter((record): record is NonNullable<typeof record> => record !== null);
+  const topTaxa = [...countObservationEventTaxa(rows.filter((event) => event.type === "observation_added")).entries()]
+    .map(([taxonName, count]) => ({ taxonName, count }))
+    .slice(0, 30);
+  return {
+    schemaVersion: "observation_event_official_report/v1",
+    session,
+    generatedAt: new Date().toISOString(),
+    claimBoundary: {
+      canSay: [
+        "この観察会セッションに明示的に紐づいた記録の集計",
+        "観察会中に記録された種名候補と件数",
+        "公式提出前の確認用リスト"
+      ],
+      cannotSay: [
+        "半径内に存在しただけの第三者記録を観察会成果として扱うこと",
+        "AI候補だけで種同定が確定したと表現すること",
+        "希少種や配慮対象種の正確な位置を未確認のまま公開すること"
+      ]
+    },
+    privacyBoundary: {
+      exactCoordinatesIncluded: false,
+      sensitiveSpeciesRequiresOrganizerReview: true
+    },
+    stats: {
+      officialObservationCount: speciesRecords.length,
+      uniqueTaxaCount: topTaxa.length,
+      guideSceneCount: rows.filter((event) => event.type === "guide_scene_added").length,
+      fieldScanCount: rows.filter((event) => event.type === "field_scan_added").length
+    },
+    topTaxa,
+    speciesRecords
+  };
+}
+
+function csvCell(value: unknown): string {
+  const text = String(value ?? "");
+  if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+async function generateObservationEventCapsule(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  await readJson<Record<string, unknown>>(request).catch(() => ({}));
+  const [eventsDesc, participants, absences] = await Promise.all([
+    listObservationEventLiveEvents(env, sessionId, 500),
+    listObservationEventParticipants(env, sessionId),
+    listObservationEventAbsences(env, sessionId)
+  ]);
+  const events = eventsDesc.reverse();
+  const capsule = buildObservationEventCapsulePayload(auth.session, events, participants, absences, auth.auth.userId);
+  await upsertObservationEventCapsule(env, capsule);
+  return json({ capsule }, 201, { "cache-control": "no-store" });
+}
+
+async function getObservationEventCapsule(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const row = await getObservationEventCapsuleRow(env, sessionId);
+  if (!row) return json({ error: "capsule not found" }, 404, { "cache-control": "no-store" });
+  const capsule = mapObservationEventCapsule(row);
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  if (canManage) return json({ capsule }, 200, { "cache-control": "no-store" });
+  if (!["approved_public", "published"].includes(capsule.reviewStatus)) {
+    return json({ error: "capsule not public" }, 403, { "cache-control": "no-store" });
+  }
+  return json({
+    capsule: {
+      sessionId: capsule.sessionId,
+      publicStoryDraft: capsule.publicStoryDraft,
+      sourceCounts: capsule.sourceCounts,
+      sourceClusters: capsule.sourceClusters,
+      reviewStatus: capsule.reviewStatus,
+      publishedAt: capsule.publishedAt,
+      generatedAt: capsule.generatedAt
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+async function reviewObservationEventCapsule(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const auth = await requireObservationEventOrganizer(request, env, sessionId);
+  if (auth instanceof Response) return auth;
+  const row = await getObservationEventCapsuleRow(env, sessionId);
+  if (!row) return json({ error: "capsule not found" }, 404, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const reviewStatus = normalizeCapsuleReviewStatus(body.review_status ?? body.reviewStatus);
+  if (!reviewStatus) return json({ error: "invalid review_status" }, 400, { "cache-control": "no-store" });
+  const capsule = mapObservationEventCapsule(row);
+  if (["approved_public", "published"].includes(reviewStatus) && capsule.privacyRiskQueue.length > 0) {
+    return json({ error: "privacy review blockers remain", blockers: capsule.privacyRiskQueue }, 409, { "cache-control": "no-store" });
+  }
+  await env.OBS_DB.prepare(
+    `UPDATE observation_event_capsules
+        SET review_status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP,
+            published_at = CASE WHEN ? = 'published' THEN CURRENT_TIMESTAMP ELSE published_at END,
+            updated_at = CURRENT_TIMESTAMP
+      WHERE session_id = ?`
+  ).bind(reviewStatus, auth.auth.userId, reviewStatus, sessionId).run();
+  const updated = await getObservationEventCapsuleRow(env, sessionId);
+  return json({ capsule: updated ? mapObservationEventCapsule(updated) : null }, 200, { "cache-control": "no-store" });
+}
+
+function normalizeCapsuleReviewStatus(value: unknown): "draft" | "needs_review" | "approved_private" | "approved_public" | "published" | null {
+  const text = normalizeOptionalText(value);
+  if (text === "draft" || text === "needs_review" || text === "approved_private" || text === "approved_public" || text === "published") return text;
+  return null;
+}
+
+function buildObservationEventCapsulePayload(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>,
+  participants: ObservationEventParticipantD1Row[],
+  absences: Awaited<ReturnType<typeof listObservationEventAbsences>>,
+  generatedBy: string
+) {
+  const observationEvents = events.filter((event) => event.type === "observation_added");
+  const guideEvents = events.filter((event) => event.type === "guide_scene_added");
+  const scanEvents = events.filter((event) => event.type === "field_scan_added");
+  const taxonCounts = countObservationEventTaxa(observationEvents);
+  const sourceRefs = events
+    .filter((event) => ["observation_added", "guide_scene_added", "field_scan_added", "absence_recorded"].includes(event.type))
+    .map((event) => ({
+      sourceRef: `live:${event.liveEventId}`,
+      sourceType: event.type === "guide_scene_added" ? "guide_scene" : event.type === "field_scan_added" ? "field_scan" : event.type === "absence_recorded" ? "absence" : "observation",
+      label: observationEventTaxonName(event.payload) ?? normalizeOptionalText(event.payload.summary) ?? normalizeOptionalText(event.payload.scene_summary) ?? event.type,
+      createdAt: event.createdAt
+    }));
+  const privacyRiskQueue = detectObservationEventCapsuleRisks(events, participants);
+  const publicReady = privacyRiskQueue.length === 0;
+  const sourceCounts = {
+    observations: observationEvents.length,
+    guideScenes: guideEvents.length,
+    fieldScans: scanEvents.length,
+    absences: absences.length,
+    participants: participants.length,
+    minors: participants.filter((participant) => participant.is_minor === 1).length,
+    risks: privacyRiskQueue.length
+  };
+  const generatedAt = new Date().toISOString();
+  return {
+    sessionId: session.sessionId,
+    sourceCounts,
+    sourceClusters: {
+      topTaxa: [...taxonCounts.entries()].map(([label, count]) => ({ label, count, sourceRefs: observationEvents.filter((event) => observationEventTaxonName(event.payload) === label).map((event) => `live:${event.liveEventId}`).slice(0, 8) })).slice(0, 8),
+      guideThemes: guideEvents.reduce<Array<{ label: string; count: number; sourceRefs: string[] }>>((acc, event) => {
+        const label = normalizeOptionalText(event.payload.theme) ?? normalizeOptionalText(event.payload.scene_summary) ?? "ガイドで見た場面";
+        const existing = acc.find((item) => item.label === label);
+        if (existing) {
+          existing.count += 1;
+          existing.sourceRefs.push(`live:${event.liveEventId}`);
+        } else {
+          acc.push({ label, count: 1, sourceRefs: [`live:${event.liveEventId}`] });
+        }
+        return acc;
+      }, []).slice(0, 8),
+      scanModes: scanEvents.reduce<Array<{ label: string; count: number; sourceRefs: string[] }>>((acc, event) => {
+        const label = normalizeOptionalText(event.payload.scan_mode) ?? normalizeOptionalText(event.payload.mode) ?? "field_scan";
+        const existing = acc.find((item) => item.label === label);
+        if (existing) {
+          existing.count += 1;
+          existing.sourceRefs.push(`live:${event.liveEventId}`);
+        } else {
+          acc.push({ label, count: 1, sourceRefs: [`live:${event.liveEventId}`] });
+        }
+        return acc;
+      }, []).slice(0, 8),
+      sourceRefs
+    },
+    privateDigest: {
+      title: `${session.title} まとめ`,
+      summary: `${sourceCounts.observations}件の観察、${sourceCounts.absences}件の不在確認、${sourceCounts.participants}人の参加をD1上のイベントから集計しました。`,
+      organizerNotes: privacyRiskQueue.length > 0 ? ["公開前に人物・音声・正確な位置の確認が必要です。"] : ["公開候補として確認できます。"],
+      nextActions: ["種名候補を確認する", "公開範囲を確認する"],
+      sourceRefs: sourceRefs.map((ref) => ref.sourceRef).slice(0, 50)
+    },
+    publicStoryDraft: {
+      title: session.title,
+      lead: sourceCounts.observations > 0 ? `${session.title}で記録された観察の概要です。` : `${session.title}の実施概要です。`,
+      sections: [
+        {
+          heading: "記録",
+          body: `${sourceCounts.observations}件の観察候補と${sourceCounts.absences}件の不在確認が残っています。`,
+          sourceRefs: sourceRefs.map((ref) => ref.sourceRef).slice(0, 12)
+        }
+      ],
+      claimLimit: publicReady ? "draft_requires_review" : "privacy_review_required"
+    },
+    recordCandidates: observationEvents.map((event) => ({
+      candidateId: `candidate:${event.liveEventId}`,
+      sourceType: "observation",
+      taxonLabel: observationEventTaxonName(event.payload) ?? "未同定の記録",
+      identificationStatus: "suggested",
+      confidence: numberOrNullFromUnknown(event.payload.confidence),
+      sourceRefs: [`live:${event.liveEventId}`],
+      notes: []
+    })).slice(0, 50),
+    privacyRiskQueue,
+    readiness: {
+      privateReady: true,
+      publicReady,
+      reportReady: true,
+      exportReady: publicReady,
+      blockers: privacyRiskQueue.map((risk) => risk.riskType),
+      warnings: publicReady ? [] : ["公開前レビューが必要です。"]
+    },
+    sourceHash: `native:${session.sessionId}:${events.length}:${participants.length}:${absences.length}`,
+    modelMetadata: {
+      provider: "fallback",
+      model: "cloudflare-d1-deterministic-capsule",
+      promptVersion: "place_event_capsule/v1",
+      aiAttempted: false,
+      fallbackReason: "cloudflare_worker_native_no_ai",
+      paidOrVertexRequired: false
+    },
+    reviewStatus: privacyRiskQueue.length > 0 ? "needs_review" : "draft",
+    reviewedBy: null,
+    reviewedAt: null,
+    publishedAt: null,
+    generatedBy,
+    generatedAt,
+    updatedAt: generatedAt
+  };
+}
+
+function detectObservationEventCapsuleRisks(events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>, participants: ObservationEventParticipantD1Row[]) {
+  const risks: Array<{ riskId: string; riskType: string; blockingLevel: string; reason: string; sourceRefs: string[] }> = [];
+  const minorRefs = participants.filter((participant) => participant.is_minor === 1).map((participant) => `participant:${participant.participant_id}`);
+  if (minorRefs.length > 0) {
+    risks.push({ riskId: "risk:minor_present", riskType: "minor_present", blockingLevel: "public_display", reason: "未成年の参加者が含まれるため公開前確認が必要です。", sourceRefs: minorRefs });
+  }
+  for (const event of events) {
+    const payload = event.payload;
+    const ref = `live:${event.liveEventId}`;
+    const faceCount = numberOrNullFromUnknown(asPlainObject(payload.face_privacy)?.face_count) ?? 0;
+    if (truthyPayloadFlag(payload, ["person_present", "face_present", "has_face"]) || faceCount > 0) {
+      risks.push({ riskId: `risk:face:${event.liveEventId}`, riskType: "face_present", blockingLevel: "public_display", reason: "人物または顔が含まれる可能性があります。", sourceRefs: [ref] });
+    }
+    if (truthyPayloadFlag(payload, ["human_voice", "voice_flag", "speech_likely"]) || normalizeOptionalText(payload.audio_privacy_status) === "deleted_human_voice") {
+      risks.push({ riskId: `risk:voice:${event.liveEventId}`, riskType: "human_voice", blockingLevel: "public_display", reason: "人声が含まれる可能性があります。", sourceRefs: [ref] });
+    }
+    if (truthyPayloadFlag(payload, ["exact_location", "exact_location_stored"]) || numberOrNullFromUnknown(payload.exact_lat) !== null || numberOrNullFromUnknown(payload.exact_lng) !== null) {
+      risks.push({ riskId: `risk:location:${event.liveEventId}`, riskType: "exact_location", blockingLevel: "public_display", reason: "正確な位置が含まれる可能性があります。", sourceRefs: [ref] });
+    }
+  }
+  return risks;
+}
+
+function truthyPayloadFlag(payload: Record<string, unknown>, keys: string[]): boolean {
+  return keys.some((key) => {
+    const value = payload[key];
+    return value === true || value === "true" || value === 1 || value === "1";
+  });
+}
+
+async function getObservationEventCapsuleRow(env: Env, sessionId: string) {
+  return env.OBS_DB.prepare(
+    `SELECT session_id, source_counts_json, source_clusters_json, private_digest_json,
+            public_story_draft_json, record_candidates_json, privacy_risk_queue_json,
+            readiness_json, source_hash, model_metadata_json, review_status, reviewed_by,
+            reviewed_at, published_at, generated_at, updated_at
+       FROM observation_event_capsules
+      WHERE session_id = ?`
+  ).bind(sessionId).first<ObservationEventCapsuleD1Row>();
+}
+
+async function upsertObservationEventCapsule(env: Env, capsule: ReturnType<typeof buildObservationEventCapsulePayload>): Promise<void> {
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_capsules (
+       capsule_id, session_id, source_counts_json, source_clusters_json, private_digest_json,
+       public_story_draft_json, record_candidates_json, privacy_risk_queue_json, readiness_json,
+       source_hash, model_metadata_json, review_status, generated_by, generated_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(session_id) DO UPDATE SET
+       source_counts_json = excluded.source_counts_json,
+       source_clusters_json = excluded.source_clusters_json,
+       private_digest_json = excluded.private_digest_json,
+       public_story_draft_json = excluded.public_story_draft_json,
+       record_candidates_json = excluded.record_candidates_json,
+       privacy_risk_queue_json = excluded.privacy_risk_queue_json,
+       readiness_json = excluded.readiness_json,
+       source_hash = excluded.source_hash,
+       model_metadata_json = excluded.model_metadata_json,
+       review_status = excluded.review_status,
+       generated_by = excluded.generated_by,
+       generated_at = excluded.generated_at,
+       updated_at = excluded.updated_at`
+  ).bind(
+    crypto.randomUUID(),
+    capsule.sessionId,
+    JSON.stringify(capsule.sourceCounts),
+    JSON.stringify(capsule.sourceClusters),
+    JSON.stringify(capsule.privateDigest),
+    JSON.stringify(capsule.publicStoryDraft),
+    JSON.stringify(capsule.recordCandidates),
+    JSON.stringify(capsule.privacyRiskQueue),
+    JSON.stringify(capsule.readiness),
+    capsule.sourceHash,
+    JSON.stringify(capsule.modelMetadata),
+    capsule.reviewStatus,
+    capsule.generatedBy,
+    capsule.generatedAt,
+    capsule.updatedAt
+  ).run();
+}
+
+function mapObservationEventCapsule(row: ObservationEventCapsuleD1Row) {
+  return {
+    sessionId: row.session_id,
+    sourceCounts: jsonObject(row.source_counts_json),
+    sourceClusters: jsonObject(row.source_clusters_json),
+    privateDigest: jsonObject(row.private_digest_json),
+    publicStoryDraft: jsonObject(row.public_story_draft_json),
+    recordCandidates: jsonArray(row.record_candidates_json),
+    privacyRiskQueue: jsonArray(row.privacy_risk_queue_json) as Array<Record<string, unknown>>,
+    readiness: jsonObject(row.readiness_json),
+    sourceHash: row.source_hash,
+    modelMetadata: jsonObject(row.model_metadata_json),
+    reviewStatus: normalizeCapsuleReviewStatus(row.review_status) ?? "draft",
+    reviewedBy: row.reviewed_by,
+    reviewedAt: row.reviewed_at,
+    publishedAt: row.published_at,
+    generatedAt: row.generated_at,
+    updatedAt: row.updated_at
+  };
 }
 
 async function pingObservationEventLocation(request: Request, env: Env, sessionId: string): Promise<Response> {
@@ -2974,7 +3489,7 @@ async function appendObservationEventLive(env: Env, input: {
 
 async function listObservationEventLiveEvents(env: Env, sessionId: string, limit: number) {
   const rows = await env.OBS_DB.prepare(
-    `SELECT live_event_id, session_id, type, scope, team_id, payload_json, created_at
+    `SELECT live_event_id, session_id, type, scope, actor_user_id, actor_guest_token, team_id, payload_json, created_at
        FROM observation_event_live_events
       WHERE session_id = ?
       ORDER BY created_at DESC
@@ -2985,10 +3500,100 @@ async function listObservationEventLiveEvents(env: Env, sessionId: string, limit
     sessionId: row.session_id,
     type: row.type,
     scope: row.scope,
+    actorUserId: row.actor_user_id ?? null,
+    actorGuestToken: row.actor_guest_token ?? null,
     teamId: row.team_id,
     payload: jsonObject(row.payload_json),
     createdAt: row.created_at
   }));
+}
+
+async function listObservationEventTeams(env: Env, sessionId: string) {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT team_id, name, color, lead_user_id, target_taxa_json, created_at
+       FROM observation_event_teams
+      WHERE session_id = ?
+      ORDER BY created_at ASC`
+  ).bind(sessionId).all<ObservationEventTeamD1Row>();
+  return rows.results;
+}
+
+async function listObservationEventParticipants(env: Env, sessionId: string) {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT participant_id, user_id, guest_token, display_name, team_id, share_location, location_share_until, is_minor
+       FROM observation_event_participants
+      WHERE session_id = ?
+      ORDER BY checked_in_at ASC, created_at ASC`
+  ).bind(sessionId).all<ObservationEventParticipantD1Row>();
+  return rows.results;
+}
+
+async function listObservationEventAbsences(env: Env, sessionId: string) {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT absence_id, session_id, user_id, guest_token, team_id, searched_taxon, public_lat, public_lng
+       FROM observation_event_absences
+      WHERE session_id = ?
+      ORDER BY created_at ASC`
+  ).bind(sessionId).all<{
+    absence_id: string;
+    session_id: string;
+    user_id: string | null;
+    guest_token: string | null;
+    team_id: string | null;
+    searched_taxon: string;
+    public_lat: number;
+    public_lng: number;
+  }>();
+  return rows.results;
+}
+
+function observationEventTaxonName(payload: Record<string, unknown>): string | null {
+  return normalizeOptionalText(payload.taxon_name)
+    ?? normalizeOptionalText(payload.taxonName)
+    ?? normalizeOptionalText(payload.scientific_name)
+    ?? normalizeOptionalText(payload.vernacular_name)
+    ?? normalizeOptionalText(payload.taxon)
+    ?? normalizeOptionalText(asPlainObject(payload.primary_subject)?.name)
+    ?? normalizeOptionalText(asPlainObject(payload.primarySubject)?.name);
+}
+
+function countObservationEventTaxa(events: Array<{ payload: Record<string, unknown> }>): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    const name = observationEventTaxonName(event.payload);
+    if (!name) continue;
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return new Map([...counts.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "ja")));
+}
+
+function durationMinutesBetween(startedAt: string, endedAt: string | null): number | null {
+  const start = Date.parse(startedAt);
+  const end = endedAt ? Date.parse(endedAt) : Date.now();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.max(0, Math.round((end - start) / 60000));
+}
+
+function findObservationEventViewerParticipant(
+  participants: ObservationEventParticipantD1Row[],
+  userId: string | null,
+  guestToken: string | null
+): ObservationEventParticipantD1Row | null {
+  if (!userId && !guestToken) return null;
+  return participants.find((participant) =>
+    (userId !== null && participant.user_id === userId) ||
+    (guestToken !== null && participant.guest_token === guestToken)
+  ) ?? null;
+}
+
+async function recordObservationEventRecapView(env: Env, sessionId: string, userId: string | null, guestToken: string | null): Promise<void> {
+  try {
+    await env.OBS_DB.prepare(
+      "INSERT INTO observation_event_recap_views (view_id, session_id, viewer_user_id, viewer_guest_token) VALUES (?, ?, ?, ?)"
+    ).bind(crypto.randomUUID(), sessionId, userId, guestToken).run();
+  } catch {
+    // Older D1 environments may not have the audit table before the migration is applied.
+  }
 }
 
 async function upsertObservationEventParticipant(env: Env, input: {
