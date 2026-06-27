@@ -1268,6 +1268,65 @@ interface GuidePromptQueueTestRow {
   resolved_at: string | null;
 }
 
+interface SpecialistAuthorityTestRow {
+  authority_id: string;
+  subject_user_id: string;
+  granted_by_user_id: string | null;
+  status: string;
+  authority_kind: string;
+  scope_taxon_name: string;
+  scope_taxon_rank: string | null;
+  scope_taxon_key: string | null;
+  scope_json: string;
+  granted_at: string;
+  revoked_at: string | null;
+  expires_at: string | null;
+  reason: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SpecialistAuthorityEvidenceTestRow {
+  evidence_id: string;
+  authority_id?: string;
+  recommendation_id?: string;
+  evidence_type: string;
+  title: string;
+  issuer_name: string | null;
+  url: string | null;
+  notes: string | null;
+  source_payload_json: string;
+  created_at: string;
+}
+
+interface SpecialistAuthorityAuditTestRow {
+  audit_id: string;
+  authority_id: string | null;
+  actor_user_id: string | null;
+  action: string;
+  payload_json: string;
+  created_at: string;
+}
+
+interface AuthorityRecommendationTestRow {
+  recommendation_id: string;
+  subject_user_id: string;
+  source_kind: string;
+  status: string;
+  scope_taxon_name: string;
+  scope_taxon_rank: string | null;
+  scope_taxon_key: string | null;
+  recommended_by_user_id: string | null;
+  granted_authority_id: string | null;
+  resolution_note: string | null;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -1363,6 +1422,12 @@ class FakeD1 {
   guideProgramAudit: Array<{ audit_id: string; program_id: string; actor_user_id: string | null; action: string }> = [];
   guidePromptImprovements = new Map<string, GuidePromptImprovementTestRow>();
   guidePromptQueues = new Map<string, GuidePromptQueueTestRow>();
+  specialistAuthorities = new Map<string, SpecialistAuthorityTestRow>();
+  specialistAuthorityEvidence: SpecialistAuthorityEvidenceTestRow[] = [];
+  specialistAuthorityAudit: SpecialistAuthorityAuditTestRow[] = [];
+  authorityRecommendations = new Map<string, AuthorityRecommendationTestRow>();
+  authorityRecommendationEvidence: SpecialistAuthorityEvidenceTestRow[] = [];
+  authorityRecommendationAudit: Array<{ audit_id: string; recommendation_id: string; actor_user_id: string | null; action: string; payload_json: string; created_at: string }> = [];
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -2277,6 +2342,139 @@ class FakeStatement {
           updated_at: string(v[12]) || now
         });
       }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO specialist_authorities")) {
+      const now = new Date().toISOString();
+      this.db.specialistAuthorities.set(string(v[0]), {
+        authority_id: string(v[0]),
+        subject_user_id: string(v[1]),
+        granted_by_user_id: nullableString(v[2]),
+        status: "active",
+        authority_kind: "taxon_identification",
+        scope_taxon_name: string(v[3]),
+        scope_taxon_rank: nullableString(v[4]),
+        scope_taxon_key: nullableString(v[5]),
+        scope_json: string(v[6]),
+        granted_at: string(v[7]) || now,
+        revoked_at: null,
+        expires_at: null,
+        reason: nullableString(v[8]),
+        source_payload_json: string(v[9]),
+        created_at: string(v[10]) || now,
+        updated_at: string(v[11]) || now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO specialist_authority_evidence")) {
+      const now = new Date().toISOString();
+      this.db.specialistAuthorityEvidence.push({
+        evidence_id: string(v[0]),
+        authority_id: string(v[1]),
+        evidence_type: string(v[2]),
+        title: string(v[3]),
+        issuer_name: nullableString(v[4]),
+        url: nullableString(v[5]),
+        notes: nullableString(v[6]),
+        source_payload_json: string(v[7]),
+        created_at: string(v[8]) || now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO specialist_authority_audit")) {
+      const now = new Date().toISOString();
+      this.db.specialistAuthorityAudit.push({
+        audit_id: string(v[0]),
+        authority_id: nullableString(v[1]),
+        actor_user_id: nullableString(v[2]),
+        action: normalized.includes("'revoke'") ? "revoke" : normalized.includes("'update'") ? "update" : "grant",
+        payload_json: string(v[3]),
+        created_at: string(v[4]) || now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE specialist_authorities")) {
+      const row = requireRow(this.db.specialistAuthorities, string(v[3]));
+      row.status = "revoked";
+      row.revoked_at = string(v[0]);
+      row.reason = nullableString(v[1]);
+      row.updated_at = string(v[2]);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO authority_recommendations")) {
+      const now = new Date().toISOString();
+      this.db.authorityRecommendations.set(string(v[0]), {
+        recommendation_id: string(v[0]),
+        subject_user_id: string(v[1]),
+        source_kind: string(v[2]),
+        status: "pending",
+        scope_taxon_name: string(v[3]),
+        scope_taxon_rank: nullableString(v[4]),
+        scope_taxon_key: nullableString(v[5]),
+        recommended_by_user_id: nullableString(v[6]),
+        granted_authority_id: null,
+        resolution_note: null,
+        resolved_by_user_id: null,
+        resolved_at: null,
+        source_payload_json: string(v[7]),
+        created_at: string(v[8]) || now,
+        updated_at: string(v[9]) || now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO authority_recommendation_evidence")) {
+      const now = new Date().toISOString();
+      this.db.authorityRecommendationEvidence.push({
+        evidence_id: string(v[0]),
+        recommendation_id: string(v[1]),
+        evidence_type: string(v[2]),
+        title: string(v[3]),
+        issuer_name: nullableString(v[4]),
+        url: nullableString(v[5]),
+        notes: nullableString(v[6]),
+        source_payload_json: string(v[7]),
+        created_at: string(v[8]) || now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO authority_recommendation_audit")) {
+      const now = new Date().toISOString();
+      this.db.authorityRecommendationAudit.push({
+        audit_id: string(v[0]),
+        recommendation_id: string(v[1]),
+        actor_user_id: nullableString(v[2]),
+        action: normalized.includes("'grant'") ? "grant" : normalized.includes("'reject'") ? "reject" : "create",
+        payload_json: string(v[3]),
+        created_at: string(v[4]) || now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE authority_recommendations") && normalized.includes("status = 'granted'")) {
+      const row = requireRow(this.db.authorityRecommendations, string(v[5]));
+      row.status = "granted";
+      row.granted_authority_id = string(v[0]);
+      row.resolution_note = nullableString(v[1]);
+      row.resolved_by_user_id = nullableString(v[2]);
+      row.resolved_at = string(v[3]);
+      row.updated_at = string(v[4]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE authority_recommendations") && normalized.includes("status = 'rejected'")) {
+      const row = requireRow(this.db.authorityRecommendations, string(v[4]));
+      row.status = "rejected";
+      row.resolution_note = nullableString(v[0]);
+      row.resolved_by_user_id = nullableString(v[1]);
+      row.resolved_at = string(v[2]);
+      row.updated_at = string(v[3]);
       return {};
     }
 
@@ -3197,6 +3395,29 @@ class FakeStatement {
 
     const v = this.values;
 
+    if (normalized.startsWith("SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name")) {
+      const row = this.db.authorityRecommendations.get(string(v[0]));
+      return (row as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind")) {
+      if (normalized.includes("where subject_user_id = ?")) {
+        const scopeTaxonName = string(v[1]).toLowerCase();
+        const scopeTaxonRank = nullableString(v[2]) ?? "";
+        const scopeTaxonKey = nullableString(v[3]) ?? "";
+        const row = [...this.db.specialistAuthorities.values()].find((candidate) =>
+          candidate.subject_user_id === string(v[0])
+            && candidate.status === "active"
+            && candidate.scope_taxon_name.toLowerCase() === scopeTaxonName
+            && (candidate.scope_taxon_rank ?? "") === scopeTaxonRank
+            && (candidate.scope_taxon_key ?? "") === scopeTaxonKey
+        );
+        return (row as T | undefined) ?? null;
+      }
+      const row = this.db.specialistAuthorities.get(string(v[0]));
+      return (row as T | undefined) ?? null;
+    }
+
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
@@ -3994,6 +4215,28 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind")) {
+      const rows = [...this.db.specialistAuthorities.values()]
+        .filter((row) => normalized.includes("where subject_user_id = ?") ? row.subject_user_id === string(v[0]) && row.status === "active" : true)
+        .sort((a, b) => b.granted_at.localeCompare(a.granted_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT evidence_id, authority_id, evidence_type")) {
+      return { results: [...this.db.specialistAuthorityEvidence].sort((a, b) => b.created_at.localeCompare(a.created_at)) as T[] };
+    }
+    if (normalized.startsWith("SELECT audit_id, authority_id, actor_user_id, action")) {
+      return { results: [...this.db.specialistAuthorityAudit].sort((a, b) => b.created_at.localeCompare(a.created_at)) as T[] };
+    }
+    if (normalized.startsWith("SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name")) {
+      let rows = [...this.db.authorityRecommendations.values()];
+      if (normalized.includes("where subject_user_id = ?")) rows = rows.filter((row) => row.subject_user_id === string(v[0]));
+      if (normalized.includes("where status = 'pending'")) rows = rows.filter((row) => row.status === "pending");
+      rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT evidence_id, recommendation_id, evidence_type")) {
+      return { results: [...this.db.authorityRecommendationEvidence].sort((a, b) => b.created_at.localeCompare(a.created_at)) as T[] };
+    }
     if (normalized.startsWith("SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng, storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json FROM fieldscan_audio_segments WHERE session_id = ?")) {
       const rows = [...this.db.fieldscanAudioSegments.values()]
         .filter((row) => row.session_id === string(v[0]))
@@ -9410,6 +9653,134 @@ test("production runtime records specialist occurrence reviews natively for spec
     assert.equal(identification?.stance, "support");
     assert.match(identification?.source_payload_json ?? "", /authority_backed/);
     assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-specialist-1"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production specialist authority runtime manages D1 authority and recommendation flows without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const adminToken = "authority-admin-token";
+  const specialistToken = "authority-specialist-token";
+  const observerToken = "authority-observer-token";
+  for (const [rawToken, userId, roleName] of [
+    [adminToken, "authority-admin", "Admin"],
+    [specialistToken, "bird-specialist", "Specialist"],
+    [observerToken, "observer-user", "Observer"]
+  ] as const) {
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    core.authSessions.set(tokenHash, {
+      token_hash: tokenHash,
+      user_id: userId,
+      display_name: userId,
+      role_name: roleName,
+      rank_label: null,
+      banned: 0,
+      expires_at: "2099-01-01T00:00:00.000Z",
+      last_used_at: null
+    });
+  }
+  const adminCookie = `ikimon_v2_session=${adminToken}`;
+  const specialistCookie = `ikimon_v2_session=${specialistToken}`;
+  const observerCookie = `ikimon_v2_session=${observerToken}`;
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const forbidden = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/authorities/grant", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: observerCookie },
+      body: JSON.stringify({ subjectUserId: "bird-specialist", scopeTaxonName: "鳥類" })
+    }), productionEnv);
+    assert.equal(forbidden.status, 403);
+
+    const grant = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/authorities/grant", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: adminCookie },
+      body: JSON.stringify({
+        subjectUserId: "bird-specialist",
+        scopeTaxonName: "鳥類",
+        scopeTaxonRank: "class",
+        reason: "field expert",
+        evidence: [{ evidenceType: "field_event", title: "Bird survey mentor" }]
+      })
+    }), productionEnv);
+    const grantPayload = await grant.json() as any;
+    assert.equal(grant.headers.get("x-ikimon-cloudflare-native"), "specialist-authority-runtime");
+    assert.equal(grantPayload.ok, true, JSON.stringify(grantPayload));
+    assert.equal(obs.specialistAuthorities.size, 1);
+    assert.equal(obs.specialistAuthorityEvidence.length, 1);
+
+    const mine = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/me/authorities", {
+      headers: { cookie: specialistCookie }
+    }), productionEnv);
+    const minePayload = await mine.json() as any;
+    assert.equal(mine.headers.get("x-ikimon-cloudflare-native"), "specialist-authority-runtime");
+    assert.equal(minePayload.hasSpecialistAccess, true);
+    assert.equal(minePayload.authorities[0].scopeTaxonName, "鳥類");
+
+    const recommendation = await worker.fetch(new Request("https://ikimon.life/api/v1/authority/recommendations", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: observerCookie },
+      body: JSON.stringify({
+        sourceKind: "self_claim",
+        scopeTaxonName: "鳥類",
+        evidence: [{ evidenceType: "webinar", title: "Intro bird ID" }]
+      })
+    }), productionEnv);
+    const recommendationPayload = await recommendation.json() as any;
+    assert.equal(recommendationPayload.ok, true, JSON.stringify(recommendationPayload));
+    assert.equal(obs.authorityRecommendations.size, 1);
+
+    const pending = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/recommendations/pending", {
+      headers: { cookie: specialistCookie }
+    }), productionEnv);
+    const pendingPayload = await pending.json() as any;
+    assert.equal(pending.headers.get("x-ikimon-cloudflare-native"), "specialist-authority-runtime");
+    assert.equal(pendingPayload.recommendations.length, 1);
+    assert.equal(pendingPayload.recommendations[0].subjectUserId, "observer-user");
+
+    const grantRecommendation = await worker.fetch(new Request(`https://ikimon.life/api/v1/specialist/recommendations/${encodeURIComponent(recommendationPayload.recommendation.recommendationId)}/grant`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: specialistCookie },
+      body: JSON.stringify({ resolutionNote: "scope matched" })
+    }), productionEnv);
+    const grantRecommendationPayload = await grantRecommendation.json() as any;
+    assert.equal(grantRecommendationPayload.ok, true, JSON.stringify(grantRecommendationPayload));
+    assert.equal(grantRecommendationPayload.recommendation.status, "granted");
+    assert.equal(obs.authorityRecommendations.get(recommendationPayload.recommendation.recommendationId)?.status, "granted");
+    assert.equal(obs.specialistAuthorities.size, 2);
+
+    const revoke = await worker.fetch(new Request(`https://ikimon.life/api/v1/specialist/authorities/${encodeURIComponent(grantPayload.authority.authorityId)}/revoke`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: adminCookie },
+      body: JSON.stringify({ reason: "test revoke" })
+    }), productionEnv);
+    const revokePayload = await revoke.json() as any;
+    assert.equal(revokePayload.ok, true, JSON.stringify(revokePayload));
+    assert.equal(obs.specialistAuthorities.get(grantPayload.authority.authorityId)?.status, "revoked");
+
+    const audit = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/authorities/audit", {
+      headers: { cookie: adminCookie }
+    }), productionEnv);
+    const auditPayload = await audit.json() as any;
+    assert.equal(auditPayload.audit.length >= 2, true);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -2063,6 +2063,45 @@ export const worker = {
         );
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/specialist/me/authorities") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatibleSpecialistAuthorities(request, env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/v1/authority/recommendations/me") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatibleAuthorityRecommendationsMe(request, env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/v1/specialist/recommendations/pending") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatiblePendingAuthorityRecommendations(request, env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/v1/specialist/authorities/audit") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatibleSpecialistAuthorityAudit(request, env));
+      }
+      if (request.method === "POST" && url.pathname === "/api/v1/authority/recommendations") {
+        return withCompatibleSpecialistAuthorityError(() => createCompatibleAuthorityRecommendation(request, env));
+      }
+      const authorityRecommendationGrantMatch = url.pathname.match(/^\/api\/v1\/specialist\/recommendations\/([^/]+)\/grant$/);
+      const authorityRecommendationGrantId = authorityRecommendationGrantMatch?.[1];
+      if (request.method === "POST" && authorityRecommendationGrantId) {
+        return withCompatibleSpecialistAuthorityError(() => grantCompatibleAuthorityRecommendation(decodeURIComponent(authorityRecommendationGrantId), request, env));
+      }
+      const authorityRecommendationRejectMatch = url.pathname.match(/^\/api\/v1\/specialist\/recommendations\/([^/]+)\/reject$/);
+      const authorityRecommendationRejectId = authorityRecommendationRejectMatch?.[1];
+      if (request.method === "POST" && authorityRecommendationRejectId) {
+        return withCompatibleSpecialistAuthorityError(() => rejectCompatibleAuthorityRecommendation(decodeURIComponent(authorityRecommendationRejectId), request, env));
+      }
+      if (request.method === "POST" && url.pathname === "/api/v1/specialist/authorities/grant") {
+        return withCompatibleSpecialistAuthorityError(() => grantCompatibleSpecialistAuthority(request, env));
+      }
+      const specialistAuthorityRevokeMatch = url.pathname.match(/^\/api\/v1\/specialist\/authorities\/([^/]+)\/revoke$/);
+      const specialistAuthorityRevokeId = specialistAuthorityRevokeMatch?.[1];
+      if (request.method === "POST" && specialistAuthorityRevokeId) {
+        return withCompatibleSpecialistAuthorityError(() => revokeCompatibleSpecialistAuthority(decodeURIComponent(specialistAuthorityRevokeId), request, env));
+      }
+      const specialistAuthorityEvidenceMatch = url.pathname.match(/^\/api\/v1\/specialist\/authorities\/([^/]+)\/evidence$/);
+      const specialistAuthorityEvidenceId = specialistAuthorityEvidenceMatch?.[1];
+      if (request.method === "POST" && specialistAuthorityEvidenceId) {
+        return withCompatibleSpecialistAuthorityError(() => addCompatibleSpecialistAuthorityEvidence(decodeURIComponent(specialistAuthorityEvidenceId), request, env));
+      }
+
       const readingCardsMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/reading-cards$/);
       if (request.method === "POST" && readingCardsMatch?.[1]) {
         return generateCompatibleRecordReadingCards(
@@ -5650,6 +5689,588 @@ function isIdentificationSpecialistRole(session: SessionSnapshot): boolean {
   const roleText = `${session.roleName ?? ""} ${session.rankLabel ?? ""}`.toLowerCase();
   return /\b(admin|administrator|analyst|owner|manager|specialist|expert|reviewer|authority)\b/.test(roleText)
     || /管理|運営|分析|責任者|専門|有識者|レビュ/.test(roleText);
+}
+
+function isSpecialistAuthorityAdminRole(session: SessionSnapshot): boolean {
+  const roleText = `${session.roleName ?? ""} ${session.rankLabel ?? ""}`.toLowerCase();
+  return /\b(admin|administrator|analyst|owner|manager)\b/.test(roleText)
+    || /管理|運営|分析|責任者/.test(roleText);
+}
+
+type SpecialistAuthorityEvidenceInput = {
+  evidenceType?: unknown;
+  title?: unknown;
+  issuerName?: unknown;
+  url?: unknown;
+  notes?: unknown;
+  sourcePayload?: unknown;
+};
+
+type SpecialistAuthorityEvidenceRow = {
+  evidence_id: string;
+  authority_id?: string;
+  recommendation_id?: string;
+  evidence_type: string;
+  title: string;
+  issuer_name: string | null;
+  url: string | null;
+  notes: string | null;
+  source_payload_json: string | null;
+  created_at: string;
+};
+
+type SpecialistAuthorityRow = {
+  authority_id: string;
+  subject_user_id: string;
+  granted_by_user_id: string | null;
+  status: string;
+  authority_kind: string;
+  scope_taxon_name: string;
+  scope_taxon_rank: string | null;
+  scope_taxon_key: string | null;
+  scope_json: string | null;
+  granted_at: string;
+  revoked_at: string | null;
+  expires_at: string | null;
+  reason: string | null;
+  source_payload_json: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type AuthorityRecommendationRow = {
+  recommendation_id: string;
+  subject_user_id: string;
+  source_kind: string;
+  status: string;
+  scope_taxon_name: string;
+  scope_taxon_rank: string | null;
+  scope_taxon_key: string | null;
+  recommended_by_user_id: string | null;
+  granted_authority_id: string | null;
+  resolution_note: string | null;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  source_payload_json: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const SPECIALIST_AUTHORITY_EVIDENCE_TYPES = new Set(["field_event", "webinar", "literature", "reference_owned", "other"]);
+
+async function withCompatibleSpecialistAuthorityError(fn: () => Promise<Response>): Promise<Response> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return json({ ok: false, error: error.message }, error.status, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+    }
+    return json({ ok: false, error: error instanceof Error ? error.message : "specialist_authority_runtime_failed" }, 500, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+  }
+}
+
+function normalizeSpecialistAuthorityEvidence(input: SpecialistAuthorityEvidenceInput): {
+  evidenceType: string;
+  title: string;
+  issuerName: string | null;
+  url: string | null;
+  notes: string | null;
+  sourcePayload: Record<string, unknown>;
+} {
+  const evidenceType = normalizeOptionalText(input.evidenceType) ?? "";
+  if (!SPECIALIST_AUTHORITY_EVIDENCE_TYPES.has(evidenceType)) throw new HttpError(400, "unsupported_evidence_type");
+  const title = normalizeOptionalText(input.title);
+  if (!title) throw new HttpError(400, "authority_evidence_title_required");
+  return {
+    evidenceType,
+    title,
+    issuerName: normalizeOptionalText(input.issuerName),
+    url: normalizeOptionalText(input.url),
+    notes: normalizeOptionalText(input.notes),
+    sourcePayload: asPlainObject(input.sourcePayload) ?? {}
+  };
+}
+
+function authorityEvidencePayload(row: SpecialistAuthorityEvidenceRow) {
+  return {
+    evidenceId: row.evidence_id,
+    evidenceType: row.evidence_type,
+    title: row.title,
+    issuerName: row.issuer_name,
+    url: row.url,
+    notes: row.notes,
+    sourcePayload: jsonObject(row.source_payload_json ?? "{}"),
+    createdAt: row.created_at
+  };
+}
+
+async function listSpecialistAuthorityEvidence(env: Env, authorityIds: string[]): Promise<Map<string, ReturnType<typeof authorityEvidencePayload>[]>> {
+  const out = new Map<string, ReturnType<typeof authorityEvidencePayload>[]>();
+  if (authorityIds.length === 0) return out;
+  const rows = await env.OBS_DB.prepare(
+    `SELECT evidence_id, authority_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       FROM specialist_authority_evidence
+      ORDER BY created_at DESC`
+  ).all<SpecialistAuthorityEvidenceRow>();
+  const wanted = new Set(authorityIds);
+  for (const row of rows.results) {
+    const authorityId = row.authority_id ?? "";
+    if (!wanted.has(authorityId)) continue;
+    const list = out.get(authorityId) ?? [];
+    list.push(authorityEvidencePayload(row));
+    out.set(authorityId, list);
+  }
+  return out;
+}
+
+function specialistAuthoritySnapshot(row: SpecialistAuthorityRow, evidence: ReturnType<typeof authorityEvidencePayload>[] = []) {
+  return {
+    authorityId: row.authority_id,
+    authorityKind: "taxon_identification",
+    scopeTaxonName: row.scope_taxon_name,
+    scopeTaxonRank: row.scope_taxon_rank,
+    scopeTaxonKey: row.scope_taxon_key,
+    scopeJson: jsonObject(row.scope_json ?? "{}"),
+    grantedAt: row.granted_at,
+    expiresAt: row.expires_at,
+    reason: row.reason,
+    evidence: evidence.map((entry) => ({
+      evidenceId: entry.evidenceId,
+      evidenceType: entry.evidenceType,
+      title: entry.title,
+      issuerName: entry.issuerName,
+      url: entry.url
+    }))
+  };
+}
+
+function specialistAuthorityPayload(row: SpecialistAuthorityRow, evidence: ReturnType<typeof authorityEvidencePayload>[] = []) {
+  return {
+    ...specialistAuthoritySnapshot(row, evidence),
+    subjectUserId: row.subject_user_id,
+    grantedByUserId: row.granted_by_user_id,
+    status: row.status,
+    revokedAt: row.revoked_at,
+    sourcePayload: jsonObject(row.source_payload_json ?? "{}")
+  };
+}
+
+async function getActiveSpecialistAuthoritiesForUser(env: Env, userId: string): Promise<SpecialistAuthorityRow[]> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind,
+            scope_taxon_name, scope_taxon_rank, scope_taxon_key, scope_json,
+            granted_at, revoked_at, expires_at, reason, source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE subject_user_id = ? AND status = 'active'
+      ORDER BY granted_at DESC`
+  ).bind(userId).all<SpecialistAuthorityRow>();
+  return rows.results;
+}
+
+async function getActiveSpecialistAuthorityForScope(env: Env, input: {
+  subjectUserId: string;
+  scopeTaxonName: string;
+  scopeTaxonRank: string | null;
+  scopeTaxonKey: string | null;
+}): Promise<SpecialistAuthorityRow | null> {
+  return await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind,
+            scope_taxon_name, scope_taxon_rank, scope_taxon_key, scope_json,
+            granted_at, revoked_at, expires_at, reason, source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE subject_user_id = ?
+        AND status = 'active'
+        AND authority_kind = 'taxon_identification'
+        AND lower(scope_taxon_name) = lower(?)
+        AND coalesce(scope_taxon_rank, '') = coalesce(?, '')
+        AND coalesce(scope_taxon_key, '') = coalesce(?, '')
+      LIMIT 1`
+  ).bind(input.subjectUserId, input.scopeTaxonName, input.scopeTaxonRank, input.scopeTaxonKey).first<SpecialistAuthorityRow>();
+}
+
+function authorityScopeMatches(row: SpecialistAuthorityRow, candidates: Array<string | null | undefined>): boolean {
+  const scopeName = normalizeOptionalText(row.scope_taxon_name)?.toLowerCase() ?? "";
+  const scopeKey = normalizeOptionalText(row.scope_taxon_key)?.toLowerCase() ?? "";
+  return candidates
+    .map((value) => normalizeOptionalText(value)?.toLowerCase() ?? "")
+    .filter(Boolean)
+    .some((candidate) => candidate === scopeName || candidate === scopeKey || candidate.includes(scopeName) || scopeName.includes(candidate));
+}
+
+async function requireCompatibleSpecialistSession(request: Request, env: Env): Promise<SessionSnapshot> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) throw new HttpError(401, "session_required");
+  if (session.banned) throw new HttpError(403, "account_unavailable");
+  if (!isIdentificationSpecialistRole(session)) throw new HttpError(403, "specialist_role_required");
+  return session;
+}
+
+async function requireCompatibleSpecialistAdminSession(request: Request, env: Env): Promise<SessionSnapshot> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) throw new HttpError(401, "session_required");
+  if (session.banned) throw new HttpError(403, "account_unavailable");
+  if (!isSpecialistAuthorityAdminRole(session)) throw new HttpError(403, "specialist_admin_required");
+  return session;
+}
+
+async function listCompatibleSpecialistAuthorities(request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistSession(request, env).catch((error) => { throw error; });
+  const authorities = await getActiveSpecialistAuthoritiesForUser(env, session.userId);
+  const evidence = await listSpecialistAuthorityEvidence(env, authorities.map((row) => row.authority_id));
+  return json({
+    ok: true,
+    globalRole: isSpecialistAuthorityAdminRole(session) ? "admin" : "specialist",
+    hasSpecialistAccess: true,
+    authorities: authorities.map((row) => specialistAuthoritySnapshot(row, evidence.get(row.authority_id) ?? [])),
+    compatibility: { source: "cloudflare_specialist_authority_runtime" }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+function authorityRecommendationPayload(row: AuthorityRecommendationRow, evidence: ReturnType<typeof authorityEvidencePayload>[] = []) {
+  return {
+    recommendationId: row.recommendation_id,
+    subjectUserId: row.subject_user_id,
+    subjectDisplayName: null,
+    sourceKind: row.source_kind,
+    status: row.status,
+    scopeTaxonName: row.scope_taxon_name,
+    scopeTaxonRank: row.scope_taxon_rank,
+    scopeTaxonKey: row.scope_taxon_key,
+    recommendedByUserId: row.recommended_by_user_id,
+    recommendedByDisplayName: null,
+    grantedAuthorityId: row.granted_authority_id,
+    resolutionNote: row.resolution_note,
+    resolvedByUserId: row.resolved_by_user_id,
+    resolvedByDisplayName: null,
+    resolvedAt: row.resolved_at,
+    sourcePayload: jsonObject(row.source_payload_json ?? "{}"),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    evidence
+  };
+}
+
+async function listAuthorityRecommendationEvidence(env: Env, recommendationIds: string[]): Promise<Map<string, ReturnType<typeof authorityEvidencePayload>[]>> {
+  const out = new Map<string, ReturnType<typeof authorityEvidencePayload>[]>();
+  if (recommendationIds.length === 0) return out;
+  const rows = await env.OBS_DB.prepare(
+    `SELECT evidence_id, recommendation_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       FROM authority_recommendation_evidence
+      ORDER BY created_at DESC`
+  ).all<SpecialistAuthorityEvidenceRow>();
+  const wanted = new Set(recommendationIds);
+  for (const row of rows.results) {
+    const recommendationId = row.recommendation_id ?? "";
+    if (!wanted.has(recommendationId)) continue;
+    const list = out.get(recommendationId) ?? [];
+    list.push(authorityEvidencePayload(row));
+    out.set(recommendationId, list);
+  }
+  return out;
+}
+
+async function listCompatibleAuthorityRecommendationsMe(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  const rows = await env.OBS_DB.prepare(
+    `SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+            scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+            resolved_at, source_payload_json, created_at, updated_at
+       FROM authority_recommendations
+      WHERE subject_user_id = ?
+      ORDER BY created_at DESC`
+  ).bind(session.userId).all<AuthorityRecommendationRow>();
+  const evidence = await listAuthorityRecommendationEvidence(env, rows.results.map((row) => row.recommendation_id));
+  return json({ ok: true, recommendations: rows.results.map((row) => authorityRecommendationPayload(row, evidence.get(row.recommendation_id) ?? [])) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function listCompatiblePendingAuthorityRecommendations(request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistSession(request, env);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+            scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+            resolved_at, source_payload_json, created_at, updated_at
+       FROM authority_recommendations
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+      LIMIT 100`
+  ).all<AuthorityRecommendationRow>();
+  const activeAuthorities = await getActiveSpecialistAuthoritiesForUser(env, session.userId);
+  const visible = isSpecialistAuthorityAdminRole(session)
+    ? rows.results
+    : rows.results.filter((row) => activeAuthorities.some((authority) => authorityScopeMatches(authority, [row.scope_taxon_name, row.scope_taxon_key])));
+  const evidence = await listAuthorityRecommendationEvidence(env, visible.map((row) => row.recommendation_id));
+  return json({ ok: true, recommendations: visible.map((row) => authorityRecommendationPayload(row, evidence.get(row.recommendation_id) ?? [])) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function listCompatibleSpecialistAuthorityAudit(request: Request, env: Env): Promise<Response> {
+  await requireCompatibleSpecialistAdminSession(request, env);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT audit_id, authority_id, actor_user_id, action, payload_json, created_at
+       FROM specialist_authority_audit
+      ORDER BY created_at DESC
+      LIMIT 100`
+  ).all<{ audit_id: string; authority_id: string | null; actor_user_id: string | null; action: string; payload_json: string | null; created_at: string }>();
+  return json({
+    ok: true,
+    audit: rows.results.map((row) => ({
+      auditId: row.audit_id,
+      authorityId: row.authority_id,
+      action: row.action,
+      createdAt: row.created_at,
+      actorUserId: row.actor_user_id,
+      payload: jsonObject(row.payload_json ?? "{}")
+    }))
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function createCompatibleAuthorityRecommendation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const sourceKind = normalizeOptionalText(body.sourceKind) ?? "self_claim";
+  const subjectUserId = normalizeOptionalText(body.subjectUserId) ?? session.userId;
+  if (sourceKind === "ops_registered") {
+    if (!isSpecialistAuthorityAdminRole(session)) return json({ ok: false, error: "specialist_admin_required" }, 403, { "cache-control": "no-store" });
+  } else if (sourceKind !== "self_claim" || subjectUserId !== session.userId) {
+    return json({ ok: false, error: "forbidden_recommendation_subject" }, 403, { "cache-control": "no-store" });
+  }
+  const scopeTaxonName = normalizeOptionalText(body.scopeTaxonName);
+  if (!scopeTaxonName) return json({ ok: false, error: "scope_taxon_name_required" }, 400, { "cache-control": "no-store" });
+  const recommendationId = newId("authority_rec");
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `INSERT INTO authority_recommendations (
+       recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+       scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+       resolved_at, source_payload_json, created_at, updated_at
+     ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)`
+  ).bind(
+    recommendationId,
+    subjectUserId,
+    sourceKind,
+    scopeTaxonName,
+    normalizeOptionalText(body.scopeTaxonRank),
+    normalizeOptionalText(body.scopeTaxonKey),
+    session.userId,
+    JSON.stringify({ source: "cloudflare_specialist_authority_runtime", ...(asPlainObject(body.sourcePayload) ?? {}) }),
+    now,
+    now
+  ).run();
+  const evidenceInputs = Array.isArray(body.evidence) ? body.evidence.slice(0, 8) : [];
+  for (const raw of evidenceInputs) {
+    const evidence = normalizeSpecialistAuthorityEvidence(asPlainObject(raw) ?? {});
+    await env.OBS_DB.prepare(
+      `INSERT INTO authority_recommendation_evidence (
+         evidence_id, recommendation_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(newId("authority_rec_ev"), recommendationId, evidence.evidenceType, evidence.title, evidence.issuerName, evidence.url, evidence.notes, JSON.stringify(evidence.sourcePayload), now).run();
+  }
+  await env.OBS_DB.prepare(
+    `INSERT INTO authority_recommendation_audit (audit_id, recommendation_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'create', ?, ?)`
+  ).bind(newId("authority_rec_audit"), recommendationId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime" }), now).run();
+  const row = await getAuthorityRecommendationRow(env, recommendationId);
+  const evidence = await listAuthorityRecommendationEvidence(env, [recommendationId]);
+  return json({ ok: true, recommendation: authorityRecommendationPayload(row!, evidence.get(recommendationId) ?? []) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function getAuthorityRecommendationRow(env: Env, recommendationId: string): Promise<AuthorityRecommendationRow | null> {
+  return await env.OBS_DB.prepare(
+    `SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+            scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+            resolved_at, source_payload_json, created_at, updated_at
+       FROM authority_recommendations
+      WHERE recommendation_id = ?`
+  ).bind(recommendationId).first<AuthorityRecommendationRow>();
+}
+
+async function grantCompatibleSpecialistAuthority(request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const subjectUserId = normalizeOptionalText(body.subjectUserId);
+  const scopeTaxonName = normalizeOptionalText(body.scopeTaxonName);
+  if (!subjectUserId || !scopeTaxonName) return json({ ok: false, error: "specialist_authority_input_required" }, 400, { "cache-control": "no-store" });
+  const authority = await insertCompatibleSpecialistAuthority(env, {
+    subjectUserId,
+    grantedByUserId: session.userId,
+    scopeTaxonName,
+    scopeTaxonRank: normalizeOptionalText(body.scopeTaxonRank),
+    scopeTaxonKey: normalizeOptionalText(body.scopeTaxonKey),
+    reason: normalizeOptionalText(body.reason),
+    sourcePayload: { source: "cloudflare_specialist_authority_runtime" },
+    evidence: Array.isArray(body.evidence) ? body.evidence : []
+  });
+  return json({ ok: true, authority }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function insertCompatibleSpecialistAuthority(env: Env, input: {
+  subjectUserId: string;
+  grantedByUserId: string | null;
+  scopeTaxonName: string;
+  scopeTaxonRank: string | null;
+  scopeTaxonKey: string | null;
+  reason: string | null;
+  sourcePayload: Record<string, unknown>;
+  evidence: unknown[];
+}): Promise<ReturnType<typeof specialistAuthorityPayload>> {
+  const now = new Date().toISOString();
+  const existing = await getActiveSpecialistAuthorityForScope(env, {
+    subjectUserId: input.subjectUserId,
+    scopeTaxonName: input.scopeTaxonName,
+    scopeTaxonRank: input.scopeTaxonRank,
+    scopeTaxonKey: input.scopeTaxonKey
+  });
+  if (existing) {
+    const evidence = await listSpecialistAuthorityEvidence(env, [existing.authority_id]);
+    return specialistAuthorityPayload(existing, evidence.get(existing.authority_id) ?? []);
+  }
+  const authorityId = newId("authority");
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authorities (
+       authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+       scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+       source_payload_json, created_at, updated_at
+     ) VALUES (?, ?, ?, 'active', 'taxon_identification', ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)`
+  ).bind(
+    authorityId,
+    input.subjectUserId,
+    input.grantedByUserId,
+    input.scopeTaxonName,
+    input.scopeTaxonRank,
+    input.scopeTaxonKey,
+    JSON.stringify({ source: "cloudflare_specialist_authority_runtime" }),
+    now,
+    input.reason,
+    JSON.stringify(input.sourcePayload),
+    now,
+    now
+  ).run();
+  for (const raw of input.evidence.slice(0, 8)) {
+    const evidence = normalizeSpecialistAuthorityEvidence(asPlainObject(raw) ?? {});
+    await env.OBS_DB.prepare(
+      `INSERT INTO specialist_authority_evidence (
+         evidence_id, authority_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(newId("authority_ev"), authorityId, evidence.evidenceType, evidence.title, evidence.issuerName, evidence.url, evidence.notes, JSON.stringify(evidence.sourcePayload), now).run();
+  }
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_audit (audit_id, authority_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'grant', ?, ?)`
+  ).bind(newId("authority_audit"), authorityId, input.grantedByUserId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime", subjectUserId: input.subjectUserId }), now).run();
+  const row = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+            scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+            source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE authority_id = ?`
+  ).bind(authorityId).first<SpecialistAuthorityRow>();
+  const evidence = await listSpecialistAuthorityEvidence(env, [authorityId]);
+  return specialistAuthorityPayload(row!, evidence.get(authorityId) ?? []);
+}
+
+async function grantCompatibleAuthorityRecommendation(recommendationId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const row = await getAuthorityRecommendationRow(env, recommendationId);
+  if (!row) return json({ ok: false, error: "authority_recommendation_not_found" }, 404, { "cache-control": "no-store" });
+  if (row.status !== "pending") return json({ ok: false, error: "authority_recommendation_not_pending" }, 409, { "cache-control": "no-store" });
+  const authorities = await getActiveSpecialistAuthoritiesForUser(env, session.userId);
+  if (!isSpecialistAuthorityAdminRole(session) && !authorities.some((authority) => authorityScopeMatches(authority, [row.scope_taxon_name, row.scope_taxon_key]))) {
+    return json({ ok: false, error: "specialist_authority_required" }, 403, { "cache-control": "no-store" });
+  }
+  const authority = await insertCompatibleSpecialistAuthority(env, {
+    subjectUserId: row.subject_user_id,
+    grantedByUserId: session.userId,
+    scopeTaxonName: row.scope_taxon_name,
+    scopeTaxonRank: row.scope_taxon_rank,
+    scopeTaxonKey: row.scope_taxon_key,
+    reason: normalizeOptionalText(body.resolutionNote),
+    sourcePayload: { source: "cloudflare_authority_recommendation_grant", recommendationId },
+    evidence: []
+  });
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `UPDATE authority_recommendations
+        SET status = 'granted', granted_authority_id = ?, resolution_note = ?, resolved_by_user_id = ?,
+            resolved_at = ?, updated_at = ?
+      WHERE recommendation_id = ?`
+  ).bind(authority.authorityId, normalizeOptionalText(body.resolutionNote), session.userId, now, now, recommendationId).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO authority_recommendation_audit (audit_id, recommendation_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'grant', ?, ?)`
+  ).bind(newId("authority_rec_audit"), recommendationId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime", authorityId: authority.authorityId }), now).run();
+  const updated = await getAuthorityRecommendationRow(env, recommendationId);
+  const evidence = await listAuthorityRecommendationEvidence(env, [recommendationId]);
+  return json({ ok: true, recommendation: authorityRecommendationPayload(updated!, evidence.get(recommendationId) ?? []), authority }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function rejectCompatibleAuthorityRecommendation(recommendationId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const row = await getAuthorityRecommendationRow(env, recommendationId);
+  if (!row) return json({ ok: false, error: "authority_recommendation_not_found" }, 404, { "cache-control": "no-store" });
+  if (row.status !== "pending") return json({ ok: false, error: "authority_recommendation_not_pending" }, 409, { "cache-control": "no-store" });
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `UPDATE authority_recommendations
+        SET status = 'rejected', resolution_note = ?, resolved_by_user_id = ?, resolved_at = ?, updated_at = ?
+      WHERE recommendation_id = ?`
+  ).bind(normalizeOptionalText(body.resolutionNote) ?? "", session.userId, now, now, recommendationId).run();
+  const updated = await getAuthorityRecommendationRow(env, recommendationId);
+  return json({ ok: true, recommendation: authorityRecommendationPayload(updated!) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function revokeCompatibleSpecialistAuthority(authorityId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `UPDATE specialist_authorities
+        SET status = 'revoked', revoked_at = ?, reason = ?, updated_at = ?
+      WHERE authority_id = ? AND status = 'active'`
+  ).bind(now, normalizeOptionalText(body.reason) ?? "revoked", now, authorityId).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_audit (audit_id, authority_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'revoke', ?, ?)`
+  ).bind(newId("authority_audit"), authorityId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime" }), now).run();
+  const row = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+            scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+            source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE authority_id = ?`
+  ).bind(authorityId).first<SpecialistAuthorityRow>();
+  if (!row) return json({ ok: false, error: "specialist_authority_not_found_or_revoked" }, 404, { "cache-control": "no-store" });
+  return json({ ok: true, authority: specialistAuthorityPayload(row) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function addCompatibleSpecialistAuthorityEvidence(authorityId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<SpecialistAuthorityEvidenceInput>(request);
+  const evidence = normalizeSpecialistAuthorityEvidence(body);
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_evidence (
+       evidence_id, authority_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(newId("authority_ev"), authorityId, evidence.evidenceType, evidence.title, evidence.issuerName, evidence.url, evidence.notes, JSON.stringify(evidence.sourcePayload), now).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_audit (audit_id, authority_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'update', ?, ?)`
+  ).bind(newId("authority_audit"), authorityId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime", evidenceAdded: true }), now).run();
+  const row = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+            scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+            source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE authority_id = ?`
+  ).bind(authorityId).first<SpecialistAuthorityRow>();
+  if (!row) return json({ ok: false, error: "specialist_authority_not_found" }, 404, { "cache-control": "no-store" });
+  const allEvidence = await listSpecialistAuthorityEvidence(env, [authorityId]);
+  return json({ ok: true, authority: specialistAuthorityPayload(row, allEvidence.get(authorityId) ?? []) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
 }
 
 async function resolveCompatibleIdentificationDispute(disputeId: string, request: Request, env: Env): Promise<Response> {
