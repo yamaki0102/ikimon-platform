@@ -194,7 +194,8 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/guideSessionPublicSummary.ts": "cloudflare_guide_session_public_summary_runtime",
     "platform_v2/src/services/guideRecordPromotion.ts": "cloudflare_guide_record_promotion_request_ledger",
     "platform_v2/src/services/regionalHypotheses.ts": "cloudflare_guide_regional_hypothesis_api",
-    "platform_v2/src/services/walkWrite.ts": "cloudflare_walk_session_api"
+    "platform_v2/src/services/walkWrite.ts": "cloudflare_walk_session_api",
+    "platform_v2/src/services/trackWrite.ts": "cloudflare_track_upsert_api"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;
 }

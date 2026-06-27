@@ -195,6 +195,28 @@ interface CompatibleWalkSessionInput {
   rawPayload?: unknown;
 }
 
+interface CompatibleTrackPointInput {
+  latitude?: unknown;
+  longitude?: unknown;
+  accuracyMeters?: unknown;
+  altitudeMeters?: unknown;
+  timestamp?: unknown;
+}
+
+interface CompatibleTrackUpsertInput {
+  sessionId?: unknown;
+  userId?: unknown;
+  fieldId?: unknown;
+  startedAt?: unknown;
+  updatedAt?: unknown;
+  distanceMeters?: unknown;
+  stepCount?: unknown;
+  points?: unknown;
+  municipality?: unknown;
+  prefecture?: unknown;
+  sourcePayload?: unknown;
+}
+
 type RecordReadingAxis = "organism" | "environment" | "human_relation";
 type RecordReadingSourceKind = "official" | "trusted_db" | "research";
 
@@ -1506,6 +1528,9 @@ export const worker = {
 
       const walkRuntimeResponse = await handleWalkRuntime(request, url, env);
       if (walkRuntimeResponse) return walkRuntimeResponse;
+
+      const trackRuntimeResponse = await handleTrackRuntime(request, url, env);
+      if (trackRuntimeResponse) return trackRuntimeResponse;
 
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
         return getMunicipalWalkMapCandidates(url, env);
@@ -4919,6 +4944,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
   if (url.pathname === "/api/v1/walk/session/start") return true;
   if (url.pathname === "/api/v1/walk/session/end") return true;
+  if (url.pathname === "/api/v1/tracks/upsert") return true;
   return false;
 }
 
@@ -7649,6 +7675,148 @@ async function getTodayWalkSummaryNative(request: Request, env: Env): Promise<Re
     totalDetections,
     topSpecies: species.slice(0, 5)
   }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "walk-session" });
+}
+
+async function handleTrackRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (request.method === "POST" && pathname === "/api/v1/tracks/upsert") {
+    return upsertTrackNative(request, env);
+  }
+  return null;
+}
+
+async function upsertTrackNative(request: Request, env: Env): Promise<Response> {
+  const body = await readJson<CompatibleTrackUpsertInput>(request);
+  const sessionId = normalizeOptionalId(body.sessionId);
+  const requestedUserId = normalizeOptionalText(body.userId);
+  if (!sessionId) return json({ ok: false, error: "sessionId is required" }, 400, { "cache-control": "no-store" });
+  if (!requestedUserId) return json({ ok: false, error: "userId is required" }, 400, { "cache-control": "no-store" });
+
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_disabled" }, 401, { "cache-control": "no-store" });
+  if (session.userId !== requestedUserId) return json({ ok: false, error: "forbidden_user_mismatch" }, 403, { "cache-control": "no-store" });
+
+  const points = normalizeTrackPoints(body.points);
+  if (points.length === 0) return json({ ok: false, error: "points are required" }, 400, { "cache-control": "no-store" });
+  const firstPoint = points[0];
+  if (!firstPoint) return json({ ok: false, error: "first point is invalid" }, 400, { "cache-control": "no-store" });
+
+  const startedAt = normalizeTimestampText(body.startedAt);
+  const updatedAt = normalizeTimestampText(body.updatedAt ?? body.startedAt);
+  const visitId = `track:${sessionId}`;
+  const placeId = buildNativeTrackPlaceId(firstPoint.latitude, firstPoint.longitude, body.municipality, body.prefecture);
+  const sourcePayload = {
+    session_id: sessionId,
+    field_id: normalizeOptionalText(body.fieldId),
+    user_id: requestedUserId,
+    ...(body.sourcePayload && typeof body.sourcePayload === "object" && !Array.isArray(body.sourcePayload)
+      ? body.sourcePayload as Record<string, unknown>
+      : {})
+  };
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO track_sessions (
+       visit_id, session_id, user_id, field_id, place_id, started_at, updated_at,
+       distance_meters, step_count, first_lat, first_lng, municipality, prefecture, source_payload_json
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(visit_id) DO UPDATE SET
+       user_id = excluded.user_id,
+       field_id = excluded.field_id,
+       place_id = excluded.place_id,
+       started_at = excluded.started_at,
+       updated_at = excluded.updated_at,
+       distance_meters = excluded.distance_meters,
+       step_count = excluded.step_count,
+       first_lat = excluded.first_lat,
+       first_lng = excluded.first_lng,
+       municipality = excluded.municipality,
+       prefecture = excluded.prefecture,
+       source_payload_json = excluded.source_payload_json`
+  ).bind(
+    visitId,
+    sessionId,
+    requestedUserId,
+    normalizeOptionalText(body.fieldId),
+    placeId,
+    startedAt,
+    updatedAt,
+    finiteNumberOrNull(body.distanceMeters),
+    integerOrNull(body.stepCount),
+    firstPoint.latitude,
+    firstPoint.longitude,
+    normalizeOptionalText(body.municipality),
+    normalizeOptionalText(body.prefecture),
+    JSON.stringify(sourcePayload)
+  ).run();
+
+  await env.OBS_DB.prepare("DELETE FROM track_points WHERE visit_id = ?").bind(visitId).run();
+  for (let index = 0; index < points.length; index += 1) {
+    const point = points[index];
+    if (!point) continue;
+    await env.OBS_DB.prepare(
+      `INSERT INTO track_points (
+         point_id, visit_id, observed_at, sequence_no, lat, lng, accuracy_m, altitude_m, raw_payload_json
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      `${visitId}:${index}`,
+      visitId,
+      point.timestamp,
+      index,
+      point.latitude,
+      point.longitude,
+      point.accuracyMeters,
+      point.altitudeMeters,
+      JSON.stringify({ source: "v2_track_api" })
+    ).run();
+  }
+
+  return json({
+    visitId,
+    placeId,
+    pointCount: points.length,
+    compatibility: {
+      attempted: false,
+      succeeded: false
+    }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "track-upsert" });
+}
+
+function normalizeTrackPoints(raw: unknown): Array<{ latitude: number; longitude: number; accuracyMeters: number | null; altitudeMeters: number | null; timestamp: string }> {
+  if (!Array.isArray(raw)) return [];
+  const points: Array<{ latitude: number; longitude: number; accuracyMeters: number | null; altitudeMeters: number | null; timestamp: string }> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const point = item as CompatibleTrackPointInput;
+    const latitude = finiteNumberOrNull(point.latitude);
+    const longitude = finiteNumberOrNull(point.longitude);
+    if (latitude == null || longitude == null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) continue;
+    points.push({
+      latitude,
+      longitude,
+      accuracyMeters: finiteNumberOrNull(point.accuracyMeters),
+      altitudeMeters: finiteNumberOrNull(point.altitudeMeters),
+      timestamp: normalizeTimestampText(point.timestamp)
+    });
+  }
+  return points;
+}
+
+function buildNativeTrackPlaceId(latitude: number, longitude: number, municipality: unknown, prefecture: unknown): string {
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    return `geo:${latitude.toFixed(3)}:${longitude.toFixed(3)}`;
+  }
+  const municipalityText = normalizeOptionalText(municipality);
+  const prefectureText = normalizeOptionalText(prefecture);
+  if (municipalityText || prefectureText) return `locality:${prefectureText ?? ""}:${municipalityText ?? ""}`;
+  return "place:unknown";
+}
+
+function normalizeTimestampText(value: unknown): string {
+  const text = normalizeOptionalText(value);
+  if (!text) return new Date().toISOString();
+  const date = new Date(text);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : new Date().toISOString();
 }
 
 function guideSpotForId(guideSpotId: string): ShadowMapGuideSpot | null {

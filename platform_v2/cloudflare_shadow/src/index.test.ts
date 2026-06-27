@@ -622,6 +622,36 @@ interface WalkSessionRow {
   updated_at: string;
 }
 
+interface TrackSessionRow {
+  visit_id: string;
+  session_id: string;
+  user_id: string;
+  field_id: string | null;
+  place_id: string;
+  started_at: string;
+  updated_at: string;
+  distance_meters: number | null;
+  step_count: number | null;
+  first_lat: number;
+  first_lng: number;
+  municipality: string | null;
+  prefecture: string | null;
+  source_payload_json: string;
+  created_at: string;
+}
+
+interface TrackPointRow {
+  point_id: string;
+  visit_id: string;
+  observed_at: string;
+  sequence_no: number;
+  lat: number;
+  lng: number;
+  accuracy_m: number | null;
+  altitude_m: number | null;
+  raw_payload_json: string;
+}
+
 interface PublicMapSnapshotRecordRow {
   occurrence_id?: string;
   visit_id: string;
@@ -1093,6 +1123,8 @@ class FakeD1 {
   municipalWalkMapStops = new Map<string, MunicipalWalkMapStopRow>();
   municipalWalkMapAudit: MunicipalWalkMapAuditRow[] = [];
   walkSessions = new Map<string, WalkSessionRow>();
+  trackSessions = new Map<string, TrackSessionRow>();
+  trackPoints = new Map<string, TrackPointRow>();
   publicMapSnapshotRecords: PublicMapSnapshotRecordRow[] = [];
   publicMapSnapshotMeta: PublicMapSnapshotMetaRow | null = null;
   observationEventSessions = new Map<string, ObservationEventSessionTestRow>();
@@ -2285,6 +2317,51 @@ class FakeStatement {
         updated_at: now
       };
       this.db.walkSessions.set(row.walk_session_id, row);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO track_sessions")) {
+      const now = new Date().toISOString();
+      this.db.trackSessions.set(string(v[0]), {
+        visit_id: string(v[0]),
+        session_id: string(v[1]),
+        user_id: string(v[2]),
+        field_id: nullableString(v[3]),
+        place_id: string(v[4]),
+        started_at: string(v[5]),
+        updated_at: string(v[6]),
+        distance_meters: nullableNumber(v[7]),
+        step_count: nullableNumber(v[8]),
+        first_lat: number(v[9]),
+        first_lng: number(v[10]),
+        municipality: nullableString(v[11]),
+        prefecture: nullableString(v[12]),
+        source_payload_json: string(v[13]),
+        created_at: this.db.trackSessions.get(string(v[0]))?.created_at ?? now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM track_points WHERE visit_id = ?")) {
+      const visitId = string(v[0]);
+      for (const [key, row] of [...this.db.trackPoints.entries()]) {
+        if (row.visit_id === visitId) this.db.trackPoints.delete(key);
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO track_points")) {
+      this.db.trackPoints.set(string(v[0]), {
+        point_id: string(v[0]),
+        visit_id: string(v[1]),
+        observed_at: string(v[2]),
+        sequence_no: number(v[3]),
+        lat: number(v[4]),
+        lng: number(v[5]),
+        accuracy_m: nullableNumber(v[6]),
+        altitude_m: nullableNumber(v[7]),
+        raw_payload_json: string(v[8])
+      });
       return {};
     }
 
@@ -7754,6 +7831,89 @@ test("production runtime records walk sessions natively without origin fallback"
       totalDetections: 4,
       topSpecies: ["シロツメクサ", "アオスジアゲハ"]
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime records track upserts natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "track-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/tracks/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        sessionId: "track-ext-1",
+        userId: "track-user",
+        fieldId: "field-1",
+        startedAt: "2026-06-27T01:00:00.000Z",
+        updatedAt: "2026-06-27T01:10:00.000Z",
+        distanceMeters: 420.5,
+        stepCount: 680,
+        municipality: "静岡市",
+        prefecture: "静岡県",
+        sourcePayload: { source: "unit" },
+        points: [
+          { latitude: 34.9751, longitude: 138.3822, accuracyMeters: 8, timestamp: "2026-06-27T01:00:00.000Z" },
+          { latitude: 34.9756, longitude: 138.3831, altitudeMeters: 14, timestamp: "2026-06-27T01:04:00.000Z" }
+        ]
+      })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "track-upsert");
+    assert.deepEqual(payload, {
+      visitId: "track:track-ext-1",
+      placeId: "geo:34.975:138.382",
+      pointCount: 2,
+      compatibility: { attempted: false, succeeded: false }
+    });
+    assert.equal(obs.trackSessions.size, 1);
+    assert.equal(obs.trackPoints.size, 2);
+    const saved = obs.trackSessions.get("track:track-ext-1");
+    assert.equal(saved?.user_id, "track-user");
+    assert.equal(saved?.field_id, "field-1");
+    assert.equal(saved?.distance_meters, 420.5);
+    assert.equal(saved?.step_count, 680);
+    assert.match(saved?.source_payload_json ?? "", /track-ext-1/);
+
+    const mismatchResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/tracks/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        sessionId: "track-ext-2",
+        userId: "other-user",
+        points: [{ latitude: 34.97, longitude: 138.38, timestamp: "2026-06-27T01:00:00.000Z" }]
+      })
+    }), productionEnv);
+    assert.equal(mismatchResponse.status, 403);
   } finally {
     globalThis.fetch = originalFetch;
   }
