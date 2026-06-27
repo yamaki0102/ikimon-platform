@@ -83,6 +83,9 @@ interface Env {
   PUBLIC_WRITE_MODE?: string;
   PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?: string;
   ORIGIN_SESSION_IMPORT_MODE?: string;
+  V2_PRIVILEGED_WRITE_API_KEY?: string;
+  CONTACT_FORM_SECRET?: string;
+  CONTACT_ADMIN_TO?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   TWITTER_CLIENT_ID?: string;
@@ -152,6 +155,7 @@ interface LegacyObservationUpsertInput {
   revisitReason?: string | null;
   targetTaxaScope?: string | null;
   sourcePayload?: Record<string, unknown> | null;
+  dataRights?: Record<string, unknown> | null;
 }
 
 interface CompatibleObservationIdentificationInput {
@@ -230,6 +234,17 @@ interface AuthUserRow {
   role_name: string | null;
   rank_label: string | null;
   banned: number;
+}
+
+interface UserProfileRow {
+  user_id: string;
+  display_name: string;
+  profile_bio: string | null;
+  expertise: string | null;
+  avatar_object_key: string | null;
+  avatar_mime: string | null;
+  avatar_bytes: number | null;
+  avatar_sha256: string | null;
 }
 
 type OAuthProvider = "google" | "twitter";
@@ -1777,6 +1792,11 @@ export const worker = {
       const observationEventResponse = await handleObservationEventApi(request, url, env);
       if (observationEventResponse) {
         return observationEventResponse;
+      }
+
+      const accountWriteResponse = await handleAccountWriteApi(request, url, env);
+      if (accountWriteResponse) {
+        return accountWriteResponse;
       }
 
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
@@ -4862,6 +4882,11 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (url.pathname === "/api/v1/auth/session") return true;
   if (url.pathname === "/api/v1/auth/session/logout") return true;
   if (url.pathname === "/api/v1/auth/login") return true;
+  if (url.pathname === "/api/v1/contact/submit") return true;
+  if (url.pathname === "/api/v1/users/upsert") return true;
+  if (url.pathname === "/api/v1/profile/me") return true;
+  if (url.pathname === "/api/v1/auth/remember-tokens/issue") return true;
+  if (url.pathname === "/api/v1/auth/remember-tokens/revoke") return true;
   if (url.pathname === "/api/v1/videos/direct-upload") return true;
   if (/^\/api\/v1\/videos\/[^/]+\/body$/.test(url.pathname)) return true;
   if (url.pathname === "/api/v1/videos/stream-webhook") return true;
@@ -5489,6 +5514,483 @@ function publicWriteDisabledResponse(): Response {
     "retry-after": "300",
     "x-ikimon-cloudflare-write-mode": "write_disabled"
   });
+}
+
+async function handleAccountWriteApi(request: Request, url: URL, env: Env): Promise<Response | null> {
+  if (!isAccountWritePath(request, url)) return null;
+  if (shouldUseOriginFallback(url, env)) {
+    const mode = getPublicWriteMode(env);
+    if (mode === "origin_fallback") return null;
+    if (mode === "write_disabled") return publicWriteDisabledResponse();
+  }
+  if (request.method === "POST" && url.pathname === "/api/v1/contact/submit") return submitContactNative(request, env);
+  if (request.method === "POST" && url.pathname === "/api/v1/users/upsert") return upsertUserNative(request, env);
+  if (request.method === "POST" && url.pathname === "/api/v1/profile/me") return updateOwnProfileNative(request, env);
+  if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/issue") return issueRememberTokenNative(request, env);
+  if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/revoke") return revokeRememberTokenNative(request, env);
+  return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+}
+
+function isAccountWritePath(request: Request, url: URL): boolean {
+  if (request.method !== "POST") return false;
+  return url.pathname === "/api/v1/contact/submit"
+    || url.pathname === "/api/v1/users/upsert"
+    || url.pathname === "/api/v1/profile/me"
+    || url.pathname === "/api/v1/auth/remember-tokens/issue"
+    || url.pathname === "/api/v1/auth/remember-tokens/revoke";
+}
+
+async function submitContactNative(request: Request, env: Env): Promise<Response> {
+  const input = await readJson<Record<string, unknown>>(request);
+  if (normalizeOptionalText(input.website) || normalizeOptionalText(input.spamTrap)) {
+    return json({ ok: true, submissionId: "", notificationSent: false, autoReplySent: false }, 200, { "cache-control": "no-store" });
+  }
+  const proof = normalizeOptionalText(input.contactProof);
+  const verifiedProof = proof ? await verifyContactProofNative(proof, env) : null;
+  if (!verifiedProof) {
+    return json({ ok: false, error: "contact_antispam_failed" }, 400, { "cache-control": "no-store" });
+  }
+  const category = normalizeOptionalText(input.category) ?? "other";
+  if (!new Set(["bug", "improvement", "question", "partnership", "deletion", "media", "other"]).has(category)) {
+    return json({ ok: false, error: "invalid_category" }, 400, { "cache-control": "no-store" });
+  }
+  const message = normalizeOptionalText(input.message) ?? "";
+  if (message.length < 5) {
+    return json({ ok: false, error: "message_too_short" }, 400, { "cache-control": "no-store" });
+  }
+  const email = normalizeOptionalText(input.email);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return json({ ok: false, error: "invalid_email" }, 400, { "cache-control": "no-store" });
+  }
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const ipHash = await contactIpHash(request, env);
+  const createdAt = new Date().toISOString();
+  const rateLimited = await isContactSubmitRateLimited(env, {
+    ipHash,
+    email,
+    userId: session?.userId ?? null
+  });
+  if (rateLimited) {
+    return json({ ok: false, error: "rate_limited" }, 429, { "cache-control": "no-store", "retry-after": "3600" });
+  }
+  const nonceConsumed = await consumeContactProofNonce(env, verifiedProof, ipHash);
+  if (!nonceConsumed) {
+    return json({ ok: false, error: "contact_antispam_failed" }, 400, { "cache-control": "no-store" });
+  }
+  const submissionId = `contact-${crypto.randomUUID()}`;
+  await env.CORE_DB.prepare(
+    `INSERT INTO contact_submissions
+       (submission_id, category, name, email, organization, message, source_url, user_agent, ip_hash, user_id, notification_sent, auto_reply_sent, send_error, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NULL, ?)`
+  ).bind(
+    submissionId,
+    category,
+    normalizeOptionalText(input.name),
+    email,
+    normalizeOptionalText(input.organization),
+    message.slice(0, 4000),
+    normalizeOptionalText(input.sourceUrl) ?? request.headers.get("referer"),
+    request.headers.get("user-agent"),
+    ipHash,
+    session?.userId ?? null,
+    createdAt
+  ).run();
+
+  const delivery = await sendContactEmailsBestEffort(env, {
+    submissionId,
+    category,
+    name: normalizeOptionalText(input.name),
+    email,
+    organization: normalizeOptionalText(input.organization),
+    message
+  });
+  await env.CORE_DB.prepare(
+    `UPDATE contact_submissions
+        SET notification_sent = ?, auto_reply_sent = ?, send_error = ?
+      WHERE submission_id = ?`
+  ).bind(delivery.notificationSent ? 1 : 0, delivery.autoReplySent ? 1 : 0, delivery.error, submissionId).run();
+  return json({ ok: true, submissionId, notificationSent: delivery.notificationSent, autoReplySent: delivery.autoReplySent }, 200, { "cache-control": "no-store" });
+}
+
+async function sendContactEmailsBestEffort(
+  env: Env,
+  input: { submissionId: string; category: string; name: string | null; email: string | null; organization: string | null; message: string }
+): Promise<{ notificationSent: boolean; autoReplySent: boolean; error: string | null }> {
+  if (!env.ALERT_EMAIL) return { notificationSent: false, autoReplySent: false, error: "email_binding_unconfigured" };
+  let notificationSent = false;
+  let autoReplySent = false;
+  const errors: string[] = [];
+  try {
+    await env.ALERT_EMAIL.send({
+      from: alertEmailFrom(env),
+      to: normalizeOptionalText(env.CONTACT_ADMIN_TO) ?? "yamaki0102@gmail.com",
+      subject: `ikimon contact: ${input.category}`,
+      text: [
+        `submission: ${input.submissionId}`,
+        `name: ${input.name ?? ""}`,
+        `email: ${input.email ?? ""}`,
+        `organization: ${input.organization ?? ""}`,
+        "",
+        input.message
+      ].join("\n")
+    });
+    notificationSent = true;
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+  if (input.email) {
+    try {
+      await env.ALERT_EMAIL.send({
+        from: alertEmailFrom(env),
+        to: input.email,
+        subject: "ikimonへのお問い合わせを受け付けました",
+        text: "お問い合わせを受け付けました。内容を確認して必要に応じて返信します。"
+      });
+      autoReplySent = true;
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  return { notificationSent, autoReplySent, error: errors.join("; ").slice(0, 500) || null };
+}
+
+interface VerifiedContactProof {
+  issuedAt: number;
+  nonce: string;
+}
+
+async function verifyContactProofNative(proof: string, env: Env): Promise<VerifiedContactProof | null> {
+  const parts = proof.split(".");
+  if (parts.length !== 4 || parts[0] !== "v1") return null;
+  const issuedAt = Number(parts[1]);
+  const nonce = parts[2];
+  const signature = parts[3];
+  if (!Number.isFinite(issuedAt) || !nonce || !signature) return null;
+  const ageMs = Date.now() - issuedAt;
+  if (ageMs < 2500 || ageMs > 2 * 60 * 60 * 1000) return null;
+  const expected = await hmacSha256Base64Url(contactProofSecret(env), `v1.${issuedAt}.${nonce}`);
+  return constantTimeStringEqual(expected, signature) ? { issuedAt, nonce } : null;
+}
+
+function contactProofSecret(env: Env): string {
+  return normalizeOptionalText(env.CONTACT_FORM_SECRET)
+    ?? normalizeOptionalText(env.V2_OAUTH_STATE_SECRET)
+    ?? normalizeOptionalText(env.V2_PRIVILEGED_WRITE_API_KEY)
+    ?? "local";
+}
+
+async function hmacSha256Base64Url(secret: string, payload: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", textToArrayBuffer(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const bytes = await crypto.subtle.sign("HMAC", key, textToArrayBuffer(payload));
+  return base64Url(bytes);
+}
+
+function base64Url(bytes: ArrayBuffer): string {
+  let binary = "";
+  for (const byte of new Uint8Array(bytes)) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+}
+
+async function contactIpHash(request: Request, env: Env): Promise<string | null> {
+  const ip = normalizeOptionalText(request.headers.get("cf-connecting-ip"));
+  if (!ip) return null;
+  return sha256Hex(textToArrayBuffer(`${contactProofSecret(env)}:contact-ip:${ip}`));
+}
+
+async function isContactSubmitRateLimited(
+  env: Env,
+  input: { ipHash: string | null; email: string | null; userId: string | null }
+): Promise<boolean> {
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const checks: Array<{ column: string; value: string }> = [];
+  if (input.ipHash) checks.push({ column: "ip_hash", value: input.ipHash });
+  if (input.email) checks.push({ column: "email", value: input.email.toLowerCase() });
+  if (input.userId) checks.push({ column: "user_id", value: input.userId });
+  for (const check of checks) {
+    const row = await env.CORE_DB.prepare(
+      `SELECT COUNT(*) AS count
+         FROM contact_submissions
+        WHERE ${check.column} = ?
+          AND created_at >= ?`
+    ).bind(check.value, since).first<{ count: number }>();
+    if (toSafeCount(row?.count) >= 5) return true;
+  }
+  return false;
+}
+
+async function consumeContactProofNonce(env: Env, proof: VerifiedContactProof, ipHash: string | null): Promise<boolean> {
+  const nonceHash = await sha256Hex(textToArrayBuffer(`${contactProofSecret(env)}:contact-nonce:${proof.issuedAt}:${proof.nonce}`));
+  try {
+    await env.CORE_DB.prepare(
+      `INSERT INTO contact_proof_nonces (nonce_hash, issued_at_ms, ip_hash, consumed_at)
+       VALUES (?, ?, ?, ?)`
+    ).bind(nonceHash, proof.issuedAt, ipHash, new Date().toISOString()).run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function upsertUserNative(request: Request, env: Env): Promise<Response> {
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const input = await readJson<Record<string, unknown>>(request);
+  const userId = normalizeOptionalText(input.userId) ?? normalizeOptionalText(input.user_id);
+  if (!userId) return json({ ok: false, error: "userId_required" }, 400, { "cache-control": "no-store" });
+  const displayName = normalizeOptionalText(input.displayName) ?? normalizeOptionalText(input.display_name) ?? userId;
+  const email = (normalizeOptionalText(input.email) ?? `${userId}@users.ikimon.local`).toLowerCase();
+  const incomingRole = normalizeOptionalText(input.roleName) ?? normalizeOptionalText(input.role_name) ?? "Observer";
+  const incomingRank = normalizeOptionalText(input.rankLabel) ?? normalizeOptionalText(input.rank_label) ?? null;
+  const existing = await getAuthUserByUserId(env, userId);
+  const preserved = preservePrivilegedRole(existing, incomingRole, incomingRank);
+  await env.CORE_DB.batch([
+    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId),
+    env.CORE_DB.prepare(
+      `INSERT INTO auth_users
+       (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET
+         email = excluded.email,
+         password_hash = COALESCE(excluded.password_hash, auth_users.password_hash),
+         display_name = excluded.display_name,
+         role_name = excluded.role_name,
+         rank_label = excluded.rank_label,
+         banned = excluded.banned,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      userId,
+      email,
+      normalizeOptionalText(input.passwordHash) ?? normalizeOptionalText(input.password_hash),
+      displayName,
+      preserved.roleName,
+      preserved.rankLabel,
+      input.banned === true ? 1 : 0
+    )
+  ]);
+  return json({ ok: true, userId, roleName: preserved.roleName, rankLabel: preserved.rankLabel, compatibility: { attempted: false, succeeded: false } }, 200, { "cache-control": "no-store" });
+}
+
+function preservePrivilegedRole(existing: AuthUserRow | null, incomingRole: string, incomingRank: string | null): { roleName: string; rankLabel: string | null } {
+  const existingRole = (existing?.role_name ?? "").toLowerCase();
+  const incoming = incomingRole.toLowerCase();
+  const existingIsPrivileged = existingRole === "admin" || existingRole === "analyst" || existing?.rank_label === "管理者" || existing?.rank_label === "分析担当";
+  const incomingIsPrivileged = incoming === "admin" || incoming === "analyst";
+  if (existingIsPrivileged && !incomingIsPrivileged) {
+    return { roleName: existing?.role_name ?? incomingRole, rankLabel: existing?.rank_label ?? incomingRank };
+  }
+  return { roleName: incomingRole, rankLabel: incomingRank };
+}
+
+async function getAuthUserByUserId(env: Env, userId: string): Promise<AuthUserRow | null> {
+  return env.CORE_DB.prepare(
+    `SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned
+       FROM auth_users
+      WHERE user_id = ?`
+  ).bind(userId).first<AuthUserRow>();
+}
+
+async function updateOwnProfileNative(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ ok: false, error: "auth_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  const input = await readJson<Record<string, unknown>>(request);
+  const displayName = normalizeOptionalText(input.displayName) ?? "";
+  if (!displayName) return json({ ok: false, error: "displayName_required" }, 400, { "cache-control": "no-store" });
+  const profileBio = normalizeOptionalText(input.profileBio) ?? "";
+  const expertise = normalizeOptionalText(input.expertise) ?? "";
+  if (profileBio.length > 500) return json({ ok: false, error: "profileBio_too_long" }, 400, { "cache-control": "no-store" });
+  if (expertise.length > 120) return json({ ok: false, error: "expertise_too_long" }, 400, { "cache-control": "no-store" });
+  const existing = await getAuthUserByUserId(env, session.userId);
+  if (!existing) return json({ ok: false, error: "user_not_found" }, 404, { "cache-control": "no-store" });
+  const avatar = await storeProfileAvatarIfPresent(env, session.userId, input.avatar);
+  await env.CORE_DB.batch([
+    env.CORE_DB.prepare("UPDATE auth_users SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(displayName, session.userId),
+    env.CORE_DB.prepare(
+      `INSERT INTO user_profiles
+         (user_id, display_name, profile_bio, expertise, avatar_object_key, avatar_mime, avatar_bytes, avatar_sha256, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id) DO UPDATE SET
+         display_name = excluded.display_name,
+         profile_bio = excluded.profile_bio,
+         expertise = excluded.expertise,
+         avatar_object_key = COALESCE(excluded.avatar_object_key, user_profiles.avatar_object_key),
+         avatar_mime = COALESCE(excluded.avatar_mime, user_profiles.avatar_mime),
+         avatar_bytes = COALESCE(excluded.avatar_bytes, user_profiles.avatar_bytes),
+         avatar_sha256 = COALESCE(excluded.avatar_sha256, user_profiles.avatar_sha256),
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(session.userId, displayName, profileBio, expertise, avatar?.objectKey ?? null, avatar?.mime ?? null, avatar?.bytes ?? null, avatar?.sha256 ?? null),
+    env.CORE_DB.prepare(
+      `INSERT INTO profile_write_audit (audit_id, user_id, payload_json, created_at)
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(`profile-audit-${crypto.randomUUID()}`, session.userId, JSON.stringify({ displayName, profileBio, expertise, avatar: avatar ? { objectKey: avatar.objectKey, bytes: avatar.bytes, mime: avatar.mime } : null }))
+  ]);
+  return json({
+    ok: true,
+    user: {
+      userId: session.userId,
+      displayName,
+      rankLabel: existing.rank_label,
+      profileBio,
+      expertise,
+      avatarUrl: avatar ? `/cdn-cgi/ikimon-assets/${avatar.objectKey}` : null
+    },
+    compatibility: { attempted: false, succeeded: false }
+  }, 200, { "cache-control": "no-store" });
+}
+
+async function storeProfileAvatarIfPresent(env: Env, userId: string, avatarInput: unknown): Promise<{ objectKey: string; mime: string; bytes: number; sha256: string } | null> {
+  const avatar = asPlainObject(avatarInput);
+  if (!avatar) return null;
+  const mime = normalizeOptionalText(avatar.mimeType) ?? normalizeOptionalText(avatar.mime) ?? "image/jpeg";
+  if (mime !== "image/png") throw new HttpError(400, "avatar_reencode_required");
+  const body = base64ToArrayBuffer(normalizeOptionalText(avatar.base64Data) ?? normalizeOptionalText(avatar.data) ?? "");
+  if (body.byteLength === 0) throw new HttpError(400, "avatar_empty");
+  if (body.byteLength > 5 * 1024 * 1024) throw new HttpError(400, "avatar_too_large");
+  const sanitizedBody = sanitizePngAvatar(body);
+  const sha = await sha256Hex(sanitizedBody);
+  const ext = "png";
+  const objectKey = `profiles/avatars-sanitized/${encodeURIComponent(userId)}/${sha.slice(0, 24)}.${ext}`;
+  await env.ASSET_BUCKET.put(objectKey, sanitizedBody, { httpMetadata: { contentType: "image/png" } });
+  return { objectKey, mime: "image/png", bytes: sanitizedBody.byteLength, sha256: sha };
+}
+
+function sanitizePngAvatar(body: ArrayBuffer): ArrayBuffer {
+  const bytes = new Uint8Array(body);
+  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (!signature.every((byte, index) => bytes[index] === byte)) throw new HttpError(400, "invalid_avatar_image");
+  const outputChunks: Uint8Array[] = [bytes.slice(0, 8)];
+  let offset = 8;
+  let sawIhdr = false;
+  let sawIdat = false;
+  let sawIend = false;
+  while (offset + 12 <= bytes.length) {
+    const length = readPngUint32(bytes, offset);
+    const typeStart = offset + 4;
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    const crcEnd = dataEnd + 4;
+    if (dataEnd > bytes.length || crcEnd > bytes.length) throw new HttpError(400, "invalid_avatar_image");
+    const type = String.fromCharCode(...bytes.slice(typeStart, typeStart + 4));
+    if (!/^[A-Za-z]{4}$/.test(type)) throw new HttpError(400, "invalid_avatar_image");
+    const expectedCrc = readPngUint32(bytes, dataEnd);
+    const actualCrc = crc32(bytes.slice(typeStart, dataEnd));
+    if (expectedCrc !== actualCrc) throw new HttpError(400, "invalid_avatar_image");
+    if (!sawIhdr && type !== "IHDR") throw new HttpError(400, "invalid_avatar_image");
+    if (type === "IHDR") {
+      if (sawIhdr || length !== 13) throw new HttpError(400, "invalid_avatar_image");
+      const width = readPngUint32(bytes, dataStart);
+      const height = readPngUint32(bytes, dataStart + 4);
+      if (width < 1 || height < 1 || width > 2048 || height > 2048) throw new HttpError(400, "invalid_avatar_image");
+      sawIhdr = true;
+      outputChunks.push(bytes.slice(offset, crcEnd));
+    } else if (type === "PLTE") {
+      if (!sawIhdr || sawIdat) throw new HttpError(400, "invalid_avatar_image");
+      outputChunks.push(bytes.slice(offset, crcEnd));
+    } else if (type === "IDAT") {
+      if (!sawIhdr || sawIend) throw new HttpError(400, "invalid_avatar_image");
+      sawIdat = true;
+      outputChunks.push(bytes.slice(offset, crcEnd));
+    } else if (type === "IEND") {
+      if (length !== 0 || !sawIdat) throw new HttpError(400, "invalid_avatar_image");
+      outputChunks.push(bytes.slice(offset, crcEnd));
+      sawIend = true;
+      offset = crcEnd;
+      break;
+    } else if (isPngCriticalChunk(type)) {
+      throw new HttpError(400, "unsupported_avatar_png_chunk");
+    }
+    offset = crcEnd;
+  }
+  if (!sawIend || offset !== bytes.length) throw new HttpError(400, "invalid_avatar_image");
+  return concatUint8Arrays(outputChunks);
+}
+
+function isPngCriticalChunk(type: string): boolean {
+  const first = type.charCodeAt(0);
+  return first >= 65 && first <= 90;
+}
+
+function readPngUint32(bytes: Uint8Array, offset: number): number {
+  return (((bytes[offset] ?? 0) * 0x1000000)
+    + ((bytes[offset + 1] ?? 0) << 16)
+    + ((bytes[offset + 2] ?? 0) << 8)
+    + (bytes[offset + 3] ?? 0)) >>> 0;
+}
+
+function concatUint8Arrays(parts: Uint8Array[]): ArrayBuffer {
+  const length = parts.reduce((sum, part) => sum + part.byteLength, 0);
+  const output = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.byteLength;
+  }
+  return output.buffer;
+}
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+async function issueRememberTokenNative(request: Request, env: Env): Promise<Response> {
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const input = await readJson<Record<string, unknown>>(request);
+  const userId = normalizeOptionalText(input.userId);
+  const rawToken = normalizeOptionalText(input.rawToken) ?? normalizeOptionalText(input.token);
+  const expiresAt = normalizeOptionalText(input.expiresAt);
+  if (!userId || !rawToken || !expiresAt) return json({ ok: false, error: "userId_rawToken_expiresAt_required" }, 400, { "cache-control": "no-store" });
+  const tokenHash = await sha256Hex(textToArrayBuffer(rawToken));
+  await env.CORE_DB.prepare(
+    `INSERT INTO remember_tokens
+       (token_hash, user_id, token_family, user_agent, ip_address, expires_at, created_at, last_used_at)
+     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
+     ON CONFLICT(token_hash) DO UPDATE SET
+       user_id = excluded.user_id,
+       token_family = excluded.token_family,
+       user_agent = excluded.user_agent,
+       ip_address = excluded.ip_address,
+       expires_at = excluded.expires_at`
+  ).bind(tokenHash, userId, normalizeOptionalText(input.tokenFamily) ?? "v2", request.headers.get("user-agent"), request.headers.get("cf-connecting-ip"), expiresAt).run();
+  return json({ ok: true, tokenHash, compatibility: { attempted: false, succeeded: false } }, 200, { "cache-control": "no-store" });
+}
+
+async function revokeRememberTokenNative(request: Request, env: Env): Promise<Response> {
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const input = await readJson<Record<string, unknown>>(request);
+  const raw = normalizeOptionalText(input.token) ?? normalizeOptionalText(input.rawToken) ?? normalizeOptionalText(input.tokenHash);
+  if (!raw) return json({ ok: false, error: "token_required" }, 400, { "cache-control": "no-store" });
+  const tokenHash = /^[a-f0-9]{64}$/i.test(raw) ? raw.toLowerCase() : await sha256Hex(textToArrayBuffer(raw));
+  await env.CORE_DB.prepare("DELETE FROM remember_tokens WHERE token_hash = ?").bind(tokenHash).run();
+  return json({ ok: true, tokenHash, compatibility: { attempted: false, succeeded: false } }, 200, { "cache-control": "no-store" });
+}
+
+function assertPrivilegedWriteAccessNative(request: Request, env: Env): true | Response {
+  const expected = normalizeOptionalText(env.V2_PRIVILEGED_WRITE_API_KEY);
+  if (!expected) return json({ ok: false, error: "privileged_write_api_key_not_configured" }, 503, { "cache-control": "no-store" });
+  const candidates = [
+    request.headers.get("x-ikimon-write-key"),
+    request.headers.get("x-v2-privileged-write-api-key"),
+    request.headers.get("x-api-key"),
+    bearerToken(request.headers.get("authorization"))
+  ].map((value) => value?.trim()).filter((value): value is string => Boolean(value));
+  return candidates.some((candidate) => constantTimeStringEqual(candidate, expected))
+    ? true
+    : json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+}
+
+function bearerToken(value: string | null): string | null {
+  if (!value) return null;
+  const match = value.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() ?? null;
 }
 
 async function fetchOriginFallback(request: Request, url: URL, env: Env, reason = "origin_fallback"): Promise<Response> {
@@ -11165,6 +11667,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ?? normalizeOptionalText(input.prefecture)
     ?? "unknown place";
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
+  const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
 
   await env.CORE_DB.batch([
     env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(input.userId)
@@ -11221,6 +11724,34 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     env.OBS_DB.prepare(
       "UPDATE draft_observations SET processing_state = 'finalized', finalized_at = CURRENT_TIMESTAMP WHERE draft_id = ?"
     ).bind(draftId),
+    env.OBS_DB.prepare(
+      `INSERT INTO observation_data_rights
+         (visit_id, occurrence_id, record_consent, research_use_consent, enterprise_report_consent,
+          dataset_license, media_license, external_export_allowed, withdrawal_status, source_payload_json, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(visit_id) DO UPDATE SET
+         occurrence_id = excluded.occurrence_id,
+         record_consent = excluded.record_consent,
+         research_use_consent = excluded.research_use_consent,
+         enterprise_report_consent = excluded.enterprise_report_consent,
+         dataset_license = excluded.dataset_license,
+         media_license = excluded.media_license,
+         external_export_allowed = excluded.external_export_allowed,
+         withdrawal_status = excluded.withdrawal_status,
+         source_payload_json = excluded.source_payload_json,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      visitId,
+      occurrenceId,
+      dataRights.recordConsent,
+      dataRights.researchUseConsent,
+      dataRights.enterpriseReportConsent,
+      dataRights.datasetLicense,
+      dataRights.mediaLicense,
+      dataRights.externalExportAllowed ? 1 : 0,
+      dataRights.withdrawalStatus,
+      JSON.stringify(dataRights.sourcePayload)
+    ),
     rollbackLedgerInsert(env, {
       eventType: "observation.upsert",
       targetId: visitId,
@@ -11387,6 +11918,52 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     facePrivacy,
     dispatch
   });
+}
+
+function normalizeObservationDataRightsNative(input: unknown): {
+  recordConsent: string;
+  researchUseConsent: string;
+  enterpriseReportConsent: string;
+  datasetLicense: string | null;
+  mediaLicense: string | null;
+  externalExportAllowed: boolean;
+  withdrawalStatus: string;
+  sourcePayload: Record<string, unknown>;
+} {
+  const value = asPlainObject(input) ?? {};
+  const recordConsent = pickEnum(value.recordConsent, ["private", "internal", "public_summary", "external_export"], "private");
+  const researchUseConsent = pickEnum(value.researchUseConsent, ["none", "internal", "research_allowed", "public_export"], "none");
+  const enterpriseReportConsent = pickEnum(value.enterpriseReportConsent, ["none", "internal", "aggregated", "identified"], "none");
+  const datasetLicense = pickNullableEnum(value.datasetLicense, ["CC0-1.0", "CC-BY-4.0"]);
+  const mediaLicense = pickNullableEnum(value.mediaLicense, ["all_rights_reserved", "CC-BY-4.0", "CC-BY-NC-4.0"]);
+  const withdrawalStatus = pickEnum(value.withdrawalStatus, ["active", "withdrawn", "delete_requested", "deleted"], "active");
+  const externalExportAllowed = value.externalExportAllowed === true
+    && recordConsent === "external_export"
+    && researchUseConsent === "public_export"
+    && Boolean(datasetLicense)
+    && mediaLicense !== null
+    && mediaLicense !== "all_rights_reserved"
+    && withdrawalStatus === "active";
+  return {
+    recordConsent,
+    researchUseConsent,
+    enterpriseReportConsent,
+    datasetLicense,
+    mediaLicense,
+    externalExportAllowed,
+    withdrawalStatus,
+    sourcePayload: value
+  };
+}
+
+function pickEnum(value: unknown, allowed: string[], fallback: string): string {
+  const text = normalizeOptionalText(value);
+  return text && allowed.includes(text) ? text : fallback;
+}
+
+function pickNullableEnum(value: unknown, allowed: string[]): string | null {
+  const text = normalizeOptionalText(value);
+  return text && allowed.includes(text) ? text : null;
 }
 
 async function putAssetBody(assetId: string, request: Request, env: Env): Promise<Response> {

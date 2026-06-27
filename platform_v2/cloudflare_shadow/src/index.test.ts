@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import test from "node:test";
+import { deflateSync } from "node:zlib";
 import * as bcrypt from "bcryptjs";
 import { worker } from "./index";
 
@@ -144,6 +145,60 @@ interface AuthSessionRow {
   banned: number;
   expires_at: string;
   last_used_at: string | null;
+}
+
+interface ContactSubmissionRow {
+  submission_id: string;
+  category: string;
+  name: string | null;
+  email: string | null;
+  organization: string | null;
+  message: string;
+  ip_hash: string | null;
+  user_id: string | null;
+  notification_sent: number;
+  auto_reply_sent: number;
+  send_error: string | null;
+  created_at: string;
+}
+
+interface UserProfileRow {
+  user_id: string;
+  display_name: string;
+  profile_bio: string;
+  expertise: string;
+  avatar_object_key: string | null;
+  avatar_mime: string | null;
+  avatar_bytes: number | null;
+  avatar_sha256: string | null;
+}
+
+interface RememberTokenRow {
+  token_hash: string;
+  user_id: string;
+  token_family: string;
+  user_agent: string | null;
+  ip_address: string | null;
+  expires_at: string;
+}
+
+interface ContactProofNonceRow {
+  nonce_hash: string;
+  issued_at_ms: number;
+  ip_hash: string | null;
+}
+
+interface ObservationDataRightsRow {
+  visit_id: string;
+  occurrence_id: string | null;
+  record_consent: string;
+  research_use_consent: string;
+  enterprise_report_consent: string;
+  dataset_license: string | null;
+  media_license: string | null;
+  external_export_allowed: number;
+  withdrawal_status: string;
+  source_payload_json: string;
 }
 
 interface OperationAuditRow {
@@ -910,6 +965,11 @@ class FakeD1 {
   parityMetrics: ParityMetricRow[] = [];
   operationAudit: OperationAuditRow[] = [];
   authSessions = new Map<string, AuthSessionRow>();
+  contactSubmissions = new Map<string, ContactSubmissionRow>();
+  contactProofNonces = new Map<string, ContactProofNonceRow>();
+  userProfiles = new Map<string, UserProfileRow>();
+  profileWriteAudit: Array<{ audit_id: string; user_id: string; payload_json: string }> = [];
+  rememberTokens = new Map<string, RememberTokenRow>();
   videoUploads = new Map<string, VideoUploadRow>();
   legacyAssetImports: LegacyAssetImportRow[] = [];
   legacyR2Imports: LegacyR2ImportRow[] = [];
@@ -937,6 +997,7 @@ class FakeD1 {
   observationEventAbsences: Array<{ absence_id: string; session_id: string; user_id: string | null; guest_token: string | null; team_id: string | null; searched_taxon: string; public_lat: number; public_lng: number; created_at: string }> = [];
   observationEventMeshCells = new Map<string, ObservationEventMeshTestRow>();
   observationEventCapsules = new Map<string, ObservationEventCapsuleTestRow>();
+  observationDataRights = new Map<string, ObservationDataRightsRow>();
   observationRallyCourses = new Map<string, ObservationRallyCourseTestRow>();
   observationRallyStations = new Map<string, ObservationRallyStationTestRow>();
   observationRallyMissions = new Map<string, ObservationRallyMissionTestRow>();
@@ -1001,10 +1062,95 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE auth_users SET display_name")) {
+      const row = [...this.db.authUsers.values()].find((candidate) => candidate.user_id === string(v[1]));
+      if (row) row.display_name = string(v[0]);
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE auth_users SET last_login_at")) {
       const userId = string(v[0]);
       const row = [...this.db.authUsers.values()].find((candidate) => candidate.user_id === userId);
       if (row) row.last_login_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO contact_submissions")) {
+      this.db.contactSubmissions.set(string(v[0]), {
+        submission_id: string(v[0]),
+        category: string(v[1]),
+        name: nullableString(v[2]),
+        email: nullableString(v[3]),
+        organization: nullableString(v[4]),
+        message: string(v[5]),
+        ip_hash: nullableString(v[8]),
+        user_id: nullableString(v[9]),
+        notification_sent: 0,
+        auto_reply_sent: 0,
+        send_error: null,
+        created_at: string(v[10])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE contact_submissions SET notification_sent")) {
+      const row = requireRow(this.db.contactSubmissions, string(v[3]));
+      row.notification_sent = number(v[0]);
+      row.auto_reply_sent = number(v[1]);
+      row.send_error = nullableString(v[2]);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO contact_proof_nonces")) {
+      const nonceHash = string(v[0]);
+      if (this.db.contactProofNonces.has(nonceHash)) {
+        throw new Error("UNIQUE constraint failed: contact_proof_nonces.nonce_hash");
+      }
+      this.db.contactProofNonces.set(nonceHash, {
+        nonce_hash: nonceHash,
+        issued_at_ms: number(v[1]),
+        ip_hash: nullableString(v[2])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO user_profiles")) {
+      this.db.userProfiles.set(string(v[0]), {
+        user_id: string(v[0]),
+        display_name: string(v[1]),
+        profile_bio: string(v[2]),
+        expertise: string(v[3]),
+        avatar_object_key: nullableString(v[4]),
+        avatar_mime: nullableString(v[5]),
+        avatar_bytes: nullableNumber(v[6]),
+        avatar_sha256: nullableString(v[7])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO profile_write_audit")) {
+      this.db.profileWriteAudit.push({
+        audit_id: string(v[0]),
+        user_id: string(v[1]),
+        payload_json: string(v[2])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO remember_tokens")) {
+      this.db.rememberTokens.set(string(v[0]), {
+        token_hash: string(v[0]),
+        user_id: string(v[1]),
+        token_family: string(v[2]),
+        user_agent: nullableString(v[3]),
+        ip_address: nullableString(v[4]),
+        expires_at: string(v[5])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM remember_tokens")) {
+      this.db.rememberTokens.delete(string(v[0]));
       return {};
     }
 
@@ -1550,6 +1696,22 @@ class FakeStatement {
         visibility: string(v[10]),
         emergency_hidden: 0,
         processing_state: "accepted"
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_data_rights")) {
+      this.db.observationDataRights.set(string(v[0]), {
+        visit_id: string(v[0]),
+        occurrence_id: nullableString(v[1]),
+        record_consent: string(v[2]),
+        research_use_consent: string(v[3]),
+        enterprise_report_consent: string(v[4]),
+        dataset_license: nullableString(v[5]),
+        media_license: nullableString(v[6]),
+        external_export_allowed: number(v[7]),
+        withdrawal_status: string(v[8]),
+        source_payload_json: string(v[9])
       });
       return {};
     }
@@ -2222,6 +2384,9 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned FROM auth_users")) {
+      if (normalized.includes("WHERE user_id = ?")) {
+        return ([...this.db.authUsers.values()].find((candidate) => candidate.user_id === string(v[0])) as T | undefined) ?? null;
+      }
       return (this.db.authUsers.get(string(v[0]).toLowerCase()) as T | undefined) ?? null;
     }
 
@@ -2462,6 +2627,17 @@ class FakeStatement {
       const row = this.db.authSessions.get(string(v[0]));
       if (!row || row.expires_at <= string(v[1])) return null;
       return (row as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM contact_submissions")) {
+      const value = string(v[0]);
+      const count = [...this.db.contactSubmissions.values()].filter((row) => {
+        if (normalized.includes("WHERE ip_hash = ?")) return row.ip_hash === value;
+        if (normalized.includes("WHERE email = ?")) return row.email === value;
+        if (normalized.includes("WHERE user_id = ?")) return row.user_id === value;
+        return false;
+      }).length;
+      return ({ count } as T);
     }
 
     if (normalized.startsWith("SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id")) {
@@ -3450,6 +3626,62 @@ function createEnv(queue = new FakeQueue()) {
 function streamWebhookSignature(body: string, secret: string, time = Math.floor(Date.now() / 1000)): string {
   const sig1 = createHmac("sha256", secret).update(`${time}.${body}`).digest("hex");
   return `time=${time},sig1=${sig1}`;
+}
+
+function contactProof(secret: string, issuedAt = Date.now() - 3000, nonce = "test-nonce"): string {
+  const signature = createHmac("sha256", secret).update(`v1.${issuedAt}.${nonce}`).digest("base64url");
+  return `v1.${issuedAt}.${nonce}.${signature}`;
+}
+
+function tinyPngBase64(): string {
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(1, 0);
+  ihdr.writeUInt32BE(1, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+  const idat = deflateSync(Buffer.from([0, 0, 0, 0, 0]));
+  return Buffer.concat([
+    signature,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", idat),
+    pngChunk("IEND", Buffer.alloc(0))
+  ]).toString("base64");
+}
+
+function malformedPngBase64(): string {
+  return Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+    0x89, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e,
+    0x44, 0xae, 0x42, 0x60, 0x82
+  ]).toString("base64");
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const typeBytes = Buffer.from(type, "ascii");
+  const header = Buffer.alloc(8);
+  header.writeUInt32BE(data.length, 0);
+  typeBytes.copy(header, 4);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32Buffer(Buffer.concat([typeBytes, data])), 0);
+  return Buffer.concat([header, data, crc]);
+}
+
+function crc32Buffer(bytes: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
 function internalRequest(path: string, init?: RequestInit): Request {
@@ -5232,6 +5464,259 @@ test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
   assert.equal(loginPayload.redirect, "/record?start=photo");
   assert.equal(loginPayload.session.userId, "legacy-user");
   assert.equal(loginPayload.session.rankLabel, "観察者");
+});
+
+test("production contact/profile/remember/data-rights writes stay Cloudflare-native", async () => {
+  const { env, core, obs } = createEnv();
+  const email = new FakeEmail();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key",
+    CONTACT_FORM_SECRET: "contact-secret",
+    ALERT_EMAIL: email,
+    CONTACT_ADMIN_TO: "ops@example.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const badContact = await worker.fetch(new Request("https://ikimon.life/api/v1/contact/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ category: "question", message: "hello", contactProof: "bad" })
+    }), productionEnv);
+    assert.equal(badContact.status, 400);
+    assert.equal(core.contactSubmissions.size, 0);
+
+    const validContactProof = contactProof("contact-secret");
+    const contactResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/contact/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", referer: "https://ikimon.life/contact", "cf-connecting-ip": "203.0.113.10" },
+      body: JSON.stringify({
+        category: "question",
+        name: "Contact User",
+        email: "contact@example.test",
+        message: "D1 contact message",
+        userId: "spoofed-user",
+        contactProof: validContactProof
+      })
+    }), productionEnv);
+    const contactPayload = await contactResponse.json() as any;
+    assert.equal(contactResponse.ok, true, JSON.stringify(contactPayload));
+    assert.equal(core.contactSubmissions.size, 1);
+    assert.equal(email.messages.length, 2);
+    const contactRow = [...core.contactSubmissions.values()][0];
+    assert.equal(contactRow?.notification_sent, 1);
+    assert.equal(contactRow?.user_id, null);
+    assert.match(contactRow?.ip_hash ?? "", /^[a-f0-9]{64}$/);
+    assert.equal((contactRow?.ip_hash ?? "").includes("203.0.113.10"), false);
+
+    const replayResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/contact/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.10" },
+      body: JSON.stringify({
+        category: "question",
+        email: "contact2@example.test",
+        message: "replayed contact message",
+        contactProof: validContactProof
+      })
+    }), productionEnv);
+    assert.equal(replayResponse.status, 400);
+
+    for (let i = 0; i < 5; i += 1) {
+      core.contactSubmissions.set(`seed-contact-${i}`, {
+        submission_id: `seed-contact-${i}`,
+        category: "question",
+        name: null,
+        email: `seed-${i}@example.test`,
+        organization: null,
+        message: "seed",
+        ip_hash: contactRow?.ip_hash ?? null,
+        user_id: null,
+        notification_sent: 0,
+        auto_reply_sent: 0,
+        send_error: null,
+        created_at: new Date().toISOString()
+      });
+    }
+    const rateLimitedContact = await worker.fetch(new Request("https://ikimon.life/api/v1/contact/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.10" },
+      body: JSON.stringify({
+        category: "question",
+        email: "rate@example.test",
+        message: "rate limited contact message",
+        contactProof: contactProof("contact-secret", Date.now() - 3000, "rate-nonce")
+      })
+    }), productionEnv);
+    assert.equal(rateLimitedContact.status, 429);
+
+    const unauthorizedUpsert = await worker.fetch(new Request("https://ikimon.life/api/v1/users/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: "profile-user" })
+    }), productionEnv);
+    assert.equal(unauthorizedUpsert.status, 403);
+
+    core.authUsers.set("profile@example.test", {
+      user_id: "profile-user",
+      email: "profile@example.test",
+      password_hash: null,
+      display_name: "Profile User",
+      role_name: "admin",
+      rank_label: "管理者",
+      banned: 0,
+      last_login_at: null
+    } as AuthUserRow);
+    const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/users/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+      body: JSON.stringify({
+        userId: "profile-user",
+        email: "profile@example.test",
+        displayName: "Updated Admin",
+        roleName: "Observer",
+        rankLabel: "観察者"
+      })
+    }), productionEnv);
+    const upsertPayload = await upsertResponse.json() as any;
+    assert.equal(upsertResponse.ok, true, JSON.stringify(upsertPayload));
+    assert.equal(upsertPayload.roleName, "admin");
+    assert.equal(core.authUsers.get("profile@example.test")?.rank_label, "管理者");
+
+    const rawSessionToken = "profile-session-token";
+    const sessionHash = createHash("sha256").update(rawSessionToken).digest("hex");
+    core.authSessions.set(sessionHash, {
+      token_hash: sessionHash,
+      user_id: "profile-user",
+      display_name: "Profile User",
+      role_name: "admin",
+      rank_label: "管理者",
+      banned: 0,
+      expires_at: "2026-07-01T00:00:00.000Z",
+      last_used_at: null
+    });
+    const cookie = `ikimon_v2_session=${rawSessionToken}`;
+    const profileResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/profile/me", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        displayName: "Field Name",
+        profileBio: "local guide",
+        expertise: "plants",
+        avatar: {
+          mimeType: "image/png",
+          base64Data: tinyPngBase64()
+        }
+      })
+    }), productionEnv);
+    const profilePayload = await profileResponse.json() as any;
+    assert.equal(profileResponse.ok, true, JSON.stringify(profilePayload));
+    assert.equal(core.userProfiles.get("profile-user")?.profile_bio, "local guide");
+    assert.equal(core.profileWriteAudit.length, 1);
+    assert.equal((productionEnv.ASSET_BUCKET as FakeBucket).objects.size, 1);
+    const unsafeAvatarResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/profile/me", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        displayName: "Field Name",
+        avatar: {
+          mimeType: "image/jpeg",
+          base64Data: Buffer.from("not-a-sanitized-avatar").toString("base64")
+        }
+      })
+    }), productionEnv);
+    assert.equal(unsafeAvatarResponse.status, 400);
+    const malformedPngResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/profile/me", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        displayName: "Field Name",
+        avatar: {
+          mimeType: "image/png",
+          base64Data: malformedPngBase64()
+        }
+      })
+    }), productionEnv);
+    assert.equal(malformedPngResponse.status, 400);
+
+    const rawToken = "remember-token-secret-with-enough-entropy-123";
+    const rememberResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/remember-tokens/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer write-key" },
+      body: JSON.stringify({ userId: "profile-user", rawToken, expiresAt: "2026-07-01T00:00:00.000Z" })
+    }), productionEnv);
+    const rememberPayload = await rememberResponse.json() as any;
+    assert.equal(rememberResponse.ok, true, JSON.stringify(rememberPayload));
+    assert.equal(core.rememberTokens.has(rawToken), false);
+    assert.equal(core.rememberTokens.has(createHash("sha256").update(rawToken).digest("hex")), true);
+
+    const revokeResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/remember-tokens/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": "write-key" },
+      body: JSON.stringify({ token: rawToken })
+    }), productionEnv);
+    assert.equal(revokeResponse.ok, true);
+    assert.equal(core.rememberTokens.size, 0);
+
+    const observationResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId: "obs-rights-1",
+        userId: "profile-user",
+        observedAt: "2026-06-27T00:00:00.000Z",
+        latitude: 34.98,
+        longitude: 138.38,
+        note: "rights test",
+        taxon: { vernacularName: "テスト植物" },
+        dataRights: {
+          recordConsent: "external_export",
+          researchUseConsent: "public_export",
+          enterpriseReportConsent: "aggregated",
+          datasetLicense: "CC-BY-4.0",
+          mediaLicense: "CC-BY-NC-4.0",
+          externalExportAllowed: true,
+          withdrawalStatus: "active"
+        }
+      })
+    }), productionEnv);
+    const observationPayload = await observationResponse.json() as any;
+    assert.equal(observationResponse.ok, true, JSON.stringify(observationPayload));
+    assert.equal(obs.observationDataRights.get("obs-rights-1")?.external_export_allowed, 1);
+    assert.equal(obs.observationDataRights.get("obs-rights-1")?.record_consent, "external_export");
+    const reservedRightsResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId: "obs-rights-reserved",
+        userId: "profile-user",
+        observedAt: "2026-06-27T00:00:00.000Z",
+        latitude: 34.98,
+        longitude: 138.38,
+        dataRights: {
+          recordConsent: "external_export",
+          researchUseConsent: "public_export",
+          datasetLicense: "CC-BY-4.0",
+          mediaLicense: "all_rights_reserved",
+          externalExportAllowed: true,
+          withdrawalStatus: "active"
+        }
+      })
+    }), productionEnv);
+    assert.equal(reservedRightsResponse.ok, true);
+    assert.equal(obs.observationDataRights.get("obs-rights-reserved")?.external_export_allowed, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalls, 0);
 });
 
 test("production auth login rejects D1 misses without origin fallback", async () => {

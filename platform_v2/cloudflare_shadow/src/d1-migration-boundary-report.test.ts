@@ -133,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 79/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 75/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -170,7 +170,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 79/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 75/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -269,9 +269,11 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), null);
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), "cloudflare_observation_data_rights_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/userWrite.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/contactSubmit.ts"), "cloudflare_contact_submit_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/userWrite.ts"), "cloudflare_user_profile_write_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/rememberTokenWrite.ts"), "cloudflare_remember_token_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventPages.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/siteSignalsCache.ts"), "optional_site_signals_cache_falls_back_without_database");
