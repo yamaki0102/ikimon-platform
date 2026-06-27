@@ -130,10 +130,10 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /## PostgreSQL No-Runtime-Query Inventory/);
-  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
+  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 50/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 47/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -171,7 +171,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 50/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 47/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -239,9 +239,9 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/placeEnvironmentIngest.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCurator.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/curators/invasive-law.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), "scheduled_legacy_cache_and_freshness_maintenance");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCurator.ts"), "scheduled_curator_proposal_batch");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/curators/invasive-law.ts"), "scheduled_curator_proposal_batch");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importantDaemon.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reporterDaemon.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/verify.ts"), null);
@@ -363,7 +363,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
         ],
       ]),
     ),
-    null,
+    "scheduled_legacy_cache_and_freshness_maintenance",
   );
   assert.equal(
     exclusiveMaintenancePgDependencyReason(

@@ -61,8 +61,6 @@ function maintenancePgDependencyReason(relativeFile) {
   if (normalized === "platform_v2/src/services/guideHypothesisEvalSet.ts") return "manual_audit_report_tool";
   const scriptPrefix = "platform_v2/src/scripts/";
   if (!normalized.startsWith(scriptPrefix)) return null;
-  if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
-  if (normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts") return null;
   if (normalized === "platform_v2/src/scripts/applyMigrations.ts") return "migration_cli_tool";
   if (normalized === "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts") return "manual_embedding_batch";
   if (normalized === "platform_v2/src/scripts/reportMissingObservationPhotos.ts") return "manual_integrity_report";
@@ -105,6 +103,9 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/scripts/planObservationLedger.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/processPlaceMemoryPhotos.ts": "manual_media_batch_tool",
     "platform_v2/src/scripts/processAudioSegments.ts": "manual_audio_detection_batch_tool",
+    "platform_v2/src/scripts/cron/runCacheInvalidate.ts": "scheduled_legacy_cache_and_freshness_maintenance",
+    "platform_v2/src/scripts/cron/runCurator.ts": "scheduled_curator_proposal_batch",
+    "platform_v2/src/scripts/cron/curators/invasive-law.ts": "scheduled_curator_proposal_batch",
     "platform_v2/src/scripts/readinessReport.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/rebuildGuideEnvironmentMesh.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/refreshPublicMapSnapshot.ts": "manual_materialization_tool",
@@ -214,9 +215,8 @@ function optionalRuntimePgDependencyReason(relativeFile) {
 }
 
 function forcedRuntimePgDependency(relativeFile) {
-  const normalized = relativeFile.replaceAll("\\", "/");
-  return normalized.startsWith("platform_v2/src/scripts/cron/")
-    || normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts";
+  void relativeFile;
+  return false;
 }
 
 function exclusiveMaintenancePgDependencyReason(relativeFile, importersByTarget, seen = new Set()) {
