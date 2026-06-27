@@ -133,6 +133,33 @@ interface PlaceManagementPolicyRow {
   updated_at: string;
 }
 
+interface PlaceMemoryEntryTestRow {
+  entry_id: string;
+  visit_id: string;
+  occurrence_id: string;
+  user_id: string;
+  cell_id: string;
+  cell_grid_m: number;
+  memory_tags_json: string;
+  tags_public: number;
+  echo_note: string;
+  private_note: string;
+  photo_echo_enabled: number;
+  photo_echo_visibility: string;
+  moderation_status: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+interface PlaceMemoryPreferenceTestRow {
+  user_id: string;
+  default_photo_echo_enabled: number;
+  default_tags_public: number;
+  updated_at: string;
+}
+
 interface AssetRow {
   asset_id: string;
   draft_id: string;
@@ -1393,6 +1420,11 @@ class FakeD1 {
   observationRecordAiReviews = new Map<string, ObservationRecordAiReviewRow>();
   observationSpecialistReviews = new Map<string, ObservationSpecialistReviewRow>();
   placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
+  placeMemoryEntries = new Map<string, PlaceMemoryEntryTestRow>();
+  placeMemoryPreferences = new Map<string, PlaceMemoryPreferenceTestRow>();
+  placeMemoryLikes = new Set<string>();
+  placeMemoryHidden = new Set<string>();
+  placeMemoryReports: Array<{ report_id: string; entry_id: string; user_id: string; reason_code: string; reason_note: string; created_at: string }> = [];
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -1507,6 +1539,101 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT OR IGNORE INTO users")) {
       this.db.users.add(string(v[0]));
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO place_memory_entries")) {
+      const existing = [...this.db.placeMemoryEntries.values()].find((row) => row.visit_id === string(v[1]));
+      const now = new Date().toISOString();
+      const row: PlaceMemoryEntryTestRow = existing ?? {
+        entry_id: string(v[0]),
+        visit_id: string(v[1]),
+        occurrence_id: string(v[2]),
+        user_id: string(v[3]),
+        cell_id: string(v[4]),
+        cell_grid_m: number(v[5]),
+        memory_tags_json: string(v[6]),
+        tags_public: number(v[7]),
+        echo_note: string(v[8]),
+        private_note: string(v[9]),
+        photo_echo_enabled: number(v[10]),
+        photo_echo_visibility: string(v[11]),
+        moderation_status: "visible",
+        source_payload_json: string(v[12]),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null
+      };
+      row.occurrence_id = string(v[2]);
+      row.user_id = string(v[3]);
+      row.cell_id = string(v[4]);
+      row.cell_grid_m = number(v[5]);
+      row.memory_tags_json = string(v[6]);
+      row.tags_public = number(v[7]);
+      row.echo_note = string(v[8]);
+      row.private_note = string(v[9]);
+      row.photo_echo_enabled = number(v[10]);
+      row.photo_echo_visibility = row.photo_echo_enabled === 0 ? "hidden_by_user" : (row.photo_echo_visibility === "ready" ? "ready" : string(v[11]));
+      row.moderation_status = "visible";
+      row.source_payload_json = string(v[12]);
+      row.updated_at = now;
+      row.deleted_at = null;
+      this.db.placeMemoryEntries.set(row.entry_id, row);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO place_memory_user_preferences")) {
+      this.db.placeMemoryPreferences.set(string(v[0]), {
+        user_id: string(v[0]),
+        default_photo_echo_enabled: number(v[1]),
+        default_tags_public: number(v[2]),
+        updated_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT OR IGNORE INTO place_memory_likes")) {
+      this.db.placeMemoryLikes.add(`${string(v[0])}:${string(v[1])}`);
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM place_memory_likes")) {
+      this.db.placeMemoryLikes.delete(`${string(v[0])}:${string(v[1])}`);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT OR REPLACE INTO place_memory_hidden_entries")) {
+      this.db.placeMemoryHidden.add(`${string(v[0])}:${string(v[1])}`);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO place_memory_reports")) {
+      this.db.placeMemoryReports.push({
+        report_id: string(v[0]),
+        entry_id: string(v[1]),
+        user_id: string(v[2]),
+        reason_code: string(v[3]),
+        reason_note: string(v[4]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE place_memory_entries SET photo_echo_visibility")) {
+      const row = this.db.placeMemoryEntries.get(string(v[0]));
+      if (row) {
+        row.photo_echo_visibility = "pending_review";
+        row.updated_at = new Date().toISOString();
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE place_memory_entries SET moderation_status")) {
+      const row = this.db.placeMemoryEntries.get(string(v[0]));
+      if (row) {
+        row.moderation_status = "hidden_by_reports";
+        row.updated_at = new Date().toISOString();
+      }
       return {};
     }
 
@@ -3526,6 +3653,29 @@ class FakeStatement {
 
     const v = this.values;
 
+    if (normalized.startsWith("SELECT user_id, default_photo_echo_enabled, default_tags_public")) {
+      return (this.db.placeMemoryPreferences.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT entry_id FROM place_memory_likes")) {
+      return this.db.placeMemoryLikes.has(`${string(v[0])}:${string(v[1])}`) ? ({ entry_id: string(v[0]) } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM place_memory_likes")) {
+      const count = [...this.db.placeMemoryLikes].filter((key) => key.startsWith(`${string(v[0])}:`)).length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM place_memory_reports")) {
+      const count = this.db.placeMemoryReports.filter((row) => row.entry_id === string(v[0])).length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT entry_id, visit_id, occurrence_id, user_id, cell_id, cell_grid_m")) {
+      const row = this.db.placeMemoryEntries.get(string(v[0]));
+      return row && !row.deleted_at ? (row as T) : null;
+    }
+
     if (normalized.startsWith("INSERT INTO user_observation_fields")) {
       const now = new Date().toISOString();
       const row: UserObservationFieldTestRow = {
@@ -4408,6 +4558,27 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT pme.entry_id, pme.visit_id, pme.occurrence_id")) {
+      const viewerUserId = string(v[0]);
+      const cellId = string(v[2]);
+      const limit = number(v[4]);
+      const rows = [...this.db.placeMemoryEntries.values()]
+        .filter((row) =>
+          row.cell_id === cellId &&
+          !row.deleted_at &&
+          row.moderation_status === "visible" &&
+          !this.db.placeMemoryHidden.has(`${row.entry_id}:${viewerUserId}`)
+        )
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, limit)
+        .map((row) => ({
+          ...row,
+          like_count: [...this.db.placeMemoryLikes].filter((key) => key.startsWith(`${row.entry_id}:`)).length,
+          liked_by_me: this.db.placeMemoryLikes.has(`${row.entry_id}:${viewerUserId}`) ? 1 : 0,
+          own_entry: row.user_id === viewerUserId ? 1 : 0
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind")) {
       const rows = [...this.db.specialistAuthorities.values()]
         .filter((row) => normalized.includes("where subject_user_id = ?") ? row.subject_user_id === string(v[0]) && row.status === "active" : true)
@@ -6715,6 +6886,99 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(waterbody?.public_label, "浜名湖");
   assert.equal(waterbody?.waterbody_type, "lake");
   assert.equal(obs.civicObservationContexts.size, 0);
+});
+
+test("place memory runtime stores D1 entries and serves preferences list and moderation actions", async () => {
+  const { env, obs } = createEnv();
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "place-memory-user", displayName: "Place Memory User" })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const preferencesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/preferences", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ defaultPhotoEchoEnabled: true, defaultTagsPublic: true })
+  }), env);
+  assert.equal(preferencesResponse.status, 200);
+
+  const upsertResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      observationId: "visit-place-memory",
+      userId: "place-memory-user",
+      observedAt: "2026-06-15T02:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      siteName: "浜名湖",
+      taxon: { vernacularName: "テスト生物", rank: "species" },
+      placeMemory: {
+        tags: ["refresh_walk", "first_visit", "unknown_tag"],
+        echoNote: "  春の夕方に歩いた  ",
+        privateNote: "自分だけのメモ",
+        photoEchoEnabled: true
+      }
+    })
+  }), env);
+  const upsertPayload = await upsertResponse.json() as any;
+  assert.equal(upsertResponse.status, 201, JSON.stringify(upsertPayload));
+  assert.equal(upsertPayload.placeMemory.entryId, "pm:visit-place-memory");
+  assert.deepEqual(upsertPayload.placeMemory.tags, ["refresh_walk", "first_visit"]);
+  assert.equal(upsertPayload.placeMemory.echoNote, "春の夕方に歩いた");
+  assert.equal(upsertPayload.placeMemory.photoEchoEnabled, true);
+  assert.equal(upsertPayload.placeMemory.photoEchoVisibility, "pending_review");
+  assert.equal(upsertPayload.placeMemorySample.length, 1);
+  assert.equal(obs.placeMemoryEntries.size, 1);
+
+  const listResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory?cellId=34.71,137.81", {
+    headers: { cookie }
+  }), env);
+  const listPayload = await listResponse.json() as any;
+  assert.equal(listResponse.status, 200, JSON.stringify(listPayload));
+  assert.equal(listPayload.items.length, 1);
+  assert.equal(listPayload.items[0].entryId, "pm:visit-place-memory");
+  assert.equal(listPayload.items[0].echoNote, "春の夕方に歩いた");
+
+  const likeResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/like", {
+    method: "POST",
+    headers: { cookie }
+  }), env);
+  const likePayload = await likeResponse.json() as any;
+  assert.equal(likeResponse.status, 200, JSON.stringify(likePayload));
+  assert.equal(likePayload.liked, true);
+  assert.equal(likePayload.likeCount, 1);
+
+  const photoReviewResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/photo-review", {
+    method: "POST",
+    headers: { cookie }
+  }), env);
+  assert.equal(photoReviewResponse.status, 200);
+
+  const reportResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/report", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ reasonCode: "privacy", reasonNote: "念のため" })
+  }), env);
+  const reportPayload = await reportResponse.json() as any;
+  assert.equal(reportResponse.status, 200, JSON.stringify(reportPayload));
+  assert.equal(reportPayload.hiddenForMe, true);
+  assert.equal(obs.placeMemoryReports.length, 1);
+
+  const hideResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/hide", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ reason: "self" })
+  }), env);
+  assert.equal(hideResponse.status, 200);
+
+  const hiddenListResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory?cellId=34.71,137.81", {
+    headers: { cookie }
+  }), env);
+  const hiddenListPayload = await hiddenListResponse.json() as any;
+  assert.equal(hiddenListPayload.items.length, 0);
 });
 
 test("v1 observation upsert persists civic context only for event, risk, or explicit context writes", async () => {

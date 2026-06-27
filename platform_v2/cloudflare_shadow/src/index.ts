@@ -166,6 +166,7 @@ interface LegacyObservationUpsertInput {
   teamId?: string | null;
   participantRole?: string | null;
   fieldScan?: Record<string, unknown> | null;
+  placeMemory?: Record<string, unknown> | null;
   waterRecord?: CompatibleWaterRecordInput | null;
   civicContext?: Record<string, unknown> | null;
   sourcePayload?: Record<string, unknown> | null;
@@ -918,6 +919,35 @@ interface AreaPolygonGeometryReadmodelRow {
   story_url: string | null;
   certification_url: string | null;
   entity_key: string | null;
+  updated_at: string | null;
+}
+
+interface PlaceMemoryEntryRow {
+  entry_id: string;
+  visit_id: string;
+  occurrence_id: string;
+  user_id: string;
+  cell_id: string;
+  cell_grid_m: number;
+  memory_tags_json: string;
+  tags_public: number;
+  echo_note: string;
+  private_note: string;
+  photo_echo_enabled: number;
+  photo_echo_visibility: string;
+  moderation_status: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+  like_count?: number;
+  liked_by_me?: number;
+  own_entry?: number;
+}
+
+interface PlaceMemoryPreferenceRow {
+  user_id: string;
+  default_photo_echo_enabled: number;
+  default_tags_public: number;
   updated_at: string | null;
 }
 
@@ -1900,6 +1930,9 @@ export const worker = {
 
       const fieldRegistryResponse = await handleObservationFieldRegistryRuntime(request, url, env);
       if (fieldRegistryResponse) return fieldRegistryResponse;
+
+      const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
+      if (placeMemoryResponse) return placeMemoryResponse;
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
         return getOriginalUiStaticAsset(request, url, env);
@@ -13964,6 +13997,312 @@ async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env:
   return json({ ok: false, error: "area_snapshot_not_materialized" }, 404, { "cache-control": "no-store" });
 }
 
+const PLACE_MEMORY_GRID_M_NATIVE = 1000;
+const PLACE_MEMORY_TAGS_NATIVE = new Set([
+  "refresh_walk",
+  "walked_with_someone",
+  "first_visit",
+  "looked_for_life",
+  "revisit_compare",
+  "season_change",
+  "unexpected_find",
+  "quiet_moment"
+]);
+
+function cleanPlaceMemoryText(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maxLength) : "";
+}
+
+function normalizePlaceMemoryTagsNative(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const output: string[] = [];
+  for (const item of value) {
+    const tag = normalizeOptionalText(item);
+    if (!tag || !PLACE_MEMORY_TAGS_NATIVE.has(tag) || output.includes(tag)) continue;
+    output.push(tag);
+    if (output.length >= 6) break;
+  }
+  return output;
+}
+
+function normalizePlaceMemoryInputNative(input: unknown): {
+  tags: string[];
+  echoNote: string;
+  privateNote: string;
+  photoEchoEnabled: boolean;
+  shouldPersist: boolean;
+} | null {
+  const record = asPlainObject(input);
+  if (!record) return null;
+  const tags = normalizePlaceMemoryTagsNative(record.tags);
+  const echoNote = cleanPlaceMemoryText(record.echoNote ?? record.echo_note, 80);
+  const privateNote = cleanPlaceMemoryText(record.privateNote ?? record.private_note, 600);
+  const photoEchoEnabled = record.photoEchoEnabled === true || record.photo_echo_enabled === true;
+  return {
+    tags,
+    echoNote,
+    privateNote,
+    photoEchoEnabled,
+    shouldPersist: tags.length > 0 || echoNote !== "" || privateNote !== ""
+  };
+}
+
+function placeMemoryPayload(row: PlaceMemoryEntryRow, viewerUserId: string): Record<string, unknown> {
+  const tags = jsonArray(row.memory_tags_json).filter((value): value is string => typeof value === "string");
+  return {
+    entryId: row.entry_id,
+    visitId: row.visit_id,
+    occurrenceId: row.occurrence_id,
+    cellId: row.cell_id,
+    tags: row.tags_public === 1 || row.user_id === viewerUserId ? tags : [],
+    echoNote: row.echo_note,
+    observedYearMonth: row.updated_at.slice(0, 7),
+    photoUrl: null,
+    photoState: row.photo_echo_visibility,
+    likeCount: Math.max(0, Number(row.like_count ?? 0)),
+    likedByMe: row.liked_by_me === 1,
+    ownEntry: row.user_id === viewerUserId || row.own_entry === 1,
+    moderationStatus: row.moderation_status
+  };
+}
+
+async function getPlaceMemoryPreferencesNative(env: Env, userId: string): Promise<{
+  defaultPhotoEchoEnabled: boolean;
+  defaultTagsPublic: boolean;
+}> {
+  const row = await env.OBS_DB.prepare(
+    `SELECT user_id, default_photo_echo_enabled, default_tags_public, updated_at
+       FROM place_memory_user_preferences
+      WHERE user_id = ?
+      LIMIT 1`
+  ).bind(userId).first<PlaceMemoryPreferenceRow>();
+  return {
+    defaultPhotoEchoEnabled: row?.default_photo_echo_enabled === 1,
+    defaultTagsPublic: row?.default_tags_public !== 0
+  };
+}
+
+async function upsertPlaceMemoryForObservationNative(
+  env: Env,
+  input: LegacyObservationUpsertInput,
+  context: { visitId: string; occurrenceId: string; publicCell: string }
+): Promise<{ result: Record<string, unknown> | null; sample: Record<string, unknown>[]; statements: D1PreparedStatement[] }> {
+  const normalized = normalizePlaceMemoryInputNative(input.placeMemory ?? input.sourcePayload?.placeMemory);
+  if (!normalized?.shouldPersist) return { result: null, sample: [], statements: [] };
+  const preferences = await getPlaceMemoryPreferencesNative(env, input.userId);
+  const photoEchoEnabled = normalized.photoEchoEnabled && preferences.defaultPhotoEchoEnabled;
+  const tagsPublic = preferences.defaultTagsPublic;
+  const entryId = `pm:${context.visitId}`;
+  const now = new Date().toISOString();
+  const sourcePayload = {
+    source: "cloudflare_place_memory_runtime",
+    photoEcho: photoEchoEnabled ? "pending_review" : "hidden_by_user"
+  };
+  const row: PlaceMemoryEntryRow = {
+    entry_id: entryId,
+    visit_id: context.visitId,
+    occurrence_id: context.occurrenceId,
+    user_id: input.userId,
+    cell_id: context.publicCell,
+    cell_grid_m: PLACE_MEMORY_GRID_M_NATIVE,
+    memory_tags_json: JSON.stringify(normalized.tags),
+    tags_public: tagsPublic ? 1 : 0,
+    echo_note: normalized.echoNote,
+    private_note: normalized.privateNote,
+    photo_echo_enabled: photoEchoEnabled ? 1 : 0,
+    photo_echo_visibility: photoEchoEnabled ? "pending_review" : "hidden_by_user",
+    moderation_status: "visible",
+    source_payload_json: JSON.stringify(sourcePayload),
+    created_at: now,
+    updated_at: now,
+    like_count: 0,
+    liked_by_me: 0,
+    own_entry: 1
+  };
+  return {
+    result: {
+      entryId,
+      cellId: context.publicCell,
+      tags: normalized.tags,
+      echoNote: normalized.echoNote,
+      hasPrivateNote: normalized.privateNote !== "",
+      photoEchoEnabled,
+      photoEchoVisibility: row.photo_echo_visibility
+    },
+    sample: [placeMemoryPayload(row, input.userId)],
+    statements: [env.OBS_DB.prepare(
+      `INSERT INTO place_memory_entries (
+         entry_id, visit_id, occurrence_id, user_id, cell_id, cell_grid_m,
+         memory_tags_json, tags_public, echo_note, private_note, photo_echo_enabled,
+         photo_echo_visibility, moderation_status, source_payload_json, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'visible', ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(visit_id) DO UPDATE SET
+         occurrence_id = excluded.occurrence_id,
+         user_id = excluded.user_id,
+         cell_id = excluded.cell_id,
+         cell_grid_m = excluded.cell_grid_m,
+         memory_tags_json = excluded.memory_tags_json,
+         tags_public = excluded.tags_public,
+         echo_note = excluded.echo_note,
+         private_note = excluded.private_note,
+         photo_echo_enabled = excluded.photo_echo_enabled,
+         photo_echo_visibility = CASE
+           WHEN excluded.photo_echo_enabled = 0 THEN 'hidden_by_user'
+           WHEN place_memory_entries.photo_echo_visibility = 'ready' THEN place_memory_entries.photo_echo_visibility
+           ELSE excluded.photo_echo_visibility
+         END,
+         moderation_status = 'visible',
+         source_payload_json = excluded.source_payload_json,
+         deleted_at = NULL,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      entryId,
+      context.visitId,
+      context.occurrenceId,
+      input.userId,
+      context.publicCell,
+      PLACE_MEMORY_GRID_M_NATIVE,
+      JSON.stringify(normalized.tags),
+      tagsPublic ? 1 : 0,
+      normalized.echoNote,
+      normalized.privateNote,
+      photoEchoEnabled ? 1 : 0,
+      row.photo_echo_visibility,
+      JSON.stringify(sourcePayload)
+    )]
+  };
+}
+
+async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (!pathname.startsWith("/api/v1/place-memory")) return null;
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+
+  if (pathname === "/api/v1/place-memory/preferences") {
+    if (request.method === "GET") {
+      return json({ ok: true, preferences: await getPlaceMemoryPreferencesNative(env, session.userId) }, 200, { "cache-control": "no-store" });
+    }
+    if (request.method === "POST") {
+      const body = await readJson<Record<string, unknown>>(request);
+      const defaultPhotoEchoEnabled = body.defaultPhotoEchoEnabled === true || body.default_photo_echo_enabled === true;
+      const defaultTagsPublic = body.defaultTagsPublic !== false && body.default_tags_public !== false;
+      await env.OBS_DB.prepare(
+        `INSERT INTO place_memory_user_preferences
+           (user_id, default_photo_echo_enabled, default_tags_public, updated_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(user_id) DO UPDATE SET
+           default_photo_echo_enabled = excluded.default_photo_echo_enabled,
+           default_tags_public = excluded.default_tags_public,
+           updated_at = CURRENT_TIMESTAMP`
+      ).bind(session.userId, defaultPhotoEchoEnabled ? 1 : 0, defaultTagsPublic ? 1 : 0).run();
+      return json({ ok: true, preferences: { defaultPhotoEchoEnabled, defaultTagsPublic } }, 200, { "cache-control": "no-store" });
+    }
+    return json({ ok: false, error: "method_not_allowed" }, 405, { "cache-control": "no-store" });
+  }
+
+  if (pathname === "/api/v1/place-memory" && request.method === "GET") {
+    const cellId = normalizeOptionalText(url.searchParams.get("cellId"));
+    if (!cellId) return json({ ok: false, error: "cellId_required" }, 400, { "cache-control": "no-store" });
+    const limit = Math.min(24, Math.max(1, integerOrNull(url.searchParams.get("limit")) ?? 12));
+    const rows = (await env.OBS_DB.prepare(
+      `SELECT pme.entry_id, pme.visit_id, pme.occurrence_id, pme.user_id, pme.cell_id,
+              pme.cell_grid_m, pme.memory_tags_json, pme.tags_public, pme.echo_note,
+              pme.private_note, pme.photo_echo_enabled, pme.photo_echo_visibility,
+              pme.moderation_status, pme.source_payload_json, pme.created_at, pme.updated_at,
+              (SELECT COUNT(*) FROM place_memory_likes pml WHERE pml.entry_id = pme.entry_id) AS like_count,
+              (SELECT COUNT(*) FROM place_memory_likes pml WHERE pml.entry_id = pme.entry_id AND pml.user_id = ?) AS liked_by_me,
+              CASE WHEN pme.user_id = ? THEN 1 ELSE 0 END AS own_entry
+         FROM place_memory_entries pme
+        WHERE pme.cell_id = ?
+          AND pme.deleted_at IS NULL
+          AND pme.moderation_status = 'visible'
+          AND NOT EXISTS (
+            SELECT 1 FROM place_memory_hidden_entries hidden
+             WHERE hidden.entry_id = pme.entry_id AND hidden.user_id = ?
+          )
+        ORDER BY pme.updated_at DESC
+        LIMIT ?`
+    ).bind(session.userId, session.userId, cellId, session.userId, limit).all<PlaceMemoryEntryRow>()).results;
+    return json({ ok: true, items: rows.map((row) => placeMemoryPayload(row, session.userId)) }, 200, { "cache-control": "no-store" });
+  }
+
+  const actionMatch = pathname.match(/^\/api\/v1\/place-memory\/([^/]+)\/(like|hide|report|photo-review)$/);
+  if (request.method === "POST" && actionMatch?.[1] && actionMatch[2]) {
+    const entryId = decodeURIComponent(actionMatch[1]);
+    const action = actionMatch[2];
+    const entry = await env.OBS_DB.prepare(
+      `SELECT entry_id, visit_id, occurrence_id, user_id, cell_id, cell_grid_m,
+              memory_tags_json, tags_public, echo_note, private_note,
+              photo_echo_enabled, photo_echo_visibility, moderation_status,
+              source_payload_json, created_at, updated_at
+         FROM place_memory_entries
+        WHERE entry_id = ? AND deleted_at IS NULL
+        LIMIT 1`
+    ).bind(entryId).first<PlaceMemoryEntryRow>();
+    if (!entry) return json({ ok: false, error: "place_memory_not_found" }, 404, { "cache-control": "no-store" });
+
+    if (action === "like") {
+      const existing = await env.OBS_DB.prepare(
+        "SELECT entry_id FROM place_memory_likes WHERE entry_id = ? AND user_id = ? LIMIT 1"
+      ).bind(entryId, session.userId).first<{ entry_id: string }>();
+      if (existing) {
+        await env.OBS_DB.prepare("DELETE FROM place_memory_likes WHERE entry_id = ? AND user_id = ?").bind(entryId, session.userId).run();
+      } else {
+        await env.OBS_DB.prepare(
+          "INSERT OR IGNORE INTO place_memory_likes (entry_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
+        ).bind(entryId, session.userId).run();
+      }
+      const count = await env.OBS_DB.prepare(
+        "SELECT COUNT(*) AS count FROM place_memory_likes WHERE entry_id = ?"
+      ).bind(entryId).first<{ count: number }>();
+      return json({ ok: true, liked: !existing, likeCount: Math.max(0, Number(count?.count ?? 0)) }, 200, { "cache-control": "no-store" });
+    }
+
+    if (action === "hide") {
+      const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+      await env.OBS_DB.prepare(
+        `INSERT OR REPLACE INTO place_memory_hidden_entries (entry_id, user_id, reason, created_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)`
+      ).bind(entryId, session.userId, normalizeOptionalText(body.reason) ?? "self").run();
+      return json({ ok: true }, 200, { "cache-control": "no-store" });
+    }
+
+    if (action === "photo-review") {
+      if (entry.user_id !== session.userId) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+      await env.OBS_DB.prepare(
+        "UPDATE place_memory_entries SET photo_echo_visibility = 'pending_review', updated_at = CURRENT_TIMESTAMP WHERE entry_id = ?"
+      ).bind(entryId).run();
+      return json({ ok: true }, 200, { "cache-control": "no-store" });
+    }
+
+    const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+    const reportId = newId("place_memory_report");
+    await env.OBS_DB.prepare(
+      `INSERT INTO place_memory_reports (report_id, entry_id, user_id, reason_code, reason_note, created_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      reportId,
+      entryId,
+      session.userId,
+      normalizeOptionalText(body.reasonCode ?? body.reason_code) ?? "other",
+      cleanPlaceMemoryText(body.reasonNote ?? body.reason_note, 400)
+    ).run();
+    const count = await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM place_memory_reports WHERE entry_id = ?"
+    ).bind(entryId).first<{ count: number }>();
+    const reportCount = Math.max(0, Number(count?.count ?? 0));
+    if (reportCount >= 3) {
+      await env.OBS_DB.prepare(
+        "UPDATE place_memory_entries SET moderation_status = 'hidden_by_reports', updated_at = CURRENT_TIMESTAMP WHERE entry_id = ?"
+      ).bind(entryId).run();
+    }
+    return json({ ok: true, hiddenForMe: true, moderationStatus: reportCount >= 3 ? "hidden_by_reports" : entry.moderation_status }, 200, { "cache-control": "no-store" });
+  }
+
+  return null;
+}
+
 function isSafeFieldId(fieldId: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(fieldId);
 }
@@ -17271,6 +17610,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
+  const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
   const civicContextStatements = civicContext
     ? [env.OBS_DB.prepare(
       `INSERT INTO civic_observation_contexts (
@@ -17397,6 +17737,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       dataRights.withdrawalStatus,
       JSON.stringify(dataRights.sourcePayload)
     ),
+    ...placeMemory.statements,
     ...civicContextStatements,
     rollbackLedgerInsert(env, {
       eventType: "observation.upsert",
@@ -17468,8 +17809,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       clientSubmissionId: input.clientSubmissionId,
       reused: false
     } : undefined,
-    placeMemory: null,
-    placeMemorySample: [],
+    placeMemory: placeMemory.result,
+    placeMemorySample: placeMemory.sample,
     contributionReceipts: buildLegacyContributionReceipts(visitId, occurrenceId, occurrenceIds.length, placeName, input)
   }, 201);
 }
