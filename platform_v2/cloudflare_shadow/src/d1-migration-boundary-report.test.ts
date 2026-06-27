@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 22/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 21/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 22/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 21/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -327,7 +327,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mediaProcessingJobs.ts"), "cloudflare_media_processing_queue_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationAiAssessment.ts"), "cloudflare_observation_detail_readmodel_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackage.ts"), "cloudflare_observation_package_runtime");
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackageDataChain.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackageDataChain.ts"), "cloudflare_observation_package_data_chain_replaced_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/sensitiveSpeciesMasking.ts"), "cloudflare_public_map_and_area_snapshot_masking_readmodels");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventPages.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/siteSignalsCache.ts"), "optional_site_signals_cache_falls_back_without_database");
@@ -562,6 +562,28 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_observation_detail_observer_stats_card/);
   assert.match(script, /optional_place_vegetation_trend_card_falls_back_null/);
   assert.match(script, /optional_observation_detail_taxon_insight_card/);
+});
+
+test("observation package data chain is only imported by replaced runtime or type-only consumers", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "observationPackageDataChain.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.deepEqual(importers, [
+    "platform_v2/src/services/monitoringReadiness.ts",
+    "platform_v2/src/services/observationPackage.ts",
+    "platform_v2/src/services/observationWrite.ts",
+  ]);
+
+  const monitoringReadiness = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "monitoringReadiness.ts"), "utf8");
+  assert.match(monitoringReadiness, /import type \{[\s\S]*\} from "\.\/observationPackageDataChain\.js";/);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackage.ts"), "cloudflare_observation_package_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationWrite.ts"), "cloudflare_observation_write_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackageDataChain.ts"), "cloudflare_observation_package_data_chain_replaced_dependency");
 });
 
 test("observation event context remains exclusively tied to the replaced quest engine", async () => {
