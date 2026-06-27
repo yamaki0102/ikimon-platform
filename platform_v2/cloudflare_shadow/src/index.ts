@@ -256,6 +256,78 @@ interface CompatibleTrackUpsertInput {
   sourcePayload?: unknown;
 }
 
+type PassiveAudioSourceType =
+  | "birdnet_go_csv"
+  | "birdnet_go_mqtt"
+  | "birdnet_go_rest"
+  | "tinyml_rest"
+  | "manual_test_fixture";
+
+interface CompatiblePassiveAudioDetectionEvent {
+  ingest_schema_version?: unknown;
+  source_type?: unknown;
+  source_id?: unknown;
+  source_name?: unknown;
+  site_id?: unknown;
+  observed_start_at?: unknown;
+  observed_end_at?: unknown;
+  timezone?: unknown;
+  species_label?: unknown;
+  confidence?: unknown;
+  detection_method?: unknown;
+  basisOfRecord?: unknown;
+  samplingProtocol?: unknown;
+  protocol_id?: unknown;
+  provenance?: unknown;
+  plot_id?: unknown;
+  device_deployment_id?: unknown;
+  lat?: unknown;
+  lng?: unknown;
+  coordinate_uncertainty_m?: unknown;
+  scientific_name?: unknown;
+  vernacular_name?: unknown;
+  model_id?: unknown;
+  model_version?: unknown;
+  device_id?: unknown;
+  consent_scope?: unknown;
+  raw_payload_hash?: unknown;
+  sampling_effort?: unknown;
+  sensor_status?: unknown;
+}
+
+interface NormalizedPassiveAudioDetectionEvent {
+  ingestSchemaVersion: "birdnet-go-event-only-v0.1";
+  sourceType: PassiveAudioSourceType;
+  sourceId: string;
+  sourceName: string;
+  siteId: string;
+  observedStartAt: string;
+  observedEndAt: string;
+  timezone: string;
+  speciesLabel: string;
+  confidence: number;
+  detectionMethod: "ai_audio";
+  basisOfRecord: "MachineObservation";
+  samplingProtocol: "passive-audio";
+  protocolId: string;
+  provenance: Record<string, unknown>;
+  plotId: string | null;
+  deviceDeploymentId: string | null;
+  lat: number | null;
+  lng: number | null;
+  coordinateUncertaintyM: number | null;
+  scientificName: string | null;
+  vernacularName: string | null;
+  modelId: string | null;
+  modelVersion: string | null;
+  deviceId: string | null;
+  consentScope: string;
+  rawPayloadHash: string | null;
+  samplingEffort: Record<string, unknown>;
+  sensorStatus: Record<string, unknown>;
+  normalizedPayload: Record<string, unknown>;
+}
+
 type ManagementGoal = "balanced" | "keep_clear" | "native_patch" | "flowering_allowed" | "invasive_watch";
 type WeedTolerance = "low" | "medium" | "high";
 type InvasivePolicyResponse = "ask_first" | "controlled_removal" | "observe";
@@ -1676,6 +1748,9 @@ export const worker = {
 
       const trackRuntimeResponse = await handleTrackRuntime(request, url, env);
       if (trackRuntimeResponse) return trackRuntimeResponse;
+
+      const passiveAudioIngestRuntimeResponse = await handlePassiveAudioIngestRuntime(request, url, env);
+      if (passiveAudioIngestRuntimeResponse) return passiveAudioIngestRuntimeResponse;
 
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
         return getMunicipalWalkMapCandidates(url, env);
@@ -9523,6 +9598,211 @@ function buildNativeTrackPlaceId(latitude: number, longitude: number, municipali
   const prefectureText = normalizeOptionalText(prefecture);
   if (municipalityText || prefectureText) return `locality:${prefectureText ?? ""}:${municipalityText ?? ""}`;
   return "place:unknown";
+}
+
+async function handlePassiveAudioIngestRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (request.method === "POST" && pathname === "/api/v1/ingest/audio-detections") {
+    return ingestPassiveAudioDetectionsNative(request, env);
+  }
+  return null;
+}
+
+async function ingestPassiveAudioDetectionsNative(request: Request, env: Env): Promise<Response> {
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<unknown>(request);
+  const events = parsePassiveAudioEventsBody(body);
+  if (events.length > 100) {
+    return json({ ok: false, error: "batch_limit_exceeded", accepted: 0, rejected: events.length, duplicates: 0, results: [] }, 400, nativePassiveAudioHeaders());
+  }
+
+  let accepted = 0;
+  let rejected = 0;
+  let duplicates = 0;
+  const results: Array<Record<string, unknown>> = [];
+  for (let index = 0; index < events.length; index += 1) {
+    try {
+      const event = normalizePassiveAudioDetectionEventNative(events[index]);
+      const result = await ingestPassiveAudioDetectionNative(env, event);
+      if (result.status === "accepted") accepted += 1;
+      else duplicates += 1;
+      results.push({ index, ...result });
+    } catch (error) {
+      rejected += 1;
+      const message = error instanceof Error ? error.message : "passive_audio_ingest_failed";
+      results.push({ index, status: "rejected", error: message });
+    }
+  }
+  return json({ ok: rejected === 0, accepted, rejected, duplicates, results }, rejected > 0 ? 207 : 200, nativePassiveAudioHeaders());
+}
+
+function nativePassiveAudioHeaders(): Record<string, string> {
+  return { "cache-control": "no-store", "x-ikimon-cloudflare-native": "passive-audio-ingest-runtime" };
+}
+
+function parsePassiveAudioEventsBody(body: unknown): unknown[] {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === "object" && Array.isArray((body as { events?: unknown }).events)) {
+    return (body as { events: unknown[] }).events;
+  }
+  return [body];
+}
+
+const PASSIVE_AUDIO_SOURCE_TYPES = new Set(["birdnet_go_csv", "birdnet_go_mqtt", "birdnet_go_rest", "tinyml_rest", "manual_test_fixture"]);
+
+function normalizePassiveAudioDetectionEventNative(input: unknown): NormalizedPassiveAudioDetectionEvent {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new HttpError(400, "event_object_required");
+  const event = input as CompatiblePassiveAudioDetectionEvent;
+  const schemaVersion = requiredPassiveAudioText(event.ingest_schema_version, "ingest_schema_version");
+  if (schemaVersion !== "birdnet-go-event-only-v0.1") throw new HttpError(400, "ingest_schema_version_invalid");
+  const sourceType = requiredPassiveAudioText(event.source_type, "source_type");
+  if (!PASSIVE_AUDIO_SOURCE_TYPES.has(sourceType)) throw new HttpError(400, "source_type_invalid");
+  const observedStartAt = normalizePassiveAudioTimestamp(event.observed_start_at, "observed_start_at");
+  const observedEndAt = normalizePassiveAudioTimestamp(event.observed_end_at, "observed_end_at");
+  if (new Date(observedEndAt).getTime() < new Date(observedStartAt).getTime()) throw new HttpError(400, "observed_end_before_start");
+  if (requiredPassiveAudioText(event.detection_method, "detection_method") !== "ai_audio") throw new HttpError(400, "detection_method_invalid");
+  if (requiredPassiveAudioText(event.basisOfRecord, "basisOfRecord") !== "MachineObservation") throw new HttpError(400, "basisOfRecord_invalid");
+  if (requiredPassiveAudioText(event.samplingProtocol, "samplingProtocol") !== "passive-audio") throw new HttpError(400, "samplingProtocol_invalid");
+  const confidence = passiveAudioNumber(event.confidence, "confidence");
+  if (confidence < 0 || confidence > 1) throw new HttpError(400, "confidence_out_of_range");
+  const provenance = passiveAudioRecord(event.provenance, "provenance");
+  const rawPayloadHash = normalizeOptionalText(event.raw_payload_hash) ?? normalizeOptionalText(provenance.raw_payload_hash);
+  return {
+    ingestSchemaVersion: "birdnet-go-event-only-v0.1",
+    sourceType: sourceType as PassiveAudioSourceType,
+    sourceId: requiredPassiveAudioText(event.source_id, "source_id"),
+    sourceName: requiredPassiveAudioText(event.source_name, "source_name"),
+    siteId: requiredPassiveAudioText(event.site_id, "site_id"),
+    observedStartAt,
+    observedEndAt,
+    timezone: requiredPassiveAudioText(event.timezone, "timezone"),
+    speciesLabel: requiredPassiveAudioText(event.species_label, "species_label"),
+    confidence,
+    detectionMethod: "ai_audio",
+    basisOfRecord: "MachineObservation",
+    samplingProtocol: "passive-audio",
+    protocolId: normalizeOptionalText(event.protocol_id) ?? "passive-audio/event-only/v0.1",
+    provenance,
+    plotId: normalizeOptionalText(event.plot_id),
+    deviceDeploymentId: normalizeOptionalText(event.device_deployment_id),
+    lat: finiteNumberOrNull(event.lat),
+    lng: finiteNumberOrNull(event.lng),
+    coordinateUncertaintyM: finiteNumberOrNull(event.coordinate_uncertainty_m),
+    scientificName: normalizeOptionalText(event.scientific_name),
+    vernacularName: normalizeOptionalText(event.vernacular_name),
+    modelId: normalizeOptionalText(event.model_id),
+    modelVersion: normalizeOptionalText(event.model_version),
+    deviceId: normalizeOptionalText(event.device_id),
+    consentScope: normalizePassiveAudioConsentScope(event.consent_scope),
+    rawPayloadHash,
+    samplingEffort: passiveAudioOptionalRecord(event.sampling_effort),
+    sensorStatus: passiveAudioOptionalRecord(event.sensor_status),
+    normalizedPayload: input as Record<string, unknown>
+  };
+}
+
+async function ingestPassiveAudioDetectionNative(env: Env, event: NormalizedPassiveAudioDetectionEvent): Promise<Record<string, unknown>> {
+  const dedupeKey = await passiveAudioDedupeKey(event);
+  const existing = await env.OBS_DB.prepare("SELECT ingest_event_id FROM passive_audio_ingest_events WHERE dedupe_key = ? LIMIT 1")
+    .bind(dedupeKey)
+    .first<{ ingest_event_id: string }>();
+  if (existing) return { status: "duplicate", dedupeKey };
+
+  const ingestEventId = newId("passive_audio_ingest");
+  const visitId = newId("passive_audio_visit");
+  const occurrenceId = `occ:${visitId}:0`;
+  const segmentId = newId("passive_audio_segment");
+  const tier15Candidate = event.confidence >= 0.9 && Boolean(event.scientificName) && Boolean(event.modelId) && Boolean(event.modelVersion);
+  await env.OBS_DB.prepare(
+    `INSERT INTO passive_audio_ingest_events (
+       ingest_event_id, dedupe_key, source_type, source_id, source_name, site_id, device_id,
+       plot_id, timezone, device_deployment_id, observation_method, protocol_id,
+       sampling_effort_json, sensor_status_json, observed_start_at, observed_end_at,
+       species_label, scientific_name, confidence, model_id, model_version, raw_payload_hash,
+       tier15_candidate, normalized_event_json, provenance_json, ingest_status,
+       visit_id, occurrence_id, audio_segment_id
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'passive_audio', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', ?, ?, ?)`
+  ).bind(
+    ingestEventId,
+    dedupeKey,
+    event.sourceType,
+    event.sourceId,
+    event.sourceName,
+    event.siteId,
+    event.deviceId,
+    event.plotId,
+    event.timezone,
+    event.deviceDeploymentId,
+    event.protocolId,
+    JSON.stringify(event.samplingEffort),
+    JSON.stringify(event.sensorStatus),
+    event.observedStartAt,
+    event.observedEndAt,
+    event.speciesLabel,
+    event.scientificName,
+    event.confidence,
+    event.modelId,
+    event.modelVersion,
+    event.rawPayloadHash,
+    tier15Candidate ? 1 : 0,
+    JSON.stringify(event.normalizedPayload),
+    JSON.stringify(event.provenance),
+    visitId,
+    occurrenceId,
+    segmentId
+  ).run();
+  return { status: "accepted", dedupeKey, visitId, occurrenceId, segmentId, tier15Candidate };
+}
+
+async function passiveAudioDedupeKey(event: NormalizedPassiveAudioDetectionEvent): Promise<string> {
+  if (event.rawPayloadHash) return `raw_payload_hash:${event.rawPayloadHash}`;
+  const payload = stableJson({
+    source_type: event.sourceType,
+    source_id: event.sourceId,
+    source_name: event.sourceName,
+    site_id: event.siteId,
+    device_id: event.deviceId,
+    observed_start_at: event.observedStartAt,
+    observed_end_at: event.observedEndAt,
+    species_label: event.speciesLabel
+  });
+  return `sha256:${await sha256Hex(textToArrayBuffer(payload))}`;
+}
+
+function requiredPassiveAudioText(value: unknown, field: string): string {
+  const text = normalizeOptionalText(value);
+  if (!text) throw new HttpError(400, `${field}_required`);
+  return text;
+}
+
+function normalizePassiveAudioTimestamp(value: unknown, field: string): string {
+  const text = requiredPassiveAudioText(value, field);
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) throw new HttpError(400, `${field}_invalid`);
+  return date.toISOString();
+}
+
+function passiveAudioNumber(value: unknown, field: string): number {
+  const parsed = finiteNumberOrNull(value);
+  if (parsed == null) throw new HttpError(400, `${field}_required`);
+  return parsed;
+}
+
+function passiveAudioRecord(value: unknown, field: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new HttpError(400, `${field}_required`);
+  return value as Record<string, unknown>;
+}
+
+function passiveAudioOptionalRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function normalizePassiveAudioConsentScope(value: unknown): string {
+  const text = normalizeOptionalText(value);
+  if (!text) return "private";
+  if (["private", "community", "public"].includes(text)) return text;
+  throw new HttpError(400, "consent_scope_invalid");
 }
 
 function normalizeTimestampText(value: unknown): string {

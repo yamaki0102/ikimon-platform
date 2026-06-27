@@ -895,6 +895,26 @@ interface ObservationEventQuestTestRow {
   updated_at: string;
 }
 
+interface PassiveAudioIngestEventTestRow {
+  ingest_event_id: string;
+  dedupe_key: string;
+  source_type: string;
+  source_id: string;
+  source_name: string;
+  site_id: string;
+  species_label: string;
+  scientific_name: string | null;
+  confidence: number;
+  model_id: string | null;
+  model_version: string | null;
+  tier15_candidate: number;
+  normalized_event_json: string;
+  provenance_json: string;
+  visit_id: string | null;
+  occurrence_id: string | null;
+  audio_segment_id: string | null;
+}
+
 interface ObservationRallyCourseTestRow {
   course_id: string;
   session_id: string;
@@ -1258,6 +1278,7 @@ class FakeD1 {
   observationEventMeshCells = new Map<string, ObservationEventMeshTestRow>();
   observationEventCapsules = new Map<string, ObservationEventCapsuleTestRow>();
   observationEventQuests = new Map<string, ObservationEventQuestTestRow>();
+  passiveAudioIngestEvents = new Map<string, PassiveAudioIngestEventTestRow>();
   observationDataRights = new Map<string, ObservationDataRightsRow>();
   observationRallyCourses = new Map<string, ObservationRallyCourseTestRow>();
   observationRallyStations = new Map<string, ObservationRallyStationTestRow>();
@@ -2651,6 +2672,29 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO passive_audio_ingest_events")) {
+      this.db.passiveAudioIngestEvents.set(string(v[0]), {
+        ingest_event_id: string(v[0]),
+        dedupe_key: string(v[1]),
+        source_type: string(v[2]),
+        source_id: string(v[3]),
+        source_name: string(v[4]),
+        site_id: string(v[5]),
+        species_label: string(v[15]),
+        scientific_name: nullableString(v[16]),
+        confidence: number(v[17]),
+        model_id: nullableString(v[18]),
+        model_version: nullableString(v[19]),
+        tier15_candidate: number(v[21]),
+        normalized_event_json: string(v[22]),
+        provenance_json: string(v[23]),
+        visit_id: nullableString(v[24]),
+        occurrence_id: nullableString(v[25]),
+        audio_segment_id: nullableString(v[26])
+      });
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE auth_sessions SET last_used_at")) {
       const row = requireRow(this.db.authSessions, string(v[0]));
       row.last_used_at = new Date().toISOString();
@@ -3050,6 +3094,11 @@ class FakeStatement {
         visit_id: row.visit_id,
         visibility: row.visibility
       } : null) as T | null;
+    }
+
+    if (normalized.startsWith("SELECT ingest_event_id FROM passive_audio_ingest_events")) {
+      const row = [...this.db.passiveAudioIngestEvents.values()].find((candidate) => candidate.dedupe_key === string(v[0]));
+      return row ? ({ ingest_event_id: row.ingest_event_id } as T) : null;
     }
 
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label")) {
@@ -7543,6 +7592,89 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     globalThis.fetch = originalFetch;
   }
   assert.equal(fallbackCalls, 0);
+});
+
+test("production passive audio ingest is D1-native and dedupes privileged event batches", async () => {
+  const { env } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", V2_PRIVILEGED_WRITE_API_KEY: "write-key" };
+  const obs = productionEnv.OBS_DB as FakeD1;
+  const event = {
+    ingest_schema_version: "birdnet-go-event-only-v0.1",
+    source_type: "birdnet_go_rest",
+    source_id: "station-api-1",
+    source_name: "Station API 1",
+    site_id: "site-passive-1",
+    observed_start_at: "2026-06-27T09:00:00.000Z",
+    observed_end_at: "2026-06-27T09:00:12.000Z",
+    timezone: "Asia/Tokyo",
+    species_label: "Cettia diphone",
+    scientific_name: "Cettia diphone",
+    confidence: 0.94,
+    detection_method: "ai_audio",
+    basisOfRecord: "MachineObservation",
+    samplingProtocol: "passive-audio",
+    model_id: "birdnet",
+    model_version: "2.4",
+    provenance: {
+      created_by: "passive_engine",
+      imported_at: "2026-06-27T09:01:00.000Z",
+      adapter_name: "birdnet_go_rest",
+      adapter_version: "v0.1",
+      raw_payload_hash: "hash-passive-1"
+    }
+  };
+
+  const first = await worker.fetch(new Request("https://ikimon.life/api/v1/ingest/audio-detections", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": "write-key" },
+    body: JSON.stringify({ events: [event] })
+  }), productionEnv);
+  assert.equal(first.status, 200);
+  assert.equal(first.headers.get("x-ikimon-cloudflare-native"), "passive-audio-ingest-runtime");
+  const firstPayload = await first.json() as any;
+  assert.equal(firstPayload.accepted, 1);
+  assert.equal(firstPayload.duplicates, 0);
+  assert.equal(obs.passiveAudioIngestEvents.size, 1);
+  const row = [...obs.passiveAudioIngestEvents.values()][0]!;
+  assert.equal(row.dedupe_key, "raw_payload_hash:hash-passive-1");
+  assert.equal(row.tier15_candidate, 1);
+  assert.equal(row.species_label, "Cettia diphone");
+
+  const second = await worker.fetch(new Request("https://ikimon.life/api/v1/ingest/audio-detections", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": "write-key" },
+    body: JSON.stringify([event])
+  }), productionEnv);
+  assert.equal(second.status, 200);
+  const secondPayload = await second.json() as any;
+  assert.equal(secondPayload.accepted, 0);
+  assert.equal(secondPayload.duplicates, 1);
+  assert.equal(obs.passiveAudioIngestEvents.size, 1);
+});
+
+test("production passive audio ingest rejects non-privileged or invalid events before D1 writes", async () => {
+  const { env } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", V2_PRIVILEGED_WRITE_API_KEY: "write-key" };
+  const obs = productionEnv.OBS_DB as FakeD1;
+  const forbidden = await worker.fetch(new Request("https://ikimon.life/api/v1/ingest/audio-detections", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({})
+  }), productionEnv);
+  assert.equal(forbidden.status, 403);
+  assert.equal(obs.passiveAudioIngestEvents.size, 0);
+
+  const invalid = await worker.fetch(new Request("https://ikimon.life/api/v1/ingest/audio-detections", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": "write-key" },
+    body: JSON.stringify({ events: [{ ingest_schema_version: "birdnet-go-event-only-v0.1" }] })
+  }), productionEnv);
+  assert.equal(invalid.status, 207);
+  const payload = await invalid.json() as any;
+  assert.equal(payload.accepted, 0);
+  assert.equal(payload.rejected, 1);
+  assert.equal(payload.results[0].error, "source_type_required");
+  assert.equal(obs.passiveAudioIngestEvents.size, 0);
 });
 
 test("production guide admin runtime manages programs and prompt review in Cloudflare D1", async () => {
