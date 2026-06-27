@@ -454,6 +454,18 @@ interface ProductionFieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface FieldManagerGrantTestRow {
+  manager_id: string;
+  field_id: string;
+  user_id: string;
+  role: string;
+  granted_at: string;
+  granted_by: string | null;
+  expires_at: string | null;
+  note: string;
+  updated_at: string;
+}
+
 interface ProductionAreaPolygonReadmodelRow {
   field_id: string;
   source: string;
@@ -1202,6 +1214,7 @@ class FakeD1 {
   observationReassessmentRequests = new Map<string, ObservationReassessmentRequestRow>();
   candidateActionRequests = new Map<string, CandidateActionRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
+  fieldManagers = new Map<string, FieldManagerGrantTestRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
@@ -2467,6 +2480,30 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO field_managers")) {
+      const now = new Date().toISOString();
+      const key = `${string(v[1])}:${string(v[2])}:${string(v[3])}`;
+      const existing = this.db.fieldManagers.get(key);
+      const row: FieldManagerGrantTestRow = {
+        manager_id: existing?.manager_id ?? string(v[0]),
+        field_id: string(v[1]),
+        user_id: string(v[2]),
+        role: string(v[3]),
+        granted_at: now,
+        granted_by: nullableString(v[4]) ?? existing?.granted_by ?? null,
+        expires_at: nullableString(v[5]),
+        note: string(v[6]),
+        updated_at: now
+      };
+      this.db.fieldManagers.set(key, row);
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM field_managers")) {
+      this.db.fieldManagers.delete(`${string(v[0])}:${string(v[1])}:${string(v[2])}`);
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO walk_sessions")) {
       const existing = nullableString(v[1])
         ? [...this.db.walkSessions.values()].find((row) => row.external_id === nullableString(v[1]))
@@ -3079,6 +3116,20 @@ class FakeStatement {
       return (this.db.productionFieldDetails.get(string(v[0])) as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT role FROM field_managers")) {
+      const userId = string(v[0]);
+      const fieldId = string(v[1]);
+      const rank = (role: string) => role === "owner" ? 0 : role === "steward" ? 1 : role === "viewer_exact" ? 2 : 3;
+      const row = [...this.db.fieldManagers.values()]
+        .filter((candidate) =>
+          candidate.user_id === userId &&
+          candidate.field_id === fieldId &&
+          (!candidate.expires_at || candidate.expires_at > new Date().toISOString())
+        )
+        .sort((a, b) => rank(a.role) - rank(b.role))[0];
+      return row ? ({ role: row.role } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT o.observation_id, o.emergency_hidden, COUNT(a.asset_id) AS asset_count")) {
       const observation = this.db.observations.get(string(v[0]));
       if (!observation) return null;
@@ -3565,6 +3616,34 @@ class FakeStatement {
           )
         );
       return row ? ({ public_derivative_key: row.public_derivative_key, mime: row.mime } as T) : null;
+    }
+
+    if (normalized.startsWith("INSERT INTO field_managers")) {
+      const now = new Date().toISOString();
+      const key = `${string(v[1])}:${string(v[2])}:${string(v[3])}`;
+      const existing = this.db.fieldManagers.get(key);
+      const row: FieldManagerGrantTestRow = {
+        manager_id: existing?.manager_id ?? string(v[0]),
+        field_id: string(v[1]),
+        user_id: string(v[2]),
+        role: string(v[3]),
+        granted_at: now,
+        granted_by: nullableString(v[4]) ?? existing?.granted_by ?? null,
+        expires_at: nullableString(v[5]),
+        note: string(v[6]),
+        updated_at: now
+      };
+      this.db.fieldManagers.set(key, row);
+      return ({
+        manager_id: row.manager_id,
+        field_id: row.field_id,
+        user_id: row.user_id,
+        role: row.role,
+        granted_at: row.granted_at,
+        granted_by: row.granted_by,
+        expires_at: row.expires_at,
+        note: row.note
+      } as T);
     }
 
     throw new Error(`Unhandled SQL first: ${this.query}`);
@@ -4100,6 +4179,23 @@ class FakeStatement {
         )
         .sort((a, b) => (a.area_ha ?? 999999) - (b.area_ha ?? 999999) || a.name.localeCompare(b.name, "ja"))
         .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT manager_id, field_id, user_id, role, granted_at, granted_by, expires_at, note")) {
+      const fieldId = string(this.values[0]);
+      const rows = [...this.db.fieldManagers.values()]
+        .filter((row) => row.field_id === fieldId && (!row.expires_at || row.expires_at > new Date().toISOString()))
+        .sort((a, b) => b.granted_at.localeCompare(a.granted_at))
+        .map((row) => ({
+          manager_id: row.manager_id,
+          field_id: row.field_id,
+          user_id: row.user_id,
+          role: row.role,
+          granted_at: row.granted_at,
+          granted_by: row.granted_by,
+          expires_at: row.expires_at,
+          note: row.note
+        }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT partition_month, COUNT(*) AS count, MIN(observed_at) AS earliest_observed_at")) {
@@ -10241,6 +10337,168 @@ test("production area snapshot uses D1 field detail readmodel when not materiali
     assert.equal(payload.snapshot.privacy.exactLocationExposed, false);
     assert.equal(payload.snapshot.compatibility.source, "cloudflare_field_detail_readmodel_lightweight_area_snapshot");
     assert.equal(payload.snapshot.source, undefined);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("field manager runtime grants list and revokes D1 roles for admin sessions only", async () => {
+  const { env, obs } = createEnv();
+  const fieldId = "field-manager-runtime-1";
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "管理者テストフィールド",
+    name_kana: null,
+    summary: "field manager runtime test",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 200,
+    area_ha: 0.8,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "site-manager-001",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+
+  const userIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "ordinary-user", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const userCookie = userIssue.headers.get("set-cookie") ?? "";
+  const forbidden = await worker.fetch(new Request(`https://shadow.test/api/v1/fields/${fieldId}/managers`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: userCookie },
+    body: JSON.stringify({ user_id: "viewer-user", role: "viewer_exact" })
+  }), env);
+  assert.equal(forbidden.status, 403);
+  assert.equal(obs.fieldManagers.size, 0);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "admin-user", displayName: "Admin User", roleName: "Admin", ttlHours: 1 })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+  const grant = await worker.fetch(new Request(`https://shadow.test/api/v1/fields/${fieldId}/managers`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: adminCookie },
+    body: JSON.stringify({ user_id: "viewer-user", role: "viewer_exact", note: "research collaboration" })
+  }), env);
+  const grantPayload = await grant.json() as any;
+  assert.equal(grant.status, 200);
+  assert.equal(grant.headers.get("x-ikimon-cloudflare-native"), "field-manager-runtime");
+  assert.equal(grantPayload.grant.fieldId, fieldId);
+  assert.equal(grantPayload.grant.userId, "viewer-user");
+  assert.equal(grantPayload.grant.role, "viewer_exact");
+  assert.equal(grantPayload.grant.grantedBy, "admin-user");
+
+  const list = await worker.fetch(new Request(`https://shadow.test/api/v1/fields/${fieldId}/managers`, {
+    headers: { cookie: adminCookie }
+  }), env);
+  const listPayload = await list.json() as any;
+  assert.equal(list.status, 200);
+  assert.equal(listPayload.managers.length, 1);
+  assert.equal(listPayload.managers[0].note, "research collaboration");
+
+  const revoke = await worker.fetch(new Request(`https://shadow.test/api/v1/fields/${fieldId}/managers/viewer-user/viewer_exact`, {
+    method: "DELETE",
+    headers: { cookie: adminCookie }
+  }), env);
+  assert.equal(revoke.status, 200);
+  assert.equal(obs.fieldManagers.size, 0);
+});
+
+test("field manager D1 role is reflected in area snapshot viewer context without origin fallback", async () => {
+  const { env, obs, core } = createEnv();
+  const fieldId = "field-manager-viewer-snapshot-1";
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "閲覧者権限テストフィールド",
+    name_kana: null,
+    summary: "viewer context test",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 200,
+    area_ha: 0.8,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "site-viewer-001",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+  obs.fieldManagers.set(`${fieldId}:viewer-user:viewer_exact`, {
+    manager_id: "grant-viewer",
+    field_id: fieldId,
+    user_id: "viewer-user",
+    role: "viewer_exact",
+    granted_at: "2026-06-27T00:00:00.000Z",
+    granted_by: "admin-user",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "viewer-user", displayName: "Viewer User", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot`, {
+      headers: { cookie }
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200);
+    assert.equal(payload.snapshot.viewer.userId, "viewer-user");
+    assert.equal(payload.snapshot.viewer.fieldRole, "viewer_exact");
+    assert.equal(payload.snapshot.sensitiveMasking.viewerCanSeeExact, true);
+    assert.equal(payload.snapshot.privacy.exactLocationExposed, false);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {

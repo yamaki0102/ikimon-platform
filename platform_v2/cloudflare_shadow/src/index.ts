@@ -452,6 +452,19 @@ interface SessionSnapshot {
   expiresAt: string;
 }
 
+type FieldManagerRole = "owner" | "steward" | "viewer_exact";
+
+interface FieldManagerGrantRow {
+  manager_id: string;
+  field_id: string;
+  user_id: string;
+  role: FieldManagerRole | string;
+  granted_at: string;
+  granted_by: string | null;
+  expires_at: string | null;
+  note: string | null;
+}
+
 interface OriginSessionResponse {
   ok?: boolean;
   session?: {
@@ -1715,7 +1728,23 @@ export const worker = {
 
       const areaSnapshotMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/area-snapshot$/);
       if (request.method === "GET" && areaSnapshotMatch?.[1]) {
-        return getOriginalUiAreaSnapshot(decodeURIComponent(areaSnapshotMatch[1]), env);
+        return getOriginalUiAreaSnapshot(request, decodeURIComponent(areaSnapshotMatch[1]), env);
+      }
+
+      const fieldManagersMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/managers$/);
+      if ((request.method === "GET" || request.method === "POST") && fieldManagersMatch?.[1]) {
+        return handleFieldManagers(request, decodeURIComponent(fieldManagersMatch[1]), env);
+      }
+
+      const fieldManagerDeleteMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/managers\/([^/]+)\/([^/]+)$/);
+      if (request.method === "DELETE" && fieldManagerDeleteMatch?.[1]) {
+        return deleteFieldManagerGrant(
+          request,
+          decodeURIComponent(fieldManagerDeleteMatch[1]),
+          decodeURIComponent(fieldManagerDeleteMatch[2] ?? ""),
+          decodeURIComponent(fieldManagerDeleteMatch[3] ?? ""),
+          env
+        );
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
@@ -10656,7 +10685,7 @@ function getPublicMapSiteBriefShim(url: URL): Response {
   }, 200, { "cache-control": "no-store" });
 }
 
-async function getOriginalUiAreaSnapshot(fieldId: string, env: Env): Promise<Response> {
+async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env: Env): Promise<Response> {
   if (!isSafeFieldId(fieldId)) {
     return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
   }
@@ -10672,8 +10701,9 @@ async function getOriginalUiAreaSnapshot(fieldId: string, env: Env): Promise<Res
   }
   const row = await getFieldDetailReadmodelRow(fieldId, env);
   if (row) {
+    const viewer = await getAreaSnapshotViewer(request, fieldId, env);
     return json({
-      snapshot: fieldDetailAreaSnapshotPayload(row),
+      snapshot: fieldDetailAreaSnapshotPayload(row, viewer),
       compatibility: {
         source: "cloudflare_field_detail_readmodel_lightweight_area_snapshot"
       }
@@ -10691,6 +10721,131 @@ function isSafeFieldId(fieldId: string): boolean {
 
 function originalUiAreaSnapshotKey(fieldId: string): string {
   return `original-ui/area-snapshots/${fieldId}.json`;
+}
+
+function isFieldManagerRole(value: unknown): value is FieldManagerRole {
+  return value === "owner" || value === "steward" || value === "viewer_exact";
+}
+
+function mapFieldManagerGrant(row: FieldManagerGrantRow) {
+  return {
+    managerId: row.manager_id,
+    fieldId: row.field_id,
+    userId: row.user_id,
+    role: isFieldManagerRole(row.role) ? row.role : "viewer_exact",
+    grantedAt: row.granted_at,
+    grantedBy: row.granted_by,
+    expiresAt: row.expires_at,
+    note: row.note ?? ""
+  };
+}
+
+async function getFieldManagerRoleFromD1(userId: string | null | undefined, fieldId: string, env: Env): Promise<FieldManagerRole | null> {
+  if (!userId || !isSafeFieldId(fieldId)) return null;
+  const row = await env.OBS_DB.prepare(
+    `SELECT role FROM field_managers
+      WHERE user_id = ? AND field_id = ?
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+      ORDER BY CASE role
+        WHEN 'owner' THEN 0
+        WHEN 'steward' THEN 1
+        WHEN 'viewer_exact' THEN 2
+        ELSE 3 END
+      LIMIT 1`
+  ).bind(userId, fieldId).first<{ role: string }>();
+  return row && isFieldManagerRole(row.role) ? row.role : null;
+}
+
+async function getAreaSnapshotViewer(request: Request, fieldId: string, env: Env): Promise<{ isAdminOrAnalyst: boolean; fieldRole: FieldManagerRole | null; userId: string | null }> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  if (!session) return { isAdminOrAnalyst: false, fieldRole: null, userId: null };
+  const isAdminOrAnalyst = isMunicipalWalkMapAdminRole(session);
+  const fieldRole = await getFieldManagerRoleFromD1(session.userId, fieldId, env).catch(() => null);
+  return { isAdminOrAnalyst, fieldRole, userId: session.userId };
+}
+
+async function handleFieldManagers(request: Request, fieldId: string, env: Env): Promise<Response> {
+  let session: SessionSnapshot;
+  try {
+    session = await requireMunicipalWalkMapAdminSession(request, env);
+  } catch (error) {
+    if (error instanceof HttpError) return json({ ok: false, error: error.message }, error.status, { "cache-control": "no-store" });
+    throw error;
+  }
+  const field = await getFieldDetailReadmodelRow(fieldId, env);
+  if (!field) return json({ ok: false, error: "field_not_found" }, 404, { "cache-control": "no-store" });
+  if (request.method === "GET") {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT manager_id, field_id, user_id, role, granted_at, granted_by, expires_at, note
+         FROM field_managers
+        WHERE field_id = ?
+          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        ORDER BY granted_at DESC`
+    ).bind(fieldId).all<FieldManagerGrantRow>();
+    return json({
+      ok: true,
+      field_id: field.field_id,
+      managers: rows.results.map(mapFieldManagerGrant),
+      compatibility: { source: "cloudflare_field_manager_runtime" }
+    }, 200, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "field-manager-runtime"
+    });
+  }
+
+  const body = await readJson<Record<string, unknown>>(request);
+  const userId = normalizeOptionalText(body.user_id ?? body.userId);
+  const role = normalizeOptionalText(body.role);
+  if (!userId) return json({ ok: false, error: "user_id_required" }, 400, { "cache-control": "no-store" });
+  if (!isFieldManagerRole(role)) return json({ ok: false, error: "invalid_field_manager_role" }, 400, { "cache-control": "no-store" });
+  const expiresAt = normalizeOptionalText(body.expires_at ?? body.expiresAt);
+  const note = normalizeOptionalText(body.note) ?? "";
+  const managerId = `cf-field-manager-${fieldId}-${userId}-${role}`;
+  const inserted = await env.OBS_DB.prepare(
+    `INSERT INTO field_managers
+       (manager_id, field_id, user_id, role, granted_by, expires_at, note, granted_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     ON CONFLICT(field_id, user_id, role) DO UPDATE SET
+       granted_at = CURRENT_TIMESTAMP,
+       granted_by = COALESCE(excluded.granted_by, field_managers.granted_by),
+       expires_at = excluded.expires_at,
+       note = excluded.note,
+       updated_at = CURRENT_TIMESTAMP
+     RETURNING manager_id, field_id, user_id, role, granted_at, granted_by, expires_at, note`
+  ).bind(managerId, field.field_id, userId, role, session.userId, expiresAt, note).first<FieldManagerGrantRow>();
+  if (!inserted) return json({ ok: false, error: "field_manager_grant_failed" }, 500, { "cache-control": "no-store" });
+  return json({
+    ok: true,
+    grant: mapFieldManagerGrant(inserted),
+    compatibility: { source: "cloudflare_field_manager_runtime" }
+  }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "field-manager-runtime"
+  });
+}
+
+async function deleteFieldManagerGrant(
+  request: Request,
+  fieldId: string,
+  userId: string,
+  roleText: string,
+  env: Env
+): Promise<Response> {
+  try {
+    await requireMunicipalWalkMapAdminSession(request, env);
+  } catch (error) {
+    if (error instanceof HttpError) return json({ ok: false, error: error.message }, error.status, { "cache-control": "no-store" });
+    throw error;
+  }
+  const role = normalizeOptionalText(roleText);
+  if (!isFieldManagerRole(role)) return json({ ok: false, error: "invalid_field_manager_role" }, 400, { "cache-control": "no-store" });
+  await env.OBS_DB.prepare(
+    "DELETE FROM field_managers WHERE field_id = ? AND user_id = ? AND role = ?"
+  ).bind(fieldId, userId, role).run();
+  return json({ ok: true, revoked: true, compatibility: { source: "cloudflare_field_manager_runtime" } }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "field-manager-runtime"
+  });
 }
 
 async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> {
@@ -11032,8 +11187,12 @@ function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
   };
 }
 
-function fieldDetailAreaSnapshotPayload(row: FieldDetailReadmodelRow) {
+function fieldDetailAreaSnapshotPayload(
+  row: FieldDetailReadmodelRow,
+  viewer: { isAdminOrAnalyst?: boolean; fieldRole?: FieldManagerRole | null; userId?: string | null } = {}
+) {
   const field = fieldDetailPublicPayload(row);
+  const viewerCanSeeExact = Boolean(viewer.isAdminOrAnalyst || viewer.fieldRole);
   return {
     framing: {
       publicLabel: "この場所のいま",
@@ -11090,7 +11249,7 @@ function fieldDetailAreaSnapshotPayload(row: FieldDetailReadmodelRow) {
     sensitiveMasking: {
       totalRare: 0,
       maskedSpecies: 0,
-      viewerCanSeeExact: false
+      viewerCanSeeExact
     },
     firstSeenSpecies: [],
     environmentChange: null,
@@ -11107,6 +11266,11 @@ function fieldDetailAreaSnapshotPayload(row: FieldDetailReadmodelRow) {
       exactLocationExposed: false,
       geometryExposed: false,
       publicCellPrecision: "0.01_degree"
+    },
+    viewer: {
+      isAdminOrAnalyst: Boolean(viewer.isAdminOrAnalyst),
+      fieldRole: viewer.fieldRole ?? null,
+      userId: viewer.userId ?? null
     },
     compatibility: {
       source: "cloudflare_field_detail_readmodel_lightweight_area_snapshot"

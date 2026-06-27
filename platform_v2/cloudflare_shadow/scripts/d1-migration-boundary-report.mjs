@@ -151,6 +151,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/placeSnapshot.ts": "cloudflare_place_snapshot_readmodel",
     "platform_v2/src/services/fixedPointStation.ts": "cloudflare_fixed_point_station_readmodel",
     "platform_v2/src/services/areaPolygons.ts": "cloudflare_area_polygon_readmodel",
+    "platform_v2/src/services/fieldManagers.ts": "cloudflare_field_manager_runtime",
     "platform_v2/src/services/mapOwnObservations.ts": "cloudflare_owner_map_observations_native",
     "platform_v2/src/services/mapEffort.ts": "cloudflare_public_map_effort_shim",
     "platform_v2/src/services/publicMapSnapshotOpsAlerts.ts": "cloudflare_public_map_snapshot_ops_inventory",
