@@ -915,6 +915,45 @@ interface PassiveAudioIngestEventTestRow {
   audio_segment_id: string | null;
 }
 
+interface FieldscanAudioSegmentTestRow {
+  segment_id: string;
+  external_id: string | null;
+  session_id: string;
+  user_id: string | null;
+  visit_id: string | null;
+  place_id: string | null;
+  recorded_at: string;
+  duration_sec: number;
+  lat: number | null;
+  lng: number | null;
+  azimuth: number | null;
+  storage_key: string | null;
+  storage_provider: string;
+  mime_type: string;
+  bytes: number;
+  privacy_status: string;
+  voice_flag: number;
+  fingerprint_json: string;
+  meta_json: string;
+  transcription_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface FieldscanAudioDetectionTestRow {
+  detection_id: string;
+  segment_id: string;
+  detected_taxon: string;
+  scientific_name: string | null;
+  confidence: number;
+  provider: string;
+  offset_sec: number;
+  duration_sec: number;
+  dual_agree: number;
+  raw_score_json: string;
+  created_at: string;
+}
+
 interface ObservationRallyCourseTestRow {
   course_id: string;
   session_id: string;
@@ -1279,6 +1318,8 @@ class FakeD1 {
   observationEventCapsules = new Map<string, ObservationEventCapsuleTestRow>();
   observationEventQuests = new Map<string, ObservationEventQuestTestRow>();
   passiveAudioIngestEvents = new Map<string, PassiveAudioIngestEventTestRow>();
+  fieldscanAudioSegments = new Map<string, FieldscanAudioSegmentTestRow>();
+  fieldscanAudioDetections: FieldscanAudioDetectionTestRow[] = [];
   observationDataRights = new Map<string, ObservationDataRightsRow>();
   observationRallyCourses = new Map<string, ObservationRallyCourseTestRow>();
   observationRallyStations = new Map<string, ObservationRallyStationTestRow>();
@@ -2695,6 +2736,80 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO fieldscan_audio_segments")) {
+      const now = new Date().toISOString();
+      const segmentId = string(v[0]);
+      const existing = this.db.fieldscanAudioSegments.get(segmentId);
+      this.db.fieldscanAudioSegments.set(segmentId, {
+        segment_id: segmentId,
+        external_id: nullableString(v[1]),
+        session_id: string(v[2]),
+        user_id: nullableString(v[3]),
+        visit_id: nullableString(v[4]),
+        place_id: nullableString(v[5]),
+        recorded_at: string(v[6]),
+        duration_sec: number(v[7]),
+        lat: nullableNumber(v[8]),
+        lng: nullableNumber(v[9]),
+        azimuth: nullableNumber(v[10]),
+        storage_key: nullableString(v[11]),
+        storage_provider: string(v[12]),
+        mime_type: string(v[13]),
+        bytes: number(v[14]),
+        privacy_status: string(v[15]),
+        voice_flag: number(v[16]),
+        fingerprint_json: string(v[17]),
+        meta_json: string(v[18]),
+        transcription_status: "pending",
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO fieldscan_audio_detections")) {
+      this.db.fieldscanAudioDetections.push({
+        detection_id: string(v[0]),
+        segment_id: string(v[1]),
+        detected_taxon: string(v[2]),
+        scientific_name: nullableString(v[3]),
+        confidence: number(v[4]),
+        provider: string(v[5]),
+        offset_sec: number(v[6]),
+        duration_sec: number(v[7]),
+        dual_agree: number(v[8]),
+        raw_score_json: string(v[9]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE fieldscan_audio_segments SET transcription_status = 'skipped'")) {
+      const row = requireRow(this.db.fieldscanAudioSegments, string(v[0]));
+      row.transcription_status = "skipped";
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE fieldscan_audio_segments SET transcription_status = 'done'")) {
+      const row = requireRow(this.db.fieldscanAudioSegments, string(v[0]));
+      row.transcription_status = "done";
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE fieldscan_audio_segments SET privacy_status")) {
+      const row = requireRow(this.db.fieldscanAudioSegments, string(v[6]));
+      row.privacy_status = string(v[0]);
+      row.voice_flag = number(v[1]);
+      if (string(v[2]) === "deleted_human_voice") row.storage_key = null;
+      if (string(v[3]) === "deleted_human_voice") row.storage_provider = "deleted";
+      if (string(v[4]) === "deleted_human_voice") row.bytes = 0;
+      row.meta_json = string(v[5]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE auth_sessions SET last_used_at")) {
       const row = requireRow(this.db.authSessions, string(v[0]));
       row.last_used_at = new Date().toISOString();
@@ -3099,6 +3214,24 @@ class FakeStatement {
     if (normalized.startsWith("SELECT ingest_event_id FROM passive_audio_ingest_events")) {
       const row = [...this.db.passiveAudioIngestEvents.values()].find((candidate) => candidate.dedupe_key === string(v[0]));
       return row ? ({ ingest_event_id: row.ingest_event_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT segment_id FROM fieldscan_audio_segments WHERE external_id")) {
+      const row = [...this.db.fieldscanAudioSegments.values()].find((candidate) => candidate.external_id === string(v[0]));
+      return row ? ({ segment_id: row.segment_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng, storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json FROM fieldscan_audio_segments WHERE segment_id = ? OR external_id = ?")) {
+      const segmentId = nullableString(v[0]);
+      const externalId = nullableString(v[1]);
+      const row = [...this.db.fieldscanAudioSegments.values()].find((candidate) =>
+        (segmentId && candidate.segment_id === segmentId) || (externalId && candidate.external_id === externalId)
+      );
+      return (row as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng, storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json FROM fieldscan_audio_segments WHERE segment_id = ? LIMIT 1")) {
+      return (this.db.fieldscanAudioSegments.get(string(v[0])) as T | undefined) ?? null;
     }
 
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label")) {
@@ -3819,6 +3952,28 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng, storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json FROM fieldscan_audio_segments WHERE session_id = ?")) {
+      const rows = [...this.db.fieldscanAudioSegments.values()]
+        .filter((row) => row.session_id === string(v[0]))
+        .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at) || a.segment_id.localeCompare(b.segment_id));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT d.segment_id, d.detected_taxon, d.confidence, d.provider, d.dual_agree FROM fieldscan_audio_detections")) {
+      const sessionId = string(v[0]);
+      const rows = this.db.fieldscanAudioDetections
+        .filter((row) => {
+          const segment = this.db.fieldscanAudioSegments.get(row.segment_id);
+          return segment?.session_id === sessionId && segment.privacy_status === "clean";
+        })
+        .map((row) => ({
+          segment_id: row.segment_id,
+          detected_taxon: row.detected_taxon,
+          confidence: row.confidence,
+          provider: row.provider,
+          dual_agree: row.dual_agree
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT visit_id, observed_at FROM production_import_visits")) {
       const placeId = string(v[0]);
       const rows = [...this.db.productionVisits.values()]
@@ -4693,6 +4848,10 @@ class FakeBucket {
       ? new Response(object.value as BodyInit).body
       : new Response("").body;
     return { body, httpMetadata: { contentType: object.contentType } };
+  }
+
+  async delete(key: string): Promise<void> {
+    this.objects.delete(key);
   }
 
   async list(options?: { prefix?: string; limit?: number; cursor?: string }) {
@@ -7675,6 +7834,134 @@ test("production passive audio ingest rejects non-privileged or invalid events b
   assert.equal(payload.rejected, 1);
   assert.equal(payload.results[0].error, "source_type_required");
   assert.equal(obs.passiveAudioIngestEvents.size, 0);
+});
+
+test("production fieldscan audio runtime stores private R2 audio, detection callbacks, playback, and recap without origin fallback", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "fieldscan-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const webmHeader = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x42, 0x86]).toString("base64");
+    const submit = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/audio/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        externalId: "mobile-audio-1",
+        sessionId: "fieldscan-session-1",
+        visitId: "visit-1",
+        placeId: "place-1",
+        recordedAt: "2026-06-27T10:00:00.000Z",
+        durationSec: 2.4,
+        lat: 35.1,
+        lng: 139.2,
+        mimeType: "audio/webm",
+        filename: "chunk.webm",
+        base64Data: webmHeader,
+        meta: {
+          clientVadResult: { speechLikely: false, confidence: 0.92, voiceBandRatio: 0.12 },
+          audioFingerprint: { energy: 0.7, peakHz: 3200 }
+        }
+      })
+    }), productionEnv);
+    const submitPayload = await submit.json() as any;
+    assert.equal(submit.status, 200, JSON.stringify(submitPayload));
+    assert.equal(submit.headers.get("x-ikimon-cloudflare-native"), "fieldscan-audio-runtime");
+    assert.equal(submitPayload.created, true);
+    assert.equal(submitPayload.privacyStatus, "clean");
+    assert.equal((productionEnv.ASSET_BUCKET as FakeBucket).objects.size, 1);
+    assert.equal((productionEnv.OBS_DB as FakeD1).fieldscanAudioSegments.get(submitPayload.segmentId)?.user_id, "fieldscan-user");
+
+    const spoofed = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/audio/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        sessionId: "fieldscan-session-1",
+        userId: "other-user",
+        recordedAt: "2026-06-27T10:01:00.000Z",
+        storagePath: "external-only.webm"
+      })
+    }), productionEnv);
+    assert.equal(spoofed.status, 403);
+
+    const callback = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/audio/callback", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+      body: JSON.stringify({
+        segmentId: submitPayload.segmentId,
+        detections: [
+          { detectedTaxon: "ヒヨドリ", scientificName: "Hypsipetes amaurotis", confidence: 0.88, provider: "perch_v2", dualAgree: true }
+        ],
+        embeddings: [{ vector: [0.1, 0.2] }]
+      })
+    }), productionEnv);
+    const callbackPayload = await callback.json() as any;
+    assert.equal(callback.status, 200, JSON.stringify(callbackPayload));
+    assert.equal(callbackPayload.inserted, 1);
+    assert.equal(callbackPayload.embeddingsSkipped, 1);
+    assert.equal((productionEnv.OBS_DB as FakeD1).fieldscanAudioDetections.length, 1);
+
+    const playback = await worker.fetch(new Request(`https://ikimon.life/api/v1/fieldscan/audio/segment/${encodeURIComponent(submitPayload.segmentId)}`, {
+      headers: { cookie }
+    }), productionEnv);
+    assert.equal(playback.status, 200);
+    assert.equal(playback.headers.get("content-type"), "audio/webm");
+    assert.equal((await playback.arrayBuffer()).byteLength, 6);
+
+    const recap = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/session/fieldscan-session-1/recap", {
+      headers: { cookie }
+    }), productionEnv);
+    const recapPayload = await recap.json() as any;
+    assert.equal(recap.status, 200, JSON.stringify(recapPayload));
+    assert.equal(recapPayload.recap.cleanSegmentCount, 1);
+    assert.equal(recapPayload.recap.uniqueTaxa[0].taxon, "ヒヨドリ");
+    assert.equal(recapPayload.recap.soundBundles[0].representativeAudioUrl, `/api/v1/fieldscan/audio/segment/${encodeURIComponent(submitPayload.segmentId)}`);
+
+    const speechSubmit = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/audio/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        externalId: "mobile-audio-speech",
+        sessionId: "fieldscan-session-1",
+        recordedAt: "2026-06-27T10:02:00.000Z",
+        mimeType: "audio/webm",
+        base64Data: webmHeader,
+        meta: { clientVadResult: { speechLikely: true, confidence: 0.94, voiceBandRatio: 0.9 } }
+      })
+    }), productionEnv);
+    const speechPayload = await speechSubmit.json() as any;
+    assert.equal(speechPayload.privacyStatus, "deleted_human_voice");
+    assert.equal((productionEnv.OBS_DB as FakeD1).fieldscanAudioSegments.get(speechPayload.segmentId)?.storage_key, null);
+    assert.equal((productionEnv.ASSET_BUCKET as FakeBucket).objects.size, 1);
+
+    const similar = await worker.fetch(new Request(`https://ikimon.life/api/v1/fieldscan/audio/segment/${encodeURIComponent(submitPayload.segmentId)}/similar`, {
+      headers: { "x-ikimon-write-key": "write-key" }
+    }), productionEnv);
+    assert.equal(similar.status, 410);
+    assert.equal((await similar.json() as any).replacement, "cloudflare_vectorize_required_before_reenable");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fallbackCalls, 0);
 });
 
 test("production guide admin runtime manages programs and prompt review in Cloudflare D1", async () => {

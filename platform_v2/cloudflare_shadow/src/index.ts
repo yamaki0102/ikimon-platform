@@ -17,6 +17,7 @@ interface D1Database {
 interface R2Bucket {
   put(key: string, value: ReadableStream | ArrayBuffer | string, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
   get(key: string): Promise<R2ObjectBody | null>;
+  delete(key: string): Promise<unknown>;
   list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<R2ListResult>;
 }
 
@@ -1985,6 +1986,11 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
         return recordUiKpiEventShim(request);
+      }
+
+      const fieldscanAudioResponse = await handleFieldscanAudioRuntime(request, url, env);
+      if (fieldscanAudioResponse) {
+        return fieldscanAudioResponse;
       }
 
       const appWriteBoundary = handlePublicCustomDomainAppWriteBoundary(request, url, env);
@@ -9211,6 +9217,492 @@ async function requireMunicipalWalkMapAdminSession(request: Request, env: Env): 
   if (!session) throw new HttpError(401, "session_required");
   if (session.banned || !isMunicipalWalkMapAdminRole(session)) throw new HttpError(403, "admin_required");
   return session;
+}
+
+type FieldscanAudioPrivacyStatus = "pending_voice_check" | "clean" | "deleted_human_voice";
+
+interface FieldscanAudioSegmentRow {
+  segment_id: string;
+  external_id: string | null;
+  session_id: string;
+  user_id: string | null;
+  visit_id: string | null;
+  place_id: string | null;
+  recorded_at: string;
+  duration_sec: number;
+  lat: number | null;
+  lng: number | null;
+  storage_key: string | null;
+  mime_type: string;
+  bytes: number;
+  privacy_status: FieldscanAudioPrivacyStatus;
+  fingerprint_json: string;
+  meta_json: string;
+}
+
+const FIELDSCAN_AUDIO_ALLOWED_MIME_TYPES = new Set(["audio/webm", "video/webm", "audio/ogg", "audio/mp4"]);
+const FIELDSCAN_AUDIO_MAX_BYTES = 3 * 1024 * 1024;
+const FIELDSCAN_AUDIO_STORAGE_PROVIDER = "r2_private_audio";
+
+async function handleFieldscanAudioRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  try {
+    if (request.method === "POST" && pathname === "/api/v1/fieldscan/audio/submit") {
+      return await submitFieldscanAudioNative(request, env);
+    }
+    if (request.method === "POST" && pathname === "/api/v1/fieldscan/audio/callback") {
+      return await recordFieldscanAudioDetectionsNative(request, env);
+    }
+    if (request.method === "POST" && pathname === "/api/v1/fieldscan/audio/privacy-callback") {
+      return await recordFieldscanAudioPrivacyDecisionNative(request, env);
+    }
+    const similarMatch = pathname.match(/^\/api\/v1\/fieldscan\/audio\/segment\/([^/]+)\/similar$/);
+    if (request.method === "GET" && similarMatch?.[1]) {
+      const auth = assertPrivilegedWriteAccessNative(request, env);
+      if (auth instanceof Response) return auth;
+      return json({
+        ok: false,
+        segmentId: decodeURIComponent(similarMatch[1]),
+        error: "audio_vector_similarity_retired",
+        replacement: "cloudflare_vectorize_required_before_reenable"
+      }, 410, nativeGuideHeaders("fieldscan-audio-runtime"));
+    }
+    const playbackMatch = pathname.match(/^\/api\/v1\/fieldscan\/audio\/segment\/([^/]+)$/);
+    if (request.method === "GET" && playbackMatch?.[1]) {
+      return await getFieldscanAudioPlaybackNative(request, env, decodeURIComponent(playbackMatch[1]));
+    }
+    const recapMatch = pathname.match(/^\/api\/v1\/fieldscan\/session\/([^/]+)\/recap$/);
+    if (request.method === "GET" && recapMatch?.[1]) {
+      return await getFieldscanAudioSessionRecapNative(request, env, decodeURIComponent(recapMatch[1]));
+    }
+    return null;
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return json({ ok: false, error: error.message }, error.status, nativeGuideHeaders("fieldscan-audio-runtime"));
+    }
+    console.error("[fieldscan-audio] native runtime failed", error);
+    return json({ ok: false, error: error instanceof Error ? error.message : "fieldscan_audio_runtime_failed" }, 500, nativeGuideHeaders("fieldscan-audio-runtime"));
+  }
+}
+
+async function submitFieldscanAudioNative(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const input = await readJson<Record<string, unknown>>(request);
+  const requestedUserId = normalizeOptionalText(input.userId);
+  if (session?.userId && requestedUserId && requestedUserId !== session.userId) {
+    throw new HttpError(403, "forbidden_user_mismatch");
+  }
+  const sessionId = requireText(input.sessionId, "sessionId_required");
+  const recordedAt = normalizeOptionalText(input.recordedAt) ?? new Date().toISOString();
+  const meta = normalizePlainJsonObject(input.meta);
+  const mimeType = normalizeFieldscanAudioMime(input.mimeType);
+  const hasInlineAudio = typeof input.base64Data === "string" && input.base64Data.trim() !== "";
+  const storagePath = normalizeOptionalText(input.storagePath);
+  if (!hasInlineAudio && !storagePath) throw new HttpError(400, "audio_payload_required");
+
+  let objectKey = storagePath;
+  let bytes = nullableNumberFromUnknown(input.bytes) ?? 0;
+  const privacy = decideFieldscanInitialPrivacy(meta, hasInlineAudio);
+  if (hasInlineAudio) {
+    const audioBytes = decodeBase64ToBytes(String(input.base64Data));
+    if (audioBytes.byteLength === 0) throw new HttpError(400, "decoded_audio_empty");
+    if (audioBytes.byteLength > FIELDSCAN_AUDIO_MAX_BYTES) throw new HttpError(400, "audio_too_large");
+    const magic = validateFieldscanAudioMagic(audioBytes, mimeType);
+    if (magic !== "ok") throw new HttpError(400, `audio_quarantined_${magic}`);
+    if (privacy.decision === "clean") {
+      objectKey = fieldscanAudioObjectKey(sessionId, recordedAt, mimeType, normalizeOptionalText(input.filename));
+      const body = copyBytesToArrayBuffer(audioBytes);
+      await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
+      bytes = audioBytes.byteLength;
+      meta.rawAudioPolicy ??= "owner_only_private_r2";
+      meta.sha256 = await sha256Hex(body);
+    } else {
+      objectKey = null;
+      bytes = 0;
+      meta.rawAudioPolicy = "discarded_before_storage_by_client_vad";
+    }
+  }
+
+  const externalId = normalizeOptionalText(input.externalId);
+  const segmentId = externalId ? `fs_audio_${sanitizeIdPart(externalId)}` : newId("fs_audio");
+  const existing = externalId
+    ? await env.OBS_DB.prepare("SELECT segment_id FROM fieldscan_audio_segments WHERE external_id = ? LIMIT 1").bind(externalId).first<{ segment_id: string }>()
+    : null;
+  const finalSegmentId = existing?.segment_id ?? segmentId;
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO fieldscan_audio_segments (
+       segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec,
+       lat, lng, azimuth, storage_key, storage_provider, mime_type, bytes, privacy_status, voice_flag,
+       fingerprint_json, meta_json, transcription_status, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     ON CONFLICT(segment_id) DO UPDATE SET
+       external_id = excluded.external_id,
+       session_id = excluded.session_id,
+       user_id = excluded.user_id,
+       visit_id = excluded.visit_id,
+       place_id = excluded.place_id,
+       recorded_at = excluded.recorded_at,
+       duration_sec = excluded.duration_sec,
+       lat = excluded.lat,
+       lng = excluded.lng,
+       azimuth = excluded.azimuth,
+       storage_key = excluded.storage_key,
+       storage_provider = excluded.storage_provider,
+       mime_type = excluded.mime_type,
+       bytes = excluded.bytes,
+       privacy_status = excluded.privacy_status,
+       voice_flag = excluded.voice_flag,
+       fingerprint_json = excluded.fingerprint_json,
+       meta_json = excluded.meta_json,
+       transcription_status = 'pending',
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    finalSegmentId,
+    externalId,
+    sessionId,
+    session?.userId ?? requestedUserId,
+    normalizeOptionalText(input.visitId),
+    normalizeOptionalText(input.placeId),
+    recordedAt,
+    nullableNumberFromUnknown(input.durationSec) ?? 0,
+    nullableNumberFromUnknown(input.lat),
+    nullableNumberFromUnknown(input.lng),
+    nullableNumberFromUnknown(input.azimuth),
+    privacy.decision === "clean" ? objectKey : null,
+    privacy.decision === "clean" ? FIELDSCAN_AUDIO_STORAGE_PROVIDER : "deleted",
+    mimeType,
+    privacy.decision === "clean" ? bytes : 0,
+    privacy.decision,
+    privacy.decision === "deleted_human_voice" ? 1 : 0,
+    JSON.stringify(normalizePlainJsonObject(meta.audioFingerprint)),
+    JSON.stringify({ ...meta, privacyDecision: { reason: privacy.reason, decidedAt: new Date().toISOString() } })
+  ).run();
+
+  return json({
+    ok: true,
+    segmentId: finalSegmentId,
+    created: !existing,
+    privacyStatus: privacy.decision
+  }, 200, nativeGuideHeaders("fieldscan-audio-runtime"));
+}
+
+async function recordFieldscanAudioDetectionsNative(request: Request, env: Env): Promise<Response> {
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const input = await readJson<Record<string, unknown>>(request);
+  const segment = await findFieldscanAudioSegment(env, input);
+  if (!segment) throw new HttpError(404, "segment_not_found");
+  const detections = Array.isArray(input.detections) ? input.detections : [];
+  const embeddings = Array.isArray(input.embeddings) ? input.embeddings : [];
+  if (detections.length === 0 && embeddings.length === 0) throw new HttpError(400, "detections_or_embeddings_required");
+  if (segment.privacy_status !== "clean") {
+    await env.OBS_DB.prepare("UPDATE fieldscan_audio_segments SET transcription_status = 'skipped', updated_at = CURRENT_TIMESTAMP WHERE segment_id = ?")
+      .bind(segment.segment_id).run();
+    return json({
+      ok: true,
+      inserted: 0,
+      skipped: detections.length,
+      embeddingsInserted: 0,
+      embeddingsSkipped: embeddings.length
+    }, 200, nativeGuideHeaders("fieldscan-audio-runtime"));
+  }
+
+  let inserted = 0;
+  for (const entry of detections) {
+    const detection = asPlainObject(entry);
+    const detectedTaxon = normalizeOptionalText(detection?.detectedTaxon);
+    if (!detectedTaxon) continue;
+    await env.OBS_DB.prepare(
+      `INSERT INTO fieldscan_audio_detections (
+         detection_id, segment_id, detected_taxon, scientific_name, confidence, provider,
+         offset_sec, duration_sec, dual_agree, raw_score_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      newId("fs_audio_det"),
+      segment.segment_id,
+      detectedTaxon,
+      normalizeOptionalText(detection?.scientificName),
+      clampNumber(nullableNumberFromUnknown(detection?.confidence) ?? 0, 0, 1),
+      normalizeOptionalText(detection?.provider) ?? "perch_v2",
+      nullableNumberFromUnknown(detection?.offsetSec) ?? 0,
+      nullableNumberFromUnknown(detection?.durationSec) ?? 0,
+      detection?.dualAgree === true ? 1 : 0,
+      JSON.stringify(normalizePlainJsonObject(detection?.rawScore))
+    ).run();
+    inserted += 1;
+  }
+  await env.OBS_DB.prepare("UPDATE fieldscan_audio_segments SET transcription_status = 'done', updated_at = CURRENT_TIMESTAMP WHERE segment_id = ?")
+    .bind(segment.segment_id).run();
+  return json({
+    ok: true,
+    inserted,
+    skipped: 0,
+    embeddingsInserted: 0,
+    embeddingsSkipped: embeddings.length
+  }, 200, nativeGuideHeaders("fieldscan-audio-runtime"));
+}
+
+async function recordFieldscanAudioPrivacyDecisionNative(request: Request, env: Env): Promise<Response> {
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const input = await readJson<Record<string, unknown>>(request);
+  const decision = normalizeOptionalText(input.decision);
+  if (decision !== "clean" && decision !== "deleted_human_voice") throw new HttpError(400, "invalid_privacy_decision");
+  const segment = await findFieldscanAudioSegment(env, input);
+  if (!segment) throw new HttpError(404, "segment_not_found");
+  if (decision === "clean" && segment.privacy_status === "deleted_human_voice") {
+    throw new HttpError(409, "deleted_segment_cannot_be_restored");
+  }
+  const meta = {
+    ...parseFieldscanJsonObject(segment.meta_json),
+    privacyDecision: {
+      decidedAt: new Date().toISOString(),
+      decision,
+      reason: normalizeOptionalText(input.reason) ?? `privacy_callback_${decision}`,
+      confidence: nullableNumberFromUnknown(input.confidence)
+    }
+  };
+  if (decision === "deleted_human_voice" && segment.storage_key) {
+    await env.ASSET_BUCKET.delete(segment.storage_key).catch((error) => {
+      console.error("[fieldscan-audio] failed to delete R2 audio object", error);
+    });
+  }
+  await env.OBS_DB.prepare(
+    `UPDATE fieldscan_audio_segments
+        SET privacy_status = ?,
+            voice_flag = ?,
+            storage_key = CASE WHEN ? = 'deleted_human_voice' THEN NULL ELSE storage_key END,
+            storage_provider = CASE WHEN ? = 'deleted_human_voice' THEN 'deleted' ELSE storage_provider END,
+            bytes = CASE WHEN ? = 'deleted_human_voice' THEN 0 ELSE bytes END,
+            meta_json = ?,
+            updated_at = CURRENT_TIMESTAMP
+      WHERE segment_id = ?`
+  ).bind(
+    decision,
+    decision === "deleted_human_voice" ? 1 : 0,
+    decision,
+    decision,
+    decision,
+    JSON.stringify(meta),
+    segment.segment_id
+  ).run();
+  return json({ ok: true, segmentId: segment.segment_id, privacyStatus: decision }, 200, nativeGuideHeaders("fieldscan-audio-runtime"));
+}
+
+async function getFieldscanAudioPlaybackNative(request: Request, env: Env, segmentId: string): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session?.userId) return json({ ok: false, error: "unauthorized" }, 401, nativeGuideHeaders("fieldscan-audio-runtime"));
+  const segment = await env.OBS_DB.prepare(
+    `SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng,
+            storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json
+       FROM fieldscan_audio_segments
+      WHERE segment_id = ?
+      LIMIT 1`
+  ).bind(segmentId).first<FieldscanAudioSegmentRow>();
+  if (!segment || segment.privacy_status !== "clean" || segment.user_id !== session.userId || !segment.storage_key) {
+    return json({ ok: false, error: "audio_not_found" }, 404, nativeGuideHeaders("fieldscan-audio-runtime"));
+  }
+  const object = await env.ASSET_BUCKET.get(segment.storage_key);
+  if (!object?.body) return json({ ok: false, error: "audio_not_found" }, 404, nativeGuideHeaders("fieldscan-audio-runtime"));
+  return new Response(object.body, {
+    status: 200,
+    headers: {
+      "content-type": object.httpMetadata?.contentType ?? segment.mime_type,
+      "cache-control": "private, no-store",
+      "x-ikimon-cloudflare-native": "fieldscan-audio-runtime"
+    }
+  });
+}
+
+async function getFieldscanAudioSessionRecapNative(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng,
+            storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json
+       FROM fieldscan_audio_segments
+      WHERE session_id = ?
+      ORDER BY recorded_at ASC, segment_id ASC`
+  ).bind(sessionId).all<FieldscanAudioSegmentRow>()).results;
+  const cleanRows = rows.filter((row) => row.privacy_status === "clean");
+  const detectionRows = (await env.OBS_DB.prepare(
+    `SELECT d.segment_id, d.detected_taxon, d.confidence, d.provider, d.dual_agree
+       FROM fieldscan_audio_detections d
+       JOIN fieldscan_audio_segments s ON s.segment_id = d.segment_id
+      WHERE s.session_id = ?
+        AND s.privacy_status = 'clean'`
+  ).bind(sessionId).all<{ segment_id: string; detected_taxon: string; confidence: number; provider: string; dual_agree: number }>()).results;
+  const byTaxon = new Map<string, { count: number; bestConfidence: number; provider: string }>();
+  for (const row of detectionRows) {
+    const current = byTaxon.get(row.detected_taxon) ?? { count: 0, bestConfidence: 0, provider: row.provider };
+    current.count += 1;
+    if (Number(row.confidence) >= current.bestConfidence) {
+      current.bestConfidence = Number(row.confidence);
+      current.provider = row.provider;
+    }
+    byTaxon.set(row.detected_taxon, current);
+  }
+  const detectionsBySegment = new Map<string, Array<typeof detectionRows[number]>>();
+  for (const row of detectionRows) {
+    const bucket = detectionsBySegment.get(row.segment_id) ?? [];
+    bucket.push(row);
+    detectionsBySegment.set(row.segment_id, bucket);
+  }
+  const bundles = cleanRows.map((row, index) => {
+    const best = [...(detectionsBySegment.get(row.segment_id) ?? [])].sort((a, b) => Number(b.confidence) - Number(a.confidence))[0] ?? null;
+    return {
+      bundleId: `fs_bundle_${row.segment_id}`,
+      label: fieldscanBundleLabelForIndex(index),
+      segmentCount: 1,
+      totalDurationSec: Number(row.duration_sec) || 0,
+      firstRecordedAt: row.recorded_at,
+      lastRecordedAt: row.recorded_at,
+      representativeSegmentId: row.segment_id,
+      representativeAudioUrl: session?.userId && row.user_id === session.userId ? `/api/v1/fieldscan/audio/segment/${encodeURIComponent(row.segment_id)}` : null,
+      candidateTaxon: best?.detected_taxon ?? null,
+      bestConfidence: best ? Number(best.confidence) : null,
+      dualAgree: best?.dual_agree === 1,
+      note: best?.detected_taxon ? `候補: ${best.detected_taxon}` : "まだ名前が付いていない音"
+    };
+  });
+  const latValues = cleanRows.map((row) => row.lat).filter((value): value is number => typeof value === "number");
+  const lngValues = cleanRows.map((row) => row.lng).filter((value): value is number => typeof value === "number");
+  return json({
+    ok: true,
+    recap: {
+      sessionId,
+      segmentCount: rows.length,
+      cleanSegmentCount: cleanRows.length,
+      totalDurationSec: rows.reduce((sum, row) => sum + (Number(row.duration_sec) || 0), 0),
+      naturalDurationSec: cleanRows.reduce((sum, row) => sum + (Number(row.duration_sec) || 0), 0),
+      privacySkippedCount: rows.filter((row) => row.privacy_status !== "clean").length,
+      lastRecordedAt: rows.at(-1)?.recorded_at ?? null,
+      uniqueTaxa: [...byTaxon.entries()]
+        .map(([taxon, value]) => ({ taxon, count: value.count, bestConfidence: value.bestConfidence, provider: value.provider }))
+        .sort((a, b) => b.bestConfidence - a.bestConfidence),
+      bbox: latValues.length && lngValues.length
+        ? { minLat: Math.min(...latValues), maxLat: Math.max(...latValues), minLng: Math.min(...lngValues), maxLng: Math.max(...lngValues) }
+        : null,
+      soundBundles: bundles
+    }
+  }, 200, nativeGuideHeaders("fieldscan-audio-runtime"));
+}
+
+async function findFieldscanAudioSegment(env: Env, input: Record<string, unknown>): Promise<FieldscanAudioSegmentRow | null> {
+  const segmentId = normalizeOptionalText(input.segmentId);
+  const externalId = normalizeOptionalText(input.externalId);
+  if (!segmentId && !externalId) return null;
+  return await env.OBS_DB.prepare(
+    `SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng,
+            storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json
+       FROM fieldscan_audio_segments
+      WHERE segment_id = ? OR external_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1`
+  ).bind(segmentId, externalId).first<FieldscanAudioSegmentRow>();
+}
+
+function normalizeFieldscanAudioMime(value: unknown): string {
+  const raw = (normalizeOptionalText(value) ?? "audio/webm").toLowerCase().split(";")[0]?.trim() ?? "audio/webm";
+  const mime = raw === "video/webm" ? "audio/webm" : raw;
+  if (!FIELDSCAN_AUDIO_ALLOWED_MIME_TYPES.has(raw) && !FIELDSCAN_AUDIO_ALLOWED_MIME_TYPES.has(mime)) {
+    throw new HttpError(400, "unsupported_audio_format");
+  }
+  return mime;
+}
+
+function validateFieldscanAudioMagic(bytes: Uint8Array, mimeType: string): "ok" | string {
+  if (mimeType === "audio/webm") {
+    return bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3
+      ? "ok"
+      : "audio_container_invalid_webm";
+  }
+  if (mimeType === "audio/ogg") {
+    return bytes.length >= 4 && String.fromCharCode(...bytes.slice(0, 4)) === "OggS" ? "ok" : "audio_container_invalid_ogg";
+  }
+  if (mimeType === "audio/mp4") {
+    return bytes.length >= 12 && String.fromCharCode(...bytes.slice(4, 8)) === "ftyp" ? "ok" : "audio_container_invalid_mp4";
+  }
+  return "unsupported_audio_format";
+}
+
+function decideFieldscanInitialPrivacy(meta: Record<string, unknown>, hasInlineAudio: boolean): { decision: "clean" | "deleted_human_voice"; reason: string } {
+  if (!hasInlineAudio) return { decision: "clean", reason: "external_storage_path" };
+  const vad = asPlainObject(meta.clientVadResult);
+  if (!vad || typeof vad.speechLikely !== "boolean") return { decision: "deleted_human_voice", reason: "missing_client_vad" };
+  const voiceBandRatio = nullableNumberFromUnknown(vad.voiceBandRatio) ?? 0;
+  const confidence = nullableNumberFromUnknown(vad.confidence) ?? 0;
+  if (vad.speechLikely === true || voiceBandRatio >= 0.72) {
+    return { decision: "deleted_human_voice", reason: normalizeOptionalText(vad.reason) ?? "client_vad_speech" };
+  }
+  if (confidence < 0.55) return { decision: "deleted_human_voice", reason: "client_vad_uncertain" };
+  return { decision: "clean", reason: normalizeOptionalText(vad.reason) ?? "client_vad_clear" };
+}
+
+function fieldscanAudioObjectKey(sessionId: string, recordedAt: string, mimeType: string, filename: string | null): string {
+  const date = new Date(recordedAt);
+  const yearMonth = Number.isNaN(date.getTime()) ? "unknown" : date.toISOString().slice(0, 7);
+  const sessionSlug = sanitizeIdPart(sessionId).slice(0, 80) || "session";
+  const baseName = sanitizeIdPart((filename ?? "chunk").replace(/\.[A-Za-z0-9]+$/, "")).slice(0, 80) || "chunk";
+  return `private-audio/fieldscan/${yearMonth}/${sessionSlug}/${baseName}-${crypto.randomUUID()}${extensionForFieldscanAudioMime(mimeType)}`;
+}
+
+function extensionForFieldscanAudioMime(mimeType: string): string {
+  if (mimeType === "audio/ogg") return ".ogg";
+  if (mimeType === "audio/mp4") return ".m4a";
+  return ".webm";
+}
+
+function decodeBase64ToBytes(value: string): Uint8Array {
+  const trimmed = value.trim();
+  const base64 = trimmed.startsWith("data:") && trimmed.includes(",") ? trimmed.slice(trimmed.indexOf(",") + 1) : trimmed;
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function normalizePlainJsonObject(value: unknown): Record<string, unknown> {
+  return asPlainObject(value) ?? {};
+}
+
+function parseFieldscanJsonObject(value: string | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    return normalizePlainJsonObject(JSON.parse(value));
+  } catch {
+    return {};
+  }
+}
+
+function copyBytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
+function requireText(value: unknown, error: string): string {
+  const text = normalizeOptionalText(value);
+  if (!text) throw new HttpError(400, error);
+  return text;
+}
+
+function nullableNumberFromUnknown(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function fieldscanBundleLabelForIndex(index: number): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  return index < alphabet.length ? `音${alphabet[index]}` : `音${index + 1}`;
 }
 
 const GUIDE_INTERACTION_TYPES = new Set(["surfaced", "played", "skipped", "saved_later", "helpful", "wrong", "corrected"]);
