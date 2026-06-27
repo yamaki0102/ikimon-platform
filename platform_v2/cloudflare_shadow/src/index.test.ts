@@ -228,6 +228,33 @@ interface ObservationDataRightsRow {
   source_payload_json: string;
 }
 
+interface WaterbodyRow {
+  ikimon_waterbody_id: string;
+  waterbody_type: string;
+  parent_waterbody_id: string | null;
+  public_label: string;
+  source: string;
+  source_version: string;
+  geometry_precision: string;
+  source_payload_json: string;
+}
+
+interface WaterRecordExtensionRow {
+  visit_id: string;
+  occurrence_id: string | null;
+  waterbody_id: string | null;
+  catch_outcome: string;
+  capture_method: string | null;
+  participant_count: number | null;
+  effort_minutes: number | null;
+  target_taxa_scope: string | null;
+  released_count: number | null;
+  kept_count: number | null;
+  public_waterbody_label: string | null;
+  environment_snapshot_json: string;
+  source_payload_json: string;
+}
+
 interface OperationAuditRow {
   audit_id: string;
   operation_type: string;
@@ -1133,6 +1160,8 @@ class FakeD1 {
   userProfiles = new Map<string, UserProfileRow>();
   profileWriteAudit: Array<{ audit_id: string; user_id: string; payload_json: string }> = [];
   rememberTokens = new Map<string, RememberTokenRow>();
+  waterbodies = new Map<string, WaterbodyRow>();
+  waterRecordExtensions = new Map<string, WaterRecordExtensionRow>();
   videoUploads = new Map<string, VideoUploadRow>();
   legacyAssetImports: LegacyAssetImportRow[] = [];
   legacyR2Imports: LegacyR2ImportRow[] = [];
@@ -1900,6 +1929,39 @@ class FakeStatement {
         external_export_allowed: number(v[7]),
         withdrawal_status: string(v[8]),
         source_payload_json: string(v[9])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO waterbodies")) {
+      this.db.waterbodies.set(string(v[0]), {
+        ikimon_waterbody_id: string(v[0]),
+        waterbody_type: string(v[1]),
+        parent_waterbody_id: nullableString(v[2]),
+        public_label: string(v[3]),
+        source: string(v[4]),
+        source_version: string(v[5]),
+        geometry_precision: string(v[6]),
+        source_payload_json: string(v[7])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO water_record_extensions")) {
+      this.db.waterRecordExtensions.set(string(v[0]), {
+        visit_id: string(v[0]),
+        occurrence_id: nullableString(v[1]),
+        waterbody_id: nullableString(v[2]),
+        catch_outcome: string(v[3]),
+        capture_method: nullableString(v[4]),
+        participant_count: nullableNumber(v[5]),
+        effort_minutes: nullableNumber(v[6]),
+        target_taxa_scope: nullableString(v[7]),
+        released_count: nullableNumber(v[8]),
+        kept_count: nullableNumber(v[9]),
+        public_waterbody_label: nullableString(v[10]),
+        environment_snapshot_json: string(v[11]),
+        source_payload_json: string(v[12])
       });
       return {};
     }
@@ -5263,6 +5325,19 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
       { vernacularName: "テスト生物", rank: "species", isPrimary: true },
       { vernacularName: "背景の植物", rank: "genus" }
     ],
+    waterRecord: {
+      catchOutcome: "no_catch",
+      publicWaterbodyLabel: " 浜名湖 ",
+      waterbodyType: "lake",
+      captureMethod: "visual survey",
+      participantCount: 2,
+      effortMinutes: 35.5,
+      targetTaxaScope: "fish",
+      releasedCount: 0,
+      keptCount: 0,
+      environmentSnapshot: { weather: "cloudy" },
+      sourcePayload: { source: "unit" }
+    },
     sourcePayload: { quick_capture_state: "unknown" }
   });
 
@@ -5280,6 +5355,18 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(response.contributionReceipts[0].kind, "record_body_saved");
   assert.equal(obs.observations.get("visit-shadow-contract")?.exact_lat, 34.71234);
   assert.equal(obs.observations.get("visit-shadow-contract")?.public_cell, "34.71,137.81");
+  assert.equal(obs.waterRecordExtensions.size, 1);
+  const waterRecord = obs.waterRecordExtensions.get("visit-shadow-contract");
+  assert.equal(waterRecord?.occurrence_id, "occ:visit-shadow-contract:0");
+  assert.equal(waterRecord?.catch_outcome, "no_catch");
+  assert.equal(waterRecord?.public_waterbody_label, "浜名湖");
+  assert.equal(waterRecord?.participant_count, 2);
+  assert.equal(waterRecord?.effort_minutes, 35.5);
+  assert.match(waterRecord?.environment_snapshot_json ?? "", /cloudy/);
+  assert.equal(obs.waterbodies.size, 1);
+  const waterbody = [...obs.waterbodies.values()][0];
+  assert.equal(waterbody?.public_label, "浜名湖");
+  assert.equal(waterbody?.waterbody_type, "lake");
 });
 
 test("v1 photo upload stores base64 media in R2 and returns the shared ok contract", async () => {

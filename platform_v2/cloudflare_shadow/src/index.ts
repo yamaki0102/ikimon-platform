@@ -159,8 +159,28 @@ interface LegacyObservationUpsertInput {
   teamId?: string | null;
   participantRole?: string | null;
   fieldScan?: Record<string, unknown> | null;
+  waterRecord?: CompatibleWaterRecordInput | null;
   sourcePayload?: Record<string, unknown> | null;
   dataRights?: Record<string, unknown> | null;
+}
+
+interface CompatibleWaterRecordInput {
+  catchOutcome?: unknown;
+  captureMethod?: unknown;
+  participantCount?: unknown;
+  effortMinutes?: unknown;
+  targetTaxaScope?: unknown;
+  releasedCount?: unknown;
+  keptCount?: unknown;
+  publicWaterbodyLabel?: unknown;
+  waterbodyId?: unknown;
+  waterbodyType?: unknown;
+  parentWaterbodyId?: unknown;
+  source?: unknown;
+  sourceVersion?: unknown;
+  geometryPrecision?: unknown;
+  environmentSnapshot?: unknown;
+  sourcePayload?: unknown;
 }
 
 interface CompatibleObservationIdentificationInput {
@@ -13005,6 +13025,13 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     })
   ]);
 
+  await upsertCompatibleWaterRecordIfPresent(env, input.waterRecord, {
+    visitId,
+    occurrenceId,
+    effortMinutes: numberOrNull(input.sourcePayload?.effort_minutes) ?? null,
+    targetTaxaScope: normalizeOptionalText(input.targetTaxaScope)
+  });
+
   await hookLegacyObservationToEventNative(env, input, {
     visitId,
     occurrenceId,
@@ -13037,6 +13064,112 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     placeMemorySample: [],
     contributionReceipts: buildLegacyContributionReceipts(visitId, occurrenceId, occurrenceIds.length, placeName, input)
   }, 201);
+}
+
+async function upsertCompatibleWaterRecordIfPresent(
+  env: Env,
+  input: CompatibleWaterRecordInput | null | undefined,
+  context: { visitId: string; occurrenceId: string; effortMinutes: number | null; targetTaxaScope: string | null }
+): Promise<void> {
+  if (!input || typeof input !== "object") return;
+  const catchOutcome = normalizeCatchOutcome(input.catchOutcome);
+  if (!catchOutcome) return;
+
+  const publicWaterbodyLabel = normalizeOptionalText(input.publicWaterbodyLabel);
+  const waterbodyType = normalizeWaterbodyType(input.waterbodyType);
+  const source = normalizeOptionalText(input.source) ?? "ikimon";
+  const waterbodyId = normalizeOptionalId(input.waterbodyId)
+    ?? (publicWaterbodyLabel ? await compatibleWaterbodyIdFor(publicWaterbodyLabel, waterbodyType, source) : null);
+  const sourcePayload = {
+    ...(asPlainObject(input.sourcePayload) ?? {}),
+    source: "cloudflare_observation_write_water_record"
+  };
+
+  if (waterbodyId && publicWaterbodyLabel) {
+    await env.OBS_DB.prepare(
+      `INSERT INTO waterbodies (
+         ikimon_waterbody_id, waterbody_type, parent_waterbody_id, public_label,
+         source, source_version, geometry_precision, source_payload_json, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(ikimon_waterbody_id) DO UPDATE SET
+         waterbody_type = excluded.waterbody_type,
+         parent_waterbody_id = excluded.parent_waterbody_id,
+         public_label = excluded.public_label,
+         source = excluded.source,
+         source_version = excluded.source_version,
+         geometry_precision = excluded.geometry_precision,
+         source_payload_json = excluded.source_payload_json,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      waterbodyId,
+      waterbodyType,
+      normalizeOptionalId(input.parentWaterbodyId),
+      publicWaterbodyLabel,
+      source,
+      normalizeOptionalText(input.sourceVersion) ?? "v0",
+      normalizeGeometryPrecision(input.geometryPrecision),
+      JSON.stringify(sourcePayload)
+    ).run();
+  }
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO water_record_extensions (
+       visit_id, occurrence_id, waterbody_id, catch_outcome, capture_method,
+       participant_count, effort_minutes, target_taxa_scope, released_count, kept_count,
+       public_waterbody_label, environment_snapshot_json, source_payload_json, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(visit_id) DO UPDATE SET
+       occurrence_id = excluded.occurrence_id,
+       waterbody_id = excluded.waterbody_id,
+       catch_outcome = excluded.catch_outcome,
+       capture_method = excluded.capture_method,
+       participant_count = excluded.participant_count,
+       effort_minutes = excluded.effort_minutes,
+       target_taxa_scope = excluded.target_taxa_scope,
+       released_count = excluded.released_count,
+       kept_count = excluded.kept_count,
+       public_waterbody_label = excluded.public_waterbody_label,
+       environment_snapshot_json = excluded.environment_snapshot_json,
+       source_payload_json = excluded.source_payload_json,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    context.visitId,
+    context.occurrenceId,
+    waterbodyId,
+    catchOutcome,
+    normalizeOptionalText(input.captureMethod),
+    integerOrNull(input.participantCount),
+    finiteNumberOrNull(input.effortMinutes) ?? context.effortMinutes,
+    normalizeOptionalText(input.targetTaxaScope) ?? context.targetTaxaScope,
+    integerOrNull(input.releasedCount),
+    integerOrNull(input.keptCount),
+    publicWaterbodyLabel,
+    JSON.stringify(asPlainObject(input.environmentSnapshot) ?? {}),
+    JSON.stringify(sourcePayload)
+  ).run();
+}
+
+function normalizeCatchOutcome(value: unknown): "caught" | "released" | "kept" | "lost" | "no_catch" | "observed_only" | null {
+  return value === "caught" || value === "released" || value === "kept" || value === "lost" || value === "no_catch" || value === "observed_only"
+    ? value
+    : null;
+}
+
+function normalizeWaterbodyType(value: unknown): string {
+  const allowed = ["unspecified", "basin", "watershed", "river", "river_segment", "lake", "pond", "wetland", "estuary", "coast", "port", "harbor", "artificial_canal"];
+  const text = normalizeOptionalText(value);
+  return text && allowed.includes(text) ? text : "unspecified";
+}
+
+function normalizeGeometryPrecision(value: unknown): string {
+  const allowed = ["label_only", "municipality", "mesh", "segment", "polygon", "exact_private"];
+  const text = normalizeOptionalText(value);
+  return text && allowed.includes(text) ? text : "label_only";
+}
+
+async function compatibleWaterbodyIdFor(label: string, type: string, source: string): Promise<string> {
+  const hash = await sha256Hex(textToArrayBuffer(`${source}|${type}|${label.trim().toLowerCase()}`));
+  return `ikimon_waterbody_${hash.slice(0, 16)}`;
 }
 
 type LegacyObservationEventHookResult = {
