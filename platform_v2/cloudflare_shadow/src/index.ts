@@ -93,6 +93,12 @@ interface Env {
   TWITTER_CLIENT_SECRET?: string;
   V2_OAUTH_STATE_SECRET?: string;
   CLOUDFLARE_STREAM_WEBHOOK_SECRET?: string;
+  MPC_DISABLED?: string;
+  MPC_STAC_API_URL?: string;
+  MPC_DATA_API_URL?: string;
+  SENTINEL_ENVIRONMENT_BATCH_SIZE?: string;
+  SENTINEL_ENVIRONMENT_DAYS_BACK?: string;
+  SENTINEL_ENVIRONMENT_MAX_CLOUD?: string;
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -2307,6 +2313,12 @@ export const worker = {
         return internalAlertDeliveryDrain(url, env);
       }
 
+      if (request.method === "POST" && url.pathname === "/internal/sentinel-environment/run") {
+        const authError = authorizeInternalRequest(request, env);
+        if (authError) return authError;
+        return internalSentinelEnvironmentRun(url, env);
+      }
+
       if (url.pathname.startsWith("/internal/")) {
         return json({ error: "not_found" }, 404);
       }
@@ -2328,6 +2340,7 @@ export const worker = {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
     ctx.waitUntil(runScheduledObservationEventQuests(env));
+    ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
@@ -7410,6 +7423,290 @@ async function drainAlertDeliveries(
     }
   }
   return { configured: true, scanned: pending.results.length, sent, failed, suppressed, deferred };
+}
+
+type SentinelEnvironmentMetricKind = "ndvi_mean" | "ndvi_max" | "water_pct";
+
+interface SentinelEnvironmentTargetRow {
+  field_id: string;
+  public_lat: number;
+  public_lng: number;
+  radius_m: number | null;
+}
+
+interface SentinelEnvironmentScene {
+  observedOn: string;
+  ndviMean: number | null;
+  ndviMax: number | null;
+  ndwiMean: number | null;
+  cloudPct: number;
+  itemId: string;
+  collection: string;
+  sourceUrl: string;
+  rawAssetHref: string;
+}
+
+interface SentinelEnvironmentMetric {
+  kind: SentinelEnvironmentMetricKind;
+  value: number;
+  unit: string;
+  metadata: Record<string, unknown>;
+}
+
+async function internalSentinelEnvironmentRun(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? env.SENTINEL_ENVIRONMENT_BATCH_SIZE ?? "25"), 1, 100);
+  const daysBack = clampInteger(Number(url.searchParams.get("daysBack") ?? env.SENTINEL_ENVIRONMENT_DAYS_BACK ?? "14"), 1, 120);
+  const dryRun = url.searchParams.get("dryRun") === "1";
+  const result = await runSentinelEnvironmentSnapshots(env, { source: "manual", limit, daysBack, dryRun });
+  return json({ ok: true, ...result }, 200, { "cache-control": "no-store" });
+}
+
+async function runScheduledSentinelEnvironmentSnapshots(env: Env): Promise<void> {
+  if (!isAppRuntime(env)) return;
+  await runSentinelEnvironmentSnapshots(env, {
+    source: "cron",
+    limit: clampInteger(Number(env.SENTINEL_ENVIRONMENT_BATCH_SIZE ?? "25"), 1, 100),
+    daysBack: clampInteger(Number(env.SENTINEL_ENVIRONMENT_DAYS_BACK ?? "14"), 1, 120),
+    dryRun: false
+  }).catch((err) => console.error("[sentinel-environment] scheduled tick failed", err));
+}
+
+async function runSentinelEnvironmentSnapshots(
+  env: Env,
+  options: { source: "cron" | "manual"; limit: number; daysBack: number; dryRun: boolean }
+): Promise<{ configured: boolean; scanned: number; written: number; missed: number; failed: number; skipped: number; source: string }> {
+  if (env.MPC_DISABLED === "1") {
+    return { configured: false, scanned: 0, written: 0, missed: 0, failed: 0, skipped: 0, source: options.source };
+  }
+  const targets = await env.OBS_DB.prepare(
+    `SELECT field_id, public_lat, public_lng, radius_m
+       FROM production_import_field_detail_readmodel
+      WHERE public_lat IS NOT NULL AND public_lng IS NOT NULL
+      ORDER BY updated_at DESC
+      LIMIT ?`
+  ).bind(options.limit).all<SentinelEnvironmentTargetRow>();
+  let written = 0;
+  let missed = 0;
+  let failed = 0;
+  let skipped = 0;
+  if (options.dryRun) {
+    return { configured: true, scanned: targets.results.length, written, missed, failed, skipped, source: options.source };
+  }
+  for (const target of targets.results) {
+    const scene = await fetchSentinelEnvironmentScene(env, Number(target.public_lat), Number(target.public_lng), Number(target.radius_m ?? 500), {
+      daysBack: options.daysBack,
+      maxCloud: clampInteger(Number(env.SENTINEL_ENVIRONMENT_MAX_CLOUD ?? "30"), 0, 100)
+    }).catch((err) => {
+      console.error("[sentinel-environment] scene fetch failed", { fieldId: target.field_id, error: err instanceof Error ? err.message : String(err) });
+      return null;
+    });
+    if (!scene) {
+      missed += 1;
+      continue;
+    }
+    const result = await writeD1PlaceEnvironmentSnapshot(env, {
+      placeId: target.field_id,
+      observedOn: scene.observedOn,
+      sourceKind: "planetary_computer",
+      sourceUrl: scene.sourceUrl,
+      contentBytes: Math.max(1, scene.rawAssetHref.length),
+      license: "CC-BY-4.0 (Sentinel-2 / Copernicus)",
+      notes: { item_id: scene.itemId, asset_href: scene.rawAssetHref, cloud_pct: scene.cloudPct, collection: scene.collection },
+      metrics: metricsFromSentinelEnvironmentScene(scene)
+    }).catch((err) => {
+      console.error("[sentinel-environment] D1 write failed", { fieldId: target.field_id, error: err instanceof Error ? err.message : String(err) });
+      failed += 1;
+      return null;
+    });
+    if (!result) continue;
+    written += result.inserted + result.superseded;
+    skipped += result.skipped;
+  }
+  return { configured: true, scanned: targets.results.length, written, missed, failed, skipped, source: options.source };
+}
+
+function metricsFromSentinelEnvironmentScene(scene: SentinelEnvironmentScene): SentinelEnvironmentMetric[] {
+  const metrics: SentinelEnvironmentMetric[] = [];
+  if (typeof scene.ndviMean === "number") {
+    metrics.push({ kind: "ndvi_mean", value: scene.ndviMean, unit: "index", metadata: { item_id: scene.itemId, cloud_pct: scene.cloudPct } });
+  }
+  if (typeof scene.ndviMax === "number") {
+    metrics.push({ kind: "ndvi_max", value: scene.ndviMax, unit: "index", metadata: { item_id: scene.itemId, cloud_pct: scene.cloudPct } });
+  }
+  if (typeof scene.ndwiMean === "number") {
+    metrics.push({
+      kind: "water_pct",
+      value: Math.max(0, Math.min(100, Math.round(((scene.ndwiMean + 1) / 2) * 100))),
+      unit: "%",
+      metadata: { ndwi_mean: scene.ndwiMean, item_id: scene.itemId }
+    });
+  }
+  if (metrics.length === 0) {
+    metrics.push({ kind: "ndvi_mean", value: 0, unit: "index", metadata: { pending_stats: true, item_id: scene.itemId } });
+  }
+  return metrics;
+}
+
+async function writeD1PlaceEnvironmentSnapshot(
+  env: Env,
+  input: {
+    placeId: string;
+    observedOn: string;
+    sourceKind: string;
+    sourceUrl: string;
+    contentBytes: number;
+    license: string;
+    notes: Record<string, unknown>;
+    metrics: SentinelEnvironmentMetric[];
+  }
+): Promise<{ inserted: number; superseded: number; skipped: number }> {
+  let inserted = 0;
+  let superseded = 0;
+  let skipped = 0;
+  if (!input.placeId || input.metrics.length === 0) return { inserted, superseded, skipped };
+  const sourceSnapshotId = await upsertD1SourceSnapshot(env, input);
+  for (const metric of input.metrics) {
+    const current = await env.OBS_DB.prepare(
+      `SELECT snapshot_id, valid_from
+         FROM place_environment_snapshots
+        WHERE place_id = ? AND metric_kind = ? AND valid_to IS NULL
+        LIMIT 1`
+    ).bind(input.placeId, metric.kind).first<{ snapshot_id: string; valid_from: string }>();
+    if (current?.valid_from === input.observedOn) {
+      skipped += 1;
+      continue;
+    }
+    const snapshotId = newId("env_snapshot");
+    await env.OBS_DB.prepare(
+      `INSERT INTO place_environment_snapshots (
+         snapshot_id, place_id, metric_kind, metric_value, metric_unit,
+         tile_z, tile_x, tile_y, observed_on, source_snapshot_id,
+         valid_from, valid_to, superseded_by, metadata
+       ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, NULL, NULL, ?)`
+    ).bind(snapshotId, input.placeId, metric.kind, metric.value, metric.unit, input.observedOn, sourceSnapshotId, input.observedOn, JSON.stringify(metric.metadata)).run();
+    if (current) {
+      await env.OBS_DB.prepare(
+        "UPDATE place_environment_snapshots SET valid_to = ?, superseded_by = ? WHERE snapshot_id = ?"
+      ).bind(input.observedOn, snapshotId, current.snapshot_id).run();
+      superseded += 1;
+    } else {
+      inserted += 1;
+    }
+  }
+  return { inserted, superseded, skipped };
+}
+
+async function upsertD1SourceSnapshot(
+  env: Env,
+  input: { sourceKind: string; sourceUrl: string; contentBytes: number; license: string; notes: Record<string, unknown> }
+): Promise<string> {
+  const sha = await sha256Hex(new TextEncoder().encode(`${input.sourceKind}\0${input.sourceUrl}\0${input.contentBytes}`).buffer);
+  const existing = await env.OBS_DB.prepare(
+    "SELECT snapshot_id FROM source_snapshots WHERE source_kind = ? AND content_sha256 = ? LIMIT 1"
+  ).bind(input.sourceKind, sha).first<{ snapshot_id: string }>();
+  if (existing?.snapshot_id) return existing.snapshot_id;
+  const snapshotId = newId("source_snapshot");
+  await env.OBS_DB.prepare(
+    `INSERT INTO source_snapshots (
+       snapshot_id, source_kind, source_url, content_sha256, content_bytes,
+       storage_backend, storage_path, license, notes
+     ) VALUES (?, ?, ?, ?, ?, 'cloudflare_d1', ?, ?, ?)`
+  ).bind(snapshotId, input.sourceKind, input.sourceUrl, sha, input.contentBytes, `inline://stac/${sha.slice(0, 12)}`, input.license, JSON.stringify(input.notes)).run();
+  return snapshotId;
+}
+
+function sentinelEnvironmentBbox(lat: number, lng: number, radiusM: number): [number, number, number, number] {
+  const r = Math.max(50, Math.min(20000, radiusM));
+  const dLat = r / 111000;
+  const dLng = r / (111000 * Math.max(0.05, Math.cos((lat * Math.PI) / 180)));
+  return [lng - dLng, lat - dLat, lng + dLng, lat + dLat];
+}
+
+async function fetchSentinelEnvironmentScene(
+  env: Env,
+  lat: number,
+  lng: number,
+  radiusM: number,
+  options: { daysBack: number; maxCloud: number }
+): Promise<SentinelEnvironmentScene | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const bbox = sentinelEnvironmentBbox(lat, lng, radiusM);
+  const stacBase = (env.MPC_STAC_API_URL || "https://planetarycomputer.microsoft.com/api/stac/v1").replace(/\/$/, "");
+  const dataBase = (env.MPC_DATA_API_URL || "https://planetarycomputer.microsoft.com/api/data/v1").replace(/\/$/, "");
+  const since = new Date(Date.now() - options.daysBack * 86_400_000).toISOString().slice(0, 10);
+  const searchResponse = await fetch(`${stacBase}/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      collections: ["sentinel-2-l2a"],
+      bbox,
+      datetime: `${since}/..`,
+      query: { "eo:cloud_cover": { lt: options.maxCloud } },
+      sortby: [{ field: "properties.datetime", direction: "desc" }],
+      limit: 1
+    })
+  });
+  if (!searchResponse.ok) return null;
+  const searchPayload = await searchResponse.json().catch(() => null) as {
+    features?: Array<{
+      id?: unknown;
+      collection?: unknown;
+      properties?: { datetime?: unknown; "eo:cloud_cover"?: unknown };
+      assets?: Record<string, { href?: unknown }>;
+      links?: Array<{ rel?: unknown; href?: unknown }>;
+    }>;
+  } | null;
+  const feature = searchPayload?.features?.[0];
+  const itemId = normalizeOptionalText(feature?.id);
+  if (!feature || !itemId) return null;
+  const collection = normalizeOptionalText(feature.collection) ?? "sentinel-2-l2a";
+  const observedOn = (normalizeOptionalText(feature.properties?.datetime) ?? new Date().toISOString()).slice(0, 10);
+  const sourceUrl = normalizeOptionalText(feature.links?.find((link) => link.rel === "self" && typeof link.href === "string")?.href) ?? `${stacBase}/collections/${collection}/items/${itemId}`;
+  const rawAssetHref = normalizeOptionalText(feature.assets?.visual?.href) ?? normalizeOptionalText(feature.assets?.B04?.href) ?? sourceUrl;
+  const [ndvi, ndwi] = await Promise.all([
+    fetchSentinelExpressionStats(dataBase, collection, itemId, "(B08-B04)/(B08+B04)", bbox),
+    fetchSentinelExpressionStats(dataBase, collection, itemId, "(B03-B08)/(B03+B08)", bbox)
+  ]);
+  return {
+    observedOn,
+    ndviMean: ndvi.mean,
+    ndviMax: ndvi.max,
+    ndwiMean: ndwi.mean,
+    cloudPct: Number(feature.properties?.["eo:cloud_cover"] ?? 0),
+    itemId,
+    collection,
+    sourceUrl,
+    rawAssetHref
+  };
+}
+
+async function fetchSentinelExpressionStats(
+  dataBase: string,
+  collection: string,
+  itemId: string,
+  expression: string,
+  bbox: [number, number, number, number]
+): Promise<{ mean: number | null; max: number | null }> {
+  const [w, s, e, n] = bbox;
+  const params = new URLSearchParams({ collection, item: itemId, expression, asset_as_band: "true" });
+  const response = await fetch(`${dataBase}/item/statistics?${params.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] },
+      properties: {}
+    })
+  });
+  if (!response.ok) return { mean: null, max: null };
+  const payload = await response.json().catch(() => null) as
+    | { properties?: { statistics?: Record<string, { mean?: number; max?: number }> } }
+    | null;
+  const first = Object.values(payload?.properties?.statistics ?? {})[0];
+  return {
+    mean: typeof first?.mean === "number" && Number.isFinite(first.mean) ? first.mean : null,
+    max: typeof first?.max === "number" && Number.isFinite(first.max) ? first.max : null
+  };
 }
 
 function resolveAlertEmailRecipient(row: AlertDeliveryCandidateRow): string | null {

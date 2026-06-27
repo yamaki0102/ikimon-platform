@@ -213,6 +213,8 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observationRecordAiReview.ts": "cloudflare_observation_record_ai_review_api",
     "platform_v2/src/services/waterRecordExtension.ts": "cloudflare_observation_water_record_extension_runtime",
     "platform_v2/src/services/placeManagementPolicy.ts": "cloudflare_place_management_policy_runtime",
+    "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts": "cloudflare_sentinel_environment_snapshot_runtime",
+    "platform_v2/src/services/environmentSnapshotWriter.ts": "cloudflare_sentinel_environment_snapshot_runtime",
     "platform_v2/src/services/identificationParticipation.ts": "cloudflare_identification_participation_runtime",
     "platform_v2/src/services/identificationConsensus.ts": "cloudflare_identification_consensus_runtime",
     "platform_v2/src/services/specialistReview.ts": "cloudflare_specialist_review_runtime",

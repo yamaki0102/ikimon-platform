@@ -497,6 +497,32 @@ interface ProductionFieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface SourceSnapshotTestRow {
+  snapshot_id: string;
+  source_kind: string;
+  source_url: string;
+  content_sha256: string;
+  content_bytes: number;
+  storage_backend: string;
+  storage_path: string;
+  license: string;
+  notes: string;
+}
+
+interface PlaceEnvironmentSnapshotTestRow {
+  snapshot_id: string;
+  place_id: string;
+  metric_kind: string;
+  metric_value: number;
+  metric_unit: string;
+  observed_on: string;
+  source_snapshot_id: string;
+  valid_from: string;
+  valid_to: string | null;
+  superseded_by: string | null;
+  metadata: string;
+}
+
 interface FieldManagerGrantTestRow {
   manager_id: string;
   field_id: string;
@@ -1377,6 +1403,8 @@ class FakeD1 {
   observationReassessmentRequests = new Map<string, ObservationReassessmentRequestRow>();
   candidateActionRequests = new Map<string, CandidateActionRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
+  sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
+  placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
   fieldManagers = new Map<string, FieldManagerGrantTestRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
@@ -1943,6 +1971,45 @@ class FakeStatement {
       row.status = string(v[0]);
       row.payload_json = string(v[1]);
       row.updated_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO source_snapshots")) {
+      this.db.sourceSnapshots.set(string(v[0]), {
+        snapshot_id: string(v[0]),
+        source_kind: string(v[1]),
+        source_url: string(v[2]),
+        content_sha256: string(v[3]),
+        content_bytes: number(v[4]),
+        storage_backend: "cloudflare_d1",
+        storage_path: string(v[5]),
+        license: string(v[6]),
+        notes: string(v[7])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO place_environment_snapshots")) {
+      this.db.placeEnvironmentSnapshots.set(string(v[0]), {
+        snapshot_id: string(v[0]),
+        place_id: string(v[1]),
+        metric_kind: string(v[2]),
+        metric_value: number(v[3]),
+        metric_unit: string(v[4]),
+        observed_on: string(v[5]),
+        source_snapshot_id: string(v[6]),
+        valid_from: string(v[7]),
+        valid_to: null,
+        superseded_by: null,
+        metadata: string(v[8])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE place_environment_snapshots SET valid_to")) {
+      const row = requireRow(this.db.placeEnvironmentSnapshots, string(v[2]));
+      row.valid_to = string(v[0]);
+      row.superseded_by = string(v[1]);
       return {};
     }
 
@@ -3679,6 +3746,20 @@ class FakeStatement {
       return (this.db.productionFieldDetails.get(string(v[0])) as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT snapshot_id FROM source_snapshots")) {
+      const row = [...this.db.sourceSnapshots.values()].find((candidate) =>
+        candidate.source_kind === string(v[0]) && candidate.content_sha256 === string(v[1])
+      );
+      return (row ? { snapshot_id: row.snapshot_id } : null) as T | null;
+    }
+
+    if (normalized.startsWith("SELECT snapshot_id, valid_from FROM place_environment_snapshots")) {
+      const row = [...this.db.placeEnvironmentSnapshots.values()].find((candidate) =>
+        candidate.place_id === string(v[0]) && candidate.metric_kind === string(v[1]) && candidate.valid_to === null
+      );
+      return (row ? { snapshot_id: row.snapshot_id, valid_from: row.valid_from } : null) as T | null;
+    }
+
     if (normalized.startsWith("SELECT role FROM field_managers")) {
       const userId = string(v[0]);
       const fieldId = string(v[1]);
@@ -4904,6 +4985,20 @@ class FakeStatement {
         .slice(0, limit);
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT field_id, public_lat, public_lng, radius_m")) {
+      const limit = number(this.values[0]);
+      const rows = [...this.db.productionFieldDetails.values()]
+        .filter((row) => Number.isFinite(row.public_lat) && Number.isFinite(row.public_lng))
+        .sort((a, b) => String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")))
+        .slice(0, limit)
+        .map((row) => ({
+          field_id: row.field_id,
+          public_lat: row.public_lat,
+          public_lng: row.public_lng,
+          radius_m: row.radius_m
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT manager_id, field_id, user_id, role, granted_at, granted_by, expires_at, note")) {
       const fieldId = string(this.values[0]);
       const rows = [...this.db.fieldManagers.values()]
@@ -5171,7 +5266,13 @@ function createEnv(queue = new FakeQueue()) {
       OBSERVATION_DB_NAME: "ikimon_shadow_observations_2026_06",
       OBSERVATION_ARCHIVE_TARGET: "r2_sql_export_by_partition_month",
       PUBLIC_WRITE_MODE: "origin_fallback",
-      CLOUDFLARE_STREAM_WEBHOOK_SECRET: undefined as string | undefined
+      CLOUDFLARE_STREAM_WEBHOOK_SECRET: undefined as string | undefined,
+      MPC_DISABLED: undefined as string | undefined,
+      MPC_STAC_API_URL: undefined as string | undefined,
+      MPC_DATA_API_URL: undefined as string | undefined,
+      SENTINEL_ENVIRONMENT_BATCH_SIZE: undefined as string | undefined,
+      SENTINEL_ENVIRONMENT_DAYS_BACK: undefined as string | undefined,
+      SENTINEL_ENVIRONMENT_MAX_CLOUD: undefined as string | undefined
     },
     core,
     obs,
@@ -11635,6 +11736,110 @@ test("production observation event APIs run location and rally routes on D1 with
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+function withMockedSentinelFetch<T>(run: () => Promise<T>): Promise<T> {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith("/search")) {
+      return new Response(JSON.stringify({
+        features: [{
+          id: "S2A_TEST_SCENE",
+          collection: "sentinel-2-l2a",
+          properties: { datetime: "2026-06-20T01:23:45Z", "eo:cloud_cover": 8 },
+          assets: { visual: { href: "https://example.test/sentinel/visual.tif" } },
+          links: [{ rel: "self", href: "https://example.test/stac/S2A_TEST_SCENE" }]
+        }]
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url.includes("/item/statistics")) {
+      const isNdwi = url.includes("B03-B08");
+      return new Response(JSON.stringify({
+        properties: {
+          statistics: {
+            expression: isNdwi ? { mean: -0.2, max: 0.1 } : { mean: 0.42, max: 0.71 }
+          }
+        }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("not mocked", { status: 404 });
+  }) as typeof fetch;
+  return run().finally(() => {
+    globalThis.fetch = previousFetch;
+  });
+}
+
+function seedSentinelField(obs: FakeD1, fieldId = "field-sentinel-1"): void {
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "Sentinel Field",
+    name_kana: null,
+    summary: null,
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: `cell-${fieldId}`,
+    public_lat: 34.7,
+    public_lng: 137.7,
+    radius_m: 400,
+    area_ha: null,
+    has_polygon: 0,
+    has_simplified_geometry: 0,
+    certification_id: null,
+    certification_url: null,
+    official_url: null,
+    owner_url: null,
+    story_url: null,
+    verification_level: "public",
+    verification_method: null,
+    verification_label: null,
+    source_confidence: 0.9,
+    valid_from: null,
+    valid_to: null,
+    entity_key: null,
+    updated_at: "2026-06-20T00:00:00.000Z"
+  });
+}
+
+test("internal sentinel environment run writes D1 source and place environment snapshots", async () => {
+  const { env, obs } = createEnv();
+  seedSentinelField(obs);
+
+  await withMockedSentinelFetch(async () => {
+    const response = await worker.fetch(new Request("https://worker.test/internal/sentinel-environment/run?limit=1", {
+      method: "POST",
+      headers: { authorization: `Bearer ${INTERNAL_AUTH_TOKEN}` }
+    }), env);
+    assert.equal(response.status, 200);
+    const payload = await response.json() as { written: number; scanned: number; missed: number; failed: number };
+    assert.equal(payload.scanned, 1);
+    assert.equal(payload.written, 3);
+    assert.equal(payload.missed, 0);
+    assert.equal(payload.failed, 0);
+  });
+
+  assert.equal(obs.sourceSnapshots.size, 1);
+  assert.equal(obs.placeEnvironmentSnapshots.size, 3);
+  assert.equal([...obs.placeEnvironmentSnapshots.values()].some((row) => row.place_id === "field-sentinel-1" && row.metric_kind === "ndvi_mean" && row.metric_value === 0.42), true);
+  assert.equal([...obs.placeEnvironmentSnapshots.values()].some((row) => row.metric_kind === "water_pct" && row.metric_value === 40), true);
+});
+
+test("scheduled cron runs sentinel environment snapshots alongside other scheduled work", async () => {
+  const { env, obs } = createEnv();
+  env.MPC_STAC_API_URL = "https://mpc.example.test/stac";
+  env.MPC_DATA_API_URL = "https://mpc.example.test/data";
+  seedSentinelField(obs, "field-scheduled-sentinel");
+  const waits: Promise<unknown>[] = [];
+
+  await withMockedSentinelFetch(async () => {
+    await worker.scheduled({ cron: "*/5 * * * *" }, env, { waitUntil: (promise) => waits.push(promise) });
+    await Promise.all(waits);
+  });
+
+  assert.equal(obs.placeEnvironmentSnapshots.size, 3);
+  assert.equal(obs.sourceSnapshots.size, 1);
 });
 
 test("production map area polygons filter D1 geometry without origin fallback", async () => {
