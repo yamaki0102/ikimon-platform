@@ -162,6 +162,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observationWrite.ts": "cloudflare_observation_write_api",
     "platform_v2/src/services/observationPhotoUpload.ts": "cloudflare_observation_photo_upload_api",
     "platform_v2/src/services/observationAiAssessment.ts": "cloudflare_observation_detail_readmodel_dependency",
+    "platform_v2/src/services/observationPackage.ts": "cloudflare_observation_package_runtime",
     "platform_v2/src/services/observationReactions.ts": "cloudflare_observation_reactions_api",
     "platform_v2/src/services/recordReadingCards.ts": "cloudflare_record_reading_cards_api",
     "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",

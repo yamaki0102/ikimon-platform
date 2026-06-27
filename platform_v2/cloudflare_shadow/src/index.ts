@@ -1992,6 +1992,10 @@ export const worker = {
         return accountWriteResponse;
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/monitoring/packages") {
+        return getMonitoringPackageBlueprintsNative();
+      }
+
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "public_custom_domain_path");
       }
@@ -2055,6 +2059,11 @@ export const worker = {
       const hideObservationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/hide$/);
       if (request.method === "POST" && hideObservationMatch?.[1]) {
         return hideCompatibleObservation(decodeURIComponent(hideObservationMatch[1]), request, env);
+      }
+
+      const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
+      if (request.method === "GET" && observationPackageMatch?.[1]) {
+        return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
@@ -4384,6 +4393,434 @@ async function resolveCompatibleObservationOwnerUserId(observationId: string, en
      LIMIT 1`
   ).bind(observationId).first<{ user_id: string | null }>();
   return importedOccurrence?.user_id ?? null;
+}
+
+const MONITORING_PACKAGE_BLUEPRINTS_NATIVE = [
+  {
+    packageId: "casual_observation",
+    label: "Casual observation",
+    description: "日常投稿。学習と公開フィード向けで、trendや外部exportの根拠にはしない。",
+    observationMethods: ["casual_photo", "image_post", "video_post"],
+    targetScopes: ["any_visible_taxon"],
+    requiredBasis: ["site", "time", "method", "quality"],
+    primaryOutput: "public_learning",
+    claimLimit: "presence_or_learning_only",
+    pillars: ["new_technology_and_citizen_science"]
+  },
+  {
+    packageId: "guided_survey",
+    label: "Guided survey",
+    description: "人が調査努力量と対象範囲を持って歩く観察。月次レポートとindicator候補の入口。",
+    observationMethods: ["guided_survey", "survey"],
+    targetScopes: ["birds", "plants", "insects", "all_visible_taxa"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review"],
+    primaryOutput: "indicator_candidate",
+    claimLimit: "repeatable_survey_context_required_for_trend",
+    pillars: ["protocol_harmonisation", "new_technology_and_citizen_science", "data_use"]
+  },
+  {
+    packageId: "fixed_point_scan",
+    label: "Fixed point scan",
+    description: "同じ地点・同じ向きで繰り返す定点観察。比較可能性を優先する。",
+    observationMethods: ["field_scan", "fixed_point"],
+    targetScopes: ["habitat_condition", "plants", "pollinators", "landscape_context"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review"],
+    primaryOutput: "indicator_candidate",
+    claimLimit: "fixed_point_indicator_candidate",
+    pillars: ["priority_indicators", "protocol_harmonisation", "data_use"]
+  },
+  {
+    packageId: "route_transect",
+    label: "Route transect",
+    description: "同じ経路を繰り返す調査。IAS route camera や巡回調査と相性が良い。",
+    observationMethods: ["field_scan", "route", "guide_vehicle_transect_v1", "guide_walk_effort_v1"],
+    targetScopes: ["ias", "roadside_plants", "birds", "insects"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review"],
+    primaryOutput: "indicator_candidate",
+    claimLimit: "route_indicator_candidate",
+    pillars: ["protocol_harmonisation", "new_technology_and_citizen_science", "pilot_learning"]
+  },
+  {
+    packageId: "waterbody_survey",
+    label: "Waterbody survey",
+    description: "池・河川・湿地の観察。捕獲・非捕獲・観察のみを occurrence absence と混ぜずに扱う。",
+    observationMethods: ["water_capture", "waterbody_survey"],
+    targetScopes: ["fish", "amphibians", "macroinvertebrates", "aquatic_plants", "bats"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review", "rights"],
+    primaryOutput: "monthly_site_evidence",
+    claimLimit: "waterbody_monitoring_context_required",
+    pillars: ["priority_indicators", "protocol_harmonisation", "pilot_learning"]
+  },
+  {
+    packageId: "passive_audio_station",
+    label: "Passive audio station",
+    description: "BirdNET/TinyML等の音声機械観測。AI候補、reviewer検証済み、活動指標を分ける。",
+    observationMethods: ["passive_audio", "passive_audio_ingest"],
+    targetScopes: ["birds", "bats", "nocturnal_insects"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review", "rights"],
+    primaryOutput: "monthly_site_evidence",
+    claimLimit: "machine_observation_requires_human_review_for_species_claim",
+    pillars: ["new_technology_and_citizen_science", "protocol_harmonisation", "data_use", "governance"]
+  },
+  {
+    packageId: "camera_trap_station",
+    label: "Camera trap station",
+    description: "固定カメラの機械観測。device deployment、稼働状態、privacy処理を監査対象にする。",
+    observationMethods: ["camera_trap"],
+    targetScopes: ["mammals", "birds", "insects"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review", "rights"],
+    primaryOutput: "monthly_site_evidence",
+    claimLimit: "machine_observation_requires_human_review_for_species_claim",
+    pillars: ["new_technology_and_citizen_science", "governance", "data_use"]
+  },
+  {
+    packageId: "ias_route_camera",
+    label: "IAS route camera",
+    description: "外来種の道路・巡回撮影。位置一般化、AI不確実性、外部ID連携を必須に近づける。",
+    observationMethods: ["ias_route_camera"],
+    targetScopes: ["invasive_plants", "invasive_insects"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review", "rights", "external_taxon_id"],
+    primaryOutput: "research_export_candidate",
+    claimLimit: "ias_claim_requires_scoped_review_and_external_taxon_id",
+    pillars: ["priority_indicators", "new_technology_and_citizen_science", "data_use", "governance", "pilot_learning"]
+  },
+  {
+    packageId: "edna_reference",
+    label: "eDNA reference",
+    description: "eDNA等の外部検査・参照証拠。ikimon内ではsample metadataとtaxonomic resolutionを保持する。",
+    observationMethods: ["edna_reference"],
+    targetScopes: ["waterbody", "soil", "multi_taxa"],
+    requiredBasis: ["site", "time", "method", "quality", "review", "rights", "external_taxon_id"],
+    primaryOutput: "research_export_candidate",
+    claimLimit: "reference_result_requires_lab_metadata_and_review",
+    pillars: ["new_technology_and_citizen_science", "data_use", "protocol_harmonisation"]
+  },
+  {
+    packageId: "forest_habitat_snapshot",
+    label: "Forest habitat snapshot",
+    description: "森林状態の写真・定点・リモセン参照の受け皿。wall-to-wall評価は外部処理と分ける。",
+    observationMethods: ["field_scan", "forest_habitat_snapshot"],
+    targetScopes: ["forest_structure", "understory", "canopy_condition", "habitat_condition"],
+    requiredBasis: ["site", "time", "method", "quality", "review"],
+    primaryOutput: "monthly_site_evidence",
+    claimLimit: "habitat_condition_snapshot_not_wall_to_wall_remote_sensing",
+    pillars: ["priority_indicators", "protocol_harmonisation", "pilot_learning"]
+  },
+  {
+    packageId: "insect_monitoring",
+    label: "Insect monitoring",
+    description: "昆虫の写真・トラップ・metabarcodingを同じ分類群としてではなく、方法別に束ねる。",
+    observationMethods: ["field_scan", "camera_trap", "edna_reference", "insect_monitoring"],
+    targetScopes: ["pollinators", "moths", "flying_insects", "metabarcoding"],
+    requiredBasis: ["site", "time", "method", "effort", "quality", "review", "external_taxon_id"],
+    primaryOutput: "indicator_candidate",
+    claimLimit: "insect_indicator_requires_method_specific_review",
+    pillars: ["priority_indicators", "new_technology_and_citizen_science", "pilot_learning"]
+  }
+] as const;
+
+const MONITORING_PILLARS_NATIVE = {
+  priority_indicators: "優先テーマと指標",
+  protocol_harmonisation: "プロトコル・方法・データ標準の調和",
+  new_technology_and_citizen_science: "新技術と市民科学",
+  data_use: "データ利用",
+  governance: "ガバナンス",
+  pilot_learning: "パイロット"
+} as const;
+
+function getMonitoringPackageBlueprintsNative(): Response {
+  return json({
+    ok: true,
+    schemaVersion: "monitoring_packages/v1",
+    pillars: MONITORING_PILLARS_NATIVE,
+    packages: MONITORING_PACKAGE_BLUEPRINTS_NATIVE,
+    compatibility: {
+      source: "cloudflare_observation_package_runtime"
+    }
+  }, 200, {
+    "cache-control": "public, max-age=300",
+    "x-ikimon-cloudflare-native": "observation-package-runtime"
+  });
+}
+
+async function getObservationPackageNative(request: Request, url: URL, env: Env, observationId: string): Promise<Response> {
+  const normalizedObservationId = normalizeOptionalId(observationId);
+  if (!normalizedObservationId) {
+    return json({ ok: false, error: "observation_package_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  const privileged = assertPrivilegedWriteAccessNative(request, env);
+  let session: SessionSnapshot | null = null;
+  if (privileged instanceof Response) {
+    session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+    if (!session || session.banned) {
+      return json({ ok: false, error: "forbidden_observation_package" }, 403, { "cache-control": "no-store" });
+    }
+    const ownerUserId = await resolveCompatibleObservationOwnerUserId(normalizedObservationId, env);
+    if (!ownerUserId) {
+      return json({ ok: false, error: "observation_package_not_found" }, 404, { "cache-control": "no-store" });
+    }
+    if (ownerUserId !== session.userId) {
+      return json({ ok: false, error: "observation_not_owned" }, 403, { "cache-control": "no-store" });
+    }
+  }
+
+  const pkg = await buildD1ObservationPackage(env, normalizedObservationId, normalizeOptionalId(url.searchParams.get("subject")));
+  if (!pkg) {
+    return json({ ok: false, error: "observation_package_not_found" }, 404, { "cache-control": "no-store" });
+  }
+  return json({
+    ok: true,
+    package: pkg,
+    compatibility: {
+      source: "cloudflare_observation_package_runtime",
+      mode: "d1_import_lightweight_package",
+      aiPackageReconstruction: "not_replayed"
+    }
+  }, 200, {
+    "cache-control": "private, max-age=30",
+    "x-ikimon-cloudflare-native": "observation-package-runtime"
+  });
+}
+
+async function buildD1ObservationPackage(env: Env, observationId: string, targetOccurrenceId: string | null) {
+  const target = await resolveD1ObservationPackageTarget(env, observationId);
+  if (!target) return null;
+  const visit = target.visit;
+  const occurrenceRows = await env.OBS_DB.prepare(
+    `SELECT occurrence_id, visit_id, scientific_name, vernacular_name, taxon_rank,
+            confidence_score, quality_grade, created_at
+       FROM production_import_occurrences
+      WHERE visit_id = ?
+      ORDER BY CASE WHEN occurrence_id = ? THEN 0 ELSE 1 END, created_at ASC, occurrence_id ASC`
+  ).bind(visit.visit_id, targetOccurrenceId ?? target.occurrence?.occurrence_id ?? observationId).all<{
+    occurrence_id: string;
+    visit_id: string;
+    scientific_name: string | null;
+    vernacular_name: string | null;
+    taxon_rank: string | null;
+    confidence_score: number | null;
+    quality_grade: string | null;
+    created_at: string | null;
+  }>();
+  const assetRows = await env.OBS_DB.prepare(
+    `SELECT asset_id, blob_id, occurrence_id, visit_id, asset_role, captured_at, created_at
+       FROM production_import_evidence_assets
+      WHERE visit_id = ?
+      ORDER BY created_at ASC, asset_id ASC`
+  ).bind(visit.visit_id).all<{
+    asset_id: string;
+    blob_id: string | null;
+    occurrence_id: string | null;
+    visit_id: string | null;
+    asset_role: string | null;
+    captured_at: string | null;
+    created_at: string | null;
+  }>();
+  const occurrences = occurrenceRows.results.map((row) => {
+    const evidenceTier = row.quality_grade === "research_grade" || row.quality_grade === "verified" ? 3 : row.confidence_score != null && row.confidence_score >= 0.8 ? 2 : 1;
+    return {
+      occurrenceId: row.occurrence_id,
+      visitId: row.visit_id,
+      scientificName: row.scientific_name,
+      vernacularName: row.vernacular_name,
+      priorAiName: null,
+      priorAiRank: null,
+      taxonRank: row.taxon_rank,
+      confidenceScore: row.confidence_score,
+      evidenceTier,
+      qualityGrade: row.quality_grade,
+      occurrenceStatus: null,
+      riskLane: "normal",
+      safePublicRank: row.taxon_rank ?? "unknown",
+      sourcePayload: {
+        source: "production_import_occurrences",
+        createdAt: row.created_at
+      }
+    };
+  });
+  const evidenceAssets = assetRows.results.map((row) => ({
+    assetId: row.asset_id,
+    blobId: row.blob_id,
+    occurrenceId: row.occurrence_id,
+    visitId: row.visit_id,
+    mediaType: row.asset_role?.includes("video") ? "video" : row.asset_role?.includes("photo") ? "image" : "unknown",
+    mimeType: null,
+    assetRole: row.asset_role ?? "evidence",
+    mediaRole: row.asset_role ?? "context",
+    capturedAt: row.captured_at,
+    sha256: null,
+    publicUrl: null
+  }));
+  const packageId = `cf_obspkg_${visit.visit_id}_${targetOccurrenceId ?? target.occurrence?.occurrence_id ?? "visit"}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 160);
+  const reviewState = {
+    currentEvidenceTier: occurrences[0]?.evidenceTier ?? null,
+    tierLabel: occurrences[0]?.evidenceTier != null && occurrences[0].evidenceTier >= 3 ? "expert_verified" : "imported",
+    reviewStatus: occurrences.length > 0 ? "imported" : "needs_review",
+    reviewPriority: "normal",
+    requiredReviewerScope: null,
+    blockingIssues: occurrences.length > 0 ? [] : ["no_occurrence"],
+    publicClaimLimit: "presence_or_learning_only"
+  };
+  const generatedAt = new Date().toISOString();
+  return {
+    packageVersion: "observation_package/v1.4",
+    packageId,
+    generatedAt,
+    visit: {
+      visitId: visit.visit_id,
+      legacyObservationId: visit.legacy_observation_id,
+      observedAt: visit.observed_at,
+      placeId: visit.place_id,
+      locationPrecision: visit.coordinate_uncertainty_m != null && visit.coordinate_uncertainty_m <= 30 ? "point_high" : "public_import",
+      observedPrefecture: null,
+      observedMunicipality: null,
+      completeChecklistFlag: false,
+      effortMinutes: null,
+      distanceMeters: null,
+      targetTaxaScope: null,
+      visitMode: null,
+      sourceKind: "production_import"
+    },
+    occurrences,
+    evidenceAssets,
+    identifications: [],
+    aiRuns: [],
+    feedbackPayload: null,
+    claimRefs: [],
+    reviewState,
+    reportOutputs: [],
+    actionMode: evidenceAssets.some((asset) => asset.mediaType === "video") ? "video_post" : "image_post",
+    methodContext: {
+      methodKind: "casual_photo",
+      samplingProtocol: null,
+      fixedSurveyTemplate: null,
+      effortMinutes: null,
+      targetTaxaScope: null,
+      completeChecklistFlag: false,
+      captureOutcome: null,
+      siteTimeMethodEffortQuality: {
+        hasSite: Boolean(visit.place_id),
+        hasTime: Boolean(visit.observed_at),
+        hasMethod: true,
+        hasEffort: false,
+        hasQualityEvidence: evidenceAssets.length > 0
+      },
+      modelReadyBasis: [
+        ...(visit.place_id ? ["site"] : []),
+        ...(visit.observed_at ? ["time"] : []),
+        "method",
+        ...(evidenceAssets.length > 0 ? ["quality"] : [])
+      ]
+    },
+    fieldScanContext: null,
+    governanceContext: null,
+    dataProductChain: {
+      schemaVersion: "data_product_chain/v1",
+      latestStage: "raw_observation",
+      stages: ["raw_observation", "reviewed_data", "indicator_candidate", "report_output", "export_package"].map((stage) => ({
+        stage,
+        status: stage === "raw_observation" ? "complete" : "not_started",
+        eventCount: stage === "raw_observation" ? 1 : 0,
+        latestEventAt: stage === "raw_observation" ? generatedAt : null
+      })),
+      events: [{
+        packageEventId: `pkg_event:${visit.visit_id}:import`,
+        visitId: visit.visit_id,
+        occurrenceId: targetOccurrenceId ?? target.occurrence?.occurrence_id ?? null,
+        eventStage: "raw_observation",
+        eventKind: "package_generated_from_d1_import",
+        actorKind: "system",
+        actorUserId: null,
+        decisionAuthority: "human_required",
+        humanReviewRequired: reviewState.reviewStatus !== "verified",
+        eventPayload: { source: "production_import" },
+        createdAt: generatedAt
+      }]
+    },
+    aiBoundary: {
+      schemaVersion: "ai_boundary/v1",
+      aiRoles: [],
+      humanAuthorityRequiredFor: ["final_identification", "public_precision_increase", "external_export", "trend_or_abundance_claim"],
+      humanDecisions: [],
+      publicClaimLimit: "presence_or_learning_only"
+    },
+    trendAbundancePolicy: {
+      claimAllowed: false,
+      defaultClaimLimit: "presence_only",
+      reasons: [],
+      blockers: ["casual_record_presence_only", "human_review_required_for_trend_or_abundance"]
+    },
+    monitoringPackage: MONITORING_PACKAGE_BLUEPRINTS_NATIVE[0],
+    civicContext: null,
+    dataRights: null,
+    readiness: {
+      schemaVersion: "monitoring_readiness/v1",
+      ready: false,
+      score: 0,
+      present: [],
+      missing: ["review", "rights", "effort"],
+      blockers: ["lightweight_import_package"]
+    },
+    extensions: {
+      waterRecord: null
+    },
+    runtimeVersion: null,
+    monitoringRecordContract: null
+  };
+}
+
+async function resolveD1ObservationPackageTarget(env: Env, observationId: string): Promise<{
+  visit: {
+    visit_id: string;
+    legacy_observation_id: string | null;
+    place_id: string | null;
+    user_id: string | null;
+    observed_at: string | null;
+    coordinate_uncertainty_m: number | null;
+    public_visibility: string;
+  };
+  occurrence: { occurrence_id: string; visit_id: string } | null;
+} | null> {
+  const visit = await env.OBS_DB.prepare(
+    `SELECT visit_id, legacy_observation_id, place_id, user_id, observed_at,
+            coordinate_uncertainty_m, COALESCE(public_visibility, 'public') AS public_visibility
+       FROM production_import_visits
+      WHERE visit_id = ? OR legacy_observation_id = ?
+      LIMIT 1`
+  ).bind(observationId, observationId).first<{
+    visit_id: string;
+    legacy_observation_id: string | null;
+    place_id: string | null;
+    user_id: string | null;
+    observed_at: string | null;
+    coordinate_uncertainty_m: number | null;
+    public_visibility: string;
+  }>();
+  if (visit) return { visit, occurrence: null };
+  const occurrence = await env.OBS_DB.prepare(
+    `SELECT occurrence_id, visit_id
+       FROM production_import_occurrences
+      WHERE occurrence_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{ occurrence_id: string; visit_id: string }>();
+  if (!occurrence) return null;
+  const occurrenceVisit = await env.OBS_DB.prepare(
+    `SELECT visit_id, legacy_observation_id, place_id, user_id, observed_at,
+            coordinate_uncertainty_m, COALESCE(public_visibility, 'public') AS public_visibility
+       FROM production_import_visits
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(occurrence.visit_id).first<{
+    visit_id: string;
+    legacy_observation_id: string | null;
+    place_id: string | null;
+    user_id: string | null;
+    observed_at: string | null;
+    coordinate_uncertainty_m: number | null;
+    public_visibility: string;
+  }>();
+  return occurrenceVisit ? { visit: occurrenceVisit, occurrence } : null;
 }
 
 function isValidObservationReactionType(value: string): boolean {

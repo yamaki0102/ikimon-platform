@@ -344,6 +344,7 @@ interface ProductionImportVisitRow {
   user_id: string | null;
   public_visibility: string | null;
   observed_at: string | null;
+  coordinate_uncertainty_m?: number | null;
 }
 
 interface ProductionImportOccurrenceRow {
@@ -352,14 +353,19 @@ interface ProductionImportOccurrenceRow {
   scientific_name: string | null;
   vernacular_name: string | null;
   taxon_rank: string | null;
+  confidence_score?: number | null;
+  quality_grade?: string | null;
   created_at: string | null;
 }
 
 interface ProductionImportEvidenceAssetRow {
   asset_id: string;
+  blob_id?: string | null;
   visit_id?: string | null;
   occurrence_id?: string | null;
   asset_role?: string | null;
+  captured_at?: string | null;
+  created_at?: string | null;
   legacy_relative_path?: string | null;
 }
 
@@ -3085,6 +3091,43 @@ class FakeStatement {
       } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT visit_id, legacy_observation_id, place_id, user_id, observed_at,")) {
+      if (normalized.includes("WHERE visit_id = ? OR legacy_observation_id = ?")) {
+        const target = string(v[0]);
+        const legacyTarget = string(v[1]);
+        const visit = [...this.db.productionVisits.values()].find((row) =>
+          row.visit_id === target || row.legacy_observation_id === legacyTarget
+        );
+        return visit ? ({
+          visit_id: visit.visit_id,
+          legacy_observation_id: visit.legacy_observation_id,
+          place_id: visit.place_id ?? null,
+          user_id: visit.user_id,
+          observed_at: visit.observed_at,
+          coordinate_uncertainty_m: visit.coordinate_uncertainty_m ?? null,
+          public_visibility: visit.public_visibility ?? "public"
+        } as T) : null;
+      }
+      const visit = this.db.productionVisits.get(string(v[0]));
+      return visit ? ({
+        visit_id: visit.visit_id,
+        legacy_observation_id: visit.legacy_observation_id,
+        place_id: visit.place_id ?? null,
+        user_id: visit.user_id,
+        observed_at: visit.observed_at,
+        coordinate_uncertainty_m: visit.coordinate_uncertainty_m ?? null,
+        public_visibility: visit.public_visibility ?? "public"
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT occurrence_id, visit_id FROM production_import_occurrences")) {
+      const occurrence = this.db.productionOccurrences.get(string(v[0]));
+      return occurrence ? ({
+        occurrence_id: occurrence.occurrence_id,
+        visit_id: occurrence.visit_id
+      } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM production_import_evidence_assets")) {
       const count = this.db.productionEvidenceAssets.filter((row) =>
         row.visit_id === string(v[0]) &&
@@ -3953,6 +3996,24 @@ class FakeStatement {
         .filter((row) => row.visit_id === string(v[0]))
         .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.occurrence_id.localeCompare(b.occurrence_id))
         .slice(0, 8);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT occurrence_id, visit_id, scientific_name, vernacular_name, taxon_rank,")) {
+      const visitId = string(v[0]);
+      const preferredOccurrenceId = string(v[1]);
+      const rows = [...this.db.productionOccurrences.values()]
+        .filter((row) => row.visit_id === visitId)
+        .sort((a, b) => {
+          if (a.occurrence_id === preferredOccurrenceId) return -1;
+          if (b.occurrence_id === preferredOccurrenceId) return 1;
+          return (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.occurrence_id.localeCompare(b.occurrence_id);
+        });
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT asset_id, blob_id, occurrence_id, visit_id, asset_role, captured_at, created_at")) {
+      const rows = this.db.productionEvidenceAssets
+        .filter((row) => row.visit_id === string(v[0]))
+        .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.asset_id.localeCompare(b.asset_id));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT card_id, visit_id, axis, title, body, sources_json, visibility")) {
@@ -8615,6 +8676,204 @@ test("production runtime generates record reading cards natively without origin 
     assert.equal(payload.cards[0].sources.length, 3);
     assert.doesNotMatch(JSON.stringify(payload), /見返せる|少し厚くなる/);
     assert.equal(obs.recordReadingCards.size, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime returns monitoring package blueprints natively without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/monitoring/packages"), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "observation-package-runtime");
+    assert.equal(payload.ok, true);
+    assert.equal(payload.compatibility.source, "cloudflare_observation_package_runtime");
+    assert.equal(payload.schemaVersion, "monitoring_packages/v1");
+    assert.ok(payload.packages.some((item: any) => item.packageId === "guided_survey"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime returns owner observation package from D1 without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.productionVisits.set("visit-package-1", {
+    visit_id: "visit-package-1",
+    legacy_observation_id: "legacy-package-1",
+    place_id: "place-package-1",
+    user_id: "package-owner",
+    public_visibility: "public",
+    observed_at: "2026-06-26T01:00:00.000Z",
+    coordinate_uncertainty_m: 45
+  });
+  obs.productionOccurrences.set("occ-package-1", {
+    occurrence_id: "occ-package-1",
+    visit_id: "visit-package-1",
+    scientific_name: "Coccinella septempunctata",
+    vernacular_name: "ナナホシテントウ",
+    taxon_rank: "species",
+    confidence_score: 0.91,
+    quality_grade: "verified",
+    created_at: "2026-06-26T01:00:02.000Z"
+  });
+  obs.productionEvidenceAssets.push({
+    asset_id: "asset-package-1",
+    blob_id: "blob-package-1",
+    visit_id: "visit-package-1",
+    occurrence_id: "occ-package-1",
+    asset_role: "observation_photo",
+    captured_at: "2026-06-26T01:00:00.000Z",
+    created_at: "2026-06-26T01:00:03.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "package-owner", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-package-1/package", {
+      headers: { cookie }
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "observation-package-runtime");
+    assert.equal(payload.ok, true);
+    assert.equal(payload.compatibility.source, "cloudflare_observation_package_runtime");
+    assert.equal(payload.compatibility.aiPackageReconstruction, "not_replayed");
+    assert.equal(payload.package.packageVersion, "observation_package/v1.4");
+    assert.equal(payload.package.visit.visitId, "visit-package-1");
+    assert.equal(payload.package.occurrences[0].occurrenceId, "occ-package-1");
+    assert.equal(payload.package.occurrences[0].evidenceTier, 3);
+    assert.equal(payload.package.evidenceAssets[0].assetId, "asset-package-1");
+    assert.equal(payload.package.trendAbundancePolicy.claimAllowed, false);
+    assert.doesNotMatch(JSON.stringify(payload.package), /exact_lat|exact_lng|latitude|longitude/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime rejects non-owner observation package reads", async () => {
+  const { env, obs } = createEnv();
+  obs.productionVisits.set("visit-package-private", {
+    visit_id: "visit-package-private",
+    legacy_observation_id: "legacy-package-private",
+    place_id: "place-package-private",
+    user_id: "package-owner",
+    public_visibility: "public",
+    observed_at: "2026-06-26T01:00:00.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "other-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/visit-package-private/package", {
+    headers: { cookie }
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 403, JSON.stringify(payload));
+  assert.equal(payload.error, "observation_not_owned");
+});
+
+test("production runtime allows privileged observation package read without session", async () => {
+  const { env, core, obs } = createEnv();
+  obs.productionVisits.set("visit-package-privileged", {
+    visit_id: "visit-package-privileged",
+    legacy_observation_id: "legacy-package-privileged",
+    place_id: "place-package-privileged",
+    user_id: "package-owner",
+    public_visibility: "private",
+    observed_at: "2026-06-26T01:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-package-privileged", {
+    occurrence_id: "occ-package-privileged",
+    visit_id: "visit-package-privileged",
+    scientific_name: "Pieris rapae",
+    vernacular_name: "モンシロチョウ",
+    taxon_rank: "species",
+    confidence_score: 0.7,
+    quality_grade: null,
+    created_at: "2026-06-26T01:00:02.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/visit-package-privileged/package", {
+      headers: { "x-ikimon-write-key": "write-key" }
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(payload.ok, true);
+    assert.equal(payload.package.occurrences[0].occurrenceId, "occ-package-privileged");
+    assert.equal(payload.package.reviewState.currentEvidenceTier, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
