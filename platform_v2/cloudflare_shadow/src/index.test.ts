@@ -7761,6 +7761,46 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     assert.equal(telemetryPayload.inserted, 1);
     assert.equal(env.OBS_DB.guideRoutePoints.size, 1);
 
+    const guideScene = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/scene", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        clientSceneId: "static-scene-1",
+        sessionId: "guide-session-1",
+        lat: 34.7138,
+        lng: 137.7036,
+        eventCode: "guide-event-code",
+        teamId: "guide-team-1",
+        participantRole: "guide",
+        capturedAt: "2026-06-22T09:14:00.000Z",
+        frame: "ZmFrZS1mcmFtZQ==",
+        frameThumb: "data:image/jpeg;base64,thumb",
+        sceneSummary: "水路沿いに草本と湿った土が見える",
+        detectedFeatures: [{ type: "vegetation", name: "水路沿いの草本", confidence: 0.52 }],
+        visualCandidate: { reason: "水路と草本の境界" }
+      })
+    }), productionEnv);
+    const guideScenePayload = await guideScene.json() as any;
+    assert.equal(guideScene.status, 202, JSON.stringify(guideScenePayload));
+    assert.equal(guideScene.headers.get("x-ikimon-cloudflare-native"), "guide-scene-static-runtime");
+    assert.equal(guideScenePayload.sceneId, "static-scene-1");
+    assert.equal(guideScenePayload.status, "ready");
+    assert.equal(guideScenePayload.autoSave.state, "saved");
+    assert.equal(guideScenePayload.visualExtractModel, "cloudflare_worker_static");
+    assert.equal(env.OBS_DB.guideRecords.size, 3);
+    assert.equal(env.OBS_DB.guideRoutePoints.size, 2);
+    assert.equal(env.OBS_DB.observationEventLiveEvents.filter((event) => event.type === "guide_scene_added").length, 2);
+
+    const guideSceneGet = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/scene/static-scene-1?currentLat=34.7138&currentLng=137.7036"), productionEnv);
+    const guideSceneGetPayload = await guideSceneGet.json() as any;
+    assert.equal(guideSceneGet.headers.get("x-ikimon-cloudflare-native"), "guide-scene-static-runtime");
+    assert.equal(guideSceneGetPayload.sceneId, "static-scene-1");
+    assert.equal(guideSceneGetPayload.distanceFromCurrentM, 0);
+
+    const guideSceneEvents = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/scene/static-scene-1/events"), productionEnv);
+    assert.equal(guideSceneEvents.headers.get("x-ikimon-cloudflare-native"), "guide-scene-static-runtime");
+    assert.match(await guideSceneEvents.text(), /event: ready/);
+
     const mobileStart = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/start", {
       method: "POST",
       headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
@@ -7789,7 +7829,7 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     assert.equal(mobileDigest.headers.get("x-ikimon-cloudflare-native"), "mobile-scene-digest-api");
     assert.equal(mobileDigestPayload.duplicate, false);
     assert.equal(env.OBS_DB.mobileFieldSceneReceipts.size, 1);
-    assert.equal(env.OBS_DB.observationEventLiveEvents.filter((event) => event.type === "guide_scene_added").length, 2);
+    assert.equal(env.OBS_DB.observationEventLiveEvents.filter((event) => event.type === "guide_scene_added").length, 3);
 
     const mobileDuplicate = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/scene-digest", {
       method: "POST",

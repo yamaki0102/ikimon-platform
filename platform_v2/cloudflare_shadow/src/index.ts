@@ -9731,6 +9731,17 @@ async function handleGuideOutcomeRuntime(request: Request, url: URL, env: Env): 
     if (request.method === "POST" && pathname === "/api/v1/guide/record") {
       return await saveGuideRecordNative(request, env);
     }
+    if (request.method === "POST" && pathname === "/api/v1/guide/scene") {
+      return await createGuideSceneStaticNative(request, env);
+    }
+    const guideSceneMatch = pathname.match(/^\/api\/v1\/guide\/scene\/([^/]+)$/);
+    if (request.method === "GET" && guideSceneMatch?.[1]) {
+      return getGuideSceneStaticNative(decodeURIComponent(guideSceneMatch[1]), url);
+    }
+    const guideSceneEventsMatch = pathname.match(/^\/api\/v1\/guide\/scene\/([^/]+)\/events$/);
+    if (request.method === "GET" && guideSceneEventsMatch?.[1]) {
+      return getGuideSceneEventsStaticNative(decodeURIComponent(guideSceneEventsMatch[1]), url);
+    }
     const promoteMatch = pathname.match(/^\/api\/v1\/guide\/records\/([^/]+)\/promote$/);
     if (request.method === "POST" && promoteMatch?.[1]) {
       return await requestGuideRecordPromotionNative(request, decodeURIComponent(promoteMatch[1]), env);
@@ -9832,6 +9843,251 @@ async function handleGuideOutcomeRuntime(request: Request, url: URL, env: Env): 
 
 function nativeGuideHeaders(kind: string): Record<string, string> {
   return { "cache-control": "no-store", "x-ikimon-cloudflare-native": kind };
+}
+
+type GuideStaticSceneJob = {
+  sceneId: string;
+  sessionId: string;
+  userId: string | null;
+  lat: number;
+  lng: number;
+  guideMode: "walk" | "vehicle";
+  capturedAt: string;
+  requestedAt: string;
+  returnedAt: string;
+  frameThumb: string | null;
+  facePrivacy: Record<string, unknown> | null;
+  status: "ready" | "error";
+  result: Record<string, unknown>;
+  autoSave: Record<string, unknown>;
+  error: string | null;
+};
+
+const guideStaticSceneJobs = new Map<string, GuideStaticSceneJob>();
+const GUIDE_STATIC_SCENE_JOB_TTL_MS = 30 * 60 * 1000;
+let lastGuideStaticSceneGc = Date.now();
+
+function pruneGuideStaticSceneJobs(): void {
+  const now = Date.now();
+  if (now - lastGuideStaticSceneGc < 60_000 && guideStaticSceneJobs.size < 2_000) return;
+  lastGuideStaticSceneGc = now;
+  for (const [sceneId, job] of guideStaticSceneJobs) {
+    const baseTime = Date.parse(job.returnedAt || job.requestedAt);
+    if (Number.isFinite(baseTime) && now - baseTime > GUIDE_STATIC_SCENE_JOB_TTL_MS) guideStaticSceneJobs.delete(sceneId);
+  }
+  while (guideStaticSceneJobs.size > 2_000) {
+    const first = guideStaticSceneJobs.keys().next().value;
+    if (!first) break;
+    guideStaticSceneJobs.delete(first);
+  }
+}
+
+function guideSceneFrameThumb(body: Record<string, unknown>): string | null {
+  const direct = normalizeOptionalText(body.frameThumb ?? body.frame_thumb);
+  if (direct) return direct;
+  if (Array.isArray(body.frameThumbs)) {
+    const latest = [...body.frameThumbs].reverse().find((value) => normalizeOptionalText(value));
+    return normalizeOptionalText(latest);
+  }
+  return null;
+}
+
+function guideSceneFacePrivacy(value: unknown): Record<string, unknown> | null {
+  const input = guideObject(value);
+  if (Object.keys(input).length === 0) return null;
+  const status = normalizeOptionalText(input.status);
+  return {
+    detector: normalizeOptionalText(input.detector),
+    status: status && ["redacted", "no_faces", "unavailable"].includes(status) ? status : null,
+    faceCount: Math.max(0, Math.round(guideFiniteNumber(input.faceCount ?? input.face_count) ?? 0)),
+    error: normalizeOptionalText(input.error)
+  };
+}
+
+function guideSceneDistanceMeters(job: GuideStaticSceneJob, url: URL): number | null {
+  const currentLat = guideFiniteNumber(url.searchParams.get("currentLat"));
+  const currentLng = guideFiniteNumber(url.searchParams.get("currentLng"));
+  if (currentLat == null || currentLng == null) return null;
+  const r = 6371000;
+  const dLat = ((currentLat - job.lat) * Math.PI) / 180;
+  const dLng = ((currentLng - job.lng) * Math.PI) / 180;
+  const lat1 = (job.lat * Math.PI) / 180;
+  const lat2 = (currentLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * r * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+}
+
+function buildGuideStaticSceneResult(body: Record<string, unknown>, sceneHash: string, guideMode: "walk" | "vehicle"): Record<string, unknown> {
+  const detectedSpecies = guideStringArray(body.detectedSpecies ?? body.detected_species, 8);
+  const detectedFeatures = guideDetectedFeatures(body.detectedFeatures ?? body.detected_features);
+  const siteBriefLabel = normalizeOptionalText(body.siteBriefLabel ?? body.site_brief_label);
+  const visualCandidate = guideObject(body.visualCandidate);
+  const visualReason = normalizeOptionalText(visualCandidate.reason);
+  const summary = normalizeOptionalText(body.sceneSummary ?? body.scene_summary)
+    ?? (detectedSpecies[0] ? `${detectedSpecies[0]}を含む現地シーンとして記録します。` : null)
+    ?? visualReason
+    ?? (siteBriefLabel ? `${siteBriefLabel}周辺の現地環境を静的ガイド記録として扱います。` : "現地環境の通過シーンを静的ガイド記録として扱います。");
+  const primarySubject = guideObject(body.primarySubject ?? body.primary_subject);
+  const normalizedPrimary = normalizeOptionalText(primarySubject.name)
+    ? primarySubject
+    : detectedSpecies[0]
+      ? { name: detectedSpecies[0], rank: "species", confidence: 0.55 }
+      : {};
+  const features = detectedFeatures.length > 0 ? detectedFeatures : [{ type: "vegetation", name: "現地環境", confidence: 0.35, note: "Worker/D1 static guide scene runtime" }];
+  return {
+    summary,
+    detectedSpecies,
+    detectedFeatures: features,
+    primarySubject: normalizedPrimary,
+    environmentContext: normalizeOptionalText(body.environmentContext ?? body.environment_context)
+      ?? (siteBriefLabel ? `${siteBriefLabel}周辺の環境手がかりです。` : "画像本文は保存せず、位置・時刻・利用者入力から公開可能な手がかりだけを保持します。"),
+    seasonalNote: normalizeOptionalText(body.seasonalNote ?? body.seasonal_note),
+    coexistingTaxa: guideStringArray(body.coexistingTaxa ?? body.coexisting_taxa, 8),
+    saveRecommendation: { decision: "save", confidence: 0.5, reasonCodes: ["cloudflare_static_scene_runtime"], note: "AI生成の完全再現ではなく、VPS停止条件としてWorker/D1 static guide scene runtimeへ置換しています。" },
+    newSignals: guideStringArray(body.newSignals ?? body.new_signals, 8),
+    continuedSignals: guideStringArray(body.continuedSignals ?? body.continued_signals, 8),
+    coverageHints: guideStringArray(body.coverageHints ?? body.coverage_hints, 8),
+    absenceBoundary: { state: "non_detection_note", note: "静的Worker runtimeのため、未検出は不在証明ではありません。" },
+    isNew: true,
+    sceneHash,
+    visualExtractModel: "cloudflare_worker_static",
+    textModel: "cloudflare_worker_static"
+  };
+}
+
+function buildGuideStaticScenePayload(job: GuideStaticSceneJob, distanceFromCurrentM: number | null): Record<string, unknown> {
+  return {
+    sceneId: job.sceneId,
+    status: job.status,
+    capturedAt: job.capturedAt,
+    returnedAt: job.returnedAt,
+    lat: job.lat,
+    lng: job.lng,
+    frameThumb: job.frameThumb,
+    facePrivacy: job.facePrivacy,
+    distanceFromCurrentM,
+    deliveryState: distanceFromCurrentM != null && distanceFromCurrentM > 25 ? "deferred" : "ready",
+    delayedSummary: job.result.summary,
+    whyInteresting: job.result.environmentContext,
+    nextLookTarget: job.guideMode === "vehicle" ? "移動中の通過ログとして、位置と環境手がかりを残します。" : "次に見るなら、写った対象と周辺環境を分けて確認します。",
+    uncertaintyReason: "Worker/D1 static runtimeのため、種名や不在は断定しません。",
+    ...job.result,
+    autoSave: job.autoSave,
+    error: job.error
+  };
+}
+
+async function createGuideSceneStaticNative(request: Request, env: Env): Promise<Response> {
+  pruneGuideStaticSceneJobs();
+  const body = await readJson<Record<string, unknown>>(request);
+  const frame = normalizeOptionalText(body.frame) ?? (Array.isArray(body.frames) ? normalizeOptionalText(guideObject(body.frames.at(-1)).frame) : null);
+  if (!frame) return json({ error: "frame is required" }, 400, nativeGuideHeaders("guide-scene-static-runtime"));
+  const lat = guideFiniteNumber(body.lat);
+  const lng = guideFiniteNumber(body.lng);
+  if (lat == null || lng == null) return json({ error: "lat/lng are required" }, 400, nativeGuideHeaders("guide-scene-static-runtime"));
+
+  const session = await readCompatibleSession(request, env);
+  const sessionId = normalizeOptionalText(body.sessionId ?? body.session_id) ?? "anonymous";
+  const sceneId = normalizeOptionalText(body.clientSceneId ?? body.client_scene_id) ?? crypto.randomUUID();
+  const existing = guideStaticSceneJobs.get(sceneId);
+  if (existing && existing.sessionId === sessionId) {
+    return json(buildGuideStaticScenePayload(existing, null), 202, nativeGuideHeaders("guide-scene-static-runtime"));
+  }
+
+  const capturedAt = isoOrNow(body.capturedAt ?? body.captured_at);
+  const requestedAt = new Date().toISOString();
+  const returnedAt = requestedAt;
+  const guideMode = guideModeFromValue(body.guideMode ?? body.guide_mode ?? body.movement_mode);
+  const sceneHash = `static:${await sha256Hex(textToArrayBuffer(`${sessionId}:${sceneId}:${capturedAt}:${lat}:${lng}`))}`;
+  const result = buildGuideStaticSceneResult(body, sceneHash, guideMode);
+  const autoSave: Record<string, unknown> = { state: "skipped", decision: "skip", reasonCodes: ["auto_save_disabled"] };
+
+  const shouldAutoSave = body.autoSave !== false && body.auto_save !== false;
+  if (shouldAutoSave) {
+    const guideRecordId = await insertGuideRecordNative({
+      body: {
+        ...body,
+        sessionId,
+        sceneId,
+        lat,
+        lng,
+        capturedAt,
+        returnedAt,
+        sceneHash,
+        sceneSummary: normalizeOptionalText(result.summary) ?? "",
+        detectedSpecies: result.detectedSpecies,
+        detectedFeatures: result.detectedFeatures,
+        primarySubject: result.primarySubject,
+        environmentContext: result.environmentContext,
+        seasonalNote: result.seasonalNote,
+        coexistingTaxa: result.coexistingTaxa,
+        frameThumb: guideSceneFrameThumb(body),
+        deliveryState: "ready",
+        seenState: "saved",
+        confidenceContext: { source: "cloudflare_guide_scene_static_runtime", saveRecommendation: result.saveRecommendation },
+        lang: normalizeOptionalText(body.lang) ?? "ja"
+      },
+      session,
+      defaultSessionId: "guide_scene_static",
+      source: "guide_scene_static_runtime"
+    }, env);
+    autoSave.state = "saved";
+    autoSave.decision = "save";
+    autoSave.guideRecordId = guideRecordId;
+    autoSave.reasonCodes = ["cloudflare_static_scene_runtime"];
+  }
+
+  await insertGuideRoutePointNative({
+    body: { ...body, lat, lng, clientSceneId: sceneId, capturedAt, cameraActive: true },
+    session,
+    sessionId,
+    pointKind: "scene"
+  }, env).catch((error) => {
+    console.error("[guide-scene-static-runtime] route point write failed", error);
+  });
+
+  const job: GuideStaticSceneJob = {
+    sceneId,
+    sessionId,
+    userId: session?.userId ?? null,
+    lat,
+    lng,
+    guideMode,
+    capturedAt,
+    requestedAt,
+    returnedAt,
+    frameThumb: guideSceneFrameThumb(body),
+    facePrivacy: guideSceneFacePrivacy(body.facePrivacy ?? body.face_privacy),
+    status: "ready",
+    result,
+    autoSave,
+    error: null
+  };
+  guideStaticSceneJobs.set(sceneId, job);
+  return json(buildGuideStaticScenePayload(job, null), 202, nativeGuideHeaders("guide-scene-static-runtime"));
+}
+
+function getGuideSceneStaticNative(sceneId: string, url: URL): Response {
+  pruneGuideStaticSceneJobs();
+  const job = guideStaticSceneJobs.get(sceneId);
+  if (!job) return json({ error: "scene not found" }, 404, nativeGuideHeaders("guide-scene-static-runtime"));
+  return json(buildGuideStaticScenePayload(job, guideSceneDistanceMeters(job, url)), 200, nativeGuideHeaders("guide-scene-static-runtime"));
+}
+
+function getGuideSceneEventsStaticNative(sceneId: string, url: URL): Response {
+  pruneGuideStaticSceneJobs();
+  const job = guideStaticSceneJobs.get(sceneId);
+  if (!job) return json({ error: "scene not found" }, 404, nativeGuideHeaders("guide-scene-static-runtime"));
+  const payload = buildGuideStaticScenePayload(job, guideSceneDistanceMeters(job, url));
+  return new Response(`event: ready\ndata: ${JSON.stringify(payload)}\n\n`, {
+    status: 200,
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      "connection": "keep-alive",
+      "x-ikimon-cloudflare-native": "guide-scene-static-runtime"
+    }
+  });
 }
 
 async function requireSignedInGuideSession(request: Request, env: Env): Promise<SessionSnapshot> {
