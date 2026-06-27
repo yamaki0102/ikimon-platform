@@ -258,6 +258,25 @@ interface ObservationDataRightsRow {
   source_payload_json: string;
 }
 
+interface CivicObservationContextRow {
+  context_id: string;
+  visit_id: string;
+  occurrence_id: string | null;
+  context_kind: string;
+  activity_label: string | null;
+  activity_intent: string | null;
+  participant_role: string | null;
+  audience_scope: string;
+  public_precision: string;
+  risk_lane: string;
+  report_consent: string;
+  revisit_of_visit_id: string | null;
+  field_id: string | null;
+  route_id: string | null;
+  plot_id: string | null;
+  source_payload_json: string;
+}
+
 interface WaterbodyRow {
   ikimon_waterbody_id: string;
   waterbody_type: string;
@@ -1284,6 +1303,7 @@ class FakeD1 {
   rememberTokens = new Map<string, RememberTokenRow>();
   waterbodies = new Map<string, WaterbodyRow>();
   waterRecordExtensions = new Map<string, WaterRecordExtensionRow>();
+  civicObservationContexts = new Map<string, CivicObservationContextRow>();
   stewardshipActions = new Map<string, StewardshipActionRow>();
   videoUploads = new Map<string, VideoUploadRow>();
   legacyAssetImports: LegacyAssetImportRow[] = [];
@@ -2065,6 +2085,28 @@ class FakeStatement {
         external_export_allowed: number(v[7]),
         withdrawal_status: string(v[8]),
         source_payload_json: string(v[9])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO civic_observation_contexts")) {
+      this.db.civicObservationContexts.set(string(v[1]), {
+        context_id: string(v[0]),
+        visit_id: string(v[1]),
+        occurrence_id: nullableString(v[2]),
+        context_kind: string(v[3]),
+        activity_label: nullableString(v[4]),
+        activity_intent: nullableString(v[5]),
+        participant_role: nullableString(v[6]),
+        audience_scope: string(v[7]),
+        public_precision: string(v[8]),
+        risk_lane: string(v[9]),
+        report_consent: string(v[10]),
+        revisit_of_visit_id: nullableString(v[11]),
+        field_id: nullableString(v[12]),
+        route_id: nullableString(v[13]),
+        plot_id: nullableString(v[14]),
+        source_payload_json: string(v[15])
       });
       return {};
     }
@@ -6120,6 +6162,70 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   const waterbody = [...obs.waterbodies.values()][0];
   assert.equal(waterbody?.public_label, "浜名湖");
   assert.equal(waterbody?.waterbody_type, "lake");
+  assert.equal(obs.civicObservationContexts.size, 0);
+});
+
+test("v1 observation upsert persists civic context only for event, risk, or explicit context writes", async () => {
+  const { env, obs } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-civic-event",
+    userId: "civic-user",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    taxon: { vernacularName: "イベント植物", rank: "species" },
+    eventCode: "EVT-2026"
+  });
+  const eventContext = obs.civicObservationContexts.get("visit-civic-event");
+  assert.equal(eventContext?.context_kind, "event");
+  assert.equal(eventContext?.activity_intent, "share");
+  assert.equal(eventContext?.participant_role, "participant");
+  assert.equal(eventContext?.public_precision, "municipality");
+  assert.match(eventContext?.source_payload_json ?? "", /EVT-2026/);
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-civic-risk",
+    userId: "civic-user",
+    observedAt: "2026-06-15T02:05:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    taxon: { vernacularName: "希少種候補", rank: "species" },
+    sourcePayload: { risk_lane: "rare_sensitive" }
+  });
+  const riskContext = obs.civicObservationContexts.get("visit-civic-risk");
+  assert.equal(riskContext?.context_kind, "risk");
+  assert.equal(riskContext?.risk_lane, "rare_sensitive");
+  assert.equal(riskContext?.public_precision, "hidden");
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-civic-explicit",
+    userId: "civic-user",
+    observedAt: "2026-06-15T02:10:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    taxon: { vernacularName: "学校記録", rank: "species" },
+    civicContext: {
+      contextKind: "school",
+      activityLabel: "校庭調査",
+      activityIntent: "learn",
+      participantRole: "student",
+      audienceScope: "class_group",
+      publicPrecision: "site",
+      reportConsent: "internal",
+      fieldId: "school-field-1",
+      sourcePayload: { className: "5-A" }
+    }
+  });
+  const explicitContext = obs.civicObservationContexts.get("visit-civic-explicit");
+  assert.equal(explicitContext?.context_kind, "school");
+  assert.equal(explicitContext?.activity_label, "校庭調査");
+  assert.equal(explicitContext?.activity_intent, "learn");
+  assert.equal(explicitContext?.participant_role, "student");
+  assert.equal(explicitContext?.audience_scope, "class_group");
+  assert.equal(explicitContext?.public_precision, "site");
+  assert.equal(explicitContext?.report_consent, "internal");
+  assert.equal(explicitContext?.field_id, "school-field-1");
+  assert.match(explicitContext?.source_payload_json ?? "", /5-A/);
 });
 
 test("v1 photo upload stores base64 media in R2 and returns the shared ok contract", async () => {

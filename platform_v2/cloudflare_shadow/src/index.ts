@@ -161,6 +161,7 @@ interface LegacyObservationUpsertInput {
   participantRole?: string | null;
   fieldScan?: Record<string, unknown> | null;
   waterRecord?: CompatibleWaterRecordInput | null;
+  civicContext?: Record<string, unknown> | null;
   sourcePayload?: Record<string, unknown> | null;
   dataRights?: Record<string, unknown> | null;
 }
@@ -15663,6 +15664,49 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ?? "unknown place";
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
+  const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
+  const civicContextStatements = civicContext
+    ? [env.OBS_DB.prepare(
+      `INSERT INTO civic_observation_contexts (
+         context_id, visit_id, occurrence_id, context_kind, activity_label, activity_intent,
+         participant_role, audience_scope, public_precision, risk_lane, report_consent,
+         revisit_of_visit_id, field_id, route_id, plot_id, source_payload_json, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(visit_id) DO UPDATE SET
+         occurrence_id = excluded.occurrence_id,
+         context_kind = excluded.context_kind,
+         activity_label = excluded.activity_label,
+         activity_intent = excluded.activity_intent,
+         participant_role = excluded.participant_role,
+         audience_scope = excluded.audience_scope,
+         public_precision = excluded.public_precision,
+         risk_lane = excluded.risk_lane,
+         report_consent = excluded.report_consent,
+         revisit_of_visit_id = excluded.revisit_of_visit_id,
+         field_id = excluded.field_id,
+         route_id = excluded.route_id,
+         plot_id = excluded.plot_id,
+         source_payload_json = excluded.source_payload_json,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      civicContext.contextId,
+      civicContext.visitId,
+      civicContext.occurrenceId,
+      civicContext.contextKind,
+      civicContext.activityLabel,
+      civicContext.activityIntent,
+      civicContext.participantRole,
+      civicContext.audienceScope,
+      civicContext.publicPrecision,
+      civicContext.riskLane,
+      civicContext.reportConsent,
+      civicContext.revisitOfVisitId,
+      civicContext.fieldId,
+      civicContext.routeId,
+      civicContext.plotId,
+      JSON.stringify(civicContext.sourcePayload)
+    )]
+    : [];
 
   await env.CORE_DB.batch([
     env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(input.userId)
@@ -15747,6 +15791,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       dataRights.withdrawalStatus,
       JSON.stringify(dataRights.sourcePayload)
     ),
+    ...civicContextStatements,
     rollbackLedgerInsert(env, {
       eventType: "observation.upsert",
       targetId: visitId,
@@ -16520,6 +16565,84 @@ function normalizeObservationDataRightsNative(input: unknown): {
     withdrawalStatus,
     sourcePayload: value
   };
+}
+
+type NativeCivicObservationContext = {
+  contextId: string;
+  visitId: string;
+  occurrenceId: string | null;
+  contextKind: string;
+  activityLabel: string | null;
+  activityIntent: string | null;
+  participantRole: string | null;
+  audienceScope: string;
+  publicPrecision: string;
+  riskLane: string;
+  reportConsent: string;
+  revisitOfVisitId: string | null;
+  fieldId: string | null;
+  routeId: string | null;
+  plotId: string | null;
+  sourcePayload: Record<string, unknown>;
+};
+
+function normalizeObservationCivicContextNative(input: Record<string, unknown>, visitId: string, occurrenceId: string | null): NativeCivicObservationContext {
+  const riskLane = pickEnum(input.riskLane ?? input.risk_lane, ["normal", "danger_candidate", "invasive_candidate", "tree_anomaly", "rare_sensitive"], "normal");
+  const requestedPrecision = pickEnum(input.publicPrecision ?? input.public_precision, ["exact_private", "site", "mesh", "municipality", "hidden"], "municipality");
+  const publicPrecision = riskLane === "rare_sensitive"
+    ? "hidden"
+    : riskLane !== "normal" && requestedPrecision === "exact_private"
+      ? "municipality"
+      : requestedPrecision;
+  const hasEvent = typeof input.eventSessionId === "string" || typeof input.eventCode === "string";
+  return {
+    contextId: normalizeOptionalText(input.contextId ?? input.context_id) ?? `civic:${visitId}`,
+    visitId,
+    occurrenceId,
+    contextKind: pickEnum(input.contextKind ?? input.context_kind, ["ordinary", "event", "school", "satoyama", "risk", "site_summary"], hasEvent ? "event" : riskLane === "normal" ? "ordinary" : "risk"),
+    activityLabel: normalizeOptionalText(input.activityLabel ?? input.activity_label),
+    activityIntent: pickNullableEnum(input.activityIntent ?? input.activity_intent, ["discover", "revisit", "compare", "learn", "manage", "confirm", "share"]),
+    participantRole: pickNullableEnum(input.participantRole ?? input.participant_role, ["finder", "photographer", "context_recorder", "note_taker", "guide", "reviewer", "manager", "teacher", "student", "participant"]),
+    audienceScope: pickEnum(input.audienceScope ?? input.audience_scope, ["private", "class_group", "event_participants", "public", "partner_internal", "research_internal"], "private"),
+    publicPrecision,
+    riskLane,
+    reportConsent: pickEnum(input.reportConsent ?? input.report_consent, ["none", "internal", "public_summary", "research_export"], "none"),
+    revisitOfVisitId: normalizeOptionalText(input.revisitOfVisitId ?? input.revisit_of_visit_id),
+    fieldId: normalizeOptionalText(input.fieldId ?? input.field_id),
+    routeId: normalizeOptionalText(input.routeId ?? input.route_id),
+    plotId: normalizeOptionalText(input.plotId ?? input.plot_id),
+    sourcePayload: asPlainObject(input.sourcePayload ?? input.source_payload) ?? {}
+  };
+}
+
+function buildObservationCivicContextNative(
+  input: LegacyObservationUpsertInput,
+  visitId: string,
+  occurrenceId: string | null
+): NativeCivicObservationContext | null {
+  const explicit = asPlainObject(input.civicContext);
+  if (explicit) {
+    return normalizeObservationCivicContextNative({
+      ...explicit,
+      sourcePayload: asPlainObject(explicit.sourcePayload ?? explicit.source_payload) ?? {}
+    }, visitId, occurrenceId);
+  }
+  const hasEvent = typeof input.eventSessionId === "string" || typeof input.eventCode === "string";
+  const riskLane = normalizeOptionalText(input.sourcePayload?.risk_lane);
+  if (!hasEvent && !riskLane) return null;
+  return normalizeObservationCivicContextNative({
+    contextKind: hasEvent ? "event" : "risk",
+    activityIntent: hasEvent ? "share" : "discover",
+    participantRole: hasEvent ? "participant" : "finder",
+    riskLane: riskLane ?? "normal",
+    eventSessionId: input.eventSessionId ?? null,
+    eventCode: input.eventCode ?? null,
+    sourcePayload: {
+      derived: true,
+      event_session_id: input.eventSessionId ?? null,
+      event_code: input.eventCode ?? null
+    }
+  }, visitId, occurrenceId);
 }
 
 function pickEnum(value: unknown, allowed: string[], fallback: string): string {
