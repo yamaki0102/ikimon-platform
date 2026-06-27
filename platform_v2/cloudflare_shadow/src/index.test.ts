@@ -9786,7 +9786,6 @@ test("production public UI routes avoid origin fallback while broad custom-domai
       "/record",
       "/map",
       "/login",
-      "/es/community/events/new",
       "/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5"
     ];
     for (const path of publicUiRoutes) {
@@ -9849,6 +9848,12 @@ test("production public UI routes avoid origin fallback while broad custom-domai
     }), productionEnv);
     assert.equal(eventApiPost.status, 401);
     assert.deepEqual(await eventApiPost.json(), { error: "login required" });
+    assert.equal(seen.length, 0);
+
+    const eventCreatePage = await worker.fetch(new Request("https://ikimon.life/es/community/events/new"), productionEnv);
+    assert.equal(eventCreatePage.status, 200);
+    assert.equal(eventCreatePage.headers.get("x-ikimon-cloudflare-native"), "event-page-create");
+    assert.match(await eventCreatePage.text(), /Worker\/D1 runtime/);
     assert.equal(seen.length, 0);
 
     const eventAreaSuggestion = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/area-suggestions", {
@@ -9920,6 +9925,18 @@ test("production observation event APIs run location and rally routes on D1 with
     const byCodePayload = await byCode.json() as any;
     assert.equal(byCode.status, 200);
     assert.equal(byCodePayload.session.sessionId, created.sessionId);
+
+    const eventListPage = await worker.fetch(new Request("https://ikimon.life/community/events"), productionEnv);
+    const eventListPageText = await eventListPage.text();
+    assert.equal(eventListPage.status, 200);
+    assert.equal(eventListPage.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
+    assert.match(eventListPageText, /D1観察会/);
+
+    const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);
+    const eventJoinPageText = await eventJoinPage.text();
+    assert.equal(eventJoinPage.status, 200);
+    assert.equal(eventJoinPage.headers.get("x-ikimon-cloudflare-native"), "event-page-join");
+    assert.match(eventJoinPageText, /D1観察会/);
 
     const team = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/teams`, {
       method: "POST",
@@ -10015,6 +10032,26 @@ test("production observation event APIs run location and rally routes on D1 with
       assert.equal(obs.observationEventQuests.get(questId)?.status, decision);
       assert.equal(obs.observationEventLiveEvents.some((event) => event.type === `quest_${decision}`), true);
     }
+
+    const eventLivePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/live`), productionEnv);
+    const eventLivePageText = await eventLivePage.text();
+    assert.equal(eventLivePage.status, 200);
+    assert.equal(eventLivePage.headers.get("x-ikimon-cloudflare-native"), "event-page-live");
+    assert.match(eventLivePageText, /quest_offered/);
+
+    const forbiddenConsolePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/console`, {
+      headers: { cookie: otherCookie }
+    }), productionEnv);
+    assert.equal(forbiddenConsolePage.status, 403);
+    assert.equal(forbiddenConsolePage.headers.get("x-ikimon-cloudflare-native"), "event-page-forbidden");
+
+    const organizerConsolePage = await worker.fetch(new Request(`https://ikimon.life/events/${created.sessionId}/console`, {
+      headers: { cookie }
+    }), productionEnv);
+    const organizerConsolePageText = await organizerConsolePage.text();
+    assert.equal(organizerConsolePage.status, 200);
+    assert.equal(organizerConsolePage.headers.get("x-ikimon-cloudflare-native"), "event-page-console");
+    assert.match(organizerConsolePageText, /person-hours/);
 
     const beforeScheduledQuests = obs.observationEventQuests.size;
     const waitUntil: Promise<unknown>[] = [];
@@ -11448,22 +11485,16 @@ test("production original UI html serves whitelisted public reading routes from 
       assert.equal((await response.text()).includes("ikimon-app-outbox-v1"), true, path);
     }
 
-    const eventShells = new Map([
-      ["/en/community/events/new", "New event / ikimon"],
-      ["/es/community/events/new", "Nuevo evento / ikimon"],
-      ["/pt-br/community/events/new", "Novo evento / ikimon"]
-    ]);
-    for (const [path, expectedTitle] of eventShells) {
+    const eventShells = ["/en/community/events/new", "/es/community/events/new", "/pt-br/community/events/new"];
+    for (const path of eventShells) {
       const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
       assert.equal(response.status, 200, path);
-      assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html", path);
-      assert.equal(response.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate", path);
-      assert.equal(response.headers.get("pragma"), "no-cache", path);
-      assert.equal(response.headers.get("expires"), "0", path);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "event-page-create", path);
+      assert.equal(response.headers.get("cache-control"), "no-store", path);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), null, path);
       assert.equal(response.headers.get("set-cookie"), null, path);
       const body = await response.text();
-      assert.equal(body.includes(expectedTitle), true, path);
-      assert.equal(body.includes("ikimon-app-outbox-v1"), true, path);
+      assert.equal(body.includes("Worker/D1 runtime"), true, path);
       assert.equal(/csrf/i.test(body), false, path);
       assert.equal(/ikimon_v2_session|data-user-id|current_user|viewerUserId/i.test(body), false, path);
     }

@@ -1769,6 +1769,11 @@ export const worker = {
         return createStewardshipActionFromForm(request, url, env, decodeURIComponent(stewardshipPostMatch[1]));
       }
 
+      const observationEventPageResponse = await handleObservationEventPages(request, url, env);
+      if (observationEventPageResponse) {
+        return observationEventPageResponse;
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
         return getOriginalUiHtml(request, url, env);
       }
@@ -2317,6 +2322,177 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "GET" && action === "recap") return getObservationEventRecap(request, url, env, sessionId);
   if (request.method === "GET" && action === "species.csv") return getObservationEventSpeciesCsv(request, env, sessionId);
   return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+}
+
+async function handleObservationEventPages(request: Request, url: URL, env: Env): Promise<Response | null> {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (pathname === "/community/events") {
+    return getObservationEventListPage(request, env);
+  }
+  if (pathname === "/community/events/new") {
+    const auth = await readCompatibleSession(request, env).catch(() => null);
+    return observationEventPageHtml("観察会を作成", renderObservationEventCreatePage(auth), "event-page-create");
+  }
+  const joinMatch = pathname.match(/^\/community\/events\/([^/]+)\/join$/);
+  if (joinMatch?.[1]) {
+    return getObservationEventJoinPage(request, env, decodeURIComponent(joinMatch[1]));
+  }
+  const eventPageMatch = pathname.match(/^\/events\/([^/]+)\/(edit|live|rally|console|recap|report)$/);
+  if (!eventPageMatch?.[1] || !eventPageMatch[2]) return null;
+  return getObservationEventSessionPage(request, url, env, decodeURIComponent(eventPageMatch[1]), eventPageMatch[2]);
+}
+
+async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
+  const auth = await readCompatibleSession(request, env).catch(() => null);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+            plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+            started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+            created_at, updated_at
+       FROM observation_event_sessions
+      ORDER BY started_at DESC
+      LIMIT 24`
+  ).all<ObservationEventSessionD1Row>();
+  const sessions = rows.results.map(mapObservationEventSession);
+  return observationEventPageHtml("観察会", renderObservationEventListPage(sessions, auth), "event-page-list");
+}
+
+async function getObservationEventJoinPage(request: Request, env: Env, eventCode: string): Promise<Response> {
+  const [auth, session] = await Promise.all([
+    readCompatibleSession(request, env).catch(() => null),
+    getObservationEventSessionByEventCode(env, eventCode).catch(() => null)
+  ]);
+  if (!session) {
+    return observationEventPageHtml("観察会が見つかりません", observationEventEmptyState("参加コードが見つかりません", "主催者にコードを確認してください。"), "event-page-not-found", 404);
+  }
+  const teams = await listObservationEventTeams(env, session.sessionId).catch(() => []);
+  return observationEventPageHtml(`${session.title} に参加`, renderObservationEventJoinPage(session, teams, Boolean(auth)), "event-page-join");
+}
+
+async function getObservationEventSessionPage(request: Request, url: URL, env: Env, sessionId: string, page: string): Promise<Response> {
+  const [auth, session] = await Promise.all([
+    readCompatibleSession(request, env).catch(() => null),
+    getObservationEventSessionById(env, sessionId).catch(() => null)
+  ]);
+  if (!session) {
+    return observationEventPageHtml("観察会が見つかりません", observationEventEmptyState("セッションが見つかりません", "観察会一覧から選び直してください。"), "event-page-not-found", 404);
+  }
+  const canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
+  if ((page === "edit" || page === "console") && !canManage) {
+    return observationEventPageHtml("権限がありません", observationEventEmptyState("主催者のみアクセスできます", "主催者アカウントでログインしてください。"), "event-page-forbidden", 403);
+  }
+  if (page === "recap") {
+    return getObservationEventRecapPage(request, url, env, session);
+  }
+  if (page === "report") {
+    return getObservationEventReportPage(request, env, session);
+  }
+  if (page === "rally") {
+    const rally = await getObservationRallySnapshot(env, session.sessionId).catch(() => ({ course: null, stations: [], missions: [], progress: [] }));
+    return observationEventPageHtml(`${session.title} 観察ラリー`, renderObservationEventRallyPage(session, rally, canManage), "event-page-rally");
+  }
+  const [teams, events, effort] = await Promise.all([
+    listObservationEventTeams(env, session.sessionId).catch(() => []),
+    listObservationEventLiveEvents(env, session.sessionId, 40).catch(() => []),
+    summarizeObservationEventEffort(env, session).catch(() => null)
+  ]);
+  if (page === "edit") {
+    return observationEventPageHtml(`${session.title} 編集`, renderObservationEventEditPage(session), "event-page-edit");
+  }
+  if (page === "console") {
+    return observationEventPageHtml(`${session.title} 管制塔`, renderObservationEventConsolePage(session, teams, events, effort), "event-page-console");
+  }
+  return observationEventPageHtml(`${session.title} ライブ`, renderObservationEventLivePage(session, teams, events, canManage), "event-page-live");
+}
+
+async function getObservationEventRecapPage(request: Request, url: URL, env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): Promise<Response> {
+  const recapResponse = await getObservationEventRecap(request, url, env, session.sessionId);
+  if (!recapResponse.ok) return recapResponse;
+  const recap = await recapResponse.json() as Record<string, unknown>;
+  return observationEventPageHtml(`${session.title} の振り返り`, renderObservationEventRecapPage(recap), "event-page-recap");
+}
+
+async function getObservationEventReportPage(request: Request, env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): Promise<Response> {
+  const report = await buildObservationEventOfficialReport(request, env, session.sessionId);
+  if (report instanceof Response) return report;
+  return observationEventPageHtml(`${session.title} 公式出力`, renderObservationEventReportPage(report), "event-page-report");
+}
+
+function observationEventPageHtml(title: string, body: string, nativeMarker: string, status = 200): Response {
+  return html(`<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)} - ikimon.life</title>
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7faf8;color:#17231b}
+    main{max-width:980px;margin:0 auto;padding:28px 18px 48px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+    a{color:#0b6b54}.brand{font-weight:700;text-decoration:none;color:#17231b}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}
+    .muted{color:#587062}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.btn{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:6px;background:#0b6b54;color:#fff;text-decoration:none;font-weight:600}
+    .btn.secondary{background:#e8f1ed;color:#174c3d}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
+    pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
+  </style>
+</head>
+<body>
+  <main>
+    <header><a class="brand" href="/community/events">ikimon.life 観察会</a><a href="/community/events/new">作成</a></header>
+    ${body}
+  </main>
+</body>
+</html>`, status, { "cache-control": "no-store", "x-ikimon-cloudflare-native": nativeMarker });
+}
+
+function renderObservationEventCreatePage(auth: SessionSnapshot | null): string {
+  return `<section class="card"><h1>観察会を作成</h1><p class="muted">このページはWorker/D1 runtimeです。作成はD1 APIへ送信します。</p>${auth ? `<p>ログイン中: ${escapeHtml(auth.displayName)}</p>` : `<p>作成にはログインが必要です。</p>`}<div class="actions"><a class="btn" href="/login?redirect=/community/events/new">ログイン</a><a class="btn secondary" href="/api/v1/observation-events">API</a></div></section>`;
+}
+
+function renderObservationEventListPage(sessions: Array<NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>>, auth: SessionSnapshot | null): string {
+  const items = sessions.map((session) => `<article class="card"><h2>${escapeHtml(session.title)}</h2><p class="muted">${escapeHtml(session.startedAt)} / ${escapeHtml(session.plan)}</p><p>${session.targetSpecies.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("") || "<span class=\"muted\">対象種未設定</span>"}</p><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">ライブ</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">振り返り</a>${session.eventCode ? `<a class="btn secondary" href="/community/events/${encodeURIComponent(session.eventCode)}/join">参加</a>` : ""}</div></article>`).join("");
+  return `<section><h1>観察会</h1><p class="muted">${auth ? `${escapeHtml(auth.displayName)} として表示中` : "公開D1セッションを表示中"}</p><div class="grid">${items || observationEventEmptyState("観察会はまだありません", "新しい観察会を作成してください。")}</div></section>`;
+}
+
+function renderObservationEventJoinPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, teams: Awaited<ReturnType<typeof listObservationEventTeams>>, isAuthenticated: boolean): string {
+  return `<section class="card"><h1>${escapeHtml(session.title)} に参加</h1><p class="muted">参加コード: ${escapeHtml(session.eventCode ?? "")}</p><p>${session.targetSpecies.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("")}</p><h2>チーム</h2><div class="grid">${teams.map((team) => `<article class="card"><strong>${escapeHtml(team.name)}</strong><p class="muted">${escapeHtml(team.color)}</p></article>`).join("") || "<p class=\"muted\">チーム未設定</p>"}</div><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">ライブへ</a>${isAuthenticated ? "" : `<a class="btn secondary" href="/login?redirect=/community/events/${encodeURIComponent(session.eventCode ?? "")}/join">ログイン</a>`}</div></section>`;
+}
+
+function renderObservationEventLivePage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, teams: Awaited<ReturnType<typeof listObservationEventTeams>>, events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>, canManage: boolean): string {
+  return `<section><h1>${escapeHtml(session.title)} ライブ</h1><p class="muted">D1 snapshot delivery / ${escapeHtml(session.primaryMode)}</p><div class="actions">${canManage ? `<a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}<a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/recent">recent API</a></div><div class="grid">${teams.map((team) => `<article class="card"><strong>${escapeHtml(team.name)}</strong><p>${jsonArray(team.target_taxa_json).map((taxon) => `<span class="pill">${escapeHtml(taxon)}</span>`).join("")}</p></article>`).join("")}</div><h2>最近の動き</h2>${renderObservationEventTimeline(events)}</section>`;
+}
+
+function renderObservationEventConsolePage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, teams: Awaited<ReturnType<typeof listObservationEventTeams>>, events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>, effort: Awaited<ReturnType<typeof summarizeObservationEventEffort>> | null): string {
+  return `<section><h1>${escapeHtml(session.title)} 管制塔</h1><div class="grid"><article class="card"><h2>状態</h2><p>${escapeHtml(session.primaryMode)}</p><p class="muted">${escapeHtml(session.startedAt)} - ${escapeHtml(session.endedAt ?? "open")}</p></article><article class="card"><h2>努力量</h2><p>${escapeHtml(effort?.totalEffortPersonHours ?? 0)} person-hours</p><p>${escapeHtml(effort?.coveragePct ?? 0)}% coverage</p></article><article class="card"><h2>チーム</h2><p>${teams.length}</p></article></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/effort">effort API</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/report">公式出力</a></div>${renderObservationEventTimeline(events)}</section>`;
+}
+
+function renderObservationEventEditPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): string {
+  return `<section class="card"><h1>${escapeHtml(session.title)} 編集</h1><p class="muted">Worker/D1 runtimeでは、更新は PATCH /api/v1/observation-events/:sessionId に集約します。</p><pre>${escapeHtml(JSON.stringify({ sessionId: session.sessionId, title: session.title, primaryMode: session.primaryMode, activeModes: session.activeModes, targetSpecies: session.targetSpecies }, null, 2))}</pre><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}">session API</a></div></section>`;
+}
+
+function renderObservationEventRallyPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>, rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>, canManage: boolean): string {
+  return `<section><h1>${escapeHtml(session.title)} 観察ラリー</h1><div class="grid"><article class="card"><h2>${escapeHtml(rally.course?.title ?? "観察ラリー未作成")}</h2><p class="muted">${escapeHtml(rally.course?.status ?? "draft")}</p></article><article class="card"><h2>地点</h2><p>${rally.stations.length}</p></article><article class="card"><h2>ミッション</h2><p>${rally.missions.length}</p></article></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/rally">rally API</a>${canManage ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a>` : ""}</div></section>`;
+}
+
+function renderObservationEventRecapPage(recap: Record<string, unknown>): string {
+  const session = asPlainObject(recap.session) ?? {};
+  const highlights = asPlainObject(recap.highlights) ?? {};
+  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>不在確認</h2><p>${escapeHtml(highlights.absencesCount ?? 0)}</p></article><article class="card"><h2>参加者</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><pre>${escapeHtml(JSON.stringify({ highlights, myContribution: recap.myContribution ?? null }, null, 2))}</pre></section>`;
+}
+
+function renderObservationEventReportPage(report: Awaited<ReturnType<typeof buildObservationEventOfficialReport>> & Record<string, unknown>): string {
+  const stats = asPlainObject(report.stats) ?? {};
+  const records = Array.isArray(report.speciesRecords) ? report.speciesRecords : [];
+  return `<section><h1>${escapeHtml((report.session as { title?: string } | undefined)?.title ?? "観察会")} 公式出力</h1><div class="grid"><article class="card"><h2>公式記録</h2><p>${escapeHtml(stats.officialObservationCount ?? 0)}</p></article><article class="card"><h2>分類群</h2><p>${escapeHtml(stats.uniqueTaxaCount ?? 0)}</p></article></div><pre>${escapeHtml(JSON.stringify(records.slice(0, 20), null, 2))}</pre></section>`;
+}
+
+function renderObservationEventTimeline(events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>): string {
+  return `<div class="grid">${events.slice(0, 20).map((event) => `<article class="card"><strong>${escapeHtml(event.type)}</strong><p class="muted">${escapeHtml(event.createdAt)}</p><pre>${escapeHtml(JSON.stringify(event.payload, null, 2))}</pre></article>`).join("") || "<p class=\"muted\">まだイベントはありません。</p>"}</div>`;
+}
+
+function observationEventEmptyState(title: string, description: string): string {
+  return `<article class="card"><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(description)}</p><div class="actions"><a class="btn" href="/community/events">観察会一覧</a></div></article>`;
 }
 
 async function suggestObservationEventArea(request: Request, env: Env): Promise<Response> {

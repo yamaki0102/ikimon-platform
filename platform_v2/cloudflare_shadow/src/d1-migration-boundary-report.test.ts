@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 21/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 20/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 21/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 20/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -329,7 +329,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackage.ts"), "cloudflare_observation_package_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackageDataChain.ts"), "cloudflare_observation_package_data_chain_replaced_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/sensitiveSpeciesMasking.ts"), "cloudflare_public_map_and_area_snapshot_masking_readmodels");
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventPages.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/observationEventPages.ts"), "cloudflare_observation_event_pages_runtime");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/siteSignalsCache.ts"), "optional_site_signals_cache_falls_back_without_database");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/gbifBackboneMatch.ts"), "optional_gbif_match_cache_falls_back_to_remote_api");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/officialNoticeCache.ts"), "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot");
