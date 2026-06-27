@@ -497,6 +497,26 @@ interface ProductionFieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface UserObservationFieldTestRow {
+  field_id: string;
+  owner_user_id: string;
+  source: string;
+  name: string;
+  name_kana: string;
+  summary: string;
+  prefecture: string;
+  city: string;
+  public_cell: string;
+  public_lat: number;
+  public_lng: number;
+  radius_m: number;
+  area_ha: number | null;
+  payload_json: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 interface SourceSnapshotTestRow {
   snapshot_id: string;
   source_kind: string;
@@ -1403,6 +1423,7 @@ class FakeD1 {
   observationReassessmentRequests = new Map<string, ObservationReassessmentRequestRow>();
   candidateActionRequests = new Map<string, CandidateActionRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
+  userObservationFields = new Map<string, UserObservationFieldTestRow>();
   sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
   placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
   fieldManagers = new Map<string, FieldManagerGrantTestRow>();
@@ -2950,6 +2971,49 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO user_observation_fields")) {
+      const now = new Date().toISOString();
+      const row: UserObservationFieldTestRow = {
+        field_id: string(v[0]),
+        owner_user_id: string(v[1]),
+        source: "user_defined",
+        name: string(v[2]),
+        name_kana: string(v[3]),
+        summary: string(v[4]),
+        prefecture: string(v[5]),
+        city: string(v[6]),
+        public_cell: string(v[7]),
+        public_lat: number(v[8]),
+        public_lng: number(v[9]),
+        radius_m: number(v[10]),
+        area_ha: nullableNumber(v[11]),
+        payload_json: string(v[12]),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null
+      };
+      this.db.userObservationFields.set(row.field_id, row);
+      return row as unknown as Record<string, unknown>;
+    }
+
+    if (normalized.startsWith("UPDATE user_observation_fields SET")) {
+      const row = requireRow(this.db.userObservationFields, string(v[11]));
+      if (row.owner_user_id !== string(v[12]) || row.deleted_at) return {};
+      row.name = string(v[0]);
+      row.name_kana = string(v[1]);
+      row.summary = string(v[2]);
+      row.prefecture = string(v[3]);
+      row.city = string(v[4]);
+      row.public_cell = string(v[5]);
+      row.public_lat = number(v[6]);
+      row.public_lng = number(v[7]);
+      row.radius_m = number(v[8]);
+      row.area_ha = nullableNumber(v[9]);
+      row.payload_json = string(v[10]);
+      row.updated_at = new Date().toISOString();
+      return row as unknown as Record<string, unknown>;
+    }
+
     if (normalized.startsWith("INSERT INTO walk_sessions")) {
       const existing = nullableString(v[1])
         ? [...this.db.walkSessions.values()].find((row) => row.external_id === nullableString(v[1]))
@@ -3461,6 +3525,54 @@ class FakeStatement {
     }
 
     const v = this.values;
+
+    if (normalized.startsWith("INSERT INTO user_observation_fields")) {
+      const now = new Date().toISOString();
+      const row: UserObservationFieldTestRow = {
+        field_id: string(v[0]),
+        owner_user_id: string(v[1]),
+        source: "user_defined",
+        name: string(v[2]),
+        name_kana: string(v[3]),
+        summary: string(v[4]),
+        prefecture: string(v[5]),
+        city: string(v[6]),
+        public_cell: string(v[7]),
+        public_lat: number(v[8]),
+        public_lng: number(v[9]),
+        radius_m: number(v[10]),
+        area_ha: nullableNumber(v[11]),
+        payload_json: string(v[12]),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null
+      };
+      this.db.userObservationFields.set(row.field_id, row);
+      return row as T;
+    }
+
+    if (normalized.startsWith("UPDATE user_observation_fields SET")) {
+      const row = this.db.userObservationFields.get(string(v[11]));
+      if (!row || row.owner_user_id !== string(v[12]) || row.deleted_at) return null;
+      row.name = string(v[0]);
+      row.name_kana = string(v[1]);
+      row.summary = string(v[2]);
+      row.prefecture = string(v[3]);
+      row.city = string(v[4]);
+      row.public_cell = string(v[5]);
+      row.public_lat = number(v[6]);
+      row.public_lng = number(v[7]);
+      row.radius_m = number(v[8]);
+      row.area_ha = nullableNumber(v[9]);
+      row.payload_json = string(v[10]);
+      row.updated_at = new Date().toISOString();
+      return row as T;
+    }
+
+    if (normalized.startsWith("SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city")) {
+      const row = this.db.userObservationFields.get(string(v[0]));
+      return row && !row.deleted_at ? (row as T) : null;
+    }
 
     if (normalized.startsWith("SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name")) {
       const row = this.db.authorityRecommendations.get(string(v[0]));
@@ -4968,7 +5080,94 @@ class FakeStatement {
         .slice(0, limit);
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city")) {
+      if (normalized.includes("WHERE owner_user_id = ? AND deleted_at IS NULL AND public_lat BETWEEN")) {
+        const ownerUserId = string(this.values[0]);
+        const minLat = number(this.values[1]);
+        const maxLat = number(this.values[2]);
+        const minLng = number(this.values[3]);
+        const maxLng = number(this.values[4]);
+        const rows = [...this.db.userObservationFields.values()]
+          .filter((row) =>
+            row.owner_user_id === ownerUserId &&
+            !row.deleted_at &&
+            row.public_lat >= minLat &&
+            row.public_lat <= maxLat &&
+            row.public_lng >= minLng &&
+            row.public_lng <= maxLng
+          )
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+          .slice(0, 20);
+        return { results: rows as T[] };
+      }
+      if (normalized.includes("WHERE owner_user_id = ? AND deleted_at IS NULL")) {
+        const ownerUserId = string(this.values[0]);
+        const limit = number(this.values[1]);
+        const rows = [...this.db.userObservationFields.values()]
+          .filter((row) => row.owner_user_id === ownerUserId && !row.deleted_at)
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+          .slice(0, limit);
+        return { results: rows as T[] };
+      }
+      return { results: [] as T[] };
+    }
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
+      if (normalized.includes("WHERE 1=1")) {
+        let rows = [...this.db.productionFieldDetails.values()];
+        const values = this.values;
+        let cursor = 0;
+        if (normalized.includes("LOWER(NAME) LIKE")) {
+          const like = string(values[cursor++]).replace(/%/g, "").toLowerCase();
+          cursor += 2;
+          rows = rows.filter((row) =>
+            row.name.toLowerCase().includes(like) ||
+            String(row.prefecture ?? "").toLowerCase().includes(like) ||
+            String(row.city ?? "").toLowerCase().includes(like)
+          );
+        }
+        if (normalized.includes("SOURCE = ?")) {
+          const source = string(values[cursor++]);
+          rows = rows.filter((row) => row.source === source);
+        }
+        if (normalized.includes("PREFECTURE = ?")) {
+          const prefecture = string(values[cursor++]);
+          rows = rows.filter((row) => row.prefecture === prefecture);
+        }
+        if (normalized.includes("PUBLIC_LAT BETWEEN")) {
+          const minLat = number(values[cursor++]);
+          const maxLat = number(values[cursor++]);
+          const minLng = number(values[cursor++]);
+          const maxLng = number(values[cursor++]);
+          rows = rows.filter((row) =>
+            row.public_lat >= minLat &&
+            row.public_lat <= maxLat &&
+            row.public_lng >= minLng &&
+            row.public_lng <= maxLng
+          );
+        }
+        const limit = number(values.at(-1));
+        return {
+          results: rows
+            .sort((a, b) => String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")))
+            .slice(0, limit) as T[]
+        };
+      }
+      if (normalized.includes("WHERE public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?") && normalized.includes("LIMIT 20")) {
+        const minLat = number(this.values[0]);
+        const maxLat = number(this.values[1]);
+        const minLng = number(this.values[2]);
+        const maxLng = number(this.values[3]);
+        const rows = [...this.db.productionFieldDetails.values()]
+          .filter((row) =>
+            row.public_lat >= minLat &&
+            row.public_lat <= maxLat &&
+            row.public_lng >= minLng &&
+            row.public_lng <= maxLng
+          )
+          .sort((a, b) => String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")))
+          .slice(0, 20);
+        return { results: rows as T[] };
+      }
       const minLat = number(this.values[0]);
       const maxLat = number(this.values[1]);
       const minLng = number(this.values[2]);
@@ -4983,6 +5182,15 @@ class FakeStatement {
         )
         .sort((a, b) => (a.area_ha ?? 999999) - (b.area_ha ?? 999999) || a.name.localeCompare(b.name, "ja"))
         .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT prefecture, COUNT(*) AS field_count")) {
+      const counts = new Map<string, number>();
+      for (const row of this.db.productionFieldDetails.values()) {
+        if (!row.prefecture) continue;
+        counts.set(row.prefecture, (counts.get(row.prefecture) ?? 0) + 1);
+      }
+      const rows = [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([prefecture, field_count]) => ({ prefecture, field_count }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT field_id, public_lat, public_lng, radius_m")) {
@@ -12201,6 +12409,130 @@ test("production area snapshot uses D1 field detail readmodel when not materiali
     assert.equal(payload.snapshot.privacy.exactLocationExposed, false);
     assert.equal(payload.snapshot.compatibility.source, "cloudflare_field_detail_readmodel_lightweight_area_snapshot");
     assert.equal(payload.snapshot.source, undefined);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production observation field registry runtime creates lists updates and checks conflicts in D1", async () => {
+  const { env, obs, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.productionFieldDetails.set("certified-near-field", {
+    field_id: "certified-near-field",
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "認定ビオトープ",
+    name_kana: null,
+    summary: "公開フィールド",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 200,
+    area_ha: 0.8,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "certified-near-field",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "field-owner", displayName: "Field Owner", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const unauth = await worker.fetch(new Request("https://ikimon.life/api/v1/fields", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "未ログイン", lat: 35.02, lng: 138.39 })
+    }), productionEnv);
+    assert.equal(unauth.status, 401);
+
+    const conflict = await worker.fetch(new Request("https://ikimon.life/api/v1/fields/conflicts", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ name: "認定ビオトープ", lat: 35.0105, lng: 138.3805, radius_m: 1000 })
+    }), productionEnv);
+    const conflictPayload = await conflict.json() as any;
+    assert.equal(conflict.status, 200);
+    assert.equal(conflictPayload.conflicts[0].field.fieldId, "certified-near-field");
+
+    const create = await worker.fetch(new Request("https://ikimon.life/api/v1/fields", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        name: "自分の小さな調査地",
+        prefecture: "静岡県",
+        city: "静岡市",
+        lat: 35.2,
+        lng: 138.5,
+        radius_m: 300
+      })
+    }), productionEnv);
+    const createPayload = await create.json() as any;
+    assert.equal(create.status, 201);
+    assert.equal(create.headers.get("x-ikimon-cloudflare-native"), "observation-field-registry-runtime");
+    assert.equal(createPayload.field.name, "自分の小さな調査地");
+    assert.equal(createPayload.field.ownerUserId, "field-owner");
+    assert.equal(obs.userObservationFields.size, 1);
+    const fieldId = createPayload.field.fieldId;
+
+    const mine = await worker.fetch(new Request("https://ikimon.life/api/v1/fields?mine=1", {
+      headers: { cookie }
+    }), productionEnv);
+    const minePayload = await mine.json() as any;
+    assert.equal(mine.status, 200);
+    assert.equal(minePayload.fields.length, 1);
+    assert.equal(minePayload.fields[0].fieldId, fieldId);
+
+    const patch = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${encodeURIComponent(fieldId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ name: "更新した調査地", radius_m: 450 })
+    }), productionEnv);
+    const patchPayload = await patch.json() as any;
+    assert.equal(patch.status, 200);
+    assert.equal(patchPayload.field.name, "更新した調査地");
+    assert.equal(patchPayload.field.radiusM, 450);
+
+    const list = await worker.fetch(new Request("https://ikimon.life/api/v1/fields?q=%E8%AA%8D%E5%AE%9A&limit=5"), productionEnv);
+    const listPayload = await list.json() as any;
+    assert.equal(list.status, 200);
+    assert.equal(listPayload.fields[0].fieldId, "certified-near-field");
+
+    const prefectures = await worker.fetch(new Request("https://ikimon.life/api/v1/fields/prefectures"), productionEnv);
+    const prefecturesPayload = await prefectures.json() as any;
+    assert.equal(prefectures.status, 200);
+    assert.equal(prefecturesPayload.prefectures[0].prefecture, "静岡県");
+
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {

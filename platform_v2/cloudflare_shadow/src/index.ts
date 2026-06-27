@@ -871,6 +871,26 @@ interface FieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface UserObservationFieldRow {
+  field_id: string;
+  owner_user_id: string;
+  source: string;
+  name: string;
+  name_kana: string;
+  summary: string;
+  prefecture: string;
+  city: string;
+  public_cell: string;
+  public_lat: number;
+  public_lng: number;
+  radius_m: number;
+  area_ha: number | null;
+  payload_json: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 interface AreaPolygonReadmodelRow extends FieldDetailReadmodelRow {}
 
 interface AreaPolygonGeometryReadmodelRow {
@@ -1877,6 +1897,9 @@ export const worker = {
           env
         );
       }
+
+      const fieldRegistryResponse = await handleObservationFieldRegistryRuntime(request, url, env);
+      if (fieldRegistryResponse) return fieldRegistryResponse;
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
         return getOriginalUiStaticAsset(request, url, env);
@@ -13943,6 +13966,415 @@ async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env:
 
 function isSafeFieldId(fieldId: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(fieldId);
+}
+
+function publicCellFromLatLng(lat: number, lng: number): string {
+  return `${lat.toFixed(2)},${lng.toFixed(2)}`;
+}
+
+function normalizeFieldText(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maxLength) : "";
+}
+
+function fieldDistanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const r = 6371000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function userObservationFieldToReadmodel(row: UserObservationFieldRow): FieldDetailReadmodelRow {
+  return {
+    field_id: row.field_id,
+    source: "user_defined",
+    admin_level: null,
+    name: row.name,
+    name_kana: row.name_kana,
+    summary: row.summary,
+    prefecture: row.prefecture,
+    city: row.city,
+    public_cell: row.public_cell,
+    public_lat: row.public_lat,
+    public_lng: row.public_lng,
+    radius_m: row.radius_m,
+    area_ha: row.area_ha,
+    has_polygon: 0,
+    has_simplified_geometry: 0,
+    certification_id: null,
+    certification_url: null,
+    official_url: null,
+    owner_url: null,
+    story_url: null,
+    verification_level: "user_defined",
+    verification_method: "cloudflare_d1_user_field",
+    verification_label: "ユーザー定義",
+    source_confidence: 0.8,
+    valid_from: null,
+    valid_to: null,
+    entity_key: row.field_id,
+    updated_at: row.updated_at
+  };
+}
+
+function fieldRegistryPayload(row: FieldDetailReadmodelRow, ownerUserId: string | null = null) {
+  const base = fieldDetailPublicPayload(row);
+  return {
+    ...base,
+    lat: row.public_lat,
+    lng: row.public_lng,
+    polygon: null,
+    ownerUserId,
+    payload: {},
+    createdAt: row.updated_at ?? "",
+    updatedAt: row.updated_at ?? ""
+  };
+}
+
+async function getUserObservationField(fieldId: string, env: Env): Promise<UserObservationFieldRow | null> {
+  if (!isSafeFieldId(fieldId)) return null;
+  return env.OBS_DB.prepare(
+    `SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+            created_at, updated_at, deleted_at
+       FROM user_observation_fields
+      WHERE field_id = ? AND deleted_at IS NULL`
+  ).bind(fieldId).first<UserObservationFieldRow>();
+}
+
+async function getObservationFieldRegistryRow(fieldId: string, env: Env): Promise<{ row: FieldDetailReadmodelRow; ownerUserId: string | null } | null> {
+  const userField = await getUserObservationField(fieldId, env).catch(() => null);
+  if (userField) return { row: userObservationFieldToReadmodel(userField), ownerUserId: userField.owner_user_id };
+  const readmodel = await getFieldDetailReadmodelRow(fieldId, env);
+  return readmodel ? { row: readmodel, ownerUserId: null } : null;
+}
+
+function parseFieldRegistryBody(body: Record<string, unknown>) {
+  const name = normalizeFieldText(body.name, 120);
+  const lat = finiteNumberOrNull(body.lat);
+  const lng = finiteNumberOrNull(body.lng);
+  const radiusM = Math.max(10, Math.min(50000, Math.round(Number(body.radius_m ?? body.radiusM ?? 1000) || 1000)));
+  return {
+    name,
+    nameKana: normalizeFieldText(body.name_kana ?? body.nameKana, 120),
+    summary: normalizeFieldText(body.summary, 1200),
+    prefecture: normalizeFieldText(body.prefecture, 80),
+    city: normalizeFieldText(body.city, 80),
+    lat,
+    lng,
+    radiusM,
+    areaHa: finiteNumberOrNull(body.area_ha ?? body.areaHa),
+    payload: body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload as Record<string, unknown> : {}
+  };
+}
+
+async function handleObservationFieldRegistryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  if (!isAppRuntime(env)) return null;
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (request.method === "POST" && pathname === "/api/v1/fields/conflicts") {
+    return findObservationFieldConflictsNative(request, env);
+  }
+  if (request.method === "POST" && pathname === "/api/v1/fields") {
+    return createObservationFieldNative(request, env);
+  }
+  if (request.method === "GET" && pathname === "/api/v1/fields/prefectures") {
+    return listObservationFieldPrefecturesNative(env);
+  }
+  const statsMatch = pathname.match(/^\/api\/v1\/fields\/([^/]+)\/stats$/);
+  if (request.method === "GET" && statsMatch?.[1]) {
+    return getObservationFieldStatsNative(decodeURIComponent(statsMatch[1]), env);
+  }
+  const fieldMatch = pathname.match(/^\/api\/v1\/fields\/([^/]+)$/);
+  if (fieldMatch?.[1]) {
+    const fieldId = decodeURIComponent(fieldMatch[1]);
+    if (request.method === "GET") return getObservationFieldNative(fieldId, env);
+    if (request.method === "PATCH") return updateObservationFieldNative(request, fieldId, env);
+  }
+  if (request.method === "GET" && pathname === "/api/v1/fields") {
+    return listObservationFieldsNative(request, url, env);
+  }
+  return null;
+}
+
+async function requireFieldRegistrySession(request: Request, env: Env): Promise<SessionSnapshot | Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  return session;
+}
+
+async function findObservationFieldConflictsNative(request: Request, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  const body = await readJson<Record<string, unknown>>(request);
+  const input = parseFieldRegistryBody(body);
+  if (!input.name || input.lat === null || input.lng === null) {
+    return json({ error: "name, lat, lng required" }, 400, { "cache-control": "no-store" });
+  }
+  const conflicts = await collectFieldRegistryConflicts(env, session.userId, input.name, input.lat, input.lng, input.radiusM);
+  return json({ conflicts, compatibility: { source: "cloudflare_observation_field_registry_runtime" } }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function createObservationFieldNative(request: Request, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  const body = await readJson<Record<string, unknown>>(request);
+  const input = parseFieldRegistryBody(body);
+  if (!input.name || input.lat === null || input.lng === null) {
+    return json({ error: "name, lat, lng required" }, 400, { "cache-control": "no-store" });
+  }
+  const conflicts = await collectFieldRegistryConflicts(env, session.userId, input.name, input.lat, input.lng, input.radiusM);
+  const resolutionAction = normalizeOptionalText(body.resolution_action ?? body.resolutionAction);
+  if (conflicts.length > 0 && !resolutionAction) {
+    return json({
+      error: "similar field exists",
+      message: "似たフィールドがあります。今回の観察会ではどの範囲を使うか選んでください。",
+      conflicts
+    }, 409, { "cache-control": "no-store" });
+  }
+  if (resolutionAction === "use_existing") {
+    const targetId = normalizeOptionalText(body.resolution_field_id ?? body.resolutionFieldId);
+    const field = targetId ? conflicts.find((item) => item.field.fieldId === targetId)?.field : conflicts[0]?.field;
+    if (!field) return json({ error: "resolution_field_id not found in conflicts" }, 400, { "cache-control": "no-store" });
+    return json({ field, resolution: { action: "use_existing", conflicts } }, 200, { "cache-control": "no-store" });
+  }
+  const fieldId = `user-field-${crypto.randomUUID()}`;
+  const row = await env.OBS_DB.prepare(
+    `INSERT INTO user_observation_fields (
+       field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+       public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+       created_at, updated_at
+     ) VALUES (?, ?, 'user_defined', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     RETURNING field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+       public_cell, public_lat, public_lng, radius_m, area_ha, payload_json, created_at, updated_at, deleted_at`
+  ).bind(
+    fieldId,
+    session.userId,
+    input.name,
+    input.nameKana,
+    input.summary,
+    input.prefecture,
+    input.city,
+    publicCellFromLatLng(input.lat, input.lng),
+    input.lat,
+    input.lng,
+    input.radiusM,
+    input.areaHa,
+    JSON.stringify(input.payload)
+  ).first<UserObservationFieldRow>();
+  if (!row) return json({ error: "create failed" }, 500, { "cache-control": "no-store" });
+  return json({
+    field: fieldRegistryPayload(userObservationFieldToReadmodel(row), row.owner_user_id),
+    resolution: { action: resolutionAction || "created", conflicts },
+    compatibility: { source: "cloudflare_observation_field_registry_runtime" }
+  }, 201, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function updateObservationFieldNative(request: Request, fieldId: string, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  if (!isSafeFieldId(fieldId)) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  const existing = await getUserObservationField(fieldId, env);
+  if (!existing) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  if (existing.owner_user_id !== session.userId) return json({ error: "owner only" }, 403, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const parsed = parseFieldRegistryBody({
+    ...body,
+    name: body.name ?? existing.name,
+    lat: body.lat ?? existing.public_lat,
+    lng: body.lng ?? existing.public_lng,
+    radius_m: body.radius_m ?? body.radiusM ?? existing.radius_m
+  });
+  const row = await env.OBS_DB.prepare(
+    `UPDATE user_observation_fields SET
+       name = ?, name_kana = ?, summary = ?, prefecture = ?, city = ?,
+       public_cell = ?, public_lat = ?, public_lng = ?, radius_m = ?, area_ha = ?,
+       payload_json = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE field_id = ? AND owner_user_id = ? AND deleted_at IS NULL
+     RETURNING field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+       public_cell, public_lat, public_lng, radius_m, area_ha, payload_json, created_at, updated_at, deleted_at`
+  ).bind(
+    parsed.name || existing.name,
+    body.name_kana === undefined && body.nameKana === undefined ? existing.name_kana : parsed.nameKana,
+    body.summary === undefined ? existing.summary : parsed.summary,
+    body.prefecture === undefined ? existing.prefecture : parsed.prefecture,
+    body.city === undefined ? existing.city : parsed.city,
+    publicCellFromLatLng(parsed.lat ?? existing.public_lat, parsed.lng ?? existing.public_lng),
+    parsed.lat ?? existing.public_lat,
+    parsed.lng ?? existing.public_lng,
+    parsed.radiusM,
+    body.area_ha === undefined && body.areaHa === undefined ? existing.area_ha : parsed.areaHa,
+    body.payload === undefined ? existing.payload_json : JSON.stringify(parsed.payload),
+    fieldId,
+    session.userId
+  ).first<UserObservationFieldRow>();
+  if (!row) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  return json({ field: fieldRegistryPayload(userObservationFieldToReadmodel(row), row.owner_user_id) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function getObservationFieldNative(fieldId: string, env: Env): Promise<Response> {
+  const entry = await getObservationFieldRegistryRow(fieldId, env);
+  if (!entry) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  return json({ field: fieldRegistryPayload(entry.row, entry.ownerUserId) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function getObservationFieldStatsNative(fieldId: string, env: Env): Promise<Response> {
+  const entry = await getObservationFieldRegistryRow(fieldId, env);
+  if (!entry) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  return json({
+    stats: {
+      fieldId,
+      sessionCount: 0,
+      observationCount: 0,
+      latestObservedAt: null,
+      source: "cloudflare_observation_field_registry_runtime"
+    }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "observation-field-registry-runtime" });
+}
+
+async function listObservationFieldPrefecturesNative(env: Env): Promise<Response> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT prefecture, COUNT(*) AS field_count
+       FROM production_import_field_detail_readmodel
+      WHERE prefecture IS NOT NULL AND prefecture <> ''
+      GROUP BY prefecture
+      ORDER BY prefecture ASC
+      LIMIT 100`
+  ).all<{ prefecture: string; field_count: number }>();
+  return json({
+    prefectures: rows.results.map((row) => ({ prefecture: row.prefecture, fieldCount: Number(row.field_count ?? 0) })),
+    compatibility: { source: "cloudflare_observation_field_registry_runtime" }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "observation-field-registry-runtime" });
+}
+
+async function listObservationFieldsNative(request: Request, url: URL, env: Env): Promise<Response> {
+  const params = url.searchParams;
+  const limit = Math.max(1, Math.min(100, Number(params.get("limit") ?? "30") || 30));
+  const mine = params.get("mine") === "1";
+  const q = normalizeOptionalText(params.get("q"));
+  const certified = normalizeOptionalText(params.get("certified"));
+  const source = normalizeOptionalText(params.get("source")) ?? certified;
+  const nearby = normalizeOptionalText(params.get("nearby"));
+  const prefecture = normalizeOptionalText(params.get("prefecture"));
+  if (mine) {
+    const session = await requireFieldRegistrySession(request, env);
+    if (session instanceof Response) return session;
+    const rows = await env.OBS_DB.prepare(
+      `SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+              public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+              created_at, updated_at, deleted_at
+         FROM user_observation_fields
+        WHERE owner_user_id = ? AND deleted_at IS NULL
+        ORDER BY updated_at DESC
+        LIMIT ?`
+    ).bind(session.userId, limit).all<UserObservationFieldRow>();
+    return json({ fields: rows.results.map((row) => fieldRegistryPayload(userObservationFieldToReadmodel(row), row.owner_user_id)) }, 200, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+    });
+  }
+  const filterParts: string[] = ["1=1"];
+  const binds: Array<string | number> = [];
+  if (q) {
+    filterParts.push("(lower(name) LIKE ? OR lower(coalesce(prefecture, '')) LIKE ? OR lower(coalesce(city, '')) LIKE ?)");
+    const like = `%${q.toLowerCase()}%`;
+    binds.push(like, like, like);
+  }
+  if (source) {
+    filterParts.push("source = ?");
+    binds.push(source);
+  }
+  if (prefecture) {
+    filterParts.push("prefecture = ?");
+    binds.push(prefecture);
+  }
+  if (nearby) {
+    const [latRaw, lngRaw] = nearby.split(",");
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return json({ error: "invalid nearby" }, 400, { "cache-control": "no-store" });
+    const km = Math.max(0.1, Math.min(100, Number(params.get("km") ?? "10") || 10));
+    filterParts.push("public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?");
+    binds.push(lat - km / 111, lat + km / 111, lng - km / 90, lng + km / 90);
+  }
+  const rows = await env.OBS_DB.prepare(
+    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha,
+            has_polygon, has_simplified_geometry,
+            certification_id, certification_url, official_url, owner_url, story_url,
+            verification_level, verification_method, verification_label, source_confidence,
+            valid_from, valid_to, entity_key, updated_at
+       FROM production_import_field_detail_readmodel
+      WHERE ${filterParts.join(" AND ")}
+      ORDER BY updated_at DESC
+      LIMIT ?`
+  ).bind(...binds, limit).all<FieldDetailReadmodelRow>();
+  return json({ fields: rows.results.map((row) => fieldRegistryPayload(row, null)) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function collectFieldRegistryConflicts(
+  env: Env,
+  ownerUserId: string,
+  name: string,
+  lat: number,
+  lng: number,
+  radiusM: number
+): Promise<Array<{ field: ReturnType<typeof fieldRegistryPayload>; distanceMeters: number; reason: string; editableByRequester: boolean }>> {
+  const maxDistance = Math.max(100, Math.min(5000, radiusM));
+  const userRows = await env.OBS_DB.prepare(
+    `SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+            created_at, updated_at, deleted_at
+       FROM user_observation_fields
+      WHERE owner_user_id = ? AND deleted_at IS NULL
+        AND public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?
+      ORDER BY updated_at DESC
+      LIMIT 20`
+  ).bind(ownerUserId, lat - 0.05, lat + 0.05, lng - 0.05, lng + 0.05).all<UserObservationFieldRow>();
+  const importedRows = await env.OBS_DB.prepare(
+    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha,
+            has_polygon, has_simplified_geometry,
+            certification_id, certification_url, official_url, owner_url, story_url,
+            verification_level, verification_method, verification_label, source_confidence,
+            valid_from, valid_to, entity_key, updated_at
+       FROM production_import_field_detail_readmodel
+      WHERE public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?
+      ORDER BY updated_at DESC
+      LIMIT 20`
+  ).bind(lat - 0.05, lat + 0.05, lng - 0.05, lng + 0.05).all<FieldDetailReadmodelRow>();
+  const candidates = [
+    ...userRows.results.map((row) => ({ row: userObservationFieldToReadmodel(row), ownerUserId: row.owner_user_id })),
+    ...importedRows.results.map((row) => ({ row, ownerUserId: null }))
+  ];
+  return candidates.flatMap((candidate) => {
+    const distanceMeters = Math.round(fieldDistanceMeters(lat, lng, candidate.row.public_lat, candidate.row.public_lng));
+    const sameName = candidate.row.name.trim().toLowerCase() === name.trim().toLowerCase();
+    if (!sameName && distanceMeters > maxDistance) return [];
+    return [{
+      field: fieldRegistryPayload(candidate.row, candidate.ownerUserId),
+      distanceMeters,
+      reason: sameName ? "same_name_nearby" : "nearby_field",
+      editableByRequester: candidate.ownerUserId === ownerUserId
+    }];
+  }).sort((a, b) => a.distanceMeters - b.distanceMeters).slice(0, 8);
 }
 
 function originalUiAreaSnapshotKey(fieldId: string): string {
