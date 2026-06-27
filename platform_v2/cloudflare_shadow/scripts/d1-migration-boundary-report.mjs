@@ -218,6 +218,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/specialistReview.ts": "cloudflare_specialist_review_runtime",
     "platform_v2/src/services/reviewerAuthorities.ts": "cloudflare_specialist_authority_runtime",
     "platform_v2/src/services/authorityRecommendations.ts": "cloudflare_specialist_authority_runtime",
+    "platform_v2/src/services/writeSupportPg.ts": "cloudflare_replaced_or_residual_write_support_pg_helper",
     "platform_v2/src/services/visitSubjects.ts": "cloudflare_visit_subject_summary_replaced_dependency"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;

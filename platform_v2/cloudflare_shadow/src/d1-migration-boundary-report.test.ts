@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 9/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 8/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 9/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 8/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -314,6 +314,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), "cloudflare_observation_data_rights_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/civicNatureContext.ts"), "cloudflare_civic_observation_context_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupportPg.ts"), "cloudflare_replaced_or_residual_write_support_pg_helper");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSession.ts"), "cloudflare_guide_scene_static_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSessionPublicSummary.ts"), "cloudflare_guide_session_public_summary_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRecordPromotion.ts"), "cloudflare_guide_record_promotion_request_ledger");
@@ -573,6 +574,35 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_observation_detail_observer_stats_card/);
   assert.match(script, /optional_place_vegetation_trend_card_falls_back_null/);
   assert.match(script, /optional_observation_detail_taxon_insight_card/);
+});
+
+test("write support PostgreSQL helper is separated from pure write helpers", async () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const pureSupport = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeSupport.ts"), "utf8");
+  const pgSupport = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeSupportPg.ts"), "utf8");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "writeSupportPg.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.doesNotMatch(pureSupport, /\bPoolClient\b|from ["']pg["']|client\.query|getPool\(/);
+  assert.doesNotMatch(pureSupport, /upsertAssetBlob|recordCompatibilityFailure/);
+  assert.match(pureSupport, /export function buildPlaceId/);
+  assert.match(pureSupport, /export function makeOccurrenceId/);
+  assert.match(pgSupport, /export async function upsertAssetBlob/);
+  assert.match(pgSupport, /export async function recordCompatibilityFailure/);
+  assert.match(pgSupport, /from "pg"/);
+  assert.deepEqual(importers, [
+    "platform_v2/src/services/fieldscanAudio.ts",
+    "platform_v2/src/services/observationPhotoUpload.ts",
+    "platform_v2/src/services/observationWrite.ts",
+    "platform_v2/src/services/placeMemory.ts",
+    "platform_v2/src/services/referenceLibrary.ts",
+    "platform_v2/src/services/rememberTokenWrite.ts",
+    "platform_v2/src/services/stagingRegressionFixtures.ts",
+    "platform_v2/src/services/trackWrite.ts",
+    "platform_v2/src/services/userWrite.ts",
+  ]);
 });
 
 test("observation package data chain is only imported by replaced runtime or type-only consumers", async () => {
