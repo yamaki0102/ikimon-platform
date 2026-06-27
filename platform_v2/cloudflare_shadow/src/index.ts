@@ -1620,6 +1620,11 @@ export const worker = {
         return getNativePlaceLandingPage(decodeURIComponent(nativePlacePageMatch[1]), request);
       }
 
+      const fixedPointStationMatch = nativePathname.match(/^\/places\/([^/]+)\/station$/);
+      if ((request.method === "GET" || request.method === "HEAD") && fixedPointStationMatch?.[1]) {
+        return getNativeFixedPointStationHtml(request, env, decodeURIComponent(fixedPointStationMatch[1]));
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/municipal-walk-maps") {
         return await getMunicipalWalkMapAdminPage(request, url, env);
       }
@@ -10594,6 +10599,233 @@ function parsePlaceSnapshotPath(pathname: string): { lang: string; fieldId: stri
   const match = pathname.match(/^\/(?:(ja|en|es|pt-br)\/)?places\/([a-zA-Z0-9][a-zA-Z0-9_-]{0,127})\/snapshot$/);
   if (!match?.[2]) return null;
   return { lang: match[1] ?? "ja", fieldId: match[2] };
+}
+
+async function getNativeFixedPointStationHtml(request: Request, env: Env, placeId: string): Promise<Response> {
+  const station = await getD1FixedPointStation(placeId, env);
+  if (!station) {
+    return html(request.method === "HEAD" ? "" : renderFixedPointStationNotFoundHtml(placeId), 404, {
+      "cache-control": "no-store",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "fixed-point-station-readmodel"
+    });
+  }
+  return html(request.method === "HEAD" ? "" : renderD1FixedPointStationHtml(station), 200, {
+    "cache-control": "no-store",
+    "vary": "cookie, authorization",
+    "x-ikimon-cloudflare-native": "fixed-point-station-readmodel"
+  });
+}
+
+interface D1FixedPointStation {
+  placeId: string;
+  name: string;
+  locationLabel: string;
+  publicLat: number | null;
+  publicLng: number | null;
+  visits: D1FixedPointStationVisit[];
+  actions: D1FixedPointStationAction[];
+  yearlyTimeline: Array<{
+    year: number;
+    visitCount: number;
+    mediaCount: number;
+    stewardshipCount: number;
+    taxa: string[];
+  }>;
+}
+
+interface D1FixedPointStationVisit {
+  visitId: string;
+  observedAt: string | null;
+  taxa: string[];
+  mediaCount: number;
+}
+
+interface D1FixedPointStationAction {
+  actionId: string;
+  occurredAt: string;
+  actionKind: string;
+  description: string | null;
+}
+
+async function getD1FixedPointStation(placeId: string, env: Env): Promise<D1FixedPointStation | null> {
+  const normalizedPlaceId = normalizeOptionalId(placeId);
+  if (!normalizedPlaceId || normalizedPlaceId.length > 128) return null;
+  const field = await getFieldDetailReadmodelRow(normalizedPlaceId, env);
+  const visitRows = await env.OBS_DB.prepare(
+    `SELECT visit_id, observed_at
+       FROM production_import_visits
+      WHERE place_id = ?
+        AND COALESCE(public_visibility, 'public') <> 'private'
+      ORDER BY observed_at DESC, visit_id DESC
+      LIMIT 80`
+  ).bind(normalizedPlaceId).all<{ visit_id: string; observed_at: string | null }>();
+  const visits = await Promise.all(visitRows.results.map(async (visit): Promise<D1FixedPointStationVisit> => {
+    const [taxaRows, mediaCount] = await Promise.all([
+      env.OBS_DB.prepare(
+        `SELECT occurrence_id, scientific_name, vernacular_name
+           FROM production_import_occurrences
+          WHERE visit_id = ?
+          ORDER BY created_at ASC, occurrence_id ASC
+          LIMIT 8`
+      ).bind(visit.visit_id).all<{
+        occurrence_id: string;
+        scientific_name: string | null;
+        vernacular_name: string | null;
+      }>(),
+      env.OBS_DB.prepare(
+        `SELECT COUNT(*) AS count
+           FROM production_import_evidence_assets
+          WHERE visit_id = ?
+            AND asset_role IN ('observation_photo', 'observation_video')`
+      ).bind(visit.visit_id).first<{ count: number }>()
+    ]);
+    return {
+      visitId: visit.visit_id,
+      observedAt: visit.observed_at,
+      taxa: taxaRows.results
+        .map((row) => normalizeOptionalText(row.vernacular_name) ?? normalizeOptionalText(row.scientific_name))
+        .filter((value): value is string => Boolean(value))
+        .slice(0, 5),
+      mediaCount: Number(mediaCount?.count ?? 0)
+    };
+  }));
+  const actionRows = await env.OBS_DB.prepare(
+    `SELECT action_id, occurred_at, action_kind, description
+       FROM stewardship_actions
+      WHERE place_id = ?
+      ORDER BY occurred_at DESC, action_id DESC
+      LIMIT 40`
+  ).bind(normalizedPlaceId).all<{
+    action_id: string;
+    occurred_at: string;
+    action_kind: string;
+    description: string | null;
+  }>();
+  const actions = actionRows.results.map((row) => ({
+    actionId: row.action_id,
+    occurredAt: row.occurred_at,
+    actionKind: row.action_kind,
+    description: row.description
+  }));
+  if (!field && visits.length === 0 && actions.length === 0) return null;
+  return {
+    placeId: normalizedPlaceId,
+    name: field?.name ?? normalizedPlaceId,
+    locationLabel: [field?.city, field?.prefecture].filter(Boolean).join(" / ") || field?.public_cell || normalizedPlaceId,
+    publicLat: field?.public_lat ?? null,
+    publicLng: field?.public_lng ?? null,
+    visits,
+    actions,
+    yearlyTimeline: buildD1FixedPointYearlyTimeline(visits, actions)
+  };
+}
+
+function buildD1FixedPointYearlyTimeline(visits: D1FixedPointStationVisit[], actions: D1FixedPointStationAction[]) {
+  const buckets = new Map<number, { year: number; visitCount: number; mediaCount: number; stewardshipCount: number; taxa: Map<string, number> }>();
+  const ensure = (year: number) => {
+    let bucket = buckets.get(year);
+    if (!bucket) {
+      bucket = { year, visitCount: 0, mediaCount: 0, stewardshipCount: 0, taxa: new Map() };
+      buckets.set(year, bucket);
+    }
+    return bucket;
+  };
+  for (const visit of visits) {
+    const year = Number(String(visit.observedAt ?? "").slice(0, 4));
+    if (!Number.isFinite(year)) continue;
+    const bucket = ensure(year);
+    bucket.visitCount += 1;
+    bucket.mediaCount += visit.mediaCount;
+    for (const taxon of visit.taxa) {
+      bucket.taxa.set(taxon, (bucket.taxa.get(taxon) ?? 0) + 1);
+    }
+  }
+  for (const action of actions) {
+    const year = Number(String(action.occurredAt).slice(0, 4));
+    if (!Number.isFinite(year)) continue;
+    ensure(year).stewardshipCount += 1;
+  }
+  return [...buckets.values()]
+    .sort((a, b) => b.year - a.year)
+    .map((bucket) => ({
+      year: bucket.year,
+      visitCount: bucket.visitCount,
+      mediaCount: bucket.mediaCount,
+      stewardshipCount: bucket.stewardshipCount,
+      taxa: [...bucket.taxa.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([taxon]) => taxon)
+    }));
+}
+
+function renderFixedPointStationNotFoundHtml(placeId: string): string {
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>定点ページ | ikimon</title></head><body><main><h1>定点ページが見つかりません</h1><p>${escapeHtml(placeId)} の公開記録はまだありません。</p><p><a href="/map">地図へ</a></p></main></body></html>`;
+}
+
+function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
+  const years = station.yearlyTimeline.length
+    ? station.yearlyTimeline.map((year) => `<article class="fps-card"><strong>${escapeHtml(year.year)}</strong><span>観察 ${year.visitCount} / メディア ${year.mediaCount} / 手入れ ${year.stewardshipCount}</span><p>${escapeHtml(year.taxa.join("、") || "対象整理中")}</p></article>`).join("")
+    : `<article class="fps-empty">年ごとの比較に使える公開記録はまだありません。</article>`;
+  const visits = station.visits.length
+    ? station.visits.slice(0, 20).map((visit) => `<article class="fps-row"><time>${escapeHtml(formatPublicObservationDate(visit.observedAt))}</time><strong>${escapeHtml(visit.taxa.join("、") || "対象整理中")}</strong><span>メディア ${visit.mediaCount}</span><a href="/observations/${encodeURIComponent(visit.visitId)}">開く</a></article>`).join("")
+    : `<article class="fps-empty">この場所の公開記録はまだありません。</article>`;
+  const actions = station.actions.length
+    ? station.actions.slice(0, 12).map((action) => `<article class="fps-card"><strong>${escapeHtml(actionLabelForD1FixedPoint(action.actionKind))}</strong><span>${escapeHtml(formatPublicObservationDate(action.occurredAt))}</span><p>${escapeHtml(action.description || "説明なし")}</p></article>`).join("")
+    : `<article class="fps-empty">手入れの記録はまだありません。</article>`;
+  const recordHref = `/record?${new URLSearchParams({
+    placeId: station.placeId,
+    recordMode: "survey",
+    activityIntent: "revisit",
+    ...(station.publicLat != null ? { latitude: String(station.publicLat) } : {}),
+    ...(station.publicLng != null ? { longitude: String(station.publicLng) } : {})
+  }).toString()}`;
+  return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapeHtml(station.name)} | 定点ページ | ikimon</title>
+  <style>
+    :root { color-scheme: light; --ink:#0f172a; --muted:#64748b; --line:rgba(15,23,42,.1); --green:#047857; --shell:min(1100px, calc(100% - 28px)); }
+    * { box-sizing: border-box; } body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:#f8fafc; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px clamp(14px,3vw,32px); border-bottom:1px solid var(--line); background:#fff; }
+    header a { color:inherit; text-decoration:none; font-weight:900; } main { width:var(--shell); margin:0 auto; padding:22px 0 56px; }
+    .fps-hero { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:end; padding:24px; border-radius:10px; background:linear-gradient(135deg,#ecfdf5,#eff6ff); border:1px solid var(--line); }
+    .fps-hero h1 { margin:6px 0; font-size:clamp(28px,5vw,48px); line-height:1.08; letter-spacing:0; } .fps-hero p { margin:0; color:var(--muted); font-weight:750; line-height:1.65; }
+    .fps-hero a { min-height:44px; display:inline-flex; align-items:center; padding:0 15px; border-radius:8px; background:var(--green); color:#fff; text-decoration:none; font-weight:900; }
+    .fps-stats, .fps-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:14px; }
+    .fps-stat, .fps-card, .fps-row, .fps-empty { min-width:0; padding:14px; border-radius:8px; border:1px solid var(--line); background:#fff; box-shadow:0 8px 22px rgba(15,23,42,.04); }
+    .fps-stat strong { display:block; color:#064e3b; font-size:28px; line-height:1; } .fps-stat span, .fps-card span, .fps-row span, .fps-row time { color:var(--muted); font-size:12px; font-weight:850; }
+    section { margin-top:24px; } h2 { margin:0 0 10px; font-size:clamp(21px,3vw,30px); letter-spacing:0; } .fps-card p { margin:8px 0 0; color:#334155; line-height:1.55; font-weight:720; }
+    .fps-row { display:grid; grid-template-columns:110px minmax(0,1fr) 90px auto; gap:10px; align-items:center; margin-bottom:8px; } .fps-row a { color:var(--green); font-weight:900; text-decoration:none; }
+    @media (max-width:760px) { .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } }
+  </style>
+</head>
+<body>
+<header><a href="/">ikimon</a><nav><a href="/map">地図へ</a></nav></header>
+<main data-cloudflare-fixed-point-station="1" data-place-id="${escapeHtml(station.placeId)}">
+  <section class="fps-hero"><div><span>定点ページ</span><h1>${escapeHtml(station.name)}</h1><p>${escapeHtml(station.locationLabel)}。同じ場所の公開記録と手入れの履歴を年ごとに並べます。</p></div><a href="${escapeHtml(recordHref)}">この場所を記録</a></section>
+  <div class="fps-stats"><div class="fps-stat"><strong>${station.visits.length}</strong><span>公開記録</span></div><div class="fps-stat"><strong>${station.yearlyTimeline.length}</strong><span>年</span></div><div class="fps-stat"><strong>${station.actions.length}</strong><span>手入れ</span></div></div>
+  <section><h2>年ごとの様子</h2><div class="fps-grid">${years}</div></section>
+  <section><h2>同じ場所の記録</h2>${visits}</section>
+  <section><h2>手入れの記録</h2><div class="fps-grid">${actions}</div></section>
+</main>
+</body>
+</html>`;
+}
+
+function actionLabelForD1FixedPoint(kind: string): string {
+  const labels: Record<string, string> = {
+    cleanup: "清掃",
+    mowing: "草刈り",
+    invasive_removal: "外来種対応",
+    patrol: "巡回",
+    signage: "看板",
+    monitoring: "モニタリング",
+    restoration: "修復",
+    community_engagement: "参加促進",
+    other: "その他"
+  };
+  return labels[kind] ?? kind;
 }
 
 async function getFieldDetailReadmodelRow(fieldId: string, env: Env): Promise<FieldDetailReadmodelRow | null> {

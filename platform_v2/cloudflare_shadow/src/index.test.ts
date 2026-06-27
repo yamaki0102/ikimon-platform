@@ -328,6 +328,7 @@ interface ProductionImportPublicReadmodelRow {
 interface ProductionImportVisitRow {
   visit_id: string;
   legacy_observation_id: string | null;
+  place_id?: string | null;
   user_id: string | null;
   public_visibility: string | null;
   observed_at: string | null;
@@ -3501,6 +3502,42 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT visit_id, observed_at FROM production_import_visits")) {
+      const placeId = string(v[0]);
+      const rows = [...this.db.productionVisits.values()]
+        .filter((row) => row.place_id === placeId && (row.public_visibility ?? "public") !== "private")
+        .sort((a, b) => (b.observed_at ?? "").localeCompare(a.observed_at ?? "") || b.visit_id.localeCompare(a.visit_id))
+        .slice(0, 80)
+        .map((row) => ({ visit_id: row.visit_id, observed_at: row.observed_at }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT occurrence_id, scientific_name, vernacular_name FROM production_import_occurrences")) {
+      const visitId = string(v[0]);
+      const rows = [...this.db.productionOccurrences.values()]
+        .filter((row) => row.visit_id === visitId)
+        .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.occurrence_id.localeCompare(b.occurrence_id))
+        .slice(0, 8)
+        .map((row) => ({
+          occurrence_id: row.occurrence_id,
+          scientific_name: row.scientific_name,
+          vernacular_name: row.vernacular_name
+        }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT action_id, occurred_at, action_kind, description FROM stewardship_actions")) {
+      const placeId = string(v[0]);
+      const rows = [...this.db.stewardshipActions.values()]
+        .filter((row) => row.place_id === placeId)
+        .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at) || b.action_id.localeCompare(a.action_id))
+        .slice(0, 40)
+        .map((row) => ({
+          action_id: row.action_id,
+          occurred_at: row.occurred_at,
+          action_kind: row.action_kind,
+          description: row.description
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT distance_m, passive_detection_count, top_species_json FROM walk_sessions")) {
       const userId = string(v[0]);
       const from = string(v[1]);
@@ -10031,6 +10068,110 @@ test("production area snapshot uses D1 field detail readmodel when not materiali
     assert.equal(payload.snapshot.privacy.exactLocationExposed, false);
     assert.equal(payload.snapshot.compatibility.source, "cloudflare_field_detail_readmodel_lightweight_area_snapshot");
     assert.equal(payload.snapshot.source, undefined);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production fixed point station page is D1-native without origin fallback", async () => {
+  const { env, obs, core } = createEnv();
+  const fieldId = "fixed-field-1";
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "谷津山の観察地点",
+    name_kana: null,
+    summary: "公開フィールドの概要",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "34.98,138.39",
+    public_lat: 34.98,
+    public_lng: 138.39,
+    radius_m: 200,
+    area_ha: 0.8,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "site-fixed-001",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-26T00:00:00.000Z"
+  });
+  obs.productionVisits.set("visit-fixed-2026", {
+    visit_id: "visit-fixed-2026",
+    legacy_observation_id: null,
+    place_id: fieldId,
+    user_id: "observer-1",
+    public_visibility: "public",
+    observed_at: "2026-06-20T09:00:00.000Z"
+  });
+  obs.productionVisits.set("visit-fixed-private", {
+    visit_id: "visit-fixed-private",
+    legacy_observation_id: null,
+    place_id: fieldId,
+    user_id: "observer-1",
+    public_visibility: "private",
+    observed_at: "2026-06-21T09:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-fixed-1", {
+    occurrence_id: "occ-fixed-1",
+    visit_id: "visit-fixed-2026",
+    scientific_name: "Butorides striata",
+    vernacular_name: "ササゴイ",
+    taxon_rank: "species",
+    created_at: "2026-06-20T09:01:00.000Z"
+  });
+  obs.productionEvidenceAssets.push({
+    asset_id: "asset-fixed-1",
+    visit_id: "visit-fixed-2026",
+    occurrence_id: "occ-fixed-1",
+    asset_role: "observation_photo",
+    legacy_relative_path: null
+  });
+  obs.stewardshipActions.set("action-fixed-1", {
+    action_id: "action-fixed-1",
+    place_id: fieldId,
+    occurred_at: "2026-06-22T08:00:00.000Z",
+    action_kind: "cleanup",
+    actor_user_id: "observer-1",
+    linked_visit_id: "visit-fixed-2026",
+    description: "水辺のごみを拾った",
+    species_status: null,
+    metadata_json: "{}"
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/places/${fieldId}/station`), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "fixed-point-station-readmodel");
+    assert.match(body, /谷津山の観察地点/);
+    assert.match(body, /ササゴイ/);
+    assert.match(body, /水辺のごみを拾った/);
+    assert.doesNotMatch(body, /visit-fixed-private/);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
