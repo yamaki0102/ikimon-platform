@@ -181,6 +181,25 @@ interface CompatibleObservationDisputeInput {
   referenceLocator?: unknown;
 }
 
+interface CompatibleObservationRecordAiReviewInput {
+  reviewState?: unknown;
+}
+
+interface D1ObservationAiReviewTarget {
+  occurrence_id: string;
+  ai_assessment_status: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  taxon_rank: string | null;
+  ai_run_id: string | null;
+  candidate_id: string | null;
+  candidate_scientific_name: string | null;
+  candidate_vernacular_name: string | null;
+  candidate_taxon_rank: string | null;
+  ai_recommended_taxon_name: string | null;
+  ai_recommended_rank: string | null;
+}
+
 interface CompatibleWalkSessionInput {
   externalId?: unknown;
   userId?: unknown;
@@ -1768,6 +1787,15 @@ export const worker = {
       if (request.method === "POST" && disputeMatch?.[1]) {
         return openCompatibleObservationDispute(
           decodeURIComponent(disputeMatch[1]),
+          request,
+          env
+        );
+      }
+
+      const aiReviewMatch = url.pathname.match(/^\/api\/v1\/observation-records\/([^/]+)\/ai-review$/);
+      if (request.method === "POST" && aiReviewMatch?.[1]) {
+        return submitCompatibleObservationRecordAiReview(
+          decodeURIComponent(aiReviewMatch[1]),
           request,
           env
         );
@@ -4361,6 +4389,176 @@ async function openCompatibleObservationDispute(occurrenceId: string, request: R
   }, 200, { "cache-control": "no-store" });
 }
 
+async function submitCompatibleObservationRecordAiReview(occurrenceId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+
+  const input = await readJson<CompatibleObservationRecordAiReviewInput>(request);
+  const reviewState = normalizeObservationRecordAiReviewState(input.reviewState ?? "later");
+  if (!reviewState) {
+    return json({ ok: false, error: "invalid_ai_review_state" }, 400, { "cache-control": "no-store" });
+  }
+
+  const target = await env.OBS_DB.prepare(
+    `SELECT occurrence_id, ai_assessment_status, scientific_name, vernacular_name, taxon_rank,
+            ai_run_id, candidate_id, candidate_scientific_name, candidate_vernacular_name,
+            candidate_taxon_rank, ai_recommended_taxon_name, ai_recommended_rank
+       FROM observation_ai_review_targets
+      WHERE occurrence_id = ?
+      LIMIT 1`
+  ).bind(normalizedOccurrenceId).first<D1ObservationAiReviewTarget>();
+  if (!target) {
+    return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
+  }
+  if (target.ai_assessment_status !== "ai_judgement") {
+    return json({ ok: false, error: "not_ai_judgement_record" }, 422, { "cache-control": "no-store" });
+  }
+
+  const proposedName = resolveAiJudgementIdentificationNameNative(target);
+  const proposedRank = normalizeOptionalText(target.taxon_rank)
+    ?? normalizeOptionalText(target.candidate_taxon_rank)
+    ?? normalizeOptionalText(target.ai_recommended_rank);
+  if (reviewState === "agree" && !proposedName) {
+    return json({ ok: false, error: "identification_name_required" }, 400, { "cache-control": "no-store" });
+  }
+
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_record_ai_reviews (
+       review_id, occurrence_id, ai_run_id, candidate_id, actor_user_id,
+       review_state, source_payload_json, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(occurrence_id, actor_user_id) DO UPDATE SET
+       ai_run_id = excluded.ai_run_id,
+       candidate_id = excluded.candidate_id,
+       review_state = excluded.review_state,
+       source_payload_json = excluded.source_payload_json,
+       updated_at = excluded.updated_at`
+  ).bind(
+    newId("ai_review"),
+    normalizedOccurrenceId,
+    target.ai_run_id,
+    target.candidate_id,
+    session.userId,
+    reviewState,
+    JSON.stringify({ source: "cloudflare_ai_judgement_review", updatedAt: now }),
+    now,
+    now
+  ).run();
+
+  if (reviewState === "agree") {
+    const sourceKey = `cf_ai_judgement_agree:${normalizedOccurrenceId}:${session.userId}`;
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_identifications (
+         identification_id, occurrence_id, actor_user_id, proposed_name, proposed_rank,
+         stance, notes, source_key, source_payload_json, is_current
+       ) VALUES (?, ?, ?, ?, ?, 'support', NULL, ?, ?, 1)
+       ON CONFLICT(source_key) DO UPDATE SET
+         proposed_name = excluded.proposed_name,
+         proposed_rank = excluded.proposed_rank,
+         stance = 'support',
+         notes = NULL,
+         source_payload_json = excluded.source_payload_json,
+         is_current = 1,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      newId("identification"),
+      normalizedOccurrenceId,
+      session.userId,
+      proposedName,
+      proposedRank,
+      sourceKey,
+      JSON.stringify({
+        source: "cloudflare_ai_judgement_agree",
+        aiRunId: target.ai_run_id,
+        candidateId: target.candidate_id,
+        updatedAt: now
+      })
+    ).run();
+  }
+
+  await env.OBS_DB.prepare(
+    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+  ).bind(
+    newId("outbox"),
+    "readmodel.refresh",
+    normalizedOccurrenceId,
+    JSON.stringify({ observationId: normalizedOccurrenceId, reason: "ai.review" }),
+    null
+  ).run();
+
+  const [agreeRow, disagreeRow, supportRow] = await Promise.all([
+    env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM observation_record_ai_reviews WHERE occurrence_id = ? AND review_state = 'agree'"
+    ).bind(normalizedOccurrenceId).first<{ count: number }>(),
+    env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM observation_record_ai_reviews WHERE occurrence_id = ? AND review_state = 'disagree'"
+    ).bind(normalizedOccurrenceId).first<{ count: number }>(),
+    env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM observation_identifications WHERE occurrence_id = ? AND is_current = 1"
+    ).bind(normalizedOccurrenceId).first<{ count: number }>()
+  ]);
+
+  const agreeCount = agreeRow?.count ?? (reviewState === "agree" ? 1 : 0);
+  const disagreeCount = disagreeRow?.count ?? (reviewState === "disagree" ? 1 : 0);
+  return json({
+    ok: true,
+    occurrenceId: normalizedOccurrenceId,
+    reviewState,
+    compatibility: {
+      source: "cloudflare_observation_record_ai_reviews",
+      targetSource: "observation_ai_review_targets"
+    },
+    consensus: {
+      occurrenceId: normalizedOccurrenceId,
+      consensusStatus: "needs_more_review",
+      hasOpenDispute: false,
+      identificationVerificationStatus: agreeCount > 0 ? "community_reviewed" : "ai_judgement",
+      communityTaxon: proposedName ? {
+        name: proposedName,
+        rank: proposedRank,
+        supportCount: supportRow?.count ?? (reviewState === "agree" ? 1 : 0)
+      } : null,
+      aiReviewAgreeCount: agreeCount,
+      aiReviewDisagreeCount: disagreeCount,
+      neededEvidence: []
+    }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "observation-record-ai-review" });
+}
+
+function normalizeObservationRecordAiReviewState(value: unknown): "agree" | "disagree" | "later" | null {
+  return value === "agree" || value === "disagree" || value === "later" ? value : null;
+}
+
+function resolveAiJudgementIdentificationNameNative(input: {
+  scientific_name?: string | null;
+  vernacular_name?: string | null;
+  candidate_scientific_name?: string | null;
+  candidate_vernacular_name?: string | null;
+  ai_recommended_taxon_name?: string | null;
+}): string | null {
+  return normalizeOptionalText(input.scientific_name)
+    ?? normalizeOptionalText(input.vernacular_name)
+    ?? normalizeOptionalText(input.candidate_scientific_name)
+    ?? normalizeOptionalText(input.candidate_vernacular_name)
+    ?? normalizeOptionalText(input.ai_recommended_taxon_name);
+}
+
 function normalizeObservationDisputeKind(value: unknown): "alternative_id" | "needs_more_evidence" | "not_organism" | "location_date_issue" {
   return value === "needs_more_evidence" || value === "not_organism" || value === "location_date_issue"
     ? value
@@ -4942,6 +5140,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observation-records\/[^/]+\/ai-review$/.test(url.pathname)) return true;
   if (url.pathname === "/api/v1/walk/session/start") return true;
   if (url.pathname === "/api/v1/walk/session/end") return true;
   if (url.pathname === "/api/v1/tracks/upsert") return true;

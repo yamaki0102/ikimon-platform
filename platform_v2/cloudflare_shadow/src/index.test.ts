@@ -76,6 +76,33 @@ interface ObservationIdentificationDisputeRow {
   updated_at: string;
 }
 
+interface ObservationAiReviewTargetRow {
+  occurrence_id: string;
+  ai_assessment_status: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  taxon_rank: string | null;
+  ai_run_id: string | null;
+  candidate_id: string | null;
+  candidate_scientific_name: string | null;
+  candidate_vernacular_name: string | null;
+  candidate_taxon_rank: string | null;
+  ai_recommended_taxon_name: string | null;
+  ai_recommended_rank: string | null;
+}
+
+interface ObservationRecordAiReviewRow {
+  review_id: string;
+  occurrence_id: string;
+  ai_run_id: string | null;
+  candidate_id: string | null;
+  actor_user_id: string;
+  review_state: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AssetRow {
   asset_id: string;
   draft_id: string;
@@ -1091,6 +1118,8 @@ class FakeD1 {
   observationReactions = new Map<string, ObservationReactionRow>();
   observationIdentifications = new Map<string, ObservationIdentificationRow>();
   observationIdentificationDisputes = new Map<string, ObservationIdentificationDisputeRow>();
+  observationAiReviewTargets = new Map<string, ObservationAiReviewTargetRow>();
+  observationRecordAiReviews = new Map<string, ObservationRecordAiReviewRow>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -1897,10 +1926,11 @@ class FakeStatement {
     if (normalized.startsWith("INSERT INTO observation_identifications")) {
       const now = new Date().toISOString();
       const literalAlternative = normalized.includes("'alternative'");
-      const stance = literalAlternative ? "alternative" : string(v[5]);
-      const notes = nullableString(literalAlternative ? v[5] : v[6]);
-      const sourceKey = string(literalAlternative ? v[6] : v[7]);
-      const sourcePayload = string(literalAlternative ? v[7] : v[8]);
+      const literalSupport = normalized.includes("'support'");
+      const stance = literalAlternative ? "alternative" : literalSupport ? "support" : string(v[5]);
+      const notes = nullableString(literalAlternative ? v[5] : literalSupport ? null : v[6]);
+      const sourceKey = string(literalAlternative ? v[6] : literalSupport ? v[5] : v[7]);
+      const sourcePayload = string(literalAlternative ? v[7] : literalSupport ? v[6] : v[8]);
       const existing = [...this.db.observationIdentifications.values()].find((candidate) => candidate.source_key === sourceKey);
       if (existing) {
         existing.proposed_name = string(v[3]);
@@ -1924,6 +1954,35 @@ class FakeStatement {
           is_current: 1,
           created_at: now,
           updated_at: now
+        });
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_record_ai_reviews")) {
+      const now = new Date().toISOString();
+      const occurrenceId = string(v[1]);
+      const actorUserId = string(v[4]);
+      const existing = [...this.db.observationRecordAiReviews.values()].find((candidate) =>
+        candidate.occurrence_id === occurrenceId && candidate.actor_user_id === actorUserId
+      );
+      if (existing) {
+        existing.ai_run_id = nullableString(v[2]);
+        existing.candidate_id = nullableString(v[3]);
+        existing.review_state = string(v[5]);
+        existing.source_payload_json = string(v[6]);
+        existing.updated_at = string(v[8]);
+      } else {
+        this.db.observationRecordAiReviews.set(string(v[0]), {
+          review_id: string(v[0]),
+          occurrence_id: occurrenceId,
+          ai_run_id: nullableString(v[2]),
+          candidate_id: nullableString(v[3]),
+          actor_user_id: actorUserId,
+          review_state: string(v[5]),
+          source_payload_json: string(v[6]),
+          created_at: string(v[7]) || now,
+          updated_at: string(v[8]) || now
         });
       }
       return {};
@@ -2809,6 +2868,19 @@ class FakeStatement {
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM observation_identifications")) {
       const count = [...this.db.observationIdentifications.values()].filter((row) =>
         row.occurrence_id === string(v[0]) && row.is_current === 1
+      ).length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT occurrence_id, ai_assessment_status, scientific_name, vernacular_name, taxon_rank")) {
+      return (this.db.observationAiReviewTargets.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM observation_record_ai_reviews")) {
+      const stateMatch = normalized.match(/review_state = '([^']+)'/);
+      const reviewState = stateMatch?.[1] ?? "";
+      const count = [...this.db.observationRecordAiReviews.values()].filter((row) =>
+        row.occurrence_id === string(v[0]) && row.review_state === reviewState
       ).length;
       return ({ count } as T);
     }
@@ -7654,6 +7726,102 @@ test("production runtime records observation identifications natively without or
     assert.equal(saved?.stance, "support");
     assert.match(saved?.source_payload_json ?? "", /ref-1/);
     assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-1"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime records observation AI reviews natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  obs.observationAiReviewTargets.set("occ-ai-1", {
+    occurrence_id: "occ-ai-1",
+    ai_assessment_status: "ai_judgement",
+    scientific_name: null,
+    vernacular_name: null,
+    taxon_rank: null,
+    ai_run_id: "ai-run-1",
+    candidate_id: "candidate-1",
+    candidate_scientific_name: "Pieris rapae",
+    candidate_vernacular_name: "モンシロチョウ",
+    candidate_taxon_rank: "species",
+    ai_recommended_taxon_name: "Pieris rapae",
+    ai_recommended_rank: "species"
+  });
+  obs.observationAiReviewTargets.set("occ-human-1", {
+    occurrence_id: "occ-human-1",
+    ai_assessment_status: "human_reviewed",
+    scientific_name: "Papilio xuthus",
+    vernacular_name: "ナミアゲハ",
+    taxon_rank: "species",
+    ai_run_id: null,
+    candidate_id: null,
+    candidate_scientific_name: null,
+    candidate_vernacular_name: null,
+    candidate_taxon_rank: null,
+    ai_recommended_taxon_name: null,
+    ai_recommended_rank: null
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "ai-review-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-records/occ-ai-1/ai-review", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ reviewState: "agree" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "observation-record-ai-review");
+    assert.equal(payload.ok, true);
+    assert.equal(payload.occurrenceId, "occ-ai-1");
+    assert.equal(payload.reviewState, "agree");
+    assert.equal(payload.compatibility.source, "cloudflare_observation_record_ai_reviews");
+    assert.equal(payload.consensus.communityTaxon.name, "Pieris rapae");
+    assert.equal(payload.consensus.aiReviewAgreeCount, 1);
+    assert.equal(obs.observationRecordAiReviews.size, 1);
+    const savedReview = [...obs.observationRecordAiReviews.values()][0];
+    assert.equal(savedReview?.actor_user_id, "ai-review-user");
+    assert.equal(savedReview?.review_state, "agree");
+    assert.equal(obs.observationIdentifications.size, 1);
+    const savedIdentification = [...obs.observationIdentifications.values()][0];
+    assert.equal(savedIdentification?.actor_user_id, "ai-review-user");
+    assert.equal(savedIdentification?.proposed_name, "Pieris rapae");
+    assert.equal(savedIdentification?.stance, "support");
+    assert.match(savedIdentification?.source_payload_json ?? "", /cloudflare_ai_judgement_agree/);
+    assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-ai-1"), true);
+
+    const rejected = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-records/occ-human-1/ai-review", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ reviewState: "agree" })
+    }), productionEnv);
+    assert.equal(rejected.status, 422);
+    assert.equal((await rejected.json() as any).error, "not_ai_judgement_record");
   } finally {
     globalThis.fetch = originalFetch;
   }
