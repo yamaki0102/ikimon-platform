@@ -57,6 +57,7 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/services/audioReview.ts": "admin_audio_review_residual_after_vector_retirement",
     "platform_v2/src/services/alertDispatcher.ts": "manual_ai_reassessment_alert_dispatcher",
     "platform_v2/src/services/monitoringWorkspaceData.ts": "admin_monitoring_diagnostic_readmodel",
+    "platform_v2/src/services/plotMonitoring.ts": "admin_plot_monitoring_backstage_api",
     "platform_v2/src/services/readiness.ts": "legacy_cutover_readiness_report"
   };
   if (exactAdminOpsDiagnostics[normalized]) return exactAdminOpsDiagnostics[normalized];
