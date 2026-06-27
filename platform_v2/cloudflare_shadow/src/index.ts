@@ -8019,6 +8019,23 @@ async function insertGuideRecordNative(args: {
     capturedAt,
     frameThumb
   }, env);
+  await appendGuideSceneEventNative({
+    env,
+    body: args.body,
+    session: args.session,
+    guideRecordId,
+    guideSessionId: sessionId,
+    source: args.source,
+    lat,
+    lng,
+    capturedAt,
+    sceneSummary,
+    detectedSpecies,
+    detectedFeatures,
+    primarySubject
+  }).catch((err) => {
+    console.error("[observation-event-dual-write] native guide scene event failed", err);
+  });
   return guideRecordId;
 }
 
@@ -8226,10 +8243,26 @@ async function acceptMobileAudioEventsNative(request: Request, sessionId: string
   const session = await readCompatibleSession(request, env);
   const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
   const events = Array.isArray(body.events) ? body.events : [];
+  let liveEventCount = 0;
+  for (const rawEvent of events.slice(0, 20)) {
+    if (!rawEvent || typeof rawEvent !== "object" || Array.isArray(rawEvent)) continue;
+    const appended = await appendMobileAudioObservationEventNative({
+      env,
+      body,
+      event: rawEvent as Record<string, unknown>,
+      session,
+      fieldscanSessionId: sessionId
+    }).catch((err) => {
+      console.error("[observation-event-dual-write] native mobile audio event failed", err);
+      return false;
+    });
+    if (appended) liveEventCount += 1;
+  }
   return json({
     ok: true,
     sessionId,
     acceptedCount: events.length,
+    liveEventCount,
     userAuthState: session ? "logged_in" : "anonymous",
     rawAudioStored: false
   }, 200, nativeGuideHeaders("mobile-audio-events-api"));
@@ -12569,6 +12602,117 @@ async function hookLegacyObservationToEventNative(
       console.error("[observation-event-dual-write] native quest trigger failed", err);
     });
   }
+}
+
+async function resolveNativeObservationEventContextFromPayload(
+  env: Env,
+  input: Record<string, unknown>,
+  auth: SessionSnapshot | null
+): Promise<{ sessionId: string; teamId: string | null } | null> {
+  const explicitSessionId = normalizeOptionalText(input.eventSessionId)
+    ?? normalizeOptionalText(input.event_session_id);
+  const eventCode = normalizeOptionalText(input.eventCode)
+    ?? normalizeOptionalText(input.event_code);
+  const eventSession = explicitSessionId
+    ? await getObservationEventSessionById(env, explicitSessionId)
+    : eventCode
+      ? await getObservationEventSessionByEventCode(env, eventCode)
+      : null;
+  if (!eventSession || eventSession.endedAt) return null;
+
+  const requestedTeamId = normalizeOptionalText(input.teamId)
+    ?? normalizeOptionalText(input.team_id);
+  const participant = await findObservationEventParticipant(env, eventSession.sessionId, auth?.userId ?? null, null).catch(() => null);
+  const isOrganizer = Boolean(auth?.userId && eventSession.organizerUserId === auth.userId);
+  if (!isOrganizer && !participant) return null;
+  if (!isOrganizer && requestedTeamId && participant?.team_id !== requestedTeamId) return null;
+
+  return {
+    sessionId: eventSession.sessionId,
+    teamId: requestedTeamId ?? participant?.team_id ?? null
+  };
+}
+
+async function appendGuideSceneEventNative(input: {
+  env: Env;
+  body: Record<string, unknown>;
+  session: SessionSnapshot | null;
+  guideRecordId: string;
+  guideSessionId: string;
+  source: string;
+  lat: number;
+  lng: number;
+  capturedAt: string;
+  sceneSummary: string;
+  detectedSpecies: string[];
+  detectedFeatures: unknown[];
+  primarySubject: Record<string, unknown>;
+}): Promise<boolean> {
+  const eventContext = await resolveNativeObservationEventContextFromPayload(input.env, input.body, input.session);
+  if (!eventContext) return false;
+  await appendObservationEventLive(input.env, {
+    sessionId: eventContext.sessionId,
+    type: "guide_scene_added",
+    scope: "all",
+    actorUserId: input.session?.userId ?? null,
+    teamId: eventContext.teamId,
+    payload: {
+      guide_record_id: input.guideRecordId,
+      guide_session_id: input.guideSessionId,
+      scene_id: normalizeOptionalText(input.body.sceneId ?? input.body.scene_id) ?? null,
+      scene_summary: input.sceneSummary,
+      detected_species: input.detectedSpecies,
+      detected_features: input.detectedFeatures,
+      primary_subject: input.primarySubject,
+      public_lat: roundPublicEventCoordinate(input.lat),
+      public_lng: roundPublicEventCoordinate(input.lng),
+      captured_at: input.capturedAt,
+      participant_role: normalizeOptionalText(input.body.participantRole)
+        ?? normalizeOptionalText(input.body.participant_role),
+      source_type: input.source,
+      exact_location_stored: false
+    }
+  });
+  return true;
+}
+
+async function appendMobileAudioObservationEventNative(input: {
+  env: Env;
+  body: Record<string, unknown>;
+  event: Record<string, unknown>;
+  session: SessionSnapshot | null;
+  fieldscanSessionId: string;
+}): Promise<boolean> {
+  const eventContext = await resolveNativeObservationEventContextFromPayload(
+    input.env,
+    { ...input.body, ...input.event },
+    input.session
+  );
+  if (!eventContext) return false;
+  const lat = numberOrNullFromUnknown(input.event.lat ?? input.body.lat);
+  const lng = numberOrNullFromUnknown(input.event.lng ?? input.body.lng);
+  await appendObservationEventLive(input.env, {
+    sessionId: eventContext.sessionId,
+    type: "field_scan_added",
+    scope: "all",
+    actorUserId: input.session?.userId ?? null,
+    teamId: eventContext.teamId,
+    payload: {
+      segment_id: normalizeOptionalText(input.event.segmentId ?? input.event.segment_id ?? input.event.id) ?? crypto.randomUUID(),
+      fieldscan_session_id: input.fieldscanSessionId,
+      scan_mode: "audio_segment",
+      public_lat: lat == null ? null : roundPublicEventCoordinate(lat),
+      public_lng: lng == null ? null : roundPublicEventCoordinate(lng),
+      recorded_at: normalizeOptionalText(input.event.recordedAt ?? input.event.recorded_at ?? input.body.recordedAt ?? input.body.recorded_at),
+      duration_sec: numberOrNullFromUnknown(input.event.durationSec ?? input.event.duration_sec),
+      participant_role: normalizeOptionalText(input.event.participantRole ?? input.body.participantRole)
+        ?? normalizeOptionalText(input.event.participant_role ?? input.body.participant_role),
+      source_type: "field_scan_audio",
+      raw_audio_stored: false,
+      exact_location_stored: false
+    }
+  });
+  return true;
 }
 
 function sanitizeObservationEventFieldScan(input: unknown): Record<string, unknown> | null {

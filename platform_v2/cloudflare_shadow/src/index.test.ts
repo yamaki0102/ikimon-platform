@@ -6403,6 +6403,43 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     review_status: "auto",
     generated_at: "2026-06-22T00:00:00.000Z"
   });
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_sessions (
+       session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+       plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+       started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    "guide-event-session-1",
+    null,
+    "guide-event-code",
+    "Guide event",
+    "guide-user",
+    null,
+    "community",
+    "discovery",
+    JSON.stringify(["discovery"]),
+    34.7133,
+    137.7031,
+    1000,
+    "2026-06-22T09:00:00.000Z",
+    null,
+    JSON.stringify([]),
+    JSON.stringify({ source: "guide-runtime-test" }),
+    null,
+    null
+  ).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_teams (
+       team_id, session_id, name, color, lead_user_id, target_taxa_json
+     ) VALUES (?, ?, ?, ?, ?, ?)`
+  ).bind("guide-team-1", "guide-event-session-1", "Guide team", "#0f766e", "guide-user", JSON.stringify([])).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_participants (
+       participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
+       checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
+     ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?)`
+  ).bind("guide-participant-1", "guide-event-session-1", "guide-user", null, "Guide User", "guide-team-1", 1, 0, null, "signed_in").run();
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -6448,6 +6485,9 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
         sessionId: "guide-session-1",
         lat: 34.7133,
         lng: 137.7031,
+        eventCode: "guide-event-code",
+        teamId: "guide-team-1",
+        participantRole: "guide",
         capturedAt: "2026-06-22T09:10:00.000Z",
         sceneSummary: "草地の縁で小さな花が目立つ",
         detectedSpecies: ["シロツメクサ"],
@@ -6460,6 +6500,13 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     assert.equal(guideRecord.ok, true, JSON.stringify(guideRecordPayload));
     assert.equal(env.OBS_DB.guideRecords.size, 1);
     assert.equal(env.OBS_DB.guideSessionPublicSummaries.size, 1);
+    const firstGuideSceneEvent = env.OBS_DB.observationEventLiveEvents.find((event) => event.type === "guide_scene_added");
+    assert.ok(firstGuideSceneEvent);
+    assert.equal(firstGuideSceneEvent?.session_id, "guide-event-session-1");
+    assert.equal(firstGuideSceneEvent?.team_id, "guide-team-1");
+    const firstGuideScenePayload = JSON.parse(firstGuideSceneEvent?.payload_json ?? "{}") as Record<string, unknown>;
+    assert.equal(firstGuideScenePayload.guide_record_id, guideRecordPayload.guideRecordId);
+    assert.equal(firstGuideScenePayload.exact_location_stored, false);
 
     const secondGuideRecord = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/record", {
       method: "POST",
@@ -6522,6 +6569,8 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
         client_scene_id: "scene-1",
         lat: 34.7135,
         lng: 137.7033,
+        eventCode: "guide-event-code",
+        teamId: "guide-team-1",
         movement_mode: "vehicle",
         scene_digest: "道路沿いの樹木と草地が続く",
         detected_species: ["樹木"],
@@ -6532,6 +6581,7 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     assert.equal(mobileDigest.headers.get("x-ikimon-cloudflare-native"), "mobile-scene-digest-api");
     assert.equal(mobileDigestPayload.duplicate, false);
     assert.equal(env.OBS_DB.mobileFieldSceneReceipts.size, 1);
+    assert.equal(env.OBS_DB.observationEventLiveEvents.filter((event) => event.type === "guide_scene_added").length, 2);
 
     const mobileDuplicate = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/scene-digest", {
       method: "POST",
@@ -6546,6 +6596,26 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     }), productionEnv);
     const mobileDuplicatePayload = await mobileDuplicate.json() as any;
     assert.equal(mobileDuplicatePayload.duplicate, true);
+
+    const mobileAudio = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/audio-events", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        eventCode: "guide-event-code",
+        teamId: "guide-team-1",
+        events: [
+          { segmentId: "audio-segment-1", lat: 34.7137, lng: 137.7034, recordedAt: "2026-06-22T09:13:00.000Z", durationSec: 8 }
+        ]
+      })
+    }), productionEnv);
+    const mobileAudioPayload = await mobileAudio.json() as any;
+    assert.equal(mobileAudio.headers.get("x-ikimon-cloudflare-native"), "mobile-audio-events-api");
+    assert.equal(mobileAudioPayload.liveEventCount, 1);
+    const fieldScanEvent = env.OBS_DB.observationEventLiveEvents.find((event) => event.type === "field_scan_added");
+    assert.ok(fieldScanEvent);
+    const fieldScanPayload = JSON.parse(fieldScanEvent?.payload_json ?? "{}") as Record<string, unknown>;
+    assert.equal(fieldScanPayload.segment_id, "audio-segment-1");
+    assert.equal(fieldScanPayload.raw_audio_stored, false);
 
     const mobileRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/recap", {
       headers: { cookie: `ikimon_v2_session=${rawToken}` }
