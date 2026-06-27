@@ -130,10 +130,10 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /## PostgreSQL No-Runtime-Query Inventory/);
-  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 13/);
+  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 24/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 26/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -171,7 +171,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 24/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 26/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -201,7 +201,6 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reportMissingObservationPhotos.ts"), "manual_integrity_report");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importObservationFields.ts"), "manual_field_import");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts"), "manual_environment_ingest");
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), "scheduled_environment_ingest");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importN03Administrative.ts"), "manual_import_or_legacy_sync_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/syncLegacyDelta.ts"), "manual_import_or_legacy_sync_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/smokeProductionMediaUpload.ts"), "manual_verification_or_smoke_tool");
@@ -242,6 +241,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/observationMediaIntegrity.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/placeEnvironmentIngest.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), "scheduled_legacy_cache_and_freshness_maintenance");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCurator.ts"), "scheduled_curator_proposal_batch");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/curators/invasive-law.ts"), "scheduled_curator_proposal_batch");
@@ -412,18 +412,6 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
       ]),
     ),
     "manual_environment_ingest_dependency",
-  );
-  assert.equal(
-    exclusiveMaintenancePgDependencyReason(
-      "platform_v2/src/services/environmentSnapshotWriter.ts",
-      new Map([
-        [
-          "platform_v2/src/services/environmentSnapshotWriter.ts",
-          new Set(["platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"]),
-        ],
-      ]),
-    ),
-    "scheduled_environment_ingest_dependency",
   );
   assert.equal(
     exclusiveMaintenancePgDependencyReason(

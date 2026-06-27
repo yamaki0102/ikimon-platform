@@ -69,7 +69,6 @@ function maintenancePgDependencyReason(relativeFile) {
   if (normalized === "platform_v2/src/scripts/reportMissingObservationPhotos.ts") return "manual_integrity_report";
   if (normalized === "platform_v2/src/scripts/importObservationFields.ts") return "manual_field_import";
   if (normalized === "platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts") return "manual_environment_ingest";
-  if (normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts") return "scheduled_environment_ingest";
   const exactMaintenanceScripts = {
     "platform_v2/src/scripts/applyTierPromotionBulk.ts": "manual_admin_batch_tool",
     "platform_v2/src/scripts/auditObservationFieldEntityKeys.ts": "manual_audit_report_tool",
