@@ -256,6 +256,30 @@ interface CompatibleTrackUpsertInput {
   sourcePayload?: unknown;
 }
 
+type ManagementGoal = "balanced" | "keep_clear" | "native_patch" | "flowering_allowed" | "invasive_watch";
+type WeedTolerance = "low" | "medium" | "high";
+type InvasivePolicyResponse = "ask_first" | "controlled_removal" | "observe";
+type MowingFrequency = "as_needed" | "monthly" | "seasonal" | "rare";
+
+interface CompatiblePlaceManagementPolicyInput {
+  managementGoal?: unknown;
+  weedTolerance?: unknown;
+  invasiveResponse?: unknown;
+  mowingFrequency?: unknown;
+  notes?: unknown;
+}
+
+interface CompatiblePlaceManagementPolicy {
+  placeId: string;
+  userId: string;
+  managementGoal: ManagementGoal;
+  weedTolerance: WeedTolerance;
+  invasiveResponse: InvasivePolicyResponse;
+  mowingFrequency: MowingFrequency;
+  notes: string;
+  updatedAt: string | null;
+}
+
 type RecordReadingAxis = "organism" | "environment" | "human_relation";
 type RecordReadingSourceKind = "official" | "trusted_db" | "research";
 
@@ -1900,6 +1924,15 @@ export const worker = {
         return confirmCompatibleManagementCandidate(
           decodeURIComponent(managementConfirmMatch[1]),
           decodeURIComponent(managementConfirmMatch[2]),
+          request,
+          env
+        );
+      }
+
+      const placeManagementPolicyMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/management-policy$/);
+      if (request.method === "POST" && placeManagementPolicyMatch?.[1]) {
+        return saveCompatiblePlaceManagementPolicy(
+          decodeURIComponent(placeManagementPolicyMatch[1]),
           request,
           env
         );
@@ -4045,6 +4078,114 @@ async function confirmCompatibleManagementCandidate(observationId: string, index
       stewardshipActionStatus: "not_migrated"
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+const MANAGEMENT_GOALS: ManagementGoal[] = ["balanced", "keep_clear", "native_patch", "flowering_allowed", "invasive_watch"];
+const WEED_TOLERANCES: WeedTolerance[] = ["low", "medium", "high"];
+const INVASIVE_RESPONSES: InvasivePolicyResponse[] = ["ask_first", "controlled_removal", "observe"];
+const MOWING_FREQUENCIES: MowingFrequency[] = ["as_needed", "monthly", "seasonal", "rare"];
+
+function pickAllowed<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === "string" && allowed.includes(value as T) ? value as T : fallback;
+}
+
+function normalizeManagementPolicyNotes(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, 600);
+}
+
+function normalizeCompatiblePlaceManagementPolicyInput(
+  input: CompatiblePlaceManagementPolicyInput
+): Omit<CompatiblePlaceManagementPolicy, "placeId" | "userId" | "updatedAt"> {
+  return {
+    managementGoal: pickAllowed(input.managementGoal, MANAGEMENT_GOALS, "balanced"),
+    weedTolerance: pickAllowed(input.weedTolerance, WEED_TOLERANCES, "medium"),
+    invasiveResponse: pickAllowed(input.invasiveResponse, INVASIVE_RESPONSES, "ask_first"),
+    mowingFrequency: pickAllowed(input.mowingFrequency, MOWING_FREQUENCIES, "as_needed"),
+    notes: normalizeManagementPolicyNotes(input.notes)
+  };
+}
+
+function mapPlaceManagementPolicyRow(row: {
+  place_id: string;
+  user_id: string;
+  management_goal: string;
+  weed_tolerance: string;
+  invasive_response: string;
+  mowing_frequency: string;
+  notes: string | null;
+  updated_at: string | null;
+}): CompatiblePlaceManagementPolicy {
+  return {
+    placeId: row.place_id,
+    userId: row.user_id,
+    managementGoal: pickAllowed(row.management_goal, MANAGEMENT_GOALS, "balanced"),
+    weedTolerance: pickAllowed(row.weed_tolerance, WEED_TOLERANCES, "medium"),
+    invasiveResponse: pickAllowed(row.invasive_response, INVASIVE_RESPONSES, "ask_first"),
+    mowingFrequency: pickAllowed(row.mowing_frequency, MOWING_FREQUENCIES, "as_needed"),
+    notes: row.notes ?? "",
+    updatedAt: row.updated_at
+  };
+}
+
+async function saveCompatiblePlaceManagementPolicy(placeId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedPlaceId = placeId.trim();
+  if (!normalizedPlaceId) return json({ ok: false, error: "place_id_required" }, 400, { "cache-control": "no-store" });
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSession(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+
+  let body: CompatiblePlaceManagementPolicyInput = {};
+  try {
+    body = await request.json() as CompatiblePlaceManagementPolicyInput;
+  } catch {
+    body = {};
+  }
+  const policy = normalizeCompatiblePlaceManagementPolicyInput(body);
+  const row = await env.OBS_DB.prepare(
+    `INSERT INTO place_management_policies (
+       place_id, user_id, management_goal, weed_tolerance, invasive_response,
+       mowing_frequency, notes, policy_json, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(place_id, user_id) DO UPDATE SET
+       management_goal = excluded.management_goal,
+       weed_tolerance = excluded.weed_tolerance,
+       invasive_response = excluded.invasive_response,
+       mowing_frequency = excluded.mowing_frequency,
+       notes = excluded.notes,
+       policy_json = excluded.policy_json,
+       updated_at = CURRENT_TIMESTAMP
+     RETURNING place_id, user_id, management_goal, weed_tolerance, invasive_response,
+       mowing_frequency, notes, updated_at`
+  ).bind(
+    normalizedPlaceId,
+    session.userId,
+    policy.managementGoal,
+    policy.weedTolerance,
+    policy.invasiveResponse,
+    policy.mowingFrequency,
+    policy.notes || null,
+    JSON.stringify({ source: "cloudflare_place_management_policy_runtime" })
+  ).first<{
+    place_id: string;
+    user_id: string;
+    management_goal: string;
+    weed_tolerance: string;
+    invasive_response: string;
+    mowing_frequency: string;
+    notes: string | null;
+    updated_at: string | null;
+  }>();
+  if (!row) return json({ ok: false, error: "save_failed" }, 500, { "cache-control": "no-store" });
+  return json({ ok: true, policy: mapPlaceManagementPolicyRow(row) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "place-management-policy-runtime"
+  });
 }
 
 async function requestCompatibleCandidateAction(

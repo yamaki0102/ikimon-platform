@@ -103,6 +103,18 @@ interface ObservationRecordAiReviewRow {
   updated_at: string;
 }
 
+interface PlaceManagementPolicyRow {
+  place_id: string;
+  user_id: string;
+  management_goal: string;
+  weed_tolerance: string;
+  invasive_response: string;
+  mowing_frequency: string;
+  notes: string | null;
+  policy_json: string;
+  updated_at: string;
+}
+
 interface AssetRow {
   asset_id: string;
   draft_id: string;
@@ -1160,6 +1172,7 @@ class FakeD1 {
   observationIdentificationDisputes = new Map<string, ObservationIdentificationDisputeRow>();
   observationAiReviewTargets = new Map<string, ObservationAiReviewTargetRow>();
   observationRecordAiReviews = new Map<string, ObservationRecordAiReviewRow>();
+  placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -2863,6 +2876,33 @@ class FakeStatement {
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
+    }
+
+    if (normalized.startsWith("INSERT INTO place_management_policies")) {
+      const now = new Date().toISOString();
+      const key = `${string(v[0])}:${string(v[1])}`;
+      const row: PlaceManagementPolicyRow = {
+        place_id: string(v[0]),
+        user_id: string(v[1]),
+        management_goal: string(v[2]),
+        weed_tolerance: string(v[3]),
+        invasive_response: string(v[4]),
+        mowing_frequency: string(v[5]),
+        notes: nullableString(v[6]),
+        policy_json: string(v[7]),
+        updated_at: now
+      };
+      this.db.placeManagementPolicies.set(key, row);
+      return ({
+        place_id: row.place_id,
+        user_id: row.user_id,
+        management_goal: row.management_goal,
+        weed_tolerance: row.weed_tolerance,
+        invasive_response: row.invasive_response,
+        mowing_frequency: row.mowing_frequency,
+        notes: row.notes,
+        updated_at: row.updated_at
+      } as T);
     }
 
     if (normalized.startsWith("SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned FROM auth_users")) {
@@ -6006,6 +6046,58 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.equal(logoutPayload.revoked, true);
   assert.equal(core.authSessions.size, 0);
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
+});
+
+test("production place management policy API writes to D1 without origin fallback", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test" };
+
+  const guest = await worker.fetch(new Request("https://ikimon.life/api/v1/places/place%3Apolicy/management-policy", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ managementGoal: "invasive_watch" })
+  }), productionEnv);
+  assert.equal(guest.status, 401);
+  assert.deepEqual(await guest.json(), { ok: false, error: "login_required" });
+
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: "policy-user",
+      rawToken: "policy-token",
+      displayName: "Policy User",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/places/place%3Apolicy/management-policy", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      managementGoal: "invasive_watch",
+      weedTolerance: "high",
+      invasiveResponse: "controlled_removal",
+      mowingFrequency: "seasonal",
+      notes: `  ${"a".repeat(620)}  `
+    })
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 200, JSON.stringify(payload));
+  assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "place-management-policy-runtime");
+  assert.equal(payload.ok, true);
+  assert.equal(payload.policy.placeId, "place:policy");
+  assert.equal(payload.policy.userId, "policy-user");
+  assert.equal(payload.policy.managementGoal, "invasive_watch");
+  assert.equal(payload.policy.weedTolerance, "high");
+  assert.equal(payload.policy.invasiveResponse, "controlled_removal");
+  assert.equal(payload.policy.mowingFrequency, "seasonal");
+  assert.equal(payload.policy.notes.length, 600);
+
+  const stored = obs.placeManagementPolicies.get("place:policy:policy-user");
+  assert.equal(stored?.management_goal, "invasive_watch");
+  assert.equal(stored?.policy_json, JSON.stringify({ source: "cloudflare_place_management_policy_runtime" }));
 });
 
 test("v1 auth login keeps original form contract with Cloudflare-native sessions", async () => {
