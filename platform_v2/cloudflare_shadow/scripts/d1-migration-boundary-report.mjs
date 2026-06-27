@@ -170,6 +170,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observationEventEffort.ts": "cloudflare_observation_event_effort_api",
     "platform_v2/src/services/observationEventModeManager.ts": "cloudflare_observation_event_mode_api",
     "platform_v2/src/services/observationEventRecap.ts": "cloudflare_observation_event_recap_api",
+    "platform_v2/src/services/observationEventQuestEngine.ts": "cloudflare_observation_event_static_quest_runtime",
     "platform_v2/src/services/observationEventCapsule.ts": "cloudflare_observation_event_capsule_api",
     "platform_v2/src/services/observationEventOfficialReport.ts": "cloudflare_observation_event_official_report_api",
     "platform_v2/src/routes/meSubscriptionsApi.ts": "cloudflare_personal_subscription_alert_api",

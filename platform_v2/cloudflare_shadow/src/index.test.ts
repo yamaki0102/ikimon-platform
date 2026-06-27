@@ -1752,6 +1752,15 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observation_event_quests SET status")) {
+      const row = requireRow(this.db.observationEventQuests, string(v[2]));
+      if (row.session_id !== string(v[3])) throw new Error(`Quest ${string(v[2])} does not belong to session ${string(v[3])}`);
+      row.status = string(v[0]);
+      row.payload_json = string(v[1]);
+      row.updated_at = new Date().toISOString();
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE observation_event_capsules")) {
       const row = requireRow(this.db.observationEventCapsules, string(v[3]));
       row.review_status = string(v[0]);
@@ -3188,6 +3197,28 @@ class FakeStatement {
       return (this.db.observationEventSessions.get(string(v[0])) as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT COUNT(*) AS recent FROM observation_event_quests")) {
+      const sessionId = string(v[0]);
+      const trigger = string(v[1]);
+      const recent = [...this.db.observationEventQuests.values()].filter((row) => {
+        const payload = JSON.parse(row.payload_json || "{}") as { trigger?: string };
+        return row.session_id === sessionId && row.status === "offered" && payload.trigger === trigger;
+      }).length;
+      return ({ recent } as T);
+    }
+
+    if (normalized.startsWith("SELECT quest_id, session_id, team_id, status, payload_json FROM observation_event_quests")) {
+      const row = this.db.observationEventQuests.get(string(v[0]));
+      if (!row || row.session_id !== string(v[1])) return null;
+      return ({
+        quest_id: row.quest_id,
+        session_id: row.session_id,
+        team_id: row.team_id,
+        status: row.status,
+        payload_json: row.payload_json
+      } as T);
+    }
+
     if (normalized.startsWith("SELECT participant_id, user_id, guest_token")) {
       const sessionId = string(v[0]);
       const userId = nullableString(v[1]);
@@ -3787,6 +3818,13 @@ class FakeStatement {
           payload_json: row.payload_json,
           created_at: row.created_at
         }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id")) {
+      const rows = [...this.db.observationEventSessions.values()]
+        .filter((row) => row.ended_at === null && row.started_at <= new Date().toISOString())
+        .sort((a, b) => b.started_at.localeCompare(a.started_at))
+        .slice(0, 50);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT team_id, name, color, lead_user_id")) {
@@ -9589,6 +9627,49 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal("exact_lng" in dualWritePayload, false);
     assert.equal(obs.observationEventQuests.size, 1);
     assert.equal(obs.observationEventLiveEvents.some((event) => event.type === "quest_offered"), true);
+
+    const nonOrganizerRun = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/quests/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: otherCookie },
+      body: JSON.stringify({ trigger: "manual" })
+    }), productionEnv);
+    assert.equal(nonOrganizerRun.status, 403);
+    assert.equal(obs.observationEventQuests.size, 1);
+
+    const manualQuestRun = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/quests/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ trigger: "manual" })
+    }), productionEnv);
+    const manualQuestRunPayload = await manualQuestRun.json() as any;
+    assert.equal(manualQuestRun.status, 200, JSON.stringify(manualQuestRunPayload));
+    assert.equal(manualQuestRunPayload.modelUsed, "cloudflare-d1-static-quest");
+    assert.equal(manualQuestRunPayload.trigger, "manual");
+    assert.equal(manualQuestRunPayload.quests > 0, true);
+    assert.equal(obs.observationEventQuests.size > 1, true);
+
+    const questId = [...obs.observationEventQuests.keys()][0] ?? "";
+    for (const decision of ["accepted", "declined", "completed"]) {
+      const decisionResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/quests/${questId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ decision })
+      }), productionEnv);
+      const decisionPayload = await decisionResponse.json() as any;
+      assert.equal(decisionResponse.status, 200, JSON.stringify(decisionPayload));
+      assert.equal(obs.observationEventQuests.get(questId)?.status, decision);
+      assert.equal(obs.observationEventLiveEvents.some((event) => event.type === `quest_${decision}`), true);
+    }
+
+    const beforeScheduledQuests = obs.observationEventQuests.size;
+    const waitUntil: Promise<unknown>[] = [];
+    await worker.scheduled?.({ cron: "*/5 * * * *" }, productionEnv, { waitUntil: (promise) => waitUntil.push(promise) });
+    await Promise.all(waitUntil);
+    assert.equal(obs.observationEventQuests.size > beforeScheduledQuests, true);
+    assert.equal([...obs.observationEventQuests.values()].some((row) => {
+      const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+      return payload.trigger === "interval" && payload.generated_by === "cloudflare-d1-static-quest";
+    }), true);
 
     const recent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent?guest_token=guest-core-1`), productionEnv);
     const recentPayload = await recent.json() as any;

@@ -2092,6 +2092,7 @@ export const worker = {
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
+    ctx.waitUntil(runScheduledObservationEventQuests(env));
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
@@ -2246,6 +2247,14 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
     if (request.method === "POST" && action === "generate") return generateObservationEventCapsule(request, env, sessionId);
     if (request.method === "PATCH" && action === "review") return reviewObservationEventCapsule(request, env, sessionId);
     return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const questRunMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/quests\/run$/);
+  if (request.method === "POST" && questRunMatch?.[1]) {
+    return runObservationEventQuest(request, env, decodeURIComponent(questRunMatch[1]));
+  }
+  const questDecisionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/quests\/([^/]+)$/);
+  if (request.method === "PATCH" && questDecisionMatch?.[1] && questDecisionMatch[2]) {
+    return decideObservationEventQuest(request, env, decodeURIComponent(questDecisionMatch[1]), decodeURIComponent(questDecisionMatch[2]));
   }
   const sessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)(?:\/([^/]+))?$/);
   if (!sessionMatch?.[1]) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
@@ -13935,7 +13944,7 @@ async function offerNativeObservationEventQuestForNewTaxon(
   ).bind(sessionId, taxonLabel).first<{ recent: number }>();
   if (Number(recent?.recent ?? 0) > 1) return;
   const questId = crypto.randomUUID();
-  const payload = {
+  const payload: Record<string, unknown> = {
     kind: "taxa",
     headline: `${taxonLabel}の周辺をもう少し`,
     prompt: `${taxonLabel}が出た場所の周辺で、似た環境を数分だけ見てみる。`,
@@ -13955,6 +13964,205 @@ async function offerNativeObservationEventQuestForNewTaxon(
     teamId,
     payload: { quest_id: questId, ...payload }
   });
+}
+
+type NativeObservationEventQuestTrigger =
+  | "interval"
+  | "new_species"
+  | "target_hit"
+  | "stuck"
+  | "rare_alert"
+  | "ending_soon"
+  | "manual";
+
+const OBSERVATION_EVENT_QUEST_TRIGGERS = new Set<NativeObservationEventQuestTrigger>([
+  "interval",
+  "new_species",
+  "target_hit",
+  "stuck",
+  "rare_alert",
+  "ending_soon",
+  "manual"
+]);
+
+function normalizeObservationEventQuestTrigger(value: unknown): NativeObservationEventQuestTrigger {
+  return typeof value === "string" && OBSERVATION_EVENT_QUEST_TRIGGERS.has(value as NativeObservationEventQuestTrigger)
+    ? value as NativeObservationEventQuestTrigger
+    : "manual";
+}
+
+async function runObservationEventQuest(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const organizer = await requireObservationEventOrganizer(request, env, sessionId);
+  if (organizer instanceof Response) return organizer;
+  const body = await readJson<Record<string, unknown>>(request);
+  const trigger = normalizeObservationEventQuestTrigger(body.trigger);
+  const result = await generateNativeObservationEventQuests(env, organizer.session, {
+    trigger,
+    skipRecentDedup: true
+  });
+  return json(result, 200, { "cache-control": "no-store" });
+}
+
+async function decideObservationEventQuest(request: Request, env: Env, sessionId: string, questId: string): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const decisionRaw = normalizeOptionalText(body.decision);
+  const decision = decisionRaw === "accepted" || decisionRaw === "declined" || decisionRaw === "completed"
+    ? decisionRaw
+    : null;
+  if (!decision) return json({ error: "invalid decision" }, 400, { "cache-control": "no-store" });
+  const auth = await readCompatibleSessionWithOriginFallback(request, env);
+  const row = await env.OBS_DB.prepare(
+    "SELECT quest_id, session_id, team_id, status, payload_json FROM observation_event_quests WHERE quest_id = ? AND session_id = ?"
+  ).bind(questId, sessionId).first<{ quest_id: string; session_id: string; team_id: string | null; status: string; payload_json: string }>();
+  if (!row) return json({ error: "quest not found" }, 404, { "cache-control": "no-store" });
+  const payload: Record<string, unknown> = {
+    ...jsonObject(row.payload_json),
+    decision,
+    decided_by: auth?.userId ?? null,
+    decided_at: new Date().toISOString()
+  };
+  await env.OBS_DB.prepare(
+    "UPDATE observation_event_quests SET status = ?, payload_json = ?, updated_at = CURRENT_TIMESTAMP WHERE quest_id = ? AND session_id = ?"
+  ).bind(decision, JSON.stringify(payload), questId, sessionId).run();
+  const eventType = decision === "accepted"
+    ? "quest_accepted"
+    : decision === "declined"
+      ? "quest_declined"
+      : "quest_completed";
+  await appendObservationEventLive(env, {
+    sessionId,
+    type: eventType,
+    scope: row.team_id ? "team" : "all",
+    teamId: row.team_id,
+    actorUserId: auth?.userId ?? null,
+    payload: {
+      quest_id: questId,
+      kind: typeof payload.kind === "string" ? payload.kind : "effort",
+      headline: typeof payload.headline === "string" ? payload.headline : ""
+    }
+  });
+  return json({ ok: true }, 200, { "cache-control": "no-store" });
+}
+
+async function runScheduledObservationEventQuests(env: Env): Promise<void> {
+  if (!isAppRuntime(env)) return;
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+              plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+              started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+              created_at, updated_at
+         FROM observation_event_sessions
+        WHERE ended_at IS NULL
+          AND started_at <= CURRENT_TIMESTAMP
+        ORDER BY started_at DESC
+        LIMIT 50`
+    ).all<ObservationEventSessionD1Row>();
+    for (const row of rows.results) {
+      await generateNativeObservationEventQuests(env, mapObservationEventSession(row), {
+        trigger: "interval",
+        skipRecentDedup: false
+      }).catch((err) => console.error("[observation-event-quest] scheduled generation failed", err));
+    }
+  } catch (err) {
+    console.error("[observation-event-quest] scheduled tick failed", err);
+  }
+}
+
+async function generateNativeObservationEventQuests(
+  env: Env,
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  options: { trigger: NativeObservationEventQuestTrigger; skipRecentDedup?: boolean }
+): Promise<{ quests: number; modelUsed: string | null; trigger: NativeObservationEventQuestTrigger }> {
+  if (session.endedAt) return { quests: 0, modelUsed: null, trigger: options.trigger };
+  if (!options.skipRecentDedup) {
+    const recent = await env.OBS_DB.prepare(
+      `SELECT COUNT(*) AS recent
+         FROM observation_event_quests
+        WHERE session_id = ?
+          AND status = 'offered'
+          AND created_at > datetime('now', '-90 seconds')
+          AND json_extract(payload_json, '$.trigger') = ?`
+    ).bind(session.sessionId, options.trigger).first<{ recent: number }>();
+    if (Number(recent?.recent ?? 0) > 0) {
+      return { quests: 0, modelUsed: null, trigger: options.trigger };
+    }
+  }
+  const teams = await listObservationEventTeams(env, session.sessionId).catch(() => []);
+  const candidates = buildNativeObservationEventQuestCandidates(session, teams, options.trigger).slice(0, 3);
+  let inserted = 0;
+  for (const candidate of candidates) {
+    const questId = crypto.randomUUID();
+    const payload = {
+      kind: candidate.kind,
+      headline: candidate.headline,
+      prompt: candidate.prompt,
+      rationale: candidate.rationale,
+      team_name: candidate.teamName,
+      trigger: options.trigger,
+      generated_by: "cloudflare-d1-static-quest",
+      expires_in_minutes: candidate.expiresInMinutes
+    };
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_event_quests
+         (quest_id, session_id, team_id, status, payload_json)
+       VALUES (?, ?, ?, 'offered', ?)`
+    ).bind(questId, session.sessionId, candidate.teamId, JSON.stringify(payload)).run();
+    await appendObservationEventLive(env, {
+      sessionId: session.sessionId,
+      type: "quest_offered",
+      scope: candidate.teamId ? "team" : "all",
+      teamId: candidate.teamId,
+      payload: { quest_id: questId, ...payload }
+    });
+    inserted += 1;
+  }
+  return { quests: inserted, modelUsed: "cloudflare-d1-static-quest", trigger: options.trigger };
+}
+
+function buildNativeObservationEventQuestCandidates(
+  session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
+  teams: ObservationEventTeamD1Row[],
+  trigger: NativeObservationEventQuestTrigger
+): Array<{ teamId: string | null; teamName: string; kind: string; headline: string; prompt: string; rationale: string; expiresInMinutes: number }> {
+  const out: Array<{ teamId: string | null; teamName: string; kind: string; headline: string; prompt: string; rationale: string; expiresInMinutes: number }> = [];
+  const firstTarget = session.targetSpecies[0] ?? null;
+  if (firstTarget) {
+    out.push({
+      teamId: null,
+      teamName: "all",
+      kind: "taxa",
+      headline: `${firstTarget}の手がかり`,
+      prompt: `${firstTarget}がいそうな日なた・日陰・水辺・草地を一つ選んで、数分だけ見てみる。`,
+      rationale: "観察会の目標種に近い環境を追加で見ると、種リストと探した範囲の両方が残ります。",
+      expiresInMinutes: trigger === "ending_soon" ? 8 : 15
+    });
+  }
+  const firstTeam = teams[0] ?? null;
+  if (firstTeam) {
+    const targetTaxa = jsonArray(firstTeam.target_taxa_json).filter((value): value is string => typeof value === "string");
+    out.push({
+      teamId: firstTeam.team_id,
+      teamName: firstTeam.name,
+      kind: targetTaxa[0] ? "taxa" : "effort",
+      headline: targetTaxa[0] ? `${firstTeam.name}: ${targetTaxa[0]}` : `${firstTeam.name}: もう一地点`,
+      prompt: targetTaxa[0]
+        ? `${firstTeam.name}は${targetTaxa[0]}の手がかりを一つ追加で探す。見つからなくても、探した場所を残す。`
+        : `${firstTeam.name}はまだ見ていない方向へ短く移動して、同じ条件で一地点だけ追加する。`,
+      rationale: "班ごとの小さな追加行動は、偏りを減らし、主催者が後で状況を整理しやすくします。",
+      expiresInMinutes: 12
+    });
+  }
+  out.push({
+    teamId: null,
+    teamName: "all",
+    kind: "absence",
+    headline: trigger === "ending_soon" ? "最後に未確認を残す" : "見つからなかった条件",
+    prompt: "対象を一つ決めて5分だけ探し、見つからなければ条件と場所を短く残す。",
+    rationale: "条件つきの未確認は、次回の観察範囲や季節差を考える材料になります。",
+    expiresInMinutes: trigger === "ending_soon" ? 6 : 12
+  });
+  return out;
 }
 
 async function uploadLegacyCompatiblePhoto(observationId: string, request: Request, env: Env): Promise<Response> {
