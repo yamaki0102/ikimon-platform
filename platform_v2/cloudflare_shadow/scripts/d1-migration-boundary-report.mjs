@@ -54,6 +54,7 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/services/readiness.ts": "legacy_cutover_readiness_report"
   };
   if (exactAdminOpsDiagnostics[normalized]) return exactAdminOpsDiagnostics[normalized];
+  if (normalized === "platform_v2/src/services/guideHypothesisEvalSet.ts") return "manual_audit_report_tool";
   const scriptPrefix = "platform_v2/src/scripts/";
   if (!normalized.startsWith(scriptPrefix)) return null;
   if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
@@ -149,7 +150,17 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",
     "platform_v2/src/services/observationVisitBundle.ts": "cloudflare_observation_detail_readmodel",
     "platform_v2/src/services/observationEventLive.ts": "cloudflare_observation_event_live_api",
-    "platform_v2/src/routes/meSubscriptionsApi.ts": "cloudflare_personal_subscription_alert_api"
+    "platform_v2/src/routes/meSubscriptionsApi.ts": "cloudflare_personal_subscription_alert_api",
+    "platform_v2/src/routes/adminGuidePrograms.ts": "cloudflare_guide_program_admin_api",
+    "platform_v2/src/routes/adminGuidePromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
+    "platform_v2/src/services/guideCorrectionEval.ts": "cloudflare_guide_correction_eval_readmodel",
+    "platform_v2/src/services/guideEnvironmentMesh.ts": "cloudflare_guide_environment_mesh_readmodel",
+    "platform_v2/src/services/guideEnvironmentOps.ts": "cloudflare_guide_environment_dashboard_api",
+    "platform_v2/src/services/guideHypothesisPromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
+    "platform_v2/src/services/guideInteractions.ts": "cloudflare_guide_interaction_api",
+    "platform_v2/src/services/guidePrograms.ts": "cloudflare_guide_program_admin_api",
+    "platform_v2/src/services/guideUnlocks.ts": "cloudflare_guide_unlock_api",
+    "platform_v2/src/services/regionalHypotheses.ts": "cloudflare_guide_regional_hypothesis_api"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;
 }

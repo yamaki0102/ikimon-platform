@@ -1437,6 +1437,9 @@ export const worker = {
         return getPublicMapGuideSpots(url);
       }
 
+      const guideOutcomeRuntimeResponse = await handleGuideOutcomeRuntime(request, url, env);
+      if (guideOutcomeRuntimeResponse) return guideOutcomeRuntimeResponse;
+
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
         return getMunicipalWalkMapCandidates(url, env);
       }
@@ -6263,6 +6266,637 @@ async function requireMunicipalWalkMapAdminSession(request: Request, env: Env): 
   if (!session) throw new HttpError(401, "session_required");
   if (session.banned || !isMunicipalWalkMapAdminRole(session)) throw new HttpError(403, "admin_required");
   return session;
+}
+
+const GUIDE_INTERACTION_TYPES = new Set(["surfaced", "played", "skipped", "saved_later", "helpful", "wrong", "corrected"]);
+const GUIDE_PROGRAM_OWNER_TYPES = new Set(["owner", "community", "municipality", "school"]);
+const GUIDE_PROGRAM_MODES = new Set(["any_order", "ordered"]);
+const GUIDE_PROGRAM_STATUSES = new Set(["draft", "published", "paused", "closed"]);
+const GUIDE_REVIEW_STATUSES = new Set(["auto", "needs_review", "reviewed", "rejected"]);
+const GUIDE_QUEUE_STATUSES = new Set(["open", "in_review", "resolved", "dismissed"]);
+
+async function handleGuideOutcomeRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  try {
+    if (request.method === "GET" && pathname === "/api/v1/guides/unlocks") {
+      const session = await requireSignedInGuideSession(request, env);
+      return await getMyGuideUnlocks(session, env);
+    }
+    const listenedMatch = pathname.match(/^\/api\/v1\/guides\/unlocks\/([^/]+)\/listened$/);
+    if (request.method === "POST" && listenedMatch?.[1]) {
+      const session = await requireSignedInGuideSession(request, env);
+      return await markMyGuideUnlockListened(session, decodeURIComponent(listenedMatch[1]), env);
+    }
+    if (request.method === "POST" && pathname === "/api/v1/guide/interaction") {
+      return await recordGuideInteractionNative(request, env);
+    }
+    if (request.method === "GET" && pathname === "/api/v1/guide/environment-mesh.geojson") {
+      return await getGuideEnvironmentMeshGeoJson(url, env);
+    }
+    if (request.method === "GET" && pathname === "/api/v1/guide/regional-hypotheses") {
+      return await getGuideRegionalHypotheses(url, env);
+    }
+    if (request.method === "GET" && pathname === "/api/v1/guide/environment-dashboard") {
+      await requireMunicipalWalkMapAdminSession(request, env);
+      return await getGuideEnvironmentDashboard(env);
+    }
+    const correctionMatch = pathname.match(/^\/api\/v1\/me\/guide-records\/([^/]+)\/correction$/);
+    if (request.method === "POST" && correctionMatch?.[1]) {
+      const session = await requireSignedInGuideSession(request, env);
+      return await createGuideRecordCorrection(request, decodeURIComponent(correctionMatch[1]), session, env);
+    }
+    if ((request.method === "GET" || request.method === "HEAD") && pathname === "/admin/guide-programs") {
+      return await getGuideProgramsAdminPage(request, env);
+    }
+    const programRecapPageMatch = pathname.match(/^\/admin\/guide-programs\/([^/]+)\/recap$/);
+    if ((request.method === "GET" || request.method === "HEAD") && programRecapPageMatch?.[1]) {
+      return await getGuideProgramRecapPage(request, decodeURIComponent(programRecapPageMatch[1]), env);
+    }
+    if (request.method === "GET" && pathname === "/api/v1/admin/guide-programs") {
+      await requireMunicipalWalkMapAdminSession(request, env);
+      return await getGuideProgramEditorState(env);
+    }
+    const programRecapApiMatch = pathname.match(/^\/api\/v1\/admin\/guide-programs\/([^/]+)\/recap$/);
+    if (request.method === "GET" && programRecapApiMatch?.[1]) {
+      await requireMunicipalWalkMapAdminSession(request, env);
+      return await getGuideProgramRecapApi(decodeURIComponent(programRecapApiMatch[1]), env);
+    }
+    if (request.method === "POST" && pathname === "/api/v1/admin/guide-programs") {
+      const session = await requireMunicipalWalkMapAdminSession(request, env);
+      return await upsertGuideProgramAdmin(request, null, session, env);
+    }
+    const programUpdateMatch = pathname.match(/^\/api\/v1\/admin\/guide-programs\/([^/]+)$/);
+    if (request.method === "POST" && programUpdateMatch?.[1] && programUpdateMatch[1] !== "recap") {
+      const session = await requireMunicipalWalkMapAdminSession(request, env);
+      return await upsertGuideProgramAdmin(request, decodeURIComponent(programUpdateMatch[1]), session, env);
+    }
+    if ((request.method === "GET" || request.method === "HEAD") && pathname === "/admin/guide-prompt-improvements") {
+      return await getGuidePromptImprovementsAdminPage(request, url, env);
+    }
+    const improvementStatusMatch = pathname.match(/^\/api\/v1\/admin\/guide-prompt-improvements\/([^/]+)\/status$/);
+    if (request.method === "POST" && improvementStatusMatch?.[1]) {
+      await requireMunicipalWalkMapAdminSession(request, env);
+      return await updateGuidePromptImprovementStatus(request, decodeURIComponent(improvementStatusMatch[1]), env);
+    }
+    const queueStatusMatch = pathname.match(/^\/api\/v1\/admin\/guide-prompt-improvement-queue\/([^/]+)\/status$/);
+    if (request.method === "POST" && queueStatusMatch?.[1]) {
+      await requireMunicipalWalkMapAdminSession(request, env);
+      return await updateGuidePromptImprovementQueueStatus(request, decodeURIComponent(queueStatusMatch[1]), env);
+    }
+    return null;
+  } catch (error) {
+    if (error instanceof HttpError) return json({ ok: false, error: error.message }, error.status, nativeGuideHeaders("guide-error"));
+    throw error;
+  }
+}
+
+function nativeGuideHeaders(kind: string): Record<string, string> {
+  return { "cache-control": "no-store", "x-ikimon-cloudflare-native": kind };
+}
+
+async function requireSignedInGuideSession(request: Request, env: Env): Promise<SessionSnapshot> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) throw new HttpError(401, "auth_required");
+  if (session.banned) throw new HttpError(403, "account_unavailable");
+  return session;
+}
+
+function guideSpotForId(guideSpotId: string): ShadowMapGuideSpot | null {
+  return SHADOW_MAP_GUIDE_SPOTS.find((spot) => spot.id === guideSpotId) ?? null;
+}
+
+function guideSpotPublicItem(spot: ShadowMapGuideSpot) {
+  return {
+    id: spot.id,
+    title: spot.title,
+    subtitle: spot.subtitle,
+    preview: spot.preview,
+    script: spot.script,
+    storyPoints: spot.storyPoints,
+    sourceLinks: spot.sourceLinks,
+    locationPrecision: spot.locationPrecision,
+    visitAnchorLabel: spot.visitAnchorLabel,
+    publicLocationMode: spot.publicLocationMode,
+    subjectLocationMode: spot.subjectLocationMode
+  };
+}
+
+function parseGuideJson(value: string | null): unknown {
+  if (!value) return {};
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return {};
+  }
+}
+
+function guideProgramPublicSummaryFromRow(row: Record<string, D1Value>, spots: unknown[] = []) {
+  return {
+    programId: String(row.program_id ?? ""),
+    slug: String(row.slug ?? ""),
+    title: String(row.title ?? ""),
+    ownerType: String(row.owner_type ?? "community"),
+    participationMode: String(row.participation_mode ?? "any_order"),
+    status: String(row.status ?? "draft"),
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    publicSummary: row.public_summary,
+    safetyPolicy: parseGuideJson(String(row.safety_policy_json ?? "{}")),
+    createdAt: String(row.created_at ?? ""),
+    updatedAt: String(row.updated_at ?? ""),
+    spots
+  };
+}
+
+async function getGuideProgramRows(env: Env, onlyPublished = false): Promise<Array<Record<string, D1Value>>> {
+  const where = onlyPublished ? "WHERE status = 'published' AND owner_type != 'school'" : "";
+  const rows = await env.OBS_DB.prepare(
+    `SELECT program_id, slug, title, owner_type, participation_mode, status,
+            starts_at, ends_at, public_summary, safety_policy_json, created_at, updated_at
+       FROM guide_programs
+      ${where}
+      ORDER BY updated_at DESC, program_id ASC
+      LIMIT 100`
+  ).all<Record<string, D1Value>>();
+  return rows.results;
+}
+
+async function getGuideProgramSpots(env: Env, programIds: string[]): Promise<Map<string, unknown[]>> {
+  const byProgram = new Map<string, unknown[]>();
+  if (programIds.length === 0) return byProgram;
+  const rows = await env.OBS_DB.prepare(
+    `SELECT program_id, guide_spot_id, sort_order, required_for_completion
+       FROM guide_program_spots
+      ORDER BY program_id ASC, sort_order ASC, guide_spot_id ASC`
+  ).all<{ program_id: string; guide_spot_id: string; sort_order: number; required_for_completion: number }>();
+  for (const row of rows.results) {
+    if (!programIds.includes(row.program_id)) continue;
+    const spot = guideSpotForId(row.guide_spot_id);
+    if (!spot) continue;
+    const list = byProgram.get(row.program_id) ?? [];
+    list.push({
+      ...guideSpotPublicItem(spot),
+      sortOrder: Number(row.sort_order ?? 0),
+      requiredForCompletion: Boolean(row.required_for_completion)
+    });
+    byProgram.set(row.program_id, list);
+  }
+  return byProgram;
+}
+
+async function getGuideProgramRefMap(env: Env): Promise<Map<string, { id: string; slug: string; title: string }>> {
+  const rows = await getGuideProgramRows(env, false);
+  return new Map(rows.map((row) => [String(row.program_id), {
+    id: String(row.program_id),
+    slug: String(row.slug),
+    title: String(row.title)
+  }]));
+}
+
+async function getMyGuideUnlocks(session: SessionSnapshot, env: Env): Promise<Response> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT guide_spot_id, program_id, distance_band, first_unlocked_at, last_unlocked_at, last_listened_at
+       FROM guide_unlocks
+      WHERE user_id = ?
+      ORDER BY last_unlocked_at DESC
+      LIMIT 100`
+  ).bind(session.userId).all<Record<string, D1Value>>();
+  const programs = await getGuideProgramRefMap(env);
+  const unlocks = rows.results.map((row) => {
+    const spot = guideSpotForId(String(row.guide_spot_id ?? ""));
+    if (!spot) return null;
+    const program = row.program_id ? programs.get(String(row.program_id)) ?? null : null;
+    return {
+      guideSpotId: spot.id,
+      guideTitle: spot.title,
+      guideSubtitle: spot.subtitle,
+      programId: program?.id ?? row.program_id ?? null,
+      programTitle: program?.title ?? null,
+      programSlug: program?.slug ?? null,
+      distanceBand: row.distance_band ?? "area",
+      unlockedAt: row.last_unlocked_at ?? row.first_unlocked_at,
+      href: `/my-guides?guide=${encodeURIComponent(spot.id)}`,
+      preview: spot.preview,
+      script: spot.script,
+      storyPoints: spot.storyPoints,
+      sourceLinks: spot.sourceLinks,
+      lastListenedAt: row.last_listened_at
+    };
+  }).filter(Boolean);
+  return json({ ok: true, unlocks }, 200, nativeGuideHeaders("guide-unlocks-api"));
+}
+
+async function markMyGuideUnlockListened(session: SessionSnapshot, guideSpotId: string, env: Env): Promise<Response> {
+  await env.OBS_DB.prepare(
+    `UPDATE guide_unlocks
+        SET last_listened_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ? AND guide_spot_id = ?`
+  ).bind(session.userId, guideSpotId).run();
+  return json({ ok: true, guideSpotId }, 200, nativeGuideHeaders("guide-unlocks-listened-api"));
+}
+
+async function recordGuideInteractionNative(request: Request, env: Env): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const rawInteraction = String(body.interactionType ?? "");
+  const representativeFeedback = rawInteraction === "merge_ok" ? "merge_ok" : null;
+  const interactionType = representativeFeedback ? "helpful" : rawInteraction;
+  if (!GUIDE_INTERACTION_TYPES.has(interactionType)) {
+    return json({ ok: false, error: "invalid_interaction_type" }, 400, nativeGuideHeaders("guide-interaction-api"));
+  }
+  const session = await readCompatibleSession(request, env);
+  const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload)
+    ? body.payload as Record<string, unknown>
+    : {};
+  const normalizedPayload = representativeFeedback
+    ? { ...payload, representativeFeedback, storedInteractionType: interactionType }
+    : payload;
+  const interactionId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO guide_interactions
+       (interaction_id, guide_record_id, hypothesis_id, user_id, session_id, interaction_type, payload_json, occurred_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP)`
+  ).bind(
+    interactionId,
+    normalizeOptionalId(body.guideRecordId),
+    normalizeOptionalId(body.hypothesisId),
+    session?.userId ?? null,
+    normalizeOptionalText(body.sessionId) ?? "",
+    interactionType,
+    JSON.stringify(normalizedPayload),
+    normalizeOptionalText(body.occurredAt)
+  ).run();
+  return json({ ok: true, interactionId }, 200, nativeGuideHeaders("guide-interaction-api"));
+}
+
+function topGuideEntries(raw: unknown, limit = 8): Array<{ name: string; count: number }> {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  return Object.entries(source)
+    .map(([name, value]) => ({ name, count: Number(value) }))
+    .filter((item) => item.name && Number.isFinite(item.count) && item.count > 0)
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ja"))
+    .slice(0, limit);
+}
+
+async function getGuideEnvironmentMeshGeoJson(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "500"), 1, 5000);
+  const publicOnly = url.searchParams.get("publicOnly") !== "0";
+  const rows = await env.OBS_DB.prepare(
+    `SELECT mesh_key, center_lat, center_lng, guide_record_count, contributor_count,
+            vegetation_counts_json, landform_counts_json, structure_counts_json, sound_counts_json,
+            first_seen_at, last_seen_at
+       FROM guide_environment_mesh_cells
+      WHERE (? = 0 OR guide_record_count >= 3 OR contributor_count >= 2)
+      ORDER BY last_seen_at DESC, guide_record_count DESC
+      LIMIT ?`
+  ).bind(publicOnly ? 1 : 0, limit).all<Record<string, D1Value>>();
+  const features = rows.results.map((row) => {
+    const vegetation = topGuideEntries(parseGuideJson(String(row.vegetation_counts_json ?? "{}")));
+    const landform = topGuideEntries(parseGuideJson(String(row.landform_counts_json ?? "{}")));
+    const structure = topGuideEntries(parseGuideJson(String(row.structure_counts_json ?? "{}")));
+    const sound = topGuideEntries(parseGuideJson(String(row.sound_counts_json ?? "{}")));
+    const dominantType = [
+      ["vegetation", vegetation.reduce((sum, item) => sum + item.count, 0)] as const,
+      ["landform", landform.reduce((sum, item) => sum + item.count, 0)] as const,
+      ["structure", structure.reduce((sum, item) => sum + item.count, 0)] as const,
+      ["sound", sound.reduce((sum, item) => sum + item.count, 0)] as const
+    ].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "structure";
+    return {
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [Number(row.center_lng), Number(row.center_lat)] },
+      properties: {
+        meshKey: row.mesh_key,
+        gridSizeM: 100,
+        guideRecordCount: Number(row.guide_record_count ?? 0),
+        contributorCount: Number(row.contributor_count ?? 0),
+        dominantType,
+        vegetation,
+        landform,
+        structure,
+        sound,
+        firstSeenAt: row.first_seen_at,
+        lastSeenAt: row.last_seen_at
+      }
+    };
+  });
+  return json({ type: "FeatureCollection", features }, 200, {
+    "cache-control": "public, max-age=60, stale-while-revalidate=300",
+    "x-ikimon-cloudflare-native": "guide-environment-mesh-api"
+  });
+}
+
+async function getGuideRegionalHypotheses(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "20"), 1, 100);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT hypothesis_id, mesh_key, place_id, claim_type, hypothesis_text, what_we_can_say,
+            supporting_observation_ids_json, supporting_guide_record_ids_json, supporting_knowledge_card_ids_json,
+            supporting_claim_ids_json, evidence_json, confidence, bias_warnings_json, missing_data_json,
+            next_sampling_protocol, source_fingerprint, review_status, generated_at
+       FROM regional_hypotheses
+      WHERE review_status <> 'rejected'
+      ORDER BY confidence DESC, generated_at DESC
+      LIMIT ?`
+  ).bind(limit).all<Record<string, D1Value>>();
+  const hypotheses = rows.results.map((row) => ({
+    hypothesisId: row.hypothesis_id,
+    meshKey: row.mesh_key,
+    placeId: row.place_id,
+    claimType: row.claim_type,
+    hypothesisText: row.hypothesis_text,
+    whatWeCanSay: row.what_we_can_say,
+    supportingObservationIds: parseGuideJson(String(row.supporting_observation_ids_json ?? "[]")),
+    supportingGuideRecordIds: parseGuideJson(String(row.supporting_guide_record_ids_json ?? "[]")),
+    supportingKnowledgeCardIds: parseGuideJson(String(row.supporting_knowledge_card_ids_json ?? "[]")),
+    supportingClaimIds: parseGuideJson(String(row.supporting_claim_ids_json ?? "[]")),
+    evidence: parseGuideJson(String(row.evidence_json ?? "{}")),
+    confidence: Number(row.confidence ?? 0),
+    biasWarnings: parseGuideJson(String(row.bias_warnings_json ?? "[]")),
+    missingData: parseGuideJson(String(row.missing_data_json ?? "[]")),
+    nextSamplingProtocol: row.next_sampling_protocol,
+    sourceFingerprint: row.source_fingerprint,
+    reviewStatus: row.review_status,
+    generatedAt: row.generated_at
+  }));
+  return json({ ok: true, hypotheses }, 200, nativeGuideHeaders("guide-regional-hypotheses-api"));
+}
+
+async function getGuideEnvironmentDashboard(env: Env): Promise<Response> {
+  const [latest, totals] = await Promise.all([
+    env.OBS_DB.prepare(
+      `SELECT run_id, trigger_source, status, diagnosis_date, started_at, finished_at,
+              mesh_rebuild_needed, rebuild_action, guide_record_count, public_mesh_cell_count,
+              suppressed_mesh_cell_count, hypotheses_written, eval_items_count,
+              prompt_improvements_written, error_message
+         FROM guide_environment_refresh_runs
+        ORDER BY started_at DESC
+        LIMIT 1`
+    ).all<Record<string, D1Value>>(),
+    env.OBS_DB.prepare(
+      `SELECT
+          (SELECT COUNT(*) FROM guide_environment_mesh_cells) AS mesh_cells,
+          (SELECT COUNT(*) FROM guide_environment_mesh_cells WHERE guide_record_count >= 3 OR contributor_count >= 2) AS public_mesh_cells,
+          (SELECT COUNT(*) FROM regional_hypotheses WHERE review_status <> 'rejected') AS hypotheses,
+          (SELECT COUNT(*) FROM guide_interactions WHERE interaction_type = 'helpful') AS helpful_interactions,
+          (SELECT COUNT(*) FROM guide_interactions WHERE interaction_type = 'wrong') AS wrong_interactions,
+          (SELECT COUNT(*) FROM guide_hypothesis_prompt_improvements WHERE review_status <> 'rejected') AS prompt_improvements`
+    ).all<Record<string, D1Value>>()
+  ]);
+  return json({
+    ok: true,
+    latestRun: latest.results[0] ?? null,
+    totals: totals.results[0] ?? {}
+  }, 200, nativeGuideHeaders("guide-environment-dashboard-api"));
+}
+
+async function createGuideRecordCorrection(request: Request, guideRecordId: string, session: SessionSnapshot, env: Env): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const correctionId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO guide_record_corrections
+       (correction_id, guide_record_id, user_id, correction_kind, original_payload_json, corrected_payload_json, note, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+  ).bind(
+    correctionId,
+    guideRecordId,
+    session.userId,
+    normalizeOptionalText(body.correctionKind) ?? "human_edit",
+    JSON.stringify(body.originalPayload ?? {}),
+    JSON.stringify(body.correctedPayload ?? {}),
+    normalizeOptionalText(body.note)
+  ).run();
+  return json({ ok: true, correctionId, guideRecordId }, 200, nativeGuideHeaders("guide-record-correction-api"));
+}
+
+function guideProgramShell(title: string, body: string): Response {
+  return html(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} - ikimon</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f8fafc}.guide-admin{max-width:1120px;margin:0 auto;padding:24px 16px 72px}.guide-admin h1{font-size:26px;line-height:1.25;margin:0 0 12px}.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.guide-card{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}.guide-card h2{font-size:17px;margin:0 0 8px}.guide-card p{line-height:1.65;color:#475569}.guide-chip{display:inline-flex;border-radius:999px;background:#e0f2fe;color:#075985;font-size:12px;font-weight:900;padding:3px 8px}</style></head><body><main class="guide-admin">${body}</main></body></html>`, 200, nativeGuideHeaders("guide-admin-html"));
+}
+
+async function getGuideProgramsAdminPage(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const rows = await getGuideProgramRows(env, false);
+  const spotsByProgram = await getGuideProgramSpots(env, rows.map((row) => String(row.program_id)));
+  const cards = rows.map((row) => {
+    const programId = String(row.program_id);
+    const spotCount = spotsByProgram.get(programId)?.length ?? 0;
+    return `<article class="guide-card"><span class="guide-chip">${escapeHtml(String(row.status))}</span><h2>${escapeHtml(String(row.title))}</h2><p>${escapeHtml(String(row.public_summary ?? ""))}</p><p>${spotCount} guide spots / ${escapeHtml(programId)}</p><p><a href="/admin/guide-programs/${encodeURIComponent(programId)}/recap">recap</a></p></article>`;
+  }).join("");
+  return guideProgramShell("ガイド企画", `<h1>ガイド企画</h1><section class="guide-grid">${cards || "<p>ガイド企画はまだありません。</p>"}</section>`);
+}
+
+async function getGuideProgramEditorState(env: Env): Promise<Response> {
+  const programs = await getGuideProgramRows(env, false);
+  const spotsByProgram = await getGuideProgramSpots(env, programs.map((row) => String(row.program_id)));
+  const guideSpots = SHADOW_MAP_GUIDE_SPOTS
+    .filter((spot) => (spot.visibilityStatus ?? "published") === "published" && (spot.safetyStatus ?? "active") === "active" && spot.landownerConsent !== false && spot.ownerType !== "school")
+    .map((spot) => ({
+      id: spot.id,
+      title: spot.title,
+      subtitle: spot.subtitle,
+      ownerType: spot.ownerType ?? "community",
+      visibilityStatus: spot.visibilityStatus ?? "published",
+      safetyStatus: spot.safetyStatus ?? "active",
+      landownerConsent: spot.landownerConsent !== false,
+      availableTimePolicy: spot.availableTimePolicy ?? "anytime_public"
+    }));
+  return json({
+    ok: true,
+    programs: programs.map((row) => guideProgramPublicSummaryFromRow(row, spotsByProgram.get(String(row.program_id)) ?? [])),
+    guideSpots
+  }, 200, nativeGuideHeaders("guide-programs-admin-api"));
+}
+
+function normalizeGuideProgramBody(body: Record<string, unknown>, pathProgramId: string | null) {
+  const programId = normalizeOptionalId(pathProgramId ?? body.programId ?? body.slug);
+  const slug = normalizeOptionalId(body.slug ?? programId);
+  const title = normalizeOptionalText(body.title);
+  if (!programId || !slug || !title) throw new HttpError(400, "invalid_guide_program");
+  const ownerType = GUIDE_PROGRAM_OWNER_TYPES.has(String(body.ownerType)) ? String(body.ownerType) : "community";
+  const participationMode = GUIDE_PROGRAM_MODES.has(String(body.participationMode)) ? String(body.participationMode) : "any_order";
+  const status = GUIDE_PROGRAM_STATUSES.has(String(body.status)) ? String(body.status) : "draft";
+  const guideSpotIds = Array.isArray(body.guideSpotIds)
+    ? body.guideSpotIds.map((item) => normalizeOptionalId(item)).filter((item): item is string => Boolean(item))
+    : [];
+  return {
+    programId,
+    slug,
+    title,
+    ownerType,
+    participationMode,
+    status,
+    startsAt: normalizeOptionalText(body.startsAt),
+    endsAt: normalizeOptionalText(body.endsAt),
+    publicSummary: normalizeOptionalText(body.publicSummary),
+    guideSpotIds: [...new Set(guideSpotIds)].filter((id) => Boolean(guideSpotForId(id)))
+  };
+}
+
+async function upsertGuideProgramAdmin(request: Request, pathProgramId: string | null, session: SessionSnapshot, env: Env): Promise<Response> {
+  const normalized = normalizeGuideProgramBody(await readJson<Record<string, unknown>>(request), pathProgramId);
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `INSERT INTO guide_programs
+       (program_id, slug, title, owner_type, participation_mode, status, starts_at, ends_at, public_summary, safety_policy_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(program_id) DO UPDATE SET
+       slug = excluded.slug,
+       title = excluded.title,
+       owner_type = excluded.owner_type,
+       participation_mode = excluded.participation_mode,
+       status = excluded.status,
+       starts_at = excluded.starts_at,
+       ends_at = excluded.ends_at,
+       public_summary = excluded.public_summary,
+       safety_policy_json = excluded.safety_policy_json,
+       updated_at = excluded.updated_at`
+  ).bind(
+    normalized.programId,
+    normalized.slug,
+    normalized.title,
+    normalized.ownerType,
+    normalized.participationMode,
+    normalized.status,
+    normalized.startsAt,
+    normalized.endsAt,
+    normalized.publicSummary,
+    JSON.stringify({ location_display: "coarse", unlock_visibility: "private", requires_public_post: false }),
+    now,
+    now
+  ).run();
+  await env.OBS_DB.prepare("DELETE FROM guide_program_spots WHERE program_id = ?").bind(normalized.programId).run();
+  for (const [index, guideSpotId] of normalized.guideSpotIds.entries()) {
+    await env.OBS_DB.prepare(
+      `INSERT INTO guide_program_spots (program_id, guide_spot_id, sort_order, required_for_completion, created_at)
+       VALUES (?, ?, ?, 1, ?)`
+    ).bind(normalized.programId, guideSpotId, (index + 1) * 10, now).run();
+  }
+  await env.OBS_DB.prepare(
+    `INSERT INTO guide_program_audit (audit_id, program_id, actor_user_id, action, before_payload_json, after_payload_json, created_at)
+     VALUES (?, ?, ?, ?, '{}', ?, ?)`
+  ).bind(crypto.randomUUID(), normalized.programId, session.userId, pathProgramId ? "update" : "create", JSON.stringify(normalized), now).run();
+  return json({ ok: true, program: normalized }, 200, nativeGuideHeaders("guide-programs-admin-api"));
+}
+
+async function getGuideProgramRecapApi(programId: string, env: Env): Promise<Response> {
+  const recap = await buildGuideProgramRecapNative(programId, env);
+  if (!recap) return json({ ok: false, error: "guide_program_recap_not_found" }, 404, nativeGuideHeaders("guide-program-recap-api"));
+  return json({ ok: true, recap }, 200, nativeGuideHeaders("guide-program-recap-api"));
+}
+
+async function getGuideProgramRecapPage(request: Request, programId: string, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const recap = await buildGuideProgramRecapNative(programId, env);
+  if (!recap) return guideProgramShell("ガイド企画 recap", "<h1>ガイド企画が見つかりません</h1>");
+  return guideProgramShell(`${recap.program.title} recap`, `<h1>${escapeHtml(recap.program.title)}</h1><section class="guide-grid"><article class="guide-card"><h2>unlocks</h2><p>${recap.stats.guideUnlockCount ?? "k未満"}</p></article><article class="guide-card"><h2>plays</h2><p>${recap.stats.guidePlayCount ?? "k未満"}</p></article><article class="guide-card"><h2>privacy</h2><p>個人別行動履歴と正確な来訪経路は出しません。</p></article></section>`);
+}
+
+async function buildGuideProgramRecapNative(programId: string, env: Env) {
+  const programRows = await env.OBS_DB.prepare(
+    `SELECT program_id, slug, title, owner_type, participation_mode, status,
+            starts_at, ends_at, public_summary, safety_policy_json, created_at, updated_at
+       FROM guide_programs
+      WHERE program_id = ?
+      LIMIT 1`
+  ).bind(programId).all<Record<string, D1Value>>();
+  const row = programRows.results[0];
+  if (!row) return null;
+  const spotsByProgram = await getGuideProgramSpots(env, [programId]);
+  const stats = await env.OBS_DB.prepare(
+    `SELECT COUNT(*) AS unlock_count,
+            SUM(CASE WHEN last_listened_at IS NULL THEN 0 ELSE 1 END) AS play_count,
+            COUNT(DISTINCT user_id) AS participants
+       FROM guide_unlocks
+      WHERE program_id = ?`
+  ).bind(programId).all<Record<string, D1Value>>();
+  const stat = stats.results[0] ?? {};
+  const participants = Number(stat.participants ?? 0);
+  const suppressed = participants < 5;
+  return {
+    schemaVersion: "guide_program_recap/v1",
+    generatedAt: new Date().toISOString(),
+    program: guideProgramPublicSummaryFromRow(row, spotsByProgram.get(programId) ?? []),
+    kAnonymityThreshold: 5,
+    suppressedBreakdownReasons: suppressed ? ["participant_count_below_k_anonymity_threshold"] : [],
+    privacyBoundary: { exactCoordinatesIncluded: false, userLevelRowsIncluded: false, smallCohortSuppressionApplied: suppressed },
+    claimBoundary: {
+      canSay: ["本人用に解放されたガイド数", "解放後に再生されたガイド数", "次回の企画調整に使う匿名集計"],
+      cannotSay: ["参加者ごとの行動履歴", "正確な来訪経路や投稿位置", "生物多様性の改善や公式調査結果"]
+    },
+    stats: {
+      guideSpotCount: (spotsByProgram.get(programId) ?? []).length,
+      requiredGuideSpotCount: (spotsByProgram.get(programId) ?? []).length,
+      guideUnlockCount: suppressed ? null : Number(stat.unlock_count ?? 0),
+      guidePlayCount: suppressed ? null : Number(stat.play_count ?? 0),
+      participantsCountRounded: suppressed ? null : Math.max(5, Math.floor(participants / 5) * 5),
+      completionRateBucket: suppressed ? "suppressed" : "building",
+      playRateBucket: suppressed ? "suppressed" : "building"
+    },
+    nextActions: [
+      { label: "観察会として実施", body: "同じ場所で人を集める日は、Observation Eventにしてrecapと公式レポートへつなぐ。", href: "/community/events/new" },
+      { label: "ガイドを増やす", body: "解放数に対して再生が少ない場合は、入口ガイドの短さ、題名、現地導線を見直す。", href: "/admin/guide-programs" }
+    ]
+  };
+}
+
+async function getGuidePromptImprovementsAdminPage(request: Request, url: URL, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const status = GUIDE_REVIEW_STATUSES.has(String(url.searchParams.get("status"))) ? String(url.searchParams.get("status")) : "needs_review";
+  const improvements = await listGuidePromptImprovements(env, status, 30);
+  const queue = await listGuidePromptImprovementQueue(env, 20);
+  const cards = [
+    ...queue.map((row) => `<article class="guide-card"><span class="guide-chip">${escapeHtml(String(row.queue_status))}</span><h2>${escapeHtml(String(row.claim_type || "global"))}</h2><p>${escapeHtml(String(row.wrong_count))} wrong feedback</p></article>`),
+    ...improvements.map((row) => `<article class="guide-card"><span class="guide-chip">${escapeHtml(String(row.review_status))}</span><h2>${escapeHtml(String(row.recommendation))}</h2><p>${escapeHtml(String(row.prompt_patch))}</p></article>`)
+  ].join("");
+  return guideProgramShell("ガイド改善レビュー", `<h1>ガイド改善レビュー</h1><section class="guide-grid">${cards || "<p>改善候補はありません。</p>"}</section>`);
+}
+
+async function listGuidePromptImprovements(env: Env, status: string, limit: number): Promise<Array<Record<string, D1Value>>> {
+  const any = status === "any";
+  const rows = await env.OBS_DB.prepare(
+    `SELECT improvement_id, source_key, improvement_type, label, claim_type, trigger,
+            recommendation, prompt_patch, evidence_json, support_count, review_status, generated_at
+       FROM guide_hypothesis_prompt_improvements
+      WHERE (? = 1 OR review_status = ?)
+      ORDER BY support_count DESC, generated_at DESC
+      LIMIT ?`
+  ).bind(any ? 1 : 0, status, limit).all<Record<string, D1Value>>();
+  return rows.results;
+}
+
+async function listGuidePromptImprovementQueue(env: Env, limit: number): Promise<Array<Record<string, D1Value>>> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT queue_id, claim_type, trigger, wrong_count, threshold_count, queue_status,
+            improvement_ids_json, evidence_json, first_seen_at, last_seen_at, resolved_at
+       FROM guide_hypothesis_prompt_improvement_queue
+      WHERE queue_status IN ('open', 'in_review')
+      ORDER BY wrong_count DESC, last_seen_at DESC
+      LIMIT ?`
+  ).bind(limit).all<Record<string, D1Value>>();
+  return rows.results;
+}
+
+async function updateGuidePromptImprovementStatus(request: Request, improvementId: string, env: Env): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const reviewStatus = String(body.reviewStatus ?? "");
+  if (!GUIDE_REVIEW_STATUSES.has(reviewStatus)) return json({ ok: false, error: "invalid_review_status" }, 400, nativeGuideHeaders("guide-prompt-improvements-api"));
+  await env.OBS_DB.prepare(
+    `UPDATE guide_hypothesis_prompt_improvements
+        SET review_status = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE improvement_id = ?`
+  ).bind(reviewStatus, improvementId).run();
+  return json({ ok: true, improvementId, reviewStatus }, 200, nativeGuideHeaders("guide-prompt-improvements-api"));
+}
+
+async function updateGuidePromptImprovementQueueStatus(request: Request, queueId: string, env: Env): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const queueStatus = String(body.queueStatus ?? "");
+  if (!GUIDE_QUEUE_STATUSES.has(queueStatus)) return json({ ok: false, error: "invalid_queue_status" }, 400, nativeGuideHeaders("guide-prompt-improvements-api"));
+  await env.OBS_DB.prepare(
+    `UPDATE guide_hypothesis_prompt_improvement_queue
+        SET queue_status = ?,
+            resolved_at = CASE WHEN ? IN ('resolved', 'dismissed') THEN CURRENT_TIMESTAMP ELSE NULL END,
+            updated_at = CURRENT_TIMESTAMP
+      WHERE queue_id = ?`
+  ).bind(queueStatus, queueStatus, queueId).run();
+  return json({ ok: true, queueId, queueStatus }, 200, nativeGuideHeaders("guide-prompt-improvements-api"));
 }
 
 function renderMunicipalWalkMapAdminShellHtml(input: {

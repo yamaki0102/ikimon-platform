@@ -718,6 +718,143 @@ interface ObservationRallyProgressTestRow {
   updated_at: string;
 }
 
+interface GuideUnlockTestRow {
+  user_id: string;
+  guide_spot_id: string;
+  program_id: string | null;
+  distance_band: string;
+  first_unlocked_at: string;
+  last_unlocked_at: string;
+  last_listened_at: string | null;
+}
+
+interface GuideInteractionTestRow {
+  interaction_id: string;
+  guide_record_id: string | null;
+  hypothesis_id: string | null;
+  user_id: string | null;
+  session_id: string;
+  interaction_type: string;
+  payload_json: string;
+  occurred_at: string;
+}
+
+interface GuideEnvironmentMeshTestRow {
+  mesh_key: string;
+  center_lat: number;
+  center_lng: number;
+  guide_record_count: number;
+  contributor_count: number;
+  vegetation_counts_json: string;
+  landform_counts_json: string;
+  structure_counts_json: string;
+  sound_counts_json: string;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+}
+
+interface GuideProgramTestRow {
+  program_id: string;
+  slug: string;
+  title: string;
+  owner_type: string;
+  participation_mode: string;
+  status: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  public_summary: string | null;
+  safety_policy_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface GuideProgramSpotTestRow {
+  program_id: string;
+  guide_spot_id: string;
+  sort_order: number;
+  required_for_completion: number;
+  created_at: string;
+}
+
+interface RegionalHypothesisTestRow {
+  hypothesis_id: string;
+  mesh_key: string | null;
+  place_id: string | null;
+  claim_type: string;
+  hypothesis_text: string;
+  what_we_can_say: string;
+  supporting_observation_ids_json: string;
+  supporting_guide_record_ids_json: string;
+  supporting_knowledge_card_ids_json: string;
+  supporting_claim_ids_json: string;
+  evidence_json: string;
+  confidence: number;
+  bias_warnings_json: string;
+  missing_data_json: string;
+  next_sampling_protocol: string;
+  source_fingerprint: string;
+  review_status: string;
+  generated_at: string;
+}
+
+interface GuideEnvironmentRefreshRunTestRow {
+  run_id: string;
+  trigger_source: string;
+  status: string;
+  diagnosis_date: string;
+  started_at: string;
+  finished_at: string;
+  mesh_rebuild_needed: number;
+  rebuild_action: string;
+  guide_record_count: number;
+  public_mesh_cell_count: number;
+  suppressed_mesh_cell_count: number;
+  hypotheses_written: number;
+  eval_items_count: number;
+  prompt_improvements_written: number;
+  error_message: string;
+}
+
+interface GuideRecordCorrectionTestRow {
+  correction_id: string;
+  guide_record_id: string;
+  user_id: string | null;
+  correction_kind: string;
+  original_payload_json: string;
+  corrected_payload_json: string;
+  note: string | null;
+  created_at: string;
+}
+
+interface GuidePromptImprovementTestRow {
+  improvement_id: string;
+  source_key: string;
+  improvement_type: string;
+  label: string;
+  claim_type: string;
+  trigger: string;
+  recommendation: string;
+  prompt_patch: string;
+  evidence_json: string;
+  support_count: number;
+  review_status: string;
+  generated_at: string;
+}
+
+interface GuidePromptQueueTestRow {
+  queue_id: string;
+  claim_type: string;
+  trigger: string;
+  wrong_count: number;
+  threshold_count: number;
+  queue_status: string;
+  improvement_ids_json: string;
+  evidence_json: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -772,6 +909,17 @@ class FakeD1 {
   observationRallyMissions = new Map<string, ObservationRallyMissionTestRow>();
   observationRallySubmissions = new Map<string, ObservationRallySubmissionTestRow>();
   observationRallyProgress = new Map<string, ObservationRallyProgressTestRow>();
+  guideUnlocks = new Map<string, GuideUnlockTestRow>();
+  guideInteractions = new Map<string, GuideInteractionTestRow>();
+  guideEnvironmentMeshCells = new Map<string, GuideEnvironmentMeshTestRow>();
+  regionalHypotheses = new Map<string, RegionalHypothesisTestRow>();
+  guideEnvironmentRefreshRuns = new Map<string, GuideEnvironmentRefreshRunTestRow>();
+  guideRecordCorrections = new Map<string, GuideRecordCorrectionTestRow>();
+  guidePrograms = new Map<string, GuideProgramTestRow>();
+  guideProgramSpots = new Map<string, GuideProgramSpotTestRow>();
+  guideProgramAudit: Array<{ audit_id: string; program_id: string; actor_user_id: string | null; action: string }> = [];
+  guidePromptImprovements = new Map<string, GuidePromptImprovementTestRow>();
+  guidePromptQueues = new Map<string, GuidePromptQueueTestRow>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -1793,6 +1941,105 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE guide_unlocks SET last_listened_at")) {
+      const row = this.db.guideUnlocks.get(`${string(v[0])}:${string(v[1])}`);
+      if (row) row.last_listened_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO guide_interactions")) {
+      this.db.guideInteractions.set(string(v[0]), {
+        interaction_id: string(v[0]),
+        guide_record_id: nullableString(v[1]),
+        hypothesis_id: nullableString(v[2]),
+        user_id: nullableString(v[3]),
+        session_id: string(v[4]),
+        interaction_type: string(v[5]),
+        payload_json: string(v[6]),
+        occurred_at: nullableString(v[7]) ?? new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO guide_record_corrections")) {
+      this.db.guideRecordCorrections.set(string(v[0]), {
+        correction_id: string(v[0]),
+        guide_record_id: string(v[1]),
+        user_id: nullableString(v[2]),
+        correction_kind: string(v[3]),
+        original_payload_json: string(v[4]),
+        corrected_payload_json: string(v[5]),
+        note: nullableString(v[6]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO guide_programs")) {
+      const now = string(v[11]);
+      const row: GuideProgramTestRow = {
+        program_id: string(v[0]),
+        slug: string(v[1]),
+        title: string(v[2]),
+        owner_type: string(v[3]),
+        participation_mode: string(v[4]),
+        status: string(v[5]),
+        starts_at: nullableString(v[6]),
+        ends_at: nullableString(v[7]),
+        public_summary: nullableString(v[8]),
+        safety_policy_json: string(v[9]),
+        created_at: this.db.guidePrograms.get(string(v[0]))?.created_at ?? string(v[10]),
+        updated_at: now
+      };
+      this.db.guidePrograms.set(row.program_id, row);
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM guide_program_spots")) {
+      const programId = string(v[0]);
+      for (const [key, row] of [...this.db.guideProgramSpots.entries()]) {
+        if (row.program_id === programId) this.db.guideProgramSpots.delete(key);
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO guide_program_spots")) {
+      const row: GuideProgramSpotTestRow = {
+        program_id: string(v[0]),
+        guide_spot_id: string(v[1]),
+        sort_order: number(v[2]),
+        required_for_completion: 1,
+        created_at: string(v[3])
+      };
+      this.db.guideProgramSpots.set(`${row.program_id}:${row.guide_spot_id}`, row);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO guide_program_audit")) {
+      this.db.guideProgramAudit.push({
+        audit_id: string(v[0]),
+        program_id: string(v[1]),
+        actor_user_id: nullableString(v[2]),
+        action: string(v[3])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE guide_hypothesis_prompt_improvements")) {
+      const row = this.db.guidePromptImprovements.get(string(v[1]));
+      if (row) row.review_status = string(v[0]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE guide_hypothesis_prompt_improvement_queue")) {
+      const row = this.db.guidePromptQueues.get(string(v[2]));
+      if (row) {
+        row.queue_status = string(v[0]);
+        row.resolved_at = ["resolved", "dismissed"].includes(string(v[1])) ? new Date().toISOString() : null;
+      }
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE alert_deliveries SET delivery_status = 'pending'")) {
       const row = requireRow(this.db.alertDeliveries, string(v[1]));
       if (row.delivery_status === "sending") {
@@ -2459,6 +2706,90 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT guide_spot_id, program_id, distance_band, first_unlocked_at, last_unlocked_at, last_listened_at FROM guide_unlocks")) {
+      const rows = [...this.db.guideUnlocks.values()]
+        .filter((row) => row.user_id === string(v[0]))
+        .sort((a, b) => b.last_unlocked_at.localeCompare(a.last_unlocked_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT program_id, slug, title, owner_type, participation_mode, status")) {
+      let rows = [...this.db.guidePrograms.values()];
+      if (normalized.includes("WHERE status = 'published'")) {
+        rows = rows.filter((row) => row.status === "published" && row.owner_type !== "school");
+      } else if (normalized.includes("WHERE program_id = ?")) {
+        rows = rows.filter((row) => row.program_id === string(v[0]));
+      }
+      rows.sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.program_id.localeCompare(b.program_id));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT program_id, guide_spot_id, sort_order, required_for_completion FROM guide_program_spots")) {
+      const rows = [...this.db.guideProgramSpots.values()]
+        .sort((a, b) => a.program_id.localeCompare(b.program_id) || a.sort_order - b.sort_order || a.guide_spot_id.localeCompare(b.guide_spot_id));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT mesh_key, center_lat, center_lng, guide_record_count, contributor_count")) {
+      const publicOnly = number(v[0]) === 1;
+      const limit = number(v[1]);
+      const rows = [...this.db.guideEnvironmentMeshCells.values()]
+        .filter((row) => !publicOnly || row.guide_record_count >= 3 || row.contributor_count >= 2)
+        .sort((a, b) => (b.last_seen_at ?? "").localeCompare(a.last_seen_at ?? "") || b.guide_record_count - a.guide_record_count)
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT hypothesis_id, mesh_key, place_id, claim_type")) {
+      const limit = number(v[0]);
+      const rows = [...this.db.regionalHypotheses.values()]
+        .filter((row) => row.review_status !== "rejected")
+        .sort((a, b) => b.confidence - a.confidence || b.generated_at.localeCompare(a.generated_at))
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT run_id, trigger_source, status, diagnosis_date")) {
+      const rows = [...this.db.guideEnvironmentRefreshRuns.values()]
+        .sort((a, b) => b.started_at.localeCompare(a.started_at))
+        .slice(0, 1);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT (SELECT COUNT(*) FROM guide_environment_mesh_cells) AS mesh_cells")) {
+      const publicMeshCells = [...this.db.guideEnvironmentMeshCells.values()]
+        .filter((row) => row.guide_record_count >= 3 || row.contributor_count >= 2).length;
+      const result = {
+        mesh_cells: this.db.guideEnvironmentMeshCells.size,
+        public_mesh_cells: publicMeshCells,
+        hypotheses: [...this.db.regionalHypotheses.values()].filter((row) => row.review_status !== "rejected").length,
+        helpful_interactions: [...this.db.guideInteractions.values()].filter((row) => row.interaction_type === "helpful").length,
+        wrong_interactions: [...this.db.guideInteractions.values()].filter((row) => row.interaction_type === "wrong").length,
+        prompt_improvements: [...this.db.guidePromptImprovements.values()].filter((row) => row.review_status !== "rejected").length
+      };
+      return { results: [result as T] };
+    }
+    if (normalized.startsWith("SELECT COUNT(*) AS unlock_count")) {
+      const rows = [...this.db.guideUnlocks.values()].filter((row) => row.program_id === string(v[0]));
+      const result = {
+        unlock_count: rows.length,
+        play_count: rows.filter((row) => row.last_listened_at).length,
+        participants: new Set(rows.map((row) => row.user_id)).size
+      };
+      return { results: [result as T] };
+    }
+    if (normalized.startsWith("SELECT improvement_id, source_key, improvement_type, label")) {
+      const any = number(v[0]) === 1;
+      const status = string(v[1]);
+      const limit = number(v[2]);
+      const rows = [...this.db.guidePromptImprovements.values()]
+        .filter((row) => any || row.review_status === status)
+        .sort((a, b) => b.support_count - a.support_count || b.generated_at.localeCompare(a.generated_at))
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT queue_id, claim_type, trigger, wrong_count")) {
+      const limit = number(v[0]);
+      const rows = [...this.db.guidePromptQueues.values()]
+        .filter((row) => ["open", "in_review"].includes(row.queue_status))
+        .sort((a, b) => b.wrong_count - a.wrong_count || b.last_seen_at.localeCompare(a.last_seen_at))
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT live_event_id, session_id, type, scope, team_id, payload_json, created_at")) {
       const sessionId = string(v[0]);
       const limit = number(v[1]);
@@ -5052,6 +5383,261 @@ test("production personal runtime serves signed-in data from Cloudflare D1 witho
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("production guide outcome runtime uses Cloudflare D1 without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawToken = "signed-in-guide-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "guide-user",
+    display_name: "Guide User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  env.OBS_DB.guidePrograms.set("hamamatsu-program", {
+    program_id: "hamamatsu-program",
+    slug: "hamamatsu-program",
+    title: "浜松の現地ガイド",
+    owner_type: "municipality",
+    participation_mode: "any_order",
+    status: "published",
+    starts_at: null,
+    ends_at: null,
+    public_summary: "公開情報をもとにした現地ガイド企画",
+    safety_policy_json: "{}",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-20T00:00:00.000Z"
+  });
+  env.OBS_DB.guideProgramSpots.set("hamamatsu-program:hamamatsu-shijimizuka-site", {
+    program_id: "hamamatsu-program",
+    guide_spot_id: "hamamatsu-shijimizuka-site",
+    sort_order: 10,
+    required_for_completion: 1,
+    created_at: "2026-06-01T00:00:00.000Z"
+  });
+  env.OBS_DB.guideUnlocks.set("guide-user:hamamatsu-shijimizuka-site", {
+    user_id: "guide-user",
+    guide_spot_id: "hamamatsu-shijimizuka-site",
+    program_id: "hamamatsu-program",
+    distance_band: "same_place",
+    first_unlocked_at: "2026-06-20T00:00:00.000Z",
+    last_unlocked_at: "2026-06-21T00:00:00.000Z",
+    last_listened_at: null
+  });
+  env.OBS_DB.guideEnvironmentMeshCells.set("mesh-1", {
+    mesh_key: "mesh-1",
+    center_lat: 34.7133,
+    center_lng: 137.7031,
+    guide_record_count: 3,
+    contributor_count: 2,
+    vegetation_counts_json: "{\"草地\":2}",
+    landform_counts_json: "{\"貝塚\":1}",
+    structure_counts_json: "{\"公園\":2}",
+    sound_counts_json: "{}",
+    first_seen_at: "2026-06-20T00:00:00.000Z",
+    last_seen_at: "2026-06-22T00:00:00.000Z"
+  });
+  env.OBS_DB.regionalHypotheses.set("hyp-1", {
+    hypothesis_id: "hyp-1",
+    mesh_key: "mesh-1",
+    place_id: null,
+    claim_type: "sampling_gap",
+    hypothesis_text: "反復記録を増やすと、季節差を確認しやすい。",
+    what_we_can_say: "現時点では次に記録する軸を示す材料。",
+    supporting_observation_ids_json: "[]",
+    supporting_guide_record_ids_json: "[\"guide-record-1\"]",
+    supporting_knowledge_card_ids_json: "[]",
+    supporting_claim_ids_json: "[]",
+    evidence_json: "{\"guideRecordCount\":3}",
+    confidence: 0.51,
+    bias_warnings_json: "[\"small_sample\"]",
+    missing_data_json: "[\"repeat_visits\"]",
+    next_sampling_protocol: "同じ範囲で日時を変えて記録する。",
+    source_fingerprint: "regional-hypothesis:mesh-1",
+    review_status: "auto",
+    generated_at: "2026-06-22T00:00:00.000Z"
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const guest = await worker.fetch(new Request("https://ikimon.life/api/v1/guides/unlocks"), productionEnv);
+    assert.equal(guest.status, 401);
+    assert.equal(fallbackCalls, 0);
+
+    const unlocks = await worker.fetch(new Request("https://ikimon.life/api/v1/guides/unlocks", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(unlocks.headers.get("x-ikimon-cloudflare-native"), "guide-unlocks-api");
+    const unlockPayload = await unlocks.json() as any;
+    assert.equal(unlocks.ok, true, JSON.stringify(unlockPayload));
+    assert.equal(unlockPayload.unlocks[0].guideSpotId, "hamamatsu-shijimizuka-site");
+    assert.equal(unlockPayload.unlocks[0].programTitle, "浜松の現地ガイド");
+
+    const listened = await worker.fetch(new Request("https://ikimon.life/api/v1/guides/unlocks/hamamatsu-shijimizuka-site/listened", {
+      method: "POST",
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(listened.ok, true);
+    assert.equal(env.OBS_DB.guideUnlocks.get("guide-user:hamamatsu-shijimizuka-site")?.last_listened_at !== null, true);
+
+    const interaction = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/interaction", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({ hypothesisId: "hyp-1", interactionType: "helpful", sessionId: "guide-session-1" })
+    }), productionEnv);
+    const interactionPayload = await interaction.json() as any;
+    assert.equal(interaction.ok, true, JSON.stringify(interactionPayload));
+    assert.equal(env.OBS_DB.guideInteractions.size, 1);
+    assert.equal([...env.OBS_DB.guideInteractions.values()][0]?.user_id, "guide-user");
+
+    const mesh = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/environment-mesh.geojson"), productionEnv);
+    const meshPayload = await mesh.json() as any;
+    assert.equal(mesh.headers.get("x-ikimon-cloudflare-native"), "guide-environment-mesh-api");
+    assert.equal(meshPayload.features[0].properties.meshKey, "mesh-1");
+
+    const hypotheses = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/regional-hypotheses"), productionEnv);
+    const hypothesesPayload = await hypotheses.json() as any;
+    assert.equal(hypothesesPayload.hypotheses[0].hypothesisId, "hyp-1");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fallbackCalls, 0);
+});
+
+test("production guide admin runtime manages programs and prompt review in Cloudflare D1", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawToken = "signed-in-guide-admin-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "guide-admin",
+    display_name: "Guide Admin",
+    role_name: "Admin",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  env.OBS_DB.guidePromptImprovements.set("imp-1", {
+    improvement_id: "imp-1",
+    source_key: "source-1",
+    improvement_type: "rewrite_pattern",
+    label: "wrong",
+    claim_type: "sampling_gap",
+    trigger: "wrong_feedback_cluster",
+    recommendation: "断定を弱め、次に記録する項目を先に出す。",
+    prompt_patch: "Keep the claim as a hypothesis.",
+    evidence_json: "{}",
+    support_count: 4,
+    review_status: "needs_review",
+    generated_at: "2026-06-20T00:00:00.000Z"
+  });
+  env.OBS_DB.guidePromptQueues.set("queue-1", {
+    queue_id: "queue-1",
+    claim_type: "sampling_gap",
+    trigger: "wrong_feedback_threshold",
+    wrong_count: 4,
+    threshold_count: 3,
+    queue_status: "open",
+    improvement_ids_json: "[\"imp-1\"]",
+    evidence_json: "{}",
+    first_seen_at: "2026-06-20T00:00:00.000Z",
+    last_seen_at: "2026-06-21T00:00:00.000Z",
+    resolved_at: null
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const create = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guide-programs", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        programId: "hamamatsu-admin-program",
+        slug: "hamamatsu-admin-program",
+        title: "浜松ガイド管理",
+        ownerType: "municipality",
+        participationMode: "any_order",
+        status: "published",
+        publicSummary: "公開情報と現地導線を束ねる企画",
+        guideSpotIds: ["hamamatsu-shijimizuka-site"]
+      })
+    }), productionEnv);
+    const createPayload = await create.json() as any;
+    assert.equal(create.ok, true, JSON.stringify(createPayload));
+    assert.equal(env.OBS_DB.guidePrograms.get("hamamatsu-admin-program")?.title, "浜松ガイド管理");
+    assert.equal(env.OBS_DB.guideProgramSpots.has("hamamatsu-admin-program:hamamatsu-shijimizuka-site"), true);
+
+    const state = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guide-programs", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const statePayload = await state.json() as any;
+    assert.equal(state.headers.get("x-ikimon-cloudflare-native"), "guide-programs-admin-api");
+    assert.equal(statePayload.programs[0].programId, "hamamatsu-admin-program");
+
+    env.OBS_DB.guideUnlocks.set("u1:hamamatsu-shijimizuka-site", {
+      user_id: "u1",
+      guide_spot_id: "hamamatsu-shijimizuka-site",
+      program_id: "hamamatsu-admin-program",
+      distance_band: "same_place",
+      first_unlocked_at: "2026-06-21T00:00:00.000Z",
+      last_unlocked_at: "2026-06-21T00:00:00.000Z",
+      last_listened_at: "2026-06-21T00:10:00.000Z"
+    });
+    const recap = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guide-programs/hamamatsu-admin-program/recap", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const recapPayload = await recap.json() as any;
+    assert.equal(recap.ok, true, JSON.stringify(recapPayload));
+    assert.equal(recapPayload.recap.privacyBoundary.exactCoordinatesIncluded, false);
+
+    const updateImprovement = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guide-prompt-improvements/imp-1/status", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({ reviewStatus: "reviewed" })
+    }), productionEnv);
+    assert.equal(updateImprovement.ok, true);
+    assert.equal(env.OBS_DB.guidePromptImprovements.get("imp-1")?.review_status, "reviewed");
+
+    const updateQueue = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guide-prompt-improvement-queue/queue-1/status", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({ queueStatus: "resolved" })
+    }), productionEnv);
+    assert.equal(updateQueue.ok, true);
+    assert.equal(env.OBS_DB.guidePromptQueues.get("queue-1")?.queue_status, "resolved");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fallbackCalls, 0);
 });
 
 test("internal alert delivery drain sends pending email delivery from Cloudflare bindings", async () => {
