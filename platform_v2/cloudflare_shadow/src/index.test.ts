@@ -3998,6 +3998,73 @@ class FakeStatement {
         .slice(0, 8);
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT o.occurrence_id, o.visit_id, o.scientific_name")) {
+      const tierGte = number(this.values[0]);
+      let cursor = 1;
+      const hasPlaceFilter = normalized.includes("v.place_id = ?");
+      const placeId = hasPlaceFilter ? string(this.values[cursor++]) : null;
+      const hasTaxonFilter = normalized.includes("LOWER(COALESCE(o.scientific_name");
+      const taxonNeedle = hasTaxonFilter ? string(this.values[cursor++]).replaceAll("%", "").toLowerCase() : null;
+      if (hasTaxonFilter) cursor++;
+      const hasMediaRoleFilter = normalized.includes("ea_filter.asset_role = ?");
+      const mediaRole = hasMediaRoleFilter ? string(this.values[cursor++]) : null;
+      const limit = number(this.values[cursor++]);
+      const offset = number(this.values[cursor++]);
+      const rows = [...this.db.productionOccurrences.values()]
+        .flatMap((occurrence) => {
+          const visit = occurrence.visit_id ? this.db.productionVisits.get(occurrence.visit_id) : null;
+          if (!visit || (visit.public_visibility ?? "public") !== "public") return [];
+          if (placeId && visit.place_id !== placeId) return [];
+          const qualityGrade = occurrence.quality_grade ?? "";
+          const evidenceTier = qualityGrade === "research_grade" || qualityGrade === "verified" ? 3 : 1;
+          if (!(evidenceTier >= 3 || tierGte <= 1)) return [];
+          const taxonText = `${occurrence.scientific_name ?? ""} ${occurrence.vernacular_name ?? ""}`.toLowerCase();
+          if (taxonNeedle && !taxonText.includes(taxonNeedle)) return [];
+          const assets = this.db.productionEvidenceAssets
+            .filter((asset) => asset.occurrence_id === occurrence.occurrence_id || asset.visit_id === occurrence.visit_id)
+            .sort((a, b) => (a.captured_at ?? a.created_at ?? "").localeCompare(b.captured_at ?? b.created_at ?? "") || a.asset_id.localeCompare(b.asset_id));
+          const firstAsset = assets[0] ?? null;
+          if (mediaRole && !assets.some((asset) => asset.asset_role === mediaRole)) return [];
+          const user = visit.user_id ? this.db.authUsers.get(visit.user_id) : null;
+          return [{
+            occurrence_id: occurrence.occurrence_id,
+            visit_id: occurrence.visit_id,
+            scientific_name: occurrence.scientific_name,
+            vernacular_name: occurrence.vernacular_name,
+            taxon_rank: occurrence.taxon_rank,
+            evidence_tier: evidenceTier,
+            quality_grade: occurrence.quality_grade ?? null,
+            observed_at: visit.observed_at,
+            place_id: visit.place_id ?? null,
+            observer_name: user?.display_name ?? "Anonymous",
+            public_visibility: visit.public_visibility ?? "public",
+            media_ref: firstAsset?.legacy_relative_path ?? firstAsset?.asset_id ?? null,
+            media_role: firstAsset?.asset_role ?? null
+          }];
+        })
+        .sort((a, b) => (b.observed_at ?? "").localeCompare(a.observed_at ?? "") || a.occurrence_id.localeCompare(b.occurrence_id))
+        .slice(offset, offset + limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT COALESCE(asset_role, 'unknown') AS media_role")) {
+      const counts = new Map<string, { media_role: string; asset_role: string; asset_count: number; occurrenceIds: Set<string> }>();
+      for (const asset of this.db.productionEvidenceAssets) {
+        const key = asset.asset_role ?? "unknown";
+        const entry = counts.get(key) ?? { media_role: key, asset_role: key, asset_count: 0, occurrenceIds: new Set<string>() };
+        entry.asset_count += 1;
+        entry.occurrenceIds.add(asset.occurrence_id ?? asset.visit_id ?? asset.asset_id);
+        counts.set(key, entry);
+      }
+      const rows = [...counts.values()]
+        .sort((a, b) => a.media_role.localeCompare(b.media_role))
+        .map((entry) => ({
+          media_role: entry.media_role,
+          asset_role: entry.asset_role,
+          asset_count: entry.asset_count,
+          occurrence_count: entry.occurrenceIds.size
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT occurrence_id, visit_id, scientific_name, vernacular_name, taxon_rank,")) {
       const visitId = string(v[0]);
       const preferredOccurrenceId = string(v[1]);
@@ -5608,6 +5675,78 @@ test("production import dress rehearsal proof ties imported readmodel to R2 inve
     { ...env, ENVIRONMENT: "production" }
   );
   assert.equal(productionResponse.status, 404);
+});
+
+test("research export APIs read Cloudflare D1 canonical import without origin fallback", async () => {
+  const { env, obs } = createEnv();
+  obs.authUsers.set("researcher-1", {
+    user_id: "researcher-1",
+    email: "researcher@example.test",
+    password_hash: null,
+    display_name: "Researcher One",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    last_login_at: null
+  });
+  obs.productionVisits.set("visit-research-1", {
+    visit_id: "visit-research-1",
+    legacy_observation_id: "legacy-research-1",
+    place_id: "place-research",
+    user_id: "researcher-1",
+    public_visibility: "public",
+    observed_at: "2026-06-20T10:00:00Z"
+  });
+  obs.productionOccurrences.set("occ-research-1", {
+    occurrence_id: "occ-research-1",
+    visit_id: "visit-research-1",
+    scientific_name: "Papilio xuthus",
+    vernacular_name: "ナミアゲハ",
+    taxon_rank: "species",
+    quality_grade: "research_grade",
+    created_at: "2026-06-20T10:01:00Z"
+  });
+  obs.productionEvidenceAssets.push({
+    asset_id: "asset-research-photo",
+    visit_id: "visit-research-1",
+    occurrence_id: "occ-research-1",
+    asset_role: "observation_photo",
+    legacy_relative_path: "legacy/photos/research.jpg",
+    captured_at: "2026-06-20T10:00:30Z"
+  });
+
+  const listResponse = await worker.fetch(
+    new Request("https://ikimon.life/api/v1/research/occurrences?taxon=Papilio&limit=10"),
+    { ...env, ENVIRONMENT: "production" }
+  );
+  const listPayload = await listResponse.json() as any;
+  assert.equal(listResponse.status, 200, JSON.stringify(listPayload));
+  assert.equal(listResponse.headers.get("x-ikimon-cloudflare-native"), "research-export-runtime");
+  assert.equal(listPayload.totalReturned, 1);
+  assert.equal(listPayload.records[0].occurrenceID, "occ-research-1");
+  assert.equal(listPayload.records[0].associatedMedia, "legacy/photos/research.jpg");
+  assert.equal(listPayload.records[0].compatibility.source, "cloudflare_research_export_runtime");
+  assert.equal(listPayload.records[0].compatibility.fullLegacyResearchParity, false);
+
+  const csvResponse = await worker.fetch(
+    new Request("https://ikimon.life/api/v1/research/darwin-core.csv"),
+    { ...env, ENVIRONMENT: "production" }
+  );
+  const csv = await csvResponse.text();
+  assert.equal(csvResponse.status, 200);
+  assert.equal(csvResponse.headers.get("x-ikimon-cloudflare-native"), "research-export-runtime");
+  assert.match(csv, /occurrenceID,eventID,scientificName/);
+  assert.match(csv, /occ-research-1,visit-research-1,Papilio xuthus/);
+
+  const summaryResponse = await worker.fetch(
+    new Request("https://ikimon.life/api/v1/research/media-role-summary"),
+    { ...env, ENVIRONMENT: "production" }
+  );
+  const summaryPayload = await summaryResponse.json() as any;
+  assert.equal(summaryResponse.status, 200, JSON.stringify(summaryPayload));
+  assert.equal(summaryResponse.headers.get("x-ikimon-cloudflare-native"), "research-export-runtime");
+  assert.equal(summaryPayload.roles[0].mediaRole, "observation_photo");
+  assert.equal(summaryPayload.roles[0].assetCount, 1);
 });
 
 test("v1 observation upsert returns the current Fastify-compatible ok contract", async () => {

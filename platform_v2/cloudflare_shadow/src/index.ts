@@ -280,6 +280,54 @@ interface CompatiblePlaceManagementPolicy {
   updatedAt: string | null;
 }
 
+interface ResearchExportD1Row {
+  occurrence_id: string;
+  visit_id: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  taxon_rank: string | null;
+  evidence_tier: number | null;
+  quality_grade: string | null;
+  observed_at: string | null;
+  place_id: string | null;
+  observer_name: string | null;
+  public_visibility: string | null;
+  media_ref: string | null;
+  media_role: string | null;
+}
+
+interface ResearchExportRecord {
+  occurrenceID: string;
+  eventID: string | null;
+  scientificName: string | null;
+  vernacularName: string | null;
+  taxonRank: string | null;
+  evidenceTier: number;
+  eventDate: string | null;
+  recordedBy: string;
+  associatedMedia: string | null;
+  associatedMediaRole: string | null;
+  basisOfRecord: "HumanObservation";
+  datasetName: "ikimon Field Loop";
+  license: string;
+  consensusStatus: string;
+  identificationVerificationStatus: string;
+  readiness: {
+    exportReady: boolean;
+    reviewReady: boolean;
+    modelReady: boolean;
+  };
+  dataProductChain: {
+    exportFormat: "darwin_core_csv_v0";
+    latestStage: "cloudflare_canonical_import";
+    reportOutput: "metadata_plus_qa_report";
+  };
+  compatibility: {
+    source: "cloudflare_research_export_runtime";
+    fullLegacyResearchParity: false;
+  };
+}
+
 type RecordReadingAxis = "organism" | "environment" | "human_relation";
 type RecordReadingSourceKind = "official" | "trusted_db" | "research";
 
@@ -1999,6 +2047,11 @@ export const worker = {
 
       if (request.method === "GET" && url.pathname === "/api/v1/monitoring/packages") {
         return getMonitoringPackageBlueprintsNative();
+      }
+
+      const researchResponse = await handleResearchExportApi(request, url, env);
+      if (researchResponse) {
+        return researchResponse;
       }
 
       if (shouldFallbackPublicCustomDomainPathToOrigin(request, url, env)) {
@@ -7240,6 +7293,226 @@ function fallbackRoutePattern(pathname: string): string {
     return "/_unmatched";
   }
   return uuidRedacted;
+}
+
+async function handleResearchExportApi(request: Request, url: URL, env: Env): Promise<Response | null> {
+  if (request.method !== "GET") return null;
+  if (url.pathname === "/api/v1/research/occurrences") {
+    const { records, offset } = await queryResearchExportRecords(url, env, { defaultTier: 3 });
+    return json({
+      totalReturned: records.length,
+      offset,
+      records
+    }, 200, researchExportHeaders("json"));
+  }
+  if (url.pathname === "/api/v1/research/darwin-core.csv") {
+    const { records } = await queryResearchExportRecords(url, env, { defaultTier: 3, exportReadyOnly: true });
+    return new Response(toResearchDarwinCoreCsv(records), {
+      status: 200,
+      headers: {
+        ...researchExportHeaders("csv"),
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": "attachment; filename=\"ikimon-darwin-core-v0.csv\"",
+        "x-ikimon-export-format": "darwin_core_csv_v0",
+        "x-ikimon-export-ready-only": "true"
+      }
+    });
+  }
+  if (url.pathname === "/api/v1/research/export-qa-report") {
+    const { records, offset, exportReadyOnly } = await queryResearchExportRecords(url, env, { defaultTier: 1 });
+    const exportReadyCount = records.filter((record) => record.readiness.exportReady).length;
+    return json({
+      offset,
+      exportReadyOnly,
+      totalRecords: records.length,
+      exportReadyCount,
+      blockedCount: records.length - exportReadyCount,
+      source: "cloudflare_research_export_runtime",
+      fullLegacyResearchParity: false,
+      checks: {
+        hasScientificName: records.filter((record) => Boolean(record.scientificName)).length,
+        hasMedia: records.filter((record) => Boolean(record.associatedMedia)).length,
+        reviewReady: records.filter((record) => record.readiness.reviewReady).length
+      }
+    }, 200, researchExportHeaders("json"));
+  }
+  if (url.pathname === "/api/v1/research/media-role-summary") {
+    const tierGte = clampInteger(Number(url.searchParams.get("tier_gte") ?? "1"), 1, 4);
+    const rows = await env.OBS_DB.prepare(
+      `SELECT COALESCE(asset_role, 'unknown') AS media_role,
+              COALESCE(asset_role, 'unknown') AS asset_role,
+              COUNT(*) AS asset_count,
+              COUNT(DISTINCT COALESCE(occurrence_id, visit_id, asset_id)) AS occurrence_count
+         FROM production_import_evidence_assets ea
+        WHERE EXISTS (
+          SELECT 1
+            FROM production_import_occurrences o
+           WHERE (o.occurrence_id = ea.occurrence_id OR o.visit_id = ea.visit_id)
+             AND (COALESCE(o.quality_grade, '') IN ('research_grade', 'verified') OR ? <= 1)
+        )
+        GROUP BY COALESCE(asset_role, 'unknown')
+        ORDER BY media_role ASC`
+    ).bind(tierGte).all<{ media_role: string; asset_role: string; asset_count: number; occurrence_count: number }>();
+    return json({
+      tierGte,
+      roles: rows.results.map((row) => ({
+        mediaRole: row.media_role,
+        assetRole: row.asset_role,
+        assetCount: Number(row.asset_count),
+        occurrenceCount: Number(row.occurrence_count)
+      })),
+      compatibility: {
+        source: "cloudflare_research_export_runtime",
+        fullLegacyResearchParity: false
+      }
+    }, 200, researchExportHeaders("json"));
+  }
+  return null;
+}
+
+function researchExportHeaders(kind: "json" | "csv"): Record<string, string> {
+  return {
+    "cache-control": kind === "csv" ? "private, max-age=60" : "public, max-age=300",
+    "x-ikimon-cloudflare-native": "research-export-runtime",
+    "x-ikimon-research-source": "cloudflare_research_export_runtime"
+  };
+}
+
+async function queryResearchExportRecords(
+  url: URL,
+  env: Env,
+  options: { defaultTier: number; exportReadyOnly?: boolean }
+): Promise<{ records: ResearchExportRecord[]; offset: number; exportReadyOnly: boolean }> {
+  const tierGte = clampInteger(Number(url.searchParams.get("tier_gte") ?? String(options.defaultTier)), 1, 4);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 1000);
+  const offset = Math.max(0, Number(url.searchParams.get("offset") ?? "0"));
+  const exportReadyOnly = Boolean(options.exportReadyOnly || url.searchParams.get("export_ready_only") === "1" || url.searchParams.get("export_ready_only") === "true");
+  const placeId = normalizeOptionalText(url.searchParams.get("place_id"));
+  const taxon = normalizeOptionalText(url.searchParams.get("taxon"));
+  const mediaRole = normalizeOptionalText(url.searchParams.get("media_role"));
+  const where: string[] = [
+    "COALESCE(v.public_visibility, 'public') = 'public'",
+    "(COALESCE(o.quality_grade, '') IN ('research_grade', 'verified') OR ? <= 1)"
+  ];
+  const bindings: D1Value[] = [tierGte];
+  if (placeId) {
+    where.push("v.place_id = ?");
+    bindings.push(placeId);
+  }
+  if (taxon) {
+    where.push("(LOWER(COALESCE(o.scientific_name, '')) LIKE ? OR LOWER(COALESCE(o.vernacular_name, '')) LIKE ?)");
+    const needle = `%${taxon.toLowerCase()}%`;
+    bindings.push(needle, needle);
+  }
+  if (mediaRole) {
+    where.push("EXISTS (SELECT 1 FROM production_import_evidence_assets ea_filter WHERE (ea_filter.occurrence_id = o.occurrence_id OR ea_filter.visit_id = o.visit_id) AND ea_filter.asset_role = ?)");
+    bindings.push(mediaRole);
+  }
+
+  bindings.push(limit, offset);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT o.occurrence_id,
+            o.visit_id,
+            o.scientific_name,
+            o.vernacular_name,
+            o.taxon_rank,
+            CASE WHEN COALESCE(o.quality_grade, '') IN ('research_grade', 'verified') THEN 3 ELSE 1 END AS evidence_tier,
+            o.quality_grade,
+            v.observed_at,
+            v.place_id,
+            COALESCE(u.display_name, 'Anonymous') AS observer_name,
+            COALESCE(v.public_visibility, 'public') AS public_visibility,
+            (
+              SELECT COALESCE(ea.legacy_relative_path, ea.asset_id)
+                FROM production_import_evidence_assets ea
+               WHERE ea.occurrence_id = o.occurrence_id OR ea.visit_id = o.visit_id
+               ORDER BY COALESCE(ea.captured_at, ea.created_at, '') ASC, ea.asset_id ASC
+               LIMIT 1
+            ) AS media_ref,
+            (
+              SELECT COALESCE(ea.asset_role, 'unknown')
+                FROM production_import_evidence_assets ea
+               WHERE ea.occurrence_id = o.occurrence_id OR ea.visit_id = o.visit_id
+               ORDER BY COALESCE(ea.captured_at, ea.created_at, '') ASC, ea.asset_id ASC
+               LIMIT 1
+            ) AS media_role
+       FROM production_import_occurrences o
+       LEFT JOIN production_import_visits v ON v.visit_id = o.visit_id
+       LEFT JOIN production_import_users u ON u.user_id = v.user_id
+      WHERE ${where.join(" AND ")}
+      ORDER BY COALESCE(v.observed_at, o.created_at, '') DESC, o.occurrence_id ASC
+      LIMIT ? OFFSET ?`
+  ).bind(...bindings).all<ResearchExportD1Row>();
+
+  const records = rows.results
+    .map((row) => toResearchExportRecord(row))
+    .filter((record) => !exportReadyOnly || record.readiness.exportReady);
+  return { records, offset, exportReadyOnly };
+}
+
+function toResearchExportRecord(row: ResearchExportD1Row): ResearchExportRecord {
+  const evidenceTier = Number(row.evidence_tier ?? 1);
+  const hasName = Boolean(row.scientific_name || row.vernacular_name);
+  const hasMedia = Boolean(row.media_ref);
+  const reviewReady = evidenceTier >= 3 || row.quality_grade === "verified";
+  const exportReady = Boolean(reviewReady && hasName && hasMedia && row.public_visibility !== "private");
+  return {
+    occurrenceID: row.occurrence_id,
+    eventID: row.visit_id,
+    scientificName: row.scientific_name,
+    vernacularName: row.vernacular_name,
+    taxonRank: row.taxon_rank,
+    evidenceTier,
+    eventDate: row.observed_at,
+    recordedBy: row.observer_name ?? "Anonymous",
+    associatedMedia: row.media_ref,
+    associatedMediaRole: row.media_role,
+    basisOfRecord: "HumanObservation",
+    datasetName: "ikimon Field Loop",
+    license: exportReady ? "CC-BY-4.0-compatible" : "not_export_ready",
+    consensusStatus: reviewReady ? "authority_backed" : "tier_gate",
+    identificationVerificationStatus: reviewReady ? "authority_reviewed" : "needs_more_evidence",
+    readiness: {
+      exportReady,
+      reviewReady,
+      modelReady: Boolean(row.visit_id && row.observed_at && hasMedia)
+    },
+    dataProductChain: {
+      exportFormat: "darwin_core_csv_v0",
+      latestStage: "cloudflare_canonical_import",
+      reportOutput: "metadata_plus_qa_report"
+    },
+    compatibility: {
+      source: "cloudflare_research_export_runtime",
+      fullLegacyResearchParity: false
+    }
+  };
+}
+
+function toResearchDarwinCoreCsv(records: ResearchExportRecord[]): string {
+  const headers = [
+    "occurrenceID",
+    "eventID",
+    "scientificName",
+    "vernacularName",
+    "taxonRank",
+    "eventDate",
+    "recordedBy",
+    "associatedMedia",
+    "basisOfRecord",
+    "license"
+  ];
+  const lines = [headers.join(",")];
+  for (const record of records) {
+    lines.push(headers.map((header) => researchCsvCell((record as unknown as Record<string, unknown>)[header])).join(","));
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function researchCsvCell(value: unknown): string {
+  const raw = value == null ? "" : String(value);
+  if (!/[",\n\r]/.test(raw)) return raw;
+  return `"${raw.replaceAll("\"", "\"\"")}"`;
 }
 
 async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
