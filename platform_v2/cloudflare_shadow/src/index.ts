@@ -7402,6 +7402,44 @@ async function handleGuideOutcomeRuntime(request: Request, url: URL, env: Env): 
     if (request.method === "POST" && pathname === "/api/v1/guide/interaction") {
       return await recordGuideInteractionNative(request, env);
     }
+    if (request.method === "POST" && pathname === "/api/v1/guide/record") {
+      return await saveGuideRecordNative(request, env);
+    }
+    if (request.method === "POST" && pathname === "/api/v1/guide/telemetry") {
+      return await recordGuideTelemetryNative(request, env);
+    }
+    if (request.method === "POST" && pathname === "/api/v1/mobile/field-sessions/start") {
+      return await startMobileFieldSessionNative(request, env);
+    }
+    const mobileSceneDigestMatch = pathname.match(/^\/api\/v1\/mobile\/field-sessions\/([^/]+)\/scene-digest$/);
+    if (request.method === "POST" && mobileSceneDigestMatch?.[1]) {
+      return await saveMobileSceneDigestNative(request, decodeURIComponent(mobileSceneDigestMatch[1]), env);
+    }
+    const mobileAudioEventsMatch = pathname.match(/^\/api\/v1\/mobile\/field-sessions\/([^/]+)\/audio-events$/);
+    if (request.method === "POST" && mobileAudioEventsMatch?.[1]) {
+      return await acceptMobileAudioEventsNative(request, decodeURIComponent(mobileAudioEventsMatch[1]), env);
+    }
+    const mobileEndMatch = pathname.match(/^\/api\/v1\/mobile\/field-sessions\/([^/]+)\/end$/);
+    if (request.method === "POST" && mobileEndMatch?.[1]) {
+      return await getMobileFieldSessionRecapNative(request, decodeURIComponent(mobileEndMatch[1]), env);
+    }
+    const mobileRecapMatch = pathname.match(/^\/api\/v1\/mobile\/field-sessions\/([^/]+)\/recap$/);
+    if (request.method === "GET" && mobileRecapMatch?.[1]) {
+      return await getMobileFieldSessionRecapNative(request, decodeURIComponent(mobileRecapMatch[1]), env);
+    }
+    if ((request.method === "GET" || request.method === "HEAD") && (
+      pathname === "/guide/outcomes"
+      || pathname === "/me/guide-records"
+      || pathname === "/admin/debug/guide-records"
+    )) {
+      return await getGuideOutcomesPage(request, url, env);
+    }
+    if ((request.method === "GET" || request.method === "HEAD") && (pathname === "/guide/results" || pathname === "/me/guide-results")) {
+      return new Response(null, { status: 308, headers: { location: "/guide/outcomes", ...nativeGuideHeaders("guide-outcomes-redirect") } });
+    }
+    if (request.method === "GET" && pathname === "/api/v1/me/guide-records/route-layer.geojson") {
+      return await getMyGuideRouteLayerGeoJson(request, url, env);
+    }
     if (request.method === "GET" && pathname === "/api/v1/guide/environment-mesh.geojson") {
       return await getGuideEnvironmentMeshGeoJson(url, env);
     }
@@ -7638,6 +7676,476 @@ async function recordGuideInteractionNative(request: Request, env: Env): Promise
     normalizeOptionalText(body.occurredAt)
   ).run();
   return json({ ok: true, interactionId }, 200, nativeGuideHeaders("guide-interaction-api"));
+}
+
+function guideFiniteNumber(value: unknown): number | null {
+  const num = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+  return Number.isFinite(num) ? num : null;
+}
+
+function guideStringArray(value: unknown, limit = 16): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? "").trim()).filter(Boolean).slice(0, limit);
+}
+
+function guideObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function guideModeFromValue(value: unknown): "walk" | "vehicle" {
+  return value === "vehicle" ? "vehicle" : "walk";
+}
+
+function movementModeFromValue(value: unknown): "walk" | "vehicle" | "focus" {
+  return value === "vehicle" ? "vehicle" : value === "focus" ? "focus" : "walk";
+}
+
+function isoOrNow(value: unknown): string {
+  const text = normalizeOptionalText(value);
+  if (text) {
+    const parsed = Date.parse(text);
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+function guideDetectedFeatures(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return [];
+  const allowed = new Set(["species", "vegetation", "landform", "structure", "sound"]);
+  const out: Array<Record<string, unknown>> = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const source = item as Record<string, unknown>;
+    const name = normalizeOptionalText(source.name);
+    if (!name) continue;
+    const type = allowed.has(String(source.type)) ? String(source.type) : "vegetation";
+    const confidence = guideFiniteNumber(source.confidence);
+    out.push({
+      type,
+      name,
+      ...(confidence == null ? {} : { confidence }),
+      ...(normalizeOptionalText(source.note) ? { note: normalizeOptionalText(source.note) } : {})
+    });
+    if (out.length >= 16) break;
+  }
+  return out;
+}
+
+function subjectNames(species: string[], features: Array<Record<string, unknown>>, primarySubject: Record<string, unknown>): string[] {
+  const fromPrimary = normalizeOptionalText(primarySubject.name);
+  const fromFeatures = features
+    .map((feature) => normalizeOptionalText(feature.name))
+    .filter((name): name is string => Boolean(name));
+  return Array.from(new Set([fromPrimary, ...species, ...fromFeatures].filter((name): name is string => Boolean(name)))).slice(0, 8);
+}
+
+function guidePublicLocationLabel(lat: number, lng: number): string {
+  return `${lat.toFixed(2)}, ${lng.toFixed(2)}周辺`;
+}
+
+function buildGuideSummary(body: {
+  userId: string;
+  sessionId: string;
+  guideRecordId: string;
+  lat: number;
+  lng: number;
+  sceneSummary: string;
+  detectedSpecies: string[];
+  detectedFeatures: Array<Record<string, unknown>>;
+  primarySubject: Record<string, unknown>;
+  capturedAt: string;
+  frameThumb: string | null;
+}) {
+  const subjects = subjectNames(body.detectedSpecies, body.detectedFeatures, body.primarySubject);
+  const headline = subjects.length > 0 ? `${subjects.slice(0, 2).join("・")}の記録` : "ガイド記録";
+  const featureCounts: Record<string, number> = {};
+  for (const feature of body.detectedFeatures) {
+    const type = String(feature.type ?? "place");
+    featureCounts[type] = (featureCounts[type] ?? 0) + 1;
+  }
+  return {
+    summaryId: crypto.randomUUID(),
+    userId: body.userId,
+    sessionId: body.sessionId,
+    recordCount: 1,
+    startedAt: body.capturedAt,
+    endedAt: body.capturedAt,
+    representativeGuideRecordId: body.guideRecordId,
+    headline,
+    body: body.sceneSummary || "現地で保存したガイド記録です。",
+    evidenceLine: "写真や位置の生データを公開せず、公開用の範囲で扱います。",
+    motivationLine: "同じ範囲で次の記録を足すと、季節や環境の違いを比べやすくなります。",
+    claimBoundary: "単独のガイド記録から傾向や不在は断定しません。",
+    primaryTheme: featureCounts.water ? "water" : featureCounts.sound ? "sound" : featureCounts.vegetation || featureCounts.species ? "green" : "place",
+    featuredSubjects: subjects,
+    featureCounts,
+    publicLocationLabel: guidePublicLocationLabel(body.lat, body.lng),
+    mediaThumbUrl: body.frameThumb,
+    sourceChecksum: `${body.guideRecordId}:${body.capturedAt}`
+  };
+}
+
+async function upsertGuideSummaryNative(input: {
+  userId: string | null;
+  sessionId: string;
+  guideRecordId: string;
+  lat: number;
+  lng: number;
+  sceneSummary: string;
+  detectedSpecies: string[];
+  detectedFeatures: Array<Record<string, unknown>>;
+  primarySubject: Record<string, unknown>;
+  capturedAt: string;
+  frameThumb: string | null;
+}, env: Env): Promise<void> {
+  if (!input.userId) return;
+  const summary = buildGuideSummary({ ...input, userId: input.userId });
+  await env.OBS_DB.prepare(
+    `INSERT OR REPLACE INTO guide_session_public_summary
+       (summary_id, user_id, session_id, lang, visibility, record_count, started_at, ended_at,
+        representative_guide_record_id, headline, body, evidence_line, motivation_line,
+        claim_boundary, primary_theme, featured_subjects_json, feature_counts_json,
+        public_location_label, observer_avatar_url, media_thumb_url, source_checksum, generated_by, summary_payload_json, updated_at)
+     VALUES (?, ?, ?, 'ja', 'viewer_only', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 'cloudflare_worker_guide_runtime_v1', ?, CURRENT_TIMESTAMP)`
+  ).bind(
+    summary.summaryId,
+    summary.userId,
+    summary.sessionId,
+    summary.recordCount,
+    summary.startedAt,
+    summary.endedAt,
+    summary.representativeGuideRecordId,
+    summary.headline,
+    summary.body,
+    summary.evidenceLine,
+    summary.motivationLine,
+    summary.claimBoundary,
+    summary.primaryTheme,
+    JSON.stringify(summary.featuredSubjects),
+    JSON.stringify(summary.featureCounts),
+    summary.publicLocationLabel,
+    summary.mediaThumbUrl,
+    summary.sourceChecksum,
+    JSON.stringify({ generatedFrom: "guide_records", guideRecordId: input.guideRecordId })
+  ).run();
+}
+
+async function insertGuideRecordNative(args: {
+  body: Record<string, unknown>;
+  session: SessionSnapshot | null;
+  defaultSessionId: string;
+  source: string;
+}, env: Env): Promise<string> {
+  const lat = guideFiniteNumber(args.body.lat);
+  const lng = guideFiniteNumber(args.body.lng);
+  if (lat == null || lng == null) throw new HttpError(400, "lat_lng_required");
+  const guideRecordId = crypto.randomUUID();
+  const sessionId = normalizeOptionalText(args.body.sessionId ?? args.body.session_id) ?? args.defaultSessionId;
+  const capturedAt = isoOrNow(args.body.capturedAt ?? args.body.captured_at);
+  const returnedAt = isoOrNow(args.body.returnedAt);
+  const detectedSpecies = guideStringArray(args.body.detectedSpecies ?? args.body.detected_species);
+  const detectedFeatures = guideDetectedFeatures(args.body.detectedFeatures ?? args.body.detected_features);
+  const primarySubject = guideObject(args.body.primarySubject);
+  const sceneSummary = normalizeOptionalText(args.body.sceneSummary ?? args.body.scene_digest) ?? "";
+  const frameThumb = normalizeOptionalText(args.body.frameThumb);
+  const meta = {
+    source: args.source,
+    guideMode: guideModeFromValue(args.body.guideMode ?? args.body.guide_mode ?? args.body.movement_mode),
+    facePrivacy: normalizeOptionalText(args.body.facePrivacy) ?? null,
+    rawMediaStored: false,
+    payloadKeys: Object.keys(args.body).slice(0, 80)
+  };
+  await env.OBS_DB.prepare(
+    `INSERT INTO guide_records
+       (guide_record_id, session_id, user_id, occurrence_id, lat, lng, scene_hash, scene_summary,
+        detected_species_json, detected_features_json, tts_script, lang, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).bind(
+    guideRecordId,
+    sessionId,
+    args.session?.userId ?? null,
+    normalizeOptionalId(args.body.occurrenceId),
+    lat,
+    lng,
+    normalizeOptionalText(args.body.sceneHash) ?? `${args.source}:${guideRecordId}`,
+    sceneSummary,
+    JSON.stringify(detectedSpecies),
+    JSON.stringify(detectedFeatures),
+    normalizeOptionalText(args.body.ttsScript),
+    normalizeOptionalText(args.body.lang) ?? "ja"
+  ).run();
+  await env.OBS_DB.prepare(
+    `INSERT OR REPLACE INTO guide_record_latency_states
+       (guide_record_id, captured_at, returned_at, current_distance_m, delivery_state, seen_state,
+        frame_thumb, primary_subject_json, environment_context, seasonal_note, coexisting_taxa_json,
+        confidence_context_json, media_refs_json, meta_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+  ).bind(
+    guideRecordId,
+    capturedAt,
+    returnedAt,
+    guideFiniteNumber(args.body.currentDistanceM),
+    normalizeOptionalText(args.body.deliveryState) ?? "ready",
+    normalizeOptionalText(args.body.seenState) ?? "saved",
+    frameThumb,
+    JSON.stringify(primarySubject),
+    normalizeOptionalText(args.body.environmentContext),
+    normalizeOptionalText(args.body.seasonalNote),
+    JSON.stringify(guideStringArray(args.body.coexistingTaxa)),
+    JSON.stringify(guideObject(args.body.confidenceContext)),
+    JSON.stringify({ frameThumb, rawMediaStored: false }),
+    JSON.stringify(meta)
+  ).run();
+  await upsertGuideSummaryNative({
+    userId: args.session?.userId ?? null,
+    sessionId,
+    guideRecordId,
+    lat,
+    lng,
+    sceneSummary,
+    detectedSpecies,
+    detectedFeatures,
+    primarySubject,
+    capturedAt,
+    frameThumb
+  }, env);
+  return guideRecordId;
+}
+
+async function saveGuideRecordNative(request: Request, env: Env): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const session = await readCompatibleSession(request, env);
+  const guideRecordId = await insertGuideRecordNative({ body, session, defaultSessionId: "manual", source: "guide_record_api" }, env);
+  return json({ guideRecordId }, 200, nativeGuideHeaders("guide-record-api"));
+}
+
+async function insertGuideRoutePointNative(args: {
+  body: Record<string, unknown>;
+  session: SessionSnapshot | null;
+  sessionId: string;
+  pointKind: string;
+}, env: Env): Promise<boolean> {
+  const lat = guideFiniteNumber(args.body.lat);
+  const lng = guideFiniteNumber(args.body.lng);
+  if (lat == null || lng == null) return false;
+  const clientPointId = normalizeOptionalText(args.body.clientPointId ?? args.body.client_point_id ?? args.body.clientSceneId ?? args.body.client_scene_id) ?? crypto.randomUUID();
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO guide_route_points
+         (point_id, session_id, user_id, client_point_id, point_kind, guide_mode, lat, lng, observed_at,
+          accuracy_m, speed_mps, heading_degrees, session_distance_m, camera_active, raw_payload_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      crypto.randomUUID(),
+      args.sessionId,
+      args.session?.userId ?? null,
+      clientPointId,
+      args.pointKind,
+      guideModeFromValue(args.body.guideMode ?? args.body.guide_mode ?? args.body.movement_mode),
+      lat,
+      lng,
+      isoOrNow(args.body.observedAt ?? args.body.capturedAt ?? args.body.captured_at),
+      guideFiniteNumber(args.body.accuracyM ?? args.body.accuracy_m ?? args.body.locationAccuracyM),
+      guideFiniteNumber(args.body.speedMps ?? args.body.speed_mps),
+      guideFiniteNumber(args.body.headingDegrees ?? args.body.heading_degrees),
+      guideFiniteNumber(args.body.sessionDistanceM ?? args.body.session_distance_m),
+      args.body.cameraActive === true ? 1 : 0,
+      JSON.stringify({ privacy: "private_route_public_mesh", source: args.pointKind, visualCandidate: guideObject(args.body.visualCandidate) })
+    ).run();
+    return true;
+  } catch (error) {
+    if (error instanceof Error && /unique|constraint/i.test(error.message)) return false;
+    throw error;
+  }
+}
+
+async function recordGuideTelemetryNative(request: Request, env: Env): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const session = await readCompatibleSession(request, env);
+  const sessionId = normalizeOptionalText(body.sessionId ?? body.session_id) ?? "anonymous";
+  const rawPoints = Array.isArray(body.points) ? body.points : [body];
+  let accepted = 0;
+  let inserted = 0;
+  for (const raw of rawPoints.slice(0, 12)) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    accepted += 1;
+    if (await insertGuideRoutePointNative({ body: raw as Record<string, unknown>, session, sessionId, pointKind: "telemetry" }, env)) inserted += 1;
+  }
+  return json({
+    ok: true,
+    accepted,
+    inserted,
+    sessionId,
+    guideMode: guideModeFromValue(body.guideMode ?? body.guide_mode),
+    fields: [],
+    liveCoverageCellSizeM: 10,
+    absenceState: "non_detection_note",
+    privacy: "exact_route_private_public_area_or_100m_mesh"
+  }, 200, nativeGuideHeaders("guide-telemetry-api"));
+}
+
+async function startMobileFieldSessionNative(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+  const requested = normalizeOptionalText(body.session_id ?? body.sessionId);
+  return json({
+    ok: true,
+    sessionId: requested ?? `mobile-${Date.now()}`,
+    userAuthState: session ? "logged_in" : "anonymous",
+    userId: session?.userId ?? null,
+    rawMediaPolicy: "digest_only"
+  }, 200, nativeGuideHeaders("mobile-field-session-start-api"));
+}
+
+async function findMobileReceipt(installId: string, clientSceneId: string, env: Env): Promise<{ guide_record_id: string } | null> {
+  return await env.OBS_DB.prepare(
+    `SELECT guide_record_id
+       FROM mobile_field_scene_receipts
+      WHERE install_id = ? AND client_scene_id = ?
+      LIMIT 1`
+  ).bind(installId, clientSceneId).first<{ guide_record_id: string }>();
+}
+
+async function saveMobileSceneDigestNative(request: Request, sessionIdParam: string, env: Env): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const session = await readCompatibleSession(request, env);
+  const installId = normalizeOptionalText(body.install_id ?? body.installId);
+  if (!installId) return json({ ok: false, error: "install_id_required" }, 400, nativeGuideHeaders("mobile-scene-digest-api"));
+  const clientSceneId = normalizeOptionalText(body.client_scene_id ?? body.clientSceneId) ?? crypto.randomUUID();
+  const sceneDigest = normalizeOptionalText(body.scene_digest ?? body.sceneDigest);
+  if (!sceneDigest) return json({ ok: false, error: "scene_digest_required" }, 400, nativeGuideHeaders("mobile-scene-digest-api"));
+  const existing = await findMobileReceipt(installId, clientSceneId, env);
+  if (existing) {
+    return json({ ok: true, sessionId: sessionIdParam, guideRecordId: existing.guide_record_id, duplicate: true, rawMediaStored: false }, 200, nativeGuideHeaders("mobile-scene-digest-api"));
+  }
+  const movementMode = movementModeFromValue(body.movement_mode ?? body.movementMode);
+  const guideRecordId = await insertGuideRecordNative({
+    body: {
+      ...body,
+      sessionId: normalizeOptionalText(body.session_id ?? body.sessionId) ?? sessionIdParam,
+      sceneSummary: sceneDigest,
+      detectedSpecies: body.detected_species ?? body.detectedSpecies,
+      detectedFeatures: body.detected_features ?? body.detectedFeatures,
+      capturedAt: body.captured_at ?? body.capturedAt,
+      guideMode: movementMode === "vehicle" ? "vehicle" : "walk"
+    },
+    session,
+    defaultSessionId: sessionIdParam,
+    source: "mobile_field_companion"
+  }, env);
+  if (movementMode === "vehicle") {
+    await insertGuideRoutePointNative({ body, session, sessionId: sessionIdParam, pointKind: "scene" }, env);
+  }
+  await env.OBS_DB.prepare(
+    `INSERT INTO mobile_field_scene_receipts
+       (receipt_id, install_id, client_scene_id, session_id, guide_record_id, movement_mode, scene_digest, payload_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).bind(
+    crypto.randomUUID(),
+    installId,
+    clientSceneId,
+    sessionIdParam,
+    guideRecordId,
+    movementMode,
+    sceneDigest,
+    JSON.stringify({ rawMediaStored: false, areaResolutionSignals: guideStringArray(body.area_resolution_signals) })
+  ).run();
+  return json({ ok: true, sessionId: sessionIdParam, guideRecordId, duplicate: false, rawMediaStored: false }, 200, nativeGuideHeaders("mobile-scene-digest-api"));
+}
+
+async function acceptMobileAudioEventsNative(request: Request, sessionId: string, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+  const events = Array.isArray(body.events) ? body.events : [];
+  return json({
+    ok: true,
+    sessionId,
+    acceptedCount: events.length,
+    userAuthState: session ? "logged_in" : "anonymous",
+    rawAudioStored: false
+  }, 200, nativeGuideHeaders("mobile-audio-events-api"));
+}
+
+async function getMobileFieldSessionRecapNative(request: Request, sessionId: string, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT scene_digest, payload_json, created_at
+       FROM mobile_field_scene_receipts
+      WHERE session_id = ?
+      ORDER BY created_at DESC
+      LIMIT 50`
+  ).bind(sessionId).all<Record<string, D1Value>>();
+  const digests = rows.results.map((row) => String(row.scene_digest ?? "")).filter(Boolean);
+  const nextLook = Array.from(new Set(rows.results.flatMap((row) => {
+    const payload = parseGuideJson(String(row.payload_json ?? "{}"));
+    const signals = guideObject(payload).areaResolutionSignals;
+    return Array.isArray(signals) ? signals.map((item) => String(item)).filter(Boolean) : [];
+  }))).slice(0, 12);
+  return json({
+    ok: true,
+    recap: {
+      sessionId,
+      sceneCount: rows.results.length,
+      latestDigest: digests[0] ?? "",
+      nextLook
+    },
+    userAuthState: session ? "logged_in" : "anonymous"
+  }, 200, nativeGuideHeaders("mobile-field-session-recap-api"));
+}
+
+function renderGuideOutcomesHtml(summaries: Array<Record<string, D1Value>>): string {
+  const cards = summaries.map((row) => {
+    const subjects = parseGuideJson(String(row.featured_subjects_json ?? "[]"));
+    const subjectText = Array.isArray(subjects) ? subjects.slice(0, 4).join(" / ") : "";
+    return `<article class="guide-card">
+      <p class="guide-kicker">${escapeHtml(String(row.record_count ?? 0))} records</p>
+      <h2>${escapeHtml(String(row.headline ?? "ガイド記録"))}</h2>
+      <p>${escapeHtml(String(row.body ?? ""))}</p>
+      <p class="guide-meta">${escapeHtml(String(row.public_location_label ?? ""))}${subjectText ? ` / ${escapeHtml(subjectText)}` : ""}</p>
+    </article>`;
+  }).join("");
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ガイド成果 - ikimon</title><style>body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f8fafc}.guide-page{max-width:1040px;margin:0 auto;padding:24px 16px 72px}.guide-page h1{margin:0 0 12px;font-size:28px;letter-spacing:0}.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.guide-card{background:#fff;border:1px solid #d8e5df;border-radius:8px;padding:14px}.guide-card h2{margin:0 0 8px;font-size:18px}.guide-card p{line-height:1.65;color:#475569}.guide-kicker{font-size:12px;font-weight:900;color:#0f766e}.guide-meta{font-size:13px}</style></head><body><main class="guide-page" data-cloudflare-source="guide-outcomes-d1"><h1>ガイド成果</h1><section class="guide-grid">${cards || "<p>保存済みのガイド記録はまだありません。</p>"}</section></main></body></html>`;
+}
+
+async function getGuideOutcomesPage(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "30"), 1, 100);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT summary_id, user_id, session_id, record_count, started_at, ended_at,
+            representative_guide_record_id, headline, body, evidence_line, motivation_line,
+            primary_theme, featured_subjects_json, public_location_label, media_thumb_url
+       FROM guide_session_public_summary
+      WHERE (? IS NULL OR user_id = ?)
+      ORDER BY ended_at DESC, updated_at DESC
+      LIMIT ?`
+  ).bind(session?.userId ?? null, session?.userId ?? null, limit).all<Record<string, D1Value>>();
+  return html(renderGuideOutcomesHtml(rows.results), 200, nativeGuideHeaders("guide-outcomes-html"));
+}
+
+async function getMyGuideRouteLayerGeoJson(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await requireSignedInGuideSession(request, env);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "500"), 1, 2000);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT session_id, lat, lng, observed_at, point_kind, guide_mode, accuracy_m, speed_mps
+       FROM guide_route_points
+      WHERE user_id = ?
+      ORDER BY observed_at DESC
+      LIMIT ?`
+  ).bind(session.userId, limit).all<Record<string, D1Value>>();
+  const features = rows.results.map((row) => ({
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [Number(row.lng), Number(row.lat)] },
+    properties: {
+      sessionId: row.session_id,
+      observedAt: row.observed_at,
+      pointKind: row.point_kind,
+      guideMode: row.guide_mode,
+      accuracyM: row.accuracy_m,
+      speedMps: row.speed_mps,
+      privacy: "owner_exact_route"
+    }
+  }));
+  return json({ type: "FeatureCollection", features }, 200, nativeGuideHeaders("guide-route-layer-api"));
 }
 
 function topGuideEntries(raw: unknown, limit = 8): Array<{ name: string; count: number }> {

@@ -836,6 +836,72 @@ interface GuideInteractionTestRow {
   occurred_at: string;
 }
 
+interface GuideRecordTestRow {
+  guide_record_id: string;
+  session_id: string;
+  user_id: string | null;
+  lat: number;
+  lng: number;
+  scene_summary: string;
+  detected_species_json: string;
+  detected_features_json: string;
+  lang: string;
+  created_at: string;
+}
+
+interface GuideRecordLatencyStateTestRow {
+  guide_record_id: string;
+  captured_at: string | null;
+  returned_at: string | null;
+  delivery_state: string;
+  seen_state: string;
+  frame_thumb: string | null;
+  primary_subject_json: string;
+  meta_json: string;
+}
+
+interface GuideRoutePointTestRow {
+  point_id: string;
+  session_id: string;
+  user_id: string | null;
+  client_point_id: string | null;
+  point_kind: string;
+  guide_mode: string;
+  lat: number;
+  lng: number;
+  observed_at: string;
+  accuracy_m: number | null;
+  speed_mps: number | null;
+}
+
+interface GuideSessionPublicSummaryTestRow {
+  summary_id: string;
+  user_id: string;
+  session_id: string;
+  record_count: number;
+  started_at: string | null;
+  ended_at: string | null;
+  representative_guide_record_id: string | null;
+  headline: string;
+  body: string;
+  featured_subjects_json: string;
+  public_location_label: string | null;
+  media_thumb_url: string | null;
+  updated_at: string;
+}
+
+interface MobileFieldSceneReceiptTestRow {
+  receipt_id: string;
+  install_id: string;
+  client_scene_id: string;
+  session_id: string;
+  guide_record_id: string;
+  movement_mode: string;
+  scene_digest: string;
+  payload_json: string;
+  created_at: string;
+}
+
 interface GuideEnvironmentMeshTestRow {
   mesh_key: string;
   center_lat: number;
@@ -1017,6 +1083,11 @@ class FakeD1 {
   observationRallyProgress = new Map<string, ObservationRallyProgressTestRow>();
   guideUnlocks = new Map<string, GuideUnlockTestRow>();
   guideInteractions = new Map<string, GuideInteractionTestRow>();
+  guideRecords = new Map<string, GuideRecordTestRow>();
+  guideRecordLatencyStates = new Map<string, GuideRecordLatencyStateTestRow>();
+  guideRoutePoints = new Map<string, GuideRoutePointTestRow>();
+  guideSessionPublicSummaries = new Map<string, GuideSessionPublicSummaryTestRow>();
+  mobileFieldSceneReceipts = new Map<string, MobileFieldSceneReceiptTestRow>();
   guideEnvironmentMeshCells = new Map<string, GuideEnvironmentMeshTestRow>();
   regionalHypotheses = new Map<string, RegionalHypothesisTestRow>();
   guideEnvironmentRefreshRuns = new Map<string, GuideEnvironmentRefreshRunTestRow>();
@@ -2236,6 +2307,93 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO guide_records")) {
+      const now = new Date().toISOString();
+      this.db.guideRecords.set(string(v[0]), {
+        guide_record_id: string(v[0]),
+        session_id: string(v[1]),
+        user_id: nullableString(v[2]),
+        lat: number(v[4]),
+        lng: number(v[5]),
+        scene_summary: string(v[7]),
+        detected_species_json: string(v[8]),
+        detected_features_json: string(v[9]),
+        lang: string(v[11]),
+        created_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT OR REPLACE INTO guide_record_latency_states")) {
+      this.db.guideRecordLatencyStates.set(string(v[0]), {
+        guide_record_id: string(v[0]),
+        captured_at: nullableString(v[1]),
+        returned_at: nullableString(v[2]),
+        delivery_state: string(v[4]),
+        seen_state: string(v[5]),
+        frame_thumb: nullableString(v[6]),
+        primary_subject_json: string(v[7]),
+        meta_json: string(v[13])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO guide_route_points")) {
+      const key = `${string(v[1])}:${nullableString(v[3]) ?? ""}`;
+      if (nullableString(v[3]) && [...this.db.guideRoutePoints.values()].some((row) => `${row.session_id}:${row.client_point_id ?? ""}` === key)) {
+        throw new Error("UNIQUE constraint failed: guide_route_points.session_id, guide_route_points.client_point_id");
+      }
+      this.db.guideRoutePoints.set(string(v[0]), {
+        point_id: string(v[0]),
+        session_id: string(v[1]),
+        user_id: nullableString(v[2]),
+        client_point_id: nullableString(v[3]),
+        point_kind: string(v[4]),
+        guide_mode: string(v[5]),
+        lat: number(v[6]),
+        lng: number(v[7]),
+        observed_at: string(v[8]),
+        accuracy_m: nullableNumber(v[9]),
+        speed_mps: nullableNumber(v[10])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT OR REPLACE INTO guide_session_public_summary")) {
+      this.db.guideSessionPublicSummaries.set(`${string(v[1])}:${string(v[2])}`, {
+        summary_id: string(v[0]),
+        user_id: string(v[1]),
+        session_id: string(v[2]),
+        record_count: number(v[3]),
+        started_at: nullableString(v[4]),
+        ended_at: nullableString(v[5]),
+        representative_guide_record_id: nullableString(v[6]),
+        headline: string(v[7]),
+        body: string(v[8]),
+        featured_subjects_json: string(v[13]),
+        public_location_label: nullableString(v[15]),
+        media_thumb_url: nullableString(v[16]),
+        updated_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO mobile_field_scene_receipts")) {
+      const row: MobileFieldSceneReceiptTestRow = {
+        receipt_id: string(v[0]),
+        install_id: string(v[1]),
+        client_scene_id: string(v[2]),
+        session_id: string(v[3]),
+        guide_record_id: string(v[4]),
+        movement_mode: string(v[5]),
+        scene_digest: string(v[6]),
+        payload_json: string(v[7]),
+        created_at: new Date().toISOString()
+      };
+      this.db.mobileFieldSceneReceipts.set(`${row.install_id}:${row.client_scene_id}`, row);
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO guide_record_corrections")) {
       this.db.guideRecordCorrections.set(string(v[0]), {
         correction_id: string(v[0]),
@@ -2914,6 +3072,11 @@ class FakeStatement {
       return row?.user_id === string(v[1]) ? ({ subscription_id: row.subscription_id } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT guide_record_id FROM mobile_field_scene_receipts")) {
+      const row = this.db.mobileFieldSceneReceipts.get(`${string(v[0])}:${string(v[1])}`);
+      return row ? ({ guide_record_id: row.guide_record_id } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT COUNT(*) AS unread_count FROM alert_deliveries")) {
       const count = [...this.db.alertDeliveries.values()]
         .filter((row) => row.user_id === string(v[0]) && row.acknowledged_at === null)
@@ -3014,6 +3177,56 @@ class FakeStatement {
       const rows = [...this.db.guideUnlocks.values()]
         .filter((row) => row.user_id === string(v[0]))
         .sort((a, b) => b.last_unlocked_at.localeCompare(a.last_unlocked_at));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT scene_digest, payload_json, created_at FROM mobile_field_scene_receipts")) {
+      const rows = [...this.db.mobileFieldSceneReceipts.values()]
+        .filter((row) => row.session_id === string(v[0]))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 50)
+        .map((row) => ({ scene_digest: row.scene_digest, payload_json: row.payload_json, created_at: row.created_at }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT summary_id, user_id, session_id, record_count")) {
+      const userId = nullableString(v[0]);
+      const limit = number(v[2]);
+      const rows = [...this.db.guideSessionPublicSummaries.values()]
+        .filter((row) => !userId || row.user_id === userId)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, limit)
+        .map((row) => ({
+          summary_id: row.summary_id,
+          user_id: row.user_id,
+          session_id: row.session_id,
+          record_count: row.record_count,
+          started_at: row.started_at,
+          ended_at: row.ended_at,
+          representative_guide_record_id: row.representative_guide_record_id,
+          headline: row.headline,
+          body: row.body,
+          featured_subjects_json: row.featured_subjects_json,
+          public_location_label: row.public_location_label,
+          media_thumb_url: row.media_thumb_url,
+        }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT session_id, lat, lng, observed_at, point_kind, guide_mode")) {
+      const userId = string(v[0]);
+      const limit = number(v[1]);
+      const rows = [...this.db.guideRoutePoints.values()]
+        .filter((row) => row.user_id === userId)
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
+        .slice(0, limit)
+        .map((row) => ({
+          session_id: row.session_id,
+          lat: row.lat,
+          lng: row.lng,
+          observed_at: row.observed_at,
+          point_kind: row.point_kind,
+          guide_mode: row.guide_mode,
+          accuracy_m: row.accuracy_m,
+          speed_mps: row.speed_mps
+        }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT program_id, slug, title, owner_type, participation_mode, status")) {
@@ -6160,6 +6373,103 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     assert.equal(interaction.ok, true, JSON.stringify(interactionPayload));
     assert.equal(env.OBS_DB.guideInteractions.size, 1);
     assert.equal([...env.OBS_DB.guideInteractions.values()][0]?.user_id, "guide-user");
+
+    const guideRecord = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/record", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        sessionId: "guide-session-1",
+        lat: 34.7133,
+        lng: 137.7031,
+        capturedAt: "2026-06-22T09:10:00.000Z",
+        sceneSummary: "草地の縁で小さな花が目立つ",
+        detectedSpecies: ["シロツメクサ"],
+        detectedFeatures: [{ type: "vegetation", name: "草地" }],
+        primarySubject: { name: "シロツメクサ", rank: "species", confidence: 0.7 }
+      })
+    }), productionEnv);
+    const guideRecordPayload = await guideRecord.json() as any;
+    assert.equal(guideRecord.headers.get("x-ikimon-cloudflare-native"), "guide-record-api");
+    assert.equal(guideRecord.ok, true, JSON.stringify(guideRecordPayload));
+    assert.equal(env.OBS_DB.guideRecords.size, 1);
+    assert.equal(env.OBS_DB.guideSessionPublicSummaries.size, 1);
+
+    const telemetry = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/telemetry", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        sessionId: "guide-session-1",
+        guideMode: "vehicle",
+        points: [
+          { clientPointId: "p-1", lat: 34.7134, lng: 137.7032, observedAt: "2026-06-22T09:11:00.000Z", speedMps: 4.5 }
+        ]
+      })
+    }), productionEnv);
+    const telemetryPayload = await telemetry.json() as any;
+    assert.equal(telemetry.headers.get("x-ikimon-cloudflare-native"), "guide-telemetry-api");
+    assert.equal(telemetryPayload.inserted, 1);
+    assert.equal(env.OBS_DB.guideRoutePoints.size, 1);
+
+    const mobileStart = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/start", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({ session_id: "mobile-session-1" })
+    }), productionEnv);
+    const mobileStartPayload = await mobileStart.json() as any;
+    assert.equal(mobileStartPayload.sessionId, "mobile-session-1");
+
+    const mobileDigest = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/scene-digest", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        install_id: "install-1",
+        client_scene_id: "scene-1",
+        lat: 34.7135,
+        lng: 137.7033,
+        movement_mode: "vehicle",
+        scene_digest: "道路沿いの樹木と草地が続く",
+        detected_species: ["樹木"],
+        area_resolution_signals: ["道路沿い", "草地"]
+      })
+    }), productionEnv);
+    const mobileDigestPayload = await mobileDigest.json() as any;
+    assert.equal(mobileDigest.headers.get("x-ikimon-cloudflare-native"), "mobile-scene-digest-api");
+    assert.equal(mobileDigestPayload.duplicate, false);
+    assert.equal(env.OBS_DB.mobileFieldSceneReceipts.size, 1);
+
+    const mobileDuplicate = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/scene-digest", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        install_id: "install-1",
+        client_scene_id: "scene-1",
+        lat: 34.7135,
+        lng: 137.7033,
+        scene_digest: "道路沿いの樹木と草地が続く"
+      })
+    }), productionEnv);
+    const mobileDuplicatePayload = await mobileDuplicate.json() as any;
+    assert.equal(mobileDuplicatePayload.duplicate, true);
+
+    const mobileRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/recap", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const mobileRecapPayload = await mobileRecap.json() as any;
+    assert.equal(mobileRecapPayload.recap.sceneCount, 1);
+    assert.equal(mobileRecapPayload.recap.latestDigest, "道路沿いの樹木と草地が続く");
+
+    const outcomes = await worker.fetch(new Request("https://ikimon.life/guide/outcomes", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(outcomes.headers.get("x-ikimon-cloudflare-native"), "guide-outcomes-html");
+    assert.match(await outcomes.text(), /ガイド成果/);
+
+    const routeLayer = await worker.fetch(new Request("https://ikimon.life/api/v1/me/guide-records/route-layer.geojson", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const routeLayerPayload = await routeLayer.json() as any;
+    assert.equal(routeLayer.headers.get("x-ikimon-cloudflare-native"), "guide-route-layer-api");
+    assert.ok(routeLayerPayload.features.length >= 1);
 
     const mesh = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/environment-mesh.geojson"), productionEnv);
     const meshPayload = await mesh.json() as any;

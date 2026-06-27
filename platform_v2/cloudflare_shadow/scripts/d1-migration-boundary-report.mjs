@@ -175,7 +175,11 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/guideHypothesisPromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
     "platform_v2/src/services/guideInteractions.ts": "cloudflare_guide_interaction_api",
     "platform_v2/src/services/guidePrograms.ts": "cloudflare_guide_program_admin_api",
+    "platform_v2/src/routes/guideRecordsDebug.ts": "cloudflare_guide_outcomes_and_route_layer_runtime",
+    "platform_v2/src/services/guideRouteTrack.ts": "cloudflare_guide_telemetry_route_points_runtime",
+    "platform_v2/src/services/guideTransectQuality.ts": "cloudflare_guide_route_layer_quality_runtime",
     "platform_v2/src/services/guideUnlocks.ts": "cloudflare_guide_unlock_api",
+    "platform_v2/src/services/mobileFieldSessions.ts": "cloudflare_mobile_field_session_digest_runtime",
     "platform_v2/src/services/regionalHypotheses.ts": "cloudflare_guide_regional_hypothesis_api"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;

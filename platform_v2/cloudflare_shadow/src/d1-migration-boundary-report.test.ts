@@ -133,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 61/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 57/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -171,7 +171,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 61/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 57/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -270,11 +270,18 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventCapsule.ts"), "cloudflare_observation_event_capsule_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventOfficialReport.ts"), "cloudflare_observation_event_official_report_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/meSubscriptionsApi.ts"), "cloudflare_personal_subscription_alert_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/guideRecordsDebug.ts"), "cloudflare_guide_outcomes_and_route_layer_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRouteTrack.ts"), "cloudflare_guide_telemetry_route_points_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideTransectQuality.ts"), "cloudflare_guide_route_layer_quality_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mobileFieldSessions.ts"), "cloudflare_mobile_field_session_digest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), "cloudflare_observation_data_rights_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSession.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSessionPublicSummary.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRecordPromotion.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/contactSubmit.ts"), "cloudflare_contact_submit_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/userWrite.ts"), "cloudflare_user_profile_write_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/rememberTokenWrite.ts"), "cloudflare_remember_token_api");
@@ -477,6 +484,10 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /cloudflare_observation_event_recap_api/);
   assert.match(script, /cloudflare_observation_event_capsule_api/);
   assert.match(script, /cloudflare_observation_event_official_report_api/);
+  assert.match(script, /cloudflare_guide_outcomes_and_route_layer_runtime/);
+  assert.match(script, /cloudflare_guide_telemetry_route_points_runtime/);
+  assert.match(script, /cloudflare_guide_route_layer_quality_runtime/);
+  assert.match(script, /cloudflare_mobile_field_session_digest_runtime/);
   assert.match(script, /admin_ops_diagnostic_dashboard/);
   assert.match(script, /admin_monitoring_diagnostic_readonly/);
   assert.match(script, /admin_regional_knowledge_review_dashboard/);
