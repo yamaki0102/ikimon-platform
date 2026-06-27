@@ -49,7 +49,10 @@ function maintenancePgDependencyReason(relativeFile) {
   const exactAdminOpsDiagnostics = {
     "platform_v2/src/routes/adminDataHealth.ts": "admin_ops_diagnostic_dashboard",
     "platform_v2/src/routes/adminMonitoringWorkspace.ts": "admin_monitoring_diagnostic_readonly",
+    "platform_v2/src/routes/adminRegionalKnowledge.ts": "admin_regional_knowledge_review_dashboard",
     "platform_v2/src/routes/adminSiteEvidence.ts": "admin_evidence_report",
+    "platform_v2/src/routes/curatorProposalsApi.ts": "internal_curator_proposal_receiver",
+    "platform_v2/src/services/alertDispatcher.ts": "manual_ai_reassessment_alert_dispatcher",
     "platform_v2/src/services/monitoringWorkspaceData.ts": "admin_monitoring_diagnostic_readmodel",
     "platform_v2/src/services/readiness.ts": "legacy_cutover_readiness_report"
   };
@@ -100,6 +103,7 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/scripts/monitorProductionSmokeCleanup.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/planObservationLedger.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/processPlaceMemoryPhotos.ts": "manual_media_batch_tool",
+    "platform_v2/src/scripts/processAudioSegments.ts": "manual_audio_detection_batch_tool",
     "platform_v2/src/scripts/readinessReport.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/rebuildGuideEnvironmentMesh.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/refreshPublicMapSnapshot.ts": "manual_materialization_tool",
@@ -160,6 +164,8 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/userWrite.ts": "cloudflare_user_profile_write_api",
     "platform_v2/src/services/rememberTokenWrite.ts": "cloudflare_remember_token_api",
     "platform_v2/src/services/observationDataRights.ts": "cloudflare_observation_data_rights_api",
+    "platform_v2/src/services/evidenceAssetMediaRole.ts": "cloudflare_observation_media_role_dependency",
+    "platform_v2/src/services/mediaProcessingJobs.ts": "cloudflare_media_processing_queue_dependency",
     "platform_v2/src/routes/adminGuidePrograms.ts": "cloudflare_guide_program_admin_api",
     "platform_v2/src/routes/adminGuidePromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
     "platform_v2/src/services/guideCorrectionEval.ts": "cloudflare_guide_correction_eval_readmodel",
@@ -182,6 +188,8 @@ function optionalRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/officialNoticeCache.ts": "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot",
     "platform_v2/src/services/runtimeVersion.ts": "optional_runtime_version_migration_head",
     "platform_v2/src/services/glossaryTerms.ts": "optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log",
+    "platform_v2/src/routes/invasiveSpecies.ts": "optional_invasive_reporting_visibility_falls_back_unavailable",
+    "platform_v2/src/services/invasiveReporting.ts": "optional_invasive_reporting_delivery_falls_back_empty",
     "platform_v2/src/services/placeEnvironmentSignals.ts": "optional_place_environment_evidence_falls_back_empty",
     "platform_v2/src/services/observationContext.ts": "optional_observation_detail_context_falls_back_empty",
     "platform_v2/src/services/observationDetailHeavy.ts": "optional_observation_detail_heavy_falls_back_empty",
@@ -226,7 +234,8 @@ function maintenanceWorkflowDependencyReason(relativeFile) {
     ".github/workflows/import-n03-admin.yml": "manual_import_or_repair_workflow",
     ".github/workflows/import-osm-area-parks.yml": "manual_import_or_repair_workflow",
     ".github/workflows/import-school-fields.yml": "manual_import_or_repair_workflow",
-    ".github/workflows/refresh-observation-ai.yml": "manual_ai_batch_workflow"
+    ".github/workflows/refresh-observation-ai.yml": "manual_ai_batch_workflow",
+    ".github/workflows/deploy-staging.yml": "legacy_vps_staging_replaced_by_cloudflare_staging"
   };
   return exactMaintenanceWorkflows[normalized] ?? null;
 }
@@ -362,7 +371,8 @@ function classifyPg(text) {
   if (/DATABASE_URL|PGHOST|PGUSER|PGPASSWORD/i.test(text)) flags.push("pg_env");
   const hasPgArray = /\barray\s*\[/i.test(text) || /\barray\s*\(\s*select\b/i.test(text);
   if (/jsonb|::jsonb|unnest\(/i.test(text) || hasPgArray) flags.push("pg_types");
-  if (/getPool|pool\.query|client\.query|getClient|withTransaction/i.test(text)) flags.push("runtime_query");
+  const importsDbClientHelper = /import\s*\{[^}]*\bgetClient\b[^}]*\}\s*from\s*["'][^"']*\/db(?:\.js)?["']/m.test(text);
+  if (/getPool|pool\.query|client\.query|withTransaction/i.test(text) || (importsDbClientHelper && /\bgetClient\s*\(/.test(text))) flags.push("runtime_query");
   return flags;
 }
 

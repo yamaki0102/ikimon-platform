@@ -133,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 75/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 65/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -149,7 +149,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-osm-area-parks.yml"), "manual_import_or_repair_workflow");
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-school-fields.yml"), "manual_import_or_repair_workflow");
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/refresh-observation-ai.yml"), "manual_ai_batch_workflow");
-  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/deploy-staging.yml"), null);
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/deploy-staging.yml"), "legacy_vps_staging_replaced_by_cloudflare_staging");
   assert.deepEqual(workflowDependencySignals("- VPS SSH/deploy: `not used`"), []);
   assert.deepEqual(workflowDependencySignals("uses: appleboy/ssh-action@v1"), ["ssh/scp"]);
   assert.deepEqual(workflowDependencySignals("ssh -i ~/.ssh/ikimon_vps root@162.43.44.131"), ["ssh/scp"]);
@@ -162,15 +162,16 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /## VPS Workflow Runtime Dependencies/);
-  assert.match(result.stdout, /- runtime_vps_workflow_files: 1/);
-  assert.match(result.stdout, /\.github\/workflows\/deploy-staging\.yml/);
+  assert.match(result.stdout, /- runtime_vps_workflow_files: 0/);
+  assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy-staging\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/cloudflare-shadow-release\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy-cloudflare-staging\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
-  assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
+  assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
+  assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 75/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 65/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -225,11 +226,14 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/stagingRegressionFixtures.ts"), "gated_staging_fixture_ops");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminDataHealth.ts"), "admin_ops_diagnostic_dashboard");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminMonitoringWorkspace.ts"), "admin_monitoring_diagnostic_readonly");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminRegionalKnowledge.ts"), "admin_regional_knowledge_review_dashboard");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminSiteEvidence.ts"), "admin_evidence_report");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/curatorProposalsApi.ts"), "internal_curator_proposal_receiver");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/alertDispatcher.ts"), "manual_ai_reassessment_alert_dispatcher");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/monitoringWorkspaceData.ts"), "admin_monitoring_diagnostic_readmodel");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/readiness.ts"), "legacy_cutover_readiness_report");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/regionalKnowledgeEmbedding.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminRegionalKnowledge.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/processAudioSegments.ts"), "manual_audio_detection_batch_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/observationMediaIntegrity.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/placeEnvironmentIngest.ts"), null);
@@ -237,7 +241,6 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCurator.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/curators/invasive-law.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/processAudioSegments.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importantDaemon.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reporterDaemon.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/verify.ts"), null);
@@ -274,6 +277,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/contactSubmit.ts"), "cloudflare_contact_submit_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/userWrite.ts"), "cloudflare_user_profile_write_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/rememberTokenWrite.ts"), "cloudflare_remember_token_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/evidenceAssetMediaRole.ts"), "cloudflare_observation_media_role_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mediaProcessingJobs.ts"), "cloudflare_media_processing_queue_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventPages.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/siteSignalsCache.ts"), "optional_site_signals_cache_falls_back_without_database");
@@ -281,6 +286,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/officialNoticeCache.ts"), "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/runtimeVersion.ts"), "optional_runtime_version_migration_head");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/glossaryTerms.ts"), "optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/routes/invasiveSpecies.ts"), "optional_invasive_reporting_visibility_falls_back_unavailable");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/invasiveReporting.ts"), "optional_invasive_reporting_delivery_falls_back_empty");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/placeEnvironmentSignals.ts"), "optional_place_environment_evidence_falls_back_empty");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observationContext.ts"), "optional_observation_detail_context_falls_back_empty");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observationDetailHeavy.ts"), "optional_observation_detail_heavy_falls_back_empty");
@@ -410,6 +417,9 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /cloudflare_observation_event_official_report_api/);
   assert.match(script, /admin_ops_diagnostic_dashboard/);
   assert.match(script, /admin_monitoring_diagnostic_readonly/);
+  assert.match(script, /admin_regional_knowledge_review_dashboard/);
+  assert.match(script, /internal_curator_proposal_receiver/);
+  assert.match(script, /manual_ai_reassessment_alert_dispatcher/);
   assert.match(script, /admin_evidence_report/);
   assert.match(script, /admin_monitoring_diagnostic_readmodel/);
   assert.match(script, /legacy_cutover_readiness_report/);
@@ -418,6 +428,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot/);
   assert.match(script, /optional_runtime_version_migration_head/);
   assert.match(script, /optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log/);
+  assert.match(script, /optional_invasive_reporting_visibility_falls_back_unavailable/);
+  assert.match(script, /optional_invasive_reporting_delivery_falls_back_empty/);
   assert.match(script, /optional_place_environment_evidence_falls_back_empty/);
   assert.match(script, /optional_observation_detail_context_falls_back_empty/);
   assert.match(script, /optional_observation_detail_heavy_falls_back_empty/);
@@ -533,6 +545,8 @@ test("PostgreSQL signal classifier does not count JavaScript listener or Array h
   assert.equal(classifyPg("window.addEventListener('click', () => {});").includes("job_locking"), false);
   assert.equal(classifyPg("const server = app.listen(3000);").includes("job_locking"), false);
   assert.equal(classifyPg("notify('saved');").includes("job_locking"), false);
+  assert.equal(classifyPg("function getClient() { return new GoogleGenAI({ key }); } const ai = getClient();").includes("runtime_query"), false);
+  assert.equal(classifyPg("import { getClient } from '../db.js'; const client = getClient();").includes("runtime_query"), true);
   assert.equal(classifyPg("const list = Array(10);").includes("pg_types"), false);
   assert.equal(classifyPg("const ok = Array.isArray(value);").includes("pg_types"), false);
   assert.equal(classifyPg("type Items = Array<string>;").includes("pg_types"), false);
