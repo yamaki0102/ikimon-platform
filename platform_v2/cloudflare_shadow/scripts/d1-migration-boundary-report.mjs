@@ -53,6 +53,8 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/routes/adminSiteEvidence.ts": "admin_evidence_report",
     "platform_v2/src/routes/knowledgeNavigationApi.ts": "internal_knowledge_navigation_admin_api",
     "platform_v2/src/routes/curatorProposalsApi.ts": "internal_curator_proposal_receiver",
+    "platform_v2/src/services/audioPropagation.ts": "admin_audio_review_residual_after_vector_retirement",
+    "platform_v2/src/services/audioReview.ts": "admin_audio_review_residual_after_vector_retirement",
     "platform_v2/src/services/alertDispatcher.ts": "manual_ai_reassessment_alert_dispatcher",
     "platform_v2/src/services/monitoringWorkspaceData.ts": "admin_monitoring_diagnostic_readmodel",
     "platform_v2/src/services/readiness.ts": "legacy_cutover_readiness_report"

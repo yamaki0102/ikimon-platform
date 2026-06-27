@@ -133,7 +133,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 39/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 37/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -171,7 +171,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 39/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 37/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -230,6 +230,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminSiteEvidence.ts"), "admin_evidence_report");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/knowledgeNavigationApi.ts"), "internal_knowledge_navigation_admin_api");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/curatorProposalsApi.ts"), "internal_curator_proposal_receiver");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/audioPropagation.ts"), "admin_audio_review_residual_after_vector_retirement");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/audioReview.ts"), "admin_audio_review_residual_after_vector_retirement");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/alertDispatcher.ts"), "manual_ai_reassessment_alert_dispatcher");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/monitoringWorkspaceData.ts"), "admin_monitoring_diagnostic_readmodel");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/readiness.ts"), "legacy_cutover_readiness_report");
