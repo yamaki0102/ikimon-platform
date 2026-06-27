@@ -334,6 +334,16 @@ interface CandidateActionRequestRow {
   updated_at: string;
 }
 
+interface GuideRecordPromotionRequestRow {
+  request_id: string;
+  guide_record_id: string;
+  actor_user_id: string;
+  request_state: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProductionFieldDetailReadmodelRow {
   field_id: string;
   source: string;
@@ -1085,6 +1095,7 @@ class FakeD1 {
   guideInteractions = new Map<string, GuideInteractionTestRow>();
   guideRecords = new Map<string, GuideRecordTestRow>();
   guideRecordLatencyStates = new Map<string, GuideRecordLatencyStateTestRow>();
+  guideRecordPromotionRequests = new Map<string, GuideRecordPromotionRequestRow>();
   guideRoutePoints = new Map<string, GuideRoutePointTestRow>();
   guideSessionPublicSummaries = new Map<string, GuideSessionPublicSummaryTestRow>();
   mobileFieldSceneReceipts = new Map<string, MobileFieldSceneReceiptTestRow>();
@@ -1932,6 +1943,22 @@ class FakeStatement {
         actor_user_id: string(v[4]),
         request_state: "pending",
         source_payload_json: string(v[5]),
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO guide_record_promotion_requests")) {
+      const now = new Date().toISOString();
+      const key = `${string(v[1])}:${string(v[2])}`;
+      const existing = this.db.guideRecordPromotionRequests.get(key);
+      this.db.guideRecordPromotionRequests.set(key, {
+        request_id: existing?.request_id ?? string(v[0]),
+        guide_record_id: string(v[1]),
+        actor_user_id: string(v[2]),
+        request_state: "pending",
+        source_payload_json: string(v[3]),
         created_at: existing?.created_at ?? now,
         updated_at: now
       });
@@ -3077,6 +3104,20 @@ class FakeStatement {
       return row ? ({ guide_record_id: row.guide_record_id } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT gr.guide_record_id, gr.user_id, gr.occurrence_id")) {
+      const row = this.db.guideRecords.get(string(v[0]));
+      if (!row) return null;
+      const latency = this.db.guideRecordLatencyStates.get(row.guide_record_id);
+      return ({
+        guide_record_id: row.guide_record_id,
+        user_id: row.user_id,
+        occurrence_id: null,
+        lat: row.lat,
+        lng: row.lng,
+        frame_thumb: latency?.frame_thumb ?? null
+      } as T);
+    }
+
     if (normalized.startsWith("SELECT COUNT(*) AS unread_count FROM alert_deliveries")) {
       const count = [...this.db.alertDeliveries.values()]
         .filter((row) => row.user_id === string(v[0]) && row.acknowledged_at === null)
@@ -3185,6 +3226,32 @@ class FakeStatement {
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .slice(0, 50)
         .map((row) => ({ scene_digest: row.scene_digest, payload_json: row.payload_json, created_at: row.created_at }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT gr.guide_record_id, gr.session_id, gr.user_id, gr.lat, gr.lng, gr.scene_summary")) {
+      const userId = string(v[0]);
+      const sessionId = string(v[1]);
+      const rows = [...this.db.guideRecords.values()]
+        .filter((row) => row.user_id === userId && row.session_id === sessionId)
+        .map((row) => {
+          const latency = this.db.guideRecordLatencyStates.get(row.guide_record_id);
+          return {
+            guide_record_id: row.guide_record_id,
+            session_id: row.session_id,
+            user_id: row.user_id,
+            lat: row.lat,
+            lng: row.lng,
+            scene_summary: row.scene_summary,
+            detected_species_json: row.detected_species_json,
+            detected_features_json: row.detected_features_json,
+            created_at: row.created_at,
+            captured_at: latency?.captured_at ?? null,
+            returned_at: latency?.returned_at ?? null,
+            frame_thumb: latency?.frame_thumb ?? null,
+            primary_subject_json: latency?.primary_subject_json ?? "{}"
+          };
+        })
+        .sort((a, b) => (a.captured_at ?? a.returned_at ?? a.created_at).localeCompare(b.captured_at ?? b.returned_at ?? b.created_at));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT summary_id, user_id, session_id, record_count")) {
@@ -6393,6 +6460,35 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     assert.equal(guideRecord.ok, true, JSON.stringify(guideRecordPayload));
     assert.equal(env.OBS_DB.guideRecords.size, 1);
     assert.equal(env.OBS_DB.guideSessionPublicSummaries.size, 1);
+
+    const secondGuideRecord = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/record", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({
+        sessionId: "guide-session-1",
+        lat: 34.7136,
+        lng: 137.7035,
+        capturedAt: "2026-06-22T09:12:00.000Z",
+        sceneSummary: "同じ草地で別の花も見える",
+        detectedSpecies: ["カタバミ"],
+        detectedFeatures: [{ type: "vegetation", name: "草地" }],
+        primarySubject: { name: "カタバミ", rank: "species", confidence: 0.68 }
+      })
+    }), productionEnv);
+    const secondGuideRecordPayload = await secondGuideRecord.json() as any;
+    assert.equal(secondGuideRecord.ok, true, JSON.stringify(secondGuideRecordPayload));
+    assert.equal(env.OBS_DB.guideRecords.size, 2);
+    assert.equal(env.OBS_DB.guideSessionPublicSummaries.get("guide-user:guide-session-1")?.record_count, 2);
+
+    const promotion = await worker.fetch(new Request(`https://ikimon.life/api/v1/guide/records/${encodeURIComponent(guideRecordPayload.guideRecordId)}/promote`, {
+      method: "POST",
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const promotionPayload = await promotion.json() as any;
+    assert.equal(promotion.status, 202, JSON.stringify(promotionPayload));
+    assert.equal(promotion.headers.get("x-ikimon-cloudflare-native"), "guide-record-promotion-api");
+    assert.equal(promotionPayload.compatibility.source, "cloudflare_guide_record_promotion_request_ledger");
+    assert.equal(env.OBS_DB.guideRecordPromotionRequests.get(`${guideRecordPayload.guideRecordId}:guide-user`)?.request_state, "pending");
 
     const telemetry = await worker.fetch(new Request("https://ikimon.life/api/v1/guide/telemetry", {
       method: "POST",

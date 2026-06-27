@@ -7405,6 +7405,10 @@ async function handleGuideOutcomeRuntime(request: Request, url: URL, env: Env): 
     if (request.method === "POST" && pathname === "/api/v1/guide/record") {
       return await saveGuideRecordNative(request, env);
     }
+    const promoteMatch = pathname.match(/^\/api\/v1\/guide\/records\/([^/]+)\/promote$/);
+    if (request.method === "POST" && promoteMatch?.[1]) {
+      return await requestGuideRecordPromotionNative(request, decodeURIComponent(promoteMatch[1]), env);
+    }
     if (request.method === "POST" && pathname === "/api/v1/guide/telemetry") {
       return await recordGuideTelemetryNative(request, env);
     }
@@ -7785,6 +7789,102 @@ function buildGuideSummary(body: {
   };
 }
 
+type GuideSummarySourceNativeRow = {
+  guide_record_id: string;
+  session_id: string;
+  user_id: string | null;
+  lat: number;
+  lng: number;
+  scene_summary: string | null;
+  detected_species_json: string;
+  detected_features_json: string;
+  captured_at: string | null;
+  returned_at: string | null;
+  created_at: string;
+  frame_thumb: string | null;
+  primary_subject_json: string | null;
+};
+
+function parseGuideSummaryJsonArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)).filter(Boolean).slice(0, 12) : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseGuideSummaryJsonObject(value: string | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseGuideSummaryFeatureArray(value: string | null | undefined): Array<Record<string, unknown>> {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)).slice(0, 20)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function guideSummaryTime(row: GuideSummarySourceNativeRow): string {
+  return row.captured_at ?? row.returned_at ?? row.created_at;
+}
+
+function buildGuideSessionSummary(rows: GuideSummarySourceNativeRow[], userId: string, sessionId: string) {
+  const sorted = [...rows].sort((a, b) => guideSummaryTime(a).localeCompare(guideSummaryTime(b)));
+  const first = sorted[0];
+  const representative = sorted.find((row) => parseGuideSummaryJsonArray(row.detected_species_json).length > 0) ?? first;
+  if (!first || !representative) return null;
+  const species = [...new Set(sorted.flatMap((row) => parseGuideSummaryJsonArray(row.detected_species_json)))].slice(0, 8);
+  const features = sorted.flatMap((row) => parseGuideSummaryFeatureArray(row.detected_features_json));
+  const primarySubject = parseGuideSummaryJsonObject(representative.primary_subject_json);
+  const subjects = subjectNames(species, features, primarySubject);
+  const featureCounts: Record<string, number> = {};
+  for (const feature of features) {
+    const type = String(feature.type ?? "place");
+    featureCounts[type] = (featureCounts[type] ?? 0) + 1;
+  }
+  const headline = subjects.length > 0
+    ? `${subjects.slice(0, 2).join("・")}のガイド記録`
+    : `${sorted.length}件のガイド記録`;
+  const bodyText = sorted
+    .map((row) => normalizeOptionalText(row.scene_summary))
+    .filter((item): item is string => Boolean(item))
+    .slice(0, 2)
+    .join(" / ") || "現地で保存したガイド記録です。";
+  return {
+    summaryId: crypto.randomUUID(),
+    userId,
+    sessionId,
+    recordCount: sorted.length,
+    startedAt: guideSummaryTime(first),
+    endedAt: guideSummaryTime(sorted[sorted.length - 1] ?? first),
+    representativeGuideRecordId: representative.guide_record_id,
+    headline,
+    body: bodyText,
+    evidenceLine: `${sorted.length}シーンを、公開用の範囲に丸めて扱います。`,
+    motivationLine: "同じ範囲で次の記録を足すと、季節や環境の違いを比べやすくなります。",
+    claimBoundary: "AIガイドの未検証サマリーです。増減・不在・保全効果は断言しません。",
+    primaryTheme: featureCounts.water ? "water" : featureCounts.sound ? "sound" : featureCounts.vegetation || featureCounts.species ? "green" : "place",
+    featuredSubjects: subjects,
+    featureCounts,
+    publicLocationLabel: guidePublicLocationLabel(Number(first.lat), Number(first.lng)),
+    mediaThumbUrl: representative.frame_thumb,
+    sourceChecksum: sorted.map((row) => `${row.guide_record_id}:${guideSummaryTime(row)}`).join("|")
+  };
+}
+
 async function upsertGuideSummaryNative(input: {
   userId: string | null;
   sessionId: string;
@@ -7799,7 +7899,17 @@ async function upsertGuideSummaryNative(input: {
   frameThumb: string | null;
 }, env: Env): Promise<void> {
   if (!input.userId) return;
-  const summary = buildGuideSummary({ ...input, userId: input.userId });
+  const rows = await env.OBS_DB.prepare(
+    `SELECT gr.guide_record_id, gr.session_id, gr.user_id, gr.lat, gr.lng, gr.scene_summary,
+            gr.detected_species_json, gr.detected_features_json, gr.created_at,
+            gls.captured_at, gls.returned_at, gls.frame_thumb, gls.primary_subject_json
+       FROM guide_records gr
+       LEFT JOIN guide_record_latency_states gls ON gls.guide_record_id = gr.guide_record_id
+      WHERE gr.user_id = ? AND gr.session_id = ?
+      ORDER BY COALESCE(gls.captured_at, gls.returned_at, gr.created_at) ASC`
+  ).bind(input.userId, input.sessionId).all<GuideSummarySourceNativeRow>();
+  const summary = buildGuideSessionSummary(rows.results, input.userId, input.sessionId)
+    ?? buildGuideSummary({ ...input, userId: input.userId });
   await env.OBS_DB.prepare(
     `INSERT OR REPLACE INTO guide_session_public_summary
        (summary_id, user_id, session_id, lang, visibility, record_count, started_at, ended_at,
@@ -7826,7 +7936,7 @@ async function upsertGuideSummaryNative(input: {
     summary.publicLocationLabel,
     summary.mediaThumbUrl,
     summary.sourceChecksum,
-    JSON.stringify({ generatedFrom: "guide_records", guideRecordId: input.guideRecordId })
+    JSON.stringify({ generatedFrom: "guide_records", guideRecordId: input.guideRecordId, recordCount: summary.recordCount })
   ).run();
 }
 
@@ -7917,6 +8027,65 @@ async function saveGuideRecordNative(request: Request, env: Env): Promise<Respon
   const session = await readCompatibleSession(request, env);
   const guideRecordId = await insertGuideRecordNative({ body, session, defaultSessionId: "manual", source: "guide_record_api" }, env);
   return json({ guideRecordId }, 200, nativeGuideHeaders("guide-record-api"));
+}
+
+async function requestGuideRecordPromotionNative(request: Request, guideRecordId: string, env: Env): Promise<Response> {
+  const normalizedGuideRecordId = normalizeOptionalId(guideRecordId);
+  if (!normalizedGuideRecordId || normalizedGuideRecordId.length > 160) {
+    return json({ ok: false, error: "guide_record_not_found" }, 404, nativeGuideHeaders("guide-record-promotion-api"));
+  }
+  const session = await requireSignedInGuideSession(request, env);
+  const row = await env.OBS_DB.prepare(
+    `SELECT gr.guide_record_id, gr.user_id, gr.occurrence_id, gr.lat, gr.lng, gls.frame_thumb
+       FROM guide_records gr
+       LEFT JOIN guide_record_latency_states gls ON gls.guide_record_id = gr.guide_record_id
+      WHERE gr.guide_record_id = ?`
+  ).bind(normalizedGuideRecordId).first<{
+    guide_record_id: string;
+    user_id: string | null;
+    occurrence_id: string | null;
+    lat: number | null;
+    lng: number | null;
+    frame_thumb: string | null;
+  }>();
+  if (!row) return json({ ok: false, error: "guide_record_not_found" }, 404, nativeGuideHeaders("guide-record-promotion-api"));
+  if (row.user_id !== session.userId) {
+    return json({ ok: false, error: "guide_record_forbidden" }, 403, nativeGuideHeaders("guide-record-promotion-api"));
+  }
+  if (!Number.isFinite(Number(row.lat)) || !Number.isFinite(Number(row.lng))) {
+    return json({ ok: false, error: "guide_record_location_required", nextAction: "record_with_location" }, 422, nativeGuideHeaders("guide-record-promotion-api"));
+  }
+
+  const requestId = newId("guide_promote_req");
+  const sourcePayload = {
+    source: "cloudflare_guide_record_promotion_request_ledger",
+    guideRecordId: normalizedGuideRecordId,
+    occurrenceId: row.occurrence_id ?? null,
+    hasFrameThumb: Boolean(row.frame_thumb)
+  };
+  await env.OBS_DB.prepare(
+    `INSERT INTO guide_record_promotion_requests
+       (request_id, guide_record_id, actor_user_id, request_state, source_payload_json)
+     VALUES (?, ?, ?, 'pending', ?)
+     ON CONFLICT(guide_record_id, actor_user_id) DO UPDATE SET
+       request_state = 'pending',
+       source_payload_json = excluded.source_payload_json,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(requestId, normalizedGuideRecordId, session.userId, JSON.stringify(sourcePayload)).run();
+
+  return json({
+    ok: true,
+    promotion: {
+      requestId,
+      state: "pending",
+      guideRecordId: normalizedGuideRecordId
+    },
+    occurrenceId: row.occurrence_id ?? null,
+    compatibility: {
+      source: "cloudflare_guide_record_promotion_request_ledger",
+      materializationStatus: "not_migrated"
+    }
+  }, 202, nativeGuideHeaders("guide-record-promotion-api"));
 }
 
 async function insertGuideRoutePointNative(args: {
