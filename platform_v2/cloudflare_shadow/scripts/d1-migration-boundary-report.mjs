@@ -141,6 +141,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
   const exactReplacedProductionRuntime = {
     "platform_v2/src/services/mapSnapshot.ts": "cloudflare_public_map_snapshot_readmodel",
+    "platform_v2/src/services/sensitiveSpeciesMasking.ts": "cloudflare_public_map_and_area_snapshot_masking_readmodels",
     "platform_v2/src/services/landingSnapshot.ts": "cloudflare_materialized_landing_and_home_readmodel",
     "platform_v2/src/services/areaSnapshotVisitScope.ts": "cloudflare_area_and_place_snapshot_visit_scope_readmodel",
     "platform_v2/src/services/areaPlaceSnapshot.ts": "cloudflare_area_snapshot_field_detail_readmodel",
@@ -155,6 +156,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/authUsers.ts": "cloudflare_auth_user_account_api",
     "platform_v2/src/services/observationWrite.ts": "cloudflare_observation_write_api",
     "platform_v2/src/services/observationPhotoUpload.ts": "cloudflare_observation_photo_upload_api",
+    "platform_v2/src/services/observationAiAssessment.ts": "cloudflare_observation_detail_readmodel_dependency",
     "platform_v2/src/services/observationReactions.ts": "cloudflare_observation_reactions_api",
     "platform_v2/src/services/recordReadingCards.ts": "cloudflare_record_reading_cards_api",
     "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",
@@ -209,7 +211,13 @@ function optionalRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observerStats.ts": "optional_observation_detail_observer_stats_card",
     "platform_v2/src/services/placeVegetationTrend.ts": "optional_place_vegetation_trend_card_falls_back_null",
     "platform_v2/src/services/regionalStory.ts": "optional_regional_story_seed_fallback_and_nonfatal_exposure_log",
-    "platform_v2/src/services/taxonInsights.ts": "optional_observation_detail_taxon_insight_card"
+    "platform_v2/src/services/taxonInsights.ts": "optional_observation_detail_taxon_insight_card",
+    "platform_v2/src/services/aiCostLogger.ts": "optional_ops_ai_cost_logging_and_budget_health",
+    "platform_v2/src/services/areaWatchNotifications.ts": "optional_area_watch_notification_enrichment",
+    "platform_v2/src/services/profileNoteDigest.ts": "optional_profile_note_digest_enrichment",
+    "platform_v2/src/services/relationshipScore.queries.ts": "optional_relationship_score_readonly_queries",
+    "platform_v2/src/services/relationshipScoreSnapshot.ts": "optional_relationship_score_report_snapshot",
+    "platform_v2/src/services/tierPromotion.ts": "optional_evidence_tier_enrichment"
   };
   return exactOptionalRuntime[normalized] ?? null;
 }
