@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
@@ -37,6 +38,26 @@ function loadReplacedProductionRuntimePgDependencyReason(script: string): (relat
   const match = script.match(/function replacedProductionRuntimePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
   assert.ok(match, "replacedProductionRuntimePgDependencyReason function is present");
   return new Function(`${match[0]}; return replacedProductionRuntimePgDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
+async function findTsFilesContaining(root: string, needle: string): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const matches: string[] = [];
+  for (const entry of entries) {
+    const absolutePath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      matches.push(...await findTsFilesContaining(absolutePath, needle));
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith(".ts")) {
+      continue;
+    }
+    const content = await readFile(absolutePath, "utf8");
+    if (content.includes(needle)) {
+      matches.push(absolutePath);
+    }
+  }
+  return matches;
 }
 
 function loadOptionalRuntimePgDependencyReason(script: string): (relativeFile: string) => string | null {
@@ -133,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 25/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 24/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -171,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 25/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 24/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -271,6 +292,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventEffort.ts"), "cloudflare_observation_event_effort_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventModeManager.ts"), "cloudflare_observation_event_mode_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventRecap.ts"), "cloudflare_observation_event_recap_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventContext.ts"), "cloudflare_observation_event_static_quest_context_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), "cloudflare_observation_event_static_quest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventCapsule.ts"), "cloudflare_observation_event_capsule_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventOfficialReport.ts"), "cloudflare_observation_event_official_report_api");
@@ -537,6 +559,15 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_observation_detail_observer_stats_card/);
   assert.match(script, /optional_place_vegetation_trend_card_falls_back_null/);
   assert.match(script, /optional_observation_detail_taxon_insight_card/);
+});
+
+test("observation event context remains exclusively tied to the replaced quest engine", async () => {
+  const importers = (await findTsFilesContaining(path.resolve(process.cwd(), "../src"), "observationEventContext.js"))
+    .map((line) => path.relative(path.resolve(process.cwd(), ".."), line))
+    .map((line) => `platform_v2/${line}`)
+    .map((line) => line.replace(/\\/g, "/"))
+    .sort();
+  assert.deepEqual(importers, ["platform_v2/src/services/observationEventQuestEngine.ts"]);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {
