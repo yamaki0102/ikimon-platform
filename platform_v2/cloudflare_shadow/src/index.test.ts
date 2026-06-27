@@ -72,6 +72,8 @@ interface ObservationIdentificationDisputeRow {
   reason: string | null;
   status: string;
   source_payload_json: string;
+  resolved_by_user_id?: string | null;
+  resolved_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2138,6 +2140,21 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observation_identification_disputes")) {
+      const dispute = requireRow(this.db.observationIdentificationDisputes, string(v[4]));
+      dispute.status = string(v[0]);
+      const note = nullableString(v[1]);
+      if (note) dispute.reason = note;
+      dispute.source_payload_json = string(v[3]);
+      if (dispute.status === "resolved") {
+        const payload = JSON.parse(dispute.source_payload_json) as { resolvedBy?: string; resolvedAt?: string };
+        dispute.resolved_by_user_id = payload.resolvedBy ?? null;
+        dispute.resolved_at = payload.resolvedAt ?? new Date().toISOString();
+      }
+      dispute.updated_at = new Date().toISOString();
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO management_candidate_confirmations")) {
       const now = new Date().toISOString();
       const key = `${string(v[1])}:${number(v[2])}:${string(v[4])}`;
@@ -3073,6 +3090,10 @@ class FakeStatement {
         row.occurrence_id === string(v[0]) && row.status === "open"
       ).length;
       return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT dispute_id, occurrence_id, actor_user_id, kind, proposed_name, proposed_rank")) {
+      return (this.db.observationIdentificationDisputes.get(string(v[0])) as T | undefined) ?? null;
     }
 
     if (normalized.startsWith("SELECT occurrence_id, visit_id, scientific_name, vernacular_name, taxon_rank FROM production_import_occurrences")) {
@@ -8557,6 +8578,96 @@ test("production runtime records observation disputes natively without origin fa
     assert.equal(identification?.stance, "alternative");
     assert.equal(identification?.proposed_name, "ナミアゲハ");
     assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-1"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime resolves identification disputes natively for specialists only", async () => {
+  const { env, core, obs } = createEnv();
+  obs.observationIdentificationDisputes.set("dispute-1", {
+    dispute_id: "dispute-1",
+    occurrence_id: "occ-resolve-1",
+    actor_user_id: "dispute-user",
+    kind: "alternative_id",
+    proposed_name: "Papilio xuthus",
+    proposed_rank: "species",
+    reason: "wing pattern",
+    status: "open",
+    source_payload_json: JSON.stringify({ source: "unit" }),
+    created_at: "2026-06-25T00:00:00.000Z",
+    updated_at: "2026-06-25T00:00:00.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const observerIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "ordinary-user", roleName: "Observer", ttlHours: 1 })
+  }), productionEnv);
+  const observerCookie = observerIssue.headers.get("set-cookie") ?? "";
+  const specialistIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "specialist-user", roleName: "Specialist", ttlHours: 1 })
+  }), productionEnv);
+  const specialistCookie = specialistIssue.headers.get("set-cookie") ?? "";
+  assert.match(observerCookie, /^ikimon_v2_session=/);
+  assert.match(specialistCookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const forbidden = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/disputes/dispute-1/resolve", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: observerCookie },
+      body: JSON.stringify({ resolution: "accept_alternative", note: "not allowed" })
+    }), productionEnv);
+    assert.equal(forbidden.status, 403);
+    assert.equal((await forbidden.json() as any).error, "specialist_required");
+    assert.equal(obs.observationIdentificationDisputes.get("dispute-1")?.status, "open");
+
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/specialist/disputes/dispute-1/resolve", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: specialistCookie },
+      body: JSON.stringify({ resolution: "accept_alternative", note: "authority accepted" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "identification-participation-runtime");
+    assert.equal(payload.ok, true);
+    assert.equal(payload.occurrenceId, "occ-resolve-1");
+    assert.equal(payload.resolution, "accept_alternative");
+    assert.equal(payload.compatibility.source, "cloudflare_identification_participation_runtime");
+    assert.equal(payload.compatibility.alternativeIdentificationStored, true);
+    assert.equal(payload.consensus.identificationVerificationStatus, "authority_reviewed");
+    const dispute = obs.observationIdentificationDisputes.get("dispute-1");
+    assert.equal(dispute?.status, "resolved");
+    assert.equal(dispute?.reason, "authority accepted");
+    assert.equal(dispute?.resolved_by_user_id, "specialist-user");
+    assert.match(dispute?.source_payload_json ?? "", /cloudflare_specialist_dispute_resolution/);
+    assert.equal(obs.observationIdentifications.size, 1);
+    const identification = [...obs.observationIdentifications.values()][0];
+    assert.equal(identification?.actor_user_id, "specialist-user");
+    assert.equal(identification?.proposed_name, "Papilio xuthus");
+    assert.equal(identification?.stance, "support");
+    assert.match(identification?.source_payload_json ?? "", /authority_backed/);
+    assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-resolve-1"), true);
   } finally {
     globalThis.fetch = originalFetch;
   }

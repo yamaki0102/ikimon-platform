@@ -1954,6 +1954,15 @@ export const worker = {
         );
       }
 
+      const specialistDisputeResolveMatch = url.pathname.match(/^\/api\/v1\/specialist\/disputes\/([^/]+)\/resolve$/);
+      if (request.method === "POST" && specialistDisputeResolveMatch?.[1]) {
+        return resolveCompatibleIdentificationDispute(
+          decodeURIComponent(specialistDisputeResolveMatch[1]),
+          request,
+          env
+        );
+      }
+
       const aiReviewMatch = url.pathname.match(/^\/api\/v1\/observation-records\/([^/]+)\/ai-review$/);
       if (request.method === "POST" && aiReviewMatch?.[1]) {
         return submitCompatibleObservationRecordAiReview(
@@ -5464,6 +5473,156 @@ function normalizeObservationDisputeKind(value: unknown): "alternative_id" | "ne
   return value === "needs_more_evidence" || value === "not_organism" || value === "location_date_issue"
     ? value
     : "alternative_id";
+}
+
+function normalizeIdentificationDisputeResolution(value: unknown): "accept_alternative" | "reject_dispute" | "needs_more_evidence" | null {
+  return value === "accept_alternative" || value === "reject_dispute" || value === "needs_more_evidence" ? value : null;
+}
+
+function isIdentificationSpecialistRole(session: SessionSnapshot): boolean {
+  const roleText = `${session.roleName ?? ""} ${session.rankLabel ?? ""}`.toLowerCase();
+  return /\b(admin|administrator|analyst|owner|manager|specialist|expert|reviewer|authority)\b/.test(roleText)
+    || /管理|運営|分析|責任者|専門|有識者|レビュ/.test(roleText);
+}
+
+async function resolveCompatibleIdentificationDispute(disputeId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedDisputeId = normalizeOptionalId(disputeId);
+  if (!normalizedDisputeId || normalizedDisputeId.length > 160) {
+    return json({ ok: false, error: "dispute_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSessionWithOriginFallback(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (session.banned) {
+    return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  }
+  if (!isIdentificationSpecialistRole(session)) {
+    return json({ ok: false, error: "specialist_required" }, 403, { "cache-control": "no-store" });
+  }
+
+  const input = await readJson<{ resolution?: unknown; note?: unknown }>(request);
+  const resolution = normalizeIdentificationDisputeResolution(input.resolution);
+  if (!resolution) {
+    return json({ ok: false, error: "invalid_dispute_resolution" }, 400, { "cache-control": "no-store" });
+  }
+
+  const dispute = await env.OBS_DB.prepare(
+    `SELECT dispute_id, occurrence_id, actor_user_id, kind, proposed_name, proposed_rank,
+            reason, status, source_payload_json
+       FROM observation_identification_disputes
+      WHERE dispute_id = ?
+      LIMIT 1`
+  ).bind(normalizedDisputeId).first<{
+    dispute_id: string;
+    occurrence_id: string;
+    actor_user_id: string;
+    kind: string;
+    proposed_name: string | null;
+    proposed_rank: string | null;
+    reason: string | null;
+    status: string;
+    source_payload_json: string | null;
+  }>();
+  if (!dispute) {
+    return json({ ok: false, error: "dispute_not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  const note = normalizeOptionalText(input.note);
+  let existingPayload: Record<string, unknown> = {};
+  try {
+    existingPayload = dispute.source_payload_json ? JSON.parse(dispute.source_payload_json) as Record<string, unknown> : {};
+  } catch {
+    existingPayload = {};
+  }
+  const now = new Date().toISOString();
+  const sourcePayload = {
+    ...existingPayload,
+    source: "cloudflare_specialist_dispute_resolution",
+    previousStatus: dispute.status,
+    resolution,
+    resolutionNote: note,
+    resolvedBy: session.userId,
+    resolvedAt: now
+  };
+  const nextStatus = resolution === "needs_more_evidence" ? "open" : "resolved";
+
+  await env.OBS_DB.prepare(
+    `UPDATE observation_identification_disputes
+        SET status = ?,
+            reason = CASE WHEN ? IS NOT NULL THEN ? ELSE reason END,
+            source_payload_json = ?,
+            updated_at = CURRENT_TIMESTAMP
+      WHERE dispute_id = ?`
+  ).bind(nextStatus, note, note, JSON.stringify(sourcePayload), normalizedDisputeId).run();
+
+  if (resolution === "accept_alternative" && normalizeOptionalText(dispute.proposed_name)) {
+    const sourceKey = `cf_dispute_resolution:${dispute.occurrence_id}:${session.userId}:${normalizedDisputeId}`;
+    await env.OBS_DB.prepare(
+      `INSERT INTO observation_identifications (
+         identification_id, occurrence_id, actor_user_id, proposed_name, proposed_rank,
+         stance, notes, source_key, source_payload_json, is_current
+       ) VALUES (?, ?, ?, ?, ?, 'support', NULL, ?, ?, 1)
+       ON CONFLICT(source_key) DO UPDATE SET
+         proposed_name = excluded.proposed_name,
+         proposed_rank = excluded.proposed_rank,
+         stance = 'support',
+         notes = NULL,
+         source_payload_json = excluded.source_payload_json,
+         is_current = 1,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      newId("identification"),
+      dispute.occurrence_id,
+      session.userId,
+      normalizeOptionalText(dispute.proposed_name),
+      normalizeOptionalText(dispute.proposed_rank),
+      sourceKey,
+      JSON.stringify({
+        source: "cloudflare_specialist_dispute_resolution",
+        lane: "public-claim",
+        reviewClass: "authority_backed",
+        disputeId: normalizedDisputeId,
+        resolution,
+        updatedAt: now
+      })
+    ).run();
+  }
+
+  await env.OBS_DB.prepare(
+    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+  ).bind(
+    newId("outbox"),
+    "readmodel.refresh",
+    dispute.occurrence_id,
+    JSON.stringify({ observationId: dispute.occurrence_id, reason: "identification.dispute.resolve" }),
+    null
+  ).run();
+
+  return json({
+    ok: true,
+    occurrenceId: dispute.occurrence_id,
+    disputeId: normalizedDisputeId,
+    resolution,
+    compatibility: {
+      source: "cloudflare_identification_participation_runtime",
+      specialistResolutionStored: true,
+      alternativeIdentificationStored: resolution === "accept_alternative" && Boolean(normalizeOptionalText(dispute.proposed_name))
+    },
+    consensus: {
+      occurrenceId: dispute.occurrence_id,
+      consensusStatus: resolution === "accept_alternative" ? "authority_backed" : "needs_more_review",
+      hasOpenDispute: nextStatus === "open",
+      identificationVerificationStatus: resolution === "accept_alternative" ? "authority_reviewed" : "needs_review",
+      neededEvidence: nextStatus === "open" ? ["needs_more_evidence"] : []
+    }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "identification-participation-runtime" });
 }
 
 const RECORD_READING_MODEL_VERSION = "record_reading_cards_v0_1_cloudflare";
