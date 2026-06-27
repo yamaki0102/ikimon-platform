@@ -154,6 +154,11 @@ interface LegacyObservationUpsertInput {
   visitMode?: "manual" | "survey" | null;
   revisitReason?: string | null;
   targetTaxaScope?: string | null;
+  eventCode?: string | null;
+  eventSessionId?: string | null;
+  teamId?: string | null;
+  participantRole?: string | null;
+  fieldScan?: Record<string, unknown> | null;
   sourcePayload?: Record<string, unknown> | null;
   dataRights?: Record<string, unknown> | null;
 }
@@ -11787,6 +11792,13 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     })
   ]);
 
+  await hookLegacyObservationToEventNative(env, input, {
+    visitId,
+    occurrenceId,
+    occurrenceIds,
+    taxonLabel
+  });
+
   return json({
     ok: true,
     visitId,
@@ -11812,6 +11824,147 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     placeMemorySample: [],
     contributionReceipts: buildLegacyContributionReceipts(visitId, occurrenceId, occurrenceIds.length, placeName, input)
   }, 201);
+}
+
+type LegacyObservationEventHookResult = {
+  visitId: string;
+  occurrenceId: string;
+  occurrenceIds: string[];
+  taxonLabel: string | null;
+};
+
+async function hookLegacyObservationToEventNative(
+  env: Env,
+  input: LegacyObservationUpsertInput,
+  result: LegacyObservationEventHookResult
+): Promise<void> {
+  const session = await resolveNativeObservationEventSession(env, input).catch(() => null);
+  if (!session) return;
+  const requestedTeamId = normalizeOptionalText(input.teamId)
+    ?? normalizeOptionalText(input.sourcePayload?.teamId)
+    ?? normalizeOptionalText(input.sourcePayload?.team_id);
+  const participant = await findObservationEventParticipant(env, session.sessionId, input.userId, null).catch(() => null);
+  const isOrganizer = session.organizerUserId === input.userId;
+  if (!isOrganizer && !participant) return;
+  if (!isOrganizer && requestedTeamId && participant?.team_id !== requestedTeamId) return;
+  const teamId = requestedTeamId ?? participant?.team_id ?? null;
+  const eventType = input.fieldScan && typeof input.fieldScan === "object" ? "field_scan_added" : "observation_added";
+  try {
+    await appendObservationEventLive(env, {
+      sessionId: session.sessionId,
+      type: eventType,
+      scope: "all",
+      actorUserId: input.userId,
+      teamId,
+      payload: {
+        visit_id: result.visitId,
+        occurrence_id: result.occurrenceId,
+        occurrence_ids: result.occurrenceIds,
+        observation_id: result.visitId,
+        taxon_name: result.taxonLabel,
+        public_lat: roundPublicEventCoordinate(input.latitude),
+        public_lng: roundPublicEventCoordinate(input.longitude),
+        observed_at: input.observedAt,
+        source_type: eventType === "field_scan_added" ? "field_scan" : "record",
+        participant_role: normalizeOptionalText(input.participantRole)
+          ?? normalizeOptionalText(input.sourcePayload?.participantRole)
+          ?? normalizeOptionalText(input.sourcePayload?.participant_role),
+        field_scan: sanitizeObservationEventFieldScan(input.fieldScan),
+        exact_location_stored: false
+      }
+    });
+  } catch (err) {
+    console.error("[observation-event-dual-write] native live event failed", err);
+  }
+  try {
+    await recordObservationEventMeshVisit(env, {
+      sessionId: session.sessionId,
+      lat: roundPublicEventCoordinate(input.latitude),
+      lng: roundPublicEventCoordinate(input.longitude),
+      observationDelta: 1,
+      teamId
+    });
+  } catch (err) {
+    console.error("[observation-event-dual-write] native mesh upsert failed", err);
+  }
+  if (result.taxonLabel) {
+    await offerNativeObservationEventQuestForNewTaxon(env, session.sessionId, result.taxonLabel, teamId).catch((err) => {
+      console.error("[observation-event-dual-write] native quest trigger failed", err);
+    });
+  }
+}
+
+function sanitizeObservationEventFieldScan(input: unknown): Record<string, unknown> | null {
+  const payload = asPlainObject(input);
+  if (!payload) return null;
+  const safe: Record<string, unknown> = {};
+  const scanMode = normalizeOptionalText(payload.scan_mode) ?? normalizeOptionalText(payload.scanMode) ?? normalizeOptionalText(payload.mode);
+  if (scanMode) safe.scan_mode = scanMode;
+  const status = normalizeOptionalText(payload.status) ?? normalizeOptionalText(payload.review_status) ?? normalizeOptionalText(payload.reviewStatus);
+  if (status) safe.status = status;
+  const confidence = numberOrNullFromUnknown(payload.confidence);
+  if (confidence !== null) safe.confidence = confidence;
+  const durationSec = numberOrNullFromUnknown(payload.duration_sec ?? payload.durationSec);
+  if (durationSec !== null) safe.duration_sec = durationSec;
+  const labels = Array.isArray(payload.labels)
+    ? payload.labels.map((label) => normalizeOptionalText(label)).filter((label): label is string => Boolean(label)).slice(0, 12)
+    : [];
+  if (labels.length > 0) safe.labels = labels;
+  return Object.keys(safe).length > 0 ? safe : { sanitized: true };
+}
+
+async function resolveNativeObservationEventSession(env: Env, input: LegacyObservationUpsertInput) {
+  const explicitSessionId = normalizeOptionalText(input.eventSessionId)
+    ?? normalizeOptionalText(input.sourcePayload?.eventSessionId)
+    ?? normalizeOptionalText(input.sourcePayload?.event_session_id);
+  const eventCode = normalizeOptionalText(input.eventCode)
+    ?? normalizeOptionalText(input.sourcePayload?.eventCode)
+    ?? normalizeOptionalText(input.sourcePayload?.event_code);
+  const session = explicitSessionId
+    ? await getObservationEventSessionById(env, explicitSessionId)
+    : eventCode
+      ? await getObservationEventSessionByEventCode(env, eventCode)
+      : null;
+  if (!session || session.endedAt) return null;
+  return session;
+}
+
+async function offerNativeObservationEventQuestForNewTaxon(
+  env: Env,
+  sessionId: string,
+  taxonLabel: string,
+  teamId: string | null
+): Promise<void> {
+  const recent = await env.OBS_DB.prepare(
+    `SELECT COUNT(*) AS recent
+       FROM observation_event_live_events
+      WHERE session_id = ?
+        AND type = 'observation_added'
+        AND created_at > datetime('now', '-60 seconds')
+        AND json_extract(payload_json, '$.taxon_name') = ?`
+  ).bind(sessionId, taxonLabel).first<{ recent: number }>();
+  if (Number(recent?.recent ?? 0) > 1) return;
+  const questId = crypto.randomUUID();
+  const payload = {
+    kind: "taxa",
+    headline: `${taxonLabel}の周辺をもう少し`,
+    prompt: `${taxonLabel}が出た場所の周辺で、似た環境を数分だけ見てみる。`,
+    rationale: "同じ時間帯・近い環境の追加記録は、観察会の種リストと努力量の両方を補強します。",
+    trigger: "new_species",
+    generated_by: "cloudflare-d1-static-quest"
+  };
+  await env.OBS_DB.prepare(
+    `INSERT INTO observation_event_quests
+       (quest_id, session_id, team_id, status, payload_json)
+     VALUES (?, ?, ?, 'offered', ?)`
+  ).bind(questId, sessionId, teamId, JSON.stringify(payload)).run();
+  await appendObservationEventLive(env, {
+    sessionId,
+    type: "quest_offered",
+    scope: teamId ? "team" : "all",
+    teamId,
+    payload: { quest_id: questId, ...payload }
+  });
 }
 
 async function uploadLegacyCompatiblePhoto(observationId: string, request: Request, env: Env): Promise<Response> {

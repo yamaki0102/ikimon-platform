@@ -712,6 +712,17 @@ interface ObservationEventCapsuleTestRow {
   updated_at: string;
 }
 
+interface ObservationEventQuestTestRow {
+  quest_id: string;
+  session_id: string;
+  team_id: string | null;
+  participant_id: string | null;
+  status: string;
+  payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ObservationRallyCourseTestRow {
   course_id: string;
   session_id: string;
@@ -997,6 +1008,7 @@ class FakeD1 {
   observationEventAbsences: Array<{ absence_id: string; session_id: string; user_id: string | null; guest_token: string | null; team_id: string | null; searched_taxon: string; public_lat: number; public_lng: number; created_at: string }> = [];
   observationEventMeshCells = new Map<string, ObservationEventMeshTestRow>();
   observationEventCapsules = new Map<string, ObservationEventCapsuleTestRow>();
+  observationEventQuests = new Map<string, ObservationEventQuestTestRow>();
   observationDataRights = new Map<string, ObservationDataRightsRow>();
   observationRallyCourses = new Map<string, ObservationRallyCourseTestRow>();
   observationRallyStations = new Map<string, ObservationRallyStationTestRow>();
@@ -1505,6 +1517,21 @@ class FakeStatement {
         updated_at: string(v[14]) || now
       };
       this.db.observationEventCapsules.set(row.session_id, row);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_event_quests")) {
+      const now = new Date().toISOString();
+      this.db.observationEventQuests.set(string(v[0]), {
+        quest_id: string(v[0]),
+        session_id: string(v[1]),
+        team_id: nullableString(v[2]),
+        participant_id: null,
+        status: "offered",
+        payload_json: string(v[3]),
+        created_at: now,
+        updated_at: now
+      });
       return {};
     }
 
@@ -2669,6 +2696,17 @@ class FakeStatement {
         observation_sum: rows.reduce((sum, row) => sum + row.observation_count, 0),
         absence_sum: rows.reduce((sum, row) => sum + row.absence_count, 0)
       } as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS recent FROM observation_event_live_events")) {
+      const sessionId = string(v[0]);
+      const taxonName = string(v[1]);
+      const count = this.db.observationEventLiveEvents.filter((row) => {
+        if (row.session_id !== sessionId || row.type !== "observation_added") return false;
+        const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+        return payload.taxon_name === taxonName;
+      }).length;
+      return ({ recent: count } as T);
     }
 
     if (normalized.startsWith("SELECT course_id, session_id, title, status, config_json, created_by, created_at, updated_at FROM observation_rally_courses")) {
@@ -8221,32 +8259,53 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(absence.status, 201);
     assert.equal(obs.observationEventAbsences[0]?.public_lat, 34.976);
     assert.equal(obs.observationEventAbsences[0]?.public_lng, 138.383);
-    obs.observationEventLiveEvents.push({
-      live_event_id: "live-observation-1",
-      session_id: created.sessionId,
-      type: "observation_added",
-      scope: "all",
-      actor_user_id: null,
-      actor_guest_token: "guest-core-1",
-      team_id: teamPayload.team.team_id,
-      payload_json: JSON.stringify({
-        taxon_name: "セミ",
-        observation_id: "obs-1",
-        exact_lat: 34.97564,
-        exact_lng: 138.38284
-      }),
-      created_at: new Date(Date.now() + 500).toISOString()
-    });
+
+    const eventObservation = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId: "obs-event-dualwrite-1",
+        userId: "event-organizer",
+        observedAt: "2026-06-25T10:08:00.000Z",
+        latitude: 34.97564,
+        longitude: 138.38284,
+        locationAccuracyM: 8,
+        municipality: "静岡市",
+        prefecture: "静岡県",
+        taxon: { vernacularName: "セミ", scientificName: "Graptopsaltria nigrofuscata" },
+        eventSessionId: created.sessionId,
+        teamId: teamPayload.team.team_id,
+        participantRole: "organizer_record"
+      })
+    }), productionEnv);
+    const eventObservationPayload = await eventObservation.json() as any;
+    assert.equal(eventObservation.status, 201, JSON.stringify(eventObservationPayload));
+    assert.equal(eventObservationPayload.compatibility.attempted, false);
+    const dualWriteEvent = obs.observationEventLiveEvents.find((event) => event.type === "observation_added");
+    assert.ok(dualWriteEvent);
+    assert.equal(dualWriteEvent?.actor_user_id, "event-organizer");
+    assert.equal(dualWriteEvent?.team_id, teamPayload.team.team_id);
+    const dualWritePayload = JSON.parse(dualWriteEvent?.payload_json ?? "{}") as Record<string, unknown>;
+    assert.equal(dualWritePayload.taxon_name, "セミ");
+    assert.equal(dualWritePayload.public_lat, 34.976);
+    assert.equal(dualWritePayload.public_lng, 138.383);
+    assert.equal(dualWritePayload.exact_location_stored, false);
+    assert.equal("exact_lat" in dualWritePayload, false);
+    assert.equal("exact_lng" in dualWritePayload, false);
+    assert.equal(obs.observationEventQuests.size, 1);
+    assert.equal(obs.observationEventLiveEvents.some((event) => event.type === "quest_offered"), true);
 
     const recent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent?guest_token=guest-core-1`), productionEnv);
     const recentPayload = await recent.json() as any;
     assert.equal(recent.status, 200);
     assert.equal(recentPayload.events.some((event: any) => event.type === "absence_recorded"), true);
+    assert.equal(recentPayload.events.some((event: any) => event.type === "observation_added"), true);
 
     const effort = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/effort`), productionEnv);
     const effortPayload = await effort.json() as any;
     assert.equal(effort.status, 200);
     assert.equal(effortPayload.effort.totalAbsences, 1);
+    assert.equal(effortPayload.effort.totalObservations, 1);
 
     const recap = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recap?guest_token=guest-core-1`), productionEnv);
     const recapPayload = await recap.json() as any;
@@ -8255,7 +8314,8 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(recapPayload.highlights.absencesCount, 1);
     assert.equal(recapPayload.highlights.topTaxa[0].name, "セミ");
     assert.equal(recapPayload.teams[0].name, "水辺チーム");
-    assert.equal(recapPayload.myContribution.observationsCount, 1);
+    assert.equal(recapPayload.teams[0].observationsCount, 1);
+    assert.equal(recapPayload.timeline.some((event: any) => event.type === "observation_added"), true);
 
     const byCodeRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/by-code/d1-core-event/recap"), productionEnv);
     const byCodeRecapPayload = await byCodeRecap.json() as any;
@@ -8281,17 +8341,17 @@ test("production observation event APIs run location and rally routes on D1 with
     const generateCapsulePayload = await generateCapsule.json() as any;
     assert.equal(generateCapsule.status, 201);
     assert.equal(generateCapsulePayload.capsule.sourceCounts.observations, 1);
-    assert.equal(generateCapsulePayload.capsule.privacyRiskQueue.some((risk: any) => risk.riskType === "exact_location"), true);
+    assert.equal(generateCapsulePayload.capsule.privacyRiskQueue.some((risk: any) => risk.riskType === "exact_location"), false);
 
     const publicCapsuleBeforeApproval = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/capsule`), productionEnv);
     assert.equal(publicCapsuleBeforeApproval.status, 403);
 
-    const blockedPublicReview = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/capsule/review`, {
+    const publicReview = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/capsule/review`, {
       method: "PATCH",
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({ reviewStatus: "approved_public" })
     }), productionEnv);
-    assert.equal(blockedPublicReview.status, 409);
+    assert.equal(publicReview.status, 200);
 
     const privateReview = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/capsule/review`, {
       method: "PATCH",
@@ -8390,6 +8450,56 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(rallyPayload.rally.missions.length, 1);
     assert.equal(rallyPayload.rally.progress[0].percent, 150);
     assert.equal(rallyPayload.rally.progress[0].status, "exceeded");
+
+    const liveEventCountBeforeUnauthorized = obs.observationEventLiveEvents.length;
+    const unauthorizedObservation = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: otherCookie },
+      body: JSON.stringify({
+        observationId: "obs-event-dualwrite-unauthorized",
+        userId: "not-organizer",
+        observedAt: "2026-06-25T10:18:00.000Z",
+        latitude: 34.97564,
+        longitude: 138.38284,
+        municipality: "静岡市",
+        prefecture: "静岡県",
+        taxon: { vernacularName: "チョウ" },
+        eventSessionId: created.sessionId,
+        teamId: teamPayload.team.team_id
+      })
+    }), productionEnv);
+    assert.equal(unauthorizedObservation.status, 201);
+    assert.equal(obs.observationEventLiveEvents.length, liveEventCountBeforeUnauthorized);
+
+    const fieldScanObservation = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId: "obs-event-dualwrite-fieldscan-1",
+        userId: "event-organizer",
+        observedAt: "2026-06-25T10:22:00.000Z",
+        latitude: 34.97564,
+        longitude: 138.38284,
+        municipality: "静岡市",
+        prefecture: "静岡県",
+        fieldScan: {
+          scanMode: "sound",
+          confidence: 0.76,
+          labels: ["鳥", "水音"],
+          exact_lat: 34.97564,
+          exact_lng: 138.38284,
+          nested: { lat: 34.97564, lng: 138.38284 }
+        },
+        eventSessionId: created.sessionId,
+        teamId: teamPayload.team.team_id
+      })
+    }), productionEnv);
+    assert.equal(fieldScanObservation.status, 201);
+    const fieldScanEvent = obs.observationEventLiveEvents.find((event) => event.type === "field_scan_added");
+    assert.ok(fieldScanEvent);
+    const fieldScanPayload = JSON.parse(fieldScanEvent?.payload_json ?? "{}") as Record<string, unknown>;
+    assert.deepEqual(fieldScanPayload.field_scan, { scan_mode: "sound", confidence: 0.76, labels: ["鳥", "水音"] });
+    assert.doesNotMatch(JSON.stringify(fieldScanPayload), /34\.97564|138\.38284|exact_lat|exact_lng|nested/);
     assert.deepEqual(seen, []);
   } finally {
     globalThis.fetch = originalFetch;
