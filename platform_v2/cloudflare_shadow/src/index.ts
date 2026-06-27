@@ -181,6 +181,20 @@ interface CompatibleObservationDisputeInput {
   referenceLocator?: unknown;
 }
 
+interface CompatibleWalkSessionInput {
+  externalId?: unknown;
+  userId?: unknown;
+  startedAt?: unknown;
+  endedAt?: unknown;
+  distanceM?: unknown;
+  stepCount?: unknown;
+  passiveDetectionCount?: unknown;
+  topSpecies?: unknown;
+  biome?: unknown;
+  source?: unknown;
+  rawPayload?: unknown;
+}
+
 type RecordReadingAxis = "organism" | "environment" | "human_relation";
 type RecordReadingSourceKind = "official" | "trusted_db" | "research";
 
@@ -1489,6 +1503,9 @@ export const worker = {
 
       const guideOutcomeRuntimeResponse = await handleGuideOutcomeRuntime(request, url, env);
       if (guideOutcomeRuntimeResponse) return guideOutcomeRuntimeResponse;
+
+      const walkRuntimeResponse = await handleWalkRuntime(request, url, env);
+      if (walkRuntimeResponse) return walkRuntimeResponse;
 
       if (request.method === "GET" && nativePathname === "/api/v1/municipal-walk-maps") {
         return getMunicipalWalkMapCandidates(url, env);
@@ -4900,6 +4917,8 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
+  if (url.pathname === "/api/v1/walk/session/start") return true;
+  if (url.pathname === "/api/v1/walk/session/end") return true;
   return false;
 }
 
@@ -7513,6 +7532,123 @@ async function requireSignedInGuideSession(request: Request, env: Env): Promise<
   if (!session) throw new HttpError(401, "auth_required");
   if (session.banned) throw new HttpError(403, "account_unavailable");
   return session;
+}
+
+async function handleWalkRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (request.method === "POST" && pathname === "/api/v1/walk/session/start") {
+    return upsertWalkSessionNative(request, env, false);
+  }
+  if (request.method === "POST" && pathname === "/api/v1/walk/session/end") {
+    return upsertWalkSessionNative(request, env, true);
+  }
+  if (request.method === "GET" && pathname === "/api/v1/walk/today") {
+    return getTodayWalkSummaryNative(request, env);
+  }
+  return null;
+}
+
+async function resolveWalkUserId(request: Request, env: Env, body: CompatibleWalkSessionInput): Promise<string | Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const requested = normalizeOptionalText(body.userId);
+  if (session?.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  if (session?.userId) {
+    if (requested && requested !== session.userId) {
+      return json({ ok: false, error: "forbidden_user_mismatch" }, 403, { "cache-control": "no-store" });
+    }
+    return session.userId;
+  }
+  const privileged = assertPrivilegedWriteAccessNative(request, env);
+  if (privileged !== true) return json({ error: "unauthorized" }, 401, { "cache-control": "no-store" });
+  return requested ?? "anonymous";
+}
+
+async function upsertWalkSessionNative(request: Request, env: Env, ending: boolean): Promise<Response> {
+  const body = await readJson<CompatibleWalkSessionInput>(request);
+  const userId = await resolveWalkUserId(request, env, body);
+  if (userId instanceof Response) return userId;
+  const startedAt = normalizeOptionalText(body.startedAt) ?? new Date().toISOString();
+  const endedAt = ending ? (normalizeOptionalText(body.endedAt) ?? new Date().toISOString()) : normalizeOptionalText(body.endedAt);
+  const externalId = normalizeOptionalText(body.externalId);
+  const existing = externalId
+    ? await env.OBS_DB.prepare("SELECT walk_session_id FROM walk_sessions WHERE external_id = ? LIMIT 1").bind(externalId).first<{ walk_session_id: string }>()
+    : null;
+  const walkSessionId = existing?.walk_session_id ?? (externalId ? `walk:${externalId}` : newId("walk_session"));
+  const topSpecies = Array.isArray(body.topSpecies)
+    ? body.topSpecies.filter((value): value is string => typeof value === "string" && value.trim() !== "").slice(0, 10)
+    : [];
+  const rawPayload = body.rawPayload && typeof body.rawPayload === "object" && !Array.isArray(body.rawPayload)
+    ? body.rawPayload as Record<string, unknown>
+    : {};
+
+  await env.OBS_DB.prepare(
+    `INSERT INTO walk_sessions (
+       walk_session_id, external_id, user_id, started_at, ended_at, distance_m, step_count,
+       passive_detection_count, top_species_json, biome, source, raw_payload_json
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(external_id) DO UPDATE SET
+       ended_at = COALESCE(excluded.ended_at, walk_sessions.ended_at),
+       distance_m = COALESCE(excluded.distance_m, walk_sessions.distance_m),
+       step_count = COALESCE(excluded.step_count, walk_sessions.step_count),
+       passive_detection_count = excluded.passive_detection_count,
+       top_species_json = excluded.top_species_json,
+       biome = COALESCE(excluded.biome, walk_sessions.biome),
+       source = excluded.source,
+       raw_payload_json = excluded.raw_payload_json,
+       updated_at = CURRENT_TIMESTAMP`
+  ).bind(
+    walkSessionId,
+    externalId,
+    userId,
+    startedAt,
+    endedAt,
+    finiteNumberOrNull(body.distanceM),
+    integerOrNull(body.stepCount),
+    integerOrZero(body.passiveDetectionCount),
+    JSON.stringify(topSpecies),
+    normalizeOptionalText(body.biome),
+    normalizeOptionalText(body.source) ?? "fieldscan",
+    JSON.stringify(rawPayload)
+  ).run();
+
+  return json(
+    ending ? { walkSessionId } : { walkSessionId, created: !existing },
+    ending ? 200 : 201,
+    { "cache-control": "no-store", "x-ikimon-cloudflare-native": "walk-session" }
+  );
+}
+
+async function getTodayWalkSummaryNative(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  if (!session || session.banned) return json({ error: "unauthorized" }, 401, { "cache-control": "no-store" });
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT distance_m, passive_detection_count, top_species_json
+       FROM walk_sessions
+      WHERE user_id = ?
+        AND started_at >= ?
+        AND started_at < ?`
+  ).bind(session.userId, `${today}T00:00:00.000Z`, `${today}T23:59:59.999Z`).all<{
+    distance_m: number | null;
+    passive_detection_count: number | null;
+    top_species_json: string | null;
+  }>();
+  const species: string[] = [];
+  let totalDistanceM = 0;
+  let totalDetections = 0;
+  for (const row of rows.results) {
+    totalDistanceM += Number(row.distance_m ?? 0);
+    totalDetections += Number(row.passive_detection_count ?? 0);
+    for (const item of jsonArray(row.top_species_json ?? "[]")) {
+      if (typeof item === "string" && item && !species.includes(item)) species.push(item);
+    }
+  }
+  return json({
+    sessionCount: rows.results.length,
+    totalDistanceM,
+    totalDetections,
+    topSpecies: species.slice(0, 5)
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "walk-session" });
 }
 
 function guideSpotForId(guideSpotId: string): ShadowMapGuideSpot | null {
@@ -16305,6 +16441,20 @@ function sortJsonValue(value: unknown): unknown {
 
 function normalizeOptionalText(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+function finiteNumberOrNull(value: unknown): number | null {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function integerOrNull(value: unknown): number | null {
+  const numberValue = finiteNumberOrNull(value);
+  return numberValue == null ? null : Math.trunc(numberValue);
+}
+
+function integerOrZero(value: unknown): number {
+  return integerOrNull(value) ?? 0;
 }
 
 function normalizeOptionalId(value: unknown): string | null {

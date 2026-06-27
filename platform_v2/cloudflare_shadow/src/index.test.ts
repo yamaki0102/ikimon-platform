@@ -605,6 +605,23 @@ interface MunicipalWalkMapAuditRow {
   after_payload_json: string;
 }
 
+interface WalkSessionRow {
+  walk_session_id: string;
+  external_id: string | null;
+  user_id: string;
+  started_at: string;
+  ended_at: string | null;
+  distance_m: number | null;
+  step_count: number | null;
+  passive_detection_count: number;
+  top_species_json: string;
+  biome: string | null;
+  source: string;
+  raw_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface PublicMapSnapshotRecordRow {
   occurrence_id?: string;
   visit_id: string;
@@ -1075,6 +1092,7 @@ class FakeD1 {
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
   municipalWalkMapStops = new Map<string, MunicipalWalkMapStopRow>();
   municipalWalkMapAudit: MunicipalWalkMapAuditRow[] = [];
+  walkSessions = new Map<string, WalkSessionRow>();
   publicMapSnapshotRecords: PublicMapSnapshotRecordRow[] = [];
   publicMapSnapshotMeta: PublicMapSnapshotMetaRow | null = null;
   observationEventSessions = new Map<string, ObservationEventSessionTestRow>();
@@ -2245,6 +2263,31 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO walk_sessions")) {
+      const existing = nullableString(v[1])
+        ? [...this.db.walkSessions.values()].find((row) => row.external_id === nullableString(v[1]))
+        : undefined;
+      const now = new Date().toISOString();
+      const row: WalkSessionRow = {
+        walk_session_id: existing?.walk_session_id ?? string(v[0]),
+        external_id: nullableString(v[1]),
+        user_id: string(v[2]),
+        started_at: existing?.started_at ?? string(v[3]),
+        ended_at: nullableString(v[4]) ?? existing?.ended_at ?? null,
+        distance_m: nullableNumber(v[5]) ?? existing?.distance_m ?? null,
+        step_count: nullableNumber(v[6]) ?? existing?.step_count ?? null,
+        passive_detection_count: number(v[7]),
+        top_species_json: string(v[8]),
+        biome: nullableString(v[9]) ?? existing?.biome ?? null,
+        source: string(v[10]),
+        raw_payload_json: string(v[11]),
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      };
+      this.db.walkSessions.set(row.walk_session_id, row);
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE auth_sessions SET last_used_at")) {
       const row = requireRow(this.db.authSessions, string(v[0]));
       row.last_used_at = new Date().toISOString();
@@ -2841,6 +2884,11 @@ class FakeStatement {
       return (row as T);
     }
 
+    if (normalized.startsWith("SELECT walk_session_id FROM walk_sessions WHERE external_id = ?")) {
+      const row = [...this.db.walkSessions.values()].find((candidate) => candidate.external_id === string(v[0]));
+      return (row ? { walk_session_id: row.walk_session_id } : null) as T | null;
+    }
+
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM contact_submissions")) {
       const value = string(v[0]);
       const count = [...this.db.contactSubmissions.values()].filter((row) => {
@@ -3214,6 +3262,19 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT distance_m, passive_detection_count, top_species_json FROM walk_sessions")) {
+      const userId = string(v[0]);
+      const from = string(v[1]);
+      const to = string(v[2]);
+      const rows = [...this.db.walkSessions.values()]
+        .filter((row) => row.user_id === userId && row.started_at >= from && row.started_at < to)
+        .map((row) => ({
+          distance_m: row.distance_m,
+          passive_detection_count: row.passive_detection_count,
+          top_species_json: row.top_species_json
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT guide_spot_id, program_id, distance_band, first_unlocked_at, last_unlocked_at, last_listened_at FROM guide_unlocks")) {
       const rows = [...this.db.guideUnlocks.values()]
         .filter((row) => row.user_id === string(v[0]))
@@ -7590,6 +7651,109 @@ test("production runtime records observation disputes natively without origin fa
     assert.equal(identification?.stance, "alternative");
     assert.equal(identification?.proposed_name, "ナミアゲハ");
     assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-1"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime records walk sessions natively without origin fallback", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "walk-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const startResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/walk/session/start", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        externalId: "walk-ext-1",
+        startedAt: `${today}T00:10:00.000Z`,
+        biome: "park",
+        rawPayload: { source: "unit" }
+      })
+    }), productionEnv);
+    const startPayload = await startResponse.json() as any;
+    assert.equal(startResponse.status, 201, JSON.stringify(startPayload));
+    assert.equal(startResponse.headers.get("x-ikimon-cloudflare-native"), "walk-session");
+    assert.deepEqual(startPayload, { walkSessionId: "walk:walk-ext-1", created: true });
+    assert.equal(obs.walkSessions.size, 1);
+    assert.equal(obs.walkSessions.get("walk:walk-ext-1")?.user_id, "walk-user");
+
+    const endResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/walk/session/end", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        externalId: "walk-ext-1",
+        endedAt: `${today}T00:45:00.000Z`,
+        distanceM: 1280.5,
+        stepCount: 1700,
+        passiveDetectionCount: 4,
+        topSpecies: ["シロツメクサ", "アオスジアゲハ"],
+        rawPayload: { source: "unit-end" }
+      })
+    }), productionEnv);
+    const endPayload = await endResponse.json() as any;
+    assert.equal(endResponse.status, 200, JSON.stringify(endPayload));
+    assert.deepEqual(endPayload, { walkSessionId: "walk:walk-ext-1" });
+    const saved = obs.walkSessions.get("walk:walk-ext-1");
+    assert.equal(saved?.distance_m, 1280.5);
+    assert.equal(saved?.step_count, 1700);
+    assert.equal(saved?.passive_detection_count, 4);
+    assert.equal(saved?.top_species_json, JSON.stringify(["シロツメクサ", "アオスジアゲハ"]));
+
+    obs.walkSessions.set("walk:other-user", {
+      walk_session_id: "walk:other-user",
+      external_id: "other-user",
+      user_id: "other-user",
+      started_at: `${today}T00:20:00.000Z`,
+      ended_at: null,
+      distance_m: 999,
+      step_count: 999,
+      passive_detection_count: 99,
+      top_species_json: JSON.stringify(["対象外"]),
+      biome: null,
+      source: "fieldscan",
+      raw_payload_json: "{}",
+      created_at: `${today}T00:20:00.000Z`,
+      updated_at: `${today}T00:20:00.000Z`
+    });
+    const summaryResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/walk/today", {
+      headers: { cookie }
+    }), productionEnv);
+    const summaryPayload = await summaryResponse.json() as any;
+    assert.equal(summaryResponse.status, 200, JSON.stringify(summaryPayload));
+    assert.equal(summaryResponse.headers.get("x-ikimon-cloudflare-native"), "walk-session");
+    assert.deepEqual(summaryPayload, {
+      sessionCount: 1,
+      totalDistanceM: 1280.5,
+      totalDetections: 4,
+      topSpecies: ["シロツメクサ", "アオスジアゲハ"]
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }
