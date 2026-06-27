@@ -5065,6 +5065,112 @@ function isValidObservationReactionType(value: string): boolean {
   return ["like", "helpful", "curious", "thanks"].includes(value);
 }
 
+async function getD1IdentificationConsensus(env: Env, occurrenceId: string): Promise<{
+  occurrenceId: string;
+  consensusStatus: "no_identification" | "single_identification" | "community_reviewed" | "authority_backed" | "disputed";
+  hasOpenDispute: boolean;
+  identificationVerificationStatus: "needs_identification" | "needs_review" | "community_reviewed" | "authority_reviewed" | "blocked_open_dispute";
+  communityTaxon: { name: string; rank: string | null; supportCount: number } | null;
+  neededEvidence: string[];
+  activeIdentificationCount: number;
+  openDisputeCount: number;
+}> {
+  const [identificationRows, disputeRows] = await Promise.all([
+    env.OBS_DB.prepare(
+      `SELECT identification_id, actor_user_id, proposed_name, proposed_rank, stance,
+              source_payload_json, created_at
+         FROM observation_identifications
+        WHERE occurrence_id = ?
+          AND is_current = 1
+        ORDER BY updated_at DESC, created_at DESC`
+    ).bind(occurrenceId).all<{
+      identification_id: string;
+      actor_user_id: string | null;
+      proposed_name: string;
+      proposed_rank: string | null;
+      stance: string | null;
+      source_payload_json: string | null;
+      created_at: string | null;
+    }>(),
+    env.OBS_DB.prepare(
+      `SELECT dispute_id, actor_user_id, kind, proposed_name, proposed_rank, reason, status, created_at
+         FROM observation_identification_disputes
+        WHERE occurrence_id = ?
+          AND status = 'open'
+        ORDER BY created_at DESC`
+    ).bind(occurrenceId).all<{
+      dispute_id: string;
+      actor_user_id: string | null;
+      kind: string;
+      proposed_name: string | null;
+      proposed_rank: string | null;
+      reason: string | null;
+      status: string;
+      created_at: string | null;
+    }>()
+  ]);
+
+  const identifications = identificationRows.results;
+  const openDisputes = disputeRows.results;
+  const supportByTaxon = new Map<string, { name: string; rank: string | null; actors: Set<string> }>();
+  let hasAuthorityBacked = false;
+  identifications.forEach((row, index) => {
+    const name = normalizeOptionalText(row.proposed_name);
+    if (!name) return;
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = row.source_payload_json ? JSON.parse(row.source_payload_json) as Record<string, unknown> : {};
+    } catch {
+      payload = {};
+    }
+    const reviewClass = normalizeOptionalText(payload.reviewClass) ?? normalizeOptionalText(payload.review_class);
+    const lane = normalizeOptionalText(payload.lane);
+    if (lane === "public-claim" && (reviewClass === "authority_backed" || reviewClass === "admin_override")) {
+      hasAuthorityBacked = true;
+    }
+    const key = `${name.toLowerCase()}\u0000${row.proposed_rank ?? ""}`;
+    const entry = supportByTaxon.get(key) ?? { name, rank: row.proposed_rank ?? null, actors: new Set<string>() };
+    entry.actors.add(normalizeOptionalText(row.actor_user_id) ?? `unknown:${index}`);
+    supportByTaxon.set(key, entry);
+  });
+
+  const bestTaxon = [...supportByTaxon.values()]
+    .map((entry) => ({ name: entry.name, rank: entry.rank, supportCount: entry.actors.size }))
+    .sort((a, b) => b.supportCount - a.supportCount || a.name.localeCompare(b.name))[0] ?? null;
+  const hasOpenDispute = openDisputes.length > 0;
+  const consensusStatus =
+    hasOpenDispute
+      ? "disputed"
+      : hasAuthorityBacked
+        ? "authority_backed"
+        : bestTaxon && bestTaxon.supportCount >= 2
+          ? "community_reviewed"
+          : identifications.length === 1
+            ? "single_identification"
+            : "no_identification";
+  const identificationVerificationStatus =
+    hasOpenDispute
+      ? "blocked_open_dispute"
+      : hasAuthorityBacked
+        ? "authority_reviewed"
+        : bestTaxon && bestTaxon.supportCount >= 2
+          ? "community_reviewed"
+          : identifications.length > 0
+            ? "needs_review"
+            : "needs_identification";
+
+  return {
+    occurrenceId,
+    consensusStatus,
+    hasOpenDispute,
+    identificationVerificationStatus,
+    communityTaxon: bestTaxon,
+    neededEvidence: hasOpenDispute ? ["open_dispute"] : identifications.length === 0 ? ["identification"] : [],
+    activeIdentificationCount: identifications.length,
+    openDisputeCount: openDisputes.length
+  };
+}
+
 async function submitCompatibleObservationIdentification(occurrenceId: string, request: Request, env: Env): Promise<Response> {
   const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
   if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
@@ -5146,9 +5252,7 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
     null
   ).run();
 
-  const countRow = await env.OBS_DB.prepare(
-    "SELECT COUNT(*) AS count FROM observation_identifications WHERE occurrence_id = ? AND is_current = 1"
-  ).bind(normalizedOccurrenceId).first<{ count: number }>();
+  const consensus = await getD1IdentificationConsensus(env, normalizedOccurrenceId);
 
   return json({
     ok: true,
@@ -5159,18 +5263,7 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
       sourcePayloadStored: true,
       referenceSelectionMode: referenceSourceIds.length > 0 || referenceLocator ? "payload_only" : "none"
     },
-    consensus: {
-      occurrenceId: normalizedOccurrenceId,
-      consensusStatus: "needs_more_review",
-      hasOpenDispute: false,
-      identificationVerificationStatus: "community_reviewed",
-      communityTaxon: {
-        name: proposedName,
-        rank: proposedRank,
-        supportCount: countRow?.count ?? 1
-      },
-      neededEvidence: []
-    }
+    consensus
   }, 200, { "cache-control": "no-store" });
 }
 
@@ -5270,9 +5363,7 @@ async function openCompatibleObservationDispute(occurrenceId: string, request: R
     null
   ).run();
 
-  const countRow = await env.OBS_DB.prepare(
-    "SELECT COUNT(*) AS count FROM observation_identification_disputes WHERE occurrence_id = ? AND status = 'open'"
-  ).bind(normalizedOccurrenceId).first<{ count: number }>();
+  const consensus = await getD1IdentificationConsensus(env, normalizedOccurrenceId);
 
   return json({
     ok: true,
@@ -5283,19 +5374,7 @@ async function openCompatibleObservationDispute(occurrenceId: string, request: R
       alternativeIdentificationStored: kind === "alternative_id" && Boolean(proposedName),
       referenceSelectionMode: referenceSourceIds.length > 0 || referenceLocator ? "payload_only" : "none"
     },
-    consensus: {
-      occurrenceId: normalizedOccurrenceId,
-      consensusStatus: "disputed",
-      hasOpenDispute: true,
-      identificationVerificationStatus: "needs_review",
-      communityTaxon: proposedName ? {
-        name: proposedName,
-        rank: proposedRank,
-        supportCount: 1
-      } : null,
-      neededEvidence: ["open_dispute"],
-      openDisputeCount: countRow?.count ?? 1
-    }
+    consensus
   }, 200, { "cache-control": "no-store" });
 }
 
@@ -5412,16 +5491,14 @@ async function submitCompatibleObservationRecordAiReview(occurrenceId: string, r
     null
   ).run();
 
-  const [agreeRow, disagreeRow, supportRow] = await Promise.all([
+  const [agreeRow, disagreeRow, consensus] = await Promise.all([
     env.OBS_DB.prepare(
       "SELECT COUNT(*) AS count FROM observation_record_ai_reviews WHERE occurrence_id = ? AND review_state = 'agree'"
     ).bind(normalizedOccurrenceId).first<{ count: number }>(),
     env.OBS_DB.prepare(
       "SELECT COUNT(*) AS count FROM observation_record_ai_reviews WHERE occurrence_id = ? AND review_state = 'disagree'"
     ).bind(normalizedOccurrenceId).first<{ count: number }>(),
-    env.OBS_DB.prepare(
-      "SELECT COUNT(*) AS count FROM observation_identifications WHERE occurrence_id = ? AND is_current = 1"
-    ).bind(normalizedOccurrenceId).first<{ count: number }>()
+    getD1IdentificationConsensus(env, normalizedOccurrenceId)
   ]);
 
   const agreeCount = agreeRow?.count ?? (reviewState === "agree" ? 1 : 0);
@@ -5435,18 +5512,9 @@ async function submitCompatibleObservationRecordAiReview(occurrenceId: string, r
       targetSource: "observation_ai_review_targets"
     },
     consensus: {
-      occurrenceId: normalizedOccurrenceId,
-      consensusStatus: "needs_more_review",
-      hasOpenDispute: false,
-      identificationVerificationStatus: agreeCount > 0 ? "community_reviewed" : "ai_judgement",
-      communityTaxon: proposedName ? {
-        name: proposedName,
-        rank: proposedRank,
-        supportCount: supportRow?.count ?? (reviewState === "agree" ? 1 : 0)
-      } : null,
+      ...consensus,
       aiReviewAgreeCount: agreeCount,
-      aiReviewDisagreeCount: disagreeCount,
-      neededEvidence: []
+      aiReviewDisagreeCount: disagreeCount
     }
   }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "observation-record-ai-review" });
 }
@@ -5604,6 +5672,7 @@ async function resolveCompatibleIdentificationDispute(disputeId: string, request
     JSON.stringify({ observationId: dispute.occurrence_id, reason: "identification.dispute.resolve" }),
     null
   ).run();
+  const consensus = await getD1IdentificationConsensus(env, dispute.occurrence_id);
 
   return json({
     ok: true,
@@ -5615,13 +5684,7 @@ async function resolveCompatibleIdentificationDispute(disputeId: string, request
       specialistResolutionStored: true,
       alternativeIdentificationStored: resolution === "accept_alternative" && Boolean(normalizeOptionalText(dispute.proposed_name))
     },
-    consensus: {
-      occurrenceId: dispute.occurrence_id,
-      consensusStatus: resolution === "accept_alternative" ? "authority_backed" : "needs_more_review",
-      hasOpenDispute: nextStatus === "open",
-      identificationVerificationStatus: resolution === "accept_alternative" ? "authority_reviewed" : "needs_review",
-      neededEvidence: nextStatus === "open" ? ["needs_more_evidence"] : []
-    }
+    consensus
   }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "identification-participation-runtime" });
 }
 

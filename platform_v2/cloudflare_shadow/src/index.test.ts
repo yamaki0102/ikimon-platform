@@ -3765,6 +3765,37 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT identification_id, actor_user_id, proposed_name, proposed_rank, stance")) {
+      const rows = [...this.db.observationIdentifications.values()]
+        .filter((row) => row.occurrence_id === string(v[0]) && row.is_current === 1)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.created_at.localeCompare(a.created_at))
+        .map((row) => ({
+          identification_id: row.identification_id,
+          actor_user_id: row.actor_user_id,
+          proposed_name: row.proposed_name,
+          proposed_rank: row.proposed_rank,
+          stance: row.stance,
+          source_payload_json: row.source_payload_json,
+          created_at: row.created_at
+        }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT dispute_id, actor_user_id, kind, proposed_name, proposed_rank, reason, status, created_at")) {
+      const rows = [...this.db.observationIdentificationDisputes.values()]
+        .filter((row) => row.occurrence_id === string(v[0]) && row.status === "open")
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .map((row) => ({
+          dispute_id: row.dispute_id,
+          actor_user_id: row.actor_user_id,
+          kind: row.kind,
+          proposed_name: row.proposed_name,
+          proposed_rank: row.proposed_rank,
+          reason: row.reason,
+          status: row.status,
+          created_at: row.created_at
+        }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT guide_spot_id, program_id, distance_band, first_unlocked_at, last_unlocked_at, last_listened_at FROM guide_unlocks")) {
       const rows = [...this.db.guideUnlocks.values()]
         .filter((row) => row.user_id === string(v[0]))
