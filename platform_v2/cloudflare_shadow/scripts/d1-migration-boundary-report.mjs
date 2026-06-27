@@ -150,6 +150,8 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",
     "platform_v2/src/services/observationVisitBundle.ts": "cloudflare_observation_detail_readmodel",
     "platform_v2/src/services/observationEventLive.ts": "cloudflare_observation_event_live_api",
+    "platform_v2/src/services/observationEventEffort.ts": "cloudflare_observation_event_effort_api",
+    "platform_v2/src/services/observationEventModeManager.ts": "cloudflare_observation_event_mode_api",
     "platform_v2/src/routes/meSubscriptionsApi.ts": "cloudflare_personal_subscription_alert_api",
     "platform_v2/src/routes/adminGuidePrograms.ts": "cloudflare_guide_program_admin_api",
     "platform_v2/src/routes/adminGuidePromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
