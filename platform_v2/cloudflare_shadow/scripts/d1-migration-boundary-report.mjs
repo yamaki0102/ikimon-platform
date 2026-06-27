@@ -146,6 +146,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/mapSnapshot.ts": "cloudflare_public_map_snapshot_readmodel",
     "platform_v2/src/services/sensitiveSpeciesMasking.ts": "cloudflare_public_map_and_area_snapshot_masking_readmodels",
     "platform_v2/src/services/landingSnapshot.ts": "cloudflare_materialized_landing_and_home_readmodel",
+    "platform_v2/src/services/readModels.ts": "cloudflare_materialized_public_readmodels",
     "platform_v2/src/services/areaSnapshotVisitScope.ts": "cloudflare_area_and_place_snapshot_visit_scope_readmodel",
     "platform_v2/src/services/areaPlaceSnapshot.ts": "cloudflare_area_snapshot_field_detail_readmodel",
     "platform_v2/src/services/placeSnapshot.ts": "cloudflare_place_snapshot_readmodel",

@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 2/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 1/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 2/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 1/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -305,7 +305,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideTransectQuality.ts"), "cloudflare_guide_route_layer_quality_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mobileFieldSessions.ts"), "cloudflare_mobile_field_session_digest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), "cloudflare_materialized_landing_and_home_readmodel");
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), "cloudflare_materialized_public_readmodels");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/referenceLibrary.ts"), "cloudflare_reference_library_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationFieldRegistry.ts"), "cloudflare_observation_field_registry_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaSnapshotVisitScope.ts"), "cloudflare_area_and_place_snapshot_visit_scope_readmodel");
@@ -579,6 +579,26 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_observation_detail_observer_stats_card/);
   assert.match(script, /optional_place_vegetation_trend_card_falls_back_null/);
   assert.match(script, /optional_observation_detail_taxon_insight_card/);
+});
+
+test("readModels runtime is covered by Cloudflare materialized and native read lanes", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), "cloudflare_materialized_public_readmodels");
+  assert.match(workerSource, /getOriginalUiHtml\(request, url, env\)/);
+  assert.match(workerSource, /getSessionAwareProfileHtml\(request, url, env\)/);
+  assert.match(workerSource, /getPublicObservationDetailJson\(decodeURIComponent\(publicDetailApiMatch\[1\]\), env\)/);
+  assert.match(workerSource, /getPublicObservationDetailPage\(decodeURIComponent\(publicDetailPageMatch\[1\]\), env\)/);
+  assert.match(workerSource, /listCompatibleSpecialistAuthorities\(request, env\)/);
+  assert.match(workerSource, /listCompatiblePendingAuthorityRecommendations\(request, env\)/);
+  assert.match(workerTests, /production records materialized html includes recent Cloudflare D1 records/);
+  assert.match(workerTests, /production original UI app shells serve materialized HTML even with session cookies/);
+  assert.match(workerTests, /production profile shell renders signed-in Cloudflare page for valid session cookies/);
+  assert.match(workerTests, /production language-prefixed observation detail stays native and public-safe/);
+  assert.match(workerTests, /production specialist authority runtime manages D1 authority and recommendation flows without origin fallback/);
 });
 
 test("write support PostgreSQL helper is separated from pure write helpers", async () => {
