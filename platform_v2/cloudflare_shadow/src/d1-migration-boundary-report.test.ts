@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 8/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 7/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 8/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 7/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -315,6 +315,8 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/civicNatureContext.ts"), "cloudflare_civic_observation_context_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupportPg.ts"), "cloudflare_replaced_or_residual_write_support_pg_helper");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeGuards.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeGuardsPg.ts"), "cloudflare_replaced_or_residual_write_guard_pg_helper");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSession.ts"), "cloudflare_guide_scene_static_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSessionPublicSummary.ts"), "cloudflare_guide_session_public_summary_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRecordPromotion.ts"), "cloudflare_guide_record_promotion_request_ledger");
@@ -602,6 +604,29 @@ test("write support PostgreSQL helper is separated from pure write helpers", asy
     "platform_v2/src/services/stagingRegressionFixtures.ts",
     "platform_v2/src/services/trackWrite.ts",
     "platform_v2/src/services/userWrite.ts",
+  ]);
+});
+
+test("write guard PostgreSQL ownership helper is separated from pure request and session guards", async () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const pureGuards = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeGuards.ts"), "utf8");
+  const pgGuards = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeGuardsPg.ts"), "utf8");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "writeGuardsPg.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.doesNotMatch(pureGuards, /from ["']\.\.\/db\.js["']|getPool\(|pool\.query|assertObservationOwnedByUser/);
+  assert.match(pureGuards, /export function assertPrivilegedWriteAccess/);
+  assert.match(pureGuards, /export function assertSessionUser/);
+  assert.match(pureGuards, /export async function assertSpecialistSession/);
+  assert.match(pureGuards, /export function assertSpecialistAdminSession/);
+  assert.match(pgGuards, /export async function assertObservationOwnedByUser/);
+  assert.match(pgGuards, /getPool\(\)/);
+  assert.match(pgGuards, /pool\.query/);
+  assert.deepEqual(importers, [
+    "platform_v2/src/routes/observationPackageApi.ts",
+    "platform_v2/src/routes/write.ts",
   ]);
 });
 
