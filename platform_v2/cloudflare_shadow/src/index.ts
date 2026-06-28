@@ -951,6 +951,48 @@ interface PlaceMemoryPreferenceRow {
   updated_at: string | null;
 }
 
+interface ReferenceSourceD1Row {
+  source_id: string;
+  title: string;
+  author_text: string;
+  publisher: string;
+  publication_year: number | null;
+  isbn: string;
+  doi: string;
+  url: string;
+  source_kind: string;
+  catalog_status: string;
+  taxon_labels_json: string;
+  commerce_links_json: string;
+  created_by_user_id: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+  owned_status?: string | null;
+  latest_proof_at?: string | null;
+  used_count?: number | null;
+  official_correction_count?: number | null;
+}
+
+interface ReferenceCorrectionD1Row {
+  correction_id: string;
+  source_id: string;
+  locator: string;
+  original_name: string;
+  corrected_name: string;
+  original_taxon_name: string;
+  corrected_taxon_name: string;
+  correction_kind: string;
+  official_source_url: string;
+  official_reference: string;
+  verification_status: string;
+  verified_by_user_id: string | null;
+  applies_from: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ReverseDeltaCountRow {
   count: number;
 }
@@ -1934,6 +1976,9 @@ export const worker = {
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
       if (placeMemoryResponse) return placeMemoryResponse;
 
+      const referenceLibraryResponse = await handleReferenceLibraryRuntime(request, url, env);
+      if (referenceLibraryResponse) return referenceLibraryResponse;
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
         return getOriginalUiStaticAsset(request, url, env);
       }
@@ -2120,6 +2165,16 @@ export const worker = {
       if (request.method === "POST" && aiReviewMatch?.[1]) {
         return submitCompatibleObservationRecordAiReview(
           decodeURIComponent(aiReviewMatch[1]),
+          request,
+          env
+        );
+      }
+
+      const occurrenceDetailEditMatch = url.pathname.match(/^\/api\/v1\/occurrences\/([^/]+)\/(origin|observed-at|location|environment-field|environment-record)$/);
+      if (request.method === "POST" && occurrenceDetailEditMatch?.[1] && occurrenceDetailEditMatch?.[2]) {
+        return updateCompatibleOccurrenceDetail(
+          decodeURIComponent(occurrenceDetailEditMatch[1]),
+          occurrenceDetailEditMatch[2] as CompatibleOccurrenceDetailEditKind,
           request,
           env
         );
@@ -4399,6 +4454,391 @@ function normalizeRallyRevisionAction(value: unknown): typeof RALLY_REVISION_ACT
   return typeof value === "string" && (RALLY_REVISION_ACTIONS as readonly string[]).includes(value) ? value as typeof RALLY_REVISION_ACTIONS[number] : null;
 }
 
+function normalizeReferenceText(value: unknown, max = 240): string {
+  return String(value ?? "").trim().replace(/\s+/g, " ").slice(0, max);
+}
+
+function normalizeReferenceIdentifierNative(value: unknown): string {
+  return String(value ?? "").replace(/[^0-9Xx]/g, "").toUpperCase().slice(0, 32);
+}
+
+function normalizeReferenceUrlNative(value: unknown): string {
+  const raw = normalizeReferenceText(value, 500);
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString().slice(0, 500) : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeReferenceYearNative(value: unknown): number | null {
+  const year = Number.parseInt(String(value ?? ""), 10);
+  return Number.isInteger(year) && year >= 1500 && year <= 2200 ? year : null;
+}
+
+function normalizeReferenceKindNative(value: unknown): string {
+  const raw = normalizeReferenceText(value, 40);
+  return ["field_guide", "literature", "web", "book", "unknown"].includes(raw) ? raw : "unknown";
+}
+
+function normalizeReferenceTaxonLabelsNative(value: unknown): string[] {
+  return Array.from(new Set(stringArray(value).map((item) => normalizeReferenceText(item, 120)).filter(Boolean))).slice(0, 16);
+}
+
+function referenceCardPayload(row: ReferenceSourceD1Row) {
+  return {
+    sourceId: row.source_id,
+    title: row.title,
+    authorText: row.author_text,
+    publisher: row.publisher,
+    publicationYear: row.publication_year,
+    isbn: row.isbn,
+    doi: row.doi,
+    url: row.url,
+    sourceKind: row.source_kind,
+    ownedStatus: row.owned_status ?? "not_owned",
+    latestProofAt: row.latest_proof_at ?? null,
+    usedCount: Number(row.used_count ?? 0),
+    taxonLabels: jsonArray(row.taxon_labels_json).map((item) => normalizeReferenceText(item, 120)).filter(Boolean),
+    commerceLinks: jsonArray(row.commerce_links_json),
+    officialCorrectionCount: Number(row.official_correction_count ?? 0),
+  };
+}
+
+function referenceCorrectionPayload(row: ReferenceCorrectionD1Row) {
+  return {
+    correctionId: row.correction_id,
+    sourceId: row.source_id,
+    locator: row.locator,
+    originalName: row.original_name,
+    correctedName: row.corrected_name,
+    originalTaxonName: row.original_taxon_name,
+    correctedTaxonName: row.corrected_taxon_name,
+    correctionKind: row.correction_kind,
+    officialSourceUrl: row.official_source_url,
+    officialReference: row.official_reference,
+    verificationStatus: row.verification_status,
+    appliesFrom: row.applies_from,
+    createdAt: row.created_at,
+  };
+}
+
+async function getReferenceProfileSummaryNative(env: Env, userId: string): Promise<{
+  ownedVerifiedCount: number;
+  needsReviewCount: number;
+  recent: unknown[];
+}> {
+  const counts = await env.OBS_DB.prepare(
+    `SELECT
+        (SELECT COUNT(DISTINCT source_id) FROM reference_access_proofs
+          WHERE user_id = ? AND verification_status IN ('ai_verified', 'user_confirmed', 'reviewer_confirmed')) AS owned_verified_count,
+        (SELECT COUNT(DISTINCT source_id) FROM reference_access_proofs
+          WHERE user_id = ? AND verification_status = 'needs_review') AS needs_review_count`
+  ).bind(userId, userId).first<{ owned_verified_count: number; needs_review_count: number }>();
+  const recent = (await env.OBS_DB.prepare(
+    `SELECT rs.source_id, rs.title, rs.taxon_labels_json, p.verification_status AS status,
+            (SELECT COUNT(*) FROM reference_identification_selections sel
+              WHERE sel.source_id = rs.source_id AND sel.selected_by_user_id = ?) AS used_count
+       FROM reference_access_proofs p
+       JOIN reference_sources rs ON rs.source_id = p.source_id
+      WHERE p.user_id = ?
+      ORDER BY p.updated_at DESC
+      LIMIT 5`
+  ).bind(userId, userId).all<ReferenceSourceD1Row & { status: string; used_count: number }>()).results;
+  return {
+    ownedVerifiedCount: Number(counts?.owned_verified_count ?? 0),
+    needsReviewCount: Number(counts?.needs_review_count ?? 0),
+    recent: recent.map((row) => ({
+      sourceId: row.source_id,
+      title: row.title,
+      taxonLabels: jsonArray(row.taxon_labels_json).map((item) => normalizeReferenceText(item, 120)).filter(Boolean),
+      usedCount: Number(row.used_count ?? 0),
+      status: row.status,
+    })),
+  };
+}
+
+async function listReferenceLibraryNative(env: Env, session: SessionSnapshot, url: URL): Promise<Response> {
+  const tab = url.searchParams.get("tab") === "catalog" ? "catalog" : url.searchParams.get("tab") === "needs_review" ? "needs_review" : "owned";
+  const countryCode = normalizeReferenceText(url.searchParams.get("countryCode") ?? "JP", 8).toUpperCase() || "JP";
+  const limit = Math.min(80, Math.max(1, integerOrNull(url.searchParams.get("limit")) ?? 36));
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT rs.source_id, rs.title, rs.author_text, rs.publisher, rs.publication_year,
+            rs.isbn, rs.doi, rs.url, rs.source_kind, rs.catalog_status,
+            rs.taxon_labels_json, rs.commerce_links_json, rs.created_by_user_id,
+            rs.source_payload_json, rs.created_at, rs.updated_at,
+            CASE
+              WHEN EXISTS (
+                SELECT 1 FROM reference_access_proofs p
+                 WHERE p.source_id = rs.source_id AND p.user_id = ?
+                   AND p.verification_status IN ('ai_verified', 'user_confirmed', 'reviewer_confirmed')
+              ) THEN 'owned_verified'
+              WHEN EXISTS (
+                SELECT 1 FROM reference_access_proofs p
+                 WHERE p.source_id = rs.source_id AND p.user_id = ?
+                   AND p.verification_status = 'needs_review'
+              ) THEN 'needs_review'
+              ELSE 'not_owned'
+            END AS owned_status,
+            (SELECT MAX(p.updated_at) FROM reference_access_proofs p
+              WHERE p.source_id = rs.source_id AND p.user_id = ?) AS latest_proof_at,
+            (SELECT COUNT(*) FROM reference_identification_selections sel
+              WHERE sel.source_id = rs.source_id AND sel.selected_by_user_id = ?) AS used_count,
+            (SELECT COUNT(*) FROM reference_corrections c
+              WHERE c.source_id = rs.source_id AND c.verification_status = 'official_confirmed') AS official_correction_count
+       FROM reference_sources rs
+      WHERE rs.catalog_status NOT IN ('withdrawn', 'duplicate')
+      ORDER BY rs.updated_at DESC
+      LIMIT ?`
+  ).bind(session.userId, session.userId, session.userId, session.userId, limit).all<ReferenceSourceD1Row>()).results;
+  const cards = rows
+    .map(referenceCardPayload)
+    .filter((card) => tab === "catalog" ? true : tab === "needs_review" ? card.ownedStatus === "needs_review" : card.ownedStatus === "owned_verified");
+  return json({
+    ok: true,
+    snapshot: {
+      tab,
+      countryCode,
+      summary: await getReferenceProfileSummaryNative(env, session.userId),
+      cards,
+    },
+    compatibility: {
+      source: "cloudflare_reference_library_runtime",
+      aiCoverExtractionParity: false,
+      note: "metadata-first D1 runtime replaces VPS PostgreSQL dependency; AI cover extraction remains a future Cloudflare enhancement",
+    },
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function createReferenceCaptureBatchNative(env: Env, session: SessionSnapshot, request: Request): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const items = Array.isArray(body.items) ? body.items.slice(0, 24) : [];
+  if (items.length === 0) return json({ ok: false, error: "reference_capture_items_required" }, 400, { "cache-control": "no-store" });
+  const batchId = crypto.randomUUID();
+  const results: Array<{ sourceId: string; title: string; verificationStatus: string; taxonHints: string[]; useCases: string[]; duplicate: boolean }> = [];
+  await env.OBS_DB.prepare(
+    `INSERT INTO reference_capture_batches
+       (batch_id, user_id, status, item_count, source_payload_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).bind(batchId, session.userId, "completed", items.length, JSON.stringify({ source: "cloudflare_reference_capture_metadata_runtime" })).run();
+
+  for (const rawItem of items) {
+    const item = asPlainObject(rawItem) ?? {};
+    const isbn = normalizeReferenceIdentifierNative(item.isbn);
+    const url = normalizeReferenceUrlNative(item.url);
+    const title = normalizeReferenceText(item.title, 240)
+      || (isbn ? `ISBN ${isbn}` : "")
+      || (url ? url : "")
+      || normalizeReferenceText(item.filename, 120)
+      || "Untitled reference";
+    const sourceId = `ref_${crypto.randomUUID()}`;
+    const taxonLabels = normalizeReferenceTaxonLabelsNative(item.taxonHints ?? item.taxon_labels ?? item.taxonLabels);
+    const proofKind = normalizeReferenceText(item.proofKind, 40) || "manual";
+    const sourcePayload = {
+      source: "cloudflare_reference_capture_metadata_runtime",
+      filename: normalizeReferenceText(item.filename, 180),
+      mimeType: normalizeReferenceText(item.mimeType, 80),
+      noPageBodyStored: true,
+      aiCoverExtractionParity: false,
+    };
+    await env.OBS_DB.prepare(
+      `INSERT INTO reference_sources
+         (source_id, title, author_text, publisher, publication_year, isbn, doi, url,
+          source_kind, catalog_status, taxon_labels_json, commerce_links_json,
+          created_by_user_id, source_payload_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      sourceId,
+      title,
+      normalizeReferenceText(item.authorText ?? item.author_text, 240),
+      normalizeReferenceText(item.publisher, 180),
+      normalizeReferenceYearNative(item.publicationYear ?? item.publication_year),
+      isbn,
+      normalizeReferenceText(item.doi, 120),
+      url,
+      normalizeReferenceKindNative(item.sourceKind ?? item.source_kind),
+      "active",
+      JSON.stringify(taxonLabels),
+      "[]",
+      session.userId,
+      JSON.stringify(sourcePayload)
+    ).run();
+    await env.OBS_DB.prepare(
+      `INSERT INTO reference_access_proofs
+         (proof_id, user_id, source_id, batch_id, proof_kind, verification_status,
+          private_use_only, source_payload_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      crypto.randomUUID(),
+      session.userId,
+      sourceId,
+      batchId,
+      proofKind,
+      "needs_review",
+      1,
+      JSON.stringify(sourcePayload)
+    ).run();
+    await env.OBS_DB.prepare(
+      `INSERT INTO reference_capture_items
+         (item_id, batch_id, source_id, filename, mime_type, proof_kind, classification_note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      crypto.randomUUID(),
+      batchId,
+      sourceId,
+      normalizeReferenceText(item.filename, 180),
+      normalizeReferenceText(item.mimeType, 80),
+      proofKind,
+      "cloudflare metadata capture; AI cover extraction not run"
+    ).run();
+    results.push({
+      sourceId,
+      title,
+      verificationStatus: "needs_review",
+      taxonHints: taxonLabels,
+      useCases: ["identification_reference"],
+      duplicate: false,
+    });
+  }
+
+  return json({
+    ok: true,
+    batchId,
+    status: "completed",
+    ownedCount: 0,
+    needsReviewCount: results.length,
+    items: results,
+    compatibility: { source: "cloudflare_reference_library_runtime", aiCoverExtractionParity: false },
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function mergeReferenceDuplicateNative(env: Env, session: SessionSnapshot, request: Request): Promise<Response> {
+  if (!isSpecialistAuthorityAdminRole(session)) return json({ ok: false, error: "specialist_admin_required" }, 403, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const canonicalSourceId = normalizeOptionalId(body.canonicalSourceId);
+  const duplicateSourceId = normalizeOptionalId(body.duplicateSourceId);
+  if (!canonicalSourceId || !duplicateSourceId) return json({ ok: false, error: "reference_source_id_required" }, 400, { "cache-control": "no-store" });
+  if (canonicalSourceId === duplicateSourceId) return json({ ok: false, error: "reference_duplicate_same_source" }, 400, { "cache-control": "no-store" });
+  const canonical = await env.OBS_DB.prepare("SELECT source_id FROM reference_sources WHERE source_id = ? LIMIT 1").bind(canonicalSourceId).first<{ source_id: string }>();
+  const duplicate = await env.OBS_DB.prepare("SELECT source_id FROM reference_sources WHERE source_id = ? LIMIT 1").bind(duplicateSourceId).first<{ source_id: string }>();
+  if (!canonical || !duplicate) return json({ ok: false, error: "reference_source_not_found" }, 404, { "cache-control": "no-store" });
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      `INSERT INTO reference_duplicate_merges
+         (merge_id, canonical_source_id, duplicate_source_id, actor_user_id, source_payload_json, created_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(crypto.randomUUID(), canonicalSourceId, duplicateSourceId, session.userId, JSON.stringify({ source: "cloudflare_reference_duplicate_merge" })),
+    env.OBS_DB.prepare(
+      `UPDATE reference_sources
+          SET catalog_status = 'duplicate',
+              source_payload_json = ?,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE source_id = ?`
+    ).bind(JSON.stringify({ duplicateOfSourceId: canonicalSourceId, duplicateConfirmedByUserId: session.userId }), duplicateSourceId),
+  ]);
+  return json({
+    ok: true,
+    result: {
+      canonicalSourceId,
+      duplicateSourceId,
+      identificationReferencesCopied: 0,
+      identificationReferencesRemoved: 0,
+      accessProofsCopied: 0,
+      taxonLinksCopied: 0,
+      compatibility: "d1_duplicate_status_ledger",
+    },
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function createReferenceCorrectionNative(env: Env, session: SessionSnapshot, sourceId: string, request: Request): Promise<Response> {
+  if (!isIdentificationSpecialistRole(session)) return json({ ok: false, error: "specialist_role_required" }, 403, { "cache-control": "no-store" });
+  const normalizedSourceId = normalizeOptionalId(sourceId);
+  if (!normalizedSourceId) return json({ ok: false, error: "reference_source_id_required" }, 400, { "cache-control": "no-store" });
+  const source = await env.OBS_DB.prepare("SELECT source_id FROM reference_sources WHERE source_id = ? LIMIT 1").bind(normalizedSourceId).first<{ source_id: string }>();
+  if (!source) return json({ ok: false, error: "reference_source_not_found" }, 404, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const status = normalizeReferenceText(body.verificationStatus ?? body.verification_status, 40) || "pending";
+  const officialSourceUrl = normalizeReferenceUrlNative(body.officialSourceUrl ?? body.official_source_url);
+  const officialReference = normalizeReferenceText(body.officialReference ?? body.official_reference, 240);
+  if (status === "official_confirmed" && !officialSourceUrl && !officialReference) {
+    return json({ ok: false, error: "official_correction_source_required" }, 400, { "cache-control": "no-store" });
+  }
+  const correctionId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO reference_corrections
+       (correction_id, source_id, locator, original_name, corrected_name,
+        original_taxon_name, corrected_taxon_name, correction_kind,
+        official_source_url, official_reference, verification_status, verified_by_user_id,
+        applies_from, source_payload_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).bind(
+    correctionId,
+    normalizedSourceId,
+    normalizeReferenceText(body.locator, 160),
+    normalizeReferenceText(body.originalName ?? body.original_name, 180),
+    normalizeReferenceText(body.correctedName ?? body.corrected_name, 180),
+    normalizeReferenceText(body.originalTaxonName ?? body.original_taxon_name, 180),
+    normalizeReferenceText(body.correctedTaxonName ?? body.corrected_taxon_name, 180),
+    normalizeReferenceText(body.correctionKind ?? body.correction_kind, 80) || "misidentification",
+    officialSourceUrl,
+    officialReference,
+    status,
+    status === "official_confirmed" ? session.userId : null,
+    normalizeReferenceText(body.appliesFrom ?? body.applies_from, 40) || null,
+    JSON.stringify({ source: "cloudflare_reference_correction", policy: "official_metadata_only_no_page_body" })
+  ).run();
+  return json({ ok: true, correctionId }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function listReferenceCorrectionsNative(env: Env, sourceId: string): Promise<Response> {
+  const normalizedSourceId = normalizeOptionalId(sourceId);
+  if (!normalizedSourceId) return json({ ok: false, error: "reference_source_id_required" }, 400, { "cache-control": "no-store" });
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT correction_id, source_id, locator, original_name, corrected_name,
+            original_taxon_name, corrected_taxon_name, correction_kind,
+            official_source_url, official_reference, verification_status,
+            verified_by_user_id, applies_from, source_payload_json, created_at, updated_at
+       FROM reference_corrections
+      WHERE source_id = ?
+      ORDER BY verification_status = 'official_confirmed' DESC, created_at DESC
+      LIMIT 40`
+  ).bind(normalizedSourceId).all<ReferenceCorrectionD1Row>()).results;
+  return json({ ok: true, corrections: rows.map(referenceCorrectionPayload) }, 200, { "cache-control": "no-store" });
+}
+
+async function handleReferenceLibraryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  const correctionMatch = pathname.match(/^\/api\/v1\/references\/([^/]+)\/corrections$/);
+  const isReferencePath = pathname === "/api/v1/references"
+    || pathname === "/api/v1/references/capture-batches"
+    || pathname === "/api/v1/references/duplicates/merge"
+    || Boolean(correctionMatch?.[1]);
+  if (!isReferencePath) return null;
+
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+
+  if (pathname === "/api/v1/references" && request.method === "GET") {
+    return listReferenceLibraryNative(env, session, url);
+  }
+  if (pathname === "/api/v1/references/capture-batches" && request.method === "POST") {
+    return createReferenceCaptureBatchNative(env, session, request);
+  }
+  if (pathname === "/api/v1/references/duplicates/merge" && request.method === "POST") {
+    return mergeReferenceDuplicateNative(env, session, request);
+  }
+  if (correctionMatch?.[1] && request.method === "GET") {
+    return listReferenceCorrectionsNative(env, decodeURIComponent(correctionMatch[1]));
+  }
+  if (correctionMatch?.[1] && request.method === "POST") {
+    return createReferenceCorrectionNative(env, session, decodeURIComponent(correctionMatch[1]), request);
+  }
+  return json({ ok: false, error: "method_not_allowed" }, 405, { "cache-control": "no-store" });
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
@@ -4472,12 +4912,58 @@ async function listCompatibleReferenceCandidates(occurrenceId: string, request: 
     return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
   }
 
+  const proposedName = normalizeReferenceText(new URL(request.url).searchParams.get("proposedName"), 120).toLowerCase();
+  const limit = Math.min(12, Math.max(1, integerOrNull(new URL(request.url).searchParams.get("limit")) ?? 8));
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT rs.source_id, rs.title, rs.author_text, rs.publisher, rs.publication_year,
+            rs.isbn, rs.doi, rs.url, rs.source_kind, rs.catalog_status,
+            rs.taxon_labels_json, rs.commerce_links_json, rs.created_by_user_id,
+            rs.source_payload_json, rs.created_at, rs.updated_at,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM reference_access_proofs p
+               WHERE p.source_id = rs.source_id AND p.user_id = ?
+                 AND p.verification_status IN ('ai_verified', 'user_confirmed', 'reviewer_confirmed')
+            ) THEN 'owned_verified' ELSE 'not_owned' END AS owned_status,
+            (SELECT COUNT(*) FROM reference_identification_selections sel
+              WHERE sel.source_id = rs.source_id AND sel.selected_by_user_id = ?) AS used_count
+       FROM reference_sources rs
+      WHERE rs.catalog_status NOT IN ('withdrawn', 'duplicate')
+      ORDER BY rs.updated_at DESC
+      LIMIT ?`
+  ).bind(session.userId, session.userId, limit).all<ReferenceSourceD1Row>()).results;
+  const candidates = rows
+    .map((row) => {
+      const labels = jsonArray(row.taxon_labels_json).map((item) => normalizeReferenceText(item, 120)).filter(Boolean);
+      const matched = proposedName ? labels.some((label) => label.toLowerCase().includes(proposedName) || proposedName.includes(label.toLowerCase())) : false;
+      return {
+        sourceId: row.source_id,
+        title: row.title,
+        authorText: row.author_text,
+        publisher: row.publisher,
+        publicationYear: row.publication_year,
+        isbn: row.isbn,
+        taxonLabels: labels,
+        owned: row.owned_status === "owned_verified",
+        verificationStatus: row.owned_status ?? "not_owned",
+        linkType: matched ? "user_confirmed" : "catalog",
+        usedCount: Number(row.used_count ?? 0),
+        reason: row.owned_status === "owned_verified"
+          ? "自分の所有確認済み資料"
+          : matched
+            ? "共有カタログで分類群一致"
+            : "共有カタログ候補",
+      };
+    })
+    .filter((candidate) => !proposedName || candidate.taxonLabels.length === 0 || candidate.taxonLabels.some((label) => label.toLowerCase().includes(proposedName) || proposedName.includes(label.toLowerCase())))
+    .slice(0, limit);
+
   return json({
     ok: true,
-    candidates: [],
-    source: "cloudflare_reference_candidates_empty",
-    referenceCatalogStatus: "not_migrated"
-  }, 200, { "cache-control": "no-store" });
+    candidates,
+    source: "cloudflare_reference_library_runtime",
+    referenceCatalogStatus: "d1_native",
+    occurrenceId: normalizedOccurrenceId,
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
 }
 
 async function confirmCompatibleManagementCandidate(observationId: string, index: string, request: Request, env: Env): Promise<Response> {
@@ -7204,6 +7690,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/occurrences\/[^/]+\/(?:origin|observed-at|location|environment-field|environment-record)$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/specialist\/occurrences\/[^/]+\/review$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/specialist\/disputes\/[^/]+\/resolve$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observation-records\/[^/]+\/ai-review$/.test(url.pathname)) return true;
@@ -17505,6 +17992,361 @@ async function assertObservationOwnedByUser(observationId: string, userId: strin
   if (observation.owner_user_id !== userId) {
     throw new HttpError(403, "forbidden");
   }
+}
+
+type CompatibleOccurrenceDetailEditKind = "origin" | "observed-at" | "location" | "environment-field" | "environment-record";
+type CompatibleOrganismOrigin = "wild" | "planted" | "captive" | "released" | "unknown";
+type CompatibleEnvironmentRecordField = "place_type" | "contact_surface" | "surrounding_cover" | "environment_condition" | "human_change";
+
+const COMPATIBLE_ORGANISM_ORIGIN_OPTIONS: Array<{ value: CompatibleOrganismOrigin; label: string }> = [
+  { value: "wild", label: "野生" },
+  { value: "planted", label: "植栽" },
+  { value: "captive", label: "飼育" },
+  { value: "released", label: "放流" },
+  { value: "unknown", label: "不明" }
+];
+
+const COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS: Record<CompatibleEnvironmentRecordField, Array<{ value: string; label: string }>> = {
+  place_type: [
+    { value: "grassland_urban_edge", label: "草地と市街地の縁" },
+    { value: "urban", label: "市街地" },
+    { value: "woodland", label: "林内" },
+    { value: "water_edge", label: "水辺" },
+    { value: "wetland", label: "湿地" },
+    { value: "coast", label: "海岸" },
+    { value: "unknown", label: "不明" }
+  ],
+  contact_surface: [
+    { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
+    { value: "soil", label: "土" },
+    { value: "plant", label: "植物上" },
+    { value: "water", label: "水面・水中" },
+    { value: "rock", label: "岩・石" },
+    { value: "artificial", label: "人工物" },
+    { value: "unknown", label: "不明" }
+  ],
+  surrounding_cover: [
+    { value: "low_grass", label: "低い草地" },
+    { value: "trees_shrubs", label: "樹木・低木" },
+    { value: "bare_ground", label: "裸地" },
+    { value: "water", label: "水" },
+    { value: "snow", label: "雪" },
+    { value: "built_surface", label: "舗装・構造物" },
+    { value: "unknown", label: "不明" }
+  ],
+  environment_condition: [
+    { value: "open_dry", label: "開けて乾き気味" },
+    { value: "sunny", label: "日当たり" },
+    { value: "shaded", label: "日陰" },
+    { value: "wet", label: "湿り気あり" },
+    { value: "flowing", label: "流れあり" },
+    { value: "windy", label: "風あり" },
+    { value: "unknown", label: "不明" }
+  ],
+  human_change: [
+    { value: "trampling_mowing", label: "踏圧・草刈り跡" },
+    { value: "mowing", label: "草刈り" },
+    { value: "trampling", label: "踏圧" },
+    { value: "planting", label: "植栽・管理" },
+    { value: "construction", label: "造成・工事" },
+    { value: "release", label: "放流・放逐" },
+    { value: "none_visible", label: "目立つ変化なし" },
+    { value: "unknown", label: "不明" }
+  ]
+};
+
+async function updateCompatibleOccurrenceDetail(
+  occurrenceId: string,
+  kind: CompatibleOccurrenceDetailEditKind,
+  request: Request,
+  env: Env
+): Promise<Response> {
+  if (!isAppRuntime(env)) {
+    return json({ ok: false, error: "not_available" }, 404);
+  }
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401);
+  }
+  try {
+    await assertObservationOwnedByUser(occurrenceId, session.userId, env);
+    const body = await readJson<Record<string, unknown>>(request);
+    if (kind === "origin") return updateCompatibleOccurrenceOrigin(occurrenceId, session, body, env);
+    if (kind === "observed-at") return updateCompatibleOccurrenceObservedAt(occurrenceId, session, body, env);
+    if (kind === "location") return updateCompatibleOccurrenceLocation(occurrenceId, session, body, env);
+    if (kind === "environment-field") return updateCompatibleOccurrenceEnvironmentField(occurrenceId, session, body, env);
+    return updateCompatibleOccurrenceEnvironmentRecord(occurrenceId, session, body, env);
+  } catch (error) {
+    const status = error instanceof HttpError ? error.status : 400;
+    return json({ ok: false, error: error instanceof Error ? error.message : "occurrence_detail_update_failed" }, status);
+  }
+}
+
+async function updateCompatibleOccurrenceOrigin(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const organismOrigin = normalizeCompatibleOrganismOrigin(body.organismOrigin);
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "UPDATE observations SET organism_origin = ? WHERE observation_id = ?"
+    ).bind(organismOrigin, occurrenceId),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "origin", { organismOrigin })
+  ]);
+  return json({
+    ok: true,
+    occurrenceId,
+    organismOrigin,
+    label: compatibleOrganismOriginLabel(organismOrigin)
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceObservedAt(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const observedAt = normalizeCompatibleObservedAt(body.observedAt);
+  const partitionMonth = partitionMonthFromDate(observedAt);
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "UPDATE observations SET observed_at = ?, partition_month = ? WHERE observation_id = ?"
+    ).bind(observedAt, partitionMonth, occurrenceId),
+    env.OBS_DB.prepare(
+      "UPDATE readmodel_public_observations SET observed_at = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
+    ).bind(observedAt, occurrenceId),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "observed-at", { observedAt }),
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, partitionMonth)
+  ]);
+  return json({
+    ok: true,
+    occurrenceId,
+    visitId: occurrenceId,
+    observedAt
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceLocation(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const latitude = normalizeCompatibleLatitude(body.latitude);
+  const longitude = normalizeCompatibleLongitude(body.longitude);
+  const publicCell = blurLocation(latitude, longitude);
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "UPDATE observations SET exact_lat = ?, exact_lng = ?, public_cell = ? WHERE observation_id = ?"
+    ).bind(latitude, longitude, publicCell, occurrenceId),
+    env.OBS_DB.prepare(
+      "UPDATE readmodel_public_observations SET public_cell = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
+    ).bind(publicCell, occurrenceId),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "location", { latitude, longitude, publicCell }),
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
+  ]);
+  return json({
+    ok: true,
+    occurrenceId,
+    visitId: occurrenceId,
+    latitude,
+    longitude,
+    label: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceEnvironmentField(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const field = normalizeCompatibleEnvironmentRecordField(body.field);
+  const value = normalizeCompatibleEnvironmentRecordValue(field, body.value);
+  const result = await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, { [field]: value }, env);
+  return json({
+    ok: true,
+    occurrenceId,
+    field,
+    value,
+    label: compatibleEnvironmentRecordLabel(field, value),
+    recordId: result.recordId
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceEnvironmentRecord(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const rawValues = body.values && typeof body.values === "object" && !Array.isArray(body.values)
+    ? body.values as Record<string, unknown>
+    : {};
+  const values: Partial<Record<CompatibleEnvironmentRecordField, string>> = {};
+  for (const [rawField, rawValue] of Object.entries(rawValues)) {
+    const field = normalizeCompatibleEnvironmentRecordField(rawField);
+    values[field] = normalizeCompatibleEnvironmentRecordValue(field, rawValue);
+  }
+  if (Object.keys(values).length === 0) {
+    throw new HttpError(400, "invalid_environment_record_value");
+  }
+  await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, values, env);
+  return json({
+    ok: true,
+    occurrenceId,
+    values: Object.fromEntries(Object.entries(values).map(([field, value]) => [field, {
+      value,
+      label: compatibleEnvironmentRecordLabel(field as CompatibleEnvironmentRecordField, value),
+      source: "user"
+    }]))
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function insertCompatibleEnvironmentRecord(
+  occurrenceId: string,
+  userId: string,
+  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
+  env: Env
+): Promise<{ recordId: string }> {
+  const observation = await env.OBS_DB.prepare(
+    "SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
+  ).bind(occurrenceId).first<{ observation_id: string; exact_lat: number | null; exact_lng: number | null; public_cell: string }>();
+  if (!observation) {
+    throw new HttpError(404, "observation_not_found");
+  }
+  const lat = numberOrNull(observation.exact_lat);
+  const lng = numberOrNull(observation.exact_lng);
+  if (lat === null || lng === null) {
+    throw new HttpError(400, "occurrence_location_required");
+  }
+  const previousRow = await env.OBS_DB.prepare(
+    "SELECT structured_json FROM observation_environment_records WHERE occurrence_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(occurrenceId).first<{ structured_json: string }>();
+  const previous = parseCompatibleStructuredJson(previousRow?.structured_json);
+  const structured = mergeCompatibleUserEnvironmentRecordValues(previous, values, userId);
+  const recordId = newId("envrec");
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
+    ).bind(recordId, occurrenceId, lat, lng, JSON.stringify(structured)),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, userId, "environment-record", { values }),
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
+  ]);
+  return { recordId };
+}
+
+function compatibleOccurrenceDetailEditEvent(
+  env: Env,
+  observationId: string,
+  actorUserId: string,
+  editKind: string,
+  payload: Record<string, unknown>
+): D1PreparedStatement {
+  return env.OBS_DB.prepare(
+    "INSERT INTO observation_detail_edit_events (edit_id, observation_id, actor_user_id, edit_kind, payload_json) VALUES (?, ?, ?, ?, ?)"
+  ).bind(newId("edit"), observationId, actorUserId, editKind, JSON.stringify(payload));
+}
+
+function compatibleReadmodelRefreshOutbox(env: Env, observationId: string, partitionMonth: string | null): D1PreparedStatement {
+  return env.OBS_DB.prepare(
+    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+  ).bind(newId("outbox"), "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth);
+}
+
+function normalizeCompatibleOrganismOrigin(value: unknown): CompatibleOrganismOrigin {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const option = COMPATIBLE_ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === raw);
+  if (!option) throw new HttpError(400, "invalid_organism_origin");
+  return option.value;
+}
+
+function compatibleOrganismOriginLabel(value: CompatibleOrganismOrigin): string {
+  return COMPATIBLE_ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === value)?.label ?? "不明";
+}
+
+function normalizeCompatibleObservedAt(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const parsed = new Date(raw);
+  if (!raw || Number.isNaN(parsed.getTime())) {
+    throw new HttpError(400, "invalid_observed_at");
+  }
+  if (parsed.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+    throw new HttpError(400, "invalid_observed_at");
+  }
+  return parsed.toISOString();
+}
+
+function normalizeCompatibleLatitude(value: unknown): number {
+  const latitude = Number(value);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw new HttpError(400, "invalid_latitude");
+  }
+  return Number(latitude.toFixed(6));
+}
+
+function normalizeCompatibleLongitude(value: unknown): number {
+  const longitude = Number(value);
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new HttpError(400, "invalid_longitude");
+  }
+  return Number(longitude.toFixed(6));
+}
+
+function normalizeCompatibleEnvironmentRecordField(value: unknown): CompatibleEnvironmentRecordField {
+  const raw = String(value ?? "").trim();
+  if (raw in COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) return raw as CompatibleEnvironmentRecordField;
+  throw new HttpError(400, "invalid_environment_record_field");
+}
+
+function normalizeCompatibleEnvironmentRecordValue(field: CompatibleEnvironmentRecordField, value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].some((item) => item.value === raw)) return raw;
+  throw new HttpError(400, "invalid_environment_record_value");
+}
+
+function compatibleEnvironmentRecordLabel(field: CompatibleEnvironmentRecordField, value: string): string {
+  return COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].find((item) => item.value === value)?.label ?? "不明";
+}
+
+function parseCompatibleStructuredJson(value: string | null | undefined): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== "")
+    );
+  } catch {
+    return {};
+  }
+}
+
+function mergeCompatibleUserEnvironmentRecordValues(
+  previous: Record<string, string>,
+  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
+  updatedBy: string
+): Record<string, string> {
+  const updatedAt = new Date().toISOString();
+  const structured = { ...previous };
+  for (const field of Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]) {
+    const value = values[field];
+    if (value == null) continue;
+    structured[field] = normalizeCompatibleEnvironmentRecordValue(field, value);
+    structured[`${field}_source`] = "user";
+    structured[`${field}_confidence`] = "1.00";
+    structured[`${field}_updated_at`] = updatedAt;
+  }
+  structured.environment_record_status = "user_edited";
+  structured.environment_record_updated_by = updatedBy;
+  structured.environment_record_updated_at = updatedAt;
+  structured.updated_by = updatedBy;
+  structured.updated_at = updatedAt;
+  return structured;
 }
 
 async function attachVideoAssetToObservation(input: {
