@@ -770,6 +770,15 @@ interface OwnMapObservationRow {
   public_derivative_key: string | null;
 }
 
+interface OwnerHomeRecordRow {
+  observation_id: string;
+  observed_at: string;
+  taxon_label: string | null;
+  note: string | null;
+  visibility: string | null;
+  public_derivative_key: string | null;
+}
+
 interface PublicDetailRow extends PublicMapRow {
   note: string | null;
   visibility: string;
@@ -16094,7 +16103,7 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const object = await env.ASSET_BUCKET.get(originalUiHtmlKeyForRequest(url));
   if (object?.body) {
-    const body = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, url, env);
+    const body = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, request, url, env);
     return new Response(body, {
       headers: {
         "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
@@ -16120,10 +16129,10 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
 }
 
-async function originalUiHtmlBodyForRequest(object: R2ObjectBody, url: URL, env: Env): Promise<ReadableStream | string | null> {
+async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Request, url: URL, env: Env): Promise<ReadableStream | string | null> {
   if (isHomeHtmlPath(url.pathname)) {
     const text = await new Response(object.body).text();
-    return injectHomeObservationRecords(text, url, env);
+    return injectHomeObservationRecords(text, request, url, env);
   }
   if (isRecordsHtmlPath(url.pathname)) {
     const text = await new Response(object.body).text();
@@ -16301,6 +16310,34 @@ function recordsInjectionCopy(url: URL) {
   };
 }
 
+function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy> {
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  if (lang === "en") {
+    return {
+      eyebrow: "Your records",
+      title: "Your latest records",
+      body: "Your own records appear here first, including private or review-pending records.",
+      empty: "No records yet.",
+      open: "Open",
+      homeBadge: "Your record",
+      media: "Photo",
+      map: "Saved",
+      unknown: "Awaiting ID"
+    };
+  }
+  return {
+    eyebrow: "自分の記録",
+    title: "最近の記録",
+    body: "自分の最新記録を先に表示します。公開前の記録も本人だけに見えます。",
+    empty: "まだ記録はありません。",
+    open: "開く",
+    homeBadge: "自分の記録",
+    media: "写真",
+    map: "保存済み",
+    unknown: "同定待ち"
+  };
+}
+
 function publicLangFromPath(pathname: string): "ja" | "en" | "es" | "pt-br" | null {
   const match = pathname.match(/^\/(ja|en|es|pt-br)(?:\/|$)/);
   return match ? match[1] as "ja" | "en" | "es" | "pt-br" : null;
@@ -16340,24 +16377,31 @@ async function injectRecentObservationRecords(html: string, url: URL, env: Env):
   return `${section}${html}`;
 }
 
-async function injectHomeObservationRecords(html: string, url: URL, env: Env): Promise<string> {
-  const items = await recentPublicRecordCards(env).catch(() => []);
-  if (items.length === 0 || !html.includes("data-record-feed")) return html;
-  const cards = items.slice(0, 8).map((item, index) => renderHomeRecordCard(item, recordsInjectionCopy(url), index)).join("");
+async function injectHomeObservationRecords(html: string, request: Request, url: URL, env: Env): Promise<string> {
+  if (!html.includes("data-record-feed")) return html;
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  const ownerItems = session && !session.banned
+    ? await ownerHomeRecordCards(session.userId, env).catch(() => [])
+    : [];
+  const isOwnerFeed = ownerItems.length > 0;
+  const items = isOwnerFeed ? ownerItems : await recentPublicRecordCards(env).catch(() => []);
+  if (items.length === 0) return html;
+  const copy = isOwnerFeed ? ownerHomeRecordsCopy(url) : recordsInjectionCopy(url);
+  const cards = items.slice(0, 8).map((item, index) => renderHomeRecordCard(item, copy, index, isOwnerFeed ? "owner" : "public")).join("");
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
     .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*<script>/, `<div class="prototype-record-feed-list">${cards}</div><script>`);
-  next = next.replace(/class="prototype-record-feed(?![^"]*\bis-guest\b)"/, 'class="prototype-record-feed is-guest"');
+  next = next.replace(/class="prototype-record-feed(?![^"]*\bis-(?:guest|owner)\b)"/, `class="prototype-record-feed ${isOwnerFeed ? "is-owner" : "is-guest"}"`);
   if (!next.includes("cf-home-record-feed-style")) {
     next = next.replace("</head>", `<style id="cf-home-record-feed-style">
-      .prototype-record-feed.is-guest{width:min(100%,540px);margin-top:clamp(10px,2.6vw,24px)}
-      .prototype-record-feed.is-guest .prototype-record-feed-card{border-color:rgba(15,23,42,.08);box-shadow:0 12px 30px rgba(15,23,42,.12)}
-      .prototype-record-feed.is-guest .prototype-record-feed-main{position:relative}
-      .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:clamp(520px,78vh,760px);min-height:520px;background:#0f172a}
-      .prototype-record-feed.is-guest .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
-      .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
-      .prototype-record-feed.is-guest .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
-      @media(max-width:640px){.prototype-record-feed.is-guest{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:76vh;min-height:540px}}
+      .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{width:min(100%,540px);margin-top:clamp(10px,2.6vw,24px)}
+      .prototype-record-feed.is-guest .prototype-record-feed-card,.prototype-record-feed.is-owner .prototype-record-feed-card{border-color:rgba(15,23,42,.08);box-shadow:0 12px 30px rgba(15,23,42,.12)}
+      .prototype-record-feed.is-guest .prototype-record-feed-main,.prototype-record-feed.is-owner .prototype-record-feed-main{position:relative}
+      .prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:clamp(520px,78vh,760px);min-height:520px;background:#0f172a}
+      .prototype-record-feed.is-guest .prototype-record-feed-copy,.prototype-record-feed.is-owner .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
+      .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy strong,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
+      .prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
+      @media(max-width:640px){.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:76vh;min-height:540px}}
     </style></head>`);
   }
   return next;
@@ -16371,6 +16415,40 @@ async function recentPublicRecordCards(env: Env): Promise<Array<ReturnType<typeo
     .filter((row) => photoUrls.has(row.observation_id))
     .slice(0, 6)
     .map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null));
+}
+
+async function ownerHomeRecordCards(ownerUserId: string, env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
+            (
+              SELECT a.public_derivative_key
+                FROM asset_ledger a
+               WHERE a.observation_id = o.observation_id
+                 AND a.processing_state = 'uploaded'
+                 AND a.public_derivative_key IS NOT NULL
+                 AND a.public_derivative_verified_at IS NOT NULL
+                 AND a.public_derivative_metadata_json IS NOT NULL
+                 AND a.public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+                 AND a.public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
+                 AND a.exif_scrub_state = 'scrubbed'
+                 AND a.mime LIKE 'image/%'
+               ORDER BY COALESCE(a.public_ready_at, a.public_derivative_verified_at, a.uploaded_at, '') DESC
+               LIMIT 1
+            ) AS public_derivative_key
+       FROM observations o
+      WHERE o.owner_user_id = ?
+        AND o.emergency_hidden = 0
+      ORDER BY o.observed_at DESC
+      LIMIT ?`
+  ).bind(ownerUserId, 8).all<OwnerHomeRecordRow>();
+
+  return rows.results.map((row) => publicMapObservationItem({
+    observation_id: row.observation_id,
+    public_cell: "",
+    observed_at: row.observed_at,
+    taxon_label: row.taxon_label ?? row.note,
+    asset_count: row.public_derivative_key ? 1 : 0
+  }, row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null));
 }
 
 function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
@@ -16388,13 +16466,13 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
   </a>`;
 }
 
-function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>, index: number): string {
+function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>, index: number, source: "owner" | "public" = "public"): string {
   const href = `/observations/${encodeURIComponent(item.visitId)}`;
   const image = item.photoUrl
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
     : `<span class="prototype-record-feed-empty-media" aria-hidden="true"></span>`;
   const title = item.displayName || copy.unknown;
-  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record>
+  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record${source === "owner" ? " data-cloudflare-owner-home-record" : ""}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
         ${image}

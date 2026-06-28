@@ -5426,6 +5426,41 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,")) {
+      const ownerUserId = string(this.values[0]);
+      const limit = number(this.values[1]);
+      const rows = [...this.db.observations.values()]
+        .filter((observation) =>
+          observation.owner_user_id === ownerUserId &&
+          observation.emergency_hidden === 0
+        )
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
+        .slice(0, limit)
+        .map((observation) => {
+          const asset = [...this.db.assets.values()]
+            .filter((candidate) =>
+              candidate.observation_id === observation.observation_id &&
+              candidate.processing_state === "uploaded" &&
+              candidate.public_derivative_key &&
+              candidate.public_derivative_verified_at &&
+              candidate.public_derivative_metadata_json &&
+              !candidate.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
+              !candidate.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
+              candidate.exif_scrub_state === "scrubbed" &&
+              candidate.mime.startsWith("image/")
+            )
+            .sort((a, b) => (b.public_ready_at ?? b.public_derivative_verified_at ?? "").localeCompare(a.public_ready_at ?? a.public_derivative_verified_at ?? ""))[0];
+          return {
+            observation_id: observation.observation_id,
+            observed_at: observation.observed_at,
+            taxon_label: observation.taxon_label,
+            note: observation.note,
+            visibility: observation.visibility,
+            public_derivative_key: asset?.public_derivative_key ?? null
+          };
+        });
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT observation_id, public_derivative_key FROM asset_ledger")) {
       const rows = [...this.db.assets.values()]
         .filter((asset) =>
@@ -14329,6 +14364,108 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /prototype-record-feed is-guest/);
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
+});
+
+test("production home prioritizes signed-in owner records over public feed records", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+    "<!doctype html><head></head><body>",
+    "<main><section class=\"prototype-record-feed\" data-record-feed>",
+    "<div class=\"prototype-record-feed-head\"><div><h1>記録を見る</h1></div></div>",
+    "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
+    "<script>/* feed */</script></section></main>",
+    "</body>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-private-home-record",
+    userId: "owner-home-user",
+    observedAt: "2026-06-24T09:00:00.000Z",
+    latitude: 34.81234,
+    longitude: 137.73234,
+    taxon: { vernacularName: "自分だけの最新記録", rank: "species" }
+  });
+  const ownerObservation = obs.observations.get("owner-private-home-record");
+  if (ownerObservation) ownerObservation.visibility = "private";
+  obs.assets.set("asset-owner-home-real-derivative", {
+    asset_id: "asset-owner-home-real-derivative",
+    draft_id: "draft-owner-home-real-derivative",
+    observation_id: "owner-private-home-record",
+    owner_user_id: "owner-home-user",
+    object_key: "original/owner-private-home-record/owner-real.jpg",
+    partition_month: "2026-06",
+    sha256: "owner-real-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260624/observation_photo/asset-owner-home-real-derivative/display.webp",
+    public_derivative_sha256: "owner-real-derivative-sha",
+    public_derivative_verified_at: "2026-06-24T09:10:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: null
+  });
+
+  env.OBS_DB.publicMapSnapshotRecords.push({
+    occurrence_id: "occ:public-home-record:0",
+    visit_id: "public-home-record",
+    observed_at: "2026-06-25T09:00:00.000Z",
+    display_name: "他人の公開記録",
+    cell_1000: "34.81,137.73",
+    asset_count: 1
+  });
+  obs.assets.set("asset-public-home-real-derivative", {
+    asset_id: "asset-public-home-real-derivative",
+    draft_id: "draft-public-home-real-derivative",
+    observation_id: "public-home-record",
+    owner_user_id: "other-home-user",
+    object_key: "original/public-home-record/public-real.jpg",
+    partition_month: "2026-06",
+    sha256: "public-real-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260625/observation_photo/asset-public-home-real-derivative/display.webp",
+    public_derivative_sha256: "public-real-derivative-sha",
+    public_derivative_verified_at: "2026-06-25T09:10:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-25T09:10:00.000Z"
+  });
+
+  const sessionCookieValue = "owner-home-session-value";
+  const sessionHash = createHash("sha256").update(sessionCookieValue).digest("hex");
+  core.authSessions.set(sessionHash, {
+    token_hash: sessionHash,
+    user_id: "owner-home-user",
+    display_name: "Owner Home",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  const cookie = `ikimon_v2_session=${sessionCookieValue}`;
+  const homeResponse = await worker.fetch(new Request("https://ikimon.life/ja/", {
+    headers: { cookie }
+  }), productionEnv);
+  const homeBody = await homeResponse.text();
+
+  assert.equal(homeResponse.status, 200);
+  assert.match(homeBody, /data-cloudflare-owner-home-record/);
+  assert.match(homeBody, /prototype-record-feed is-owner/);
+  assert.match(homeBody, /自分だけの最新記録/);
+  assert.match(homeBody, /自分の記録/);
+  assert.match(homeBody, /asset-owner-home-real-derivative/);
+  assert.doesNotMatch(homeBody, /他人の公開記録/);
+  assert.doesNotMatch(homeBody, /近くの記録/);
+  assert.doesNotMatch(homeBody, /34\.81234|137\.73234|owner_user_id|ownerUserId/);
 });
 
 test("production app refresh page serves materialized reset shell from R2", async () => {
