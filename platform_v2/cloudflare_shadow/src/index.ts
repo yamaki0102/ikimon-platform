@@ -22537,12 +22537,6 @@ type PublicObservationDetailPolish = {
   previewScript: string;
 };
 
-const IMAGE_OBSERVATION_DETAIL_TARGET_IDS = new Set([
-  "record-1781252770584",
-  "record-1780982506049",
-  "record-1780970378665"
-]);
-
 type ImageObservationTargetPhoto = {
   lg: string;
   sm: string;
@@ -22748,7 +22742,7 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
 
 function publicObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish | null {
   if (detail.visitId !== "record-1778829649026") {
-    if (IMAGE_OBSERVATION_DETAIL_TARGET_IDS.has(detail.visitId) && detail.photoAssets.length > 0 && detail.videoAssets.length === 0) {
+    if (detail.photoAssets.length > 0 && detail.videoAssets.length === 0) {
       return publicImageObservationDetailPolish(detail);
     }
     return null;
@@ -22955,7 +22949,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
         <div class="obs-observation-card"><span>写っている足元</span><strong>礫・踏圧</strong><small>環境レコード候補</small></div>
         <div class="obs-observation-card"><span>写っている追加対象</span><strong>別レコード候補</strong><small>あとから分ける</small></div>
       </div>
-      <div class="obs-env-strip"><strong>環境</strong><span>写真3枚 / 位置ぼかし / 複数観察記録として読み直せます</span></div>
+      <div class="obs-env-strip"><strong>環境</strong><span>${escapeHtml(`写真${photos.length}枚 / 位置ぼかし / 複数観察記録として読み直せます`)}</span></div>
     </div>
     <p>1つの撮影記録から、対象・周囲・環境を分けて読みます。</p>
   </section>`;
@@ -23072,7 +23066,9 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     pageClass: "obs-vps-image-detail",
     bodyClass: "obs-vps-image-detail-body is-reading-surface",
     headerBlock: renderVpsImageHeader(),
-    observerBlock: `<a class="obs-hero-observer" href="/ja/profile/user_69bc926c2eca4" aria-label="投稿者 YAMAKI"><span class="obs-hero-avatar" aria-hidden="true">Y</span><span>YAMAKI</span></a>`,
+    observerBlock: meta
+      ? `<a class="obs-hero-observer" href="/ja/profile/user_69bc926c2eca4" aria-label="投稿者 YAMAKI"><span class="obs-hero-avatar" aria-hidden="true">Y</span><span>YAMAKI</span></a>`
+      : `<span class="obs-hero-observer" aria-label="投稿者は公開していません"><span class="obs-hero-avatar" aria-hidden="true">i</span><span>公開記録</span></span>`,
     actionRailBlock: "",
     readProgressLinks: `
   <a href="#photos">写真</a>
