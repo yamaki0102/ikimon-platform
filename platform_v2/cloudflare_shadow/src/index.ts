@@ -16292,6 +16292,7 @@ function recordsInjectionCopy(url: URL) {
       homeBadge: "Nearby",
       media: "Photo",
       map: "Map",
+      placeContext: "Nearby record",
       unknown: "Awaiting ID"
     };
   }
@@ -16304,6 +16305,7 @@ function recordsInjectionCopy(url: URL) {
     homeBadge: "近くの記録",
     media: "写真",
     map: "地図",
+    placeContext: "近くの記録",
     unknown: "同定待ち"
   };
 }
@@ -16320,6 +16322,7 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
       homeBadge: "Your record",
       media: "Photo",
       map: "Saved",
+      placeContext: "Saved record",
       unknown: "Awaiting ID"
     };
   }
@@ -16332,6 +16335,7 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
     homeBadge: "自分の記録",
     media: "写真",
     map: "保存済み",
+    placeContext: "保存済み",
     unknown: "同定待ち"
   };
 }
@@ -16342,7 +16346,7 @@ function publicLangFromPath(pathname: string): "ja" | "en" | "es" | "pt-br" | nu
 }
 
 async function injectRecentObservationRecords(html: string, url: URL, env: Env): Promise<string> {
-  const items = await recentPublicRecordCards(env).catch(() => []);
+  const items = await recentPublicRecordCards(env, 24).catch(() => []);
   const copy = recordsInjectionCopy(url);
   const cards = items.length > 0
     ? items.map((item) => renderRecentRecordCard(item, copy)).join("")
@@ -16382,13 +16386,13 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
     ? await ownerHomeRecordCards(session.userId, env).catch(() => [])
     : [];
   const isOwnerFeed = ownerItems.length > 0;
-  const items = isOwnerFeed ? ownerItems : await recentPublicRecordCards(env).catch(() => []);
+  const items = isOwnerFeed ? ownerItems : await recentPublicRecordCards(env, 48).catch(() => []);
   if (items.length === 0) return html;
   const copy = isOwnerFeed ? ownerHomeRecordsCopy(url) : recordsInjectionCopy(url);
-  const cards = items.slice(0, 8).map((item, index) => renderHomeRecordCard(item, copy, index, isOwnerFeed ? "owner" : "public")).join("");
+  const cards = items.slice(0, 48).map((item, index) => renderHomeRecordCard(item, copy, index, isOwnerFeed ? "owner" : "public")).join("");
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
-    .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*<script>/, `<div class="prototype-record-feed-list">${cards}</div><script>`);
+    .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*<script>/, `<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div><script>`);
   next = next.replace(/class="prototype-record-feed(?![^"]*\bis-(?:guest|owner)\b)"/, `class="prototype-record-feed ${isOwnerFeed ? "is-owner" : "is-guest"}"`);
   if (!next.includes("cf-home-record-feed-style")) {
     next = next.replace("</head>", `<style id="cf-home-record-feed-style">
@@ -16399,8 +16403,44 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed.is-guest .prototype-record-feed-copy,.prototype-record-feed.is-owner .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
       .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy strong,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
       .prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
+      .cf-home-feed-sentinel{width:1px;height:1px}
       @media(max-width:640px){.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:76vh;min-height:540px}}
     </style></head>`);
+  }
+  if (!next.includes("cf-home-record-feed-infinite-script")) {
+    next = next.replace("</body>", `<script id="cf-home-record-feed-infinite-script">
+(() => {
+  const feed = document.querySelector('[data-cloudflare-home-infinite-feed]');
+  const sentinel = document.querySelector('[data-cloudflare-home-feed-sentinel]');
+  if (!feed || !sentinel) return;
+  const sourceCards = Array.from(feed.querySelectorAll('[data-cloudflare-home-record]'));
+  if (sourceCards.length < 2) return;
+  let nextIndex = 0;
+  const maxCards = 240;
+  const appendMore = () => {
+    if (feed.querySelectorAll('[data-cloudflare-home-record]').length >= maxCards) return;
+    const batchSize = Math.min(8, sourceCards.length);
+    for (let i = 0; i < batchSize; i += 1) {
+      const clone = sourceCards[nextIndex % sourceCards.length].cloneNode(true);
+      clone.setAttribute('data-cloudflare-home-feed-clone', 'true');
+      const img = clone.querySelector('img[loading]');
+      if (img) img.setAttribute('loading', 'lazy');
+      feed.appendChild(clone);
+      nextIndex += 1;
+    }
+  };
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) appendMore();
+    }, { rootMargin: '900px 0px' });
+    observer.observe(sentinel);
+  } else {
+    window.addEventListener('scroll', () => {
+      if (window.innerHeight + window.scrollY > document.body.scrollHeight - 900) appendMore();
+    }, { passive: true });
+  }
+})();
+</script></body>`);
   }
   return next;
 }
@@ -16455,13 +16495,13 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
   </style></head>`);
 }
 
-async function recentPublicRecordCards(env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
+async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
   const rows = await queryPublicMapRows(env);
   if (rows.length === 0) return [];
   const photoUrls = await queryPublicMapPhotoUrls(env);
   return rows
     .filter((row) => photoUrls.has(row.observation_id))
-    .slice(0, 6)
+    .slice(0, limit)
     .map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null));
 }
 
@@ -16508,7 +16548,7 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
     ${image}
     <span class="cf-record-card-body">
       <strong>${escapeHtml(item.displayName || copy.unknown)}</strong>
-      <span>${escapeHtml(item.observedAt)} · ${escapeHtml(item.cellId)}</span>
+      <span>${escapeHtml(item.observedAt)} · ${escapeHtml(copy.placeContext)}</span>
       <span>${escapeHtml(copy.open)} / ${escapeHtml(copy.map)}</span>
     </span>
   </a>`;
@@ -16528,7 +16568,7 @@ function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>,
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml([copy.map, item.observedAt].filter(Boolean).join(" · "))}</span>
+        <span>${escapeHtml([copy.placeContext, item.observedAt].filter(Boolean).join(" · "))}</span>
       </span>
     </a>
   </article>`;
