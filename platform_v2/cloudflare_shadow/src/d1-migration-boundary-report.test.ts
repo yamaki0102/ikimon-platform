@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 1/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 1/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -628,6 +628,21 @@ test("write support PostgreSQL helper is separated from pure write helpers", asy
     "platform_v2/src/services/trackWrite.ts",
     "platform_v2/src/services/userWrite.ts",
   ]);
+});
+
+test("legacy write route boundary is covered by Cloudflare app write runtimes", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/write.ts"), "cloudflare_app_write_route_boundary");
+  assert.match(workerSource, /updateCompatibleOccurrenceDetail/);
+  assert.match(workerSource, /occurrenceDetailEditMatch/);
+  assert.match(workerSource, /environment-record/);
+  assert.match(workerSource, /isPublicAppWriteCandidatePath\(url\)/);
+  assert.match(workerTests, /production occurrence detail edit APIs write to D1 without origin fallback/);
+  assert.match(workerTests, /production occurrence detail edit APIs reject non owners before mutation/);
 });
 
 test("write guard PostgreSQL ownership helper is separated from pure request and session guards", async () => {
