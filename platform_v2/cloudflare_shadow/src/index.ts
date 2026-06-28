@@ -23154,7 +23154,7 @@ function renderImageObservationRelatedCards(detail: PublicObservationDetail, met
         : `<span class="obs-nearby-nophoto" aria-hidden="true">📷</span>`}
       <span class="obs-nearby-body">
         <strong>${escapeHtml(item.displayName || `近い投稿 ${index + 1}`)}</strong>
-        <span>YAMAKI · ${escapeHtml(formatPublicObservationDate(item.observedAt))}</span>
+        <span>公開記録 · ${escapeHtml(formatPublicObservationDate(item.observedAt))}</span>
       </span>
     </a>`).join("");
   }
