@@ -14481,7 +14481,8 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /obs-hero-thumb/);
     assert.match(body, /この記録で読む対象/);
     assert.match(body, /写っている/);
-    assert.match(body, /IDENTIFICATION/);
+    assert.match(body, /data-section-code="identification"/);
+    assert.match(body, /同定/);
     assert.match(body, /同定に参加する/);
     assert.match(body, /同意する/);
     assert.match(body, /別候補を提案/);
@@ -14490,8 +14491,8 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /提案・コメントの履歴/);
     assert.match(body, /AI候補レビュー/);
     assert.match(body, /現在の見方/);
-    assert.match(body, /OBSERVATION QUALITY/);
-    assert.match(body, /観察レコードとして育てる/);
+    assert.match(body, /data-section-code="observation-quality"/);
+    assert.match(body, /観察記録を整える/);
     assert.match(body, /環境レコードの下書き/);
     assert.match(body, /編集履歴/);
     assert.match(body, /次に見るなら/);

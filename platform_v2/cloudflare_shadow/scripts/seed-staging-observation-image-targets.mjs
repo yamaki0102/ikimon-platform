@@ -18,7 +18,8 @@ const targetThumbPaths = {
     "/thumb/lg/v2-observations/record-1781252770584/ikimon-photo-1781252756096-1bd8bf2769f3.jpg",
     "/thumb/sm/v2-observations/record-1781252770584/ikimon-photo-1781252756096-1bd8bf2769f3.jpg",
     "/thumb/lg/v2-observations/record-1781252770584/ikimon-photo-1781252768025-909c7e6310ae.jpg",
-    "/thumb/sm/v2-observations/record-1781252770584/ikimon-photo-1781252768025-909c7e6310ae.jpg"
+    "/thumb/sm/v2-observations/record-1781252770584/ikimon-photo-1781252768025-909c7e6310ae.jpg",
+    "/thumb/sm/v2-observations/record-1779005636197/ikimon-photo-1779005589177-a2b46533bedd.jpg"
   ],
   "record-1780982506049": [
     "/thumb/lg/v2-observations/record-1780982506049/ikimon-photo-1780982481796-b8dd5185edb9.jpg",

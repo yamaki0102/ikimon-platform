@@ -110,7 +110,7 @@ test.describe("image observation detail VPS parity gate", () => {
         expect(metrics.visibleRecordText).toContain("写っている");
         for (const term of [
           "この記録で読む対象",
-          "IDENTIFICATION",
+          "同定",
           "同定に参加する",
           "同意する",
           "別候補を提案",
@@ -118,8 +118,7 @@ test.describe("image observation detail VPS parity gate", () => {
           "別レコードを追加",
           "提案・コメントの履歴",
           "現在の見方",
-          "OBSERVATION QUALITY",
-          "観察レコードとして育てる",
+          "観察記録を整える",
           "環境レコードの下書き",
           "編集履歴",
           "次に見るなら",

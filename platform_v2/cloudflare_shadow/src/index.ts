@@ -22275,11 +22275,22 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-nearby-body { display: grid; align-content: center; gap: 5px; padding: 15px 16px; min-width: 0; }
     .obs-nearby-body strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
     .obs-nearby-body span { color: #64748b; font-size: 11.5px; line-height: 1.45; font-weight: 760; }
+    .obs-nearby-title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .obs-nearby-name { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+    .obs-nearby-badge { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.2); color: #92400e; font-size: 9.5px; line-height: 1; font-weight: 950; }
+    .obs-nearby-badge.is-plant { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.22); color: #047857; }
+    .obs-nearby-reason { color: #334155; font-size: 11.5px; line-height: 1.45; font-weight: 800; }
+    .obs-nearby-meta { color: #64748b; font-size: 11px; line-height: 1.4; font-weight: 780; }
     body.obs-vps-image-detail-body { background: #f3fbf7; color: #1f2933; }
     body.obs-vps-image-detail-body .site-header { min-height: 50px; display: block; padding: 7px 12px; border-bottom: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.94); box-shadow: 0 1px 0 rgba(15,23,42,.03); }
     body.obs-vps-image-detail-body .site-header-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; }
     body.obs-vps-image-detail-body .site-brand-cluster { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-    body.obs-vps-image-detail-body .desktop-side-nav-toggle { display: none; }
+    body.obs-vps-image-detail-body .desktop-side-nav-toggle { width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: transparent; color: #0f172a; }
+    body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines, body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::before, body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::after { display: block; width: 18px; height: 2px; border-radius: 999px; background: currentColor; }
+    body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines { position: relative; }
+    body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::before, body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::after { content: ""; position: absolute; left: 0; }
+    body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::before { top: -6px; }
+    body.obs-vps-image-detail-body .desktop-side-nav-toggle-lines::after { top: 6px; }
     body.obs-vps-image-detail-body .brand { flex: 1 1 220px; min-width: 0; max-width: 300px; gap: 10px; font-size: 18px; letter-spacing: 0; }
     body.obs-vps-image-detail-body .brand-logo-lockup { min-height: 44px; display: inline-flex; align-items: center; flex: 0 0 auto; gap: 7px; padding: 3px 8px 3px 2px; border-radius: 999px; color: #0f172a; }
     body.obs-vps-image-detail-body .brand-logo-lockup .brand-mark { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 10px; padding: 0; overflow: hidden; background: #fff; box-shadow: 0 7px 16px rgba(15,23,42,.10); }
@@ -22308,7 +22319,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     body.obs-vps-image-detail-body .site-mobile-menu-icon::before { top: -5px; }
     body.obs-vps-image-detail-body .site-mobile-menu-icon::after { top: 5px; }
     body.obs-vps-image-detail-body .site-mobile-menu-panel { position: absolute; z-index: 2; top: calc(100% + 9px); right: 0; width: min(340px, calc(100vw - 28px)); padding: 12px; border-radius: 20px; border: 1px solid rgba(148,163,184,.22); background: #fff; box-shadow: 0 20px 42px rgba(15,23,42,.16); display: grid; gap: 10px; }
-    body.obs-vps-image-detail-body .obs-read-progress { top: 51px; margin-bottom: 6px; padding: 7px 0 5px; background: rgba(243,251,247,.95); }
+    body.obs-vps-image-detail-body .obs-read-progress { display: none; }
     body.obs-vps-image-detail-body .obs-read-progress a { min-height: 30px; padding: 7px 12px; border-color: rgba(22,101,52,.12); color: #166534; background: #fff; }
     main.obs-vps-image-detail { width: min(1120px, calc(100% - 20px)); padding: 8px 0 58px; }
     .obs-vps-image-detail .obs-reading-hero { grid-template-columns: minmax(0, 1.12fr) minmax(310px, .88fr); gap: 16px; margin-top: 0; align-items: start; }
@@ -22328,9 +22339,8 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-vps-image-detail .obs-record-compact-meta { font-size: 12px; color: #64748b; }
     .obs-vps-image-detail .obs-hero-observer { text-decoration: none; color: #166534; font-weight: 950; }
     .obs-vps-image-detail .obs-hero-avatar { background: #f97316; color: #fff; }
-    .obs-vps-image-detail .obs-reading-kicker { color: #166534; letter-spacing: .08em; }
-    .obs-vps-image-detail .obs-reading-title { margin-top: 0; font-size: clamp(24px, 2.6vw, 34px); line-height: 1.22; letter-spacing: 0; }
-    .obs-vps-image-detail .obs-reading-lead, .obs-vps-image-detail .obs-record-insight p { color: #334155; font-size: 13.5px; line-height: 1.72; }
+    .obs-vps-image-detail .obs-reading-kicker, .obs-vps-image-detail .obs-reading-title, .obs-vps-image-detail .obs-reading-lead { display: none; }
+    .obs-vps-image-detail .obs-record-insight p { color: #334155; font-size: 13.5px; line-height: 1.72; }
     .obs-vps-image-detail .obs-media-ledger { background: #fff; border-color: rgba(15,23,42,.07); }
     .obs-vps-image-detail .obs-ai-detail-label { display: block; margin-bottom: 3px; color: #166534; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
     .obs-vps-image-detail .obs-ai-target-list, .obs-vps-image-detail .obs-frame-identify-candidates { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -22393,6 +22403,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       .obs-area-thumb { width: 100%; flex: 0 0 auto; min-height: 0; height: auto; aspect-ratio: 16 / 9; }
       .obs-nearby-body { padding: 11px 12px; gap: 4px; }
       body.obs-vps-image-detail-body .site-header-inner { gap: 8px; padding: 9px 0; }
+      body.obs-vps-image-detail-body .desktop-side-nav-toggle { display: none; }
       body.obs-vps-image-detail-body .brand { flex: 1 1 auto; max-width: none; min-width: 0; }
       body.obs-vps-image-detail-body .brand-logo-lockup { gap: 6px; padding-right: 6px; }
       body.obs-vps-image-detail-body .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 10px; }
@@ -22404,13 +22415,10 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       body.obs-vps-image-detail-body .obs-read-progress { width: min(100% - 12px, 680px); top: 51px; }
       main.obs-vps-image-detail { width: min(100% - 12px, 680px); padding-top: 6px; }
       .obs-vps-image-detail .obs-reading-hero { grid-template-columns: 1fr; gap: 10px; margin-top: 0; }
-      .obs-vps-image-detail .obs-reading-media { order: 1; }
-      .obs-vps-image-detail .obs-record-brief-compact { order: 2; }
-      .obs-vps-image-detail .obs-reading-kicker { order: 3; }
-      .obs-vps-image-detail .obs-reading-title { order: 4; font-size: 23px; line-height: 1.28; }
-      .obs-vps-image-detail .obs-reading-lead { order: 5; font-size: 13px; line-height: 1.68; }
-      .obs-vps-image-detail .obs-reading-panel > .obs-media-ledger { order: 6; }
-      .obs-vps-image-detail .obs-record-insight-desktop { order: 7; }
+      .obs-vps-image-detail .obs-record-brief-compact { order: 1; }
+      .obs-vps-image-detail .obs-reading-panel > .obs-media-ledger { order: 2; }
+      .obs-vps-image-detail .obs-reading-media { order: 3; }
+      .obs-vps-image-detail .obs-record-insight-desktop { order: 4; }
       .obs-vps-image-detail .obs-record-use-status { order: 8; }
       .obs-vps-image-detail .obs-first-read { order: 9; }
       .obs-vps-image-detail .obs-ai-readout { order: 10; }
@@ -22544,6 +22552,17 @@ type ImageObservationStoryBullet = {
   body: string;
 };
 
+type ImageObservationNearbyCard = {
+  title: string;
+  badge: string;
+  badgeKind?: "plant";
+  reason: string;
+  meta: string;
+  href: string;
+  imageSrc?: string;
+  imageAlt?: string;
+};
+
 type ImageObservationTargetMeta = {
   title: string;
   subjectName: string;
@@ -22557,6 +22576,7 @@ type ImageObservationTargetMeta = {
   nearbyTitle: string;
   nearbyLead: string;
   nearbyCountLabel: string;
+  nearbyCards: ImageObservationNearbyCard[];
   photos: ImageObservationTargetPhoto[];
 };
 
@@ -22576,8 +22596,27 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
       { title: "出会いやすさ", body: "夏に公園や街中の街灯付近で見つかることがあります。" }
     ],
     nearbyTitle: "浜松市中央区をもう少し見る",
-    nearbyLead: "同じあたりの記録を、場所の連続として読み返せます。",
+    nearbyLead: "浜松市中央区で5月17日・5月6日・4月27日に残っている近い投稿です。同じ足元や草地まわりの写り方を続けて見られます。",
     nearbyCountLabel: "近い投稿 6件",
+    nearbyCards: [
+      {
+        title: "草本群落",
+        badge: "草地",
+        badgeKind: "plant",
+        reason: "足元の環境と比べて見られます。",
+        meta: "YAMAKI · 5月17日",
+        href: "/ja/observations/record-1779005636197?subject=occ%3Arecord-1779005636197%3A1"
+      },
+      {
+        title: "同定待ち",
+        badge: "名前待ち",
+        reason: "この場所で、まだ名前が決まっていない写り込みです。",
+        meta: "YAMAKI · 5月17日",
+        href: "/ja/observations/record-1779005636197?subject=occ%3Arecord-1779005636197%3A0",
+        imageSrc: "/thumb/sm/v2-observations/record-1779005636197/ikimon-photo-1779005589177-a2b46533bedd.jpg",
+        imageAlt: "同定待ち"
+      }
+    ],
     photos: [
       {
         lg: "/thumb/lg/v2-observations/record-1781252770584/ikimon-photo-1781252749798-631bef1d7e7c.jpg",
@@ -22597,8 +22636,8 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
     ]
   },
   "record-1780982506049": {
-    title: "Chloris属の一種・周囲の草地",
-    subjectName: "Chloris属の一種",
+    title: "カワラヒワ属の一種・周囲の草地",
+    subjectName: "カワラヒワ属の一種",
     subjectRank: "属",
     scientificName: "Chloris",
     observedLabel: "2026.06.09 14:21",
@@ -22611,8 +22650,26 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
       { title: "周囲", body: "草地の状態と一緒に見直せます。" }
     ],
     nearbyTitle: "浜松市浜名区をもう少し見る",
-    nearbyLead: "草地や足元の状態を、同じ地域の記録として比べます。",
+    nearbyLead: "浜松市浜名区で6月9日・6月1日・5月29日に残っている近い投稿です。鳥だけで終わらず、同じ草地まわりの写り方を続けて見られます。",
     nearbyCountLabel: "近い投稿 6件",
+    nearbyCards: [
+      {
+        title: "ヒメイワダレソウ",
+        badge: "同エリア",
+        reason: "同じエリアの別の場面として続けて見られます。",
+        meta: "YAMAKI · 6月9日",
+        href: "/ja/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A1"
+      },
+      {
+        title: "同定待ち",
+        badge: "名前待ち",
+        reason: "この場所で、まだ名前が決まっていない写り込みです。",
+        meta: "YAMAKI · 6月9日",
+        href: "/ja/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0",
+        imageSrc: "/thumb/sm/v2-observations/record-1780970378665/ikimon-photo-1780970363543-cbb7b0c7dabc.jpg",
+        imageAlt: "同定待ち"
+      }
+    ],
     photos: [
       {
         lg: "/thumb/lg/v2-observations/record-1780982506049/ikimon-photo-1780982481796-b8dd5185edb9.jpg",
@@ -22646,8 +22703,27 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
       { title: "注意", body: "ワルナスビは外来植物として扱われることがあります。" }
     ],
     nearbyTitle: "浜松市浜名区をもう少し見る",
-    nearbyLead: "白い花や草地の記録を、同じ地域の連続として読み返せます。",
+    nearbyLead: "浜松市浜名区で6月9日・6月1日に残っている近い投稿です。同じ草地まわりの写り方を続けて見られます。",
     nearbyCountLabel: "近い投稿 6件",
+    nearbyCards: [
+      {
+        title: "イネ科",
+        badge: "草地",
+        badgeKind: "plant",
+        reason: "足元の環境と比べて見られます。",
+        meta: "YAMAKI · 6月9日",
+        href: "/ja/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A2"
+      },
+      {
+        title: "同定待ち",
+        badge: "名前待ち",
+        reason: "この場所で、まだ名前が決まっていない写り込みです。",
+        meta: "YAMAKI · 6月9日",
+        href: "/ja/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A0",
+        imageSrc: "/thumb/sm/v2-observations/record-1780982506049/ikimon-photo-1780982481796-b8dd5185edb9.jpg",
+        imageAlt: "同定待ち"
+      }
+    ],
     photos: [
       {
         lg: "/thumb/lg/v2-observations/record-1780970378665/ikimon-photo-1780970363543-cbb7b0c7dabc.jpg",
@@ -22870,7 +22946,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
   const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged obs-ai-detail-panel" aria-label="AI候補レビュー">
     <div class="obs-ai-status">
       <div>
-        <span class="obs-ai-detail-label">AI Detail</span>
+        <span class="obs-ai-detail-label">AI候補</span>
         <h2>AI候補レビュー</h2>
         <strong>${escapeHtml(subjectName)} / ${escapeHtml(subjectRank)} / 確認待ち</strong>
       </div>
@@ -22897,8 +22973,8 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     </div>
     <ul class="obs-ai-story">${storyBullets}</ul>
   </section>`;
-  const identifyBlock = `<section class="obs-frame-identify-card obs-vps-identify">
-    <div class="obs-frame-identify-eye">IDENTIFICATION</div>
+  const identifyBlock = `<section class="obs-frame-identify-card obs-vps-identify" data-section-code="identification">
+    <div class="obs-frame-identify-eye">同定</div>
     <div class="obs-frame-identify-head">
       <div>
         <h2>同定に参加する</h2>
@@ -22927,14 +23003,14 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
       <li><strong>現在の見方</strong><span>${escapeHtml(subjectName)}として確認待ちです。確定前として公開し、あとから更新できます。</span></li>
     </ul>
   </section>`;
-  const qualityBlock = `<section class="obs-local-quality-card obs-vps-quality">
-    <div class="obs-local-quality-eye">OBSERVATION QUALITY / EVENT / OCCURRENCE</div>
-    <h2>観察レコードとして育てる</h2>
+  const qualityBlock = `<section class="obs-local-quality-card obs-vps-quality" data-section-code="observation-quality">
+    <div class="obs-local-quality-eye">観察記録 / 環境情報</div>
+    <h2>観察記録を整える</h2>
     <p>日時・場所・環境情報をあとから追加・変更し、確認履歴を残します。保存できる範囲だけを操作として表示します。</p>
     <div class="obs-quality-grid">
-      <div class="obs-quality-item"><span>EVENT</span><strong>${escapeHtml(observedLabel)}</strong></div>
-      <div class="obs-quality-item"><span>LOCATION</span><strong>${escapeHtml(placeLabel)}</strong></div>
-      <div class="obs-quality-item"><span>MEDIA</span><strong>${escapeHtml(`${photos.length}枚`)}</strong></div>
+      <div class="obs-quality-item"><span>日時</span><strong>${escapeHtml(observedLabel)}</strong></div>
+      <div class="obs-quality-item"><span>場所</span><strong>${escapeHtml(placeLabel)}</strong></div>
+      <div class="obs-quality-item"><span>写真</span><strong>${escapeHtml(`${photos.length}枚`)}</strong></div>
     </div>
     <div class="obs-local-quality-check">
       <strong>環境レコードの下書き</strong>
@@ -22984,8 +23060,8 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     actionRailBlock: "",
     readProgressLinks: `
   <a href="#photos">写真</a>
-  <a href="#summary">AI Detail</a>
-  <a href="#identify">IDENTIFICATION</a>
+  <a href="#summary">AI候補</a>
+  <a href="#identify">同定</a>
   <a href="#place">次に見るなら</a>`,
     relatedCards: renderImageObservationRelatedCards(detail, meta),
     previewDialog: "",
@@ -23042,6 +23118,21 @@ function renderVpsImageHeader(): string {
 }
 
 function renderImageObservationRelatedCards(detail: PublicObservationDetail, meta: ImageObservationTargetMeta | undefined): string {
+  if (meta?.nearbyCards?.length) {
+    return meta.nearbyCards.map((card) => `<a class="obs-nearby-card" href="${escapeHtml(card.href)}">
+      ${card.imageSrc
+        ? `<img class="obs-area-thumb" src="${escapeHtml(card.imageSrc)}" alt="${escapeHtml(card.imageAlt ?? "")}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;📷&lt;/div&gt;'">`
+        : `<div class="obs-nearby-nophoto" aria-hidden="true">📷</div>`}
+      <div class="obs-nearby-body">
+        <div class="obs-nearby-title-row">
+          <div class="obs-nearby-name">${escapeHtml(card.title)}</div>
+          <span class="obs-nearby-badge${card.badgeKind === "plant" ? " is-plant" : ""}">${escapeHtml(card.badge)}</span>
+        </div>
+        <div class="obs-nearby-reason">${escapeHtml(card.reason)}</div>
+        <div class="obs-nearby-meta">${escapeHtml(card.meta)}</div>
+      </div>
+    </a>`).join("");
+  }
   const candidates = detail.relatedObservations.slice(0, 6);
   if (candidates.length > 0) {
     return candidates.map((item, index) => `<a class="obs-nearby-card" href="/observations/${encodeURIComponent(item.visitId)}">
