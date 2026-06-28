@@ -9,8 +9,8 @@
  *  - `taxon_match`: ユーザー購読 (taxon_alert_subscriptions) のマッチング
  *
  * 設計:
- *  - 実際のメール送信は `runAlertDeliveryWorker` (cron / systemd timer) で別プロセスから
- *  - dispatcher は **DB に pending 行を書くだけ**。失敗してもreassess の主処理を巻き込まない
+ *  - 実際のメール送信は Cloudflare Worker の Cron / Queue / ALERT_EMAIL で処理する
+ *  - dispatcher は **DB に pending 行を書くだけ**。失敗しても reassess の主処理を巻き込まない
  *  - 重複送信は migration 0063 の partial UNIQUE で抑止 (ON CONFLICT DO NOTHING)
  */
 

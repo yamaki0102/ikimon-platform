@@ -76,9 +76,38 @@ function quoteCmdArg(value) {
 }
 
 function stripJsonComments(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (inString) {
+      output += char;
+      escaped = !escaped && char === "\\";
+      if (!escaped && char === "\"") inString = false;
+      if (char !== "\\") escaped = false;
+      continue;
+    }
+    if (char === "\"") {
+      inString = true;
+      output += char;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      while (index < source.length && source[index] !== "\n") index += 1;
+      output += "\n";
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      index += 2;
+      while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) index += 1;
+      index += 1;
+      continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 async function readShadowConfigSummary() {
