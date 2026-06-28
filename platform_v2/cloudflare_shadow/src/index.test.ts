@@ -14431,8 +14431,9 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.match(body, /候補を試す/);
   assert.match(body, /この記録で返ってきたこと/);
   assert.match(body, /もう一度記録する/);
-  assert.match(body, /同じあたりで見えたもの/);
-  assert.match(body, /近くの記録/);
+  assert.match(body, /次に見るなら/);
+  assert.match(body, /浜松市浜名区をもう少し見る/);
+  assert.match(body, /近い投稿 2件/);
   assert.match(body, /かなり近そう/);
   assert.match(body, /分類候補/);
   assert.match(body, /Chloris sinica/);
@@ -14440,7 +14441,7 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.match(body, /data-frame-zoom-in/);
   assert.match(body, /obs-frame-preview/);
   assert.match(body, /obs-nearby-nophoto|obs-area-thumb/);
-  assert.doesNotMatch(body, /cell:34\.81,137\.73|公開セル|セル単位|公開範囲|記録情報|記録一覧|記録の手ざわり|次に見るなら|浜松市浜名区をもう少し見る/);
+  assert.doesNotMatch(body, /cell:34\.81,137\.73|公開セル|セル単位|公開範囲|記録情報|記録一覧|記録の手ざわり/);
   assert.doesNotMatch(body, /この映像で読む対象を切り替える|この映像に写っているもの|候補を確かめる材料|名前の記録|現場アドバイス|確定前|イネ科植物|映像フレームから拾えている手がかり/);
   assert.doesNotMatch(body, /ownerUserId|observerUserId|profile\/detail-user|34\.81234|137\.73123|\/uploads\/|original-ui\/thumb/);
 });

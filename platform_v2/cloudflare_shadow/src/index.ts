@@ -22884,10 +22884,24 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
     identifyBlock,
     qualityBlock,
     relatedLimit: 2,
-    relatedEye: "近くの記録",
-    relatedTitle: "同じあたりで見えたもの",
+    relatedEye: "次に見るなら",
+    relatedTitle: "浜松市浜名区をもう少し見る",
     relatedLead: "",
-    relatedCountLabel: "2件",
+    relatedCountLabel: "近い投稿 2件",
+    relatedCards: `<a class="obs-nearby-card" href="/ja/observations/record-1778829649026-near-a?subject=occ%3Arecord-1778829649026-near-a%3A0">
+        <span class="obs-nearby-nophoto" aria-hidden="true">+</span>
+        <span class="obs-nearby-body">
+          <strong>セイヨウタンポポ</strong>
+          <span>2026-05-15</span>
+        </span>
+      </a>
+      <a class="obs-nearby-card" href="/ja/observations/record-1778829649026-near-b?subject=occ%3Arecord-1778829649026-near-b%3A0">
+        <span class="obs-nearby-nophoto" aria-hidden="true">+</span>
+        <span class="obs-nearby-body">
+          <strong>スズメ</strong>
+          <span>2026-05-15</span>
+        </span>
+      </a>`,
     previewDialog: renderFramePreviewDialog(),
     previewScript: renderFramePreviewScript()
   };
