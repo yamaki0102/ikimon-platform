@@ -112,7 +112,7 @@ test("app sends HSTS in production", async () => {
   }
 });
 
-test("root route serves the map home HTML even for generic accept headers", async () => {
+test("root route serves the record feed home HTML even for generic accept headers", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -123,12 +123,16 @@ test("root route serves the map home HTML even for generic accept headers", asyn
     assert.equal(response.statusCode, 200);
     assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
     assert.doesNotMatch(response.body, /"status":"bootstrapping"/);
-    assert.match(response.body, /id="map-explorer"/);
-    assert.match(response.body, /<title>ikimon - 皆で作る地域図鑑 \| ikimon/);
+    assert.match(response.body, /<title>ikimon \| 生きものを手がかりに、この場所の今を残す<\/title>/);
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
-    assert.match(response.body, /このエリアの活動・ラリー/);
-    assert.doesNotMatch(response.body, /\/community\/events\/new/);
-    assert.doesNotMatch(response.body, /prototype-topa/);
+    assert.match(response.body, /data-record-feed/);
+    assert.match(response.body, /記録を見る/);
+    assert.match(response.body, /みんなの記録/);
+    assert.match(response.body, /site-shell[^"]*is-minimal-chrome/);
+    assert.doesNotMatch(response.body, /<nav class="desktop-side-nav-inner"/);
+    assert.doesNotMatch(response.body, /使い方を見る/);
+    assert.doesNotMatch(response.body, /公開前に安全側で確認します/);
+    assert.doesNotMatch(response.body, /id="map-explorer"/);
   } finally {
     await app.close();
   }

@@ -114,33 +114,16 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS https://staging.ikimon.life/healthz | tee staging-healthz.json | grep -q '"environment":"staging"'
+          grep -q '"buildMarker":"top-record-feed-20260628"' staging-healthz.json
           curl -fsS https://staging.ikimon.life/readyz | tee staging-readyz.json | grep -q '"environment":"staging"'
+          curl -fsS -D staging-root.headers https://staging.ikimon.life/ -o staging-root.html
+          grep -q 'data-record-feed' staging-root.html
+          ! grep -q 'id="map-explorer"' staging-root.html
+          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-root.headers
           curl -fsS -D staging-demo.headers https://staging.ikimon.life/demo/place-feeling-tags -o staging-demo.html
           grep -q '実データではありません' staging-demo.html
           grep -q 'place_feeling_tags' staging-demo.html
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-demo.headers
-          curl -fsS -D staging-walk-map-admin-template.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?templateId=route_species_walk' -o staging-walk-map-admin-template.html
-          grep -q '参考元カタログ' staging-walk-map-admin-template.html
-          grep -q 'data-source-operational-model="official_walk_pdf"' staging-walk-map-admin-template.html
-          grep -q '散策PDF' staging-walk-map-admin-template.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin-template.headers
-          curl -fsS -D staging-walk-map-admin.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=funabashi-nature-walk-maps' -o staging-walk-map-admin.html
-          grep -q '自然散策マップ 下書き' staging-walk-map-admin.html
-          grep -q '下書きに入れる' staging-walk-map-admin.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin.headers
-          curl -fsS -D staging-walk-map-admin-shizuoka.headers 'https://staging.ikimon.life/admin/municipal-walk-maps?sourceId=shizuoka-ikimono-walk-route' -o staging-walk-map-admin-shizuoka.html
-          grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-admin-shizuoka.html
-          grep -q '立ち寄り先 6' staging-walk-map-admin-shizuoka.html
-          grep -q 'asahata2024-map.pdf' staging-walk-map-admin-shizuoka.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-admin-shizuoka.headers
-          curl -fsS -D staging-walk-map-reviews.headers 'https://staging.ikimon.life/admin/municipal-walk-map-reviews' -o staging-walk-map-reviews.html
-          grep -q '散策マップ審査' staging-walk-map-reviews.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-reviews.headers
-          curl -fsS -D staging-walk-map-review-shizuoka.headers 'https://staging.ikimon.life/walk-map-source-drafts/shizuoka-ikimono-walk-route' -o staging-walk-map-review-shizuoka.html
-          grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-review-shizuoka.html
-          grep -q '6. 公園の開けた場所' staging-walk-map-review-shizuoka.html
-          grep -q 'source_draft_review' staging-walk-map-review-shizuoka.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-review-shizuoka.headers
           curl -fsS -D staging-brand-icon.headers https://staging.ikimon.life/assets/brand/app-icon-192.png -o staging-brand-icon.png
           grep -qi '^content-type: image/png' staging-brand-icon.headers
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers

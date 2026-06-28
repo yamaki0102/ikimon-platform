@@ -120,8 +120,8 @@ export function isMeaningfulPublicObservationLabel(value: unknown): boolean {
 }
 
 export const PUBLIC_OBSERVATION_QUALITY_SQL = `
-  coalesce(v.public_visibility, 'public') = 'public'
-  and coalesce(v.quality_review_status, 'accepted') = 'accepted'
+  v.public_visibility = 'public'
+  and v.quality_review_status = 'accepted'
   and coalesce(lower(v.source_payload->>'map_photo_visibility'), '') not in ('hidden', 'private', 'owner_only', 'off', 'false', '0', 'no')
   and coalesce(lower(v.source_payload->>'public_map_visibility'), '') not in ('hidden', 'private', 'owner_only', 'off', 'false', '0', 'no')
   and coalesce(lower(v.source_payload->>'public_map_opt_out'), '') not in ('true', '1', 'yes')

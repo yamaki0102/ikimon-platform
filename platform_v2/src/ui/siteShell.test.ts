@@ -426,6 +426,26 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /撮り直す/);
 });
 
+test("site shell minimal chrome keeps guest top visually quiet", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Home",
+    body: "<h1>記録を見る</h1>",
+    lang: "ja",
+    currentPath: "/?lang=ja",
+    minimalChrome: true,
+  });
+
+  assert.match(html, /site-shell[^"]*is-minimal-chrome/);
+  assert.match(html, /class="site-header site-header-minimal"/);
+  assert.match(html, /class="btn btn-solid site-login-link" href="\/ja\/login\?redirect=%2Fprofile">ログイン<\/a>/);
+  assert.match(html, /class="btn btn-solid site-record-link" href="\/ja\/record">記録する<\/a>/);
+  assert.doesNotMatch(html, /<nav class="desktop-side-nav-inner"/);
+  assert.doesNotMatch(html, /<form class="site-search site-search-desktop"/);
+  assert.doesNotMatch(html, /<div class="site-mobile-menu-panel"/);
+  assert.match(html, /\.site-shell\.is-minimal-chrome \.shell\.shell-layout-home/);
+});
+
 test("site shell localizes the mobile global record launcher", () => {
   const html = renderSiteDocument({
     basePath: "",

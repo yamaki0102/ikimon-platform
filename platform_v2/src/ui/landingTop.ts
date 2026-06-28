@@ -746,6 +746,180 @@ function renderLandingContentWall(options: LandingTopRenderOptions): string {
   </section>`;
 }
 
+function landingRecordFeedContextLabel(lang: SiteLang, obs: LandingObservation, index: number, viewerUserId: string | null): string {
+  const isMine = viewerUserId && obs.observerUserId === viewerUserId;
+  if (isMine) return lang === "ja" ? "自分の記録" : "Your record";
+  if (obs.hasVideo || obs.librarySourceKind === "video") return lang === "ja" ? "季節の記録" : "Seasonal record";
+  if (obs.fieldRefs?.length) return lang === "ja" ? "観察会より" : "From a field walk";
+  return index % 3 === 1
+    ? (lang === "ja" ? "同じ場所" : "Same area")
+    : (lang === "ja" ? "近くの記録" : "Nearby record");
+}
+
+function landingRecordFeedItems(snapshot: LandingSnapshot): LandingObservation[] {
+  const preferred = snapshot.feed.length > 0 ? snapshot.feed : snapshot.myFeed;
+  const feedable = preferred.filter((obs) =>
+    obs.librarySourceKind !== "guide" &&
+    obs.librarySourceKind !== "scan" &&
+    isReturnableOwnLandingContent(obs),
+  );
+  return Array.from(new Map(feedable.map((obs) => [obs.occurrenceId, obs])).values()).slice(0, 12);
+}
+
+function isPlayableLandingVideoUrl(url: string | null): boolean {
+  return Boolean(url && /\.(?:mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(url));
+}
+
+function renderLandingRecordFeedMedia(obs: LandingObservation, title: string, index: number): string {
+  const mediaUrl = observationImageUrl(obs, "lg") ?? observationImageUrl(obs, "original");
+  const isVideo = Boolean(obs.hasVideo || obs.librarySourceKind === "video");
+  if (isVideo && isPlayableLandingVideoUrl(mediaUrl)) {
+    return `<video class="prototype-record-feed-media" src="${escapeHtml(mediaUrl ?? "")}" muted playsinline loop preload="metadata" data-record-feed-video aria-label="${escapeHtml(title)}"></video>`;
+  }
+  if (mediaUrl) {
+    return `<img class="prototype-record-feed-media" src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(title)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async" />`;
+  }
+  return `<span class="prototype-record-feed-empty-media" aria-hidden="true"></span>`;
+}
+
+function renderLandingRecordFeedCard(options: LandingTopRenderOptions, obs: LandingObservation, index: number): string {
+  const { basePath, lang, copy, snapshot } = options;
+  const href = observationDetailHref(basePath, lang, obs);
+  const title = displayObservationName(obs, copy.heroPhotoFallback);
+  const label = landingRecordFeedContextLabel(lang, obs, index, snapshot.viewerUserId);
+  const placeLabel = observationPlaceLabel(obs);
+  const observed = formatLandingObservedAt(lang, landingObservationTimestamp(obs));
+  const isMine = Boolean(snapshot.viewerUserId && obs.observerUserId === snapshot.viewerUserId);
+  const observer = isMine ? (lang === "ja" ? "あなた" : "You") : (obs.observerName || (lang === "ja" ? "観察者" : "Observer"));
+  const actionHref = isMine
+    ? landingHref(basePath, lang, "/records?view=mine")
+    : landingHref(basePath, lang, `/contact?topic=report&record=${encodeURIComponent(obs.detailId ?? obs.visitId ?? obs.occurrenceId)}`);
+  const actionLabel = isMine
+    ? (lang === "ja" ? "公開範囲を変更" : "Change visibility")
+    : (lang === "ja" ? "通報" : "Report");
+  const showTools = Boolean(snapshot.viewerUserId);
+  const mediaBadge = obs.hasVideo || obs.librarySourceKind === "video"
+    ? (lang === "ja" ? "動画" : "Video")
+    : (lang === "ja" ? "写真" : "Photo");
+  return `<article class="prototype-record-feed-card${isMine ? " is-mine" : ""}" data-record-feed-card>
+    <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:card">
+      <span class="prototype-record-feed-media-wrap">
+        ${renderLandingRecordFeedMedia(obs, title, index)}
+        <span class="prototype-record-feed-badges"><span>${escapeHtml(label)}</span><span>${escapeHtml(mediaBadge)}</span></span>
+      </span>
+      <span class="prototype-record-feed-copy">
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml([observer, placeLabel, observed].filter(Boolean).join(" · "))}</span>
+      </span>
+    </a>
+    ${showTools ? `<div class="prototype-record-feed-tools">
+      <span>${escapeHtml(isMine ? (lang === "ja" ? "本人限定から公開まで後で調整できます" : "You can adjust visibility later") : (lang === "ja" ? "位置はぼかして表示" : "Location is blurred"))}</span>
+      <a href="${escapeHtml(actionHref)}" data-kpi-action="landing:record_feed:${isMine ? "visibility" : "report"}">${escapeHtml(actionLabel)}</a>
+    </div>` : ""}
+  </article>`;
+}
+
+function renderLandingPublicRulesCard(basePath: string, lang: SiteLang): string {
+  const helpHref = landingHref(basePath, lang, "/faq#privacy");
+  const copy = lang === "ja"
+    ? {
+        title: "公開前に安全側で確認します",
+        items: ["位置はぼかされます", "公開向きでない写真は自動で非公開寄せ", "あとから変更できます"],
+        link: "設定とヘルプ",
+      }
+    : {
+        title: "Records are checked before public display",
+        items: ["Locations are blurred", "Sensitive photos stay private by default", "You can change this later"],
+        link: "Settings and help",
+      };
+  return `<article class="prototype-record-feed-rules" data-record-feed-rules>
+    <strong>${escapeHtml(copy.title)}</strong>
+    <ul>${copy.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    <a href="${escapeHtml(helpHref)}" data-kpi-action="landing:record_feed:rules">${escapeHtml(copy.link)}</a>
+  </article>`;
+}
+
+function renderLandingRecordFeedEmpty(basePath: string, lang: SiteLang): string {
+  const recordHref = landingHref(basePath, lang, "/record");
+  return `<article class="prototype-record-feed-empty">
+    <strong>${escapeHtml(lang === "ja" ? "最初の記録を残す" : "Save your first record")}</strong>
+    <span>${escapeHtml(lang === "ja" ? "写真や短い動画を1つ残すだけで、あとから場所の記憶に育てられます。" : "One photo or short video can grow into a place record later.")}</span>
+    <a href="${escapeHtml(recordHref)}" data-kpi-action="landing:record_feed:empty">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a>
+  </article>`;
+}
+
+function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): string {
+  const recordsHref = landingHref(basePath, lang, "/records?view=public");
+  const copy = lang === "ja"
+    ? {
+        title: "みんなの記録",
+        badge: "近くの記録",
+        media: "写真・動画",
+      }
+    : {
+        title: "Community records",
+        badge: "Nearby record",
+        media: "Photo and video",
+      };
+  return `<article class="prototype-record-feed-card is-preview" data-record-feed-card>
+    <a class="prototype-record-feed-main" href="${escapeHtml(recordsHref)}" data-kpi-action="landing:record_feed:guest_preview">
+      <span class="prototype-record-feed-media-wrap">
+        <span class="prototype-record-feed-empty-media" aria-hidden="true"></span>
+        <span class="prototype-record-feed-preview-stack" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.badge)}</span><span>${escapeHtml(copy.media)}</span></span>
+      </span>
+      <span class="prototype-record-feed-copy">
+        <strong>${escapeHtml(copy.title)}</strong>
+      </span>
+    </a>
+  </article>`;
+}
+
+function renderLandingRecordFeed(options: LandingTopRenderOptions): string {
+  const { basePath, lang, snapshot } = options;
+  const items = landingRecordFeedItems(snapshot);
+  const showRulesCard = Boolean(snapshot.viewerUserId && snapshot.myFeed.length === 0);
+  const cards = items.map((obs, index) => renderLandingRecordFeedCard(options, obs, index));
+  if (showRulesCard) {
+    cards.splice(Math.min(1, cards.length), 0, renderLandingPublicRulesCard(basePath, lang));
+  }
+  if (cards.length === 0 && snapshot.viewerUserId) {
+    cards.push(renderLandingPublicRulesCard(basePath, lang), renderLandingRecordFeedEmpty(basePath, lang));
+  } else if (cards.length === 0) {
+    cards.push(renderLandingGuestRecordPreview(basePath, lang));
+  }
+  const isGuest = !snapshot.viewerUserId;
+  const headActionHref = landingHref(basePath, lang, "/record");
+  const headActionHtml = isGuest
+    ? ""
+    : `<a href="${escapeHtml(headActionHref)}" data-kpi-action="landing:record_feed:weak_record">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a>`;
+  return `<section class="prototype-record-feed" aria-label="${escapeHtml(lang === "ja" ? "記録フィード" : "Record feed")}" data-record-feed>
+    <div class="prototype-record-feed-head">
+      <div>
+        <span>${escapeHtml(lang === "ja" ? "写真・動画の記録" : "Photo and video records")}</span>
+        <h1>${escapeHtml(isGuest ? (lang === "ja" ? "記録を見る" : "Watch records") : (lang === "ja" ? "今日の記録が、場所の記憶に育つ。" : "Today's records grow into place memory."))}</h1>
+      </div>
+      ${headActionHtml}
+    </div>
+    <div class="prototype-record-feed-list">${cards.join("")}</div>
+    <script>
+(() => {
+  const videos = Array.from(document.querySelectorAll("[data-record-feed-video]"));
+  if (!videos.length || !("IntersectionObserver" in window)) return;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const video = entry.target;
+      if (!(video instanceof HTMLVideoElement)) return;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.68) video.play().catch(() => {});
+      else video.pause();
+    });
+  }, { threshold: [0, 0.68, 1] });
+  videos.forEach((video) => observer.observe(video));
+})();
+    </script>
+  </section>`;
+}
+
 type LandingNearbyCard = {
   title: string;
   meta: string;
@@ -1641,7 +1815,14 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
+  if (!options.isLoggedIn) {
+    return `<section class="prototype-topa-shelves prototype-topa-shelves-feed-only" aria-label="トップページの記録フィード">
+    ${renderLandingRecordFeed(options)}
+  </section>`;
+  }
+
   return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
+    ${renderLandingRecordFeed(options)}
     ${renderLandingContentWall(options)}
     ${renderLandingNearbySection(options)}
     ${renderNatureCapitalGoalSection(options)}
@@ -1880,6 +2061,213 @@ export const LANDING_TOP_STYLES = `
     margin-right: var(--ikimon-landing-side-space);
     padding-top: clamp(18px, 3vw, 38px);
     color: #1a2e1f;
+  }
+  .prototype-record-feed {
+    width: min(100%, 780px);
+    margin: 0 auto clamp(30px, 6vw, 76px);
+    display: grid;
+    gap: clamp(14px, 2.2vw, 22px);
+  }
+  .prototype-record-feed-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .prototype-record-feed-head span {
+    display: block;
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .prototype-record-feed-head h1 {
+    margin: 4px 0 0;
+    color: #10251a;
+    font-size: clamp(28px, 4.4vw, 48px);
+    line-height: 1.08;
+    letter-spacing: 0;
+  }
+  .prototype-record-feed-head a {
+    flex: 0 0 auto;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 15px;
+    border-radius: 999px;
+    background: #10251a;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .prototype-record-feed-list {
+    display: grid;
+    gap: 16px;
+  }
+  .prototype-record-feed-card,
+  .prototype-record-feed-rules,
+  .prototype-record-feed-empty {
+    overflow: hidden;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 8px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 18px 42px rgba(15,23,42,.1);
+  }
+  .prototype-record-feed-main {
+    display: grid;
+    color: inherit;
+    text-decoration: none;
+  }
+  .prototype-record-feed-media-wrap {
+    position: relative;
+    height: clamp(330px, 58vh, 560px);
+    min-height: 330px;
+    overflow: hidden;
+    background: #dff4ea;
+  }
+  .prototype-record-feed-media {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    background: #dff4ea;
+  }
+  .prototype-record-feed-empty-media {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background:
+      radial-gradient(circle at 22% 20%, rgba(14,165,233,.22), transparent 28%),
+      linear-gradient(135deg, #dff4ea 0%, #f7fee7 100%);
+  }
+  .prototype-record-feed-card.is-preview .prototype-record-feed-empty-media {
+    background:
+      linear-gradient(180deg, rgba(186,230,253,.9) 0 42%, rgba(204,251,241,.94) 42% 58%, rgba(239,246,255,.92) 58% 100%);
+  }
+  .prototype-record-feed-preview-stack {
+    position: absolute;
+    inset: 64px 18px 24px;
+    display: grid;
+    grid-template-columns: 1.15fr .85fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .prototype-record-feed-preview-stack span {
+    display: block;
+    min-width: 0;
+    border-radius: 8px;
+    box-shadow: 0 18px 34px rgba(15,23,42,.12);
+  }
+  .prototype-record-feed-preview-stack span:nth-child(1) {
+    grid-row: 1 / 3;
+    background:
+      linear-gradient(140deg, rgba(5,150,105,.88), rgba(187,247,208,.76) 42%, rgba(14,165,233,.56)),
+      repeating-linear-gradient(105deg, rgba(6,95,70,.24) 0 8px, transparent 8px 18px);
+  }
+  .prototype-record-feed-preview-stack span:nth-child(2) {
+    background:
+      linear-gradient(145deg, rgba(56,189,248,.72), rgba(255,247,237,.9) 46%, rgba(251,146,60,.68)),
+      repeating-linear-gradient(20deg, rgba(12,74,110,.18) 0 7px, transparent 7px 17px);
+  }
+  .prototype-record-feed-preview-stack span:nth-child(3) {
+    background:
+      linear-gradient(145deg, rgba(49,46,129,.82), rgba(125,211,252,.68) 52%, rgba(245,158,11,.72)),
+      repeating-linear-gradient(130deg, rgba(17,24,39,.2) 0 6px, transparent 6px 15px);
+  }
+  .prototype-record-feed-badges {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .prototype-record-feed-badges span {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: rgba(16,37,26,.82);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .prototype-record-feed-copy {
+    display: grid;
+    gap: 6px;
+    padding: 14px 16px 12px;
+  }
+  .prototype-record-feed-copy strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #10251a;
+    font-size: 20px;
+    line-height: 1.22;
+    font-weight: 950;
+  }
+  .prototype-record-feed-copy span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 750;
+  }
+  .prototype-record-feed-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 16px 14px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 750;
+  }
+  .prototype-record-feed-tools a {
+    flex: 0 0 auto;
+    color: #0f766e;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .prototype-record-feed-rules,
+  .prototype-record-feed-empty {
+    display: grid;
+    gap: 10px;
+    padding: 18px;
+  }
+  .prototype-record-feed-rules strong,
+  .prototype-record-feed-empty strong {
+    color: #10251a;
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .prototype-record-feed-rules ul {
+    margin: 0;
+    padding-left: 18px;
+    color: #334155;
+    font-size: 14px;
+    line-height: 1.7;
+    font-weight: 800;
+  }
+  .prototype-record-feed-rules a,
+  .prototype-record-feed-empty a {
+    color: #0f766e;
+    font-size: 13px;
+    font-weight: 950;
+    text-decoration: none;
+  }
+  .prototype-record-feed-empty span {
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 750;
   }
   .prototype-btn {
     min-height: 52px;
@@ -4141,6 +4529,15 @@ export const LANDING_TOP_STYLES = `
   }
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell { padding-top: 14px; }
+    .prototype-record-feed { width: 100%; gap: 12px; margin-bottom: 34px; }
+    .prototype-record-feed-head { align-items: start; }
+    .prototype-record-feed-head h1 { font-size: 30px; line-height: 1.12; }
+    .prototype-record-feed-head a { min-height: 38px; padding: 9px 12px; font-size: 12px; }
+    .prototype-record-feed-list { gap: 14px; }
+    .prototype-record-feed-media-wrap { height: 57vh; min-height: 310px; }
+    .prototype-record-feed-copy { padding: 13px 14px 11px; }
+    .prototype-record-feed-copy strong { font-size: 18px; }
+    .prototype-record-feed-tools { padding: 0 14px 13px; align-items: start; }
     .prototype-topa { padding-top: 12px; }
     .prototype-topa h1 { font-size: 34px; line-height: 1.1; white-space: normal; }
     .prototype-topa p { font-size: 14px; line-height: 1.55; }

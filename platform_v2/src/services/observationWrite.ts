@@ -571,8 +571,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       ) ? null : "missing_identification",
     ].filter((reason): reason is string => reason !== null),
   };
-  const publicVisibility = hasPhoto ? "public" : "review";
-  const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
+  const publicVisibility = "review";
+  const qualityReviewStatus = "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
   const observedAt = normalizeTimestamp(input.observedAt);
   const adminLocality = hasLocation
@@ -985,6 +985,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         visit_id: visitId,
         photo_index: index,
         media_role: mediaRole,
+        derivative_ready: false,
+        exif_stripped: false,
+        face_blur_status: "pending",
       };
       const blobId = await upsertAssetBlob(client, {
         storageBackend: "local_fs",
@@ -1038,31 +1041,30 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       });
     }
 
-    if (!hasPhoto) {
-      await upsertVisitQualityReview(client, {
-        visitId,
-        occurrenceId,
-        reasonCode: "native_no_photo",
-        reasonDetail: "V2 observation was saved without photo evidence and is held for review before public display.",
-        qualitySignals,
-        sourcePayload: {
-          source: "v2_write_api",
-          visit_id: visitId,
-        },
-      });
-    } else {
-      await client.query(
-        `update observation_quality_reviews
-         set review_status = 'accepted',
-             public_visibility = 'public',
-             reviewed_at = coalesce(reviewed_at, now()),
-             updated_at = now()
-         where visit_id = $1
-           and reason_code = 'native_no_photo'
-           and review_status = 'needs_review'`,
-        [visitId],
-      );
-    }
+    await upsertVisitQualityReview(client, {
+      visitId,
+      occurrenceId,
+      reasonCode: hasPhoto ? "native_pending_public_feed_gate" : "native_no_photo",
+      reasonDetail: hasPhoto
+        ? "V2 observation was saved with media and is held until media processing, safety review, and public feed eligibility checks pass."
+        : "V2 observation was saved without photo evidence and is held for review before public display.",
+      qualitySignals: {
+        ...qualitySignals,
+        isPublicReady: false,
+        gateReasons: Array.from(new Set([
+          ...qualitySignals.gateReasons,
+          hasPhoto ? "pending_media_safety_review" : "missing_photo",
+        ])),
+      },
+      sourcePayload: {
+        source: "v2_write_api",
+        visit_id: visitId,
+        public_feed_gate: "pending_review",
+        derivative_ready: false,
+        exif_stripped: false,
+        face_blur_status: hasPhoto ? "pending" : "not_applicable",
+      },
+    });
 
     const legacyIdentificationKey = `legacy_taxon:${occurrenceId}:primary`;
     const proposedName = input.taxon?.scientificName?.trim() || input.taxon?.vernacularName?.trim() || null;
