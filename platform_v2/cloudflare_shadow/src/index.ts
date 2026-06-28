@@ -16364,10 +16364,13 @@ async function injectHomeObservationRecords(html: string, url: URL, env: Env): P
 }
 
 async function recentPublicRecordCards(env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
-  const rows = (await queryPublicMapRows(env)).slice(0, 6);
+  const rows = await queryPublicMapRows(env);
   if (rows.length === 0) return [];
   const photoUrls = await queryPublicMapPhotoUrls(env);
-  return rows.map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null));
+  return rows
+    .filter((row) => photoUrls.has(row.observation_id))
+    .slice(0, 6)
+    .map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null));
 }
 
 function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
@@ -16596,6 +16599,10 @@ async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
       WHERE observation_id IS NOT NULL
         AND processing_state = 'uploaded'
         AND public_derivative_key IS NOT NULL
+        AND public_derivative_verified_at IS NOT NULL
+        AND public_derivative_metadata_json IS NOT NULL
+        AND public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+        AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
         AND exif_scrub_state = 'scrubbed'
         AND public_ready_at IS NOT NULL
         AND mime LIKE 'image/%'
@@ -16901,6 +16908,10 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
      WHERE observation_id = ?
        AND processing_state = 'uploaded'
        AND public_derivative_key IS NOT NULL
+       AND public_derivative_verified_at IS NOT NULL
+       AND public_derivative_metadata_json IS NOT NULL
+       AND public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+       AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
        AND exif_scrub_state = 'scrubbed'
        AND public_ready_at IS NOT NULL
      ORDER BY created_at ASC
