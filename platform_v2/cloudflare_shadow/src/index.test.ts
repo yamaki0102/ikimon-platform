@@ -1490,6 +1490,7 @@ class FakeD1 {
   observationSpecialistReviews = new Map<string, ObservationSpecialistReviewRow>();
   observationDetailEditEvents: ObservationDetailEditEventRow[] = [];
   observationEnvironmentRecords: ObservationEnvironmentRecordRow[] = [];
+  environmentRecordTablesAvailable = true;
   placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
   placeMemoryEntries = new Map<string, PlaceMemoryEntryTestRow>();
   placeMemoryPreferences = new Map<string, PlaceMemoryPreferenceTestRow>();
@@ -4839,6 +4840,12 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN")) {
+      const rows = this.db.environmentRecordTablesAvailable
+        ? [{ name: "observation_environment_records" }, { name: "observation_detail_edit_events" }]
+        : [];
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT pme.entry_id, pme.visit_id, pme.occurrence_id")) {
       const viewerUserId = string(v[0]);
       const cellId = string(v[2]);
@@ -6857,19 +6864,39 @@ test("public observation detail route exposes a safe read page and JSON without 
   const pageHtml = await pageResponse.text();
   assert.equal(pageResponse.ok, true, pageHtml);
   assert.match(pageHtml, /data-cloudflare-observation-detail="1"/);
+  assert.match(pageHtml, /obs-vps-image-detail-body/);
+  assert.match(pageHtml, /\/assets\/brand\/app-icon-192\.png/);
+  assert.match(pageHtml, /\/assets\/brand\/ikimon-wordmark-black\.png/);
   assert.match(pageHtml, /obs-reading-hero/);
   assert.match(pageHtml, /obs-read-progress/);
   assert.match(pageHtml, /obs-media-ledger/);
-  assert.match(pageHtml, /obs-action-rail/);
+  assert.match(pageHtml, /obs-hero-media-stack is-photo-only/);
+  assert.match(pageHtml, /data-obs-preview-img/);
+  assert.match(pageHtml, /data-obs-preview-regions/);
+  assert.match(pageHtml, /obs-hero-thumb/);
+  assert.match(pageHtml, /この記録で読む対象/);
+  assert.match(pageHtml, /data-section-code="identification"/);
+  assert.match(pageHtml, /同定に参加する/);
+  assert.match(pageHtml, /同意する/);
+  assert.match(pageHtml, /別候補を提案/);
+  assert.match(pageHtml, /保留する/);
+  assert.match(pageHtml, /別レコードを追加/);
+  assert.match(pageHtml, /提案・コメントの履歴/);
+  assert.match(pageHtml, /現在の見方/);
+  assert.match(pageHtml, /data-section-code="observation-quality"/);
+  assert.match(pageHtml, /観察記録を整える/);
+  assert.match(pageHtml, /環境情報の下書き/);
+  assert.match(pageHtml, /編集履歴/);
+  assert.match(pageHtml, /次に見るなら/);
   assert.match(pageHtml, /obs-reading-flow/);
-  assert.match(pageHtml, /obs-record-story/);
   assert.match(pageHtml, /obs-local-quality-inline is-full-width/);
   assert.match(pageHtml, /obs-area-records/);
   assert.match(pageHtml, /詳細テスト植物/);
-  assert.match(pageHtml, /ぼかし表示/);
-  assert.match(pageHtml, /精密な座標/);
+  assert.match(pageHtml, /位置ぼかし/);
   assert.doesNotMatch(pageHtml, /cell:34\.71,137\.81|公開セル|セル単位/);
-  assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|ownerUserId|observerUserId|profile\/detail-user|34\.71234|137\.81234/);
+  assert.doesNotMatch(pageHtml, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
+  assert.doesNotMatch(pageHtml, /IDENTIFICATION|OBSERVATION QUALITY|記録の質を育てる/);
+  assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|ownerUserId|observerUserId|profile\/detail-user|profile\/user_|YAMAKI|34\.71234|137\.81234|\/uploads\//);
 
   const localizedPageResponse = await worker.fetch(new Request("https://shadow.test/ja/observations/visit-detail-contract"), env);
   const localizedPageHtml = await localizedPageResponse.text();
@@ -6877,6 +6904,8 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(localizedPageHtml, /data-cloudflare-observation-detail="1"/);
   assert.match(localizedPageHtml, /obs-reading-hero/);
   assert.match(localizedPageHtml, /obs-media-ledger/);
+  assert.match(localizedPageHtml, /obs-hero-media-stack is-photo-only/);
+  assert.match(localizedPageHtml, /data-obs-preview-img/);
   assert.match(localizedPageHtml, /詳細テスト植物/);
 
   const missingResponse = await worker.fetch(new Request("https://shadow.test/observations/not-found"), env);
@@ -8091,8 +8120,83 @@ test("production occurrence detail edit APIs write to D1 without origin fallback
   assert.equal(structured.place_type, "urban");
   assert.equal(structured.contact_surface, "plant");
   assert.equal(structured.human_change, "mowing");
+  assert.equal(structured.environment_record_location_source, "exact_observation");
+
+  obs.observations.set("occ-edit-public-cell", {
+    observation_id: "occ-edit-public-cell",
+    draft_id: "draft-edit-public-cell",
+    owner_user_id: "detail-user",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "公開セル記録",
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "34.440000,137.550000",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  const fallbackLocationResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-public-cell/environment-record", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ values: { place_type: "water_edge" } })
+  }), productionEnv);
+  const fallbackLocationPayload = await fallbackLocationResponse.json() as any;
+  assert.equal(fallbackLocationResponse.status, 200, JSON.stringify(fallbackLocationPayload));
+  const fallbackRecord = obs.observationEnvironmentRecords.at(-1);
+  assert.equal(fallbackRecord?.lat, 34.44);
+  assert.equal(fallbackRecord?.lng, 137.55);
+  const fallbackStructured = JSON.parse(fallbackRecord?.structured_json ?? "{}") as Record<string, string>;
+  assert.equal(fallbackStructured.environment_record_location_source, "public_cell");
   assert.equal(obs.observationDetailEditEvents.some((row) => row.edit_kind === "location"), true);
   assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-edit-1"), true);
+});
+
+test("production occurrence environment edits return a JSON 503 when storage migration is missing", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.environmentRecordTablesAvailable = false;
+  obs.observations.set("occ-edit-missing-storage", {
+    observation_id: "occ-edit-missing-storage",
+    draft_id: "draft-edit-missing-storage",
+    owner_user_id: "detail-user",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "テスト種",
+    note: null,
+    exact_lat: 35.123456,
+    exact_lng: 139.123456,
+    location_accuracy_m: null,
+    public_cell: "35.12,139.12",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "detail-user", displayName: "Detail User", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-missing-storage/environment-record", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ values: { place_type: "urban" } })
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 503, JSON.stringify(payload));
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "environment_record_storage_unavailable");
+  assert.equal(obs.observationEnvironmentRecords.length, 0);
+  assert.equal(obs.observationDetailEditEvents.length, 0);
 });
 
 test("production occurrence detail edit APIs reject non owners before mutation", async () => {
@@ -14447,6 +14551,29 @@ test("production language-prefixed observation detail stays native and public-sa
     });
   }
   await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  env.OBS_DB.assets.set("asset-record-native-public-real-derivative", {
+    asset_id: "asset-record-native-public-real-derivative",
+    draft_id: "draft-record-native-public-real-derivative",
+    observation_id: "record-native-public",
+    owner_user_id: "detail-user",
+    object_key: "original/record-native-public/detail-real.jpg",
+    partition_month: "2026-06",
+    sha256: "record-native-public-real-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260628/observation_photo/asset-record-native-public-real-derivative/display.webp",
+    public_derivative_sha256: "record-native-public-real-derivative-sha",
+    public_derivative_verified_at: "2026-06-28T12:00:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-28T12:00:00.000Z"
+  });
+  await env.ASSET_BUCKET.put(
+    "derived/import/20260628/observation_photo/asset-record-native-public-real-derivative/display.webp",
+    "record-native-public-real-webp",
+    { httpMetadata: { contentType: "image/webp" } }
+  );
   await env.ASSET_BUCKET.put("original-ui/html/ja/observations/record-native-public.html", "should-not-be-served", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -14454,8 +14581,31 @@ test("production language-prefixed observation detail stays native and public-sa
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
+
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "detail-user", displayName: "Detail User", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const environmentResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/record-native-public/environment-record", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      values: {
+        place_type: "urban",
+        contact_surface: "plant",
+        surrounding_cover: "built_surface",
+        environment_condition: "wet",
+        human_change: "mowing"
+      }
+    })
+  }), productionEnv);
+  const environmentPayload = await environmentResponse.json() as any;
+  assert.equal(environmentResponse.status, 200, JSON.stringify(environmentPayload));
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -14477,19 +14627,46 @@ test("production language-prefixed observation detail stays native and public-sa
     const body = await response.text();
     assert.equal(response.status, 200, body);
     assert.match(body, /data-cloudflare-observation-detail="1"/);
+    assert.match(body, /obs-vps-image-detail-body/);
+    assert.match(body, /\/assets\/brand\/app-icon-192\.png/);
+    assert.match(body, /\/assets\/brand\/ikimon-wordmark-black\.png/);
     assert.match(body, /obs-reading-hero/);
     assert.match(body, /obs-read-progress/);
     assert.match(body, /obs-media-ledger/);
-    assert.match(body, /obs-action-rail/);
-    assert.match(body, /obs-record-story/);
+    assert.match(body, /obs-hero-media-stack is-photo-only/);
+    assert.match(body, /data-obs-preview-img/);
+    assert.match(body, /data-obs-preview-regions/);
+    assert.match(body, /obs-hero-thumb/);
+    assert.match(body, /この記録で読む対象/);
+    assert.match(body, /data-section-code="identification"/);
+    assert.match(body, /同定に参加する/);
+    assert.match(body, /data-section-code="observation-quality"/);
+    assert.match(body, /観察記録を整える/);
+    assert.match(body, /環境情報の下書き/);
+    assert.match(body, /data-environment-record-form/);
+    assert.match(body, /\/api\/v1\/occurrences\/record-native-public\/environment-record/);
+    assert.match(body, /name="place_type"/);
+    assert.match(body, /name="contact_surface"/);
+    assert.match(body, /name="surrounding_cover"/);
+    assert.match(body, /name="environment_condition"/);
+    assert.match(body, /name="human_change"/);
+    assert.match(body, /保存する/);
+    assert.match(body, /保存済み/);
+    assert.match(body, /市街地/);
+    assert.match(body, /植物上/);
+    assert.match(body, /舗装・構造物/);
+    assert.match(body, /湿り気あり/);
+    assert.match(body, /草刈り/);
+    assert.match(body, /次に見るなら/);
     assert.match(body, /obs-local-quality-inline is-full-width/);
     assert.match(body, /obs-area-records/);
     assert.match(body, /record-native-public-peer-a|record-native-public-peer-b/);
     assert.match(body, /言語prefix記録/);
-    assert.match(body, /ぼかし表示/);
-    assert.match(body, /精密な座標/);
+    assert.match(body, /位置ぼかし/);
     assert.doesNotMatch(body, /cell:34\.71,137\.81|公開セル|セル単位/);
-    assert.doesNotMatch(body, /data-shadow-observation-detail="1"|ikimon shadow|ownerUserId|observerUserId|profile\/detail-user|34\.71234|137\.81234|should-not-be-served|origin observation detail/);
+    assert.doesNotMatch(body, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
+    assert.doesNotMatch(body, /IDENTIFICATION|OBSERVATION QUALITY|記録の質を育てる/);
+    assert.doesNotMatch(body, /href="\/record-reading-cards"|data-shadow-observation-detail="1"|ikimon shadow|ownerUserId|observerUserId|profile\/detail-user|profile\/user_|YAMAKI|34\.71234|137\.81234|should-not-be-served|origin observation detail|\/uploads\//);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
@@ -14555,8 +14732,9 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.match(body, /候補を試す/);
   assert.match(body, /この記録で返ってきたこと/);
   assert.match(body, /もう一度記録する/);
-  assert.match(body, /同じあたりで見えたもの/);
-  assert.match(body, /近くの記録/);
+  assert.match(body, /次に見るなら/);
+  assert.match(body, /浜松市浜名区をもう少し見る/);
+  assert.match(body, /近い投稿 2件/);
   assert.match(body, /かなり近そう/);
   assert.match(body, /分類候補/);
   assert.match(body, /Chloris sinica/);
@@ -14564,9 +14742,96 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.match(body, /data-frame-zoom-in/);
   assert.match(body, /obs-frame-preview/);
   assert.match(body, /obs-nearby-nophoto|obs-area-thumb/);
-  assert.doesNotMatch(body, /cell:34\.81,137\.73|公開セル|セル単位|公開範囲|記録情報|記録一覧|記録の手ざわり|次に見るなら|浜松市浜名区をもう少し見る/);
+  assert.doesNotMatch(body, /cell:34\.81,137\.73|公開セル|セル単位|公開範囲|記録情報|記録一覧|記録の手ざわり/);
   assert.doesNotMatch(body, /この映像で読む対象を切り替える|この映像に写っているもの|候補を確かめる材料|名前の記録|現場アドバイス|確定前|イネ科植物|映像フレームから拾えている手がかり/);
   assert.doesNotMatch(body, /ownerUserId|observerUserId|profile\/detail-user|34\.81234|137\.73123|\/uploads\/|original-ui\/thumb/);
+});
+
+test("production image target observation details restore photo record controls without video frames", async () => {
+  const { env, queue } = createEnv();
+  const targets = [
+    { id: "record-1781252770584", lat: 34.704, lng: 137.704, observedAt: "2026-06-12T08:25:49.000Z" },
+    { id: "record-1780982506049", lat: 34.814, lng: 137.734, observedAt: "2026-06-09T05:21:21.000Z" },
+    { id: "record-1780970378665", lat: 34.816, lng: 137.736, observedAt: "2026-06-09T01:59:23.000Z" },
+  ];
+  for (const target of targets) {
+    await post("/api/v1/observations/upsert", env, {
+      observationId: target.id,
+      userId: "image-target-user",
+      observedAt: target.observedAt,
+      latitude: target.lat,
+      longitude: target.lng,
+      taxon: { vernacularName: "unidentified", rank: "species" }
+    });
+    await post(`/api/v1/observations/${target.id}/photos/upload`, env, {
+      filename: `${target.id}.jpg`,
+      mimeType: "image/jpeg",
+      base64Data: Buffer.from(`image-target-${target.id}`).toString("base64")
+    });
+  }
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  for (const target of targets) {
+    const assetId = `asset-${target.id}-real-derivative`;
+    const derivativeKey = `derived/import/20260628/observation_photo/${assetId}/display.webp`;
+    env.OBS_DB.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${target.id}-real-derivative`,
+      observation_id: target.id,
+      owner_user_id: "image-target-user",
+      object_key: `original/${target.id}/image-target-real.jpg`,
+      partition_month: "2026-06",
+      sha256: `${target.id}-real-sha`,
+      mime: "image/jpeg",
+      bytes: 1234,
+      processing_state: "uploaded",
+      public_derivative_key: derivativeKey,
+      public_derivative_sha256: `${target.id}-real-derivative-sha`,
+      public_derivative_verified_at: "2026-06-28T12:00:00.000Z",
+      public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+      exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-06-28T12:00:00.000Z"
+    });
+    await env.ASSET_BUCKET.put(derivativeKey, `real-webp-${target.id}`, {
+      httpMetadata: { contentType: "image/webp" }
+    });
+  }
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+
+  for (const target of targets) {
+    const response = await worker.fetch(new Request(`https://ikimon.life/observations/${target.id}?subject=occ%3A${target.id}%3A0&lang=ja`), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    assert.match(body, /data-cloudflare-observation-detail="1"/);
+    assert.match(body, /obs-hero-media-stack is-photo-only/);
+    assert.match(body, /data-obs-preview-img/);
+    assert.match(body, /data-obs-preview-regions/);
+    assert.match(body, /obs-hero-thumb/);
+    assert.match(body, /この記録で読む対象/);
+    assert.match(body, /写っている/);
+    assert.match(body, /data-section-code="identification"/);
+    assert.match(body, /同定/);
+    assert.match(body, /同定に参加する/);
+    assert.match(body, /同意する/);
+    assert.match(body, /別候補を提案/);
+    assert.match(body, /保留する/);
+    assert.match(body, /別レコードを追加/);
+    assert.match(body, /提案・コメントの履歴/);
+    assert.match(body, /AI候補レビュー/);
+    assert.match(body, /現在の見方/);
+    assert.match(body, /data-section-code="observation-quality"/);
+    assert.match(body, /観察記録を整える/);
+    assert.match(body, /環境情報の下書き/);
+    assert.match(body, /data-environment-record-form/);
+    assert.match(body, new RegExp(`/api/v1/occurrences/${target.id}/environment-record`));
+    assert.match(body, /name="place_type"/);
+    assert.match(body, /保存する/);
+    assert.match(body, /編集履歴/);
+    assert.match(body, /次に見るなら/);
+    assert.match(body, /写真/);
+    assert.match(body, /動画/);
+    assert.doesNotMatch(body, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
+    assert.doesNotMatch(body, /href="\/record-reading-cards"|ownerUserId|observerUserId|profile\/image-target-user|34\.704|137\.704|34\.814|137\.734|34\.816|137\.736|\/uploads\/|original-ui\/thumb/);
+  }
 });
 
 test("production original UI app shells serve materialized HTML even with session cookies", async () => {

@@ -591,7 +591,7 @@ test("readModels runtime is covered by Cloudflare materialized and native read l
   assert.match(workerSource, /getOriginalUiHtml\(request, url, env\)/);
   assert.match(workerSource, /getSessionAwareProfileHtml\(request, url, env\)/);
   assert.match(workerSource, /getPublicObservationDetailJson\(decodeURIComponent\(publicDetailApiMatch\[1\]\), env\)/);
-  assert.match(workerSource, /getPublicObservationDetailPage\(decodeURIComponent\(publicDetailPageMatch\[1\]\), env\)/);
+  assert.match(workerSource, /getPublicObservationDetailPage\(decodeURIComponent\(publicDetailPageMatch\[1\]\), request, url, env\)/);
   assert.match(workerSource, /listCompatibleSpecialistAuthorities\(request, env\)/);
   assert.match(workerSource, /listCompatiblePendingAuthorityRecommendations\(request, env\)/);
   assert.match(workerTests, /production records materialized html includes recent Cloudflare D1 records/);
