@@ -444,6 +444,7 @@ test("site shell minimal chrome keeps guest top visually quiet", () => {
   assert.doesNotMatch(html, /<form class="site-search site-search-desktop"/);
   assert.doesNotMatch(html, /<div class="site-mobile-menu-panel"/);
   assert.match(html, /\.site-shell\.is-minimal-chrome \.shell\.shell-layout-home/);
+  assert.match(html, /width: min\(680px, calc\(100% - 48px\)\)/);
 });
 
 test("site shell localizes the mobile global record launcher", () => {
