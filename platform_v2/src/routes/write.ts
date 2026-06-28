@@ -67,8 +67,8 @@ import {
   normalizeEnvironmentRecordValue,
   type EnvironmentRecordField,
 } from "../services/environmentRecord.js";
+import { assertObservationOwnedByUser } from "../services/writeGuardsPg.js";
 import {
-  assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
   assertSessionUser,
   assertSpecialistAdminSession,
