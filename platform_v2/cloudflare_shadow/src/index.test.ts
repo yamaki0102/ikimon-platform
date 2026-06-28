@@ -14493,7 +14493,7 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /現在の見方/);
     assert.match(body, /data-section-code="observation-quality"/);
     assert.match(body, /観察記録を整える/);
-    assert.match(body, /環境レコードの下書き/);
+    assert.match(body, /環境情報の下書き/);
     assert.match(body, /編集履歴/);
     assert.match(body, /次に見るなら/);
     assert.match(body, /写真/);

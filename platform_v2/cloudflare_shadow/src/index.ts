@@ -22344,6 +22344,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-vps-image-detail .obs-media-ledger { background: #fff; border-color: rgba(15,23,42,.07); }
     .obs-vps-image-detail .obs-ai-detail-label { display: block; margin-bottom: 3px; color: #166534; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
     .obs-vps-image-detail .obs-ai-target-list, .obs-vps-image-detail .obs-frame-identify-candidates { display: flex; flex-wrap: wrap; gap: 7px; }
+    .obs-vps-image-detail .obs-note, .obs-vps-image-detail .obs-record-use-status { display: none; }
     .obs-vps-image-detail .obs-ai-target-chip, .obs-vps-image-detail .obs-frame-candidate { min-height: 30px; display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #ecfdf5; border: 1px solid rgba(22,101,52,.14); color: #166534; font-size: 12px; line-height: 1.25; font-weight: 950; }
     .obs-vps-image-detail .obs-ai-target-chip.is-muted, .obs-vps-image-detail .obs-frame-candidate:not(.is-active) { background: #fff; color: #475569; border-color: rgba(15,23,42,.1); }
     .obs-vps-image-detail .obs-ai-size-card { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.07); }
@@ -23013,7 +23014,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
       <div class="obs-quality-item"><span>写真</span><strong>${escapeHtml(`${photos.length}枚`)}</strong></div>
     </div>
     <div class="obs-local-quality-check">
-      <strong>環境レコードの下書き</strong>
+      <strong>環境情報の下書き</strong>
       <p>周囲の植物、足元の状態、明るさ、湿り気を読み取りカードとして追加できます。</p>
       <span>未確認</span>
     </div>

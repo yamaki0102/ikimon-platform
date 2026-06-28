@@ -119,7 +119,7 @@ test.describe("image observation detail VPS parity gate", () => {
           "提案・コメントの履歴",
           "現在の見方",
           "観察記録を整える",
-          "環境レコードの下書き",
+          "環境情報の下書き",
           "編集履歴",
           "次に見るなら",
         ]) {
