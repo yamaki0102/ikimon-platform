@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
-import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp, upsertAssetBlob } from "./writeSupport.js";
+import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp } from "./writeSupport.js";
+import { upsertAssetBlob } from "./writeSupportPg.js";
 
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const FIXTURE_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{2,80}$/;

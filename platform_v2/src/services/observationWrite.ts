@@ -7,9 +7,8 @@ import {
   buildPlaceName,
   makeOccurrenceId,
   normalizeTimestamp,
-  recordCompatibilityFailure,
-  upsertAssetBlob,
 } from "./writeSupport.js";
+import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupportPg.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
 import { deriveEnvironmentRecordFromSiteBrief } from "./environmentRecord.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";

@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { assertAuthRateLimit, assertSameOriginRequest } from "../services/authSecurity.js";
 import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/guideAutoSave.js";
@@ -14,7 +13,6 @@ import { listMyGuideUnlocks, markGuideUnlockListened } from "../services/guideUn
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
 import { meshKey100m } from "../services/observationEventEffort.js";
 import { hookGuideSceneToEvent, type ObservationEventSourcePayload } from "../services/observationEventDualWrite.js";
-import { resolveFieldsForPoint } from "../services/resolveFieldsForPoint.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import type { TtsLang } from "../services/guideTts.js";
 
@@ -865,8 +863,6 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     let accepted = 0;
     let inserted = 0;
     const meshKeys = new Set<string>();
-    let latestLat: number | null = null;
-    let latestLng: number | null = null;
 
     for (const point of points) {
       const lat = parseFiniteNumber(point.lat);
@@ -895,62 +891,6 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       if (result.inserted) inserted += 1;
       const meshKey = meshKey100m(lat, lng);
       if (meshKey) meshKeys.add(meshKey);
-      latestLat = lat;
-      latestLng = lng;
-    }
-
-    let fields: Array<Record<string, unknown>> = [];
-    if (latestLat != null && latestLng != null) {
-      const fieldIds = await resolveFieldsForPoint(latestLat, latestLng).catch(() => []);
-      if (fieldIds.length) {
-        const result = await getPool().query<{
-          field_id: string;
-          name: string;
-          source: string;
-          area_ha: number | null;
-          radius_m: number | null;
-          lat: number;
-          lng: number;
-          polygon: Record<string, unknown> | null;
-          bbox_min_lat: number | null;
-          bbox_max_lat: number | null;
-          bbox_min_lng: number | null;
-          bbox_max_lng: number | null;
-        }>(
-          `select field_id, name, source, area_ha, radius_m, lat, lng,
-                  polygon, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng
-             from observation_fields
-            where field_id = any($1::uuid[])
-            order by
-              case source when 'user_defined' then 0 when 'protected_area' then 1 when 'oecm' then 2 else 3 end,
-              coalesce(area_ha, 999999),
-              name
-            limit 5`,
-          [fieldIds],
-        );
-        fields = result.rows.map((row) => {
-          const areaM2 = Number.isFinite(Number(row.area_ha)) && Number(row.area_ha) > 0
-            ? Math.round(Number(row.area_ha) * 10000)
-            : Math.round(Math.PI * Math.max(50, Number(row.radius_m ?? 0)) ** 2);
-          return {
-            fieldId: row.field_id,
-            name: row.name,
-            source: row.source,
-            areaM2,
-            center: { lat: row.lat, lng: row.lng },
-            radiusM: row.radius_m,
-            geometry: row.polygon,
-            bbox: row.bbox_min_lat != null && row.bbox_max_lat != null && row.bbox_min_lng != null && row.bbox_max_lng != null
-              ? {
-                  minLat: row.bbox_min_lat,
-                  maxLat: row.bbox_max_lat,
-                  minLng: row.bbox_min_lng,
-                  maxLng: row.bbox_max_lng,
-                }
-              : null,
-          };
-        });
-      }
     }
 
     return reply.send({
@@ -960,7 +900,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       sessionId,
       guideMode,
       meshKeys: Array.from(meshKeys).slice(0, 12),
-      fields,
+      fields: [],
       liveCoverageCellSizeM: 10,
       absenceState: "non_detection_note",
       privacy: "exact_route_private_public_area_or_100m_mesh",
