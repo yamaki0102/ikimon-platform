@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
@@ -33,10 +34,48 @@ function loadMaintenancePgDependencyReason(script: string): (relativeFile: strin
   return new Function(`${match[0]}; return maintenancePgDependencyReason;`)() as (relativeFile: string) => string | null;
 }
 
+function loadReplacedProductionRuntimePgDependencyReason(script: string): (relativeFile: string) => string | null {
+  const match = script.match(/function replacedProductionRuntimePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "replacedProductionRuntimePgDependencyReason function is present");
+  return new Function(`${match[0]}; return replacedProductionRuntimePgDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
+async function findTsFilesContaining(root: string, needle: string): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const matches: string[] = [];
+  for (const entry of entries) {
+    const absolutePath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      matches.push(...await findTsFilesContaining(absolutePath, needle));
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith(".ts")) {
+      continue;
+    }
+    const content = await readFile(absolutePath, "utf8");
+    if (content.includes(needle)) {
+      matches.push(absolutePath);
+    }
+  }
+  return matches;
+}
+
+function loadOptionalRuntimePgDependencyReason(script: string): (relativeFile: string) => string | null {
+  const match = script.match(/function optionalRuntimePgDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "optionalRuntimePgDependencyReason function is present");
+  return new Function(`${match[0]}; return optionalRuntimePgDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
 function loadMaintenanceWorkflowDependencyReason(script: string): (relativeFile: string) => string | null {
   const match = script.match(/function maintenanceWorkflowDependencyReason\(relativeFile\) \{[\s\S]*?\n\}/);
   assert.ok(match, "maintenanceWorkflowDependencyReason function is present");
   return new Function(`${match[0]}; return maintenanceWorkflowDependencyReason;`)() as (relativeFile: string) => string | null;
+}
+
+function loadWorkflowDependencySignals(script: string): (text: string) => string[] {
+  const match = script.match(/function workflowDependencySignals\(text\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "workflowDependencySignals function is present");
+  return new Function(`${match[0]}; return workflowDependencySignals;`)() as (text: string) => string[];
 }
 
 function loadExclusiveMaintenancePgDependencyReason(script: string): (
@@ -76,8 +115,15 @@ test("VPS stop readiness counts every runtime PostgreSQL dependency, not only di
   assert.match(script, /no_runtime_query_pg_inventory_files/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /PostgreSQL Maintenance Dependencies/);
+  assert.match(script, /PostgreSQL Cloudflare-Replaced Production Runtime/);
+  assert.match(script, /replacedProductionRuntimePgDependencyReason\(item\.file\)/);
+  assert.match(script, /replaced_production_runtime_pg_dependency_files/);
+  assert.match(script, /PostgreSQL Optional Runtime Dependencies/);
+  assert.match(script, /optionalRuntimePgDependencyReason\(item\.file\)/);
+  assert.match(script, /optional_runtime_pg_dependency_files/);
   assert.match(script, /const maintenanceVpsWorkflows = vpsWorkflows/);
   assert.match(script, /const runtimeVpsWorkflows = vpsWorkflows\.filter/);
+  assert.match(script, /workflowDependencySignals\(text\)/);
   assert.match(script, /VPS Workflow Runtime Dependencies/);
   assert.match(script, /VPS Workflow Maintenance Dependencies/);
   assert.match(script, /blocker_scope: files with PostgreSQL runtime query APIs, vector\/full-text signals, or locking signals/);
@@ -105,16 +151,17 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /## PostgreSQL No-Runtime-Query Inventory/);
-  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 15/);
+  assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 128/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
 test("VPS stop readiness separates runtime deploy workflows from maintenance workflows", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const maintenanceWorkflowDependencyReason = loadMaintenanceWorkflowDependencyReason(script);
+  const workflowDependencySignals = loadWorkflowDependencySignals(script);
 
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/ci.yml"), "ci_local_postgres_service");
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/curator-staging-wet-run.yml"), "manual_staging_wet_run");
@@ -123,7 +170,11 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-osm-area-parks.yml"), "manual_import_or_repair_workflow");
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/import-school-fields.yml"), "manual_import_or_repair_workflow");
   assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/refresh-observation-ai.yml"), "manual_ai_batch_workflow");
-  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/deploy-staging.yml"), null);
+  assert.equal(maintenanceWorkflowDependencyReason(".github/workflows/deploy-staging.yml"), "legacy_vps_staging_replaced_by_cloudflare_staging");
+  assert.deepEqual(workflowDependencySignals("- VPS SSH/deploy: `not used`"), []);
+  assert.deepEqual(workflowDependencySignals("uses: appleboy/ssh-action@v1"), ["ssh/scp"]);
+  assert.deepEqual(workflowDependencySignals("ssh -i ~/.ssh/ikimon_vps root@162.43.44.131"), ["ssh/scp"]);
+  assert.deepEqual(workflowDependencySignals("DATABASE_URL=\"$V2_STAGING_DATABASE_URL\" npm run migrate"), ["DATABASE_URL"]);
 
   const result = spawnSync(process.execPath, ["scripts/d1-migration-boundary-report.mjs"], {
     cwd: process.cwd(),
@@ -132,15 +183,16 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /## VPS Workflow Runtime Dependencies/);
-  assert.match(result.stdout, /- runtime_vps_workflow_files: 4/);
-  assert.match(result.stdout, /\.github\/workflows\/cloudflare-shadow-release\.yml/);
-  assert.match(result.stdout, /\.github\/workflows\/deploy-cloudflare-staging\.yml/);
-  assert.match(result.stdout, /\.github\/workflows\/deploy-staging\.yml/);
-  assert.match(result.stdout, /\.github\/workflows\/deploy\.yml/);
+  assert.match(result.stdout, /- runtime_vps_workflow_files: 0/);
+  assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy-staging\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
+  assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/cloudflare-shadow-release\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
+  assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy-cloudflare-staging\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
+  assert.doesNotMatch(result.stdout, /## VPS Workflow Runtime Dependencies[\s\S]*\.github\/workflows\/deploy\.yml[\s\S]*## VPS Workflow Maintenance Dependencies/);
   assert.match(result.stdout, /## VPS Workflow Maintenance Dependencies/);
-  assert.match(result.stdout, /- maintenance_vps_workflow_files: 7/);
+  assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
+  assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 128/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -161,6 +213,8 @@ test("VPS stop readiness classifies test source paths conservatively", async () 
 test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts from runtime blockers", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const maintenancePgDependencyReason = loadMaintenancePgDependencyReason(script);
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+  const optionalRuntimePgDependencyReason = loadOptionalRuntimePgDependencyReason(script);
   const exclusiveMaintenancePgDependencyReason = loadExclusiveMaintenancePgDependencyReason(script);
 
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/applyMigrations.ts"), "migration_cli_tool");
@@ -191,21 +245,138 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/stagingFixtureCleanup.ts"), "gated_staging_fixture_ops");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/stagingRallyFixtures.ts"), "gated_staging_fixture_ops");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/stagingRegressionFixtures.ts"), "gated_staging_fixture_ops");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminDataHealth.ts"), "admin_ops_diagnostic_dashboard");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminMonitoringWorkspace.ts"), "admin_monitoring_diagnostic_readonly");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminRegionalKnowledge.ts"), "admin_regional_knowledge_review_dashboard");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/adminSiteEvidence.ts"), "admin_evidence_report");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/knowledgeNavigationApi.ts"), "internal_knowledge_navigation_admin_api");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/routes/curatorProposalsApi.ts"), "internal_curator_proposal_receiver");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/audioPropagation.ts"), "admin_audio_review_residual_after_vector_retirement");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/audioReview.ts"), "admin_audio_review_residual_after_vector_retirement");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/alertDispatcher.ts"), "manual_ai_reassessment_alert_dispatcher");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/monitoringWorkspaceData.ts"), "admin_monitoring_diagnostic_readmodel");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/plotMonitoring.ts"), "admin_plot_monitoring_backstage_api");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/services/readiness.ts"), "legacy_cutover_readiness_report");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/regionalKnowledgeEmbedding.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/processAudioSegments.ts"), "manual_audio_detection_batch_tool");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/observationMediaIntegrity.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/fieldVerification.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/placeEnvironmentIngest.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCurator.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/curators/invasive-law.ts"), null);
-  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/processAudioSegments.ts"), null);
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCacheInvalidate.ts"), "scheduled_legacy_cache_and_freshness_maintenance");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/runCurator.ts"), "scheduled_curator_proposal_batch");
+  assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/cron/curators/invasive-law.ts"), "scheduled_curator_proposal_batch");
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importantDaemon.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/reporterDaemon.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/verify.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/importFutureRuntime.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/scripts/smokeScheduledWorker.ts"), null);
   assert.equal(maintenancePgDependencyReason("platform_v2/src/services/importObservationFields.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapSnapshot.ts"), "cloudflare_public_map_snapshot_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaPolygons.ts"), "cloudflare_area_polygon_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/fieldManagers.ts"), "cloudflare_field_manager_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapOwnObservations.ts"), "cloudflare_owner_map_observations_native");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mapEffort.ts"), "cloudflare_public_map_effort_shim");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/publicMapSnapshotOpsAlerts.ts"), "cloudflare_public_map_snapshot_ops_inventory");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/observationEventApi.ts"), "cloudflare_observation_event_core_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationRally.ts"), "cloudflare_observation_rally_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/authSession.ts"), "cloudflare_auth_session_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/authUsers.ts"), "cloudflare_auth_user_account_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationWrite.ts"), "cloudflare_observation_write_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPhotoUpload.ts"), "cloudflare_observation_photo_upload_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationReactions.ts"), "cloudflare_observation_reactions_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/recordReadingCards.ts"), "cloudflare_record_reading_cards_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/uiKpi.ts"), "cloudflare_ui_kpi_event_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationVisitBundle.ts"), "cloudflare_observation_detail_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventLive.ts"), "cloudflare_observation_event_live_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventDualWrite.ts"), "cloudflare_observation_event_dual_write_side_effects");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventEffort.ts"), "cloudflare_observation_event_effort_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventModeManager.ts"), "cloudflare_observation_event_mode_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventRecap.ts"), "cloudflare_observation_event_recap_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventContext.ts"), "cloudflare_observation_event_static_quest_context_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), "cloudflare_observation_event_static_quest_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventCapsule.ts"), "cloudflare_observation_event_capsule_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventOfficialReport.ts"), "cloudflare_observation_event_official_report_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/meSubscriptionsApi.ts"), "cloudflare_personal_subscription_alert_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/guideRecordsDebug.ts"), "cloudflare_guide_outcomes_and_route_layer_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/researchApi.ts"), "cloudflare_research_export_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRouteTrack.ts"), "cloudflare_guide_telemetry_route_points_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/resolveFieldsForPoint.ts"), "cloudflare_replaced_field_resolution_helper_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideTransectQuality.ts"), "cloudflare_guide_route_layer_quality_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mobileFieldSessions.ts"), "cloudflare_mobile_field_session_digest_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), "cloudflare_materialized_landing_and_home_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), "cloudflare_materialized_public_readmodels");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/referenceLibrary.ts"), "cloudflare_reference_library_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationFieldRegistry.ts"), "cloudflare_observation_field_registry_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaSnapshotVisitScope.ts"), "cloudflare_area_and_place_snapshot_visit_scope_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaPlaceSnapshot.ts"), "cloudflare_area_snapshot_field_detail_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), "cloudflare_place_snapshot_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/fixedPointStation.ts"), "cloudflare_fixed_point_station_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), "cloudflare_observation_data_rights_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/civicNatureContext.ts"), "cloudflare_civic_observation_context_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), "cloudflare_sentinel_environment_snapshot_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/environmentSnapshotWriter.ts"), "cloudflare_sentinel_environment_snapshot_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupportPg.ts"), "cloudflare_replaced_or_residual_write_support_pg_helper");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeGuards.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeGuardsPg.ts"), "cloudflare_replaced_or_residual_write_guard_pg_helper");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSession.ts"), "cloudflare_guide_scene_static_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSessionPublicSummary.ts"), "cloudflare_guide_session_public_summary_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRecordPromotion.ts"), "cloudflare_guide_record_promotion_request_ledger");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/walkWrite.ts"), "cloudflare_walk_session_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/fieldscanAudio.ts"), "cloudflare_fieldscan_audio_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/passiveAudioIngest.ts"), "cloudflare_passive_audio_ingest_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/trackWrite.ts"), "cloudflare_track_upsert_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationRecordAiReview.ts"), "cloudflare_observation_record_ai_review_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/waterRecordExtension.ts"), "cloudflare_observation_water_record_extension_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeManagementPolicy.ts"), "cloudflare_place_management_policy_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/identificationParticipation.ts"), "cloudflare_identification_participation_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/identificationConsensus.ts"), "cloudflare_identification_consensus_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/specialistReview.ts"), "cloudflare_specialist_review_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/reviewerAuthorities.ts"), "cloudflare_specialist_authority_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/authorityRecommendations.ts"), "cloudflare_specialist_authority_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/visitSubjects.ts"), "cloudflare_visit_subject_summary_replaced_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/contactSubmit.ts"), "cloudflare_contact_submit_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/userWrite.ts"), "cloudflare_user_profile_write_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/rememberTokenWrite.ts"), "cloudflare_remember_token_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/evidenceAssetMediaRole.ts"), "cloudflare_observation_media_role_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mediaProcessingJobs.ts"), "cloudflare_media_processing_queue_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationAiAssessment.ts"), "cloudflare_observation_detail_readmodel_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackage.ts"), "cloudflare_observation_package_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackageDataChain.ts"), "cloudflare_observation_package_data_chain_replaced_dependency");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/sensitiveSpeciesMasking.ts"), "cloudflare_public_map_and_area_snapshot_masking_readmodels");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/observationEventPages.ts"), "cloudflare_observation_event_pages_runtime");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/siteSignalsCache.ts"), "optional_site_signals_cache_falls_back_without_database");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/gbifBackboneMatch.ts"), "optional_gbif_match_cache_falls_back_to_remote_api");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/officialNoticeCache.ts"), "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/runtimeVersion.ts"), "optional_runtime_version_migration_head");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/glossaryTerms.ts"), "optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/routes/invasiveSpecies.ts"), "optional_invasive_reporting_visibility_falls_back_unavailable");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/invasiveReporting.ts"), "optional_invasive_reporting_delivery_falls_back_empty");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/placeEnvironmentSignals.ts"), "optional_place_environment_evidence_falls_back_empty");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observationContext.ts"), "optional_observation_detail_context_falls_back_empty");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observationDetailHeavy.ts"), "optional_observation_detail_heavy_falls_back_empty");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/observerStats.ts"), "optional_observation_detail_observer_stats_card");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/placeVegetationTrend.ts"), "optional_place_vegetation_trend_card_falls_back_null");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/regionalStory.ts"), "optional_regional_story_seed_fallback_and_nonfatal_exposure_log");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/taxonInsights.ts"), "optional_observation_detail_taxon_insight_card");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/aiCostLogger.ts"), "optional_ops_ai_cost_logging_and_budget_health");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/areaWatchNotifications.ts"), "optional_area_watch_notification_enrichment");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/profileNoteDigest.ts"), "optional_profile_note_digest_enrichment");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/relationshipScore.queries.ts"), "optional_relationship_score_readonly_queries");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/relationshipScoreSnapshot.ts"), "optional_relationship_score_report_snapshot");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/tierPromotion.ts"), "optional_evidence_tier_enrichment");
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/taxonPrecisionPolicy.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/sensitiveSpeciesMasking.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/authorityRecommendations.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/reviewerAuthorities.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/specialistReview.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/identificationConsensus.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/identificationParticipation.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/visitSubjects.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
 
@@ -258,7 +429,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
         ],
       ]),
     ),
-    null,
+    "scheduled_legacy_cache_and_freshness_maintenance",
   );
   assert.equal(
     exclusiveMaintenancePgDependencyReason(
@@ -299,14 +470,265 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
     ),
     null,
   );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/knowledgeNavigation.ts",
+      new Map([
+        [
+          "platform_v2/src/services/knowledgeNavigation.ts",
+          new Set([
+            "platform_v2/src/routes/knowledgeNavigationApi.ts",
+            "platform_v2/src/scripts/compileKnowledgeNavigation.ts",
+          ]),
+        ],
+      ]),
+    ),
+    "deploy_or_postdeploy_tool+internal_knowledge_navigation_admin_api_dependency",
+  );
+  assert.equal(
+    exclusiveMaintenancePgDependencyReason(
+      "platform_v2/src/services/knowledgeNavigation.ts",
+      new Map([
+        [
+          "platform_v2/src/services/knowledgeNavigation.ts",
+          new Set([
+            "platform_v2/src/routes/knowledgeNavigationApi.ts",
+            "platform_v2/src/routes/read.ts",
+          ]),
+        ],
+      ]),
+    ),
+    null,
+  );
+  const knowledgeClaimRetrievalReason = exclusiveMaintenancePgDependencyReason(
+    "platform_v2/src/services/knowledgeClaimRetrieval.ts",
+    new Map([
+      [
+        "platform_v2/src/services/knowledgeClaimRetrieval.ts",
+        new Set([
+          "platform_v2/src/services/knowledgeNavigation.ts",
+          "platform_v2/src/services/observationReassess.ts",
+        ]),
+      ],
+      [
+        "platform_v2/src/services/knowledgeNavigation.ts",
+        new Set([
+          "platform_v2/src/routes/knowledgeNavigationApi.ts",
+          "platform_v2/src/scripts/compileKnowledgeNavigation.ts",
+        ]),
+      ],
+      [
+        "platform_v2/src/services/observationReassess.ts",
+        new Set([
+          "platform_v2/src/scripts/refreshRecentObservationAi.ts",
+          "platform_v2/src/scripts/runAiForMissing.ts",
+        ]),
+      ],
+    ]),
+  );
+  assert.ok(knowledgeClaimRetrievalReason);
+  assert.match(knowledgeClaimRetrievalReason, /internal_knowledge_navigation_admin_api/);
+  assert.match(knowledgeClaimRetrievalReason, /manual_ai_batch_tool/);
 
   assert.match(script, /const maintenancePgFiles = pgFiles/);
+  assert.match(script, /const replacedProductionRuntimePgFiles = pgFiles/);
   assert.match(script, /const importersByTarget = new Map\(\)/);
   assert.match(script, /const extensionlessTarget = path\.join\(parsed\.dir, parsed\.name\)/);
   assert.match(script, /exclusiveMaintenancePgDependencyReason\(item\.file, importersByTarget\)/);
   assert.match(script, /maintenance_pg_dependency_files/);
   assert.match(script, /explicitly gated staging fixture ops only/);
   assert.match(script, /gated_staging_fixture_ops/);
+  assert.match(script, /Cloudflare-replaced production runtime files/);
+  assert.match(script, /cloudflare_public_map_snapshot_readmodel/);
+  assert.match(script, /cloudflare_observation_event_core_api/);
+  assert.match(script, /cloudflare_observation_rally_api/);
+  assert.match(script, /cloudflare_auth_session_api/);
+  assert.match(script, /cloudflare_auth_user_account_api/);
+  assert.match(script, /cloudflare_observation_write_api/);
+  assert.match(script, /cloudflare_observation_photo_upload_api/);
+  assert.match(script, /cloudflare_observation_reactions_api/);
+  assert.match(script, /cloudflare_record_reading_cards_api/);
+  assert.match(script, /cloudflare_ui_kpi_event_api/);
+  assert.match(script, /cloudflare_observation_detail_readmodel/);
+  assert.match(script, /cloudflare_observation_event_live_api/);
+  assert.match(script, /cloudflare_observation_event_recap_api/);
+  assert.match(script, /cloudflare_observation_event_capsule_api/);
+  assert.match(script, /cloudflare_observation_event_official_report_api/);
+  assert.match(script, /cloudflare_guide_outcomes_and_route_layer_runtime/);
+  assert.match(script, /cloudflare_guide_telemetry_route_points_runtime/);
+  assert.match(script, /cloudflare_guide_route_layer_quality_runtime/);
+  assert.match(script, /cloudflare_mobile_field_session_digest_runtime/);
+  assert.match(script, /admin_ops_diagnostic_dashboard/);
+  assert.match(script, /admin_monitoring_diagnostic_readonly/);
+  assert.match(script, /admin_regional_knowledge_review_dashboard/);
+  assert.match(script, /internal_curator_proposal_receiver/);
+  assert.match(script, /manual_ai_reassessment_alert_dispatcher/);
+  assert.match(script, /admin_evidence_report/);
+  assert.match(script, /admin_monitoring_diagnostic_readmodel/);
+  assert.match(script, /legacy_cutover_readiness_report/);
+  assert.match(script, /optional_site_signals_cache_falls_back_without_database/);
+  assert.match(script, /optional_gbif_match_cache_falls_back_to_remote_api/);
+  assert.match(script, /optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot/);
+  assert.match(script, /optional_runtime_version_migration_head/);
+  assert.match(script, /optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log/);
+  assert.match(script, /optional_invasive_reporting_visibility_falls_back_unavailable/);
+  assert.match(script, /optional_invasive_reporting_delivery_falls_back_empty/);
+  assert.match(script, /optional_place_environment_evidence_falls_back_empty/);
+  assert.match(script, /optional_observation_detail_context_falls_back_empty/);
+  assert.match(script, /optional_observation_detail_heavy_falls_back_empty/);
+  assert.match(script, /optional_observation_detail_observer_stats_card/);
+  assert.match(script, /optional_place_vegetation_trend_card_falls_back_null/);
+  assert.match(script, /optional_observation_detail_taxon_insight_card/);
+});
+
+test("readModels runtime is covered by Cloudflare materialized and native read lanes", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), "cloudflare_materialized_public_readmodels");
+  assert.match(workerSource, /getOriginalUiHtml\(request, url, env\)/);
+  assert.match(workerSource, /getSessionAwareProfileHtml\(request, url, env\)/);
+  assert.match(workerSource, /getPublicObservationDetailJson\(decodeURIComponent\(publicDetailApiMatch\[1\]\), env\)/);
+  assert.match(workerSource, /getPublicObservationDetailPage\(decodeURIComponent\(publicDetailPageMatch\[1\]\), env\)/);
+  assert.match(workerSource, /listCompatibleSpecialistAuthorities\(request, env\)/);
+  assert.match(workerSource, /listCompatiblePendingAuthorityRecommendations\(request, env\)/);
+  assert.match(workerTests, /production records materialized html includes recent Cloudflare D1 records/);
+  assert.match(workerTests, /production original UI app shells serve materialized HTML even with session cookies/);
+  assert.match(workerTests, /production profile shell renders signed-in Cloudflare page for valid session cookies/);
+  assert.match(workerTests, /production language-prefixed observation detail stays native and public-safe/);
+  assert.match(workerTests, /production specialist authority runtime manages D1 authority and recommendation flows without origin fallback/);
+});
+
+test("write support PostgreSQL helper is separated from pure write helpers", async () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const pureSupport = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeSupport.ts"), "utf8");
+  const pgSupport = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeSupportPg.ts"), "utf8");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "writeSupportPg.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.doesNotMatch(pureSupport, /\bPoolClient\b|from ["']pg["']|client\.query|getPool\(/);
+  assert.doesNotMatch(pureSupport, /upsertAssetBlob|recordCompatibilityFailure/);
+  assert.match(pureSupport, /export function buildPlaceId/);
+  assert.match(pureSupport, /export function makeOccurrenceId/);
+  assert.match(pgSupport, /export async function upsertAssetBlob/);
+  assert.match(pgSupport, /export async function recordCompatibilityFailure/);
+  assert.match(pgSupport, /from "pg"/);
+  assert.deepEqual(importers, [
+    "platform_v2/src/services/fieldscanAudio.ts",
+    "platform_v2/src/services/observationPhotoUpload.ts",
+    "platform_v2/src/services/observationWrite.ts",
+    "platform_v2/src/services/placeMemory.ts",
+    "platform_v2/src/services/referenceLibrary.ts",
+    "platform_v2/src/services/rememberTokenWrite.ts",
+    "platform_v2/src/services/stagingRegressionFixtures.ts",
+    "platform_v2/src/services/trackWrite.ts",
+    "platform_v2/src/services/userWrite.ts",
+  ]);
+});
+
+test("legacy write route boundary is covered by Cloudflare app write runtimes", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/write.ts"), "cloudflare_app_write_route_boundary");
+  assert.match(workerSource, /updateCompatibleOccurrenceDetail/);
+  assert.match(workerSource, /occurrenceDetailEditMatch/);
+  assert.match(workerSource, /environment-record/);
+  assert.match(workerSource, /isPublicAppWriteCandidatePath\(url\)/);
+  assert.match(workerTests, /production occurrence detail edit APIs write to D1 without origin fallback/);
+  assert.match(workerTests, /production occurrence detail edit APIs reject non owners before mutation/);
+});
+
+test("write guard PostgreSQL ownership helper is separated from pure request and session guards", async () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const pureGuards = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeGuards.ts"), "utf8");
+  const pgGuards = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeGuardsPg.ts"), "utf8");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "writeGuardsPg.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.doesNotMatch(pureGuards, /from ["']\.\.\/db\.js["']|getPool\(|pool\.query|assertObservationOwnedByUser/);
+  assert.match(pureGuards, /export function assertPrivilegedWriteAccess/);
+  assert.match(pureGuards, /export function assertSessionUser/);
+  assert.match(pureGuards, /export async function assertSpecialistSession/);
+  assert.match(pureGuards, /export function assertSpecialistAdminSession/);
+  assert.match(pgGuards, /export async function assertObservationOwnedByUser/);
+  assert.match(pgGuards, /getPool\(\)/);
+  assert.match(pgGuards, /pool\.query/);
+  assert.deepEqual(importers, [
+    "platform_v2/src/routes/observationPackageApi.ts",
+    "platform_v2/src/routes/write.ts",
+  ]);
+});
+
+test("observation package data chain is only imported by replaced runtime or type-only consumers", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "observationPackageDataChain.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.deepEqual(importers, [
+    "platform_v2/src/services/monitoringReadiness.ts",
+    "platform_v2/src/services/observationPackage.ts",
+    "platform_v2/src/services/observationWrite.ts",
+  ]);
+
+  const monitoringReadiness = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "monitoringReadiness.ts"), "utf8");
+  assert.match(monitoringReadiness, /import type \{[\s\S]*\} from "\.\/observationPackageDataChain\.js";/);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackage.ts"), "cloudflare_observation_package_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationWrite.ts"), "cloudflare_observation_write_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackageDataChain.ts"), "cloudflare_observation_package_data_chain_replaced_dependency");
+});
+
+test("observation event context remains exclusively tied to the replaced quest engine", async () => {
+  const importers = (await findTsFilesContaining(path.resolve(process.cwd(), "../src"), "observationEventContext.js"))
+    .map((line) => path.relative(path.resolve(process.cwd(), ".."), line))
+    .map((line) => `platform_v2/${line}`)
+    .map((line) => line.replace(/\\/g, "/"))
+    .sort();
+  assert.deepEqual(importers, ["platform_v2/src/services/observationEventQuestEngine.ts"]);
+});
+
+test("visit subject summaries are only imported by replaced runtime or maintenance consumers", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+  const maintenancePgDependencyReason = loadMaintenancePgDependencyReason(script);
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "visitSubjects.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.deepEqual(importers, [
+    "platform_v2/src/scripts/cleanupObservationSameSubjectAiCandidates.ts",
+    "platform_v2/src/services/identificationParticipation.ts",
+    "platform_v2/src/services/observationReassess.ts",
+    "platform_v2/src/services/observationVisitBundle.ts",
+    "platform_v2/src/services/specialistReview.ts",
+  ]);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/identificationParticipation.ts"), "cloudflare_identification_participation_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationVisitBundle.ts"), "cloudflare_observation_detail_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/specialistReview.ts"), "cloudflare_specialist_review_runtime");
+  assert.match(maintenancePgDependencyReason("platform_v2/src/scripts/cleanupObservationSameSubjectAiCandidates.ts") ?? "", /manual_/);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/visitSubjects.ts"), "cloudflare_visit_subject_summary_replaced_dependency");
+
+  const result = spawnSync(process.execPath, ["scripts/d1-migration-boundary-report.mjs"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /## PostgreSQL Maintenance Dependencies[\s\S]*platform_v2\/src\/services\/observationReassess\.ts[\s\S]*manual_ai_batch_tool/);
+  assert.doesNotMatch(result.stdout, /## PostgreSQL Runtime Dependencies[\s\S]*platform_v2\/src\/services\/visitSubjects\.ts[\s\S]*## PostgreSQL Maintenance Dependencies/);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {
@@ -417,6 +839,8 @@ test("PostgreSQL signal classifier does not count JavaScript listener or Array h
   assert.equal(classifyPg("window.addEventListener('click', () => {});").includes("job_locking"), false);
   assert.equal(classifyPg("const server = app.listen(3000);").includes("job_locking"), false);
   assert.equal(classifyPg("notify('saved');").includes("job_locking"), false);
+  assert.equal(classifyPg("function getClient() { return new GoogleGenAI({ key }); } const ai = getClient();").includes("runtime_query"), false);
+  assert.equal(classifyPg("import { getClient } from '../db.js'; const client = getClient();").includes("runtime_query"), true);
   assert.equal(classifyPg("const list = Array(10);").includes("pg_types"), false);
   assert.equal(classifyPg("const ok = Array.isArray(value);").includes("pg_types"), false);
   assert.equal(classifyPg("type Items = Array<string>;").includes("pg_types"), false);
