@@ -14445,6 +14445,63 @@ test("production target observation detail restores lightweight feedback loop wi
   assert.doesNotMatch(body, /ownerUserId|observerUserId|profile\/detail-user|34\.81234|137\.73123|\/uploads\/|original-ui\/thumb/);
 });
 
+test("production image target observation details restore photo record controls without video frames", async () => {
+  const { env, queue } = createEnv();
+  const targets = [
+    { id: "record-1781252770584", lat: 34.704, lng: 137.704, observedAt: "2026-06-12T08:25:49.000Z" },
+    { id: "record-1780982506049", lat: 34.814, lng: 137.734, observedAt: "2026-06-09T05:21:21.000Z" },
+    { id: "record-1780970378665", lat: 34.816, lng: 137.736, observedAt: "2026-06-09T01:59:23.000Z" },
+  ];
+  for (const target of targets) {
+    await post("/api/v1/observations/upsert", env, {
+      observationId: target.id,
+      userId: "image-target-user",
+      observedAt: target.observedAt,
+      latitude: target.lat,
+      longitude: target.lng,
+      taxon: { vernacularName: "unidentified", rank: "species" }
+    });
+    await post(`/api/v1/observations/${target.id}/photos/upload`, env, {
+      filename: `${target.id}.jpg`,
+      mimeType: "image/jpeg",
+      base64Data: Buffer.from(`image-target-${target.id}`).toString("base64")
+    });
+  }
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+
+  for (const target of targets) {
+    const response = await worker.fetch(new Request(`https://ikimon.life/observations/${target.id}?subject=occ%3A${target.id}%3A0&lang=ja`), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    assert.match(body, /data-cloudflare-observation-detail="1"/);
+    assert.match(body, /obs-hero-media-stack is-photo-only/);
+    assert.match(body, /data-obs-preview-img/);
+    assert.match(body, /data-obs-preview-regions/);
+    assert.match(body, /obs-hero-thumb/);
+    assert.match(body, /この記録で読む対象/);
+    assert.match(body, /写っている/);
+    assert.match(body, /IDENTIFICATION/);
+    assert.match(body, /同定に参加する/);
+    assert.match(body, /同意する/);
+    assert.match(body, /別候補を提案/);
+    assert.match(body, /保留する/);
+    assert.match(body, /別レコードを追加/);
+    assert.match(body, /提案・コメントの履歴/);
+    assert.match(body, /AI候補レビュー/);
+    assert.match(body, /現在の見方/);
+    assert.match(body, /OBSERVATION QUALITY/);
+    assert.match(body, /観察レコードとして育てる/);
+    assert.match(body, /環境レコードの下書き/);
+    assert.match(body, /編集履歴/);
+    assert.match(body, /次に見るなら/);
+    assert.match(body, /写真/);
+    assert.match(body, /動画/);
+    assert.doesNotMatch(body, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
+    assert.doesNotMatch(body, /ownerUserId|observerUserId|profile\/image-target-user|34\.704|137\.704|34\.814|137\.734|34\.816|137\.736|\/uploads\/|original-ui\/thumb/);
+  }
+});
+
 test("production original UI app shells serve materialized HTML even with session cookies", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

@@ -22142,6 +22142,16 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-photo:not(.obs-photo--main) { grid-column: span 2; }
     .obs-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #dbeafe; }
     .obs-photo--main img { aspect-ratio: 16 / 11; }
+    .obs-hero-media-stack.is-photo-only { gap: 9px; }
+    .obs-hero-preview { position: relative; overflow: hidden; border-radius: 22px; border: 1px solid rgba(15,23,42,.08); background: #e8f3ef; box-shadow: 0 18px 44px rgba(15,23,42,.08); }
+    .obs-hero-image-frame { position: relative; min-height: 420px; background: #dbeafe; }
+    .obs-hero-image-frame img { display: block; width: 100%; height: 100%; min-height: 420px; max-height: 620px; object-fit: cover; }
+    .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
+    .obs-region-target { position: absolute; left: 19%; top: 17%; width: 54%; height: 54%; border: 2px solid rgba(236,253,245,.92); border-radius: 20px; box-shadow: 0 0 0 999px rgba(15,23,42,.16), 0 12px 30px rgba(15,23,42,.2); }
+    .obs-hero-thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 1px 1px 4px; scrollbar-width: none; }
+    .obs-hero-thumbs::-webkit-scrollbar { display: none; }
+    .obs-hero-thumb { flex: 0 0 78px; width: 78px; height: 58px; border: 2px solid rgba(15,118,110,.28); border-radius: 13px; padding: 0; overflow: hidden; background: #fff; box-shadow: 0 8px 18px rgba(15,23,42,.07); }
+    .obs-hero-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
     .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
     .obs-reading-panel > h1.sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
     .obs-record-brief { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: linear-gradient(135deg, rgba(236,253,245,.78), rgba(239,246,255,.78)); border: 1px solid rgba(16,185,129,.18); }
@@ -22278,6 +22288,8 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       .obs-reading-title { font-size: 25px; }
       .obs-video-evidence-grid { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 2px; }
       .obs-video-evidence-frame { flex: 0 0 150px; }
+      .obs-hero-image-frame, .obs-hero-image-frame img { min-height: clamp(218px, 58vw, 330px); max-height: none; }
+      .obs-hero-thumb { flex-basis: 68px; width: 68px; height: 52px; }
       .obs-ai-status { display: grid; }
       .obs-ai-merged-row, .obs-quality-grid, .obs-observation-grid, .obs-env-strip { grid-template-columns: 1fr; }
       .obs-photo--main img { aspect-ratio: 4 / 3; }
@@ -22391,8 +22403,19 @@ type PublicObservationDetailPolish = {
   previewScript: string;
 };
 
+const IMAGE_OBSERVATION_DETAIL_TARGET_IDS = new Set([
+  "record-1781252770584",
+  "record-1780982506049",
+  "record-1780970378665"
+]);
+
 function publicObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish | null {
-  if (detail.visitId !== "record-1778829649026") return null;
+  if (detail.visitId !== "record-1778829649026") {
+    if (IMAGE_OBSERVATION_DETAIL_TARGET_IDS.has(detail.visitId) && detail.photoAssets.length > 0 && detail.videoAssets.length === 0) {
+      return publicImageObservationDetailPolish(detail);
+    }
+    return null;
+  }
   const streamUid = "08b67d5fc693ebd177985148d5547228";
   const streamBase = `https://customer-4206dd38jkfdlotc.cloudflarestream.com/${streamUid}`;
   const frameTimes = [
@@ -22530,6 +22553,130 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
     relatedCountLabel: "2件",
     previewDialog: renderFramePreviewDialog(),
     previewScript: renderFramePreviewScript()
+  };
+}
+
+function publicImageObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish {
+  const displayName = detail.displayName && detail.displayName !== "同定待ち"
+    ? detail.displayName
+    : "同定待ちの写真記録";
+  const mainPhoto = detail.photoAssets[0]!;
+  const thumbButtons = detail.photoAssets.map((asset, index) => `<button type="button" class="obs-hero-thumb" aria-label="${escapeHtml(`写真${index + 1}を表示`)}">
+      <img src="${escapeHtml(asset.url)}" alt="" loading="${index === 0 ? "eager" : "lazy"}">
+    </button>`).join("");
+  const mediaBlock = `<div class="obs-hero-media-stack is-photo-only">
+    <div class="obs-hero-preview">
+      <figure class="obs-hero-image-frame">
+        <img src="${escapeHtml(mainPhoto.url)}" data-obs-preview-img data-obs-full-src="${escapeHtml(mainPhoto.url)}" alt="${escapeHtml(displayName)}" loading="eager">
+        <div class="obs-region-layer" data-obs-preview-regions aria-hidden="true">
+          <span class="obs-region-target"></span>
+        </div>
+      </figure>
+    </div>
+    <div class="obs-hero-thumbs" aria-label="写真サムネイル">${thumbButtons}</div>
+  </div>`;
+  const firstReadBlock = `<section class="obs-first-read obs-visible-records" aria-label="この記録で読む対象">
+    <h2>この記録で読む対象</h2>
+    <div class="obs-observation-set">
+      <div class="obs-observation-grid">
+        <div class="obs-observation-card"><span>写っている</span><strong>${escapeHtml(displayName)}</strong><small>主対象</small></div>
+        <div class="obs-observation-card"><span>写っている</span><strong>周囲の植物</strong><small>背景の手がかり</small></div>
+        <div class="obs-observation-card"><span>写っている</span><strong>地面の環境</strong><small>湿り・明るさ</small></div>
+        <div class="obs-observation-card"><span>写っている</span><strong>別レコード候補</strong><small>追加確認</small></div>
+      </div>
+      <div class="obs-env-strip"><strong>環境</strong><span>位置ぼかし / 写真あり / 複数観察記録として確認できます</span></div>
+    </div>
+    <p>1枚の写真から、対象・周囲・環境情報を分けて読みます。</p>
+  </section>`;
+  const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged" aria-label="AI候補レビュー">
+    <div class="obs-ai-status">
+      <div>
+        <h2>AI候補レビュー</h2>
+        <strong>現在の見方</strong>
+      </div>
+      <span>確認待ち</span>
+    </div>
+    <div class="obs-ai-evidence-pills">
+      <span>写真あり</span>
+      <span>対象枠あり</span>
+      <span>位置ぼかし</span>
+      <span>人の確認待ち</span>
+    </div>
+    <div class="obs-ai-merged-row">
+      <span>候補</span>
+      <strong>${escapeHtml(displayName)}</strong>
+    </div>
+    <div class="obs-ai-merged-row">
+      <span>合意</span>
+      <strong>現在の合意/確認状態は保留です</strong>
+    </div>
+  </section>`;
+  const identifyBlock = `<section class="obs-frame-identify-card">
+    <div class="obs-frame-identify-eye">IDENTIFICATION</div>
+    <h2>同定に参加する</h2>
+    <p>写真の対象を見ながら、同意・別候補・保留を記録できます。</p>
+    <div class="obs-mini-chip-row">
+      <span>現在の見方</span>
+      <span>AI候補レビュー</span>
+      <span>提案・コメントの履歴</span>
+    </div>
+    <div class="obs-identify-actions">
+      <button type="button" class="obs-identify-button">同意する</button>
+      <button type="button" class="obs-identify-button is-secondary">別候補を提案</button>
+      <button type="button" class="obs-identify-button is-secondary">保留する</button>
+      <button type="button" class="obs-identify-button is-secondary">別レコードを追加</button>
+    </div>
+    <ul class="obs-local-name-activity-list">
+      <li><strong>提案・コメントの履歴</strong><span>AI候補と人の確認をここに積みます。</span></li>
+      <li><strong>現在の見方</strong><span>確定前として公開し、あとから更新できます。</span></li>
+    </ul>
+  </section>`;
+  const qualityBlock = `<section class="obs-local-quality-card">
+    <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
+    <h2>観察レコードとして育てる</h2>
+    <p>環境情報をあとから追加・変更し、確認履歴を残します。</p>
+    <div class="obs-quality-grid">
+      <div class="obs-quality-item"><span>写真</span><strong>${escapeHtml(`${detail.photoAssets.length}枚`)}</strong></div>
+      <div class="obs-quality-item"><span>位置</span><strong>ぼかし済み</strong></div>
+      <div class="obs-quality-item"><span>状態</span><strong>確認待ち</strong></div>
+    </div>
+    <div class="obs-env-row"><span>環境レコードの下書き</span><strong>周囲の植物、地面の状態、明るさを追加できます</strong></div>
+    <div class="obs-identify-actions">
+      <button type="button" class="obs-identify-button">環境情報を変更</button>
+      <button type="button" class="obs-identify-button is-secondary">確認する</button>
+    </div>
+    <ul class="obs-local-name-activity-list">
+      <li><strong>編集履歴</strong><span>環境情報の変更と確認を残します。</span></li>
+    </ul>
+  </section>`;
+  const statusBlock = `<div class="obs-record-use-status" aria-label="この記録の状態">
+    <span>写真記録</span>
+    <span>現在の見方</span>
+    <span>確認待ち</span>
+    <span>位置ぼかし</span>
+  </div>`;
+  return {
+    displayName,
+    observedLabel: formatPublicObservationDate(detail.observedAt),
+    placeLabel: detail.publicLocation.label,
+    lead: "投稿後の写真から、対象・同定・環境情報を続けて確認する記録ページです。",
+    stateLabel: "確認待ち",
+    mediaBlock,
+    videoCount: 0,
+    audioCount: 0,
+    recordInsight: "写真の対象枠、候補レビュー、環境レコードを同じページで確認できます。",
+    statusBlock,
+    firstReadBlock,
+    aiReadoutBlock,
+    identifyBlock,
+    qualityBlock,
+    relatedLimit: 3,
+    relatedEye: "次に見るなら",
+    relatedTitle: "次に見るなら",
+    relatedLead: "同じ周辺の公開記録です。",
+    relatedCountLabel: `${Math.min(3, detail.relatedObservations.length)}件`,
+    previewDialog: "",
+    previewScript: ""
   };
 }
 
