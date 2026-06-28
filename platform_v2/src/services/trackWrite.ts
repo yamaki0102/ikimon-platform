@@ -5,8 +5,8 @@ import {
   buildPlaceId,
   buildPlaceName,
   normalizeTimestamp,
-  recordCompatibilityFailure,
 } from "./writeSupport.js";
+import { recordCompatibilityFailure } from "./writeSupportPg.js";
 import { queuePublicMapSnapshotRefresh } from "./publicMapSnapshotScheduler.js";
 
 export type TrackPointInput = {
