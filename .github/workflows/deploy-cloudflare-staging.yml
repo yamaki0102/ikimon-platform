@@ -138,6 +138,12 @@ jobs:
           grep -q 'obs-hero-media-stack is-photo-only' staging-observation-image-2.html
           curl -fsS -D staging-observation-image-3.headers 'https://staging.ikimon.life/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0&lang=ja' -o staging-observation-image-3.html
           grep -q 'obs-hero-media-stack is-photo-only' staging-observation-image-3.html
+          curl -fsS -D staging-observation-video.headers 'https://staging.ikimon.life/ja/observations/record-1778829649026?subject=occ%3Arecord-1778829649026%3A0' -o staging-observation-video.html
+          grep -q 'カワラヒワ' staging-observation-video.html
+          grep -q 'obs-hero-video-frame' staging-observation-video.html
+          grep -q 'obs-video-evidence-frame' staging-observation-video.html
+          grep -q 'AIが見た動画フレーム' staging-observation-video.html
+          grep -q 'data-frame-zoom-in' staging-observation-video.html
           curl -fsS -D staging-brand-icon.headers https://staging.ikimon.life/assets/brand/app-icon-192.png -o staging-brand-icon.png
           grep -qi '^content-type: image/png' staging-brand-icon.headers
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
@@ -154,6 +160,7 @@ jobs:
             platform_v2/cloudflare_shadow/staging-*.json
             platform_v2/cloudflare_shadow/staging-demo.*
             platform_v2/cloudflare_shadow/staging-observation-image-*.*
+            platform_v2/cloudflare_shadow/staging-observation-video.*
             platform_v2/cloudflare_shadow/staging-brand-icon.*
           if-no-files-found: ignore
           retention-days: 7
