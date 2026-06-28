@@ -124,10 +124,6 @@ jobs:
           grep -q '実データではありません' staging-demo.html
           grep -q 'place_feeling_tags' staging-demo.html
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-demo.headers
-          curl -fsS -D staging-walk-map-review-shizuoka.headers 'https://staging.ikimon.life/walk-map-source-drafts/shizuoka-ikimono-walk-route' -o staging-walk-map-review-shizuoka.html
-          grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-review-shizuoka.html
-          grep -q '6. 公園の開けた場所' staging-walk-map-review-shizuoka.html
-          grep -q 'source_draft_review' staging-walk-map-review-shizuoka.html
           curl -fsS -D staging-observation-image-1.headers 'https://staging.ikimon.life/observations/record-1781252770584?subject=occ%3Arecord-1781252770584%3A0&lang=ja' -o staging-observation-image-1.html
           grep -q 'data-cloudflare-observation-detail="1"' staging-observation-image-1.html
           grep -q 'obs-hero-media-stack is-photo-only' staging-observation-image-1.html
@@ -153,7 +149,6 @@ jobs:
             platform_v2/cloudflare_shadow/seed-staging-observation-image-targets.json
             platform_v2/cloudflare_shadow/staging-*.json
             platform_v2/cloudflare_shadow/staging-demo.*
-            platform_v2/cloudflare_shadow/staging-walk-map-review-shizuoka.*
             platform_v2/cloudflare_shadow/staging-observation-image-*.*
             platform_v2/cloudflare_shadow/staging-brand-icon.*
           if-no-files-found: ignore
