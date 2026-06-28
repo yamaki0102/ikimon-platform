@@ -1,12 +1,6 @@
 import path from "node:path";
 import { test, expect, type Page } from "@playwright/test";
 
-const defaultTargetPaths = [
-  "/observations/record-1781252770584?subject=occ%3Arecord-1781252770584%3A0&lang=ja",
-  "/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A0&lang=ja",
-  "/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0&lang=ja",
-];
-
 const viewports = [
   { name: "desktop-1440", width: 1440, height: 900 },
   { name: "mobile-390", width: 390, height: 844 },
@@ -26,7 +20,9 @@ function normalizeTargetPath(value: string): string {
 
 function targetPaths(): string[] {
   const raw = process.env.OBSERVATION_DETAIL_IMAGE_TARGETS?.trim();
-  if (!raw) return defaultTargetPaths;
+  if (!raw) {
+    throw new Error("OBSERVATION_DETAIL_IMAGE_TARGETS is required. Run npm run e2e:observation-image-target so dynamic targets are resolved first.");
+  }
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (Array.isArray(parsed)) {
@@ -54,6 +50,10 @@ async function imageRecordMetrics(page: Page): Promise<{
   previewImageVisible: boolean;
   photoThumbCount: number;
   regionLayerCount: number;
+  regionGuideCount: number;
+  contextGuideCount: number;
+  groundGuideCount: number;
+  extraGuideCount: number;
   mediaLedgerText: string;
   visibleRecordText: string;
   videoFrameVisibleCount: number;
@@ -80,6 +80,10 @@ async function imageRecordMetrics(page: Page): Promise<{
       previewImageVisible: isVisible(previewImage),
       photoThumbCount: document.querySelectorAll(".obs-hero-thumbs .obs-hero-thumb").length,
       regionLayerCount: document.querySelectorAll(".obs-region-layer[data-obs-preview-regions]").length,
+      regionGuideCount: document.querySelectorAll(".obs-region-guide").length,
+      contextGuideCount: document.querySelectorAll(".obs-region-guide.is-context-guide").length,
+      groundGuideCount: document.querySelectorAll(".obs-region-guide.is-ground-guide").length,
+      extraGuideCount: document.querySelectorAll(".obs-region-guide.is-extra-guide").length,
       mediaLedgerText: mediaLedger?.textContent?.replace(/\s+/gu, " ").trim() ?? "",
       visibleRecordText: visibleRecords?.textContent?.replace(/\s+/gu, " ").trim() ?? "",
       videoFrameVisibleCount: Array.from(document.querySelectorAll(".obs-hero-video-frame")).filter(isVisible).length,
@@ -105,11 +109,20 @@ test.describe("image observation detail VPS parity gate", () => {
         expect(metrics.previewImageVisible, "large image preview should be visible").toBe(true);
         expect(metrics.photoThumbCount, "image records keep a thumbnail rail even when there is one photo").toBeGreaterThan(0);
         expect(metrics.regionLayerCount, "image target frame layer should be present").toBeGreaterThan(0);
+        expect(metrics.regionGuideCount, "image records should show distinct reading guides").toBeGreaterThanOrEqual(4);
+        expect(metrics.contextGuideCount, "context guide should be present").toBeGreaterThan(0);
+        expect(metrics.groundGuideCount, "ground guide should be present").toBeGreaterThan(0);
+        expect(metrics.extraGuideCount, "extra-subject guide should be present").toBeGreaterThan(0);
         expect(metrics.mediaLedgerText).toContain("写真");
         expect(metrics.mediaLedgerText).toContain("動画");
-        expect(metrics.visibleRecordText).toContain("写っている");
+        expect(metrics.visibleRecordText).toContain("名前の候補");
+        expect(metrics.visibleRecordText).toContain("場所の手がかり");
+        expect(metrics.visibleRecordText).toContain("足元の状態");
+        expect(metrics.visibleRecordText).toContain("あとで分けられるもの");
         for (const term of [
           "この記録で読む対象",
+          "この写真から読めていること",
+          "次の写真で増える情報",
           "同定",
           "同定に参加する",
           "同意する",
@@ -125,6 +138,9 @@ test.describe("image observation detail VPS parity gate", () => {
         ]) {
           expect(metrics.visibleText, `visible copy should include ${term}`).toContain(term);
         }
+        expect(metrics.bodyText).not.toContain("\u91cd\u306d");
+        expect(metrics.bodyText).not.toContain("写真の" + "対象枠");
+        expect(metrics.bodyText).not.toContain("同じ" + "ページで確認");
         expect(metrics.bodyText).not.toContain("この映像で読む対象を切り替える");
         expect(metrics.videoFrameVisibleCount, "photo-only records must not show the video player frame").toBe(0);
         expect(metrics.videoEvidenceFrameCount, "photo-only records must not show the video frame rail").toBe(0);

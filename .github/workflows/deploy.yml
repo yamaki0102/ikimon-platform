@@ -408,8 +408,7 @@ jobs:
         working-directory: platform_v2
         env:
           OBSERVATION_DETAIL_BASE_URL: https://ikimon.life
-          OBSERVATION_DETAIL_IMAGE_TARGETS: >-
-            ["/observations/record-1781252770584?subject=occ%3Arecord-1781252770584%3A0&lang=ja","/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A0&lang=ja","/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0&lang=ja","/observations/occ%3Afdd87039-b91f-4fd6-8dac-093ea06817d1%3A0?lang=ja"]
+          OBSERVATION_IMAGE_TARGET_COUNT: "4"
         run: npm run e2e:observation-image-target
 
       - name: Observation video detail regression smoke

@@ -6908,8 +6908,17 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /obs-hero-media-stack is-photo-only/);
   assert.match(pageHtml, /data-obs-preview-img/);
   assert.match(pageHtml, /data-obs-preview-regions/);
+  assert.match(pageHtml, /obs-region-guide is-context-guide/);
+  assert.match(pageHtml, /obs-region-guide is-ground-guide/);
+  assert.match(pageHtml, /obs-region-guide is-extra-guide/);
   assert.match(pageHtml, /obs-hero-thumb/);
   assert.match(pageHtml, /この記録で読む対象/);
+  assert.match(pageHtml, /この写真から読めていること/);
+  assert.match(pageHtml, /次の写真で増える情報/);
+  assert.match(pageHtml, /名前の候補/);
+  assert.match(pageHtml, /場所の手がかり/);
+  assert.match(pageHtml, /足元の状態/);
+  assert.match(pageHtml, /あとで分けられるもの/);
   assert.match(pageHtml, /data-section-code="identification"/);
   assert.match(pageHtml, /同定に参加する/);
   assert.match(pageHtml, /同意する/);
@@ -6931,6 +6940,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.doesNotMatch(pageHtml, /cell:34\.71,137\.81|公開セル|セル単位/);
   assert.doesNotMatch(pageHtml, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
   assert.doesNotMatch(pageHtml, /IDENTIFICATION|OBSERVATION QUALITY|記録の質を育てる/);
+  assert.doesNotMatch(pageHtml, new RegExp(`\\u91cd\\u306d|${"写真の" + "対象枠"}|${"同じ" + "ページで確認"}|驥阪|縺|蜀`));
   assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|ownerUserId|observerUserId|profile\/detail-user|profile\/user_|YAMAKI|34\.71234|137\.81234|\/uploads\//);
 
   const localizedPageResponse = await worker.fetch(new Request("https://shadow.test/ja/observations/visit-detail-contract"), env);
@@ -15072,7 +15082,15 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /data-obs-preview-regions/);
     assert.match(body, /obs-hero-thumb/);
     assert.match(body, /この記録で読む対象/);
-    assert.match(body, /写っている/);
+    assert.match(body, /obs-region-guide is-context-guide/);
+    assert.match(body, /obs-region-guide is-ground-guide/);
+    assert.match(body, /obs-region-guide is-extra-guide/);
+    assert.match(body, /この写真から読めていること/);
+    assert.match(body, /次の写真で増える情報/);
+    assert.match(body, /名前の候補/);
+    assert.match(body, /場所の手がかり/);
+    assert.match(body, /足元の状態/);
+    assert.match(body, /あとで分けられるもの/);
     assert.match(body, /data-section-code="identification"/);
     assert.match(body, /同定/);
     assert.match(body, /同定に参加する/);
@@ -15095,6 +15113,7 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /写真/);
     assert.match(body, /動画/);
     assert.doesNotMatch(body, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
+    assert.doesNotMatch(body, new RegExp(`\\u91cd\\u306d|${"写真の" + "対象枠"}|${"同じ" + "ページで確認"}|驥阪|縺|蜀`));
     assert.doesNotMatch(body, /href="\/record-reading-cards"|ownerUserId|observerUserId|profile\/image-target-user|34\.704|137\.704|34\.814|137\.734|34\.816|137\.736|\/uploads\/|original-ui\/thumb/);
   }
 });
