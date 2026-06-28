@@ -14257,6 +14257,37 @@ test("production original UI html serves localized auth and guest profile shells
   }
 });
 
+test("production home collapses materialized header actions into a hamburger menu", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+    "<!doctype html><head></head><body>",
+    "<header class=\"site-header site-header-minimal\"><div class=\"site-header-inner\">",
+    "<a class=\"brand\" href=\"/ja/\">ikimon</a>",
+    "<div class=\"site-header-actions site-header-actions-desktop\"><a class=\"site-record-link\" href=\"/ja/record\">記録する</a><a class=\"site-login-link\" href=\"/ja/login?redirect=%2Fprofile\">ログイン</a></div>",
+    "<div class=\"site-header-actions site-header-actions-mobile\"><a class=\"site-record-link\" href=\"/ja/record\">記録する</a><a class=\"site-login-link\" href=\"/ja/login?redirect=%2Fprofile\">ログイン</a></div>",
+    "</div></header><main>home</main></body>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
+  const body = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(body, /data-cloudflare-header-menu/);
+  assert.match(body, /aria-label="メニュー"/);
+  assert.match(body, /site-header-actions-desktop,.site-header \.site-header-actions-mobile\{display:none!important\}/);
+  assert.match(body, /href="\/ja\/record"/);
+  assert.match(body, /href="\/ja\/login\?redirect=%2Fprofile"/);
+  assert.match(body, /href="\/ja\/records"/);
+  assert.match(body, /href="\/ja\/map"/);
+  assert.match(body, /href="\/en\/"/);
+  assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+});
+
 test("production records materialized html includes recent Cloudflare D1 records", async () => {
   const { env } = createEnv();
   const productionEnv = {
