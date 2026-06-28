@@ -1,5 +1,3 @@
-import type { Pool } from "pg";
-import { getPool } from "../db.js";
 import type { TaxonRank } from "./taxonRank.js";
 import { normalizeRank, rankOrder } from "./taxonRank.js";
 
@@ -9,7 +7,7 @@ import { normalizeRank, rankOrder } from "./taxonRank.js";
  * The DEFAULT ceiling for any taxon not listed in `taxon_precision_policy`
  * is `genus` (§3.1 of docs/policy/identification_granularity_policy.md).
  *
- * Exceptions are stored in the DB table. When given a taxon ancestry chain
+ * Exceptions are stored as a static runtime policy. When given a taxon ancestry chain
  * (e.g. kingdom → phylum → class → order → family → genus), this module
  * finds the most specific (finest) matching override and returns it.
  */
@@ -27,6 +25,54 @@ type PolicyRow = {
   coarse_ceiling_rank: string;
   notes: string | null;
 };
+
+const STATIC_POLICY_ROWS: readonly PolicyRow[] = [
+  {
+    taxon_key: "Aves",
+    coarse_ceiling_rank: "species",
+    notes: "国内鳥類は図鑑定着度が高く市民 species 識別が比較的安定。公開用途への昇格は authority 確認が必要。",
+  },
+  {
+    taxon_key: "Mammalia",
+    coarse_ceiling_rank: "species",
+    notes: "国内哺乳類は種数が限定的、形態識別が比較的安定。",
+  },
+  {
+    taxon_key: "Amphibia",
+    coarse_ceiling_rank: "species",
+    notes: "国内両生類は種数が限定的。",
+  },
+  {
+    taxon_key: "Reptilia",
+    coarse_ceiling_rank: "species",
+    notes: "国内爬虫類は種数が限定的。",
+  },
+  {
+    taxon_key: "Lepidoptera",
+    coarse_ceiling_rank: "genus",
+    notes: "チョウ目は科〜属で迷う群が多い。種は authority 経由を原則とする。",
+  },
+  {
+    taxon_key: "Coleoptera",
+    coarse_ceiling_rank: "subfamily",
+    notes: "コウチュウ目は亜科止めが健全な群が多い。",
+  },
+  {
+    taxon_key: "Hymenoptera",
+    coarse_ceiling_rank: "subfamily",
+    notes: "ハチ目（ハナバチ類含む）は亜科止めを原則とする。",
+  },
+  {
+    taxon_key: "Diptera",
+    coarse_ceiling_rank: "subfamily",
+    notes: "ハエ目は亜科止めを原則とする。",
+  },
+  {
+    taxon_key: "Fungi",
+    coarse_ceiling_rank: "family",
+    notes: "顕微鏡観察・培養なしでは属以下が危うい。",
+  },
+];
 
 function normalizeKey(raw: string | null | undefined): string {
   return String(raw ?? "").trim();
@@ -57,21 +103,13 @@ export function buildAncestryChain(match: {
 
 export async function getCoarseCeilingForAncestry(
   ancestry: string[],
-  pool: Pool = getPool(),
 ): Promise<TaxonRank> {
   const clean = ancestry.map(normalizeKey).filter((value) => value.length > 0);
   if (clean.length === 0) return DEFAULT_COARSE_CEILING;
 
-  const result = await pool.query<PolicyRow>(
-    `select taxon_key, coarse_ceiling_rank, notes
-       from taxon_precision_policy
-      where taxon_key = ANY($1::text[])`,
-    [clean],
-  );
-  if (result.rows.length === 0) return DEFAULT_COARSE_CEILING;
-
   const byKey = new Map<string, TaxonRank>();
-  for (const row of result.rows) {
+  for (const row of STATIC_POLICY_ROWS) {
+    if (!clean.includes(row.taxon_key)) continue;
     const rank = normalizeRank(row.coarse_ceiling_rank);
     if (rank) byKey.set(row.taxon_key, rank);
   }
@@ -88,14 +126,8 @@ export async function getCoarseCeilingForAncestry(
 }
 
 export async function listPrecisionPolicyEntries(
-  pool: Pool = getPool(),
 ): Promise<PrecisionPolicyEntry[]> {
-  const result = await pool.query<PolicyRow>(
-    `select taxon_key, coarse_ceiling_rank, notes
-       from taxon_precision_policy
-      order by taxon_key`,
-  );
-  return result.rows.flatMap((row) => {
+  return [...STATIC_POLICY_ROWS].sort((a, b) => a.taxon_key.localeCompare(b.taxon_key)).flatMap((row) => {
     const rank = normalizeRank(row.coarse_ceiling_rank);
     if (!rank) return [];
     return [{ taxonKey: row.taxon_key, coarseCeilingRank: rank, notes: row.notes }];
