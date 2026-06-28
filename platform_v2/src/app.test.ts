@@ -126,8 +126,9 @@ test("root route serves the record feed home HTML even for generic accept header
     assert.match(response.body, /<title>ikimon \| 生きものを手がかりに、この場所の今を残す<\/title>/);
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
     assert.match(response.body, /data-record-feed/);
-    assert.match(response.body, /記録を見る/);
     assert.match(response.body, /みんなの記録/);
+    assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
+    assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
     assert.match(response.body, /site-shell[^"]*is-minimal-chrome/);
     assert.doesNotMatch(response.body, /<nav class="desktop-side-nav-inner"/);
     assert.doesNotMatch(response.body, /使い方を見る/);

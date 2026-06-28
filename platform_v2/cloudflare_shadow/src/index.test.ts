@@ -14077,6 +14077,14 @@ test("production records materialized html includes recent Cloudflare D1 records
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><body><main><h1>記録を見る</h1></main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+    "<!doctype html><head></head><body>",
+    "<main><section class=\"prototype-record-feed\" data-record-feed>",
+    "<div class=\"prototype-record-feed-head\"><div><h1>記録を見る</h1></div></div>",
+    "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
+    "<script>/* feed */</script></section></main>",
+    "</body>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
 
   await post("/api/v1/observations/upsert", env, {
     observationId: "record-live-materialized",
@@ -14101,6 +14109,17 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+  const homeResponse = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
+  const homeBody = await homeResponse.text();
+  assert.equal(homeResponse.status, 200);
+  assert.match(homeBody, /data-cloudflare-home-record/);
+  assert.match(homeBody, /最近の投稿テスト/);
+  assert.match(homeBody, /record-live-materialized/);
+  assert.match(homeBody, /\/derived\/.+\/display\.webp/);
+  assert.match(homeBody, /prototype-record-feed is-guest/);
+  assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
+  assert.doesNotMatch(homeBody, /is-preview/);
 });
 
 test("production app refresh page serves materialized reset shell from R2", async () => {
@@ -15510,6 +15529,12 @@ test("production materialized auth html personalizes redirect query without orig
     "<a href=\"/en/login?redirect=%2Frecord\">login</a>",
     "<a href=\"/auth/oauth/google/start?redirect=%2Frecord\">google</a>"
   ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/login.html", [
+    "<!doctype html><title>Login</title>",
+    "<form data-auth-form data-redirect=\"/record\"></form>",
+    "<span class=\"auth-social-disabled\">Google で続ける は設定中</span>",
+    "<span class=\"auth-social-disabled\">X(Twitter) で続ける は設定中</span>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -15531,6 +15556,24 @@ test("production materialized auth html personalizes redirect query without orig
     assert.equal(bareResponse.status, 200);
     assert.match(bareHtml, /data-redirect="\/record\?start=photo"/);
     assert.match(bareHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dphoto/);
+
+    const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
+    const loginHtml = await loginResponse.text();
+    assert.equal(loginResponse.status, 200);
+    assert.match(loginHtml, /href="\/auth\/oauth\/google\/start\?redirect=%2Fprofile"/);
+    assert.match(loginHtml, /href="\/auth\/oauth\/twitter\/start\?redirect=%2Fprofile"/);
+    assert.doesNotMatch(loginHtml, /auth-social-disabled/);
+    assert.doesNotMatch(loginHtml, /設定中/);
+
+    const oauthStart = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=%2Fprofile"), {
+      ...productionEnv,
+      GOOGLE_CLIENT_ID: "google-client",
+      GOOGLE_CLIENT_SECRET: "google-secret",
+      V2_OAUTH_STATE_SECRET: "state-secret"
+    });
+    assert.equal(oauthStart.status, 303);
+    assert.match(oauthStart.headers.get("location") ?? "", /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
+    assert.match(oauthStart.headers.get("set-cookie") ?? "", /^ikimon_oauth_state=/);
     assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;

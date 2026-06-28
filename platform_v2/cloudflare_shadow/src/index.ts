@@ -2010,17 +2010,17 @@ export const worker = {
         return getOriginalUiHtml(request, url, env);
       }
 
-      const oauthStartMatch = url.pathname.match(/^\/auth\/oauth\/([^/]+)\/start$/);
+      const oauthStartMatch = nativePathname.match(/^\/auth\/oauth\/([^/]+)\/start$/);
       if (request.method === "GET" && oauthStartMatch?.[1]) {
         return handleOAuthStart(request, decodeURIComponent(oauthStartMatch[1]), env);
       }
 
-      const oauthCallbackMatch = url.pathname.match(/^\/auth\/oauth\/([^/]+)\/callback$/);
+      const oauthCallbackMatch = nativePathname.match(/^\/auth\/oauth\/([^/]+)\/callback$/);
       if (request.method === "GET" && oauthCallbackMatch?.[1]) {
         return handleOAuthCallback(request, decodeURIComponent(oauthCallbackMatch[1]), env);
       }
 
-      if (request.method === "GET" && url.pathname === "/oauth_callback.php") {
+      if (request.method === "GET" && nativePathname === "/oauth_callback.php") {
         return handleOAuthCallback(request, url.searchParams.get("provider"), env);
       }
 
@@ -16121,17 +16121,28 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
 }
 
 async function originalUiHtmlBodyForRequest(object: R2ObjectBody, url: URL, env: Env): Promise<ReadableStream | string | null> {
+  if (isHomeHtmlPath(url.pathname)) {
+    const text = await new Response(object.body).text();
+    return injectHomeObservationRecords(text, url, env);
+  }
   if (isRecordsHtmlPath(url.pathname)) {
     const text = await new Response(object.body).text();
     return injectRecentObservationRecords(text, url, env);
   }
-  if (!isAuthHtmlPath(url.pathname) || !url.searchParams.has("redirect")) return object.body;
+  if (!isAuthHtmlPath(url.pathname)) return object.body;
   const text = await new Response(object.body).text();
-  return personalizeAuthRedirectHtml(text, postAuthRedirect(url.searchParams.get("redirect")));
+  return personalizeAuthRedirectHtml(
+    activateMaterializedAuthOAuthLinks(text, url),
+    postAuthRedirect(url.searchParams.get("redirect"))
+  );
 }
 
 function isAuthHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/(?:login|register)$/.test(pathname);
+}
+
+function isHomeHtmlPath(pathname: string): boolean {
+  return pathname === "/" || /^(?:\/(?:ja|en|es|pt-br))\/?$/.test(pathname);
 }
 
 function isProfileHtmlPath(pathname: string): boolean {
@@ -16271,6 +16282,8 @@ function recordsInjectionCopy(url: URL) {
       body: "New posts appear here from Cloudflare immediately after their public media is ready.",
       empty: "No recent public records yet.",
       open: "Open",
+      homeBadge: "Nearby",
+      media: "Photo",
       map: "Map",
       unknown: "Awaiting ID"
     };
@@ -16281,6 +16294,8 @@ function recordsInjectionCopy(url: URL) {
     body: "投稿後、公開用の写真処理が終わった記録からここに出ます。",
     empty: "まだ最近の公開記録はありません。",
     open: "開く",
+    homeBadge: "近くの記録",
+    media: "写真",
     map: "地図",
     unknown: "同定待ち"
   };
@@ -16325,6 +16340,29 @@ async function injectRecentObservationRecords(html: string, url: URL, env: Env):
   return `${section}${html}`;
 }
 
+async function injectHomeObservationRecords(html: string, url: URL, env: Env): Promise<string> {
+  const items = await recentPublicRecordCards(env).catch(() => []);
+  if (items.length === 0 || !html.includes("data-record-feed")) return html;
+  const cards = items.slice(0, 8).map((item, index) => renderHomeRecordCard(item, recordsInjectionCopy(url), index)).join("");
+  let next = html
+    .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
+    .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*<script>/, `<div class="prototype-record-feed-list">${cards}</div><script>`);
+  next = next.replace(/class="prototype-record-feed(?![^"]*\bis-guest\b)"/, 'class="prototype-record-feed is-guest"');
+  if (!next.includes("cf-home-record-feed-style")) {
+    next = next.replace("</head>", `<style id="cf-home-record-feed-style">
+      .prototype-record-feed.is-guest{width:min(100%,540px);margin-top:clamp(10px,2.6vw,24px)}
+      .prototype-record-feed.is-guest .prototype-record-feed-card{border-color:rgba(15,23,42,.08);box-shadow:0 12px 30px rgba(15,23,42,.12)}
+      .prototype-record-feed.is-guest .prototype-record-feed-main{position:relative}
+      .prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:clamp(520px,78vh,760px);min-height:520px;background:#0f172a}
+      .prototype-record-feed.is-guest .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
+      .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
+      .prototype-record-feed.is-guest .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
+      @media(max-width:640px){.prototype-record-feed.is-guest{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap{height:76vh;min-height:540px}}
+    </style></head>`);
+  }
+  return next;
+}
+
 async function recentPublicRecordCards(env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
   const rows = (await queryPublicMapRows(env)).slice(0, 6);
   if (rows.length === 0) return [];
@@ -16345,6 +16383,36 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
       <span>${escapeHtml(copy.open)} / ${escapeHtml(copy.map)}</span>
     </span>
   </a>`;
+}
+
+function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>, index: number): string {
+  const href = `/observations/${encodeURIComponent(item.visitId)}`;
+  const image = item.photoUrl
+    ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
+    : `<span class="prototype-record-feed-empty-media" aria-hidden="true"></span>`;
+  const title = item.displayName || copy.unknown;
+  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record>
+    <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
+      <span class="prototype-record-feed-media-wrap">
+        ${image}
+        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.homeBadge)}</span><span>${escapeHtml(copy.media)}</span></span>
+      </span>
+      <span class="prototype-record-feed-copy">
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml([copy.map, item.observedAt].filter(Boolean).join(" · "))}</span>
+      </span>
+    </a>
+  </article>`;
+}
+
+function activateMaterializedAuthOAuthLinks(html: string, url: URL): string {
+  const redirect = postAuthRedirect(url.searchParams.get("redirect"));
+  const googleHref = `/auth/oauth/google/start?redirect=${encodeURIComponent(redirect)}`;
+  const twitterHref = `/auth/oauth/twitter/start?redirect=${encodeURIComponent(redirect)}`;
+  return html
+    .replace(/<span class="auth-social-disabled">([^<]*Google[^<]*)<\/span>/, `<a href="${escapeHtml(googleHref)}">$1</a>`)
+    .replace(/<span class="auth-social-disabled">([^<]*(?:X\(Twitter\)|X)[^<]*)<\/span>/, `<a href="${escapeHtml(twitterHref)}">$1</a>`)
+    .replace(/\s+は設定中(?=<\/a>)/g, "");
 }
 
 function personalizeAuthRedirectHtml(html: string, redirect: string): string {

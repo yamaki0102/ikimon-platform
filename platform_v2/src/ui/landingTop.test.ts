@@ -153,7 +153,8 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
   assert.match(html, /data-record-feed/);
-  assert.match(html, /記録を見る/);
+  assert.match(html, /prototype-record-feed[^"]*is-guest/);
+  assert.doesNotMatch(html, /<h1>記録を見る<\/h1>/);
   assert.match(html, /みんなの記録/);
   assert.doesNotMatch(html, /ログイン/);
   assert.doesNotMatch(html, /data-kpi-action="landing:record_feed:weak_record"/);
@@ -493,6 +494,8 @@ test("landing top keeps guest community posts in the short record feed", () => {
 
   assert.equal((html.match(/data-record-feed-card/g) ?? []).length, 12);
   assert.match(html, /data-record-feed/);
+  assert.match(html, /prototype-record-feed[^"]*is-guest/);
+  assert.doesNotMatch(html, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(html, /prototype-content-wall/);
   assert.doesNotMatch(html, /みんなの投稿12/);
   assert.doesNotMatch(html, /もっと見る<\/a>/);

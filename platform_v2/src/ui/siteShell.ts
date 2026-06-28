@@ -6499,7 +6499,7 @@ ${alternateLinks}
       }
       .site-shell.is-minimal-chrome .shell.shell-layout-home,
       .site-shell.is-minimal-chrome .shell.shell-layout-home.shell-bleed {
-        width: min(var(--ikimon-page-max), calc(100% - 48px));
+        width: min(680px, calc(100% - 48px));
         margin-left: auto;
         margin-right: auto;
       }

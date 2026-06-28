@@ -861,7 +861,7 @@ function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): stri
         badge: "Nearby record",
         media: "Photo and video",
       };
-  return `<article class="prototype-record-feed-card is-preview" data-record-feed-card>
+  return `<article class="prototype-record-feed-card is-preview is-guest-preview" data-record-feed-card>
     <a class="prototype-record-feed-main" href="${escapeHtml(recordsHref)}" data-kpi-action="landing:record_feed:guest_preview">
       <span class="prototype-record-feed-media-wrap">
         <span class="prototype-record-feed-empty-media" aria-hidden="true"></span>
@@ -893,14 +893,17 @@ function renderLandingRecordFeed(options: LandingTopRenderOptions): string {
   const headActionHtml = isGuest
     ? ""
     : `<a href="${escapeHtml(headActionHref)}" data-kpi-action="landing:record_feed:weak_record">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a>`;
-  return `<section class="prototype-record-feed" aria-label="${escapeHtml(lang === "ja" ? "記録フィード" : "Record feed")}" data-record-feed>
-    <div class="prototype-record-feed-head">
+  const headHtml = isGuest
+    ? ""
+    : `<div class="prototype-record-feed-head">
       <div>
         <span>${escapeHtml(lang === "ja" ? "写真・動画の記録" : "Photo and video records")}</span>
-        <h1>${escapeHtml(isGuest ? (lang === "ja" ? "記録を見る" : "Watch records") : (lang === "ja" ? "今日の記録が、場所の記憶に育つ。" : "Today's records grow into place memory."))}</h1>
+        <h1>${escapeHtml(lang === "ja" ? "今日の記録が、場所の記憶に育つ。" : "Today's records grow into place memory.")}</h1>
       </div>
       ${headActionHtml}
-    </div>
+    </div>`;
+  return `<section class="prototype-record-feed${isGuest ? " is-guest" : ""}" aria-label="${escapeHtml(lang === "ja" ? "記録フィード" : "Record feed")}" data-record-feed>
+    ${headHtml}
     <div class="prototype-record-feed-list">${cards.join("")}</div>
     <script>
 (() => {
@@ -2068,6 +2071,11 @@ export const LANDING_TOP_STYLES = `
     display: grid;
     gap: clamp(14px, 2.2vw, 22px);
   }
+  .prototype-record-feed.is-guest {
+    width: min(100%, 540px);
+    margin-top: clamp(10px, 2.6vw, 24px);
+    margin-bottom: clamp(18px, 4vw, 44px);
+  }
   .prototype-record-feed-head {
     display: flex;
     align-items: end;
@@ -2145,6 +2153,34 @@ export const LANDING_TOP_STYLES = `
   .prototype-record-feed-card.is-preview .prototype-record-feed-empty-media {
     background:
       linear-gradient(180deg, rgba(186,230,253,.9) 0 42%, rgba(204,251,241,.94) 42% 58%, rgba(239,246,255,.92) 58% 100%);
+  }
+  .prototype-record-feed.is-guest .prototype-record-feed-card {
+    border-color: rgba(15,23,42,.08);
+    box-shadow: 0 12px 30px rgba(15,23,42,.12);
+  }
+  .prototype-record-feed.is-guest .prototype-record-feed-main {
+    position: relative;
+  }
+  .prototype-record-feed.is-guest .prototype-record-feed-media-wrap {
+    height: clamp(520px, 78vh, 760px);
+    min-height: 520px;
+    background: #0f172a;
+  }
+  .prototype-record-feed.is-guest .prototype-record-feed-copy {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 56px 16px 16px;
+    background: linear-gradient(180deg, transparent, rgba(2,6,23,.74));
+  }
+  .prototype-record-feed.is-guest .prototype-record-feed-copy strong,
+  .prototype-record-feed.is-guest .prototype-record-feed-copy span {
+    color: #fff;
+    text-shadow: 0 1px 14px rgba(0,0,0,.32);
+  }
+  .prototype-record-feed.is-guest .prototype-record-feed-copy span {
+    color: rgba(255,255,255,.84);
   }
   .prototype-record-feed-preview-stack {
     position: absolute;
@@ -4530,11 +4566,13 @@ export const LANDING_TOP_STYLES = `
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell { padding-top: 14px; }
     .prototype-record-feed { width: 100%; gap: 12px; margin-bottom: 34px; }
+    .prototype-record-feed.is-guest { width: 100%; margin-top: 4px; }
     .prototype-record-feed-head { align-items: start; }
     .prototype-record-feed-head h1 { font-size: 30px; line-height: 1.12; }
     .prototype-record-feed-head a { min-height: 38px; padding: 9px 12px; font-size: 12px; }
     .prototype-record-feed-list { gap: 14px; }
     .prototype-record-feed-media-wrap { height: 57vh; min-height: 310px; }
+    .prototype-record-feed.is-guest .prototype-record-feed-media-wrap { height: 76vh; min-height: 540px; }
     .prototype-record-feed-copy { padding: 13px 14px 11px; }
     .prototype-record-feed-copy strong { font-size: 18px; }
     .prototype-record-feed-tools { padding: 0 14px 13px; align-items: start; }

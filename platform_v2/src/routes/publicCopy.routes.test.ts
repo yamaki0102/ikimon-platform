@@ -138,7 +138,8 @@ test("home page uses the record feed home surface", async () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<title>ikimon \| 生きものを手がかりに、この場所の今を残す<\/title>/);
     assert.match(response.body, /data-record-feed/);
-    assert.match(response.body, /記録を見る/);
+    assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
+    assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
     assert.match(response.body, /みんなの記録/);
     assert.doesNotMatch(response.body, /公開前に安全側で確認します/);
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
