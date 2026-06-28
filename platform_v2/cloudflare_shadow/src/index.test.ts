@@ -5405,7 +5405,9 @@ class FakeStatement {
           asset.exif_scrub_state === "scrubbed" &&
           asset.public_ready_at &&
           asset.public_derivative_verified_at &&
-          asset.public_derivative_metadata_json
+          asset.public_derivative_metadata_json &&
+          !asset.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
+          !asset.public_derivative_metadata_json.includes('"contentType":"image/svg')
         )
         .map((asset) => ({
           asset_id: asset.asset_id,
@@ -5425,6 +5427,10 @@ class FakeStatement {
           asset.public_derivative_key &&
           asset.exif_scrub_state === "scrubbed" &&
           asset.public_ready_at &&
+          asset.public_derivative_verified_at &&
+          asset.public_derivative_metadata_json &&
+          !asset.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
+          !asset.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
           asset.mime.startsWith("image/")
         )
         .sort((a, b) => (b.public_ready_at ?? "").localeCompare(a.public_ready_at ?? ""))
@@ -6313,6 +6319,29 @@ test("v1 public map read routes expose current shell contracts without exact coo
     base64Data: Buffer.from("map-image").toString("base64")
   });
   await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  env.OBS_DB.assets.set("asset-map-contract-real-derivative", {
+    asset_id: "asset-map-contract-real-derivative",
+    draft_id: "draft-map-contract-real-derivative",
+    observation_id: "visit-map-contract",
+    owner_user_id: "map-user",
+    object_key: "original/visit-map-contract/map-real.jpg",
+    partition_month: "2026-06",
+    sha256: "map-real-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260615/observation_photo/asset-map-contract-real-derivative/display.webp",
+    public_derivative_sha256: "map-real-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T02:30:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T02:30:00.000Z"
+  });
+  await env.ASSET_BUCKET.put(
+    "derived/import/20260615/observation_photo/asset-map-contract-real-derivative/display.webp",
+    "map-real-webp",
+    { httpMetadata: { contentType: "image/webp" } }
+  );
 
   const missingScope = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations"), env);
   assert.equal(missingScope.status, 400);
@@ -6776,6 +6805,29 @@ test("public observation detail route exposes a safe read page and JSON without 
     base64Data: Buffer.from("detail-image").toString("base64")
   });
   await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  env.OBS_DB.assets.set("asset-detail-contract-real-derivative", {
+    asset_id: "asset-detail-contract-real-derivative",
+    draft_id: "draft-detail-contract-real-derivative",
+    observation_id: "visit-detail-contract",
+    owner_user_id: "detail-user",
+    object_key: "original/visit-detail-contract/detail-real.jpg",
+    partition_month: "2026-06",
+    sha256: "detail-real-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260615/observation_photo/asset-detail-contract-real-derivative/display.webp",
+    public_derivative_sha256: "detail-real-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T03:30:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T03:30:00.000Z"
+  });
+  await env.ASSET_BUCKET.put(
+    "derived/import/20260615/observation_photo/asset-detail-contract-real-derivative/display.webp",
+    "detail-real-webp",
+    { httpMetadata: { contentType: "image/webp" } }
+  );
 
   const jsonResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/occ%3Avisit-detail-contract%3A0/public-detail"), env);
   const jsonPayload = await jsonResponse.json() as any;
@@ -6787,7 +6839,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(jsonPayload.observation.publicLocation.cellId, "cell:34.71,137.81");
   assert.equal(jsonPayload.observation.privacy.exactLocationExposed, false);
   assert.equal(jsonPayload.observation.photoAssets.length, 1);
-  assert.match(jsonPayload.observation.photoAssets[0].url, /^\/derived\/v1-compat\/visit-detail-contract\/asset_/);
+  assert.match(jsonPayload.observation.photoAssets[0].url, /asset-detail-contract-real-derivative\/display\.webp$/);
   assert.doesNotMatch(JSON.stringify(jsonPayload), /ownerUserId|observerUserId|observerName|profile|34\.71234|137\.81234/);
 
   const localizedJsonResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/observations/visit-detail-contract/public-detail"), env);
@@ -6798,8 +6850,8 @@ test("public observation detail route exposes a safe read page and JSON without 
   const imageResponse = await worker.fetch(new Request(`https://shadow.test${jsonPayload.observation.photoAssets[0].url}`), env);
   const imageBody = await imageResponse.text();
   assert.equal(imageResponse.ok, true, imageBody);
-  assert.match(imageResponse.headers.get("content-type") ?? "", /image\/svg\+xml/);
-  assert.match(imageBody, /shadow public derivative/);
+  assert.match(imageResponse.headers.get("content-type") ?? "", /image\/webp/);
+  assert.equal(imageBody, "detail-real-webp");
 
   const pageResponse = await worker.fetch(new Request("https://shadow.test/observations/visit-detail-contract"), env);
   const pageHtml = await pageResponse.text();
@@ -14100,6 +14152,55 @@ test("production records materialized html includes recent Cloudflare D1 records
     base64Data: Buffer.from("records-image").toString("base64")
   });
   await worker.queue({ messages: env.MEDIA_QUEUE.messages.map((body) => ({ body: body as any })) }, env);
+  env.OBS_DB.assets.set("asset-record-live-real-derivative", {
+    asset_id: "asset-record-live-real-derivative",
+    draft_id: "draft-record-live-real-derivative",
+    observation_id: "record-live-materialized",
+    owner_user_id: "records-user",
+    object_key: "original/record-live-materialized/records-real.jpg",
+    partition_month: "2026-06",
+    sha256: "records-real-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260622/observation_photo/asset-record-live-real-derivative/display.webp",
+    public_derivative_sha256: "records-real-derivative-sha",
+    public_derivative_verified_at: "2026-06-22T10:00:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-22T10:00:00.000Z"
+  });
+  await env.ASSET_BUCKET.put(
+    "derived/import/20260622/observation_photo/asset-record-live-real-derivative/display.webp",
+    "records-real-webp",
+    { httpMetadata: { contentType: "image/webp" } }
+  );
+  env.OBS_DB.publicMapSnapshotRecords.push({
+    occurrence_id: "occ:record-shadow-materialized:0",
+    visit_id: "record-shadow-materialized",
+    observed_at: "2026-06-23T09:38:45.358Z",
+    display_name: "仮画像だけの投稿",
+    cell_1000: "34.81,137.73",
+    asset_count: 1
+  });
+  env.OBS_DB.assets.set("asset-record-shadow-derivative", {
+    asset_id: "asset-record-shadow-derivative",
+    draft_id: "draft-record-shadow-derivative",
+    observation_id: "record-shadow-materialized",
+    owner_user_id: "records-user",
+    object_key: "original/record-shadow-materialized/shadow-only.jpg",
+    partition_month: "2026-06",
+    sha256: "records-shadow-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/v1-compat/record-shadow-materialized/asset-record-shadow-derivative/display.webp",
+    public_derivative_sha256: "records-shadow-derivative-sha",
+    public_derivative_verified_at: "2026-06-23T10:00:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/svg+xml; charset=utf-8\",\"scannedContainer\":\"svg+xml\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-23T10:00:00.000Z"
+  });
 
   const response = await worker.fetch(new Request("https://ikimon.life/ja/records"), productionEnv);
   const body = await response.text();
@@ -14108,6 +14209,8 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(body, /最近の投稿テスト/);
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
+  assert.match(body, /asset-record-live-real-derivative/);
+  assert.doesNotMatch(body, /record-shadow-materialized/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
   const homeResponse = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
@@ -14117,6 +14220,8 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /最近の投稿テスト/);
   assert.match(homeBody, /record-live-materialized/);
   assert.match(homeBody, /\/derived\/.+\/display\.webp/);
+  assert.match(homeBody, /asset-record-live-real-derivative/);
+  assert.doesNotMatch(homeBody, /record-shadow-materialized/);
   assert.match(homeBody, /prototype-record-feed is-guest/);
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
