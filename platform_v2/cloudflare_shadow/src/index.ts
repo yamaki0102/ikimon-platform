@@ -2089,7 +2089,7 @@ export const worker = {
 
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && publicDetailPageMatch?.[1]) {
-        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), env);
+        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), request, url, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
@@ -16806,9 +16806,13 @@ async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<
   return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
 }
 
-async function getPublicObservationDetailPage(rawId: string, env: Env): Promise<Response> {
+async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
   const detail = await buildPublicObservationDetail(rawId, env);
   if (!detail) {
+    const materialized = await getOriginalUiHtml(request, url, env);
+    if (materialized.status !== 404) {
+      return materialized;
+    }
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
   return html(renderPublicObservationDetailHtml(detail), 200, { "cache-control": "no-store" });

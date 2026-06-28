@@ -106,6 +106,8 @@ jobs:
       - name: Materialize original UI into staging R2
         if: env.DEPLOY_STAGING == 'true'
         working-directory: platform_v2/cloudflare_shadow
+        env:
+          DATABASE_URL: ${{ secrets.V2_STAGING_DATABASE_URL }}
         run: npm run materialize:original-ui -- --target-env staging --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --output materialize-staging-original-ui.json
 
       - name: Verify Cloudflare staging public routes

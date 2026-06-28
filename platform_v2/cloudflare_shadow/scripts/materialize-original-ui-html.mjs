@@ -125,7 +125,11 @@ const corePaths = [
   "/pt-br/records"
 ];
 
-const stagingOnlyAdminPreviewPaths = [];
+const stagingOnlyAdminPreviewPaths = [
+  "/observations/record-1781252770584",
+  "/observations/record-1780982506049",
+  "/observations/record-1780970378665"
+];
 
 const staticAssetPaths = [
   "/offline.html",

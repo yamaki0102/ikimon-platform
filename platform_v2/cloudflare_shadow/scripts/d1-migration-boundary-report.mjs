@@ -294,6 +294,7 @@ function maintenanceWorkflowDependencyReason(relativeFile) {
     ".github/workflows/import-osm-area-parks.yml": "manual_import_or_repair_workflow",
     ".github/workflows/import-school-fields.yml": "manual_import_or_repair_workflow",
     ".github/workflows/refresh-observation-ai.yml": "manual_ai_batch_workflow",
+    ".github/workflows/deploy-cloudflare-staging.yml": "cloudflare_staging_materialization",
     ".github/workflows/deploy-staging.yml": "legacy_vps_staging_replaced_by_cloudflare_staging"
   };
   return exactMaintenanceWorkflows[normalized] ?? null;
