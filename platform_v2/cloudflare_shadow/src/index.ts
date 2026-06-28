@@ -16378,6 +16378,7 @@ async function injectRecentObservationRecords(html: string, url: URL, env: Env):
 }
 
 async function injectHomeObservationRecords(html: string, request: Request, url: URL, env: Env): Promise<string> {
+  html = injectCompactHeaderMenu(html, url);
   if (!html.includes("data-record-feed")) return html;
   const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
   const ownerItems = session && !session.banned
@@ -16405,6 +16406,54 @@ async function injectHomeObservationRecords(html: string, request: Request, url:
     </style></head>`);
   }
   return next;
+}
+
+function injectCompactHeaderMenu(html: string, url: URL): string {
+  if (html.includes("data-cloudflare-header-menu")) return html;
+  if (!html.includes("site-header-actions")) return html;
+  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const isSignedInShell = !html.includes("site-login-link");
+  const copy = lang === "ja"
+    ? { menu: "メニュー", record: "記録する", account: isSignedInShell ? "マイページ" : "ログイン", records: "記録を見る", map: "マップ", language: "言語" }
+    : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", language: "Language" };
+  const accountHref = isSignedInShell ? `${prefix}/profile` : `${prefix}/login?redirect=%2Fprofile`;
+  const languageLinks = [
+    { code: "JP", name: "日本語", href: "/ja/", active: lang === "ja" },
+    { code: "EN", name: "English", href: "/en/", active: lang === "en" },
+    { code: "ES", name: "Español", href: "/es/", active: lang === "es" },
+    { code: "PT", name: "Português", href: "/pt-br/", active: lang === "pt-br" }
+  ].map((item) => `<a class="cf-header-menu-lang${item.active ? " is-active" : ""}" href="${escapeHtml(item.href)}"${item.active ? " aria-current=\"true\"" : ""}><span>${escapeHtml(item.code)}</span><span>${escapeHtml(item.name)}</span></a>`).join("");
+  const menu = `<details class="cf-header-menu" data-cloudflare-header-menu>
+        <summary aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
+        <div class="cf-header-menu-panel" role="menu">
+          <a class="cf-header-menu-item is-primary" role="menuitem" href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a>
+          <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(accountHref)}">${escapeHtml(copy.account)}</a>
+          <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/records`)}">${escapeHtml(copy.records)}</a>
+          <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.map)}</a>
+          <div class="cf-header-menu-languages" aria-label="${escapeHtml(copy.language)}">${languageLinks}</div>
+        </div>
+      </details>`;
+  const withMenu = html.replace(/(\s*)<\/div>\s*<\/header>/i, `${menu}$1</div>\n  </header>`);
+  if (withMenu === html) return html;
+  if (withMenu.includes("cf-header-menu-style")) return withMenu;
+  return withMenu.replace("</head>", `<style id="cf-header-menu-style">
+    .site-header .site-header-actions-desktop,.site-header .site-header-actions-mobile{display:none!important}
+    .cf-header-menu{position:relative;margin-left:auto}
+    .cf-header-menu summary{width:46px;height:46px;display:grid;place-content:center;gap:5px;list-style:none;cursor:pointer;border:1px solid rgba(15,23,42,.1);border-radius:999px;background:#fff;color:#10251a;box-shadow:0 10px 24px rgba(15,23,42,.08)}
+    .cf-header-menu summary::-webkit-details-marker{display:none}
+    .cf-header-menu summary span{display:block;width:18px;height:2px;border-radius:999px;background:currentColor}
+    .cf-header-menu summary:focus-visible{outline:3px solid rgba(20,184,166,.34);outline-offset:3px}
+    .cf-header-menu-panel{position:absolute;right:0;top:calc(100% + 10px);z-index:40;width:min(260px,calc(100vw - 28px));display:grid;gap:8px;padding:10px;border:1px solid rgba(15,23,42,.1);border-radius:18px;background:rgba(255,255,255,.98);box-shadow:0 18px 46px rgba(15,23,42,.18)}
+    .cf-header-menu:not([open]) .cf-header-menu-panel{display:none}
+    .cf-header-menu-item,.cf-header-menu-lang{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;color:#10251a;text-decoration:none;font-size:14px;line-height:1.2;font-weight:900}
+    .cf-header-menu-item:hover,.cf-header-menu-item:focus-visible,.cf-header-menu-lang:hover,.cf-header-menu-lang:focus-visible{background:#ecfdf5;outline:none}
+    .cf-header-menu-item.is-primary{background:#0f9f78;color:#fff}
+    .cf-header-menu-languages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding-top:6px;border-top:1px solid rgba(15,23,42,.08)}
+    .cf-header-menu-lang{min-width:0;justify-content:flex-start;font-size:12px}
+    .cf-header-menu-lang span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cf-header-menu-lang.is-active{background:#eef8f5;color:#0f766e}
+  </style></head>`);
 }
 
 async function recentPublicRecordCards(env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
@@ -22258,9 +22307,16 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .site-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px clamp(14px, 3vw, 32px); border-bottom: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.86); backdrop-filter: blur(14px); }
     .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 950; }
     .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #22d3ee 0%, #2dd4bf 46%, #bef264 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.55); }
-    .header-actions { display: flex; align-items: center; gap: 8px; }
-    .header-link { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; border-radius: 999px; background: #0f9f78; color: #fff; text-decoration: none; font-size: 13px; font-weight: 900; }
-    .header-link--ghost { background: #eef8f5; color: #0f766e; border: 1px solid rgba(15,118,110,.16); }
+    .header-menu { position: relative; margin-left: auto; }
+    .header-menu summary { width: 46px; height: 46px; display: grid; place-content: center; gap: 5px; list-style: none; cursor: pointer; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; background: #fff; color: var(--ink); box-shadow: 0 10px 24px rgba(15,23,42,.08); }
+    .header-menu summary::-webkit-details-marker { display: none; }
+    .header-menu summary span { display: block; width: 18px; height: 2px; border-radius: 999px; background: currentColor; }
+    .header-menu summary:focus-visible { outline: 3px solid rgba(20,184,166,.34); outline-offset: 3px; }
+    .header-menu-panel { position: absolute; right: 0; top: calc(100% + 10px); z-index: 40; width: min(240px, calc(100vw - 28px)); display: grid; gap: 8px; padding: 10px; border: 1px solid rgba(15,23,42,.1); border-radius: 18px; background: rgba(255,255,255,.98); box-shadow: 0 18px 46px rgba(15,23,42,.18); }
+    .header-menu:not([open]) .header-menu-panel { display: none; }
+    .header-link { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; color: var(--ink); text-decoration: none; font-size: 14px; line-height: 1.2; font-weight: 900; }
+    .header-link:hover, .header-link:focus-visible { background: #ecfdf5; outline: none; }
+    .header-link:first-child { background: #0f9f78; color: #fff; }
     main { width: var(--shell); margin: 0 auto; padding: 18px 0 58px; }
     .obs-read-progress { position: sticky; top: 63px; z-index: 9; width: var(--shell); margin: 0 auto 10px; display: flex; gap: 6px; overflow-x: auto; padding: 5px 0; background: rgba(248,255,252,.88); backdrop-filter: blur(12px); scrollbar-width: none; }
     .obs-read-progress::-webkit-scrollbar { display: none; }
@@ -22410,7 +22466,6 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     @media (max-width: 860px) {
       main { width: min(100% - 20px, 680px); padding-top: 14px; }
       .obs-read-progress { width: min(100% - 20px, 680px); }
-      .header-actions .header-link--ghost { display: none; }
       .obs-reading-hero { grid-template-columns: 1fr; gap: 12px; }
       .obs-reading-panel { display: contents; }
       .obs-record-brief-compact { order: 1; display: grid; gap: 7px; padding: 9px 10px; }
@@ -22449,10 +22504,13 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
 <body>
 <header class="site-header">
   <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>ikimon</span></a>
-  <nav class="header-actions" aria-label="主要リンク">
-    <a class="header-link header-link--ghost" href="/records">記録を見る</a>
-    <a class="header-link" href="/map">地図へ</a>
-  </nav>
+  <details class="header-menu">
+    <summary aria-label="メニュー" title="メニュー"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
+    <nav class="header-menu-panel" aria-label="主要リンク">
+      <a class="header-link" href="/records">記録を見る</a>
+      <a class="header-link" href="/map">地図へ</a>
+    </nav>
+  </details>
 </header>
 <nav class="obs-read-progress" aria-label="記録ページの読み進め">
   ${readProgressLinks}
