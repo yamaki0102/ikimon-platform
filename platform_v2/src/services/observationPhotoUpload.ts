@@ -4,7 +4,7 @@ import sharp, { type Metadata } from "sharp";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
-import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
+import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupportPg.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
 import { enqueueMediaProcessingJobsStandalone } from "./mediaProcessingJobs.js";
