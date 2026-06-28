@@ -37,6 +37,24 @@ interface ObservationRow {
   visibility: string;
   emergency_hidden: number;
   processing_state: string;
+  organism_origin?: string | null;
+}
+
+interface ObservationDetailEditEventRow {
+  edit_id: string;
+  observation_id: string;
+  actor_user_id: string;
+  edit_kind: string;
+  payload_json: string;
+}
+
+interface ObservationEnvironmentRecordRow {
+  record_id: string;
+  occurrence_id: string;
+  lat: number;
+  lng: number;
+  structured_json: string;
+  source_lang: string;
 }
 
 interface ObservationReactionRow {
@@ -1470,6 +1488,8 @@ class FakeD1 {
   observationAiReviewTargets = new Map<string, ObservationAiReviewTargetRow>();
   observationRecordAiReviews = new Map<string, ObservationRecordAiReviewRow>();
   observationSpecialistReviews = new Map<string, ObservationSpecialistReviewRow>();
+  observationDetailEditEvents: ObservationDetailEditEventRow[] = [];
+  observationEnvironmentRecords: ObservationEnvironmentRecordRow[] = [];
   placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
   placeMemoryEntries = new Map<string, PlaceMemoryEntryTestRow>();
   placeMemoryPreferences = new Map<string, PlaceMemoryPreferenceTestRow>();
@@ -3104,6 +3124,62 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observations SET organism_origin = ?")) {
+      const observation = requireRow(this.db.observations, string(v[1]));
+      observation.organism_origin = string(v[0]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observations SET observed_at = ?, partition_month = ?")) {
+      const observation = requireRow(this.db.observations, string(v[2]));
+      observation.observed_at = string(v[0]);
+      observation.partition_month = nullableString(v[1]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observations SET exact_lat = ?, exact_lng = ?, public_cell = ?")) {
+      const observation = requireRow(this.db.observations, string(v[3]));
+      observation.exact_lat = number(v[0]);
+      observation.exact_lng = number(v[1]);
+      observation.public_cell = string(v[2]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE readmodel_public_observations SET observed_at = ?")) {
+      const row = this.db.readmodel.get(string(v[1]));
+      if (row) row.observed_at = string(v[0]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE readmodel_public_observations SET public_cell = ?")) {
+      const row = this.db.readmodel.get(string(v[1]));
+      if (row) row.public_cell = string(v[0]);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_detail_edit_events")) {
+      this.db.observationDetailEditEvents.push({
+        edit_id: string(v[0]),
+        observation_id: string(v[1]),
+        actor_user_id: string(v[2]),
+        edit_kind: string(v[3]),
+        payload_json: string(v[4])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_environment_records")) {
+      this.db.observationEnvironmentRecords.push({
+        record_id: string(v[0]),
+        occurrence_id: string(v[1]),
+        lat: number(v[2]),
+        lng: number(v[3]),
+        structured_json: string(v[4]),
+        source_lang: "ja"
+      });
+      return {};
+    }
+
     if (normalized.startsWith("DELETE FROM readmodel_public_observations")) {
       this.db.readmodel.delete(string(v[0]));
       return {};
@@ -4041,6 +4117,23 @@ class FakeStatement {
         draft_id: observation.draft_id,
         owner_user_id: observation.owner_user_id
       } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations")) {
+      const observation = this.db.observations.get(string(v[0]));
+      return observation ? ({
+        observation_id: observation.observation_id,
+        exact_lat: observation.exact_lat,
+        exact_lng: observation.exact_lng,
+        public_cell: observation.public_cell
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT structured_json FROM observation_environment_records")) {
+      const row = this.db.observationEnvironmentRecords
+        .filter((candidate) => candidate.occurrence_id === string(v[0]))
+        .at(-1);
+      return row ? ({ structured_json: row.structured_json } as T) : null;
     }
 
     if (normalized.startsWith("SELECT owner_user_id FROM observations")) {
@@ -7851,6 +7944,145 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.equal(logoutPayload.revoked, true);
   assert.equal(core.authSessions.size, 0);
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
+});
+
+test("production occurrence detail edit APIs write to D1 without origin fallback", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.observations.set("occ-edit-1", {
+    observation_id: "occ-edit-1",
+    draft_id: "draft-edit-1",
+    owner_user_id: "detail-user",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "テスト種",
+    note: null,
+    exact_lat: 35.123456,
+    exact_lng: 139.123456,
+    location_accuracy_m: null,
+    public_cell: "35.12,139.12",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  obs.readmodel.set("occ-edit-1", {
+    observation_id: "occ-edit-1",
+    public_cell: "35.12,139.12",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    taxon_label: "テスト種",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "detail-user", displayName: "Detail User", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const originResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/origin", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ organismOrigin: "wild" })
+  }), productionEnv);
+  const originPayload = await originResponse.json() as any;
+  assert.equal(originResponse.status, 200, JSON.stringify(originPayload));
+  assert.equal(originResponse.headers.get("x-ikimon-cloudflare-native"), "occurrence-detail-edit");
+  assert.equal(originPayload.organismOrigin, "wild");
+  assert.equal(obs.observations.get("occ-edit-1")?.organism_origin, "wild");
+
+  const observedAtResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/observed-at", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ observedAt: "2026-06-02T03:04:05.000Z" })
+  }), productionEnv);
+  const observedAtPayload = await observedAtResponse.json() as any;
+  assert.equal(observedAtResponse.status, 200, JSON.stringify(observedAtPayload));
+  assert.equal(obs.observations.get("occ-edit-1")?.observed_at, "2026-06-02T03:04:05.000Z");
+  assert.equal(obs.readmodel.get("occ-edit-1")?.observed_at, "2026-06-02T03:04:05.000Z");
+
+  const locationResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/location", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ latitude: 35.6543214, longitude: 139.6543214 })
+  }), productionEnv);
+  const locationPayload = await locationResponse.json() as any;
+  assert.equal(locationResponse.status, 200, JSON.stringify(locationPayload));
+  assert.equal(locationPayload.label, "35.654321, 139.654321");
+  assert.equal(obs.observations.get("occ-edit-1")?.exact_lat, 35.654321);
+  assert.equal(obs.readmodel.get("occ-edit-1")?.public_cell, obs.observations.get("occ-edit-1")?.public_cell);
+
+  const fieldResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/environment-field", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ field: "place_type", value: "urban" })
+  }), productionEnv);
+  const fieldPayload = await fieldResponse.json() as any;
+  assert.equal(fieldResponse.status, 200, JSON.stringify(fieldPayload));
+  assert.equal(fieldPayload.label, "市街地");
+
+  const recordResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/environment-record", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ values: { contact_surface: "plant", human_change: "mowing" } })
+  }), productionEnv);
+  const recordPayload = await recordResponse.json() as any;
+  assert.equal(recordResponse.status, 200, JSON.stringify(recordPayload));
+  assert.equal(obs.observationEnvironmentRecords.length, 2);
+  const structured = JSON.parse(obs.observationEnvironmentRecords.at(-1)?.structured_json ?? "{}") as Record<string, string>;
+  assert.equal(structured.place_type, "urban");
+  assert.equal(structured.contact_surface, "plant");
+  assert.equal(structured.human_change, "mowing");
+  assert.equal(obs.observationDetailEditEvents.some((row) => row.edit_kind === "location"), true);
+  assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-edit-1"), true);
+});
+
+test("production occurrence detail edit APIs reject non owners before mutation", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.observations.set("occ-owned-1", {
+    observation_id: "occ-owned-1",
+    draft_id: "draft-owned-1",
+    owner_user_id: "owner-user",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: null,
+    note: null,
+    exact_lat: 35,
+    exact_lng: 139,
+    location_accuracy_m: null,
+    public_cell: "35.00,139.00",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "other-user", displayName: "Other User", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-owned-1/origin", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ organismOrigin: "wild" })
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 403, JSON.stringify(payload));
+  assert.equal(payload.error, "forbidden");
+  assert.equal(obs.observations.get("occ-owned-1")?.organism_origin, undefined);
+  assert.equal(obs.observationDetailEditEvents.length, 0);
 });
 
 test("production place management policy API writes to D1 without origin fallback", async () => {
