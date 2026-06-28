@@ -16386,10 +16386,10 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
     ? await ownerHomeRecordCards(session.userId, env).catch(() => [])
     : [];
   const isOwnerFeed = ownerItems.length > 0;
-  const items = isOwnerFeed ? ownerItems : await recentPublicRecordCards(env, 48).catch(() => []);
+  const items = isOwnerFeed ? ownerItems : await recentPublicRecordCards(env, 120).catch(() => []);
   if (items.length === 0) return html;
   const copy = isOwnerFeed ? ownerHomeRecordsCopy(url) : recordsInjectionCopy(url);
-  const cards = items.slice(0, 48).map((item, index) => renderHomeRecordCard(item, copy, index, isOwnerFeed ? "owner" : "public")).join("");
+  const cards = items.slice(0, 120).map((item, index) => renderHomeRecordCard(item, copy, index, isOwnerFeed ? "owner" : "public")).join("");
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
     .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*<script>/, `<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div><script>`);
@@ -16415,18 +16415,45 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   if (!feed || !sentinel) return;
   const sourceCards = Array.from(feed.querySelectorAll('[data-cloudflare-home-record]'));
   if (sourceCards.length < 2) return;
-  let nextIndex = 0;
+  let nextIndex = Math.max(1, Math.floor(sourceCards.length / 2));
+  let cycle = 0;
   const maxCards = 240;
+  const gcd = (a, b) => {
+    while (b) {
+      const t = b;
+      b = a % b;
+      a = t;
+    }
+    return a;
+  };
+  let step = Math.max(1, Math.floor(sourceCards.length / 3));
+  while (sourceCards.length > 2 && gcd(step, sourceCards.length) !== 1) step += 1;
+  const pickNextCard = (usedIds) => {
+    const lastCard = feed.querySelector('[data-cloudflare-home-record]:last-child');
+    const lastId = lastCard ? lastCard.getAttribute('data-cloudflare-home-record-id') : '';
+    for (let tries = 0; tries < sourceCards.length; tries += 1) {
+      const candidate = sourceCards[nextIndex % sourceCards.length];
+      const candidateId = candidate.getAttribute('data-cloudflare-home-record-id') || String(nextIndex % sourceCards.length);
+      nextIndex += step;
+      if (candidateId !== lastId && !usedIds.has(candidateId)) return candidate;
+    }
+    cycle += 1;
+    nextIndex = (cycle * 7 + Math.floor(sourceCards.length / 2)) % sourceCards.length;
+    return sourceCards[nextIndex++ % sourceCards.length];
+  };
   const appendMore = () => {
     if (feed.querySelectorAll('[data-cloudflare-home-record]').length >= maxCards) return;
     const batchSize = Math.min(8, sourceCards.length);
+    const usedIds = new Set();
     for (let i = 0; i < batchSize; i += 1) {
-      const clone = sourceCards[nextIndex % sourceCards.length].cloneNode(true);
+      const source = pickNextCard(usedIds);
+      const sourceId = source.getAttribute('data-cloudflare-home-record-id') || '';
+      if (sourceId) usedIds.add(sourceId);
+      const clone = source.cloneNode(true);
       clone.setAttribute('data-cloudflare-home-feed-clone', 'true');
       const img = clone.querySelector('img[loading]');
       if (img) img.setAttribute('loading', 'lazy');
       feed.appendChild(clone);
-      nextIndex += 1;
     }
   };
   if ('IntersectionObserver' in window) {
@@ -16499,10 +16526,18 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
   const rows = await queryPublicMapRows(env);
   if (rows.length === 0) return [];
   const photoUrls = await queryPublicMapPhotoUrls(env);
-  return rows
+  const uniqueItems: Array<ReturnType<typeof publicMapObservationItem>> = [];
+  const seen = new Set<string>();
+  for (const item of rows
     .filter((row) => photoUrls.has(row.observation_id))
-    .slice(0, limit)
-    .map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null));
+    .map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null))) {
+    const key = `${item.visitId}:${item.photoUrl ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueItems.push(item);
+    if (uniqueItems.length >= limit) break;
+  }
+  return uniqueItems;
 }
 
 async function ownerHomeRecordCards(ownerUserId: string, env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
@@ -16560,7 +16595,7 @@ function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>,
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
     : `<span class="prototype-record-feed-empty-media" aria-hidden="true"></span>`;
   const title = item.displayName || copy.unknown;
-  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record${source === "owner" ? " data-cloudflare-owner-home-record" : ""}>
+  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : ""}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
         ${image}
