@@ -7,7 +7,7 @@ import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
-import { upsertAssetBlob } from "./writeSupport.js";
+import { upsertAssetBlob } from "./writeSupportPg.js";
 
 const execFile = promisify(execFileCb);
 const AUDIO_STORAGE_BACKEND = "private_audio_fs";
