@@ -11,6 +11,32 @@ const targetIds = [
   "record-1780982506049",
   "record-1780970378665"
 ];
+const targetThumbPaths = {
+  "record-1781252770584": [
+    "/thumb/lg/v2-observations/record-1781252770584/ikimon-photo-1781252749798-631bef1d7e7c.jpg",
+    "/thumb/sm/v2-observations/record-1781252770584/ikimon-photo-1781252749798-631bef1d7e7c.jpg",
+    "/thumb/lg/v2-observations/record-1781252770584/ikimon-photo-1781252756096-1bd8bf2769f3.jpg",
+    "/thumb/sm/v2-observations/record-1781252770584/ikimon-photo-1781252756096-1bd8bf2769f3.jpg",
+    "/thumb/lg/v2-observations/record-1781252770584/ikimon-photo-1781252768025-909c7e6310ae.jpg",
+    "/thumb/sm/v2-observations/record-1781252770584/ikimon-photo-1781252768025-909c7e6310ae.jpg"
+  ],
+  "record-1780982506049": [
+    "/thumb/lg/v2-observations/record-1780982506049/ikimon-photo-1780982481796-b8dd5185edb9.jpg",
+    "/thumb/sm/v2-observations/record-1780982506049/ikimon-photo-1780982481796-b8dd5185edb9.jpg",
+    "/thumb/lg/v2-observations/record-1780982506049/ikimon-photo-1780982496061-e2527e63bfdc.jpg",
+    "/thumb/sm/v2-observations/record-1780982506049/ikimon-photo-1780982496061-e2527e63bfdc.jpg",
+    "/thumb/lg/v2-observations/record-1780982506049/ikimon-photo-1780982504695-fcac8136e77f.jpg",
+    "/thumb/sm/v2-observations/record-1780982506049/ikimon-photo-1780982504695-fcac8136e77f.jpg"
+  ],
+  "record-1780970378665": [
+    "/thumb/lg/v2-observations/record-1780970378665/ikimon-photo-1780970363543-cbb7b0c7dabc.jpg",
+    "/thumb/sm/v2-observations/record-1780970378665/ikimon-photo-1780970363543-cbb7b0c7dabc.jpg",
+    "/thumb/lg/v2-observations/record-1780970378665/ikimon-photo-1780970369866-d253aaa48077.jpg",
+    "/thumb/sm/v2-observations/record-1780970378665/ikimon-photo-1780970369866-d253aaa48077.jpg",
+    "/thumb/lg/v2-observations/record-1780970378665/ikimon-photo-1780970375648-6efa850bbc90.jpg",
+    "/thumb/sm/v2-observations/record-1780970378665/ikimon-photo-1780970375648-6efa850bbc90.jpg"
+  ]
+};
 
 const allowedArgs = new Set(["--execute", "--approval", "--output"]);
 const args = new Map();
@@ -58,6 +84,40 @@ function publicDerivativeKey(photoUrl) {
 
 function tempFileNameForKey(key) {
   return key.replace(/[^\w.-]+/g, "__");
+}
+
+function originalUiThumbKey(pathname) {
+  return `original-ui/thumb/${String(pathname).replace(/^\/thumb\/?/, "")}`;
+}
+
+async function copyPublicObjectToR2({ sourcePath, objectKey, tempDir, visitId }) {
+  const imageUrl = `${sourceBase}/${String(sourcePath).replace(/^\/+/, "")}`;
+  const imageResponse = await fetch(imageUrl, {
+    headers: { accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8", "cache-control": "no-store" }
+  });
+  if (!imageResponse.ok) {
+    throw new Error(`Failed to fetch source image for ${visitId}: ${imageResponse.status} ${imageUrl}`);
+  }
+  const contentType = String(imageResponse.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim() || "image/jpeg";
+  const bytes = new Uint8Array(await imageResponse.arrayBuffer());
+  const imagePath = join(tempDir, tempFileNameForKey(objectKey));
+  await writeFile(imagePath, bytes);
+  await run("npx", [
+    "wrangler",
+    "r2",
+    "object",
+    "put",
+    `${stagingBucket}/${objectKey}`,
+    "--remote",
+    "--file",
+    imagePath,
+    "--content-type",
+    contentType,
+    "--cache-control",
+    "public, max-age=31536000",
+    "--force"
+  ]);
+  return { visitId, sourcePath, key: objectKey, bytes: bytes.byteLength, contentType };
 }
 
 function recordToSql(item) {
@@ -200,37 +260,21 @@ if (execute) {
     await run("npx", ["wrangler", "d1", "execute", stagingObservationDb, "--remote", "--file", sqlPath]);
     summary.sqlBytes = (await readFile(sqlPath)).byteLength;
     const copiedImages = [];
+    const copiedThumbs = [];
     for (const item of selected) {
       const key = publicDerivativeKey(item.photoUrl);
-      const imageUrl = `${sourceBase}/${key}`;
-      const imageResponse = await fetch(imageUrl, {
-        headers: { accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8", "cache-control": "no-store" }
-      });
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch source image for ${item.visitId}: ${imageResponse.status} ${imageUrl}`);
+      copiedImages.push(await copyPublicObjectToR2({ sourcePath: key, objectKey: key, tempDir, visitId: item.visitId }));
+      for (const thumbPath of targetThumbPaths[item.visitId] ?? []) {
+        copiedThumbs.push(await copyPublicObjectToR2({
+          sourcePath: thumbPath,
+          objectKey: originalUiThumbKey(thumbPath),
+          tempDir,
+          visitId: item.visitId
+        }));
       }
-      const contentType = String(imageResponse.headers.get("content-type") ?? "image/webp").split(";")[0].trim() || "image/webp";
-      const bytes = new Uint8Array(await imageResponse.arrayBuffer());
-      const imagePath = join(tempDir, tempFileNameForKey(key));
-      await writeFile(imagePath, bytes);
-      await run("npx", [
-        "wrangler",
-        "r2",
-        "object",
-        "put",
-        `${stagingBucket}/${key}`,
-        "--remote",
-        "--file",
-        imagePath,
-        "--content-type",
-        contentType,
-        "--cache-control",
-        "public, max-age=31536000",
-        "--force"
-      ]);
-      copiedImages.push({ visitId: item.visitId, key, bytes: bytes.byteLength, contentType });
     }
     summary.copiedImages = copiedImages;
+    summary.copiedThumbs = copiedThumbs;
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
