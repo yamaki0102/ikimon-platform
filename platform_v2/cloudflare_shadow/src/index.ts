@@ -16540,7 +16540,7 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
   return uniqueItems;
 }
 
-async function ownerHomeRecordCards(ownerUserId: string, env: Env): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
+async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
   const rows = await env.OBS_DB.prepare(
     `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
             (
@@ -16563,7 +16563,7 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env): Promise<Arra
         AND o.emergency_hidden = 0
       ORDER BY o.observed_at DESC
       LIMIT ?`
-  ).bind(ownerUserId, 8).all<OwnerHomeRecordRow>();
+  ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
 
   return rows.results.map((row) => publicMapObservationItem({
     observation_id: row.observation_id,
