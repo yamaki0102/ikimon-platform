@@ -22307,6 +22307,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     <a class="obs-media-ledger-item" href="#place" aria-label="同じエリアの投稿一覧へ移動"><strong>同エリア</strong><span>${escapeHtml(`${relatedForDisplay.length}件`)}</span><small>投稿一覧へ</small></a>
   </div>`;
   const recordInsight = polish?.recordInsight ?? (detail.isAwaitingId ? "この記録は、公開写真と日時だけを見られる状態です。名前は今後の確認で更新されることがあります。" : `${displayName}として公開されています。公開ページでは、写真とぼかした場所だけを扱います。`);
+  const recordNextHint = polish?.recordNextHint ?? "次は対象に少し寄った写真と、足元を広めに入れた写真があると、候補と環境を確かめやすくなります。";
   const identifyBlock = polish?.identifyBlock ?? `<section class="obs-local-quality-left">
         <h2>同定</h2>
         <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${displayName} として表示しています。`)}</p>
@@ -22509,10 +22510,15 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-mini-chip-row span, .obs-record-use-status span, .obs-ai-evidence-pills span { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 8px; border-radius: 999px; background: #ecfdf5; color: #0f766e; border: 1px solid rgba(15,118,110,.15); font-size: 11px; line-height: 1.2; font-weight: 950; }
     .obs-observation-set { display: grid; gap: 9px; }
     .obs-observation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    .obs-observation-card { display: grid; gap: 4px; min-width: 0; padding: 9px 10px; border-radius: 13px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+    .obs-observation-card { display: grid; gap: 4px; min-width: 0; padding: 10px 11px; border-radius: 13px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
     .obs-observation-card span { color: #0f766e; font-size: 10.5px; line-height: 1.25; font-weight: 950; }
     .obs-observation-card strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
     .obs-observation-card small { color: #64748b; font-size: 11px; line-height: 1.35; font-weight: 760; }
+    .obs-observation-card em { color: #475569; font-size: 10.5px; line-height: 1.4; font-style: normal; font-weight: 850; }
+    .obs-observation-card.is-subject { background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(255,255,255,.96)); border-color: rgba(16,185,129,.22); }
+    .obs-observation-card.is-context { background: linear-gradient(135deg, rgba(240,249,255,.96), rgba(255,255,255,.96)); border-color: rgba(14,165,233,.20); }
+    .obs-observation-card.is-ground { background: linear-gradient(135deg, rgba(255,251,235,.96), rgba(255,255,255,.96)); border-color: rgba(217,119,6,.20); }
+    .obs-observation-card.is-extra { background: linear-gradient(135deg, rgba(248,250,252,.98), rgba(255,255,255,.96)); border-color: rgba(100,116,139,.20); }
     .obs-env-strip { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px 10px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); border: 1px solid rgba(15,118,110,.14); }
     .obs-env-strip strong { color: #0f766e; font-size: 11px; line-height: 1.3; font-weight: 950; }
     .obs-env-strip span { color: #334155; font-size: 12px; line-height: 1.45; font-weight: 850; }
@@ -22639,7 +22645,15 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-vps-image-detail .obs-hero-preview { display: flex; align-items: center; justify-content: center; min-height: clamp(420px, 68vh, 680px); border-radius: 14px; border: 0; background: #f8fafc; box-shadow: none; }
     .obs-vps-image-detail .obs-hero-image-frame { display: inline-block; width: auto; max-width: 100%; min-height: 0; max-height: min(68vh, 680px); margin: 0; background: transparent; }
     .obs-vps-image-detail .obs-hero-image-frame img { display: block; width: auto; height: auto; min-height: 0; max-width: 100%; max-height: min(68vh, 680px); object-fit: contain; background: #f8fafc; }
-    .obs-vps-image-detail .obs-region-target { left: 18%; top: 15%; width: 56%; height: 58%; border: 2px solid rgba(255,255,255,.92); border-radius: 18px; box-shadow: 0 0 0 999px rgba(15,23,42,.08), 0 10px 26px rgba(15,23,42,.16); }
+    .obs-vps-image-detail .obs-region-guide { position: absolute; pointer-events: none; }
+    .obs-vps-image-detail .obs-region-target { left: 19%; top: 16%; width: 54%; height: 55%; border: 2px solid rgba(16,185,129,.74); border-radius: 22px; background: rgba(16,185,129,.045); box-shadow: 0 0 0 1px rgba(255,255,255,.7), inset 0 0 0 999px rgba(16,185,129,.018); }
+    .obs-vps-image-detail .obs-region-target::before { content: ""; position: absolute; inset: -6px; border-radius: 26px; border: 1px dashed rgba(255,255,255,.82); }
+    .obs-vps-image-detail .obs-region-guide.is-context-guide { inset: 8% 7% 13%; }
+    .obs-vps-image-detail .obs-region-guide.is-context-guide::before, .obs-vps-image-detail .obs-region-guide.is-context-guide::after { content: ""; position: absolute; width: 42px; height: 42px; border-color: rgba(14,116,144,.72); }
+    .obs-vps-image-detail .obs-region-guide.is-context-guide::before { left: 0; top: 0; border-left: 2px solid rgba(14,116,144,.72); border-top: 2px solid rgba(14,116,144,.72); border-radius: 16px 0 0 0; }
+    .obs-vps-image-detail .obs-region-guide.is-context-guide::after { right: 0; bottom: 0; border-right: 2px solid rgba(14,116,144,.72); border-bottom: 2px solid rgba(14,116,144,.72); border-radius: 0 0 16px 0; }
+    .obs-vps-image-detail .obs-region-guide.is-ground-guide { left: 13%; right: 11%; bottom: 7%; height: 20%; border-top: 2px dashed rgba(180,83,9,.75); border-radius: 0 0 22px 22px; background: linear-gradient(180deg, rgba(251,191,36,.03), rgba(180,83,9,.13)); }
+    .obs-vps-image-detail .obs-region-guide.is-extra-guide { right: 19%; top: 28%; width: 38px; height: 38px; border: 2px dotted rgba(71,85,105,.72); border-radius: 999px; background: rgba(255,255,255,.08); }
     .obs-vps-image-detail .obs-hero-zoom { position: absolute; right: 12px; bottom: 12px; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 999px; background: rgba(255,255,255,.92); color: #166534; font-size: 19px; font-weight: 950; box-shadow: 0 8px 24px rgba(15,23,42,.12); }
     .obs-vps-image-detail .obs-hero-thumbs { justify-content: center; flex-wrap: wrap; gap: 8px; overflow: visible; padding: 0; }
     .obs-vps-image-detail .obs-hero-thumb { flex: 0 0 76px; width: 76px; height: auto; aspect-ratio: 1 / 1; border: 0; border-radius: 10px; overflow: hidden; background: #e5efe9; opacity: .78; box-shadow: 0 4px 14px rgba(15,23,42,.08); }
@@ -22651,7 +22665,12 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-vps-image-detail .obs-hero-observer { text-decoration: none; color: #166534; font-weight: 950; }
     .obs-vps-image-detail .obs-hero-avatar { background: #f97316; color: #fff; }
     .obs-vps-image-detail .obs-reading-kicker, .obs-vps-image-detail .obs-reading-title, .obs-vps-image-detail .obs-reading-lead { display: none; }
+    .obs-vps-image-detail .obs-record-insight { gap: 9px; }
+    .obs-vps-image-detail .obs-feedback-eyebrow { color: #166534; font-size: 11px; line-height: 1.25; font-weight: 950; letter-spacing: .04em; }
     .obs-vps-image-detail .obs-record-insight p { color: #334155; font-size: 13.5px; line-height: 1.72; }
+    .obs-vps-image-detail .obs-next-photo-hint { display: grid; gap: 3px; padding: 10px 11px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+    .obs-vps-image-detail .obs-next-photo-hint strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
+    .obs-vps-image-detail .obs-next-photo-hint span { color: #475569; font-size: 12.5px; line-height: 1.62; font-weight: 760; }
     .obs-vps-image-detail .obs-media-ledger { background: #fff; border-color: rgba(15,23,42,.07); }
     .obs-vps-image-detail .obs-ai-detail-label { display: block; margin-bottom: 3px; color: #166534; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
     .obs-vps-image-detail .obs-ai-target-list, .obs-vps-image-detail .obs-frame-identify-candidates { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -22775,7 +22794,12 @@ ${headerBlock}
       <p class="obs-reading-lead">${escapeHtml(lead)}</p>
       ${mediaLedger}
       <section id="trust" class="obs-record-insight obs-record-insight-desktop">
+        <span class="obs-feedback-eyebrow">この写真から読めていること</span>
         <p>${escapeHtml(recordInsight)}</p>
+        <div class="obs-next-photo-hint">
+          <strong>次の写真で増える情報</strong>
+          <span>${escapeHtml(recordNextHint)}</span>
+        </div>
       </section>
       ${polish?.statusBlock ?? ""}
       ${polish?.firstReadBlock ?? ""}
@@ -22824,6 +22848,7 @@ type PublicObservationDetailPolish = {
   videoCount: number;
   audioCount: number;
   recordInsight: string;
+  recordNextHint?: string;
   statusBlock: string;
   firstReadBlock: string;
   aiReadoutBlock: string;
@@ -22877,6 +22902,7 @@ type ImageObservationTargetMeta = {
   observedLabel: string;
   placeLabel: string;
   insight: string;
+  nextHint: string;
   evidence: string[];
   storyBullets: ImageObservationStoryBullet[];
   nearbyTitle: string;
@@ -22894,7 +22920,8 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
     scientificName: "Scarabaeidae",
     observedLabel: "2026.06.12 17:25",
     placeLabel: "浜松市中央区",
-    insight: "コガネムシ科らしい小さな動物が、足元の状態と一緒に写っています。名前だけでなく、どの場所にいて、まわりの裸地や草地、礫、踏圧とどう接していたかが残る記録です。浜松市中央区・6月中旬の同じエリアで重ねて見ると、足元の湿り気や草地管理の変化と、そこにいる小動物の出方を比べられます。複数の角度から撮影されており、体型や翅の質感がよく記録されています。",
+    insight: "コガネムシ科らしい小さな動物の候補に加えて、足元の礫や踏まれた感じ、まわりの草地まで一緒に見られる記録です。名前は確認待ちのまま、体型や翅の質感、足元の環境をあとから確かめる材料が残っています。",
+    nextHint: "次は、対象に少し寄った写真と、足元を広めに入れた写真があると、候補の見直しと環境情報の確認がしやすくなります。",
     evidence: ["赤褐色の翅", "楕円形の体型", "脚の構造"],
     storyBullets: [
       { title: "名前の由来", body: "ギリシャ語で甲虫を意味する語がもとになったとされます。硬い甲冑を身にまとったような姿が、古くから人々の目を引いていたことがうかがえます。" },
@@ -22948,11 +22975,12 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
     scientificName: "Chloris",
     observedLabel: "2026.06.09 14:21",
     placeLabel: "浜松市浜名区",
-    insight: "Chloris属の一種らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、浜松市浜名区・6月上旬にどんな場面として現れていたかを後から読み返せる記録です。翼の黄色い斑紋が鮮明に写っており、同定の重要な手がかりとなっています。",
+    insight: "Chloris属の一種らしい候補と、まわりの草地の様子を同じ写真から見られます。翼の黄色い斑紋や太い嘴が候補の手がかりになり、背景の草地はその場の環境をあとから確かめる材料になります。",
+    nextHint: "次は、鳥を少し大きく写した写真と、止まっていた足元や周囲が分かる写真があると、名前の候補と場所の状態を確かめやすくなります。",
     evidence: ["翼の黄色い斑紋", "太い嘴"],
     storyBullets: [
       { title: "見る手がかり", body: "翼の黄色い斑紋と太い嘴が目立つ記録です。" },
-      { title: "同定の余地", body: "Chloris属の範囲で、写真を見ながら人の確認を重ねます。" },
+      { title: "同定の余地", body: "Chloris属の範囲で、写真を見ながら人が確認できます。" },
       { title: "周囲", body: "草地の状態と一緒に見直せます。" }
     ],
     nearbyTitle: "浜松市浜名区をもう少し見る",
@@ -23001,7 +23029,8 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
     scientificName: "Solanum carolinense",
     observedLabel: "2026.06.09 10:59",
     placeLabel: "浜松市浜名区",
-    insight: "ワルナスビらしい対象が、まわりの状態と一緒に残っています。名前だけでなく、浜松市浜名区・6月上旬にどんな場面として現れていたかを後から読み返せる記録です。茎の刺がはっきりと写っており、同定の決定的な証拠となっています。",
+    insight: "ワルナスビらしい候補に加えて、白い花、黄色い葯、茎の刺、まわりの草地を見られる記録です。名前の候補だけでなく、開けた場所でどう生えていたかをあとから確かめる材料が残っています。",
+    nextHint: "次は、花を正面から写した写真と、葉や茎の刺、足元の広がりが分かる写真があると、候補と生育環境を確かめやすくなります。",
     evidence: ["白い5弁花", "黄色い葯", "茎の刺"],
     storyBullets: [
       { title: "見る手がかり", body: "白い5弁花、黄色い葯、茎の刺が写っています。" },
@@ -23327,7 +23356,10 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
         <figure class="obs-hero-image-frame">
           <img src="${escapeHtml(mainPhoto.lg)}" data-obs-preview-img data-obs-full-src="${escapeHtml(publicFullSrc(mainPhoto))}" alt="${escapeHtml(displayName)}" loading="eager">
           <div class="obs-region-layer" data-obs-preview-regions aria-hidden="true">
-            <span class="obs-region-target"></span>
+            <span class="obs-region-target obs-region-guide is-subject-guide"></span>
+            <span class="obs-region-guide is-context-guide"></span>
+            <span class="obs-region-guide is-ground-guide"></span>
+            <span class="obs-region-guide is-extra-guide"></span>
           </div>
         </figure>
         <button type="button" class="obs-hero-zoom" aria-label="写真を大きく見る">⌕</button>
@@ -23339,14 +23371,14 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     <h2>この記録で読む対象</h2>
     <div class="obs-observation-set">
       <div class="obs-observation-grid">
-        <div class="obs-observation-card"><span>写っている主対象</span><strong>${escapeHtml(subjectName)}</strong><small>${escapeHtml(subjectRank)} / 確認待ち</small></div>
-        <div class="obs-observation-card"><span>写っている周囲</span><strong>草地・裸地</strong><small>背景の手がかり</small></div>
-        <div class="obs-observation-card"><span>写っている足元</span><strong>礫・踏圧</strong><small>環境レコード候補</small></div>
-        <div class="obs-observation-card"><span>写っている追加対象</span><strong>別レコード候補</strong><small>あとから分ける</small></div>
+        <div class="obs-observation-card is-subject"><span>名前の候補</span><strong>${escapeHtml(subjectName)}</strong><small>${escapeHtml(subjectRank)} / 確認待ち</small><em>次は対象を少し大きめに</em></div>
+        <div class="obs-observation-card is-context"><span>場所の手がかり</span><strong>草地・裸地</strong><small>まわりの植物や明るさ</small><em>次は周囲を少し広く</em></div>
+        <div class="obs-observation-card is-ground"><span>足元の状態</span><strong>礫・踏まれた感じ</strong><small>湿り気や管理の手がかり</small><em>次は足元も1枚</em></div>
+        <div class="obs-observation-card is-extra"><span>あとで分けられるもの</span><strong>別レコード候補</strong><small>写り込みは後から整理</small><em>気づいたら個別に記録</em></div>
       </div>
       <div class="obs-env-strip"><strong>環境</strong><span>${escapeHtml(`写真${photos.length}枚 / 位置ぼかし / 複数観察記録として読み直せます`)}</span></div>
     </div>
-    <p>1つの撮影記録から、対象・周囲・環境を分けて読みます。</p>
+    <p>1つの撮影記録から、名前の候補、場所の手がかり、足元の状態を分けて見られます。</p>
   </section>`;
   const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged obs-ai-detail-panel" aria-label="AI候補レビュー">
     <div class="obs-ai-status">
@@ -23404,7 +23436,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
       <button type="button" class="obs-identify-button is-secondary">別レコードを追加</button>
     </div>
     <ul class="obs-local-name-activity-list">
-      <li><strong>提案・コメントの履歴</strong><span>AI候補と人の確認をこの記録に積みます。</span></li>
+      <li><strong>提案・コメントの履歴</strong><span>AI候補と人の確認をこの記録に残します。</span></li>
       <li><strong>現在の見方</strong><span>${escapeHtml(subjectName)}として確認待ちです。確定前として公開し、あとから更新できます。</span></li>
     </ul>
   </section>`;
@@ -23426,7 +23458,8 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     videoCount: 0,
     audioCount: 0,
     photoCount: photos.length,
-    recordInsight: meta?.insight ?? "写真の対象枠、候補レビュー、環境情報を同じページで確認できます。",
+    recordInsight: meta?.insight ?? `${subjectName}の候補と、周囲・足元の手がかりを見られます。名前は確認待ちのまま、環境情報もあとから整えられます。`,
+    recordNextHint: meta?.nextHint ?? "次は対象に少し寄った写真と、足元を広めに入れた写真があると、候補と環境を確かめやすくなります。",
     statusBlock: "",
     firstReadBlock,
     aiReadoutBlock,
