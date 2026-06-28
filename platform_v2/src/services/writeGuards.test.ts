@@ -43,8 +43,10 @@ test("privileged write guard rejects missing and mismatched keys", async () => {
 });
 
 test("observation ownership guard keeps owner check while allowing occurrence-to-visit fallback", () => {
-  const source = readFileSync(path.join(process.cwd(), "src/services/writeGuards.ts"), "utf8");
+  const pureGuardSource = readFileSync(path.join(process.cwd(), "src/services/writeGuards.ts"), "utf8");
+  const source = readFileSync(path.join(process.cwd(), "src/services/writeGuardsPg.ts"), "utf8");
 
+  assert.doesNotMatch(pureGuardSource, /getPool\(|pool\.query|observationOwnershipTargetIds|assertObservationOwnedByUser/);
   assert.match(source, /function observationOwnershipTargetIds\(observationId: string\): string\[\]/);
   assert.match(source, /\^occ:\(\[\^:\]\+\):\\d\+\$/);
   assert.match(source, /v\.visit_id = any\(\$1::text\[\]\)/);

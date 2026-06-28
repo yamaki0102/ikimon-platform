@@ -128,6 +128,11 @@ const corePaths = [
 const stagingOnlyAdminPreviewPaths = [];
 
 const staticAssetPaths = [
+  "/offline.html",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/favicon.ico",
+  "/manifest.webmanifest",
   "/app-sw.js",
   "/assets/brand/app-icon-192.png",
   "/assets/brand/app-icon-192-maskable.png",
@@ -137,7 +142,24 @@ const staticAssetPaths = [
   "/assets/brand/favicon-32.png",
   "/assets/brand/ikimon-lockup-black.png",
   "/assets/brand/ikimon-ogp-default.png",
-  "/assets/brand/ikimon-wordmark-black.png"
+  "/assets/brand/ikimon-wordmark-black.png",
+  "/assets/img/invasive/invasive-aquatic-plant-thumb.webp",
+  "/assets/img/invasive/invasive-aquatic-plant.png",
+  "/assets/img/invasive/invasive-bird-thumb.webp",
+  "/assets/img/invasive/invasive-bird.png",
+  "/assets/img/invasive/invasive-category-sprite.png",
+  "/assets/img/invasive/invasive-fish-thumb.webp",
+  "/assets/img/invasive/invasive-fish.png",
+  "/assets/img/invasive/invasive-insect-thumb.webp",
+  "/assets/img/invasive/invasive-insect.png",
+  "/assets/img/invasive/invasive-mammal-thumb.webp",
+  "/assets/img/invasive/invasive-mammal.png",
+  "/assets/img/invasive/invasive-plant-thumb.webp",
+  "/assets/img/invasive/invasive-plant.png",
+  "/assets/img/invasive/invasive-reptile-thumb.webp",
+  "/assets/img/invasive/invasive-reptile.png",
+  "/assets/img/invasive/invasive-spider-thumb.webp",
+  "/assets/img/invasive/invasive-spider.png"
 ];
 
 function normalizePublicPath(value) {
@@ -186,9 +208,14 @@ function originalUiStaticKey(pathname) {
 }
 
 function staticContentType(pathname) {
-  if (pathname.endsWith(".js")) return "application/javascript";
   if (pathname.endsWith(".html")) return "text/html";
+  if (pathname.endsWith(".txt")) return "text/plain";
+  if (pathname.endsWith(".js")) return "application/javascript";
+  if (pathname.endsWith(".xml")) return "application/xml";
+  if (pathname.endsWith(".webmanifest")) return "application/manifest+json";
+  if (pathname.endsWith(".ico")) return "image/x-icon";
   if (pathname.endsWith(".png")) return "image/png";
+  if (pathname.endsWith(".webp")) return "image/webp";
   return "application/octet-stream";
 }
 
