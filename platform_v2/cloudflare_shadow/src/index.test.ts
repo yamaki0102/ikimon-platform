@@ -14288,6 +14288,61 @@ test("production home collapses materialized header actions into a hamburger men
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 });
 
+test("production materialized app shells collapse header actions and respect signed-in account links", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const shell = (body: string) => [
+    "<!doctype html><head></head><body>",
+    "<header class=\"site-header\"><div class=\"site-header-inner\">",
+    "<a class=\"brand\" href=\"/ja/\">ikimon</a>",
+    "<div class=\"site-header-actions site-header-actions-desktop\"><a class=\"site-record-link\" href=\"/ja/record\">記録する</a><a class=\"site-login-link\" href=\"/ja/login?redirect=%2Fprofile\">ログイン</a></div>",
+    "<div class=\"site-header-actions site-header-actions-mobile\"><a class=\"site-record-link\" href=\"/ja/record\">記録する</a><a class=\"site-login-link\" href=\"/ja/login?redirect=%2Fprofile\">ログイン</a></div>",
+    "</div></header>",
+    body,
+    "</body>"
+  ].join("");
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", shell("<main><h1>記録を見る</h1></main>"), {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/login.html", shell("<main><span class=\"auth-social-disabled\">Google で続ける は設定中</span></main>"), {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "header-menu-user", displayName: "Header Menu", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const recordsResponse = await worker.fetch(new Request("https://ikimon.life/ja/records", {
+    headers: { cookie }
+  }), productionEnv);
+  const recordsBody = await recordsResponse.text();
+  assert.equal(recordsResponse.status, 200);
+  assert.match(recordsBody, /data-cloudflare-header-menu/);
+  assert.match(recordsBody, /site-header-actions-desktop,.site-header \.site-header-actions-mobile\{display:none!important\}/);
+  assert.match(recordsBody, /href="\/ja\/profile"/);
+  assert.match(recordsBody, /href="\/ja\/profile\/settings"/);
+  assert.match(recordsBody, />マイページ</);
+  assert.match(recordsBody, />設定</);
+  assert.match(recordsBody, /data-cloudflare-records-live/);
+
+  const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
+  const loginBody = await loginResponse.text();
+  assert.equal(loginResponse.status, 200);
+  assert.match(loginBody, /data-cloudflare-header-menu/);
+  assert.match(loginBody, /href="\/ja\/login\?redirect=%2Fprofile"/);
+  assert.match(loginBody, />ログイン</);
+  assert.match(loginBody, /\/auth\/oauth\/google\/start\?redirect=%2Fprofile/);
+  assert.doesNotMatch(loginBody, /は設定中/);
+  assert.equal(core.operationAudit.length, 0);
+});
+
 test("production records materialized html includes recent Cloudflare D1 records", async () => {
   const { env } = createEnv();
   const productionEnv = {

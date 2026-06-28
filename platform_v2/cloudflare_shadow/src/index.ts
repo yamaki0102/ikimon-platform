@@ -16130,20 +16130,18 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
 }
 
 async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Request, url: URL, env: Env): Promise<ReadableStream | string | null> {
+  const text = await new Response(object.body).text();
+  const shouldReadSession = text.includes("site-header-actions") || (isHomeHtmlPath(url.pathname) && text.includes("data-record-feed"));
+  const session = shouldReadSession ? await readCompatibleSessionWithOriginFallback(request, env).catch(() => null) : null;
   if (isHomeHtmlPath(url.pathname)) {
-    const text = await new Response(object.body).text();
-    return injectHomeObservationRecords(text, request, url, env);
+    return injectHomeObservationRecords(text, session, url, env);
   }
   if (isRecordsHtmlPath(url.pathname)) {
-    const text = await new Response(object.body).text();
-    return injectRecentObservationRecords(text, url, env);
+    return injectRecentObservationRecords(injectCompactHeaderMenu(text, url, session), url, env);
   }
-  if (!isAuthHtmlPath(url.pathname)) return object.body;
-  const text = await new Response(object.body).text();
-  return personalizeAuthRedirectHtml(
-    activateMaterializedAuthOAuthLinks(text, url),
-    postAuthRedirect(url.searchParams.get("redirect"))
-  );
+  const headerAdjusted = injectCompactHeaderMenu(text, url, session);
+  if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
+  return personalizeAuthRedirectHtml(activateMaterializedAuthOAuthLinks(headerAdjusted, url), postAuthRedirect(url.searchParams.get("redirect")));
 }
 
 function isAuthHtmlPath(pathname: string): boolean {
@@ -16377,10 +16375,9 @@ async function injectRecentObservationRecords(html: string, url: URL, env: Env):
   return `${section}${html}`;
 }
 
-async function injectHomeObservationRecords(html: string, request: Request, url: URL, env: Env): Promise<string> {
-  html = injectCompactHeaderMenu(html, url);
+async function injectHomeObservationRecords(html: string, session: SessionSnapshot | null, url: URL, env: Env): Promise<string> {
+  html = injectCompactHeaderMenu(html, url, session);
   if (!html.includes("data-record-feed")) return html;
-  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
   const ownerItems = session && !session.banned
     ? await ownerHomeRecordCards(session.userId, env).catch(() => [])
     : [];
@@ -16408,16 +16405,17 @@ async function injectHomeObservationRecords(html: string, request: Request, url:
   return next;
 }
 
-function injectCompactHeaderMenu(html: string, url: URL): string {
+function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {
   if (html.includes("data-cloudflare-header-menu")) return html;
   if (!html.includes("site-header-actions")) return html;
   const lang = publicLangFromPath(url.pathname) ?? "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const isSignedInShell = !html.includes("site-login-link");
+  const isSignedInShell = Boolean(session && !session.banned) || !html.includes("site-login-link");
   const copy = lang === "ja"
-    ? { menu: "メニュー", record: "記録する", account: isSignedInShell ? "マイページ" : "ログイン", records: "記録を見る", map: "マップ", language: "言語" }
-    : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", language: "Language" };
+    ? { menu: "メニュー", record: "記録する", account: isSignedInShell ? "マイページ" : "ログイン", records: "記録を見る", map: "マップ", settings: "設定", language: "言語" }
+    : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", settings: "Settings", language: "Language" };
   const accountHref = isSignedInShell ? `${prefix}/profile` : `${prefix}/login?redirect=%2Fprofile`;
+  const settingsHref = `${prefix}/profile/settings`;
   const languageLinks = [
     { code: "JP", name: "日本語", href: "/ja/", active: lang === "ja" },
     { code: "EN", name: "English", href: "/en/", active: lang === "en" },
@@ -16429,6 +16427,7 @@ function injectCompactHeaderMenu(html: string, url: URL): string {
         <div class="cf-header-menu-panel" role="menu">
           <a class="cf-header-menu-item is-primary" role="menuitem" href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a>
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(accountHref)}">${escapeHtml(copy.account)}</a>
+          ${isSignedInShell ? `<a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(settingsHref)}">${escapeHtml(copy.settings)}</a>` : ""}
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/records`)}">${escapeHtml(copy.records)}</a>
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.map)}</a>
           <div class="cf-header-menu-languages" aria-label="${escapeHtml(copy.language)}">${languageLinks}</div>
