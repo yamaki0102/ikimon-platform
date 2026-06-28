@@ -165,6 +165,7 @@ test("visual smoke targets are generated from sitemap metadata", () => {
   assert.equal(sitePageLayout(pages.find((page) => page.path === "/guide")!), "immersive");
   assert.equal(sitePageLayout(pages.find((page) => page.path === "/community/events")!), "wide");
   assert.equal(sitePageLayout(pages.find((page) => page.path === "/community/fields")!), "wide");
+  assert.equal(pages.find((page) => page.path === "/")?.visualQa?.expectedText.ja, "近くの記録");
 
   const observation = pages.find((page) => page.path === "/observations/:id");
   assert.ok(observation);
