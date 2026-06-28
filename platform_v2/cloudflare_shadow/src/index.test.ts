@@ -37,6 +37,24 @@ interface ObservationRow {
   visibility: string;
   emergency_hidden: number;
   processing_state: string;
+  organism_origin?: string | null;
+}
+
+interface ObservationDetailEditEventRow {
+  edit_id: string;
+  observation_id: string;
+  actor_user_id: string;
+  edit_kind: string;
+  payload_json: string;
+}
+
+interface ObservationEnvironmentRecordRow {
+  record_id: string;
+  occurrence_id: string;
+  lat: number;
+  lng: number;
+  structured_json: string;
+  source_lang: string;
 }
 
 interface ObservationReactionRow {
@@ -130,6 +148,84 @@ interface PlaceManagementPolicyRow {
   mowing_frequency: string;
   notes: string | null;
   policy_json: string;
+  updated_at: string;
+}
+
+interface PlaceMemoryEntryTestRow {
+  entry_id: string;
+  visit_id: string;
+  occurrence_id: string;
+  user_id: string;
+  cell_id: string;
+  cell_grid_m: number;
+  memory_tags_json: string;
+  tags_public: number;
+  echo_note: string;
+  private_note: string;
+  photo_echo_enabled: number;
+  photo_echo_visibility: string;
+  moderation_status: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+interface PlaceMemoryPreferenceTestRow {
+  user_id: string;
+  default_photo_echo_enabled: number;
+  default_tags_public: number;
+  updated_at: string;
+}
+
+interface ReferenceSourceTestRow {
+  source_id: string;
+  title: string;
+  author_text: string;
+  publisher: string;
+  publication_year: number | null;
+  isbn: string;
+  doi: string;
+  url: string;
+  source_kind: string;
+  catalog_status: string;
+  taxon_labels_json: string;
+  commerce_links_json: string;
+  created_by_user_id: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ReferenceAccessProofTestRow {
+  proof_id: string;
+  user_id: string;
+  source_id: string;
+  batch_id: string | null;
+  proof_kind: string;
+  verification_status: string;
+  private_use_only: number;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ReferenceCorrectionTestRow {
+  correction_id: string;
+  source_id: string;
+  locator: string;
+  original_name: string;
+  corrected_name: string;
+  original_taxon_name: string;
+  corrected_taxon_name: string;
+  correction_kind: string;
+  official_source_url: string;
+  official_reference: string;
+  verification_status: string;
+  verified_by_user_id: string | null;
+  applies_from: string | null;
+  source_payload_json: string;
+  created_at: string;
   updated_at: string;
 }
 
@@ -495,6 +591,26 @@ interface ProductionFieldDetailReadmodelRow {
   valid_to: string | null;
   entity_key: string | null;
   updated_at: string | null;
+}
+
+interface UserObservationFieldTestRow {
+  field_id: string;
+  owner_user_id: string;
+  source: string;
+  name: string;
+  name_kana: string;
+  summary: string;
+  prefecture: string;
+  city: string;
+  public_cell: string;
+  public_lat: number;
+  public_lng: number;
+  radius_m: number;
+  area_ha: number | null;
+  payload_json: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
 }
 
 interface SourceSnapshotTestRow {
@@ -1372,7 +1488,21 @@ class FakeD1 {
   observationAiReviewTargets = new Map<string, ObservationAiReviewTargetRow>();
   observationRecordAiReviews = new Map<string, ObservationRecordAiReviewRow>();
   observationSpecialistReviews = new Map<string, ObservationSpecialistReviewRow>();
+  observationDetailEditEvents: ObservationDetailEditEventRow[] = [];
+  observationEnvironmentRecords: ObservationEnvironmentRecordRow[] = [];
   placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
+  placeMemoryEntries = new Map<string, PlaceMemoryEntryTestRow>();
+  placeMemoryPreferences = new Map<string, PlaceMemoryPreferenceTestRow>();
+  placeMemoryLikes = new Set<string>();
+  placeMemoryHidden = new Set<string>();
+  placeMemoryReports: Array<{ report_id: string; entry_id: string; user_id: string; reason_code: string; reason_note: string; created_at: string }> = [];
+  referenceSources = new Map<string, ReferenceSourceTestRow>();
+  referenceAccessProofs = new Map<string, ReferenceAccessProofTestRow>();
+  referenceCaptureBatches = new Map<string, { batch_id: string; user_id: string; status: string; item_count: number; source_payload_json: string; created_at: string; updated_at: string }>();
+  referenceCaptureItems = new Map<string, { item_id: string; batch_id: string; source_id: string; filename: string; mime_type: string; proof_kind: string; classification_note: string; created_at: string }>();
+  referenceSelections: Array<{ selection_id: string; source_id: string; selected_by_user_id: string; locator: string }> = [];
+  referenceCorrections = new Map<string, ReferenceCorrectionTestRow>();
+  referenceDuplicateMerges = new Map<string, { merge_id: string; canonical_source_id: string; duplicate_source_id: string; actor_user_id: string; source_payload_json: string; created_at: string }>();
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
@@ -1403,6 +1533,7 @@ class FakeD1 {
   observationReassessmentRequests = new Map<string, ObservationReassessmentRequestRow>();
   candidateActionRequests = new Map<string, CandidateActionRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
+  userObservationFields = new Map<string, UserObservationFieldTestRow>();
   sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
   placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
   fieldManagers = new Map<string, FieldManagerGrantTestRow>();
@@ -1486,6 +1617,214 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT OR IGNORE INTO users")) {
       this.db.users.add(string(v[0]));
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO place_memory_entries")) {
+      const existing = [...this.db.placeMemoryEntries.values()].find((row) => row.visit_id === string(v[1]));
+      const now = new Date().toISOString();
+      const row: PlaceMemoryEntryTestRow = existing ?? {
+        entry_id: string(v[0]),
+        visit_id: string(v[1]),
+        occurrence_id: string(v[2]),
+        user_id: string(v[3]),
+        cell_id: string(v[4]),
+        cell_grid_m: number(v[5]),
+        memory_tags_json: string(v[6]),
+        tags_public: number(v[7]),
+        echo_note: string(v[8]),
+        private_note: string(v[9]),
+        photo_echo_enabled: number(v[10]),
+        photo_echo_visibility: string(v[11]),
+        moderation_status: "visible",
+        source_payload_json: string(v[12]),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null
+      };
+      row.occurrence_id = string(v[2]);
+      row.user_id = string(v[3]);
+      row.cell_id = string(v[4]);
+      row.cell_grid_m = number(v[5]);
+      row.memory_tags_json = string(v[6]);
+      row.tags_public = number(v[7]);
+      row.echo_note = string(v[8]);
+      row.private_note = string(v[9]);
+      row.photo_echo_enabled = number(v[10]);
+      row.photo_echo_visibility = row.photo_echo_enabled === 0 ? "hidden_by_user" : (row.photo_echo_visibility === "ready" ? "ready" : string(v[11]));
+      row.moderation_status = "visible";
+      row.source_payload_json = string(v[12]);
+      row.updated_at = now;
+      row.deleted_at = null;
+      this.db.placeMemoryEntries.set(row.entry_id, row);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO place_memory_user_preferences")) {
+      this.db.placeMemoryPreferences.set(string(v[0]), {
+        user_id: string(v[0]),
+        default_photo_echo_enabled: number(v[1]),
+        default_tags_public: number(v[2]),
+        updated_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT OR IGNORE INTO place_memory_likes")) {
+      this.db.placeMemoryLikes.add(`${string(v[0])}:${string(v[1])}`);
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM place_memory_likes")) {
+      this.db.placeMemoryLikes.delete(`${string(v[0])}:${string(v[1])}`);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT OR REPLACE INTO place_memory_hidden_entries")) {
+      this.db.placeMemoryHidden.add(`${string(v[0])}:${string(v[1])}`);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO place_memory_reports")) {
+      this.db.placeMemoryReports.push({
+        report_id: string(v[0]),
+        entry_id: string(v[1]),
+        user_id: string(v[2]),
+        reason_code: string(v[3]),
+        reason_note: string(v[4]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE place_memory_entries SET photo_echo_visibility")) {
+      const row = this.db.placeMemoryEntries.get(string(v[0]));
+      if (row) {
+        row.photo_echo_visibility = "pending_review";
+        row.updated_at = new Date().toISOString();
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE place_memory_entries SET moderation_status")) {
+      const row = this.db.placeMemoryEntries.get(string(v[0]));
+      if (row) {
+        row.moderation_status = "hidden_by_reports";
+        row.updated_at = new Date().toISOString();
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_capture_batches")) {
+      const now = new Date().toISOString();
+      this.db.referenceCaptureBatches.set(string(v[0]), {
+        batch_id: string(v[0]),
+        user_id: string(v[1]),
+        status: string(v[2]),
+        item_count: number(v[3]),
+        source_payload_json: string(v[4]),
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_sources")) {
+      const now = new Date().toISOString();
+      this.db.referenceSources.set(string(v[0]), {
+        source_id: string(v[0]),
+        title: string(v[1]),
+        author_text: string(v[2]),
+        publisher: string(v[3]),
+        publication_year: v[4] === null ? null : number(v[4]),
+        isbn: string(v[5]),
+        doi: string(v[6]),
+        url: string(v[7]),
+        source_kind: string(v[8]),
+        catalog_status: string(v[9]),
+        taxon_labels_json: string(v[10]),
+        commerce_links_json: string(v[11]),
+        created_by_user_id: nullableString(v[12]),
+        source_payload_json: string(v[13]),
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_access_proofs")) {
+      const now = new Date().toISOString();
+      this.db.referenceAccessProofs.set(string(v[0]), {
+        proof_id: string(v[0]),
+        user_id: string(v[1]),
+        source_id: string(v[2]),
+        batch_id: nullableString(v[3]),
+        proof_kind: string(v[4]),
+        verification_status: string(v[5]),
+        private_use_only: number(v[6]),
+        source_payload_json: string(v[7]),
+        created_at: now,
+        updated_at: now
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_capture_items")) {
+      this.db.referenceCaptureItems.set(string(v[0]), {
+        item_id: string(v[0]),
+        batch_id: string(v[1]),
+        source_id: string(v[2]),
+        filename: string(v[3]),
+        mime_type: string(v[4]),
+        proof_kind: string(v[5]),
+        classification_note: string(v[6]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_duplicate_merges")) {
+      this.db.referenceDuplicateMerges.set(string(v[2]), {
+        merge_id: string(v[0]),
+        canonical_source_id: string(v[1]),
+        duplicate_source_id: string(v[2]),
+        actor_user_id: string(v[3]),
+        source_payload_json: string(v[4]),
+        created_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE reference_sources SET catalog_status")) {
+      const row = this.db.referenceSources.get(string(v[1]));
+      if (row) {
+        row.catalog_status = "duplicate";
+        row.source_payload_json = string(v[0]);
+        row.updated_at = new Date().toISOString();
+      }
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO reference_corrections")) {
+      const now = new Date().toISOString();
+      this.db.referenceCorrections.set(string(v[0]), {
+        correction_id: string(v[0]),
+        source_id: string(v[1]),
+        locator: string(v[2]),
+        original_name: string(v[3]),
+        corrected_name: string(v[4]),
+        original_taxon_name: string(v[5]),
+        corrected_taxon_name: string(v[6]),
+        correction_kind: string(v[7]),
+        official_source_url: string(v[8]),
+        official_reference: string(v[9]),
+        verification_status: string(v[10]),
+        verified_by_user_id: nullableString(v[11]),
+        applies_from: nullableString(v[12]),
+        source_payload_json: string(v[13]),
+        created_at: now,
+        updated_at: now
+      });
       return {};
     }
 
@@ -2785,6 +3124,62 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observations SET organism_origin = ?")) {
+      const observation = requireRow(this.db.observations, string(v[1]));
+      observation.organism_origin = string(v[0]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observations SET observed_at = ?, partition_month = ?")) {
+      const observation = requireRow(this.db.observations, string(v[2]));
+      observation.observed_at = string(v[0]);
+      observation.partition_month = nullableString(v[1]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observations SET exact_lat = ?, exact_lng = ?, public_cell = ?")) {
+      const observation = requireRow(this.db.observations, string(v[3]));
+      observation.exact_lat = number(v[0]);
+      observation.exact_lng = number(v[1]);
+      observation.public_cell = string(v[2]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE readmodel_public_observations SET observed_at = ?")) {
+      const row = this.db.readmodel.get(string(v[1]));
+      if (row) row.observed_at = string(v[0]);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE readmodel_public_observations SET public_cell = ?")) {
+      const row = this.db.readmodel.get(string(v[1]));
+      if (row) row.public_cell = string(v[0]);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_detail_edit_events")) {
+      this.db.observationDetailEditEvents.push({
+        edit_id: string(v[0]),
+        observation_id: string(v[1]),
+        actor_user_id: string(v[2]),
+        edit_kind: string(v[3]),
+        payload_json: string(v[4])
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_environment_records")) {
+      this.db.observationEnvironmentRecords.push({
+        record_id: string(v[0]),
+        occurrence_id: string(v[1]),
+        lat: number(v[2]),
+        lng: number(v[3]),
+        structured_json: string(v[4]),
+        source_lang: "ja"
+      });
+      return {};
+    }
+
     if (normalized.startsWith("DELETE FROM readmodel_public_observations")) {
       this.db.readmodel.delete(string(v[0]));
       return {};
@@ -2948,6 +3343,49 @@ class FakeStatement {
     if (normalized.startsWith("DELETE FROM field_managers")) {
       this.db.fieldManagers.delete(`${string(v[0])}:${string(v[1])}:${string(v[2])}`);
       return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO user_observation_fields")) {
+      const now = new Date().toISOString();
+      const row: UserObservationFieldTestRow = {
+        field_id: string(v[0]),
+        owner_user_id: string(v[1]),
+        source: "user_defined",
+        name: string(v[2]),
+        name_kana: string(v[3]),
+        summary: string(v[4]),
+        prefecture: string(v[5]),
+        city: string(v[6]),
+        public_cell: string(v[7]),
+        public_lat: number(v[8]),
+        public_lng: number(v[9]),
+        radius_m: number(v[10]),
+        area_ha: nullableNumber(v[11]),
+        payload_json: string(v[12]),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null
+      };
+      this.db.userObservationFields.set(row.field_id, row);
+      return row as unknown as Record<string, unknown>;
+    }
+
+    if (normalized.startsWith("UPDATE user_observation_fields SET")) {
+      const row = requireRow(this.db.userObservationFields, string(v[11]));
+      if (row.owner_user_id !== string(v[12]) || row.deleted_at) return {};
+      row.name = string(v[0]);
+      row.name_kana = string(v[1]);
+      row.summary = string(v[2]);
+      row.prefecture = string(v[3]);
+      row.city = string(v[4]);
+      row.public_cell = string(v[5]);
+      row.public_lat = number(v[6]);
+      row.public_lng = number(v[7]);
+      row.radius_m = number(v[8]);
+      row.area_ha = nullableNumber(v[9]);
+      row.payload_json = string(v[10]);
+      row.updated_at = new Date().toISOString();
+      return row as unknown as Record<string, unknown>;
     }
 
     if (normalized.startsWith("INSERT INTO walk_sessions")) {
@@ -3462,6 +3900,94 @@ class FakeStatement {
 
     const v = this.values;
 
+    if (normalized.startsWith("SELECT user_id, default_photo_echo_enabled, default_tags_public")) {
+      return (this.db.placeMemoryPreferences.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT entry_id FROM place_memory_likes")) {
+      return this.db.placeMemoryLikes.has(`${string(v[0])}:${string(v[1])}`) ? ({ entry_id: string(v[0]) } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM place_memory_likes")) {
+      const count = [...this.db.placeMemoryLikes].filter((key) => key.startsWith(`${string(v[0])}:`)).length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS count FROM place_memory_reports")) {
+      const count = this.db.placeMemoryReports.filter((row) => row.entry_id === string(v[0])).length;
+      return ({ count } as T);
+    }
+
+    if (normalized.startsWith("SELECT entry_id, visit_id, occurrence_id, user_id, cell_id, cell_grid_m")) {
+      const row = this.db.placeMemoryEntries.get(string(v[0]));
+      return row && !row.deleted_at ? (row as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT (SELECT COUNT(DISTINCT source_id) FROM reference_access_proofs")) {
+      const userId = string(v[0]);
+      const userIdNeedsReview = string(v[1]);
+      const owned = new Set([...this.db.referenceAccessProofs.values()]
+        .filter((row) => row.user_id === userId && ["ai_verified", "user_confirmed", "reviewer_confirmed"].includes(row.verification_status))
+        .map((row) => row.source_id));
+      const needsReview = new Set([...this.db.referenceAccessProofs.values()]
+        .filter((row) => row.user_id === userIdNeedsReview && row.verification_status === "needs_review")
+        .map((row) => row.source_id));
+      return ({ owned_verified_count: owned.size, needs_review_count: needsReview.size } as T);
+    }
+
+    if (normalized.startsWith("SELECT source_id FROM reference_sources WHERE source_id = ?")) {
+      const row = this.db.referenceSources.get(string(v[0]));
+      return row && row.catalog_status !== "withdrawn" ? ({ source_id: row.source_id } as T) : null;
+    }
+
+    if (normalized.startsWith("INSERT INTO user_observation_fields")) {
+      const now = new Date().toISOString();
+      const row: UserObservationFieldTestRow = {
+        field_id: string(v[0]),
+        owner_user_id: string(v[1]),
+        source: "user_defined",
+        name: string(v[2]),
+        name_kana: string(v[3]),
+        summary: string(v[4]),
+        prefecture: string(v[5]),
+        city: string(v[6]),
+        public_cell: string(v[7]),
+        public_lat: number(v[8]),
+        public_lng: number(v[9]),
+        radius_m: number(v[10]),
+        area_ha: nullableNumber(v[11]),
+        payload_json: string(v[12]),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null
+      };
+      this.db.userObservationFields.set(row.field_id, row);
+      return row as T;
+    }
+
+    if (normalized.startsWith("UPDATE user_observation_fields SET")) {
+      const row = this.db.userObservationFields.get(string(v[11]));
+      if (!row || row.owner_user_id !== string(v[12]) || row.deleted_at) return null;
+      row.name = string(v[0]);
+      row.name_kana = string(v[1]);
+      row.summary = string(v[2]);
+      row.prefecture = string(v[3]);
+      row.city = string(v[4]);
+      row.public_cell = string(v[5]);
+      row.public_lat = number(v[6]);
+      row.public_lng = number(v[7]);
+      row.radius_m = number(v[8]);
+      row.area_ha = nullableNumber(v[9]);
+      row.payload_json = string(v[10]);
+      row.updated_at = new Date().toISOString();
+      return row as T;
+    }
+
+    if (normalized.startsWith("SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city")) {
+      const row = this.db.userObservationFields.get(string(v[0]));
+      return row && !row.deleted_at ? (row as T) : null;
+    }
+
     if (normalized.startsWith("SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name")) {
       const row = this.db.authorityRecommendations.get(string(v[0]));
       return (row as T | undefined) ?? null;
@@ -3591,6 +4117,23 @@ class FakeStatement {
         draft_id: observation.draft_id,
         owner_user_id: observation.owner_user_id
       } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations")) {
+      const observation = this.db.observations.get(string(v[0]));
+      return observation ? ({
+        observation_id: observation.observation_id,
+        exact_lat: observation.exact_lat,
+        exact_lng: observation.exact_lng,
+        public_cell: observation.public_cell
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT structured_json FROM observation_environment_records")) {
+      const row = this.db.observationEnvironmentRecords
+        .filter((candidate) => candidate.occurrence_id === string(v[0]))
+        .at(-1);
+      return row ? ({ structured_json: row.structured_json } as T) : null;
     }
 
     if (normalized.startsWith("SELECT owner_user_id FROM observations")) {
@@ -4296,6 +4839,74 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT pme.entry_id, pme.visit_id, pme.occurrence_id")) {
+      const viewerUserId = string(v[0]);
+      const cellId = string(v[2]);
+      const limit = number(v[4]);
+      const rows = [...this.db.placeMemoryEntries.values()]
+        .filter((row) =>
+          row.cell_id === cellId &&
+          !row.deleted_at &&
+          row.moderation_status === "visible" &&
+          !this.db.placeMemoryHidden.has(`${row.entry_id}:${viewerUserId}`)
+        )
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, limit)
+        .map((row) => ({
+          ...row,
+          like_count: [...this.db.placeMemoryLikes].filter((key) => key.startsWith(`${row.entry_id}:`)).length,
+          liked_by_me: this.db.placeMemoryLikes.has(`${row.entry_id}:${viewerUserId}`) ? 1 : 0,
+          own_entry: row.user_id === viewerUserId ? 1 : 0
+        }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT rs.source_id, rs.title, rs.author_text, rs.publisher, rs.publication_year")) {
+      const userId = string(v[0]);
+      const selectedByUserId = string(v[1]);
+      const limit = v.length >= 5 ? 80 : number(v[v.length - 1]);
+      const rows = [...this.db.referenceSources.values()]
+        .filter((row) => !["withdrawn", "duplicate"].includes(row.catalog_status))
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, limit)
+        .map((row) => {
+          const proofs = [...this.db.referenceAccessProofs.values()].filter((proof) => proof.source_id === row.source_id && proof.user_id === userId);
+          const owned = proofs.some((proof) => ["ai_verified", "user_confirmed", "reviewer_confirmed"].includes(proof.verification_status));
+          const needsReview = proofs.some((proof) => proof.verification_status === "needs_review");
+          return {
+            ...row,
+            owned_status: owned ? "owned_verified" : needsReview ? "needs_review" : "not_owned",
+            latest_proof_at: proofs.map((proof) => proof.updated_at).sort().at(-1) ?? null,
+            used_count: this.db.referenceSelections.filter((selection) => selection.source_id === row.source_id && selection.selected_by_user_id === selectedByUserId).length,
+            official_correction_count: [...this.db.referenceCorrections.values()].filter((correction) => correction.source_id === row.source_id && correction.verification_status === "official_confirmed").length
+          };
+        });
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT rs.source_id, rs.title, rs.taxon_labels_json")) {
+      const userId = string(v[0]);
+      const rows = [...this.db.referenceAccessProofs.values()]
+        .filter((proof) => proof.user_id === userId)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, 5)
+        .flatMap((proof) => {
+          const source = this.db.referenceSources.get(proof.source_id);
+          if (!source) return [];
+          return [{
+            source_id: source.source_id,
+            title: source.title,
+            taxon_labels_json: source.taxon_labels_json,
+            status: proof.verification_status,
+            used_count: this.db.referenceSelections.filter((selection) => selection.source_id === source.source_id && selection.selected_by_user_id === userId).length
+          }];
+        });
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT correction_id, source_id, locator, original_name, corrected_name")) {
+      const rows = [...this.db.referenceCorrections.values()]
+        .filter((row) => row.source_id === string(v[0]))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind")) {
       const rows = [...this.db.specialistAuthorities.values()]
         .filter((row) => normalized.includes("where subject_user_id = ?") ? row.subject_user_id === string(v[0]) && row.status === "active" : true)
@@ -4968,7 +5579,94 @@ class FakeStatement {
         .slice(0, limit);
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city")) {
+      if (normalized.includes("WHERE owner_user_id = ? AND deleted_at IS NULL AND public_lat BETWEEN")) {
+        const ownerUserId = string(this.values[0]);
+        const minLat = number(this.values[1]);
+        const maxLat = number(this.values[2]);
+        const minLng = number(this.values[3]);
+        const maxLng = number(this.values[4]);
+        const rows = [...this.db.userObservationFields.values()]
+          .filter((row) =>
+            row.owner_user_id === ownerUserId &&
+            !row.deleted_at &&
+            row.public_lat >= minLat &&
+            row.public_lat <= maxLat &&
+            row.public_lng >= minLng &&
+            row.public_lng <= maxLng
+          )
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+          .slice(0, 20);
+        return { results: rows as T[] };
+      }
+      if (normalized.includes("WHERE owner_user_id = ? AND deleted_at IS NULL")) {
+        const ownerUserId = string(this.values[0]);
+        const limit = number(this.values[1]);
+        const rows = [...this.db.userObservationFields.values()]
+          .filter((row) => row.owner_user_id === ownerUserId && !row.deleted_at)
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+          .slice(0, limit);
+        return { results: rows as T[] };
+      }
+      return { results: [] as T[] };
+    }
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
+      if (normalized.includes("WHERE 1=1")) {
+        let rows = [...this.db.productionFieldDetails.values()];
+        const values = this.values;
+        let cursor = 0;
+        if (normalized.includes("LOWER(NAME) LIKE")) {
+          const like = string(values[cursor++]).replace(/%/g, "").toLowerCase();
+          cursor += 2;
+          rows = rows.filter((row) =>
+            row.name.toLowerCase().includes(like) ||
+            String(row.prefecture ?? "").toLowerCase().includes(like) ||
+            String(row.city ?? "").toLowerCase().includes(like)
+          );
+        }
+        if (normalized.includes("SOURCE = ?")) {
+          const source = string(values[cursor++]);
+          rows = rows.filter((row) => row.source === source);
+        }
+        if (normalized.includes("PREFECTURE = ?")) {
+          const prefecture = string(values[cursor++]);
+          rows = rows.filter((row) => row.prefecture === prefecture);
+        }
+        if (normalized.includes("PUBLIC_LAT BETWEEN")) {
+          const minLat = number(values[cursor++]);
+          const maxLat = number(values[cursor++]);
+          const minLng = number(values[cursor++]);
+          const maxLng = number(values[cursor++]);
+          rows = rows.filter((row) =>
+            row.public_lat >= minLat &&
+            row.public_lat <= maxLat &&
+            row.public_lng >= minLng &&
+            row.public_lng <= maxLng
+          );
+        }
+        const limit = number(values.at(-1));
+        return {
+          results: rows
+            .sort((a, b) => String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")))
+            .slice(0, limit) as T[]
+        };
+      }
+      if (normalized.includes("WHERE public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?") && normalized.includes("LIMIT 20")) {
+        const minLat = number(this.values[0]);
+        const maxLat = number(this.values[1]);
+        const minLng = number(this.values[2]);
+        const maxLng = number(this.values[3]);
+        const rows = [...this.db.productionFieldDetails.values()]
+          .filter((row) =>
+            row.public_lat >= minLat &&
+            row.public_lat <= maxLat &&
+            row.public_lng >= minLng &&
+            row.public_lng <= maxLng
+          )
+          .sort((a, b) => String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")))
+          .slice(0, 20);
+        return { results: rows as T[] };
+      }
       const minLat = number(this.values[0]);
       const maxLat = number(this.values[1]);
       const minLng = number(this.values[2]);
@@ -4983,6 +5681,15 @@ class FakeStatement {
         )
         .sort((a, b) => (a.area_ha ?? 999999) - (b.area_ha ?? 999999) || a.name.localeCompare(b.name, "ja"))
         .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT prefecture, COUNT(*) AS field_count")) {
+      const counts = new Map<string, number>();
+      for (const row of this.db.productionFieldDetails.values()) {
+        if (!row.prefecture) continue;
+        counts.set(row.prefecture, (counts.get(row.prefecture) ?? 0) + 1);
+      }
+      const rows = [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([prefecture, field_count]) => ({ prefecture, field_count }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT field_id, public_lat, public_lng, radius_m")) {
@@ -6509,6 +7216,99 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(obs.civicObservationContexts.size, 0);
 });
 
+test("place memory runtime stores D1 entries and serves preferences list and moderation actions", async () => {
+  const { env, obs } = createEnv();
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "place-memory-user", displayName: "Place Memory User" })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const preferencesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/preferences", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ defaultPhotoEchoEnabled: true, defaultTagsPublic: true })
+  }), env);
+  assert.equal(preferencesResponse.status, 200);
+
+  const upsertResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      observationId: "visit-place-memory",
+      userId: "place-memory-user",
+      observedAt: "2026-06-15T02:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      siteName: "浜名湖",
+      taxon: { vernacularName: "テスト生物", rank: "species" },
+      placeMemory: {
+        tags: ["refresh_walk", "first_visit", "unknown_tag"],
+        echoNote: "  春の夕方に歩いた  ",
+        privateNote: "自分だけのメモ",
+        photoEchoEnabled: true
+      }
+    })
+  }), env);
+  const upsertPayload = await upsertResponse.json() as any;
+  assert.equal(upsertResponse.status, 201, JSON.stringify(upsertPayload));
+  assert.equal(upsertPayload.placeMemory.entryId, "pm:visit-place-memory");
+  assert.deepEqual(upsertPayload.placeMemory.tags, ["refresh_walk", "first_visit"]);
+  assert.equal(upsertPayload.placeMemory.echoNote, "春の夕方に歩いた");
+  assert.equal(upsertPayload.placeMemory.photoEchoEnabled, true);
+  assert.equal(upsertPayload.placeMemory.photoEchoVisibility, "pending_review");
+  assert.equal(upsertPayload.placeMemorySample.length, 1);
+  assert.equal(obs.placeMemoryEntries.size, 1);
+
+  const listResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory?cellId=34.71,137.81", {
+    headers: { cookie }
+  }), env);
+  const listPayload = await listResponse.json() as any;
+  assert.equal(listResponse.status, 200, JSON.stringify(listPayload));
+  assert.equal(listPayload.items.length, 1);
+  assert.equal(listPayload.items[0].entryId, "pm:visit-place-memory");
+  assert.equal(listPayload.items[0].echoNote, "春の夕方に歩いた");
+
+  const likeResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/like", {
+    method: "POST",
+    headers: { cookie }
+  }), env);
+  const likePayload = await likeResponse.json() as any;
+  assert.equal(likeResponse.status, 200, JSON.stringify(likePayload));
+  assert.equal(likePayload.liked, true);
+  assert.equal(likePayload.likeCount, 1);
+
+  const photoReviewResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/photo-review", {
+    method: "POST",
+    headers: { cookie }
+  }), env);
+  assert.equal(photoReviewResponse.status, 200);
+
+  const reportResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/report", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ reasonCode: "privacy", reasonNote: "念のため" })
+  }), env);
+  const reportPayload = await reportResponse.json() as any;
+  assert.equal(reportResponse.status, 200, JSON.stringify(reportPayload));
+  assert.equal(reportPayload.hiddenForMe, true);
+  assert.equal(obs.placeMemoryReports.length, 1);
+
+  const hideResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory/pm%3Avisit-place-memory/hide", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ reason: "self" })
+  }), env);
+  assert.equal(hideResponse.status, 200);
+
+  const hiddenListResponse = await worker.fetch(new Request("https://shadow.test/api/v1/place-memory?cellId=34.71,137.81", {
+    headers: { cookie }
+  }), env);
+  const hiddenListPayload = await hiddenListResponse.json() as any;
+  assert.equal(hiddenListPayload.items.length, 0);
+});
+
 test("v1 observation upsert persists civic context only for event, risk, or explicit context writes", async () => {
   const { env, obs } = createEnv();
   await post("/api/v1/observations/upsert", env, {
@@ -7144,6 +7944,145 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.equal(logoutPayload.revoked, true);
   assert.equal(core.authSessions.size, 0);
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
+});
+
+test("production occurrence detail edit APIs write to D1 without origin fallback", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.observations.set("occ-edit-1", {
+    observation_id: "occ-edit-1",
+    draft_id: "draft-edit-1",
+    owner_user_id: "detail-user",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "テスト種",
+    note: null,
+    exact_lat: 35.123456,
+    exact_lng: 139.123456,
+    location_accuracy_m: null,
+    public_cell: "35.12,139.12",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  obs.readmodel.set("occ-edit-1", {
+    observation_id: "occ-edit-1",
+    public_cell: "35.12,139.12",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    taxon_label: "テスト種",
+    asset_count: 0,
+    partition_month: "2026-06"
+  });
+
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "detail-user", displayName: "Detail User", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const originResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/origin", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ organismOrigin: "wild" })
+  }), productionEnv);
+  const originPayload = await originResponse.json() as any;
+  assert.equal(originResponse.status, 200, JSON.stringify(originPayload));
+  assert.equal(originResponse.headers.get("x-ikimon-cloudflare-native"), "occurrence-detail-edit");
+  assert.equal(originPayload.organismOrigin, "wild");
+  assert.equal(obs.observations.get("occ-edit-1")?.organism_origin, "wild");
+
+  const observedAtResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/observed-at", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ observedAt: "2026-06-02T03:04:05.000Z" })
+  }), productionEnv);
+  const observedAtPayload = await observedAtResponse.json() as any;
+  assert.equal(observedAtResponse.status, 200, JSON.stringify(observedAtPayload));
+  assert.equal(obs.observations.get("occ-edit-1")?.observed_at, "2026-06-02T03:04:05.000Z");
+  assert.equal(obs.readmodel.get("occ-edit-1")?.observed_at, "2026-06-02T03:04:05.000Z");
+
+  const locationResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/location", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ latitude: 35.6543214, longitude: 139.6543214 })
+  }), productionEnv);
+  const locationPayload = await locationResponse.json() as any;
+  assert.equal(locationResponse.status, 200, JSON.stringify(locationPayload));
+  assert.equal(locationPayload.label, "35.654321, 139.654321");
+  assert.equal(obs.observations.get("occ-edit-1")?.exact_lat, 35.654321);
+  assert.equal(obs.readmodel.get("occ-edit-1")?.public_cell, obs.observations.get("occ-edit-1")?.public_cell);
+
+  const fieldResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/environment-field", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ field: "place_type", value: "urban" })
+  }), productionEnv);
+  const fieldPayload = await fieldResponse.json() as any;
+  assert.equal(fieldResponse.status, 200, JSON.stringify(fieldPayload));
+  assert.equal(fieldPayload.label, "市街地");
+
+  const recordResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-1/environment-record", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ values: { contact_surface: "plant", human_change: "mowing" } })
+  }), productionEnv);
+  const recordPayload = await recordResponse.json() as any;
+  assert.equal(recordResponse.status, 200, JSON.stringify(recordPayload));
+  assert.equal(obs.observationEnvironmentRecords.length, 2);
+  const structured = JSON.parse(obs.observationEnvironmentRecords.at(-1)?.structured_json ?? "{}") as Record<string, string>;
+  assert.equal(structured.place_type, "urban");
+  assert.equal(structured.contact_surface, "plant");
+  assert.equal(structured.human_change, "mowing");
+  assert.equal(obs.observationDetailEditEvents.some((row) => row.edit_kind === "location"), true);
+  assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-edit-1"), true);
+});
+
+test("production occurrence detail edit APIs reject non owners before mutation", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.observations.set("occ-owned-1", {
+    observation_id: "occ-owned-1",
+    draft_id: "draft-owned-1",
+    owner_user_id: "owner-user",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: null,
+    note: null,
+    exact_lat: 35,
+    exact_lng: 139,
+    location_accuracy_m: null,
+    public_cell: "35.00,139.00",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "other-user", displayName: "Other User", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-owned-1/origin", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ organismOrigin: "wild" })
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 403, JSON.stringify(payload));
+  assert.equal(payload.error, "forbidden");
+  assert.equal(obs.observations.get("occ-owned-1")?.organism_origin, undefined);
+  assert.equal(obs.observationDetailEditEvents.length, 0);
 });
 
 test("production place management policy API writes to D1 without origin fallback", async () => {
@@ -9268,9 +10207,126 @@ test("production reference candidates route is native and never probes origin fa
     assert.deepEqual(await response.json(), {
       ok: true,
       candidates: [],
-      source: "cloudflare_reference_candidates_empty",
-      referenceCatalogStatus: "not_migrated"
+      source: "cloudflare_reference_library_runtime",
+      referenceCatalogStatus: "d1_native",
+      occurrenceId: "occ-1"
     });
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("reference library runtime stores D1 metadata and serves list candidates corrections and duplicate ledger", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: "reference-specialist", roleName: "Specialist Admin", ttlHours: 1 })
+    }), productionEnv);
+    const cookie = issueResponse.headers.get("set-cookie") ?? "";
+    assert.match(cookie, /^ikimon_v2_session=/);
+
+    const capture = await worker.fetch(new Request("https://ikimon.life/api/v1/references/capture-batches", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        items: [
+          {
+            filename: "birds-cover.jpg",
+            mimeType: "image/jpeg",
+            title: "静岡の鳥類図鑑",
+            isbn: "978-4-0000-0000-1",
+            authorText: "調査会",
+            publisher: "ikimon",
+            publicationYear: 2026,
+            sourceKind: "field_guide",
+            taxonHints: ["鳥", "Aves"],
+            proofKind: "cover"
+          },
+          {
+            title: "静岡の鳥類図鑑 改訂版",
+            isbn: "978-4-0000-0000-2",
+            taxonHints: ["鳥"]
+          }
+        ]
+      })
+    }), productionEnv);
+    assert.equal(capture.status, 200);
+    const capturePayload = await capture.json() as any;
+    assert.equal(capturePayload.ok, true);
+    assert.equal(capturePayload.items.length, 2);
+    assert.equal(capturePayload.compatibility.aiCoverExtractionParity, false);
+    const sourceId = capturePayload.items[0].sourceId;
+    const duplicateSourceId = capturePayload.items[1].sourceId;
+    assert.equal(obs.referenceSources.size, 2);
+    assert.equal(obs.referenceAccessProofs.size, 2);
+
+    const list = await worker.fetch(new Request("https://ikimon.life/api/v1/references?tab=catalog", {
+      headers: { cookie }
+    }), productionEnv);
+    assert.equal(list.status, 200);
+    const listPayload = await list.json() as any;
+    assert.equal(listPayload.ok, true);
+    assert.equal(listPayload.snapshot.cards.length, 2, JSON.stringify(listPayload));
+    assert.equal(listPayload.snapshot.summary.needsReviewCount, 2);
+    assert.equal(listPayload.compatibility.source, "cloudflare_reference_library_runtime");
+
+    const candidates = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reference-candidates?proposedName=%E9%B3%A5", {
+      headers: { cookie }
+    }), productionEnv);
+    assert.equal(candidates.status, 200);
+    const candidatePayload = await candidates.json() as any;
+    assert.equal(candidatePayload.referenceCatalogStatus, "d1_native");
+    assert.ok(candidatePayload.candidates.length >= 1, JSON.stringify(candidatePayload));
+    assert.equal(candidatePayload.candidates[0].reason, "共有カタログで分類群一致");
+
+    const correction = await worker.fetch(new Request(`https://ikimon.life/api/v1/references/${sourceId}/corrections`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        locator: "p.12",
+        originalName: "鳥",
+        correctedName: "鳥類",
+        correctionKind: "taxonomy_update",
+        verificationStatus: "official_confirmed",
+        officialReference: "自治体公開資料"
+      })
+    }), productionEnv);
+    assert.equal(correction.status, 200);
+    assert.equal((await correction.json() as any).ok, true);
+    assert.equal(obs.referenceCorrections.size, 1);
+
+    const corrections = await worker.fetch(new Request(`https://ikimon.life/api/v1/references/${sourceId}/corrections`, {
+      headers: { cookie }
+    }), productionEnv);
+    assert.equal(corrections.status, 200);
+    assert.equal((await corrections.json() as any).corrections[0].verificationStatus, "official_confirmed");
+
+    const merge = await worker.fetch(new Request("https://ikimon.life/api/v1/references/duplicates/merge", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ canonicalSourceId: sourceId, duplicateSourceId })
+    }), productionEnv);
+    assert.equal(merge.status, 200);
+    assert.equal((await merge.json() as any).result.duplicateSourceId, duplicateSourceId);
+    assert.equal(obs.referenceSources.get(duplicateSourceId)?.catalog_status, "duplicate");
+    assert.equal(obs.referenceDuplicateMerges.size, 1);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
@@ -12201,6 +13257,130 @@ test("production area snapshot uses D1 field detail readmodel when not materiali
     assert.equal(payload.snapshot.privacy.exactLocationExposed, false);
     assert.equal(payload.snapshot.compatibility.source, "cloudflare_field_detail_readmodel_lightweight_area_snapshot");
     assert.equal(payload.snapshot.source, undefined);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production observation field registry runtime creates lists updates and checks conflicts in D1", async () => {
+  const { env, obs, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.productionFieldDetails.set("certified-near-field", {
+    field_id: "certified-near-field",
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "認定ビオトープ",
+    name_kana: null,
+    summary: "公開フィールド",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 200,
+    area_ha: 0.8,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "certified-near-field",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "field-owner", displayName: "Field Owner", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const unauth = await worker.fetch(new Request("https://ikimon.life/api/v1/fields", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "未ログイン", lat: 35.02, lng: 138.39 })
+    }), productionEnv);
+    assert.equal(unauth.status, 401);
+
+    const conflict = await worker.fetch(new Request("https://ikimon.life/api/v1/fields/conflicts", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ name: "認定ビオトープ", lat: 35.0105, lng: 138.3805, radius_m: 1000 })
+    }), productionEnv);
+    const conflictPayload = await conflict.json() as any;
+    assert.equal(conflict.status, 200);
+    assert.equal(conflictPayload.conflicts[0].field.fieldId, "certified-near-field");
+
+    const create = await worker.fetch(new Request("https://ikimon.life/api/v1/fields", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        name: "自分の小さな調査地",
+        prefecture: "静岡県",
+        city: "静岡市",
+        lat: 35.2,
+        lng: 138.5,
+        radius_m: 300
+      })
+    }), productionEnv);
+    const createPayload = await create.json() as any;
+    assert.equal(create.status, 201);
+    assert.equal(create.headers.get("x-ikimon-cloudflare-native"), "observation-field-registry-runtime");
+    assert.equal(createPayload.field.name, "自分の小さな調査地");
+    assert.equal(createPayload.field.ownerUserId, "field-owner");
+    assert.equal(obs.userObservationFields.size, 1);
+    const fieldId = createPayload.field.fieldId;
+
+    const mine = await worker.fetch(new Request("https://ikimon.life/api/v1/fields?mine=1", {
+      headers: { cookie }
+    }), productionEnv);
+    const minePayload = await mine.json() as any;
+    assert.equal(mine.status, 200);
+    assert.equal(minePayload.fields.length, 1);
+    assert.equal(minePayload.fields[0].fieldId, fieldId);
+
+    const patch = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${encodeURIComponent(fieldId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ name: "更新した調査地", radius_m: 450 })
+    }), productionEnv);
+    const patchPayload = await patch.json() as any;
+    assert.equal(patch.status, 200);
+    assert.equal(patchPayload.field.name, "更新した調査地");
+    assert.equal(patchPayload.field.radiusM, 450);
+
+    const list = await worker.fetch(new Request("https://ikimon.life/api/v1/fields?q=%E8%AA%8D%E5%AE%9A&limit=5"), productionEnv);
+    const listPayload = await list.json() as any;
+    assert.equal(list.status, 200);
+    assert.equal(listPayload.fields[0].fieldId, "certified-near-field");
+
+    const prefectures = await worker.fetch(new Request("https://ikimon.life/api/v1/fields/prefectures"), productionEnv);
+    const prefecturesPayload = await prefectures.json() as any;
+    assert.equal(prefectures.status, 200);
+    assert.equal(prefecturesPayload.prefectures[0].prefecture, "静岡県");
+
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
