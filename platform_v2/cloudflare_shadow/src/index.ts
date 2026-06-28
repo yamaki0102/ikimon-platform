@@ -18101,11 +18101,11 @@ async function updateCompatibleOccurrenceDetail(
   try {
     await assertObservationOwnedByUser(occurrenceId, session.userId, env);
     const body = await readJson<Record<string, unknown>>(request);
-    if (kind === "origin") return updateCompatibleOccurrenceOrigin(occurrenceId, session, body, env);
-    if (kind === "observed-at") return updateCompatibleOccurrenceObservedAt(occurrenceId, session, body, env);
-    if (kind === "location") return updateCompatibleOccurrenceLocation(occurrenceId, session, body, env);
-    if (kind === "environment-field") return updateCompatibleOccurrenceEnvironmentField(occurrenceId, session, body, env);
-    return updateCompatibleOccurrenceEnvironmentRecord(occurrenceId, session, body, env);
+    if (kind === "origin") return await updateCompatibleOccurrenceOrigin(occurrenceId, session, body, env);
+    if (kind === "observed-at") return await updateCompatibleOccurrenceObservedAt(occurrenceId, session, body, env);
+    if (kind === "location") return await updateCompatibleOccurrenceLocation(occurrenceId, session, body, env);
+    if (kind === "environment-field") return await updateCompatibleOccurrenceEnvironmentField(occurrenceId, session, body, env);
+    return await updateCompatibleOccurrenceEnvironmentRecord(occurrenceId, session, body, env);
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 400;
     return json({ ok: false, error: error instanceof Error ? error.message : "occurrence_detail_update_failed" }, status);
@@ -18242,6 +18242,7 @@ async function insertCompatibleEnvironmentRecord(
   values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
   env: Env
 ): Promise<{ recordId: string }> {
+  await requireCompatibleEnvironmentRecordStorage(env);
   const observation = await env.OBS_DB.prepare(
     "SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
   ).bind(occurrenceId).first<{ observation_id: string; exact_lat: number | null; exact_lng: number | null; public_cell: string }>();
@@ -18271,6 +18272,16 @@ async function insertCompatibleEnvironmentRecord(
     compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
   ]);
   return { recordId };
+}
+
+async function requireCompatibleEnvironmentRecordStorage(env: Env): Promise<void> {
+  const rows = await env.OBS_DB.prepare(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('observation_environment_records', 'observation_detail_edit_events')"
+  ).all<{ name: string }>();
+  const available = new Set((rows.results ?? []).map((row) => row.name));
+  if (!available.has("observation_environment_records") || !available.has("observation_detail_edit_events")) {
+    throw new HttpError(503, "environment_record_storage_unavailable");
+  }
 }
 
 function compatibleOccurrenceDetailEditEvent(
@@ -23352,6 +23363,7 @@ function renderImageEnvironmentEditorScript(): string {
           if (response.status === 401) throw new Error('保存には投稿したアカウントでログインが必要です。');
           if (response.status === 403) throw new Error('この記録の投稿者だけが変更できます。');
           if (error === 'occurrence_location_required') throw new Error('位置情報がないため、この記録では環境情報を保存できません。');
+          if (error === 'environment_record_storage_unavailable') throw new Error('環境情報の保存先を準備中です。');
           throw new Error('保存できませんでした。時間を置いてもう一度試してください。');
         }
         applySavedValues(payload.values || {});

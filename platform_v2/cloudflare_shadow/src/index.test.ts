@@ -1490,6 +1490,7 @@ class FakeD1 {
   observationSpecialistReviews = new Map<string, ObservationSpecialistReviewRow>();
   observationDetailEditEvents: ObservationDetailEditEventRow[] = [];
   observationEnvironmentRecords: ObservationEnvironmentRecordRow[] = [];
+  environmentRecordTablesAvailable = true;
   placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
   placeMemoryEntries = new Map<string, PlaceMemoryEntryTestRow>();
   placeMemoryPreferences = new Map<string, PlaceMemoryPreferenceTestRow>();
@@ -4839,6 +4840,12 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN")) {
+      const rows = this.db.environmentRecordTablesAvailable
+        ? [{ name: "observation_environment_records" }, { name: "observation_detail_edit_events" }]
+        : [];
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT pme.entry_id, pme.visit_id, pme.occurrence_id")) {
       const viewerUserId = string(v[0]);
       const cellId = string(v[2]);
@@ -8093,6 +8100,51 @@ test("production occurrence detail edit APIs write to D1 without origin fallback
   assert.equal(fallbackStructured.environment_record_location_source, "public_cell");
   assert.equal(obs.observationDetailEditEvents.some((row) => row.edit_kind === "location"), true);
   assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-edit-1"), true);
+});
+
+test("production occurrence environment edits return a JSON 503 when storage migration is missing", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://origin.example.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  obs.environmentRecordTablesAvailable = false;
+  obs.observations.set("occ-edit-missing-storage", {
+    observation_id: "occ-edit-missing-storage",
+    draft_id: "draft-edit-missing-storage",
+    owner_user_id: "detail-user",
+    observed_at: "2026-06-01T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "テスト種",
+    note: null,
+    exact_lat: 35.123456,
+    exact_lng: 139.123456,
+    location_accuracy_m: null,
+    public_cell: "35.12,139.12",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "detail-user", displayName: "Detail User", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/occurrences/occ-edit-missing-storage/environment-record", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ values: { place_type: "urban" } })
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 503, JSON.stringify(payload));
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "environment_record_storage_unavailable");
+  assert.equal(obs.observationEnvironmentRecords.length, 0);
+  assert.equal(obs.observationDetailEditEvents.length, 0);
 });
 
 test("production occurrence detail edit APIs reject non owners before mutation", async () => {
