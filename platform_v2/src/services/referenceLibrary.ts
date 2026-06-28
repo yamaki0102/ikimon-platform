@@ -6,7 +6,7 @@ import sharp from "sharp";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
-import { upsertAssetBlob } from "./writeSupport.js";
+import { upsertAssetBlob } from "./writeSupportPg.js";
 
 type JsonRecord = Record<string, unknown>;
 

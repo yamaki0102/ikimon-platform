@@ -53,16 +53,17 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/routes/adminSiteEvidence.ts": "admin_evidence_report",
     "platform_v2/src/routes/knowledgeNavigationApi.ts": "internal_knowledge_navigation_admin_api",
     "platform_v2/src/routes/curatorProposalsApi.ts": "internal_curator_proposal_receiver",
+    "platform_v2/src/services/audioPropagation.ts": "admin_audio_review_residual_after_vector_retirement",
+    "platform_v2/src/services/audioReview.ts": "admin_audio_review_residual_after_vector_retirement",
     "platform_v2/src/services/alertDispatcher.ts": "manual_ai_reassessment_alert_dispatcher",
     "platform_v2/src/services/monitoringWorkspaceData.ts": "admin_monitoring_diagnostic_readmodel",
+    "platform_v2/src/services/plotMonitoring.ts": "admin_plot_monitoring_backstage_api",
     "platform_v2/src/services/readiness.ts": "legacy_cutover_readiness_report"
   };
   if (exactAdminOpsDiagnostics[normalized]) return exactAdminOpsDiagnostics[normalized];
   if (normalized === "platform_v2/src/services/guideHypothesisEvalSet.ts") return "manual_audit_report_tool";
   const scriptPrefix = "platform_v2/src/scripts/";
   if (!normalized.startsWith(scriptPrefix)) return null;
-  if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
-  if (normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts") return null;
   if (normalized === "platform_v2/src/scripts/applyMigrations.ts") return "migration_cli_tool";
   if (normalized === "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts") return "manual_embedding_batch";
   if (normalized === "platform_v2/src/scripts/reportMissingObservationPhotos.ts") return "manual_integrity_report";
@@ -105,6 +106,9 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/scripts/planObservationLedger.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/processPlaceMemoryPhotos.ts": "manual_media_batch_tool",
     "platform_v2/src/scripts/processAudioSegments.ts": "manual_audio_detection_batch_tool",
+    "platform_v2/src/scripts/cron/runCacheInvalidate.ts": "scheduled_legacy_cache_and_freshness_maintenance",
+    "platform_v2/src/scripts/cron/runCurator.ts": "scheduled_curator_proposal_batch",
+    "platform_v2/src/scripts/cron/curators/invasive-law.ts": "scheduled_curator_proposal_batch",
     "platform_v2/src/scripts/readinessReport.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/rebuildGuideEnvironmentMesh.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/refreshPublicMapSnapshot.ts": "manual_materialization_tool",
@@ -140,11 +144,15 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
   const exactReplacedProductionRuntime = {
     "platform_v2/src/services/mapSnapshot.ts": "cloudflare_public_map_snapshot_readmodel",
+    "platform_v2/src/services/sensitiveSpeciesMasking.ts": "cloudflare_public_map_and_area_snapshot_masking_readmodels",
     "platform_v2/src/services/landingSnapshot.ts": "cloudflare_materialized_landing_and_home_readmodel",
+    "platform_v2/src/services/readModels.ts": "cloudflare_materialized_public_readmodels",
     "platform_v2/src/services/areaSnapshotVisitScope.ts": "cloudflare_area_and_place_snapshot_visit_scope_readmodel",
     "platform_v2/src/services/areaPlaceSnapshot.ts": "cloudflare_area_snapshot_field_detail_readmodel",
     "platform_v2/src/services/placeSnapshot.ts": "cloudflare_place_snapshot_readmodel",
+    "platform_v2/src/services/fixedPointStation.ts": "cloudflare_fixed_point_station_readmodel",
     "platform_v2/src/services/areaPolygons.ts": "cloudflare_area_polygon_readmodel",
+    "platform_v2/src/services/fieldManagers.ts": "cloudflare_field_manager_runtime",
     "platform_v2/src/services/mapOwnObservations.ts": "cloudflare_owner_map_observations_native",
     "platform_v2/src/services/mapEffort.ts": "cloudflare_public_map_effort_shim",
     "platform_v2/src/services/publicMapSnapshotOpsAlerts.ts": "cloudflare_public_map_snapshot_ops_inventory",
@@ -154,23 +162,33 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/authUsers.ts": "cloudflare_auth_user_account_api",
     "platform_v2/src/services/observationWrite.ts": "cloudflare_observation_write_api",
     "platform_v2/src/services/observationPhotoUpload.ts": "cloudflare_observation_photo_upload_api",
+    "platform_v2/src/services/observationAiAssessment.ts": "cloudflare_observation_detail_readmodel_dependency",
+    "platform_v2/src/services/observationPackage.ts": "cloudflare_observation_package_runtime",
+    "platform_v2/src/services/observationPackageDataChain.ts": "cloudflare_observation_package_data_chain_replaced_dependency",
     "platform_v2/src/services/observationReactions.ts": "cloudflare_observation_reactions_api",
     "platform_v2/src/services/recordReadingCards.ts": "cloudflare_record_reading_cards_api",
     "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",
     "platform_v2/src/services/observationVisitBundle.ts": "cloudflare_observation_detail_readmodel",
     "platform_v2/src/services/observationEventLive.ts": "cloudflare_observation_event_live_api",
+    "platform_v2/src/services/observationEventDualWrite.ts": "cloudflare_observation_event_dual_write_side_effects",
     "platform_v2/src/services/observationEventEffort.ts": "cloudflare_observation_event_effort_api",
     "platform_v2/src/services/observationEventModeManager.ts": "cloudflare_observation_event_mode_api",
     "platform_v2/src/services/observationEventRecap.ts": "cloudflare_observation_event_recap_api",
+    "platform_v2/src/services/observationEventContext.ts": "cloudflare_observation_event_static_quest_context_dependency",
+    "platform_v2/src/services/observationEventQuestEngine.ts": "cloudflare_observation_event_static_quest_runtime",
     "platform_v2/src/services/observationEventCapsule.ts": "cloudflare_observation_event_capsule_api",
     "platform_v2/src/services/observationEventOfficialReport.ts": "cloudflare_observation_event_official_report_api",
+    "platform_v2/src/routes/observationEventPages.ts": "cloudflare_observation_event_pages_runtime",
     "platform_v2/src/routes/meSubscriptionsApi.ts": "cloudflare_personal_subscription_alert_api",
     "platform_v2/src/services/contactSubmit.ts": "cloudflare_contact_submit_api",
     "platform_v2/src/services/userWrite.ts": "cloudflare_user_profile_write_api",
     "platform_v2/src/services/rememberTokenWrite.ts": "cloudflare_remember_token_api",
+    "platform_v2/src/routes/write.ts": "cloudflare_app_write_route_boundary",
     "platform_v2/src/services/observationDataRights.ts": "cloudflare_observation_data_rights_api",
+    "platform_v2/src/services/civicNatureContext.ts": "cloudflare_civic_observation_context_runtime",
     "platform_v2/src/services/evidenceAssetMediaRole.ts": "cloudflare_observation_media_role_dependency",
     "platform_v2/src/services/mediaProcessingJobs.ts": "cloudflare_media_processing_queue_dependency",
+    "platform_v2/src/routes/stewardshipActions.ts": "cloudflare_stewardship_action_form_and_write_runtime",
     "platform_v2/src/routes/adminGuidePrograms.ts": "cloudflare_guide_program_admin_api",
     "platform_v2/src/routes/adminGuidePromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
     "platform_v2/src/services/guideCorrectionEval.ts": "cloudflare_guide_correction_eval_readmodel",
@@ -180,11 +198,36 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/guideInteractions.ts": "cloudflare_guide_interaction_api",
     "platform_v2/src/services/guidePrograms.ts": "cloudflare_guide_program_admin_api",
     "platform_v2/src/routes/guideRecordsDebug.ts": "cloudflare_guide_outcomes_and_route_layer_runtime",
+    "platform_v2/src/routes/researchApi.ts": "cloudflare_research_export_runtime",
     "platform_v2/src/services/guideRouteTrack.ts": "cloudflare_guide_telemetry_route_points_runtime",
     "platform_v2/src/services/guideTransectQuality.ts": "cloudflare_guide_route_layer_quality_runtime",
     "platform_v2/src/services/guideUnlocks.ts": "cloudflare_guide_unlock_api",
+    "platform_v2/src/services/guideSession.ts": "cloudflare_guide_scene_static_runtime",
     "platform_v2/src/services/mobileFieldSessions.ts": "cloudflare_mobile_field_session_digest_runtime",
-    "platform_v2/src/services/regionalHypotheses.ts": "cloudflare_guide_regional_hypothesis_api"
+    "platform_v2/src/services/guideSessionPublicSummary.ts": "cloudflare_guide_session_public_summary_runtime",
+    "platform_v2/src/services/guideRecordPromotion.ts": "cloudflare_guide_record_promotion_request_ledger",
+    "platform_v2/src/services/regionalHypotheses.ts": "cloudflare_guide_regional_hypothesis_api",
+    "platform_v2/src/services/fieldscanAudio.ts": "cloudflare_fieldscan_audio_runtime",
+    "platform_v2/src/services/passiveAudioIngest.ts": "cloudflare_passive_audio_ingest_runtime",
+    "platform_v2/src/services/resolveFieldsForPoint.ts": "cloudflare_replaced_field_resolution_helper_dependency",
+    "platform_v2/src/services/walkWrite.ts": "cloudflare_walk_session_api",
+    "platform_v2/src/services/trackWrite.ts": "cloudflare_track_upsert_api",
+    "platform_v2/src/services/observationRecordAiReview.ts": "cloudflare_observation_record_ai_review_api",
+    "platform_v2/src/services/waterRecordExtension.ts": "cloudflare_observation_water_record_extension_runtime",
+    "platform_v2/src/services/placeManagementPolicy.ts": "cloudflare_place_management_policy_runtime",
+    "platform_v2/src/services/placeMemory.ts": "cloudflare_place_memory_runtime",
+    "platform_v2/src/services/referenceLibrary.ts": "cloudflare_reference_library_runtime",
+    "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts": "cloudflare_sentinel_environment_snapshot_runtime",
+    "platform_v2/src/services/environmentSnapshotWriter.ts": "cloudflare_sentinel_environment_snapshot_runtime",
+    "platform_v2/src/services/observationFieldRegistry.ts": "cloudflare_observation_field_registry_runtime",
+    "platform_v2/src/services/identificationParticipation.ts": "cloudflare_identification_participation_runtime",
+    "platform_v2/src/services/identificationConsensus.ts": "cloudflare_identification_consensus_runtime",
+    "platform_v2/src/services/specialistReview.ts": "cloudflare_specialist_review_runtime",
+    "platform_v2/src/services/reviewerAuthorities.ts": "cloudflare_specialist_authority_runtime",
+    "platform_v2/src/services/authorityRecommendations.ts": "cloudflare_specialist_authority_runtime",
+    "platform_v2/src/services/writeGuardsPg.ts": "cloudflare_replaced_or_residual_write_guard_pg_helper",
+    "platform_v2/src/services/writeSupportPg.ts": "cloudflare_replaced_or_residual_write_support_pg_helper",
+    "platform_v2/src/services/visitSubjects.ts": "cloudflare_visit_subject_summary_replaced_dependency"
   };
   return exactReplacedProductionRuntime[normalized] ?? null;
 }
@@ -205,15 +248,20 @@ function optionalRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observerStats.ts": "optional_observation_detail_observer_stats_card",
     "platform_v2/src/services/placeVegetationTrend.ts": "optional_place_vegetation_trend_card_falls_back_null",
     "platform_v2/src/services/regionalStory.ts": "optional_regional_story_seed_fallback_and_nonfatal_exposure_log",
-    "platform_v2/src/services/taxonInsights.ts": "optional_observation_detail_taxon_insight_card"
+    "platform_v2/src/services/taxonInsights.ts": "optional_observation_detail_taxon_insight_card",
+    "platform_v2/src/services/aiCostLogger.ts": "optional_ops_ai_cost_logging_and_budget_health",
+    "platform_v2/src/services/areaWatchNotifications.ts": "optional_area_watch_notification_enrichment",
+    "platform_v2/src/services/profileNoteDigest.ts": "optional_profile_note_digest_enrichment",
+    "platform_v2/src/services/relationshipScore.queries.ts": "optional_relationship_score_readonly_queries",
+    "platform_v2/src/services/relationshipScoreSnapshot.ts": "optional_relationship_score_report_snapshot",
+    "platform_v2/src/services/tierPromotion.ts": "optional_evidence_tier_enrichment"
   };
   return exactOptionalRuntime[normalized] ?? null;
 }
 
 function forcedRuntimePgDependency(relativeFile) {
-  const normalized = relativeFile.replaceAll("\\", "/");
-  return normalized.startsWith("platform_v2/src/scripts/cron/")
-    || normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts";
+  void relativeFile;
+  return false;
 }
 
 function exclusiveMaintenancePgDependencyReason(relativeFile, importersByTarget, seen = new Set()) {
