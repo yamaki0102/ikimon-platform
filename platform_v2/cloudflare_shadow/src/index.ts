@@ -93,6 +93,12 @@ interface Env {
   TWITTER_CLIENT_SECRET?: string;
   V2_OAUTH_STATE_SECRET?: string;
   CLOUDFLARE_STREAM_WEBHOOK_SECRET?: string;
+  MPC_DISABLED?: string;
+  MPC_STAC_API_URL?: string;
+  MPC_DATA_API_URL?: string;
+  SENTINEL_ENVIRONMENT_BATCH_SIZE?: string;
+  SENTINEL_ENVIRONMENT_DAYS_BACK?: string;
+  SENTINEL_ENVIRONMENT_MAX_CLOUD?: string;
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -160,6 +166,7 @@ interface LegacyObservationUpsertInput {
   teamId?: string | null;
   participantRole?: string | null;
   fieldScan?: Record<string, unknown> | null;
+  placeMemory?: Record<string, unknown> | null;
   waterRecord?: CompatibleWaterRecordInput | null;
   civicContext?: Record<string, unknown> | null;
   sourcePayload?: Record<string, unknown> | null;
@@ -865,6 +872,26 @@ interface FieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface UserObservationFieldRow {
+  field_id: string;
+  owner_user_id: string;
+  source: string;
+  name: string;
+  name_kana: string;
+  summary: string;
+  prefecture: string;
+  city: string;
+  public_cell: string;
+  public_lat: number;
+  public_lng: number;
+  radius_m: number;
+  area_ha: number | null;
+  payload_json: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 interface AreaPolygonReadmodelRow extends FieldDetailReadmodelRow {}
 
 interface AreaPolygonGeometryReadmodelRow {
@@ -893,6 +920,77 @@ interface AreaPolygonGeometryReadmodelRow {
   certification_url: string | null;
   entity_key: string | null;
   updated_at: string | null;
+}
+
+interface PlaceMemoryEntryRow {
+  entry_id: string;
+  visit_id: string;
+  occurrence_id: string;
+  user_id: string;
+  cell_id: string;
+  cell_grid_m: number;
+  memory_tags_json: string;
+  tags_public: number;
+  echo_note: string;
+  private_note: string;
+  photo_echo_enabled: number;
+  photo_echo_visibility: string;
+  moderation_status: string;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+  like_count?: number;
+  liked_by_me?: number;
+  own_entry?: number;
+}
+
+interface PlaceMemoryPreferenceRow {
+  user_id: string;
+  default_photo_echo_enabled: number;
+  default_tags_public: number;
+  updated_at: string | null;
+}
+
+interface ReferenceSourceD1Row {
+  source_id: string;
+  title: string;
+  author_text: string;
+  publisher: string;
+  publication_year: number | null;
+  isbn: string;
+  doi: string;
+  url: string;
+  source_kind: string;
+  catalog_status: string;
+  taxon_labels_json: string;
+  commerce_links_json: string;
+  created_by_user_id: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
+  owned_status?: string | null;
+  latest_proof_at?: string | null;
+  used_count?: number | null;
+  official_correction_count?: number | null;
+}
+
+interface ReferenceCorrectionD1Row {
+  correction_id: string;
+  source_id: string;
+  locator: string;
+  original_name: string;
+  corrected_name: string;
+  original_taxon_name: string;
+  corrected_taxon_name: string;
+  correction_kind: string;
+  official_source_url: string;
+  official_reference: string;
+  verification_status: string;
+  verified_by_user_id: string | null;
+  applies_from: string | null;
+  source_payload_json: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ReverseDeltaCountRow {
@@ -1872,6 +1970,15 @@ export const worker = {
         );
       }
 
+      const fieldRegistryResponse = await handleObservationFieldRegistryRuntime(request, url, env);
+      if (fieldRegistryResponse) return fieldRegistryResponse;
+
+      const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
+      if (placeMemoryResponse) return placeMemoryResponse;
+
+      const referenceLibraryResponse = await handleReferenceLibraryRuntime(request, url, env);
+      if (referenceLibraryResponse) return referenceLibraryResponse;
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
         return getOriginalUiStaticAsset(request, url, env);
       }
@@ -2061,6 +2168,55 @@ export const worker = {
           request,
           env
         );
+      }
+
+      const occurrenceDetailEditMatch = url.pathname.match(/^\/api\/v1\/occurrences\/([^/]+)\/(origin|observed-at|location|environment-field|environment-record)$/);
+      if (request.method === "POST" && occurrenceDetailEditMatch?.[1] && occurrenceDetailEditMatch?.[2]) {
+        return updateCompatibleOccurrenceDetail(
+          decodeURIComponent(occurrenceDetailEditMatch[1]),
+          occurrenceDetailEditMatch[2] as CompatibleOccurrenceDetailEditKind,
+          request,
+          env
+        );
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/specialist/me/authorities") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatibleSpecialistAuthorities(request, env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/v1/authority/recommendations/me") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatibleAuthorityRecommendationsMe(request, env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/v1/specialist/recommendations/pending") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatiblePendingAuthorityRecommendations(request, env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/v1/specialist/authorities/audit") {
+        return withCompatibleSpecialistAuthorityError(() => listCompatibleSpecialistAuthorityAudit(request, env));
+      }
+      if (request.method === "POST" && url.pathname === "/api/v1/authority/recommendations") {
+        return withCompatibleSpecialistAuthorityError(() => createCompatibleAuthorityRecommendation(request, env));
+      }
+      const authorityRecommendationGrantMatch = url.pathname.match(/^\/api\/v1\/specialist\/recommendations\/([^/]+)\/grant$/);
+      const authorityRecommendationGrantId = authorityRecommendationGrantMatch?.[1];
+      if (request.method === "POST" && authorityRecommendationGrantId) {
+        return withCompatibleSpecialistAuthorityError(() => grantCompatibleAuthorityRecommendation(decodeURIComponent(authorityRecommendationGrantId), request, env));
+      }
+      const authorityRecommendationRejectMatch = url.pathname.match(/^\/api\/v1\/specialist\/recommendations\/([^/]+)\/reject$/);
+      const authorityRecommendationRejectId = authorityRecommendationRejectMatch?.[1];
+      if (request.method === "POST" && authorityRecommendationRejectId) {
+        return withCompatibleSpecialistAuthorityError(() => rejectCompatibleAuthorityRecommendation(decodeURIComponent(authorityRecommendationRejectId), request, env));
+      }
+      if (request.method === "POST" && url.pathname === "/api/v1/specialist/authorities/grant") {
+        return withCompatibleSpecialistAuthorityError(() => grantCompatibleSpecialistAuthority(request, env));
+      }
+      const specialistAuthorityRevokeMatch = url.pathname.match(/^\/api\/v1\/specialist\/authorities\/([^/]+)\/revoke$/);
+      const specialistAuthorityRevokeId = specialistAuthorityRevokeMatch?.[1];
+      if (request.method === "POST" && specialistAuthorityRevokeId) {
+        return withCompatibleSpecialistAuthorityError(() => revokeCompatibleSpecialistAuthority(decodeURIComponent(specialistAuthorityRevokeId), request, env));
+      }
+      const specialistAuthorityEvidenceMatch = url.pathname.match(/^\/api\/v1\/specialist\/authorities\/([^/]+)\/evidence$/);
+      const specialistAuthorityEvidenceId = specialistAuthorityEvidenceMatch?.[1];
+      if (request.method === "POST" && specialistAuthorityEvidenceId) {
+        return withCompatibleSpecialistAuthorityError(() => addCompatibleSpecialistAuthorityEvidence(decodeURIComponent(specialistAuthorityEvidenceId), request, env));
       }
 
       const readingCardsMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/reading-cards$/);
@@ -2268,6 +2424,12 @@ export const worker = {
         return internalAlertDeliveryDrain(url, env);
       }
 
+      if (request.method === "POST" && url.pathname === "/internal/sentinel-environment/run") {
+        const authError = authorizeInternalRequest(request, env);
+        if (authError) return authError;
+        return internalSentinelEnvironmentRun(url, env);
+      }
+
       if (url.pathname.startsWith("/internal/")) {
         return json({ error: "not_found" }, 404);
       }
@@ -2289,6 +2451,7 @@ export const worker = {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
     ctx.waitUntil(runScheduledObservationEventQuests(env));
+    ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
@@ -4291,6 +4454,391 @@ function normalizeRallyRevisionAction(value: unknown): typeof RALLY_REVISION_ACT
   return typeof value === "string" && (RALLY_REVISION_ACTIONS as readonly string[]).includes(value) ? value as typeof RALLY_REVISION_ACTIONS[number] : null;
 }
 
+function normalizeReferenceText(value: unknown, max = 240): string {
+  return String(value ?? "").trim().replace(/\s+/g, " ").slice(0, max);
+}
+
+function normalizeReferenceIdentifierNative(value: unknown): string {
+  return String(value ?? "").replace(/[^0-9Xx]/g, "").toUpperCase().slice(0, 32);
+}
+
+function normalizeReferenceUrlNative(value: unknown): string {
+  const raw = normalizeReferenceText(value, 500);
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString().slice(0, 500) : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeReferenceYearNative(value: unknown): number | null {
+  const year = Number.parseInt(String(value ?? ""), 10);
+  return Number.isInteger(year) && year >= 1500 && year <= 2200 ? year : null;
+}
+
+function normalizeReferenceKindNative(value: unknown): string {
+  const raw = normalizeReferenceText(value, 40);
+  return ["field_guide", "literature", "web", "book", "unknown"].includes(raw) ? raw : "unknown";
+}
+
+function normalizeReferenceTaxonLabelsNative(value: unknown): string[] {
+  return Array.from(new Set(stringArray(value).map((item) => normalizeReferenceText(item, 120)).filter(Boolean))).slice(0, 16);
+}
+
+function referenceCardPayload(row: ReferenceSourceD1Row) {
+  return {
+    sourceId: row.source_id,
+    title: row.title,
+    authorText: row.author_text,
+    publisher: row.publisher,
+    publicationYear: row.publication_year,
+    isbn: row.isbn,
+    doi: row.doi,
+    url: row.url,
+    sourceKind: row.source_kind,
+    ownedStatus: row.owned_status ?? "not_owned",
+    latestProofAt: row.latest_proof_at ?? null,
+    usedCount: Number(row.used_count ?? 0),
+    taxonLabels: jsonArray(row.taxon_labels_json).map((item) => normalizeReferenceText(item, 120)).filter(Boolean),
+    commerceLinks: jsonArray(row.commerce_links_json),
+    officialCorrectionCount: Number(row.official_correction_count ?? 0),
+  };
+}
+
+function referenceCorrectionPayload(row: ReferenceCorrectionD1Row) {
+  return {
+    correctionId: row.correction_id,
+    sourceId: row.source_id,
+    locator: row.locator,
+    originalName: row.original_name,
+    correctedName: row.corrected_name,
+    originalTaxonName: row.original_taxon_name,
+    correctedTaxonName: row.corrected_taxon_name,
+    correctionKind: row.correction_kind,
+    officialSourceUrl: row.official_source_url,
+    officialReference: row.official_reference,
+    verificationStatus: row.verification_status,
+    appliesFrom: row.applies_from,
+    createdAt: row.created_at,
+  };
+}
+
+async function getReferenceProfileSummaryNative(env: Env, userId: string): Promise<{
+  ownedVerifiedCount: number;
+  needsReviewCount: number;
+  recent: unknown[];
+}> {
+  const counts = await env.OBS_DB.prepare(
+    `SELECT
+        (SELECT COUNT(DISTINCT source_id) FROM reference_access_proofs
+          WHERE user_id = ? AND verification_status IN ('ai_verified', 'user_confirmed', 'reviewer_confirmed')) AS owned_verified_count,
+        (SELECT COUNT(DISTINCT source_id) FROM reference_access_proofs
+          WHERE user_id = ? AND verification_status = 'needs_review') AS needs_review_count`
+  ).bind(userId, userId).first<{ owned_verified_count: number; needs_review_count: number }>();
+  const recent = (await env.OBS_DB.prepare(
+    `SELECT rs.source_id, rs.title, rs.taxon_labels_json, p.verification_status AS status,
+            (SELECT COUNT(*) FROM reference_identification_selections sel
+              WHERE sel.source_id = rs.source_id AND sel.selected_by_user_id = ?) AS used_count
+       FROM reference_access_proofs p
+       JOIN reference_sources rs ON rs.source_id = p.source_id
+      WHERE p.user_id = ?
+      ORDER BY p.updated_at DESC
+      LIMIT 5`
+  ).bind(userId, userId).all<ReferenceSourceD1Row & { status: string; used_count: number }>()).results;
+  return {
+    ownedVerifiedCount: Number(counts?.owned_verified_count ?? 0),
+    needsReviewCount: Number(counts?.needs_review_count ?? 0),
+    recent: recent.map((row) => ({
+      sourceId: row.source_id,
+      title: row.title,
+      taxonLabels: jsonArray(row.taxon_labels_json).map((item) => normalizeReferenceText(item, 120)).filter(Boolean),
+      usedCount: Number(row.used_count ?? 0),
+      status: row.status,
+    })),
+  };
+}
+
+async function listReferenceLibraryNative(env: Env, session: SessionSnapshot, url: URL): Promise<Response> {
+  const tab = url.searchParams.get("tab") === "catalog" ? "catalog" : url.searchParams.get("tab") === "needs_review" ? "needs_review" : "owned";
+  const countryCode = normalizeReferenceText(url.searchParams.get("countryCode") ?? "JP", 8).toUpperCase() || "JP";
+  const limit = Math.min(80, Math.max(1, integerOrNull(url.searchParams.get("limit")) ?? 36));
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT rs.source_id, rs.title, rs.author_text, rs.publisher, rs.publication_year,
+            rs.isbn, rs.doi, rs.url, rs.source_kind, rs.catalog_status,
+            rs.taxon_labels_json, rs.commerce_links_json, rs.created_by_user_id,
+            rs.source_payload_json, rs.created_at, rs.updated_at,
+            CASE
+              WHEN EXISTS (
+                SELECT 1 FROM reference_access_proofs p
+                 WHERE p.source_id = rs.source_id AND p.user_id = ?
+                   AND p.verification_status IN ('ai_verified', 'user_confirmed', 'reviewer_confirmed')
+              ) THEN 'owned_verified'
+              WHEN EXISTS (
+                SELECT 1 FROM reference_access_proofs p
+                 WHERE p.source_id = rs.source_id AND p.user_id = ?
+                   AND p.verification_status = 'needs_review'
+              ) THEN 'needs_review'
+              ELSE 'not_owned'
+            END AS owned_status,
+            (SELECT MAX(p.updated_at) FROM reference_access_proofs p
+              WHERE p.source_id = rs.source_id AND p.user_id = ?) AS latest_proof_at,
+            (SELECT COUNT(*) FROM reference_identification_selections sel
+              WHERE sel.source_id = rs.source_id AND sel.selected_by_user_id = ?) AS used_count,
+            (SELECT COUNT(*) FROM reference_corrections c
+              WHERE c.source_id = rs.source_id AND c.verification_status = 'official_confirmed') AS official_correction_count
+       FROM reference_sources rs
+      WHERE rs.catalog_status NOT IN ('withdrawn', 'duplicate')
+      ORDER BY rs.updated_at DESC
+      LIMIT ?`
+  ).bind(session.userId, session.userId, session.userId, session.userId, limit).all<ReferenceSourceD1Row>()).results;
+  const cards = rows
+    .map(referenceCardPayload)
+    .filter((card) => tab === "catalog" ? true : tab === "needs_review" ? card.ownedStatus === "needs_review" : card.ownedStatus === "owned_verified");
+  return json({
+    ok: true,
+    snapshot: {
+      tab,
+      countryCode,
+      summary: await getReferenceProfileSummaryNative(env, session.userId),
+      cards,
+    },
+    compatibility: {
+      source: "cloudflare_reference_library_runtime",
+      aiCoverExtractionParity: false,
+      note: "metadata-first D1 runtime replaces VPS PostgreSQL dependency; AI cover extraction remains a future Cloudflare enhancement",
+    },
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function createReferenceCaptureBatchNative(env: Env, session: SessionSnapshot, request: Request): Promise<Response> {
+  const body = await readJson<Record<string, unknown>>(request);
+  const items = Array.isArray(body.items) ? body.items.slice(0, 24) : [];
+  if (items.length === 0) return json({ ok: false, error: "reference_capture_items_required" }, 400, { "cache-control": "no-store" });
+  const batchId = crypto.randomUUID();
+  const results: Array<{ sourceId: string; title: string; verificationStatus: string; taxonHints: string[]; useCases: string[]; duplicate: boolean }> = [];
+  await env.OBS_DB.prepare(
+    `INSERT INTO reference_capture_batches
+       (batch_id, user_id, status, item_count, source_payload_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).bind(batchId, session.userId, "completed", items.length, JSON.stringify({ source: "cloudflare_reference_capture_metadata_runtime" })).run();
+
+  for (const rawItem of items) {
+    const item = asPlainObject(rawItem) ?? {};
+    const isbn = normalizeReferenceIdentifierNative(item.isbn);
+    const url = normalizeReferenceUrlNative(item.url);
+    const title = normalizeReferenceText(item.title, 240)
+      || (isbn ? `ISBN ${isbn}` : "")
+      || (url ? url : "")
+      || normalizeReferenceText(item.filename, 120)
+      || "Untitled reference";
+    const sourceId = `ref_${crypto.randomUUID()}`;
+    const taxonLabels = normalizeReferenceTaxonLabelsNative(item.taxonHints ?? item.taxon_labels ?? item.taxonLabels);
+    const proofKind = normalizeReferenceText(item.proofKind, 40) || "manual";
+    const sourcePayload = {
+      source: "cloudflare_reference_capture_metadata_runtime",
+      filename: normalizeReferenceText(item.filename, 180),
+      mimeType: normalizeReferenceText(item.mimeType, 80),
+      noPageBodyStored: true,
+      aiCoverExtractionParity: false,
+    };
+    await env.OBS_DB.prepare(
+      `INSERT INTO reference_sources
+         (source_id, title, author_text, publisher, publication_year, isbn, doi, url,
+          source_kind, catalog_status, taxon_labels_json, commerce_links_json,
+          created_by_user_id, source_payload_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      sourceId,
+      title,
+      normalizeReferenceText(item.authorText ?? item.author_text, 240),
+      normalizeReferenceText(item.publisher, 180),
+      normalizeReferenceYearNative(item.publicationYear ?? item.publication_year),
+      isbn,
+      normalizeReferenceText(item.doi, 120),
+      url,
+      normalizeReferenceKindNative(item.sourceKind ?? item.source_kind),
+      "active",
+      JSON.stringify(taxonLabels),
+      "[]",
+      session.userId,
+      JSON.stringify(sourcePayload)
+    ).run();
+    await env.OBS_DB.prepare(
+      `INSERT INTO reference_access_proofs
+         (proof_id, user_id, source_id, batch_id, proof_kind, verification_status,
+          private_use_only, source_payload_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      crypto.randomUUID(),
+      session.userId,
+      sourceId,
+      batchId,
+      proofKind,
+      "needs_review",
+      1,
+      JSON.stringify(sourcePayload)
+    ).run();
+    await env.OBS_DB.prepare(
+      `INSERT INTO reference_capture_items
+         (item_id, batch_id, source_id, filename, mime_type, proof_kind, classification_note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      crypto.randomUUID(),
+      batchId,
+      sourceId,
+      normalizeReferenceText(item.filename, 180),
+      normalizeReferenceText(item.mimeType, 80),
+      proofKind,
+      "cloudflare metadata capture; AI cover extraction not run"
+    ).run();
+    results.push({
+      sourceId,
+      title,
+      verificationStatus: "needs_review",
+      taxonHints: taxonLabels,
+      useCases: ["identification_reference"],
+      duplicate: false,
+    });
+  }
+
+  return json({
+    ok: true,
+    batchId,
+    status: "completed",
+    ownedCount: 0,
+    needsReviewCount: results.length,
+    items: results,
+    compatibility: { source: "cloudflare_reference_library_runtime", aiCoverExtractionParity: false },
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function mergeReferenceDuplicateNative(env: Env, session: SessionSnapshot, request: Request): Promise<Response> {
+  if (!isSpecialistAuthorityAdminRole(session)) return json({ ok: false, error: "specialist_admin_required" }, 403, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const canonicalSourceId = normalizeOptionalId(body.canonicalSourceId);
+  const duplicateSourceId = normalizeOptionalId(body.duplicateSourceId);
+  if (!canonicalSourceId || !duplicateSourceId) return json({ ok: false, error: "reference_source_id_required" }, 400, { "cache-control": "no-store" });
+  if (canonicalSourceId === duplicateSourceId) return json({ ok: false, error: "reference_duplicate_same_source" }, 400, { "cache-control": "no-store" });
+  const canonical = await env.OBS_DB.prepare("SELECT source_id FROM reference_sources WHERE source_id = ? LIMIT 1").bind(canonicalSourceId).first<{ source_id: string }>();
+  const duplicate = await env.OBS_DB.prepare("SELECT source_id FROM reference_sources WHERE source_id = ? LIMIT 1").bind(duplicateSourceId).first<{ source_id: string }>();
+  if (!canonical || !duplicate) return json({ ok: false, error: "reference_source_not_found" }, 404, { "cache-control": "no-store" });
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      `INSERT INTO reference_duplicate_merges
+         (merge_id, canonical_source_id, duplicate_source_id, actor_user_id, source_payload_json, created_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(crypto.randomUUID(), canonicalSourceId, duplicateSourceId, session.userId, JSON.stringify({ source: "cloudflare_reference_duplicate_merge" })),
+    env.OBS_DB.prepare(
+      `UPDATE reference_sources
+          SET catalog_status = 'duplicate',
+              source_payload_json = ?,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE source_id = ?`
+    ).bind(JSON.stringify({ duplicateOfSourceId: canonicalSourceId, duplicateConfirmedByUserId: session.userId }), duplicateSourceId),
+  ]);
+  return json({
+    ok: true,
+    result: {
+      canonicalSourceId,
+      duplicateSourceId,
+      identificationReferencesCopied: 0,
+      identificationReferencesRemoved: 0,
+      accessProofsCopied: 0,
+      taxonLinksCopied: 0,
+      compatibility: "d1_duplicate_status_ledger",
+    },
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function createReferenceCorrectionNative(env: Env, session: SessionSnapshot, sourceId: string, request: Request): Promise<Response> {
+  if (!isIdentificationSpecialistRole(session)) return json({ ok: false, error: "specialist_role_required" }, 403, { "cache-control": "no-store" });
+  const normalizedSourceId = normalizeOptionalId(sourceId);
+  if (!normalizedSourceId) return json({ ok: false, error: "reference_source_id_required" }, 400, { "cache-control": "no-store" });
+  const source = await env.OBS_DB.prepare("SELECT source_id FROM reference_sources WHERE source_id = ? LIMIT 1").bind(normalizedSourceId).first<{ source_id: string }>();
+  if (!source) return json({ ok: false, error: "reference_source_not_found" }, 404, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const status = normalizeReferenceText(body.verificationStatus ?? body.verification_status, 40) || "pending";
+  const officialSourceUrl = normalizeReferenceUrlNative(body.officialSourceUrl ?? body.official_source_url);
+  const officialReference = normalizeReferenceText(body.officialReference ?? body.official_reference, 240);
+  if (status === "official_confirmed" && !officialSourceUrl && !officialReference) {
+    return json({ ok: false, error: "official_correction_source_required" }, 400, { "cache-control": "no-store" });
+  }
+  const correctionId = crypto.randomUUID();
+  await env.OBS_DB.prepare(
+    `INSERT INTO reference_corrections
+       (correction_id, source_id, locator, original_name, corrected_name,
+        original_taxon_name, corrected_taxon_name, correction_kind,
+        official_source_url, official_reference, verification_status, verified_by_user_id,
+        applies_from, source_payload_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+  ).bind(
+    correctionId,
+    normalizedSourceId,
+    normalizeReferenceText(body.locator, 160),
+    normalizeReferenceText(body.originalName ?? body.original_name, 180),
+    normalizeReferenceText(body.correctedName ?? body.corrected_name, 180),
+    normalizeReferenceText(body.originalTaxonName ?? body.original_taxon_name, 180),
+    normalizeReferenceText(body.correctedTaxonName ?? body.corrected_taxon_name, 180),
+    normalizeReferenceText(body.correctionKind ?? body.correction_kind, 80) || "misidentification",
+    officialSourceUrl,
+    officialReference,
+    status,
+    status === "official_confirmed" ? session.userId : null,
+    normalizeReferenceText(body.appliesFrom ?? body.applies_from, 40) || null,
+    JSON.stringify({ source: "cloudflare_reference_correction", policy: "official_metadata_only_no_page_body" })
+  ).run();
+  return json({ ok: true, correctionId }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
+}
+
+async function listReferenceCorrectionsNative(env: Env, sourceId: string): Promise<Response> {
+  const normalizedSourceId = normalizeOptionalId(sourceId);
+  if (!normalizedSourceId) return json({ ok: false, error: "reference_source_id_required" }, 400, { "cache-control": "no-store" });
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT correction_id, source_id, locator, original_name, corrected_name,
+            original_taxon_name, corrected_taxon_name, correction_kind,
+            official_source_url, official_reference, verification_status,
+            verified_by_user_id, applies_from, source_payload_json, created_at, updated_at
+       FROM reference_corrections
+      WHERE source_id = ?
+      ORDER BY verification_status = 'official_confirmed' DESC, created_at DESC
+      LIMIT 40`
+  ).bind(normalizedSourceId).all<ReferenceCorrectionD1Row>()).results;
+  return json({ ok: true, corrections: rows.map(referenceCorrectionPayload) }, 200, { "cache-control": "no-store" });
+}
+
+async function handleReferenceLibraryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  const correctionMatch = pathname.match(/^\/api\/v1\/references\/([^/]+)\/corrections$/);
+  const isReferencePath = pathname === "/api/v1/references"
+    || pathname === "/api/v1/references/capture-batches"
+    || pathname === "/api/v1/references/duplicates/merge"
+    || Boolean(correctionMatch?.[1]);
+  if (!isReferencePath) return null;
+
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+
+  if (pathname === "/api/v1/references" && request.method === "GET") {
+    return listReferenceLibraryNative(env, session, url);
+  }
+  if (pathname === "/api/v1/references/capture-batches" && request.method === "POST") {
+    return createReferenceCaptureBatchNative(env, session, request);
+  }
+  if (pathname === "/api/v1/references/duplicates/merge" && request.method === "POST") {
+    return mergeReferenceDuplicateNative(env, session, request);
+  }
+  if (correctionMatch?.[1] && request.method === "GET") {
+    return listReferenceCorrectionsNative(env, decodeURIComponent(correctionMatch[1]));
+  }
+  if (correctionMatch?.[1] && request.method === "POST") {
+    return createReferenceCorrectionNative(env, session, decodeURIComponent(correctionMatch[1]), request);
+  }
+  return json({ ok: false, error: "method_not_allowed" }, 405, { "cache-control": "no-store" });
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
@@ -4364,12 +4912,58 @@ async function listCompatibleReferenceCandidates(occurrenceId: string, request: 
     return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
   }
 
+  const proposedName = normalizeReferenceText(new URL(request.url).searchParams.get("proposedName"), 120).toLowerCase();
+  const limit = Math.min(12, Math.max(1, integerOrNull(new URL(request.url).searchParams.get("limit")) ?? 8));
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT rs.source_id, rs.title, rs.author_text, rs.publisher, rs.publication_year,
+            rs.isbn, rs.doi, rs.url, rs.source_kind, rs.catalog_status,
+            rs.taxon_labels_json, rs.commerce_links_json, rs.created_by_user_id,
+            rs.source_payload_json, rs.created_at, rs.updated_at,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM reference_access_proofs p
+               WHERE p.source_id = rs.source_id AND p.user_id = ?
+                 AND p.verification_status IN ('ai_verified', 'user_confirmed', 'reviewer_confirmed')
+            ) THEN 'owned_verified' ELSE 'not_owned' END AS owned_status,
+            (SELECT COUNT(*) FROM reference_identification_selections sel
+              WHERE sel.source_id = rs.source_id AND sel.selected_by_user_id = ?) AS used_count
+       FROM reference_sources rs
+      WHERE rs.catalog_status NOT IN ('withdrawn', 'duplicate')
+      ORDER BY rs.updated_at DESC
+      LIMIT ?`
+  ).bind(session.userId, session.userId, limit).all<ReferenceSourceD1Row>()).results;
+  const candidates = rows
+    .map((row) => {
+      const labels = jsonArray(row.taxon_labels_json).map((item) => normalizeReferenceText(item, 120)).filter(Boolean);
+      const matched = proposedName ? labels.some((label) => label.toLowerCase().includes(proposedName) || proposedName.includes(label.toLowerCase())) : false;
+      return {
+        sourceId: row.source_id,
+        title: row.title,
+        authorText: row.author_text,
+        publisher: row.publisher,
+        publicationYear: row.publication_year,
+        isbn: row.isbn,
+        taxonLabels: labels,
+        owned: row.owned_status === "owned_verified",
+        verificationStatus: row.owned_status ?? "not_owned",
+        linkType: matched ? "user_confirmed" : "catalog",
+        usedCount: Number(row.used_count ?? 0),
+        reason: row.owned_status === "owned_verified"
+          ? "自分の所有確認済み資料"
+          : matched
+            ? "共有カタログで分類群一致"
+            : "共有カタログ候補",
+      };
+    })
+    .filter((candidate) => !proposedName || candidate.taxonLabels.length === 0 || candidate.taxonLabels.some((label) => label.toLowerCase().includes(proposedName) || proposedName.includes(label.toLowerCase())))
+    .slice(0, limit);
+
   return json({
     ok: true,
-    candidates: [],
-    source: "cloudflare_reference_candidates_empty",
-    referenceCatalogStatus: "not_migrated"
-  }, 200, { "cache-control": "no-store" });
+    candidates,
+    source: "cloudflare_reference_library_runtime",
+    referenceCatalogStatus: "d1_native",
+    occurrenceId: normalizedOccurrenceId,
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "reference-library-runtime" });
 }
 
 async function confirmCompatibleManagementCandidate(observationId: string, index: string, request: Request, env: Env): Promise<Response> {
@@ -5652,6 +6246,588 @@ function isIdentificationSpecialistRole(session: SessionSnapshot): boolean {
     || /管理|運営|分析|責任者|専門|有識者|レビュ/.test(roleText);
 }
 
+function isSpecialistAuthorityAdminRole(session: SessionSnapshot): boolean {
+  const roleText = `${session.roleName ?? ""} ${session.rankLabel ?? ""}`.toLowerCase();
+  return /\b(admin|administrator|analyst|owner|manager)\b/.test(roleText)
+    || /管理|運営|分析|責任者/.test(roleText);
+}
+
+type SpecialistAuthorityEvidenceInput = {
+  evidenceType?: unknown;
+  title?: unknown;
+  issuerName?: unknown;
+  url?: unknown;
+  notes?: unknown;
+  sourcePayload?: unknown;
+};
+
+type SpecialistAuthorityEvidenceRow = {
+  evidence_id: string;
+  authority_id?: string;
+  recommendation_id?: string;
+  evidence_type: string;
+  title: string;
+  issuer_name: string | null;
+  url: string | null;
+  notes: string | null;
+  source_payload_json: string | null;
+  created_at: string;
+};
+
+type SpecialistAuthorityRow = {
+  authority_id: string;
+  subject_user_id: string;
+  granted_by_user_id: string | null;
+  status: string;
+  authority_kind: string;
+  scope_taxon_name: string;
+  scope_taxon_rank: string | null;
+  scope_taxon_key: string | null;
+  scope_json: string | null;
+  granted_at: string;
+  revoked_at: string | null;
+  expires_at: string | null;
+  reason: string | null;
+  source_payload_json: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type AuthorityRecommendationRow = {
+  recommendation_id: string;
+  subject_user_id: string;
+  source_kind: string;
+  status: string;
+  scope_taxon_name: string;
+  scope_taxon_rank: string | null;
+  scope_taxon_key: string | null;
+  recommended_by_user_id: string | null;
+  granted_authority_id: string | null;
+  resolution_note: string | null;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  source_payload_json: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const SPECIALIST_AUTHORITY_EVIDENCE_TYPES = new Set(["field_event", "webinar", "literature", "reference_owned", "other"]);
+
+async function withCompatibleSpecialistAuthorityError(fn: () => Promise<Response>): Promise<Response> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return json({ ok: false, error: error.message }, error.status, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+    }
+    return json({ ok: false, error: error instanceof Error ? error.message : "specialist_authority_runtime_failed" }, 500, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+  }
+}
+
+function normalizeSpecialistAuthorityEvidence(input: SpecialistAuthorityEvidenceInput): {
+  evidenceType: string;
+  title: string;
+  issuerName: string | null;
+  url: string | null;
+  notes: string | null;
+  sourcePayload: Record<string, unknown>;
+} {
+  const evidenceType = normalizeOptionalText(input.evidenceType) ?? "";
+  if (!SPECIALIST_AUTHORITY_EVIDENCE_TYPES.has(evidenceType)) throw new HttpError(400, "unsupported_evidence_type");
+  const title = normalizeOptionalText(input.title);
+  if (!title) throw new HttpError(400, "authority_evidence_title_required");
+  return {
+    evidenceType,
+    title,
+    issuerName: normalizeOptionalText(input.issuerName),
+    url: normalizeOptionalText(input.url),
+    notes: normalizeOptionalText(input.notes),
+    sourcePayload: asPlainObject(input.sourcePayload) ?? {}
+  };
+}
+
+function authorityEvidencePayload(row: SpecialistAuthorityEvidenceRow) {
+  return {
+    evidenceId: row.evidence_id,
+    evidenceType: row.evidence_type,
+    title: row.title,
+    issuerName: row.issuer_name,
+    url: row.url,
+    notes: row.notes,
+    sourcePayload: jsonObject(row.source_payload_json ?? "{}"),
+    createdAt: row.created_at
+  };
+}
+
+async function listSpecialistAuthorityEvidence(env: Env, authorityIds: string[]): Promise<Map<string, ReturnType<typeof authorityEvidencePayload>[]>> {
+  const out = new Map<string, ReturnType<typeof authorityEvidencePayload>[]>();
+  if (authorityIds.length === 0) return out;
+  const rows = await env.OBS_DB.prepare(
+    `SELECT evidence_id, authority_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       FROM specialist_authority_evidence
+      ORDER BY created_at DESC`
+  ).all<SpecialistAuthorityEvidenceRow>();
+  const wanted = new Set(authorityIds);
+  for (const row of rows.results) {
+    const authorityId = row.authority_id ?? "";
+    if (!wanted.has(authorityId)) continue;
+    const list = out.get(authorityId) ?? [];
+    list.push(authorityEvidencePayload(row));
+    out.set(authorityId, list);
+  }
+  return out;
+}
+
+function specialistAuthoritySnapshot(row: SpecialistAuthorityRow, evidence: ReturnType<typeof authorityEvidencePayload>[] = []) {
+  return {
+    authorityId: row.authority_id,
+    authorityKind: "taxon_identification",
+    scopeTaxonName: row.scope_taxon_name,
+    scopeTaxonRank: row.scope_taxon_rank,
+    scopeTaxonKey: row.scope_taxon_key,
+    scopeJson: jsonObject(row.scope_json ?? "{}"),
+    grantedAt: row.granted_at,
+    expiresAt: row.expires_at,
+    reason: row.reason,
+    evidence: evidence.map((entry) => ({
+      evidenceId: entry.evidenceId,
+      evidenceType: entry.evidenceType,
+      title: entry.title,
+      issuerName: entry.issuerName,
+      url: entry.url
+    }))
+  };
+}
+
+function specialistAuthorityPayload(row: SpecialistAuthorityRow, evidence: ReturnType<typeof authorityEvidencePayload>[] = []) {
+  return {
+    ...specialistAuthoritySnapshot(row, evidence),
+    subjectUserId: row.subject_user_id,
+    grantedByUserId: row.granted_by_user_id,
+    status: row.status,
+    revokedAt: row.revoked_at,
+    sourcePayload: jsonObject(row.source_payload_json ?? "{}")
+  };
+}
+
+async function getActiveSpecialistAuthoritiesForUser(env: Env, userId: string): Promise<SpecialistAuthorityRow[]> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind,
+            scope_taxon_name, scope_taxon_rank, scope_taxon_key, scope_json,
+            granted_at, revoked_at, expires_at, reason, source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE subject_user_id = ? AND status = 'active'
+      ORDER BY granted_at DESC`
+  ).bind(userId).all<SpecialistAuthorityRow>();
+  return rows.results;
+}
+
+async function getActiveSpecialistAuthorityForScope(env: Env, input: {
+  subjectUserId: string;
+  scopeTaxonName: string;
+  scopeTaxonRank: string | null;
+  scopeTaxonKey: string | null;
+}): Promise<SpecialistAuthorityRow | null> {
+  return await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind,
+            scope_taxon_name, scope_taxon_rank, scope_taxon_key, scope_json,
+            granted_at, revoked_at, expires_at, reason, source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE subject_user_id = ?
+        AND status = 'active'
+        AND authority_kind = 'taxon_identification'
+        AND lower(scope_taxon_name) = lower(?)
+        AND coalesce(scope_taxon_rank, '') = coalesce(?, '')
+        AND coalesce(scope_taxon_key, '') = coalesce(?, '')
+      LIMIT 1`
+  ).bind(input.subjectUserId, input.scopeTaxonName, input.scopeTaxonRank, input.scopeTaxonKey).first<SpecialistAuthorityRow>();
+}
+
+function authorityScopeMatches(row: SpecialistAuthorityRow, candidates: Array<string | null | undefined>): boolean {
+  const scopeName = normalizeOptionalText(row.scope_taxon_name)?.toLowerCase() ?? "";
+  const scopeKey = normalizeOptionalText(row.scope_taxon_key)?.toLowerCase() ?? "";
+  return candidates
+    .map((value) => normalizeOptionalText(value)?.toLowerCase() ?? "")
+    .filter(Boolean)
+    .some((candidate) => candidate === scopeName || candidate === scopeKey || candidate.includes(scopeName) || scopeName.includes(candidate));
+}
+
+async function requireCompatibleSpecialistSession(request: Request, env: Env): Promise<SessionSnapshot> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) throw new HttpError(401, "session_required");
+  if (session.banned) throw new HttpError(403, "account_unavailable");
+  if (!isIdentificationSpecialistRole(session)) throw new HttpError(403, "specialist_role_required");
+  return session;
+}
+
+async function requireCompatibleSpecialistAdminSession(request: Request, env: Env): Promise<SessionSnapshot> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) throw new HttpError(401, "session_required");
+  if (session.banned) throw new HttpError(403, "account_unavailable");
+  if (!isSpecialistAuthorityAdminRole(session)) throw new HttpError(403, "specialist_admin_required");
+  return session;
+}
+
+async function listCompatibleSpecialistAuthorities(request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistSession(request, env).catch((error) => { throw error; });
+  const authorities = await getActiveSpecialistAuthoritiesForUser(env, session.userId);
+  const evidence = await listSpecialistAuthorityEvidence(env, authorities.map((row) => row.authority_id));
+  return json({
+    ok: true,
+    globalRole: isSpecialistAuthorityAdminRole(session) ? "admin" : "specialist",
+    hasSpecialistAccess: true,
+    authorities: authorities.map((row) => specialistAuthoritySnapshot(row, evidence.get(row.authority_id) ?? [])),
+    compatibility: { source: "cloudflare_specialist_authority_runtime" }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+function authorityRecommendationPayload(row: AuthorityRecommendationRow, evidence: ReturnType<typeof authorityEvidencePayload>[] = []) {
+  return {
+    recommendationId: row.recommendation_id,
+    subjectUserId: row.subject_user_id,
+    subjectDisplayName: null,
+    sourceKind: row.source_kind,
+    status: row.status,
+    scopeTaxonName: row.scope_taxon_name,
+    scopeTaxonRank: row.scope_taxon_rank,
+    scopeTaxonKey: row.scope_taxon_key,
+    recommendedByUserId: row.recommended_by_user_id,
+    recommendedByDisplayName: null,
+    grantedAuthorityId: row.granted_authority_id,
+    resolutionNote: row.resolution_note,
+    resolvedByUserId: row.resolved_by_user_id,
+    resolvedByDisplayName: null,
+    resolvedAt: row.resolved_at,
+    sourcePayload: jsonObject(row.source_payload_json ?? "{}"),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    evidence
+  };
+}
+
+async function listAuthorityRecommendationEvidence(env: Env, recommendationIds: string[]): Promise<Map<string, ReturnType<typeof authorityEvidencePayload>[]>> {
+  const out = new Map<string, ReturnType<typeof authorityEvidencePayload>[]>();
+  if (recommendationIds.length === 0) return out;
+  const rows = await env.OBS_DB.prepare(
+    `SELECT evidence_id, recommendation_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       FROM authority_recommendation_evidence
+      ORDER BY created_at DESC`
+  ).all<SpecialistAuthorityEvidenceRow>();
+  const wanted = new Set(recommendationIds);
+  for (const row of rows.results) {
+    const recommendationId = row.recommendation_id ?? "";
+    if (!wanted.has(recommendationId)) continue;
+    const list = out.get(recommendationId) ?? [];
+    list.push(authorityEvidencePayload(row));
+    out.set(recommendationId, list);
+  }
+  return out;
+}
+
+async function listCompatibleAuthorityRecommendationsMe(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  const rows = await env.OBS_DB.prepare(
+    `SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+            scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+            resolved_at, source_payload_json, created_at, updated_at
+       FROM authority_recommendations
+      WHERE subject_user_id = ?
+      ORDER BY created_at DESC`
+  ).bind(session.userId).all<AuthorityRecommendationRow>();
+  const evidence = await listAuthorityRecommendationEvidence(env, rows.results.map((row) => row.recommendation_id));
+  return json({ ok: true, recommendations: rows.results.map((row) => authorityRecommendationPayload(row, evidence.get(row.recommendation_id) ?? [])) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function listCompatiblePendingAuthorityRecommendations(request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistSession(request, env);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+            scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+            resolved_at, source_payload_json, created_at, updated_at
+       FROM authority_recommendations
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+      LIMIT 100`
+  ).all<AuthorityRecommendationRow>();
+  const activeAuthorities = await getActiveSpecialistAuthoritiesForUser(env, session.userId);
+  const visible = isSpecialistAuthorityAdminRole(session)
+    ? rows.results
+    : rows.results.filter((row) => activeAuthorities.some((authority) => authorityScopeMatches(authority, [row.scope_taxon_name, row.scope_taxon_key])));
+  const evidence = await listAuthorityRecommendationEvidence(env, visible.map((row) => row.recommendation_id));
+  return json({ ok: true, recommendations: visible.map((row) => authorityRecommendationPayload(row, evidence.get(row.recommendation_id) ?? [])) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function listCompatibleSpecialistAuthorityAudit(request: Request, env: Env): Promise<Response> {
+  await requireCompatibleSpecialistAdminSession(request, env);
+  const rows = await env.OBS_DB.prepare(
+    `SELECT audit_id, authority_id, actor_user_id, action, payload_json, created_at
+       FROM specialist_authority_audit
+      ORDER BY created_at DESC
+      LIMIT 100`
+  ).all<{ audit_id: string; authority_id: string | null; actor_user_id: string | null; action: string; payload_json: string | null; created_at: string }>();
+  return json({
+    ok: true,
+    audit: rows.results.map((row) => ({
+      auditId: row.audit_id,
+      authorityId: row.authority_id,
+      action: row.action,
+      createdAt: row.created_at,
+      actorUserId: row.actor_user_id,
+      payload: jsonObject(row.payload_json ?? "{}")
+    }))
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function createCompatibleAuthorityRecommendation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ ok: false, error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const sourceKind = normalizeOptionalText(body.sourceKind) ?? "self_claim";
+  const subjectUserId = normalizeOptionalText(body.subjectUserId) ?? session.userId;
+  if (sourceKind === "ops_registered") {
+    if (!isSpecialistAuthorityAdminRole(session)) return json({ ok: false, error: "specialist_admin_required" }, 403, { "cache-control": "no-store" });
+  } else if (sourceKind !== "self_claim" || subjectUserId !== session.userId) {
+    return json({ ok: false, error: "forbidden_recommendation_subject" }, 403, { "cache-control": "no-store" });
+  }
+  const scopeTaxonName = normalizeOptionalText(body.scopeTaxonName);
+  if (!scopeTaxonName) return json({ ok: false, error: "scope_taxon_name_required" }, 400, { "cache-control": "no-store" });
+  const recommendationId = newId("authority_rec");
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `INSERT INTO authority_recommendations (
+       recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+       scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+       resolved_at, source_payload_json, created_at, updated_at
+     ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)`
+  ).bind(
+    recommendationId,
+    subjectUserId,
+    sourceKind,
+    scopeTaxonName,
+    normalizeOptionalText(body.scopeTaxonRank),
+    normalizeOptionalText(body.scopeTaxonKey),
+    session.userId,
+    JSON.stringify({ source: "cloudflare_specialist_authority_runtime", ...(asPlainObject(body.sourcePayload) ?? {}) }),
+    now,
+    now
+  ).run();
+  const evidenceInputs = Array.isArray(body.evidence) ? body.evidence.slice(0, 8) : [];
+  for (const raw of evidenceInputs) {
+    const evidence = normalizeSpecialistAuthorityEvidence(asPlainObject(raw) ?? {});
+    await env.OBS_DB.prepare(
+      `INSERT INTO authority_recommendation_evidence (
+         evidence_id, recommendation_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(newId("authority_rec_ev"), recommendationId, evidence.evidenceType, evidence.title, evidence.issuerName, evidence.url, evidence.notes, JSON.stringify(evidence.sourcePayload), now).run();
+  }
+  await env.OBS_DB.prepare(
+    `INSERT INTO authority_recommendation_audit (audit_id, recommendation_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'create', ?, ?)`
+  ).bind(newId("authority_rec_audit"), recommendationId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime" }), now).run();
+  const row = await getAuthorityRecommendationRow(env, recommendationId);
+  const evidence = await listAuthorityRecommendationEvidence(env, [recommendationId]);
+  return json({ ok: true, recommendation: authorityRecommendationPayload(row!, evidence.get(recommendationId) ?? []) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function getAuthorityRecommendationRow(env: Env, recommendationId: string): Promise<AuthorityRecommendationRow | null> {
+  return await env.OBS_DB.prepare(
+    `SELECT recommendation_id, subject_user_id, source_kind, status, scope_taxon_name, scope_taxon_rank,
+            scope_taxon_key, recommended_by_user_id, granted_authority_id, resolution_note, resolved_by_user_id,
+            resolved_at, source_payload_json, created_at, updated_at
+       FROM authority_recommendations
+      WHERE recommendation_id = ?`
+  ).bind(recommendationId).first<AuthorityRecommendationRow>();
+}
+
+async function grantCompatibleSpecialistAuthority(request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const subjectUserId = normalizeOptionalText(body.subjectUserId);
+  const scopeTaxonName = normalizeOptionalText(body.scopeTaxonName);
+  if (!subjectUserId || !scopeTaxonName) return json({ ok: false, error: "specialist_authority_input_required" }, 400, { "cache-control": "no-store" });
+  const authority = await insertCompatibleSpecialistAuthority(env, {
+    subjectUserId,
+    grantedByUserId: session.userId,
+    scopeTaxonName,
+    scopeTaxonRank: normalizeOptionalText(body.scopeTaxonRank),
+    scopeTaxonKey: normalizeOptionalText(body.scopeTaxonKey),
+    reason: normalizeOptionalText(body.reason),
+    sourcePayload: { source: "cloudflare_specialist_authority_runtime" },
+    evidence: Array.isArray(body.evidence) ? body.evidence : []
+  });
+  return json({ ok: true, authority }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function insertCompatibleSpecialistAuthority(env: Env, input: {
+  subjectUserId: string;
+  grantedByUserId: string | null;
+  scopeTaxonName: string;
+  scopeTaxonRank: string | null;
+  scopeTaxonKey: string | null;
+  reason: string | null;
+  sourcePayload: Record<string, unknown>;
+  evidence: unknown[];
+}): Promise<ReturnType<typeof specialistAuthorityPayload>> {
+  const now = new Date().toISOString();
+  const existing = await getActiveSpecialistAuthorityForScope(env, {
+    subjectUserId: input.subjectUserId,
+    scopeTaxonName: input.scopeTaxonName,
+    scopeTaxonRank: input.scopeTaxonRank,
+    scopeTaxonKey: input.scopeTaxonKey
+  });
+  if (existing) {
+    const evidence = await listSpecialistAuthorityEvidence(env, [existing.authority_id]);
+    return specialistAuthorityPayload(existing, evidence.get(existing.authority_id) ?? []);
+  }
+  const authorityId = newId("authority");
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authorities (
+       authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+       scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+       source_payload_json, created_at, updated_at
+     ) VALUES (?, ?, ?, 'active', 'taxon_identification', ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)`
+  ).bind(
+    authorityId,
+    input.subjectUserId,
+    input.grantedByUserId,
+    input.scopeTaxonName,
+    input.scopeTaxonRank,
+    input.scopeTaxonKey,
+    JSON.stringify({ source: "cloudflare_specialist_authority_runtime" }),
+    now,
+    input.reason,
+    JSON.stringify(input.sourcePayload),
+    now,
+    now
+  ).run();
+  for (const raw of input.evidence.slice(0, 8)) {
+    const evidence = normalizeSpecialistAuthorityEvidence(asPlainObject(raw) ?? {});
+    await env.OBS_DB.prepare(
+      `INSERT INTO specialist_authority_evidence (
+         evidence_id, authority_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(newId("authority_ev"), authorityId, evidence.evidenceType, evidence.title, evidence.issuerName, evidence.url, evidence.notes, JSON.stringify(evidence.sourcePayload), now).run();
+  }
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_audit (audit_id, authority_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'grant', ?, ?)`
+  ).bind(newId("authority_audit"), authorityId, input.grantedByUserId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime", subjectUserId: input.subjectUserId }), now).run();
+  const row = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+            scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+            source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE authority_id = ?`
+  ).bind(authorityId).first<SpecialistAuthorityRow>();
+  const evidence = await listSpecialistAuthorityEvidence(env, [authorityId]);
+  return specialistAuthorityPayload(row!, evidence.get(authorityId) ?? []);
+}
+
+async function grantCompatibleAuthorityRecommendation(recommendationId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const row = await getAuthorityRecommendationRow(env, recommendationId);
+  if (!row) return json({ ok: false, error: "authority_recommendation_not_found" }, 404, { "cache-control": "no-store" });
+  if (row.status !== "pending") return json({ ok: false, error: "authority_recommendation_not_pending" }, 409, { "cache-control": "no-store" });
+  const authorities = await getActiveSpecialistAuthoritiesForUser(env, session.userId);
+  if (!isSpecialistAuthorityAdminRole(session) && !authorities.some((authority) => authorityScopeMatches(authority, [row.scope_taxon_name, row.scope_taxon_key]))) {
+    return json({ ok: false, error: "specialist_authority_required" }, 403, { "cache-control": "no-store" });
+  }
+  const authority = await insertCompatibleSpecialistAuthority(env, {
+    subjectUserId: row.subject_user_id,
+    grantedByUserId: session.userId,
+    scopeTaxonName: row.scope_taxon_name,
+    scopeTaxonRank: row.scope_taxon_rank,
+    scopeTaxonKey: row.scope_taxon_key,
+    reason: normalizeOptionalText(body.resolutionNote),
+    sourcePayload: { source: "cloudflare_authority_recommendation_grant", recommendationId },
+    evidence: []
+  });
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `UPDATE authority_recommendations
+        SET status = 'granted', granted_authority_id = ?, resolution_note = ?, resolved_by_user_id = ?,
+            resolved_at = ?, updated_at = ?
+      WHERE recommendation_id = ?`
+  ).bind(authority.authorityId, normalizeOptionalText(body.resolutionNote), session.userId, now, now, recommendationId).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO authority_recommendation_audit (audit_id, recommendation_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'grant', ?, ?)`
+  ).bind(newId("authority_rec_audit"), recommendationId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime", authorityId: authority.authorityId }), now).run();
+  const updated = await getAuthorityRecommendationRow(env, recommendationId);
+  const evidence = await listAuthorityRecommendationEvidence(env, [recommendationId]);
+  return json({ ok: true, recommendation: authorityRecommendationPayload(updated!, evidence.get(recommendationId) ?? []), authority }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function rejectCompatibleAuthorityRecommendation(recommendationId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const row = await getAuthorityRecommendationRow(env, recommendationId);
+  if (!row) return json({ ok: false, error: "authority_recommendation_not_found" }, 404, { "cache-control": "no-store" });
+  if (row.status !== "pending") return json({ ok: false, error: "authority_recommendation_not_pending" }, 409, { "cache-control": "no-store" });
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `UPDATE authority_recommendations
+        SET status = 'rejected', resolution_note = ?, resolved_by_user_id = ?, resolved_at = ?, updated_at = ?
+      WHERE recommendation_id = ?`
+  ).bind(normalizeOptionalText(body.resolutionNote) ?? "", session.userId, now, now, recommendationId).run();
+  const updated = await getAuthorityRecommendationRow(env, recommendationId);
+  return json({ ok: true, recommendation: authorityRecommendationPayload(updated!) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function revokeCompatibleSpecialistAuthority(authorityId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `UPDATE specialist_authorities
+        SET status = 'revoked', revoked_at = ?, reason = ?, updated_at = ?
+      WHERE authority_id = ? AND status = 'active'`
+  ).bind(now, normalizeOptionalText(body.reason) ?? "revoked", now, authorityId).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_audit (audit_id, authority_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'revoke', ?, ?)`
+  ).bind(newId("authority_audit"), authorityId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime" }), now).run();
+  const row = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+            scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+            source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE authority_id = ?`
+  ).bind(authorityId).first<SpecialistAuthorityRow>();
+  if (!row) return json({ ok: false, error: "specialist_authority_not_found_or_revoked" }, 404, { "cache-control": "no-store" });
+  return json({ ok: true, authority: specialistAuthorityPayload(row) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
+async function addCompatibleSpecialistAuthorityEvidence(authorityId: string, request: Request, env: Env): Promise<Response> {
+  const session = await requireCompatibleSpecialistAdminSession(request, env);
+  const body = await readJson<SpecialistAuthorityEvidenceInput>(request);
+  const evidence = normalizeSpecialistAuthorityEvidence(body);
+  const now = new Date().toISOString();
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_evidence (
+       evidence_id, authority_id, evidence_type, title, issuer_name, url, notes, source_payload_json, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(newId("authority_ev"), authorityId, evidence.evidenceType, evidence.title, evidence.issuerName, evidence.url, evidence.notes, JSON.stringify(evidence.sourcePayload), now).run();
+  await env.OBS_DB.prepare(
+    `INSERT INTO specialist_authority_audit (audit_id, authority_id, actor_user_id, action, payload_json, created_at)
+     VALUES (?, ?, ?, 'update', ?, ?)`
+  ).bind(newId("authority_audit"), authorityId, session.userId, JSON.stringify({ source: "cloudflare_specialist_authority_runtime", evidenceAdded: true }), now).run();
+  const row = await env.OBS_DB.prepare(
+    `SELECT authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name,
+            scope_taxon_rank, scope_taxon_key, scope_json, granted_at, revoked_at, expires_at, reason,
+            source_payload_json, created_at, updated_at
+       FROM specialist_authorities
+      WHERE authority_id = ?`
+  ).bind(authorityId).first<SpecialistAuthorityRow>();
+  if (!row) return json({ ok: false, error: "specialist_authority_not_found" }, 404, { "cache-control": "no-store" });
+  const allEvidence = await listSpecialistAuthorityEvidence(env, [authorityId]);
+  return json({ ok: true, authority: specialistAuthorityPayload(row, allEvidence.get(authorityId) ?? []) }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "specialist-authority-runtime" });
+}
+
 async function resolveCompatibleIdentificationDispute(disputeId: string, request: Request, env: Env): Promise<Response> {
   const normalizedDisputeId = normalizeOptionalId(disputeId);
   if (!normalizedDisputeId || normalizedDisputeId.length > 160) {
@@ -6514,6 +7690,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/occurrences\/[^/]+\/(?:origin|observed-at|location|environment-field|environment-record)$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/specialist\/occurrences\/[^/]+\/review$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/specialist\/disputes\/[^/]+\/resolve$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observation-records\/[^/]+\/ai-review$/.test(url.pathname)) return true;
@@ -6789,6 +7966,290 @@ async function drainAlertDeliveries(
     }
   }
   return { configured: true, scanned: pending.results.length, sent, failed, suppressed, deferred };
+}
+
+type SentinelEnvironmentMetricKind = "ndvi_mean" | "ndvi_max" | "water_pct";
+
+interface SentinelEnvironmentTargetRow {
+  field_id: string;
+  public_lat: number;
+  public_lng: number;
+  radius_m: number | null;
+}
+
+interface SentinelEnvironmentScene {
+  observedOn: string;
+  ndviMean: number | null;
+  ndviMax: number | null;
+  ndwiMean: number | null;
+  cloudPct: number;
+  itemId: string;
+  collection: string;
+  sourceUrl: string;
+  rawAssetHref: string;
+}
+
+interface SentinelEnvironmentMetric {
+  kind: SentinelEnvironmentMetricKind;
+  value: number;
+  unit: string;
+  metadata: Record<string, unknown>;
+}
+
+async function internalSentinelEnvironmentRun(url: URL, env: Env): Promise<Response> {
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? env.SENTINEL_ENVIRONMENT_BATCH_SIZE ?? "25"), 1, 100);
+  const daysBack = clampInteger(Number(url.searchParams.get("daysBack") ?? env.SENTINEL_ENVIRONMENT_DAYS_BACK ?? "14"), 1, 120);
+  const dryRun = url.searchParams.get("dryRun") === "1";
+  const result = await runSentinelEnvironmentSnapshots(env, { source: "manual", limit, daysBack, dryRun });
+  return json({ ok: true, ...result }, 200, { "cache-control": "no-store" });
+}
+
+async function runScheduledSentinelEnvironmentSnapshots(env: Env): Promise<void> {
+  if (!isAppRuntime(env)) return;
+  await runSentinelEnvironmentSnapshots(env, {
+    source: "cron",
+    limit: clampInteger(Number(env.SENTINEL_ENVIRONMENT_BATCH_SIZE ?? "25"), 1, 100),
+    daysBack: clampInteger(Number(env.SENTINEL_ENVIRONMENT_DAYS_BACK ?? "14"), 1, 120),
+    dryRun: false
+  }).catch((err) => console.error("[sentinel-environment] scheduled tick failed", err));
+}
+
+async function runSentinelEnvironmentSnapshots(
+  env: Env,
+  options: { source: "cron" | "manual"; limit: number; daysBack: number; dryRun: boolean }
+): Promise<{ configured: boolean; scanned: number; written: number; missed: number; failed: number; skipped: number; source: string }> {
+  if (env.MPC_DISABLED === "1") {
+    return { configured: false, scanned: 0, written: 0, missed: 0, failed: 0, skipped: 0, source: options.source };
+  }
+  const targets = await env.OBS_DB.prepare(
+    `SELECT field_id, public_lat, public_lng, radius_m
+       FROM production_import_field_detail_readmodel
+      WHERE public_lat IS NOT NULL AND public_lng IS NOT NULL
+      ORDER BY updated_at DESC
+      LIMIT ?`
+  ).bind(options.limit).all<SentinelEnvironmentTargetRow>();
+  let written = 0;
+  let missed = 0;
+  let failed = 0;
+  let skipped = 0;
+  if (options.dryRun) {
+    return { configured: true, scanned: targets.results.length, written, missed, failed, skipped, source: options.source };
+  }
+  for (const target of targets.results) {
+    const scene = await fetchSentinelEnvironmentScene(env, Number(target.public_lat), Number(target.public_lng), Number(target.radius_m ?? 500), {
+      daysBack: options.daysBack,
+      maxCloud: clampInteger(Number(env.SENTINEL_ENVIRONMENT_MAX_CLOUD ?? "30"), 0, 100)
+    }).catch((err) => {
+      console.error("[sentinel-environment] scene fetch failed", { fieldId: target.field_id, error: err instanceof Error ? err.message : String(err) });
+      return null;
+    });
+    if (!scene) {
+      missed += 1;
+      continue;
+    }
+    const result = await writeD1PlaceEnvironmentSnapshot(env, {
+      placeId: target.field_id,
+      observedOn: scene.observedOn,
+      sourceKind: "planetary_computer",
+      sourceUrl: scene.sourceUrl,
+      contentBytes: Math.max(1, scene.rawAssetHref.length),
+      license: "CC-BY-4.0 (Sentinel-2 / Copernicus)",
+      notes: { item_id: scene.itemId, asset_href: scene.rawAssetHref, cloud_pct: scene.cloudPct, collection: scene.collection },
+      metrics: metricsFromSentinelEnvironmentScene(scene)
+    }).catch((err) => {
+      console.error("[sentinel-environment] D1 write failed", { fieldId: target.field_id, error: err instanceof Error ? err.message : String(err) });
+      failed += 1;
+      return null;
+    });
+    if (!result) continue;
+    written += result.inserted + result.superseded;
+    skipped += result.skipped;
+  }
+  return { configured: true, scanned: targets.results.length, written, missed, failed, skipped, source: options.source };
+}
+
+function metricsFromSentinelEnvironmentScene(scene: SentinelEnvironmentScene): SentinelEnvironmentMetric[] {
+  const metrics: SentinelEnvironmentMetric[] = [];
+  if (typeof scene.ndviMean === "number") {
+    metrics.push({ kind: "ndvi_mean", value: scene.ndviMean, unit: "index", metadata: { item_id: scene.itemId, cloud_pct: scene.cloudPct } });
+  }
+  if (typeof scene.ndviMax === "number") {
+    metrics.push({ kind: "ndvi_max", value: scene.ndviMax, unit: "index", metadata: { item_id: scene.itemId, cloud_pct: scene.cloudPct } });
+  }
+  if (typeof scene.ndwiMean === "number") {
+    metrics.push({
+      kind: "water_pct",
+      value: Math.max(0, Math.min(100, Math.round(((scene.ndwiMean + 1) / 2) * 100))),
+      unit: "%",
+      metadata: { ndwi_mean: scene.ndwiMean, item_id: scene.itemId }
+    });
+  }
+  if (metrics.length === 0) {
+    metrics.push({ kind: "ndvi_mean", value: 0, unit: "index", metadata: { pending_stats: true, item_id: scene.itemId } });
+  }
+  return metrics;
+}
+
+async function writeD1PlaceEnvironmentSnapshot(
+  env: Env,
+  input: {
+    placeId: string;
+    observedOn: string;
+    sourceKind: string;
+    sourceUrl: string;
+    contentBytes: number;
+    license: string;
+    notes: Record<string, unknown>;
+    metrics: SentinelEnvironmentMetric[];
+  }
+): Promise<{ inserted: number; superseded: number; skipped: number }> {
+  let inserted = 0;
+  let superseded = 0;
+  let skipped = 0;
+  if (!input.placeId || input.metrics.length === 0) return { inserted, superseded, skipped };
+  const sourceSnapshotId = await upsertD1SourceSnapshot(env, input);
+  for (const metric of input.metrics) {
+    const current = await env.OBS_DB.prepare(
+      `SELECT snapshot_id, valid_from
+         FROM place_environment_snapshots
+        WHERE place_id = ? AND metric_kind = ? AND valid_to IS NULL
+        LIMIT 1`
+    ).bind(input.placeId, metric.kind).first<{ snapshot_id: string; valid_from: string }>();
+    if (current?.valid_from === input.observedOn) {
+      skipped += 1;
+      continue;
+    }
+    const snapshotId = newId("env_snapshot");
+    await env.OBS_DB.prepare(
+      `INSERT INTO place_environment_snapshots (
+         snapshot_id, place_id, metric_kind, metric_value, metric_unit,
+         tile_z, tile_x, tile_y, observed_on, source_snapshot_id,
+         valid_from, valid_to, superseded_by, metadata
+       ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, NULL, NULL, ?)`
+    ).bind(snapshotId, input.placeId, metric.kind, metric.value, metric.unit, input.observedOn, sourceSnapshotId, input.observedOn, JSON.stringify(metric.metadata)).run();
+    if (current) {
+      await env.OBS_DB.prepare(
+        "UPDATE place_environment_snapshots SET valid_to = ?, superseded_by = ? WHERE snapshot_id = ?"
+      ).bind(input.observedOn, snapshotId, current.snapshot_id).run();
+      superseded += 1;
+    } else {
+      inserted += 1;
+    }
+  }
+  return { inserted, superseded, skipped };
+}
+
+async function upsertD1SourceSnapshot(
+  env: Env,
+  input: { sourceKind: string; sourceUrl: string; contentBytes: number; license: string; notes: Record<string, unknown> }
+): Promise<string> {
+  const sha = await sha256Hex(new TextEncoder().encode(`${input.sourceKind}\0${input.sourceUrl}\0${input.contentBytes}`).buffer);
+  const existing = await env.OBS_DB.prepare(
+    "SELECT snapshot_id FROM source_snapshots WHERE source_kind = ? AND content_sha256 = ? LIMIT 1"
+  ).bind(input.sourceKind, sha).first<{ snapshot_id: string }>();
+  if (existing?.snapshot_id) return existing.snapshot_id;
+  const snapshotId = newId("source_snapshot");
+  await env.OBS_DB.prepare(
+    `INSERT INTO source_snapshots (
+       snapshot_id, source_kind, source_url, content_sha256, content_bytes,
+       storage_backend, storage_path, license, notes
+     ) VALUES (?, ?, ?, ?, ?, 'cloudflare_d1', ?, ?, ?)`
+  ).bind(snapshotId, input.sourceKind, input.sourceUrl, sha, input.contentBytes, `inline://stac/${sha.slice(0, 12)}`, input.license, JSON.stringify(input.notes)).run();
+  return snapshotId;
+}
+
+function sentinelEnvironmentBbox(lat: number, lng: number, radiusM: number): [number, number, number, number] {
+  const r = Math.max(50, Math.min(20000, radiusM));
+  const dLat = r / 111000;
+  const dLng = r / (111000 * Math.max(0.05, Math.cos((lat * Math.PI) / 180)));
+  return [lng - dLng, lat - dLat, lng + dLng, lat + dLat];
+}
+
+async function fetchSentinelEnvironmentScene(
+  env: Env,
+  lat: number,
+  lng: number,
+  radiusM: number,
+  options: { daysBack: number; maxCloud: number }
+): Promise<SentinelEnvironmentScene | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const bbox = sentinelEnvironmentBbox(lat, lng, radiusM);
+  const stacBase = (env.MPC_STAC_API_URL || "https://planetarycomputer.microsoft.com/api/stac/v1").replace(/\/$/, "");
+  const dataBase = (env.MPC_DATA_API_URL || "https://planetarycomputer.microsoft.com/api/data/v1").replace(/\/$/, "");
+  const since = new Date(Date.now() - options.daysBack * 86_400_000).toISOString().slice(0, 10);
+  const searchResponse = await fetch(`${stacBase}/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      collections: ["sentinel-2-l2a"],
+      bbox,
+      datetime: `${since}/..`,
+      query: { "eo:cloud_cover": { lt: options.maxCloud } },
+      sortby: [{ field: "properties.datetime", direction: "desc" }],
+      limit: 1
+    })
+  });
+  if (!searchResponse.ok) return null;
+  const searchPayload = await searchResponse.json().catch(() => null) as {
+    features?: Array<{
+      id?: unknown;
+      collection?: unknown;
+      properties?: { datetime?: unknown; "eo:cloud_cover"?: unknown };
+      assets?: Record<string, { href?: unknown }>;
+      links?: Array<{ rel?: unknown; href?: unknown }>;
+    }>;
+  } | null;
+  const feature = searchPayload?.features?.[0];
+  const itemId = normalizeOptionalText(feature?.id);
+  if (!feature || !itemId) return null;
+  const collection = normalizeOptionalText(feature.collection) ?? "sentinel-2-l2a";
+  const observedOn = (normalizeOptionalText(feature.properties?.datetime) ?? new Date().toISOString()).slice(0, 10);
+  const sourceUrl = normalizeOptionalText(feature.links?.find((link) => link.rel === "self" && typeof link.href === "string")?.href) ?? `${stacBase}/collections/${collection}/items/${itemId}`;
+  const rawAssetHref = normalizeOptionalText(feature.assets?.visual?.href) ?? normalizeOptionalText(feature.assets?.B04?.href) ?? sourceUrl;
+  const [ndvi, ndwi] = await Promise.all([
+    fetchSentinelExpressionStats(dataBase, collection, itemId, "(B08-B04)/(B08+B04)", bbox),
+    fetchSentinelExpressionStats(dataBase, collection, itemId, "(B03-B08)/(B03+B08)", bbox)
+  ]);
+  return {
+    observedOn,
+    ndviMean: ndvi.mean,
+    ndviMax: ndvi.max,
+    ndwiMean: ndwi.mean,
+    cloudPct: Number(feature.properties?.["eo:cloud_cover"] ?? 0),
+    itemId,
+    collection,
+    sourceUrl,
+    rawAssetHref
+  };
+}
+
+async function fetchSentinelExpressionStats(
+  dataBase: string,
+  collection: string,
+  itemId: string,
+  expression: string,
+  bbox: [number, number, number, number]
+): Promise<{ mean: number | null; max: number | null }> {
+  const [w, s, e, n] = bbox;
+  const params = new URLSearchParams({ collection, item: itemId, expression, asset_as_band: "true" });
+  const response = await fetch(`${dataBase}/item/statistics?${params.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] },
+      properties: {}
+    })
+  });
+  if (!response.ok) return { mean: null, max: null };
+  const payload = await response.json().catch(() => null) as
+    | { properties?: { statistics?: Record<string, { mean?: number; max?: number }> } }
+    | null;
+  const first = Object.values(payload?.properties?.statistics ?? {})[0];
+  return {
+    mean: typeof first?.mean === "number" && Number.isFinite(first.mean) ? first.mean : null,
+    max: typeof first?.max === "number" && Number.isFinite(first.max) ? first.max : null
+  };
 }
 
 function resolveAlertEmailRecipient(row: AlertDeliveryCandidateRow): string | null {
@@ -13023,8 +14484,723 @@ async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env:
   return json({ ok: false, error: "area_snapshot_not_materialized" }, 404, { "cache-control": "no-store" });
 }
 
+const PLACE_MEMORY_GRID_M_NATIVE = 1000;
+const PLACE_MEMORY_TAGS_NATIVE = new Set([
+  "refresh_walk",
+  "walked_with_someone",
+  "first_visit",
+  "looked_for_life",
+  "revisit_compare",
+  "season_change",
+  "unexpected_find",
+  "quiet_moment"
+]);
+
+function cleanPlaceMemoryText(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maxLength) : "";
+}
+
+function normalizePlaceMemoryTagsNative(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const output: string[] = [];
+  for (const item of value) {
+    const tag = normalizeOptionalText(item);
+    if (!tag || !PLACE_MEMORY_TAGS_NATIVE.has(tag) || output.includes(tag)) continue;
+    output.push(tag);
+    if (output.length >= 6) break;
+  }
+  return output;
+}
+
+function normalizePlaceMemoryInputNative(input: unknown): {
+  tags: string[];
+  echoNote: string;
+  privateNote: string;
+  photoEchoEnabled: boolean;
+  shouldPersist: boolean;
+} | null {
+  const record = asPlainObject(input);
+  if (!record) return null;
+  const tags = normalizePlaceMemoryTagsNative(record.tags);
+  const echoNote = cleanPlaceMemoryText(record.echoNote ?? record.echo_note, 80);
+  const privateNote = cleanPlaceMemoryText(record.privateNote ?? record.private_note, 600);
+  const photoEchoEnabled = record.photoEchoEnabled === true || record.photo_echo_enabled === true;
+  return {
+    tags,
+    echoNote,
+    privateNote,
+    photoEchoEnabled,
+    shouldPersist: tags.length > 0 || echoNote !== "" || privateNote !== ""
+  };
+}
+
+function placeMemoryPayload(row: PlaceMemoryEntryRow, viewerUserId: string): Record<string, unknown> {
+  const tags = jsonArray(row.memory_tags_json).filter((value): value is string => typeof value === "string");
+  return {
+    entryId: row.entry_id,
+    visitId: row.visit_id,
+    occurrenceId: row.occurrence_id,
+    cellId: row.cell_id,
+    tags: row.tags_public === 1 || row.user_id === viewerUserId ? tags : [],
+    echoNote: row.echo_note,
+    observedYearMonth: row.updated_at.slice(0, 7),
+    photoUrl: null,
+    photoState: row.photo_echo_visibility,
+    likeCount: Math.max(0, Number(row.like_count ?? 0)),
+    likedByMe: row.liked_by_me === 1,
+    ownEntry: row.user_id === viewerUserId || row.own_entry === 1,
+    moderationStatus: row.moderation_status
+  };
+}
+
+async function getPlaceMemoryPreferencesNative(env: Env, userId: string): Promise<{
+  defaultPhotoEchoEnabled: boolean;
+  defaultTagsPublic: boolean;
+}> {
+  const row = await env.OBS_DB.prepare(
+    `SELECT user_id, default_photo_echo_enabled, default_tags_public, updated_at
+       FROM place_memory_user_preferences
+      WHERE user_id = ?
+      LIMIT 1`
+  ).bind(userId).first<PlaceMemoryPreferenceRow>();
+  return {
+    defaultPhotoEchoEnabled: row?.default_photo_echo_enabled === 1,
+    defaultTagsPublic: row?.default_tags_public !== 0
+  };
+}
+
+async function upsertPlaceMemoryForObservationNative(
+  env: Env,
+  input: LegacyObservationUpsertInput,
+  context: { visitId: string; occurrenceId: string; publicCell: string }
+): Promise<{ result: Record<string, unknown> | null; sample: Record<string, unknown>[]; statements: D1PreparedStatement[] }> {
+  const normalized = normalizePlaceMemoryInputNative(input.placeMemory ?? input.sourcePayload?.placeMemory);
+  if (!normalized?.shouldPersist) return { result: null, sample: [], statements: [] };
+  const preferences = await getPlaceMemoryPreferencesNative(env, input.userId);
+  const photoEchoEnabled = normalized.photoEchoEnabled && preferences.defaultPhotoEchoEnabled;
+  const tagsPublic = preferences.defaultTagsPublic;
+  const entryId = `pm:${context.visitId}`;
+  const now = new Date().toISOString();
+  const sourcePayload = {
+    source: "cloudflare_place_memory_runtime",
+    photoEcho: photoEchoEnabled ? "pending_review" : "hidden_by_user"
+  };
+  const row: PlaceMemoryEntryRow = {
+    entry_id: entryId,
+    visit_id: context.visitId,
+    occurrence_id: context.occurrenceId,
+    user_id: input.userId,
+    cell_id: context.publicCell,
+    cell_grid_m: PLACE_MEMORY_GRID_M_NATIVE,
+    memory_tags_json: JSON.stringify(normalized.tags),
+    tags_public: tagsPublic ? 1 : 0,
+    echo_note: normalized.echoNote,
+    private_note: normalized.privateNote,
+    photo_echo_enabled: photoEchoEnabled ? 1 : 0,
+    photo_echo_visibility: photoEchoEnabled ? "pending_review" : "hidden_by_user",
+    moderation_status: "visible",
+    source_payload_json: JSON.stringify(sourcePayload),
+    created_at: now,
+    updated_at: now,
+    like_count: 0,
+    liked_by_me: 0,
+    own_entry: 1
+  };
+  return {
+    result: {
+      entryId,
+      cellId: context.publicCell,
+      tags: normalized.tags,
+      echoNote: normalized.echoNote,
+      hasPrivateNote: normalized.privateNote !== "",
+      photoEchoEnabled,
+      photoEchoVisibility: row.photo_echo_visibility
+    },
+    sample: [placeMemoryPayload(row, input.userId)],
+    statements: [env.OBS_DB.prepare(
+      `INSERT INTO place_memory_entries (
+         entry_id, visit_id, occurrence_id, user_id, cell_id, cell_grid_m,
+         memory_tags_json, tags_public, echo_note, private_note, photo_echo_enabled,
+         photo_echo_visibility, moderation_status, source_payload_json, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'visible', ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(visit_id) DO UPDATE SET
+         occurrence_id = excluded.occurrence_id,
+         user_id = excluded.user_id,
+         cell_id = excluded.cell_id,
+         cell_grid_m = excluded.cell_grid_m,
+         memory_tags_json = excluded.memory_tags_json,
+         tags_public = excluded.tags_public,
+         echo_note = excluded.echo_note,
+         private_note = excluded.private_note,
+         photo_echo_enabled = excluded.photo_echo_enabled,
+         photo_echo_visibility = CASE
+           WHEN excluded.photo_echo_enabled = 0 THEN 'hidden_by_user'
+           WHEN place_memory_entries.photo_echo_visibility = 'ready' THEN place_memory_entries.photo_echo_visibility
+           ELSE excluded.photo_echo_visibility
+         END,
+         moderation_status = 'visible',
+         source_payload_json = excluded.source_payload_json,
+         deleted_at = NULL,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      entryId,
+      context.visitId,
+      context.occurrenceId,
+      input.userId,
+      context.publicCell,
+      PLACE_MEMORY_GRID_M_NATIVE,
+      JSON.stringify(normalized.tags),
+      tagsPublic ? 1 : 0,
+      normalized.echoNote,
+      normalized.privateNote,
+      photoEchoEnabled ? 1 : 0,
+      row.photo_echo_visibility,
+      JSON.stringify(sourcePayload)
+    )]
+  };
+}
+
+async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (!pathname.startsWith("/api/v1/place-memory")) return null;
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+
+  if (pathname === "/api/v1/place-memory/preferences") {
+    if (request.method === "GET") {
+      return json({ ok: true, preferences: await getPlaceMemoryPreferencesNative(env, session.userId) }, 200, { "cache-control": "no-store" });
+    }
+    if (request.method === "POST") {
+      const body = await readJson<Record<string, unknown>>(request);
+      const defaultPhotoEchoEnabled = body.defaultPhotoEchoEnabled === true || body.default_photo_echo_enabled === true;
+      const defaultTagsPublic = body.defaultTagsPublic !== false && body.default_tags_public !== false;
+      await env.OBS_DB.prepare(
+        `INSERT INTO place_memory_user_preferences
+           (user_id, default_photo_echo_enabled, default_tags_public, updated_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(user_id) DO UPDATE SET
+           default_photo_echo_enabled = excluded.default_photo_echo_enabled,
+           default_tags_public = excluded.default_tags_public,
+           updated_at = CURRENT_TIMESTAMP`
+      ).bind(session.userId, defaultPhotoEchoEnabled ? 1 : 0, defaultTagsPublic ? 1 : 0).run();
+      return json({ ok: true, preferences: { defaultPhotoEchoEnabled, defaultTagsPublic } }, 200, { "cache-control": "no-store" });
+    }
+    return json({ ok: false, error: "method_not_allowed" }, 405, { "cache-control": "no-store" });
+  }
+
+  if (pathname === "/api/v1/place-memory" && request.method === "GET") {
+    const cellId = normalizeOptionalText(url.searchParams.get("cellId"));
+    if (!cellId) return json({ ok: false, error: "cellId_required" }, 400, { "cache-control": "no-store" });
+    const limit = Math.min(24, Math.max(1, integerOrNull(url.searchParams.get("limit")) ?? 12));
+    const rows = (await env.OBS_DB.prepare(
+      `SELECT pme.entry_id, pme.visit_id, pme.occurrence_id, pme.user_id, pme.cell_id,
+              pme.cell_grid_m, pme.memory_tags_json, pme.tags_public, pme.echo_note,
+              pme.private_note, pme.photo_echo_enabled, pme.photo_echo_visibility,
+              pme.moderation_status, pme.source_payload_json, pme.created_at, pme.updated_at,
+              (SELECT COUNT(*) FROM place_memory_likes pml WHERE pml.entry_id = pme.entry_id) AS like_count,
+              (SELECT COUNT(*) FROM place_memory_likes pml WHERE pml.entry_id = pme.entry_id AND pml.user_id = ?) AS liked_by_me,
+              CASE WHEN pme.user_id = ? THEN 1 ELSE 0 END AS own_entry
+         FROM place_memory_entries pme
+        WHERE pme.cell_id = ?
+          AND pme.deleted_at IS NULL
+          AND pme.moderation_status = 'visible'
+          AND NOT EXISTS (
+            SELECT 1 FROM place_memory_hidden_entries hidden
+             WHERE hidden.entry_id = pme.entry_id AND hidden.user_id = ?
+          )
+        ORDER BY pme.updated_at DESC
+        LIMIT ?`
+    ).bind(session.userId, session.userId, cellId, session.userId, limit).all<PlaceMemoryEntryRow>()).results;
+    return json({ ok: true, items: rows.map((row) => placeMemoryPayload(row, session.userId)) }, 200, { "cache-control": "no-store" });
+  }
+
+  const actionMatch = pathname.match(/^\/api\/v1\/place-memory\/([^/]+)\/(like|hide|report|photo-review)$/);
+  if (request.method === "POST" && actionMatch?.[1] && actionMatch[2]) {
+    const entryId = decodeURIComponent(actionMatch[1]);
+    const action = actionMatch[2];
+    const entry = await env.OBS_DB.prepare(
+      `SELECT entry_id, visit_id, occurrence_id, user_id, cell_id, cell_grid_m,
+              memory_tags_json, tags_public, echo_note, private_note,
+              photo_echo_enabled, photo_echo_visibility, moderation_status,
+              source_payload_json, created_at, updated_at
+         FROM place_memory_entries
+        WHERE entry_id = ? AND deleted_at IS NULL
+        LIMIT 1`
+    ).bind(entryId).first<PlaceMemoryEntryRow>();
+    if (!entry) return json({ ok: false, error: "place_memory_not_found" }, 404, { "cache-control": "no-store" });
+
+    if (action === "like") {
+      const existing = await env.OBS_DB.prepare(
+        "SELECT entry_id FROM place_memory_likes WHERE entry_id = ? AND user_id = ? LIMIT 1"
+      ).bind(entryId, session.userId).first<{ entry_id: string }>();
+      if (existing) {
+        await env.OBS_DB.prepare("DELETE FROM place_memory_likes WHERE entry_id = ? AND user_id = ?").bind(entryId, session.userId).run();
+      } else {
+        await env.OBS_DB.prepare(
+          "INSERT OR IGNORE INTO place_memory_likes (entry_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
+        ).bind(entryId, session.userId).run();
+      }
+      const count = await env.OBS_DB.prepare(
+        "SELECT COUNT(*) AS count FROM place_memory_likes WHERE entry_id = ?"
+      ).bind(entryId).first<{ count: number }>();
+      return json({ ok: true, liked: !existing, likeCount: Math.max(0, Number(count?.count ?? 0)) }, 200, { "cache-control": "no-store" });
+    }
+
+    if (action === "hide") {
+      const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+      await env.OBS_DB.prepare(
+        `INSERT OR REPLACE INTO place_memory_hidden_entries (entry_id, user_id, reason, created_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)`
+      ).bind(entryId, session.userId, normalizeOptionalText(body.reason) ?? "self").run();
+      return json({ ok: true }, 200, { "cache-control": "no-store" });
+    }
+
+    if (action === "photo-review") {
+      if (entry.user_id !== session.userId) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+      await env.OBS_DB.prepare(
+        "UPDATE place_memory_entries SET photo_echo_visibility = 'pending_review', updated_at = CURRENT_TIMESTAMP WHERE entry_id = ?"
+      ).bind(entryId).run();
+      return json({ ok: true }, 200, { "cache-control": "no-store" });
+    }
+
+    const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+    const reportId = newId("place_memory_report");
+    await env.OBS_DB.prepare(
+      `INSERT INTO place_memory_reports (report_id, entry_id, user_id, reason_code, reason_note, created_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      reportId,
+      entryId,
+      session.userId,
+      normalizeOptionalText(body.reasonCode ?? body.reason_code) ?? "other",
+      cleanPlaceMemoryText(body.reasonNote ?? body.reason_note, 400)
+    ).run();
+    const count = await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM place_memory_reports WHERE entry_id = ?"
+    ).bind(entryId).first<{ count: number }>();
+    const reportCount = Math.max(0, Number(count?.count ?? 0));
+    if (reportCount >= 3) {
+      await env.OBS_DB.prepare(
+        "UPDATE place_memory_entries SET moderation_status = 'hidden_by_reports', updated_at = CURRENT_TIMESTAMP WHERE entry_id = ?"
+      ).bind(entryId).run();
+    }
+    return json({ ok: true, hiddenForMe: true, moderationStatus: reportCount >= 3 ? "hidden_by_reports" : entry.moderation_status }, 200, { "cache-control": "no-store" });
+  }
+
+  return null;
+}
+
 function isSafeFieldId(fieldId: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(fieldId);
+}
+
+function publicCellFromLatLng(lat: number, lng: number): string {
+  return `${lat.toFixed(2)},${lng.toFixed(2)}`;
+}
+
+function normalizeFieldText(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maxLength) : "";
+}
+
+function fieldDistanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const r = 6371000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function userObservationFieldToReadmodel(row: UserObservationFieldRow): FieldDetailReadmodelRow {
+  return {
+    field_id: row.field_id,
+    source: "user_defined",
+    admin_level: null,
+    name: row.name,
+    name_kana: row.name_kana,
+    summary: row.summary,
+    prefecture: row.prefecture,
+    city: row.city,
+    public_cell: row.public_cell,
+    public_lat: row.public_lat,
+    public_lng: row.public_lng,
+    radius_m: row.radius_m,
+    area_ha: row.area_ha,
+    has_polygon: 0,
+    has_simplified_geometry: 0,
+    certification_id: null,
+    certification_url: null,
+    official_url: null,
+    owner_url: null,
+    story_url: null,
+    verification_level: "user_defined",
+    verification_method: "cloudflare_d1_user_field",
+    verification_label: "ユーザー定義",
+    source_confidence: 0.8,
+    valid_from: null,
+    valid_to: null,
+    entity_key: row.field_id,
+    updated_at: row.updated_at
+  };
+}
+
+function fieldRegistryPayload(row: FieldDetailReadmodelRow, ownerUserId: string | null = null) {
+  const base = fieldDetailPublicPayload(row);
+  return {
+    ...base,
+    lat: row.public_lat,
+    lng: row.public_lng,
+    polygon: null,
+    ownerUserId,
+    payload: {},
+    createdAt: row.updated_at ?? "",
+    updatedAt: row.updated_at ?? ""
+  };
+}
+
+async function getUserObservationField(fieldId: string, env: Env): Promise<UserObservationFieldRow | null> {
+  if (!isSafeFieldId(fieldId)) return null;
+  return env.OBS_DB.prepare(
+    `SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+            created_at, updated_at, deleted_at
+       FROM user_observation_fields
+      WHERE field_id = ? AND deleted_at IS NULL`
+  ).bind(fieldId).first<UserObservationFieldRow>();
+}
+
+async function getObservationFieldRegistryRow(fieldId: string, env: Env): Promise<{ row: FieldDetailReadmodelRow; ownerUserId: string | null } | null> {
+  const userField = await getUserObservationField(fieldId, env).catch(() => null);
+  if (userField) return { row: userObservationFieldToReadmodel(userField), ownerUserId: userField.owner_user_id };
+  const readmodel = await getFieldDetailReadmodelRow(fieldId, env);
+  return readmodel ? { row: readmodel, ownerUserId: null } : null;
+}
+
+function parseFieldRegistryBody(body: Record<string, unknown>) {
+  const name = normalizeFieldText(body.name, 120);
+  const lat = finiteNumberOrNull(body.lat);
+  const lng = finiteNumberOrNull(body.lng);
+  const radiusM = Math.max(10, Math.min(50000, Math.round(Number(body.radius_m ?? body.radiusM ?? 1000) || 1000)));
+  return {
+    name,
+    nameKana: normalizeFieldText(body.name_kana ?? body.nameKana, 120),
+    summary: normalizeFieldText(body.summary, 1200),
+    prefecture: normalizeFieldText(body.prefecture, 80),
+    city: normalizeFieldText(body.city, 80),
+    lat,
+    lng,
+    radiusM,
+    areaHa: finiteNumberOrNull(body.area_ha ?? body.areaHa),
+    payload: body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload as Record<string, unknown> : {}
+  };
+}
+
+async function handleObservationFieldRegistryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
+  if (!isAppRuntime(env)) return null;
+  const pathname = stripPublicLangPrefix(url.pathname);
+  if (request.method === "POST" && pathname === "/api/v1/fields/conflicts") {
+    return findObservationFieldConflictsNative(request, env);
+  }
+  if (request.method === "POST" && pathname === "/api/v1/fields") {
+    return createObservationFieldNative(request, env);
+  }
+  if (request.method === "GET" && pathname === "/api/v1/fields/prefectures") {
+    return listObservationFieldPrefecturesNative(env);
+  }
+  const statsMatch = pathname.match(/^\/api\/v1\/fields\/([^/]+)\/stats$/);
+  if (request.method === "GET" && statsMatch?.[1]) {
+    return getObservationFieldStatsNative(decodeURIComponent(statsMatch[1]), env);
+  }
+  const fieldMatch = pathname.match(/^\/api\/v1\/fields\/([^/]+)$/);
+  if (fieldMatch?.[1]) {
+    const fieldId = decodeURIComponent(fieldMatch[1]);
+    if (request.method === "GET") return getObservationFieldNative(fieldId, env);
+    if (request.method === "PATCH") return updateObservationFieldNative(request, fieldId, env);
+  }
+  if (request.method === "GET" && pathname === "/api/v1/fields") {
+    return listObservationFieldsNative(request, url, env);
+  }
+  return null;
+}
+
+async function requireFieldRegistrySession(request: Request, env: Env): Promise<SessionSnapshot | Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env).catch(() => null);
+  if (!session) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  return session;
+}
+
+async function findObservationFieldConflictsNative(request: Request, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  const body = await readJson<Record<string, unknown>>(request);
+  const input = parseFieldRegistryBody(body);
+  if (!input.name || input.lat === null || input.lng === null) {
+    return json({ error: "name, lat, lng required" }, 400, { "cache-control": "no-store" });
+  }
+  const conflicts = await collectFieldRegistryConflicts(env, session.userId, input.name, input.lat, input.lng, input.radiusM);
+  return json({ conflicts, compatibility: { source: "cloudflare_observation_field_registry_runtime" } }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function createObservationFieldNative(request: Request, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  const body = await readJson<Record<string, unknown>>(request);
+  const input = parseFieldRegistryBody(body);
+  if (!input.name || input.lat === null || input.lng === null) {
+    return json({ error: "name, lat, lng required" }, 400, { "cache-control": "no-store" });
+  }
+  const conflicts = await collectFieldRegistryConflicts(env, session.userId, input.name, input.lat, input.lng, input.radiusM);
+  const resolutionAction = normalizeOptionalText(body.resolution_action ?? body.resolutionAction);
+  if (conflicts.length > 0 && !resolutionAction) {
+    return json({
+      error: "similar field exists",
+      message: "似たフィールドがあります。今回の観察会ではどの範囲を使うか選んでください。",
+      conflicts
+    }, 409, { "cache-control": "no-store" });
+  }
+  if (resolutionAction === "use_existing") {
+    const targetId = normalizeOptionalText(body.resolution_field_id ?? body.resolutionFieldId);
+    const field = targetId ? conflicts.find((item) => item.field.fieldId === targetId)?.field : conflicts[0]?.field;
+    if (!field) return json({ error: "resolution_field_id not found in conflicts" }, 400, { "cache-control": "no-store" });
+    return json({ field, resolution: { action: "use_existing", conflicts } }, 200, { "cache-control": "no-store" });
+  }
+  const fieldId = `user-field-${crypto.randomUUID()}`;
+  const row = await env.OBS_DB.prepare(
+    `INSERT INTO user_observation_fields (
+       field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+       public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+       created_at, updated_at
+     ) VALUES (?, ?, 'user_defined', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     RETURNING field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+       public_cell, public_lat, public_lng, radius_m, area_ha, payload_json, created_at, updated_at, deleted_at`
+  ).bind(
+    fieldId,
+    session.userId,
+    input.name,
+    input.nameKana,
+    input.summary,
+    input.prefecture,
+    input.city,
+    publicCellFromLatLng(input.lat, input.lng),
+    input.lat,
+    input.lng,
+    input.radiusM,
+    input.areaHa,
+    JSON.stringify(input.payload)
+  ).first<UserObservationFieldRow>();
+  if (!row) return json({ error: "create failed" }, 500, { "cache-control": "no-store" });
+  return json({
+    field: fieldRegistryPayload(userObservationFieldToReadmodel(row), row.owner_user_id),
+    resolution: { action: resolutionAction || "created", conflicts },
+    compatibility: { source: "cloudflare_observation_field_registry_runtime" }
+  }, 201, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function updateObservationFieldNative(request: Request, fieldId: string, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  if (!isSafeFieldId(fieldId)) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  const existing = await getUserObservationField(fieldId, env);
+  if (!existing) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  if (existing.owner_user_id !== session.userId) return json({ error: "owner only" }, 403, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const parsed = parseFieldRegistryBody({
+    ...body,
+    name: body.name ?? existing.name,
+    lat: body.lat ?? existing.public_lat,
+    lng: body.lng ?? existing.public_lng,
+    radius_m: body.radius_m ?? body.radiusM ?? existing.radius_m
+  });
+  const row = await env.OBS_DB.prepare(
+    `UPDATE user_observation_fields SET
+       name = ?, name_kana = ?, summary = ?, prefecture = ?, city = ?,
+       public_cell = ?, public_lat = ?, public_lng = ?, radius_m = ?, area_ha = ?,
+       payload_json = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE field_id = ? AND owner_user_id = ? AND deleted_at IS NULL
+     RETURNING field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+       public_cell, public_lat, public_lng, radius_m, area_ha, payload_json, created_at, updated_at, deleted_at`
+  ).bind(
+    parsed.name || existing.name,
+    body.name_kana === undefined && body.nameKana === undefined ? existing.name_kana : parsed.nameKana,
+    body.summary === undefined ? existing.summary : parsed.summary,
+    body.prefecture === undefined ? existing.prefecture : parsed.prefecture,
+    body.city === undefined ? existing.city : parsed.city,
+    publicCellFromLatLng(parsed.lat ?? existing.public_lat, parsed.lng ?? existing.public_lng),
+    parsed.lat ?? existing.public_lat,
+    parsed.lng ?? existing.public_lng,
+    parsed.radiusM,
+    body.area_ha === undefined && body.areaHa === undefined ? existing.area_ha : parsed.areaHa,
+    body.payload === undefined ? existing.payload_json : JSON.stringify(parsed.payload),
+    fieldId,
+    session.userId
+  ).first<UserObservationFieldRow>();
+  if (!row) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  return json({ field: fieldRegistryPayload(userObservationFieldToReadmodel(row), row.owner_user_id) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function getObservationFieldNative(fieldId: string, env: Env): Promise<Response> {
+  const entry = await getObservationFieldRegistryRow(fieldId, env);
+  if (!entry) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  return json({ field: fieldRegistryPayload(entry.row, entry.ownerUserId) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function getObservationFieldStatsNative(fieldId: string, env: Env): Promise<Response> {
+  const entry = await getObservationFieldRegistryRow(fieldId, env);
+  if (!entry) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  return json({
+    stats: {
+      fieldId,
+      sessionCount: 0,
+      observationCount: 0,
+      latestObservedAt: null,
+      source: "cloudflare_observation_field_registry_runtime"
+    }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "observation-field-registry-runtime" });
+}
+
+async function listObservationFieldPrefecturesNative(env: Env): Promise<Response> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT prefecture, COUNT(*) AS field_count
+       FROM production_import_field_detail_readmodel
+      WHERE prefecture IS NOT NULL AND prefecture <> ''
+      GROUP BY prefecture
+      ORDER BY prefecture ASC
+      LIMIT 100`
+  ).all<{ prefecture: string; field_count: number }>();
+  return json({
+    prefectures: rows.results.map((row) => ({ prefecture: row.prefecture, fieldCount: Number(row.field_count ?? 0) })),
+    compatibility: { source: "cloudflare_observation_field_registry_runtime" }
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "observation-field-registry-runtime" });
+}
+
+async function listObservationFieldsNative(request: Request, url: URL, env: Env): Promise<Response> {
+  const params = url.searchParams;
+  const limit = Math.max(1, Math.min(100, Number(params.get("limit") ?? "30") || 30));
+  const mine = params.get("mine") === "1";
+  const q = normalizeOptionalText(params.get("q"));
+  const certified = normalizeOptionalText(params.get("certified"));
+  const source = normalizeOptionalText(params.get("source")) ?? certified;
+  const nearby = normalizeOptionalText(params.get("nearby"));
+  const prefecture = normalizeOptionalText(params.get("prefecture"));
+  if (mine) {
+    const session = await requireFieldRegistrySession(request, env);
+    if (session instanceof Response) return session;
+    const rows = await env.OBS_DB.prepare(
+      `SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+              public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+              created_at, updated_at, deleted_at
+         FROM user_observation_fields
+        WHERE owner_user_id = ? AND deleted_at IS NULL
+        ORDER BY updated_at DESC
+        LIMIT ?`
+    ).bind(session.userId, limit).all<UserObservationFieldRow>();
+    return json({ fields: rows.results.map((row) => fieldRegistryPayload(userObservationFieldToReadmodel(row), row.owner_user_id)) }, 200, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+    });
+  }
+  const filterParts: string[] = ["1=1"];
+  const binds: Array<string | number> = [];
+  if (q) {
+    filterParts.push("(lower(name) LIKE ? OR lower(coalesce(prefecture, '')) LIKE ? OR lower(coalesce(city, '')) LIKE ?)");
+    const like = `%${q.toLowerCase()}%`;
+    binds.push(like, like, like);
+  }
+  if (source) {
+    filterParts.push("source = ?");
+    binds.push(source);
+  }
+  if (prefecture) {
+    filterParts.push("prefecture = ?");
+    binds.push(prefecture);
+  }
+  if (nearby) {
+    const [latRaw, lngRaw] = nearby.split(",");
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return json({ error: "invalid nearby" }, 400, { "cache-control": "no-store" });
+    const km = Math.max(0.1, Math.min(100, Number(params.get("km") ?? "10") || 10));
+    filterParts.push("public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?");
+    binds.push(lat - km / 111, lat + km / 111, lng - km / 90, lng + km / 90);
+  }
+  const rows = await env.OBS_DB.prepare(
+    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha,
+            has_polygon, has_simplified_geometry,
+            certification_id, certification_url, official_url, owner_url, story_url,
+            verification_level, verification_method, verification_label, source_confidence,
+            valid_from, valid_to, entity_key, updated_at
+       FROM production_import_field_detail_readmodel
+      WHERE ${filterParts.join(" AND ")}
+      ORDER BY updated_at DESC
+      LIMIT ?`
+  ).bind(...binds, limit).all<FieldDetailReadmodelRow>();
+  return json({ fields: rows.results.map((row) => fieldRegistryPayload(row, null)) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "observation-field-registry-runtime"
+  });
+}
+
+async function collectFieldRegistryConflicts(
+  env: Env,
+  ownerUserId: string,
+  name: string,
+  lat: number,
+  lng: number,
+  radiusM: number
+): Promise<Array<{ field: ReturnType<typeof fieldRegistryPayload>; distanceMeters: number; reason: string; editableByRequester: boolean }>> {
+  const maxDistance = Math.max(100, Math.min(5000, radiusM));
+  const userRows = await env.OBS_DB.prepare(
+    `SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha, payload_json,
+            created_at, updated_at, deleted_at
+       FROM user_observation_fields
+      WHERE owner_user_id = ? AND deleted_at IS NULL
+        AND public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?
+      ORDER BY updated_at DESC
+      LIMIT 20`
+  ).bind(ownerUserId, lat - 0.05, lat + 0.05, lng - 0.05, lng + 0.05).all<UserObservationFieldRow>();
+  const importedRows = await env.OBS_DB.prepare(
+    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+            public_cell, public_lat, public_lng, radius_m, area_ha,
+            has_polygon, has_simplified_geometry,
+            certification_id, certification_url, official_url, owner_url, story_url,
+            verification_level, verification_method, verification_label, source_confidence,
+            valid_from, valid_to, entity_key, updated_at
+       FROM production_import_field_detail_readmodel
+      WHERE public_lat BETWEEN ? AND ? AND public_lng BETWEEN ? AND ?
+      ORDER BY updated_at DESC
+      LIMIT 20`
+  ).bind(lat - 0.05, lat + 0.05, lng - 0.05, lng + 0.05).all<FieldDetailReadmodelRow>();
+  const candidates = [
+    ...userRows.results.map((row) => ({ row: userObservationFieldToReadmodel(row), ownerUserId: row.owner_user_id })),
+    ...importedRows.results.map((row) => ({ row, ownerUserId: null }))
+  ];
+  return candidates.flatMap((candidate) => {
+    const distanceMeters = Math.round(fieldDistanceMeters(lat, lng, candidate.row.public_lat, candidate.row.public_lng));
+    const sameName = candidate.row.name.trim().toLowerCase() === name.trim().toLowerCase();
+    if (!sameName && distanceMeters > maxDistance) return [];
+    return [{
+      field: fieldRegistryPayload(candidate.row, candidate.ownerUserId),
+      distanceMeters,
+      reason: sameName ? "same_name_nearby" : "nearby_field",
+      editableByRequester: candidate.ownerUserId === ownerUserId
+    }];
+  }).sort((a, b) => a.distanceMeters - b.distanceMeters).slice(0, 8);
 }
 
 function originalUiAreaSnapshotKey(fieldId: string): string {
@@ -15818,6 +17994,361 @@ async function assertObservationOwnedByUser(observationId: string, userId: strin
   }
 }
 
+type CompatibleOccurrenceDetailEditKind = "origin" | "observed-at" | "location" | "environment-field" | "environment-record";
+type CompatibleOrganismOrigin = "wild" | "planted" | "captive" | "released" | "unknown";
+type CompatibleEnvironmentRecordField = "place_type" | "contact_surface" | "surrounding_cover" | "environment_condition" | "human_change";
+
+const COMPATIBLE_ORGANISM_ORIGIN_OPTIONS: Array<{ value: CompatibleOrganismOrigin; label: string }> = [
+  { value: "wild", label: "野生" },
+  { value: "planted", label: "植栽" },
+  { value: "captive", label: "飼育" },
+  { value: "released", label: "放流" },
+  { value: "unknown", label: "不明" }
+];
+
+const COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS: Record<CompatibleEnvironmentRecordField, Array<{ value: string; label: string }>> = {
+  place_type: [
+    { value: "grassland_urban_edge", label: "草地と市街地の縁" },
+    { value: "urban", label: "市街地" },
+    { value: "woodland", label: "林内" },
+    { value: "water_edge", label: "水辺" },
+    { value: "wetland", label: "湿地" },
+    { value: "coast", label: "海岸" },
+    { value: "unknown", label: "不明" }
+  ],
+  contact_surface: [
+    { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
+    { value: "soil", label: "土" },
+    { value: "plant", label: "植物上" },
+    { value: "water", label: "水面・水中" },
+    { value: "rock", label: "岩・石" },
+    { value: "artificial", label: "人工物" },
+    { value: "unknown", label: "不明" }
+  ],
+  surrounding_cover: [
+    { value: "low_grass", label: "低い草地" },
+    { value: "trees_shrubs", label: "樹木・低木" },
+    { value: "bare_ground", label: "裸地" },
+    { value: "water", label: "水" },
+    { value: "snow", label: "雪" },
+    { value: "built_surface", label: "舗装・構造物" },
+    { value: "unknown", label: "不明" }
+  ],
+  environment_condition: [
+    { value: "open_dry", label: "開けて乾き気味" },
+    { value: "sunny", label: "日当たり" },
+    { value: "shaded", label: "日陰" },
+    { value: "wet", label: "湿り気あり" },
+    { value: "flowing", label: "流れあり" },
+    { value: "windy", label: "風あり" },
+    { value: "unknown", label: "不明" }
+  ],
+  human_change: [
+    { value: "trampling_mowing", label: "踏圧・草刈り跡" },
+    { value: "mowing", label: "草刈り" },
+    { value: "trampling", label: "踏圧" },
+    { value: "planting", label: "植栽・管理" },
+    { value: "construction", label: "造成・工事" },
+    { value: "release", label: "放流・放逐" },
+    { value: "none_visible", label: "目立つ変化なし" },
+    { value: "unknown", label: "不明" }
+  ]
+};
+
+async function updateCompatibleOccurrenceDetail(
+  occurrenceId: string,
+  kind: CompatibleOccurrenceDetailEditKind,
+  request: Request,
+  env: Env
+): Promise<Response> {
+  if (!isAppRuntime(env)) {
+    return json({ ok: false, error: "not_available" }, 404);
+  }
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session) {
+    return json({ ok: false, error: "session_required" }, 401);
+  }
+  try {
+    await assertObservationOwnedByUser(occurrenceId, session.userId, env);
+    const body = await readJson<Record<string, unknown>>(request);
+    if (kind === "origin") return updateCompatibleOccurrenceOrigin(occurrenceId, session, body, env);
+    if (kind === "observed-at") return updateCompatibleOccurrenceObservedAt(occurrenceId, session, body, env);
+    if (kind === "location") return updateCompatibleOccurrenceLocation(occurrenceId, session, body, env);
+    if (kind === "environment-field") return updateCompatibleOccurrenceEnvironmentField(occurrenceId, session, body, env);
+    return updateCompatibleOccurrenceEnvironmentRecord(occurrenceId, session, body, env);
+  } catch (error) {
+    const status = error instanceof HttpError ? error.status : 400;
+    return json({ ok: false, error: error instanceof Error ? error.message : "occurrence_detail_update_failed" }, status);
+  }
+}
+
+async function updateCompatibleOccurrenceOrigin(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const organismOrigin = normalizeCompatibleOrganismOrigin(body.organismOrigin);
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "UPDATE observations SET organism_origin = ? WHERE observation_id = ?"
+    ).bind(organismOrigin, occurrenceId),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "origin", { organismOrigin })
+  ]);
+  return json({
+    ok: true,
+    occurrenceId,
+    organismOrigin,
+    label: compatibleOrganismOriginLabel(organismOrigin)
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceObservedAt(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const observedAt = normalizeCompatibleObservedAt(body.observedAt);
+  const partitionMonth = partitionMonthFromDate(observedAt);
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "UPDATE observations SET observed_at = ?, partition_month = ? WHERE observation_id = ?"
+    ).bind(observedAt, partitionMonth, occurrenceId),
+    env.OBS_DB.prepare(
+      "UPDATE readmodel_public_observations SET observed_at = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
+    ).bind(observedAt, occurrenceId),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "observed-at", { observedAt }),
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, partitionMonth)
+  ]);
+  return json({
+    ok: true,
+    occurrenceId,
+    visitId: occurrenceId,
+    observedAt
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceLocation(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const latitude = normalizeCompatibleLatitude(body.latitude);
+  const longitude = normalizeCompatibleLongitude(body.longitude);
+  const publicCell = blurLocation(latitude, longitude);
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "UPDATE observations SET exact_lat = ?, exact_lng = ?, public_cell = ? WHERE observation_id = ?"
+    ).bind(latitude, longitude, publicCell, occurrenceId),
+    env.OBS_DB.prepare(
+      "UPDATE readmodel_public_observations SET public_cell = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
+    ).bind(publicCell, occurrenceId),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "location", { latitude, longitude, publicCell }),
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
+  ]);
+  return json({
+    ok: true,
+    occurrenceId,
+    visitId: occurrenceId,
+    latitude,
+    longitude,
+    label: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceEnvironmentField(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const field = normalizeCompatibleEnvironmentRecordField(body.field);
+  const value = normalizeCompatibleEnvironmentRecordValue(field, body.value);
+  const result = await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, { [field]: value }, env);
+  return json({
+    ok: true,
+    occurrenceId,
+    field,
+    value,
+    label: compatibleEnvironmentRecordLabel(field, value),
+    recordId: result.recordId
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function updateCompatibleOccurrenceEnvironmentRecord(
+  occurrenceId: string,
+  session: SessionSnapshot,
+  body: Record<string, unknown>,
+  env: Env
+): Promise<Response> {
+  const rawValues = body.values && typeof body.values === "object" && !Array.isArray(body.values)
+    ? body.values as Record<string, unknown>
+    : {};
+  const values: Partial<Record<CompatibleEnvironmentRecordField, string>> = {};
+  for (const [rawField, rawValue] of Object.entries(rawValues)) {
+    const field = normalizeCompatibleEnvironmentRecordField(rawField);
+    values[field] = normalizeCompatibleEnvironmentRecordValue(field, rawValue);
+  }
+  if (Object.keys(values).length === 0) {
+    throw new HttpError(400, "invalid_environment_record_value");
+  }
+  await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, values, env);
+  return json({
+    ok: true,
+    occurrenceId,
+    values: Object.fromEntries(Object.entries(values).map(([field, value]) => [field, {
+      value,
+      label: compatibleEnvironmentRecordLabel(field as CompatibleEnvironmentRecordField, value),
+      source: "user"
+    }]))
+  }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
+}
+
+async function insertCompatibleEnvironmentRecord(
+  occurrenceId: string,
+  userId: string,
+  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
+  env: Env
+): Promise<{ recordId: string }> {
+  const observation = await env.OBS_DB.prepare(
+    "SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
+  ).bind(occurrenceId).first<{ observation_id: string; exact_lat: number | null; exact_lng: number | null; public_cell: string }>();
+  if (!observation) {
+    throw new HttpError(404, "observation_not_found");
+  }
+  const lat = numberOrNull(observation.exact_lat);
+  const lng = numberOrNull(observation.exact_lng);
+  if (lat === null || lng === null) {
+    throw new HttpError(400, "occurrence_location_required");
+  }
+  const previousRow = await env.OBS_DB.prepare(
+    "SELECT structured_json FROM observation_environment_records WHERE occurrence_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(occurrenceId).first<{ structured_json: string }>();
+  const previous = parseCompatibleStructuredJson(previousRow?.structured_json);
+  const structured = mergeCompatibleUserEnvironmentRecordValues(previous, values, userId);
+  const recordId = newId("envrec");
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
+    ).bind(recordId, occurrenceId, lat, lng, JSON.stringify(structured)),
+    compatibleOccurrenceDetailEditEvent(env, occurrenceId, userId, "environment-record", { values }),
+    compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
+  ]);
+  return { recordId };
+}
+
+function compatibleOccurrenceDetailEditEvent(
+  env: Env,
+  observationId: string,
+  actorUserId: string,
+  editKind: string,
+  payload: Record<string, unknown>
+): D1PreparedStatement {
+  return env.OBS_DB.prepare(
+    "INSERT INTO observation_detail_edit_events (edit_id, observation_id, actor_user_id, edit_kind, payload_json) VALUES (?, ?, ?, ?, ?)"
+  ).bind(newId("edit"), observationId, actorUserId, editKind, JSON.stringify(payload));
+}
+
+function compatibleReadmodelRefreshOutbox(env: Env, observationId: string, partitionMonth: string | null): D1PreparedStatement {
+  return env.OBS_DB.prepare(
+    "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+  ).bind(newId("outbox"), "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth);
+}
+
+function normalizeCompatibleOrganismOrigin(value: unknown): CompatibleOrganismOrigin {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const option = COMPATIBLE_ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === raw);
+  if (!option) throw new HttpError(400, "invalid_organism_origin");
+  return option.value;
+}
+
+function compatibleOrganismOriginLabel(value: CompatibleOrganismOrigin): string {
+  return COMPATIBLE_ORGANISM_ORIGIN_OPTIONS.find((item) => item.value === value)?.label ?? "不明";
+}
+
+function normalizeCompatibleObservedAt(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  const parsed = new Date(raw);
+  if (!raw || Number.isNaN(parsed.getTime())) {
+    throw new HttpError(400, "invalid_observed_at");
+  }
+  if (parsed.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+    throw new HttpError(400, "invalid_observed_at");
+  }
+  return parsed.toISOString();
+}
+
+function normalizeCompatibleLatitude(value: unknown): number {
+  const latitude = Number(value);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw new HttpError(400, "invalid_latitude");
+  }
+  return Number(latitude.toFixed(6));
+}
+
+function normalizeCompatibleLongitude(value: unknown): number {
+  const longitude = Number(value);
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new HttpError(400, "invalid_longitude");
+  }
+  return Number(longitude.toFixed(6));
+}
+
+function normalizeCompatibleEnvironmentRecordField(value: unknown): CompatibleEnvironmentRecordField {
+  const raw = String(value ?? "").trim();
+  if (raw in COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) return raw as CompatibleEnvironmentRecordField;
+  throw new HttpError(400, "invalid_environment_record_field");
+}
+
+function normalizeCompatibleEnvironmentRecordValue(field: CompatibleEnvironmentRecordField, value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].some((item) => item.value === raw)) return raw;
+  throw new HttpError(400, "invalid_environment_record_value");
+}
+
+function compatibleEnvironmentRecordLabel(field: CompatibleEnvironmentRecordField, value: string): string {
+  return COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].find((item) => item.value === value)?.label ?? "不明";
+}
+
+function parseCompatibleStructuredJson(value: string | null | undefined): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== "")
+    );
+  } catch {
+    return {};
+  }
+}
+
+function mergeCompatibleUserEnvironmentRecordValues(
+  previous: Record<string, string>,
+  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
+  updatedBy: string
+): Record<string, string> {
+  const updatedAt = new Date().toISOString();
+  const structured = { ...previous };
+  for (const field of Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]) {
+    const value = values[field];
+    if (value == null) continue;
+    structured[field] = normalizeCompatibleEnvironmentRecordValue(field, value);
+    structured[`${field}_source`] = "user";
+    structured[`${field}_confidence`] = "1.00";
+    structured[`${field}_updated_at`] = updatedAt;
+  }
+  structured.environment_record_status = "user_edited";
+  structured.environment_record_updated_by = updatedBy;
+  structured.environment_record_updated_at = updatedAt;
+  structured.updated_by = updatedBy;
+  structured.updated_at = updatedAt;
+  return structured;
+}
+
 async function attachVideoAssetToObservation(input: {
   uid: string;
   observationId: string;
@@ -15921,6 +18452,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
+  const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
   const civicContextStatements = civicContext
     ? [env.OBS_DB.prepare(
       `INSERT INTO civic_observation_contexts (
@@ -16047,6 +18579,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       dataRights.withdrawalStatus,
       JSON.stringify(dataRights.sourcePayload)
     ),
+    ...placeMemory.statements,
     ...civicContextStatements,
     rollbackLedgerInsert(env, {
       eventType: "observation.upsert",
@@ -16118,8 +18651,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       clientSubmissionId: input.clientSubmissionId,
       reused: false
     } : undefined,
-    placeMemory: null,
-    placeMemorySample: [],
+    placeMemory: placeMemory.result,
+    placeMemorySample: placeMemory.sample,
     contributionReceipts: buildLegacyContributionReceipts(visitId, occurrenceId, occurrenceIds.length, placeName, input)
   }, 201);
 }

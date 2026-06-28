@@ -7,7 +7,7 @@ import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { buildPublicCellId } from "./publicLocation.js";
 import { generateAiTextWithRoleChain, type AiRouterPart } from "./aiModelRouter.js";
-import { upsertAssetBlob } from "./writeSupport.js";
+import { upsertAssetBlob } from "./writeSupportPg.js";
 import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
 
 export const PLACE_MEMORY_GRID_M = 1000;

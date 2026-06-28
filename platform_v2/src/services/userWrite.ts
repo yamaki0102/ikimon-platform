@@ -6,7 +6,7 @@ import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyUser } from "../legacy/compatibilityWriter.js";
 import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
-import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
+import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupportPg.js";
 
 export type UserUpsertInput = {
   userId: string;
