@@ -134,6 +134,8 @@ test("root route serves the record feed home HTML even for generic accept header
     assert.doesNotMatch(response.body, /使い方を見る/);
     assert.doesNotMatch(response.body, /公開前に安全側で確認します/);
     assert.doesNotMatch(response.body, /id="map-explorer"/);
+    assert.doesNotMatch(response.body, /tile\.openstreetmap\.org/);
+    assert.doesNotMatch(response.body, /ikimon-topa-map-mini/);
   } finally {
     await app.close();
   }

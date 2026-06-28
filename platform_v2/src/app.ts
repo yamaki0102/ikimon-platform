@@ -72,7 +72,6 @@ import type { LandingSnapshot } from "./services/readModels.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./ui/landingTop.js";
 import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./ui/mapExplorer.js";
-import { MAP_MINI_STYLES, mapMiniBootScript } from "./ui/mapMini.js";
 import { escapeHtml, renderSiteDocument } from "./ui/siteShell.js";
 
 type PreviewContext = {
@@ -422,7 +421,6 @@ function buildLandingRootHtml(
   });
 
   const extraStyles = [
-    MAP_MINI_STYLES,
     LANDING_TOP_STYLES,
     DEMO_LOGIN_BANNER_STYLES,
   ].join("\n");
@@ -439,8 +437,7 @@ function buildLandingRootHtml(
     minimalChrome: !isLoggedIn,
     body: `${landingTop.heroHtml}
 ${landingTop.dailyDashboardHtml}
-${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}
-${mapMiniBootScript("ikimon-topa-map-mini")}`,
+${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}`,
     footerNote: copy.footerNote,
   });
 }
