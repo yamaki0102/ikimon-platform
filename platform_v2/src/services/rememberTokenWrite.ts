@@ -5,7 +5,7 @@ import {
   revokeLegacyRememberToken,
   writeLegacyRememberToken,
 } from "../legacy/compatibilityWriter.js";
-import { recordCompatibilityFailure } from "./writeSupport.js";
+import { recordCompatibilityFailure } from "./writeSupportPg.js";
 
 export type RememberTokenIssueInput = {
   userId: string;
