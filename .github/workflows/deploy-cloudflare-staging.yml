@@ -128,8 +128,12 @@ jobs:
           grep -q 'data-cloudflare-observation-detail="1"' staging-observation-image-1.html
           grep -q 'obs-hero-media-stack is-photo-only' staging-observation-image-1.html
           grep -q 'この記録で読む対象' staging-observation-image-1.html
-          grep -q 'IDENTIFICATION' staging-observation-image-1.html
-          grep -q 'OBSERVATION QUALITY' staging-observation-image-1.html
+          grep -q 'data-section-code="identification"' staging-observation-image-1.html
+          grep -q '同定に参加する' staging-observation-image-1.html
+          grep -q 'data-section-code="observation-quality"' staging-observation-image-1.html
+          grep -q '観察記録を整える' staging-observation-image-1.html
+          ! grep -q 'IDENTIFICATION' staging-observation-image-1.html
+          ! grep -q 'OBSERVATION QUALITY' staging-observation-image-1.html
           curl -fsS -D staging-observation-image-2.headers 'https://staging.ikimon.life/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A0&lang=ja' -o staging-observation-image-2.html
           grep -q 'obs-hero-media-stack is-photo-only' staging-observation-image-2.html
           curl -fsS -D staging-observation-image-3.headers 'https://staging.ikimon.life/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0&lang=ja' -o staging-observation-image-3.html
