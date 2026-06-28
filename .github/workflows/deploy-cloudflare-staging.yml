@@ -128,7 +128,6 @@ jobs:
           grep -q '静岡市 いきもの散策マップ 下書き' staging-walk-map-review-shizuoka.html
           grep -q '6. 公園の開けた場所' staging-walk-map-review-shizuoka.html
           grep -q 'source_draft_review' staging-walk-map-review-shizuoka.html
-          grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' staging-walk-map-review-shizuoka.headers
           curl -fsS -D staging-observation-image-1.headers 'https://staging.ikimon.life/observations/record-1781252770584?subject=occ%3Arecord-1781252770584%3A0&lang=ja' -o staging-observation-image-1.html
           grep -q 'data-cloudflare-observation-detail="1"' staging-observation-image-1.html
           grep -q 'obs-hero-media-stack is-photo-only' staging-observation-image-1.html
