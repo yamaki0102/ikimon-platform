@@ -16405,16 +16405,10 @@ function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>,
   </article>`;
 }
 
-function authLangPrefix(pathname: string): string {
-  const lang = publicLangFromPath(pathname);
-  return lang ? `/${lang}` : "";
-}
-
 function activateMaterializedAuthOAuthLinks(html: string, url: URL): string {
-  const prefix = authLangPrefix(url.pathname);
   const redirect = postAuthRedirect(url.searchParams.get("redirect"));
-  const googleHref = `${prefix}/auth/oauth/google/start?redirect=${encodeURIComponent(redirect)}`;
-  const twitterHref = `${prefix}/auth/oauth/twitter/start?redirect=${encodeURIComponent(redirect)}`;
+  const googleHref = `/auth/oauth/google/start?redirect=${encodeURIComponent(redirect)}`;
+  const twitterHref = `/auth/oauth/twitter/start?redirect=${encodeURIComponent(redirect)}`;
   return html
     .replace(/<span class="auth-social-disabled">([^<]*Google[^<]*)<\/span>/, `<a href="${escapeHtml(googleHref)}">$1</a>`)
     .replace(/<span class="auth-social-disabled">([^<]*(?:X\(Twitter\)|X)[^<]*)<\/span>/, `<a href="${escapeHtml(twitterHref)}">$1</a>`)

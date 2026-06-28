@@ -15560,12 +15560,12 @@ test("production materialized auth html personalizes redirect query without orig
     const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
     const loginHtml = await loginResponse.text();
     assert.equal(loginResponse.status, 200);
-    assert.match(loginHtml, /href="\/ja\/auth\/oauth\/google\/start\?redirect=%2Fprofile"/);
-    assert.match(loginHtml, /href="\/ja\/auth\/oauth\/twitter\/start\?redirect=%2Fprofile"/);
+    assert.match(loginHtml, /href="\/auth\/oauth\/google\/start\?redirect=%2Fprofile"/);
+    assert.match(loginHtml, /href="\/auth\/oauth\/twitter\/start\?redirect=%2Fprofile"/);
     assert.doesNotMatch(loginHtml, /auth-social-disabled/);
     assert.doesNotMatch(loginHtml, /設定中/);
 
-    const oauthStart = await worker.fetch(new Request("https://ikimon.life/ja/auth/oauth/google/start?redirect=%2Fprofile"), {
+    const oauthStart = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=%2Fprofile"), {
       ...productionEnv,
       GOOGLE_CLIENT_ID: "google-client",
       GOOGLE_CLIENT_SECRET: "google-secret",
