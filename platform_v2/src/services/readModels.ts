@@ -2227,6 +2227,14 @@ export type LandingObservation = RecentObservation & {
   aiCandidateRank?: string | null;
   /** true のとき displayName 自体が AI 候補 (人手 vernacular/scientific 欠落)。UI で「AI 候補」バッジを出す。 */
   isAiCandidate?: boolean;
+  /**
+   * Public-feed safety gate status derived from existing visibility/review rows.
+   * Existing schema uses public/review/hidden + accepted/needs_review; the UI
+   * exposes the stricter product vocabulary without widening DB writes here.
+   */
+  publicFeedGateStatus?: "private" | "pending_review" | "public_eligible" | "public_limited" | "blocked_public";
+  /** True only when this entry may be shown to viewers other than its owner. */
+  publicFeedEligible?: boolean;
 };
 
 export type LandingHeroReason = "seasonal" | "nearby" | "vividPhoto" | "supported" | "fresh";

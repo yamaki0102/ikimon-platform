@@ -38,6 +38,13 @@ test("public quality gate honors map photo opt-out flags in visit payloads", () 
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /not in \('true', '1', 'yes'\)/);
 });
 
+test("public quality gate is fail-closed for missing review state", () => {
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.public_visibility = 'public'/);
+  assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /v\.quality_review_status = 'accepted'/);
+  assert.doesNotMatch(PUBLIC_OBSERVATION_QUALITY_SQL, /coalesce\(v\.public_visibility, 'public'\)/);
+  assert.doesNotMatch(PUBLIC_OBSERVATION_QUALITY_SQL, /coalesce\(v\.quality_review_status, 'accepted'\)/);
+});
+
 test("public discovery surfaces exclude staging regression fixtures without blocking direct details", () => {
   assert.match(PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL, /regression\[-_\]\?seed/);
   assert.match(PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL, /v\.source_payload->>'fixture_prefix'/);

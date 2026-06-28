@@ -55,6 +55,7 @@ export type SiteShellOptions = {
   /** Skip the global site footer. Immersive surfaces also suppress it
    *  automatically so primary circulation stays in the header/side menu. */
   hideFooter?: boolean;
+  minimalChrome?: boolean;
 };
 
 type ShellCopy = {
@@ -734,7 +735,7 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
   </div>`;
 }
 
-function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[]): string {
+function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false): string {
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
   const brandMarkSrc = BRAND_ASSETS.mark192;
@@ -758,6 +759,32 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const profileIcon = siteAccountIcon(basePath, lang, "account", "/login?redirect=/profile", accountCopy.profile, "data-account-profile");
   const notificationIcon = siteNotificationMenu(basePath, lang);
   const settingsIcon = siteAccountIcon(basePath, lang, "settings", "/login?redirect=/profile/settings", accountCopy.settings, "data-account-settings");
+
+  if (minimalChrome) {
+    return `<header class="site-header site-header-minimal">
+    <div class="site-header-inner">
+      <div class="site-brand-cluster">
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+          <span class="brand-logo-lockup">
+            <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
+            <span class="brand-wordmark" aria-label="ikimon">
+              <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
+            </span>
+          </span>
+        </a>
+      </div>
+      <div class="site-header-actions site-header-actions-desktop">
+        ${desktopLangSwitch}
+        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <a class="btn btn-solid site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
+      </div>
+      <div class="site-header-actions site-header-actions-mobile">
+        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <a class="btn btn-solid site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
+      </div>
+    </div>
+  </header>`;
+  }
 
   const desktopSideNav = desktopSideNavLinks(basePath, lang, currentPath);
   const mobileSideNav = renderSideNavDirectory(basePath, lang, currentPath, "mobile");
@@ -3371,11 +3398,12 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const isReadingPage = isReadingSurface(currentPath);
   const prefersCollapsedSideNav = isReadingPage || isImmersiveSurface || /\bshell-records-workbench\b/.test(shellClassName);
   const isMapSurface = /\bshell-map\b/.test(shellClassName);
+  const minimalChrome = Boolean(options.minimalChrome);
   const defaultSrOnlyHeading = pageTitle.replace(/\s*\|\s*ikimon\s*$/i, "");
   const srOnlyPageHeading = isMapSurface
     ? (lang === "ja" ? "地図" : lang === "es" ? "Mapa" : lang === "pt-BR" ? "Mapa" : "Map")
     : defaultSrOnlyHeading;
-  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}${isMapSurface ? " is-map-surface" : ""}`;
+  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}${isMapSurface ? " is-map-surface" : ""}${minimalChrome ? " is-minimal-chrome" : ""}`;
   const appLaunchHeadScript = `<script>
 (function () {
   try {
@@ -6458,6 +6486,23 @@ ${alternateLinks}
         margin-left: calc(var(--ikimon-desktop-sidebar-w) + 24px);
         margin-right: 0;
       }
+      .site-shell.is-minimal-chrome .site-header-inner {
+        width: min(var(--ikimon-page-max), calc(100% - 48px));
+        margin: 0 auto;
+        grid-template-columns: auto 1fr auto;
+      }
+      .site-shell.is-minimal-chrome .site-brand-cluster {
+        width: auto;
+      }
+      .site-shell.is-minimal-chrome .site-header-actions-desktop {
+        grid-column: 3;
+      }
+      .site-shell.is-minimal-chrome .shell.shell-layout-home,
+      .site-shell.is-minimal-chrome .shell.shell-layout-home.shell-bleed {
+        width: min(var(--ikimon-page-max), calc(100% - 48px));
+        margin-left: auto;
+        margin-right: auto;
+      }
       .footer-inner {
         margin-left: var(--ikimon-shell-margin-left);
         margin-right: var(--ikimon-shell-margin-right);
@@ -6836,7 +6881,7 @@ ${alternateLinks}
   ${languageSuggestionHtml}
   ${installPromptHtml}
   <div class="${siteShellClassName}">
-    ${nav(options.basePath, lang, currentPath, options.activeNav, uiLangs)}
+    ${nav(options.basePath, lang, currentPath, options.activeNav, uiLangs, minimalChrome)}
     <main id="main-content" class="${mainClassName}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
       ${!options.hero && !/<h1[\s>]/.test(`${options.belowHeroHtml ?? ""}${options.body}`) ? `<h1 class="sr-only">${escapeHtml(srOnlyPageHeading)}</h1>` : ""}

@@ -38,7 +38,7 @@ test("records workbench own feed uses cursor pagination by visit", async () => {
   assert.doesNotMatch(pageFunctionSource, /limit 72/);
 });
 
-test("landing public feed keeps enough records for the content wall", async () => {
+test("landing public feed mixes records by viewer post count for the record feed", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
   const feedAssembly = source.slice(
     source.indexOf("const selectedFeed"),
@@ -46,10 +46,24 @@ test("landing public feed keeps enough records for the content wall", async () =
   );
 
   assert.match(feedAssembly, /const publicFeedPool = userId/);
-  assert.match(feedAssembly, /\.\.\.publicFeedAll\.filter\(\(obs\) => obs\.observerUserId !== userId\)/);
-  assert.match(feedAssembly, /const publicFeed = publicFeedPool\.slice\(0, 36\);/);
+  assert.match(feedAssembly, /publicFeedAll\.filter\(\(obs\) => obs\.observerUserId !== userId\)/);
+  assert.match(feedAssembly, /const publicFeed = mixLandingFeedByPostCount\(/);
+  assert.match(source, /postCount <= 3/);
+  assert.match(source, /postCount <= 10/);
   assert.match(feedAssembly, /const storyFeed = selectedFeed\.length > 0 \? selectedFeed : publicFeed;/);
   assert.doesNotMatch(feedAssembly, /const publicFeed = selectedFeed\.length/);
+});
+
+test("landing public feed is fail-closed and strips raw coordinates for other viewers", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
+
+  assert.match(source, /filter\(isPublicFeedEligibleObservation\)/);
+  assert.match(source, /publicFeedObservationForViewer/);
+  assert.match(source, /latitude: null/);
+  assert.match(source, /longitude: null/);
+  assert.match(source, /media_derivative_ready/);
+  assert.match(source, /media_exif_stripped/);
+  assert.match(source, /media_face_blur_status/);
 });
 
 test("landing public feed ranks by observer so one active poster cannot monopolize everyone records", async () => {

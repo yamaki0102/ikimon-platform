@@ -114,8 +114,12 @@ test("top-level shared navigation does not link to 404 pages", async () => {
   try {
     const top = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(top.statusCode, 200);
-    const hrefs = extractInternalHrefs(top.body);
-    assert.ok(hrefs.includes("/ja/community"), "top should expose community");
+    assert.doesNotMatch(top.body, /<nav class="desktop-side-nav-inner"/);
+
+    const sharedNav = await app.inject({ method: "GET", url: "/records?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(sharedNav.statusCode, 200);
+    const hrefs = extractInternalHrefs(sharedNav.body);
+    assert.ok(hrefs.includes("/ja/community"), "shared navigation should expose community");
 
     const cloudflareNativeLinks = new Set([
       "/ja/walk-maps",

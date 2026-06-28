@@ -115,7 +115,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     summary: { ja: "ikimon - 皆で作る地域図鑑の入口。地域の自然・風景・水・土・農・季節・活動を地図から探す。", en: "The map-first entry point for building a regional field guide together." },
     primaryAction: { href: "/record", label: { ja: "記録する", en: "Record" } },
     legacyRedirects: ["/index.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "場所ストーリー" }, readySelector: "#map-explorer", screenshot: { baselineName: "registry-top" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "写真・動画の記録" }, readySelector: "[data-record-feed]", screenshot: { baselineName: "registry-top" } },
   },
   {
     path: "/record",

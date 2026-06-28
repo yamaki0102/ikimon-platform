@@ -436,6 +436,7 @@ function buildLandingRootHtml(
     currentPath,
     extraStyles,
     shellClassName: "shell-bleed prototype-shell",
+    minimalChrome: !isLoggedIn,
     body: `${landingTop.heroHtml}
 ${landingTop.dailyDashboardHtml}
 ${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}
@@ -744,10 +745,13 @@ export function buildApp() {
     } else {
       reply.header("Cache-Control", "public, max-age=30, stale-while-revalidate=30");
     }
-    return buildMapHomeHtml(
+    const snapshot = await getLandingSnapshotForRoot(viewerUserId);
+    return buildLandingRootHtml(
       context,
       lang,
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      snapshot,
+      false,
     );
   });
 

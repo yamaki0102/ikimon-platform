@@ -202,6 +202,11 @@ type FeedRow = {
   evidence_tier: number | null;
   quality_grade: string | null;
   field_refs: unknown;
+  public_visibility: string | null;
+  quality_review_status: string | null;
+  media_derivative_ready: boolean | null;
+  media_exif_stripped: boolean | null;
+  media_face_blur_status: string | null;
 };
 
 type GuideTopRow = {
@@ -362,7 +367,12 @@ const FEED_SQL_BASE = `
     o.confidence_score::text as confidence_score,
     o.evidence_tier,
     o.quality_grade,
-    coalesce(fields.field_refs, '[]'::jsonb) as field_refs
+    coalesce(fields.field_refs, '[]'::jsonb) as field_refs,
+    v.public_visibility,
+    v.quality_review_status,
+    coalesce(photo.derivative_ready, video.derivative_ready, false) as media_derivative_ready,
+    coalesce(photo.exif_stripped, video.exif_stripped, false) as media_exif_stripped,
+    coalesce(photo.face_blur_status, video.face_blur_status, '') as media_face_blur_status
   from occurrences o
   join visits v on v.visit_id = o.visit_id
   left join users u on u.user_id = v.user_id
@@ -396,13 +406,19 @@ const FEED_SQL_BASE = `
       count(*)::text as photo_count,
       (array_agg(asset.width_px order by asset.sort_scope, asset.created_at asc))[1] as width_px,
       (array_agg(asset.height_px order by asset.sort_scope, asset.created_at asc))[1] as height_px,
-      (array_agg(asset.bytes order by asset.sort_scope, asset.created_at asc))[1] as bytes
+      (array_agg(asset.bytes order by asset.sort_scope, asset.created_at asc))[1] as bytes,
+      bool_or(asset.derivative_ready) as derivative_ready,
+      bool_or(asset.exif_stripped) as exif_stripped,
+      (array_agg(asset.face_blur_status order by asset.sort_scope, asset.created_at asc))[1] as face_blur_status
     from (
       select
         coalesce(ab.public_url, ab.storage_path) as public_url,
         ab.width_px,
         ab.height_px,
         ab.bytes,
+        coalesce(nullif(lower(ab.source_payload->>'derivative_ready'), ''), 'true') in ('true', '1', 'yes') as derivative_ready,
+        coalesce(nullif(lower(ab.source_payload->>'exif_stripped'), ''), 'true') in ('true', '1', 'yes') as exif_stripped,
+        coalesce(nullif(lower(ea.source_payload->>'face_blur_status'), ''), nullif(lower(ab.source_payload->>'face_blur_status'), ''), 'not_needed') as face_blur_status,
         ea.created_at,
         case when ea.occurrence_id = o.occurrence_id then 0 else 1 end as sort_scope
       from evidence_assets ea
@@ -414,7 +430,10 @@ const FEED_SQL_BASE = `
   left join lateral (
     select
       count(*)::text as video_count,
-      (array_agg(coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url') order by ea.created_at asc))[1] as thumb_url
+      (array_agg(coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url') order by ea.created_at asc))[1] as thumb_url,
+      bool_or(coalesce(nullif(lower(ab.source_payload->>'derivative_ready'), ''), 'true') in ('true', '1', 'yes')) as derivative_ready,
+      bool_or(coalesce(nullif(lower(ab.source_payload->>'exif_stripped'), ''), 'true') in ('true', '1', 'yes')) as exif_stripped,
+      (array_agg(coalesce(nullif(lower(ea.source_payload->>'face_blur_status'), ''), nullif(lower(ab.source_payload->>'face_blur_status'), ''), 'not_needed') order by ea.created_at asc))[1] as face_blur_status
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
     where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
@@ -461,6 +480,66 @@ function landingLibrarySourceKind(row: FeedRow): LandingObservation["librarySour
   if (Number(row.video_count ?? 0) > 0) return "video";
   if (row.photo_url) return "photo";
   return "note";
+}
+
+function landingFeedPlaceKey(obs: LandingObservation): string {
+  return obs.publicLocation.cellId || obs.publicLocation.label || obs.municipality || obs.placeName || "";
+}
+
+function landingFeedTypeKey(obs: LandingObservation): string {
+  if (obs.hasVideo || obs.librarySourceKind === "video") return "video";
+  if (obs.entryType === "identification") return "identification";
+  return obs.librarySourceKind ?? "record";
+}
+
+function diverseLandingFeed(records: LandingObservation[], limit: number): LandingObservation[] {
+  const remaining = records.slice();
+  const selected: LandingObservation[] = [];
+  while (remaining.length > 0 && selected.length < limit) {
+    const previous = selected[selected.length - 1] ?? null;
+    const pickIndex = Math.max(0, remaining.findIndex((candidate) => {
+      if (!previous) return true;
+      const sameAuthor = candidate.observerUserId && candidate.observerUserId === previous.observerUserId;
+      const samePlace = landingFeedPlaceKey(candidate) && landingFeedPlaceKey(candidate) === landingFeedPlaceKey(previous);
+      const sameType = landingFeedTypeKey(candidate) === landingFeedTypeKey(previous);
+      return !sameAuthor && !samePlace && !sameType;
+    }));
+    const [picked] = remaining.splice(pickIndex, 1);
+    if (picked) selected.push(picked);
+  }
+  return selected;
+}
+
+function mixLandingFeedByPostCount(input: {
+  viewerUserId: string | null;
+  ownRecords: LandingObservation[];
+  publicRecords: LandingObservation[];
+}): LandingObservation[] {
+  const own = input.ownRecords.filter((obs) => obs.entryType !== "identification");
+  const publicRecords = diverseLandingFeed(input.publicRecords, 36);
+  const postCount = own.length;
+  if (!input.viewerUserId || postCount === 0) {
+    return publicRecords.slice(0, 24);
+  }
+  if (postCount <= 3) {
+    return [...own.slice(0, 2), ...publicRecords.slice(0, 18), ...own.slice(2, 6)].slice(0, 24);
+  }
+  if (postCount <= 10) {
+    const mixed: LandingObservation[] = [];
+    const max = Math.max(own.length, publicRecords.length);
+    for (let index = 0; index < max && mixed.length < 30; index += 1) {
+      const ownRecord = own[index];
+      const publicRecord = publicRecords[index];
+      if (ownRecord) mixed.push(ownRecord);
+      if (publicRecord) mixed.push(publicRecord);
+    }
+    return mixed;
+  }
+  return [
+    ...own.slice(0, 8),
+    ...publicRecords.slice(0, 6),
+    ...own.slice(8, 24),
+  ].slice(0, 30);
 }
 
 const PUBLIC_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
@@ -686,6 +765,38 @@ const AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql
   occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
 });
 
+function derivePublicFeedGateStatus(row: Pick<FeedRow,
+  "public_visibility" |
+  "quality_review_status" |
+  "media_derivative_ready" |
+  "media_exif_stripped" |
+  "media_face_blur_status"
+>): LandingObservation["publicFeedGateStatus"] {
+  const visibility = String(row.public_visibility ?? "review").toLowerCase();
+  const review = String(row.quality_review_status ?? "needs_review").toLowerCase();
+  const faceBlur = String(row.media_face_blur_status ?? "not_needed").toLowerCase();
+  if (visibility === "hidden" || review === "rejected" || review === "archived") return "blocked_public";
+  if (visibility !== "public") return "pending_review";
+  if (review !== "accepted") return "pending_review";
+  if (row.media_derivative_ready !== true || row.media_exif_stripped !== true) return "pending_review";
+  if (faceBlur === "needed" || faceBlur === "pending" || faceBlur === "failed") return "pending_review";
+  if (faceBlur === "blurred" || faceBlur === "applied") return "public_limited";
+  return "public_eligible";
+}
+
+function isPublicFeedEligibleObservation(obs: LandingObservation): boolean {
+  return obs.publicFeedGateStatus === "public_eligible" || obs.publicFeedGateStatus === "public_limited";
+}
+
+function publicFeedObservationForViewer(obs: LandingObservation, viewerUserId: string | null): LandingObservation {
+  if (viewerUserId && obs.observerUserId === viewerUserId) return obs;
+  return {
+    ...obs,
+    latitude: null,
+    longitude: null,
+  };
+}
+
 function toLandingObservation(row: FeedRow): LandingObservation {
   const latRaw = row.latitude;
   const lngRaw = row.longitude;
@@ -693,6 +804,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
   const lng = lngRaw === null || lngRaw === undefined ? null : Number(lngRaw);
   const safeLat = lat !== null && Number.isFinite(lat) ? lat : null;
   const safeLng = lng !== null && Number.isFinite(lng) ? lng : null;
+  const publicFeedGateStatus = derivePublicFeedGateStatus(row);
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
@@ -728,6 +840,8 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     entryType: "observation",
     evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
     fieldRefs: normalizeFieldRefs(row.field_refs),
+    publicFeedGateStatus,
+    publicFeedEligible: publicFeedGateStatus === "public_eligible" || publicFeedGateStatus === "public_limited",
   };
 }
 
@@ -2143,7 +2257,10 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   const filteredFeedRows = feedRows.filter((row) => !isLandingSuppressedFeedRow(row));
   const ownObservationEntries = myFeedRows.map(toLandingObservation);
   const ownIdentificationEntries = myIdentificationRows.map(toIdentificationEntry);
-  const publicFeedAll = filteredFeedRows.map(toLandingObservation);
+  const publicFeedAll = filteredFeedRows
+    .map(toLandingObservation)
+    .filter(isPublicFeedEligibleObservation)
+    .map((obs) => publicFeedObservationForViewer(obs, userId));
   const guideItems = guideTopRows
     .map(toLandingGuideItem)
     .filter((item) => !isLandingSuppressedObservation({
@@ -2204,12 +2321,13 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   });
   const selectedFeed = uniqueLandingObservationList(topSelection.shelves.flatMap((shelf) => shelf.items).filter(isLandingObservationItem));
   const publicFeedPool = userId
-    ? [
-        ...publicFeedAll.filter((obs) => obs.observerUserId !== userId),
-        ...publicFeedAll.filter((obs) => obs.observerUserId === userId),
-      ]
+    ? publicFeedAll.filter((obs) => obs.observerUserId !== userId)
     : publicFeedAll;
-  const publicFeed = publicFeedPool.slice(0, 36);
+  const publicFeed = mixLandingFeedByPostCount({
+    viewerUserId: userId,
+    ownRecords: ownObservationEntries,
+    publicRecords: publicFeedPool,
+  });
   const storyFeed = selectedFeed.length > 0 ? selectedFeed : publicFeed;
   const combined = filterLandingDummyObservations([...ownObservationEntries, ...ownIdentificationEntries]).sort((a, b) => {
     const aTs = (a.entryType === "identification" ? a.identifiedAt : a.observedAt) ?? "";

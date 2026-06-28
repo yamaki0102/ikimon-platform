@@ -71,6 +71,7 @@ const photoObservation: LandingObservation = {
 
 const photoSnapshot: LandingSnapshot = {
   ...emptySnapshot,
+  viewerUserId: "viewer-1",
   stats: { observationCount: 1, speciesCount: 1, placeCount: 1 },
   feed: [photoObservation],
   dailyDashboard: {
@@ -151,36 +152,40 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /今日見つけた生きものを、名前が分からなくても残せる。/);
   assert.doesNotMatch(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
-  assert.match(html, /場所を知る手がかり/);
+  assert.match(html, /data-record-feed/);
+  assert.match(html, /記録を見る/);
+  assert.match(html, /みんなの記録/);
+  assert.doesNotMatch(html, /ログイン/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:record_feed:weak_record"/);
   assert.doesNotMatch(html, /名前を確かめる/);
   assert.doesNotMatch(html, /名前は後でいい/);
   assert.doesNotMatch(html, /AIは候補まで/);
   assert.doesNotMatch(html, /位置は安全側/);
-  assert.match(html, /aria-label="育つ観察エリア"/);
+  assert.doesNotMatch(html, /aria-label="育つ観察エリア"/);
   assert.doesNotMatch(html, /地域マップ/);
-  assert.match(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
+  assert.doesNotMatch(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
   assert.doesNotMatch(html, /prototype-content-wall-heading/);
   assert.doesNotMatch(html, /WATCH/);
   assert.doesNotMatch(html, /すべて見る/);
-  assert.match(html, /<h3>場所の今を残す記録<\/h3>/);
-  assert.match(html, /まだ少ない場所ほど、次に見に行く楽しみがあります。/);
-  assert.match(html, /この場所の余白を見つける/);
-  assert.match(html, /記録がないことも、季節や場所を知る手がかりです。/);
-  assert.match(html, /href="\/ja\/map" data-kpi-action="landing:content_wall:empty"/);
-  assert.match(html, />近くを見る<\/em>/);
+  assert.doesNotMatch(html, /<h3>場所の今を残す記録<\/h3>/);
+  assert.doesNotMatch(html, /まだ少ない場所ほど、次に見に行く楽しみがあります。/);
+  assert.doesNotMatch(html, /この場所の余白を見つける/);
+  assert.doesNotMatch(html, /記録がないことも、季節や場所を知る手がかりです。/);
+  assert.doesNotMatch(html, /href="\/ja\/map" data-kpi-action="landing:content_wall:empty"/);
+  assert.doesNotMatch(html, />近くを見る<\/em>/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-content-empty \{\s+grid-column: 1 \/ -1;/);
   assert.doesNotMatch(html, /最初の投稿が入ると/);
   assert.doesNotMatch(html, /ここから地域の記録が育ちます/);
-  assert.match(html, />PLACE MEMORY<\/span>/);
+  assert.doesNotMatch(html, />PLACE MEMORY<\/span>/);
   assert.doesNotMatch(html, /<h3>自分の記録<\/h3>/);
-  assert.match(html, /prototype-content-grid/);
+  assert.doesNotMatch(html, /prototype-content-grid/);
   assert.doesNotMatch(html, /音の標本棚/);
   assert.doesNotMatch(html, /写真と動画/);
   assert.doesNotMatch(html, /みんなの発見/);
   assert.doesNotMatch(html, /data-kpi-action="landing:topA:primary:record"/);
   assert.doesNotMatch(html, /data-kpi-event="primary_cta_click"/);
   assert.doesNotMatch(html, /data-kpi-funnel="landing_record"/);
-  assert.match(html, /data-kpi-action="landing:topA:shelf:localMap"/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:topA:shelf:localMap"/);
 });
 
 test("guide outcome section groups full guide outcome pool instead of the shelf subset", () => {
@@ -289,9 +294,10 @@ test("landing top localizes the content-first shelves in English", () => {
   const html = renderTop(emptySnapshot, "en");
 
   assert.doesNotMatch(html, /Save what you found today/);
-  assert.match(html, /<section class="prototype-content-wall" aria-label="Place records">/);
+  assert.match(html, /data-record-feed/);
+  assert.doesNotMatch(html, /<section class="prototype-content-wall" aria-label="Place records">/);
   assert.doesNotMatch(html, /WATCH/);
-  assert.match(html, /<h3>Everyone&#39;s records<\/h3>/);
+  assert.doesNotMatch(html, /<h3>Everyone&#39;s records<\/h3>/);
   assert.doesNotMatch(html, /Names can come later/);
   assert.doesNotMatch(html, /AI stays as a hint/);
   assert.doesNotMatch(html, /いま見えている自然/);
@@ -467,7 +473,7 @@ test("landing top gives signed-in own and community posts two desktop rows each"
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
 });
 
-test("landing top keeps guest community posts to two desktop rows", () => {
+test("landing top keeps guest community posts in the short record feed", () => {
   const makeObservation = (index: number): LandingObservation => ({
     ...photoObservation,
     occurrenceId: `occ-guest-balanced-${index}`,
@@ -485,10 +491,11 @@ test("landing top keeps guest community posts to two desktop rows", () => {
     feed: Array.from({ length: 18 }, (_, index) => makeObservation(index)),
   });
 
-  assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
-  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<h3>場所の今を残す記録<\/h3>/);
+  assert.equal((html.match(/data-record-feed-card/g) ?? []).length, 12);
+  assert.match(html, /data-record-feed/);
+  assert.doesNotMatch(html, /prototype-content-wall/);
   assert.doesNotMatch(html, /みんなの投稿12/);
-  assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
+  assert.doesNotMatch(html, /もっと見る<\/a>/);
 });
 
 test("landing top keeps signed-in fallback records split by owner", () => {
@@ -654,6 +661,7 @@ test("landing top renders video items as icon-marked thumbnail content", () => {
   };
   const html = renderTop({
     ...photoSnapshot,
+    viewerUserId: "viewer-1",
     feed: [videoObservation, photoObservation],
     dailyDashboard: {
       ...photoSnapshot.dailyDashboard!,
@@ -686,6 +694,7 @@ test("landing top keeps multiple video thumbnails in the content wall", () => {
   };
   const html = renderTop({
     ...photoSnapshot,
+    viewerUserId: "viewer-1",
     feed: [videoOne, videoTwo, photoObservation],
     dailyDashboard: {
       ...photoSnapshot.dailyDashboard!,
@@ -931,6 +940,7 @@ test("landing top has medium desktop width relief", () => {
 test("landing top no longer renders separate guide shelf blocks", () => {
   const html = renderTop({
     ...photoSnapshot,
+    viewerUserId: "viewer-1",
     topShelves: [
       {
         kind: "guide",

@@ -60,32 +60,24 @@ async function issueSessionCookie(api: APIRequestContext, userId: string): Promi
   return rawCookie;
 }
 
-async function expectMapFirstHomeShell(page: Page, profile: ViewportProfile): Promise<void> {
-  const expectsDesktopSideToggle = profile.viewport.width > 900;
+async function expectRecordFeedHomeShell(page: Page): Promise<void> {
   await expect(async () => {
     await page.goto("/?lang=ja", { waitUntil: "networkidle" });
-    await expect(page.locator(".me-section")).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("#map-explorer")).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("#me-side-toggle")).toHaveCount(1);
-    if (expectsDesktopSideToggle) {
-      await expect(page.locator("#me-side-toggle")).toBeVisible({ timeout: 5_000 });
-    }
-    await expect(page.locator("#me-side-rail-count")).toHaveCount(1);
-    await expect(page.locator("#me-side-rail-count")).toHaveText("");
-    const railText = await page.locator(".me-side-rail-icons").innerText({ timeout: 5_000 });
-    expect(railText).not.toContain("\u{1F4CB}");
-    expect(railText).not.toMatch(/\d/);
+    await expect(page.locator("[data-record-feed]")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("[data-record-feed-card]").first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#map-explorer")).toHaveCount(0);
+    await expect(page.locator("body")).toContainText(/写真・動画の記録|記録を見る/);
   }).toPass({
     intervals: [1_500, 3_000, 5_000],
     timeout: 45_000,
   });
 }
 
-async function expectQuietMapHome(page: Page): Promise<void> {
+async function expectQuietFeedHome(page: Page): Promise<void> {
   await expect(page.locator(".me-enjoy-strip")).toHaveCount(0);
   await expect(page.locator("#me-visited-panel")).toHaveCount(0);
   await expect(page.locator("[data-api-my-places]")).toHaveCount(0);
-  await expect(page.locator(".me-filter-toggle")).toBeVisible();
+  await expect(page.locator(".me-filter-toggle")).toHaveCount(0);
   const visibleText = await visibleBodyText(page);
   expect(visibleText).not.toContain("ikimon - 皆で作る地域図鑑");
   expect(visibleText).not.toContain("Cloudflare移行中");
@@ -96,14 +88,14 @@ async function expectQuietMapHome(page: Page): Promise<void> {
 }
 
 for (const profile of HOME_VIEWPORTS) {
-  test(`home opens the map-first shell (${profile.slug})`, async ({ browser }) => {
+  test(`home opens the record feed shell (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
 
     try {
       await suppressMapLibreForSmoke(page);
-      await expectMapFirstHomeShell(page, profile);
-      await expectQuietMapHome(page);
+      await expectRecordFeedHomeShell(page);
+      await expectQuietFeedHome(page);
       await expectNoHorizontalOverflow(page);
     } finally {
       await context.close();
@@ -111,7 +103,7 @@ for (const profile of HOME_VIEWPORTS) {
   });
 }
 
-test("logged-in staging home keeps the map-first shell", async ({ browser, playwright }) => {
+test("logged-in staging home keeps the record feed shell", async ({ browser, playwright }) => {
   const api = await createStagingApiContext(playwright);
   const userId = await resolveQaUserId(api);
   const rawCookie = await issueSessionCookie(api, userId);
@@ -121,10 +113,10 @@ test("logged-in staging home keeps the map-first shell", async ({ browser, playw
 
   try {
     await suppressMapLibreForSmoke(page);
-    await expectMapFirstHomeShell(page, { slug: "desktop-1440", viewport: { width: 1440, height: 900 } });
-    await expectQuietMapHome(page);
+    await expectRecordFeedHomeShell(page);
+    await expectQuietFeedHome(page);
     await expectNoHorizontalOverflow(page);
-    await page.screenshot({ path: "test-results/home-map-first-logged-in.png", fullPage: true });
+    await page.screenshot({ path: "test-results/home-record-feed-logged-in.png", fullPage: true });
   } finally {
     await context.close();
     await api.dispose();
