@@ -16869,6 +16869,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
         mediaRole: "observation_video"
       };
     });
+  const environmentRecord = await readLatestPublicObservationEnvironmentRecord(env, visitId);
   const relatedRows = (await queryPublicMapRows(env))
     .filter((related) => related.public_cell === row.public_cell && related.observation_id !== visitId)
     .slice(0, 6);
@@ -16895,6 +16896,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
     videoAssets,
     audioAssets: [],
     assetCount: row.asset_count,
+    environmentRecord,
     relatedObservations: relatedRows.map((related) => publicMapObservationItem(
       related,
       relatedPhotoUrls.get(related.observation_id) ?? null
@@ -16904,6 +16906,22 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
       source: "readmodel_public_observations.public_cell"
     }
   };
+}
+
+async function readLatestPublicObservationEnvironmentRecord(env: Env, visitId: string): Promise<Record<string, string>> {
+  try {
+    const row = await env.OBS_DB.prepare(
+      "SELECT structured_json FROM observation_environment_records WHERE occurrence_id = ? ORDER BY created_at DESC LIMIT 1"
+    ).bind(visitId).first<{ structured_json: string }>();
+    return parseCompatibleStructuredJson(row?.structured_json);
+  } catch (error) {
+    console.warn(JSON.stringify({
+      message: "public_observation_environment_record_unavailable",
+      visitId,
+      error: error instanceof Error ? error.message : String(error)
+    }));
+    return {};
+  }
 }
 
 async function createDraftObservation(request: Request, env: Env): Promise<Response> {
@@ -18059,6 +18077,14 @@ const COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS: Record<CompatibleEnvironmentRecordF
   ]
 };
 
+const COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS: Record<CompatibleEnvironmentRecordField, string> = {
+  place_type: "場所",
+  contact_surface: "足元",
+  surrounding_cover: "周囲",
+  environment_condition: "状態",
+  human_change: "人の影響"
+};
+
 async function updateCompatibleOccurrenceDetail(
   occurrenceId: string,
   kind: CompatibleOccurrenceDetailEditKind,
@@ -18222,8 +18248,11 @@ async function insertCompatibleEnvironmentRecord(
   if (!observation) {
     throw new HttpError(404, "observation_not_found");
   }
-  const lat = numberOrNull(observation.exact_lat);
-  const lng = numberOrNull(observation.exact_lng);
+  const exactLat = numberOrNull(observation.exact_lat);
+  const exactLng = numberOrNull(observation.exact_lng);
+  const publicCell = parsePublicCell(observation.public_cell);
+  const lat = exactLat ?? publicCell?.lat ?? null;
+  const lng = exactLng ?? publicCell?.lng ?? null;
   if (lat === null || lng === null) {
     throw new HttpError(400, "occurrence_location_required");
   }
@@ -18232,6 +18261,7 @@ async function insertCompatibleEnvironmentRecord(
   ).bind(occurrenceId).first<{ structured_json: string }>();
   const previous = parseCompatibleStructuredJson(previousRow?.structured_json);
   const structured = mergeCompatibleUserEnvironmentRecordValues(previous, values, userId);
+  structured.environment_record_location_source = exactLat !== null && exactLng !== null ? "exact_observation" : "public_cell";
   const recordId = newId("envrec");
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
@@ -22237,6 +22267,18 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-quality-item, .obs-env-row { display: grid; gap: 3px; padding: 9px 10px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
     .obs-quality-item span, .obs-env-row span { color: #64748b; font-size: 10.5px; line-height: 1.3; font-weight: 900; }
     .obs-quality-item strong, .obs-env-row strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
+    .obs-env-current { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
+    .obs-env-editor { display: grid; gap: 10px; }
+    .obs-env-editor summary { width: fit-content; cursor: pointer; list-style: none; }
+    .obs-env-editor summary::-webkit-details-marker { display: none; }
+    .obs-env-form { display: grid; gap: 10px; padding: 10px; border-radius: 13px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+    .obs-env-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .obs-env-field { display: grid; gap: 5px; min-width: 0; }
+    .obs-env-field span { color: #475569; font-size: 10.5px; line-height: 1.3; font-weight: 950; }
+    .obs-env-field select { width: 100%; min-width: 0; min-height: 38px; padding: 7px 9px; border-radius: 10px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; font: inherit; font-size: 12px; line-height: 1.25; font-weight: 850; }
+    .obs-env-help, .obs-env-status { margin: 0; color: #64748b; font-size: 11.5px; line-height: 1.55; font-weight: 760; }
+    .obs-env-status { min-height: 18px; color: #0f766e; font-weight: 900; }
+    .obs-env-status.is-error { color: #b45309; }
     .obs-frame-preview { position: fixed; inset: 0; z-index: 80; display: none; place-items: center; padding: 18px; background: rgba(15,23,42,.72); }
     .obs-frame-preview.is-open { display: grid; }
     .obs-frame-preview-dialog { width: min(920px, 96vw); display: grid; gap: 10px; border-radius: 18px; background: #fff; padding: 12px; box-shadow: 0 24px 72px rgba(0,0,0,.32); }
@@ -22392,7 +22434,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
       .obs-hero-image-frame, .obs-hero-image-frame img { min-height: clamp(218px, 58vw, 330px); max-height: none; }
       .obs-hero-thumb { flex-basis: 68px; width: 68px; height: 52px; }
       .obs-ai-status { display: grid; }
-      .obs-ai-merged-row, .obs-quality-grid, .obs-observation-grid, .obs-env-strip { grid-template-columns: 1fr; }
+      .obs-ai-merged-row, .obs-quality-grid, .obs-observation-grid, .obs-env-strip, .obs-env-form-grid, .obs-env-current { grid-template-columns: 1fr; }
       .obs-photo--main img { aspect-ratio: 4 / 3; }
       .obs-photo:not(.obs-photo--main) { grid-column: span 3; }
       .obs-facts, .obs-action-rail, .obs-layer-grid { grid-template-columns: 1fr; }
@@ -22901,6 +22943,91 @@ function publicObservationDetailPolish(detail: PublicObservationDetail): PublicO
   };
 }
 
+function compatibleEnvironmentRecordCurrentValue(record: Record<string, string> | null | undefined, field: CompatibleEnvironmentRecordField): string {
+  const value = record?.[field] ?? "unknown";
+  return COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].some((option) => option.value === value) ? value : "unknown";
+}
+
+function compatibleEnvironmentRecordHasUserValues(record: Record<string, string> | null | undefined): boolean {
+  if (!record) return false;
+  return (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]).some((field) => {
+    const value = compatibleEnvironmentRecordCurrentValue(record, field);
+    return value !== "unknown" || record[`${field}_source`] === "user";
+  });
+}
+
+function compatibleEnvironmentRecordOptionLabel(field: CompatibleEnvironmentRecordField, value: string): string {
+  return COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].find((option) => option.value === value)?.label ?? "不明";
+}
+
+function renderImageEnvironmentRecordSummary(record: Record<string, string> | null | undefined): string {
+  return (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]).map((field) => {
+    const value = compatibleEnvironmentRecordCurrentValue(record, field);
+    return `<div class="obs-env-row" data-env-summary-field="${escapeHtml(field)}">
+        <span>${escapeHtml(COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS[field])}</span>
+        <strong>${escapeHtml(compatibleEnvironmentRecordOptionLabel(field, value))}</strong>
+      </div>`;
+  }).join("");
+}
+
+function renderImageEnvironmentRecordSelect(field: CompatibleEnvironmentRecordField, record: Record<string, string> | null | undefined): string {
+  const currentValue = compatibleEnvironmentRecordCurrentValue(record, field);
+  const options = COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].map((option) =>
+    `<option value="${escapeHtml(option.value)}"${option.value === currentValue ? " selected" : ""}>${escapeHtml(option.label)}</option>`
+  ).join("");
+  return `<label class="obs-env-field">
+      <span>${escapeHtml(COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS[field])}</span>
+      <select name="${escapeHtml(field)}">${options}</select>
+    </label>`;
+}
+
+function renderImageEnvironmentQualityBlock(
+  detail: PublicObservationDetail,
+  observedLabel: string,
+  placeLabel: string,
+  photoCount: number
+): string {
+  const environmentRecord = detail.environmentRecord as Record<string, string> | null | undefined;
+  const statusLabel = compatibleEnvironmentRecordHasUserValues(environmentRecord) ? "保存済み" : "未確認";
+  const formFields = (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[])
+    .map((field) => renderImageEnvironmentRecordSelect(field, environmentRecord))
+    .join("");
+  return `<section class="obs-local-quality-card obs-vps-quality" data-section-code="observation-quality">
+    <div class="obs-local-quality-eye">観察記録 / 環境情報</div>
+    <h2>観察記録を整える</h2>
+    <p>日時・場所・環境情報をあとから追加・変更し、確認履歴を残します。保存できる範囲だけを操作として表示します。</p>
+    <div class="obs-quality-grid">
+      <div class="obs-quality-item"><span>日時</span><strong>${escapeHtml(observedLabel)}</strong></div>
+      <div class="obs-quality-item"><span>場所</span><strong>${escapeHtml(placeLabel)}</strong></div>
+      <div class="obs-quality-item"><span>写真</span><strong>${escapeHtml(`${photoCount}枚`)}</strong></div>
+    </div>
+    <div class="obs-local-quality-check">
+      <strong>環境情報の下書き</strong>
+      <p>周囲の植物、足元の状態、明るさ、湿り気を読み取りカードとして追加できます。</p>
+      <span data-env-record-status>${escapeHtml(statusLabel)}</span>
+    </div>
+    <div class="obs-quality-grid obs-env-current" aria-label="現在の環境情報">
+      ${renderImageEnvironmentRecordSummary(environmentRecord)}
+    </div>
+    <details class="obs-env-editor" data-env-editor>
+      <summary class="obs-identify-button">環境情報を変更</summary>
+      <form class="obs-env-form" data-environment-record-form action="/api/v1/occurrences/${encodeURIComponent(detail.visitId)}/environment-record" method="post">
+        <div class="obs-env-form-grid">
+          ${formFields}
+        </div>
+        <p class="obs-env-help">保存には、この記録を投稿したアカウントでのログインが必要です。公開ページには精密な位置や投稿者情報は表示しません。</p>
+        <div class="obs-identify-actions">
+          <button type="submit" class="obs-identify-button">保存する</button>
+        </div>
+        <p class="obs-env-status" data-environment-record-status-message role="status" aria-live="polite"></p>
+      </form>
+    </details>
+    <ul class="obs-local-name-activity-list">
+      <li><strong>編集履歴</strong><span data-env-history>${compatibleEnvironmentRecordHasUserValues(environmentRecord) ? "保存済みの環境情報を表示しています。" : "環境情報の変更と確認をこのページで追えるようにします。"}</span></li>
+    </ul>
+  </section>`;
+}
+
 function publicImageObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish {
   const meta = IMAGE_OBSERVATION_DETAIL_TARGET_META[detail.visitId];
   const fallbackDisplayName = detail.displayName && detail.displayName !== "同定待ち"
@@ -23013,28 +23140,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
       <li><strong>現在の見方</strong><span>${escapeHtml(subjectName)}として確認待ちです。確定前として公開し、あとから更新できます。</span></li>
     </ul>
   </section>`;
-  const qualityBlock = `<section class="obs-local-quality-card obs-vps-quality" data-section-code="observation-quality">
-    <div class="obs-local-quality-eye">観察記録 / 環境情報</div>
-    <h2>観察記録を整える</h2>
-    <p>日時・場所・環境情報をあとから追加・変更し、確認履歴を残します。保存できる範囲だけを操作として表示します。</p>
-    <div class="obs-quality-grid">
-      <div class="obs-quality-item"><span>日時</span><strong>${escapeHtml(observedLabel)}</strong></div>
-      <div class="obs-quality-item"><span>場所</span><strong>${escapeHtml(placeLabel)}</strong></div>
-      <div class="obs-quality-item"><span>写真</span><strong>${escapeHtml(`${photos.length}枚`)}</strong></div>
-    </div>
-    <div class="obs-local-quality-check">
-      <strong>環境情報の下書き</strong>
-      <p>周囲の植物、足元の状態、明るさ、湿り気を読み取りカードとして追加できます。</p>
-      <span>未確認</span>
-    </div>
-    <div class="obs-identify-actions">
-      <a class="obs-identify-button" href="/record-reading-cards">環境情報を変更</a>
-      <button type="button" class="obs-identify-button is-secondary">確認する</button>
-    </div>
-    <ul class="obs-local-name-activity-list">
-      <li><strong>編集履歴</strong><span>環境情報の変更と確認をこのページで追えるようにします。</span></li>
-    </ul>
-  </section>`;
+  const qualityBlock = renderImageEnvironmentQualityBlock(detail, observedLabel, placeLabel, photos.length);
   const statusBlock = `<div class="obs-record-use-status" aria-label="この記録の状態">
     <span>写真記録</span>
     <span>${escapeHtml(subjectName)}</span>
@@ -23078,7 +23184,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     relatedCards: renderImageObservationRelatedCards(detail, meta),
     hideNote: true,
     previewDialog: "",
-    previewScript: renderImageGalleryScript()
+    previewScript: renderImageGalleryScript() + renderImageEnvironmentEditorScript()
   };
 }
 
@@ -23190,6 +23296,71 @@ function renderImageGalleryScript(): string {
       });
       button.classList.add('is-active');
       button.setAttribute('aria-pressed', 'true');
+    });
+  });
+}());
+</script>`;
+}
+
+function renderImageEnvironmentEditorScript(): string {
+  return `<script>
+(function () {
+  var form = document.querySelector('[data-environment-record-form]');
+  if (!form) return;
+  var statusMessage = form.querySelector('[data-environment-record-status-message]');
+  var statusBadge = document.querySelector('[data-env-record-status]');
+  var history = document.querySelector('[data-env-history]');
+  var submitButton = form.querySelector('button[type="submit"]');
+  function setMessage(message, isError) {
+    if (!statusMessage) return;
+    statusMessage.textContent = message;
+    statusMessage.classList.toggle('is-error', Boolean(isError));
+  }
+  function selectedLabel(select) {
+    var option = select.options[select.selectedIndex];
+    return option ? option.textContent || '' : '';
+  }
+  function applySavedValues(values) {
+    Array.prototype.forEach.call(form.querySelectorAll('select[name]'), function (select) {
+      var field = select.getAttribute('name') || '';
+      var row = document.querySelector('[data-env-summary-field="' + field + '"] strong');
+      if (row) row.textContent = values[field] && values[field].label ? values[field].label : selectedLabel(select);
+    });
+    if (statusBadge) statusBadge.textContent = '保存済み';
+    if (history) {
+      var now = new Date();
+      history.textContent = '環境情報を保存しました。' + now.toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+  }
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var values = {};
+    Array.prototype.forEach.call(form.querySelectorAll('select[name]'), function (select) {
+      values[select.getAttribute('name')] = select.value;
+    });
+    if (submitButton) submitButton.disabled = true;
+    setMessage('保存しています。', false);
+    fetch(form.getAttribute('action') || '', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ values: values })
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (payload) {
+        if (!response.ok || !payload.ok) {
+          var error = payload && payload.error ? String(payload.error) : '';
+          if (response.status === 401) throw new Error('保存には投稿したアカウントでログインが必要です。');
+          if (response.status === 403) throw new Error('この記録の投稿者だけが変更できます。');
+          if (error === 'occurrence_location_required') throw new Error('位置情報がないため、この記録では環境情報を保存できません。');
+          throw new Error('保存できませんでした。時間を置いてもう一度試してください。');
+        }
+        applySavedValues(payload.values || {});
+        setMessage('保存しました。', false);
+      });
+    }).catch(function (error) {
+      setMessage(error && error.message ? error.message : '保存できませんでした。', true);
+    }).finally(function () {
+      if (submitButton) submitButton.disabled = false;
     });
   });
 }());
