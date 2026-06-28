@@ -14451,7 +14451,9 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.doesNotMatch(homeBody, /record-shadow-materialized/);
   assert.match(homeBody, /prototype-record-feed is-guest/);
   assert.match(homeBody, /data-cloudflare-home-infinite-feed/);
+  assert.match(homeBody, /data-cloudflare-home-record-id="record-live-materialized"/);
   assert.match(homeBody, /cf-home-record-feed-infinite-script/);
+  assert.match(homeBody, /pickNextCard/);
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
   assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
