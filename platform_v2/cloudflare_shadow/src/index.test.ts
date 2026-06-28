@@ -14504,6 +14504,39 @@ test("production home prioritizes signed-in owner records over public feed recor
     exif_scrub_state: "scrubbed",
     public_ready_at: null
   });
+  for (let index = 0; index < 11; index += 1) {
+    const day = String(23 - index).padStart(2, "0");
+    const observationId = `owner-private-home-record-${index}`;
+    const assetId = `asset-owner-home-real-derivative-${index}`;
+    await post("/api/v1/observations/upsert", env, {
+      observationId,
+      userId: "owner-home-user",
+      observedAt: `2026-06-${day}T09:00:00.000Z`,
+      latitude: 34.81234,
+      longitude: 137.73234,
+      taxon: { vernacularName: `自分の追加記録${index}`, rank: "species" }
+    });
+    const extraOwnerObservation = obs.observations.get(observationId);
+    if (extraOwnerObservation) extraOwnerObservation.visibility = "private";
+    obs.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: observationId,
+      owner_user_id: "owner-home-user",
+      object_key: `original/${observationId}/owner-real.jpg`,
+      partition_month: "2026-06",
+      sha256: `${assetId}-sha`,
+      mime: "image/jpeg",
+      bytes: 1234,
+      processing_state: "uploaded",
+      public_derivative_key: `derived/import/202606${day}/observation_photo/${assetId}/display.webp`,
+      public_derivative_sha256: `${assetId}-derivative-sha`,
+      public_derivative_verified_at: `2026-06-${day}T09:10:00.000Z`,
+      public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+      exif_scrub_state: "scrubbed",
+      public_ready_at: null
+    });
+  }
 
   env.OBS_DB.publicMapSnapshotRecords.push({
     occurrence_id: "occ:public-home-record:0",
@@ -14554,8 +14587,10 @@ test("production home prioritizes signed-in owner records over public feed recor
   assert.match(homeBody, /data-cloudflare-owner-home-record/);
   assert.match(homeBody, /prototype-record-feed is-owner/);
   assert.match(homeBody, /自分だけの最新記録/);
+  assert.match(homeBody, /自分の追加記録10/);
   assert.match(homeBody, /自分の記録/);
   assert.match(homeBody, /asset-owner-home-real-derivative/);
+  assert.ok((homeBody.match(/data-cloudflare-owner-home-record/g) ?? []).length >= 12);
   assert.doesNotMatch(homeBody, /他人の公開記録/);
   assert.doesNotMatch(homeBody, /近くの記録/);
   assert.doesNotMatch(homeBody, /34\.81234|137\.73234|owner_user_id|ownerUserId/);
