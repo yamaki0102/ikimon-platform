@@ -21991,7 +21991,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
   const videos = !polish?.mediaBlock && detail.videoAssets.length > 0
     ? detail.videoAssets.map((asset) => `<a class="obs-media-link" href="${escapeHtml(asset.watchUrl)}">動画を開く</a>`).join("")
     : "";
-  const note = typeof detail.note === "string" && detail.note.trim() !== "" ? detail.note.trim() : "";
+  const note = polish?.hideNote ? "" : (typeof detail.note === "string" && detail.note.trim() !== "" ? detail.note.trim() : "");
   const photoCount = polish?.photoCount ?? detail.photoAssets.length;
   const videoCount = Math.max(detail.videoAssets.length, polish?.videoCount ?? 0);
   const audioCount = polish?.audioCount ?? 0;
@@ -22532,6 +22532,7 @@ type PublicObservationDetailPolish = {
   actionRailBlock?: string;
   readProgressLinks?: string;
   relatedCards?: string;
+  hideNote?: boolean;
   previewDialog: string;
   previewScript: string;
 };
@@ -23043,8 +23044,8 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     videoCount: 0,
     audioCount: 0,
     photoCount: photos.length,
-    recordInsight: meta?.insight ?? "写真の対象枠、候補レビュー、環境レコードを同じページで確認できます。",
-    statusBlock,
+    recordInsight: meta?.insight ?? "写真の対象枠、候補レビュー、環境情報を同じページで確認できます。",
+    statusBlock: "",
     firstReadBlock,
     aiReadoutBlock,
     identifyBlock,
@@ -23065,6 +23066,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
   <a href="#identify">同定</a>
   <a href="#place">次に見るなら</a>`,
     relatedCards: renderImageObservationRelatedCards(detail, meta),
+    hideNote: true,
     previewDialog: "",
     previewScript: renderImageGalleryScript()
   };
