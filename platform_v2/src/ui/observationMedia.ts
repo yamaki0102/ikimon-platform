@@ -39,6 +39,7 @@ export const OBSERVATION_REGION_SUMMARY_TEXT = "写真上の位置は参考情�
 
 export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-gallery { display: grid; gap: 10px; border-radius: 20px; background: #ffffff; border: 1px solid rgba(15,23,42,.08); padding: 8px; box-shadow: 0 18px 42px rgba(15,23,42,.07); }
+  .obs-hero-media-stack.is-photo-only .obs-hero-gallery { gap: 8px; }
   .obs-hero-preview { position: relative; display: flex; align-items: center; justify-content: center; min-height: clamp(420px, 68vh, 680px); border-radius: 16px; overflow: hidden; background: #f8fafc; cursor: zoom-in; }
   .obs-hero-image-frame { position: relative; display: inline-block; max-width: 100%; max-height: min(68vh, 680px); }
   .obs-hero-image-frame img { width: auto; height: auto; max-width: 100%; max-height: min(68vh, 680px); object-fit: contain; display: block; }
@@ -123,6 +124,9 @@ export const OBSERVATION_MEDIA_STYLES = `
     .obs-hero-preview { min-height: 170px; max-height: 180px; border-radius: 12px; }
     .obs-hero-image-frame { max-height: 180px; }
     .obs-hero-image-frame img { max-height: 180px; }
+    .obs-hero-media-stack.is-photo-only .obs-hero-preview { min-height: clamp(218px, 58vw, 330px); max-height: none; }
+    .obs-hero-media-stack.is-photo-only .obs-hero-image-frame,
+    .obs-hero-media-stack.is-photo-only .obs-hero-image-frame img { max-height: clamp(218px, 58vw, 330px); }
     .obs-hero-zoom { top: 8px; right: 8px; width: 36px; height: 36px; }
     .obs-hero-zoom svg { width: 18px; height: 18px; }
     .obs-hero-thumbs { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; }
@@ -420,7 +424,7 @@ function renderPhotoGallery(
     return `<template data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${regionTemplate}</template>
          <template data-obs-thumb-annotations="${escapeHtml(asset.assetId)}">${annotationTemplate}</template>`;
   }).join("");
-  const thumbsHtml = snapshot.photoAssets.length >= 2
+  const thumbsHtml = snapshot.photoAssets.length >= 1
     ? `<div class="obs-hero-thumbs">${snapshot.photoAssets.map((asset, i) => {
       const previewUrl = photoDisplayUrl(asset, "lg");
       const thumbUrl = photoDisplayUrl(asset, "sm");
@@ -556,8 +560,14 @@ export function renderObservationMedia(
   const videoPlayer = renderVideoPlayer(snapshot, primaryVideo, annotationTargets, options.afterVideoHtml ?? "");
   const audioEvidence = renderAudioEvidence(snapshot);
   const mediaLedger = renderMediaLedger(snapshot);
+  const stackClass = [
+    "obs-hero-media-stack",
+    videoPlayer ? "is-video-first" : "",
+    !videoPlayer && photoGallery ? "is-photo-only" : "",
+    !videoPlayer && !photoGallery && audioEvidence ? "is-audio-only" : "",
+  ].filter(Boolean).join(" ");
   const mediaBlock = (videoPlayer || photoGallery || audioEvidence)
-    ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${audioEvidence}${mediaLedger}<p class="obs-region-summary" data-region-summary hidden></p></div>`
+    ? `<div class="${stackClass}">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${audioEvidence}${mediaLedger}<p class="obs-region-summary" data-region-summary hidden></p></div>`
     : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真も動画もまだありません</small></div>`;
 
   return {

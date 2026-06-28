@@ -1329,8 +1329,8 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-reading-media { order: 3; }
     .obs-reading-panel .obs-record-insight-desktop { order: 5; display: grid; }
     .obs-reading-panel .obs-scene-overview { order: 6; display: none !important; }
-    .obs-reading-panel .obs-local-switch-guide { order: 7; display: none !important; }
-    .obs-reading-panel > .obs-visible-records { order: 8; display: none !important; }
+    .obs-reading-panel .obs-local-switch-guide { order: 8; display: grid; }
+    .obs-reading-panel > .obs-visible-records { order: 9; display: grid; }
     .obs-hero-video .obs-record-insight { order: 3; }
     .obs-hero-video > .obs-record-insight:not(.obs-record-insight-desktop) { display: none; }
     .obs-reading-panel [data-obs-switch-ai-readout] { order: 5; }
@@ -2265,7 +2265,7 @@ function mediaSceneFrom(context: ObservationMediaCopyContext): string {
 
 function mediaVisibleSurfaceLabel(context: ObservationMediaCopyContext): string {
   if (context.hasVideos && context.hasPhotos) return "この写真・動画に写っているもの";
-  if (context.hasVideos) return "この映像に写っているもの";
+  if (context.hasVideos) return "この記録に写っているもの";
   return "この写真に写っているもの";
 }
 
@@ -2539,8 +2539,8 @@ function renderLocalSwitchGuide(items: VisibleRecordItem[]): string {
     ? `<a class="obs-local-lane-item is-env" href="${escapeHtml(row.href)}" data-subject-switch="1" data-subject-id="${escapeHtml(row.occurrenceId)}"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></a>`
     : `<div class="obs-local-lane-item is-env"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></div>`).join("");
   return `<div class="obs-local-switch-guide" data-local-switch-guide="1">
-    <strong>この映像で読む対象を切り替える</strong>
-    <p>名前・分類の候補と、場面としての環境要素を別レーンで扱います。カワラヒワの同定判断と、草地・足元・裸地の記録を混ぜません。</p>
+    <strong>この記録で読む対象</strong>
+    <p>名前・分類の候補と、場面としての環境要素を別レーンで扱います。同定判断と、草地・足元・裸地の記録を混ぜません。</p>
     <div class="obs-local-subject-lanes">
       <div class="obs-local-subject-lane is-name"><div class="obs-local-lane-head">名前・分類候補<span>同定で確かめる</span></div><div class="obs-local-lane-list">${nameLane}</div></div>
       <div class="obs-local-subject-lane is-environment"><div class="obs-local-lane-head">環境要素<span>場面として残す</span></div><div class="obs-local-lane-list">${envLane}</div></div>
@@ -7519,10 +7519,11 @@ function renderIdentificationParticipation(options: {
         <p>見るだけならこのまま使えます。</p>
        </div>`;
 
-  void currentConsensus;
-  void neededList;
-  void proposalTrustBlock;
-  void aiReviewBlock;
+  const consensusBlock = `<div class="obs-local-name-note">
+    <strong>現在の見方</strong>
+    <p>${escapeHtml(currentConsensus)}</p>
+    <ul class="obs-hint-tags is-muted">${neededList.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+  </div>`;
   const newRecordHref = appendLangToHref(withBasePath(basePath, "/record"), options.lang);
   const candidateStatus = snapshot.identifications.length > 0 ? "確認あり" : "確認待ち";
   const hasOnlyWeakCandidateName = isWeakIdentificationCandidateName(targetLabel);
@@ -7577,6 +7578,9 @@ function renderIdentificationParticipation(options: {
       targetLabel,
       candidateStatus,
     })}
+    ${proposalTrustBlock}
+    ${aiReviewBlock}
+    ${consensusBlock}
     ${activityBlock}
     <div class="obs-ai-actions" aria-label="${escapeHtml(`${targetLabel}候補への判断`)}">
       <div class="obs-ai-actions-label">候補への操作</div>
@@ -7801,13 +7805,13 @@ function renderObservationQualityCard(options: {
   const hasAnyEnvironmentValue = hasAnyEnvironmentRecordValue(environmentRecord);
   const hasDerivedEnvironmentValue = ENVIRONMENT_RECORD_FIELDS.some((field) => environmentRecordFieldSource(environmentRecord, field) === "derived");
   const environmentHistorySeed = hasAnyEnvironmentValue
-    ? hasDerivedEnvironmentValue ? "環境レコードの自動下書きがあります" : "環境レコードに入力があります"
+    ? hasDerivedEnvironmentValue ? "環境レコードの下書きがあります" : "環境レコードに入力があります"
     : "まだ編集はありません";
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
     <div class="obs-local-quality-head">
       <div>
-        <div class="obs-local-quality-eye">EVENT / OCCURRENCE</div>
-        <h3 class="obs-local-quality-title">日時・場所・環境を土台にする</h3>
+        <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
+        <h3 class="obs-local-quality-title">観察レコードとして育てる</h3>
         <p class="obs-local-quality-lead">日時・場所・環境はこの記録に1枠。名前の候補や同定は、対象ごとにあとから変わります。</p>
       </div>
     </div>
@@ -7846,7 +7850,7 @@ function renderObservationQualityCard(options: {
     </div>
     <div class="obs-local-quality-action-status" data-quality-action-status aria-live="polite"></div>
     <div class="obs-local-quality-draft" data-quality-draft>
-      <div class="obs-local-quality-draft-head"><div><strong>環境・イベントレコード</strong><span data-quality-draft-count>5項目</span></div><button class="obs-local-quality-draft-edit" type="button" data-env-edit-all>一括編集</button></div>
+      <div class="obs-local-quality-draft-head"><div><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div><button class="obs-local-quality-draft-edit" type="button" data-env-edit-all>一括編集</button></div>
       <p class="obs-local-quality-lead">${isNoDetectionRecord ? "生きものが写っていない記録でも、日時・場所・環境があると次回の比較に使いやすくなります。" : "環境情報はこの記録に1枠。その場の状態を5項目でまとめて残します。"}</p>
       <div class="obs-local-quality-draft-grid">
         ${environmentFieldCards}
@@ -21001,8 +21005,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     </details>`;
 
     const focusRailBlock = renderVisibleRecordItemsPanel(visibleRecordItems, mediaContext);
-    // 写真上の対象切替UIは、場面読みより目立つ割に情報量が薄いため表示しない。
-    // 画像内の枠クリックや下部の記録カードへの連動は残す。
+    const switchGuideBlock = renderLocalSwitchGuide(visibleRecordItems);
+    // 写真上の注視枠クリックと、下部の記録カードへの連動は残す。
     const mediaDiscoveryBlock = "";
 
     const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
@@ -21084,8 +21088,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       observedAt: snapshot.observedAt,
       placeLabel: heroPlaceLabel,
       badges,
-      switchGuideBlock: "",
-      focusRailBlock: "",
+      switchGuideBlock,
+      focusRailBlock,
       mediaDiscoveryBlock,
       mediaLedgerBlock: renderObservationMediaLedger(snapshot, heavy?.nearby.length ?? 0),
       recordInsightBlock: renderObservationRecordInsight(recordInsightText, "obs-record-insight-desktop", recordReadingInsightOptions),

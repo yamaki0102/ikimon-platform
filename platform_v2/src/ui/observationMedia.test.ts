@@ -65,7 +65,9 @@ test("observation media renders boxes only for displayable regions", () => {
   assert.equal(displayableRegionsForAsset(subject, "asset-vertical").length, 1);
 
   const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject);
+  assert.match(mediaBlock, /class="obs-hero-media-stack is-photo-only"/);
   assert.match(mediaBlock, /data-obs-image-frame/);
+  assert.match(mediaBlock, /class="obs-hero-thumbs"/);
   assert.match(mediaBlock, /width="320" height="640"/);
   assert.doesNotMatch(mediaBlock, />主対象<\/span>/);
   assert.doesNotMatch(mediaBlock, /AI 主対象 92%/);
@@ -76,6 +78,7 @@ test("observation media renders boxes only for displayable regions", () => {
   assert.match(mediaBlock, /visible-region-fixture/);
   assert.doesNotMatch(mediaBlock, /low-confidence-hidden-fixture/);
   assert.doesNotMatch(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
+  assert.match(OBSERVATION_MEDIA_STYLES, /\.obs-hero-media-stack\.is-photo-only \.obs-hero-preview \{ min-height: clamp\(218px, 58vw, 330px\); max-height: none; \}/);
 });
 
 test("observation media keeps annotation targets templated until evidence focus", () => {
@@ -281,6 +284,8 @@ test("observation media renders video media role badges", () => {
 
   const { mediaBlock } = renderObservationMedia(videoSnapshot, subject);
 
+  assert.match(mediaBlock, /class="obs-hero-media-stack is-video-first"/);
+  assert.doesNotMatch(mediaBlock, /is-photo-only/);
   assert.match(mediaBlock, /<strong>動画<\/strong>/);
   assert.match(mediaBlock, />音・動き<\/span>/);
   assert.match(mediaBlock, /aria-label="1\.3秒 55%を拡大表示"/);
