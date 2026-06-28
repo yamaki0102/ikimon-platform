@@ -14435,7 +14435,9 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
   assert.match(body, /asset-record-live-real-derivative/);
+  assert.match(body, /近くの記録/);
   assert.doesNotMatch(body, /record-shadow-materialized/);
+  assert.doesNotMatch(body, /cell:34\.81,137\.73/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
   const homeResponse = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
@@ -14448,8 +14450,11 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /asset-record-live-real-derivative/);
   assert.doesNotMatch(homeBody, /record-shadow-materialized/);
   assert.match(homeBody, /prototype-record-feed is-guest/);
+  assert.match(homeBody, /data-cloudflare-home-infinite-feed/);
+  assert.match(homeBody, /cf-home-record-feed-infinite-script/);
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
+  assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
 });
 
 test("production home prioritizes signed-in owner records over public feed records", async () => {
