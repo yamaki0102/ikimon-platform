@@ -2,10 +2,8 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { buildObservationPackage } from "../services/observationPackage.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { MONITORING_PACKAGE_BLUEPRINTS, MONITORING_PILLARS } from "../services/monitoringPackageStandard.js";
-import {
-  assertObservationOwnedByUser,
-  assertPrivilegedWriteAccess,
-} from "../services/writeGuards.js";
+import { assertObservationOwnedByUser } from "../services/writeGuardsPg.js";
+import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 
 async function canReadObservationPackage(request: FastifyRequest, observationId: string): Promise<boolean> {
   try {
