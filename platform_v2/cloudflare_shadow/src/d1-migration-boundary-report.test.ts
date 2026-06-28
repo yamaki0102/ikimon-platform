@@ -154,7 +154,7 @@ test("VPS stop readiness keeps no-runtime-query PostgreSQL signals as inventory,
   assert.match(result.stdout, /- no_runtime_query_pg_inventory_files: 14/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/health\.ts/);
   assert.match(result.stdout, /platform_v2\/src\/routes\/read\.ts/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 21/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
   assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- p2_blockers: 0/);
 });
 
@@ -192,7 +192,7 @@ test("VPS stop readiness separates runtime deploy workflows from maintenance wor
   assert.match(result.stdout, /- maintenance_vps_workflow_files: 8/);
   assert.match(result.stdout, /legacy_vps_staging_replaced_by_cloudflare_staging/);
   assert.match(result.stdout, /manual_import_or_repair_workflow/);
-  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 21/);
+  assert.match(result.stdout, /## Configured Production VPS Stop Readiness Gate[\s\S]*- blocker_count: 0/);
 });
 
 test("VPS stop readiness classifies test source paths conservatively", async () => {
@@ -299,27 +299,43 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventOfficialReport.ts"), "cloudflare_observation_event_official_report_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/meSubscriptionsApi.ts"), "cloudflare_personal_subscription_alert_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/guideRecordsDebug.ts"), "cloudflare_guide_outcomes_and_route_layer_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/researchApi.ts"), "cloudflare_research_export_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRouteTrack.ts"), "cloudflare_guide_telemetry_route_points_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/resolveFieldsForPoint.ts"), "cloudflare_replaced_field_resolution_helper_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideTransectQuality.ts"), "cloudflare_guide_route_layer_quality_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/mobileFieldSessions.ts"), "cloudflare_mobile_field_session_digest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/landingSnapshot.ts"), "cloudflare_materialized_landing_and_home_readmodel");
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), null);
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationFieldRegistry.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), "cloudflare_materialized_public_readmodels");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/referenceLibrary.ts"), "cloudflare_reference_library_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationFieldRegistry.ts"), "cloudflare_observation_field_registry_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaSnapshotVisitScope.ts"), "cloudflare_area_and_place_snapshot_visit_scope_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaPlaceSnapshot.ts"), "cloudflare_area_snapshot_field_detail_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeSnapshot.ts"), "cloudflare_place_snapshot_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/fixedPointStation.ts"), "cloudflare_fixed_point_station_readmodel");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationDataRights.ts"), "cloudflare_observation_data_rights_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/civicNatureContext.ts"), "cloudflare_civic_observation_context_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/scripts/runSentinelEnvironmentWorker.ts"), "cloudflare_sentinel_environment_snapshot_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/environmentSnapshotWriter.ts"), "cloudflare_sentinel_environment_snapshot_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupport.ts"), null);
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSession.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeSupportPg.ts"), "cloudflare_replaced_or_residual_write_support_pg_helper");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeGuards.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/writeGuardsPg.ts"), "cloudflare_replaced_or_residual_write_guard_pg_helper");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSession.ts"), "cloudflare_guide_scene_static_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideSessionPublicSummary.ts"), "cloudflare_guide_session_public_summary_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/guideRecordPromotion.ts"), "cloudflare_guide_record_promotion_request_ledger");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/walkWrite.ts"), "cloudflare_walk_session_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/fieldscanAudio.ts"), "cloudflare_fieldscan_audio_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/passiveAudioIngest.ts"), "cloudflare_passive_audio_ingest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/trackWrite.ts"), "cloudflare_track_upsert_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationRecordAiReview.ts"), "cloudflare_observation_record_ai_review_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/waterRecordExtension.ts"), "cloudflare_observation_water_record_extension_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/placeManagementPolicy.ts"), "cloudflare_place_management_policy_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/identificationParticipation.ts"), "cloudflare_identification_participation_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/identificationConsensus.ts"), "cloudflare_identification_consensus_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/specialistReview.ts"), "cloudflare_specialist_review_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/reviewerAuthorities.ts"), "cloudflare_specialist_authority_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/authorityRecommendations.ts"), "cloudflare_specialist_authority_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/visitSubjects.ts"), "cloudflare_visit_subject_summary_replaced_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/contactSubmit.ts"), "cloudflare_contact_submit_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/userWrite.ts"), "cloudflare_user_profile_write_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/rememberTokenWrite.ts"), "cloudflare_remember_token_api");
@@ -329,7 +345,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackage.ts"), "cloudflare_observation_package_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationPackageDataChain.ts"), "cloudflare_observation_package_data_chain_replaced_dependency");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/sensitiveSpeciesMasking.ts"), "cloudflare_public_map_and_area_snapshot_masking_readmodels");
-  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventPages.ts"), null);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/observationEventPages.ts"), "cloudflare_observation_event_pages_runtime");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/siteSignalsCache.ts"), "optional_site_signals_cache_falls_back_without_database");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/gbifBackboneMatch.ts"), "optional_gbif_match_cache_falls_back_to_remote_api");
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/officialNoticeCache.ts"), "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot");
@@ -360,6 +376,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/specialistReview.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/identificationConsensus.ts"), null);
   assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/identificationParticipation.ts"), null);
+  assert.equal(optionalRuntimePgDependencyReason("platform_v2/src/services/visitSubjects.ts"), null);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "services", "videoProcessingQueue.ts")), false);
   assert.equal(existsSync(path.join(process.cwd(), "..", "src", "scripts", "processVideoProcessingJobs.ts")), false);
 
@@ -564,6 +581,93 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /optional_observation_detail_taxon_insight_card/);
 });
 
+test("readModels runtime is covered by Cloudflare materialized and native read lanes", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/readModels.ts"), "cloudflare_materialized_public_readmodels");
+  assert.match(workerSource, /getOriginalUiHtml\(request, url, env\)/);
+  assert.match(workerSource, /getSessionAwareProfileHtml\(request, url, env\)/);
+  assert.match(workerSource, /getPublicObservationDetailJson\(decodeURIComponent\(publicDetailApiMatch\[1\]\), env\)/);
+  assert.match(workerSource, /getPublicObservationDetailPage\(decodeURIComponent\(publicDetailPageMatch\[1\]\), env\)/);
+  assert.match(workerSource, /listCompatibleSpecialistAuthorities\(request, env\)/);
+  assert.match(workerSource, /listCompatiblePendingAuthorityRecommendations\(request, env\)/);
+  assert.match(workerTests, /production records materialized html includes recent Cloudflare D1 records/);
+  assert.match(workerTests, /production original UI app shells serve materialized HTML even with session cookies/);
+  assert.match(workerTests, /production profile shell renders signed-in Cloudflare page for valid session cookies/);
+  assert.match(workerTests, /production language-prefixed observation detail stays native and public-safe/);
+  assert.match(workerTests, /production specialist authority runtime manages D1 authority and recommendation flows without origin fallback/);
+});
+
+test("write support PostgreSQL helper is separated from pure write helpers", async () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const pureSupport = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeSupport.ts"), "utf8");
+  const pgSupport = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeSupportPg.ts"), "utf8");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "writeSupportPg.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.doesNotMatch(pureSupport, /\bPoolClient\b|from ["']pg["']|client\.query|getPool\(/);
+  assert.doesNotMatch(pureSupport, /upsertAssetBlob|recordCompatibilityFailure/);
+  assert.match(pureSupport, /export function buildPlaceId/);
+  assert.match(pureSupport, /export function makeOccurrenceId/);
+  assert.match(pgSupport, /export async function upsertAssetBlob/);
+  assert.match(pgSupport, /export async function recordCompatibilityFailure/);
+  assert.match(pgSupport, /from "pg"/);
+  assert.deepEqual(importers, [
+    "platform_v2/src/services/fieldscanAudio.ts",
+    "platform_v2/src/services/observationPhotoUpload.ts",
+    "platform_v2/src/services/observationWrite.ts",
+    "platform_v2/src/services/placeMemory.ts",
+    "platform_v2/src/services/referenceLibrary.ts",
+    "platform_v2/src/services/rememberTokenWrite.ts",
+    "platform_v2/src/services/stagingRegressionFixtures.ts",
+    "platform_v2/src/services/trackWrite.ts",
+    "platform_v2/src/services/userWrite.ts",
+  ]);
+});
+
+test("legacy write route boundary is covered by Cloudflare app write runtimes", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/write.ts"), "cloudflare_app_write_route_boundary");
+  assert.match(workerSource, /updateCompatibleOccurrenceDetail/);
+  assert.match(workerSource, /occurrenceDetailEditMatch/);
+  assert.match(workerSource, /environment-record/);
+  assert.match(workerSource, /isPublicAppWriteCandidatePath\(url\)/);
+  assert.match(workerTests, /production occurrence detail edit APIs write to D1 without origin fallback/);
+  assert.match(workerTests, /production occurrence detail edit APIs reject non owners before mutation/);
+});
+
+test("write guard PostgreSQL ownership helper is separated from pure request and session guards", async () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const pureGuards = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeGuards.ts"), "utf8");
+  const pgGuards = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeGuardsPg.ts"), "utf8");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "writeGuardsPg.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.doesNotMatch(pureGuards, /from ["']\.\.\/db\.js["']|getPool\(|pool\.query|assertObservationOwnedByUser/);
+  assert.match(pureGuards, /export function assertPrivilegedWriteAccess/);
+  assert.match(pureGuards, /export function assertSessionUser/);
+  assert.match(pureGuards, /export async function assertSpecialistSession/);
+  assert.match(pureGuards, /export function assertSpecialistAdminSession/);
+  assert.match(pgGuards, /export async function assertObservationOwnedByUser/);
+  assert.match(pgGuards, /getPool\(\)/);
+  assert.match(pgGuards, /pool\.query/);
+  assert.deepEqual(importers, [
+    "platform_v2/src/routes/observationPackageApi.ts",
+    "platform_v2/src/routes/write.ts",
+  ]);
+});
+
 test("observation package data chain is only imported by replaced runtime or type-only consumers", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
   const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
@@ -593,6 +697,38 @@ test("observation event context remains exclusively tied to the replaced quest e
     .map((line) => line.replace(/\\/g, "/"))
     .sort();
   assert.deepEqual(importers, ["platform_v2/src/services/observationEventQuestEngine.ts"]);
+});
+
+test("visit subject summaries are only imported by replaced runtime or maintenance consumers", async () => {
+  const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const replacedProductionRuntimePgDependencyReason = loadReplacedProductionRuntimePgDependencyReason(script);
+  const maintenancePgDependencyReason = loadMaintenancePgDependencyReason(script);
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const importers = (await findTsFilesContaining(path.join(repoRoot, "platform_v2", "src"), "visitSubjects.js"))
+    .map((file) => path.relative(repoRoot, file).replaceAll("\\", "/"))
+    .filter((file) => !file.endsWith(".test.ts"))
+    .sort();
+
+  assert.deepEqual(importers, [
+    "platform_v2/src/scripts/cleanupObservationSameSubjectAiCandidates.ts",
+    "platform_v2/src/services/identificationParticipation.ts",
+    "platform_v2/src/services/observationReassess.ts",
+    "platform_v2/src/services/observationVisitBundle.ts",
+    "platform_v2/src/services/specialistReview.ts",
+  ]);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/identificationParticipation.ts"), "cloudflare_identification_participation_runtime");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationVisitBundle.ts"), "cloudflare_observation_detail_readmodel");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/specialistReview.ts"), "cloudflare_specialist_review_runtime");
+  assert.match(maintenancePgDependencyReason("platform_v2/src/scripts/cleanupObservationSameSubjectAiCandidates.ts") ?? "", /manual_/);
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/visitSubjects.ts"), "cloudflare_visit_subject_summary_replaced_dependency");
+
+  const result = spawnSync(process.execPath, ["scripts/d1-migration-boundary-report.mjs"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /## PostgreSQL Maintenance Dependencies[\s\S]*platform_v2\/src\/services\/observationReassess\.ts[\s\S]*manual_ai_batch_tool/);
+  assert.doesNotMatch(result.stdout, /## PostgreSQL Runtime Dependencies[\s\S]*platform_v2\/src\/services\/visitSubjects\.ts[\s\S]*## PostgreSQL Maintenance Dependencies/);
 });
 
 test("VPS stop readiness reports ready P0 capability dispositions", async () => {
