@@ -94,7 +94,7 @@ test("regional story has a safe fallback for unknown regions", async () => {
   assert.ok(story);
   assert.equal(story.cards.length, 0);
   assert.equal(story.sourceMode, "fallback");
-  assert.match(story.collectiveNote, /記録|見返|比べ|比較|重ね|条件/);
+  assert.match(story.collectiveNote, /記録|比べ|比較|重ね|条件/);
 });
 
 test("profile regional fallback uses latest subject context instead of a generic target", async () => {
