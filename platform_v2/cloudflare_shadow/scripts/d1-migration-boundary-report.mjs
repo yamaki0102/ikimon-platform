@@ -40,20 +40,53 @@ function isTestSourceFile(relativeFile) {
 
 function maintenancePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
+  const exactGatedOpsServices = {
+    "platform_v2/src/services/stagingFixtureCleanup.ts": "gated_staging_fixture_ops",
+    "platform_v2/src/services/stagingRallyFixtures.ts": "gated_staging_fixture_ops",
+    "platform_v2/src/services/stagingRegressionFixtures.ts": "gated_staging_fixture_ops"
+  };
+  if (exactGatedOpsServices[normalized]) return exactGatedOpsServices[normalized];
+  const exactAdminOpsDiagnostics = {
+    "platform_v2/src/routes/adminDataHealth.ts": "admin_ops_diagnostic_dashboard",
+    "platform_v2/src/routes/adminMonitoringWorkspace.ts": "admin_monitoring_diagnostic_readonly",
+    "platform_v2/src/routes/adminRegionalKnowledge.ts": "admin_regional_knowledge_review_dashboard",
+    "platform_v2/src/routes/adminSiteEvidence.ts": "admin_evidence_report",
+    "platform_v2/src/routes/knowledgeNavigationApi.ts": "internal_knowledge_navigation_admin_api",
+    "platform_v2/src/routes/curatorProposalsApi.ts": "internal_curator_proposal_receiver",
+    "platform_v2/src/services/audioPropagation.ts": "admin_audio_review_residual_after_vector_retirement",
+    "platform_v2/src/services/audioReview.ts": "admin_audio_review_residual_after_vector_retirement",
+    "platform_v2/src/services/alertDispatcher.ts": "manual_ai_reassessment_alert_dispatcher",
+    "platform_v2/src/services/monitoringWorkspaceData.ts": "admin_monitoring_diagnostic_readmodel",
+    "platform_v2/src/services/plotMonitoring.ts": "admin_plot_monitoring_backstage_api",
+    "platform_v2/src/services/readiness.ts": "legacy_cutover_readiness_report"
+  };
+  if (exactAdminOpsDiagnostics[normalized]) return exactAdminOpsDiagnostics[normalized];
+  if (normalized === "platform_v2/src/services/guideHypothesisEvalSet.ts") return "manual_audit_report_tool";
   const scriptPrefix = "platform_v2/src/scripts/";
   if (!normalized.startsWith(scriptPrefix)) return null;
-  if (normalized.startsWith("platform_v2/src/scripts/cron/")) return null;
-  if (normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts") return null;
   if (normalized === "platform_v2/src/scripts/applyMigrations.ts") return "migration_cli_tool";
   if (normalized === "platform_v2/src/scripts/embedRegionalKnowledgeCards.ts") return "manual_embedding_batch";
   if (normalized === "platform_v2/src/scripts/reportMissingObservationPhotos.ts") return "manual_integrity_report";
   if (normalized === "platform_v2/src/scripts/importObservationFields.ts") return "manual_field_import";
   if (normalized === "platform_v2/src/scripts/ingestPlaceEnvironmentSnapshots.ts") return "manual_environment_ingest";
   const exactMaintenanceScripts = {
+    "platform_v2/src/scripts/applyTierPromotionBulk.ts": "manual_admin_batch_tool",
+    "platform_v2/src/scripts/auditObservationFieldEntityKeys.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/auditObservationLocations.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/backfillAuthorityRank.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/backfillFieldPolygonBbox.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/backfillObservationLocalityFromAdminAreas.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/backfillGuideNonBiologicalSpecies.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/bootstrapLegacyImport.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/cleanupObservationSameSubjectAiCandidates.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/cleanupStagingSmokeFixtures.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/cleanupProductionUiSmoke.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/compileKnowledgeNavigation.ts": "deploy_or_postdeploy_tool",
+    "platform_v2/src/scripts/diagnoseGuideEnvironmentMesh.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/enhanceSchoolFieldBoundaries.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/exportGuideHypothesisEvalSet.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/generateGuideHypothesisPromptImprovements.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/generateRegionalHypotheses.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/importGlobalAdministrativeAreas.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/importInvasiveKnowledgeClaims.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/importInvasiveReportingContacts.ts": "manual_import_or_legacy_sync_tool",
@@ -68,30 +101,167 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/scripts/importRegionalKnowledgeCards.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/importRememberTokens.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/importTrackSessions.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/materializeLegacyVerifySnapshot.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/monitorProductionSmokeCleanup.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/planObservationLedger.ts": "manual_import_or_legacy_sync_tool",
+    "platform_v2/src/scripts/processPlaceMemoryPhotos.ts": "manual_media_batch_tool",
+    "platform_v2/src/scripts/processAudioSegments.ts": "manual_audio_detection_batch_tool",
+    "platform_v2/src/scripts/cron/runCacheInvalidate.ts": "scheduled_legacy_cache_and_freshness_maintenance",
+    "platform_v2/src/scripts/cron/runCurator.ts": "scheduled_curator_proposal_batch",
+    "platform_v2/src/scripts/cron/curators/invasive-law.ts": "scheduled_curator_proposal_batch",
+    "platform_v2/src/scripts/readinessReport.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/rebuildGuideEnvironmentMesh.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/refreshPublicMapSnapshot.ts": "manual_materialization_tool",
+    "platform_v2/src/scripts/refreshRecentObservationAi.ts": "manual_ai_batch_tool",
     "platform_v2/src/scripts/repairObservationLocationLabels.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/repairHamamatsuWardLabels.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/repairMissingManualOccurrences.ts": "manual_repair_or_admin_tool",
+    "platform_v2/src/scripts/repairObservationFieldSourcePolicy.ts": "deploy_or_postdeploy_tool",
+    "platform_v2/src/scripts/repairObservationSpatialMeshSchema.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/repairStagingNatsIdentity.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/replacementReadinessReport.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/reportLegacyDrift.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/reportVisitWindows.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/rehearseCutover.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/runGuideEnvironmentPostDeploy.ts": "deploy_or_postdeploy_tool",
+    "platform_v2/src/scripts/runAiForMissing.ts": "manual_ai_batch_tool",
+    "platform_v2/src/scripts/setExistingUserPassword.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/smokeInvasiveReportingDelivery.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/smokePassiveAudioIngest.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/smokePlatformReadLane.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/smokeProductionMediaUpload.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/smokePublicMapSnapshotAlert.ts": "manual_verification_or_smoke_tool",
     "platform_v2/src/scripts/syncLegacyDelta.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/syncLegacyUserAuth.ts": "manual_import_or_legacy_sync_tool",
     "platform_v2/src/scripts/verifyLegacyParity.ts": "manual_verification_or_smoke_tool",
-    "platform_v2/src/scripts/verifyProductionShadowParity.ts": "manual_verification_or_smoke_tool"
+    "platform_v2/src/scripts/verifyProductionShadowParity.ts": "manual_verification_or_smoke_tool",
+    "platform_v2/src/scripts/writeLegacyCompatibility.ts": "manual_import_or_legacy_sync_tool"
   };
   return exactMaintenanceScripts[normalized] ?? null;
 }
 
-function forcedRuntimePgDependency(relativeFile) {
+function replacedProductionRuntimePgDependencyReason(relativeFile) {
   const normalized = relativeFile.replaceAll("\\", "/");
-  return normalized.startsWith("platform_v2/src/scripts/cron/")
-    || normalized === "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts";
+  const exactReplacedProductionRuntime = {
+    "platform_v2/src/services/mapSnapshot.ts": "cloudflare_public_map_snapshot_readmodel",
+    "platform_v2/src/services/sensitiveSpeciesMasking.ts": "cloudflare_public_map_and_area_snapshot_masking_readmodels",
+    "platform_v2/src/services/landingSnapshot.ts": "cloudflare_materialized_landing_and_home_readmodel",
+    "platform_v2/src/services/readModels.ts": "cloudflare_materialized_public_readmodels",
+    "platform_v2/src/services/areaSnapshotVisitScope.ts": "cloudflare_area_and_place_snapshot_visit_scope_readmodel",
+    "platform_v2/src/services/areaPlaceSnapshot.ts": "cloudflare_area_snapshot_field_detail_readmodel",
+    "platform_v2/src/services/placeSnapshot.ts": "cloudflare_place_snapshot_readmodel",
+    "platform_v2/src/services/fixedPointStation.ts": "cloudflare_fixed_point_station_readmodel",
+    "platform_v2/src/services/areaPolygons.ts": "cloudflare_area_polygon_readmodel",
+    "platform_v2/src/services/fieldManagers.ts": "cloudflare_field_manager_runtime",
+    "platform_v2/src/services/mapOwnObservations.ts": "cloudflare_owner_map_observations_native",
+    "platform_v2/src/services/mapEffort.ts": "cloudflare_public_map_effort_shim",
+    "platform_v2/src/services/publicMapSnapshotOpsAlerts.ts": "cloudflare_public_map_snapshot_ops_inventory",
+    "platform_v2/src/routes/observationEventApi.ts": "cloudflare_observation_event_core_api",
+    "platform_v2/src/services/observationRally.ts": "cloudflare_observation_rally_api",
+    "platform_v2/src/services/authSession.ts": "cloudflare_auth_session_api",
+    "platform_v2/src/services/authUsers.ts": "cloudflare_auth_user_account_api",
+    "platform_v2/src/services/observationWrite.ts": "cloudflare_observation_write_api",
+    "platform_v2/src/services/observationPhotoUpload.ts": "cloudflare_observation_photo_upload_api",
+    "platform_v2/src/services/observationAiAssessment.ts": "cloudflare_observation_detail_readmodel_dependency",
+    "platform_v2/src/services/observationPackage.ts": "cloudflare_observation_package_runtime",
+    "platform_v2/src/services/observationPackageDataChain.ts": "cloudflare_observation_package_data_chain_replaced_dependency",
+    "platform_v2/src/services/observationReactions.ts": "cloudflare_observation_reactions_api",
+    "platform_v2/src/services/recordReadingCards.ts": "cloudflare_record_reading_cards_api",
+    "platform_v2/src/services/uiKpi.ts": "cloudflare_ui_kpi_event_api",
+    "platform_v2/src/services/observationVisitBundle.ts": "cloudflare_observation_detail_readmodel",
+    "platform_v2/src/services/observationEventLive.ts": "cloudflare_observation_event_live_api",
+    "platform_v2/src/services/observationEventDualWrite.ts": "cloudflare_observation_event_dual_write_side_effects",
+    "platform_v2/src/services/observationEventEffort.ts": "cloudflare_observation_event_effort_api",
+    "platform_v2/src/services/observationEventModeManager.ts": "cloudflare_observation_event_mode_api",
+    "platform_v2/src/services/observationEventRecap.ts": "cloudflare_observation_event_recap_api",
+    "platform_v2/src/services/observationEventContext.ts": "cloudflare_observation_event_static_quest_context_dependency",
+    "platform_v2/src/services/observationEventQuestEngine.ts": "cloudflare_observation_event_static_quest_runtime",
+    "platform_v2/src/services/observationEventCapsule.ts": "cloudflare_observation_event_capsule_api",
+    "platform_v2/src/services/observationEventOfficialReport.ts": "cloudflare_observation_event_official_report_api",
+    "platform_v2/src/routes/observationEventPages.ts": "cloudflare_observation_event_pages_runtime",
+    "platform_v2/src/routes/meSubscriptionsApi.ts": "cloudflare_personal_subscription_alert_api",
+    "platform_v2/src/services/contactSubmit.ts": "cloudflare_contact_submit_api",
+    "platform_v2/src/services/userWrite.ts": "cloudflare_user_profile_write_api",
+    "platform_v2/src/services/rememberTokenWrite.ts": "cloudflare_remember_token_api",
+    "platform_v2/src/routes/write.ts": "cloudflare_app_write_route_boundary",
+    "platform_v2/src/services/observationDataRights.ts": "cloudflare_observation_data_rights_api",
+    "platform_v2/src/services/civicNatureContext.ts": "cloudflare_civic_observation_context_runtime",
+    "platform_v2/src/services/evidenceAssetMediaRole.ts": "cloudflare_observation_media_role_dependency",
+    "platform_v2/src/services/mediaProcessingJobs.ts": "cloudflare_media_processing_queue_dependency",
+    "platform_v2/src/routes/stewardshipActions.ts": "cloudflare_stewardship_action_form_and_write_runtime",
+    "platform_v2/src/routes/adminGuidePrograms.ts": "cloudflare_guide_program_admin_api",
+    "platform_v2/src/routes/adminGuidePromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
+    "platform_v2/src/services/guideCorrectionEval.ts": "cloudflare_guide_correction_eval_readmodel",
+    "platform_v2/src/services/guideEnvironmentMesh.ts": "cloudflare_guide_environment_mesh_readmodel",
+    "platform_v2/src/services/guideEnvironmentOps.ts": "cloudflare_guide_environment_dashboard_api",
+    "platform_v2/src/services/guideHypothesisPromptImprovements.ts": "cloudflare_guide_prompt_improvement_admin_api",
+    "platform_v2/src/services/guideInteractions.ts": "cloudflare_guide_interaction_api",
+    "platform_v2/src/services/guidePrograms.ts": "cloudflare_guide_program_admin_api",
+    "platform_v2/src/routes/guideRecordsDebug.ts": "cloudflare_guide_outcomes_and_route_layer_runtime",
+    "platform_v2/src/routes/researchApi.ts": "cloudflare_research_export_runtime",
+    "platform_v2/src/services/guideRouteTrack.ts": "cloudflare_guide_telemetry_route_points_runtime",
+    "platform_v2/src/services/guideTransectQuality.ts": "cloudflare_guide_route_layer_quality_runtime",
+    "platform_v2/src/services/guideUnlocks.ts": "cloudflare_guide_unlock_api",
+    "platform_v2/src/services/guideSession.ts": "cloudflare_guide_scene_static_runtime",
+    "platform_v2/src/services/mobileFieldSessions.ts": "cloudflare_mobile_field_session_digest_runtime",
+    "platform_v2/src/services/guideSessionPublicSummary.ts": "cloudflare_guide_session_public_summary_runtime",
+    "platform_v2/src/services/guideRecordPromotion.ts": "cloudflare_guide_record_promotion_request_ledger",
+    "platform_v2/src/services/regionalHypotheses.ts": "cloudflare_guide_regional_hypothesis_api",
+    "platform_v2/src/services/fieldscanAudio.ts": "cloudflare_fieldscan_audio_runtime",
+    "platform_v2/src/services/passiveAudioIngest.ts": "cloudflare_passive_audio_ingest_runtime",
+    "platform_v2/src/services/resolveFieldsForPoint.ts": "cloudflare_replaced_field_resolution_helper_dependency",
+    "platform_v2/src/services/walkWrite.ts": "cloudflare_walk_session_api",
+    "platform_v2/src/services/trackWrite.ts": "cloudflare_track_upsert_api",
+    "platform_v2/src/services/observationRecordAiReview.ts": "cloudflare_observation_record_ai_review_api",
+    "platform_v2/src/services/waterRecordExtension.ts": "cloudflare_observation_water_record_extension_runtime",
+    "platform_v2/src/services/placeManagementPolicy.ts": "cloudflare_place_management_policy_runtime",
+    "platform_v2/src/services/placeMemory.ts": "cloudflare_place_memory_runtime",
+    "platform_v2/src/services/referenceLibrary.ts": "cloudflare_reference_library_runtime",
+    "platform_v2/src/scripts/runSentinelEnvironmentWorker.ts": "cloudflare_sentinel_environment_snapshot_runtime",
+    "platform_v2/src/services/environmentSnapshotWriter.ts": "cloudflare_sentinel_environment_snapshot_runtime",
+    "platform_v2/src/services/observationFieldRegistry.ts": "cloudflare_observation_field_registry_runtime",
+    "platform_v2/src/services/identificationParticipation.ts": "cloudflare_identification_participation_runtime",
+    "platform_v2/src/services/identificationConsensus.ts": "cloudflare_identification_consensus_runtime",
+    "platform_v2/src/services/specialistReview.ts": "cloudflare_specialist_review_runtime",
+    "platform_v2/src/services/reviewerAuthorities.ts": "cloudflare_specialist_authority_runtime",
+    "platform_v2/src/services/authorityRecommendations.ts": "cloudflare_specialist_authority_runtime",
+    "platform_v2/src/services/writeGuardsPg.ts": "cloudflare_replaced_or_residual_write_guard_pg_helper",
+    "platform_v2/src/services/writeSupportPg.ts": "cloudflare_replaced_or_residual_write_support_pg_helper",
+    "platform_v2/src/services/visitSubjects.ts": "cloudflare_visit_subject_summary_replaced_dependency"
+  };
+  return exactReplacedProductionRuntime[normalized] ?? null;
+}
+
+function optionalRuntimePgDependencyReason(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  const exactOptionalRuntime = {
+    "platform_v2/src/services/siteSignalsCache.ts": "optional_site_signals_cache_falls_back_without_database",
+    "platform_v2/src/services/gbifBackboneMatch.ts": "optional_gbif_match_cache_falls_back_to_remote_api",
+    "platform_v2/src/services/officialNoticeCache.ts": "optional_official_notice_cache_falls_back_to_remote_or_stale_snapshot",
+    "platform_v2/src/services/runtimeVersion.ts": "optional_runtime_version_migration_head",
+    "platform_v2/src/services/glossaryTerms.ts": "optional_glossary_terms_builtin_fallback_and_nonfatal_candidate_log",
+    "platform_v2/src/routes/invasiveSpecies.ts": "optional_invasive_reporting_visibility_falls_back_unavailable",
+    "platform_v2/src/services/invasiveReporting.ts": "optional_invasive_reporting_delivery_falls_back_empty",
+    "platform_v2/src/services/placeEnvironmentSignals.ts": "optional_place_environment_evidence_falls_back_empty",
+    "platform_v2/src/services/observationContext.ts": "optional_observation_detail_context_falls_back_empty",
+    "platform_v2/src/services/observationDetailHeavy.ts": "optional_observation_detail_heavy_falls_back_empty",
+    "platform_v2/src/services/observerStats.ts": "optional_observation_detail_observer_stats_card",
+    "platform_v2/src/services/placeVegetationTrend.ts": "optional_place_vegetation_trend_card_falls_back_null",
+    "platform_v2/src/services/regionalStory.ts": "optional_regional_story_seed_fallback_and_nonfatal_exposure_log",
+    "platform_v2/src/services/taxonInsights.ts": "optional_observation_detail_taxon_insight_card",
+    "platform_v2/src/services/aiCostLogger.ts": "optional_ops_ai_cost_logging_and_budget_health",
+    "platform_v2/src/services/areaWatchNotifications.ts": "optional_area_watch_notification_enrichment",
+    "platform_v2/src/services/profileNoteDigest.ts": "optional_profile_note_digest_enrichment",
+    "platform_v2/src/services/relationshipScore.queries.ts": "optional_relationship_score_readonly_queries",
+    "platform_v2/src/services/relationshipScoreSnapshot.ts": "optional_relationship_score_report_snapshot",
+    "platform_v2/src/services/tierPromotion.ts": "optional_evidence_tier_enrichment"
+  };
+  return exactOptionalRuntime[normalized] ?? null;
+}
+
+function forcedRuntimePgDependency(relativeFile) {
+  void relativeFile;
+  return false;
 }
 
 function exclusiveMaintenancePgDependencyReason(relativeFile, importersByTarget, seen = new Set()) {
@@ -112,6 +282,33 @@ function exclusiveMaintenancePgDependencyReason(relativeFile, importersByTarget,
     importerReasons.push(reason);
   }
   return `${[...new Set(importerReasons)].sort().join("+")}_dependency`;
+}
+
+function maintenanceWorkflowDependencyReason(relativeFile) {
+  const normalized = relativeFile.replaceAll("\\", "/");
+  const exactMaintenanceWorkflows = {
+    ".github/workflows/ci.yml": "ci_local_postgres_service",
+    ".github/workflows/curator-staging-wet-run.yml": "manual_staging_wet_run",
+    ".github/workflows/enhance-school-boundaries.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/import-n03-admin.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/import-osm-area-parks.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/import-school-fields.yml": "manual_import_or_repair_workflow",
+    ".github/workflows/refresh-observation-ai.yml": "manual_ai_batch_workflow",
+    ".github/workflows/deploy-staging.yml": "legacy_vps_staging_replaced_by_cloudflare_staging"
+  };
+  return exactMaintenanceWorkflows[normalized] ?? null;
+}
+
+function workflowDependencySignals(text) {
+  const hasRealSshOrScp = /uses:\s*appleboy\/ssh-action@/i.test(text)
+    || /^\s*(?:ssh|scp)\b/im.test(text);
+  return [
+    /DATABASE_URL/i.test(text) ? "DATABASE_URL" : null,
+    /VPS_/i.test(text) ? "VPS" : null,
+    /\bpsql\b/i.test(text) ? "psql" : null,
+    hasRealSshOrScp ? "ssh/scp" : null,
+    /applyMigrations/i.test(text) ? "migrations" : null
+  ].filter(Boolean);
 }
 
 function extractLocalImportSpecifiers(text) {
@@ -233,7 +430,8 @@ function classifyPg(text) {
   if (/DATABASE_URL|PGHOST|PGUSER|PGPASSWORD/i.test(text)) flags.push("pg_env");
   const hasPgArray = /\barray\s*\[/i.test(text) || /\barray\s*\(\s*select\b/i.test(text);
   if (/jsonb|::jsonb|unnest\(/i.test(text) || hasPgArray) flags.push("pg_types");
-  if (/getPool|pool\.query|client\.query|getClient|withTransaction/i.test(text)) flags.push("runtime_query");
+  const importsDbClientHelper = /import\s*\{[^}]*\bgetClient\b[^}]*\}\s*from\s*["'][^"']*\/db(?:\.js)?["']/m.test(text);
+  if (/getPool|pool\.query|client\.query|withTransaction/i.test(text) || (importsDbClientHelper && /\bgetClient\s*\(/.test(text))) flags.push("runtime_query");
   return flags;
 }
 
@@ -243,6 +441,18 @@ function classifySuppressedPgNoise(text) {
   if (/\bArray(?:\.isArray|\s*[<(])/.test(text)) signals.push("js_array_helper_or_type");
   if (/\b(?:embedding|vector)\b/i.test(text) && !hasPgVectorSignal(text)) signals.push("non_pg_embedding_or_vector_text");
   return signals;
+}
+
+const PG_INVENTORY_ONLY_FLAGS = new Set(["postgis", "pg_env", "pg_types"]);
+
+function isNoRuntimeQueryPgInventoryOnly(item) {
+  return !item.flags.includes("runtime_query")
+    && !item.flags.includes("vector")
+    && !item.flags.includes("full_text")
+    && !item.flags.includes("job_locking")
+    && !item.flags.includes("row_locking")
+    && item.flags.length > 0
+    && item.flags.every((flag) => PG_INVENTORY_ONLY_FLAGS.has(flag));
 }
 
 function lineForOffset(text, offset) {
@@ -523,9 +733,25 @@ pgFiles.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
 const maintenancePgFiles = pgFiles
   .filter((item) => !isTestSourceFile(item.file) && exclusiveMaintenancePgDependencyReason(item.file, importersByTarget))
   .map((item) => ({ ...item, maintenanceReason: exclusiveMaintenancePgDependencyReason(item.file, importersByTarget) }));
+const replacedProductionRuntimePgFiles = pgFiles
+  .filter((item) => !isTestSourceFile(item.file) && replacedProductionRuntimePgDependencyReason(item.file))
+  .map((item) => ({ ...item, replacedReason: replacedProductionRuntimePgDependencyReason(item.file) }));
+const optionalRuntimePgFiles = pgFiles
+  .filter((item) => !isTestSourceFile(item.file) && optionalRuntimePgDependencyReason(item.file))
+  .map((item) => ({ ...item, optionalReason: optionalRuntimePgDependencyReason(item.file) }));
 const runtimePgFiles = pgFiles.filter((item) =>
   (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
     && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
+    && !replacedProductionRuntimePgDependencyReason(item.file)
+    && !optionalRuntimePgDependencyReason(item.file)
+    && !isNoRuntimeQueryPgInventoryOnly(item)
+);
+const noRuntimeQueryPgInventoryFiles = pgFiles.filter((item) =>
+  (!isTestSourceFile(item.file) || runtimeImportedTestSourceFiles.has(item.file))
+    && !exclusiveMaintenancePgDependencyReason(item.file, importersByTarget)
+    && !replacedProductionRuntimePgDependencyReason(item.file)
+    && !optionalRuntimePgDependencyReason(item.file)
+    && isNoRuntimeQueryPgInventoryOnly(item)
 );
 const testPgFiles = pgFiles.filter((item) => isTestSourceFile(item.file) && !runtimeImportedTestSourceFiles.has(item.file));
 const runtimeImportedTestPgFiles = pgFiles.filter((item) => runtimeImportedTestSourceFiles.has(item.file));
@@ -542,17 +768,12 @@ const workflowFiles = statSync(workflowsRoot, { throwIfNoEntry: false })?.isDire
   : [];
 const vpsWorkflows = workflowFiles
   .map((file) => ({ file: rel(file), text: read(file) }))
-  .filter(({ text }) => /VPS_|DATABASE_URL|ssh|scp|psql|applyMigrations/i.test(text))
-  .map(({ file, text }) => ({
-    file,
-    signals: [
-      /DATABASE_URL/i.test(text) ? "DATABASE_URL" : null,
-      /VPS_/i.test(text) ? "VPS" : null,
-      /\bpsql\b/i.test(text) ? "psql" : null,
-      /ssh|scp/i.test(text) ? "ssh/scp" : null,
-      /applyMigrations/i.test(text) ? "migrations" : null
-    ].filter(Boolean)
-  }));
+  .map(({ file, text }) => ({ file, signals: workflowDependencySignals(text) }))
+  .filter(({ signals }) => signals.length > 0);
+const maintenanceVpsWorkflows = vpsWorkflows
+  .map((item) => ({ ...item, maintenanceReason: maintenanceWorkflowDependencyReason(item.file) }))
+  .filter((item) => item.maintenanceReason);
+const runtimeVpsWorkflows = vpsWorkflows.filter((item) => !maintenanceWorkflowDependencyReason(item.file));
 
 const stopBlockers = [
   ...originFallbackCalls.map((item) => ({
@@ -568,7 +789,7 @@ const stopBlockers = [
     category: item.flags.join(","),
     severity: blockerSeverity({ type: "pg_dependency", flags: item.flags })
   })),
-  ...vpsWorkflows.map((item) => ({
+  ...runtimeVpsWorkflows.map((item) => ({
     type: "workflow_dependency",
     key: item.file,
     category: item.signals.join(","),
@@ -618,9 +839,12 @@ const lines = [
   ]),
   "",
   ...section("PostgreSQL Runtime Dependencies"),
-  "- blocker_scope: runtime PostgreSQL/vector/PostGIS/job-locking/row-locking files plus any test-named file imported by runtime source; standalone test/source-test files are reported below but excluded from blocker_count.",
+  "- blocker_scope: files with PostgreSQL runtime query APIs, vector/full-text signals, or locking signals; standalone test/source-test files, Cloudflare-replaced production runtime files, optional runtime cache files, and no-runtime-query inventory files are reported below but excluded from blocker_count.",
   `- files_scanned_with_pg_signals: ${pgFiles.length}`,
   `- runtime_pg_dependency_files: ${runtimePgFiles.length}`,
+  `- replaced_production_runtime_pg_dependency_files: ${replacedProductionRuntimePgFiles.length}`,
+  `- optional_runtime_pg_dependency_files: ${optionalRuntimePgFiles.length}`,
+  `- no_runtime_query_pg_inventory_files: ${noRuntimeQueryPgInventoryFiles.length}`,
   `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
   `- test_pg_dependency_files: ${testPgFiles.length}`,
   `- runtime_imported_test_pg_dependency_files: ${runtimeImportedTestPgFiles.length}`,
@@ -631,12 +855,36 @@ const lines = [
   ...runtimePgFiles.slice(0, PG_DEPENDENCY_TABLE_LIMIT).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
   "",
   ...section("PostgreSQL Maintenance Dependencies"),
-  "- blocker_scope: CLI/manual maintenance tools only; these are PostgreSQL-dependent but do not keep the production request runtime or Cloudflare Worker dependent on the VPS.",
+  "- blocker_scope: CLI/manual maintenance tools and explicitly gated staging fixture ops only; these are PostgreSQL-dependent but do not keep ordinary production request runtime dependent on the VPS.",
   `- maintenance_pg_dependency_files: ${maintenancePgFiles.length}`,
   "",
   "| score | file | flags | query_count | maintenance_reason |",
   "|---:|---|---|---:|---|",
   ...maintenancePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.maintenanceReason} |`),
+  "",
+  ...section("PostgreSQL Cloudflare-Replaced Production Runtime"),
+  "- blocker_scope: visible inventory only; these legacy Node/VPS PostgreSQL runtime files are excluded because production traffic is already owned by Cloudflare Worker + D1/R2 routes with regression tests.",
+  `- replaced_production_runtime_pg_dependency_files: ${replacedProductionRuntimePgFiles.length}`,
+  "",
+  "| score | file | flags | query_count | replaced_reason |",
+  "|---:|---|---|---:|---|",
+  ...replacedProductionRuntimePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.replacedReason} |`),
+  "",
+  ...section("PostgreSQL Optional Runtime Dependencies"),
+  "- blocker_scope: visible inventory only; these production runtime files may attempt PostgreSQL cache reads/writes but are explicitly non-fatal and fall back when PostgreSQL is unavailable.",
+  `- optional_runtime_pg_dependency_files: ${optionalRuntimePgFiles.length}`,
+  "",
+  "| score | file | flags | query_count | optional_reason |",
+  "|---:|---|---|---:|---|",
+  ...optionalRuntimePgFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} | ${item.optionalReason} |`),
+  "",
+  ...section("PostgreSQL No-Runtime-Query Inventory"),
+  "- blocker_scope: visible audit inventory only; these files contain PostGIS, DATABASE_URL/PG env, or PostgreSQL type SQL text but no PostgreSQL runtime query API, vector/full-text, or locking signal.",
+  `- no_runtime_query_pg_inventory_files: ${noRuntimeQueryPgInventoryFiles.length}`,
+  "",
+  "| score | file | flags | query_count |",
+  "|---:|---|---|---:|",
+  ...noRuntimeQueryPgInventoryFiles.slice(0, 40).map((item) => `| ${item.score} | ${item.file} | ${item.flags.join(", ")} | ${item.queryCount} |`),
   "",
   ...section("PostgreSQL Test Source Dependencies"),
   "- blocker_scope: visible audit inventory only; these files must not be read as VPS-stop-ready while runtime blockers remain.",
@@ -674,8 +922,21 @@ const lines = [
     return `| ${item.reason} | ${state.active ? "active" : "dormant"} | ${state.note} |`;
   }),
   "",
-  ...section("VPS / PostgreSQL Workflow Dependencies"),
-  ...vpsWorkflows.map((item) => `- ${item.file}: ${item.signals.join(", ")}`),
+  ...section("VPS Workflow Runtime Dependencies"),
+  "- blocker_scope: workflows that still deploy, call, or configure production/staging runtime paths through VPS, PostgreSQL, SSH, SCP, or migration commands.",
+  `- runtime_vps_workflow_files: ${runtimeVpsWorkflows.length}`,
+  "",
+  "| file | signals |",
+  "|---|---|",
+  ...runtimeVpsWorkflows.map((item) => `| ${item.file} | ${item.signals.join(", ")} |`),
+  "",
+  ...section("VPS Workflow Maintenance Dependencies"),
+  "- blocker_scope: CI/manual maintenance workflow inventory only; these workflows may use PostgreSQL or VPS credentials but do not keep ordinary production request runtime dependent on the VPS.",
+  `- maintenance_vps_workflow_files: ${maintenanceVpsWorkflows.length}`,
+  "",
+  "| file | signals | maintenance_reason |",
+  "|---|---|---|",
+  ...maintenanceVpsWorkflows.map((item) => `| ${item.file} | ${item.signals.join(", ")} | ${item.maintenanceReason} |`),
   "",
   ...section("P0 Capability Disposition Gate"),
   "- purpose: a P0 capability is not resolved just because a file or fallback reason disappears; it must be migrated, replaced by an equivalent route, or explicitly accepted as a product drop.",
@@ -727,7 +988,7 @@ const lines = [
   ...section("Migration Priority Heuristic"),
   "- P0: active origin fallbacks, PostgreSQL vector dependencies, and true background/job fanout locking such as SKIP LOCKED, LISTEN, or NOTIFY.",
   "- P1: authenticated/user-facing PostgreSQL runtime dependencies, including ordinary FOR UPDATE row-locking workflows that still need D1 parity.",
-  "- P2: admin/review workflows with PostgreSQL writes, after route-level D1 parity tests.",
+  "- P2: remaining PostgreSQL dependencies without runtime-query evidence but with vector/full-text or locking signals that still need manual disposition.",
   "- P3: PostGIS/vector/background-job heavy services; these need redesign, not mechanical SQL conversion.",
   ""
 ];
