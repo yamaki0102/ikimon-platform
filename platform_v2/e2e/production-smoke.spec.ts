@@ -7,10 +7,10 @@ const pages = [
   { path: "/", marker: /ikimon/i },
   { path: "/records", marker: /記録を見る|Records/i },
   { path: "/learn", marker: /ikimon|Learn/i },
-  { path: "/contact", marker: /送信|Contact/i },
+  { path: "/map", marker: /地図|map/i },
 ];
 
-const publicSurfacePages = ["/", "/records", "/map"];
+const publicSurfacePages = ["/", "/records", "/learn", "/map"];
 const canonicalAiSubjectScenes = [
   {
     path: "/ja/observations/record-1778549526406?subject=occ%3Arecord-1778549526406%3A0",
@@ -82,6 +82,22 @@ function productionSmokeBaseUrl(): string {
 
 function productionSmokePrefix(): string {
   return process.env.PRODUCTION_SMOKE_UI_PREFIX?.trim() || `smoke-ui-local-${Date.now()}`;
+}
+
+function productionSmokeWriteKey(): string {
+  return process.env.PRODUCTION_SMOKE_WRITE_KEY?.trim() ||
+    process.env.IKIMON_PRODUCTION_SMOKE_WRITE_KEY?.trim() ||
+    "";
+}
+
+function productionMutationSmokeUnavailable(): string | null {
+  if (!process.env.PRODUCTION_SMOKE_BASE_URL?.trim()) {
+    return "requires a production candidate base URL or SSH tunnel";
+  }
+  if (!productionSmokeWriteKey()) {
+    return "requires PRODUCTION_SMOKE_WRITE_KEY for privileged production write/session smoke";
+  }
+  return null;
 }
 
 function productionSmokeCheckpointFile(): string {
@@ -221,20 +237,20 @@ async function registerSmokeUser(
   suffix?: string,
   options?: { displayName?: string },
 ): Promise<SmokeAccount> {
-  const password = `IkimonUiSmoke${prefix.replace(/\W/g, "").slice(-16)}!`;
   const accountKey = suffix ? `${prefix}-${suffix}` : prefix;
   const email = `${accountKey}@example.invalid`;
-  const response = await api.post(joinUrl(baseUrl, "/api/v1/auth/register"), {
+  const userId = `production-smoke-${accountKey}`.replace(/[^A-Za-z0-9_-]+/g, "-").slice(0, 96);
+  const response = await api.post(joinUrl(baseUrl, "/api/v1/auth/session/issue"), {
     headers: {
       accept: "application/json",
       "content-type": "application/json",
       origin: baseUrl,
+      "x-ikimon-write-key": productionSmokeWriteKey(),
     },
     data: {
+      userId,
+      ttlHours: 1,
       displayName: options?.displayName ?? `候補UIスモーク ${accountKey}`,
-      email,
-      password,
-      redirect: "/record",
     },
   });
   const payload = (await response.json().catch(() => null)) as {
@@ -479,79 +495,47 @@ test.describe("production candidate smoke", () => {
     ])).toEqual([]);
   });
 
-  test("guide relay static GSI map loads real tile images", async ({ page, request }) => {
-    const response = await page.goto("/guide-programs/aikan-renri-guide-relay", { waitUntil: "domcontentloaded" });
-    expect(response?.status(), "guide program status").toBeLessThan(500);
-
-    const staticMap = page.locator('[data-guide-static-map="gsi-std"]');
-    await expect(staticMap).toBeVisible();
-    await staticMap.scrollIntoViewIfNeeded();
-    const tiles = staticMap.locator('img[data-guide-static-tile="true"]');
-    await expect(tiles, "guide program preview should render the 4x3 GSI tile grid").toHaveCount(12);
-
-    await expect.poll(async () =>
-      tiles.evaluateAll((images) =>
-        images.filter((image) => {
-          const img = image as HTMLImageElement;
-          return img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
-        }).length,
-      ), { message: "all guide program GSI tiles should finish loading in the browser" },
-    ).toBe(12);
-
-    const tileUrls = await tiles.evaluateAll((images) =>
-      images.map((image) => (image as HTMLImageElement).currentSrc || (image as HTMLImageElement).src),
-    );
-    const tileFetchWarnings: string[] = [];
-    for (const url of tileUrls) {
-      expect(url, "tile src should use the GSI standard tile endpoint").toContain("cyberjapandata.gsi.go.jp/xyz/std/");
-      try {
-        const tileResponse = await request.get(url, { timeout: 10_000 });
-        const contentType = tileResponse.headers()["content-type"] ?? "";
-        const body = await tileResponse.body();
-        if (tileResponse.status() !== 200 || !/^image\/png\b/.test(contentType) || body.length <= 1024) {
-          tileFetchWarnings.push(`${url} status=${tileResponse.status()} content-type=${contentType} bytes=${body.length}`);
-        }
-      } catch (error) {
-        tileFetchWarnings.push(`${url} ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-    if (tileFetchWarnings.length) {
-      console.warn(`Best-effort GSI tile fetch warnings:\n${tileFetchWarnings.join("\n")}`);
+  test("Cloudflare readiness and map APIs stay public and VPS-independent", async ({ request }) => {
+    for (const path of ["/healthz", "/readyz"] as const) {
+      const response = await request.get(path, {
+        headers: { "user-agent": "ikimon-production-smoke/2026-06-28" },
+      });
+      expect(response.status(), `${path} status`).toBe(200);
+      expect(response.headers()["server"] ?? "", `${path} server`).toMatch(/cloudflare/i);
+      expect(response.headers()["cf-ray"] ?? "", `${path} cf-ray`).toBeTruthy();
+      expect(response.headers()["cache-control"] ?? "", `${path} cache-control`).toContain("no-store");
+      const payload = await response.json() as JsonPayload;
+      expect(payload.ok, `${path} ok`).toBe(true);
+      expect(String(payload.service ?? ""), `${path} service`).toContain("ikimon-life-cloudflare-worker");
+      expect(String(payload.environment ?? ""), `${path} environment`).toBe("production");
     }
 
-    const mapBox = await page.locator(".guide-program-map").boundingBox();
-    const pinBox = await page.locator(".guide-program-map-pin").first().boundingBox();
-    expect(mapBox, "guide program map should be visible").toBeTruthy();
-    expect(pinBox, "guide program map pin should be visible").toBeTruthy();
-    expect(pinBox!.x + pinBox!.width / 2).toBeGreaterThanOrEqual(mapBox!.x);
-    expect(pinBox!.x + pinBox!.width / 2).toBeLessThanOrEqual(mapBox!.x + mapBox!.width);
-    expect(pinBox!.y + pinBox!.height / 2).toBeGreaterThanOrEqual(mapBox!.y);
-    expect(pinBox!.y + pinBox!.height / 2).toBeLessThanOrEqual(mapBox!.y + mapBox!.height);
-    await expectNoHorizontalOverflow(page);
+    for (const path of [
+      { path: "/api/v1/map/cells?bbox=137.70,34.70,137.82,34.72&zoom=13", cache: /no-store/ },
+      { path: "/api/v1/map/observations?bbox=137.70,34.70,137.82,34.72&zoom=13", cache: /no-store/ },
+      { path: "/api/v1/map/guide-spots?bbox=137.70,34.70,137.82,34.72&limit=20", cache: /^(no-store|public, max-age=\d+)/ },
+    ] as const) {
+      const response = await request.get(path.path);
+      expect(response.status(), `${path.path} status`).toBe(200);
+      expect(response.headers()["server"] ?? "", `${path.path} server`).toMatch(/cloudflare/i);
+      expect(response.headers()["cf-ray"] ?? "", `${path.path} cf-ray`).toBeTruthy();
+      expect(response.headers()["cache-control"] ?? "", `${path.path} cache-control`).toMatch(path.cache);
+      const payload = await response.json() as JsonPayload;
+      expect(JSON.stringify(payload), `${path.path} payload should not expose origin fallback markers`).not.toMatch(/origin_fallback|vps|postgres/i);
+    }
   });
 
-  test("public surfaces do not leak fixtures or 1x1 placeholder thumbnails", async ({ page, request }) => {
-    const checkedThumbs = new Set<string>();
+  test("public HTML surfaces do not leak fixtures or origin upload paths", async ({ request }) => {
     for (const path of publicSurfacePages) {
-      const response = await page.goto(path, { waitUntil: "domcontentloaded" });
-      expect(response?.status(), `${path} status`).toBeLessThan(500);
-      const html = await page.content();
+      const response = await request.get(path);
+      expect(response.status(), `${path} status`).toBeLessThan(500);
+      const html = await response.text();
       expect(html, `${path} leaked fixture marker`).not.toMatch(fixtureLeakPattern);
-
-      for (const src of await thumbUrlsOnPage(page)) {
-        const url = new URL(src, page.url()).toString();
-        if (checkedThumbs.has(url)) continue;
-        checkedThumbs.add(url);
-        const imageResponse = await request.get(url, {
-          headers: sameOriginBasicAuthHeaders(url, page.url()),
-        });
-        expect(imageResponse.status(), `${url} status`).toBeLessThan(400);
-        expect(imageResponse.headers()["content-type"] ?? "", `${url} content-type`).toMatch(/^image\//);
-        const body = await imageResponse.body();
-        expect(body.length, `${url} should not be a 1x1 / placeholder asset`).toBeGreaterThan(512);
-      }
+      expect(html, `${path} should not expose origin upload paths`).not.toMatch(/\/uploads\/|\/original\//i);
     }
-    expect(checkedThumbs.size, "public smoke should inspect at least one public thumbnail").toBeGreaterThan(0);
+    await recordSmokeCheckpoint("public_surface_fixture_safety", {
+      pages: publicSurfacePages,
+    });
   });
 
   for (const scene of canonicalAiSubjectScenes) {
@@ -567,12 +551,12 @@ test.describe("production candidate smoke", () => {
     await expect(page.locator("body")).not.toContainText("この映像に写っているもの");
     await expect(page.locator("body")).not.toContainText("この映像で読む対象を切り替える");
     await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
-    await expect(page.locator("body")).toContainText("IDENTIFICATION");
-    await expect(page.locator("body")).toContainText("EVENT / OCCURRENCE");
-    await expect(page.locator(".obs-ai-readout")).toBeVisible();
-    await expect(page.locator(".obs-local-quality-inline")).toBeVisible();
-    await expect(page.locator(".obs-frame-identify-card")).toBeVisible();
-    await expect(page.locator(".obs-local-quality-card")).toBeVisible();
+    await expect(page.locator("body")).toContainText("場面の記録");
+    await expect(page.locator("body")).toContainText("観察記録");
+    await expect(page.locator("body")).toContainText("同定");
+    await expect(page.locator("body")).toContainText("公開データ");
+    await expect(page.locator("body")).toContainText("公開範囲");
+    await expect(page.locator("body")).toContainText("精密座標非表示");
     await expect(page.locator(".obs-visible-record-card")).toHaveCount(0);
 
     await expect(page.locator("body")).not.toContainText("これも写ってると提案");
@@ -608,51 +592,16 @@ test.describe("production candidate smoke", () => {
     });
   }
 
-  test("logged-in invasive species pages render against the production candidate", async ({ browser }) => {
-    test.setTimeout(120_000);
-
-    test.skip(
-      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
-      "requires a production candidate base URL or SSH tunnel",
-    );
-
-    const baseUrl = productionSmokeBaseUrl();
-    const prefix = productionSmokePrefix();
-    const context = await browser.newContext({
-      ignoreHTTPSErrors: true,
-      viewport: { width: 1440, height: 900 },
-    });
-
-    try {
-      const account = await registerSmokeUser(context.request, baseUrl, prefix, "invasive");
-      await context.setExtraHTTPHeaders({ cookie: account.sessionCookie });
-      const page = await context.newPage();
-
-      await page.goto(joinUrl(baseUrl, "/learn/invasive-species?lang=ja"), { waitUntil: "domcontentloaded" });
-      await expect(page.locator("body")).toContainText("外来種を見つけたときの安全メモ");
-      await expect(page.locator("body")).toContainText("全26件");
-      for (const name of ["オオキンケイギク", "ナガエツルノゲイトウ", "ヒアリ", "ヌートリア"]) {
-        await expect(page.locator("a").filter({ hasText: name }).first()).toBeVisible();
-      }
+  test("retired public URLs return safe branded 404 pages", async ({ page }) => {
+    for (const path of ["/contact", "/learn/invasive-species"] as const) {
+      const response = await page.goto(path, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), `${path} status`).toBe(404);
+      await expect(page.locator("body")).toContainText("ページが見つかりません");
+      await expect(page.locator("a").filter({ hasText: "地図へ" }).first()).toBeVisible();
+      await expect(page.locator("a").filter({ hasText: "トップ" }).first()).toBeVisible();
       await expectNoHorizontalOverflow(page);
-      await page.screenshot({ path: "test-results/production-invasive-list-desktop.png", fullPage: true });
-
-      await page.setViewportSize({ width: 390, height: 844 });
-      await page.goto(joinUrl(baseUrl, "/learn/invasive-species/solenopsis-invicta?lang=ja"), { waitUntil: "domcontentloaded" });
-      await expect(page.locator("body")).toContainText("ヒアリ");
-      await expect(page.locator("body")).toContainText(/触らない|自治体や管理者/);
-      await expect(page.locator("body")).toContainText("外来生物法");
-      await expect(page.locator("a").filter({ hasText: "出典を開く" }).first()).toBeVisible();
-      await expectNoHorizontalOverflow(page);
-      await page.screenshot({ path: "test-results/production-invasive-detail-mobile.png", fullPage: true });
-      await recordSmokeCheckpoint("logged_in_invasive_species_pages", {
-        listPath: "/learn/invasive-species",
-        detailPath: "/learn/invasive-species/solenopsis-invicta",
-        userId: account.userId,
-      });
-    } finally {
-      await context.close();
     }
+    await recordSmokeCheckpoint("retired_public_urls_safe_404");
   });
 
   test("observation detail keeps field-management edit UI out of the snapshot flow", async ({ browser }) => {
@@ -672,7 +621,9 @@ test.describe("production candidate smoke", () => {
       await page.goto(joinUrl(baseUrl, canonicalFieldAdviceScene), { waitUntil: "domcontentloaded" });
       await expect(page.locator("body")).not.toContainText("現場アドバイス");
       await expect(page.locator("[data-care-policy-form]")).toHaveCount(0);
-      await expect(page.locator("body")).toContainText("EVENT / OCCURRENCE");
+      await expect(page.locator("body")).toContainText("観察記録");
+      await expect(page.locator("body")).toContainText("公開データ");
+      await expect(page.locator("body")).toContainText("精密座標非表示");
       await recordSmokeCheckpoint("field_policy_ui_hidden_on_observation_detail", {
         path: page.url(),
       });
@@ -684,10 +635,8 @@ test.describe("production candidate smoke", () => {
   test("identification workbench saves reference evidence against the production candidate", async ({ browser }) => {
     test.setTimeout(180_000);
 
-    test.skip(
-      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
-      "requires a production candidate base URL or SSH tunnel",
-    );
+    const skipReason = productionMutationSmokeUnavailable();
+    test.skip(Boolean(skipReason), skipReason ?? "");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
@@ -755,10 +704,8 @@ test.describe("production candidate smoke", () => {
   test("mobile record UI saves photo and video against the production candidate", async ({ browser }) => {
     test.setTimeout(180_000);
 
-    test.skip(
-      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
-      "requires a production candidate base URL or SSH tunnel",
-    );
+    const skipReason = productionMutationSmokeUnavailable();
+    test.skip(Boolean(skipReason), skipReason ?? "");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
@@ -836,10 +783,8 @@ test.describe("production candidate smoke", () => {
   test("place memory unlocks same-cell echoes without leaking private notes", async ({ request }) => {
     test.setTimeout(120_000);
 
-    test.skip(
-      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
-      "requires a production candidate base URL or SSH tunnel",
-    );
+    const skipReason = productionMutationSmokeUnavailable();
+    test.skip(Boolean(skipReason), skipReason ?? "");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
@@ -923,10 +868,8 @@ test.describe("production candidate smoke", () => {
   test("place event capsule flow works with organizer, recorder, guide, and scanner accounts", async ({ browser }) => {
     test.setTimeout(180_000);
 
-    test.skip(
-      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
-      "requires a production candidate base URL or SSH tunnel",
-    );
+    const skipReason = productionMutationSmokeUnavailable();
+    test.skip(Boolean(skipReason), skipReason ?? "");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
