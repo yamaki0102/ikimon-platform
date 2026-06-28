@@ -396,6 +396,41 @@ jobs:
           done
           echo "Record materialized HTML C110 marker verified."
 
+      - uses: actions/checkout@v5
+
+      - name: Setup platform browser smoke runtime
+        uses: ./.github/actions/setup-platform-browser
+        with:
+          install-with-deps: "false"
+
+      - name: Observation image detail VPS parity smoke
+        timeout-minutes: 8
+        working-directory: platform_v2
+        env:
+          OBSERVATION_DETAIL_BASE_URL: https://ikimon.life
+          OBSERVATION_DETAIL_IMAGE_TARGETS: >-
+            ["/observations/record-1781252770584?subject=occ%3Arecord-1781252770584%3A0&lang=ja","/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A0&lang=ja","/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0&lang=ja","/observations/occ%3Afdd87039-b91f-4fd6-8dac-093ea06817d1%3A0?lang=ja"]
+        run: npm run e2e:observation-image-target
+
+      - name: Observation video detail regression smoke
+        timeout-minutes: 6
+        working-directory: platform_v2
+        env:
+          OBSERVATION_DETAIL_BASE_URL: https://ikimon.life
+        run: npm run e2e:observation-target
+
+      - name: Upload observation detail smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-observation-detail-smoke
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/observation-image-target
+            platform_v2/playwright-report/observation-target
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Map data checks
         run: |
           set -euo pipefail
