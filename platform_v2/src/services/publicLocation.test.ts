@@ -67,7 +67,9 @@ test("public grid meters and capped zoom use the calibrated thresholds", () => {
   assert.equal(pickPublicGridMeters(9), 10000);
   assert.equal(pickPublicGridMeters(10), 3000);
   assert.equal(pickPublicGridMeters(13), 1000);
+  assert.equal(pickPublicGridMeters(15), 500);
 
+  assert.equal(maxZoomForGrid(500), 15.4);
   assert.equal(maxZoomForGrid(1000), 13.2);
   assert.equal(maxZoomForGrid(3000), 11.8);
   assert.equal(maxZoomForGrid(10000), 10.1);
@@ -79,12 +81,12 @@ test("buildPublicLocationSummary emits cell-centered area metadata without exact
     prefecture: "静岡県",
     latitude: 34.7116,
     longitude: 137.7274,
-    zoom: 13,
+    zoom: 15,
   });
 
   assert.equal(summary.label, "浜松市");
   assert.equal(summary.scope, "municipality");
-  assert.equal(summary.gridM, 1000);
+  assert.equal(summary.gridM, 500);
   assert.ok(typeof summary.cellId === "string" && summary.cellId.length > 0);
   assert.ok(typeof summary.radiusM === "number" && summary.radiusM > 0);
   assert.ok(typeof summary.centroidLat === "number");

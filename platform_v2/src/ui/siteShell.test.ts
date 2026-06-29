@@ -110,6 +110,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) minmax\(0, 1fr\);/);
   assert.match(html, /\.site-search-desktop \{[\s\S]*grid-column: 2;/);
   assert.match(html, /\.site-header-actions-desktop \{[\s\S]*grid-column: 3;[\s\S]*justify-self: end;/);
+  assert.match(html, /@media \(min-width: 1161px\) \{[\s\S]*\.site-header-actions-mobile \{[\s\S]*display: none !important;/);
+  assert.match(html, /@media \(max-width: 1160px\) \{[\s\S]*\.desktop-side-nav-toggle \{[\s\S]*display: none !important;/);
   assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: auto;[\s\S]*height: 15px;[\s\S]*aspect-ratio: 711 \/ 222;/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);

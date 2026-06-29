@@ -3037,6 +3037,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return text;
   }
   function maxZoomForGrid(gridM) {
+    if (isFinite(gridM) && gridM <= 500) return 15.4;
     if (!isFinite(gridM) || gridM <= 1000) return 13.2;
     if (gridM <= 3000) return 11.8;
     return 10.1;
@@ -3344,6 +3345,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     renderResultList();
     renderSelectedCard();
     renderSidePanels();
+    syncViewerOwnedRecordSource(state.map);
     refreshDiscoveryPreviewMarkers();
     updateSearchAreaUi();
     var records = Array.isArray(state.records) ? state.records : [];
@@ -3531,7 +3533,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var cellFeature = getSelectedCellFeature();
     var record = getSelectedRecord();
     if (record && cellFeature) {
-      var center = cellCenter(cellFeature);
+      var center = recordCellCenter(record) || cellCenter(cellFeature);
       return {
         lat: center.lat,
         lng: center.lng,
@@ -3702,6 +3704,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function recordCellCenter(record) {
+    if (record && record.isViewerOwned) {
+      var exactLat = Number(record.exactLatitude);
+      var exactLng = Number(record.exactLongitude);
+      if (Number.isFinite(exactLat) && Number.isFinite(exactLng)) return { lat: exactLat, lng: exactLng };
+    }
     if (!record || !record.cellId) return null;
     var feature = findCellFeatureById(record.cellId);
     if (!feature) return null;
@@ -3727,20 +3734,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var cellCounts = {};
     var seenGroups = {};
     var candidates = sortedDiscoveryPreviewCandidates();
+    var zoom = state.map && typeof state.map.getZoom === 'function' ? Number(state.map.getZoom()) : 12;
+    var maxCards = zoom >= 16 ? 36 : (zoom >= 15 ? 28 : 24);
     var pushIfUsable = function (record, preferNewGroup) {
-      if (!record || picked.length >= 24 || !record.cellId) return;
+      if (!record || picked.length >= maxCards || !record.cellId) return;
       var cellCount = cellCounts[record.cellId] || 0;
-      if (cellCount >= 3) return;
+      if (!record.isViewerOwned && cellCount >= (zoom >= 15 ? 5 : 3)) return;
       var group = record.taxonGroup || record.dominantTaxonGroup || '';
       if (preferNewGroup && group && seenGroups[group]) return;
       var center = recordCellCenter(record);
       if (!center) return;
       cellCounts[record.cellId] = cellCount + 1;
-      var offset = [
+      var offset = record.isViewerOwned ? [0, 0] : ([
         [0, 0],
-        [0.0045, 0.0032],
-        [-0.0045, -0.0032],
-      ][cellCount] || [0, 0];
+        [0.0022, 0.0016],
+        [-0.0022, -0.0016],
+        [0.0016, -0.0022],
+        [-0.0016, 0.0022],
+      ][cellCount] || [0, 0]);
       if (group) seenGroups[group] = true;
       picked.push({ record: record, center: { lng: center.lng + offset[0], lat: center.lat + offset[1] } });
     };
@@ -3758,11 +3769,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var record = item.record;
       var el = document.createElement('button');
       el.type = 'button';
-      el.className = 'me-discovery-preview me-community-photo-marker' + (record.photoUrl ? ' has-photo' : '');
+      el.className = 'me-discovery-preview me-community-photo-marker' + (record.photoUrl ? ' has-photo' : '') + (record.isViewerOwned ? ' is-exact' : ' is-grid');
       el.setAttribute('aria-label', recordDisplayName(record, COPY.recentDiscoveryFallback) + COPY.openDiscoverySuffix);
+      var placementBadge = record.isViewerOwned ? '正確' : 'メッシュ内';
       el.innerHTML = record.photoUrl
-        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span>'
-        : '<i aria-hidden="true">✦</i><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span>';
+        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span><em>' + escapeHtml(placementBadge) + '</em>'
+        : '<i aria-hidden="true">✦</i><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span><em>' + escapeHtml(placementBadge) + '</em>';
       el.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -5848,7 +5860,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }
     }
     if (!feature) return;
-    var center = cellCenter(feature);
+    var center = recordCellCenter(record) || cellCenter(feature);
     state.selectedPoint = {
       lat: center.lat,
       lng: center.lng,
@@ -5871,7 +5883,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       setSideRailMode(false);
       setSideTab('selection');
     }
-    if (state.map && options && options.focusMap !== false) focusCellFeature(feature);
+    if (state.map && options && options.focusMap !== false) {
+      if (record.isViewerOwned && Number.isFinite(center.lat) && Number.isFinite(center.lng)) {
+        state.map.easeTo({ center: [center.lng, center.lat], zoom: Math.max(state.map.getZoom(), 15.2), duration: 520 });
+      } else {
+        focusCellFeature(feature);
+      }
+    }
     if (!preserveSurroundings && state.lastStats && state.lastStats.selectedCellId !== state.selectedCellId) {
       loadRecords({ cellId: state.selectedCellId });
     }
@@ -5885,7 +5903,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!shouldUseBottomSheet()) return;
     resetAreaGuideStopSession();
     var feature = getSelectedCellFeature();
-    var center = feature ? cellCenter(feature) : { lat: null, lng: null };
+    var exactCenter = recordCellCenter(record);
+    var center = exactCenter || (feature ? cellCenter(feature) : { lat: null, lng: null });
     var detailContext = (center.lat != null && center.lng != null)
       ? { lat: center.lat, lng: center.lng, kind: 'observation', cellFeature: feature, record: record }
       : null;
@@ -7112,6 +7131,85 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return collection;
   }
 
+  function viewerOwnedRecordCenter(record) {
+    var lat = Number(record && record.exactLatitude);
+    var lng = Number(record && record.exactLongitude);
+    return record && record.isViewerOwned && Number.isFinite(lat) && Number.isFinite(lng)
+      ? { lat: lat, lng: lng }
+      : null;
+  }
+
+  function buildViewerOwnedRecordPointCollection(records) {
+    return {
+      type: 'FeatureCollection',
+      features: (records || []).map(function (record) {
+        var center = viewerOwnedRecordCenter(record);
+        if (!center) return null;
+        return {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [center.lng, center.lat] },
+          properties: {
+            occurrenceId: record.occurrenceId || '',
+            visitId: record.visitId || '',
+            cellId: record.cellId || '',
+            label: recordDisplayName(record, COPY.discoveryFallback),
+          },
+        };
+      }).filter(Boolean),
+    };
+  }
+
+  function findRecordByOccurrenceId(occurrenceId) {
+    for (var i = 0; i < state.records.length; i += 1) {
+      var record = state.records[i];
+      if (record && record.occurrenceId === occurrenceId) return record;
+    }
+    return null;
+  }
+
+  function syncViewerOwnedRecordSource(map) {
+    if (!map) return;
+    var sourceId = 'viewer-owned-observations';
+    var collection = buildViewerOwnedRecordPointCollection(state.records || []);
+    if (map.getSource(sourceId)) {
+      map.getSource(sourceId).setData(collection);
+      return;
+    }
+    map.addSource(sourceId, { type: 'geojson', data: collection });
+    map.addLayer({
+      id: 'viewer-owned-observation-halo',
+      type: 'circle',
+      source: sourceId,
+      paint: {
+        'circle-color': 'rgba(255,255,255,0.92)',
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 8, 15, 13],
+        'circle-opacity': 0.92,
+      },
+    });
+    map.addLayer({
+      id: 'viewer-owned-observation-dot',
+      type: 'circle',
+      source: sourceId,
+      paint: {
+        'circle-color': '#10b981',
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 15, 8],
+        'circle-stroke-color': '#064e3b',
+        'circle-stroke-width': 1.6,
+      },
+    });
+    ['viewer-owned-observation-halo', 'viewer-owned-observation-dot'].forEach(function (layerId) {
+      map.on('click', layerId, function (e) {
+        if (hasPendingMapResults()) return;
+        if (!e.features || !e.features[0]) return;
+        var occurrenceId = e.features[0].properties && e.features[0].properties.occurrenceId;
+        var record = findRecordByOccurrenceId(occurrenceId);
+        if (record) selectRecord(record, { focusMap: false, openSheet: shouldUseBottomSheet() });
+      });
+      map.on('mouseenter', layerId, function () { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', layerId, function () { map.getCanvas().style.cursor = ''; });
+    });
+  }
+
   function taxonColorExpression(alpha) {
     var a = typeof alpha === 'number' ? alpha : 1;
     return [
@@ -7131,6 +7229,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (map.getSource(sourceId)) {
       map.getSource(sourceId).setData({ type: 'FeatureCollection', features: features });
       syncCellPointSource(map, features);
+      syncViewerOwnedRecordSource(map);
       highlightSelectedCell();
       return;
     }
@@ -7267,6 +7366,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         'line-width': 2.4,
       },
     });
+    syncViewerOwnedRecordSource(map);
     ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-count', 'obs-cell-heat'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
         if (hasPendingMapResults()) return;
@@ -7306,6 +7406,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // Show/hide layers based on active tab.
     var markerLayers = ['observation-cell-dot', 'observation-cell-selected'];
     var markerDetailLayers = ['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'];
+    var viewerOwnedLayers = ['viewer-owned-observation-halo', 'viewer-owned-observation-dot'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-approximate-outline', 'area-polygon-hitbox', 'area-polygon-selected-halo', 'area-polygon-selected'];
@@ -7323,7 +7424,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     };
     show(markerLayers, tab === 'markers');
-    show(markerDetailLayers, false);
+    show(markerDetailLayers, tab === 'markers');
+    show(viewerOwnedLayers, tab === 'markers');
     show(heatLayers, tab === 'heatmap');
     show(frontierLayers, tab === 'frontier');
     show(areaLayers, tab === 'heatmap' || tab === 'places' || tab === 'rain');
@@ -7377,6 +7479,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     } else {
       hideLegend();
     }
+    if (tab === 'markers') moveToTop(['observation-cell-outline', 'observation-cell-dot', 'observation-cell-count', 'observation-cell-label', 'viewer-owned-observation-halo', 'viewer-owned-observation-dot', 'observation-cell-selected']);
     refreshDiscoveryPreviewMarkers();
     renderOwnObservationMarkers();
     refreshAreaBadgeMarkers();
@@ -8790,7 +8893,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
       var layers = [];
-      ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected', 'obs-cell-heat', 'obs-cell-heat-selected'].forEach(function (id) {
+      ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected', 'viewer-owned-observation-halo', 'viewer-owned-observation-dot', 'obs-cell-heat', 'obs-cell-heat-selected'].forEach(function (id) {
         if (state.map.getLayer(id)) layers.push(id);
       });
       if (state.map.getLayer('frontier-fill')) layers.push('frontier-fill');
@@ -9683,6 +9786,11 @@ export const MAP_EXPLORER_STYLES = `
     .desktop-side-nav-toggle {
       display: grid;
     }
+    .cf-header-menu,
+    .site-header-actions-mobile,
+    .site-mobile-menu {
+      display: none !important;
+    }
     .site-header .brand {
       flex: none;
       max-width: none;
@@ -10538,6 +10646,12 @@ export const MAP_EXPLORER_STYLES = `
     transition: transform .15s ease, box-shadow .15s ease;
   }
   .me-discovery-preview:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(15,23,42,.20); }
+  .me-discovery-preview.is-grid {
+    box-shadow: 0 8px 18px rgba(14,165,233,.16), 0 0 0 1px rgba(14,165,233,.22);
+  }
+  .me-discovery-preview.is-exact {
+    box-shadow: 0 10px 22px rgba(5,150,105,.24), 0 0 0 2px rgba(16,185,129,.36);
+  }
   .me-discovery-preview img,
   .me-discovery-preview i {
     width: 42px;
@@ -10563,6 +10677,22 @@ export const MAP_EXPLORER_STYLES = `
     line-height: 1.1;
     font-weight: 900;
     letter-spacing: 0;
+  }
+  .me-discovery-preview em {
+    max-width: 42px;
+    padding: 1px 4px;
+    border-radius: 999px;
+    background: rgba(14,165,233,.10);
+    color: #0369a1;
+    font-style: normal;
+    font-size: 7.5px;
+    line-height: 1.1;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+  .me-discovery-preview.is-exact em {
+    background: rgba(16,185,129,.14);
+    color: #047857;
   }
   .me-discovery-preview::after {
     content: "";

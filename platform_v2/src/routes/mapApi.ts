@@ -402,6 +402,8 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const markerProfile = parseMarkerProfile(q.marker_profile);
     const season = parseSeason(q.season);
     const cellId = typeof q.cell_id === "string" ? q.cell_id.trim() : "";
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const viewerUserId = session?.userId ?? null;
 
     if (!cellId && !bbox) {
       reply.code(400).type("application/json; charset=utf-8");
@@ -416,6 +418,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
           markerProfile,
           season,
           cellId,
+          viewerUserId,
         })
       : await getMapObservations({
           taxonGroup,
@@ -425,6 +428,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
           zoom,
           markerProfile,
           season,
+          viewerUserId,
         });
 
     reply

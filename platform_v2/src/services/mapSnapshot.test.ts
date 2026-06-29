@@ -17,6 +17,7 @@ function sampleRows(): PreparedRows {
     {
       occurrenceId: "occ-1",
       visitId: "visit-1",
+      userId: "user-1",
       displayName: "モンシロチョウ",
       observedAt: "2026-04-08T09:00:00.000Z",
       latitude: 34.7116,
@@ -38,6 +39,7 @@ function sampleRows(): PreparedRows {
     {
       occurrenceId: "occ-2",
       visitId: "visit-2",
+      userId: "user-2",
       displayName: "モンシロチョウ",
       observedAt: "2026-04-09T09:00:00.000Z",
       latitude: 34.7121,
@@ -59,6 +61,7 @@ function sampleRows(): PreparedRows {
     {
       occurrenceId: "occ-3",
       visitId: "visit-3",
+      userId: "user-3",
       displayName: "ヒヨドリ",
       observedAt: "2026-04-10T09:00:00.000Z",
       latitude: 34.7124,
@@ -116,6 +119,29 @@ test("buildPublicMapCells suppresses cells below the public aggregate threshold"
   assert.equal(collection.stats.totalRecords, 0);
   assert.equal(collection.stats.provenance.sampleSize, 0);
   assert.deepEqual(collection.stats.privacy, PUBLIC_MAP_AGGREGATE_POLICY);
+});
+
+test("public map collapses multiple occurrence records from one visit into one representative", () => {
+  const duplicateVisitRows = [
+    ...sampleRows(),
+    {
+      ...sampleRows()[0]!,
+      occurrenceId: "occ-1-representative",
+      displayName: "アオスジアゲハ",
+      observedAt: "2026-04-11T09:00:00.000Z",
+      photoUrl: "/uploads/sample-1-better.jpg",
+    },
+  ];
+  const collection = buildPublicMapCells(duplicateVisitRows, 13);
+  const cellId = collection.features[0]!.properties.cellId;
+  const list = buildPublicCellRecords(duplicateVisitRows, { cellId, zoom: 13 });
+
+  assert.equal(collection.features.length, 1);
+  assert.equal(collection.features[0]!.properties.count, 3);
+  assert.equal(list.items.length, 3);
+  assert.equal(list.stats.totalAll, 3);
+  assert.ok(list.items.some((item) => item.occurrenceId === "occ-1-representative"));
+  assert.ok(!list.items.some((item) => item.occurrenceId === "occ-1"));
 });
 
 test("buildPublicMapCells falls back to prefecture when one cell mixes municipalities", () => {
@@ -210,6 +236,21 @@ test("buildPublicCellRecords drops exact coordinates and site-level names from p
   assert.ok(!("observerId" in record));
   assert.ok(!("profileHref" in record));
   assert.ok(!("profileUrl" in record));
+});
+
+test("buildPublicCellRecords exposes exact coordinates only for the signed-in viewer's own records", () => {
+  const rows = sampleRows();
+  const cellId = buildPublicMapCells(rows, 13).features[0]!.properties.cellId;
+  const list = buildPublicCellRecords(rows, { cellId, zoom: 13, viewerUserId: "user-1" });
+
+  const own = list.items.find((item) => item.visitId === "visit-1") as Record<string, unknown>;
+  const other = list.items.find((item) => item.visitId === "visit-2") as Record<string, unknown>;
+  assert.equal(own.isViewerOwned, true);
+  assert.equal(own.exactLatitude, rows[0]!.latitude);
+  assert.equal(own.exactLongitude, rows[0]!.longitude);
+  assert.ok(!("exactLatitude" in other));
+  assert.ok(!("exactLongitude" in other));
+  assert.ok(!("userId" in own));
 });
 
 test("buildPublicCellRecords hides selected cells below the aggregate threshold", () => {
@@ -378,7 +419,9 @@ test("public map snapshot payload stores public cell memberships instead of coor
   const record = payload.records[0] as Record<string, unknown>;
   assert.ok(!("latitude" in record));
   assert.ok(!("longitude" in record));
+  assert.ok(!("userId" in record));
   assert.equal(typeof record.cellIdsByRequestedGrid, "object");
+  assert.ok((record.cellIdsByRequestedGrid as Record<string, string>)["500"]);
   assert.ok((record.cellIdsByRequestedGrid as Record<string, string>)["1000"]);
   assert.ok((record.cellIdsByRequestedGrid as Record<string, string>)["3000"]);
   assert.ok((record.cellIdsByRequestedGrid as Record<string, string>)["10000"]);

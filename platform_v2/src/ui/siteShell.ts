@@ -6383,6 +6383,9 @@ ${alternateLinks}
       .desktop-side-nav-toggle {
         display: grid;
       }
+      .site-header-actions-mobile {
+        display: none !important;
+      }
       .brand {
         flex: none;
         max-width: none;
@@ -6663,6 +6666,9 @@ ${alternateLinks}
         align-items: center;
         gap: 7px;
         min-width: 0;
+      }
+      .desktop-side-nav-toggle {
+        display: none !important;
       }
       .site-record-link {
         min-height: 40px;
