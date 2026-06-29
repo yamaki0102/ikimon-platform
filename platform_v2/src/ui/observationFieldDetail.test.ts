@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FIELD_DETAIL_ALBUM_STYLES, renderFieldDetailBody } from "./observationFieldDetail.js";
+import { FIELD_DETAIL_ALBUM_STYLES, fieldDetailScript, renderFieldDetailBody } from "./observationFieldDetail.js";
 import { RECORD_CARD_SIZING_TOKENS } from "./recordCardSizing.js";
 import type { ObservationField, FieldStats } from "../services/observationFieldRegistry.js";
 import type { AreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
@@ -50,6 +50,64 @@ function sourcedField(): ObservationField {
     certificationUrl: "https://example.com/cert",
     storyUrl: "https://ikimon.life/stories/field",
     verificationLabel: "認定情報と一致",
+  };
+}
+
+function encyclopediaField(): ObservationField {
+  return {
+    ...field(),
+    payload: {
+      area_encyclopedia: {
+        page_kind: "area",
+        tags: ["浜名湖", "水辺"],
+        spots: [
+          {
+            id: "reed-bed",
+            name: "葦原デッキ",
+            type: "water_care",
+            summary: "水辺の変化を見やすい入口です。",
+            lat: 34.7221,
+            lng: 137.6292,
+            public_record_count: 8,
+            guide_count: 1,
+            actor_ids: ["actor-1"],
+          },
+          {
+            id: "lakeside-table",
+            name: "湖畔の食",
+            type: "food",
+            summary: "記録の後に立ち寄れる場所です。",
+            public_record_count: 0,
+            guide_count: 0,
+          },
+        ],
+        local_guides: [
+          {
+            id: "guide-1",
+            spot_id: "reed-bed",
+            title: "葦原の声を聞く",
+            status: "planned",
+            unlock_radius_m: 50,
+            transcript_available: true,
+            audio_duration_seconds: 125,
+            languages: ["ja"],
+            transcript: "ロック前に出してはいけない本文",
+            audio_url: "https://example.com/private/audio.mp3",
+          },
+        ],
+        actors: [
+          {
+            id: "actor-1",
+            name: "浜名湖パートナーズ",
+            role_label: "案内協力",
+            url: "https://example.com/actors/1",
+          },
+        ],
+        external_links: [
+          { label: "外部名鑑", url: "https://example.com/directory" },
+        ],
+      },
+    },
   };
 }
 
@@ -148,6 +206,102 @@ test("field detail starts with the map hero before numeric record metrics", () =
   assert.ok(numericIndex > metricsIndex);
 });
 
+test("area encyclopedia renders stable empty states without payload", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
+
+  assert.match(html, /エリア図鑑/);
+  assert.match(html, /<strong>50<\/strong><span>公開記録<\/span>/);
+  assert.match(html, /<strong>0<\/strong><span>近くのスポット<\/span>/);
+  assert.match(html, /<strong>3<\/strong><span>ガイド候補<\/span>/);
+  assert.match(html, /近くのスポットはまだありません/);
+  assert.match(html, /現地で聞けるガイド/);
+  assert.match(html, /はじめての1分ガイド/);
+  assert.match(html, /季節の入口ガイド/);
+  assert.match(html, /木のまわりガイド/);
+  assert.match(html, /関連する企業・団体はまだありません/);
+});
+
+test("area encyclopedia renders spots, guides, actors, and only public spot coordinates", () => {
+  const html = renderFieldDetailBody({ field: encyclopediaField(), stats: stats(), snapshot: snapshot() });
+  const attr = html.match(/data-area-spots='([^']*)'/)?.[1] ?? "[]";
+  const mapSpots = JSON.parse(attr.replace(/&quot;/g, "\"").replace(/&#39;/g, "'").replace(/&amp;/g, "&"));
+
+  assert.match(html, /葦原デッキ/);
+  assert.match(html, /守る水辺/);
+  assert.match(html, /湖畔の食/);
+  assert.match(html, /<strong>2<\/strong><span>近くのスポット<\/span>/);
+  assert.match(html, /<strong>1<\/strong><span>現地ガイド<\/span>/);
+  assert.match(html, /葦原の声を聞く/);
+  assert.match(html, /予定あり/);
+  assert.match(html, /半径約 50m/);
+  assert.match(html, /文字起こしあり/);
+  assert.match(html, /2分5秒/);
+  assert.match(html, /位置情報は保存しない/);
+  assert.match(html, /浜名湖パートナーズ/);
+  assert.match(html, /外部名鑑/);
+  assert.doesNotMatch(html, /ロック前に出してはいけない本文|audio\.mp3/);
+  assert.deepEqual(mapSpots.map((spot: { name: string }) => spot.name), ["葦原デッキ"]);
+});
+
+test("area encyclopedia screen copy avoids reserved implementation and brand terms", () => {
+  const html = renderFieldDetailBody({ field: encyclopediaField(), stats: stats(), snapshot: snapshot() });
+  const blocked = [
+    "子エリア",
+    "代表",
+    "大エリア",
+    "全部並べず",
+    "登録単位",
+    "解放",
+    "保全地",
+    "GX",
+    "ネイチャーポジティブ",
+    "自然共生サイト",
+    "実装",
+    "要件",
+    "仕様",
+    "ikimon.life",
+  ];
+
+  for (const word of blocked) {
+    assert.doesNotMatch(html, new RegExp(word.replace(".", "\\.")));
+  }
+});
+
+test("field detail map script uses only area spot coordinates for markers", () => {
+  const script = fieldDetailScript();
+
+  assert.match(script, /areaSpots\.filter\(isPublicSpot\)\.forEach/);
+  assert.match(script, /field-spot-map-pin/);
+  assert.doesNotMatch(script, /buildCircle/);
+  assert.doesNotMatch(script, /field-map-pin/);
+});
+
+test("field detail can reload the latest area sketch draft and overlay normalized polygon", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
+  const script = fieldDetailScript();
+
+  assert.match(html, /data-area-sketch-panel hidden/);
+  assert.match(html, /保存済み下書き診断/);
+  assert.match(html, /data-area-sketch-summary/);
+  assert.match(html, /不足資料リスト/);
+  assert.match(script, /\/api\/v1\/fields\/" \+ encodeURIComponent\(fieldId\) \+ "\/area-sketch-assessments\?limit=1/);
+  assert.match(script, /credentials: "same-origin"/);
+  assert.match(script, /response\.status === 401/);
+  assert.match(script, /assessment\.normalizedPolygon/);
+  assert.match(script, /area-sketch-draft-fill/);
+  assert.match(script, /area-sketch-draft-line/);
+});
+
+test("field detail area sketch copy keeps estimates inside the precheck boundary", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
+  const script = fieldDetailScript();
+
+  assert.match(html, /Area Sketch Assist/);
+  assert.match(script, /正式申請、測量、行政判断、認定取得を保証するものではありません/);
+  assert.match(script, /escapeText\(item\.reason\)/);
+  assert.doesNotMatch(html + script, /認定されます|申請できます|正式面積/);
+});
+
 test("field detail map hero stays compact on desktop", () => {
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /max-width: 1160px;/);
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /min-height: clamp\(340px, 36vw, 430px\);/);
@@ -155,7 +309,7 @@ test("field detail map hero stays compact on desktop", () => {
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /width: min\(600px, calc\(100% - 32px\)\);/);
 });
 
-test("field detail keeps the hero to two primary actions and moves trust links lower", () => {
+test("field detail keeps one primary hero action and moves trust links lower", () => {
   const html = renderFieldDetailBody({ field: sourcedField(), stats: stats(), snapshot: snapshot() });
 
   const heroStart = html.indexOf('<article class="field-map-hero">');
@@ -163,9 +317,12 @@ test("field detail keeps the hero to two primary actions and moves trust links l
   const metricsIndex = html.indexOf('<section class="field-detail-metrics"');
   const trustIndex = html.indexOf('<section class="field-trust-info"');
   const heroHtml = html.slice(heroStart, heroEnd);
-  const heroButtonCount = (heroHtml.match(/class="evt-btn/g) ?? []).length;
+  const heroPrimaryCount = (heroHtml.match(/class="evt-btn evt-btn-primary/g) ?? []).length;
 
-  assert.equal(heroButtonCount, 2);
+  assert.equal(heroPrimaryCount, 1);
+  assert.match(heroHtml, /記録する/);
+  assert.match(heroHtml, /この場所のいま/);
+  assert.match(heroHtml, /公開写真 \/ 季節/);
   assert.doesNotMatch(heroHtml, /公式 ↗|認定情報 ↗|事例 ↗|認定情報と一致/);
   assert.ok(trustIndex > metricsIndex);
   assert.match(html.slice(trustIndex), /公式 ↗/);
