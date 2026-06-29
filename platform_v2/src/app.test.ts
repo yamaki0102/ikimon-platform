@@ -27,7 +27,8 @@ test("app sends browser security headers on every response", async () => {
     );
     const csp = String(response.headers["content-security-policy"] ?? "");
     assert.match(csp, /default-src 'self'/);
-    assert.match(csp, /script-src 'self' 'unsafe-inline' https:\/\/cdn\.jsdelivr\.net https:\/\/unpkg\.com/);
+    assert.match(csp, /script-src 'self' 'nonce-[^']+' https:\/\/cdn\.jsdelivr\.net https:\/\/unpkg\.com/);
+    assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
     assert.match(csp, /script-src[\s\S]*https:\/\/scripts\.clarity\.ms/);
     assert.match(csp, /object-src 'none'/);
     assert.match(csp, /frame-ancestors 'none'/);
@@ -42,6 +43,63 @@ test("app sends browser security headers on every response", async () => {
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/upload\.cloudflarestream\.com/);
     assert.match(csp, /frame-src 'self' https:\/\/iframe\.videodelivery\.net/);
     assert.equal(response.headers["strict-transport-security"], undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("root HTML scripts carry the CSP nonce from the response header", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/" });
+    const csp = String(response.headers["content-security-policy"] ?? "");
+    const nonce = /'nonce-([^']+)'/.exec(csp)?.[1];
+    assert.ok(nonce);
+    const escapedNonce = nonce.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const scriptTags = response.body.match(/<script\b[^>]*>/g) ?? [];
+    assert.ok(scriptTags.length > 0);
+    for (const tag of scriptTags) {
+      assert.match(tag, new RegExp(`\\bnonce="${escapedNonce}"`));
+    }
+    assert.doesNotMatch(response.body, /<script\b(?![^>]*\bnonce=)/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("preview media proxy stays disabled on the public production host", async () => {
+  const previousOrigin = process.env.IKIMON_PUBLIC_MEDIA_ORIGIN;
+  process.env.IKIMON_PUBLIC_MEDIA_ORIGIN = "https://ikimon.life";
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/__preview-media/uploads/example.jpg",
+      headers: { host: "ikimon.life" },
+    });
+    assert.equal(response.statusCode, 404);
+  } finally {
+    await app.close();
+    if (previousOrigin === undefined) {
+      delete process.env.IKIMON_PUBLIC_MEDIA_ORIGIN;
+    } else {
+      process.env.IKIMON_PUBLIC_MEDIA_ORIGIN = previousOrigin;
+    }
+  }
+});
+
+test("canonical www host redirect still short-circuits with security headers", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/records?view=public",
+      headers: { host: "www.ikimon.life" },
+    });
+    assert.equal(response.statusCode, 308);
+    assert.equal(response.headers.location, "https://ikimon.life/records?view=public");
+    const csp = String(response.headers["content-security-policy"] ?? "");
+    assert.match(csp, /script-src 'self' 'nonce-[^']+'/);
   } finally {
     await app.close();
   }
