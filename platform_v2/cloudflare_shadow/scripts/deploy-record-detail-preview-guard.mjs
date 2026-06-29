@@ -246,28 +246,39 @@ async function currentDeployState(workerName, branch) {
 }
 
 async function smoke(baseUrl) {
+  const smokeRetryAttempts = 12;
+  const smokeRetryDelayMs = 5000;
   for (const path of ["/healthz", "/readyz"]) {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
-      redirect: "manual",
-      headers: { accept: "application/json", "cache-control": "no-store" }
-    });
-    const contentType = response.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json") ? await response.json() : {};
-    const ok = response.ok
-      && typeof payload === "object"
-      && payload !== null
-      && payload.ok === true
-      && payload.service === "ikimon-life-cloudflare-worker"
-      && payload.environment === "staging";
-    events.push({
-      command: `smoke ${baseUrl}${path}`,
-      exitCode: ok ? 0 : 1,
-      status: response.status,
-      contentType,
-      durationMs: 0
-    });
-    if (!ok) {
-      throw new Error(`Record detail preview smoke failed for ${baseUrl}${path}: ${response.status} ${contentType}`);
+    let lastStatus = 0;
+    let lastContentType = "";
+    for (let attempt = 1; attempt <= smokeRetryAttempts; attempt += 1) {
+      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
+        redirect: "manual",
+        headers: { accept: "application/json", "cache-control": "no-store" }
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json") ? await response.json() : {};
+      const ok = response.ok
+        && typeof payload === "object"
+        && payload !== null
+        && payload.ok === true
+        && payload.service === "ikimon-life-cloudflare-worker"
+        && payload.environment === "staging";
+      lastStatus = response.status;
+      lastContentType = contentType;
+      events.push({
+        command: `smoke ${baseUrl}${path}`,
+        exitCode: ok ? 0 : 1,
+        status: response.status,
+        contentType,
+        attempt,
+        durationMs: 0
+      });
+      if (ok) break;
+      if (attempt === smokeRetryAttempts) {
+        throw new Error(`Record detail preview smoke failed for ${baseUrl}${path}: ${lastStatus} ${lastContentType}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, smokeRetryDelayMs));
     }
   }
 }
