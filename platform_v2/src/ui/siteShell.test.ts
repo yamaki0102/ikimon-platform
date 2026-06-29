@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
 
@@ -121,6 +122,21 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
   assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
   assert.match(html, /<span>ikimon<\/span>\s*<span>皆で作る地域図鑑<\/span>/);
+});
+
+test("site shell replaces existing and empty script nonce attributes with the active CSP nonce", () => {
+  const html = runWithCspNonce("shell-test-nonce", () => renderSiteDocument({
+    basePath: "",
+    title: "Test",
+    body: "<script nonce=\"stale-shell-nonce\">window.staleNonceScript = true;</script><script nonce=\"\">window.emptyNonceScript = true;</script><script>window.missingNonceScript = true;</script>",
+    lang: "ja",
+  }));
+
+  assert.match(html, /<script nonce="shell-test-nonce">window\.staleNonceScript = true;<\/script>/);
+  assert.match(html, /<script nonce="shell-test-nonce">window\.emptyNonceScript = true;<\/script>/);
+  assert.match(html, /<script nonce="shell-test-nonce">window\.missingNonceScript = true;<\/script>/);
+  assert.doesNotMatch(html, /stale-shell-nonce/);
+  assert.doesNotMatch(html, /<script\b[^>]*\bnonce=""/);
 });
 
 test("site shell keeps records search query and view in header search", () => {

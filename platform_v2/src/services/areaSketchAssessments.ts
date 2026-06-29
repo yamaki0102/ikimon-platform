@@ -117,6 +117,11 @@ export function isAreaSketchAssessmentVisibility(value: unknown): value is AreaS
   return value === "private" || value === "field_managers" || value === "internal";
 }
 
+export function resolveAreaSketchAssessmentDraftVisibility(value: unknown): AreaSketchAssessmentVisibility {
+  if (isAreaSketchAssessmentVisibility(value)) return value;
+  return "private";
+}
+
 function mapAssessmentRow(row: RawAreaSketchAssessmentRow): AreaSketchAssessment {
   return {
     assessmentId: row.assessment_id,
@@ -186,11 +191,8 @@ export function buildAreaSketchAssessmentDraft(input: BuildAreaSketchAssessmentD
   const sketchPolygon = assertObject(input.sketchPolygon, "sketch_polygon_required");
   const landCover = assertLandCover(input.landCover);
   const policyVersion = input.policyVersion ?? "general_precheck_v1";
-  const visibility = input.visibility ?? "private";
+  const visibility = resolveAreaSketchAssessmentDraftVisibility(input.visibility);
   if (!isPolicyVersion(policyVersion)) throw new AreaSketchAssessmentValidationError("invalid_policy_version");
-  if (!isAreaSketchAssessmentVisibility(visibility)) {
-    throw new AreaSketchAssessmentValidationError("invalid_visibility");
-  }
 
   const normalized = normalizeAreaSketchPolygon(sketchPolygon);
   if (!normalized.polygon || !normalized.isValidForAreaEstimate || normalized.validation.areaHa == null) {
