@@ -70,6 +70,21 @@ function parseAreaSources(raw: unknown): AreaPolygonSource[] | undefined {
   return allowed.length > 0 ? allowed : undefined;
 }
 
+function shouldLogHighZoomEmptyAreaViewport(
+  bbox: [number, number, number, number],
+  zoom: number | undefined,
+  sources: AreaPolygonSource[] | undefined,
+  featureCount: number,
+): boolean {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const liveSourceRequested = sources == null || sources.some((source) => source === "osm_park" || source === "school");
+  return featureCount === 0
+    && (zoom ?? 0) >= 13
+    && liveSourceRequested
+    && (maxLng - minLng) <= 0.02
+    && (maxLat - minLat) <= 0.02;
+}
+
 const ALLOWED_GROUPS: readonly TaxonGroup[] = [
   "insect",
   "bird",
@@ -505,6 +520,14 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       sources,
       limit: limit ?? undefined,
     });
+    if (shouldLogHighZoomEmptyAreaViewport(bbox, zoom, sources, collection.features.length)) {
+      request.log.warn({
+        bbox,
+        zoom,
+        sources: sources ?? "default",
+        limit: limit ?? null,
+      }, "area_polygons_high_zoom_empty_viewport");
+    }
     reply
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "public, max-age=60");
