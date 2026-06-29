@@ -51,9 +51,8 @@ async function imageRecordMetrics(page: Page): Promise<{
   photoThumbCount: number;
   regionLayerCount: number;
   regionGuideCount: number;
-  contextGuideCount: number;
-  groundGuideCount: number;
-  extraGuideCount: number;
+  staticGuideCount: number;
+  invalidRegionGuideCount: number;
   mediaLedgerText: string;
   visibleRecordText: string;
   videoFrameVisibleCount: number;
@@ -73,6 +72,18 @@ async function imageRecordMetrics(page: Page): Promise<{
     const previewImage = document.querySelector("[data-obs-preview-img]");
     const mediaLedger = document.querySelector<HTMLElement>(".obs-reading-panel > .obs-media-ledger, .obs-media-ledger");
     const visibleRecords = document.querySelector<HTMLElement>(".obs-visible-records");
+    const previewRect = previewImage instanceof HTMLElement ? previewImage.getBoundingClientRect() : null;
+    const regionGuides = Array.from(document.querySelectorAll<HTMLElement>(".obs-region-guide"));
+    const invalidRegionGuideCount = regionGuides.filter((guide) => {
+      if (!previewRect) return true;
+      const rect = guide.getBoundingClientRect();
+      return rect.width <= 0 ||
+        rect.height <= 0 ||
+        rect.left < previewRect.left - 1 ||
+        rect.top < previewRect.top - 1 ||
+        rect.right > previewRect.right + 1 ||
+        rect.bottom > previewRect.bottom + 1;
+    }).length;
     return {
       visibleText,
       bodyText,
@@ -80,10 +91,9 @@ async function imageRecordMetrics(page: Page): Promise<{
       previewImageVisible: isVisible(previewImage),
       photoThumbCount: document.querySelectorAll(".obs-hero-thumbs .obs-hero-thumb").length,
       regionLayerCount: document.querySelectorAll(".obs-region-layer[data-obs-preview-regions]").length,
-      regionGuideCount: document.querySelectorAll(".obs-region-guide").length,
-      contextGuideCount: document.querySelectorAll(".obs-region-guide.is-context-guide").length,
-      groundGuideCount: document.querySelectorAll(".obs-region-guide.is-ground-guide").length,
-      extraGuideCount: document.querySelectorAll(".obs-region-guide.is-extra-guide").length,
+      regionGuideCount: regionGuides.length,
+      staticGuideCount: document.querySelectorAll(".obs-region-guide.is-context-guide, .obs-region-guide.is-ground-guide, .obs-region-guide.is-extra-guide").length,
+      invalidRegionGuideCount,
       mediaLedgerText: mediaLedger?.textContent?.replace(/\s+/gu, " ").trim() ?? "",
       visibleRecordText: visibleRecords?.textContent?.replace(/\s+/gu, " ").trim() ?? "",
       videoFrameVisibleCount: Array.from(document.querySelectorAll(".obs-hero-video-frame")).filter(isVisible).length,
@@ -109,10 +119,8 @@ test.describe("image observation detail VPS parity gate", () => {
         expect(metrics.previewImageVisible, "large image preview should be visible").toBe(true);
         expect(metrics.photoThumbCount, "image records keep a thumbnail rail even when there is one photo").toBeGreaterThan(0);
         expect(metrics.regionLayerCount, "image target frame layer should be present").toBeGreaterThan(0);
-        expect(metrics.regionGuideCount, "image records should show distinct reading guides").toBeGreaterThanOrEqual(4);
-        expect(metrics.contextGuideCount, "context guide should be present").toBeGreaterThan(0);
-        expect(metrics.groundGuideCount, "ground guide should be present").toBeGreaterThan(0);
-        expect(metrics.extraGuideCount, "extra-subject guide should be present").toBeGreaterThan(0);
+        expect(metrics.staticGuideCount, "photo records must not render static placeholder guides").toBe(0);
+        expect(metrics.invalidRegionGuideCount, "data-backed region guides should stay inside the preview image").toBe(0);
         expect(metrics.mediaLedgerText).toContain("写真");
         expect(metrics.mediaLedgerText).toContain("動画");
         expect(metrics.visibleRecordText).toContain("名前の候補");
@@ -121,9 +129,10 @@ test.describe("image observation detail VPS parity gate", () => {
         expect(metrics.visibleRecordText).toContain("あとで分けられるもの");
         for (const term of [
           "この記録で読む対象",
-          "この記録から読めていること",
+          "この記録から読めそうなこと",
           "公開記録・候補情報",
-          "次の写真で増える情報",
+          "次の写真で増えるかもしれない情報",
+          "AIによるまとめ",
           "同定",
           "同定に参加する",
           "同意する",
@@ -140,6 +149,7 @@ test.describe("image observation detail VPS parity gate", () => {
           expect(metrics.visibleText, `visible copy should include ${term}`).toContain(term);
         }
         expect(metrics.bodyText).not.toContain("\u91cd\u306d");
+        expect((metrics.bodyText.match(/AIによるまとめ/g) ?? []).length, "AI summary disclosure should appear once").toBe(1);
         expect(metrics.bodyText).not.toContain("写真の" + "対象枠");
         expect(metrics.bodyText).not.toContain("同じ" + "ページで確認");
         expect(metrics.bodyText).not.toContain("この映像で読む対象を切り替える");
