@@ -6006,6 +6006,17 @@ async function resolveD1ObservationPackageTarget(env: Env, observationId: string
   return occurrenceVisit ? { visit: occurrenceVisit, occurrence } : null;
 }
 
+function isAuthorityBackedPublicClaimIdentification(payload: Record<string, unknown>): boolean {
+  const lane = normalizeOptionalText(payload.lane);
+  const reviewClass = normalizeOptionalText(payload.reviewClass) ?? normalizeOptionalText(payload.review_class);
+  if (lane !== "public-claim" || (reviewClass !== "authority_backed" && reviewClass !== "admin_override")) {
+    return false;
+  }
+  const source = normalizeOptionalText(payload.source);
+  return source === "cloudflare_specialist_review_runtime"
+    || source === "cloudflare_specialist_dispute_resolution";
+}
+
 function isValidObservationReactionType(value: string): boolean {
   return ["like", "helpful", "curious", "thanks"].includes(value);
 }
@@ -6068,9 +6079,7 @@ async function getD1IdentificationConsensus(env: Env, occurrenceId: string): Pro
     } catch {
       payload = {};
     }
-    const reviewClass = normalizeOptionalText(payload.reviewClass) ?? normalizeOptionalText(payload.review_class);
-    const lane = normalizeOptionalText(payload.lane);
-    if (lane === "public-claim" && (reviewClass === "authority_backed" || reviewClass === "admin_override")) {
+    if (isAuthorityBackedPublicClaimIdentification(payload)) {
       hasAuthorityBacked = true;
     }
     const key = `${name.toLowerCase()}\u0000${row.proposed_rank ?? ""}`;
