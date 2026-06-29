@@ -12599,6 +12599,93 @@ test("production oauth callback creates Cloudflare-native session from provider 
   }
 });
 
+test("production app oauth returns an exchange code instead of a raw session token", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    GOOGLE_CLIENT_ID: "google-client",
+    GOOGLE_CLIENT_SECRET: "google-secret",
+    V2_OAUTH_STATE_SECRET: "state-secret"
+  };
+
+  const start = await worker.fetch(new Request("https://ikimon.life/app_oauth_start.php?provider=google&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback&install_id=install-1&platform=android&app_version=0.8.1"), productionEnv);
+  assert.equal(start.status, 303);
+  const stateCookie = start.headers.get("set-cookie") ?? "";
+  assert.match(stateCookie, /^ikimon_oauth_state=/);
+  const startLocation = new URL(start.headers.get("location") ?? "");
+  assert.equal(startLocation.origin + startLocation.pathname, "https://accounts.google.com/o/oauth2/v2/auth");
+  assert.equal(startLocation.searchParams.get("redirect_uri"), "https://ikimon.life/oauth_callback.php?provider=google");
+  const state = startLocation.searchParams.get("state");
+  assert.ok(state);
+
+  const providerAccessToken = ["google", "access", "fixture"].join("-");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url === "https://oauth2.googleapis.com/token") {
+      assert.equal(init?.method, "POST");
+      return Response.json({ access_token: providerAccessToken });
+    }
+    if (url === "https://www.googleapis.com/oauth2/v2/userinfo") {
+      return Response.json({
+        id: "google-app-user-1",
+        name: "Google App User",
+        email: "google-app-user@example.test",
+        picture: "https://example.test/avatar.png"
+      });
+    }
+    return new Response("unexpected fetch", { status: 599 });
+  }) as typeof fetch;
+
+  try {
+    const callback = await worker.fetch(new Request(`https://ikimon.life/oauth_callback.php?provider=google&state=${encodeURIComponent(state)}&code=oauth-code`, {
+      headers: { cookie: stateCookie }
+    }), productionEnv);
+    assert.equal(callback.status, 303);
+    const callbackLocation = new URL(callback.headers.get("location") ?? "");
+    assert.equal(callbackLocation.protocol, "ikimonfieldscan:");
+    assert.equal(callbackLocation.host, "auth");
+    assert.equal(callbackLocation.pathname, "/callback");
+    const exchangeCode = callbackLocation.searchParams.get("code") ?? "";
+    assert.match(exchangeCode, /^v1\./);
+    assert.ok(callbackLocation.searchParams.get("code_expires_at"));
+    assert.equal(callbackLocation.searchParams.has("token"), false);
+    assert.equal(callbackLocation.searchParams.get("name"), "Google App User");
+    assert.equal(callbackLocation.searchParams.get("email"), "google-app-user@example.test");
+
+    const exchange = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/auth/oauth/exchange", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: exchangeCode })
+    }), productionEnv);
+    assert.equal(exchange.status, 200);
+    const payload = await exchange.json() as {
+      success?: boolean;
+      data?: { token?: string; user?: { userId?: string; displayName?: string }; email?: string };
+    };
+    assert.equal(payload.success, true);
+    assert.ok(payload.data?.token);
+    assert.equal(payload.data.token.includes(exchangeCode), false);
+    assert.equal(payload.data?.user?.displayName, "Google App User");
+    assert.equal(payload.data?.email, "google-app-user@example.test");
+    const oauthAccount = core.oauthAccounts.get("google:google-app-user-1");
+    assert.equal(payload.data?.user?.userId, oauthAccount?.user_id);
+
+    const replay = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/auth/oauth/exchange", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: exchangeCode })
+    }), productionEnv);
+    assert.equal(replay.status, 400);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production oauth start fails closed when provider secrets are not configured", async () => {
   const { env } = createEnv();
   const productionEnv = {

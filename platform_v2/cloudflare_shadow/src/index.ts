@@ -487,8 +487,21 @@ interface OAuthStatePayload {
   provider: OAuthProvider;
   state: string;
   redirect: string;
+  appReturnUri?: string;
+  appInstallId?: string;
+  appPlatform?: string;
+  appVersion?: string;
   codeVerifier?: string;
   expiresAt: number;
+}
+
+interface AppOAuthExchangePayload {
+  token: string;
+  userId: string;
+  displayName: string;
+  email: string | null;
+  expiresAt: number;
+  nonce: string;
 }
 
 interface OAuthProfile {
@@ -2043,6 +2056,10 @@ export const worker = {
         return observationEventPageResponse;
       }
 
+      if (request.method === "GET" && nativePathname === "/app_oauth_start.php") {
+        return handleAppOAuthStart(request, env);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
         return getOriginalUiHtml(request, url, env);
       }
@@ -2382,6 +2399,10 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/mobile/auth/oauth/exchange") {
+        return exchangeMobileAppOAuthCode(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/videos/direct-upload") {
@@ -7878,6 +7899,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (url.pathname === "/api/v1/auth/session") return true;
   if (url.pathname === "/api/v1/auth/session/logout") return true;
   if (url.pathname === "/api/v1/auth/login") return true;
+  if (url.pathname === "/api/v1/mobile/auth/oauth/exchange") return true;
   if (url.pathname === "/api/v1/contact/submit") return true;
   if (url.pathname === "/api/v1/users/upsert") return true;
   if (url.pathname === "/api/v1/profile/me") return true;
@@ -18174,6 +18196,10 @@ async function logoutCompatibleSession(request: Request, env: Env): Promise<Resp
   });
 }
 
+const APP_OAUTH_EXCHANGE_CODE_TTL_MS = 5 * 60 * 1000;
+const APP_OAUTH_EXCHANGE_CODE_VERSION = "v1";
+const consumedAppOAuthExchangeCodeHashes = new Map<string, number>();
+
 async function handleOAuthStart(request: Request, providerInput: unknown, env: Env): Promise<Response> {
   const provider = oauthProviderFromInput(providerInput);
   if (!provider) return oauthErrorRedirect(env);
@@ -18188,6 +18214,27 @@ async function handleOAuthStart(request: Request, providerInput: unknown, env: E
     "cache-control": "no-store",
     "set-cookie": start.cookie
   });
+}
+
+async function handleAppOAuthStart(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const provider = oauthProviderFromInput(url.searchParams.get("provider"));
+  if (!provider || !getOAuthConfig(env, provider)) return appOAuthErrorRedirect();
+
+  try {
+    const start = await buildOAuthStart(provider, request, env, "/", {
+      returnUri: url.searchParams.get("return_uri"),
+      installId: url.searchParams.get("install_id"),
+      platform: url.searchParams.get("platform"),
+      appVersion: url.searchParams.get("app_version")
+    });
+    return redirect303(start.authorizationUrl, {
+      "cache-control": "no-store",
+      "set-cookie": start.cookie
+    });
+  } catch {
+    return appOAuthErrorRedirect();
+  }
 }
 
 async function handleOAuthCallback(request: Request, providerInput: unknown, env: Env): Promise<Response> {
@@ -18209,6 +18256,30 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
     const profile = await exchangeOAuthCode(provider, code, oauthRedirectUri(request, provider), state.codeVerifier, env);
     const user = await findOrCreateOAuthUser(profile, env);
     const session = await issueSessionForAuthUser(request, env, user);
+    if (state.appReturnUri) {
+      const exchange = await createAppOAuthExchangeCode({
+        token: session.rawToken,
+        userId: user.user_id,
+        displayName: user.display_name,
+        email: user.email,
+        expiresAt: Date.now() + APP_OAUTH_EXCHANGE_CODE_TTL_MS,
+        nonce: randomToken().slice(0, 32)
+      }, env);
+      const appUrl = new URL(state.appReturnUri);
+      appUrl.searchParams.set("code", exchange.code);
+      appUrl.searchParams.set("code_expires_at", exchange.expiresAt);
+      appUrl.searchParams.set("user_id", user.user_id);
+      appUrl.searchParams.set("name", user.display_name);
+      if (user.email) appUrl.searchParams.set("email", user.email);
+      appUrl.searchParams.set("message", "ikimon.life アカウントでログインしました");
+      const headers = new Headers({
+        location: appUrl.toString(),
+        "cache-control": "no-store"
+      });
+      headers.append("set-cookie", session.cookie);
+      headers.append("set-cookie", buildClearedOAuthStateCookie(env));
+      return new Response(null, { status: 303, headers });
+    }
     const headers = new Headers({
       location: safeRedirectPath(state.redirect),
       "cache-control": "no-store"
@@ -18223,6 +18294,113 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
       error: error instanceof Error ? error.message : "unknown"
     }));
     return oauthErrorRedirect(env, true);
+  }
+}
+
+function pruneConsumedAppOAuthExchangeCodes(now = Date.now()): void {
+  for (const [codeHash, expiresAt] of consumedAppOAuthExchangeCodeHashes.entries()) {
+    if (expiresAt <= now) consumedAppOAuthExchangeCodeHashes.delete(codeHash);
+  }
+}
+
+async function appOAuthExchangeKey(env: Env): Promise<CryptoKey> {
+  const secret = `${oauthStateSecret(env)}:app-oauth-exchange`;
+  const digest = await crypto.subtle.digest("SHA-256", textToArrayBuffer(secret));
+  return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+async function createAppOAuthExchangeCode(payload: AppOAuthExchangePayload, env: Env): Promise<{ code: string; expiresAt: string }> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await appOAuthExchangeKey(env);
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, textToArrayBuffer(JSON.stringify(payload)));
+  return {
+    code: [
+      APP_OAUTH_EXCHANGE_CODE_VERSION,
+      arrayBufferToBase64Url(iv.buffer),
+      arrayBufferToBase64Url(ciphertext)
+    ].join("."),
+    expiresAt: new Date(payload.expiresAt).toISOString()
+  };
+}
+
+function parseAppOAuthExchangePayload(value: unknown): AppOAuthExchangePayload {
+  if (!value || typeof value !== "object") throw new Error("oauth_exchange_code_invalid");
+  const payload = value as Partial<AppOAuthExchangePayload>;
+  if (
+    typeof payload.token !== "string" ||
+    typeof payload.userId !== "string" ||
+    typeof payload.displayName !== "string" ||
+    (payload.email !== null && typeof payload.email !== "string") ||
+    typeof payload.expiresAt !== "number" ||
+    typeof payload.nonce !== "string"
+  ) {
+    throw new Error("oauth_exchange_code_invalid");
+  }
+  return {
+    token: payload.token,
+    userId: payload.userId,
+    displayName: payload.displayName,
+    email: payload.email ?? null,
+    expiresAt: payload.expiresAt,
+    nonce: payload.nonce
+  };
+}
+
+async function openAppOAuthExchangeCode(code: string, env: Env): Promise<AppOAuthExchangePayload> {
+  const [version, iv, ciphertext] = code.split(".");
+  if (version !== APP_OAUTH_EXCHANGE_CODE_VERSION || !iv || !ciphertext) {
+    throw new Error("oauth_exchange_code_invalid");
+  }
+  try {
+    const key = await appOAuthExchangeKey(env);
+    const plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: new Uint8Array(base64UrlToArrayBuffer(iv)) },
+      key,
+      base64UrlToArrayBuffer(ciphertext)
+    );
+    return parseAppOAuthExchangePayload(JSON.parse(arrayBufferToText(plaintext)));
+  } catch (error) {
+    if (error instanceof Error && error.message === "oauth_exchange_code_invalid") throw error;
+    throw new Error("oauth_exchange_code_invalid");
+  }
+}
+
+async function consumeAppOAuthExchangeCode(input: unknown, env: Env): Promise<AppOAuthExchangePayload> {
+  const code = typeof input === "string" ? input.trim() : "";
+  if (!code) throw new Error("oauth_exchange_code_required");
+  const codeHash = await sha256Hex(textToArrayBuffer(code));
+  const now = Date.now();
+  pruneConsumedAppOAuthExchangeCodes(now);
+  if (consumedAppOAuthExchangeCodeHashes.has(codeHash)) throw new Error("oauth_exchange_code_invalid");
+  const payload = await openAppOAuthExchangeCode(code, env);
+  if (payload.expiresAt <= now) throw new Error("oauth_exchange_code_invalid");
+  consumedAppOAuthExchangeCodeHashes.set(codeHash, payload.expiresAt);
+  return payload;
+}
+
+async function exchangeMobileAppOAuthCode(request: Request, env: Env): Promise<Response> {
+  try {
+    const body = await readJson<{ code?: unknown }>(request);
+    const exchange = await consumeAppOAuthExchangeCode(body.code, env);
+    return json({
+      ok: true,
+      success: true,
+      data: {
+        token: exchange.token,
+        user: {
+          userId: exchange.userId,
+          displayName: exchange.displayName
+        },
+        email: exchange.email,
+        message: "ikimon.life アカウントでログインしました"
+      }
+    }, 200, { "cache-control": "no-store" });
+  } catch (error) {
+    return json({
+      ok: false,
+      success: false,
+      error: error instanceof Error ? error.message : "oauth_exchange_failed"
+    }, 400, { "cache-control": "no-store" });
   }
 }
 
@@ -18367,7 +18545,47 @@ function oauthRedirectUri(request: Request, provider: OAuthProvider): string {
     : `${origin}/auth/oauth/${provider}/callback`;
 }
 
+function normalizeAppReturnUri(input: unknown): string {
+  const raw = typeof input === "string" ? input.trim() : "";
+  if (!raw) throw new Error("app_return_uri_required");
+  const parsed = new URL(raw);
+  if (parsed.protocol !== "ikimonfieldscan:" || parsed.host !== "auth" || parsed.pathname !== "/callback") {
+    throw new Error("app_return_uri_invalid");
+  }
+  return "ikimonfieldscan://auth/callback";
+}
+
+function optionalAppQueryString(input: unknown, maxLength: number): string | undefined {
+  const raw = typeof input === "string" ? input.trim() : "";
+  return raw ? raw.slice(0, maxLength) : undefined;
+}
+
+function appOAuthErrorRedirect(): Response {
+  const url = new URL("ikimonfieldscan://auth/callback");
+  url.searchParams.set("error", "oauth");
+  url.searchParams.set("message", "ソーシャルログインに失敗した");
+  return redirect303(url.toString(), { "cache-control": "no-store" });
+}
+
 async function buildOAuthStart(provider: OAuthProvider, request: Request, env: Env, redirectInput: unknown): Promise<{
+  cookie: string;
+  authorizationUrl: string;
+}>;
+async function buildOAuthStart(provider: OAuthProvider, request: Request, env: Env, redirectInput: unknown, appInput: {
+  returnUri?: unknown;
+  installId?: unknown;
+  platform?: unknown;
+  appVersion?: unknown;
+}): Promise<{
+  cookie: string;
+  authorizationUrl: string;
+}>;
+async function buildOAuthStart(provider: OAuthProvider, request: Request, env: Env, redirectInput: unknown, appInput?: {
+  returnUri?: unknown;
+  installId?: unknown;
+  platform?: unknown;
+  appVersion?: unknown;
+}): Promise<{
   cookie: string;
   authorizationUrl: string;
 }> {
@@ -18375,10 +18593,15 @@ async function buildOAuthStart(provider: OAuthProvider, request: Request, env: E
   if (!config) throw new Error("oauth_provider_not_configured");
   const state = randomToken().slice(0, 40);
   const codeVerifier = provider === "twitter" ? randomToken() : undefined;
+  const appReturnUri = appInput ? normalizeAppReturnUri(appInput.returnUri) : undefined;
   const payload: OAuthStatePayload = {
     provider,
     state,
-    redirect: safeRedirectPath(redirectInput),
+    redirect: appReturnUri ? "/" : safeRedirectPath(redirectInput),
+    appReturnUri,
+    appInstallId: optionalAppQueryString(appInput?.installId, 120),
+    appPlatform: optionalAppQueryString(appInput?.platform, 40),
+    appVersion: optionalAppQueryString(appInput?.appVersion, 40),
     codeVerifier,
     expiresAt: Date.now() + 10 * 60 * 1000
   };
@@ -18585,7 +18808,7 @@ async function findAuthUserByEmail(email: string, env: Env): Promise<AuthUserRow
   ).bind(email).first<AuthUserRow>();
 }
 
-async function issueSessionForAuthUser(request: Request, env: Env, user: AuthUserRow): Promise<{ cookie: string; session: SessionSnapshot }> {
+async function issueSessionForAuthUser(request: Request, env: Env, user: AuthUserRow): Promise<{ cookie: string; rawToken: string; session: SessionSnapshot }> {
   const rawToken = randomToken();
   const tokenHash = await sha256Hex(textToArrayBuffer(rawToken));
   const expiresAt = new Date(Date.now() + 24 * 30 * 60 * 60 * 1000).toISOString();
@@ -18612,6 +18835,7 @@ async function issueSessionForAuthUser(request: Request, env: Env, user: AuthUse
 
   return {
     cookie: buildSessionCookie(rawToken, expiresAt, env),
+    rawToken,
     session: {
       tokenHash,
       userId: user.user_id,
