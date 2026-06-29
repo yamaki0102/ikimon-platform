@@ -18215,8 +18215,9 @@ async function issueCompatibleSession(request: Request, env: Env): Promise<Respo
   if (!isAppRuntime(env)) {
     return json({ ok: false, error: "not_available" }, 404);
   }
-  if (env.ENVIRONMENT === "production" && PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname)) {
-    return json({ ok: false, error: "not_available" }, 404);
+  const productionAccess = assertCompatibleSessionIssueAccess(request, env);
+  if (productionAccess !== true) {
+    return productionAccess;
   }
   const input = await readJson<SessionIssueInput>(request);
   assertNonEmpty(input.userId, "userId");
@@ -18267,6 +18268,14 @@ async function issueCompatibleSession(request: Request, env: Env): Promise<Respo
   }, 200, {
     "set-cookie": buildSessionCookie(rawToken, expiresAt, env)
   });
+}
+
+function assertCompatibleSessionIssueAccess(request: Request, env: Env): true | Response {
+  if (env.ENVIRONMENT !== "production") return true;
+  if (PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname)) {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  return assertPrivilegedWriteAccessNative(request, env);
 }
 
 async function getCompatibleSession(request: Request, url: URL, env: Env): Promise<Response> {
