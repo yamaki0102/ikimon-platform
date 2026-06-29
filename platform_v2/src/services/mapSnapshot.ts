@@ -75,6 +75,7 @@ export type MapQueryFilters = {
   markerProfile?: MarkerProfile;
   season?: SeasonFilter;
   zoom?: number;
+  viewerUserId?: string | null;
 };
 
 export type PublicMapCellFeature = {
@@ -133,6 +134,9 @@ export type PublicMapObservationRecord = {
   photoUrl: string | null;
   taxonGroup: TaxonGroup;
   cellId: string;
+  isViewerOwned?: boolean;
+  exactLatitude?: number;
+  exactLongitude?: number;
 };
 
 export type PublicMapObservationList = {
@@ -156,6 +160,7 @@ export type PublicMapObservationList = {
 type PublicMapSourceRow = {
   occurrence_id: string;
   visit_id: string;
+  user_id: string | null;
   scientific_name: string | null;
   vernacular_name: string | null;
   display_name: string;
@@ -180,6 +185,7 @@ type PublicMapSourceRow = {
 type PublicMapPreparedRecord = {
   occurrenceId: string;
   visitId: string;
+  userId: string | null;
   displayName: string;
   aiCandidateName: string | null;
   aiCandidateRank: string | null;
@@ -201,7 +207,7 @@ type PublicMapPreparedRecord = {
   publicCoordReason?: CoordDecision["reason"] | null;
 };
 
-type PublicMapSnapshotRecord = Omit<PublicMapPreparedRecord, "latitude" | "longitude"> & {
+type PublicMapSnapshotRecord = Omit<PublicMapPreparedRecord, "latitude" | "longitude" | "userId"> & {
   cellIdsByRequestedGrid: Record<string, string>;
 };
 
@@ -245,6 +251,7 @@ type PublicCellRecordFilter = {
   cellId?: string;
   zoom?: number;
   limit?: number;
+  viewerUserId?: string | null;
 };
 
 type PublicCellGroup = {
@@ -276,7 +283,7 @@ type PublicMapFixedCellScope = {
 const PUBLIC_MAP_SNAPSHOT_KEY = "public-map:v1:global";
 const PUBLIC_MAP_FRESHNESS_REGISTRY_KEY = "public_map_snapshot";
 const PUBLIC_MAP_REFRESH_LOCK_KEY = "public-map-snapshot-refresh:v1";
-const PUBLIC_MAP_REQUESTED_GRIDS = [1000, 3000, 10000] as const;
+const PUBLIC_MAP_REQUESTED_GRIDS = [500, 1000, 3000, 10000] as const;
 export const DEFAULT_PUBLIC_MAP_SNAPSHOT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 type MapSnapshotQueryClient = Pick<Pool | PoolClient, "query">;
@@ -450,6 +457,35 @@ function publicMapPhotoUrl(row: PublicMapRuntimeRecord): string | null {
   return publicMapDerivedPhotoUrl(row.photoUrl);
 }
 
+function representativeRowsByVisit<T extends PublicMapRuntimeRecord>(rows: T[]): T[] {
+  const byVisit = new Map<string, T>();
+  const score = (row: T): number => {
+    let value = 0;
+    if (publicMapPhotoUrl(row)) value += 100_000_000_000;
+    if (row.displayName && row.displayName !== "同定待ち") value += 10_000_000_000;
+    const observedMs = Date.parse(row.observedAt);
+    if (Number.isFinite(observedMs)) value += Math.floor(observedMs / 1000);
+    return value;
+  };
+
+  for (const row of rows) {
+    const existing = byVisit.get(row.visitId);
+    if (!existing || score(row) > score(existing)) {
+      byVisit.set(row.visitId, row);
+    }
+  }
+  return Array.from(byVisit.values());
+}
+
+function runtimeRowUserId(row: PublicMapRuntimeRecord): string | null {
+  return "userId" in row ? row.userId : null;
+}
+
+function viewerOwnsRuntimeRow(row: PublicMapRuntimeRecord, viewerUserId?: string | null): row is PublicMapPreparedRecord {
+  const viewer = typeof viewerUserId === "string" ? viewerUserId.trim() : "";
+  return Boolean(viewer && runtimeRowUserId(row) === viewer && "latitude" in row && "longitude" in row);
+}
+
 function buildPublicMapSnapshotRecord(row: PublicMapPreparedRecord): PublicMapSnapshotRecord {
   const cellIdsByRequestedGrid: Record<string, string> = {};
   for (const gridM of PUBLIC_MAP_REQUESTED_GRIDS) {
@@ -484,7 +520,7 @@ function buildPublicMapSnapshotPayload(rows: PublicMapPreparedRecord[], generate
     version: 1,
     generatedAt,
     policy: PUBLIC_MAP_AGGREGATE_POLICY,
-    records: rows.map(buildPublicMapSnapshotRecord),
+    records: representativeRowsByVisit(rows).map(buildPublicMapSnapshotRecord),
   };
 }
 
@@ -694,6 +730,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
     select
       o.occurrence_id,
       o.visit_id,
+      v.user_id,
       o.scientific_name,
       o.vernacular_name,
       coalesce(
@@ -811,6 +848,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
         return {
           occurrenceId: row.occurrence_id,
           visitId: row.visit_id,
+          userId: row.user_id ?? null,
           displayName: display.primaryLabel,
           aiCandidateName: row.ai_candidate_name ?? null,
           aiCandidateRank: row.ai_candidate_rank ?? null,
@@ -862,6 +900,177 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
         excluded: excludedBuckets,
       },
     };
+  }
+}
+
+async function fetchViewerOwnedMapRows(
+  filters: MapQueryFilters & { cellId?: string },
+): Promise<PublicMapPreparedRecord[]> {
+  const viewerUserId = typeof filters.viewerUserId === "string" ? filters.viewerUserId.trim() : "";
+  if (!viewerUserId) return [];
+
+  let queryClient: MapSnapshotQueryClient;
+  try {
+    queryClient = getPool();
+  } catch {
+    return [];
+  }
+
+  const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
+  const cellBounds = parsedCellId ? buildPublicCellGeometry(parsedCellId).bounds : null;
+  const queryBbox = cellBounds ?? filters.bbox;
+  const markerProfile = filters.markerProfile ?? "all_research_artifacts";
+  const seasonMonths = filters.season ? monthForSeason(filters.season) : null;
+  const limit = Math.min(Math.max(filters.limit ?? 300, 1), 1200);
+  const params: unknown[] = [viewerUserId];
+  const whereClauses: string[] = [
+    "v.user_id = $1",
+    "coalesce(v.point_latitude, p.center_latitude) is not null",
+    "coalesce(v.point_longitude, p.center_longitude) is not null",
+    MAP_READ_FIXTURE_EXCLUSION_SQL,
+    PUBLIC_OBSERVATION_QUALITY_SQL,
+    PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
+  ];
+
+  if (filters.year) {
+    params.push(filters.year);
+    whereClauses.push(`extract(year from v.observed_at) = $${params.length}`);
+  }
+  if (queryBbox) {
+    const [minLng, minLat, maxLng, maxLat] = queryBbox;
+    params.push(minLng, minLat, maxLng, maxLat);
+    whereClauses.push(
+      `coalesce(v.point_longitude, p.center_longitude) between $${params.length - 3} and $${params.length - 1}`,
+    );
+    whereClauses.push(
+      `coalesce(v.point_latitude, p.center_latitude) between $${params.length - 2} and $${params.length}`,
+    );
+  }
+
+  const sql = `
+    select
+      o.occurrence_id,
+      o.visit_id,
+      v.user_id,
+      o.scientific_name,
+      o.vernacular_name,
+      coalesce(
+        nullif(o.vernacular_name, ''),
+        nullif(o.scientific_name, ''),
+        nullif(ai.recommended_taxon_name, ''),
+        '同定待ち'
+      ) as display_name,
+      ai.recommended_taxon_name as ai_candidate_name,
+      ai.recommended_rank as ai_candidate_rank,
+      (coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is null
+        and nullif(ai.recommended_taxon_name, '') is not null) as is_ai_candidate,
+      coalesce(v.observed_municipality, p.municipality) as municipality,
+      coalesce(v.observed_prefecture, p.prefecture) as prefecture,
+      v.observed_at::text,
+      coalesce(v.point_latitude, p.center_latitude) as latitude,
+      coalesce(v.point_longitude, p.center_longitude) as longitude,
+      photo.public_url as photo_url,
+      video.thumb_url as video_thumb_url,
+      v.source_kind,
+      v.session_mode,
+      v.visit_mode,
+      o.quality_grade,
+      coc.context_precision,
+      coc.risk_lane
+    from occurrences o
+    join visits v on v.visit_id = o.visit_id
+    left join places p on p.place_id = v.place_id
+    left join lateral (
+      select recommended_taxon_name, recommended_rank
+      from observation_ai_assessments a
+      where a.occurrence_id = o.occurrence_id
+      order by generated_at desc
+      limit 1
+    ) ai on true
+    left join lateral (
+      select coalesce(ab.public_url, ab.storage_path) as public_url
+      from evidence_assets ea
+      join asset_blobs ab on ab.blob_id = ea.blob_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+        and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+      order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+        ea.created_at asc
+      limit 1
+    ) photo on true
+    left join lateral (
+      select coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url') as thumb_url
+      from evidence_assets ea
+      join asset_blobs ab on ab.blob_id = ea.blob_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+        and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
+      order by
+        case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+        ea.created_at asc
+      limit 1
+    ) video on true
+    left join lateral (
+      select max(c.public_precision) as context_precision,
+             max(c.risk_lane) as risk_lane
+        from civic_observation_contexts c
+       where c.visit_id = v.visit_id
+    ) coc on true
+    where ${whereClauses.join(" and ")}
+    order by v.observed_at desc
+    limit ${limit}
+  `;
+
+  try {
+    const result = await queryClient.query<PublicMapSourceRow>(sql, params);
+    return representativeRowsByVisit(result.rows
+      .filter((row) => row.latitude !== null && row.longitude !== null)
+      .filter((row) => markerProfileMatches(row, markerProfile))
+      .map((row): PublicMapPreparedRecord | null => {
+        const lat = Number(row.latitude);
+        const lng = Number(row.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const locality = resolvePublicLocalityLabel({
+          municipality: row.municipality,
+          prefecture: row.prefecture,
+        });
+        const display = formatTaxonDisplayName({
+          vernacularName: row.vernacular_name,
+          scientificName: row.scientific_name,
+          displayName: row.display_name,
+          aiCandidateName: row.ai_candidate_name,
+        }, "ja");
+        if (!isMeaningfulPublicObservationLabel(display.primaryLabel)) return null;
+        return {
+          occurrenceId: row.occurrence_id,
+          visitId: row.visit_id,
+          userId: row.user_id ?? null,
+          displayName: display.primaryLabel,
+          aiCandidateName: row.ai_candidate_name ?? null,
+          aiCandidateRank: row.ai_candidate_rank ?? null,
+          isAiCandidate: Boolean(row.is_ai_candidate),
+          observedAt: row.observed_at,
+          latitude: lat,
+          longitude: lng,
+          municipality: row.municipality,
+          prefecture: row.prefecture,
+          localityLabel: locality.label,
+          localityScope: locality.scope,
+          photoUrl: normalizeAssetUrl(row.photo_url ?? row.video_thumb_url),
+          taxonGroup: inferTaxonGroup(row.scientific_name, row.vernacular_name),
+          sourceKind: row.source_kind,
+          sessionMode: row.session_mode,
+          visitMode: row.visit_mode,
+          qualityGrade: row.quality_grade,
+        } satisfies PublicMapPreparedRecord;
+      })
+      .filter((row): row is PublicMapPreparedRecord => row !== null)
+      .filter((row) => !filters.taxonGroup || row.taxonGroup === filters.taxonGroup)
+      .filter((row) => {
+        if (!seasonMonths) return true;
+        const month = new Date(row.observedAt).getUTCMonth() + 1;
+        return seasonMonths.includes(month);
+      }));
+  } catch {
+    return [];
   }
 }
 
@@ -1186,10 +1395,11 @@ export function buildPublicMapCells(
   rows: PublicMapRuntimeRecord[],
   zoom?: number,
 ): PublicMapCellFeatureCollection {
+  const mapRows = representativeRowsByVisit(rows);
   const gridM = pickPublicGridMeters(zoom);
   const groups = new Map<string, PublicCellGroup>();
 
-  for (const row of rows) {
+  for (const row of mapRows) {
     const cell = publicCellKeyForRuntimeRecord(row, gridM);
     const cellId = formatPublicCellId(cell);
     if (!groups.has(cellId)) {
@@ -1286,7 +1496,8 @@ export function buildPublicCellRecords(
   const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
   const gridM = parsedCellId?.gridM ?? pickPublicGridMeters(filters.zoom);
   const targetCellId = parsedCellId ? formatPublicCellId(parsedCellId) : null;
-  const scopedEntries = rows
+  const mapRows = representativeRowsByVisit(rows);
+  const scopedEntries = mapRows
     .map((row) => {
       const cellParts = publicCellKeyForRuntimeRecord(row, gridM);
       return {
@@ -1306,18 +1517,26 @@ export function buildPublicCellRecords(
 
   const items = sorted
     .slice(0, Math.min(Math.max(filters.limit ?? 300, 1), 1200))
-    .map((entry) => ({
-      occurrenceId: entry.row.occurrenceId,
-      visitId: entry.row.visitId,
-      displayName: publicMapDisplayName(entry.row),
-      isAiCandidate: entry.row.publicCoordReason === "rare_redlist" ? false : entry.row.isAiCandidate,
-      isAwaitingId: entry.row.publicCoordReason === "rare_redlist" ? false : entry.row.displayName === "同定待ち",
-      localityLabel: entry.row.localityLabel,
-      observedAt: entry.row.observedAt,
-      photoUrl: publicMapPhotoUrl(entry.row),
-      taxonGroup: entry.row.taxonGroup,
-      cellId: entry.cellId,
-    }));
+    .map((entry) => {
+      const ownedRow = viewerOwnsRuntimeRow(entry.row, filters.viewerUserId) ? entry.row : null;
+      return {
+        occurrenceId: entry.row.occurrenceId,
+        visitId: entry.row.visitId,
+        displayName: publicMapDisplayName(entry.row),
+        isAiCandidate: entry.row.publicCoordReason === "rare_redlist" ? false : entry.row.isAiCandidate,
+        isAwaitingId: entry.row.publicCoordReason === "rare_redlist" ? false : entry.row.displayName === "同定待ち",
+        localityLabel: entry.row.localityLabel,
+        observedAt: entry.row.observedAt,
+        photoUrl: publicMapPhotoUrl(entry.row),
+        taxonGroup: entry.row.taxonGroup,
+        cellId: entry.cellId,
+        ...(ownedRow ? {
+          isViewerOwned: true,
+          exactLatitude: ownedRow.latitude,
+          exactLongitude: ownedRow.longitude,
+        } : {}),
+      };
+    });
 
   return {
     items,
@@ -1556,6 +1775,60 @@ export async function getMapCells(
   return collection;
 }
 
+function buildViewerOwnedObservationRecords(
+  rows: PublicMapPreparedRecord[],
+  filters: MapQueryFilters & { cellId?: string; zoom?: number; limit?: number },
+): PublicMapObservationRecord[] {
+  const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
+  const gridM = parsedCellId?.gridM ?? pickPublicGridMeters(filters.zoom);
+  const targetCellId = parsedCellId ? formatPublicCellId(parsedCellId) : null;
+  return representativeRowsByVisit(rows)
+    .map((row): PublicMapObservationRecord | null => {
+      const cellId = formatPublicCellId(publicCellKeyForRuntimeRecord(row, gridM));
+      if (targetCellId && cellId !== targetCellId) return null;
+      return {
+        occurrenceId: row.occurrenceId,
+        visitId: row.visitId,
+        displayName: row.displayName,
+        isAiCandidate: row.isAiCandidate,
+        isAwaitingId: row.displayName === "同定待ち",
+        localityLabel: row.localityLabel,
+        observedAt: row.observedAt,
+        photoUrl: publicMapPhotoUrl(row),
+        taxonGroup: row.taxonGroup,
+        cellId,
+        isViewerOwned: true,
+        exactLatitude: row.latitude,
+        exactLongitude: row.longitude,
+      } satisfies PublicMapObservationRecord;
+    })
+    .filter((row): row is PublicMapObservationRecord => row !== null);
+}
+
+function mergeViewerOwnedObservationRecords(
+  list: PublicMapObservationList,
+  ownedItems: PublicMapObservationRecord[],
+  limit?: number,
+): PublicMapObservationList {
+  if (!ownedItems.length) return list;
+  const byVisit = new Map<string, PublicMapObservationRecord>();
+  for (const item of list.items) byVisit.set(item.visitId, item);
+  for (const item of ownedItems) byVisit.set(item.visitId, item);
+  const maxItems = Math.min(Math.max(limit ?? 300, 1), 1200);
+  const items = Array.from(byVisit.values())
+    .sort((a, b) => compareIsoDesc(a.observedAt, b.observedAt))
+    .slice(0, maxItems);
+  return {
+    ...list,
+    items,
+    stats: {
+      ...list.stats,
+      totalReturned: items.length,
+      totalAll: Math.max(list.stats.totalAll, items.length),
+    },
+  };
+}
+
 export async function getMapObservations(
   filters: MapQueryFilters & { cellId?: string; zoom?: number },
 ): Promise<PublicMapObservationList> {
@@ -1563,11 +1836,14 @@ export async function getMapObservations(
   const markerProfile = filters.markerProfile ?? "all_research_artifacts";
   const snapshot = await loadPublicMapSnapshotPayload();
   if (!snapshot) {
-    return emptyPublicMapObservations(markerProfile, {
+    const emptyList = emptyPublicMapObservations(markerProfile, {
       cellId: filters.cellId,
       zoom: filters.zoom,
       limit: filters.limit,
     });
+    const ownedRows = await fetchViewerOwnedMapRows(filters);
+    const ownedItems = buildViewerOwnedObservationRecords(ownedRows, filters);
+    return mergeViewerOwnedObservationRecords(emptyList, ownedItems, filters.limit);
   }
   const scopedFilters = parsedCellId
     ? { ...filters, bbox: undefined }
@@ -1576,9 +1852,12 @@ export async function getMapObservations(
     cellId: filters.cellId,
     zoom: filters.zoom,
     limit: filters.limit,
+    viewerUserId: filters.viewerUserId,
   });
   list.stats.markerProfile = markerProfile;
-  return list;
+  const ownedRows = await fetchViewerOwnedMapRows(filters);
+  const ownedItems = buildViewerOwnedObservationRecords(ownedRows, filters);
+  return mergeViewerOwnedObservationRecords(list, ownedItems, filters.limit);
 }
 
 export const __test__ = {

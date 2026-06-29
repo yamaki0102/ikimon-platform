@@ -313,6 +313,14 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /function isRenderableMapRecord\(record\)/);
   assert.match(script, /state\.records = \(\(list && list\.items\) \|\| \[\]\)\.filter\(isRenderableMapRecord\)/);
   assert.match(script, /state\.myObservations = payload && payload\.signedIn \? \(payload\.items \|\| \[\]\)\.filter\(isRenderableMapRecord\) : \[\]/);
+  assert.match(script, /function viewerOwnedRecordCenter\(record\)/);
+  assert.match(script, /record && record\.isViewerOwned && Number\.isFinite\(lat\) && Number\.isFinite\(lng\)/);
+  assert.match(script, /function syncViewerOwnedRecordSource\(map\)/);
+  assert.match(script, /viewer-owned-observations/);
+  assert.match(script, /viewer-owned-observation-dot/);
+  assert.match(script, /record\.isViewerOwned \? '正確' : 'メッシュ内'/);
+  assert.match(script, /var maxCards = zoom >= 16 \? 36 : \(zoom >= 15 \? 28 : 24\);/);
+  assert.match(script, /if \(isFinite\(gridM\) && gridM <= 500\) return 15\.4;/);
   assert.match(script, /data-own-trail-id/);
   assert.match(script, /map:own_observation_trail_focus/);
   assert.match(script, /function ownObservationGroups/);
@@ -934,10 +942,11 @@ test("community photo selection keeps nearby map context and opens the side pane
 test("community photo preview markers stay compact while allowing more visible places", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(script, /picked\.length >= 24/);
+  assert.match(script, /var maxCards = zoom >= 16 \? 36 : \(zoom >= 15 \? 28 : 24\);/);
+  assert.match(script, /picked\.length >= maxCards/);
   assert.match(script, /var cellCounts = \{\};/);
-  assert.match(script, /if \(cellCount >= 3\) return;/);
-  assert.match(script, /\[0\.0045, 0\.0032\]/);
+  assert.match(script, /if \(!record\.isViewerOwned && cellCount >= \(zoom >= 15 \? 5 : 3\)\) return;/);
+  assert.match(script, /\[0\.0022, 0\.0016\]/);
   assert.match(script, /center: \{ lng: center\.lng \+ offset\[0\], lat: center\.lat \+ offset\[1\] \}/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview \{\s+width: 50px;\s+min-height: 58px;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview img,\s+\.me-discovery-preview i \{\s+width: 42px;\s+height: 31px;/);
@@ -1124,7 +1133,9 @@ test("heatmap and rain tabs keep area polygons selectable", () => {
   assert.match(script, /map\.setPaintProperty\('area-polygon-outline', 'line-width', tab === 'places' \|\| tab === 'rain'/);
   assert.match(script, /var markerLayers = \['observation-cell-dot', 'observation-cell-selected'\]/);
   assert.match(script, /var markerDetailLayers = \['observation-cell-outline', 'observation-cell-count', 'observation-cell-label'\]/);
-  assert.match(script, /show\(markerDetailLayers, false\);/);
+  assert.match(script, /var viewerOwnedLayers = \['viewer-owned-observation-halo', 'viewer-owned-observation-dot'\]/);
+  assert.match(script, /show\(markerDetailLayers, tab === 'markers'\);/);
+  assert.match(script, /show\(viewerOwnedLayers, tab === 'markers'\);/);
 });
 
 test("area density and labels are staged by zoom instead of appearing all at once", () => {

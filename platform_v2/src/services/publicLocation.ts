@@ -76,12 +76,14 @@ function latFromMercatorY(y: number): number {
 
 export function pickPublicGridMeters(zoom?: number): number {
   if (typeof zoom !== "number" || !Number.isFinite(zoom)) return 3000;
+  if (zoom >= 15) return 500;
   if (zoom >= 13) return 1000;
   if (zoom >= 10) return 3000;
   return 10000;
 }
 
 export function maxZoomForGrid(gridM: number): number {
+  if (Number.isFinite(gridM) && gridM <= 500) return 15.4;
   if (!Number.isFinite(gridM) || gridM <= 1000) return 13.2;
   if (gridM <= 3000) return 11.8;
   return 10.1;
