@@ -66,6 +66,7 @@ type JsonResponse = {
 
 const DEFAULT_BASE_URL = "https://ikimon.life";
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
+const SAFE_FIXTURE_PREFIX_RE = /^prod-media-smoke-[A-Za-z0-9_-]{6,96}$/;
 
 function utcStamp(): string {
   return new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
@@ -117,6 +118,24 @@ function parseArgs(argv: string[]): SmokeOptions {
   }
 
   return options;
+}
+
+function isProductionBaseUrl(baseUrl: string): boolean {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+    return hostname === "ikimon.life" || hostname === "www.ikimon.life";
+  } catch {
+    return false;
+  }
+}
+
+function assertSafeSmokeOptions(options: SmokeOptions): void {
+  if (!SAFE_FIXTURE_PREFIX_RE.test(options.fixturePrefix)) {
+    throw new Error("fixture_prefix_must_match_prod_media_smoke_pattern");
+  }
+  if (isProductionBaseUrl(options.baseUrl) && !options.cleanup) {
+    throw new Error("production_media_smoke_cleanup_required");
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -521,6 +540,7 @@ async function writeSummary(state: SmokeState): Promise<void> {
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
+  assertSafeSmokeOptions(options);
   if (!options.videoFile) {
     throw new Error("SMOKE_VIDEO_FILE or --video-file is required for production media smoke");
   }
@@ -686,6 +706,12 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(publicSummary(state), null, 2));
   }
 }
+
+export const __test__ = {
+  assertSafeSmokeOptions,
+  isProductionBaseUrl,
+  parseArgs,
+};
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   void main();
