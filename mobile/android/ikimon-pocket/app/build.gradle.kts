@@ -18,6 +18,46 @@ fun localOrEnv(localKey: String, envKey: String): String? {
         ?: providers.environmentVariable(envKey).orNull?.takeIf { it.isNotBlank() }
 }
 
+data class ReleaseSigningValues(
+    val storeFilePath: String?,
+    val storePassword: String?,
+    val keyAlias: String?,
+    val keyPassword: String?,
+) {
+    val isComplete: Boolean
+        get() = !storeFilePath.isNullOrBlank()
+            && !storePassword.isNullOrBlank()
+            && !keyAlias.isNullOrBlank()
+            && !keyPassword.isNullOrBlank()
+}
+
+val releaseSigningValues = ReleaseSigningValues(
+    storeFilePath = localOrEnv("fieldscanUploadStoreFile", "FIELD_SCAN_UPLOAD_STORE_FILE"),
+    storePassword = localOrEnv("fieldscanUploadStorePassword", "FIELD_SCAN_UPLOAD_STORE_PASSWORD"),
+    keyAlias = localOrEnv("fieldscanUploadKeyAlias", "FIELD_SCAN_UPLOAD_KEY_ALIAS"),
+    keyPassword = localOrEnv("fieldscanUploadKeyPassword", "FIELD_SCAN_UPLOAD_KEY_PASSWORD"),
+)
+
+gradle.taskGraph.whenReady {
+    val runsReleaseTask = allTasks.any { task ->
+        task.name.contains("Release", ignoreCase = true)
+    }
+    if (runsReleaseTask) {
+        require(!releaseSigningValues.storeFilePath.isNullOrBlank()) {
+            "Missing FieldScan upload keystore path. Set fieldscanUploadStoreFile in local.properties or FIELD_SCAN_UPLOAD_STORE_FILE."
+        }
+        require(!releaseSigningValues.storePassword.isNullOrBlank()) {
+            "Missing FieldScan upload keystore password. Set fieldscanUploadStorePassword in local.properties or FIELD_SCAN_UPLOAD_STORE_PASSWORD."
+        }
+        require(!releaseSigningValues.keyAlias.isNullOrBlank()) {
+            "Missing FieldScan upload key alias. Set fieldscanUploadKeyAlias in local.properties or FIELD_SCAN_UPLOAD_KEY_ALIAS."
+        }
+        require(!releaseSigningValues.keyPassword.isNullOrBlank()) {
+            "Missing FieldScan upload key password. Set fieldscanUploadKeyPassword in local.properties or FIELD_SCAN_UPLOAD_KEY_PASSWORD."
+        }
+    }
+}
+
 android {
     namespace = "life.ikimon.pocket"
     compileSdk = 35
@@ -32,28 +72,12 @@ android {
 
     signingConfigs {
         create("release") {
-            val uploadStoreFile = localOrEnv("fieldscanUploadStoreFile", "FIELD_SCAN_UPLOAD_STORE_FILE")
-            val uploadStorePassword = localOrEnv("fieldscanUploadStorePassword", "FIELD_SCAN_UPLOAD_STORE_PASSWORD")
-            val uploadKeyAlias = localOrEnv("fieldscanUploadKeyAlias", "FIELD_SCAN_UPLOAD_KEY_ALIAS")
-            val uploadKeyPassword = localOrEnv("fieldscanUploadKeyPassword", "FIELD_SCAN_UPLOAD_KEY_PASSWORD")
-
-            require(!uploadStoreFile.isNullOrBlank()) {
-                "Missing FieldScan upload keystore path. Set fieldscanUploadStoreFile in local.properties or FIELD_SCAN_UPLOAD_STORE_FILE."
+            if (releaseSigningValues.isComplete) {
+                storeFile = file(releaseSigningValues.storeFilePath!!)
+                storePassword = releaseSigningValues.storePassword
+                keyAlias = releaseSigningValues.keyAlias
+                keyPassword = releaseSigningValues.keyPassword
             }
-            require(!uploadStorePassword.isNullOrBlank()) {
-                "Missing FieldScan upload keystore password. Set fieldscanUploadStorePassword in local.properties or FIELD_SCAN_UPLOAD_STORE_PASSWORD."
-            }
-            require(!uploadKeyAlias.isNullOrBlank()) {
-                "Missing FieldScan upload key alias. Set fieldscanUploadKeyAlias in local.properties or FIELD_SCAN_UPLOAD_KEY_ALIAS."
-            }
-            require(!uploadKeyPassword.isNullOrBlank()) {
-                "Missing FieldScan upload key password. Set fieldscanUploadKeyPassword in local.properties or FIELD_SCAN_UPLOAD_KEY_PASSWORD."
-            }
-
-            storeFile = file(uploadStoreFile)
-            storePassword = uploadStorePassword
-            keyAlias = uploadKeyAlias
-            keyPassword = uploadKeyPassword
         }
     }
 

@@ -38,6 +38,10 @@ object MobileApiConfig {
         return "${currentRuntimeOrigin(context)}/app_oauth_start.php"
     }
 
+    fun appOAuthExchangeUrl(context: Context): String {
+        return "${currentRuntimeOrigin(context)}/api/v1/mobile/auth/oauth/exchange"
+    }
+
     fun applyDebugOverrideFromIntent(context: Context, rawBase: String?): Boolean {
         if (!BuildConfig.DEBUG) return false
         val normalized = rawBase?.trim()?.trimEnd('/') ?: return false
