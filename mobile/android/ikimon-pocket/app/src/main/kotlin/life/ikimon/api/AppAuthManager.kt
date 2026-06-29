@@ -127,6 +127,11 @@ object AppAuthManager {
             return AppLoginResult(false, message)
         }
 
+        val code = uri.getQueryParameter("code").orEmpty()
+        if (code.isNotBlank()) {
+            return exchangeOAuthCode(context, code)
+        }
+
         val token = uri.getQueryParameter("token").orEmpty()
         if (token.isBlank()) {
             return AppLoginResult(false, "ソーシャルログイン結果を受け取れなかった")
@@ -143,6 +148,45 @@ object AppAuthManager {
             "この端末は送信済み。以後そのまま反映される"
         )
         return AppLoginResult(true, "ログイン済み: $userName")
+    }
+
+    private fun exchangeOAuthCode(context: Context, code: String): AppLoginResult {
+        val payload = JSONObject().apply {
+            put("code", code)
+        }
+        return try {
+            val request = Request.Builder()
+                .url(MobileApiConfig.appOAuthExchangeUrl(context))
+                .post(payload.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string().orEmpty()
+            val json = JSONObject(body)
+            if (!response.isSuccessful || !json.optBoolean("success", json.optBoolean("ok"))) {
+                val message = json.optString("error", "ソーシャルログイン結果を交換できなかった")
+                save(context, "", "", "未ログイン", "", message)
+                return AppLoginResult(false, message)
+            }
+            val data = json.optJSONObject("data") ?: json
+            val token = data.optString("token", "")
+            if (token.isBlank()) {
+                return AppLoginResult(false, "ソーシャルログイン結果を受け取れなかった")
+            }
+            val user = data.optJSONObject("user")
+            val userId = user?.optString("userId", user.optString("user_id", "")) ?: data.optString("user_id", "")
+            val userName = user?.optString("displayName", user.optString("display_name", user.optString("name", "ikimon user")))
+                ?: data.optString("name", "ikimon user")
+            val email = data.optString("email", "")
+            val message = data.optString("message", "ソーシャルログインが完了した。この端末の本番記録はアカウントへ紐づく")
+            save(context, token, userId, userName, email, message)
+            InstallIdentityManager.markRegistered(
+                context,
+                "この端末は送信済み。以後そのまま反映される"
+            )
+            AppLoginResult(true, "ログイン済み: $userName")
+        } catch (_: Exception) {
+            AppLoginResult(false, "通信エラーでソーシャルログインを完了できなかった")
+        }
     }
 
     fun logout(context: Context) {

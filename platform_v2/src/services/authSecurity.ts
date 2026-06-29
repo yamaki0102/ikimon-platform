@@ -74,9 +74,12 @@ export function assertSameOriginRequest(request: FastifyRequest): void {
   }
 }
 
-export function assertAuthRateLimit(keyParts: string[], maxAttempts = 8, windowMs = 10 * 60 * 1000): void {
+function rateLimitKey(keyParts: string[]): string {
+  return keyParts.map((part) => part.trim().toLowerCase()).join(":");
+}
+
+function assertMemoryAuthRateLimit(key: string, maxAttempts: number, windowMs: number): void {
   const now = Date.now();
-  const key = keyParts.map((part) => part.trim().toLowerCase()).join(":");
   const existing = buckets.get(key);
   if (!existing || existing.resetAt <= now) {
     buckets.set(key, { count: 1, resetAt: now + windowMs });
@@ -86,6 +89,10 @@ export function assertAuthRateLimit(keyParts: string[], maxAttempts = 8, windowM
   if (existing.count > maxAttempts) {
     throw new Error("rate_limited");
   }
+}
+
+export async function assertAuthRateLimit(keyParts: string[], maxAttempts = 8, windowMs = 10 * 60 * 1000): Promise<void> {
+  assertMemoryAuthRateLimit(rateLimitKey(keyParts), maxAttempts, windowMs);
 }
 
 export function resetAuthRateLimitForTests(): void {
