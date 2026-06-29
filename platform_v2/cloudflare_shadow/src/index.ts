@@ -16340,6 +16340,20 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
   };
 }
 
+function contextualPublicHomeRecordsCopy(url: URL, index: number): ReturnType<typeof recordsInjectionCopy> {
+  const copy = recordsInjectionCopy(url);
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  const labels = lang === "en"
+    ? ["Nearby public record", "Seasonal record", "Regional record"]
+    : ["近くの公開記録", "季節の記録", "同じ地域の記録"];
+  const label = labels[index % labels.length] ?? labels[0] ?? copy.homeBadge;
+  return {
+    ...copy,
+    homeBadge: label,
+    placeContext: label
+  };
+}
+
 function publicLangFromPath(pathname: string): "ja" | "en" | "es" | "pt-br" | null {
   const match = pathname.match(/^\/(ja|en|es|pt-br)(?:\/|$)/);
   return match ? match[1] as "ja" | "en" | "es" | "pt-br" : null;
@@ -16386,10 +16400,10 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
     ? await ownerHomeRecordCards(session.userId, env).catch(() => [])
     : [];
   const isOwnerFeed = ownerItems.length > 0;
-  const items = isOwnerFeed ? ownerItems : await recentPublicRecordCards(env, 120).catch(() => []);
-  if (items.length === 0) return html;
-  const copy = isOwnerFeed ? ownerHomeRecordsCopy(url) : recordsInjectionCopy(url);
-  const cards = items.slice(0, 120).map((item, index) => renderHomeRecordCard(item, copy, index, isOwnerFeed ? "owner" : "public")).join("");
+  const publicItems = await recentPublicRecordCards(env, isOwnerFeed ? 40 : 120).catch(() => []);
+  const feedCards = buildHomeFeedCards(ownerItems, publicItems, url);
+  if (feedCards.length === 0) return html;
+  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source)).join("");
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
     .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*<script>/, `<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div><script>`);
@@ -16470,6 +16484,50 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
 </script></body>`);
   }
   return next;
+}
+
+function buildHomeFeedCards(
+  ownerItems: Array<ReturnType<typeof publicMapObservationItem>>,
+  publicItems: Array<ReturnType<typeof publicMapObservationItem>>,
+  url: URL
+): Array<{ item: ReturnType<typeof publicMapObservationItem>; copy: ReturnType<typeof recordsInjectionCopy>; source: "owner" | "public" }> {
+  if (ownerItems.length === 0) {
+    const publicCopy = recordsInjectionCopy(url);
+    return publicItems.slice(0, 120).map((item) => ({ item, copy: publicCopy, source: "public" }));
+  }
+
+  const ownerCopy = ownerHomeRecordsCopy(url);
+  const ownerIds = new Set(ownerItems.map((item) => item.visitId));
+  const publicCandidates = publicItems.filter((item) => !ownerIds.has(item.visitId));
+  const cards: Array<{ item: ReturnType<typeof publicMapObservationItem>; copy: ReturnType<typeof recordsInjectionCopy>; source: "owner" | "public" }> = [];
+  let publicIndex = 0;
+
+  for (const [ownerIndex, item] of ownerItems.entries()) {
+    if (cards.length >= 120) break;
+    cards.push({ item, copy: ownerCopy, source: "owner" });
+    if ((ownerIndex + 1) % 4 === 0 && publicIndex < publicCandidates.length && cards.length < 120) {
+      const publicItem = publicCandidates[publicIndex];
+      if (!publicItem) continue;
+      cards.push({
+        item: publicItem,
+        copy: contextualPublicHomeRecordsCopy(url, publicIndex),
+        source: "public"
+      });
+      publicIndex += 1;
+    }
+  }
+
+  if (ownerItems.length < 4 && publicIndex < publicCandidates.length && cards.length < 120) {
+    const publicItem = publicCandidates[publicIndex];
+    if (!publicItem) return cards;
+    cards.push({
+      item: publicItem,
+      copy: contextualPublicHomeRecordsCopy(url, publicIndex),
+      source: "public"
+    });
+  }
+
+  return cards;
 }
 
 function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {
@@ -16595,7 +16653,7 @@ function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>,
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
     : `<span class="prototype-record-feed-empty-media" aria-hidden="true"></span>`;
   const title = item.displayName || copy.unknown;
-  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : ""}>
+  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
         ${image}

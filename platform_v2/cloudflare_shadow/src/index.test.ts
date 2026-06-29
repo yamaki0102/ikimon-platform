@@ -14601,8 +14601,10 @@ test("production home prioritizes signed-in owner records over public feed recor
   assert.match(homeBody, /自分の記録/);
   assert.match(homeBody, /asset-owner-home-real-derivative/);
   assert.ok((homeBody.match(/data-cloudflare-owner-home-record/g) ?? []).length >= 12);
-  assert.doesNotMatch(homeBody, /他人の公開記録/);
-  assert.doesNotMatch(homeBody, /近くの記録/);
+  assert.match(homeBody, /data-cloudflare-public-home-record/);
+  assert.match(homeBody, /他人の公開記録/);
+  assert.match(homeBody, /近くの公開記録/);
+  assert.doesNotMatch(homeBody, /34\.81,137\.73/);
   assert.doesNotMatch(homeBody, /34\.81234|137\.73234|owner_user_id|ownerUserId/);
 });
 
