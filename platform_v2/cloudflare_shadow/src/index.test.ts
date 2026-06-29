@@ -11296,6 +11296,90 @@ test("production runtime records observation AI reviews natively without origin 
   assert.equal(core.operationAudit.length, 0);
 });
 
+test("production public claim readmodel gate keeps AI-sourced authority-looking identifications candidate-only", async () => {
+  const { env, core, obs } = createEnv();
+  obs.observationAiReviewTargets.set("occ-ai-public-claim-gate", {
+    occurrence_id: "occ-ai-public-claim-gate",
+    ai_assessment_status: "ai_judgement",
+    scientific_name: null,
+    vernacular_name: null,
+    taxon_rank: null,
+    ai_run_id: "ai-run-public-claim-gate",
+    candidate_id: "candidate-public-claim-gate",
+    candidate_scientific_name: "Pieris rapae",
+    candidate_vernacular_name: "モンシロチョウ",
+    candidate_taxon_rank: "species",
+    ai_recommended_taxon_name: "Pieris rapae",
+    ai_recommended_rank: "species"
+  });
+  obs.observationIdentifications.set("ident-ai-public-claim-gate", {
+    identification_id: "ident-ai-public-claim-gate",
+    occurrence_id: "occ-ai-public-claim-gate",
+    actor_user_id: "ai-review-user",
+    proposed_name: "Pieris rapae",
+    proposed_rank: "species",
+    stance: "support",
+    notes: null,
+    source_key: "cf_ai_judgement_agree:occ-ai-public-claim-gate:ai-review-user",
+    source_payload_json: JSON.stringify({
+      source: "cloudflare_ai_judgement_agree",
+      lane: "public-claim",
+      reviewClass: "authority_backed",
+      aiRunId: "ai-run-public-claim-gate",
+      candidateId: "candidate-public-claim-gate"
+    }),
+    is_current: 1,
+    created_at: "2026-06-29T00:00:00.000Z",
+    updated_at: "2026-06-29T00:00:00.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ userId: "ai-review-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-records/occ-ai-public-claim-gate/ai-review", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ reviewState: "later" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "observation-record-ai-review");
+    assert.equal(payload.consensus.communityTaxon.name, "Pieris rapae");
+    assert.equal(payload.consensus.consensusStatus, "single_identification");
+    assert.equal(payload.consensus.identificationVerificationStatus, "needs_review");
+    assert.notEqual(payload.consensus.consensusStatus, "authority_backed");
+    assert.notEqual(payload.consensus.identificationVerificationStatus, "authority_reviewed");
+    assert.equal(payload.consensus.aiReviewAgreeCount, 0);
+    assert.equal([...obs.outbox.values()].some((row) => row.topic === "readmodel.refresh" && row.target_id === "occ-ai-public-claim-gate"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
 test("production runtime records observation disputes natively without origin fallback", async () => {
   const { env, core, obs } = createEnv();
   obs.readmodel.set("occ-1", {
