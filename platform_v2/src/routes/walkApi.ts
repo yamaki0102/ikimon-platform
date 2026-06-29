@@ -123,3 +123,7 @@ export function registerWalkApiRoutes(app: FastifyInstance): void {
     return reply.send(summary);
   });
 }
+
+export const __test__ = {
+  resolveTrustedWalkUserId,
+};
