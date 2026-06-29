@@ -59,6 +59,20 @@ type OccurrenceRow = {
   external_taxon_id_count: number;
 };
 
+const NON_HUMAN_PUBLIC_CLAIM_REVIEW_SOURCES = [
+  "ai_assessment",
+  "ai_judgement_observation_record",
+  "observation_ai_assessment",
+  "observation_ai_subject_candidate",
+] as const;
+
+const NON_HUMAN_PUBLIC_CLAIM_REVIEW_SOURCE_VALUES_SQL = NON_HUMAN_PUBLIC_CLAIM_REVIEW_SOURCES
+  .map((source) => `'${source}'`)
+  .join(", ");
+
+const PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL = `i.actor_kind = 'human'
+         and coalesce(i.source_payload->>'source', '') not in (${NON_HUMAN_PUBLIC_CLAIM_REVIEW_SOURCE_VALUES_SQL})`;
+
 function machineEvidenceStatus(row: Pick<OccurrenceRow, "basis_of_record" | "ai_assessment_status" | "data_quality">): "human_observation" | "ai_candidate" | "reviewer_verified" | "reviewer_rejected" {
   if (row.basis_of_record !== "MachineObservation") return "human_observation";
   const status = row.ai_assessment_status || row.data_quality || "";
@@ -357,12 +371,12 @@ async function queryResearchOccurrenceRecords(
      left join lateral (
        select count(*)::int as current_count,
               count(*) filter (
-                where coalesce(source_payload->>'lane', '') = 'public-claim'
-                  and coalesce(source_payload->>'reviewClass', source_payload->>'review_class', '') in ('authority_backed', 'admin_override')
+                where coalesce(i.source_payload->>'lane', '') = 'public-claim'
+                  and coalesce(i.source_payload->>'reviewClass', i.source_payload->>'review_class', '') in ('authority_backed', 'admin_override')
               )::int as authority_count
        from identifications i
        where i.occurrence_id = o.occurrence_id
-         and i.actor_kind = 'human'
+         and ${PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL}
          and coalesce(i.is_current, true) = true
      ) id_meta on true
      left join lateral (
@@ -558,12 +572,12 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
            select
              count(*)::int as current_count,
              count(*) filter (
-               where coalesce(source_payload->>'lane', '') = 'public-claim'
-                 and coalesce(source_payload->>'reviewClass', source_payload->>'review_class', '') in ('authority_backed', 'admin_override')
+               where coalesce(i.source_payload->>'lane', '') = 'public-claim'
+                 and coalesce(i.source_payload->>'reviewClass', i.source_payload->>'review_class', '') in ('authority_backed', 'admin_override')
              )::int as authority_count
            from identifications i
            where i.occurrence_id = o.occurrence_id
-             and i.actor_kind = 'human'
+             and ${PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL}
              and coalesce(i.is_current, true) = true
          ) id_meta on true
          left join lateral (

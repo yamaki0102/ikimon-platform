@@ -97,6 +97,21 @@ type ActiveIdentification = ConsensusIdentificationInput & {
   lineage: TaxonNode[];
 };
 
+const NON_HUMAN_REVIEW_ACTOR_KINDS = new Set([
+  "ai",
+  "automation",
+  "machine",
+  "model",
+  "system",
+]);
+
+const NON_HUMAN_REVIEW_SOURCE_PAYLOADS = new Set([
+  "ai_assessment",
+  "ai_judgement_observation_record",
+  "observation_ai_assessment",
+  "observation_ai_subject_candidate",
+]);
+
 function createdMs(value: string | Date | null | undefined): number {
   if (value instanceof Date) return value.getTime();
   if (typeof value === "string" && value.trim()) {
@@ -119,6 +134,16 @@ function hasAuthorityBackedPayload(payload: Record<string, unknown> | null | und
   const lane = payloadString(payload, ["lane"]);
   const reviewClass = payloadString(payload, ["reviewClass", "review_class"]);
   return lane === "public-claim" && (reviewClass === "authority_backed" || reviewClass === "admin_override");
+}
+
+function isHumanReviewIdentification(id: ConsensusIdentificationInput): boolean {
+  const actorKind = String(id.actorKind ?? "").trim().toLowerCase();
+  if (NON_HUMAN_REVIEW_ACTOR_KINDS.has(actorKind)) return false;
+
+  const source = payloadString(id.sourcePayload, ["source"]).trim().toLowerCase();
+  if (NON_HUMAN_REVIEW_SOURCE_PAYLOADS.has(source)) return false;
+
+  return true;
 }
 
 function isMatchFailure(match: GbifMatch | null | undefined): boolean {
@@ -264,17 +289,18 @@ export function computeIdentificationConsensus(input: {
   precisionCeilingRank?: TaxonRank;
 }): IdentificationConsensusResult {
   const active = dedupeLatestPerActor(input.identifications);
+  const reviewableActive = active.filter(isHumanReviewIdentification);
   const openDisputes = (input.disputes ?? []).filter((dispute) => dispute.status === "open");
   const hasOpenDispute = openDisputes.length > 0;
   const hasMedia = Boolean(input.hasMedia);
   const precisionCeilingRank = input.precisionCeilingRank ?? DEFAULT_COARSE_CEILING;
-  const communityTaxon = computeCommunityTaxon(active);
-  const hasGbifMatchFailure = active.some((id) => isMatchFailure(id.gbifMatch));
+  const communityTaxon = computeCommunityTaxon(reviewableActive);
+  const hasGbifMatchFailure = reviewableActive.some((id) => isMatchFailure(id.gbifMatch));
   const hasLineageConflict =
-    active.length >= 2
+    reviewableActive.length >= 2
     && (!communityTaxon || !isResearchUsableRank(communityTaxon.rank));
-  const hasAuthorityBackedPublicClaim = active.some((id) => hasAuthorityBackedPayload(id.sourcePayload));
-  const referenceBackedSupporterCount = active.filter((id) => id.hasReferenceEvidence === true).length;
+  const hasAuthorityBackedPublicClaim = reviewableActive.some((id) => hasAuthorityBackedPayload(id.sourcePayload));
+  const referenceBackedSupporterCount = reviewableActive.filter((id) => id.hasReferenceEvidence === true).length;
   const hasIdentificationReferenceEvidence = referenceBackedSupporterCount > 0;
   const communityWithinPolicy = Boolean(
     communityTaxon
@@ -297,13 +323,13 @@ export function computeIdentificationConsensus(input: {
         ? "gbif_match_failed"
         : hasLineageConflict
           ? "lineage_conflict"
-          : hasAuthorityBackedPublicClaim
-            ? "authority_backed"
-            : communityTaxon
-              ? "community_consensus"
-              : active.length === 1
-                ? "single_identification"
-                : "no_identification";
+            : hasAuthorityBackedPublicClaim
+              ? "authority_backed"
+              : communityTaxon
+                ? "community_consensus"
+                : reviewableActive.length === 1
+                  ? "single_identification"
+                  : "no_identification";
 
   const identificationVerificationStatus: IdentificationConsensusResult["identificationVerificationStatus"] =
     canPromoteToTier3
@@ -316,14 +342,14 @@ export function computeIdentificationConsensus(input: {
             ? "blocked_lineage_conflict"
             : !hasMedia
               ? "needs_media"
-              : active.length === 0
+              : reviewableActive.length === 0
                 ? "needs_identification"
                 : "needs_review";
 
   return {
     occurrenceId: input.occurrenceId ?? null,
-    activeIdentificationCount: active.length,
-    independentSupporterCount: active.length,
+    activeIdentificationCount: reviewableActive.length,
+    independentSupporterCount: reviewableActive.length,
     communityTaxon,
     consensusStatus,
     identificationVerificationStatus,
@@ -338,7 +364,7 @@ export function computeIdentificationConsensus(input: {
     canPromoteToTier3,
     openDisputes,
     neededEvidence: neededEvidenceFor({
-      activeCount: active.length,
+      activeCount: reviewableActive.length,
       hasMedia,
       openDispute: hasOpenDispute,
       matchFailure: hasGbifMatchFailure,
