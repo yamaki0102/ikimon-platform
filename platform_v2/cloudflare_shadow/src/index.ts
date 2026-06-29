@@ -172,6 +172,7 @@ interface LegacyObservationUpsertInput {
   civicContext?: Record<string, unknown> | null;
   sourcePayload?: Record<string, unknown> | null;
   dataRights?: Record<string, unknown> | null;
+  visibility?: "private" | "public" | null;
 }
 
 interface CompatibleWaterRecordInput {
@@ -19923,6 +19924,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ?? normalizeOptionalText(input.prefecture)
     ?? "unknown place";
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
+  const visibility = input.visibility === "private" ? "private" : "public";
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
   const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
@@ -19985,7 +19987,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       input.longitude,
       numberOrNull(input.locationAccuracyM),
       publicCell,
-      "public",
+      visibility,
       partition.partitionMonth
     ),
     env.OBS_DB.prepare(
@@ -20018,7 +20020,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       input.longitude,
       numberOrNull(input.locationAccuracyM),
       publicCell,
-      "public",
+      visibility,
       partition.partitionMonth
     ),
     env.OBS_DB.prepare(
@@ -20070,7 +20072,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         exactLng: input.longitude,
         locationAccuracyM: numberOrNull(input.locationAccuracyM),
         publicCell,
-        visibility: "public",
+        visibility,
         placeId,
         placeName
       },
@@ -20084,7 +20086,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         input.longitude,
         numberOrNull(input.locationAccuracyM),
         publicCell,
-        "public"
+        visibility
       )
     })
   ]);
