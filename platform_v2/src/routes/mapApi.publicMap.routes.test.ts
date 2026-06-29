@@ -57,6 +57,19 @@ test("public map observations expose list items instead of point features", asyn
   }
 });
 
+test("area polygon route logs high zoom empty viewport diagnostics", async () => {
+  const source = await readFile(new URL("./mapApi.ts", import.meta.url), "utf8");
+
+  assert.match(source, /shouldLogHighZoomEmptyAreaViewport/);
+  assert.match(source, /area_polygons_high_zoom_empty_viewport/);
+  assert.match(source, /featureCount === 0/);
+  assert.match(source, /\(zoom \?\? 0\) >= 13/);
+  assert.match(source, /bbox/);
+  assert.match(source, /sources: sources \?\? "default"/);
+  assert.match(source, /limit: limit \?\? null/);
+  assert.doesNotMatch(source, /source === "user_defined"/);
+});
+
 test("map my-places endpoint is private-by-session and safe for guests", async () => {
   const app = buildApp();
   try {
