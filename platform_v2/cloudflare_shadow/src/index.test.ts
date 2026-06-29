@@ -12769,7 +12769,11 @@ test("production public UI routes avoid origin fallback while broad custom-domai
     const eventCreatePage = await worker.fetch(new Request("https://ikimon.life/es/community/events/new"), productionEnv);
     assert.equal(eventCreatePage.status, 200);
     assert.equal(eventCreatePage.headers.get("x-ikimon-cloudflare-native"), "event-page-create");
-    assert.match(await eventCreatePage.text(), /Worker\/D1 runtime/);
+    const eventCreatePageHtml = await eventCreatePage.text();
+    assert.match(eventCreatePageHtml, /Worker\/D1 runtime/);
+    assert.match(eventCreatePageHtml, /Area Sketch Assist/);
+    assert.match(eventCreatePageHtml, /data-area-sketch-map/);
+    assert.match(eventCreatePageHtml, /area-sketch-assessments/);
     assert.equal(seen.length, 0);
 
     const eventAreaSuggestion = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events/area-suggestions", {
