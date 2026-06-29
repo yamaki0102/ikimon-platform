@@ -101,6 +101,7 @@ export function renderEventCreateBody(args: {
           <button type="button" class="evt-btn evt-btn-ghost" data-evt-locate style="min-height:36px; padding:6px 12px;">現在地</button>
           <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-use-center style="min-height:36px; padding:6px 12px;">ここでやる</button>
           <button type="button" class="evt-btn evt-btn-primary" data-evt-area-suggest style="min-height:36px; padding:6px 12px;">AIで整える</button>
+          <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-sketch-save style="min-height:36px; padding:6px 12px;">下書き診断を保存</button>
           <button type="button" class="evt-btn evt-btn-ghost" data-evt-area-undo style="min-height:36px; padding:6px 12px;">元に戻す</button>
         </div>
       </div>
@@ -129,6 +130,44 @@ export function renderEventCreateBody(args: {
       <div data-evt-area-status class="evt-area-status">現在地か地図上の場所を選んでください。</div>
       <div data-evt-area-suggestions class="evt-area-suggestions" style="display:none;"></div>
       <div data-evt-field-conflicts class="evt-area-conflicts" style="display:none;"></div>
+
+      <section class="evt-land-cover-panel" aria-label="区域内のざっくり分類">
+        <header>
+          <div>
+            <span class="evt-eyebrow">Area Sketch Assist</span>
+            <h3>区域内のざっくり分類</h3>
+          </div>
+          <strong data-evt-land-cover-total>100%</strong>
+        </header>
+        <div class="evt-land-cover-grid">
+          <label class="evt-land-cover-row"><span>農地</span><input type="range" min="0" max="100" step="5" value="0" data-evt-land-cover data-category="agricultural_land" /><output data-evt-land-cover-value>0%</output></label>
+          <label class="evt-land-cover-row"><span>樹木・植栽</span><input type="range" min="0" max="100" step="5" value="0" data-evt-land-cover data-category="trees_planting" /><output data-evt-land-cover-value>0%</output></label>
+          <label class="evt-land-cover-row"><span>草地</span><input type="range" min="0" max="100" step="5" value="0" data-evt-land-cover data-category="grassland" /><output data-evt-land-cover-value>0%</output></label>
+          <label class="evt-land-cover-row"><span>水辺</span><input type="range" min="0" max="100" step="5" value="0" data-evt-land-cover data-category="water_edge" /><output data-evt-land-cover-value>0%</output></label>
+          <label class="evt-land-cover-row"><span>建物</span><input type="range" min="0" max="100" step="5" value="0" data-evt-land-cover data-category="building" /><output data-evt-land-cover-value>0%</output></label>
+          <label class="evt-land-cover-row"><span>舗装・駐車場</span><input type="range" min="0" max="100" step="5" value="0" data-evt-land-cover data-category="pavement_parking" /><output data-evt-land-cover-value>0%</output></label>
+          <label class="evt-land-cover-row"><span>不明</span><input type="range" min="0" max="100" step="5" value="100" data-evt-land-cover data-category="unknown" /><output data-evt-land-cover-value>100%</output></label>
+        </div>
+        <p class="evt-lead">合計が100%未満の場合は、残りを不明として保存します。</p>
+      </section>
+
+      <section class="evt-area-sketch-preview" data-evt-area-sketch-preview hidden aria-live="polite">
+        <header>
+          <div>
+            <span class="evt-eyebrow">Area Sketch Assist</span>
+            <h3>保存後の概算</h3>
+          </div>
+          <strong data-evt-area-sketch-preview-status>下書き</strong>
+        </header>
+        <div class="evt-area-sketch-preview-summary" data-evt-area-sketch-preview-summary></div>
+        <div class="evt-area-sketch-preview-thresholds" data-evt-area-sketch-preview-thresholds></div>
+        <div class="evt-area-sketch-preview-evidence">
+          <h4>不足資料リスト</h4>
+          <ul data-evt-area-sketch-preview-evidence></ul>
+        </div>
+        <p data-evt-area-sketch-preview-disclaimer></p>
+        <a class="evt-btn evt-btn-ghost" data-evt-area-sketch-field-link href="/community/fields" style="min-height:36px; padding:6px 12px;">フィールド詳細で見る</a>
+      </section>
 
       <div data-evt-field-summary class="evt-card" style="display:none; padding:10px 12px; background:rgba(16,185,129,.06); border-color:rgba(16,185,129,.32);">
         <span class="evt-eyebrow">選択中のフィールド</span>
@@ -263,6 +302,14 @@ export function eventCreateScript(): string {
   const areaPolygonInput = form.querySelector("[data-evt-area-polygon]");
   const suggestionBox = form.querySelector("[data-evt-area-suggestions]");
   const conflictBox = form.querySelector("[data-evt-field-conflicts]");
+  const landCoverTotalEl = form.querySelector("[data-evt-land-cover-total]");
+  const areaSketchPreview = form.querySelector("[data-evt-area-sketch-preview]");
+  const areaSketchPreviewStatus = form.querySelector("[data-evt-area-sketch-preview-status]");
+  const areaSketchPreviewSummary = form.querySelector("[data-evt-area-sketch-preview-summary]");
+  const areaSketchPreviewThresholds = form.querySelector("[data-evt-area-sketch-preview-thresholds]");
+  const areaSketchPreviewEvidence = form.querySelector("[data-evt-area-sketch-preview-evidence]");
+  const areaSketchPreviewDisclaimer = form.querySelector("[data-evt-area-sketch-preview-disclaimer]");
+  const areaSketchFieldLink = form.querySelector("[data-evt-area-sketch-field-link]");
   function setAreaStatus(text){
     if (areaStatus) areaStatus.textContent = text;
   }
@@ -298,6 +345,86 @@ export function eventCreateScript(): string {
   function clonePolygon(poly){
     return poly ? JSON.parse(JSON.stringify(poly)) : null;
   }
+  function landCoverInputs(){
+    return Array.from(form.querySelectorAll("[data-evt-land-cover]"));
+  }
+  function syncLandCoverPanel(){
+    let total = 0;
+    landCoverInputs().forEach(input => {
+      const value = Math.max(0, Math.min(100, Number(input.value) || 0));
+      input.value = String(value);
+      total += value;
+      const output = input.closest(".evt-land-cover-row")?.querySelector("[data-evt-land-cover-value]");
+      if (output) output.textContent = value + "%";
+    });
+    if (landCoverTotalEl) {
+      landCoverTotalEl.textContent = total + "%";
+      landCoverTotalEl.classList.toggle("is-over", total > 100);
+    }
+  }
+  function collectAreaSketchLandCover(){
+    const rows = [];
+    let total = 0;
+    let unknownRow = null;
+    landCoverInputs().forEach(input => {
+      const category = String(input.dataset.category || "");
+      const percent = Math.max(0, Math.min(100, Number(input.value) || 0));
+      if (!category || percent <= 0) return;
+      const row = { category, percent };
+      rows.push(row);
+      total += percent;
+      if (category === "unknown") unknownRow = row;
+    });
+    if (total <= 0) return [{ category: "unknown", percent: 100 }];
+    if (total < 100) {
+      const rest = Math.round((100 - total) * 10) / 10;
+      if (unknownRow) unknownRow.percent = Math.round((unknownRow.percent + rest) * 10) / 10;
+      else rows.push({ category: "unknown", percent: rest });
+    }
+    return rows;
+  }
+  function hasKnownLandCover(rows){
+    return rows.some(row => row.category !== "unknown" && Number(row.percent) > 0);
+  }
+  function formatAreaSketchHa(value){
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "0.00 ha";
+    return new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.max(0, n)) + " ha";
+  }
+  function formatAreaSketchPercent(value){
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "0%";
+    return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 }).format(Math.max(0, n)) + "%";
+  }
+  function renderAreaSketchAssessmentPreview(assessment, fieldId){
+    const result = assessment && assessment.resultPayload;
+    if (!result || !areaSketchPreview || !areaSketchPreviewSummary || !areaSketchPreviewThresholds || !areaSketchPreviewEvidence || !areaSketchPreviewDisclaimer) return;
+    areaSketchPreview.hidden = false;
+    if (areaSketchPreviewStatus) areaSketchPreviewStatus.textContent = assessment.updatedAt ? "更新 " + String(assessment.updatedAt).slice(0, 10) : "保存済み";
+    areaSketchPreviewSummary.innerHTML = [
+      { value: formatAreaSketchHa(result.totalAreaHa), label: "区域候補" },
+      { value: formatAreaSketchHa(result.greenCandidateAreaHa), label: "緑地候補" },
+      { value: formatAreaSketchPercent(result.greenRatioPercent), label: "緑地割合" },
+      { value: formatAreaSketchHa(result.unknownAreaHa), label: "不明" },
+    ].map(item => '<div><strong>' + escapeText(item.value) + '</strong><span>' + escapeText(item.label) + '</span></div>').join("");
+    areaSketchPreviewThresholds.innerHTML = Array.isArray(result.thresholds)
+      ? result.thresholds.map(row => {
+          const className = row.reached ? "is-reached" : "is-short";
+          const note = row.reached ? "目安内" : "不足 " + formatAreaSketchHa(row.shortageHa);
+          return '<span class="' + className + '"><b>' + escapeText(row.label) + '</b>' + escapeText(note) + '</span>';
+        }).join("")
+      : "";
+    const evidence = Array.isArray(result.evidenceChecklist) ? result.evidenceChecklist.slice(0, 5) : [];
+    areaSketchPreviewEvidence.innerHTML = evidence.length
+      ? evidence.map(item => '<li><strong>' + escapeText(item.label) + '</strong><span>' + escapeText(item.reason) + '</span></li>').join("")
+      : '<li><strong>不足資料なし</strong><span>現時点の入力だけで追加確認項目はありません。</span></li>';
+    areaSketchPreviewDisclaimer.textContent = result.claimBoundary && result.claimBoundary.requiredDisclaimer
+      ? result.claimBoundary.requiredDisclaimer
+      : "この結果は事前診断・資料整理支援の概算です。正式申請、測量、行政判断、認定取得を保証するものではありません。";
+    if (areaSketchFieldLink && fieldId) areaSketchFieldLink.href = "/community/fields/" + encodeURIComponent(fieldId);
+  }
+  landCoverInputs().forEach(input => input.addEventListener("input", syncLandCoverPanel));
+  syncLandCoverPanel();
   function areaSnapshot(){
     return {
       center: areaState.center ? { ...areaState.center } : null,
@@ -1169,6 +1296,69 @@ export function eventCreateScript(): string {
     areaState.resolution = null;
     return { fieldId: data?.field?.fieldId || data?.field?.field_id || null, action: data?.resolution?.action || "created" };
   }
+
+  async function saveAreaSketchAssessmentDraft(){
+    const fd = new FormData(form);
+    const lat = fd.get("location_lat") ? Number(fd.get("location_lat")) : null;
+    const lng = fd.get("location_lng") ? Number(fd.get("location_lng")) : null;
+    const radius = fd.get("location_radius_m") ? Number(fd.get("location_radius_m")) : 1000;
+    const polygon = areaState.polygon || null;
+    if (!polygon) {
+      setAreaStatus("先に地図上で範囲を指定してください。");
+      return;
+    }
+    let fieldResolution;
+    try {
+      fieldResolution = await resolveFieldForEvent(fd, lat, lng, radius);
+    } catch (err) {
+      if (String(err?.message || "") === "field_resolution_required") return;
+      setAreaStatus("下書き診断の保存前に、開催エリアの保存が必要です。");
+      return;
+    }
+    const fieldId = fieldResolution.fieldId;
+    if (!fieldId) {
+      setAreaStatus("下書き診断を保存するフィールドを選ぶか、エリア名を入力してください。");
+      return;
+    }
+    if (fieldIdInput) fieldIdInput.value = fieldId;
+    areaState.selectedFieldId = fieldId;
+    const button = form.querySelector("[data-evt-area-sketch-save]");
+    if (button) button.disabled = true;
+    const landCover = collectAreaSketchLandCover();
+    try {
+      const response = await fetch("/api/v1/fields/" + encodeURIComponent(fieldId) + "/area-sketch-assessments", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sketch_polygon: polygon,
+          land_cover: landCover,
+          policy_version: "tsunag_2026_current",
+          visibility: "private",
+          owner_assertion: {
+            source: "observation_event_area_planner",
+            field_resolution_action: fieldResolution.action,
+            classification_status: hasKnownLandCover(landCover) ? "user_estimated" : "not_started",
+            land_cover_total_percent: landCover.reduce((sum, row) => sum + Number(row.percent || 0), 0),
+          },
+          evidence_payload: {
+            source_ui: "observation_event_create",
+            selected_suggestion: areaState.selectedSuggestion || null,
+          },
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "area_sketch_assessment_save_failed");
+      renderAreaSketchAssessmentPreview(data?.assessment, fieldId);
+      setAreaStatus("下書き診断を保存しました。フィールド詳細で確認できます。");
+      syncSelectedFieldLayer();
+    } catch (err) {
+      setAreaStatus("下書き診断を保存できませんでした。ログイン状態と範囲を確認してください。");
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+  form.querySelector("[data-evt-area-sketch-save]")?.addEventListener("click", saveAreaSketchAssessmentDraft);
 
   function genEventCode(){
     const chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";

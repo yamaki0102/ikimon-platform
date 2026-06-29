@@ -102,6 +102,68 @@ test("event create AI suggestions expose baseline undo and shape previews", () =
   assert.match(script, /setAiProgress/);
 });
 
+test("event create area planner can save an Area Sketch Assist draft assessment", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+  const script = eventCreateScript();
+
+  assert.match(html, /data-evt-area-sketch-save/);
+  assert.match(html, /下書き診断を保存/);
+  assert.match(html, /区域内のざっくり分類/);
+  assert.match(html, /data-category="agricultural_land"/);
+  assert.match(html, /data-category="trees_planting"/);
+  assert.match(html, /data-category="grassland"/);
+  assert.match(html, /data-category="water_edge"/);
+  assert.match(html, /data-category="building"/);
+  assert.match(html, /data-category="pavement_parking"/);
+  assert.match(html, /data-category="unknown"/);
+  assert.match(script, /saveAreaSketchAssessmentDraft/);
+  assert.match(script, /collectAreaSketchLandCover/);
+  assert.match(script, /if \(total < 100\)/);
+  assert.match(script, /resolveFieldForEvent\(fd, lat, lng, radius\)/);
+  assert.match(script, /\/api\/v1\/fields\/" \+ encodeURIComponent\(fieldId\) \+ "\/area-sketch-assessments/);
+  assert.match(script, /land_cover: landCover/);
+  assert.doesNotMatch(script, /land_cover: \[\{ category: "unknown", ratio: 1 \}\]/);
+  assert.match(script, /policy_version: "tsunag_2026_current"/);
+  assert.match(script, /visibility: "private"/);
+  assert.match(script, /source: "observation_event_area_planner"/);
+  assert.match(script, /classification_status: hasKnownLandCover\(landCover\) \? "user_estimated" : "not_started"/);
+  assert.match(script, /下書き診断を保存しました/);
+});
+
+test("event create area planner previews saved Area Sketch Assist draft results", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+  const script = eventCreateScript();
+
+  assert.match(html, /data-evt-area-sketch-preview hidden/);
+  assert.match(html, /保存後の概算/);
+  assert.match(html, /data-evt-area-sketch-preview-summary/);
+  assert.match(html, /data-evt-area-sketch-preview-thresholds/);
+  assert.match(html, /data-evt-area-sketch-preview-evidence/);
+  assert.match(html, /不足資料リスト/);
+  assert.match(script, /function renderAreaSketchAssessmentPreview\(assessment, fieldId\)/);
+  assert.match(script, /const result = assessment && assessment\.resultPayload/);
+  assert.match(script, /greenRatioPercent/);
+  assert.match(script, /evidenceChecklist/);
+  assert.match(script, /renderAreaSketchAssessmentPreview\(data\?\.assessment, fieldId\)/);
+  assert.match(script, /areaSketchFieldLink\.href = "\/community\/fields\/" \+ encodeURIComponent\(fieldId\)/);
+  assert.match(script, /正式申請、測量、行政判断、認定取得を保証するものではありません/);
+});
+
+test("event create land-cover panel has stable responsive controls", () => {
+  const styles = OBSERVATION_EVENT_STYLES;
+
+  assert.match(styles, /\.evt-land-cover-panel\s*\{/);
+  assert.match(styles, /\.evt-land-cover-grid\s*\{[\s\S]*grid-template-columns: repeat\(auto-fit, minmax\(210px, 1fr\)\)/);
+  assert.match(styles, /\.evt-land-cover-row\s*\{[\s\S]*grid-template-columns: minmax\(78px, auto\) minmax\(0, 1fr\) 44px/);
+  assert.match(styles, /\.evt-land-cover-row input\[type="range"\]\s*\{[\s\S]*accent-color: var\(--evt-accent-discovery\)/);
+  assert.match(styles, /\.evt-area-sketch-preview\s*\{/);
+  assert.match(styles, /\.evt-area-sketch-preview-summary\s*\{[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.evt-area-sketch-preview-thresholds span\.is-reached\s*\{/);
+  assert.match(styles, /\.evt-area-sketch-preview-evidence li\s*\{/);
+  assert.match(styles, /@media \(max-width: 720px\) \{[\s\S]*\.evt-land-cover-grid \{ grid-template-columns: 1fr; \}/);
+  assert.match(styles, /@media \(max-width: 720px\) \{[\s\S]*\.evt-area-sketch-preview-summary \{ grid-template-columns: 1fr; \}/);
+});
+
 test("event create flow generates announcement copy from selected place and AI area", () => {
   const html = renderEventCreateBody({ isAuthenticated: true, strings });
   const script = eventCreateScript();

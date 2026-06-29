@@ -738,6 +738,199 @@ export const OBSERVATION_EVENT_STYLES = `
   border-color: var(--evt-accent-discovery);
   box-shadow: 0 0 0 3px rgba(16,185,129,.18);
 }
+.evt-land-cover-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(16,185,129,.18);
+  background: rgba(240,253,244,.62);
+}
+.evt-land-cover-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.evt-land-cover-panel h3 {
+  margin: 2px 0 0;
+  color: var(--evt-ink);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 850;
+}
+.evt-land-cover-panel [data-evt-land-cover-total] {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid rgba(16,185,129,.24);
+  color: #047857;
+  font-size: 13px;
+  font-weight: 900;
+}
+.evt-land-cover-panel [data-evt-land-cover-total].is-over {
+  border-color: rgba(245,158,11,.28);
+  color: #92400e;
+}
+.evt-land-cover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+.evt-land-cover-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(78px, auto) minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--evt-line);
+  background: #ffffff;
+}
+.evt-land-cover-row span {
+  color: var(--evt-ink);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 850;
+}
+.evt-land-cover-row input[type="range"] {
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--evt-accent-discovery);
+}
+.evt-land-cover-row output {
+  color: var(--evt-ink-soft);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.evt-area-sketch-preview {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(14,165,233,.20);
+  background: rgba(240,249,255,.74);
+}
+.evt-area-sketch-preview[hidden] {
+  display: none;
+}
+.evt-area-sketch-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.evt-area-sketch-preview h3,
+.evt-area-sketch-preview h4 {
+  margin: 2px 0 0;
+  color: var(--evt-ink);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 850;
+}
+.evt-area-sketch-preview [data-evt-area-sketch-preview-status] {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid rgba(14,165,233,.24);
+  color: #0369a1;
+  font-size: 13px;
+  font-weight: 900;
+}
+.evt-area-sketch-preview-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.evt-area-sketch-preview-summary div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--evt-line);
+  background: #ffffff;
+}
+.evt-area-sketch-preview-summary strong,
+.evt-area-sketch-preview-summary span {
+  display: block;
+}
+.evt-area-sketch-preview-summary strong {
+  color: #075985;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 950;
+}
+.evt-area-sketch-preview-summary span {
+  margin-top: 5px;
+  color: var(--evt-ink-soft);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+.evt-area-sketch-preview-thresholds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.evt-area-sketch-preview-thresholds span {
+  width: fit-content;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--evt-line);
+  background: #ffffff;
+  color: var(--evt-ink-soft);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.15;
+}
+.evt-area-sketch-preview-thresholds span.is-reached {
+  border-color: rgba(16,185,129,.28);
+  background: rgba(240,253,244,.96);
+  color: #047857;
+}
+.evt-area-sketch-preview-thresholds span.is-short {
+  border-color: rgba(245,158,11,.28);
+  background: rgba(255,251,235,.96);
+  color: #92400e;
+}
+.evt-area-sketch-preview-evidence {
+  display: grid;
+  gap: 8px;
+}
+.evt-area-sketch-preview-evidence ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.evt-area-sketch-preview-evidence li {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--evt-line);
+  background: #ffffff;
+}
+.evt-area-sketch-preview-evidence strong {
+  color: var(--evt-ink);
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+.evt-area-sketch-preview-evidence span,
+.evt-area-sketch-preview p {
+  margin: 0;
+  color: var(--evt-ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .evt-area-preview {
   width: 100%;
   aspect-ratio: 3 / 2;
@@ -775,6 +968,10 @@ export const OBSERVATION_EVENT_STYLES = `
   .evt-area-map-shell { height: 320px; min-height: 320px; }
   .evt-area-toolbar .evt-btn { flex: 1 1 auto; }
   .evt-field-search-row { grid-template-columns: 1fr; }
+  .evt-land-cover-panel > header { align-items: flex-start; flex-direction: column; }
+  .evt-land-cover-grid { grid-template-columns: 1fr; }
+  .evt-area-sketch-preview > header { align-items: flex-start; flex-direction: column; }
+  .evt-area-sketch-preview-summary { grid-template-columns: 1fr; }
 }
 
 /* === コネクションステータス（オフラインバッジ） === */
