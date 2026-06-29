@@ -3,8 +3,10 @@ import type { Pool, PoolClient } from "pg";
 import { buildObserverNameSql } from "./observerNameSql.js";
 import { formatTaxonDisplayName } from "./localizedDisplay.js";
 import {
+  buildViewerOwnedExactCoordinateDisclosure,
   buildPublicCellGeometry,
   buildPublicCellKeyParts,
+  coarsenPublicCoordinateToCell,
   formatPublicCellId,
   parsePublicCellId,
   pickPublicGridMeters,
@@ -134,6 +136,7 @@ export type PublicMapObservationRecord = {
   photoUrl: string | null;
   taxonGroup: TaxonGroup;
   cellId: string;
+  /** true when the logged-in viewer owns the record and can see its exact point. */
   isViewerOwned?: boolean;
   exactLatitude?: number;
   exactLongitude?: number;
@@ -155,6 +158,22 @@ export type PublicMapObservationList = {
     };
     privacy: PublicMapPrivacyStats;
   };
+};
+
+export type PublicTraceLineFeature = {
+  type: "Feature";
+  geometry: { type: "LineString"; coordinates: [number, number][] };
+  properties: { visitId: string; observedAt: string; pointCount: number; isViewerOwned?: boolean };
+};
+
+type PublicTraceLineRow = {
+  visit_id: string;
+  observed_at: string;
+  pt_count: string | number;
+  sequence_no: number;
+  lat: number;
+  lng: number;
+  user_id: string | null;
 };
 
 type PublicMapSourceRow = {
@@ -1519,6 +1538,14 @@ export function buildPublicCellRecords(
     .slice(0, Math.min(Math.max(filters.limit ?? 300, 1), 1200))
     .map((entry) => {
       const ownedRow = viewerOwnsRuntimeRow(entry.row, filters.viewerUserId) ? entry.row : null;
+      const exactDisclosure = ownedRow
+        ? buildViewerOwnedExactCoordinateDisclosure({
+          viewerUserId: filters.viewerUserId,
+          ownerUserId: ownedRow.userId,
+          latitude: ownedRow.latitude,
+          longitude: ownedRow.longitude,
+        })
+        : {};
       return {
         occurrenceId: entry.row.occurrenceId,
         visitId: entry.row.visitId,
@@ -1530,11 +1557,7 @@ export function buildPublicCellRecords(
         photoUrl: publicMapPhotoUrl(entry.row),
         taxonGroup: entry.row.taxonGroup,
         cellId: entry.cellId,
-        ...(ownedRow ? {
-          isViewerOwned: true,
-          exactLatitude: ownedRow.latitude,
-          exactLongitude: ownedRow.longitude,
-        } : {}),
+        ...exactDisclosure,
       };
     });
 
@@ -1948,14 +1971,10 @@ export async function getCoverageMesh(
  * render performance.
  */
 export async function getTraceLines(
-  filters: { year?: number; limit?: number } = {},
+  filters: { year?: number; limit?: number; viewerUserId?: string | null } = {},
 ): Promise<{
   type: "FeatureCollection";
-  features: Array<{
-    type: "Feature";
-    geometry: { type: "LineString"; coordinates: [number, number][] };
-    properties: { visitId: string; observedAt: string; pointCount: number };
-  }>;
+  features: PublicTraceLineFeature[];
 }> {
   const empty = { type: "FeatureCollection" as const, features: [] };
   let pool;
@@ -1974,18 +1993,18 @@ export async function getTraceLines(
   params.push(maxVisits);
   const sql = `
     with ranked_visits as (
-      select v.visit_id, v.observed_at, count(vtp.sequence_no) as pt_count
+      select v.visit_id, v.observed_at, v.user_id, count(vtp.sequence_no) as pt_count
       from visits v
       join visit_track_points vtp on vtp.visit_id = v.visit_id
       where vtp.point_latitude is not null and vtp.point_longitude is not null
         and ${MAP_TRACE_FIXTURE_EXCLUSION_SQL}
         ${yearClause}
-      group by v.visit_id, v.observed_at
+      group by v.visit_id, v.observed_at, v.user_id
       having count(vtp.sequence_no) >= 2
       order by v.observed_at desc
       limit $${params.length}
     )
-    select rv.visit_id, rv.observed_at::text, rv.pt_count,
+    select rv.visit_id, rv.observed_at::text, rv.user_id, rv.pt_count,
            vtp.sequence_no, vtp.point_latitude as lat, vtp.point_longitude as lng
     from ranked_visits rv
     join visit_track_points vtp on vtp.visit_id = rv.visit_id
@@ -1993,41 +2012,67 @@ export async function getTraceLines(
   `;
 
   try {
-    const result = await pool.query<{
-      visit_id: string;
-      observed_at: string;
-      pt_count: string | number;
-      sequence_no: number;
-      lat: number;
-      lng: number;
-    }>(sql, params);
-
-    const visitMap = new Map<string, { observedAt: string; ptCount: number; coords: [number, number][] }>();
-    for (const row of result.rows) {
-      const lat = Number(row.lat);
-      const lng = Number(row.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-      if (!visitMap.has(row.visit_id)) {
-        visitMap.set(row.visit_id, {
-          observedAt: String(row.observed_at),
-          ptCount: Number(row.pt_count),
-          coords: [],
-        });
-      }
-      visitMap.get(row.visit_id)!.coords.push([lng, lat]);
-    }
-
-    const features = [];
-    for (const [visitId, visit] of visitMap) {
-      if (visit.coords.length < 2) continue;
-      features.push({
-        type: "Feature" as const,
-        geometry: { type: "LineString" as const, coordinates: visit.coords },
-        properties: { visitId, observedAt: visit.observedAt, pointCount: visit.coords.length },
-      });
-    }
-    return { type: "FeatureCollection", features };
+    const result = await pool.query<PublicTraceLineRow>(sql, params);
+    return {
+      type: "FeatureCollection",
+      features: buildPublicTraceLineFeatures(result.rows, filters.viewerUserId),
+    };
   } catch {
     return empty;
   }
 }
+
+function buildPublicTraceLineFeatures(
+  rows: PublicTraceLineRow[],
+  viewerUserId: string | null | undefined,
+): PublicTraceLineFeature[] {
+  const visitMap = new Map<string, {
+    observedAt: string;
+    isViewerOwned: boolean;
+    coords: [number, number][];
+    lastCoordKey: string | null;
+  }>();
+  for (const row of rows) {
+    const lat = Number(row.lat);
+    const lng = Number(row.lng);
+    const isViewerOwned = Boolean(viewerUserId && row.user_id === viewerUserId);
+    const publicPoint = coarsenPublicCoordinateToCell(lat, lng, 1000);
+    if (!publicPoint) continue;
+    const point = isViewerOwned ? { lat, lng } : publicPoint;
+    if (!visitMap.has(row.visit_id)) {
+      visitMap.set(row.visit_id, {
+        observedAt: String(row.observed_at),
+        isViewerOwned,
+        coords: [],
+        lastCoordKey: null,
+      });
+    }
+    const visit = visitMap.get(row.visit_id)!;
+    visit.isViewerOwned ||= isViewerOwned;
+    const coord: [number, number] = [point.lng, point.lat];
+    const coordKey = `${coord[0].toFixed(6)},${coord[1].toFixed(6)}`;
+    if (coordKey === visit.lastCoordKey) continue;
+    visit.coords.push(coord);
+    visit.lastCoordKey = coordKey;
+  }
+
+  const features: PublicTraceLineFeature[] = [];
+  for (const [visitId, visit] of visitMap) {
+    if (visit.coords.length < 2) continue;
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: visit.coords },
+      properties: {
+        visitId,
+        observedAt: visit.observedAt,
+        pointCount: visit.coords.length,
+        ...(visit.isViewerOwned ? { isViewerOwned: true } : {}),
+      },
+    });
+  }
+  return features;
+}
+
+export const __privacyTest__ = {
+  buildPublicTraceLineFeatures,
+};

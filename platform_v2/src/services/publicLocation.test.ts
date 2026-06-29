@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildViewerOwnedExactCoordinateDisclosure,
+  coarsenPublicCoordinateToCell,
+  decidePublicCoordinateVisibility,
   buildPublicLocationSummary,
   maxZoomForGrid,
   pickPublicGridMeters,
@@ -155,4 +158,75 @@ test("buildPublicLocationSummary uses explicit overseas country when coordinates
 
   assert.equal(summary.label, "アメリカ合衆国");
   assert.equal(summary.scope, "country");
+});
+
+test("decidePublicCoordinateVisibility exposes exact coordinates only to the record owner", () => {
+  assert.deepEqual(
+    decidePublicCoordinateVisibility({
+      policy: "viewer_owned",
+      viewerUserId: "user-1",
+      ownerUserId: "user-1",
+      latitude: 34.7116,
+      longitude: 137.7274,
+    }),
+    { canExposeExact: true, reason: "viewer_owner" },
+  );
+
+  assert.deepEqual(
+    decidePublicCoordinateVisibility({
+      policy: "viewer_owned",
+      viewerUserId: "user-2",
+      ownerUserId: "user-1",
+      latitude: 34.7116,
+      longitude: 137.7274,
+    }),
+    { canExposeExact: false, reason: "not_owner" },
+  );
+
+  assert.deepEqual(
+    decidePublicCoordinateVisibility({
+      policy: "viewer_owned",
+      viewerUserId: "user-1",
+      ownerUserId: "user-1",
+      latitude: 999,
+      longitude: 137.7274,
+    }),
+    { canExposeExact: false, reason: "invalid_coordinates" },
+  );
+});
+
+test("buildViewerOwnedExactCoordinateDisclosure preserves owner exact points without exposing others", () => {
+  assert.deepEqual(
+    buildViewerOwnedExactCoordinateDisclosure({
+      viewerUserId: "user-1",
+      ownerUserId: "user-1",
+      latitude: 34.7116,
+      longitude: 137.7274,
+    }),
+    {
+      isViewerOwned: true,
+      exactLatitude: 34.7116,
+      exactLongitude: 137.7274,
+    },
+  );
+
+  assert.deepEqual(
+    buildViewerOwnedExactCoordinateDisclosure({
+      viewerUserId: null,
+      ownerUserId: "user-1",
+      latitude: 34.7116,
+      longitude: 137.7274,
+    }),
+    {},
+  );
+});
+
+test("coarsenPublicCoordinateToCell returns a public cell centroid instead of the raw point", () => {
+  const point = coarsenPublicCoordinateToCell(34.7116, 137.7274, 1000);
+
+  assert.ok(point);
+  assert.equal(point.gridM, 1000);
+  assert.ok(point.cellId.length > 0);
+  assert.notEqual(point.lat, 34.7116);
+  assert.notEqual(point.lng, 137.7274);
 });

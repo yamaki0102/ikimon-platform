@@ -30,6 +30,26 @@ export type PublicCellGeometry = {
   bounds: [number, number, number, number];
 };
 
+export type PublicExactCoordinatePolicy = "never" | "viewer_owned";
+
+export type PublicCoordinateVisibilityDecision = {
+  canExposeExact: boolean;
+  reason: "policy_never" | "missing_viewer" | "missing_owner" | "not_owner" | "invalid_coordinates" | "viewer_owner";
+};
+
+export type ViewerOwnedExactCoordinateDisclosure = {
+  isViewerOwned?: true;
+  exactLatitude?: number;
+  exactLongitude?: number;
+};
+
+export type PublicCoarsenedCoordinate = {
+  cellId: string;
+  gridM: number;
+  lat: number;
+  lng: number;
+};
+
 type PublicLocalityInput = {
   country?: string | null;
   municipality?: string | null;
@@ -184,6 +204,68 @@ export function buildPublicCellGeometry(parts: PublicCellKeyParts): PublicCellGe
       lngFromMercatorX(maxX),
       latFromMercatorY(maxY),
     ],
+  };
+}
+
+function isFiniteLatitude(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= -90 && value <= 90;
+}
+
+function isFiniteLongitude(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= -180 && value <= 180;
+}
+
+export function decidePublicCoordinateVisibility(input: {
+  policy?: PublicExactCoordinatePolicy;
+  viewerUserId?: string | null;
+  ownerUserId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}): PublicCoordinateVisibilityDecision {
+  if ((input.policy ?? "never") === "never") return { canExposeExact: false, reason: "policy_never" };
+  if (!isFiniteLatitude(input.latitude) || !isFiniteLongitude(input.longitude)) {
+    return { canExposeExact: false, reason: "invalid_coordinates" };
+  }
+  const viewerUserId = typeof input.viewerUserId === "string" ? input.viewerUserId.trim() : "";
+  if (!viewerUserId) return { canExposeExact: false, reason: "missing_viewer" };
+  const ownerUserId = typeof input.ownerUserId === "string" ? input.ownerUserId.trim() : "";
+  if (!ownerUserId) return { canExposeExact: false, reason: "missing_owner" };
+  if (viewerUserId !== ownerUserId) return { canExposeExact: false, reason: "not_owner" };
+  return { canExposeExact: true, reason: "viewer_owner" };
+}
+
+export function buildViewerOwnedExactCoordinateDisclosure(input: {
+  viewerUserId?: string | null;
+  ownerUserId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}): ViewerOwnedExactCoordinateDisclosure {
+  const decision = decidePublicCoordinateVisibility({
+    ...input,
+    policy: "viewer_owned",
+  });
+  if (!decision.canExposeExact) return {};
+  return {
+    isViewerOwned: true,
+    exactLatitude: input.latitude!,
+    exactLongitude: input.longitude!,
+  };
+}
+
+export function coarsenPublicCoordinateToCell(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+  gridM: number = 1000,
+): PublicCoarsenedCoordinate | null {
+  if (!isFiniteLatitude(latitude) || !isFiniteLongitude(longitude)) return null;
+  const safeGridM = Number.isFinite(gridM) && gridM > 0 ? gridM : 1000;
+  const parts = buildPublicCellKeyParts(latitude, longitude, safeGridM);
+  const geometry = buildPublicCellGeometry(parts);
+  return {
+    cellId: formatPublicCellId(parts),
+    gridM: safeGridM,
+    lat: geometry.centroidLat,
+    lng: geometry.centroidLng,
   };
 }
 

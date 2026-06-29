@@ -403,7 +403,7 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const season = parseSeason(q.season);
     const cellId = typeof q.cell_id === "string" ? q.cell_id.trim() : "";
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-    const viewerUserId = session?.userId ?? null;
+    const viewerUserId = session?.userId && !session.banned ? session.userId : null;
 
     if (!cellId && !bbox) {
       reply.code(400).type("application/json; charset=utf-8");
@@ -451,7 +451,9 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const q = (request.query ?? {}) as Record<string, unknown>;
     const year = parseInt32(q.year);
     const limit = parseInt32(q.limit);
-    const collection = await getTraceLines({ year, limit: limit ?? 200 });
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const viewerUserId = session?.userId && !session.banned ? session.userId : null;
+    const collection = await getTraceLines({ year, limit: limit ?? 200, viewerUserId });
     reply
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "no-store");
