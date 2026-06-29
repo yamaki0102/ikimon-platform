@@ -3,6 +3,7 @@ import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getSessionFromCookie, issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
 import { authenticateWithPassword, findOrCreateOAuthUser, registerWithPassword } from "../services/authUsers.js";
+import { consumeAppOAuthExchangeCode, createAppOAuthExchangeCode } from "../services/appOAuthExchange.js";
 import {
   assertAuthRateLimit,
   assertSameOriginRequest,
@@ -172,8 +173,8 @@ function renderAuthPage(options: {
     </section>
     <aside class="auth-note">
       <div class="eyebrow">record lane</div>
-      <h3>${isProfileRedirect ? "ログイン後は v2 のマイページへ進みます。" : "ログイン後は PHP ではなく v2 の記録画面へ進みます。"}</h3>
-      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "記録、写真アップロード、同定参加は v2 の session cookie で扱います。"}</p>
+      <h3>${isProfileRedirect ? "ログイン後はマイページへ進みます。" : "ログイン後は新しい記録画面へ進みます。"}</h3>
+      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "記録、写真アップロード、同定参加を同じログイン状態で扱います。"}</p>
       <ul>
         <li>cookie は HttpOnly / SameSite=Lax / production Secure</li>
         <li>メール有無が分からない失敗表示</li>
@@ -242,7 +243,7 @@ function renderAuthPage(options: {
       align: "center",
     },
     body,
-    footerNote: "認証後は v2 の記録導線へ戻ります。",
+    footerNote: "認証後は記録導線へ戻ります。",
   });
 }
 
@@ -279,8 +280,15 @@ async function handleOAuthCallback(
     const session = await issueUserSession(request, user.userId);
     reply.header("set-cookie", [session.cookie, buildClearedOAuthStateCookie()]);
     if (state.appReturnUri) {
+      const exchange = await createAppOAuthExchangeCode({
+        userId: user.userId,
+        displayName: user.displayName,
+        email: user.email,
+        rawToken: session.rawToken,
+      });
       const appUrl = new URL(state.appReturnUri);
-      appUrl.searchParams.set("token", session.rawToken);
+      appUrl.searchParams.set("code", exchange.code);
+      appUrl.searchParams.set("code_expires_at", exchange.expiresAt);
       appUrl.searchParams.set("user_id", user.userId);
       appUrl.searchParams.set("name", user.displayName);
       if (user.email) appUrl.searchParams.set("email", user.email);
@@ -338,7 +346,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     try {
       assertSameOriginRequest(request);
       const email = normalizeEmail(request.body?.email);
-      assertAuthRateLimit(["login", request.ip, email || "blank"]);
+      await assertAuthRateLimit(["login", request.ip, email || "blank"]);
       const user = await authenticateWithPassword(email, request.body?.password);
       const session = await issueUserSession(request, user.userId);
       const redirect = postAuthRedirect(request.body?.redirect);
@@ -353,7 +361,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Body: MobileAuthBody }>("/api/v1/mobile/auth/login", async (request, reply) => {
     try {
       const email = normalizeEmail(request.body?.email);
-      assertAuthRateLimit(["mobile-login", request.ip, email || "blank"]);
+      await assertAuthRateLimit(["mobile-login", request.ip, email || "blank"]);
       const user = await authenticateWithPassword(email, request.body?.password);
       const session = await issueUserSession(request, user.userId);
       return {
@@ -378,11 +386,38 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.post<{ Body: { code?: unknown } }>("/api/v1/mobile/auth/oauth/exchange", async (request, reply) => {
+    try {
+      await assertAuthRateLimit(["app-oauth-exchange", request.ip], 20, 10 * 60 * 1000);
+      const exchange = await consumeAppOAuthExchangeCode(request.body?.code);
+      return {
+        ok: true,
+        success: true,
+        data: {
+          token: exchange.token,
+          user: {
+            userId: exchange.userId,
+            displayName: exchange.displayName,
+          },
+          email: exchange.email,
+          message: "ikimon.life アカウントでログインしました",
+        },
+      };
+    } catch (error) {
+      reply.code(error instanceof Error && error.message === "rate_limited" ? 429 : 400);
+      return {
+        ok: false,
+        success: false,
+        error: error instanceof Error ? error.message : "oauth_exchange_failed",
+      };
+    }
+  });
+
   app.post<{ Body: AuthBody }>("/api/v1/auth/register", async (request, reply) => {
     try {
       assertSameOriginRequest(request);
       const email = normalizeEmail(request.body?.email);
-      assertAuthRateLimit(["register", request.ip, email || "blank"], 5, 10 * 60 * 1000);
+      await assertAuthRateLimit(["register", request.ip, email || "blank"], 5, 10 * 60 * 1000);
       const user = await registerWithPassword({
         displayName: request.body?.displayName,
         email,

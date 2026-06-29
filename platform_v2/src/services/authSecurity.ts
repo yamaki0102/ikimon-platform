@@ -1,4 +1,6 @@
 import type { FastifyRequest } from "fastify";
+import { createHash } from "node:crypto";
+import { getPool } from "../db.js";
 
 type RateBucket = {
   count: number;
@@ -74,9 +76,16 @@ export function assertSameOriginRequest(request: FastifyRequest): void {
   }
 }
 
-export function assertAuthRateLimit(keyParts: string[], maxAttempts = 8, windowMs = 10 * 60 * 1000): void {
+function rateLimitKey(keyParts: string[]): string {
+  return keyParts.map((part) => part.trim().toLowerCase()).join(":");
+}
+
+function rateLimitKeyHash(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+function assertMemoryAuthRateLimit(key: string, maxAttempts: number, windowMs: number): void {
   const now = Date.now();
-  const key = keyParts.map((part) => part.trim().toLowerCase()).join(":");
   const existing = buckets.get(key);
   if (!existing || existing.resetAt <= now) {
     buckets.set(key, { count: 1, resetAt: now + windowMs });
@@ -85,6 +94,44 @@ export function assertAuthRateLimit(keyParts: string[], maxAttempts = 8, windowM
   existing.count += 1;
   if (existing.count > maxAttempts) {
     throw new Error("rate_limited");
+  }
+}
+
+async function assertPostgresAuthRateLimit(keyParts: string[], maxAttempts: number, windowMs: number): Promise<void> {
+  const key = rateLimitKey(keyParts);
+  const scope = keyParts[0]?.trim().toLowerCase() || "auth";
+  const keyHash = rateLimitKeyHash(key);
+  const resetAt = new Date(Date.now() + windowMs).toISOString();
+  const result = await getPool().query<{ attempts: number }>(
+    `insert into auth_rate_limits (
+        rate_limit_key_hash, key_scope, attempts, reset_at, updated_at
+     ) values ($1, $2, 1, $3::timestamptz, now())
+     on conflict (rate_limit_key_hash) do update set
+        attempts = case
+          when auth_rate_limits.reset_at <= now() then 1
+          else auth_rate_limits.attempts + 1
+        end,
+        reset_at = case
+          when auth_rate_limits.reset_at <= now() then excluded.reset_at
+          else auth_rate_limits.reset_at
+        end,
+        updated_at = now()
+     returning attempts`,
+    [keyHash, scope, resetAt],
+  );
+  if ((result.rows[0]?.attempts ?? 0) > maxAttempts) {
+    throw new Error("rate_limited");
+  }
+}
+
+export async function assertAuthRateLimit(keyParts: string[], maxAttempts = 8, windowMs = 10 * 60 * 1000): Promise<void> {
+  try {
+    await assertPostgresAuthRateLimit(keyParts, maxAttempts, windowMs);
+  } catch (error) {
+    if (error instanceof Error && error.message === "rate_limited") {
+      throw error;
+    }
+    assertMemoryAuthRateLimit(rateLimitKey(keyParts), maxAttempts, windowMs);
   }
 }
 
