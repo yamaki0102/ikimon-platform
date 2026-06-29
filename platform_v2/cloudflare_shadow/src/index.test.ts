@@ -7474,6 +7474,37 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(obs.civicObservationContexts.size, 0);
 });
 
+test("v1 observation upsert honors private visibility before public readmodel refresh", async () => {
+  const { env, obs } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "private-post-smoke-contract",
+    userId: "private-post-user",
+    observedAt: "2026-06-29T00:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    note: "private production post smoke contract",
+    taxon: { vernacularName: "非公開テスト", rank: "species" },
+    sourcePayload: { source: "private_post_smoke_contract" }
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.visitId, "private-post-smoke-contract");
+  const draft = [...obs.drafts.values()].find((row) => row.owner_user_id === "private-post-user");
+  assert.equal(draft?.visibility, "private");
+  assert.equal(obs.observations.get("private-post-smoke-contract")?.visibility, "private");
+
+  const photoResponse = await post("/api/v1/observations/private-post-smoke-contract/photos/upload", env, {
+    filename: "private-smoke.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+
+  assert.equal(photoResponse.ok, true);
+  assert.equal(obs.readmodel.has("private-post-smoke-contract"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
+});
+
 test("place memory runtime stores D1 entries and serves preferences list and moderation actions", async () => {
   const { env, obs } = createEnv();
   const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
@@ -10182,6 +10213,68 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.equal(hidePayload.ok, true);
   assert.equal(obs.observations.get("production-runtime-observation")?.emergency_hidden, 1);
   assert.equal(obs.rollbackLedger.size, 4);
+});
+
+test("production runtime honors private visibility before public readmodel refresh", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const workerOrigin = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
+
+  const issueResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: "production-private-post-user",
+      displayName: "Production Private Post User",
+      roleName: "Observer",
+      ttlHours: 1
+    })
+  }), productionEnv);
+  const issuePayload = await issueResponse.json() as any;
+  assert.equal(issueResponse.ok, true, JSON.stringify(issuePayload));
+  assert.equal(issuePayload.ok, true);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const upsertResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/upsert`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: "production-private-post-smoke",
+      userId: "production-private-post-user",
+      observedAt: "2026-06-29T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "private",
+      note: "production private post smoke contract",
+      taxon: { vernacularName: "private runtime plant", rank: "species" },
+      sourcePayload: { source: "production_private_post_smoke_contract" }
+    })
+  }), productionEnv);
+  const upsertPayload = await upsertResponse.json() as any;
+  assert.equal(upsertResponse.ok, true, JSON.stringify(upsertPayload));
+  assert.equal(upsertPayload.ok, true);
+  assert.equal(obs.observations.get("production-private-post-smoke")?.visibility, "private");
+
+  const photoResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/production-private-post-smoke/photos/upload`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "production-private-smoke.png",
+      mimeType: "image/png",
+      base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=",
+      facePrivacy: "no_faces"
+    })
+  }), productionEnv);
+  const photoPayload = await photoResponse.json() as any;
+  assert.equal(photoResponse.ok, true, JSON.stringify(photoPayload));
+  assert.equal(photoPayload.ok, true);
+  assert.equal(obs.readmodel.has("production-private-post-smoke"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "production-private-post-smoke"), false);
 });
 
 test("staging runtime uses Cloudflare app shell without exposing shadow diagnostics", async () => {
