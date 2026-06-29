@@ -14596,6 +14596,31 @@ test("production area sketch draft boundary keeps public visibility and near-thr
     const storedResult = JSON.parse(stored?.result_payload_json ?? "{}");
     assert.equal(storedResult.absoluteArea.status, "near_threshold");
     assert.equal(storedResult.evidenceChecklist.some((item: any) => item.key === "area_threshold_confirmation"), true);
+
+    const ownerList = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-sketch-assessments?limit=1`, {
+      headers: { cookie }
+    }), productionEnv);
+    const ownerListPayload = await ownerList.json() as any;
+    assert.equal(ownerList.status, 200);
+    assert.equal(ownerListPayload.assessments.length, 1);
+    assert.equal(ownerListPayload.assessments[0].assessmentId, createPayload.assessment.assessmentId);
+    assert.equal(ownerListPayload.assessments[0].status, "draft");
+    assert.equal(ownerListPayload.assessments[0].visibility, "private");
+    assert.equal(ownerListPayload.assessments[0].resultPayload.publicReleaseGate.status, "draft_requires_review");
+    assert.equal(ownerListPayload.assessments[0].resultPayload.publicReleaseGate.publicClaimAllowed, false);
+
+    const otherIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: "area-sketch-other-user", displayName: "Area Sketch Other User", roleName: "Observer", ttlHours: 1 })
+    }), env);
+    const otherCookie = otherIssue.headers.get("set-cookie") ?? "";
+    const otherList = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-sketch-assessments?limit=1`, {
+      headers: { cookie: otherCookie }
+    }), productionEnv);
+    const otherListPayload = await otherList.json() as any;
+    assert.equal(otherList.status, 200);
+    assert.equal(otherListPayload.assessments.length, 0);
     assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
