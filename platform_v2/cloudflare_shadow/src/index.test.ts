@@ -6630,6 +6630,59 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(kpiPayload.ok, true);
 });
 
+test("privacy exact-coordinate gate keeps public map responses on public cells only", async () => {
+  const { env, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "privacy-exact-coordinate-gate",
+    userId: "privacy-map-user",
+    observedAt: "2026-06-29T11:00:00.000Z",
+    latitude: 34.76543,
+    longitude: 137.87654,
+    taxon: { vernacularName: "座標境界テスト植物", rank: "species" }
+  });
+  await post("/api/v1/observations/privacy-exact-coordinate-gate/photos/upload", env, {
+    filename: "privacy-map.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("privacy-map-image").toString("base64")
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+
+  const assertPublicMapGate = (payload: unknown) => {
+    const text = JSON.stringify(payload);
+    assert.doesNotMatch(text, /34\.76543|137\.87654/);
+    assert.doesNotMatch(text, /"(?:exact_lat|exact_lng|latitude|longitude)"\s*:/);
+  };
+
+  const cellsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/cells?bbox=137.87,34.76,137.89,34.78&zoom=13"), env);
+  const cellsPayload = await cellsResponse.json() as any;
+  assert.equal(cellsResponse.ok, true, JSON.stringify(cellsPayload));
+  assert.equal(cellsPayload.features.length, 1);
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.77,137.88");
+  assert.equal(cellsPayload.stats.privacy.exactLocationExposed, false);
+  assert.equal(cellsPayload.stats.privacy.publicCoordinateSource, "readmodel_public_observations.public_cell");
+  assert.deepEqual(cellsPayload.stats.privacy.rawCoordinateFieldsExposed, []);
+  assertPublicMapGate(cellsPayload);
+
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.77%2C137.88&limit=20"), env);
+  const observationsPayload = await observationsResponse.json() as any;
+  assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
+  assert.equal(observationsPayload.items.length, 1);
+  assert.equal(observationsPayload.items[0].visitId, "privacy-exact-coordinate-gate");
+  assert.equal(observationsPayload.items[0].cellId, "cell:34.77,137.88");
+  assert.equal(observationsPayload.items[0].privacy.exactLocationExposed, false);
+  assert.equal(observationsPayload.stats.privacy.exactLocationExposed, false);
+  assert.deepEqual(observationsPayload.stats.privacy.rawCoordinateFieldsExposed, []);
+  assertPublicMapGate(observationsPayload);
+
+  const coverageResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/coverage?year=2026"), env);
+  const coveragePayload = await coverageResponse.json() as any;
+  assert.equal(coverageResponse.ok, true, JSON.stringify(coveragePayload));
+  assert.equal(coveragePayload.compatibility.exactLocationExposed, false);
+  assert.equal(coveragePayload.compatibility.privacy.exactLocationExposed, false);
+  assert.deepEqual(coveragePayload.compatibility.privacy.rawCoordinateFieldsExposed, []);
+  assertPublicMapGate(coveragePayload);
+});
+
 test("public map routes prefer D1 snapshot records when present", async () => {
   const { env, obs } = createEnv();
   obs.readmodel.set("legacy-readmodel-row", {

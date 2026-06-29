@@ -1261,6 +1261,12 @@ const SESSION_COOKIE_NAME = "ikimon_v2_session";
 const MIN_VIDEO_DURATION_SECONDS = 6;
 const MAX_VIDEO_DURATION_SECONDS = 60;
 const MAP_DEFAULT_GRID_M = 1000;
+const PUBLIC_MAP_EXACT_COORDINATE_GATE = Object.freeze({
+  exactLocationExposed: false,
+  publicCoordinateSource: "readmodel_public_observations.public_cell",
+  publicCellPrecision: "0.01_degree",
+  rawCoordinateFieldsExposed: [] as string[]
+});
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
 const WORKER_BUILD_MARKER = "top-record-feed-20260628";
 const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
@@ -9744,6 +9750,7 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
       totalRecords: scopedRows.length,
       markerProfile: "all_research_artifacts",
       gridM: MAP_DEFAULT_GRID_M,
+      privacy: publicMapExactCoordinateGate(),
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
   }, 200, { "cache-control": "no-store" });
@@ -9773,6 +9780,7 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       markerProfile: "all_research_artifacts",
       gridM: MAP_DEFAULT_GRID_M,
       selectedCellId: selectedCell ? publicCellToCellId(selectedCell) : null,
+      privacy: publicMapExactCoordinateGate(),
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
   }, 200, { "cache-control": "no-store" });
@@ -9815,7 +9823,8 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
     maxCount,
     compatibility: {
       source: "cloudflare_readmodel_public_observations",
-      exactLocationExposed: false
+      exactLocationExposed: false,
+      privacy: publicMapExactCoordinateGate()
     }
   }, 200, { "cache-control": "no-store" });
 }
@@ -17610,7 +17619,8 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null) {
     observedAt: row.observed_at,
     photoUrl,
     taxonGroup: taxonGroupForLabel(row.taxon_label),
-    cellId: publicCellToCellId(row.public_cell)
+    cellId: publicCellToCellId(row.public_cell),
+    privacy: publicMapExactCoordinateGate()
   };
 }
 
@@ -23244,6 +23254,13 @@ function publicMapEmptyProvenance(sampleSize: number) {
     sampleSize,
     visible: empty,
     excluded: empty
+  };
+}
+
+function publicMapExactCoordinateGate() {
+  return {
+    ...PUBLIC_MAP_EXACT_COORDINATE_GATE,
+    rawCoordinateFieldsExposed: [...PUBLIC_MAP_EXACT_COORDINATE_GATE.rawCoordinateFieldsExposed]
   };
 }
 
