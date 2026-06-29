@@ -662,6 +662,31 @@ interface FieldManagerGrantTestRow {
   updated_at: string;
 }
 
+interface AreaSketchAssessmentTestRow {
+  assessment_id: string;
+  field_id: string;
+  actor_user_id: string;
+  status: string;
+  visibility: string;
+  policy_version: string;
+  estimate_version: string;
+  sketch_polygon_json: string;
+  normalized_polygon_json: string;
+  land_cover_json: string;
+  owner_assertion_json: string;
+  evidence_payload_json: string;
+  result_payload_json: string;
+  claim_boundary_json: string;
+  audit_payload_json: string;
+  area_ha: number | null;
+  green_candidate_area_ha: number | null;
+  conditional_green_candidate_area_ha: number | null;
+  unknown_area_ha: number | null;
+  green_ratio: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProductionAreaPolygonReadmodelRow {
   field_id: string;
   source: string;
@@ -1551,6 +1576,7 @@ class FakeD1 {
   sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
   placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
   fieldManagers = new Map<string, FieldManagerGrantTestRow>();
+  areaSketchAssessments = new Map<string, AreaSketchAssessmentTestRow>();
   productionAreaPolygons = new Map<string, ProductionAreaPolygonReadmodelRow>();
   municipalWalkMapCreators = new Map<string, MunicipalWalkMapCreatorRow>();
   municipalWalkMaps = new Map<string, MunicipalWalkMapD1Row>();
@@ -3997,6 +4023,36 @@ class FakeStatement {
       return row as T;
     }
 
+    if (normalized.startsWith("INSERT INTO area_sketch_assessments")) {
+      const now = new Date().toISOString();
+      const row: AreaSketchAssessmentTestRow = {
+        assessment_id: string(v[0]),
+        field_id: string(v[1]),
+        actor_user_id: string(v[2]),
+        status: "draft",
+        visibility: string(v[3]),
+        policy_version: string(v[4]),
+        estimate_version: "area_sketch_estimate_v1",
+        sketch_polygon_json: string(v[5]),
+        normalized_polygon_json: string(v[6]),
+        land_cover_json: string(v[7]),
+        owner_assertion_json: string(v[8]),
+        evidence_payload_json: string(v[9]),
+        result_payload_json: string(v[10]),
+        claim_boundary_json: string(v[11]),
+        audit_payload_json: string(v[12]),
+        area_ha: nullableNumber(v[13]),
+        green_candidate_area_ha: nullableNumber(v[14]),
+        conditional_green_candidate_area_ha: nullableNumber(v[15]),
+        unknown_area_ha: nullableNumber(v[16]),
+        green_ratio: nullableNumber(v[17]),
+        created_at: now,
+        updated_at: now
+      };
+      this.db.areaSketchAssessments.set(row.assessment_id, row);
+      return row as T;
+    }
+
     if (normalized.startsWith("SELECT field_id, owner_user_id, source, name, name_kana, summary, prefecture, city")) {
       const row = this.db.userObservationFields.get(string(v[0]));
       return row && !row.deleted_at ? (row as T) : null;
@@ -4861,6 +4917,16 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT assessment_id, field_id, actor_user_id, status, visibility, policy_version, estimate_version")) {
+      const fieldId = string(v[0]);
+      const actorUserId = string(v[1]);
+      const limit = number(v[2]);
+      const rows = [...this.db.areaSketchAssessments.values()]
+        .filter((row) => row.field_id === fieldId && row.actor_user_id === actorUserId && row.status === "draft")
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN")) {
       const rows = this.db.environmentRecordTablesAvailable
         ? [{ name: "observation_environment_records" }, { name: "observation_detail_edit_events" }]
@@ -13711,6 +13777,120 @@ test("production observation field registry runtime creates lists updates and ch
     assert.equal(prefectures.status, 200);
     assert.equal(prefecturesPayload.prefectures[0].prefecture, "静岡県");
 
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production area sketch assessment runtime stores draft diagnostics in D1 without origin fallback", async () => {
+  const { env, obs, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const fieldId = "renri-area-sketch-field";
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "連理の木の下で",
+    name_kana: null,
+    summary: "Area Sketch Assist test field",
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 200,
+    area_ha: 1.1,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "renri-area-sketch-field",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "area-sketch-user", displayName: "Area Sketch User", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const polygon = {
+    type: "Polygon",
+    coordinates: [[
+      [138.38, 35.01],
+      [138.381, 35.01],
+      [138.381, 35.011],
+      [138.38, 35.011],
+      [138.38, 35.01]
+    ]]
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const unauth = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-sketch-assessments`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sketch_polygon: polygon, land_cover: [] })
+    }), productionEnv);
+    assert.equal(unauth.status, 401);
+
+    const create = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-sketch-assessments`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        sketch_polygon: polygon,
+        policy_version: "tsunag_2026_current",
+        land_cover: [
+          { category: "trees_planting", ratio: 0.5 },
+          { category: "grassland", ratio: 0.2 },
+          { category: "building", ratio: 0.1 },
+          { category: "pavement_parking", ratio: 0.2 }
+        ],
+        evidence_payload: { note: "mobile smoke" }
+      })
+    }), productionEnv);
+    const createPayload = await create.json() as any;
+    assert.equal(create.status, 201, JSON.stringify(createPayload));
+    assert.equal(create.headers.get("x-ikimon-cloudflare-native"), "area-sketch-assessment-runtime");
+    assert.equal(createPayload.assessment.fieldId, fieldId);
+    assert.equal(createPayload.assessment.actorUserId, "area-sketch-user");
+    assert.equal(createPayload.assessment.policyVersion, "tsunag_2026_current");
+    assert.equal(createPayload.assessment.resultPayload.greenRatio, 0.7);
+    assert.equal(createPayload.assessment.resultPayload.greenRatioPercent, 70);
+    assert.equal(createPayload.assessment.resultPayload.thresholds[2].reached, true);
+    assert.equal(createPayload.assessment.resultPayload.evidenceChecklist.some((item: any) => item.key === "management_records"), true);
+    assert.equal(obs.areaSketchAssessments.size, 1);
+
+    const list = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-sketch-assessments?limit=1`, {
+      headers: { cookie }
+    }), productionEnv);
+    const listPayload = await list.json() as any;
+    assert.equal(list.status, 200);
+    assert.equal(listPayload.assessments.length, 1);
+    assert.equal(listPayload.assessments[0].assessmentId, createPayload.assessment.assessmentId);
+    assert.equal(listPayload.assessments[0].normalizedPolygon.type, "Polygon");
+    assert.equal(listPayload.assessments[0].resultPayload.greenRatioPercent, 70);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
