@@ -134,6 +134,10 @@ jobs:
         working-directory: platform_v2
         run: npm run build
 
+      - name: Install Playwright browsers
+        working-directory: platform_v2
+        run: npx playwright install --with-deps chromium
+
       - name: Install Cloudflare Worker dependencies
         working-directory: platform_v2/cloudflare_shadow
         run: npm ci
