@@ -154,6 +154,7 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
   assert.match(html, /data-record-feed/);
   assert.match(html, /prototype-record-feed[^"]*is-guest/);
+  assert.match(html, /prototype-record-feed-card is-preview is-guest-preview/);
   assert.doesNotMatch(html, /<h1>記録を見る<\/h1>/);
   assert.match(html, /みんなの記録/);
   assert.doesNotMatch(html, /ログイン/);
@@ -187,6 +188,8 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /data-kpi-event="primary_cta_click"/);
   assert.doesNotMatch(html, /data-kpi-funnel="landing_record"/);
   assert.doesNotMatch(html, /data-kpi-action="landing:topA:shelf:localMap"/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-record-feed\.is-guest \.prototype-record-feed-card\.is-guest-preview \.prototype-record-feed-media-wrap \{[\s\S]*height: clamp\(160px, 24vh, 220px\);[\s\S]*min-height: 160px;/);
+  assert.match(LANDING_TOP_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.prototype-record-feed\.is-guest \.prototype-record-feed-card\.is-guest-preview \.prototype-record-feed-media-wrap \{ height: 180px; min-height: 180px; \}/);
 });
 
 test("guide outcome section groups full guide outcome pool instead of the shelf subset", () => {

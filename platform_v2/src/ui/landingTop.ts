@@ -2166,6 +2166,11 @@ export const LANDING_TOP_STYLES = `
     min-height: 520px;
     background: #0f172a;
   }
+  .prototype-record-feed.is-guest .prototype-record-feed-card.is-guest-preview .prototype-record-feed-media-wrap {
+    height: clamp(160px, 24vh, 220px);
+    min-height: 160px;
+    background: #dff4ea;
+  }
   .prototype-record-feed.is-guest .prototype-record-feed-copy {
     position: absolute;
     left: 0;
@@ -2212,6 +2217,9 @@ export const LANDING_TOP_STYLES = `
     background:
       linear-gradient(145deg, rgba(49,46,129,.82), rgba(125,211,252,.68) 52%, rgba(245,158,11,.72)),
       repeating-linear-gradient(130deg, rgba(17,24,39,.2) 0 6px, transparent 6px 15px);
+  }
+  .prototype-record-feed-card.is-guest-preview .prototype-record-feed-preview-stack {
+    inset: 42px 14px 14px;
   }
   .prototype-record-feed-badges {
     position: absolute;
@@ -4573,6 +4581,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-record-feed-list { gap: 14px; }
     .prototype-record-feed-media-wrap { height: 57vh; min-height: 310px; }
     .prototype-record-feed.is-guest .prototype-record-feed-media-wrap { height: 76vh; min-height: 540px; }
+    .prototype-record-feed.is-guest .prototype-record-feed-card.is-guest-preview .prototype-record-feed-media-wrap { height: 180px; min-height: 180px; }
     .prototype-record-feed-copy { padding: 13px 14px 11px; }
     .prototype-record-feed-copy strong { font-size: 18px; }
     .prototype-record-feed-tools { padding: 0 14px 13px; align-items: start; }
