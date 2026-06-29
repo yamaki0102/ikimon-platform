@@ -29,4 +29,8 @@ test("observation writes support unlocated note saves without downstream locatio
   assert.match(source, /if \(hasLocation\) \{[\s\S]*fetchSiteSignals/);
   assert.match(source, /deriveEnvironmentRecordFromSiteBrief\(signals, brief\)/);
   assert.match(source, /hypothesis_confidence, structured, signals, source_lang/);
+  assert.match(source, /environmentRecordDraft\?: Record<string, unknown> \| null/);
+  assert.match(source, /normalizeEnvironmentRecordDraft/);
+  assert.match(source, /mergeAutoEnvironmentRecordValues/);
+  assert.match(source, /record_photo_feedback_v1/);
 });

@@ -10,7 +10,12 @@ import {
 } from "./writeSupport.js";
 import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupportPg.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
-import { deriveEnvironmentRecordFromSiteBrief } from "./environmentRecord.js";
+import {
+  deriveEnvironmentRecordFromSiteBrief,
+  hasAnyEnvironmentRecordValue,
+  mergeAutoEnvironmentRecordValues,
+  normalizeEnvironmentRecordDraft,
+} from "./environmentRecord.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
 import { resolveFieldsForPoint } from "./resolveFieldsForPoint.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
@@ -133,6 +138,7 @@ export type ObservationUpsertInput = {
   civicContext?: Partial<CivicObservationContextInput> | null;
   dataRights?: ObservationDataRightsInput | null;
   waterRecord?: WaterRecordExtensionInput | null;
+  environmentRecordDraft?: Record<string, unknown> | null;
   placeMemory?: PlaceMemoryInput | null;
   placeFeelingTags?: unknown;
   fieldScan?: FieldScanContextInput | null;
@@ -650,6 +656,10 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const pendingWaterRecord = input.waterRecord && typeof input.waterRecord === "object"
     ? input.waterRecord
     : null;
+  const pendingEnvironmentRecordDraft = normalizeEnvironmentRecordDraft(
+    input.environmentRecordDraft ?? input.sourcePayload?.environment_record_draft,
+    { method: "record_photo_feedback_v1", source: "record_photo_feedback_v1" },
+  );
   let placeMemory: PlaceMemoryWriteResult | null = null;
   const pendingFieldScan = input.fieldScan && typeof input.fieldScan === "object"
     ? input.fieldScan
@@ -949,6 +959,29 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           observedAt,
         ],
       );
+    }
+
+    if (hasLocation && hasAnyEnvironmentRecordValue(pendingEnvironmentRecordDraft)) {
+      const latestEnvironment = await client.query<{ structured: Record<string, unknown> | null }>(
+        `select structured
+           from field_context
+          where occurrence_id = $1
+          order by created_at desc
+          limit 1`,
+        [occurrenceId],
+      );
+      const previousEnvironment = latestEnvironment.rows[0]?.structured ?? {};
+      const structured = mergeAutoEnvironmentRecordValues(previousEnvironment, pendingEnvironmentRecordDraft, {
+        updatedBy: "record_photo_feedback_v1",
+      });
+      if (hasAnyEnvironmentRecordValue(structured) && stableJson(structured) !== stableJson(previousEnvironment)) {
+        await client.query(
+          `insert into field_context (
+             occurrence_id, lat, lng, structured, source_lang
+           ) values ($1, $2, $3, $4::jsonb, 'ja')`,
+          [occurrenceId, input.latitude, input.longitude, JSON.stringify(structured)],
+        );
+      }
     }
 
     const legacyPhotoKeys = photos.map((photo, index) => `observation_photo:${visitId}:${index}:${photo.path}`);

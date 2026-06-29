@@ -84,7 +84,7 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "別候補を提案",
     "保留する",
     "別レコードを追加",
-    "EVENT / OCCURRENCE",
+    "記録の土台",
     "日時・場所・環境を土台にする",
     "この映像で読む対象を切り替える",
     "かなり近そう",

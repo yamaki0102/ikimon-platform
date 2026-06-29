@@ -121,7 +121,8 @@ test.describe("image observation detail VPS parity gate", () => {
         expect(metrics.visibleRecordText).toContain("あとで分けられるもの");
         for (const term of [
           "この記録で読む対象",
-          "この写真から読めていること",
+          "この記録から読めていること",
+          "公開記録・候補情報",
           "次の写真で増える情報",
           "同定",
           "同定に参加する",

@@ -26,9 +26,9 @@ const representativeSceneReadMarkers = [
   "イネ科の一種",
   "保留する",
   "別レコードを追加",
-  "IDENTIFICATION",
+  "同定",
   "同定に参加する",
-  "EVENT / OCCURRENCE",
+  "記録の土台",
   "日時・場所・環境を土台にする",
 ];
 

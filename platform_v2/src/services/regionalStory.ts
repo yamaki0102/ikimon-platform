@@ -397,7 +397,7 @@ const EXPANDED_HAMAMATSU_CARDS: RegionalKnowledgeCard[] = [
     historicalPlaceNames: ["庄内", "庄内半島"],
     category: "water",
     title: "碧い湖と緑の半島 庄内",
-    summary: "庄内地区の文化誌は、浜名湖、半島の緑、湖岸の暮らしを観察に重ねる手がかりです。",
+    summary: "庄内地区の文化誌は、浜名湖、半島の緑、湖岸の暮らしを観察から読み返す手がかりです。",
     sourceUrl: "https://adeac.jp/hamamatsu-city/text-list",
     sourceLabel: "浜松市文化遺産デジタルアーカイブ テキスト一覧",
     license: "出典先の利用規定に従う",
@@ -525,7 +525,7 @@ const EXPANDED_HAMAMATSU_CARDS: RegionalKnowledgeCard[] = [
     historicalPlaceNames: ["笠井"],
     category: "local_life",
     title: "笠井",
-    summary: "笠井地区の文化誌は、地域の道、社寺、暮らしの場を観察に重ねる手がかりです。",
+    summary: "笠井地区の文化誌は、地域の道、社寺、暮らしの場を観察から読み返す手がかりです。",
     sourceUrl: "https://adeac.jp/hamamatsu-city/text-list",
     sourceLabel: "浜松市文化遺産デジタルアーカイブ テキスト一覧",
     license: "出典先の利用規定に従う",
@@ -605,7 +605,7 @@ const EXPANDED_HAMAMATSU_CARDS: RegionalKnowledgeCard[] = [
     historicalPlaceNames: ["城北"],
     category: "local_life",
     title: "いろはのイ",
-    summary: "城北地区の文化誌は、住宅地、学校、公園、道端の小さな自然を地域の記憶と重ねる入口です。",
+    summary: "城北地区の文化誌は、住宅地、学校、公園、道端の小さな自然を地域の記憶から見る入口です。",
     sourceUrl: "https://adeac.jp/hamamatsu-city/text-list",
     sourceLabel: "浜松市文化遺産デジタルアーカイブ テキスト一覧",
     license: "出典先の利用規定に従う",
@@ -685,7 +685,7 @@ const EXPANDED_HAMAMATSU_CARDS: RegionalKnowledgeCard[] = [
     historicalPlaceNames: ["天竜市", "天竜"],
     category: "landform",
     title: "天竜市史",
-    summary: "旧天竜市の自治体史は、山地、川、森林、集落の関係を観察に重ねる入口です。",
+    summary: "旧天竜市の自治体史は、山地、川、森林、集落の関係を観察から読み返す入口です。",
     sourceUrl: "https://adeac.jp/hamamatsu-city/text-list",
     sourceLabel: "浜松市文化遺産デジタルアーカイブ テキスト一覧",
     license: "出典先の利用規定に従う",
@@ -717,7 +717,7 @@ const EXPANDED_HAMAMATSU_CARDS: RegionalKnowledgeCard[] = [
     historicalPlaceNames: ["三ヶ日町", "三ヶ日"],
     category: "agriculture",
     title: "三ヶ日町史",
-    summary: "旧三ヶ日町の自治体史は、浜名湖、みかん畑、丘陵の環境を観察に重ねる資料です。",
+    summary: "旧三ヶ日町の自治体史は、浜名湖、みかん畑、丘陵の環境を観察から読み返す資料です。",
     sourceUrl: "https://adeac.jp/hamamatsu-city/text-list",
     sourceLabel: "浜松市文化遺産デジタルアーカイブ テキスト一覧",
     license: "出典先の利用規定に従う",
@@ -1446,12 +1446,12 @@ function seasonalCheckForSubject(subjectKind: ObservationSubjectKind, season: Se
 
 /** 経時観察の価値を、subject × 場所の文脈に寄せて言語化 */
 function collectiveValueForSubject(subjectKind: ObservationSubjectKind, target: string, placeLabel: string): string {
-  if (subjectKind === "plant") return `同じ株を季節違いで重ねると、${target}がこの${placeLabel}の日当たり・水分・管理頻度に合っているかが分かる。`;
+  if (subjectKind === "plant") return `同じ株を季節違いで追うと、${target}がこの${placeLabel}の日当たり・水分・管理頻度に合っているかが分かる。`;
   if (subjectKind === "bird") return `同じ時間帯×同じ地点の記録が積もると、${target}の滞在パターンと${placeLabel}の餌・水場・休息地としての役割が読める。`;
   if (subjectKind === "insect") return `寄主植物と発生時期を毎年つなげると、${target}と${placeLabel}の植生・微気候の関係が見える。`;
-  if (subjectKind === "aquatic") return `水温・水位・季節の3点セットで再訪を重ねると、${target}の生息可否と${placeLabel}の水質変化が連動して読める。`;
+  if (subjectKind === "aquatic") return `水温・水位・季節の3点セットで再訪すると、${target}の生息可否と${placeLabel}の水質変化が連動して読める。`;
   if (subjectKind === "fungus") return `同じ倒木・切り株を週次で追うと、${target}の発生条件（湿度・倒木の腐朽段階）と${placeLabel}の林床質が相互に分かる。`;
-  return `同じ場所で季節と時刻を変えて重ねると、${target}がここで見えた条件を、あとから「いつ・なぜ」で比較できる。`;
+  return `同じ場所で季節と時刻を変えて記録すると、${target}がここで見えた条件を、あとから「いつ・なぜ」で比較できる。`;
 }
 
 /** 出典カードから観察に直結する1行を抽出（タグ + summary を要約的に） */

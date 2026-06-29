@@ -24,11 +24,18 @@ test("record photo feedback sanitizes model JSON into a one sentence result", ()
     sentence: "主役は見えていますが、葉裏が弱いので次は裏側が分かる1枚を足すと見分けやすくなります。",
     priority: "angle",
     visualSignals: ["花は見える", "葉裏が見えない"],
+    environmentDraft: {
+      surrounding_cover: { value: "low_grass", confidence: 0.63 },
+      human_change: { value: "invalid", confidence: 0.9 },
+    },
   }));
 
   assert.equal(result.priority, "angle");
   assert.equal(result.sentence, "主役は見えていますが、葉裏が弱いので次は裏側が分かる1枚を足すと見分けやすくなります。");
   assert.deepEqual(result.visualSignals, ["花は見える", "葉裏が見えない"]);
+  assert.equal(result.environmentDraft.surrounding_cover, "low_grass");
+  assert.equal(result.environmentDraft.surrounding_cover_source, "derived");
+  assert.equal(result.environmentDraft.human_change, undefined);
 });
 
 test("record photo feedback keeps a useful fallback when model output is malformed", () => {
@@ -65,5 +72,5 @@ test("record photo feedback keeps Gemini thinking from consuming the reply budge
   const source = readFileSync(new URL("./recordPhotoFeedback.ts", import.meta.url), "utf8");
 
   assert.match(source, /thinkingConfig:\s*\{\s*thinkingLevel:\s*"minimal"\s*\}/);
-  assert.match(source, /maxOutputTokens:\s*640/);
+  assert.match(source, /maxOutputTokens:\s*960/);
 });

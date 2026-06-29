@@ -6913,7 +6913,9 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /obs-region-guide is-extra-guide/);
   assert.match(pageHtml, /obs-hero-thumb/);
   assert.match(pageHtml, /この記録で読む対象/);
-  assert.match(pageHtml, /この写真から読めていること/);
+  assert.match(pageHtml, /この記録から読めていること/);
+  assert.match(pageHtml, /obs-feedback-chip/);
+  assert.match(pageHtml, /公開記録・候補情報/);
   assert.match(pageHtml, /次の写真で増える情報/);
   assert.match(pageHtml, /名前の候補/);
   assert.match(pageHtml, /場所の手がかり/);
@@ -6939,6 +6941,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /位置ぼかし/);
   assert.doesNotMatch(pageHtml, /cell:34\.71,137\.81|公開セル|セル単位/);
   assert.doesNotMatch(pageHtml, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
+  assert.doesNotMatch(pageHtml, /画像解析|検出しました|音声を解析/);
   assert.doesNotMatch(pageHtml, /IDENTIFICATION|OBSERVATION QUALITY|記録の質を育てる/);
   assert.doesNotMatch(pageHtml, new RegExp(`\\u91cd\\u306d|${"写真の" + "対象枠"}|${"同じ" + "ページで確認"}|驥阪|縺|蜀`));
   assert.doesNotMatch(pageHtml, /ikimon shadow|data-shadow-observation-detail|ownerUserId|observerUserId|profile\/detail-user|profile\/user_|YAMAKI|34\.71234|137\.81234|\/uploads\//);
@@ -8242,6 +8245,69 @@ test("production occurrence environment edits return a JSON 503 when storage mig
   assert.equal(payload.error, "environment_record_storage_unavailable");
   assert.equal(obs.observationEnvironmentRecords.length, 0);
   assert.equal(obs.observationDetailEditEvents.length, 0);
+});
+
+test("native observation upsert persists photo feedback environment draft", async () => {
+  const { env, obs, queue } = createEnv();
+  const upsertResponse = await post("/api/v1/observations/upsert", env, {
+    observationId: "record-auto-env-draft",
+    userId: "detail-user",
+    observedAt: "2026-06-15T03:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    taxon: { vernacularName: "環境下書きテスト", rank: "species" },
+    environmentRecordDraft: {
+      place_type: { value: "grassland_urban_edge", confidence: 0.61 },
+      contact_surface: { value: "soil_gravel_litter", confidence: 0.58 },
+      surrounding_cover: { value: "low_grass", confidence: 0.63 },
+      human_change: { value: "mowing", confidence: 0.52 },
+      environment_condition: { value: "not-allowed", confidence: 0.9 }
+    }
+  });
+  assert.equal(upsertResponse.ok, true, JSON.stringify(upsertResponse));
+  assert.equal(obs.observationEnvironmentRecords.length, 1);
+  const structured = JSON.parse(obs.observationEnvironmentRecords[0]?.structured_json ?? "{}") as Record<string, string>;
+  assert.equal(structured.place_type, "grassland_urban_edge");
+  assert.equal(structured.place_type_source, "derived");
+  assert.equal(structured.place_type_method, "record_photo_feedback_v1");
+  assert.equal(structured.contact_surface, "soil_gravel_litter");
+  assert.equal(structured.surrounding_cover, "low_grass");
+  assert.equal(structured.human_change, "mowing");
+  assert.equal(structured.environment_condition, undefined);
+  assert.equal(structured.environment_record_status, "auto_draft");
+  assert.equal(obs.observationDetailEditEvents.some((row) => row.edit_kind === "environment-record-auto-draft"), true);
+
+  await post("/api/v1/observations/record-auto-env-draft/photos/upload", env, {
+    filename: "detail.jpg",
+    mimeType: "image/jpeg",
+    base64Data: Buffer.from("auto-env-draft-image").toString("base64")
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  const uploadedAsset = [...obs.assets.values()].find((asset) => asset.observation_id === "record-auto-env-draft");
+  assert.ok(uploadedAsset, "uploaded photo asset should exist");
+  const derivativeKey = `derived/import/20260615/observation_photo/${uploadedAsset.asset_id}/display.webp`;
+  uploadedAsset.public_derivative_key = derivativeKey;
+  uploadedAsset.public_derivative_sha256 = `${uploadedAsset.asset_id}-display-sha`;
+  uploadedAsset.public_derivative_verified_at = "2026-06-15T03:05:00.000Z";
+  uploadedAsset.public_derivative_metadata_json = "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}";
+  uploadedAsset.exif_scrub_state = "scrubbed";
+  uploadedAsset.public_ready_at = "2026-06-15T03:05:00.000Z";
+  await env.ASSET_BUCKET.put(derivativeKey, "auto-env-draft-webp", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+  const response = await worker.fetch(new Request("https://ikimon.life/observations/record-auto-env-draft"), {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  });
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+  assert.match(body, /環境情報の下書き/);
+  assert.match(body, /自動下書き/);
+  assert.match(body, /草地と市街地の縁/);
+  assert.match(body, /土・礫・枯れ草/);
+  assert.match(body, /低い草地/);
+  assert.match(body, /草刈り/);
 });
 
 test("production occurrence detail edit APIs reject non owners before mutation", async () => {
@@ -15087,7 +15153,9 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /obs-region-guide is-context-guide/);
     assert.match(body, /obs-region-guide is-ground-guide/);
     assert.match(body, /obs-region-guide is-extra-guide/);
-    assert.match(body, /この写真から読めていること/);
+    assert.match(body, /この記録から読めていること/);
+    assert.match(body, /obs-feedback-chip/);
+    assert.match(body, /公開記録・候補情報/);
     assert.match(body, /次の写真で増える情報/);
     assert.match(body, /名前の候補/);
     assert.match(body, /場所の手がかり/);
@@ -15115,6 +15183,7 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /写真/);
     assert.match(body, /動画/);
     assert.doesNotMatch(body, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);
+    assert.doesNotMatch(body, /画像解析|検出しました|音声を解析/);
     assert.doesNotMatch(body, new RegExp(`\\u91cd\\u306d|${"写真の" + "対象枠"}|${"同じ" + "ページで確認"}|驥阪|縺|蜀`));
     assert.doesNotMatch(body, /href="\/record-reading-cards"|ownerUserId|observerUserId|profile\/image-target-user|34\.704|137\.704|34\.814|137\.734|34\.816|137\.736|\/uploads\/|original-ui\/thumb/);
   }
