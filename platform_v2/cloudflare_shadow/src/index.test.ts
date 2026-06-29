@@ -13083,15 +13083,14 @@ test("production oauth callback fails closed when provider secrets are not confi
   }
 });
 
-test("production public UI routes avoid origin fallback while broad custom-domain fallback is disabled", async () => {
+test("production public UI routes avoid legacy PHP fallback by default", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native",
-    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "disabled"
+    PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const originalFetch = globalThis.fetch;
   const seen: Array<{ url: string; method?: string; resolveOverride?: string; reason?: string | null }> = [];
@@ -13206,6 +13205,50 @@ test("production public UI routes avoid origin fallback while broad custom-domai
     const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
     assert.equal(internal.status, 404);
     assert.equal(seen.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production legacy PHP fallback is an explicit archive bridge", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "enabled"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; method?: string; resolveOverride?: string; reason?: string | null }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.push({
+      url: String(input),
+      method: init?.method,
+      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
+      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason")
+    });
+    return new Response("<!doctype html><title>legacy archive bridge</title>", {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/some-old-unmapped-path"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "<!doctype html><title>legacy archive bridge</title>");
+    assert.deepEqual(seen, [{
+      url: "https://ikimon.life/some-old-unmapped-path",
+      method: "GET",
+      resolveOverride: "origin.ikimon.test",
+      reason: "public_custom_domain_path"
+    }]);
+    assert.equal(core.operationAudit.length, 1);
+    const audit = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(audit.reason, "public_custom_domain_path");
+    assert.equal(audit.publicWriteMode, "cloudflare_native");
+    assert.equal(audit.routePattern, "/some-old-unmapped-path");
   } finally {
     globalThis.fetch = originalFetch;
   }
