@@ -794,6 +794,33 @@ interface PublicDetailAssetRow {
   public_derivative_key: string | null;
 }
 
+type PublicDetailRegionRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type PublicDetailMediaRegion = {
+  regionId: string;
+  occurrenceId: string | null;
+  candidateId: string | null;
+  assetId: string;
+  rect: PublicDetailRegionRect;
+  confidenceScore: number | null;
+  frameTimeMs: number | null;
+};
+
+interface PublicDetailMediaRegionRow {
+  region_id: string;
+  occurrence_id: string | null;
+  candidate_id: string | null;
+  asset_id: string;
+  normalized_rect: unknown;
+  frame_time_ms: number | null;
+  confidence_score: number | null;
+}
+
 interface PublicDerivativeInspection {
   tool: string;
   contentType: string;
@@ -17182,6 +17209,13 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
      LIMIT 24`
   ).bind(visitId).all<PublicDetailAssetRow>();
 
+  const mediaRegions = await readPublicObservationMediaRegions(env, visitId);
+  const regionsByAssetId = new Map<string, PublicDetailMediaRegion[]>();
+  for (const region of mediaRegions) {
+    const list = regionsByAssetId.get(region.assetId) ?? [];
+    list.push(region);
+    regionsByAssetId.set(region.assetId, list);
+  }
   const photoAssets = assets.results
     .filter((asset) => asset.mime.startsWith("image/"))
     .map((asset) => ({
@@ -17189,7 +17223,8 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
       url: publicMediaUrl(asset.public_derivative_key),
       widthPx: null,
       heightPx: null,
-      mediaRole: null
+      mediaRole: null,
+      regions: regionsByAssetId.get(asset.asset_id) ?? []
     }));
   const videoAssets = assets.results
     .filter((asset) => asset.mime.startsWith("video/"))
@@ -17236,6 +17271,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
     audioAssets: [],
     assetCount: row.asset_count,
     environmentRecord,
+    mediaRegions,
     relatedObservations: relatedRows.map((related) => publicMapObservationItem(
       related,
       relatedPhotoUrls.get(related.observation_id) ?? null
@@ -17245,6 +17281,80 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
       source: "readmodel_public_observations.public_cell"
     }
   };
+}
+
+function parsePublicDetailRegionRect(value: unknown): PublicDetailRegionRect | null {
+  let raw = value;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw) as unknown;
+    } catch {
+      return null;
+    }
+  }
+  if (!raw || typeof raw !== "object") return null;
+  const source = raw as Record<string, unknown>;
+  const x = Number(source.x);
+  const y = Number(source.y);
+  const width = Number(source.width);
+  const height = Number(source.height);
+  if (![x, y, width, height].every(Number.isFinite)) return null;
+  if (width <= 0 || height <= 0) return null;
+  const left = Math.max(0, Math.min(1, x));
+  const top = Math.max(0, Math.min(1, y));
+  const right = Math.max(left, Math.min(1, x + width));
+  const bottom = Math.max(top, Math.min(1, y + height));
+  const clampedWidth = right - left;
+  const clampedHeight = bottom - top;
+  if (clampedWidth < 0.01 || clampedHeight < 0.01) return null;
+  return { x: left, y: top, width: clampedWidth, height: clampedHeight };
+}
+
+async function hasPublicObservationMediaRegionTable(env: Env): Promise<boolean> {
+  try {
+    const row = await env.OBS_DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?"
+    ).bind("subject_media_regions").first<{ name: string }>();
+    return row?.name === "subject_media_regions";
+  } catch {
+    return false;
+  }
+}
+
+async function readPublicObservationMediaRegions(env: Env, visitId: string): Promise<PublicDetailMediaRegion[]> {
+  if (!(await hasPublicObservationMediaRegionTable(env))) return [];
+  try {
+    const rows = (await env.OBS_DB.prepare(
+      `SELECT smr.region_id, smr.occurrence_id, smr.candidate_id, smr.asset_id,
+              smr.normalized_rect, smr.frame_time_ms, smr.confidence_score
+         FROM subject_media_regions smr
+         JOIN asset_ledger a ON a.asset_id = smr.asset_id
+        WHERE a.observation_id = ?
+          AND smr.normalized_rect IS NOT NULL
+        ORDER BY COALESCE(smr.confidence_score, 0) DESC, smr.created_at DESC, smr.region_id ASC
+        LIMIT 24`
+    ).bind(visitId).all<PublicDetailMediaRegionRow>()).results;
+    return rows.flatMap((row) => {
+      const rect = parsePublicDetailRegionRect(row.normalized_rect);
+      if (!rect) return [];
+      return [{
+        regionId: row.region_id,
+        occurrenceId: row.occurrence_id ?? null,
+        candidateId: row.candidate_id ?? null,
+        assetId: row.asset_id,
+        rect,
+        confidenceScore: typeof row.confidence_score === "number" ? row.confidence_score : null,
+        frameTimeMs: typeof row.frame_time_ms === "number" ? row.frame_time_ms : null
+      }];
+    });
+  } catch (error) {
+    console.warn(JSON.stringify({
+      message: "public_observation_media_regions_unavailable",
+      visitId,
+      error: error instanceof Error ? error.message : String(error)
+    }));
+    return [];
+  }
 }
 
 async function readLatestPublicObservationEnvironmentRecord(env: Env, visitId: string): Promise<Record<string, string>> {
@@ -22692,8 +22802,8 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-hero-preview { position: relative; overflow: hidden; border-radius: 22px; border: 1px solid rgba(15,23,42,.08); background: #e8f3ef; box-shadow: 0 18px 44px rgba(15,23,42,.08); }
     .obs-hero-image-frame { position: relative; min-height: 420px; background: #dbeafe; }
     .obs-hero-image-frame img { display: block; width: 100%; height: 100%; min-height: 420px; max-height: 620px; object-fit: cover; }
-    .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
-    .obs-region-target { position: absolute; left: 19%; top: 17%; width: 54%; height: 54%; border: 2px solid rgba(236,253,245,.92); border-radius: 20px; box-shadow: 0 0 0 999px rgba(15,23,42,.16), 0 12px 30px rgba(15,23,42,.2); }
+    .obs-region-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .obs-region-target { position: absolute; border: 2px solid rgba(236,253,245,.92); border-radius: 20px; box-shadow: 0 0 0 999px rgba(15,23,42,.16), 0 12px 30px rgba(15,23,42,.2); }
     .obs-hero-thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 1px 1px 4px; scrollbar-width: none; }
     .obs-hero-thumbs::-webkit-scrollbar { display: none; }
     .obs-hero-thumb { flex: 0 0 78px; width: 78px; height: 58px; border: 2px solid rgba(15,118,110,.28); border-radius: 13px; padding: 0; overflow: hidden; background: #fff; box-shadow: 0 8px 18px rgba(15,23,42,.07); }
@@ -22881,14 +22991,9 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-vps-image-detail .obs-hero-image-frame { display: inline-block; width: auto; max-width: 100%; min-height: 0; max-height: min(68vh, 680px); margin: 0; background: transparent; }
     .obs-vps-image-detail .obs-hero-image-frame img { display: block; width: auto; height: auto; min-height: 0; max-width: 100%; max-height: min(68vh, 680px); object-fit: contain; background: #f8fafc; }
     .obs-vps-image-detail .obs-region-guide { position: absolute; pointer-events: none; }
-    .obs-vps-image-detail .obs-region-target { left: 19%; top: 16%; width: 54%; height: 55%; border: 2px solid rgba(16,185,129,.74); border-radius: 22px; background: rgba(16,185,129,.045); box-shadow: 0 0 0 1px rgba(255,255,255,.7), inset 0 0 0 999px rgba(16,185,129,.018); }
+    .obs-vps-image-detail .obs-region-target { border: 2px solid rgba(16,185,129,.74); border-radius: 22px; background: rgba(16,185,129,.045); box-shadow: 0 0 0 1px rgba(255,255,255,.7), inset 0 0 0 999px rgba(16,185,129,.018); }
+    .obs-vps-image-detail .obs-region-target.is-secondary { border-color: rgba(14,116,144,.72); border-style: dashed; background: rgba(14,116,144,.045); box-shadow: 0 0 0 1px rgba(255,255,255,.68); }
     .obs-vps-image-detail .obs-region-target::before { content: ""; position: absolute; inset: -6px; border-radius: 26px; border: 1px dashed rgba(255,255,255,.82); }
-    .obs-vps-image-detail .obs-region-guide.is-context-guide { inset: 8% 7% 13%; }
-    .obs-vps-image-detail .obs-region-guide.is-context-guide::before, .obs-vps-image-detail .obs-region-guide.is-context-guide::after { content: ""; position: absolute; width: 42px; height: 42px; border-color: rgba(14,116,144,.72); }
-    .obs-vps-image-detail .obs-region-guide.is-context-guide::before { left: 0; top: 0; border-left: 2px solid rgba(14,116,144,.72); border-top: 2px solid rgba(14,116,144,.72); border-radius: 16px 0 0 0; }
-    .obs-vps-image-detail .obs-region-guide.is-context-guide::after { right: 0; bottom: 0; border-right: 2px solid rgba(14,116,144,.72); border-bottom: 2px solid rgba(14,116,144,.72); border-radius: 0 0 16px 0; }
-    .obs-vps-image-detail .obs-region-guide.is-ground-guide { left: 13%; right: 11%; bottom: 7%; height: 20%; border-top: 2px dashed rgba(180,83,9,.75); border-radius: 0 0 22px 22px; background: linear-gradient(180deg, rgba(251,191,36,.03), rgba(180,83,9,.13)); }
-    .obs-vps-image-detail .obs-region-guide.is-extra-guide { right: 19%; top: 28%; width: 38px; height: 38px; border: 2px dotted rgba(71,85,105,.72); border-radius: 999px; background: rgba(255,255,255,.08); }
     .obs-vps-image-detail .obs-hero-zoom { position: absolute; right: 12px; bottom: 12px; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 999px; background: rgba(255,255,255,.92); color: #166534; font-size: 19px; font-weight: 950; box-shadow: 0 8px 24px rgba(15,23,42,.12); }
     .obs-vps-image-detail .obs-hero-thumbs { justify-content: center; flex-wrap: wrap; gap: 8px; overflow: visible; padding: 0; }
     .obs-vps-image-detail .obs-hero-thumb { flex: 0 0 76px; width: 76px; height: auto; aspect-ratio: 1 / 1; border: 0; border-radius: 10px; overflow: hidden; background: #e5efe9; opacity: .78; box-shadow: 0 4px 14px rgba(15,23,42,.08); }
@@ -23032,11 +23137,11 @@ ${headerBlock}
       <p class="obs-reading-lead">${escapeHtml(lead)}</p>
       ${mediaLedger}
       <section id="trust" class="obs-record-insight obs-record-insight-desktop">
-        <span class="obs-feedback-eyebrow">この記録から読めていること</span>
+        <span class="obs-feedback-eyebrow">この記録から読めそうなこと</span>
         ${recordFeedbackChipBlock}
         <p>${escapeHtml(recordInsight)}</p>
         <div class="obs-next-photo-hint">
-          <strong>次の写真で増える情報</strong>
+          <strong>次の写真で増えるかもしれない情報</strong>
           <span>${escapeHtml(recordNextHint)}</span>
         </div>
         ${recordFeedbackSourceBlock}
@@ -23115,9 +23220,21 @@ type PublicObservationDetailPolish = {
 };
 
 type ImageObservationTargetPhoto = {
+  assetId?: string;
   lg: string;
   sm: string;
   full: string;
+  regions?: PublicDetailMediaRegion[];
+};
+
+type ImageObservationRegionPayload = {
+  id: string;
+  assetId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number | null;
 };
 
 type ImageObservationStoryBullet = {
@@ -23179,7 +23296,7 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
     observedLabel: "2026.06.12 17:25",
     placeLabel: "浜松市中央区",
     insight: "コガネムシ科らしい小さな動物の候補に加えて、足元の礫や踏まれた感じ、まわりの草地まで一緒に見られる記録です。名前は確認待ちのまま、体型や翅の質感、足元の環境をあとから確かめる材料が残っています。",
-    nextHint: "次は、対象に少し寄った写真と、足元を広めに入れた写真があると、候補の見直しと環境情報の確認がしやすくなります。",
+    nextHint: "次は、対象に少し寄った写真と、足元を広めに入れた写真があると、候補の見直しと環境情報の確認がしやすくなりそうです。",
     evidence: ["赤褐色の翅", "楕円形の体型", "脚の構造"],
     storyBullets: [
       { title: "名前の由来", body: "ギリシャ語で甲虫を意味する語がもとになったとされます。硬い甲冑を身にまとったような姿が、古くから人々の目を引いていたことがうかがえます。" },
@@ -23238,8 +23355,8 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
     evidence: ["翼の黄色い斑紋", "太い嘴"],
     storyBullets: [
       { title: "見る手がかり", body: "翼の黄色い斑紋と太い嘴が目立つ記録です。" },
-      { title: "同定の余地", body: "Chloris属の範囲で、写真を見ながら人が確認できます。" },
-      { title: "周囲", body: "草地の状態と一緒に見直せます。" }
+      { title: "同定の余地", body: "Chloris属の範囲で、写真を見ながら人が確認できるかもしれません。" },
+      { title: "周囲", body: "草地の状態も一緒に見直せそうです。" }
     ],
     nearbyTitle: "浜松市浜名区をもう少し見る",
     nearbyLead: "浜松市浜名区で6月9日・6月1日・5月29日に残っている近い投稿です。鳥だけで終わらず、同じ草地まわりの写り方を続けて見られます。",
@@ -23364,6 +23481,39 @@ function safeFeedbackPlaceLabel(label: string | null | undefined): string {
   return value.includes("位置をぼか") ? "ぼかした位置" : value;
 }
 
+function roundImageObservationRegionValue(value: number): number {
+  return Number(value.toFixed(4));
+}
+
+function imageObservationRegionPayload(regions?: PublicDetailMediaRegion[]): ImageObservationRegionPayload[] {
+  return (regions ?? []).slice(0, 4).map((region, index) => ({
+    id: region.regionId || `region-${index + 1}`,
+    assetId: region.assetId,
+    x: roundImageObservationRegionValue(region.rect.x),
+    y: roundImageObservationRegionValue(region.rect.y),
+    width: roundImageObservationRegionValue(region.rect.width),
+    height: roundImageObservationRegionValue(region.rect.height),
+    confidence: typeof region.confidenceScore === "number"
+      ? roundImageObservationRegionValue(Math.max(0, Math.min(1, region.confidenceScore)))
+      : null
+  }));
+}
+
+function imageObservationRegionStyle(region: ImageObservationRegionPayload): string {
+  return [
+    `left:${(region.x * 100).toFixed(2)}%`,
+    `top:${(region.y * 100).toFixed(2)}%`,
+    `width:${(region.width * 100).toFixed(2)}%`,
+    `height:${(region.height * 100).toFixed(2)}%`
+  ].join(";");
+}
+
+function renderImageObservationRegionLayer(regions?: PublicDetailMediaRegion[]): string {
+  const payload = imageObservationRegionPayload(regions);
+  const spans = payload.map((region, index) => `<span class="obs-region-target obs-region-guide${index > 0 ? " is-secondary" : ""}" data-obs-region-id="${escapeHtml(region.id)}" data-obs-region-asset="${escapeHtml(region.assetId)}" style="${escapeHtml(imageObservationRegionStyle(region))}"></span>`).join("");
+  return `<div class="obs-region-layer" data-obs-preview-regions data-region-count="${payload.length}" aria-hidden="true">${spans}</div>`;
+}
+
 function buildImageObservationFeedback(
   detail: PublicObservationDetail,
   meta: ImageObservationTargetMeta | undefined,
@@ -23388,49 +23538,49 @@ function buildImageObservationFeedback(
   const kindCopy = {
     insect: {
       readable: evidenceSummary
-        ? `${subjectName}の候補と、${evidenceSummary}を見直せます。足元や周囲の写り方も残っているので、名前の候補と場所の手がかりを分けて確認できます。`
-        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せます。名前の確認と場所の手がかりを分けて残せています。`,
-      next: "次は対象に少し寄った写真と、足元を広めに入れた写真が別にあると、候補の見直しと環境情報の確認がしやすくなります。",
+        ? `${subjectName}の候補と、${evidenceSummary}が手がかりになりそうです。足元や周囲の写り方も残っているので、名前の候補と場所の手がかりを分けて見直せるかもしれません。`
+        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せそうです。名前の確認と場所の手がかりを分けて残せているかもしれません。`,
+      next: "次は対象に少し寄った写真と、足元を広めに入れた写真が別にあると、候補の見直しと環境情報の確認がしやすくなりそうです。",
       contextValue: "足元・周囲",
       contextDetail: "まわりの草地や明るさ",
       groundValue: "礫・踏まれた感じ",
       groundDetail: "湿り気や管理の手がかり",
-      subjectHint: "翅や体型を見直せます"
+      subjectHint: "翅や体型が手がかりになりそうです"
     },
     bird: {
       readable: evidenceSummary
-        ? `${subjectName}の候補と、${evidenceSummary}を見直せます。周囲の草地も残っているので、鳥だけでなく、いた場所の手がかりも確認できます。`
-        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せます。名前の確認と場所の手がかりを分けて残せています。`,
-      next: "次は対象を少し大きめに入れた写真と、止まっていた足元や周囲が分かる写真があると、候補と場所の状態を確認しやすくなります。",
+        ? `${subjectName}の候補と、${evidenceSummary}が手がかりになりそうです。周囲の草地も残っているので、鳥だけでなく、いた場所の手がかりも確認できるかもしれません。`
+        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せそうです。名前の確認と場所の手がかりを分けて残せているかもしれません。`,
+      next: "次は対象を少し大きめに入れた写真と、止まっていた足元や周囲が分かる写真があると、候補と場所の状態を確認しやすくなりそうです。",
       contextValue: "草地・止まり場所",
       contextDetail: "周囲の開け方",
       groundValue: "足元や背景",
       groundDetail: "いた場所の手がかり",
-      subjectHint: "体型や模様を見直せます"
+      subjectHint: "体型や模様が手がかりになりそうです"
     },
     plant: {
       readable: evidenceSummary
-        ? `${subjectName}の候補と、${evidenceSummary}を見直せます。花や茎だけでなく、足元の広がりや周囲の草地も確認できます。`
-        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せます。名前の確認と生えていた場所の手がかりを分けて残せています。`,
-      next: "次は花を正面から写した写真と、葉・茎・足元の広がりが分かる写真があると、候補と生育環境を確認しやすくなります。",
+        ? `${subjectName}の候補と、${evidenceSummary}が手がかりになりそうです。花や茎だけでなく、足元の広がりや周囲の草地も確認できるかもしれません。`
+        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せそうです。名前の確認と生えていた場所の手がかりを分けて残せているかもしれません。`,
+      next: "次は花を正面から写した写真と、葉・茎・足元の広がりが分かる写真があると、候補と生育環境を確認しやすくなりそうです。",
       contextValue: "生えていた場所",
       contextDetail: "まわりの草地や明るさ",
       groundValue: "葉・茎・足元",
       groundDetail: "広がり方の手がかり",
-      subjectHint: "花や形を見直せます"
+      subjectHint: "花や形が手がかりになりそうです"
     },
     unknown: {
       readable: detail.isAwaitingId
-        ? "この記録では、公開写真、撮影日時、ぼかした位置を一緒に見直せます。名前は確認待ちなので、いまは候補を急がず、後から分かる材料を残している状態です。"
-        : `${subjectName}として表示され、公開写真、撮影日時、ぼかした位置を一緒に見直せます。公開ページでは、名前と場所の手がかりを分けて扱います。`,
+        ? "この記録では、公開写真、撮影日時、ぼかした位置を一緒に見直せそうです。名前は確認待ちなので、いまは候補を急がず、後から分かる材料を残している状態かもしれません。"
+        : `${subjectName}として表示され、公開写真、撮影日時、ぼかした位置を一緒に見直せそうです。公開ページでは、名前と場所の手がかりを分けて扱います。`,
       next: photoCount <= 1
-        ? "次は対象に少し寄った写真と、周囲や足元が分かる写真が別にあると、名前の候補と場所の手がかりを確認しやすくなります。"
-        : "次に足すなら、気になった対象を少し大きめに入れた写真があると、後から候補を見直しやすくなります。",
+        ? "次は対象に少し寄った写真と、周囲や足元が分かる写真が別にあると、名前の候補と場所の手がかりを確認しやすくなりそうです。"
+        : "次に足すなら、気になった対象を少し大きめに入れた写真があると、後から候補を見直しやすくなりそうです。",
       contextValue: "ぼかした位置",
       contextDetail: "公開範囲の手がかり",
       groundValue: photoCount <= 1 ? "材料は少なめ" : "足元の手がかり",
-      groundDetail: photoCount <= 1 ? "次の写真で増やせます" : "写真から見直せます",
-      subjectHint: photoCount <= 1 ? "候補はあとから確認" : "候補を見直せます"
+      groundDetail: photoCount <= 1 ? "次の写真で増えそうです" : "写真から見直せそうです",
+      subjectHint: photoCount <= 1 ? "候補はあとから確認" : "候補を見直せそうです"
     }
   }[kind];
 
@@ -23439,11 +23589,11 @@ function buildImageObservationFeedback(
     readableNow: kindCopy.readable,
     nextHint: kindCopy.next,
     chips,
-    sourceNote: "公開記録・候補情報・位置ぼかし設定からの整理です。画像や音声の中身を決めつけていません。",
+    sourceNote: "AIによるまとめです。公開記録・候補情報・位置ぼかし設定をもとにした推定で、画像や音声の中身を断定していません。",
     cards: [
       { className: "is-subject", title: "名前の候補", value: subjectName, detail: `${subjectRank} / 確認待ち`, hint: kindCopy.subjectHint },
       { className: "is-context", title: "場所の手がかり", value: kindCopy.contextValue, detail: kindCopy.contextDetail, hint: "周囲を広く撮ると比べやすい" },
-      { className: "is-ground", title: "足元の状態", value: kindCopy.groundValue, detail: kindCopy.groundDetail, hint: photoCount <= 1 ? "足元も1枚あると安心" : "足元も見直せます" },
+      { className: "is-ground", title: "足元の状態", value: kindCopy.groundValue, detail: kindCopy.groundDetail, hint: photoCount <= 1 ? "足元も1枚あると安心" : "足元も見直せそうです" },
       { className: "is-extra", title: "あとで分けられるもの", value: "別レコード候補", detail: photoCount > 1 ? "写り込みは後から整理" : "写り込みがあれば整理", hint: extraHint }
     ]
   };
@@ -23721,19 +23871,25 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
   const scientificName = meta?.scientificName ?? "";
   const observedLabel = meta?.observedLabel ?? formatPublicObservationDate(detail.observedAt);
   const placeLabel = meta?.placeLabel ?? detail.publicLocation.label;
-  const fallbackPhotos = detail.photoAssets.map((asset) => ({ lg: asset.url, sm: asset.url, full: asset.url }));
-  const photos = meta?.photos ?? fallbackPhotos;
+  const fallbackPhotos = detail.photoAssets.map((asset) => ({ assetId: asset.assetId, lg: asset.url, sm: asset.url, full: asset.url, regions: asset.regions }));
+  const metaPhotos = meta?.photos.map((photo, index) => ({
+    ...photo,
+    assetId: photo.assetId ?? detail.photoAssets[index]?.assetId,
+    regions: photo.regions ?? detail.photoAssets[index]?.regions ?? []
+  }));
+  const photos = metaPhotos ?? fallbackPhotos;
   const mainPhoto = photos[0] ?? fallbackPhotos[0]!;
   const feedback = buildImageObservationFeedback(detail, meta, subjectName, subjectRank, photos.length);
   const publicFullSrc = (photo: ImageObservationTargetPhoto): string => photo.full.startsWith("/uploads/") ? photo.lg : photo.full;
-  const evidence = meta?.evidence ?? ["写真あり", "対象枠あり", "人の確認待ち"];
+  const hasRegionData = photos.some((photo) => (photo.regions?.length ?? 0) > 0);
+  const evidence = meta?.evidence ?? ["写真あり", hasRegionData ? "対象の位置情報あり" : "見直せる手がかり", "人の確認待ち"];
   const evidencePills = evidence.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   const storyBullets = (meta?.storyBullets ?? [
-    { title: "見る手がかり", body: "写真の対象と周囲の状態を分けて確認できます。" },
+    { title: "見る手がかり", body: "写真の対象と周囲の状態を分けて見直せそうです。" },
     { title: "同定の余地", body: "候補は人の確認で更新できます。" },
     { title: "周囲", body: "地面や植生の状態を同じ記録で残します。" }
   ]).map((item) => `<li><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></li>`).join("");
-  const thumbButtons = photos.map((photo, index) => `<button type="button" class="obs-hero-thumb${index === 0 ? " is-active" : ""}" data-obs-thumb-src="${escapeHtml(photo.lg)}" data-obs-thumb-full="${escapeHtml(publicFullSrc(photo))}" aria-label="${escapeHtml(`写真${index + 1}を表示`)}" aria-pressed="${index === 0 ? "true" : "false"}">
+  const thumbButtons = photos.map((photo, index) => `<button type="button" class="obs-hero-thumb${index === 0 ? " is-active" : ""}" data-obs-thumb-src="${escapeHtml(photo.lg)}" data-obs-thumb-full="${escapeHtml(publicFullSrc(photo))}" data-obs-thumb-asset="${escapeHtml(photo.assetId ?? "")}" data-obs-thumb-regions="${escapeHtml(JSON.stringify(imageObservationRegionPayload(photo.regions)))}" aria-label="${escapeHtml(`写真${index + 1}を表示`)}" aria-pressed="${index === 0 ? "true" : "false"}">
       <img src="${escapeHtml(photo.sm)}" alt="" loading="${index === 0 ? "eager" : "lazy"}">
     </button>`).join("");
   const mediaBlock = `<div class="obs-hero-media-stack is-photo-only">
@@ -23741,12 +23897,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
       <div class="obs-hero-preview" data-obs-preview>
         <figure class="obs-hero-image-frame">
           <img src="${escapeHtml(mainPhoto.lg)}" data-obs-preview-img data-obs-full-src="${escapeHtml(publicFullSrc(mainPhoto))}" alt="${escapeHtml(displayName)}" loading="eager">
-          <div class="obs-region-layer" data-obs-preview-regions aria-hidden="true">
-            <span class="obs-region-target obs-region-guide is-subject-guide"></span>
-            <span class="obs-region-guide is-context-guide"></span>
-            <span class="obs-region-guide is-ground-guide"></span>
-            <span class="obs-region-guide is-extra-guide"></span>
-          </div>
+          ${renderImageObservationRegionLayer(mainPhoto.regions)}
         </figure>
         <button type="button" class="obs-hero-zoom" aria-label="写真を大きく見る">⌕</button>
       </div>
@@ -23761,7 +23912,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
       </div>
       <div class="obs-env-strip"><strong>環境</strong><span>${escapeHtml(`写真${photos.length}枚 / 位置ぼかし / 複数観察記録として読み直せます`)}</span></div>
     </div>
-    <p>この記録が支えられる情報を、名前の候補、場所の手がかり、足元の状態に分けて見直せます。</p>
+    <p>この記録が支えられるかもしれない情報を、名前の候補、場所の手がかり、足元の状態に分けて見直せそうです。</p>
   </section>`;
   const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged obs-ai-detail-panel" aria-label="AI候補レビュー">
     <div class="obs-ai-status">
@@ -23967,7 +24118,42 @@ function renderImageGalleryScript(): string {
   var root = document.querySelector('.obs-vps-image-detail');
   if (!root) return;
   var image = root.querySelector('[data-obs-preview-img]');
+  var regionLayer = root.querySelector('[data-obs-preview-regions]');
   var thumbs = root.querySelectorAll('[data-obs-thumb-src]');
+  function safeNumber(value) {
+    var number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+  function setRegions(raw) {
+    if (!regionLayer) return;
+    var regions = [];
+    try {
+      regions = raw ? JSON.parse(raw) : [];
+    } catch (error) {
+      regions = [];
+    }
+    regionLayer.textContent = '';
+    regionLayer.setAttribute('data-region-count', String(Array.isArray(regions) ? regions.length : 0));
+    if (!Array.isArray(regions)) return;
+    regions.slice(0, 4).forEach(function (region, index) {
+      var x = safeNumber(region && region.x);
+      var y = safeNumber(region && region.y);
+      var width = safeNumber(region && region.width);
+      var height = safeNumber(region && region.height);
+      if (x === null || y === null || width === null || height === null) return;
+      if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > 1.001 || y + height > 1.001) return;
+      var marker = document.createElement('span');
+      marker.className = 'obs-region-target obs-region-guide' + (index > 0 ? ' is-secondary' : '');
+      marker.setAttribute('data-obs-region-id', String(region.id || ''));
+      marker.setAttribute('data-obs-region-asset', String(region.assetId || ''));
+      marker.style.left = (x * 100).toFixed(2) + '%';
+      marker.style.top = (y * 100).toFixed(2) + '%';
+      marker.style.width = (width * 100).toFixed(2) + '%';
+      marker.style.height = (height * 100).toFixed(2) + '%';
+      regionLayer.appendChild(marker);
+    });
+    regionLayer.setAttribute('data-region-count', String(regionLayer.children.length));
+  }
   thumbs.forEach(function (button) {
     button.addEventListener('click', function () {
       var src = button.getAttribute('data-obs-thumb-src') || '';
@@ -23976,6 +24162,7 @@ function renderImageGalleryScript(): string {
         image.setAttribute('src', src);
         image.setAttribute('data-obs-full-src', full);
       }
+      setRegions(button.getAttribute('data-obs-thumb-regions') || '[]');
       thumbs.forEach(function (item) {
         item.classList.remove('is-active');
         item.setAttribute('aria-pressed', 'false');

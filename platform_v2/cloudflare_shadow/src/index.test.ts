@@ -248,6 +248,17 @@ interface AssetRow {
   public_ready_at: string | null;
 }
 
+interface SubjectMediaRegionTestRow {
+  region_id: string;
+  occurrence_id: string | null;
+  candidate_id: string | null;
+  asset_id: string;
+  normalized_rect: string | Record<string, unknown> | null;
+  frame_time_ms: number | null;
+  confidence_score: number | null;
+  created_at: string;
+}
+
 interface OutboxRow {
   outbox_id: string;
   topic: "media.process" | "readmodel.refresh";
@@ -1491,6 +1502,8 @@ class FakeD1 {
   observationDetailEditEvents: ObservationDetailEditEventRow[] = [];
   observationEnvironmentRecords: ObservationEnvironmentRecordRow[] = [];
   environmentRecordTablesAvailable = true;
+  subjectMediaRegions: SubjectMediaRegionTestRow[] = [];
+  subjectMediaRegionsTableAvailable = true;
   placeManagementPolicies = new Map<string, PlaceManagementPolicyRow>();
   placeMemoryEntries = new Map<string, PlaceMemoryEntryTestRow>();
   placeMemoryPreferences = new Map<string, PlaceMemoryPreferenceTestRow>();
@@ -4282,6 +4295,14 @@ class FakeStatement {
       return ({ count: this.db.readmodel.has(string(v[0])) ? 1 : 0 } as T);
     }
 
+    if (normalized.startsWith("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")) {
+      const tableName = string(v[0]);
+      if (tableName === "subject_media_regions" && this.db.subjectMediaRegionsTableAvailable) {
+        return ({ name: "subject_media_regions" } as T);
+      }
+      return null;
+    }
+
     if (normalized.startsWith("SELECT snapshot_key, generated_at, source_sample_size, public_record_count, refreshed_by, policy_json")) {
       return (this.db.publicMapSnapshotMeta as T | null) ?? null;
     }
@@ -5401,6 +5422,31 @@ class FakeStatement {
       const rows = [...this.db.assets.values()]
         .filter((asset) => asset.observation_id === string(this.values[0]) && asset.processing_state === "uploaded")
         .map((asset) => ({ asset_id: asset.asset_id, object_key: asset.object_key }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT smr.region_id, smr.occurrence_id, smr.candidate_id, smr.asset_id")) {
+      const visitId = string(this.values[0]);
+      const rows = this.db.subjectMediaRegions
+        .filter((region) => {
+          const asset = this.db.assets.get(region.asset_id);
+          return asset?.observation_id === visitId && region.normalized_rect !== null;
+        })
+        .sort((a, b) => {
+          const confidence = (b.confidence_score ?? 0) - (a.confidence_score ?? 0);
+          if (confidence !== 0) return confidence;
+          const created = b.created_at.localeCompare(a.created_at);
+          return created !== 0 ? created : a.region_id.localeCompare(b.region_id);
+        })
+        .slice(0, 24)
+        .map((region) => ({
+          region_id: region.region_id,
+          occurrence_id: region.occurrence_id,
+          candidate_id: region.candidate_id,
+          asset_id: region.asset_id,
+          normalized_rect: region.normalized_rect,
+          frame_time_ms: region.frame_time_ms,
+          confidence_score: region.confidence_score
+        }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key FROM asset_ledger")) {
@@ -6870,6 +6916,16 @@ test("public observation detail route exposes a safe read page and JSON without 
     "detail-real-webp",
     { httpMetadata: { contentType: "image/webp" } }
   );
+  env.OBS_DB.subjectMediaRegions.push({
+    region_id: "region-detail-1",
+    occurrence_id: "occ:visit-detail-contract:0",
+    candidate_id: null,
+    asset_id: "asset-detail-contract-real-derivative",
+    normalized_rect: JSON.stringify({ x: 0.12, y: 0.18, width: 0.44, height: 0.31 }),
+    frame_time_ms: null,
+    confidence_score: 0.91,
+    created_at: "2026-06-15T03:31:00.000Z"
+  });
 
   const jsonResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/occ%3Avisit-detail-contract%3A0/public-detail"), env);
   const jsonPayload = await jsonResponse.json() as any;
@@ -6882,6 +6938,11 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(jsonPayload.observation.privacy.exactLocationExposed, false);
   assert.equal(jsonPayload.observation.photoAssets.length, 1);
   assert.match(jsonPayload.observation.photoAssets[0].url, /asset-detail-contract-real-derivative\/display\.webp$/);
+  assert.equal(jsonPayload.observation.photoAssets[0].regions.length, 1);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(jsonPayload.observation.photoAssets[0].regions[0].rect).map(([key, value]) => [key, Number((value as number).toFixed(2))])),
+    { x: 0.12, y: 0.18, width: 0.44, height: 0.31 }
+  );
   assert.doesNotMatch(JSON.stringify(jsonPayload), /ownerUserId|observerUserId|observerName|profile|34\.71234|137\.81234/);
 
   const localizedJsonResponse = await worker.fetch(new Request("https://shadow.test/ja/api/v1/observations/visit-detail-contract/public-detail"), env);
@@ -6908,15 +6969,17 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.match(pageHtml, /obs-hero-media-stack is-photo-only/);
   assert.match(pageHtml, /data-obs-preview-img/);
   assert.match(pageHtml, /data-obs-preview-regions/);
-  assert.match(pageHtml, /obs-region-guide is-context-guide/);
-  assert.match(pageHtml, /obs-region-guide is-ground-guide/);
-  assert.match(pageHtml, /obs-region-guide is-extra-guide/);
+  assert.match(pageHtml, /data-region-count="1"/);
+  assert.match(pageHtml, /data-obs-region-id="region-detail-1"/);
+  assert.match(pageHtml, /left:12\.00%;top:18\.00%;width:44\.00%;height:31\.00%/);
+  assert.doesNotMatch(pageHtml, /is-context-guide|is-ground-guide|is-extra-guide/);
   assert.match(pageHtml, /obs-hero-thumb/);
   assert.match(pageHtml, /この記録で読む対象/);
-  assert.match(pageHtml, /この記録から読めていること/);
+  assert.match(pageHtml, /この記録から読めそうなこと/);
+  assert.equal((pageHtml.match(/AIによるまとめ/g) ?? []).length, 1);
   assert.match(pageHtml, /obs-feedback-chip/);
   assert.match(pageHtml, /公開記録・候補情報/);
-  assert.match(pageHtml, /次の写真で増える情報/);
+  assert.match(pageHtml, /次の写真で増えるかもしれない情報/);
   assert.match(pageHtml, /名前の候補/);
   assert.match(pageHtml, /場所の手がかり/);
   assert.match(pageHtml, /足元の状態/);
@@ -15148,15 +15211,16 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /obs-hero-media-stack is-photo-only/);
     assert.match(body, /data-obs-preview-img/);
     assert.match(body, /data-obs-preview-regions/);
+    assert.match(body, /data-region-count="0"/);
     assert.match(body, /obs-hero-thumb/);
     assert.match(body, /この記録で読む対象/);
-    assert.match(body, /obs-region-guide is-context-guide/);
-    assert.match(body, /obs-region-guide is-ground-guide/);
-    assert.match(body, /obs-region-guide is-extra-guide/);
-    assert.match(body, /この記録から読めていること/);
+    assert.doesNotMatch(body, /is-context-guide|is-ground-guide|is-extra-guide/);
+    assert.doesNotMatch(body, /<span class="obs-region-target obs-region-guide/);
+    assert.match(body, /この記録から読めそうなこと/);
+    assert.equal((body.match(/AIによるまとめ/g) ?? []).length, 1);
     assert.match(body, /obs-feedback-chip/);
     assert.match(body, /公開記録・候補情報/);
-    assert.match(body, /次の写真で増える情報/);
+    assert.match(body, /次の写真で増えるかもしれない情報/);
     assert.match(body, /名前の候補/);
     assert.match(body, /場所の手がかり/);
     assert.match(body, /足元の状態/);
