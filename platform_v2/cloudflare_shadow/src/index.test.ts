@@ -6151,6 +6151,7 @@ function createEnv(queue = new FakeQueue()) {
       OBSERVATION_DB_NAME: "ikimon_shadow_observations_2026_06",
       OBSERVATION_ARCHIVE_TARGET: "r2_sql_export_by_partition_month",
       PUBLIC_WRITE_MODE: "origin_fallback",
+      V2_PRIVILEGED_WRITE_API_KEY: "write-key",
       CLOUDFLARE_STREAM_WEBHOOK_SECRET: undefined as string | undefined,
       MPC_DISABLED: undefined as string | undefined,
       MPC_STAC_API_URL: undefined as string | undefined,
@@ -9864,7 +9865,7 @@ test("production fieldscan audio runtime stores private R2 audio, detection call
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "fieldscan-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -10281,7 +10282,7 @@ test("production runtime enables app-compatible write routes while keeping shado
 
   const issueResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({
       userId: "production-user",
       displayName: "Production User",
@@ -10386,7 +10387,7 @@ test("production runtime honors private visibility before public readmodel refre
 
   const issueResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({
       userId: "production-private-post-user",
       displayName: "Production Private Post User",
@@ -10969,7 +10970,7 @@ test("reference library runtime stores D1 metadata and serves list candidates co
   try {
     const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
       body: JSON.stringify({ userId: "reference-specialist", roleName: "Specialist Admin", ttlHours: 1 })
     }), productionEnv);
     const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -11086,7 +11087,7 @@ test("production runtime handles observation reactions natively without origin f
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "reaction-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -11149,7 +11150,7 @@ test("production runtime records observation identifications natively without or
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "identification-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -11238,7 +11239,7 @@ test("production runtime records observation AI reviews natively without origin 
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "ai-review-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -11314,7 +11315,7 @@ test("production runtime records observation disputes natively without origin fa
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "dispute-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -11393,13 +11394,13 @@ test("production runtime resolves identification disputes natively for specialis
   };
   const observerIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "ordinary-user", roleName: "Observer", ttlHours: 1 })
   }), productionEnv);
   const observerCookie = observerIssue.headers.get("set-cookie") ?? "";
   const specialistIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "specialist-user", roleName: "Specialist", ttlHours: 1 })
   }), productionEnv);
   const specialistCookie = specialistIssue.headers.get("set-cookie") ?? "";
@@ -11470,13 +11471,13 @@ test("production runtime records specialist occurrence reviews natively for spec
   };
   const observerIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "ordinary-user", roleName: "Observer", ttlHours: 1 })
   }), productionEnv);
   const observerCookie = observerIssue.headers.get("set-cookie") ?? "";
   const specialistIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "specialist-user", roleName: "Specialist", ttlHours: 1 })
   }), productionEnv);
   const specialistCookie = specialistIssue.headers.get("set-cookie") ?? "";
@@ -11690,7 +11691,7 @@ test("production runtime records walk sessions natively without origin fallback"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "walk-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -11793,7 +11794,7 @@ test("production runtime records track upserts natively without origin fallback"
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "track-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -11897,7 +11898,7 @@ test("production runtime generates record reading cards natively without origin 
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "reading-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -12010,7 +12011,7 @@ test("production runtime returns owner observation package from D1 without origi
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "package-owner", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -12069,7 +12070,7 @@ test("production runtime rejects non-owner observation package reads", async () 
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "other-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -12168,7 +12169,7 @@ test("production runtime hides record reading cards natively without origin fall
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "reading-owner", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -12235,7 +12236,7 @@ test("production runtime rejects record reading card hide from non-owner before 
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "other-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -12277,7 +12278,7 @@ test("production runtime rejects unknown observation reaction targets before ori
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "reaction-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -12325,7 +12326,7 @@ test("production observation reactions fail closed when the D1 session store is 
   };
   const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "reaction-user", ttlHours: 1 })
   }), productionEnv);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
@@ -12617,7 +12618,7 @@ test("production public cloudflare-native mode rejects photo upload auth failure
   };
   const issueOtherResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "other-user", ttlHours: 1 })
   }), productionEnv);
   const otherCookie = issueOtherResponse.headers.get("set-cookie") ?? "";
@@ -12812,6 +12813,42 @@ test("production public cloudflare-native mode rejects mismatched origin session
   }
 });
 
+test("production workers.dev compatible session issue requires privileged write key", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key"
+  };
+  const requestBody = {
+    userId: "workers-dev-session-user",
+    displayName: "Workers Dev Session User",
+    ttlHours: 1
+  };
+
+  const forbidden = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(requestBody)
+  }), productionEnv);
+  assert.equal(forbidden.status, 403);
+  assert.deepEqual(await forbidden.json(), { ok: false, error: "forbidden" });
+  assert.equal(core.authSessions.size, 0);
+
+  const allowed = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify(requestBody)
+  }), productionEnv);
+  const payload = await allowed.json() as any;
+  assert.equal(allowed.status, 200, JSON.stringify(payload));
+  assert.equal(payload.ok, true);
+  assert.equal(payload.session.userId, "workers-dev-session-user");
+  assert.match(allowed.headers.get("set-cookie") ?? "", /^ikimon_v2_session=.*HttpOnly; SameSite=Lax; Secure;/);
+  assert.equal(core.authSessions.size, 1);
+});
+
 test("production public cloudflare-native mode rejects custom-domain session issue", async () => {
   const { env } = createEnv();
   const productionEnv = {
@@ -12819,12 +12856,13 @@ test("production public cloudflare-native mode rejects custom-domain session iss
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key"
   };
 
   const response = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({
       userId: "must-not-issue-public-session",
       ttlHours: 1
