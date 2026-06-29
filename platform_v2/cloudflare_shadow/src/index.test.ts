@@ -12771,6 +12771,10 @@ test("production public UI routes avoid origin fallback while broad custom-domai
     assert.equal(eventCreatePage.headers.get("x-ikimon-cloudflare-native"), "event-page-create");
     const eventCreatePageHtml = await eventCreatePage.text();
     assert.match(eventCreatePageHtml, /Worker\/D1 runtime/);
+    assert.match(eventCreatePageHtml, /<header class="site-header">/);
+    assert.match(eventCreatePageHtml, /site-nav-link" href="\/ja\/map"/);
+    assert.match(eventCreatePageHtml, /site-record-link" href="\/ja\/record"/);
+    assert.doesNotMatch(eventCreatePageHtml, /ikimon\.life 観察会/);
     assert.match(eventCreatePageHtml, /Area Sketch Assist/);
     assert.match(eventCreatePageHtml, /data-area-sketch-map/);
     assert.match(eventCreatePageHtml, /area-sketch-assessments/);

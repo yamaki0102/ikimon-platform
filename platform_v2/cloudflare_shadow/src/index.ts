@@ -2781,19 +2781,28 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
   <title>${escapeHtml(title)} - ikimon.life</title>
   <style>
     body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7faf8;color:#17231b}
-    main{max-width:980px;margin:0 auto;padding:28px 18px 48px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
-    a{color:#0b6b54}.brand{font-weight:700;text-decoration:none;color:#17231b}
+    main{max-width:980px;margin:0 auto;padding:24px 18px 48px}
+    a{color:#0b6b54}
+    .site-header{position:sticky;top:0;z-index:20;border-bottom:1px solid rgba(15,23,42,.08);background:rgba(255,255,255,.92);backdrop-filter:blur(14px)}
+    .site-header-inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 18px}
+    .site-brand-cluster{display:flex;align-items:center;gap:8px;min-width:0}.desktop-side-nav-toggle{display:none}
+    .brand{display:inline-flex;align-items:center;min-width:0;color:#17231b;text-decoration:none;font-weight:900}
+    .brand-logo-lockup{display:inline-flex;align-items:center;gap:7px;min-width:0}.brand-mark{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 7px 16px rgba(15,23,42,.1)}.brand-mark img{width:100%;height:100%;object-fit:cover}.brand-wordmark{display:inline-flex;align-items:center;height:16px;aspect-ratio:711/222}.brand-wordmark-img{display:block;width:auto;height:100%;object-fit:contain}
+    .site-nav{display:flex;align-items:center;gap:6px}.site-nav-link{min-height:38px;display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;color:#42574c;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}.site-nav-link:hover{background:#e8f1ed}
+    .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}.site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#17231b;font:inherit;font-size:13px}.site-search-icon{font-size:13px;opacity:.72}
+    .site-header-actions{display:flex;align-items:center;gap:8px}.site-header-actions-mobile{display:none}.site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}.lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}.lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900}.site-account-icons{gap:4px;padding:3px;border-radius:999px}.site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}.desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .site-mobile-menu{position:relative;display:none}.site-mobile-menu-toggle{list-style:none;width:42px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid #d6e3dc;background:#fff;color:#17231b;cursor:pointer}.site-mobile-menu-toggle::-webkit-details-marker{display:none}.site-mobile-menu-icon,.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{display:block;width:14px;height:2px;border-radius:999px;background:currentColor}.site-mobile-menu-icon{position:relative}.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{content:"";position:absolute;left:0}.site-mobile-menu-icon::before{top:-5px}.site-mobile-menu-icon::after{top:5px}.site-mobile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);z-index:30;width:min(340px,calc(100vw - 28px));display:grid;gap:10px;padding:12px;border-radius:16px;border:1px solid #d6e3dc;background:#fff;box-shadow:0 20px 42px rgba(15,23,42,.16)}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}
     .muted{color:#587062}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.btn{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:6px;background:#0b6b54;color:#fff;text-decoration:none;font-weight:600}
     button.btn{border:0;cursor:pointer;font:inherit}.area-sketch-card{margin-top:14px}.area-sketch-label,.area-sketch-cover label{display:grid;gap:6px;font-weight:700;color:#315241}.area-sketch-label input,.area-sketch-cover input,textarea[data-area-sketch-polygon]{width:100%;box-sizing:border-box;border:1px solid #cbd8d0;border-radius:6px;padding:9px 10px;font:inherit;background:#fff;color:#17231b}.area-sketch-map{height:420px;min-height:320px;border:1px solid #cbd8d0;border-radius:8px;overflow:hidden;background:#dce6df;margin:12px 0}.area-sketch-cover{margin-top:12px}
     .btn.secondary{background:#e8f1ed;color:#174c3d}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
+    @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}}
   </style>
 </head>
 <body>
+  ${renderVpsImageHeader()}
   <main>
-    <header><a class="brand" href="/community/events">ikimon.life 観察会</a><a href="/community/events/new">作成</a></header>
     ${body}
   </main>
 </body>
