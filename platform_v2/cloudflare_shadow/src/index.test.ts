@@ -12777,6 +12777,9 @@ test("production public UI routes avoid origin fallback while broad custom-domai
     assert.doesNotMatch(eventCreatePageHtml, /ikimon\.life 観察会/);
     assert.match(eventCreatePageHtml, /Area Sketch Assist/);
     assert.match(eventCreatePageHtml, /data-area-sketch-map/);
+    assert.match(eventCreatePageHtml, /tile\.openstreetmap\.org/);
+    assert.match(eventCreatePageHtml, /World_Imagery/);
+    assert.match(eventCreatePageHtml, /衛星画像/);
     assert.match(eventCreatePageHtml, /area-sketch-assessments/);
     assert.equal(seen.length, 0);
 
