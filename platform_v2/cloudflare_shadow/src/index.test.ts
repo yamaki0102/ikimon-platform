@@ -14244,6 +14244,109 @@ test("production area sketch assessment runtime stores draft diagnostics in D1 w
   }
 });
 
+test("production area sketch draft boundary keeps public visibility and near-threshold claims gated", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const fieldId = "renri-area-sketch-threshold-field";
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "nature_symbiosis_site",
+    admin_level: null,
+    name: "しきい値付近の区域",
+    name_kana: null,
+    summary: "Area Sketch near-threshold boundary field",
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 120,
+    area_ha: 0.1,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "renri-area-sketch-threshold-field",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "area-sketch-threshold-user", displayName: "Area Sketch Threshold User", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const nearThresholdPolygon = {
+    type: "Polygon",
+    coordinates: [[
+      [138.38, 35.01],
+      [138.38033, 35.01],
+      [138.38033, 35.0103],
+      [138.38, 35.0103],
+      [138.38, 35.01]
+    ]]
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const create = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-sketch-assessments`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        visibility: "public",
+        sketch_polygon: nearThresholdPolygon,
+        policy_version: "tsunag_2026_current",
+        land_cover: [
+          { category: "trees_planting", ratio: 0.2 },
+          { category: "yard_experience_space", ratio: 0.4 },
+          { category: "building", ratio: 0.4 }
+        ],
+        owner_assertion: { note: "この区域は認定されます" },
+        evidence_payload: { source: "near_threshold_contract" }
+      })
+    }), productionEnv);
+    const createPayload = await create.json() as any;
+    assert.equal(create.status, 201, JSON.stringify(createPayload));
+    assert.equal(create.headers.get("x-ikimon-cloudflare-native"), "area-sketch-assessment-runtime");
+    assert.equal(createPayload.assessment.status, "draft");
+    assert.equal(createPayload.assessment.visibility, "private");
+    assert.equal(createPayload.assessment.resultPayload.absoluteArea.status, "near_threshold");
+    assert.equal(createPayload.assessment.resultPayload.evidenceChecklist.some((item: any) => item.key === "area_threshold_confirmation"), true);
+    assert.equal(createPayload.assessment.resultPayload.evidenceChecklist.some((item: any) => item.key === "conditional_green_basis"), true);
+    assert.equal(createPayload.assessment.resultPayload.claimBoundary.prohibitedPhrases.includes("認定されます"), true);
+    assert.match(createPayload.assessment.resultPayload.claimBoundary.requiredDisclaimer, /保証するものではありません/);
+
+    const stored = [...obs.areaSketchAssessments.values()][0];
+    assert.equal(stored?.status, "draft");
+    assert.equal(stored?.visibility, "private");
+    const storedResult = JSON.parse(stored?.result_payload_json ?? "{}");
+    assert.equal(storedResult.absoluteArea.status, "near_threshold");
+    assert.equal(storedResult.evidenceChecklist.some((item: any) => item.key === "area_threshold_confirmation"), true);
+    assert.equal(fallbackCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("field manager runtime grants list and revokes D1 roles for admin sessions only", async () => {
   const { env, obs } = createEnv();
   const fieldId = "field-manager-runtime-1";
