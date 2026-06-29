@@ -15416,13 +15416,24 @@ function estimateAreaSketchForD1(totalAreaHaInput: number, landCover: AreaSketch
     : policyVersion === "tsunag_2027_planned"
       ? { thresholdHa: 0.05, thresholdLabel: "500m2以上(2027予定)" }
       : { thresholdHa: null, thresholdLabel: null };
+  const absoluteMarginHa = absoluteThreshold.thresholdHa == null
+    ? null
+    : roundAreaSketchHa(Math.max(0.005, absoluteThreshold.thresholdHa * 0.05));
+  const absoluteDeltaHa = absoluteThreshold.thresholdHa == null ? null : totalAreaHa - absoluteThreshold.thresholdHa;
+  const absoluteStatus = absoluteThreshold.thresholdHa == null || absoluteDeltaHa == null || absoluteMarginHa == null
+    ? "not_applicable"
+    : Math.abs(absoluteDeltaHa) <= absoluteMarginHa
+      ? "near_threshold"
+      : absoluteDeltaHa > 0
+        ? "above"
+        : "below";
   const absoluteArea = absoluteThreshold.thresholdHa == null
     ? { policyVersion, thresholdHa: null, thresholdLabel: null, status: "not_applicable", marginHa: null }
     : {
         policyVersion,
         ...absoluteThreshold,
-        status: totalAreaHa >= absoluteThreshold.thresholdHa ? "above" : "below",
-        marginHa: roundAreaSketchHa(Math.max(0.005, absoluteThreshold.thresholdHa * 0.05))
+        status: absoluteStatus,
+        marginHa: absoluteMarginHa
       };
   const evidenceChecklist = [
     { key: "boundary_basis", label: "区域境界の根拠", reason: "衛星地図上でなぞった線が、敷地境界・管理範囲・既存境界のどれに基づくかを確認するため。" },
@@ -15431,7 +15442,12 @@ function estimateAreaSketchForD1(totalAreaHaInput: number, landCover: AreaSketch
     ...(conditionalGreenCandidateAreaHa > 0 ? [{ key: "conditional_green_basis", label: "園庭・体験スペースの緑地扱い根拠", reason: "活動スペースは自動で緑地算入せず、植栽・土・管理実態を別確認するため。" }] : []),
     ...(policyVersion !== "general_precheck_v1" ? [
       { key: "management_records", label: "管理記録", reason: "緑地の維持管理、活動、改善予定を説明する資料に接続するため。" },
-      { key: "preconsultation_email", label: "事前相談メール・回答", reason: "正式申請ではなく、事前相談に向けた論点整理として扱うため。" }
+      { key: "preconsultation_email", label: "事前相談メール・回答", reason: "正式申請ではなく、事前相談に向けた論点整理として扱うため。" },
+      ...(absoluteStatus === "near_threshold" ? [{
+        key: "area_threshold_confirmation",
+        label: "面積しきい値付近の確認",
+        reason: "概算誤差で要件判定が変わり得るため、しきい値付近では測量値や管理図面を確認するため。"
+      }] : [])
     ] : [])
   ];
   return {
