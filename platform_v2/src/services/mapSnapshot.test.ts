@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  __privacyTest__,
   __test__,
   buildPublicCellRecords,
   buildPublicMapCells,
@@ -30,6 +31,7 @@ function sampleRows(): PreparedRows {
       aiCandidateName: null,
       aiCandidateRank: null,
       isAiCandidate: false,
+      userId: "user-1",
     },
     {
       occurrenceId: "occ-2",
@@ -51,6 +53,7 @@ function sampleRows(): PreparedRows {
       aiCandidateName: null,
       aiCandidateRank: null,
       isAiCandidate: false,
+      userId: "user-2",
     },
   ];
 }
@@ -154,6 +157,79 @@ test("buildPublicCellRecords drops exact coordinates and site-level names from p
   assert.equal(record.localityLabel, "浜松市");
   assert.ok(!("lat" in record));
   assert.ok(!("lng" in record));
+  assert.ok(!("exactLatitude" in record));
+  assert.ok(!("exactLongitude" in record));
   assert.ok(!("placeName" in record));
   assert.ok(!("siteName" in record));
+});
+
+test("public map only exposes exact coordinates for viewer-owned records", () => {
+  const rows = sampleRows();
+  const ownerList = buildPublicCellRecords(rows, { zoom: 13, viewerUserId: "user-1" });
+  const publicList = buildPublicCellRecords(rows, { zoom: 13 });
+
+  const ownRecord = ownerList.items.find((item) => item.visitId === "visit-1")!;
+  const otherRecord = ownerList.items.find((item) => item.visitId === "visit-2")!;
+  assert.equal(ownRecord.isViewerOwned, true);
+  assert.equal(ownRecord.exactLatitude, 34.7116);
+  assert.equal(ownRecord.exactLongitude, 137.7274);
+  assert.equal(otherRecord.isViewerOwned, undefined);
+  assert.equal(otherRecord.exactLatitude, undefined);
+  assert.equal(publicList.items.some((item) => "exactLatitude" in item || "exactLongitude" in item), false);
+});
+
+test("public trace lines coarsen non-owner track points", () => {
+  const features = __privacyTest__.buildPublicTraceLineFeatures([
+    {
+      visit_id: "visit-public",
+      observed_at: "2026-04-08T09:00:00.000Z",
+      pt_count: 2,
+      sequence_no: 1,
+      lat: 34.7116,
+      lng: 137.7274,
+      user_id: "user-1",
+    },
+    {
+      visit_id: "visit-public",
+      observed_at: "2026-04-08T09:00:00.000Z",
+      pt_count: 2,
+      sequence_no: 2,
+      lat: 34.7216,
+      lng: 137.7374,
+      user_id: "user-1",
+    },
+  ], null);
+
+  assert.equal(features.length, 1);
+  assert.notDeepEqual(features[0]!.geometry.coordinates[0], [137.7274, 34.7116]);
+  assert.notDeepEqual(features[0]!.geometry.coordinates[1], [137.7374, 34.7216]);
+  assert.equal(features[0]!.properties.isViewerOwned, undefined);
+});
+
+test("viewer-owned trace lines preserve exact track points", () => {
+  const features = __privacyTest__.buildPublicTraceLineFeatures([
+    {
+      visit_id: "visit-owned",
+      observed_at: "2026-04-08T09:00:00.000Z",
+      pt_count: 2,
+      sequence_no: 1,
+      lat: 34.7116,
+      lng: 137.7274,
+      user_id: "user-1",
+    },
+    {
+      visit_id: "visit-owned",
+      observed_at: "2026-04-08T09:00:00.000Z",
+      pt_count: 2,
+      sequence_no: 2,
+      lat: 34.7216,
+      lng: 137.7374,
+      user_id: "user-1",
+    },
+  ], "user-1");
+
+  assert.equal(features.length, 1);
+  assert.deepEqual(features[0]!.geometry.coordinates[0], [137.7274, 34.7116]);
+  assert.deepEqual(features[0]!.geometry.coordinates[1], [137.7374, 34.7216]);
+  assert.equal(features[0]!.properties.isViewerOwned, true);
 });
