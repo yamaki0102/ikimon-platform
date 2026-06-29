@@ -4,6 +4,7 @@ import { getShortCopy } from "../content/index.js";
 import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, appInstallCopy } from "../appInstall.js";
 import { BRAND_ASSETS } from "../brandAssets.js";
 import { IKIMON_CLARITY_PROJECT_ID, IKIMON_GA4_MEASUREMENT_ID } from "../services/analyticsConfig.js";
+import { getCspNonce } from "../services/cspNonce.js";
 import {
   getSiteShellLayoutForPath,
   listPagesByLane,
@@ -104,6 +105,15 @@ export function escapeHtml(value: string | null | undefined): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function applyCspNonceToScripts(html: string): string {
+  const nonce = getCspNonce();
+  if (!nonce) {
+    return html;
+  }
+  const nonceAttribute = ` nonce="${escapeHtml(nonce)}"`;
+  return html.replace(/<script\b(?![^>]*\bnonce=)/g, `<script${nonceAttribute}`);
 }
 
 function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): string {
@@ -3881,7 +3891,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   } catch (_) {}
 })();
 </script>`;
-  return `<!doctype html>
+  return applyCspNonceToScripts(`<!doctype html>
 <html lang="${escapeHtml(lang)}">
 <head>
   <meta charset="utf-8" />
@@ -6903,5 +6913,5 @@ ${alternateLinks}
   ${globalRecordNav ? globalRecordEntryScript(options.basePath) : ""}
   ${uiKpiScript}
 </body>
-</html>`;
+</html>`);
 }

@@ -54,6 +54,7 @@ import { registerSampleReportRoute } from "./routes/sampleReport.js";
 import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
 import { registerMonitoringBusinessRoutes } from "./routes/monitoringBusiness.js";
 import { registerMonitoringWorkspaceApiRoutes } from "./routes/monitoringWorkspaceApi.js";
+import { createCspNonce, runWithCspNonce } from "./services/cspNonce.js";
 import {
   listPagesByLane,
   listPagesByVisibility,
@@ -275,14 +276,18 @@ function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(na
   }
 }
 
-function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, isProduction: boolean): void {
+function applySecurityHeaders(
+  reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown },
+  isProduction: boolean,
+  cspNonce: string,
+): void {
   const contentSecurityPolicy = [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms https://scripts.clarity.ms",
+    `script-src 'self' 'nonce-${cspNonce}' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms https://scripts.clarity.ms`,
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
@@ -312,6 +317,16 @@ function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(
 
 function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string {
   return withBasePath(getForwardedBasePath(request.headers), requestUrl(request));
+}
+
+function requestHost(request: { headers: Record<string, unknown> }): string {
+  const rawHost = Array.isArray(request.headers.host) ? request.headers.host[0] : request.headers.host;
+  return typeof rawHost === "string" ? (rawHost.split(",", 1)[0] ?? "").trim().toLowerCase().replace(/:\d+$/, "") : "";
+}
+
+function isPublicProductionHost(request: { headers: Record<string, unknown> }): boolean {
+  const host = requestHost(request);
+  return host === "ikimon.life" || host === "www.ikimon.life";
 }
 
 function localizedNavHome(lang: SiteLang): string {
@@ -673,12 +688,17 @@ export function buildApp() {
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   });
 
-  app.addHook("onRequest", async (request, reply) => {
-    applySecurityHeaders(reply, config.nodeEnv === "production");
-    const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
-    if (redirectUrl) {
-      reply.code(308).header("location", redirectUrl).send();
-    }
+  app.addHook("onRequest", (request, reply, done) => {
+    const cspNonce = createCspNonce();
+    runWithCspNonce(cspNonce, () => {
+      applySecurityHeaders(reply, config.nodeEnv === "production", cspNonce);
+      const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
+      if (redirectUrl) {
+        reply.code(308).header("location", redirectUrl).send();
+        return;
+      }
+      done();
+    });
   });
 
   // SSR HTML responses must never be heuristically cached by the browser.
@@ -704,7 +724,8 @@ export function buildApp() {
   }
 
   app.get<{ Params: { "*": string } }>("/__preview-media/*", async (request, reply) => {
-    const enabled = process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203";
+    const enabled = !isPublicProductionHost(request as unknown as { headers: Record<string, unknown> }) &&
+      (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203");
     const origin = (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || "https://ikimon.life").trim().replace(/\/+$/, "");
     const rel = request.params["*"] ?? "";
     if (!enabled || !rel || rel.includes("..") || !/^(?:thumb|uploads|data\/uploads)\//.test(rel)) {
