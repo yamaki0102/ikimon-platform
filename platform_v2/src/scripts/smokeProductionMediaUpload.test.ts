@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { __test__ } from "./smokeProductionMediaUpload.js";
 
 test("production media smoke verifies duplicate post guard", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "scripts", "smokeProductionMediaUpload.ts"), "utf8");
@@ -14,4 +15,37 @@ test("production media smoke verifies duplicate post guard", async () => {
   assert.match(source, /verifyLegacyAiStateIfPresent/);
   assert.doesNotMatch(source, /processMediaProcessingJobs/);
   assert.doesNotMatch(source, /media_worker/);
+});
+
+test("production media smoke refuses unsafe production cleanup settings", () => {
+  const safeOptions = __test__.parseArgs([
+    "--base-url=https://ikimon.life",
+    "--fixture-prefix=prod-media-smoke-contract",
+    "--video-file=fixtures/smoke.mp4",
+  ]);
+  assert.doesNotThrow(() => __test__.assertSafeSmokeOptions(safeOptions));
+  assert.equal(__test__.isProductionBaseUrl("https://ikimon.life"), true);
+  assert.equal(__test__.isProductionBaseUrl("https://www.ikimon.life"), true);
+  assert.equal(__test__.isProductionBaseUrl("http://127.0.0.1:3200"), false);
+
+  const unsafeNoCleanup = __test__.parseArgs([
+    "--base-url=https://ikimon.life",
+    "--fixture-prefix=prod-media-smoke-contract",
+    "--video-file=fixtures/smoke.mp4",
+    "--no-cleanup",
+  ]);
+  assert.throws(
+    () => __test__.assertSafeSmokeOptions(unsafeNoCleanup),
+    /production_media_smoke_cleanup_required/,
+  );
+
+  const unsafePrefix = __test__.parseArgs([
+    "--base-url=https://ikimon.life",
+    "--fixture-prefix=smoke-ui-contract",
+    "--video-file=fixtures/smoke.mp4",
+  ]);
+  assert.throws(
+    () => __test__.assertSafeSmokeOptions(unsafePrefix),
+    /fixture_prefix_must_match_prod_media_smoke_pattern/,
+  );
 });
