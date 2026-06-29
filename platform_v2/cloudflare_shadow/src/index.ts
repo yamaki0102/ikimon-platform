@@ -2685,7 +2685,7 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   }
   if (pathname === "/community/events/new") {
     const auth = await readCompatibleSession(request, env).catch(() => null);
-    return observationEventPageHtml("観察会を作成", renderObservationEventCreatePage(auth), "event-page-create");
+    return observationEventPageHtml("観察会を作成", renderObservationEventCreatePage(auth, url.searchParams.get("field_id") ?? ""), "event-page-create");
   }
   const joinMatch = pathname.match(/^\/community\/events\/([^/]+)\/join$/);
   if (joinMatch?.[1]) {
@@ -2786,6 +2786,7 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
     a{color:#0b6b54}.brand{font-weight:700;text-decoration:none;color:#17231b}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}
     .muted{color:#587062}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.btn{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:6px;background:#0b6b54;color:#fff;text-decoration:none;font-weight:600}
+    button.btn{border:0;cursor:pointer;font:inherit}.area-sketch-card{margin-top:14px}.area-sketch-label,.area-sketch-cover label{display:grid;gap:6px;font-weight:700;color:#315241}.area-sketch-label input,.area-sketch-cover input,textarea[data-area-sketch-polygon]{width:100%;box-sizing:border-box;border:1px solid #cbd8d0;border-radius:6px;padding:9px 10px;font:inherit;background:#fff;color:#17231b}.area-sketch-map{height:420px;min-height:320px;border:1px solid #cbd8d0;border-radius:8px;overflow:hidden;background:#dce6df;margin:12px 0}.area-sketch-cover{margin-top:12px}
     .btn.secondary{background:#e8f1ed;color:#174c3d}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
   </style>
@@ -2799,8 +2800,159 @@ function observationEventPageHtml(title: string, body: string, nativeMarker: str
 </html>`, status, { "cache-control": "no-store", "x-ikimon-cloudflare-native": nativeMarker });
 }
 
-function renderObservationEventCreatePage(auth: SessionSnapshot | null): string {
-  return `<section class="card"><h1>観察会を作成</h1><p class="muted">このページはWorker/D1 runtimeです。作成はD1 APIへ送信します。</p>${auth ? `<p>ログイン中: ${escapeHtml(auth.displayName)}</p>` : `<p>作成にはログインが必要です。</p>`}<div class="actions"><a class="btn" href="/login?redirect=/community/events/new">ログイン</a><a class="btn secondary" href="/api/v1/observation-events">API</a></div></section>`;
+function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialFieldId: string): string {
+  const initialFieldIdJson = JSON.stringify(initialFieldId).replace(/</g, "\\u003c");
+  return `<section class="card"><h1>観察会を作成</h1><p class="muted">このページはWorker/D1 runtimeです。作成はD1 APIへ送信します。</p>${auth ? `<p>ログイン中: ${escapeHtml(auth.displayName)}</p>` : `<p>作成にはログインが必要です。</p>`}<div class="actions"><a class="btn" href="/login?redirect=/community/events/new">ログイン</a><a class="btn secondary" href="/api/v1/observation-events">API</a></div></section>
+<section class="card area-sketch-card" data-area-sketch-assist>
+  <h2>Area Sketch Assist</h2>
+  <p class="muted">衛星地図上で区域候補をざっくりなぞり、緑地割合と不足資料を下書き診断として保存します。正式申請や認定保証ではありません。</p>
+  <label class="area-sketch-label">フィールドID<input data-area-sketch-field-id value="${escapeHtml(initialFieldId)}" placeholder="例: renri-area-sketch-field"></label>
+  <div class="area-sketch-map" data-area-sketch-map aria-label="Area Sketch Assist satellite map"></div>
+  <div class="actions">
+    <button type="button" class="btn" data-area-sketch-close>閉じて整える</button>
+    <button type="button" class="btn secondary" data-area-sketch-undo>1点戻す</button>
+    <button type="button" class="btn secondary" data-area-sketch-clear>クリア</button>
+    <button type="button" class="btn secondary" data-area-sketch-load>保存済みを読み込み</button>
+  </div>
+  <p class="muted" data-area-sketch-status>地図をクリックして区域候補の点を追加してください。</p>
+  <textarea data-area-sketch-polygon rows="5" aria-label="Area Sketch polygon GeoJSON"></textarea>
+  <div class="grid area-sketch-cover">
+    <label>農地<input type="number" min="0" max="100" step="1" value="0" data-cover-category="farmland"></label>
+    <label>樹木・植栽<input type="number" min="0" max="100" step="1" value="40" data-cover-category="trees_planting"></label>
+    <label>草地<input type="number" min="0" max="100" step="1" value="20" data-cover-category="grassland"></label>
+    <label>水辺<input type="number" min="0" max="100" step="1" value="0" data-cover-category="water_edge"></label>
+    <label>建物<input type="number" min="0" max="100" step="1" value="10" data-cover-category="building"></label>
+    <label>舗装<input type="number" min="0" max="100" step="1" value="20" data-cover-category="pavement_parking"></label>
+    <label>不明<input type="number" min="0" max="100" step="1" value="10" data-cover-category="unknown"></label>
+  </div>
+  <div class="actions"><button type="button" class="btn" data-area-sketch-save>下書き診断を保存</button></div>
+  <pre data-area-sketch-preview>保存後に、概算面積・緑地割合・不足資料リストをここに表示します。</pre>
+</section>
+<script>
+(function(){
+  var initialFieldId = ${initialFieldIdJson};
+  var points = [];
+  var map;
+  var layer;
+  var markerLayer;
+  var status = document.querySelector("[data-area-sketch-status]");
+  var polygonBox = document.querySelector("[data-area-sketch-polygon]");
+  var preview = document.querySelector("[data-area-sketch-preview]");
+  var fieldInput = document.querySelector("[data-area-sketch-field-id]");
+  if (fieldInput && initialFieldId) fieldInput.value = initialFieldId;
+  function setStatus(message) { if (status) status.textContent = message; }
+  function polygonFromPoints() {
+    if (points.length < 3) return null;
+    var ring = points.map(function(point) { return [point.lng, point.lat]; });
+    var first = ring[0];
+    var last = ring[ring.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) ring.push([first[0], first[1]]);
+    return { type: "Polygon", coordinates: [ring] };
+  }
+  function updatePolygonBox() {
+    var polygon = polygonFromPoints();
+    if (polygonBox) polygonBox.value = polygon ? JSON.stringify(polygon, null, 2) : "";
+    if (layer && map) {
+      layer.clearLayers();
+      if (polygon) layer.addData(polygon);
+    }
+    if (markerLayer && window.L) {
+      markerLayer.clearLayers();
+      points.forEach(function(point) { window.L.circleMarker([point.lat, point.lng], { radius: 5, color: "#0b6b54" }).addTo(markerLayer); });
+    }
+    setStatus(points.length + "点を指定中。3点以上で下書き診断を保存できます。");
+  }
+  function readPolygon() {
+    if (!polygonBox || !polygonBox.value.trim()) return polygonFromPoints();
+    try { return JSON.parse(polygonBox.value); } catch (_) { return null; }
+  }
+  function landCoverPayload() {
+    return Array.from(document.querySelectorAll("[data-cover-category]")).map(function(input) {
+      var percent = Math.max(0, Math.min(100, Number(input.value) || 0));
+      return { category: input.getAttribute("data-cover-category"), ratio: percent / 100 };
+    }).filter(function(item) { return item.ratio > 0; });
+  }
+  function renderAssessment(assessment) {
+    var result = assessment && assessment.resultPayload ? assessment.resultPayload : {};
+    var checklist = Array.isArray(result.evidenceChecklist) ? result.evidenceChecklist.map(function(item) { return "- " + item.label; }).join("\\n") : "";
+    if (preview) preview.textContent = [
+      "概算面積: " + (result.totalAreaHa || assessment.areaHa || 0) + " ha",
+      "緑地割合: " + (result.greenRatioPercent || 0) + "%",
+      "緑地候補面積: " + (result.greenCandidateAreaHa || assessment.greenCandidateAreaHa || 0) + " ha",
+      "不足資料:",
+      checklist || "- 追加確認なし"
+    ].join("\\n");
+    if (assessment.normalizedPolygon) {
+      if (polygonBox) polygonBox.value = JSON.stringify(assessment.normalizedPolygon, null, 2);
+      if (layer) {
+        layer.clearLayers();
+        layer.addData(assessment.normalizedPolygon);
+        try { map.fitBounds(layer.getBounds(), { padding: [16, 16] }); } catch (_) {}
+      }
+    }
+  }
+  async function saveAssessment() {
+    var fieldId = fieldInput ? fieldInput.value.trim() : "";
+    var polygon = readPolygon();
+    if (!fieldId) return setStatus("保存先のフィールドIDを入力してください。");
+    if (!polygon) return setStatus("3点以上で区域候補を作成してください。");
+    setStatus("下書き診断を保存しています。");
+    var response = await fetch("/api/v1/fields/" + encodeURIComponent(fieldId) + "/area-sketch-assessments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sketch_polygon: polygon,
+        land_cover: landCoverPayload(),
+        policy_version: "tsunag_2026_current",
+        visibility: "private",
+        evidence_payload: { source: "worker_event_create_area_sketch_panel" }
+      })
+    });
+    var payload = await response.json().catch(function() { return {}; });
+    if (!response.ok) return setStatus(payload.error || "下書き診断を保存できませんでした。");
+    renderAssessment(payload.assessment);
+    setStatus("下書き診断を保存しました。");
+  }
+  async function loadLatestAssessment() {
+    var fieldId = fieldInput ? fieldInput.value.trim() : "";
+    if (!fieldId) return setStatus("読み込むフィールドIDを入力してください。");
+    var response = await fetch("/api/v1/fields/" + encodeURIComponent(fieldId) + "/area-sketch-assessments?limit=1");
+    var payload = await response.json().catch(function() { return {}; });
+    if (!response.ok) return setStatus(payload.error || "保存済み下書き診断を読み込めませんでした。");
+    if (!payload.assessments || !payload.assessments.length) return setStatus("保存済み下書き診断はまだありません。");
+    renderAssessment(payload.assessments[0]);
+    setStatus("保存済み下書き診断を読み込みました。");
+  }
+  function bootLeaflet() {
+    if (!window.L) return setStatus("地図ライブラリを読み込めませんでした。GeoJSON欄へ直接入力できます。");
+    map = window.L.map(document.querySelector("[data-area-sketch-map]")).setView([35.6812, 139.7671], 16);
+    window.L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Tiles &copy; Esri" }).addTo(map);
+    layer = window.L.geoJSON(null, { style: { color: "#0b6b54", weight: 3, fillOpacity: 0.22 } }).addTo(map);
+    markerLayer = window.L.layerGroup().addTo(map);
+    map.on("click", function(event) {
+      points.push({ lat: event.latlng.lat, lng: event.latlng.lng });
+      updatePolygonBox();
+    });
+  }
+  function loadLeaflet() {
+    var link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(link);
+    var script = document.createElement("script");
+    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.onload = bootLeaflet;
+    script.onerror = function() { setStatus("地図ライブラリを読み込めませんでした。GeoJSON欄へ直接入力できます。"); };
+    document.head.appendChild(script);
+  }
+  document.querySelector("[data-area-sketch-close]")?.addEventListener("click", updatePolygonBox);
+  document.querySelector("[data-area-sketch-undo]")?.addEventListener("click", function() { points.pop(); updatePolygonBox(); });
+  document.querySelector("[data-area-sketch-clear]")?.addEventListener("click", function() { points = []; if (polygonBox) polygonBox.value = ""; if (preview) preview.textContent = "保存後に、概算面積・緑地割合・不足資料リストをここに表示します。"; updatePolygonBox(); });
+  document.querySelector("[data-area-sketch-save]")?.addEventListener("click", function() { saveAssessment().catch(function(error) { setStatus(error.message || "保存に失敗しました。"); }); });
+  document.querySelector("[data-area-sketch-load]")?.addEventListener("click", function() { loadLatestAssessment().catch(function(error) { setStatus(error.message || "読み込みに失敗しました。"); }); });
+  loadLeaflet();
+})();
+</script>`;
 }
 
 function renderObservationEventListPage(sessions: Array<NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>>, auth: SessionSnapshot | null): string {
