@@ -14504,6 +14504,7 @@ test("production area sketch draft boundary keeps public visibility and near-thr
     assert.equal(createPayload.assessment.resultPayload.evidenceChecklist.some((item: any) => item.key === "conditional_green_basis"), true);
     assert.equal(createPayload.assessment.resultPayload.claimBoundary.prohibitedPhrases.includes("認定されます"), true);
     assert.match(createPayload.assessment.resultPayload.claimBoundary.requiredDisclaimer, /保証するものではありません/);
+    assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.publicClaimAllowed, false);
 
     const stored = [...obs.areaSketchAssessments.values()][0];
     assert.equal(stored?.status, "draft");
@@ -14511,6 +14512,112 @@ test("production area sketch draft boundary keeps public visibility and near-thr
     const storedResult = JSON.parse(stored?.result_payload_json ?? "{}");
     assert.equal(storedResult.absoluteArea.status, "near_threshold");
     assert.equal(storedResult.evidenceChecklist.some((item: any) => item.key === "area_threshold_confirmation"), true);
+    assert.equal(fallbackCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production area sketch public release gate blocks school children and private-land contexts", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const fieldId = "renri-area-sketch-sensitive-field";
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "user_defined",
+    admin_level: null,
+    name: "小学校となりの私有地ビオトープ",
+    name_kana: null,
+    summary: "児童が活動する場所に近く、所有者確認が必要な区域",
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: "35.01,138.38",
+    public_lat: 35.01,
+    public_lng: 138.38,
+    radius_m: 120,
+    area_ha: 0.12,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: "renri-area-sketch-sensitive-field",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "owner_draft",
+    verification_method: "self_reported",
+    verification_label: "所有者確認前",
+    source_confidence: 0.4,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "area-sketch-sensitive-user", displayName: "Area Sketch Sensitive User", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const polygon = {
+    type: "Polygon",
+    coordinates: [[
+      [138.38, 35.01],
+      [138.3804, 35.01],
+      [138.3804, 35.0104],
+      [138.38, 35.0104],
+      [138.38, 35.01]
+    ]]
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const create = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-sketch-assessments`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        visibility: "public",
+        sketch_polygon: polygon,
+        policy_version: "tsunag_2026_current",
+        land_cover: [
+          { category: "trees_planting", ratio: 0.5 },
+          { category: "yard_experience_space", ratio: 0.2 },
+          { category: "building", ratio: 0.3 }
+        ],
+        owner_assertion: { note: "子どもの活動範囲に近いので公開資料にはしない" },
+        evidence_payload: { source: "private_land_contract", note: "私有地の境界確認前" }
+      })
+    }), productionEnv);
+    const createPayload = await create.json() as any;
+    assert.equal(create.status, 201, JSON.stringify(createPayload));
+    assert.equal(createPayload.assessment.status, "draft");
+    assert.equal(createPayload.assessment.visibility, "private");
+    assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.status, "blocked_sensitive_context");
+    assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.publicClaimAllowed, false);
+    assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.publicSummaryAllowed, "blocked_until_redacted_review");
+    assert.deepEqual(
+      new Set(createPayload.assessment.resultPayload.publicReleaseGate.matchedContexts),
+      new Set(["school_or_children", "private_land"])
+    );
+    assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.requiredReview.includes("human_privacy_review"), true);
+
+    const stored = [...obs.areaSketchAssessments.values()][0];
+    const storedResult = JSON.parse(stored?.result_payload_json ?? "{}");
+    const storedAudit = JSON.parse(stored?.audit_payload_json ?? "{}");
+    assert.equal(stored?.visibility, "private");
+    assert.equal(storedResult.publicReleaseGate.status, "blocked_sensitive_context");
+    assert.equal(storedResult.publicReleaseGate.publicClaimAllowed, false);
+    assert.deepEqual(new Set(storedAudit.public_release_contexts), new Set(["school_or_children", "private_land"]));
     assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
