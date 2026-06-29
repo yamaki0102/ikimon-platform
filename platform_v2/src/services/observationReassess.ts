@@ -46,6 +46,7 @@ import {
   markPrimaryOccurrenceAsAiJudgement,
   materializeAiJudgementObservationRecord,
 } from "./aiJudgementObservationRecords.js";
+import { OBSERVATION_REASSESS_PIPELINE_VERSION } from "./observationReassessPipeline.js";
 import { lookupLocalTaxonName } from "./taxonNameNormalizer.js";
 import { normalizeBiologicalSubjectCandidate } from "./biologicalSubjectGate.js";
 import { logGlossaryTermCandidatesFromAiOutput } from "./glossaryTerms.js";
@@ -762,7 +763,7 @@ type PhotoAssetRef = {
   assetId: string;
 };
 
-const PIPELINE_VERSION = "observation-reassess/v2-durable";
+const PIPELINE_VERSION = OBSERVATION_REASSESS_PIPELINE_VERSION;
 const TAXONOMY_VERSION = "gbif-backbone/current";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
