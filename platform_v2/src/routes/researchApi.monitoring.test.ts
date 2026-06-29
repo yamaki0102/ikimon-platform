@@ -33,3 +33,19 @@ test("research API exposes monitoring readiness and license guard fields", () =>
   assert.match(source, /selectMonitoringPackage/);
   assert.match(source, /external_taxon_id_count/);
 });
+
+test("AI actor or AI source cannot self-promote into authority-backed public claim even with authority payload", () => {
+  const source = readFileSync(path.join(process.cwd(), "src", "routes", "researchApi.ts"), "utf8");
+
+  assert.match(source, /PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL/);
+  assert.match(source, /i\.actor_kind = 'human'/);
+  assert.match(source, /coalesce\(i\.source_payload->>'source', ''\) not in/);
+  assert.match(source, /ai_judgement_observation_record/);
+  assert.match(source, /observation_ai_assessment/);
+  assert.match(source, /observation_ai_subject_candidate/);
+  assert.match(source, /coalesce\(i\.source_payload->>'lane', ''\) = 'public-claim'/);
+  assert.match(source, /coalesce\(i\.source_payload->>'reviewClass', i\.source_payload->>'review_class', ''\) in \('authority_backed', 'admin_override'\)/);
+
+  const aggregateUses = source.match(/\$\{PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL\}/g) ?? [];
+  assert.equal(aggregateUses.length, 2);
+});
