@@ -168,6 +168,7 @@ interface LegacyObservationUpsertInput {
   fieldScan?: Record<string, unknown> | null;
   placeMemory?: Record<string, unknown> | null;
   waterRecord?: CompatibleWaterRecordInput | null;
+  environmentRecordDraft?: Record<string, unknown> | null;
   civicContext?: Record<string, unknown> | null;
   sourcePayload?: Record<string, unknown> | null;
   dataRights?: Record<string, unknown> | null;
@@ -18674,6 +18675,125 @@ function mergeCompatibleUserEnvironmentRecordValues(
   return structured;
 }
 
+function compatibleEnvironmentRecordDraftHasValues(record: Record<string, string>): boolean {
+  return (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[])
+    .some((field) => {
+      const value = record[field];
+      return typeof value === "string" && value.trim() !== "" && value !== "unknown";
+    });
+}
+
+function compatibleEnvironmentRecordFieldSource(record: Record<string, string>, field: CompatibleEnvironmentRecordField): string {
+  const source = String(record[`${field}_source`] ?? "").trim();
+  if (source === "user" || source === "derived" || source === "legacy") return source;
+  return record[field] && record[field] !== "unknown" ? "legacy" : "unknown";
+}
+
+function normalizeCompatibleEnvironmentRecordDraft(value: unknown, sourceMethod: string): Record<string, string> {
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const updatedAt = new Date().toISOString();
+  const structured: Record<string, string> = {
+    environment_record_source: sourceMethod,
+    environment_record_status: "auto_draft",
+    environment_record_updated_by: sourceMethod,
+    environment_record_updated_at: updatedAt
+  };
+  for (const field of Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]) {
+    const rawFieldValue = raw[field];
+    const nested = rawFieldValue && typeof rawFieldValue === "object" && !Array.isArray(rawFieldValue)
+      ? rawFieldValue as Record<string, unknown>
+      : {};
+    const candidateValue = typeof rawFieldValue === "string" ? rawFieldValue : nested.value;
+    if (typeof candidateValue !== "string" || candidateValue.trim() === "" || candidateValue === "unknown") continue;
+    let normalizedValue = "";
+    try {
+      normalizedValue = normalizeCompatibleEnvironmentRecordValue(field, candidateValue);
+    } catch {
+      continue;
+    }
+    const confidenceNumber = Number(nested.confidence ?? 0.44);
+    const confidence = Number.isFinite(confidenceNumber)
+      ? Math.max(0, Math.min(1, confidenceNumber)).toFixed(2)
+      : "0.44";
+    structured[field] = normalizedValue;
+    structured[`${field}_source`] = "derived";
+    structured[`${field}_confidence`] = confidence;
+    structured[`${field}_method`] = sourceMethod;
+  }
+  return compatibleEnvironmentRecordDraftHasValues(structured) ? structured : {};
+}
+
+function mergeCompatibleAutoEnvironmentRecordValues(
+  previous: Record<string, string>,
+  draft: Record<string, string>,
+  sourceMethod: string
+): Record<string, string> {
+  if (!compatibleEnvironmentRecordDraftHasValues(draft)) return previous;
+  const updatedAt = new Date().toISOString();
+  const structured = { ...previous };
+  let changed = false;
+  for (const field of Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]) {
+    const incoming = draft[field];
+    if (!incoming || incoming === "unknown") continue;
+    const current = structured[field];
+    const currentSource = compatibleEnvironmentRecordFieldSource(structured, field);
+    if (currentSource === "user" || currentSource === "legacy") continue;
+    const currentConfidence = Number(structured[`${field}_confidence`] ?? "0");
+    const incomingConfidence = Number(draft[`${field}_confidence`] ?? "0.44");
+    if (current && current !== "unknown" && Number.isFinite(currentConfidence) && incomingConfidence < currentConfidence) continue;
+    structured[field] = incoming;
+    structured[`${field}_source`] = "derived";
+    structured[`${field}_confidence`] = Number.isFinite(incomingConfidence)
+      ? Math.max(0, Math.min(1, incomingConfidence)).toFixed(2)
+      : "0.44";
+    structured[`${field}_method`] = sourceMethod;
+    changed = true;
+  }
+  if (changed) {
+    structured.environment_record_source = draft.environment_record_source ?? sourceMethod;
+    structured.environment_record_status = structured.environment_record_status === "user_edited" ? "user_edited" : "auto_draft";
+    structured.environment_record_updated_by = sourceMethod;
+    structured.environment_record_updated_at = updatedAt;
+    structured.updated_by = sourceMethod;
+    structured.updated_at = updatedAt;
+  }
+  return structured;
+}
+
+async function insertCompatibleAutoEnvironmentRecordIfPresent(
+  input: {
+    occurrenceId: string;
+    actorUserId: string;
+    latitude: number;
+    longitude: number;
+    draft: unknown;
+    sourceMethod: string;
+  },
+  env: Env
+): Promise<void> {
+  const draft = normalizeCompatibleEnvironmentRecordDraft(input.draft, input.sourceMethod);
+  if (!compatibleEnvironmentRecordDraftHasValues(draft)) return;
+  await requireCompatibleEnvironmentRecordStorage(env);
+  const previousRow = await env.OBS_DB.prepare(
+    "SELECT structured_json FROM observation_environment_records WHERE occurrence_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(input.occurrenceId).first<{ structured_json: string }>();
+  const previous = parseCompatibleStructuredJson(previousRow?.structured_json);
+  const structured = mergeCompatibleAutoEnvironmentRecordValues(previous, draft, input.sourceMethod);
+  if (!compatibleEnvironmentRecordDraftHasValues(structured) || JSON.stringify(structured) === JSON.stringify(previous)) return;
+  structured.environment_record_location_source = "exact_observation";
+  const recordId = newId("envrec");
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
+    ).bind(recordId, input.occurrenceId, input.latitude, input.longitude, JSON.stringify(structured)),
+    compatibleOccurrenceDetailEditEvent(env, input.occurrenceId, input.actorUserId, "environment-record-auto-draft", {
+      source: input.sourceMethod,
+      fields: Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS).filter((field) => structured[field])
+    }),
+    compatibleReadmodelRefreshOutbox(env, input.occurrenceId, null)
+  ]);
+}
+
 async function attachVideoAssetToObservation(input: {
   uid: string;
   observationId: string;
@@ -18940,6 +19060,21 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       )
     })
   ]);
+
+  await insertCompatibleAutoEnvironmentRecordIfPresent({
+    occurrenceId: visitId,
+    actorUserId: input.userId,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    draft: input.environmentRecordDraft ?? input.sourcePayload?.environment_record_draft,
+    sourceMethod: "record_photo_feedback_v1"
+  }, env).catch((error) => {
+    console.warn(JSON.stringify({
+      message: "compatible_auto_environment_record_skipped",
+      visitId,
+      error: error instanceof Error ? error.message : String(error)
+    }));
+  });
 
   await upsertCompatibleWaterRecordIfPresent(env, input.waterRecord, {
     visitId,
@@ -22343,6 +22478,13 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
   </div>`;
   const recordInsight = polish?.recordInsight ?? (detail.isAwaitingId ? "この記録は、公開写真と日時だけを見られる状態です。名前は今後の確認で更新されることがあります。" : `${displayName}として公開されています。公開ページでは、写真とぼかした場所だけを扱います。`);
   const recordNextHint = polish?.recordNextHint ?? "次は対象に少し寄った写真と、足元を広めに入れた写真があると、候補と環境を確かめやすくなります。";
+  const recordFeedbackChips = polish?.recordFeedbackChips ?? [];
+  const recordFeedbackChipBlock = recordFeedbackChips.length > 0
+    ? `<div class="obs-feedback-chip-row">${recordFeedbackChips.map((chip) => `<span class="obs-feedback-chip">${escapeHtml(chip)}</span>`).join("")}</div>`
+    : "";
+  const recordFeedbackSourceBlock = polish?.recordFeedbackSourceNote
+    ? `<p class="obs-feedback-source">${escapeHtml(polish.recordFeedbackSourceNote)}</p>`
+    : "";
   const identifyBlock = polish?.identifyBlock ?? `<section class="obs-local-quality-left">
         <h2>同定</h2>
         <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${displayName} として表示しています。`)}</p>
@@ -22703,6 +22845,9 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
     .obs-vps-image-detail .obs-record-insight { gap: 9px; }
     .obs-vps-image-detail .obs-feedback-eyebrow { color: #166534; font-size: 11px; line-height: 1.25; font-weight: 950; letter-spacing: .04em; }
     .obs-vps-image-detail .obs-record-insight p { color: #334155; font-size: 13.5px; line-height: 1.72; }
+    .obs-vps-image-detail .obs-feedback-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .obs-vps-image-detail .obs-feedback-chip { min-height: 24px; display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; background: #ecfdf5; border: 1px solid rgba(22,101,52,.13); color: #166534; font-size: 11px; line-height: 1.2; font-weight: 900; white-space: normal; }
+    .obs-vps-image-detail .obs-feedback-source { margin: 0; color: #64748b!important; font-size: 11.5px!important; line-height: 1.55!important; font-weight: 720!important; }
     .obs-vps-image-detail .obs-next-photo-hint { display: grid; gap: 3px; padding: 10px 11px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
     .obs-vps-image-detail .obs-next-photo-hint strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
     .obs-vps-image-detail .obs-next-photo-hint span { color: #475569; font-size: 12.5px; line-height: 1.62; font-weight: 760; }
@@ -22829,12 +22974,14 @@ ${headerBlock}
       <p class="obs-reading-lead">${escapeHtml(lead)}</p>
       ${mediaLedger}
       <section id="trust" class="obs-record-insight obs-record-insight-desktop">
-        <span class="obs-feedback-eyebrow">この写真から読めていること</span>
+        <span class="obs-feedback-eyebrow">この記録から読めていること</span>
+        ${recordFeedbackChipBlock}
         <p>${escapeHtml(recordInsight)}</p>
         <div class="obs-next-photo-hint">
           <strong>次の写真で増える情報</strong>
           <span>${escapeHtml(recordNextHint)}</span>
         </div>
+        ${recordFeedbackSourceBlock}
       </section>
       ${polish?.statusBlock ?? ""}
       ${polish?.firstReadBlock ?? ""}
@@ -22884,6 +23031,8 @@ type PublicObservationDetailPolish = {
   audioCount: number;
   recordInsight: string;
   recordNextHint?: string;
+  recordFeedbackChips?: string[];
+  recordFeedbackSourceNote?: string;
   statusBlock: string;
   firstReadBlock: string;
   aiReadoutBlock: string;
@@ -22945,6 +23094,22 @@ type ImageObservationTargetMeta = {
   nearbyCountLabel: string;
   nearbyCards: ImageObservationNearbyCard[];
   photos: ImageObservationTargetPhoto[];
+};
+
+type ImageObservationFeedbackCard = {
+  className: "is-subject" | "is-context" | "is-ground" | "is-extra";
+  title: string;
+  value: string;
+  detail: string;
+  hint: string;
+};
+
+type ImageObservationFeedback = {
+  readableNow: string;
+  nextHint: string;
+  chips: string[];
+  sourceNote: string;
+  cards: ImageObservationFeedbackCard[];
 };
 
 const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTargetMeta> = {
@@ -23113,6 +23278,118 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
     ]
   }
 };
+
+function imageObservationSubjectKind(subjectName: string, scientificName = ""): "bird" | "plant" | "insect" | "unknown" {
+  const source = `${subjectName} ${scientificName}`.toLowerCase();
+  if (/scarabaeidae|コガネムシ|甲虫|昆虫/u.test(source)) return "insect";
+  if (/chloris|カワラヒワ|鳥/u.test(source)) return "bird";
+  if (/solanum|ワルナスビ|植物|花|草|木/u.test(source)) return "plant";
+  return "unknown";
+}
+
+function hasPublicEnvironmentRecord(detail: PublicObservationDetail): boolean {
+  return Object.values(detail.environmentRecord ?? {}).some((value) => String(value ?? "").trim().length > 0);
+}
+
+function summarizeEvidence(evidence: string[]): string {
+  const clean = evidence.map((item) => item.trim()).filter(Boolean).slice(0, 3);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0] ?? "";
+  return `${clean.slice(0, -1).join("、")}、${clean[clean.length - 1]}`;
+}
+
+function safeFeedbackPlaceLabel(label: string | null | undefined): string {
+  const value = normalizeOptionalText(label);
+  if (!value || /cell:|\d+\.\d+|丁目|番地|号|マンション|アパート|学校|幼稚園|保育園/u.test(value)) {
+    return "ぼかした位置";
+  }
+  return value.includes("位置をぼか") ? "ぼかした位置" : value;
+}
+
+function buildImageObservationFeedback(
+  detail: PublicObservationDetail,
+  meta: ImageObservationTargetMeta | undefined,
+  subjectName: string,
+  subjectRank: string,
+  photoCount: number
+): ImageObservationFeedback {
+  const kind = imageObservationSubjectKind(subjectName, meta?.scientificName ?? "");
+  const evidenceSummary = summarizeEvidence(meta?.evidence ?? []);
+  const awaitingLabel = detail.isAwaitingId || subjectName === "unidentified" || subjectName === "同定待ち" ? "名前は確認待ち" : "名前あり";
+  const placeLabel = safeFeedbackPlaceLabel(detail.publicLocation.label);
+  const hasEnvironment = hasPublicEnvironmentRecord(detail);
+  const chips = [
+    `写真${photoCount}枚`,
+    awaitingLabel,
+    placeLabel,
+    evidenceSummary ? "見直せる手がかり" : "基本情報あり",
+    hasEnvironment ? "環境の下書きあり" : null,
+    detail.audioAssets.length > 0 ? "音の記録あり" : null
+  ].filter((item): item is string => Boolean(item));
+
+  const kindCopy = {
+    insect: {
+      readable: evidenceSummary
+        ? `${subjectName}の候補と、${evidenceSummary}を見直せます。足元や周囲の写り方も残っているので、名前の候補と場所の手がかりを分けて確認できます。`
+        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せます。名前の確認と場所の手がかりを分けて残せています。`,
+      next: "次は対象に少し寄った写真と、足元を広めに入れた写真が別にあると、候補の見直しと環境情報の確認がしやすくなります。",
+      contextValue: "足元・周囲",
+      contextDetail: "まわりの草地や明るさ",
+      groundValue: "礫・踏まれた感じ",
+      groundDetail: "湿り気や管理の手がかり",
+      subjectHint: "翅や体型を見直せます"
+    },
+    bird: {
+      readable: evidenceSummary
+        ? `${subjectName}の候補と、${evidenceSummary}を見直せます。周囲の草地も残っているので、鳥だけでなく、いた場所の手がかりも確認できます。`
+        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せます。名前の確認と場所の手がかりを分けて残せています。`,
+      next: "次は対象を少し大きめに入れた写真と、止まっていた足元や周囲が分かる写真があると、候補と場所の状態を確認しやすくなります。",
+      contextValue: "草地・止まり場所",
+      contextDetail: "周囲の開け方",
+      groundValue: "足元や背景",
+      groundDetail: "いた場所の手がかり",
+      subjectHint: "体型や模様を見直せます"
+    },
+    plant: {
+      readable: evidenceSummary
+        ? `${subjectName}の候補と、${evidenceSummary}を見直せます。花や茎だけでなく、足元の広がりや周囲の草地も確認できます。`
+        : `${subjectName}の候補と、公開写真・日時・ぼかした位置を一緒に見直せます。名前の確認と生えていた場所の手がかりを分けて残せています。`,
+      next: "次は花を正面から写した写真と、葉・茎・足元の広がりが分かる写真があると、候補と生育環境を確認しやすくなります。",
+      contextValue: "生えていた場所",
+      contextDetail: "まわりの草地や明るさ",
+      groundValue: "葉・茎・足元",
+      groundDetail: "広がり方の手がかり",
+      subjectHint: "花や形を見直せます"
+    },
+    unknown: {
+      readable: detail.isAwaitingId
+        ? "この記録では、公開写真、撮影日時、ぼかした位置を一緒に見直せます。名前は確認待ちなので、いまは候補を急がず、後から分かる材料を残している状態です。"
+        : `${subjectName}として表示され、公開写真、撮影日時、ぼかした位置を一緒に見直せます。公開ページでは、名前と場所の手がかりを分けて扱います。`,
+      next: photoCount <= 1
+        ? "次は対象に少し寄った写真と、周囲や足元が分かる写真が別にあると、名前の候補と場所の手がかりを確認しやすくなります。"
+        : "次に足すなら、気になった対象を少し大きめに入れた写真があると、後から候補を見直しやすくなります。",
+      contextValue: "ぼかした位置",
+      contextDetail: "公開範囲の手がかり",
+      groundValue: photoCount <= 1 ? "材料は少なめ" : "足元の手がかり",
+      groundDetail: photoCount <= 1 ? "次の写真で増やせます" : "写真から見直せます",
+      subjectHint: photoCount <= 1 ? "候補はあとから確認" : "候補を見直せます"
+    }
+  }[kind];
+
+  const extraHint = photoCount > 1 ? "写り込みは後から整理" : "気づいたら別に記録";
+  return {
+    readableNow: kindCopy.readable,
+    nextHint: kindCopy.next,
+    chips,
+    sourceNote: "公開記録・候補情報・位置ぼかし設定からの整理です。画像や音声の中身を決めつけていません。",
+    cards: [
+      { className: "is-subject", title: "名前の候補", value: subjectName, detail: `${subjectRank} / 確認待ち`, hint: kindCopy.subjectHint },
+      { className: "is-context", title: "場所の手がかり", value: kindCopy.contextValue, detail: kindCopy.contextDetail, hint: "周囲を広く撮ると比べやすい" },
+      { className: "is-ground", title: "足元の状態", value: kindCopy.groundValue, detail: kindCopy.groundDetail, hint: photoCount <= 1 ? "足元も1枚あると安心" : "足元も見直せます" },
+      { className: "is-extra", title: "あとで分けられるもの", value: "別レコード候補", detail: photoCount > 1 ? "写り込みは後から整理" : "写り込みがあれば整理", hint: extraHint }
+    ]
+  };
+}
 
 function publicObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish | null {
   if (detail.visitId !== "record-1778829649026") {
@@ -23288,6 +23565,14 @@ function compatibleEnvironmentRecordHasUserValues(record: Record<string, string>
   });
 }
 
+function compatibleEnvironmentRecordHasAutoDraftValues(record: Record<string, string> | null | undefined): boolean {
+  if (!record) return false;
+  return (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]).some((field) => {
+    const value = compatibleEnvironmentRecordCurrentValue(record, field);
+    return value !== "unknown" && record[`${field}_source`] === "derived";
+  });
+}
+
 function compatibleEnvironmentRecordOptionLabel(field: CompatibleEnvironmentRecordField, value: string): string {
   return COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].find((option) => option.value === value)?.label ?? "不明";
 }
@@ -23320,7 +23605,14 @@ function renderImageEnvironmentQualityBlock(
   photoCount: number
 ): string {
   const environmentRecord = detail.environmentRecord as Record<string, string> | null | undefined;
-  const statusLabel = compatibleEnvironmentRecordHasUserValues(environmentRecord) ? "保存済み" : "未確認";
+  const hasAutoDraft = compatibleEnvironmentRecordHasAutoDraftValues(environmentRecord);
+  const hasEnvironmentValues = compatibleEnvironmentRecordHasUserValues(environmentRecord);
+  const statusLabel = hasAutoDraft ? "自動下書き" : hasEnvironmentValues ? "保存済み" : "未確認";
+  const historyLabel = hasAutoDraft
+    ? "写真から作った環境情報の下書きを表示しています。必要なら変更できます。"
+    : hasEnvironmentValues
+      ? "保存済みの環境情報を表示しています。"
+      : "環境情報の変更と確認をこのページで追えるようにします。";
   const formFields = (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[])
     .map((field) => renderImageEnvironmentRecordSelect(field, environmentRecord))
     .join("");
@@ -23355,7 +23647,7 @@ function renderImageEnvironmentQualityBlock(
       </form>
     </details>
     <ul class="obs-local-name-activity-list">
-      <li><strong>編集履歴</strong><span data-env-history>${compatibleEnvironmentRecordHasUserValues(environmentRecord) ? "保存済みの環境情報を表示しています。" : "環境情報の変更と確認をこのページで追えるようにします。"}</span></li>
+      <li><strong>編集履歴</strong><span data-env-history>${escapeHtml(historyLabel)}</span></li>
     </ul>
   </section>`;
 }
@@ -23374,6 +23666,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
   const fallbackPhotos = detail.photoAssets.map((asset) => ({ lg: asset.url, sm: asset.url, full: asset.url }));
   const photos = meta?.photos ?? fallbackPhotos;
   const mainPhoto = photos[0] ?? fallbackPhotos[0]!;
+  const feedback = buildImageObservationFeedback(detail, meta, subjectName, subjectRank, photos.length);
   const publicFullSrc = (photo: ImageObservationTargetPhoto): string => photo.full.startsWith("/uploads/") ? photo.lg : photo.full;
   const evidence = meta?.evidence ?? ["写真あり", "対象枠あり", "人の確認待ち"];
   const evidencePills = evidence.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
@@ -23406,14 +23699,11 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     <h2>この記録で読む対象</h2>
     <div class="obs-observation-set">
       <div class="obs-observation-grid">
-        <div class="obs-observation-card is-subject"><span>名前の候補</span><strong>${escapeHtml(subjectName)}</strong><small>${escapeHtml(subjectRank)} / 確認待ち</small><em>次は対象を少し大きめに</em></div>
-        <div class="obs-observation-card is-context"><span>場所の手がかり</span><strong>草地・裸地</strong><small>まわりの植物や明るさ</small><em>次は周囲を少し広く</em></div>
-        <div class="obs-observation-card is-ground"><span>足元の状態</span><strong>礫・踏まれた感じ</strong><small>湿り気や管理の手がかり</small><em>次は足元も1枚</em></div>
-        <div class="obs-observation-card is-extra"><span>あとで分けられるもの</span><strong>別レコード候補</strong><small>写り込みは後から整理</small><em>気づいたら個別に記録</em></div>
+        ${feedback.cards.map((card) => `<div class="obs-observation-card ${card.className}"><span>${escapeHtml(card.title)}</span><strong>${escapeHtml(card.value)}</strong><small>${escapeHtml(card.detail)}</small><em>${escapeHtml(card.hint)}</em></div>`).join("")}
       </div>
       <div class="obs-env-strip"><strong>環境</strong><span>${escapeHtml(`写真${photos.length}枚 / 位置ぼかし / 複数観察記録として読み直せます`)}</span></div>
     </div>
-    <p>1つの撮影記録から、名前の候補、場所の手がかり、足元の状態を分けて見られます。</p>
+    <p>この記録が支えられる情報を、名前の候補、場所の手がかり、足元の状態に分けて見直せます。</p>
   </section>`;
   const aiReadoutBlock = `<section class="obs-ai-readout obs-ai-readout-merged obs-ai-detail-panel" aria-label="AI候補レビュー">
     <div class="obs-ai-status">
@@ -23487,14 +23777,16 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     displayName,
     observedLabel,
     placeLabel,
-    lead: meta?.insight ?? "投稿後の写真から、対象・同定・環境情報を続けて確認する記録ページです。",
+    lead: feedback.readableNow,
     stateLabel: "確認待ち",
     mediaBlock,
     videoCount: 0,
     audioCount: 0,
     photoCount: photos.length,
-    recordInsight: meta?.insight ?? `${subjectName}の候補と、周囲・足元の手がかりを見られます。名前は確認待ちのまま、環境情報もあとから整えられます。`,
-    recordNextHint: meta?.nextHint ?? "次は対象に少し寄った写真と、足元を広めに入れた写真があると、候補と環境を確かめやすくなります。",
+    recordInsight: feedback.readableNow,
+    recordNextHint: feedback.nextHint,
+    recordFeedbackChips: feedback.chips,
+    recordFeedbackSourceNote: feedback.sourceNote,
     statusBlock: "",
     firstReadBlock,
     aiReadoutBlock,

@@ -49,6 +49,11 @@ import {
 import { lookupLocalTaxonName } from "./taxonNameNormalizer.js";
 import { normalizeBiologicalSubjectCandidate } from "./biologicalSubjectGate.js";
 import { logGlossaryTermCandidatesFromAiOutput } from "./glossaryTerms.js";
+import {
+  deriveEnvironmentRecordFromAreaInference,
+  hasAnyEnvironmentRecordValue,
+  mergeAutoEnvironmentRecordValues,
+} from "./environmentRecord.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -2467,6 +2472,37 @@ export async function reassessObservation(
             candidate.confidence,
             JSON.stringify({ sourceTag }),
           ],
+        );
+      }
+    }
+
+    const hasEnvironmentCoordinates = typeof vctx.latitude === "number" &&
+      Number.isFinite(vctx.latitude) &&
+      typeof vctx.longitude === "number" &&
+      Number.isFinite(vctx.longitude);
+    const inferredEnvironmentRecord = deriveEnvironmentRecordFromAreaInference(areaInference, {
+      method: "observation_reassess_area_inference_v1",
+      source: "observation_reassess_area_inference",
+    });
+    if (hasEnvironmentCoordinates && hasAnyEnvironmentRecordValue(inferredEnvironmentRecord)) {
+      const latestEnvironment = await client.query<{ structured: Record<string, unknown> | null }>(
+        `select structured
+           from field_context
+          where occurrence_id = $1
+          order by created_at desc
+          limit 1`,
+        [target.primaryOccurrenceId],
+      );
+      const previousEnvironment = latestEnvironment.rows[0]?.structured ?? {};
+      const structured = mergeAutoEnvironmentRecordValues(previousEnvironment, inferredEnvironmentRecord, {
+        updatedBy: "observation_reassess_area_inference_v1",
+      });
+      if (hasAnyEnvironmentRecordValue(structured) && JSON.stringify(structured) !== JSON.stringify(previousEnvironment)) {
+        await client.query(
+          `insert into field_context (
+             occurrence_id, lat, lng, structured, source_lang
+           ) values ($1, $2, $3, $4::jsonb, 'ja')`,
+          [target.primaryOccurrenceId, vctx.latitude, vctx.longitude, JSON.stringify(structured)],
         );
       }
     }

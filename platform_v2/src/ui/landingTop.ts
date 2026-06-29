@@ -1841,7 +1841,7 @@ function renderNatureCapitalGoalSection(options: LandingTopRenderOptions): strin
     <div class="prototype-nature-os-copy">
       <span>NATURE CAPITAL OS</span>
       <h2 id="prototype-nature-os-heading">自然資本を、地図で見て終わりにしない。</h2>
-      <p>衛星、天気、大気質、花粉、既存データは、その場所を読むための外部文脈として重ねます。ikimon.life では、写真・音・場所・人の確認に、草刈りや植栽などの管理行為と再訪をつなぎ、次の判断に使える形で残します。</p>
+      <p>衛星、天気、大気質、花粉、既存データは、その場所を読むための外部文脈として添えます。ikimon.life では、写真・音・場所・人の確認に、草刈りや植栽などの管理行為と再訪をつなぎ、次の判断に使える形で残します。</p>
       <div class="prototype-nature-os-actions">
         <a href="${escapeHtml(businessHref)}" data-kpi-action="landing:nature-os:business">企業・地域で使う</a>
         <a href="${escapeHtml(learnHref)}" data-kpi-action="landing:nature-os:learn">政策との関係を見る</a>
@@ -1849,7 +1849,7 @@ function renderNatureCapitalGoalSection(options: LandingTopRenderOptions): strin
     </div>
     <div class="prototype-nature-os-steps" aria-label="自然資本OSの流れ">
       <article><b>01</b><strong>観察</strong><small>写真、音、場所、時刻を残す</small></article>
-      <article><b>02</b><strong>環境文脈</strong><small>天気、地形、土地利用、衛星指標を後から重ねる</small></article>
+      <article><b>02</b><strong>環境文脈</strong><small>天気、地形、土地利用、衛星指標を後から参照する</small></article>
       <article><b>03</b><strong>管理行為</strong><small>草刈り、植栽、外来種対応などを別レイヤーで記録する</small></article>
       <article><b>04</b><strong>効果検証</strong><small>増減や成果は断定せず、努力量と証拠を添えて比較する</small></article>
     </div>
@@ -1946,7 +1946,7 @@ function renderMapSection(options: LandingTopRenderOptions): string {
       <p>${escapeHtml(copy.mapSectionLead)}</p>
       <div class="prototype-map-points">
         <a href="${escapeHtml(landingHref(basePath, lang, "/map"))}" data-kpi-action="landing:map:open"><i>RT</i><span><strong>また同じ場所へ行く</strong><small>季節や個体数の変化を残す</small></span></a>
-        <a href="${escapeHtml(landingHref(basePath, lang, "/records?view=places"))}"><i>LY</i><span><strong>場所ごとの発見を重ねる</strong><small>水辺、林、街路樹を比較できる</small></span></a>
+        <a href="${escapeHtml(landingHref(basePath, lang, "/records?view=places"))}"><i>LY</i><span><strong>場所ごとの発見を見比べる</strong><small>水辺、林、街路樹を比較できる</small></span></a>
         <a href="${escapeHtml(landingHref(basePath, lang, "/record"))}"><i>NX</i><span><strong>次の観察地点を見つける</strong><small>多い場所と少ない場所を地図で見る</small></span></a>
       </div>
     </div>

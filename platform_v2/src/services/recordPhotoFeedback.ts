@@ -1,4 +1,5 @@
 import { generateAiTextWithRoleChain, type AiRouterPart } from "./aiModelRouter.js";
+import { normalizeEnvironmentRecordDraft } from "./environmentRecord.js";
 
 export type RecordPhotoFeedbackImage = {
   mimeType: string;
@@ -23,6 +24,7 @@ export type RecordPhotoFeedbackResult = {
   sentence: string;
   visualSignals: string[];
   priority: "subject_clarity" | "angle" | "context" | "lighting" | "scale" | "already_good";
+  environmentDraft: Record<string, string>;
   model?: string;
 };
 
@@ -95,11 +97,16 @@ export function sanitizeRecordPhotoFeedbackResponse(rawText: string): Omit<Recor
     : [];
   const sentence = cleanText(parsed.sentence, 120)
     || fallbackRecordPhotoFeedbackSentence(priority, visualSignals);
+  const environmentDraft = normalizeEnvironmentRecordDraft(
+    parsed.environmentDraft ?? parsed.environment_record_draft,
+    { method: "record_photo_feedback_v1", source: "record_photo_feedback_v1" },
+  );
 
   return {
     sentence,
     visualSignals,
     priority,
+    environmentDraft,
   };
 }
 
@@ -138,9 +145,17 @@ function buildRecordPhotoFeedbackPrompt(context: RecordPhotoFeedbackContext): st
 {
   "sentence": "80字前後の日本語1文。文末は「ます。」",
   "priority": "subject_clarity|angle|context|lighting|scale|already_good",
-  "visualSignals": ["写真から見えた根拠を短く最大4つ"]
+  "visualSignals": ["写真から見えた根拠を短く最大4つ"],
+  "environmentDraft": {
+    "place_type": {"value": "grassland_urban_edge|urban|woodland|water_edge|wetland|coast|unknown", "confidence": 0.0},
+    "contact_surface": {"value": "soil_gravel_litter|soil|plant|water|rock|artificial|unknown", "confidence": 0.0},
+    "surrounding_cover": {"value": "low_grass|trees_shrubs|bare_ground|water|snow|built_surface|unknown", "confidence": 0.0},
+    "environment_condition": {"value": "open_dry|sunny|shaded|wet|flowing|windy|unknown", "confidence": 0.0},
+    "human_change": {"value": "trampling_mowing|mowing|trampling|planting|construction|release|none_visible|unknown", "confidence": 0.0}
+  }
 }
 
+environmentDraft は写真から無理なく見える範囲だけ選ぶ。迷う項目は unknown。位置情報、施設名、精密な場所は推測しない。
 JSONのみ。コードブロック不要。`;
 }
 
@@ -161,7 +176,7 @@ export async function generateRecordPhotoFeedback(input: RecordPhotoFeedbackInpu
     parts,
     responseMimeType: "application/json",
     thinkingConfig: { thinkingLevel: "minimal" },
-    maxOutputTokens: 640,
+    maxOutputTokens: 960,
     temperature: 0.2,
     retriesPerModel: 1,
     cost: {

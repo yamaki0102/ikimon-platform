@@ -102,6 +102,9 @@ test("visual extract prompt separates biological coexisting taxa from environmen
   assert.match(service, /area_inference は必ず次の5キーを持つJSONオブジェクト/);
   assert.match(service, /環境文脈を捨てない/);
   assert.match(service, /area_inference \/ management_action_candidates に環境・場・人為管理/);
+  assert.match(service, /deriveEnvironmentRecordFromAreaInference/);
+  assert.match(service, /observation_reassess_area_inference_v1/);
+  assert.match(service, /insert into field_context/);
 });
 
 test("visual reassess can downscale stored photos before Gemini behind an env gate", () => {

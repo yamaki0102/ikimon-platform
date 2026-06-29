@@ -7564,7 +7564,7 @@ function renderIdentificationParticipation(options: {
   return `<section id="identify" class="obs-frame-identify-card"${isAiJudgement ? ` data-ai-review-panel data-ai-review-endpoint="${escapeHtml(aiReviewEndpoint)}"` : ""}>
     <div class="obs-frame-identify-top">
       <div class="obs-frame-identify-copy">
-        <div class="obs-frame-identify-eye">IDENTIFICATION</div>
+        <div class="obs-frame-identify-eye">同定</div>
         <h2 class="obs-frame-identify-title">同定に参加する</h2>
       </div>
       <a class="obs-frame-identify-new" href="${escapeHtml(newRecordHref)}">別レコードを追加</a>
@@ -7806,7 +7806,7 @@ function renderObservationQualityCard(options: {
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質" data-quality-occurrence-id="${escapeHtml(options.snapshot.occurrenceId)}" data-origin-current="${escapeHtml(originValue)}" data-origin-can-edit="${options.canEditOrigin ? "1" : "0"}" data-origin-login-required="${options.isLoggedIn ? "0" : "1"}" data-env-can-edit="${options.canEditOrigin ? "1" : "0"}" data-env-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-can-edit="${options.canEditOrigin ? "1" : "0"}" data-name-login-required="${options.isLoggedIn ? "0" : "1"}" data-name-current="${escapeHtml(defaultNameCandidate)}" data-name-rank-current="${escapeHtml(defaultRankCandidate)}" data-date-can-edit="${options.canEditOrigin ? "1" : "0"}" data-date-login-required="${options.isLoggedIn ? "0" : "1"}" data-date-current="${escapeHtml(options.snapshot.observedAt)}" data-location-can-edit="${options.canEditOrigin ? "1" : "0"}" data-location-login-required="${options.isLoggedIn ? "0" : "1"}" data-location-lat="${typeof options.snapshot.latitude === "number" ? escapeHtml(options.snapshot.latitude.toFixed(6)) : ""}" data-location-lng="${typeof options.snapshot.longitude === "number" ? escapeHtml(options.snapshot.longitude.toFixed(6)) : ""}">
     <div class="obs-local-quality-head">
       <div>
-        <div class="obs-local-quality-eye">EVENT / OCCURRENCE</div>
+        <div class="obs-local-quality-eye">記録の土台</div>
         <h3 class="obs-local-quality-title">日時・場所・環境を土台にする</h3>
         <p class="obs-local-quality-lead">日時・場所・環境はこの記録に1枠。名前の候補や同定は、対象ごとにあとから変わります。</p>
       </div>
@@ -7858,7 +7858,7 @@ function renderObservationQualityCard(options: {
         <div class="obs-origin-sheet-grip"></div>
         <div class="obs-origin-sheet-head">
           <div>
-            <div class="obs-origin-sheet-eye">IDENTIFICATION</div>
+            <div class="obs-origin-sheet-eye">同定</div>
             <h4 id="obs-name-sheet-title">名前を確認する</h4>
           </div>
           <button class="obs-origin-sheet-close" type="button" data-name-close aria-label="閉じる">×</button>
@@ -9403,7 +9403,7 @@ function renderObservationRecordStory(options: {
           title: "管理された植栽帯",
           body: hasManagedGround
             ? "草地、裸地、礫、踏まれた面が一緒に残るため、開花だけでなく人の手入れや歩行圧が入る場所として比べられます。"
-            : "同じ画角で季節を重ねると、開花量、足元の植物、背景の樹木の変化を植栽帯の記録として追えます。",
+            : "同じ画角で季節ごとに撮ると、開花量、足元の植物、背景の樹木の変化を植栽帯の記録として追えます。",
         },
       ]
     : [
@@ -9423,7 +9423,7 @@ function renderObservationRecordStory(options: {
         },
         {
           title: "人の手が入る草地",
-          body: "低い草丈、裸地、礫、踏まれた感じが写っています。同じ場所を季節ごとに重ねると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。",
+          body: "低い草丈、裸地、礫、踏まれた感じが写っています。同じ場所を季節ごとに見返すと、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。",
         },
       ];
   return `<div class="obs-record-story">
@@ -15345,6 +15345,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let selectedVideoWasTrimmed = false;
         let currentCaptureNoticeText = '';
         let visualRecordFeedbackSentence = '';
+        let visualRecordEnvironmentDraft = null;
         let visualRecordFeedbackMediaKey = '';
         let visualRecordFeedbackSequence = 0;
         let visualRecordFeedbackPending = false;
@@ -16117,6 +16118,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const isVideoSimpleMode = () => selectedVideoFile instanceof File && isVideoFile(selectedVideoFile) && selectedPhotoFiles().length === 0;
         const resetVisualRecordFeedback = () => {
           visualRecordFeedbackSentence = '';
+          visualRecordEnvironmentDraft = null;
           visualRecordFeedbackMediaKey = '';
           visualRecordFeedbackPending = false;
           visualRecordFeedbackSequence += 1;
@@ -17968,6 +17970,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           visualRecordFeedbackSequence = sequence;
           visualRecordFeedbackMediaKey = mediaKey;
           visualRecordFeedbackSentence = '';
+          visualRecordEnvironmentDraft = null;
           visualRecordFeedbackPending = true;
           if (captureResultHelp && hasRecordDraft() && !currentCaptureNoticeText) {
             captureResultHelp.textContent = '写真を見て、次の撮り方のヒントを作っています...';
@@ -17997,6 +18000,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (sequence !== visualRecordFeedbackSequence || mediaKey !== recordFeedbackMediaKey()) return;
             visualRecordFeedbackPending = false;
             visualRecordFeedbackSentence = response.ok && sentence ? sentence.slice(0, 140) : '';
+            const environmentDraft = json && json.feedback && json.feedback.environmentDraft && typeof json.feedback.environmentDraft === 'object' && !Array.isArray(json.feedback.environmentDraft)
+              ? json.feedback.environmentDraft
+              : null;
+            visualRecordEnvironmentDraft = response.ok && environmentDraft && Object.keys(environmentDraft).some((key) => /^(place_type|contact_surface|surrounding_cover|environment_condition|human_change)$/.test(key))
+              ? environmentDraft
+              : null;
             if (captureResultHelp && hasRecordDraft() && !currentCaptureNoticeText) {
               captureResultHelp.textContent = buildRecordFeedbackSentence() || captureResultHelp.textContent;
             }
@@ -18623,6 +18632,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             selectedPrimaryPhotoFile = file;
             syncVideoPrimaryPhotoUi();
             visualRecordFeedbackSentence = '';
+            visualRecordEnvironmentDraft = null;
             visualRecordFeedbackMediaKey = '';
             scheduleRecordDraftAutosave('primary_photo_selected');
             void requestVisualRecordFeedback();
@@ -18945,6 +18955,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 targetTaxaScope: recordMode === 'survey' ? targetTaxaScope : null,
                 effortMinutes: recordMode === 'survey' ? effortMinutes : null,
                 revisitReason: recordMode === 'survey' ? revisitReason : nextLookFor || null,
+                environmentRecordDraft: visualRecordEnvironmentDraft || null,
                 sourcePayload: {
                   source: 'v2_web',
                   record_mode: recordMode,
@@ -18957,6 +18968,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
                   location_provenance: hasRecordCoordinates ? recordLocationProvenance : null,
+                  environment_record_draft: visualRecordEnvironmentDraft || null,
+                  record_photo_feedback: visualRecordFeedbackSentence
+                    ? { sentence: visualRecordFeedbackSentence, source: 'record_photo_feedback_v1' }
+                    : null,
                   field_scan_requested: Boolean(fieldScanMode),
                   absence_semantics: recordMode === 'survey'
                     ? (surveyResult === 'no_detection_note' ? 'protocol_note_only' : null)
@@ -21022,7 +21037,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         href: revisitRecordHref,
         label: "この場所を再訪する",
-        body: "同じ地点で季節や変化を重ねる",
+        body: "同じ地点で季節や変化を見比べる",
         key: "revisit_place",
         primary: true,
       },

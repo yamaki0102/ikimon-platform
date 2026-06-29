@@ -88,6 +88,21 @@ type EnvironmentFieldChoice = {
   confidence: number;
 };
 
+type EnvironmentAreaCandidate = {
+  label?: unknown;
+  why?: unknown;
+  confidence?: unknown;
+};
+
+type EnvironmentAreaInferenceLike = Partial<Record<
+  | "vegetation_structure_candidates"
+  | "succession_stage_candidates"
+  | "human_influence_candidates"
+  | "moisture_regime_candidates"
+  | "management_hint_candidates",
+  EnvironmentAreaCandidate[]
+>>;
+
 const FIELD_SET = new Set<string>(ENVIRONMENT_RECORD_FIELDS.map((item) => item.field));
 const SOURCE_VALUES = new Set(["user", "derived", "legacy"]);
 
@@ -109,6 +124,34 @@ function optionValues(field: EnvironmentRecordField): Set<string> {
 
 function normalizeConfidence(value: number): string {
   return Math.max(0, Math.min(1, value)).toFixed(2);
+}
+
+function confidenceNumber(value: unknown, fallback = 0.44): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : fallback;
+}
+
+function textFromAreaCandidate(candidate: EnvironmentAreaCandidate): string {
+  return `${typeof candidate.label === "string" ? candidate.label : ""} ${typeof candidate.why === "string" ? candidate.why : ""}`.toLowerCase();
+}
+
+function bestAreaCandidate(area: EnvironmentAreaInferenceLike | null | undefined, matcher: RegExp): EnvironmentFieldChoice | null {
+  if (!area) return null;
+  let best: EnvironmentFieldChoice | null = null;
+  for (const candidates of Object.values(area)) {
+    if (!Array.isArray(candidates)) continue;
+    for (const candidate of candidates) {
+      const labelText = typeof candidate.label === "string" ? candidate.label.toLowerCase() : "";
+      const text = textFromAreaCandidate(candidate);
+      if (!matcher.test(labelText) && /証拠は弱い|見えない|読み取れない|不足|不明|unclear|not visible|no evidence/i.test(text)) continue;
+      if (!matcher.test(text)) continue;
+      const confidence = confidenceNumber(candidate.confidence);
+      if (!best || confidence > best.confidence) {
+        best = fieldChoice("", confidence);
+      }
+    }
+  }
+  return best;
 }
 
 function hasCover(covers: Set<Landcover>, ...needles: Landcover[]): boolean {
@@ -186,6 +229,98 @@ function derivedChoices(signals: SiteSignals): Record<EnvironmentRecordField, En
     surrounding_cover: surroundingCoverChoice(signals),
     environment_condition: environmentConditionChoice(signals),
     human_change: humanChangeChoice(signals),
+  };
+}
+
+function areaChoice(value: string, confidence: number): EnvironmentFieldChoice {
+  return fieldChoice(value, Math.max(0.34, Math.min(0.74, confidence)));
+}
+
+function areaPlaceTypeChoice(area: EnvironmentAreaInferenceLike): EnvironmentFieldChoice {
+  const wetland = bestAreaCandidate(area, /湿地|wetland/u);
+  if (wetland) return areaChoice("wetland", wetland.confidence);
+  const wet = bestAreaCandidate(area, /湿性|水辺|水際|water|moist|湿り/u);
+  if (wet) return areaChoice("water_edge", wet.confidence);
+  const woodland = bestAreaCandidate(area, /樹林|林内|樹木|低木|woodland|forest|tree|shrub/u);
+  if (woodland) return areaChoice("woodland", woodland.confidence);
+  const grass = bestAreaCandidate(area, /草地|草本|芝|低い草|grass|herb|lawn/u);
+  const urban = bestAreaCandidate(area, /舗装|道路|市街|建物|人工|urban|built|pavement|road/u);
+  if (grass && urban) return areaChoice("grassland_urban_edge", Math.max(grass.confidence, urban.confidence));
+  if (grass) return areaChoice("grassland_urban_edge", grass.confidence);
+  if (urban) return areaChoice("urban", urban.confidence);
+  const coast = bestAreaCandidate(area, /海岸|砂浜|潮|coast|shore|beach/u);
+  if (coast) return areaChoice("coast", coast.confidence);
+  return fieldChoice("unknown", 0);
+}
+
+function areaContactSurfaceChoice(area: EnvironmentAreaInferenceLike): EnvironmentFieldChoice {
+  const water = bestAreaCandidate(area, /水面|水中|水辺|water|wetland/u);
+  if (water) return areaChoice("water", water.confidence);
+  const artificial = bestAreaCandidate(area, /舗装|道路|人工|構造物|建物|コンクリ|asphalt|pavement|built|artificial/u);
+  if (artificial) return areaChoice("artificial", artificial.confidence);
+  const plant = bestAreaCandidate(area, /葉|花|茎|草|植物|植栽|plant|leaf|grass|shrub|tree/u);
+  if (plant) return areaChoice("plant", plant.confidence);
+  const rock = bestAreaCandidate(area, /岩|石|礫|rock|stone|gravel/u);
+  if (rock) return areaChoice("soil_gravel_litter", rock.confidence);
+  const soil = bestAreaCandidate(area, /土|裸地|落ち葉|枯れ草|soil|bare|litter/u);
+  if (soil) return areaChoice("soil_gravel_litter", soil.confidence);
+  return fieldChoice("unknown", 0);
+}
+
+function areaSurroundingCoverChoice(area: EnvironmentAreaInferenceLike): EnvironmentFieldChoice {
+  const water = bestAreaCandidate(area, /水|湿地|water|wetland/u);
+  if (water) return areaChoice("water", water.confidence);
+  const trees = bestAreaCandidate(area, /樹木|低木|樹林|林|tree|shrub|forest/u);
+  if (trees) return areaChoice("trees_shrubs", trees.confidence);
+  const grass = bestAreaCandidate(area, /低い草|草地|草本|芝|grass|herb|lawn/u);
+  if (grass) return areaChoice("low_grass", grass.confidence);
+  const built = bestAreaCandidate(area, /舗装|道路|建物|人工|built|pavement|road|urban/u);
+  if (built) return areaChoice("built_surface", built.confidence);
+  const bare = bestAreaCandidate(area, /裸地|土|礫|bare|soil|gravel/u);
+  if (bare) return areaChoice("bare_ground", bare.confidence);
+  const snow = bestAreaCandidate(area, /雪|snow/u);
+  if (snow) return areaChoice("snow", snow.confidence);
+  return fieldChoice("unknown", 0);
+}
+
+function areaEnvironmentConditionChoice(area: EnvironmentAreaInferenceLike): EnvironmentFieldChoice {
+  const wet = bestAreaCandidate(area, /湿|水|wet|moist|water/u);
+  if (wet) return areaChoice("wet", wet.confidence);
+  const shaded = bestAreaCandidate(area, /日陰|陰|木陰|shaded|shade/u);
+  if (shaded) return areaChoice("shaded", shaded.confidence);
+  const sunny = bestAreaCandidate(area, /日当たり|明るい|sunny|sunlit/u);
+  if (sunny) return areaChoice("sunny", sunny.confidence);
+  const flowing = bestAreaCandidate(area, /流れ|流水|flow|stream/u);
+  if (flowing) return areaChoice("flowing", flowing.confidence);
+  const windy = bestAreaCandidate(area, /風|wind/u);
+  if (windy) return areaChoice("windy", windy.confidence);
+  const dry = bestAreaCandidate(area, /乾|開け|裸地|舗装|dry|open|bare|pavement/u);
+  if (dry) return areaChoice("open_dry", dry.confidence);
+  return fieldChoice("unknown", 0);
+}
+
+function areaHumanChangeChoice(area: EnvironmentAreaInferenceLike): EnvironmentFieldChoice {
+  const mowing = bestAreaCandidate(area, /草刈|刈込|mow/u);
+  const trampling = bestAreaCandidate(area, /踏圧|踏ま|trampling|path/u);
+  if (mowing && trampling) return areaChoice("trampling_mowing", Math.max(mowing.confidence, trampling.confidence));
+  if (mowing) return areaChoice("mowing", mowing.confidence);
+  if (trampling) return areaChoice("trampling", trampling.confidence);
+  const planting = bestAreaCandidate(area, /植栽|庭|管理|花壇|planted|garden|managed/u);
+  if (planting) return areaChoice("planting", planting.confidence);
+  const construction = bestAreaCandidate(area, /造成|工事|建設|construction/u);
+  if (construction) return areaChoice("construction", construction.confidence);
+  const none = bestAreaCandidate(area, /目立つ変化なし|自然|none visible|no obvious/u);
+  if (none) return areaChoice("none_visible", none.confidence);
+  return fieldChoice("unknown", 0);
+}
+
+function areaDerivedChoices(area: EnvironmentAreaInferenceLike): Record<EnvironmentRecordField, EnvironmentFieldChoice> {
+  return {
+    place_type: areaPlaceTypeChoice(area),
+    contact_surface: areaContactSurfaceChoice(area),
+    surrounding_cover: areaSurroundingCoverChoice(area),
+    environment_condition: areaEnvironmentConditionChoice(area),
+    human_change: areaHumanChangeChoice(area),
   };
 }
 
@@ -323,4 +458,104 @@ export function deriveEnvironmentRecordFromSiteBrief(
     record[`${fieldDef.field}_method`] = "site_signals_v1";
   }
   return record;
+}
+
+export function normalizeEnvironmentRecordDraft(
+  value: unknown,
+  options: { updatedAt?: string; method?: string; source?: string } = {},
+): Record<string, string> {
+  const raw = stringRecord(value);
+  const updatedAt = options.updatedAt ?? new Date().toISOString();
+  const method = options.method ?? "record_photo_feedback_v1";
+  const source = options.source ?? method;
+  const record: Record<string, string> = {
+    environment_record_source: source,
+    environment_record_status: "auto_draft",
+    environment_record_updated_by: method,
+    environment_record_updated_at: updatedAt,
+  };
+  for (const fieldDef of ENVIRONMENT_RECORD_FIELDS) {
+    const fieldValue = raw[fieldDef.field];
+    const nested = stringRecord(fieldValue);
+    const rawValue = typeof fieldValue === "string" ? fieldValue : nested.value;
+    if (typeof rawValue !== "string") continue;
+    const valueText = rawValue.trim();
+    if (!valueText || valueText === "unknown") continue;
+    try {
+      record[fieldDef.field] = normalizeEnvironmentRecordValue(fieldDef.field, valueText);
+    } catch {
+      continue;
+    }
+    const confidence = typeof nested.confidence === "string" || typeof nested.confidence === "number"
+      ? confidenceNumber(nested.confidence, 0.44)
+      : 0.44;
+    record[`${fieldDef.field}_source`] = "derived";
+    record[`${fieldDef.field}_confidence`] = normalizeConfidence(confidence);
+    record[`${fieldDef.field}_method`] = method;
+  }
+  return hasAnyEnvironmentRecordValue(record) ? record : {};
+}
+
+export function deriveEnvironmentRecordFromAreaInference(
+  area: EnvironmentAreaInferenceLike | null | undefined,
+  options: { updatedAt?: string; method?: string; source?: string } = {},
+): Record<string, string> {
+  if (!area) return {};
+  const updatedAt = options.updatedAt ?? new Date().toISOString();
+  const method = options.method ?? "image_area_inference_v1";
+  const source = options.source ?? method;
+  const choices = areaDerivedChoices(area);
+  const record: Record<string, string> = {
+    environment_record_source: source,
+    environment_record_status: "auto_draft",
+    environment_record_updated_by: method,
+    environment_record_updated_at: updatedAt,
+  };
+  for (const fieldDef of ENVIRONMENT_RECORD_FIELDS) {
+    const choice = choices[fieldDef.field];
+    if (!choice || choice.value === "unknown") continue;
+    record[fieldDef.field] = normalizeEnvironmentRecordValue(fieldDef.field, choice.value);
+    record[`${fieldDef.field}_source`] = "derived";
+    record[`${fieldDef.field}_confidence`] = normalizeConfidence(choice.confidence);
+    record[`${fieldDef.field}_method`] = method;
+  }
+  return hasAnyEnvironmentRecordValue(record) ? record : {};
+}
+
+export function mergeAutoEnvironmentRecordValues(
+  previous: unknown,
+  draft: unknown,
+  options: { updatedAt?: string; updatedBy?: string } = {},
+): Record<string, string> {
+  const previousRecord = copyStringRecord(previous);
+  const draftRecord = normalizeEnvironmentRecordSnapshot(draft) ?? {};
+  if (!hasAnyEnvironmentRecordValue(draftRecord)) return previousRecord;
+  const updatedAt = options.updatedAt ?? new Date().toISOString();
+  const updatedBy = options.updatedBy ?? draftRecord.environment_record_updated_by ?? "auto_environment_record";
+  const structured = { ...previousRecord };
+  let changed = false;
+  for (const fieldDef of ENVIRONMENT_RECORD_FIELDS) {
+    const incomingValue = environmentRecordValue(draftRecord, fieldDef);
+    if (incomingValue === "unknown") continue;
+    const currentValue = environmentRecordValue(structured, fieldDef);
+    const currentSource = environmentRecordFieldSource(structured, fieldDef);
+    if (currentSource === "user" || currentSource === "legacy") continue;
+    const currentConfidence = Number(structured[`${fieldDef.field}_confidence`] ?? "0");
+    const incomingConfidence = Number(draftRecord[`${fieldDef.field}_confidence`] ?? "0.44");
+    if (currentValue !== "unknown" && Number.isFinite(currentConfidence) && incomingConfidence < currentConfidence) continue;
+    structured[fieldDef.field] = incomingValue;
+    structured[`${fieldDef.field}_source`] = "derived";
+    structured[`${fieldDef.field}_confidence`] = normalizeConfidence(incomingConfidence);
+    structured[`${fieldDef.field}_method`] = draftRecord[`${fieldDef.field}_method`] ?? "auto_environment_record";
+    changed = true;
+  }
+  if (changed) {
+    structured.environment_record_source = draftRecord.environment_record_source ?? structured.environment_record_source ?? "auto_environment_record";
+    structured.environment_record_status = structured.environment_record_status === "user_edited" ? "user_edited" : "auto_draft";
+    structured.environment_record_updated_by = updatedBy;
+    structured.environment_record_updated_at = updatedAt;
+    structured.updated_by = updatedBy;
+    structured.updated_at = updatedAt;
+  }
+  return structured;
 }

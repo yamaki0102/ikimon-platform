@@ -122,7 +122,7 @@ export const OVERLAYS: OverlayDefinition[] = [
     maxzoom: 17,
     defaultOpacity: 0.85,
     labels: {
-      ja: { label: "1984年の空撮（変化を見る）", note: "約40年前の空中写真。現在の衛星と切り替えて、森林や川筋の変化を重ねる。" },
+      ja: { label: "1984年の空撮（変化を見る）", note: "約40年前の空中写真。現在の衛星と切り替えて、森林や川筋の変化を見る。" },
       en: { label: "1984 aerial (change)", note: "40-year-old aerial imagery for before/after comparisons." },
       es: { label: "Aérea 1984 (cambio)", note: "Imagen aérea de hace 40 años — comparaciones antes/después." },
       "pt-BR": { label: "Aérea 1984 (mudança)", note: "Imagem aérea de 40 anos atrás — comparações antes/depois." },
@@ -141,7 +141,7 @@ export const OVERLAYS: OverlayDefinition[] = [
     maxzoom: 12,
     defaultOpacity: 0.45,
     labels: {
-      ja: { label: "世界土地被覆 10m（ESA）", note: "ESA が Sentinel-2 で分類した 10m 精度の土地被覆。森林・草地・農地・湿地・水域などを色分けで重ねる。" },
+      ja: { label: "世界土地被覆 10m（ESA）", note: "ESA が Sentinel-2 で分類した 10m 精度の土地被覆。森林・草地・農地・湿地・水域などを色分けで表示する。" },
       en: { label: "World Cover 10m (ESA)", note: "ESA Sentinel-2 10m land-cover classes: forest, grassland, cropland, wetland, water, etc." },
       es: { label: "Cobertura mundial 10m (ESA)", note: "Clases de cobertura del suelo de ESA a 10 m: bosque, pastizal, cultivo, humedal, agua." },
       "pt-BR": { label: "Cobertura mundial 10m (ESA)", note: "Classes de cobertura do solo da ESA a 10 m: floresta, pastagem, agricultura, wetland, água." },
@@ -207,7 +207,7 @@ export const OVERLAYS: OverlayDefinition[] = [
     maxzoom: 7,
     defaultOpacity: 0.45,
     labels: {
-      ja: { label: "樹冠高（NASA GEDI）", note: "宇宙ステーション搭載 LiDAR で測った平均樹冠高。森の厚みを定量視化し、観察メッシュ・保全優先度と重ねる。" },
+      ja: { label: "樹冠高（NASA GEDI）", note: "宇宙ステーション搭載 LiDAR で測った平均樹冠高。森の厚みを定量視化し、観察メッシュ・保全優先度と合わせて見る。" },
       en: { label: "Canopy height (NASA GEDI)", note: "Mean canopy height from ISS LiDAR — stack on top of observations to see forest thickness." },
       es: { label: "Altura del dosel (GEDI)", note: "Altura media del dosel medida con LiDAR desde la ISS." },
       "pt-BR": { label: "Altura do dossel (GEDI)", note: "Altura média do dossel medida por LiDAR na ISS." },
