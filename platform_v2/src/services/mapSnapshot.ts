@@ -357,6 +357,33 @@ function compareIsoDesc(a: string | null, b: string | null): number {
   return a < b ? 1 : a > b ? -1 : 0;
 }
 
+function representativeRowsByVisit(rows: PublicMapPreparedRecord[]): PublicMapPreparedRecord[] {
+  const byVisit = new Map<string, PublicMapPreparedRecord>();
+  for (const row of rows) {
+    const current = byVisit.get(row.visitId);
+    if (!current) {
+      byVisit.set(row.visitId, row);
+      continue;
+    }
+    const rowHasPhoto = row.photoUrl ? 1 : 0;
+    const currentHasPhoto = current.photoUrl ? 1 : 0;
+    if (rowHasPhoto !== currentHasPhoto) {
+      if (rowHasPhoto > currentHasPhoto) byVisit.set(row.visitId, row);
+      continue;
+    }
+    const rowNamed = row.displayName !== "同定待ち" ? 1 : 0;
+    const currentNamed = current.displayName !== "同定待ち" ? 1 : 0;
+    if (rowNamed !== currentNamed) {
+      if (rowNamed > currentNamed) byVisit.set(row.visitId, row);
+      continue;
+    }
+    if (row.observedAt > current.observedAt) {
+      byVisit.set(row.visitId, row);
+    }
+  }
+  return Array.from(byVisit.values());
+}
+
 async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
   rows: PublicMapPreparedRecord[];
   markerProfile: MarkerProfile;
@@ -452,9 +479,10 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       select coalesce(ab.public_url, ab.storage_path) as public_url
       from evidence_assets ea
       join asset_blobs ab on ab.blob_id = ea.blob_id
-      where ea.occurrence_id = o.occurrence_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
         and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-      order by ea.created_at asc
+      order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+        ea.created_at asc
       limit 1
     ) photo on true
     where ${whereClauses.join(" and ")}
@@ -547,9 +575,10 @@ export function buildPublicMapCells(
   zoom?: number,
 ): PublicMapCellFeatureCollection {
   const gridM = pickPublicGridMeters(zoom);
+  const mapRows = representativeRowsByVisit(rows);
   const groups = new Map<string, PublicCellGroup>();
 
-  for (const row of rows) {
+  for (const row of mapRows) {
     const cell = buildPublicCellKeyParts(row.latitude, row.longitude, gridM);
     const cellId = formatPublicCellId(cell);
     if (!groups.has(cellId)) {
@@ -626,12 +655,12 @@ export function buildPublicMapCells(
     stats: {
       totalReturned: features.length,
       totalAll: features.length,
-      totalRecords: rows.length,
+      totalRecords: mapRows.length,
       markerProfile: "all_research_artifacts",
       gridM,
       provenance: {
         sampled: true,
-        sampleSize: rows.length,
+        sampleSize: mapRows.length,
         visible: emptyBucketCounts(),
         excluded: emptyBucketCounts(),
       },
@@ -646,7 +675,8 @@ export function buildPublicCellRecords(
   const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
   const gridM = parsedCellId?.gridM ?? pickPublicGridMeters(filters.zoom);
   const targetCellId = parsedCellId ? formatPublicCellId(parsedCellId) : null;
-  const sorted = rows
+  const mapRows = representativeRowsByVisit(rows);
+  const sorted = mapRows
     .map((row) => {
       const cellParts = buildPublicCellKeyParts(row.latitude, row.longitude, gridM);
       return {
@@ -691,7 +721,7 @@ export function buildPublicCellRecords(
       selectedCellId: targetCellId,
       provenance: {
         sampled: true,
-        sampleSize: rows.length,
+        sampleSize: mapRows.length,
         visible: emptyBucketCounts(),
         excluded: emptyBucketCounts(),
       },

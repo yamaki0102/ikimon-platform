@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import {
   __privacyTest__,
@@ -163,6 +165,34 @@ test("buildPublicCellRecords drops exact coordinates and site-level names from p
   assert.ok(!("siteName" in record));
 });
 
+test("public map collapses multiple occurrence records from one visit into one representative", () => {
+  const rows = [
+    {
+      ...sampleRows()[0]!,
+      occurrenceId: "occ-visit-a",
+      visitId: "visit-shared",
+      displayName: "同定待ち",
+      photoUrl: null,
+    },
+    {
+      ...sampleRows()[0]!,
+      occurrenceId: "occ-visit-b",
+      visitId: "visit-shared",
+      displayName: "セイヨウタンポポ",
+      photoUrl: "/uploads/tanpopo.jpg",
+      taxonGroup: "plant" as const,
+    },
+  ];
+  const cells = buildPublicMapCells(rows, 13);
+  const list = buildPublicCellRecords(rows, { zoom: 13 });
+
+  assert.equal(cells.stats.totalRecords, 1);
+  assert.equal(cells.features[0]!.properties.count, 1);
+  assert.equal(list.items.length, 1);
+  assert.equal(list.items[0]!.occurrenceId, "occ-visit-b");
+  assert.equal(list.items[0]!.displayName, "セイヨウタンポポ");
+});
+
 test("public map only exposes exact coordinates for viewer-owned records", () => {
   const rows = sampleRows();
   const ownerList = buildPublicCellRecords(rows, { zoom: 13, viewerUserId: "user-1" });
@@ -176,6 +206,13 @@ test("public map only exposes exact coordinates for viewer-owned records", () =>
   assert.equal(otherRecord.isViewerOwned, undefined);
   assert.equal(otherRecord.exactLatitude, undefined);
   assert.equal(publicList.items.some((item) => "exactLatitude" in item || "exactLongitude" in item), false);
+});
+
+test("public map photos fall back to visit-level assets", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "mapSnapshot.ts"), "utf8");
+
+  assert.match(source, /where \(ea\.occurrence_id = o\.occurrence_id or ea\.visit_id = o\.visit_id\)/);
+  assert.match(source, /order by case when ea\.occurrence_id = o\.occurrence_id then 0 else 1 end/);
 });
 
 test("public trace lines coarsen non-owner track points", () => {
