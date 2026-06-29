@@ -11,7 +11,9 @@ test("record detail preview guard generates an isolated workers.dev config", asy
     "codex/record-image-preview-test",
     "--config-only",
     "--write-preflight-report",
-    ".deploy/test-record-detail-preview.json"
+    ".deploy/test-record-detail-preview.json",
+    "--preview-config",
+    ".deploy/test-record-detail-preview-wrangler.jsonc"
   ], {
     cwd: process.cwd(),
     encoding: "utf8"
@@ -47,7 +49,8 @@ test("record detail preview guard generates an isolated workers.dev config", asy
   };
 
   assert.equal(report.status, "record_detail_preview_config_ready");
-  assert.match(report.workerName, /^ikimon-life-record-preview-codex-record-image-preview-[a-f0-9]{8}$/);
+  assert.match(report.workerName, /^ikimon-rec-preview-codex-record-image-preview-[a-f0-9]{8}$/);
+  assert.ok(report.workerName.length <= 54);
   assert.equal(report.workerUrl, `https://${report.workerName}.yamaki0102.workers.dev`);
   assert.equal(report.noProductionDataMutation, true);
   assert.equal(report.noSharedStagingRoute, true);

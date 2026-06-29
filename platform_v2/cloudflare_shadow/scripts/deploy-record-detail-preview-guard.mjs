@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 const requiredApproval = "APPROVE_IKIMON_CF_RECORD_DETAIL_PREVIEW_WORKER_DEPLOY";
-const workerPrefix = "ikimon-life-record-preview";
+const workerPrefix = "ikimon-rec-preview";
 const defaultPreflightReportPath = ".deploy/record-detail-preview-preflight-latest.json";
 const defaultPreviewConfigPath = ".deploy/record-detail-preview-wrangler.jsonc";
 const allowedArgs = new Set([
@@ -158,15 +158,19 @@ async function currentBranchName() {
 }
 
 function workerNameForBranch(branch) {
+  const maxWorkerNameLength = 54;
+  const hashLength = 8;
+  const separatorLength = 2;
+  const maxSlugLength = maxWorkerNameLength - workerPrefix.length - separatorLength - hashLength;
   const slug = branch
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 26)
+    .slice(0, maxSlugLength)
     .replace(/-$/g, "") || "branch";
   const hash = createHash("sha256").update(branch).digest("hex").slice(0, 8);
-  return `${workerPrefix}-${slug}-${hash}`.slice(0, 63).replace(/-$/g, "");
+  return `${workerPrefix}-${slug}-${hash}`.slice(0, maxWorkerNameLength).replace(/-$/g, "");
 }
 
 async function readStagingPreviewConfigSource() {
