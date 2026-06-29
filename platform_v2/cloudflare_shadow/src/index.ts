@@ -2935,7 +2935,10 @@ function renderObservationEventCreatePage(auth: SessionSnapshot | null, initialF
   function bootLeaflet() {
     if (!window.L) return setStatus("地図ライブラリを読み込めませんでした。GeoJSON欄へ直接入力できます。");
     map = window.L.map(document.querySelector("[data-area-sketch-map]")).setView([35.6812, 139.7671], 16);
-    window.L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Tiles &copy; Esri" }).addTo(map);
+    var streetLayer = window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" });
+    var satelliteLayer = window.L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Tiles &copy; Esri" });
+    streetLayer.addTo(map);
+    window.L.control.layers({ "地図": streetLayer, "衛星画像": satelliteLayer }, {}, { collapsed: false, position: "topright" }).addTo(map);
     layer = window.L.geoJSON(null, { style: { color: "#0b6b54", weight: 3, fillOpacity: 0.22 } }).addTo(map);
     markerLayer = window.L.layerGroup().addTo(map);
     map.on("click", function(event) {
