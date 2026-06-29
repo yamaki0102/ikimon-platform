@@ -206,3 +206,7 @@ export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<
     },
   );
 }
+
+export const __test__ = {
+  resolveTrustedAudioUserId,
+};
