@@ -1812,6 +1812,8 @@ export const worker = {
     try {
       const url = new URL(request.url);
       const nativePathname = stripPublicLangPrefix(url.pathname);
+      const canonicalRedirect = canonicalPublicHostRedirect(request, url, env);
+      if (canonicalRedirect) return canonicalRedirect;
 
       if (request.method === "GET" && url.pathname === "/health") {
         return json({ ok: true, environment: env.ENVIRONMENT });
@@ -2540,6 +2542,27 @@ export const worker = {
     }
   }
 };
+
+function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Response | null {
+  if (env.ENVIRONMENT !== "production" || url.hostname !== "www.ikimon.life") {
+    return null;
+  }
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return null;
+  }
+  const target = new URL(request.url);
+  target.protocol = "https:";
+  target.hostname = "ikimon.life";
+  const cspNonce = createHtmlCspNonce();
+  return new Response(null, {
+    status: 308,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, true),
+      location: target.toString(),
+      "cache-control": "no-store"
+    }
+  });
+}
 
 export default worker;
 
@@ -16835,9 +16858,12 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const object = await env.ASSET_BUCKET.get(originalUiHtmlKeyForRequest(url));
   if (object?.body) {
-    const body = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, request, url, env);
+    const cspNonce = createHtmlCspNonce();
+    const rawBody = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, request, url, env);
+    const body = typeof rawBody === "string" ? applyCspNonceToHtmlScripts(rawBody, cspNonce) : rawBody;
     return new Response(body, {
       headers: {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
         "content-type": object.httpMetadata?.contentType ?? "text/html; charset=utf-8",
         "cache-control": ORIGINAL_UI_HTML_CACHE_CONTROL,
         "pragma": "no-cache",
@@ -16859,6 +16885,45 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
   }
 
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+function createHtmlCspNonce(): string {
+  return randomToken().slice(0, 32);
+}
+
+function applyCspNonceToHtmlScripts(html: string, cspNonce: string): string {
+  const nonceAttribute = ` nonce="${escapeHtml(cspNonce)}"`;
+  return html.replace(/<script\b(?![^>]*\bnonce=)/g, `<script${nonceAttribute}`);
+}
+
+function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record<string, string> {
+  const contentSecurityPolicy = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    `script-src 'self' 'nonce-${cspNonce}' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms https://scripts.clarity.ms https://static.cloudflareinsights.com`,
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https:",
+    "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org https://tiles.openfreemap.org",
+    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://cloudflareinsights.com https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://tiles.openfreemap.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
+    "frame-src 'self' https://iframe.videodelivery.net",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    ...(isProduction ? ["upgrade-insecure-requests"] : [])
+  ].join("; ");
+  return {
+    "content-security-policy": contentSecurityPolicy,
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "SAMEORIGIN",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-permitted-cross-domain-policies": "none",
+    "origin-agent-cluster": "?1",
+    "permissions-policy": "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=()",
+    ...(isProduction ? { "strict-transport-security": "max-age=31536000; includeSubDomains" } : {})
+  };
 }
 
 async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Request, url: URL, env: Env): Promise<ReadableStream | string | null> {

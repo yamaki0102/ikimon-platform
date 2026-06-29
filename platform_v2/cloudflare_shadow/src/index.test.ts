@@ -8,6 +8,19 @@ import { worker } from "./index";
 type D1Value = string | number | null;
 const INTERNAL_AUTH_TOKEN = "test-internal-token";
 
+function cspNonceFrom(response: Response): string {
+  const csp = response.headers.get("content-security-policy") ?? "";
+  const nonce = /'nonce-([^']+)'/.exec(csp)?.[1] ?? "";
+  assert.ok(nonce, `missing CSP nonce in ${csp}`);
+  assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
+  return nonce;
+}
+
+function assertCspNoncedInlineScript(response: Response, body: string, scriptBody: string): void {
+  const nonce = cspNonceFrom(response);
+  assert.equal(body.includes(`<script nonce="${nonce}">${scriptBody}</script>`), true);
+}
+
 interface DraftRow {
   draft_id: string;
   owner_user_id: string;
@@ -15072,6 +15085,9 @@ test("production original UI html serves materialized anonymous pages from R2 wi
     assert.equal(response.headers.get("expires"), "0");
     assert.equal(response.headers.get("vary"), "cookie, authorization");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    const nonce = cspNonceFrom(response);
+    assert.match(response.headers.get("content-security-policy") ?? "", /https:\/\/static\.cloudflareinsights\.com/);
+    assert.match(body, new RegExp(`<script nonce="${nonce}">ikimon-app-outbox-v1</script>`));
     const demo = await worker.fetch(new Request("https://ikimon.life/demo/place-feeling-tags"), productionEnv);
     assert.equal(demo.status, 200);
     assert.match(await demo.text(), /実データではありません/);
@@ -15086,6 +15102,21 @@ test("production original UI html serves materialized anonymous pages from R2 wi
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("production public www host redirects to the canonical apex host", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+
+  const response = await worker.fetch(new Request("https://www.ikimon.life/records?view=public"), productionEnv);
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get("location"), "https://ikimon.life/records?view=public");
+  cspNonceFrom(response);
 });
 
 test("production original UI html serves localized auth and guest profile shells from R2", async () => {
@@ -15341,6 +15372,8 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /data-cloudflare-home-record-id="record-live-materialized"/);
   assert.match(homeBody, /cf-home-record-feed-infinite-script/);
   assert.match(homeBody, /pickNextCard/);
+  const homeNonce = cspNonceFrom(homeResponse);
+  assert.match(homeBody, new RegExp(`<script nonce="${homeNonce}" id="cf-home-record-feed-infinite-script">`));
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
   assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
@@ -15510,8 +15543,8 @@ test("production app refresh page serves materialized reset shell from R2", asyn
     }), productionEnv);
     const body = await response.text();
     assert.equal(response.status, 200);
-    assert.equal(body, appRefreshHtml);
     assert.match(body, /<title>ikimon app refresh<\/title>/);
+    assertCspNoncedInlineScript(response, body, "new URLSearchParams(window.location.search);registration.unregister();caches.keys()");
     assert.doesNotMatch(body, /404|ページが見つかりません|Cloudflare移行中|互換表示/);
     assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
     assert.equal(response.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -15580,39 +15613,51 @@ test("production original UI html serves whitelisted public reading routes from 
   try {
     const glossary = await worker.fetch(new Request("https://ikimon.life/ja/learn/glossary"), productionEnv);
     assert.equal(glossary.status, 200);
-    assert.equal(await glossary.text(), "<!doctype html><title>用語集 / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    const glossaryBody = await glossary.text();
+    assert.match(glossaryBody, /<title>用語集 \/ ikimon<\/title>/);
+    assertCspNoncedInlineScript(glossary, glossaryBody, "ikimon-app-outbox-v1");
     assert.equal(glossary.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     const englishLearn = await worker.fetch(new Request("https://ikimon.life/en/learn"), productionEnv);
     assert.equal(englishLearn.status, 200);
-    assert.equal(await englishLearn.text(), "<!doctype html><title>Learn / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    const englishLearnBody = await englishLearn.text();
+    assert.match(englishLearnBody, /<title>Learn \/ ikimon<\/title>/);
+    assertCspNoncedInlineScript(englishLearn, englishLearnBody, "ikimon-app-outbox-v1");
     assert.equal(englishLearn.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     const fieldPrograms = await worker.fetch(new Request("https://ikimon.life/for-business/field-programs"), productionEnv);
     assert.equal(fieldPrograms.status, 200);
-    assert.equal(await fieldPrograms.text(), "<!doctype html><title>Field programs / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    const fieldProgramsBody = await fieldPrograms.text();
+    assert.match(fieldProgramsBody, /<title>Field programs \/ ikimon<\/title>/);
+    assertCspNoncedInlineScript(fieldPrograms, fieldProgramsBody, "ikimon-app-outbox-v1");
     assert.equal(fieldPrograms.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     const about = await worker.fetch(new Request("https://ikimon.life/ja/about"), productionEnv);
     assert.equal(about.status, 200);
-    assert.equal(await about.text(), "<!doctype html><title>About / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    const aboutBody = await about.text();
+    assert.match(aboutBody, /<title>About \/ ikimon<\/title>/);
+    assertCspNoncedInlineScript(about, aboutBody, "ikimon-app-outbox-v1");
     assert.equal(about.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     const invasiveDetail = await worker.fetch(new Request("https://ikimon.life/ja/learn/invasive-species/procyon-lotor"), productionEnv);
     assert.equal(invasiveDetail.status, 200);
-    assert.equal(await invasiveDetail.text(), "<!doctype html><title>Invasive species / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    const invasiveDetailBody = await invasiveDetail.text();
+    assert.match(invasiveDetailBody, /<title>Invasive species \/ ikimon<\/title>/);
+    assertCspNoncedInlineScript(invasiveDetail, invasiveDetailBody, "ikimon-app-outbox-v1");
     assert.equal(invasiveDetail.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     const englishMap = await worker.fetch(new Request("https://ikimon.life/en/map"), productionEnv);
     assert.equal(englishMap.status, 200);
-    assert.equal(await englishMap.text(), "<!doctype html><title>Map / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    const englishMapBody = await englishMap.text();
+    assert.match(englishMapBody, /<title>Map \/ ikimon<\/title>/);
+    assertCspNoncedInlineScript(englishMap, englishMapBody, "ikimon-app-outbox-v1");
     assert.equal(englishMap.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     for (const path of ["/community/fields", "/en/community/fields", "/es/community/fields", "/pt-br/community/fields"]) {
       const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
       assert.equal(response.status, 200, path);
       assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html", path);
-      assert.equal((await response.text()).includes("ikimon-app-outbox-v1"), true, path);
+      assertCspNoncedInlineScript(response, await response.text(), "ikimon-app-outbox-v1");
     }
 
     const eventShells = ["/en/community/events/new", "/es/community/events/new", "/pt-br/community/events/new"];
