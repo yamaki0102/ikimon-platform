@@ -8564,6 +8564,77 @@ test("production place management policy API writes to D1 without origin fallbac
   assert.equal(stored?.policy_json, JSON.stringify({ source: "cloudflare_place_management_policy_runtime" }));
 });
 
+test("v1 auth register keeps original form contract with Cloudflare-native sessions", async () => {
+  const { env, core } = createEnv();
+  const registerResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({
+      displayName: "Register User",
+      email: " NewUser@example.test ",
+      password: "register-password",
+      redirect: "/record"
+    })
+  }), env);
+  const registerPayload = await registerResponse.json() as any;
+  assert.equal(registerResponse.ok, true, JSON.stringify(registerPayload));
+  assert.equal(registerPayload.ok, true);
+  assert.equal(registerPayload.redirect, "/record?start=photo");
+  assert.match(registerPayload.session.userId, /^user_/);
+  assert.equal(registerPayload.session.displayName, "Register User");
+  assert.equal(registerPayload.session.roleName, "Observer");
+  assert.equal(registerPayload.session.rankLabel, "観察者");
+  assert.equal(core.users.has(registerPayload.session.userId), true);
+  const stored = core.authUsers.get("newuser@example.test");
+  assert.equal(stored?.user_id, registerPayload.session.userId);
+  assert.equal(stored?.display_name, "Register User");
+  assert.equal(await bcrypt.compare("register-password", stored?.password_hash ?? ""), true);
+  assert.equal(core.authSessions.size, 1);
+  assert.match(registerResponse.headers.get("set-cookie") ?? "", /^ikimon_v2_session=/);
+
+  const sessionResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session", {
+    headers: { cookie: registerResponse.headers.get("set-cookie") ?? "" }
+  }), env);
+  const sessionPayload = await sessionResponse.json() as any;
+  assert.equal(sessionResponse.ok, true, JSON.stringify(sessionPayload));
+  assert.equal(sessionPayload.session.userId, registerPayload.session.userId);
+
+  const duplicateResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test"
+    },
+    body: JSON.stringify({
+      displayName: "Register User 2",
+      email: "newuser@example.test",
+      password: "register-password"
+    })
+  }), env);
+  assert.equal(duplicateResponse.status, 409);
+  assert.deepEqual(await duplicateResponse.json(), { ok: false, error: "email_already_registered" });
+
+  const crossOriginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://evil.example",
+      "sec-fetch-site": "cross-site"
+    },
+    body: JSON.stringify({
+      displayName: "Cross Origin",
+      email: "cross@example.test",
+      password: "register-password"
+    })
+  }), env);
+  assert.equal(crossOriginResponse.status, 403);
+  assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
 test("v1 auth login keeps original form contract with Cloudflare-native sessions", async () => {
   const { env, core } = createEnv();
   const passwordHash = await bcrypt.hash("correct-password", 10);
@@ -10275,6 +10346,90 @@ test("production runtime honors private visibility before public readmodel refre
   assert.equal(photoPayload.ok, true);
   assert.equal(obs.readmodel.has("production-private-post-smoke"), false);
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "production-private-post-smoke"), false);
+});
+
+test("production custom-domain register can create a private post without public readmodel promotion", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://ikimon.life",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        displayName: "Production Register User",
+        email: "production-register@example.test",
+        password: "register-password",
+        redirect: "/record"
+      })
+    }), productionEnv);
+    const registerPayload = await registerResponse.json() as any;
+    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
+    assert.equal(registerPayload.ok, true);
+    assert.equal(registerPayload.redirect, "/record?start=photo");
+    assert.match(registerResponse.headers.get("set-cookie") ?? "", /Secure/);
+    const cookie = registerResponse.headers.get("set-cookie") ?? "";
+    const userId = String(registerPayload.session.userId);
+    assert.equal(core.authUsers.get("production-register@example.test")?.user_id, userId);
+
+    const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId: "production-register-private-post",
+        userId,
+        observedAt: "2026-06-29T00:00:00.000Z",
+        latitude: 34.71234,
+        longitude: 137.81234,
+        visibility: "private",
+        note: "production register private post contract",
+        taxon: { vernacularName: "private register plant", rank: "species" },
+        sourcePayload: { source: "production_register_private_post_contract" }
+      })
+    }), productionEnv);
+    const upsertPayload = await upsertResponse.json() as any;
+    assert.equal(upsertResponse.status, 201, JSON.stringify(upsertPayload));
+    assert.equal(upsertPayload.ok, true);
+    assert.equal(obs.observations.get("production-register-private-post")?.owner_user_id, userId);
+    assert.equal(obs.observations.get("production-register-private-post")?.visibility, "private");
+
+    const photoResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/production-register-private-post/photos/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        filename: "production-register-private.png",
+        mimeType: "image/png",
+        base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=",
+        facePrivacy: "no_faces"
+      })
+    }), productionEnv);
+    const photoPayload = await photoResponse.json() as any;
+    assert.equal(photoResponse.status, 200, JSON.stringify(photoPayload));
+    assert.equal(photoPayload.ok, true);
+
+    const detailResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/production-register-private-post/public-detail"), productionEnv);
+    assert.equal(detailResponse.status, 404, await detailResponse.text());
+    assert.equal(obs.readmodel.has("production-register-private-post"), false);
+    assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "production-register-private-post"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fallbackCalls, 0);
 });
 
 test("staging runtime uses Cloudflare app shell without exposing shadow diagnostics", async () => {
