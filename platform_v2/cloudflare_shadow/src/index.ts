@@ -15248,6 +15248,30 @@ const AREA_SKETCH_CLAIM_BOUNDARY = {
   prohibitedPhrases: ["申請できます", "認定されます", "正式面積", "測量済み", "保証"]
 };
 
+type AreaSketchSensitiveContextKey = "school_or_children" | "private_land" | "sensitive_place";
+
+const AREA_SKETCH_SENSITIVE_CONTEXT_PATTERNS: Array<{
+  key: AreaSketchSensitiveContextKey;
+  pattern: RegExp;
+  label: string;
+}> = [
+  {
+    key: "school_or_children",
+    pattern: /小学校|中学校|高校|幼稚園|保育園|こども園|学校|児童|園児|生徒|子ども|子供|未成年|school|kindergarten|nursery|children|child/i,
+    label: "学校・子どもに関わる場所"
+  },
+  {
+    key: "private_land",
+    pattern: /私有地|民有地|個人宅|自宅|住宅地|住所|地番|所有者|private land|private property|home address|residential/i,
+    label: "私有地・住宅地に関わる場所"
+  },
+  {
+    key: "sensitive_place",
+    pattern: /希少種|絶滅危惧|営巣|繁殖地|保護区|避難所|医療機関|福祉施設|sensitive place|sensitive site|endangered|nesting|breeding|shelter|clinic|hospital/i,
+    label: "希少種・保護対象・センシティブ地点"
+  }
+];
+
 function isAreaSketchPoint(value: unknown): value is AreaSketchPoint {
   if (!Array.isArray(value) || value.length < 2) return false;
   const [lng, lat] = value;
@@ -15515,6 +15539,45 @@ function estimateAreaSketchForD1(totalAreaHaInput: number, landCover: AreaSketch
   };
 }
 
+function areaSketchPublicReleaseGate(
+  entry: { row: FieldDetailReadmodelRow; ownerUserId: string | null },
+  body: Record<string, unknown>
+) {
+  const bodyContext = JSON.stringify({
+    ownerAssertion: areaSketchObject(body.owner_assertion) ?? {},
+    evidencePayload: areaSketchObject(body.evidence_payload) ?? {},
+    context: body.context,
+    note: body.note
+  });
+  const searchableText = [
+    entry.row.field_id,
+    entry.row.source,
+    entry.row.name,
+    entry.row.name_kana ?? "",
+    entry.row.summary ?? "",
+    entry.row.prefecture ?? "",
+    entry.row.city ?? "",
+    entry.row.verification_label ?? "",
+    bodyContext
+  ].join(" ");
+  const matchedContexts = AREA_SKETCH_SENSITIVE_CONTEXT_PATTERNS
+    .filter((item) => item.pattern.test(searchableText))
+    .map((item) => item.key);
+  const sensitive = matchedContexts.length > 0;
+  return {
+    status: sensitive ? "blocked_sensitive_context" : "draft_requires_review",
+    publicClaimAllowed: false,
+    publicSummaryAllowed: sensitive ? "blocked_until_redacted_review" : "review_required",
+    matchedContexts,
+    requiredReview: sensitive
+      ? ["human_privacy_review", "boundary_redaction_review", "consent_or_authority_evidence"]
+      : ["human_review_before_public_claim"],
+    reason: sensitive
+      ? "Area Sketch contains school, child, private-land, rare-species, or sensitive-place context and cannot be used for public claims without redaction and review."
+      : "Area Sketch is a draft diagnostic and cannot become a public claim without human review."
+  };
+}
+
 async function handleObservationFieldRegistryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (!isAppRuntime(env)) return null;
   const pathname = stripPublicLangPrefix(url.pathname);
@@ -15615,13 +15678,17 @@ async function createAreaSketchAssessmentNative(request: Request, fieldId: strin
   const landCover = normalizeAreaSketchLandCover(body.land_cover);
   const policyVersion = areaSketchPolicyVersion(body.policy_version);
   const estimate = estimateAreaSketchForD1(normalized.areaHa, landCover, policyVersion);
+  const publicReleaseGate = areaSketchPublicReleaseGate(entry, body);
+  const resultPayload = { ...estimate, publicReleaseGate };
   const auditPayload = {
     generated_by: "area_sketch_assist",
     runtime: "cloudflare_d1",
     normalized_point_count: normalized.cleanedPointCount,
     original_point_count: normalized.originalPointCount,
     removed_point_count: normalized.removedPointCount,
-    geometry_warnings: normalized.warnings
+    geometry_warnings: normalized.warnings,
+    public_release_gate_status: publicReleaseGate.status,
+    public_release_contexts: publicReleaseGate.matchedContexts
   };
   const assessmentId = `area-sketch-${crypto.randomUUID()}`;
   const row = await env.OBS_DB.prepare(
@@ -15649,7 +15716,7 @@ async function createAreaSketchAssessmentNative(request: Request, fieldId: strin
     JSON.stringify(landCover),
     JSON.stringify(areaSketchObject(body.owner_assertion) ?? {}),
     JSON.stringify(areaSketchObject(body.evidence_payload) ?? {}),
-    JSON.stringify(estimate),
+    JSON.stringify(resultPayload),
     JSON.stringify(estimate.claimBoundary),
     JSON.stringify(auditPayload),
     estimate.totalAreaHa,
