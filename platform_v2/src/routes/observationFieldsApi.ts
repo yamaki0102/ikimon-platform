@@ -26,6 +26,17 @@ import {
   revokeFieldManager,
   type FieldManagerRole,
 } from "../services/fieldManagers.js";
+import {
+  AreaSketchAssessmentValidationError,
+  createAreaSketchAssessment,
+  isAreaSketchAssessmentVisibility,
+  listAreaSketchAssessments,
+  type AreaSketchAssessmentVisibility,
+} from "../services/areaSketchAssessments.js";
+import type {
+  AreaSketchLandCoverInput,
+  AreaSketchPolicyVersion,
+} from "../services/areaSketchEstimate.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -41,6 +52,20 @@ function asFieldSource(v: unknown): FieldSource | null {
     v === "protected_area" || v === "oecm" || v === "school" || v === "osm_park" ||
     v === "admin_municipality" || v === "admin_prefecture" || v === "admin_country"
     ? (v as FieldSource) : null;
+}
+function asAreaSketchPolicyVersion(v: unknown): AreaSketchPolicyVersion | null {
+  return v === "general_precheck_v1" || v === "tsunag_2026_current" || v === "tsunag_2027_planned"
+    ? v
+    : null;
+}
+function asAreaSketchVisibility(v: unknown): AreaSketchAssessmentVisibility | null {
+  return isAreaSketchAssessmentVisibility(v) ? v : null;
+}
+function asObject(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+function asLandCover(v: unknown): AreaSketchLandCoverInput[] {
+  return Array.isArray(v) ? (v as AreaSketchLandCoverInput[]) : [];
 }
 
 export async function registerObservationFieldsApiRoutes(app: FastifyInstance): Promise<void> {
@@ -222,6 +247,69 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
     reply.header("Cache-Control", "no-store");
     return reply.send({ snapshot });
   });
+
+  // POST /api/v1/fields/:fieldId/area-sketch-assessments
+  // Area Sketch Assist の下書き診断。observation_fields.payload には混ぜず、専用テーブルへ保存する。
+  app.post<{ Params: { fieldId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/fields/:fieldId/area-sketch-assessments",
+    async (request, reply) => {
+      const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!session) return reply.status(401).send({ error: "login required" });
+      const field = await getField(request.params.fieldId);
+      if (!field) return reply.status(404).send({ error: "field not found" });
+      const body = request.body ?? {};
+      const requestedVisibility = asAreaSketchVisibility(body.visibility) ?? "private";
+      if (requestedVisibility !== "private") {
+        const isAdminOrAnalyst = isAdminOrAnalystRole(session.roleName, session.rankLabel);
+        const fieldRole = await getFieldManagerRole(session.userId, field.fieldId).catch(() => null);
+        const ownsField = field.source === "user_defined" && field.ownerUserId === session.userId;
+        if (!isAdminOrAnalyst && !fieldRole && !ownsField) {
+          return reply.status(403).send({ error: "field manager only" });
+        }
+      }
+      const sketchPolygon = asObject(body.sketch_polygon) ?? asObject(body.polygon);
+      if (!sketchPolygon) return reply.status(400).send({ error: "sketch_polygon required" });
+      try {
+        const assessment = await createAreaSketchAssessment({
+          fieldId: field.fieldId,
+          actorUserId: session.userId,
+          sketchPolygon,
+          landCover: asLandCover(body.land_cover),
+          policyVersion: asAreaSketchPolicyVersion(body.policy_version) ?? "general_precheck_v1",
+          visibility: requestedVisibility,
+          ownerAssertion: asObject(body.owner_assertion) ?? {},
+          evidencePayload: asObject(body.evidence_payload) ?? {},
+        });
+        reply.header("Cache-Control", "no-store");
+        return reply.status(201).send({ assessment });
+      } catch (error) {
+        if (error instanceof AreaSketchAssessmentValidationError) {
+          return reply.status(400).send({ error: error.code, details: error.details });
+        }
+        const message = error instanceof Error ? error.message : "area sketch assessment failed";
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
+
+  // GET /api/v1/fields/:fieldId/area-sketch-assessments
+  // MVPでは本人の draft のみ返す。共有/公開レビューは次段階で separate permission model にする。
+  app.get<{ Params: { fieldId: string }; Querystring: { limit?: string } }>(
+    "/api/v1/fields/:fieldId/area-sketch-assessments",
+    async (request, reply) => {
+      const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!session) return reply.status(401).send({ error: "login required" });
+      const field = await getField(request.params.fieldId);
+      if (!field) return reply.status(404).send({ error: "field not found" });
+      const assessments = await listAreaSketchAssessments({
+        fieldId: field.fieldId,
+        actorUserId: session.userId,
+        limit: asNumber(request.query.limit) ?? 20,
+      });
+      reply.header("Cache-Control", "no-store");
+      return reply.send({ assessments });
+    },
+  );
 
   // ──────────────────────────────────────────────────────────────────────
   // Field manager grants — admin/analyst のみが操作可能。

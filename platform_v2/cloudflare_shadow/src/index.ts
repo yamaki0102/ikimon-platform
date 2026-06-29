@@ -14933,6 +14933,333 @@ function parseFieldRegistryBody(body: Record<string, unknown>) {
   };
 }
 
+type AreaSketchLandCoverCategory =
+  | "agricultural_land"
+  | "trees_planting"
+  | "grassland"
+  | "water_edge"
+  | "yard_experience_space"
+  | "building"
+  | "pavement_parking"
+  | "unknown";
+
+type AreaSketchPolicyVersion = "general_precheck_v1" | "tsunag_2026_current" | "tsunag_2027_planned";
+type AreaSketchVisibility = "private" | "field_managers" | "internal";
+type AreaSketchPoint = [number, number];
+type AreaSketchPolygon = { type: "Polygon"; coordinates: AreaSketchPoint[][] };
+
+interface AreaSketchLandCoverInput {
+  category: AreaSketchLandCoverCategory;
+  areaHa?: number;
+  area_ha?: number;
+  ratio?: number;
+  percent?: number;
+}
+
+interface AreaSketchAssessmentD1Row {
+  assessment_id: string;
+  field_id: string;
+  actor_user_id: string;
+  status: string;
+  visibility: string;
+  policy_version: string;
+  estimate_version: string;
+  sketch_polygon_json: string;
+  normalized_polygon_json: string;
+  land_cover_json: string;
+  owner_assertion_json: string;
+  evidence_payload_json: string;
+  result_payload_json: string;
+  claim_boundary_json: string;
+  audit_payload_json: string;
+  area_ha: number | null;
+  green_candidate_area_ha: number | null;
+  conditional_green_candidate_area_ha: number | null;
+  unknown_area_ha: number | null;
+  green_ratio: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const AREA_SKETCH_GREEN_CATEGORIES = new Set<AreaSketchLandCoverCategory>([
+  "agricultural_land",
+  "trees_planting",
+  "grassland",
+  "water_edge"
+]);
+const AREA_SKETCH_CONDITIONAL_GREEN_CATEGORIES = new Set<AreaSketchLandCoverCategory>(["yard_experience_space"]);
+const AREA_SKETCH_POLICY_VERSIONS = new Set<AreaSketchPolicyVersion>([
+  "general_precheck_v1",
+  "tsunag_2026_current",
+  "tsunag_2027_planned"
+]);
+const AREA_SKETCH_VISIBILITIES = new Set<AreaSketchVisibility>(["private", "field_managers", "internal"]);
+const AREA_SKETCH_CLAIM_BOUNDARY = {
+  canSay: [
+    "衛星地図上の概算として、区域候補の面積と緑地割合の目安を整理できます。",
+    "TSUNAGの事前相談や社内整理に向けた不足資料の洗い出しに使えます。",
+    "写真、観察記録、管理記録、事前相談メールと紐づけて証跡を整理できます。"
+  ],
+  cannotSay: [
+    "正式な測量面積、申請書の最終値、認定可否の保証とは扱えません。",
+    "第三者の私有地、学校敷地、子どもの活動場所を公開用資料として無条件に出力できません。",
+    "航空写真や外部地図の利用条件を超えた転載・二次利用はできません。"
+  ],
+  requiredDisclaimer: "この結果はikimon.lifeによる事前診断・資料整理支援の概算です。正式申請、測量、行政判断、認定取得を保証するものではありません。",
+  prohibitedPhrases: ["申請できます", "認定されます", "正式面積", "測量済み", "保証"]
+};
+
+function isAreaSketchPoint(value: unknown): value is AreaSketchPoint {
+  if (!Array.isArray(value) || value.length < 2) return false;
+  const [lng, lat] = value;
+  return typeof lng === "number" && Number.isFinite(lng) && lng >= -180 && lng <= 180
+    && typeof lat === "number" && Number.isFinite(lat) && lat >= -90 && lat <= 90;
+}
+
+function areaSketchObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function parseAreaSketchJson<T>(text: string, fallback: T): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function extractAreaSketchOuterRing(input: unknown): AreaSketchPoint[] {
+  if (Array.isArray(input)) return input.filter(isAreaSketchPoint).map((point) => [point[0], point[1]]);
+  const object = areaSketchObject(input);
+  if (object?.type !== "Polygon" || !Array.isArray(object.coordinates)) return [];
+  const ring = object.coordinates[0];
+  return Array.isArray(ring) ? ring.filter(isAreaSketchPoint).map((point) => [point[0], point[1]]) : [];
+}
+
+function sameAreaSketchPoint(a: AreaSketchPoint, b: AreaSketchPoint): boolean {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+function closeAreaSketchRing(points: AreaSketchPoint[]): AreaSketchPoint[] {
+  if (points.length === 0) return [];
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  return sameAreaSketchPoint(first, last) ? points : [...points, [first[0], first[1]]];
+}
+
+function stripAreaSketchClosingPoint(points: AreaSketchPoint[]): AreaSketchPoint[] {
+  if (points.length < 2) return points;
+  return sameAreaSketchPoint(points[0]!, points[points.length - 1]!) ? points.slice(0, -1) : points;
+}
+
+function cleanAreaSketchRing(points: AreaSketchPoint[], maxPoints = 80): AreaSketchPoint[] {
+  const cleaned: AreaSketchPoint[] = [];
+  for (const point of stripAreaSketchClosingPoint(points)) {
+    const previous = cleaned[cleaned.length - 1];
+    if (!previous || fieldDistanceMeters(previous[1], previous[0], point[1], point[0]) >= 0.75) cleaned.push(point);
+  }
+  if (cleaned.length > 1 && fieldDistanceMeters(cleaned[0]![1], cleaned[0]![0], cleaned[cleaned.length - 1]![1], cleaned[cleaned.length - 1]![0]) < 0.75) {
+    cleaned.pop();
+  }
+  const maxOpenPoints = Math.max(3, maxPoints - 1);
+  if (cleaned.length > maxOpenPoints) {
+    const step = cleaned.length / maxOpenPoints;
+    return closeAreaSketchRing(Array.from({ length: maxOpenPoints }, (_, index) => cleaned[Math.floor(index * step)]!));
+  }
+  return closeAreaSketchRing(cleaned);
+}
+
+function projectAreaSketchRing(points: AreaSketchPoint[]): Array<{ x: number; y: number }> {
+  const open = stripAreaSketchClosingPoint(points);
+  const centerLat = open.reduce((sum, point) => sum + point[1], 0) / Math.max(1, open.length);
+  const metersPerDegLat = 111_320;
+  const metersPerDegLng = metersPerDegLat * Math.cos(centerLat * Math.PI / 180);
+  return points.map((point) => ({ x: point[0] * metersPerDegLng, y: point[1] * metersPerDegLat }));
+}
+
+function areaSketchAreaHa(points: AreaSketchPoint[]): number | null {
+  if (points.length < 4) return null;
+  const projected = projectAreaSketchRing(points);
+  let sum = 0;
+  for (let index = 0; index < projected.length - 1; index += 1) {
+    const a = projected[index]!;
+    const b = projected[index + 1]!;
+    sum += a.x * b.y - b.x * a.y;
+  }
+  const areaM2 = Math.abs(sum) / 2;
+  return Math.round((areaM2 / 10000) * 10000) / 10000;
+}
+
+function areaSketchOrientation(a: AreaSketchPoint, b: AreaSketchPoint, c: AreaSketchPoint): number {
+  const value = (b[1] - a[1]) * (c[0] - b[0]) - (b[0] - a[0]) * (c[1] - b[1]);
+  if (Math.abs(value) < 1e-12) return 0;
+  return value > 0 ? 1 : 2;
+}
+
+function areaSketchOnSegment(a: AreaSketchPoint, b: AreaSketchPoint, c: AreaSketchPoint): boolean {
+  return b[0] <= Math.max(a[0], c[0]) && b[0] >= Math.min(a[0], c[0])
+    && b[1] <= Math.max(a[1], c[1]) && b[1] >= Math.min(a[1], c[1]);
+}
+
+function areaSketchSegmentsIntersect(a1: AreaSketchPoint, a2: AreaSketchPoint, b1: AreaSketchPoint, b2: AreaSketchPoint): boolean {
+  const o1 = areaSketchOrientation(a1, a2, b1);
+  const o2 = areaSketchOrientation(a1, a2, b2);
+  const o3 = areaSketchOrientation(b1, b2, a1);
+  const o4 = areaSketchOrientation(b1, b2, a2);
+  if (o1 !== o2 && o3 !== o4) return true;
+  if (o1 === 0 && areaSketchOnSegment(a1, b1, a2)) return true;
+  if (o2 === 0 && areaSketchOnSegment(a1, b2, a2)) return true;
+  if (o3 === 0 && areaSketchOnSegment(b1, a1, b2)) return true;
+  if (o4 === 0 && areaSketchOnSegment(b1, a2, b2)) return true;
+  return false;
+}
+
+function areaSketchHasSelfIntersection(points: AreaSketchPoint[]): boolean {
+  const segmentCount = points.length - 1;
+  for (let i = 0; i < segmentCount; i += 1) {
+    for (let j = i + 1; j < segmentCount; j += 1) {
+      const adjacent = Math.abs(i - j) <= 1 || (i === 0 && j === segmentCount - 1);
+      if (adjacent) continue;
+      if (areaSketchSegmentsIntersect(points[i]!, points[i + 1]!, points[j]!, points[j + 1]!)) return true;
+    }
+  }
+  return false;
+}
+
+function normalizeAreaSketchPolygonForD1(input: unknown): {
+  polygon: AreaSketchPolygon | null;
+  areaHa: number | null;
+  originalPointCount: number;
+  cleanedPointCount: number;
+  removedPointCount: number;
+  warnings: string[];
+  errors: string[];
+} {
+  const raw = extractAreaSketchOuterRing(input);
+  const ring = cleanAreaSketchRing(raw);
+  const errors: string[] = [];
+  if (ring.length < 4) errors.push("polygon_requires_at_least_3_points");
+  if (ring.length >= 4 && areaSketchHasSelfIntersection(ring)) errors.push("polygon_self_intersection");
+  const areaHa = errors.length === 0 ? areaSketchAreaHa(ring) : null;
+  if (areaHa == null || areaHa <= 0) errors.push("polygon_area_required");
+  const polygon = errors.length === 0 ? { type: "Polygon" as const, coordinates: [ring] } : null;
+  return {
+    polygon,
+    areaHa,
+    originalPointCount: raw.length,
+    cleanedPointCount: polygon?.coordinates[0]?.length ?? 0,
+    removedPointCount: Math.max(0, raw.length - (polygon?.coordinates[0]?.length ?? 0)),
+    warnings: [],
+    errors
+  };
+}
+
+function roundAreaSketchHa(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
+function roundAreaSketchRatio(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function areaSketchLandCoverAreaHa(input: AreaSketchLandCoverInput, totalAreaHa: number): number {
+  const raw = input.areaHa ?? input.area_ha;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
+  if (typeof input.ratio === "number" && Number.isFinite(input.ratio) && input.ratio >= 0) return totalAreaHa * input.ratio;
+  if (typeof input.percent === "number" && Number.isFinite(input.percent) && input.percent >= 0) return totalAreaHa * (input.percent / 100);
+  return 0;
+}
+
+function normalizeAreaSketchLandCover(value: unknown): AreaSketchLandCoverInput[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const object = areaSketchObject(item);
+    if (!object || typeof object.category !== "string") return [];
+    const category = object.category as AreaSketchLandCoverCategory;
+    const allowed: AreaSketchLandCoverCategory[] = [
+      "agricultural_land",
+      "trees_planting",
+      "grassland",
+      "water_edge",
+      "yard_experience_space",
+      "building",
+      "pavement_parking",
+      "unknown"
+    ];
+    if (!allowed.includes(category)) return [];
+    return [{
+      category,
+      areaHa: finiteNumberOrNull(object.areaHa) ?? undefined,
+      area_ha: finiteNumberOrNull(object.area_ha) ?? undefined,
+      ratio: finiteNumberOrNull(object.ratio) ?? undefined,
+      percent: finiteNumberOrNull(object.percent) ?? undefined
+    }];
+  });
+}
+
+function estimateAreaSketchForD1(totalAreaHaInput: number, landCover: AreaSketchLandCoverInput[], policyVersion: AreaSketchPolicyVersion) {
+  const totalAreaHa = roundAreaSketchHa(Math.max(0, totalAreaHaInput));
+  let classifiedAreaHa = 0;
+  let greenCandidateAreaHa = 0;
+  let conditionalGreenCandidateAreaHa = 0;
+  let explicitUnknownAreaHa = 0;
+  for (const row of landCover) {
+    const areaHa = areaSketchLandCoverAreaHa(row, totalAreaHa);
+    classifiedAreaHa += areaHa;
+    if (AREA_SKETCH_GREEN_CATEGORIES.has(row.category)) greenCandidateAreaHa += areaHa;
+    if (AREA_SKETCH_CONDITIONAL_GREEN_CATEGORIES.has(row.category)) conditionalGreenCandidateAreaHa += areaHa;
+    if (row.category === "unknown") explicitUnknownAreaHa += areaHa;
+  }
+  const warnings = classifiedAreaHa > totalAreaHa + 0.0001 ? ["classification_area_exceeds_total"] : [];
+  const unknownAreaHa = explicitUnknownAreaHa + Math.max(0, totalAreaHa - classifiedAreaHa);
+  const greenRatio = totalAreaHa > 0 ? greenCandidateAreaHa / totalAreaHa : 0;
+  const absoluteThreshold = policyVersion === "tsunag_2026_current"
+    ? { thresholdHa: 0.1, thresholdLabel: "1,000m2以上" }
+    : policyVersion === "tsunag_2027_planned"
+      ? { thresholdHa: 0.05, thresholdLabel: "500m2以上(2027予定)" }
+      : { thresholdHa: null, thresholdLabel: null };
+  const absoluteArea = absoluteThreshold.thresholdHa == null
+    ? { policyVersion, thresholdHa: null, thresholdLabel: null, status: "not_applicable", marginHa: null }
+    : {
+        policyVersion,
+        ...absoluteThreshold,
+        status: totalAreaHa >= absoluteThreshold.thresholdHa ? "above" : "below",
+        marginHa: roundAreaSketchHa(Math.max(0.005, absoluteThreshold.thresholdHa * 0.05))
+      };
+  const evidenceChecklist = [
+    { key: "boundary_basis", label: "区域境界の根拠", reason: "衛星地図上でなぞった線が、敷地境界・管理範囲・既存境界のどれに基づくかを確認するため。" },
+    { key: "current_site_photos", label: "現況写真", reason: "緑地、舗装、建物、不明箇所の分類が現地状態と合っているか確認するため。" },
+    ...(unknownAreaHa > 0 ? [{ key: "unknown_area_resolution", label: "不明区分の確認メモ", reason: "不明面積が緑地割合の概算に影響するため。" }] : []),
+    ...(conditionalGreenCandidateAreaHa > 0 ? [{ key: "conditional_green_basis", label: "園庭・体験スペースの緑地扱い根拠", reason: "活動スペースは自動で緑地算入せず、植栽・土・管理実態を別確認するため。" }] : []),
+    ...(policyVersion !== "general_precheck_v1" ? [
+      { key: "management_records", label: "管理記録", reason: "緑地の維持管理、活動、改善予定を説明する資料に接続するため。" },
+      { key: "preconsultation_email", label: "事前相談メール・回答", reason: "正式申請ではなく、事前相談に向けた論点整理として扱うため。" }
+    ] : [])
+  ];
+  return {
+    estimateVersion: "area_sketch_estimate_v1",
+    policyVersion,
+    totalAreaHa,
+    classifiedAreaHa: roundAreaSketchHa(classifiedAreaHa),
+    greenCandidateAreaHa: roundAreaSketchHa(greenCandidateAreaHa),
+    conditionalGreenCandidateAreaHa: roundAreaSketchHa(conditionalGreenCandidateAreaHa),
+    unknownAreaHa: roundAreaSketchHa(unknownAreaHa),
+    greenRatio: roundAreaSketchRatio(greenRatio),
+    greenRatioPercent: Math.round(greenRatio * 1000) / 10,
+    thresholds: [0.1, 0.2, 0.3].map((ratio) => ({
+      ratio,
+      label: `${Math.round(ratio * 100)}%`,
+      reached: greenCandidateAreaHa >= totalAreaHa * ratio,
+      requiredGreenAreaHa: roundAreaSketchHa(totalAreaHa * ratio),
+      shortageHa: roundAreaSketchHa(Math.max(0, totalAreaHa * ratio - greenCandidateAreaHa))
+    })),
+    absoluteArea,
+    evidenceChecklist,
+    claimBoundary: AREA_SKETCH_CLAIM_BOUNDARY,
+    warnings
+  };
+}
+
 async function handleObservationFieldRegistryRuntime(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (!isAppRuntime(env)) return null;
   const pathname = stripPublicLangPrefix(url.pathname);
@@ -14944,6 +15271,12 @@ async function handleObservationFieldRegistryRuntime(request: Request, url: URL,
   }
   if (request.method === "GET" && pathname === "/api/v1/fields/prefectures") {
     return listObservationFieldPrefecturesNative(env);
+  }
+  const areaSketchMatch = pathname.match(/^\/api\/v1\/fields\/([^/]+)\/area-sketch-assessments$/);
+  if (areaSketchMatch?.[1]) {
+    const fieldId = decodeURIComponent(areaSketchMatch[1]);
+    if (request.method === "POST") return createAreaSketchAssessmentNative(request, fieldId, env);
+    if (request.method === "GET") return listAreaSketchAssessmentsNative(request, url, fieldId, env);
   }
   const statsMatch = pathname.match(/^\/api\/v1\/fields\/([^/]+)\/stats$/);
   if (request.method === "GET" && statsMatch?.[1]) {
@@ -14959,6 +15292,145 @@ async function handleObservationFieldRegistryRuntime(request: Request, url: URL,
     return listObservationFieldsNative(request, url, env);
   }
   return null;
+}
+
+function isAreaSketchAdminOrAnalyst(session: SessionSnapshot): boolean {
+  return isSpecialistAuthorityAdminRole(session);
+}
+
+function areaSketchVisibility(value: unknown): AreaSketchVisibility {
+  return typeof value === "string" && AREA_SKETCH_VISIBILITIES.has(value as AreaSketchVisibility)
+    ? value as AreaSketchVisibility
+    : "private";
+}
+
+function areaSketchPolicyVersion(value: unknown): AreaSketchPolicyVersion {
+  return typeof value === "string" && AREA_SKETCH_POLICY_VERSIONS.has(value as AreaSketchPolicyVersion)
+    ? value as AreaSketchPolicyVersion
+    : "general_precheck_v1";
+}
+
+function areaSketchAssessmentPayload(row: AreaSketchAssessmentD1Row) {
+  return {
+    assessmentId: row.assessment_id,
+    fieldId: row.field_id,
+    actorUserId: row.actor_user_id,
+    status: row.status === "archived" ? "archived" : "draft",
+    visibility: areaSketchVisibility(row.visibility),
+    policyVersion: areaSketchPolicyVersion(row.policy_version),
+    estimateVersion: row.estimate_version,
+    sketchPolygon: parseAreaSketchJson(row.sketch_polygon_json, {}),
+    normalizedPolygon: parseAreaSketchJson(row.normalized_polygon_json, {}),
+    landCover: parseAreaSketchJson(row.land_cover_json, []),
+    ownerAssertion: parseAreaSketchJson(row.owner_assertion_json, {}),
+    evidencePayload: parseAreaSketchJson(row.evidence_payload_json, {}),
+    resultPayload: parseAreaSketchJson(row.result_payload_json, {}),
+    claimBoundary: parseAreaSketchJson(row.claim_boundary_json, AREA_SKETCH_CLAIM_BOUNDARY),
+    auditPayload: parseAreaSketchJson(row.audit_payload_json, {}),
+    areaHa: row.area_ha,
+    greenCandidateAreaHa: row.green_candidate_area_ha,
+    conditionalGreenCandidateAreaHa: row.conditional_green_candidate_area_ha,
+    unknownAreaHa: row.unknown_area_ha,
+    greenRatio: row.green_ratio,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+async function createAreaSketchAssessmentNative(request: Request, fieldId: string, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  const entry = await getObservationFieldRegistryRow(fieldId, env);
+  if (!entry) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  const body = await readJson<Record<string, unknown>>(request);
+  const requestedVisibility = areaSketchVisibility(body.visibility);
+  if (requestedVisibility !== "private") {
+    const fieldRole = await getFieldManagerRoleFromD1(session.userId, entry.row.field_id, env).catch(() => null);
+    const ownsField = entry.ownerUserId === session.userId;
+    if (!isAreaSketchAdminOrAnalyst(session) && !fieldRole && !ownsField) {
+      return json({ error: "field manager only" }, 403, { "cache-control": "no-store" });
+    }
+  }
+  const sketchPolygon = areaSketchObject(body.sketch_polygon) ?? areaSketchObject(body.polygon);
+  if (!sketchPolygon) return json({ error: "sketch_polygon required" }, 400, { "cache-control": "no-store" });
+  const normalized = normalizeAreaSketchPolygonForD1(sketchPolygon);
+  if (!normalized.polygon || normalized.areaHa == null || normalized.errors.length > 0) {
+    return json({ error: "invalid_sketch_polygon", details: { errors: normalized.errors, warnings: normalized.warnings } }, 400, { "cache-control": "no-store" });
+  }
+  const landCover = normalizeAreaSketchLandCover(body.land_cover);
+  const policyVersion = areaSketchPolicyVersion(body.policy_version);
+  const estimate = estimateAreaSketchForD1(normalized.areaHa, landCover, policyVersion);
+  const auditPayload = {
+    generated_by: "area_sketch_assist",
+    runtime: "cloudflare_d1",
+    normalized_point_count: normalized.cleanedPointCount,
+    original_point_count: normalized.originalPointCount,
+    removed_point_count: normalized.removedPointCount,
+    geometry_warnings: normalized.warnings
+  };
+  const assessmentId = `area-sketch-${crypto.randomUUID()}`;
+  const row = await env.OBS_DB.prepare(
+    `INSERT INTO area_sketch_assessments (
+       assessment_id, field_id, actor_user_id, status, visibility,
+       policy_version, estimate_version,
+       sketch_polygon_json, normalized_polygon_json, land_cover_json,
+       owner_assertion_json, evidence_payload_json, result_payload_json, claim_boundary_json, audit_payload_json,
+       area_ha, green_candidate_area_ha, conditional_green_candidate_area_ha, unknown_area_ha, green_ratio,
+       created_at, updated_at
+     ) VALUES (?, ?, ?, 'draft', ?, ?, 'area_sketch_estimate_v1', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     RETURNING assessment_id, field_id, actor_user_id, status, visibility, policy_version, estimate_version,
+       sketch_polygon_json, normalized_polygon_json, land_cover_json, owner_assertion_json, evidence_payload_json,
+       result_payload_json, claim_boundary_json, audit_payload_json,
+       area_ha, green_candidate_area_ha, conditional_green_candidate_area_ha, unknown_area_ha, green_ratio,
+       created_at, updated_at`
+  ).bind(
+    assessmentId,
+    entry.row.field_id,
+    session.userId,
+    requestedVisibility,
+    policyVersion,
+    JSON.stringify(sketchPolygon),
+    JSON.stringify(normalized.polygon),
+    JSON.stringify(landCover),
+    JSON.stringify(areaSketchObject(body.owner_assertion) ?? {}),
+    JSON.stringify(areaSketchObject(body.evidence_payload) ?? {}),
+    JSON.stringify(estimate),
+    JSON.stringify(estimate.claimBoundary),
+    JSON.stringify(auditPayload),
+    estimate.totalAreaHa,
+    estimate.greenCandidateAreaHa,
+    estimate.conditionalGreenCandidateAreaHa,
+    estimate.unknownAreaHa,
+    estimate.greenRatio
+  ).first<AreaSketchAssessmentD1Row>();
+  if (!row) return json({ error: "area sketch assessment failed" }, 500, { "cache-control": "no-store" });
+  return json({ assessment: areaSketchAssessmentPayload(row) }, 201, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "area-sketch-assessment-runtime"
+  });
+}
+
+async function listAreaSketchAssessmentsNative(request: Request, url: URL, fieldId: string, env: Env): Promise<Response> {
+  const session = await requireFieldRegistrySession(request, env);
+  if (session instanceof Response) return session;
+  const entry = await getObservationFieldRegistryRow(fieldId, env);
+  if (!entry) return json({ error: "field not found" }, 404, { "cache-control": "no-store" });
+  const limit = Math.max(1, Math.min(50, Number(url.searchParams.get("limit") ?? "20") || 20));
+  const rows = await env.OBS_DB.prepare(
+    `SELECT assessment_id, field_id, actor_user_id, status, visibility, policy_version, estimate_version,
+            sketch_polygon_json, normalized_polygon_json, land_cover_json, owner_assertion_json, evidence_payload_json,
+            result_payload_json, claim_boundary_json, audit_payload_json,
+            area_ha, green_candidate_area_ha, conditional_green_candidate_area_ha, unknown_area_ha, green_ratio,
+            created_at, updated_at
+       FROM area_sketch_assessments
+      WHERE field_id = ? AND actor_user_id = ? AND status = 'draft'
+      ORDER BY updated_at DESC
+      LIMIT ?`
+  ).bind(entry.row.field_id, session.userId, limit).all<AreaSketchAssessmentD1Row>();
+  return json({ assessments: rows.results.map(areaSketchAssessmentPayload) }, 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "area-sketch-assessment-runtime"
+  });
 }
 
 async function requireFieldRegistrySession(request: Request, env: Env): Promise<SessionSnapshot | Response> {

@@ -297,6 +297,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventQuestEngine.ts"), "cloudflare_observation_event_static_quest_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventCapsule.ts"), "cloudflare_observation_event_capsule_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/observationEventOfficialReport.ts"), "cloudflare_observation_event_official_report_api");
+  assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/services/areaSketchAssessments.ts"), "cloudflare_area_sketch_assessment_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/meSubscriptionsApi.ts"), "cloudflare_personal_subscription_alert_api");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/guideRecordsDebug.ts"), "cloudflare_guide_outcomes_and_route_layer_runtime");
   assert.equal(replacedProductionRuntimePgDependencyReason("platform_v2/src/routes/researchApi.ts"), "cloudflare_research_export_runtime");
@@ -554,6 +555,7 @@ test("VPS stop readiness excludes explicit maintenance-only PostgreSQL scripts f
   assert.match(script, /cloudflare_observation_event_recap_api/);
   assert.match(script, /cloudflare_observation_event_capsule_api/);
   assert.match(script, /cloudflare_observation_event_official_report_api/);
+  assert.match(script, /cloudflare_area_sketch_assessment_runtime/);
   assert.match(script, /cloudflare_guide_outcomes_and_route_layer_runtime/);
   assert.match(script, /cloudflare_guide_telemetry_route_points_runtime/);
   assert.match(script, /cloudflare_guide_route_layer_quality_runtime/);
@@ -598,6 +600,7 @@ test("readModels runtime is covered by Cloudflare materialized and native read l
   assert.match(workerTests, /production original UI app shells serve materialized HTML even with session cookies/);
   assert.match(workerTests, /production profile shell renders signed-in Cloudflare page for valid session cookies/);
   assert.match(workerTests, /production language-prefixed observation detail stays native and public-safe/);
+  assert.match(workerTests, /production area sketch assessment runtime stores draft diagnostics in D1 without origin fallback/);
   assert.match(workerTests, /production specialist authority runtime manages D1 authority and recommendation flows without origin fallback/);
 });
 
