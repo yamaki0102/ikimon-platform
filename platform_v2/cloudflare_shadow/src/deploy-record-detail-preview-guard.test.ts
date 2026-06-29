@@ -88,7 +88,7 @@ test("record detail preview workflow is scoped to codex record/image/detail PRs"
   assert.match(workflow, /contains\(github\.head_ref, 'image'\)/);
   assert.match(workflow, /contains\(github\.head_ref, 'detail'\)/);
   assert.match(workflow, /npm run deploy:record-detail-preview:dry-run/);
-  assert.match(workflow, /OBSERVATION_DETAIL_BASE_URL="\$\{PREVIEW_URL\}" npm run e2e:observation-image-target/);
+  assert.match(workflow, /OBSERVATION_IMAGE_TARGET_COUNT="3" OBSERVATION_DETAIL_BASE_URL="\$\{PREVIEW_URL\}" npm run e2e:observation-image-target/);
   assert.match(workflow, /Shared staging route touched: `false`/);
   assert.match(guard, /const smokeRetryAttempts = 12;/);
   assert.match(guard, /const smokeRetryDelayMs = 5000;/);

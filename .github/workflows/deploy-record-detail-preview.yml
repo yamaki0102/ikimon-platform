@@ -154,7 +154,7 @@ jobs:
           set -euo pipefail
           PREVIEW_URL="$(node -e "const fs=require('node:fs'); const report=JSON.parse(fs.readFileSync('cloudflare_shadow/.deploy/record-detail-preview-deploy-latest.json','utf8')); process.stdout.write(report.workerUrl)")"
           echo "OBSERVATION_DETAIL_BASE_URL=${PREVIEW_URL}" >> "$GITHUB_ENV"
-          OBSERVATION_DETAIL_BASE_URL="${PREVIEW_URL}" npm run e2e:observation-image-target
+          OBSERVATION_IMAGE_TARGET_COUNT="3" OBSERVATION_DETAIL_BASE_URL="${PREVIEW_URL}" npm run e2e:observation-image-target
 
       - name: Upload record detail preview artifacts
         uses: actions/upload-artifact@v6
