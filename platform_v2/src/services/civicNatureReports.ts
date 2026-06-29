@@ -1,5 +1,6 @@
 import type { CivicObservationContext } from "./civicNatureContext.js";
 import { civicContextLabel } from "./civicNatureContext.js";
+import type { RecordSafetyProfileV0 } from "./recordSafetyProfile.js";
 
 export type CivicReportKind =
   | "event_recap"
@@ -24,6 +25,7 @@ export type CivicReportInput = {
     note?: string | null;
   }>;
   limitations?: string[];
+  safetyProfile?: RecordSafetyProfileV0 | null;
 };
 
 export type CivicReportDraft = {
@@ -51,6 +53,23 @@ function observationLine(input: NonNullable<CivicReportInput["observations"]>[nu
   return `${date ? `${date}: ` : ""}${label}${evidence}`;
 }
 
+function applyPublicSummaryGate(draft: CivicReportDraft, safetyProfile: RecordSafetyProfileV0 | null | undefined): CivicReportDraft {
+  if (!safetyProfile || safetyProfile.publicSummaryGate.ready) return draft;
+  const blockers = safetyProfile.publicSummaryGate.blockers;
+  return {
+    ...draft,
+    publicSummary: ["公開版は安全確認中です。場所・人物・同意・希少性の確認が終わるまで、公開本文は出しません。"],
+    internalNotes: [
+      ...draft.internalNotes,
+      `public_summary_blocked:${blockers.join(",")}`,
+    ],
+    limitations: [
+      ...draft.limitations,
+      "公開版の出力には record_safety_profile/v0 の publicSummaryGate 通過が必要です。",
+    ],
+  };
+}
+
 export function buildCivicReportDraft(input: CivicReportInput): CivicReportDraft {
   const contextLabel = input.context ? civicContextLabel(input.context) : "地域自然ノート";
   const observations = (input.observations ?? []).slice(0, 8).map(observationLine);
@@ -58,7 +77,7 @@ export function buildCivicReportDraft(input: CivicReportInput): CivicReportDraft
   const title = nonEmpty(input.title) ?? contextLabel;
 
   if (input.kind === "event_recap") {
-    return {
+    return applyPublicSummaryGate({
       kind: input.kind,
       title,
       audience: "参加者・主催者",
@@ -66,10 +85,10 @@ export function buildCivicReportDraft(input: CivicReportInput): CivicReportDraft
       publicSummary: observations.length > 0 ? observations : ["この観察会で見つけたものを、確認状況つきで整理する。"],
       internalNotes: ["個人成績ではなく、共同で残せた証拠と次回の確認点を中心にする。"],
       limitations,
-    };
+    }, input.safetyProfile);
   }
   if (input.kind === "school_monthly_note") {
-    return {
+    return applyPublicSummaryGate({
       kind: input.kind,
       title,
       audience: "子ども・先生",
@@ -77,13 +96,13 @@ export function buildCivicReportDraft(input: CivicReportInput): CivicReportDraft
       publicSummary: observations.length > 0 ? observations : ["クラスで見つけた自然を月ごとに振り返る。"],
       internalNotes: ["児童の個人情報、顔、正確な集合場所は公開版に出さない。"],
       limitations,
-    };
+    }, input.safetyProfile);
   }
   if (input.kind === "satoyama_management_record") {
     const actions = (input.managementActions ?? []).slice(0, 6).map((action) =>
       `${action.happenedAt ? `${action.happenedAt}: ` : ""}${action.label}${action.note ? ` / ${action.note}` : ""}`,
     );
-    return {
+    return applyPublicSummaryGate({
       kind: input.kind,
       title,
       audience: "里山・農園管理者、地域団体",
@@ -91,10 +110,10 @@ export function buildCivicReportDraft(input: CivicReportInput): CivicReportDraft
       publicSummary: observations.length > 0 ? observations : ["管理行為と観察を同じ時間軸に並べる。"],
       internalNotes: actions.length > 0 ? actions : ["草刈り、間伐、水路管理などの管理行為を観察と一緒に残す。"],
       limitations,
-    };
+    }, input.safetyProfile);
   }
   if (input.kind === "risk_confirmation_memo") {
-    return {
+    return applyPublicSummaryGate({
       kind: input.kind,
       title,
       audience: "自治体・管理者・観察会主催者",
@@ -102,9 +121,9 @@ export function buildCivicReportDraft(input: CivicReportInput): CivicReportDraft
       publicSummary: observations.length > 0 ? observations : ["確認が必要な記録を証拠と限界つきで整理する。"],
       internalNotes: ["駆除・危険・法令判断は本文で断定しない。確認者、証拠、未確認点を残す。"],
       limitations: limitations.length > 0 ? limitations : ["このメモは現地確認と専門確認の前段であり、行政判断そのものではない。"],
-    };
+    }, input.safetyProfile);
   }
-  return {
+  return applyPublicSummaryGate({
     kind: input.kind,
     title,
     audience: "拠点担当者・自治体・研究者",
@@ -112,5 +131,5 @@ export function buildCivicReportDraft(input: CivicReportInput): CivicReportDraft
     publicSummary: observations.length > 0 ? observations : ["初回の自然サマリーを、証拠と限界つきで残す。"],
     internalNotes: ["公開版では希少種位置、児童情報、管理上の詳細位置を必要に応じて丸める。"],
     limitations,
-  };
+  }, input.safetyProfile);
 }
