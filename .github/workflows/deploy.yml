@@ -375,6 +375,41 @@ jobs:
           fi
           echo "Map materialized HTML verified."
 
+      - name: Area Sketch production surface check
+        run: |
+          set -euo pipefail
+          event_headers="$(mktemp)"
+          event_body="$(curl -fsS -D "$event_headers" -H 'cache-control: no-store' "https://ikimon.life/es/community/events/new?field_id=renri-area-sketch-field&deploy_smoke_area_sketch=${GITHUB_SHA}")"
+          if ! grep -qi '^x-ikimon-cloudflare-native: event-page-create' "$event_headers"; then
+            echo "Area Sketch event create page is not served by the native Worker route."
+            cat "$event_headers"
+            exit 1
+          fi
+          for marker in "Area Sketch Assist" "data-area-sketch-map" "tile.openstreetmap.org" "World_Imagery" "area-sketch-assessments"; do
+            if [[ "$event_body" != *"$marker"* ]]; then
+              echo "Area Sketch event create page is missing marker: $marker"
+              exit 1
+            fi
+          done
+          if [[ "$event_body" == *"Cloudflare移行中"* || "$event_body" == *"互換表示"* ]]; then
+            echo "Area Sketch event create page leaked migration fallback copy."
+            exit 1
+          fi
+
+          api_body="$(mktemp)"
+          api_status="$(curl -sS -o "$api_body" -w "%{http_code}" -H 'cache-control: no-store' -H 'content-type: application/json' \
+            -d '{"sketch_polygon":{"type":"Polygon","coordinates":[[[139.7600,35.6800],[139.7605,35.6800],[139.7605,35.6805],[139.7600,35.6805],[139.7600,35.6800]]]}}' \
+            "https://ikimon.life/api/v1/fields/renri-area-sketch-field/area-sketch-assessments?deploy_smoke_area_sketch=${GITHUB_SHA}")"
+          if [[ "$api_status" != "401" ]]; then
+            echo "Area Sketch unauthenticated write contract changed: status=$api_status body=$(cat "$api_body")"
+            exit 1
+          fi
+          if ! grep -q '"login required"' "$api_body"; then
+            echo "Area Sketch unauthenticated write contract did not return login required: $(cat "$api_body")"
+            exit 1
+          fi
+          echo "Area Sketch production surface verified."
+
       - name: Record UI C110 marker check
         run: |
           set -euo pipefail
