@@ -7882,8 +7882,8 @@ function shouldUseOriginFallback(url: URL, env: Env): boolean {
 }
 
 function getPublicCustomDomainOriginFallbackMode(env: Env): "enabled" | "disabled" {
-  const mode = (env.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE ?? "enabled").trim().toLowerCase();
-  return mode === "disabled" ? "disabled" : "enabled";
+  const mode = env.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?.trim().toLowerCase();
+  return mode === "enabled" ? "enabled" : "disabled";
 }
 
 function isSuspiciousPublicProbePath(pathname: string): boolean {
