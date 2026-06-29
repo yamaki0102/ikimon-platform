@@ -9786,6 +9786,11 @@ export const MAP_EXPLORER_STYLES = `
     .desktop-side-nav-toggle {
       display: grid;
     }
+    .cf-header-menu,
+    .site-header-actions-mobile,
+    .site-mobile-menu {
+      display: none !important;
+    }
     .site-header .brand {
       flex: none;
       max-width: none;

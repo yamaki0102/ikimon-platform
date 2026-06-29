@@ -10,6 +10,13 @@ test("map explorer boot script is syntactically valid JavaScript", () => {
   assert.doesNotThrow(() => new vm.Script(script));
 });
 
+test("map explorer desktop chrome hides legacy mobile menu affordances", () => {
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(styles, /@media \(min-width: 1161px\) \{[\s\S]*\.desktop-side-nav-toggle \{\s*display: grid;/);
+  assert.match(styles, /@media \(min-width: 1161px\) \{[\s\S]*\.cf-header-menu,\s+\.site-header-actions-mobile,\s+\.site-mobile-menu \{\s*display: none !important;/);
+});
+
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const outlineStart = script.indexOf("id: 'area-polygon-outline'");
