@@ -461,6 +461,10 @@ interface AuthLoginInput {
   redirect?: unknown;
 }
 
+interface AuthRegisterInput extends AuthLoginInput {
+  displayName?: unknown;
+}
+
 interface AuthUserRow {
   user_id: string;
   email: string;
@@ -2400,6 +2404,10 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
+        return registerWithPasswordNative(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/mobile/auth/oauth/exchange") {
@@ -7900,6 +7908,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (url.pathname === "/api/v1/auth/session") return true;
   if (url.pathname === "/api/v1/auth/session/logout") return true;
   if (url.pathname === "/api/v1/auth/login") return true;
+  if (url.pathname === "/api/v1/auth/register") return true;
   if (url.pathname === "/api/v1/mobile/auth/oauth/exchange") return true;
   if (url.pathname === "/api/v1/contact/submit") return true;
   if (url.pathname === "/api/v1/users/upsert") return true;
@@ -8836,6 +8845,7 @@ async function handleAccountWriteApi(request: Request, url: URL, env: Env): Prom
   if (request.method === "POST" && url.pathname === "/api/v1/contact/submit") return submitContactNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/users/upsert") return upsertUserNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/profile/me") return updateOwnProfileNative(request, env);
+  if (request.method === "POST" && url.pathname === "/api/v1/auth/register") return registerWithPasswordNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/issue") return issueRememberTokenNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/revoke") return revokeRememberTokenNative(request, env);
   return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
@@ -8846,6 +8856,7 @@ function isAccountWritePath(request: Request, url: URL): boolean {
   return url.pathname === "/api/v1/contact/submit"
     || url.pathname === "/api/v1/users/upsert"
     || url.pathname === "/api/v1/profile/me"
+    || url.pathname === "/api/v1/auth/register"
     || url.pathname === "/api/v1/auth/remember-tokens/issue"
     || url.pathname === "/api/v1/auth/remember-tokens/revoke";
 }
@@ -18402,6 +18413,73 @@ async function exchangeMobileAppOAuthCode(request: Request, env: Env): Promise<R
       success: false,
       error: error instanceof Error ? error.message : "oauth_exchange_failed"
     }, 400, { "cache-control": "no-store" });
+  }
+}
+
+async function registerWithPasswordNative(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+
+  const input = await readJson<AuthRegisterInput>(request);
+  const displayName = typeof input.displayName === "string" ? input.displayName.trim() : "";
+  const email = normalizeEmail(input.email);
+  const password = typeof input.password === "string" ? input.password : "";
+  if (displayName.length < 1) return json({ ok: false, error: "display_name_required" }, 400, { "cache-control": "no-store" });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ ok: false, error: "invalid_email" }, 400, { "cache-control": "no-store" });
+  if (password.length < 8) return json({ ok: false, error: "password_too_short" }, 400, { "cache-control": "no-store" });
+
+  try {
+    const existing = await findAuthUserByEmail(email, env);
+    if (existing) return json({ ok: false, error: "email_already_registered" }, 409, { "cache-control": "no-store" });
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+
+  const userId = `user_${crypto.randomUUID()}`;
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user: AuthUserRow = {
+    user_id: userId,
+    email,
+    password_hash: passwordHash,
+    display_name: displayName,
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0
+  };
+
+  try {
+    await env.CORE_DB.batch([
+      env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId),
+      env.CORE_DB.prepare(
+        `INSERT INTO auth_users
+         (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        user.user_id,
+        user.email,
+        user.password_hash,
+        user.display_name,
+        user.role_name,
+        user.rank_label,
+        user.banned
+      )
+    ]);
+    const session = await issueSessionForAuthUser(request, env, user);
+    await env.CORE_DB.prepare("UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(userId).run();
+    return json({
+      ok: true,
+      redirect: postAuthRedirect(input.redirect),
+      session: session.session
+    }, 200, {
+      "cache-control": "no-store",
+      "set-cookie": session.cookie
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (/unique|constraint|already/i.test(message)) {
+      return json({ ok: false, error: "email_already_registered" }, 409, { "cache-control": "no-store" });
+    }
+    return json({ ok: false, error: "auth_register_failed" }, 500, { "cache-control": "no-store" });
   }
 }
 
