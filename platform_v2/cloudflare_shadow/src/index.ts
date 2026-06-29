@@ -14452,19 +14452,28 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "48"), 1, 120);
   const rows = await env.OBS_DB.prepare(
     `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.exact_lat, o.exact_lng,
-            a.public_derivative_key
+            (
+              SELECT a.public_derivative_key
+                FROM asset_ledger a
+               WHERE a.observation_id = o.observation_id
+                 AND a.processing_state = 'uploaded'
+                 AND a.public_derivative_key IS NOT NULL
+                 AND a.public_derivative_verified_at IS NOT NULL
+                 AND a.public_derivative_metadata_json IS NOT NULL
+                 AND a.public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+                 AND a.public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
+                 AND a.exif_scrub_state = 'scrubbed'
+                 AND a.public_ready_at IS NOT NULL
+                 AND a.mime LIKE 'image/%'
+               ORDER BY COALESCE(a.public_ready_at, a.public_derivative_verified_at, a.uploaded_at, '') DESC
+               LIMIT 1
+            ) AS public_derivative_key
        FROM observations o
-       JOIN asset_ledger a ON a.observation_id = o.observation_id
       WHERE o.owner_user_id = ?
         AND o.exact_lat IS NOT NULL
         AND o.exact_lng IS NOT NULL
         AND o.emergency_hidden = 0
-        AND a.processing_state = 'uploaded'
-        AND a.public_derivative_key IS NOT NULL
-        AND a.exif_scrub_state = 'scrubbed'
-        AND a.public_ready_at IS NOT NULL
-        AND a.mime LIKE 'image/%'
-      ORDER BY o.observed_at DESC, a.public_ready_at DESC
+      ORDER BY o.observed_at DESC
       LIMIT ?`
   ).bind(session.userId, limit).all<OwnMapObservationRow>();
 
@@ -14475,7 +14484,7 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
     seen.add(row.observation_id);
     const latitude = Number(row.exact_lat);
     const longitude = Number(row.exact_lng);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !row.public_derivative_key) continue;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
     items.push({
       occurrenceId: `occ:${row.observation_id}:0`,
       visitId: row.observation_id,
@@ -14483,8 +14492,8 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
       observedAt: row.observed_at,
       latitude,
       longitude,
-      photoUrl: publicMediaUrl(row.public_derivative_key),
-      mediaKind: "photo",
+      photoUrl: row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null,
+      mediaKind: row.public_derivative_key ? "photo" : "none",
       localityLabel: "自分だけに表示"
     });
   }

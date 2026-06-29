@@ -5604,28 +5604,33 @@ class FakeStatement {
           observation.exact_lng !== null &&
           observation.emergency_hidden === 0
         )
-        .flatMap((observation) =>
-          [...this.db.assets.values()]
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
+        .slice(0, limit)
+        .map((observation) => {
+          const asset = [...this.db.assets.values()]
             .filter((asset) =>
               asset.observation_id === observation.observation_id &&
               asset.processing_state === "uploaded" &&
               asset.public_derivative_key &&
+              asset.public_derivative_verified_at &&
+              asset.public_derivative_metadata_json &&
+              !asset.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
+              !asset.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
               asset.exif_scrub_state === "scrubbed" &&
               asset.public_ready_at &&
               asset.mime.startsWith("image/")
             )
-            .map((asset) => ({
-              observation_id: observation.observation_id,
-              observed_at: observation.observed_at,
-              taxon_label: observation.taxon_label,
-              note: observation.note,
-              exact_lat: observation.exact_lat,
-              exact_lng: observation.exact_lng,
-              public_derivative_key: asset.public_derivative_key
-            }))
-        )
-        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
-        .slice(0, limit);
+            .sort((a, b) => (b.public_ready_at ?? b.public_derivative_verified_at ?? "").localeCompare(a.public_ready_at ?? a.public_derivative_verified_at ?? ""))[0];
+          return {
+            observation_id: observation.observation_id,
+            observed_at: observation.observed_at,
+            taxon_label: observation.taxon_label,
+            note: observation.note,
+            exact_lat: observation.exact_lat,
+            exact_lng: observation.exact_lng,
+            public_derivative_key: asset?.public_derivative_key ?? null
+          };
+        });
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT metric_type, metric_key, metric_value, detail_json FROM production_restore_parity_metrics")) {
@@ -6696,6 +6701,15 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
     longitude: 139.3929,
     taxon: { vernacularName: "ヒヨドリ" }
   });
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-map-note-only",
+    userId: "owner-user",
+    observedAt: "2026-06-22T09:00:00.000Z",
+    latitude: 35.0204,
+    longitude: 138.4029,
+    visibility: "private",
+    taxon: { vernacularName: "写真なし記録" }
+  });
 
   const ownerAsset = {
     asset_id: "asset-owner-map",
@@ -6737,12 +6751,21 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
 
   assert.equal(response.ok, true);
   assert.equal(payload.signedIn, true);
-  assert.equal(payload.items.length, 1);
-  assert.equal(payload.items[0].visitId, "owner-map-visit");
-  assert.equal(payload.items[0].photoUrl, "/thumb/sm/owner-map.jpg");
-  assert.equal(payload.items[0].latitude, 35.0104);
-  assert.equal(payload.items[0].longitude, 138.3929);
-  assert.equal(payload.items[0].localityLabel, "自分だけに表示");
+  assert.equal(payload.items.length, 2);
+  const photoItem = payload.items.find((item: any) => item.visitId === "owner-map-visit");
+  assert.ok(photoItem);
+  assert.equal(photoItem.photoUrl, "/thumb/sm/owner-map.jpg");
+  assert.equal(photoItem.mediaKind, "photo");
+  assert.equal(photoItem.latitude, 35.0104);
+  assert.equal(photoItem.longitude, 138.3929);
+  assert.equal(photoItem.localityLabel, "自分だけに表示");
+  const noteOnlyItem = payload.items.find((item: any) => item.visitId === "owner-map-note-only");
+  assert.ok(noteOnlyItem);
+  assert.equal(noteOnlyItem.photoUrl, null);
+  assert.equal(noteOnlyItem.mediaKind, "none");
+  assert.equal(noteOnlyItem.latitude, 35.0204);
+  assert.equal(noteOnlyItem.longitude, 138.4029);
+  assert.equal(noteOnlyItem.localityLabel, "自分だけに表示");
   assert.ok(!JSON.stringify(payload).includes("other-map-visit"));
 });
 
