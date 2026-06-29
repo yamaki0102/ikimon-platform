@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ObservationEventSessionRow } from "../services/observationEventModeManager.js";
+import { OBSERVATION_EVENT_STYLES } from "./observationEventStyles.js";
 import { observationRallyScript, renderObservationRallyBody } from "./observationRally.js";
 
 const session: ObservationEventSessionRow = {
@@ -35,8 +36,21 @@ test("rally participant screen mixes bound and unbound missions without navigati
   assert.match(html, /data-rally-missions/);
   assert.match(html, /data-rally-stations/);
   assert.match(html, /data-rally-location-start/);
+  assert.match(html, /evt-rally-consent/);
+  assert.match(html, /位置共有は任意です/);
+  assert.match(html, /開催中だけ使います/);
+  assert.match(html, /evt-rally-action-dock/);
+  assert.match(html, /evt-rally-action-btn is-primary/);
+  assert.doesNotMatch(html, /evt-live-actions/);
   assert.match(script, /station_required/);
   assert.match(script, /none: "どこでも"/);
   assert.match(script, /rally_goal_exceeded/);
   assert.match(script, /\/api\/v1\/observation-events\/" \+ sessionId \+ "\/location/);
+});
+
+test("event action bars make the first participant action dominant", () => {
+  assert.match(OBSERVATION_EVENT_STYLES, /\.evt-live-actions \{[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(OBSERVATION_EVENT_STYLES, /\.evt-live-action-btn:first-child \{[\s\S]*grid-column: 1 \/ -1/);
+  assert.match(OBSERVATION_EVENT_STYLES, /\.evt-rally-action-dock \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(OBSERVATION_EVENT_STYLES, /\.evt-rally-action-btn\.is-primary \{[\s\S]*grid-column: 1 \/ -1/);
 });

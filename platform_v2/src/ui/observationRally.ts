@@ -24,17 +24,24 @@ export function renderObservationRallyBody(args: {
          data-session-id="${escapeHtml(session.sessionId)}"
          data-event-code="${escapeHtml(session.eventCode ?? "")}"
          data-guest-token="${escapeHtml(guestToken ?? "")}">
-  <article class="evt-hero" style="display:grid; gap:14px;">
-    <div>
+  <article class="evt-hero evt-rally-hero">
+    <div class="evt-rally-hero-main">
       <span class="evt-hero-eyebrow">観察ラリー</span>
       <h1>${escapeHtml(session.title || "観察ラリー")}</h1>
-      <p>地点でやることも、どこでも貢献できることも、同じ画面で追えます。</p>
+      <p>次にやるミッションを確認して、見つけたものをすぐ記録できます。</p>
     </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <div class="evt-rally-actions">
+      <button type="button" class="evt-btn evt-btn-primary" data-rally-action="record">記録する</button>
       ${consoleLink}
-      <button type="button" class="evt-btn evt-btn-primary" data-rally-location-start>開催中の位置共有を開始</button>
+      <button type="button" class="evt-btn evt-btn-on-dark" data-rally-location-start>位置共有を使う</button>
       <a class="evt-btn evt-btn-ghost" href="./live">ライブ地図</a>
     </div>
+    <p class="evt-rally-consent">
+      <strong>位置共有は任意です。</strong>
+      <span>開催中だけ使います。</span>
+      <span>参加者のライブ地図と主催者確認に限ります。</span>
+      <span>終了後は自動で止まります。</span>
+    </p>
   </article>
 
   <section class="evt-card" style="display:grid; gap:10px;">
@@ -70,18 +77,18 @@ export function renderObservationRallyBody(args: {
     <div data-rally-stations style="display:grid; gap:8px;"></div>
   </section>
 
-  <footer class="evt-live-actions" role="group" aria-label="観察アクション">
-    <button class="evt-live-action-btn" data-mood="record" type="button" data-rally-action="record">
-      <span class="evt-live-action-icon">📷</span><span>記録する</span>
+  <footer class="evt-rally-action-dock" role="group" aria-label="観察アクション">
+    <button class="evt-rally-action-btn is-primary" type="button" data-rally-action="record">
+      <span class="evt-rally-action-icon">📷</span><span>記録する</span>
     </button>
-    <button class="evt-live-action-btn" data-mood="record" type="button" data-rally-action="guide">
-      <span class="evt-live-action-icon">🧭</span><span>ガイド</span>
+    <button class="evt-rally-action-btn" type="button" data-rally-action="guide">
+      <span class="evt-rally-action-icon">🧭</span><span>ガイド</span>
     </button>
-    <button class="evt-live-action-btn" data-mood="record" type="button" data-rally-action="scan">
-      <span class="evt-live-action-icon">📡</span><span>スキャン</span>
+    <button class="evt-rally-action-btn" type="button" data-rally-action="scan">
+      <span class="evt-rally-action-icon">📡</span><span>スキャン</span>
     </button>
-    <button class="evt-live-action-btn" data-mood="absent" type="button" data-rally-action="help">
-      <span class="evt-live-action-icon">🆘</span><span>ヘルプ</span>
+    <button class="evt-rally-action-btn" type="button" data-rally-action="help">
+      <span class="evt-rally-action-icon">🆘</span><span>ヘルプ</span>
     </button>
   </footer>
 </section>`;
