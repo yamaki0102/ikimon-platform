@@ -113,7 +113,9 @@ function applyCspNonceToScripts(html: string): string {
     return html;
   }
   const nonceAttribute = ` nonce="${escapeHtml(nonce)}"`;
-  return html.replace(/<script\b(?![^>]*\bnonce=)/g, `<script${nonceAttribute}`);
+  return html
+    .replace(/<script\b([^>]*?)\snonce=(?:"[^"]*"|'[^']*'|[^\s>]+)([^>]*)>/g, `<script$1${nonceAttribute}$2>`)
+    .replace(/<script\b(?![^>]*\bnonce=)/g, `<script${nonceAttribute}`);
 }
 
 function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): string {

@@ -15057,7 +15057,7 @@ test("production original UI html serves materialized anonymous pages from R2 wi
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
-  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>ikimon / 生きものを手がかりに、この場所の今を残す</title><script>ikimon-app-outbox-v1</script>", {
+  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>ikimon / 生きものを手がかりに、この場所の今を残す</title><script nonce=\"stale-materialized-nonce\">ikimon-stale-nonce</script><script nonce=\"\">ikimon-app-outbox-v1</script><script>ikimon-missing-nonce</script>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
   await env.ASSET_BUCKET.put("original-ui/html/demo/place-feeling-tags.html", "<!doctype html><title>ひとことタグ デモ</title><main>実データではありません</main>", {
@@ -15087,7 +15087,11 @@ test("production original UI html serves materialized anonymous pages from R2 wi
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
     const nonce = cspNonceFrom(response);
     assert.match(response.headers.get("content-security-policy") ?? "", /https:\/\/static\.cloudflareinsights\.com/);
+    assert.match(body, new RegExp(`<script nonce="${nonce}">ikimon-stale-nonce</script>`));
     assert.match(body, new RegExp(`<script nonce="${nonce}">ikimon-app-outbox-v1</script>`));
+    assert.match(body, new RegExp(`<script nonce="${nonce}">ikimon-missing-nonce</script>`));
+    assert.doesNotMatch(body, /stale-materialized-nonce/);
+    assert.doesNotMatch(body, /<script\b[^>]*\bnonce=""/);
     const demo = await worker.fetch(new Request("https://ikimon.life/demo/place-feeling-tags"), productionEnv);
     assert.equal(demo.status, 200);
     assert.match(await demo.text(), /実データではありません/);

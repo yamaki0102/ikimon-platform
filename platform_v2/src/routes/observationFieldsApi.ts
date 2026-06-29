@@ -29,9 +29,8 @@ import {
 import {
   AreaSketchAssessmentValidationError,
   createAreaSketchAssessment,
-  isAreaSketchAssessmentVisibility,
   listAreaSketchAssessments,
-  type AreaSketchAssessmentVisibility,
+  resolveAreaSketchAssessmentDraftVisibility,
 } from "../services/areaSketchAssessments.js";
 import type {
   AreaSketchLandCoverInput,
@@ -57,9 +56,6 @@ function asAreaSketchPolicyVersion(v: unknown): AreaSketchPolicyVersion | null {
   return v === "general_precheck_v1" || v === "tsunag_2026_current" || v === "tsunag_2027_planned"
     ? v
     : null;
-}
-function asAreaSketchVisibility(v: unknown): AreaSketchAssessmentVisibility | null {
-  return isAreaSketchAssessmentVisibility(v) ? v : null;
 }
 function asObject(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -258,7 +254,7 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
       const field = await getField(request.params.fieldId);
       if (!field) return reply.status(404).send({ error: "field not found" });
       const body = request.body ?? {};
-      const requestedVisibility = asAreaSketchVisibility(body.visibility) ?? "private";
+      const requestedVisibility = resolveAreaSketchAssessmentDraftVisibility(body.visibility);
       if (requestedVisibility !== "private") {
         const isAdminOrAnalyst = isAdminOrAnalystRole(session.roleName, session.rankLabel);
         const fieldRole = await getFieldManagerRole(session.userId, field.fieldId).catch(() => null);

@@ -16893,7 +16893,9 @@ function createHtmlCspNonce(): string {
 
 function applyCspNonceToHtmlScripts(html: string, cspNonce: string): string {
   const nonceAttribute = ` nonce="${escapeHtml(cspNonce)}"`;
-  return html.replace(/<script\b(?![^>]*\bnonce=)/g, `<script${nonceAttribute}`);
+  return html
+    .replace(/<script\b([^>]*?)\snonce=(?:"[^"]*"|'[^']*'|[^\s>]+)([^>]*)>/g, `<script$1${nonceAttribute}$2>`)
+    .replace(/<script\b(?![^>]*\bnonce=)/g, `<script${nonceAttribute}`);
 }
 
 function browserSecurityHeaders(cspNonce: string, isProduction: boolean): Record<string, string> {

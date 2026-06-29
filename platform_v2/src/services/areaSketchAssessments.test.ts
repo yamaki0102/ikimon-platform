@@ -6,6 +6,7 @@ import {
   AreaSketchAssessmentValidationError,
   buildAreaSketchAssessmentDraft,
   isAreaSketchAssessmentVisibility,
+  resolveAreaSketchAssessmentDraftVisibility,
 } from "./areaSketchAssessments.js";
 
 const migrationPath = fileURLToPath(new URL("../../db/migrations/0119_area_sketch_assessments.sql", import.meta.url));
@@ -77,4 +78,39 @@ test("area sketch assessment visibility is explicitly bounded", () => {
   assert.equal(isAreaSketchAssessmentVisibility("private"), true);
   assert.equal(isAreaSketchAssessmentVisibility("field_managers"), true);
   assert.equal(isAreaSketchAssessmentVisibility("public"), false);
+  assert.equal(resolveAreaSketchAssessmentDraftVisibility("public"), "private");
+});
+
+test("area sketch draft boundary keeps public visibility and near-threshold claims gated", () => {
+  const draft = buildAreaSketchAssessmentDraft({
+    fieldId: "11111111-1111-4111-8111-111111111111",
+    actorUserId: "user-1",
+    visibility: "public" as never,
+    policyVersion: "tsunag_2026_current",
+    sketchPolygon: {
+      type: "Polygon",
+      coordinates: [[
+        [137.7043, 34.6984],
+        [137.70463, 34.6984],
+        [137.70463, 34.6987],
+        [137.7043, 34.6987],
+        [137.7043, 34.6984],
+      ]],
+    },
+    landCover: [
+      { category: "trees_planting", ratio: 0.2 },
+      { category: "yard_experience_space", ratio: 0.4 },
+      { category: "building", ratio: 0.4 },
+    ],
+    ownerAssertion: { note: "この区域は認定されます" },
+    evidencePayload: { source: "near_threshold_contract" },
+  });
+
+  assert.equal(draft.insert.status, "draft");
+  assert.equal(draft.insert.visibility, "private");
+  assert.equal(draft.insert.resultPayload.absoluteArea.status, "near_threshold");
+  assert.equal(draft.insert.resultPayload.evidenceChecklist.some((item) => item.key === "area_threshold_confirmation"), true);
+  assert.equal(draft.insert.resultPayload.evidenceChecklist.some((item) => item.key === "conditional_green_basis"), true);
+  assert.equal(draft.insert.resultPayload.claimBoundary.prohibitedPhrases.includes("認定されます"), true);
+  assert.match(draft.insert.resultPayload.claimBoundary.requiredDisclaimer, /保証するものではありません/);
 });
