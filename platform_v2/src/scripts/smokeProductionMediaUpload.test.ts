@@ -12,6 +12,8 @@ test("production media smoke verifies duplicate post guard", async () => {
   assert.match(source, /duplicate_upsert_created_new_visit/);
   assert.match(source, /duplicate_media_visit_detected/);
   assert.match(source, /observation_write_idempotency/);
+  assert.match(source, /http_idempotency_reused_without_legacy_postgres_rows/);
+  assert.match(source, /hideNativeObservationForCleanup/);
   assert.match(source, /verifyLegacyAiStateIfPresent/);
   assert.doesNotMatch(source, /processMediaProcessingJobs/);
   assert.doesNotMatch(source, /media_worker/);
