@@ -160,6 +160,7 @@ import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/f
 import { registerMapReadRoutes } from "./mapRead.js";
 import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
 import { registerPlaceFeelingDemoReadRoutes } from "./placeFeelingDemoRead.js";
+import { registerPublicEntryReadRoutes } from "./publicEntryRead.js";
 import {
   PLACE_FEELING_TAG_LIMIT,
   PLACE_FEELING_TAGS,
@@ -177,26 +178,6 @@ type LayoutHero = {
 };
 
 type LayoutHeroAction = NonNullable<LayoutHero["actions"]>[number];
-
-type PublicSharedCopy = {
-  cta: {
-    record: string;
-    openNotebook: string;
-    openMap: string;
-  };
-  ai: {
-    support: string;
-  };
-};
-
-type PublicRouteCard = {
-  eyebrow: string;
-  title: string;
-  body: string;
-  meta?: string;
-  ctaHref?: string;
-  ctaLabel?: string;
-};
 
 type ObservationsHtmlCacheEntry = {
   expiresAt: number;
@@ -249,24 +230,6 @@ function layout(
     footerNote: footerNote ?? defaultFooterNote,
     structuredDataHtml,
   });
-}
-
-function renderPublicRouteCardGrid(
-  cards: PublicRouteCard[],
-  basePath: string,
-  lang: SiteLang,
-  ctaClass: "btn btn-solid" | "inline-link",
-): string {
-  return `<div class="grid">${cards
-    .map((card) => {
-      const ctaHref = card.ctaHref ? appendLangToHref(withBasePath(basePath, card.ctaHref), lang) : "";
-      const ctaHtml = card.ctaHref && card.ctaLabel
-        ? `<div class="actions" style="margin-top:12px"><a class="${ctaClass}" href="${escapeHtml(ctaHref)}">${escapeHtml(card.ctaLabel)}</a></div>`
-        : "";
-      const metaHtml = card.meta ? `<p class="meta" style="margin-top:10px">${escapeHtml(card.meta)}</p>` : "";
-      return `<div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(card.eyebrow)}</div><h2>${escapeHtml(card.title)}</h2><p>${escapeHtml(card.body)}</p>${metaHtml}${ctaHtml}</div></div>`;
-    })
-    .join("")}</div>`;
 }
 
 const GUIDE_ENTRY_STYLES = `
@@ -19839,15 +19802,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   });
 
   await registerPlaceFeelingDemoReadRoutes(app);
-
-  app.get("/explore", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const url = new URL(String((request as unknown as { url?: string }).url ?? "/explore"), "https://ikimon.local");
-    const lang = detectLangFromUrl(url.pathname + url.search);
-    url.searchParams.delete("lang");
-    const query = url.searchParams.toString();
-    return reply.redirect(appendLangToHref(withBasePath(basePath, `/records?view=public${query ? `&${query}` : ""}`), lang), 308);
-  });
+  await registerPublicEntryReadRoutes(app);
 
   app.get<{ Querystring: { cursor?: string; limit?: string; lang?: string; userId?: string } }>("/api/v1/records/mine-page", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
@@ -22951,129 +22906,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         actions: reviewQueueCopy.actions,
       },
     );
-  });
-
-  /* -------------------------------------------------------------- */
-  /* Field Note main entry (/notes) — user's own notebook           */
-  /* -------------------------------------------------------------- */
-  app.get("/notes", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const rawUrl = String((request as unknown as { url?: string }).url ?? "");
-    const lang = detectLangFromUrl(rawUrl);
-    const url = new URL(rawUrl, "https://ikimon.local");
-    url.searchParams.delete("lang");
-    const query = url.searchParams.toString();
-    return reply.redirect(appendLangToHref(withBasePath(basePath, `/records?view=mine${query ? `&${query}` : ""}`), lang), 308);
-    /*
-    Legacy notes library renderer: canonical surface moved to /records.
-    const copy = notesLibraryCopy(lang);
-    const session = await getSessionFromCookie(request.headers.cookie);
-    const { viewerUserId } = resolveViewer(request.query, session);
-    const snapshot = await getLandingSnapshot(viewerUserId);
-
-    const isLoggedIn = Boolean(viewerUserId);
-    const libraryEntries = isLoggedIn ? snapshot.myFeed : snapshot.feed;
-    const nearbyEntries = isLoggedIn ? snapshot.feed.slice(0, 12) : [];
-    const civicContexts = await listCivicObservationContexts([
-      ...libraryEntries.map((obs) => obs.visitId),
-      ...nearbyEntries.map((obs) => obs.visitId),
-    ]);
-    const uniquePlaces = new Set(libraryEntries.map((obs) => notesPlaceLine(obs, lang, isLoggedIn ? "owner" : "public")).filter(Boolean));
-    const placeCount = isLoggedIn ? snapshot.myPlaces.length : uniquePlaces.size;
-    const photoCount = libraryEntries.reduce((sum, obs) => sum + notesPhotoCount(obs), 0);
-    const namedCount = libraryEntries.filter((obs) => !notesLibraryIsUncertain(obs)).length;
-    const latest = libraryEntries[0] ?? null;
-    const latestLine = latest
-      ? `${notesLibraryDateLabel(latest, lang)} · ${latest.displayName || latest.proposedName || copy.card.fallbackName}`
-      : copy.latestFallback;
-
-    reply.type("text/html; charset=utf-8");
-    return renderSiteDocument({
-      basePath,
-      title: copy.pageTitle,
-      activeNav: copy.activeNav,
-      lang,
-      currentPath: appendLangToHref(withBasePath(basePath, "/notes"), lang),
-      shellClassName: "shell-notes-library",
-      extraStyles: NOTES_LIBRARY_STYLES,
-      body: `<div class="notes-library-shell">
-        <section class="notes-library-hero">
-          <div>
-            <span>${escapeHtml(copy.heroEyebrow)}</span>
-            <h1>${escapeHtml(copy.heroTitle)}</h1>
-            <p>${escapeHtml(copy.heroLead)}</p>
-            <div class="notes-library-actions">
-              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.actions.record)}</a>
-              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide"), lang))}">${escapeHtml(copy.actions.guide)}</a>
-              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide/outcomes"), lang))}">${escapeHtml(copy.actions.outcomes)}</a>
-            </div>
-          </div>
-          <div class="notes-library-stats" aria-label="${escapeHtml(copy.statsAria)}">
-            <div><strong>${escapeHtml(formatNotesNumber(libraryEntries.length, lang))}</strong><em>${escapeHtml(copy.stats.observations)}</em></div>
-            <div><strong>${escapeHtml(formatNotesNumber(photoCount, lang))}</strong><em>${escapeHtml(copy.stats.photos)}</em></div>
-            <div><strong>${escapeHtml(formatNotesNumber(namedCount, lang))}</strong><em>${escapeHtml(copy.stats.named)}</em></div>
-          </div>
-        </section>
-        ${renderNotesExperienceLoop(basePath, lang)}
-        <section id="notes-own" class="section notes-library-main" data-notes-library data-testid="notes-own">
-          <div class="notes-library-section-head">
-            <div><span>${escapeHtml(isLoggedIn ? copy.sections.ownEyebrow : copy.sections.publicEyebrow)}</span><h2>${escapeHtml(isLoggedIn ? copy.sections.ownTitle : copy.sections.publicTitle)}</h2></div>
-            <p>${escapeHtml(latestLine)}</p>
-          </div>
-          ${renderNotesLibraryControls(libraryEntries.length, placeCount, lang)}
-          ${renderNotesLibrarySourceLanes(libraryEntries, lang)}
-          ${renderNotesLibraryMonths(basePath, lang, libraryEntries, { locationMode: isLoggedIn ? "owner" : "public", civicContexts })}
-        </section>
-        ${renderNotesLibraryPlaceAlbums(snapshot, lang)}
-        <section id="notes-nearby" class="section notes-nearby-library" data-testid="notes-nearby">
-          <div class="notes-library-section-head"><div><span>${escapeHtml(copy.sections.nearbyEyebrow)}</span><h2>${escapeHtml(copy.sections.nearbyTitle)}</h2></div><p>${escapeHtml(copy.sections.nearbyLead)}</p></div>
-          ${nearbyEntries.length > 0
-            ? renderNotesLibraryMonths(basePath, lang, nearbyEntries, { locationMode: "public", civicContexts })
-            : `<div class="notes-library-empty">${escapeHtml(copy.nearbyEmpty)}</div>`}
-        </section>
-        ${renderNotesLibraryScript(lang)}
-      </div>`,
-      footerNote: copy.footerNote,
-    });
-    */
-  });
-
-  /* -------------------------------------------------------------- */
-  /* AI Lens entry (/lens) — marketing + CTA into /record           */
-  /* -------------------------------------------------------------- */
-  app.get("/lens", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const lensPageCopy = getShortCopy<any>(lang, "public", "read.lens");
-    const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
-
-    reply.type("text/html; charset=utf-8");
-    return renderSiteDocument({
-      basePath,
-      title: lensPageCopy.title,
-      activeNav: lensPageCopy.activeNav,
-      lang,
-      hero: {
-        eyebrow: lensPageCopy.hero.eyebrow,
-        heading: lensPageCopy.hero.heading,
-        headingHtml: lensPageCopy.hero.heading,
-        lead: lensPageCopy.hero.lead,
-        tone: "light",
-        align: "center",
-        actions: [
-          { href: "/record", label: sharedCopy.cta.record },
-          { href: "/records?view=mine", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
-        ],
-      },
-      body: `<section class="section">
-        <div class="list">
-          ${lensPageCopy.steps.map((step: { title: string; body: string }) => `<div class="row"><div><strong>${escapeHtml(step.title)}</strong><div class="meta">${escapeHtml(step.body)}</div></div></div>`).join("")}
-        </div>
-      </section>
-      <section class="section">${renderPublicRouteCardGrid(lensPageCopy.guidanceCards as PublicRouteCard[], basePath, lang, "btn btn-solid")}</section>
-      <section class="section">${renderPublicRouteCardGrid(lensPageCopy.followupCards as PublicRouteCard[], basePath, lang, "inline-link")}</section>`,
-      footerNote: lensPageCopy.footerNote,
-    });
   });
 
   await registerMapReadRoutes(app);

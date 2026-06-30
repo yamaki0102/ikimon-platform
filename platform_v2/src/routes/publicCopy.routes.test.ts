@@ -250,6 +250,20 @@ test("legacy list surfaces redirect into records while preserving intent", async
   }
 });
 
+test("public entry read routes stay in their route lane module", async () => {
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const publicEntryReadRoute = await readFile(path.join(process.cwd(), "src", "routes", "publicEntryRead.ts"), "utf8");
+
+  assert.match(readRoute, /registerPublicEntryReadRoutes\(app\)/);
+  assert.doesNotMatch(readRoute, /app\.get\("\/explore"/);
+  assert.doesNotMatch(readRoute, /app\.get\("\/notes"/);
+  assert.doesNotMatch(readRoute, /app\.get\("\/lens"/);
+  assert.match(publicEntryReadRoute, /app\.get\("\/explore"/);
+  assert.match(publicEntryReadRoute, /app\.get\("\/notes"/);
+  assert.match(publicEntryReadRoute, /app\.get\("\/lens"/);
+  assert.match(publicEntryReadRoute, /renderPublicRouteCardGrid/);
+});
+
 test("map page localizes the browser title in English", async () => {
   const app = buildApp();
   try {
