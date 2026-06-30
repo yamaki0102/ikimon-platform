@@ -15802,6 +15802,12 @@ test("production guide read entry routes serve localized materialized html witho
   await env.ASSET_BUCKET.put("original-ui/html/ja/guide-programs.html", "<!doctype html><title>ガイドリレー企画 | ikimon</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/guide-programs/aikan-renri-guide-relay.html", "<!doctype html><title>連理の木 自然共生ガイドリレー | ikimon</title><main data-guide-program-map-preview=\"static-gsi\">来訪地点</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/guide-programs/hamamatsu-heritage-guide-relay.html", "<!doctype html><title>浜松地域遺産ガイドリレー | ikimon</title><main data-guide-program-map-preview=\"static-gsi\">来訪地点</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
   await env.ASSET_BUCKET.put("original-ui/html/ja/my-guides.html", "<!doctype html><title>マイガイド | ikimon</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
@@ -15821,6 +15827,22 @@ test("production guide read entry routes serve localized materialized html witho
       {
         url: "https://ikimon.life/ja/guide-programs",
         title: "ガイドリレー企画"
+      },
+      {
+        url: "https://ikimon.life/guide-programs/aikan-renri-guide-relay?lang=ja",
+        title: "連理の木 自然共生ガイドリレー"
+      },
+      {
+        url: "https://ikimon.life/ja/guide-programs/aikan-renri-guide-relay",
+        title: "連理の木 自然共生ガイドリレー"
+      },
+      {
+        url: "https://ikimon.life/guide-programs/hamamatsu-heritage-guide-relay?lang=ja",
+        title: "浜松地域遺産ガイドリレー"
+      },
+      {
+        url: "https://ikimon.life/ja/guide-programs/hamamatsu-heritage-guide-relay",
+        title: "浜松地域遺産ガイドリレー"
       },
       {
         url: "https://ikimon.life/my-guides?lang=ja",
@@ -15865,7 +15887,22 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/ja/guide-programs", "/ja/my-guides"]) {
     assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
   }
+  for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
+    for (const path of [
+      `/guide-programs/${slug}`,
+      `/ja/guide-programs/${slug}`,
+      `/en/guide-programs/${slug}`,
+      `/es/guide-programs/${slug}`,
+      `/pt-br/guide-programs/${slug}`
+    ]) {
+      assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
+    }
+  }
   for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/map"]) {
+    assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
+  }
+  for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
+    const path = `/guide-programs/${slug}`;
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
   }
 });
