@@ -651,6 +651,7 @@ async function main(): Promise<void> {
     state.visitId = stringField(observation.body.visitId);
     state.occurrenceId = stringField(observation.body.occurrenceId);
     if (!state.visitId || !state.occurrenceId) throw new Error("observation_ids_missing");
+    const mediaObservationId = state.visitId;
 
     const duplicateObservation = await requestJson(state, "POST", "/api/v1/observations/upsert", {
       ...observationPayload,
@@ -667,7 +668,7 @@ async function main(): Promise<void> {
       throw new Error(`duplicate_upsert_created_new_visit:${state.duplicateGuard.duplicateVisitId}`);
     }
 
-    const photo = await requestJson(state, "POST", `/api/v1/observations/${encodeURIComponent(state.occurrenceId)}/photos/upload`, {
+    const photo = await requestJson(state, "POST", `/api/v1/observations/${encodeURIComponent(mediaObservationId)}/photos/upload`, {
       filename: `${options.fixturePrefix}.png`,
       mimeType: "image/png",
       base64Data: TINY_PNG_BASE64,
@@ -683,7 +684,7 @@ async function main(): Promise<void> {
     const direct = await requestJson(state, "POST", "/api/v1/videos/direct-upload", {
       filename: path.basename(options.videoFile),
       maxDurationSeconds: 60,
-      observationId: state.occurrenceId,
+      observationId: mediaObservationId,
       mediaRole: "sound_motion",
       uploadProtocol: "post",
       fileSizeBytes: videoBytes,
@@ -696,7 +697,7 @@ async function main(): Promise<void> {
 
     for (let attempt = 1; attempt <= options.finalizeAttempts; attempt += 1) {
       const finalize = await requestJson(state, "POST", `/api/v1/videos/${encodeURIComponent(state.video.uid)}/finalize`, {
-        observationId: state.occurrenceId,
+        observationId: mediaObservationId,
         mediaRole: "sound_motion",
       }, { cookie });
       const video = isRecord(finalize.body) && isRecord(finalize.body.video) ? finalize.body.video : {};
