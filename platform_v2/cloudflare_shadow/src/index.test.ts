@@ -15972,7 +15972,7 @@ test("production records materialized html includes recent Cloudflare D1 records
     "<main><section class=\"prototype-record-feed\" data-record-feed>",
     "<div class=\"prototype-record-feed-head\"><div><h1>記録を見る</h1></div></div>",
     "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
-    "<script>/* feed */</script></section></main>",
+    "<script nonce=\"stale-materialized-feed-nonce\">/* feed */</script></section></main>",
     "</body>"
   ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
 
@@ -16068,7 +16068,9 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /cf-home-record-feed-infinite-script/);
   assert.match(homeBody, /pickNextCard/);
   const homeNonce = cspNonceFrom(homeResponse);
+  assert.ok(homeBody.includes(`<script nonce="${homeNonce}">/* feed */</script>`));
   assert.match(homeBody, new RegExp(`<script nonce="${homeNonce}" id="cf-home-record-feed-infinite-script">`));
+  assert.doesNotMatch(homeBody, /stale-materialized-feed-nonce/);
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
   assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
@@ -16087,7 +16089,7 @@ test("production home prioritizes signed-in owner records over public feed recor
     "<main><section class=\"prototype-record-feed\" data-record-feed>",
     "<div class=\"prototype-record-feed-head\"><div><h1>記録を見る</h1></div></div>",
     "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
-    "<script>/* feed */</script></section></main>",
+    "<script nonce=\"stale-materialized-feed-nonce\">/* feed */</script></section></main>",
     "</body>"
   ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
 
