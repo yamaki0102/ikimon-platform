@@ -604,6 +604,29 @@ test("readModels runtime is covered by Cloudflare materialized and native read l
   assert.match(workerTests, /production specialist authority runtime manages D1 authority and recommendation flows without origin fallback/);
 });
 
+test("production area sketch public release gate blocks school children private-land and sensitive-place contexts", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+
+  assert.match(workerSource, /function areaSketchPublicReleaseGate\(/);
+  assert.match(workerSource, /AREA_SKETCH_SENSITIVE_CONTEXT_PATTERNS/);
+  assert.match(workerSource, /"school_or_children"/);
+  assert.match(workerSource, /"private_land"/);
+  assert.match(workerSource, /"sensitive_place"/);
+  assert.match(workerSource, /小学校\|中学校\|高校\|幼稚園\|保育園\|こども園\|学校\|児童\|園児\|生徒\|子ども\|子供\|未成年/);
+  assert.match(workerSource, /私有地\|民有地\|個人宅\|自宅\|住宅地\|住所\|地番\|所有者/);
+  assert.match(workerSource, /希少種\|絶滅危惧\|営巣\|繁殖地\|保護区/);
+  assert.match(workerSource, /status:\s*sensitive\s*\?\s*"blocked_sensitive_context"\s*:\s*"draft_requires_review"/);
+  assert.match(workerSource, /publicClaimAllowed:\s*false/);
+  assert.match(workerSource, /publicSummaryAllowed:\s*sensitive\s*\?\s*"blocked_until_redacted_review"\s*:\s*"review_required"/);
+  assert.match(workerSource, /public_release_gate_status:\s*publicReleaseGate\.status/);
+  assert.match(workerSource, /public_release_contexts:\s*publicReleaseGate\.matchedContexts/);
+  assert.match(workerTests, /production area sketch public release gate blocks school children private-land and sensitive-place contexts/);
+  assert.match(workerTests, /自宅近辺/);
+  assert.match(workerTests, /絶滅危惧種/);
+  assert.match(workerTests, /new Set\(\["school_or_children", "private_land", "sensitive_place"\]\)/);
+});
+
 test("write support PostgreSQL helper is separated from pure write helpers", async () => {
   const repoRoot = path.resolve(process.cwd(), "..", "..");
   const pureSupport = await readFile(path.join(repoRoot, "platform_v2", "src", "services", "writeSupport.ts"), "utf8");
