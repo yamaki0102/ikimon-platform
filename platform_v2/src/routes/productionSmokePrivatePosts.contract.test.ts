@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const productionSmokeSpecUrl = new URL("../../e2e/production-smoke.spec.ts", import.meta.url);
+const productionPackageUrl = new URL("../../package.json", import.meta.url);
+const privatePostRunnerUrl = new URL("../../scripts/run-production-smoke-private-post.mjs", import.meta.url);
 const observationUpsertPath = "\"/api/v1/observations/upsert\"";
 
 function extractFunctionCall(source: string, callStart: number): string {
@@ -77,4 +79,60 @@ test("production smoke direct observation upserts stay private", async () => {
       "direct production smoke observation upserts must not publish public records",
     );
   }
+});
+
+test("production smoke write lanes require explicit opt-in scope", async () => {
+  const source = await readFile(productionSmokeSpecUrl, "utf8");
+  const packageJson = JSON.parse(await readFile(productionPackageUrl, "utf8")) as {
+    scripts?: Record<string, string>;
+  };
+  const privatePostRunner = await readFile(privatePostRunnerUrl, "utf8");
+
+  assert.match(
+    source,
+    /function requireProductionSmokeWriteScope\(scope: ProductionSmokeWriteScope\): void/,
+    "production smoke write tests should share one explicit scope gate",
+  );
+
+  for (const scope of [
+    "auth-write",
+    "private-post",
+    "private-post-ui",
+    "shared-production-write",
+    "place-memory-write",
+    "public-capsule-write",
+  ]) {
+    assert.match(source, new RegExp(`\\[${scope}\\]`), `write lane should be tagged: ${scope}`);
+    assert.match(
+      source,
+      new RegExp(`requireProductionSmokeWriteScope\\("${scope}"\\)`),
+      `write lane should require explicit scope: ${scope}`,
+    );
+  }
+
+  assert.match(
+    packageJson.scripts?.["e2e:production-smoke:read-only"] ?? "",
+    /--grep-invert/,
+    "read-only production smoke script should exclude write-tagged lanes",
+  );
+  assert.match(
+    packageJson.scripts?.["e2e:production-smoke:private-post"] ?? "",
+    /run-production-smoke-private-post\.mjs/,
+    "private post production smoke script should set the write scope in one runner",
+  );
+  assert.match(
+    privatePostRunner,
+    /PRODUCTION_SMOKE_WRITE_SCOPE:\s*"private-post"/,
+    "private post runner must opt in only to the private-post write lane",
+  );
+  assert.match(
+    source,
+    /test\("\[private-post-ui\][\s\S]*const account = await registerSmokeUser\(context\.request, baseUrl, prefix\);[\s\S]*await addSessionCookieToContext\(context, baseUrl, account\.sessionCookie\);/,
+    "private post UI smoke must install the registered session cookie before opening /record",
+  );
+  assert.doesNotMatch(
+    source,
+    /decodeURIComponent\(sessionCookie\.slice\(separatorIndex \+ 1\)\)/,
+    "production smoke should preserve the signed Set-Cookie value when injecting it into BrowserContext",
+  );
 });

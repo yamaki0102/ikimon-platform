@@ -85,10 +85,33 @@ function productionSmokePrefix(): string {
 }
 
 const productionSmokeObservationVisibility = "private" as const;
+type ProductionSmokeWriteScope =
+  | "auth-write"
+  | "private-post"
+  | "private-post-ui"
+  | "shared-production-write"
+  | "place-memory-write"
+  | "public-capsule-write";
 
 function productionSmokeCheckpointFile(): string {
   return process.env.PRODUCTION_SMOKE_CHECKPOINT_FILE?.trim() ||
     path.resolve(process.cwd(), "test-results", "production-smoke-checkpoints.jsonl");
+}
+
+function productionSmokeWriteScope(): string {
+  return process.env.PRODUCTION_SMOKE_WRITE_SCOPE?.trim().toLowerCase() ?? "";
+}
+
+function allowsProductionSmokeWriteScope(scope: ProductionSmokeWriteScope): boolean {
+  const requested = productionSmokeWriteScope();
+  return requested === "all" || requested === scope;
+}
+
+function requireProductionSmokeWriteScope(scope: ProductionSmokeWriteScope): void {
+  test.skip(
+    !allowsProductionSmokeWriteScope(scope),
+    `requires PRODUCTION_SMOKE_WRITE_SCOPE=${scope} or all`,
+  );
 }
 
 async function recordSmokeCheckpoint(phase: string, details: JsonPayload = {}): Promise<void> {
@@ -191,7 +214,7 @@ async function addSessionCookieToContext(context: BrowserContext, baseUrl: strin
   await context.addCookies([
     {
       name: sessionCookie.slice(0, separatorIndex),
-      value: decodeURIComponent(sessionCookie.slice(separatorIndex + 1)),
+      value: sessionCookie.slice(separatorIndex + 1),
       domain: url.hostname,
       path: "/",
       httpOnly: true,
@@ -352,6 +375,74 @@ async function pollOwnerMapPhotoRecord(
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
   throw new Error(`owner map photo record not found; last=${JSON.stringify(lastPayload).slice(0, 800)}`);
+}
+
+async function pollOwnerMapRecord(
+  api: APIRequestContext,
+  baseUrl: string,
+  account: SmokeAccount,
+  expected: { visitId: string; latitude: number; longitude: number },
+): Promise<OwnerMapSmokeItem> {
+  const deadline = Date.now() + 30_000;
+  let lastPayload: JsonPayload = {};
+  while (Date.now() < deadline) {
+    const response = await api.get(joinUrl(baseUrl, "/api/v1/map/my-observations?limit=48"), {
+      headers: authHeaders(baseUrl, account),
+    });
+    const payload = (await response.json().catch(() => ({}))) as JsonPayload & {
+      signedIn?: boolean;
+      items?: OwnerMapSmokeItem[];
+    };
+    expect(response.ok(), `owner map observations should be reachable: ${response.status()}`).toBeTruthy();
+    expect(payload.signedIn, "owner map observations should see the smoke session").toBe(true);
+    lastPayload = payload;
+
+    const match = (payload.items ?? []).find((item) => {
+      const lat = Number(item.latitude);
+      const lng = Number(item.longitude);
+      return item.visitId === expected.visitId
+        && Number.isFinite(lat)
+        && Number.isFinite(lng)
+        && Math.abs(lat - expected.latitude) < 0.0002
+        && Math.abs(lng - expected.longitude) < 0.0002;
+    });
+    if (match) {
+      if (match.photoUrl) {
+        expect(match.photoUrl, "owner map photo URL should use a thumbnail derivative").toMatch(/\/thumb\//);
+        expect(match.photoUrl, "owner map photo URL must not expose original uploads").not.toMatch(/\/uploads\/|original\//);
+      }
+      expect(JSON.stringify(match), "owner map item must not expose observer identity").not.toMatch(/userId|ownerUserId|observer|profile/i);
+      return match;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error(`owner map record not found; last=${JSON.stringify(lastPayload).slice(0, 800)}`);
+}
+
+function isObservationUpsertResponse(response: import("@playwright/test").Response): boolean {
+  try {
+    return new URL(response.url()).pathname.endsWith("/api/v1/observations/upsert") &&
+      response.request().method() === "POST";
+  } catch {
+    return false;
+  }
+}
+
+async function hideSmokeObservation(
+  api: APIRequestContext,
+  baseUrl: string,
+  account: SmokeAccount,
+  visitId: string,
+  label: string,
+): Promise<void> {
+  expect(visitId, `${label} should have a visit id before hide`).toBeTruthy();
+  const response = await api.post(joinUrl(baseUrl, `/api/v1/observations/${encodeURIComponent(visitId)}/hide`), {
+    headers: authHeaders(baseUrl, account),
+  });
+  const payload = await jsonFromResponse(response, `${label} hide`);
+  expect(response.ok(), `${label} hide HTTP status: ${JSON.stringify(payload).slice(0, 300)}`).toBeTruthy();
+  expect(payload.ok, `${label} hide ok`).toBe(true);
+  expect(payload.hidden, `${label} hide hidden`).toBe(true);
 }
 
 async function captureIdentificationSmokeReference(
@@ -611,13 +702,14 @@ test.describe("production candidate smoke", () => {
     });
   }
 
-  test("logged-in invasive species pages render against the production candidate", async ({ browser }) => {
+  test("[auth-write] logged-in invasive species pages render against the production candidate", async ({ browser }) => {
     test.setTimeout(120_000);
 
     test.skip(
       !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
       "requires a production candidate base URL or SSH tunnel",
     );
+    requireProductionSmokeWriteScope("auth-write");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
@@ -684,13 +776,14 @@ test.describe("production candidate smoke", () => {
     }
   });
 
-  test("identification workbench saves reference evidence against the production candidate", async ({ browser }) => {
+  test("[shared-production-write] identification workbench saves reference evidence against the production candidate", async ({ browser }) => {
     test.setTimeout(180_000);
 
     test.skip(
       !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
       "requires a production candidate base URL or SSH tunnel",
     );
+    requireProductionSmokeWriteScope("shared-production-write");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
@@ -755,13 +848,79 @@ test.describe("production candidate smoke", () => {
     }
   });
 
-  test("mobile record UI saves photo and video against the production candidate", async ({ browser }) => {
+  test("[private-post] API private observation post uploads a photo and stays out of public detail", async ({ request }) => {
+    test.setTimeout(120_000);
+
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+    requireProductionSmokeWriteScope("private-post");
+
+    const baseUrl = productionSmokeBaseUrl();
+    const prefix = productionSmokePrefix();
+    const account = await registerSmokeUser(request, baseUrl, prefix, "api-private-post");
+    const observationId = `${prefix}-api-private-post`;
+    const observedAt = new Date().toISOString();
+    const expectedLocation = { latitude: 34.7108, longitude: 137.7261 };
+
+    const upsertResponse = await request.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
+      headers: jsonHeaders(baseUrl, account),
+      data: {
+        observationId,
+        clientSubmissionId: `${observationId}-${Date.now()}`,
+        userId: account.userId,
+        observedAt,
+        latitude: expectedLocation.latitude,
+        longitude: expectedLocation.longitude,
+        visibility: productionSmokeObservationVisibility,
+        localityNote: `production private post smoke ${prefix}`,
+        note: `production private post smoke ${prefix}`,
+        taxon: { vernacularName: "クスノキ", scientificName: "Cinnamomum camphora", rank: "species" },
+        sourcePayload: { source: "production_private_post_smoke", fixturePrefix: prefix },
+      },
+    });
+    const upsertPayload = await jsonFromResponse(upsertResponse, "private post observation upsert");
+    expect(upsertResponse.ok(), String(upsertPayload.error ?? "private_post_upsert_failed")).toBeTruthy();
+    expect(upsertPayload.ok, "private post observation upsert ok").toBe(true);
+    const visitId = String(upsertPayload.visitId ?? observationId);
+    expect(visitId).toBe(observationId);
+
+    const photoResponse = await request.post(joinUrl(baseUrl, `/api/v1/observations/${encodeURIComponent(visitId)}/photos/upload`), {
+      headers: jsonHeaders(baseUrl, account),
+      data: {
+        filename: `${prefix}-private-post.png`,
+        mimeType: "image/png",
+        base64Data: smokePhotoBase64,
+        facePrivacy: "no_faces",
+      },
+    });
+    const photoPayload = await jsonFromResponse(photoResponse, "private post photo upload");
+    expect(photoResponse.ok(), String(photoPayload.error ?? "private_post_photo_failed")).toBeTruthy();
+    expect(photoPayload.ok, "private post photo upload ok").toBe(true);
+
+    const publicDetail = await request.get(joinUrl(baseUrl, `/api/v1/observations/${encodeURIComponent(visitId)}/public-detail`));
+    expect(publicDetail.status(), "private post should not have a public detail document").toBe(404);
+
+    const ownerMapItem = await pollOwnerMapRecord(request, baseUrl, account, { visitId, ...expectedLocation });
+    expect(ownerMapItem.visitId).toBe(visitId);
+
+    await hideSmokeObservation(request, baseUrl, account, visitId, "api private post");
+    await recordSmokeCheckpoint("api_private_post_hidden", {
+      visitId,
+      userId: account.userId,
+      hasPhotoUrl: Boolean(ownerMapItem.photoUrl),
+    });
+  });
+
+  test("[private-post-ui] mobile record UI saves photo and video against the production candidate", async ({ browser }) => {
     test.setTimeout(180_000);
 
     test.skip(
       !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
       "requires a production candidate base URL or SSH tunnel",
     );
+    requireProductionSmokeWriteScope("private-post-ui");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
@@ -774,6 +933,7 @@ test.describe("production candidate smoke", () => {
 
     try {
       const account = await registerSmokeUser(context.request, baseUrl, prefix);
+      await addSessionCookieToContext(context, baseUrl, account.sessionCookie);
       const page = await context.newPage();
 
       await page.goto(joinUrl(baseUrl, "/record?lang=ja"), { waitUntil: "domcontentloaded" });
@@ -782,10 +942,16 @@ test.describe("production candidate smoke", () => {
       await expect(page.locator("#record-form")).toBeVisible();
       await fillRequiredRecordFields(page);
 
+      const photoObservationSave = page.waitForResponse(isObservationUpsertResponse);
       const photoUpload = page.waitForResponse((response) =>
         response.url().includes("/photos/upload") && response.request().method() === "POST",
       );
       await page.locator("#record-submit-panel button[type='submit']").click();
+      const photoObservationResponse = await photoObservationSave;
+      const photoObservationPayload = await jsonFromResponse(photoObservationResponse, "photo observation upsert");
+      expect(photoObservationResponse.ok(), `photo observation upsert HTTP status for ${account.email}`).toBeTruthy();
+      const photoVisitId = String(photoObservationPayload.visitId ?? "");
+      expect(photoVisitId, "photo observation upsert should return visitId").toBeTruthy();
       const photoResponse = await photoUpload;
       const photoPayload = await jsonFromResponse(photoResponse, "photo upload");
       expect(photoResponse.ok(), `photo upload HTTP status for ${account.email}`).toBeTruthy();
@@ -802,12 +968,15 @@ test.describe("production candidate smoke", () => {
         visitId: ownerMapItem.visitId,
         hasPhotoUrl: Boolean(ownerMapItem.photoUrl),
       });
+      await hideSmokeObservation(context.request, baseUrl, account, photoVisitId, "photo private post");
+      await recordSmokeCheckpoint("photo_private_post_hidden", { visitId: photoVisitId });
 
       await page.goto(joinUrl(baseUrl, "/record?lang=ja&start=video"), { waitUntil: "domcontentloaded" });
       await page.locator("#record-media-video").setInputFiles(smokeVideoFile(prefix));
       await expect(page.locator("#record-form")).toBeVisible();
       await fillRequiredRecordFields(page);
 
+      const videoObservationSave = page.waitForResponse(isObservationUpsertResponse);
       const directUpload = page.waitForResponse((response) =>
         response.url().includes("/api/v1/videos/direct-upload") && response.request().method() === "POST",
       );
@@ -816,6 +985,11 @@ test.describe("production candidate smoke", () => {
         response.request().method() === "POST",
       );
       await page.locator("#record-submit-panel button[type='submit']").click();
+      const videoObservationResponse = await videoObservationSave;
+      const videoObservationPayload = await jsonFromResponse(videoObservationResponse, "video observation upsert");
+      expect(videoObservationResponse.ok(), "video observation upsert HTTP status").toBeTruthy();
+      const videoVisitId = String(videoObservationPayload.visitId ?? "");
+      expect(videoVisitId, "video observation upsert should return visitId").toBeTruthy();
       const directResponse = await directUpload;
       const directPayload = await jsonFromResponse(directResponse, "video direct upload");
       expect(directResponse.ok(), "video direct upload HTTP status").toBeTruthy();
@@ -831,18 +1005,21 @@ test.describe("production candidate smoke", () => {
         directStatus: directResponse.status(),
         finalizeStatus: finalizeResponse.status(),
       });
+      await hideSmokeObservation(context.request, baseUrl, account, videoVisitId, "video private post");
+      await recordSmokeCheckpoint("video_private_post_hidden", { visitId: videoVisitId });
     } finally {
       await context.close();
     }
   });
 
-  test("place memory unlocks same-cell echoes without leaking private notes", async ({ request }) => {
+  test("[place-memory-write] place memory unlocks same-cell echoes without leaking private notes", async ({ request }) => {
     test.setTimeout(120_000);
 
     test.skip(
       !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
       "requires a production candidate base URL or SSH tunnel",
     );
+    requireProductionSmokeWriteScope("place-memory-write");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
@@ -923,13 +1100,14 @@ test.describe("production candidate smoke", () => {
     });
   });
 
-  test("place event capsule flow works with organizer, recorder, guide, and scanner accounts", async ({ browser }) => {
+  test("[public-capsule-write] place event capsule flow works with organizer, recorder, guide, and scanner accounts", async ({ browser }) => {
     test.setTimeout(180_000);
 
     test.skip(
       !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
       "requires a production candidate base URL or SSH tunnel",
     );
+    requireProductionSmokeWriteScope("public-capsule-write");
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
