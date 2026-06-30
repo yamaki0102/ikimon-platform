@@ -7902,6 +7902,7 @@ function shouldFallbackPublicCustomDomainPathToOrigin(request: Request, url: URL
   if (isShadowDiagnosticPath(url.pathname)) return false;
   if (url.pathname === "/health") return false;
   if (isSuspiciousPublicProbePath(url.pathname)) return false;
+  if (isLegacyPhpPublicEntrypointPath(url.pathname)) return false;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[^/]+$/.test(url.pathname)) return false;
   if (url.pathname.startsWith("/api/v1/observations/")) return false;
   if (isPublicAppWriteCandidatePath(url) && getPublicWriteMode(env) === "cloudflare_native") return false;
@@ -7928,6 +7929,10 @@ function isSuspiciousPublicProbePath(pathname: string): boolean {
   if (/^\/(?:firebase-adminsdk|firebase|gcp-key|credentials|application_default_credentials)\.json$/i.test(pathname)) return true;
   if (/^\/appsettings\.(?:json|development\.json|production\.json)$/i.test(pathname)) return true;
   return false;
+}
+
+function isLegacyPhpPublicEntrypointPath(pathname: string): boolean {
+  return /(?:^|\/)[^/]+\.php(?:\/|$)/i.test(pathname);
 }
 
 function getPublicWriteMode(env: Env): "origin_fallback" | "cloudflare_native" | "write_disabled" {
