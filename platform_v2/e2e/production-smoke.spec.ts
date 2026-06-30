@@ -933,6 +933,7 @@ test.describe("production candidate smoke", () => {
 
     try {
       const account = await registerSmokeUser(context.request, baseUrl, prefix);
+      await context.setExtraHTTPHeaders({ cookie: account.sessionCookie });
       await addSessionCookieToContext(context, baseUrl, account.sessionCookie);
       const page = await context.newPage();
 
@@ -960,7 +961,8 @@ test.describe("production candidate smoke", () => {
       await expect(page.locator("#record-status")).toContainText("記録を保存しました");
       await expect(page.locator("#record-status")).toContainText("写真1枚を同じ記録に保存しました。");
       await recordSmokeCheckpoint("photo_ui_post");
-      const ownerMapItem = await pollOwnerMapPhotoRecord(context.request, baseUrl, account, {
+      const ownerMapItem = await pollOwnerMapRecord(context.request, baseUrl, account, {
+        visitId: photoVisitId,
         latitude: 34.7108,
         longitude: 137.7261,
       });

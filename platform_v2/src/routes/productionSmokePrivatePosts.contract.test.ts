@@ -5,6 +5,7 @@ import test from "node:test";
 const productionSmokeSpecUrl = new URL("../../e2e/production-smoke.spec.ts", import.meta.url);
 const productionPackageUrl = new URL("../../package.json", import.meta.url);
 const privatePostRunnerUrl = new URL("../../scripts/run-production-smoke-private-post.mjs", import.meta.url);
+const privatePostUiRunnerUrl = new URL("../../scripts/run-production-smoke-private-post-ui.mjs", import.meta.url);
 const observationUpsertPath = "\"/api/v1/observations/upsert\"";
 
 function extractFunctionCall(source: string, callStart: number): string {
@@ -87,6 +88,7 @@ test("production smoke write lanes require explicit opt-in scope", async () => {
     scripts?: Record<string, string>;
   };
   const privatePostRunner = await readFile(privatePostRunnerUrl, "utf8");
+  const privatePostUiRunner = await readFile(privatePostUiRunnerUrl, "utf8");
 
   assert.match(
     source,
@@ -121,14 +123,29 @@ test("production smoke write lanes require explicit opt-in scope", async () => {
     "private post production smoke script should set the write scope in one runner",
   );
   assert.match(
+    packageJson.scripts?.["e2e:production-smoke:private-post-ui"] ?? "",
+    /run-production-smoke-private-post-ui\.mjs/,
+    "private post UI production smoke script should set the write scope in one runner",
+  );
+  assert.match(
     privatePostRunner,
     /PRODUCTION_SMOKE_WRITE_SCOPE:\s*"private-post"/,
     "private post runner must opt in only to the private-post write lane",
   );
   assert.match(
+    privatePostUiRunner,
+    /PRODUCTION_SMOKE_WRITE_SCOPE:\s*"private-post-ui"/,
+    "private post UI runner must opt in only to the private-post-ui write lane",
+  );
+  assert.match(
     source,
-    /test\("\[private-post-ui\][\s\S]*const account = await registerSmokeUser\(context\.request, baseUrl, prefix\);[\s\S]*await addSessionCookieToContext\(context, baseUrl, account\.sessionCookie\);/,
+    /test\("\[private-post-ui\][\s\S]*const account = await registerSmokeUser\(context\.request, baseUrl, prefix\);[\s\S]*await context\.setExtraHTTPHeaders\(\{ cookie: account\.sessionCookie \}\);[\s\S]*await addSessionCookieToContext\(context, baseUrl, account\.sessionCookie\);/,
     "private post UI smoke must install the registered session cookie before opening /record",
+  );
+  assert.match(
+    source,
+    /test\("\[private-post-ui\][\s\S]*const ownerMapItem = await pollOwnerMapRecord\(context\.request, baseUrl, account, \{[\s\S]*visitId: photoVisitId,/,
+    "private post UI smoke should assert the owner map row by visit id without requiring thumbnail async completion",
   );
   assert.doesNotMatch(
     source,
