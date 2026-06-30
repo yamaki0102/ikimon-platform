@@ -135,6 +135,37 @@ test("guide read routes stay in the guide route lane module", () => {
   assert.match(guideReadRoute, /app\.get<\{ Params: \{ slug: string \} \}>\("\/guide-programs\/:slug"/);
 });
 
+test("place station read route stays in its route lane module", () => {
+  const readRoute = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+  const placeStationReadRoute = readFileSync(new URL("./placeStationRead.ts", import.meta.url), "utf8");
+
+  assert.match(readRoute, /registerPlaceStationReadRoutes\(app\)/);
+  assert.doesNotMatch(readRoute, /app\.get<\{ Params: \{ placeId: string \} \}>\("\/places\/:placeId\/station"/);
+  assert.doesNotMatch(readRoute, /renderFixedPointStationBody/);
+  assert.match(placeStationReadRoute, /export async function registerPlaceStationReadRoutes/);
+  assert.match(placeStationReadRoute, /app\.get<\{ Params: \{ placeId: string \} \}>\("\/places\/:placeId\/station"/);
+  assert.match(placeStationReadRoute, /getFixedPointStation/);
+  assert.match(placeStationReadRoute, /renderFixedPointStationBody/);
+});
+
+test("place station read route returns fixed point empty state from its lane", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/places/__missing_station__/station?lang=ja",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.match(response.body, /<title>定点ページ \| ikimon<\/title>/);
+    assert.match(response.body, /定点ページが見つかりません/);
+    assert.match(response.body, /この場所の記録をまだ束ねられません/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("record upload flow lets 60 second videos continue when browser duration metadata is unreadable", () => {
   const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 
