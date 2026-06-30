@@ -25855,7 +25855,7 @@ function buildLegacyContributionReceipts(
   placeName: string,
   input: LegacyObservationUpsertInput
 ) {
-  const observationHref = `/observations/${encodeURIComponent(occurrenceId)}`;
+  const observationHref = `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}`;
   const revisitHref = `/record?start=gallery&revisitObservationId=${encodeURIComponent(visitId)}`;
   const hasIdentification = Boolean(resolveLegacyTaxonLabel(input));
   return [

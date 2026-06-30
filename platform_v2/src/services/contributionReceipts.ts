@@ -70,7 +70,7 @@ export function buildContributionReceipts({ input, result, guideUnlocks = [] }: 
   const isUnknownRecord = quickCaptureState === "unknown" || !hasIdentification;
   const hasRevisitFrame = input.visitMode === "survey" || Boolean(text(input.revisitReason) || text(input.targetTaxaScope));
   const hasLocationAnchor = hasPlaceAnchor(input);
-  const observationHref = `/observations/${encodeURIComponent(result.occurrenceId)}`;
+  const observationHref = `/observations/${encodeURIComponent(result.visitId)}?subject=${encodeURIComponent(result.occurrenceId)}`;
   const revisitHref = `/record?start=gallery&revisitObservationId=${encodeURIComponent(result.visitId)}`;
   const placeName = text(result.impact.placeName);
   const occurrenceCount = Math.max(1, result.occurrenceIds.length);

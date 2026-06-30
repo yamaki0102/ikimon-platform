@@ -715,7 +715,7 @@ async function main(): Promise<void> {
     }
     if (!state.video.readyToStream) throw new Error("video_not_ready_after_finalize_poll");
 
-    await requestJson(state, "GET", `/observations/${encodeURIComponent(state.occurrenceId)}`, undefined, {
+    await requestJson(state, "GET", `/observations/${encodeURIComponent(state.visitId)}?subject=${encodeURIComponent(state.occurrenceId)}`, undefined, {
       accept: "text/html",
       cookie,
     });

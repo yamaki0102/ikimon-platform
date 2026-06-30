@@ -7621,6 +7621,8 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(Array.isArray(response.placeMemorySample), true);
   assert.equal(response.contributionReceipts.length, 3);
   assert.equal(response.contributionReceipts[0].kind, "record_body_saved");
+  assert.equal(response.contributionReceipts[0].nextAction.href, "/observations/visit-shadow-contract?subject=occ%3Avisit-shadow-contract%3A0");
+  assert.doesNotMatch(response.contributionReceipts[0].nextAction.href, /^\/observations\/occ%3A/);
   assert.equal(obs.observations.get("visit-shadow-contract")?.exact_lat, 34.71234);
   assert.equal(obs.observations.get("visit-shadow-contract")?.public_cell, "34.71,137.81");
   assert.equal(obs.waterRecordExtensions.size, 1);
