@@ -8401,6 +8401,64 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
 });
 
+test("production origin session probe is opt-in and disabled by default", async () => {
+  const { env, core } = createEnv();
+  const rawToken = "origin-session-opt-in-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const originFetches: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    originFetches.push(String(input));
+    return Response.json({
+      ok: true,
+      session: {
+        tokenHash,
+        userId: "origin-session-user",
+        displayName: "Origin Session User",
+        roleName: "Observer",
+        rankLabel: "Migration",
+        banned: false,
+        expiresAt
+      }
+    });
+  }) as typeof fetch;
+  try {
+    const disabledResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session?optional=1", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    assert.equal(disabledResponse.status, 200);
+    assert.deepEqual(await disabledResponse.json(), { ok: false, error: "session_not_found", session: null });
+    assert.equal(originFetches.length, 0);
+    assert.equal(core.authSessions.size, 0);
+    assert.equal(core.operationAudit.length, 0);
+
+    const enabledResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session?optional=1", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), { ...productionEnv, ORIGIN_SESSION_IMPORT_MODE: "enabled" });
+    const enabledPayload = await enabledResponse.json() as any;
+    assert.equal(enabledResponse.status, 200, JSON.stringify(enabledPayload));
+    assert.equal(enabledPayload.ok, true);
+    assert.equal(enabledPayload.session.userId, "origin-session-user");
+    assert.equal(enabledPayload.session.tokenHash, tokenHash);
+    assert.equal(originFetches.length, 1);
+    assert.equal(core.authSessions.has(tokenHash), true);
+    assert.equal(core.operationAudit.length, 1);
+    assert.equal(core.operationAudit[0]?.operation_type, "origin_fallback");
+    const audit = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(audit.reason, "origin_session_probe");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production occurrence detail edit APIs write to D1 without origin fallback", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
@@ -12907,14 +12965,15 @@ test("production public cloudflare-native mode rejects photo upload auth failure
   assert.equal(obs.rollbackLedger.size, 0);
 });
 
-test("production public cloudflare-native mode lazily imports valid origin sessions", async () => {
+test("production public cloudflare-native mode lazily imports valid origin sessions only when explicitly enabled", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
-    PUBLIC_WRITE_MODE: "cloudflare_native"
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_SESSION_IMPORT_MODE: "enabled"
   };
   const rawOriginToken = "origin-login-raw-token";
   const tokenHash = createHash("sha256").update(rawOriginToken).digest("hex");

@@ -837,13 +837,18 @@ test("thumb materialized miss origin fallback is retired from Worker source", as
   assert.doesNotMatch(workerSource, /thumb_materialized_miss/);
 });
 
-test("production origin session probe is dormant when import mode is disabled", async () => {
+test("production origin session probe is opt-in and disabled by default", async () => {
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
 
-  assert.match(script, /const originSessionImportMode = String\(productionVars\.ORIGIN_SESSION_IMPORT_MODE \?\? "enabled"\)/);
+  assert.match(workerSource, /const mode = \(env\.ORIGIN_SESSION_IMPORT_MODE \?\? "disabled"\)\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(workerSource, /return mode === "enabled" \? "enabled" : "disabled"/);
+  assert.match(script, /const originSessionImportMode = String\(productionVars\.ORIGIN_SESSION_IMPORT_MODE \?\? "disabled"\)/);
   assert.match(script, /item\.reason === "origin_session_probe" && originSessionImportMode === "disabled"/);
   assert.match(script, /inactive_origin_session_import_disabled/);
   assert.match(script, /ORIGIN_SESSION_IMPORT_MODE/);
+  assert.match(workerTests, /production origin session probe is opt-in and disabled by default/);
 });
 
 test("PostgreSQL signal classifier does not count JavaScript listener or Array helpers", async () => {

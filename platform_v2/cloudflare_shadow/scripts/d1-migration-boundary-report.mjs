@@ -538,7 +538,7 @@ function configuredStateForFallback(item, productionVars) {
     && productionVars.ORIGIN_FALLBACK_BASE_URL.trim() !== "";
   const publicWriteMode = String(productionVars.PUBLIC_WRITE_MODE ?? "");
   const publicCustomDomainFallbackMode = String(productionVars.PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE ?? "enabled").trim().toLowerCase();
-  const originSessionImportMode = String(productionVars.ORIGIN_SESSION_IMPORT_MODE ?? "enabled").trim().toLowerCase();
+  const originSessionImportMode = String(productionVars.ORIGIN_SESSION_IMPORT_MODE ?? "disabled").trim().toLowerCase();
   if (!originFallbackConfigured) {
     return { active: false, note: "origin_fallback_not_configured" };
   }
