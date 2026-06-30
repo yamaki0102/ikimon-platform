@@ -15790,6 +15790,59 @@ test("production lens query route serves localized materialized html without ori
   }
 });
 
+test("production guide read entry routes serve localized materialized html without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/guide-programs.html", "<!doctype html><title>ガイドリレー企画 | ikimon</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/my-guides.html", "<!doctype html><title>マイガイド | ikimon</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const checks = [
+      {
+        url: "https://ikimon.life/guide-programs?lang=ja",
+        title: "ガイドリレー企画"
+      },
+      {
+        url: "https://ikimon.life/ja/guide-programs",
+        title: "ガイドリレー企画"
+      },
+      {
+        url: "https://ikimon.life/my-guides?lang=ja",
+        title: "マイガイド"
+      },
+      {
+        url: "https://ikimon.life/ja/my-guides",
+        title: "マイガイド"
+      }
+    ];
+    for (const check of checks) {
+      const response = await worker.fetch(new Request(check.url), productionEnv);
+      assert.equal(response.status, 200, check.url);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html", check.url);
+      assert.match(await response.text(), new RegExp(check.title), check.url);
+    }
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production home collapses materialized header actions into a hamburger menu", async () => {
   const { env } = createEnv();
   const productionEnv = {
