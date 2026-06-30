@@ -198,9 +198,26 @@ function summarizeUploadBody(body: Partial<Omit<ObservationPhotoUploadInput, "ob
   };
 }
 
+const AUTH_API_MUTATION_ROUTES_HANDLED_BY_AUTH_ROUTES = [
+  "/api/v1/auth/login",
+  "/api/v1/auth/register",
+] as const;
+
+const PRIVILEGED_AUTH_WRITE_ROUTES = [
+  "/api/v1/auth/session/issue",
+  "/api/v1/auth/remember-tokens/issue",
+  "/api/v1/auth/remember-tokens/revoke",
+] as const;
+
 function isAuthApiMutationHandledByAuthRoutes(url: string): boolean {
   const path = url.split("?", 1)[0] ?? "";
-  return path === "/api/v1/auth/login" || path === "/api/v1/auth/register";
+  return AUTH_API_MUTATION_ROUTES_HANDLED_BY_AUTH_ROUTES.includes(path as (typeof AUTH_API_MUTATION_ROUTES_HANDLED_BY_AUTH_ROUTES)[number]);
+}
+
+function assertRegisteredPrivilegedAuthWriteRoute(route: (typeof PRIVILEGED_AUTH_WRITE_ROUTES)[number]): void {
+  if (!PRIVILEGED_AUTH_WRITE_ROUTES.includes(route)) {
+    throw new Error("privileged_auth_write_route_not_registered");
+  }
 }
 
 export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
@@ -219,6 +236,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     };
   }>("/api/v1/auth/session/issue", async (request, reply) => {
     try {
+      assertRegisteredPrivilegedAuthWriteRoute("/api/v1/auth/session/issue");
       assertPrivilegedWriteAccess(request);
       const result = await issueSession({
         userId: request.body.userId,
@@ -1206,6 +1224,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     };
   }>("/api/v1/auth/remember-tokens/issue", async (request, reply) => {
     try {
+      assertRegisteredPrivilegedAuthWriteRoute("/api/v1/auth/remember-tokens/issue");
       assertPrivilegedWriteAccess(request);
       return await issueRememberToken(request.body);
     } catch (error) {
@@ -1223,6 +1242,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     };
   }>("/api/v1/auth/remember-tokens/revoke", async (request, reply) => {
     try {
+      assertRegisteredPrivilegedAuthWriteRoute("/api/v1/auth/remember-tokens/revoke");
       assertPrivilegedWriteAccess(request);
       return await revokeRememberToken(request.body.token);
     } catch (error) {
