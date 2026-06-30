@@ -51,6 +51,8 @@ test("contribution receipts are immediate, bounded, and safe to show after posti
   assert.equal(receipts.length, 3);
   assert.ok(receipts.every((receipt) => receipt.claimLevel === "immediate"));
   assert.ok(receipts.every((receipt) => receipt.nextAction.href.startsWith("/")));
+  assert.equal(receipts[0]!.nextAction.href, "/observations/visit-1?subject=occ%3Avisit-1%3A0");
+  assert.doesNotMatch(receipts[0]!.nextAction.href, /^\/observations\/occ%3A/);
   assert.deepEqual(
     receipts.map((receipt) => receipt.kind),
     ["record_body_saved", "place_comparison_seeded", "uncertainty_preserved"],
