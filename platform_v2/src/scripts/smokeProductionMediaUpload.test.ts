@@ -15,7 +15,9 @@ test("production media smoke verifies duplicate post guard", async () => {
   assert.match(source, /http_idempotency_reused_without_legacy_postgres_rows/);
   assert.match(source, /hideNativeObservationForCleanup/);
   assert.match(source, /const mediaObservationId = state\.visitId/);
-  assert.match(source, /\/observations\/\$\{encodeURIComponent\(state\.visitId\)\}\?subject=\$\{encodeURIComponent\(state\.occurrenceId\)\}/);
+  assert.match(source, /verifyObservationDetailPageReady/);
+  assert.match(source, /detail_page:poll/);
+  assert.match(source, /const pathname = `\/observations\/\$\{encodeURIComponent\(visitId\)\}\?subject=\$\{encodeURIComponent\(occurrenceId\)\}`/);
   assert.doesNotMatch(source, /encodeURIComponent\(state\.occurrenceId\)}\/photos\/upload/);
   assert.doesNotMatch(source, /observationId: state\.occurrenceId/);
   assert.match(source, /verifyLegacyAiStateIfPresent/);

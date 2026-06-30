@@ -263,6 +263,38 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function verifyObservationDetailPageReady(
+  state: SmokeState,
+  cookie: string,
+  attempts: number,
+  pollMs: number,
+): Promise<void> {
+  const visitId = state.visitId ?? "";
+  const occurrenceId = state.occurrenceId ?? "";
+  const pathname = `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}`;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await requestJson(state, "GET", pathname, undefined, {
+        accept: "text/html",
+        cookie,
+      });
+      await appendLog(state.logFile, "info", "detail_page:ready", { pathname, attempt });
+      return;
+    } catch (error) {
+      lastError = error;
+      await appendLog(state.logFile, "warn", "detail_page:poll", {
+        pathname,
+        attempt,
+        attempts,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (attempt < attempts) await sleep(pollMs);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("detail_page_not_ready_after_poll");
+}
+
 function stringField(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -715,10 +747,7 @@ async function main(): Promise<void> {
     }
     if (!state.video.readyToStream) throw new Error("video_not_ready_after_finalize_poll");
 
-    await requestJson(state, "GET", `/observations/${encodeURIComponent(state.visitId)}?subject=${encodeURIComponent(state.occurrenceId)}`, undefined, {
-      accept: "text/html",
-      cookie,
-    });
+    await verifyObservationDetailPageReady(state, cookie, options.finalizeAttempts, options.finalizePollMs);
     await verifyLegacyAiStateIfPresent(state);
     await verifyDuplicateGuard(state, observedAt, clientPhotoHash);
 
