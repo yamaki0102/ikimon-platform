@@ -15907,6 +15907,44 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   }
 });
 
+test("materialized guide program detail registry covers published route links", async () => {
+  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const mapGuideSource = await readFile(new URL("../../src/services/mapGuideSpots.ts", import.meta.url), "utf8");
+  const routeSources = await Promise.all([
+    readFile(new URL("../../src/routes/guideRead.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../src/routes/marketing.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../src/routes/adminGuidePrograms.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../src/services/guideUnlocks.ts", import.meta.url), "utf8")
+  ]);
+  const parseArray = (source: string, constName: string): string[] => {
+    const match = source.match(new RegExp(`const\\s+${constName}\\s*=\\s*\\[\\s*([\\s\\S]*?)\\s*\\]\\s*as const;`));
+    assert.ok(match, `${constName} should be a Worker-owned const array`);
+    return [...match[1]!.matchAll(/"([^"]+)"/g)].map((entry) => entry[1]!);
+  };
+  const parsePublishedProgramSlugs = (source: string): string[] => {
+    const match = source.match(/export const MAP_GUIDE_PROGRAMS:[\s\S]*?=\s*\[([\s\S]*?)\];/);
+    assert.ok(match, "MAP_GUIDE_PROGRAMS should stay parseable as the published guide source");
+    return [...match[1]!.matchAll(/\{\s*id:\s*"[^"]+",[\s\S]*?slug:\s*"([^"]+)",[\s\S]*?status:\s*"published",[\s\S]*?\}/g)]
+      .map((entry) => entry[1]!)
+      .sort();
+  };
+  const linkedProgramSlugs = routeSources
+    .join("\n")
+    .matchAll(/\/guide-programs\/([a-z0-9][a-z0-9_-]{0,127})/g);
+  const slugs = [...new Set([...parsePublishedProgramSlugs(mapGuideSource), ...[...linkedProgramSlugs].map((entry) => entry[1]!)])].sort();
+  assert.ok(slugs.includes("aikan-renri-guide-relay"));
+  assert.ok(slugs.includes("hamamatsu-heritage-guide-relay"));
+
+  const corePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_CORE_PATHS");
+  const localizablePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_LOCALIZABLE_PATHS");
+  for (const slug of slugs) {
+    assert.ok(localizablePaths.includes(`/guide-programs/${slug}`), `/guide-programs/${slug} should support ?lang materialization`);
+    for (const lang of ["ja", "en", "es", "pt-br"]) {
+      assert.ok(corePaths.includes(`/${lang}/guide-programs/${slug}`), `/${lang}/guide-programs/${slug} should be materialized before deploy`);
+    }
+  }
+});
+
 test("production home collapses materialized header actions into a hamburger menu", async () => {
   const { env } = createEnv();
   const productionEnv = {
