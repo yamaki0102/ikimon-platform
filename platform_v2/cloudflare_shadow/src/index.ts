@@ -20280,30 +20280,13 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ? await legacyObservationRequestFingerprint(input)
     : null;
   if (clientSubmissionId && idempotencyFingerprint) {
-    const inserted = await env.OBS_DB.prepare(
-      `INSERT OR IGNORE INTO observation_write_idempotency (
-         client_submission_id, user_id, request_fingerprint, write_status, source_payload,
-         created_at, updated_at, last_seen_at
-       ) VALUES (?, ?, ?, 'in_progress', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-    ).bind(
-      clientSubmissionId,
-      input.userId,
-      idempotencyFingerprint,
-      JSON.stringify({
-        source: "cloudflare_observation_write",
-        observation_id: normalizeOptionalId(input.observationId),
-        client_photo_sha256s: Array.isArray(input.sourcePayload?.client_photo_sha256s)
-          ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
-          : []
-      })
-    ).run() as { meta?: { changes?: number } };
-    if (inserted.meta?.changes === 0) {
-      const existing = await env.OBS_DB.prepare(
-        `SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status
-           FROM observation_write_idempotency
-          WHERE client_submission_id = ?`
-      ).bind(clientSubmissionId).first<LegacyObservationIdempotencyRow>();
-      if (!existing || existing.user_id !== input.userId || existing.request_fingerprint !== idempotencyFingerprint) {
+    const existing = await env.OBS_DB.prepare(
+      `SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status
+         FROM observation_write_idempotency
+        WHERE client_submission_id = ?`
+    ).bind(clientSubmissionId).first<LegacyObservationIdempotencyRow>();
+    if (existing) {
+      if (existing.user_id !== input.userId || existing.request_fingerprint !== idempotencyFingerprint) {
         return json({ ok: false, error: "client_submission_id_conflict" }, 409);
       }
       if (!existing.visit_id) {
@@ -20334,6 +20317,23 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         idempotencyReused: true
       }, input), 200);
     }
+    await env.OBS_DB.prepare(
+      `INSERT OR IGNORE INTO observation_write_idempotency (
+         client_submission_id, user_id, request_fingerprint, write_status, source_payload,
+         created_at, updated_at, last_seen_at
+       ) VALUES (?, ?, ?, 'in_progress', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      clientSubmissionId,
+      input.userId,
+      idempotencyFingerprint,
+      JSON.stringify({
+        source: "cloudflare_observation_write",
+        observation_id: normalizeOptionalId(input.observationId),
+        client_photo_sha256s: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+          ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
+          : []
+      })
+    ).run();
   }
 
   const draftId = newId("draft");
