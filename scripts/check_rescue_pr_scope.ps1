@@ -57,7 +57,28 @@ function Test-RescueSignal {
         return $false
     }
 
-    return $Text -match '(?i)(\brescue\b|\bsalvage\b|\brebuild\b|split\s+from|from\s+#\d+|replaces\s+.*#\d+|旧PR|救出|出し直し|置き換え|切り出し)'
+    $rescuePatterns = @(
+        '(?i)\brescue\b',
+        '(?i)\bsalvage\b',
+        '(?i)\brebuild\s+(pr|pull\s+request|branch)\b',
+        '(?i)\b(pr|pull\s+request|branch)\s+rebuild\b',
+        '(?i)split\s+from',
+        '(?i)from\s+#\d+',
+        '(?i)replaces\s+.*#\d+',
+        '旧PR',
+        '救出',
+        '出し直し',
+        '置き換え',
+        '切り出し'
+    )
+
+    foreach ($pattern in $rescuePatterns) {
+        if ($Text -match $pattern) {
+            return $true
+        }
+    }
+
+    return $false
 }
 
 $signalText = @(
