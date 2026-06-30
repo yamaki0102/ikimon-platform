@@ -19322,8 +19322,8 @@ async function importOriginSessionIfAvailable(request: Request, env: Env): Promi
 }
 
 function getOriginSessionImportMode(env: Env): "enabled" | "disabled" {
-  const mode = (env.ORIGIN_SESSION_IMPORT_MODE ?? "enabled").trim().toLowerCase();
-  return mode === "disabled" ? "disabled" : "enabled";
+  const mode = (env.ORIGIN_SESSION_IMPORT_MODE ?? "disabled").trim().toLowerCase();
+  return mode === "enabled" ? "enabled" : "disabled";
 }
 
 async function createCompatibleVideoDirectUpload(request: Request, env: Env): Promise<Response> {
