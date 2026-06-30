@@ -2168,6 +2168,10 @@ export const worker = {
         if (publicEntryRedirect) return publicEntryRedirect;
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
+        return getSessionAwareRecordHtml(request, url, env);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
         return getOriginalUiHtml(request, url, env);
       }
@@ -17127,8 +17131,259 @@ function isHomeHtmlPath(pathname: string): boolean {
   return pathname === "/" || /^(?:\/(?:ja|en|es|pt-br))\/?$/.test(pathname);
 }
 
+function isRecordHtmlPath(pathname: string): boolean {
+  return /^(?:\/(?:ja|en|es|pt-br))?\/record$/.test(pathname);
+}
+
 function isProfileHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname);
+}
+
+async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await readCompatibleSessionWithOriginFallback(request, env);
+  if (!session || session.banned) {
+    return getOriginalUiHtml(request, url, env);
+  }
+
+  const cspNonce = createHtmlCspNonce();
+  const body = request.method === "HEAD"
+    ? null
+    : renderCloudflareRecordHtml(session, url, cspNonce);
+
+  return new Response(body, {
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "record-session"
+    }
+  });
+}
+
+function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce: string): string {
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const title = lang === "ja" ? "記録する" : "Record";
+  const mediaCopy = lang === "ja"
+    ? {
+      photo: "写真",
+      video: "動画",
+      note: "メモ",
+      coord: "座標を直接編集",
+      lat: "緯度",
+      lng: "経度",
+      save: "保存",
+      prompt: "写真か動画を選ぶと、非公開の記録として保存できます。",
+      statusReady: "メディアを選択しました。座標を確認して保存してください。",
+      saving: "保存中です...",
+      saved: "記録を保存しました",
+      photoSaved: "写真1枚を同じ記録に保存しました。",
+      videoSaved: "動画は保存済みです。",
+      missingMedia: "写真または動画を選択してください。",
+      failed: "保存に失敗しました。時間をおいてもう一度試してください。"
+    }
+    : {
+      photo: "Photo",
+      video: "Video",
+      note: "Note",
+      coord: "Edit coordinates directly",
+      lat: "Latitude",
+      lng: "Longitude",
+      save: "Save",
+      prompt: "Choose a photo or video to save a private record.",
+      statusReady: "Media selected. Check the coordinates and save.",
+      saving: "Saving...",
+      saved: "Record saved",
+      photoSaved: "Saved one photo to the same record.",
+      videoSaved: "Video saved.",
+      missingMedia: "Choose a photo or video.",
+      failed: "Save failed. Try again later."
+    };
+  const startMode = url.searchParams.get("start") === "video" ? "video" : "photo";
+  return `<!doctype html>
+<html lang="${escapeHtml(lang)}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)} - ikimon</title>
+  <style>
+    :root{color-scheme:light;--ink:#10251a;--muted:#52635d;--line:#d8eae4;--mint:#eefbf6;--teal:#058f82;--leaf:#54c86f;--paper:#fbfdfb}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#f5fbf8 0,#fff 72%);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    .cf-record-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}
+    .cf-record-brand{font-weight:900;text-decoration:none;color:var(--ink);font-size:20px;letter-spacing:0}
+    .cf-record-profile{color:var(--muted);font-size:13px;font-weight:800;overflow-wrap:anywhere;text-align:right}
+    .cf-record-shell{width:min(720px,calc(100% - 24px));margin:18px auto 42px}
+    .cf-record-hero{margin:0 0 14px}
+    .cf-record-hero h1{margin:0 0 6px;font-size:30px;line-height:1.12;letter-spacing:0}
+    .cf-record-hero p{margin:0;color:var(--muted);font-size:14px}
+    .cf-record-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px}
+    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(16,37,26,.06);font-weight:900}
+    .cf-record-pick input{position:absolute;inline-size:1px;block-size:1px;opacity:.01}
+    .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:12px;font-weight:800}
+    .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.08)}
+    .cf-record-form[hidden],.cf-record-submit[hidden]{display:none!important}
+    .cf-record-field{display:block;margin:0 0 12px;font-weight:900}
+    .cf-record-field span{display:block;margin:0 0 6px;color:var(--muted);font-size:12px}
+    .cf-record-field textarea,.cf-record-field input{width:100%;min-height:42px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit}
+    .cf-record-field textarea{min-height:86px;resize:vertical}
+    .cf-record-coordinates{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
+    .cf-record-coordinates summary{cursor:pointer;padding:10px 12px;font-weight:900}
+    .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
+    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
+    .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
+    @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
+  </style>
+</head>
+<body data-record-start="${escapeHtml(startMode)}">
+  <header class="cf-record-header">
+    <a class="cf-record-brand" href="${escapeHtml(prefix)}/">ikimon</a>
+    <div class="cf-record-profile">${escapeHtml(session.displayName || session.userId)}</div>
+  </header>
+  <main class="cf-record-shell">
+    <section class="cf-record-hero">
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(mediaCopy.prompt)}</p>
+    </section>
+    <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
+      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>image/jpeg, image/png</span><input id="record-media-photo" type="file" accept="image/*"></label>
+      <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>video/mp4</span><input id="record-media-video" type="file" accept="video/*"></label>
+    </div>
+    <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
+      <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
+      <details class="cf-record-coordinates">
+        <summary>${escapeHtml(mediaCopy.coord)}</summary>
+        <div class="cf-record-coordinate-grid">
+          <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lat)}</span><input name="latitude" inputmode="decimal" value="34.710800"></label>
+          <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lng)}</span><input name="longitude" inputmode="decimal" value="137.726100"></label>
+        </div>
+      </details>
+      <div id="record-submit-panel" class="cf-record-submit" hidden><button type="submit">${escapeHtml(mediaCopy.save)}</button></div>
+      <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
+    </form>
+  </main>
+  <script nonce="${escapeHtml(cspNonce)}">
+  (() => {
+    const copy = ${JSON.stringify(mediaCopy)};
+    const form = document.getElementById("record-form");
+    const status = document.getElementById("record-status");
+    const submitPanel = document.getElementById("record-submit-panel");
+    const photoInput = document.getElementById("record-media-photo");
+    const videoInput = document.getElementById("record-media-video");
+    let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
+    function setStatus(message, error) {
+      if (!status) return;
+      status.textContent = message;
+      status.style.color = error ? "#b42318" : "";
+    }
+    function selectedFile() {
+      const input = mediaKind === "video" ? videoInput : photoInput;
+      return input && input.files && input.files[0] ? input.files[0] : null;
+    }
+    function reveal(kind) {
+      mediaKind = kind;
+      if (form) form.hidden = false;
+      if (submitPanel) submitPanel.hidden = false;
+      setStatus(copy.statusReady, false);
+    }
+    photoInput?.addEventListener("change", () => reveal("photo"));
+    videoInput?.addEventListener("change", () => reveal("video"));
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(reader.error || new Error("file_read_failed"));
+        reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+        reader.readAsDataURL(file);
+      });
+    }
+    async function postJson(path, body) {
+      const response = await fetch(path, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error || "request_failed");
+      }
+      return payload;
+    }
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const file = selectedFile();
+      if (!file) {
+        setStatus(copy.missingMedia, true);
+        return;
+      }
+      const formData = new FormData(form);
+      const latitudeText = String(formData.get("latitude") || "").trim();
+      const longitudeText = String(formData.get("longitude") || "").trim();
+      const latitude = Number(latitudeText);
+      const longitude = Number(longitudeText);
+      const userId = form.dataset.userId || "";
+      const observationId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      setStatus(copy.saving, false);
+      try {
+        if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          throw new Error("invalid_coordinates");
+        }
+        const observation = await postJson("/api/v1/observations/upsert", {
+          observationId,
+          clientSubmissionId: observationId + "-cloudflare-record-form",
+          userId,
+          observedAt: new Date().toISOString(),
+          latitude,
+          longitude,
+          visibility: "private",
+          note: String(formData.get("note") || ""),
+          taxon: { vernacularName: "未同定", rank: "unknown" },
+          sourcePayload: { source: "cloudflare_record_session_form", mediaKind }
+        });
+        const visitId = String(observation.visitId || observation.observationId || observationId);
+        if (mediaKind === "photo") {
+          await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
+            filename: file.name || "record-photo.jpg",
+            mimeType: file.type || "image/jpeg",
+            base64Data: await fileToBase64(file),
+            mediaRole: "primary",
+            facePrivacy: "no_faces"
+          });
+          setStatus(copy.saved + " " + copy.photoSaved, false);
+          return;
+        }
+        const direct = await postJson("/api/v1/videos/direct-upload", {
+          filename: file.name || "record-video.mp4",
+          observationId: visitId,
+          mediaRole: "observation_video",
+          fileSizeBytes: file.size,
+          uploadProtocol: "post",
+          maxDurationSeconds: 60
+        });
+        if (!direct.uploadUrl || !direct.uid) throw new Error("video_direct_upload_failed");
+        const bodyResponse = await fetch(String(direct.uploadUrl || ""), {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "content-type": file.type || "video/mp4" },
+          body: file
+        });
+        if (!bodyResponse.ok) throw new Error("video_body_upload_failed");
+        await postJson("/api/v1/videos/" + encodeURIComponent(String(direct.uid || "")) + "/finalize", {
+          observationId: visitId,
+          durationMs: 1000,
+          readyToStream: true
+        });
+        setStatus(copy.saved + " " + copy.videoSaved, false);
+      } catch (error) {
+        console.error(error);
+        setStatus(copy.failed, true);
+      }
+    });
+  })();
+  </script>
+</body>
+</html>`;
 }
 
 async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env): Promise<Response> {

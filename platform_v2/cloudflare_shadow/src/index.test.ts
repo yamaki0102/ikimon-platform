@@ -11859,7 +11859,8 @@ test("production specialist authority runtime manages D1 authority and recommend
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   const adminToken = "authority-admin-token";
   const specialistToken = "authority-specialist-token";
@@ -16824,7 +16825,8 @@ test("production original UI app shells serve materialized HTML even with sessio
     ...env,
     ENVIRONMENT: "production",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
-    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    ORIGIN_SESSION_IMPORT_MODE: "disabled"
   };
   await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>materialized home</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -16917,6 +16919,50 @@ test("production original UI app shells serve materialized HTML even with sessio
   }
 });
 
+test("production record shell renders signed-in Cloudflare form for valid session cookies", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/record.html", "<!doctype html><title>materialized record</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "record-form-user", displayName: "Record Form", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const guestResponse = await worker.fetch(new Request("https://ikimon.life/ja/record"), productionEnv);
+  assert.equal(guestResponse.status, 200);
+  assert.equal(guestResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+  assert.equal(await guestResponse.text(), "<!doctype html><title>materialized record</title>");
+
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/record?start=video", {
+    headers: { cookie }
+  }), productionEnv);
+  const body = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session");
+  assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+  assert.match(response.headers.get("content-security-policy") ?? "", /script-src 'self' 'nonce-/);
+  assert.match(body, /id="record-form"[^>]*hidden/);
+  assert.match(body, /id="record-media-photo"/);
+  assert.match(body, /id="record-media-video"/);
+  assert.match(body, /id="record-submit-panel"/);
+  assert.match(body, /id="record-status"/);
+  assert.match(body, /name="latitude"/);
+  assert.match(body, /name="longitude"/);
+  assert.match(body, /\/api\/v1\/observations\/upsert/);
+  assert.match(body, /\/api\/v1\/videos\/direct-upload/);
+  assert.match(body, /visibility: "private"/);
+  assert.doesNotMatch(body, /materialized record/);
+});
+
 test("production profile shell renders signed-in Cloudflare page for valid session cookies", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
@@ -16955,12 +17001,13 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
     });
   }) as typeof fetch;
   try {
-    for (const check of [
-      { path: "/ja/profile", expected: "八巻テスト", native: true },
-      { path: "/ja/profile/settings", expected: "プロフィール設定", native: true },
+    const checks: Array<{ path: string; expected: string; native?: "profile" | "record" }> = [
+      { path: "/ja/profile", expected: "八巻テスト", native: "profile" },
+      { path: "/ja/profile/settings", expected: "プロフィール設定", native: "profile" },
       { path: "/ja/records", expected: "materialized records" },
-      { path: "/ja/record", expected: "materialized record" }
-    ]) {
+      { path: "/ja/record", expected: "record-form", native: "record" }
+    ];
+    for (const check of checks) {
       const response = await worker.fetch(new Request(`https://ikimon.life${check.path}`, {
         headers: { cookie }
       }), productionEnv);
@@ -16968,10 +17015,14 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
       assert.equal(response.status, 200, check.path);
       assert.match(body, new RegExp(check.expected), check.path);
       assert.doesNotMatch(body, /personalized origin profile/, check.path);
-      if (check.native) {
+      if (check.native === "profile") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
         assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
         assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
+      }
+      if (check.native === "record") {
+        assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
+        assert.doesNotMatch(body, /materialized record/, check.path);
       }
     }
     assert.equal(fallbackCalls, 0);
