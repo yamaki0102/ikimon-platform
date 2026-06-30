@@ -73,6 +73,9 @@ const NON_HUMAN_PUBLIC_CLAIM_REVIEW_SOURCE_VALUES_SQL = NON_HUMAN_PUBLIC_CLAIM_R
 const PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL = `i.actor_kind = 'human'
          and coalesce(i.source_payload->>'source', '') not in (${NON_HUMAN_PUBLIC_CLAIM_REVIEW_SOURCE_VALUES_SQL})`;
 
+const PUBLIC_CLAIM_AUTHORITY_REVIEW_SQL = `coalesce(i.source_payload->>'lane', '') = 'public-claim'
+                  and coalesce(i.source_payload->>'reviewClass', i.source_payload->>'review_class', '') in ('authority_backed', 'admin_override')`;
+
 function machineEvidenceStatus(row: Pick<OccurrenceRow, "basis_of_record" | "ai_assessment_status" | "data_quality">): "human_observation" | "ai_candidate" | "reviewer_verified" | "reviewer_rejected" {
   if (row.basis_of_record !== "MachineObservation") return "human_observation";
   const status = row.ai_assessment_status || row.data_quality || "";
@@ -371,8 +374,7 @@ async function queryResearchOccurrenceRecords(
      left join lateral (
        select count(*)::int as current_count,
               count(*) filter (
-                where coalesce(i.source_payload->>'lane', '') = 'public-claim'
-                  and coalesce(i.source_payload->>'reviewClass', i.source_payload->>'review_class', '') in ('authority_backed', 'admin_override')
+                where ${PUBLIC_CLAIM_AUTHORITY_REVIEW_SQL}
               )::int as authority_count
        from identifications i
        where i.occurrence_id = o.occurrence_id
@@ -572,8 +574,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
            select
              count(*)::int as current_count,
              count(*) filter (
-               where coalesce(i.source_payload->>'lane', '') = 'public-claim'
-                 and coalesce(i.source_payload->>'reviewClass', i.source_payload->>'review_class', '') in ('authority_backed', 'admin_override')
+               where ${PUBLIC_CLAIM_AUTHORITY_REVIEW_SQL}
              )::int as authority_count
            from identifications i
            where i.occurrence_id = o.occurrence_id
