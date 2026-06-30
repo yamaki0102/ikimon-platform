@@ -8,6 +8,40 @@ export const OBSERVATION_REASSESS_FORBIDDEN_PROMOTION_TARGETS = [
   "public_claim",
 ] as const;
 
+export const OBSERVATION_REASSESS_DIRECT_SQL_WRITE_TARGETS = [
+  "evidence_assets",
+  "field_context",
+  "observation_ai_assessments",
+  "observation_ai_runs",
+  "observation_ai_subject_candidates",
+  "occurrence_three_lenses",
+  "subject_media_regions",
+  "visual_asset_regions",
+  "visual_evidence_extracts",
+  "visual_next_capture_suggestions",
+  "visual_observation_signals",
+  "visual_subject_candidates",
+] as const;
+
+export const OBSERVATION_REASSESS_DELEGATED_WRITE_TARGETS = [
+  "alert_deliveries",
+  "invasive_reporting_events",
+  "occurrences",
+  "stewardship_actions",
+] as const;
+
+export const OBSERVATION_REASSESS_FORBIDDEN_WRITE_TARGETS = [
+  "authority_reviewed_occurrences",
+  "identifications",
+  "public_claims",
+  "research_public_claims",
+  "reviewed_occurrences",
+] as const;
+
+export type ObservationReassessPipelineWriteTarget =
+  | (typeof OBSERVATION_REASSESS_DIRECT_SQL_WRITE_TARGETS)[number]
+  | (typeof OBSERVATION_REASSESS_DELEGATED_WRITE_TARGETS)[number];
+
 export type ObservationReassessPipelineWrite =
   | "none"
   | "ai_run"
@@ -82,4 +116,11 @@ export const OBSERVATION_REASSESS_PIPELINE_STAGES = [
 
 export function observationReassessPipelineStageIds(): string[] {
   return OBSERVATION_REASSESS_PIPELINE_STAGES.map((stage) => stage.id);
+}
+
+export function observationReassessPipelineWriteTargetNames(): ObservationReassessPipelineWriteTarget[] {
+  return [
+    ...OBSERVATION_REASSESS_DIRECT_SQL_WRITE_TARGETS,
+    ...OBSERVATION_REASSESS_DELEGATED_WRITE_TARGETS,
+  ];
 }
