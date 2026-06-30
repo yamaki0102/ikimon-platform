@@ -109,6 +109,17 @@ test("map route keeps share-state plumbing in the shell", async () => {
   }
 });
 
+test("map read route stays in its route lane module", () => {
+  const readRoute = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+  const mapReadRoute = readFileSync(new URL("./mapRead.ts", import.meta.url), "utf8");
+
+  assert.match(readRoute, /registerMapReadRoutes\(app\)/);
+  assert.doesNotMatch(readRoute, /app\.get\("\/map"/);
+  assert.match(mapReadRoute, /app\.get\("\/map"/);
+  assert.match(mapReadRoute, /renderMapExplorer/);
+  assert.match(mapReadRoute, /mapExplorerBootScript/);
+});
+
 test("record upload flow lets 60 second videos continue when browser duration metadata is unreadable", () => {
   const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 
