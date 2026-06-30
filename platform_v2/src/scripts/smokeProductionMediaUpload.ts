@@ -425,15 +425,15 @@ function isLocalObservationUploadPath(relativePath: string): boolean {
   return normalized.startsWith("uploads/v2-observations/");
 }
 
-async function deleteCloudflareVideo(state: SmokeState): Promise<void> {
+async function deleteCloudflareVideo(state: SmokeState): Promise<Record<string, unknown> | null> {
   const uid = state.video?.uid;
-  if (!uid) return;
+  if (!uid) return null;
   const cfg = loadConfig().cloudflare;
   if (!cfg) {
     await appendLog(state.logFile, "warn", "cleanup_cloudflare:skipped", { reason: "cloudflare_config_missing", uid });
-    return;
+    return { uid, skipped: true, reason: "cloudflare_config_missing" };
   }
-  await timed(state, "info", "cleanup_cloudflare", { uid }, async () => {
+  return timed(state, "info", "cleanup_cloudflare", { uid }, async () => {
     const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(cfg.accountId)}/stream/${encodeURIComponent(uid)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${cfg.streamApiToken}` },
@@ -446,9 +446,18 @@ async function deleteCloudflareVideo(state: SmokeState): Promise<void> {
       body = { raw: text.slice(0, 300) };
     }
     await appendLog(state.logFile, "info", "cleanup_cloudflare:response", { status: response.status, body });
+    if (response.status === 405) {
+      const result = { uid, deleted: false, skipped: true, status: response.status, reason: "cloudflare_delete_auth_scheme_not_allowed" };
+      await appendLog(state.logFile, "warn", "cleanup_cloudflare:skipped", result);
+      return result;
+    }
+    if (response.status === 404) {
+      return { uid, deleted: false, skipped: false, status: response.status, reason: "cloudflare_video_not_found" };
+    }
     if (!response.ok && response.status !== 404) {
       throw new Error(`cloudflare_delete_failed:${response.status}`);
     }
+    return { uid, deleted: true, skipped: false, status: response.status };
   });
 }
 
@@ -592,7 +601,7 @@ async function cleanupDatabaseAndFiles(state: SmokeState, cookie: string): Promi
     client.release();
   }
   summary.legacyJsonRemoved = await removeLegacyJson(state);
-  await deleteCloudflareVideo(state);
+  summary.cloudflareVideo = await deleteCloudflareVideo(state);
   return summary;
 }
 
