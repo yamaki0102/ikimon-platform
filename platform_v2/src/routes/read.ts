@@ -142,13 +142,12 @@ import {
   type RecordPageNearbyGuideShelf,
 } from "../services/guideUnlocks.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
-import { getFixedPointStation } from "../services/fixedPointStation.js";
-import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
 import { registerMapReadRoutes } from "./mapRead.js";
 import { registerGuideReadRoutes } from "./guideRead.js";
 import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
 import { registerPlaceFeelingDemoReadRoutes } from "./placeFeelingDemoRead.js";
 import { registerPublicEntryReadRoutes } from "./publicEntryRead.js";
+import { registerPlaceStationReadRoutes } from "./placeStationRead.js";
 import {
   PLACE_FEELING_TAG_LIMIT,
   PLACE_FEELING_TAGS,
@@ -21417,33 +21416,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
-  app.get<{ Params: { placeId: string } }>("/places/:placeId/station", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const station = await getFixedPointStation(decodeURIComponent(request.params.placeId)).catch(() => null);
-    if (!station) {
-      reply.code(404).type("text/html; charset=utf-8");
-      return layout(
-        basePath,
-        "定点ページ | ikimon",
-        stateCard("定点ページが見つかりません", "この場所の記録をまだ束ねられません", "観察詳細やマップから、同じ場所の再記録を作ると定点ページが育ちます。"),
-        "記録",
-        undefined,
-        undefined,
-        appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(request.params.placeId)}/station`), lang),
-      );
-    }
-    reply.type("text/html; charset=utf-8");
-    return layout(
-      basePath,
-      `定点ページ | ${station.place.name} | ikimon`,
-      renderFixedPointStationBody(station, basePath),
-      "記録",
-      undefined,
-      FIXED_POINT_STATION_STYLES,
-      appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(station.place.placeId)}/station`), lang),
-    );
-  });
+  await registerPlaceStationReadRoutes(app);
 
   app.get("/profile", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
