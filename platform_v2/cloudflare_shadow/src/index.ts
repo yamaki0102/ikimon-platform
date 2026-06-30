@@ -1286,6 +1286,30 @@ function stripPublicLangPrefix(pathname: string): string {
   return stripped === "" ? "/" : stripped;
 }
 
+function publicEntryRedirectResponse(url: URL, nativePathname: string): Response | null {
+  const view = nativePathname === "/explore"
+    ? "public"
+    : nativePathname === "/notes"
+      ? "mine"
+      : null;
+  if (!view) return null;
+
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  const query = new URLSearchParams();
+  query.set("view", view);
+  for (const [key, value] of url.searchParams.entries()) {
+    if (key !== "lang") query.append(key, value);
+  }
+  return new Response(null, {
+    status: 308,
+    headers: {
+      location: `/${lang}/records?${query.toString()}`,
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "public-entry-redirect"
+    }
+  });
+}
+
 type ShadowMapGuideSpot = {
   id: string;
   title: string;
@@ -2071,6 +2095,11 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/app_oauth_start.php") {
         return handleAppOAuthStart(request, env);
+      }
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const publicEntryRedirect = publicEntryRedirectResponse(url, nativePathname);
+        if (publicEntryRedirect) return publicEntryRedirect;
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {

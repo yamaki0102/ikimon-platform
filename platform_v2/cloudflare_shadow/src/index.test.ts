@@ -15713,6 +15713,53 @@ test("production original UI html serves localized auth and guest profile shells
   }
 });
 
+test("production public entry redirects are native and do not require materialized html", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    for (const check of [
+      {
+        url: "https://ikimon.life/ja/explore?q=tonbo",
+        location: "/ja/records?view=public&q=tonbo"
+      },
+      {
+        url: "https://ikimon.life/ja/notes",
+        location: "/ja/records?view=mine"
+      },
+      {
+        url: "https://ikimon.life/explore?lang=en&q=dragonfly",
+        location: "/en/records?view=public&q=dragonfly"
+      },
+      {
+        url: "https://ikimon.life/notes?lang=pt-BR&source=pwa",
+        location: "/pt-br/records?view=mine&source=pwa"
+      }
+    ]) {
+      const response = await worker.fetch(new Request(check.url), productionEnv);
+      assert.equal(response.status, 308, check.url);
+      assert.equal(response.headers.get("location"), check.location, check.url);
+      assert.equal(response.headers.get("cache-control"), "no-store", check.url);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "public-entry-redirect", check.url);
+    }
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production home collapses materialized header actions into a hamburger menu", async () => {
   const { env } = createEnv();
   const productionEnv = {
