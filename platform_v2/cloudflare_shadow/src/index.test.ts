@@ -14907,7 +14907,7 @@ test("production area sketch draft boundary keeps public visibility and near-thr
   }
 });
 
-test("production area sketch public release gate blocks school children and private-land contexts", async () => {
+test("production area sketch public release gate blocks school children private-land and sensitive-place contexts", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
     ...env,
@@ -14923,7 +14923,7 @@ test("production area sketch public release gate blocks school children and priv
     admin_level: null,
     name: "小学校となりの私有地ビオトープ",
     name_kana: null,
-    summary: "児童が活動する場所に近く、所有者確認が必要な区域",
+    summary: "児童が活動する場所に近く、希少種の営巣地にも接する所有者確認が必要な区域",
     prefecture: "静岡県",
     city: "浜松市",
     public_cell: "35.01,138.38",
@@ -14983,8 +14983,8 @@ test("production area sketch public release gate blocks school children and priv
           { category: "yard_experience_space", ratio: 0.2 },
           { category: "building", ratio: 0.3 }
         ],
-        owner_assertion: { note: "子どもの活動範囲に近いので公開資料にはしない" },
-        evidence_payload: { source: "private_land_contract", note: "私有地の境界確認前" }
+        owner_assertion: { note: "子どもの活動範囲と自宅近辺に近いので公開資料にはしない" },
+        evidence_payload: { source: "private_land_contract", note: "私有地の境界確認前。絶滅危惧種の保護区に近い。" }
       })
     }), productionEnv);
     const createPayload = await create.json() as any;
@@ -14996,7 +14996,7 @@ test("production area sketch public release gate blocks school children and priv
     assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.publicSummaryAllowed, "blocked_until_redacted_review");
     assert.deepEqual(
       new Set(createPayload.assessment.resultPayload.publicReleaseGate.matchedContexts),
-      new Set(["school_or_children", "private_land"])
+      new Set(["school_or_children", "private_land", "sensitive_place"])
     );
     assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.requiredReview.includes("human_privacy_review"), true);
 
@@ -15006,7 +15006,7 @@ test("production area sketch public release gate blocks school children and priv
     assert.equal(stored?.visibility, "private");
     assert.equal(storedResult.publicReleaseGate.status, "blocked_sensitive_context");
     assert.equal(storedResult.publicReleaseGate.publicClaimAllowed, false);
-    assert.deepEqual(new Set(storedAudit.public_release_contexts), new Set(["school_or_children", "private_land"]));
+    assert.deepEqual(new Set(storedAudit.public_release_contexts), new Set(["school_or_children", "private_land", "sensitive_place"]));
     assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
