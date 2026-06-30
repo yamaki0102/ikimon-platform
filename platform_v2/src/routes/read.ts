@@ -130,11 +130,6 @@ import {
   toMapMiniCells,
 } from "../ui/mapMini.js";
 import {
-  MAP_EXPLORER_STYLES,
-  mapExplorerBootScript,
-  renderMapExplorer,
-} from "../ui/mapExplorer.js";
-import {
   OBSERVATION_MEDIA_STYLES,
   REGION_DISPLAY_CONF_MIN,
   REGION_LARGE_AREA_MIN,
@@ -162,6 +157,7 @@ import {
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
+import { registerMapReadRoutes } from "./mapRead.js";
 import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
 import { registerPlaceFeelingDemoReadRoutes } from "./placeFeelingDemoRead.js";
 import {
@@ -23080,38 +23076,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  /* -------------------------------------------------------------- */
-  /* Map (/map) — full Map Explorer (tabs, filters, basemaps, xlinks)*/
-  /* -------------------------------------------------------------- */
-  app.get("/map", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const mapPageCopy = getShortCopy<any>(lang, "public", "read.map");
-
-    const currentYear = new Date().getFullYear();
-    const years: number[] = [];
-    for (let y = currentYear; y >= currentYear - 10; y -= 1) years.push(y);
-
-    reply.type("text/html; charset=utf-8");
-    return renderSiteDocument({
-      basePath,
-      title: mapPageCopy.title,
-      activeNav: mapPageCopy.activeNav,
-      lang,
-      currentPath: appendLangToHref(withBasePath(basePath, "/map"), lang),
-      shellClassName: "shell-bleed shell-map",
-      extraStyles: MAP_EXPLORER_STYLES,
-      // Deliberately no hero: a map page should land on the map, not on
-      // a wall of text. The explorer component carries a tight eyebrow
-      // strip at the top so context is still one line away.
-      // Footer is also hidden — it competes with the canvas for vertical
-      // space and the user has confirmed it isn't useful here.
-      hideFooter: true,
-      body: `${renderMapExplorer({ basePath, lang, years })}
-${mapExplorerBootScript({ basePath, lang })}`,
-      footerNote: mapPageCopy.footerNote,
-    });
-  });
+  await registerMapReadRoutes(app);
 
   app.get("/guide-programs", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
