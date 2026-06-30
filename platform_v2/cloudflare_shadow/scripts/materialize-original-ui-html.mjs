@@ -70,6 +70,7 @@ const corePaths = [
   "/",
   "/demo/place-feeling-tags",
   "/guide",
+  "/lens",
   "/login",
   "/record",
   "/records",
@@ -86,6 +87,7 @@ const corePaths = [
   "/ja/",
   "/ja/demo/place-feeling-tags",
   "/ja/guide",
+  "/ja/lens",
   "/ja/login",
   "/ja/record",
   "/ja/records",
@@ -96,6 +98,7 @@ const corePaths = [
   "/en/",
   "/en/demo/place-feeling-tags",
   "/en/guide",
+  "/en/lens",
   "/en/login",
   "/en/map",
   "/en/profile",
@@ -106,6 +109,7 @@ const corePaths = [
   "/es/",
   "/es/demo/place-feeling-tags",
   "/es/guide",
+  "/es/lens",
   "/es/login",
   "/es/map",
   "/es/profile",
@@ -116,6 +120,7 @@ const corePaths = [
   "/pt-br/",
   "/pt-br/demo/place-feeling-tags",
   "/pt-br/guide",
+  "/pt-br/lens",
   "/pt-br/login",
   "/pt-br/map",
   "/pt-br/profile",
@@ -176,7 +181,7 @@ function renderUrlForPath(pathname) {
     const segment = localizedMatch[1];
     const rest = localizedMatch[2] || "/";
     const lang = segment === "pt-br" ? "pt-BR" : segment;
-    if (["/", "/community/events/new", "/demo/place-feeling-tags", "/guide", "/login", "/map", "/profile", "/profile/settings", "/record", "/records", "/register"].includes(rest)) {
+    if (["/", "/community/events/new", "/demo/place-feeling-tags", "/guide", "/lens", "/login", "/map", "/profile", "/profile/settings", "/record", "/records", "/register"].includes(rest)) {
       return `${rest}?lang=${encodeURIComponent(lang)}`;
     }
   }
