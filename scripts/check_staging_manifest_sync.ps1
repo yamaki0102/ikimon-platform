@@ -53,6 +53,23 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $issues.Add("deploy-cloudflare-staging.yml must not reference the legacy VPS staging lane")
     }
 
+    $legacyWorkflowPath = Join-Path $repoRoot ".github/workflows/deploy-staging.yml"
+    if (Test-Path $legacyWorkflowPath) {
+        $legacyWorkflowText = Get-Content -Raw -Path $legacyWorkflowPath
+
+        if ($legacyWorkflowText -notmatch "legacy_vps_public_browser_checks_retired") {
+            $issues.Add("deploy-staging.yml must declare legacy_vps_public_browser_checks_retired because Cloudflare staging owns staging.ikimon.life/*")
+        }
+
+        if ($legacyWorkflowText -match "RUN_BROWSER_SMOKE=true|RUN_FULL_BROWSER_E2E=true") {
+            $issues.Add("deploy-staging.yml must not re-enable public browser gates; use deploy-cloudflare-staging.yml for staging.ikimon.life browser evidence")
+        }
+
+        if ($legacyWorkflowText -notmatch 'legacy_public_browser_checks_retired=\$LEGACY_PUBLIC_BROWSER_CHECKS_RETIRED') {
+            $issues.Add("deploy-staging.yml must expose legacy_public_browser_checks_retired from the plan job")
+        }
+    }
+
     if ($issues.Count -gt 0) {
         foreach ($issue in $issues) {
             Write-Error $issue
