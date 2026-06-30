@@ -762,6 +762,17 @@ test("public custom domain origin fallback is not registered twice", async () =>
   assert.equal(publicDomainFallbackCalls.length, 1);
 });
 
+test("production legacy PHP public entrypoints cannot use origin fallback", async () => {
+  const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
+  const workerTests = await readFile(path.join(process.cwd(), "src", "index.test.ts"), "utf8");
+
+  assert.match(workerSource, /function isLegacyPhpPublicEntrypointPath\(pathname: string\): boolean/);
+  assert.match(workerSource, /if \(isLegacyPhpPublicEntrypointPath\(url\.pathname\)\) return false;/);
+  assert.match(workerSource, /nativePathname === "\/app_oauth_start\.php"/);
+  assert.match(workerSource, /nativePathname === "\/oauth_callback\.php"/);
+  assert.match(workerTests, /production legacy PHP public entrypoints cannot use origin fallback/);
+});
+
 test("legacy observation event API fallback is retired from Worker source", async () => {
   const workerSource = await readFile(path.join(process.cwd(), "src", "index.ts"), "utf8");
   const script = await readFile(path.join(process.cwd(), "scripts", "d1-migration-boundary-report.mjs"), "utf8");

@@ -13547,6 +13547,69 @@ test("production legacy PHP fallback is an explicit archive bridge", async () =>
   }
 });
 
+test("production legacy PHP public entrypoints cannot use origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE: "enabled"
+  };
+  const originalFetch = globalThis.fetch;
+  const originalError = console.error;
+  const seen: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    seen.push(String(input));
+    return new Response("unexpected legacy php origin fallback", { status: 599 });
+  }) as typeof fetch;
+  console.error = () => {};
+  try {
+    const legacyEntrypoints = [
+      "/index.php",
+      "/post.php",
+      "/about.php",
+      "/explore.php",
+      "/id_workbench.php",
+      "/review_queue.php",
+      "/dashboard.php",
+      "/api/get_events.php",
+      "/ja/post.php",
+      "/legacy/export.php/download"
+    ];
+    for (const path of legacyEntrypoints) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+      assert.notEqual(response.status, 599, path);
+      assert.equal(seen.length, 0, path);
+    }
+
+    const postResponse = await worker.fetch(new Request("https://ikimon.life/post.php", {
+      method: "POST",
+      body: "species=legacy",
+      headers: { "content-type": "application/x-www-form-urlencoded" }
+    }), productionEnv);
+    assert.notEqual(postResponse.status, 599);
+    assert.equal(seen.length, 0);
+
+    const appOauthStart = await worker.fetch(new Request(
+      "https://ikimon.life/app_oauth_start.php?provider=google&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback&install_id=install-legacy-bridge&platform=android"
+    ), productionEnv);
+    assert.notEqual(appOauthStart.status, 599);
+    assert.equal(seen.length, 0);
+
+    const oauthCallback = await worker.fetch(new Request(
+      "https://ikimon.life/oauth_callback.php?provider=google&state=missing-config&code=oauth-code"
+    ), productionEnv);
+    assert.notEqual(oauthCallback.status, 599);
+    assert.equal(seen.length, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalError;
+  }
+});
+
 test("production observation event APIs run location and rally routes on D1 without origin fallback", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
