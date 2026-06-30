@@ -17,6 +17,7 @@ test("production media smoke verifies duplicate post guard", async () => {
   assert.match(source, /const mediaObservationId = state\.visitId/);
   assert.match(source, /verifyObservationDetailPageReady/);
   assert.match(source, /detail_page:poll/);
+  assert.match(source, /cloudflare_delete_auth_scheme_not_allowed/);
   assert.match(source, /const pathname = `\/observations\/\$\{encodeURIComponent\(visitId\)\}\?subject=\$\{encodeURIComponent\(occurrenceId\)\}`/);
   assert.doesNotMatch(source, /encodeURIComponent\(state\.occurrenceId\)}\/photos\/upload/);
   assert.doesNotMatch(source, /observationId: state\.occurrenceId/);
