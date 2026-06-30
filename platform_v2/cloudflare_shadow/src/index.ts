@@ -15361,7 +15361,7 @@ const AREA_SKETCH_CLAIM_BOUNDARY = {
   prohibitedPhrases: ["申請できます", "認定されます", "正式面積", "測量済み", "保証"]
 };
 
-type AreaSketchSensitiveContextKey = "school_or_children" | "private_land" | "sensitive_place";
+type AreaSketchSensitiveContextKey = "school_or_children" | "home_nearby" | "private_land" | "rare_species" | "sensitive_place";
 
 const AREA_SKETCH_SENSITIVE_CONTEXT_PATTERNS: Array<{
   key: AreaSketchSensitiveContextKey;
@@ -15374,14 +15374,24 @@ const AREA_SKETCH_SENSITIVE_CONTEXT_PATTERNS: Array<{
     label: "学校・子どもに関わる場所"
   },
   {
+    key: "home_nearby",
+    pattern: /個人宅|自宅|住宅地|住所|home address|residential/i,
+    label: "自宅近辺・住宅地に関わる場所"
+  },
+  {
     key: "private_land",
-    pattern: /私有地|民有地|個人宅|自宅|住宅地|住所|地番|所有者|private land|private property|home address|residential/i,
-    label: "私有地・住宅地に関わる場所"
+    pattern: /私有地|民有地|地番|所有者|private land|private property/i,
+    label: "私有地に関わる場所"
+  },
+  {
+    key: "rare_species",
+    pattern: /希少種|絶滅危惧|営巣|繁殖地|endangered|nesting|breeding/i,
+    label: "希少種・繁殖地に関わる場所"
   },
   {
     key: "sensitive_place",
-    pattern: /希少種|絶滅危惧|営巣|繁殖地|保護区|避難所|医療機関|福祉施設|sensitive place|sensitive site|endangered|nesting|breeding|shelter|clinic|hospital/i,
-    label: "希少種・保護対象・センシティブ地点"
+    pattern: /保護区|避難所|医療機関|福祉施設|sensitive place|sensitive site|shelter|clinic|hospital/i,
+    label: "保護対象・センシティブ地点"
   }
 ];
 
@@ -15686,7 +15696,7 @@ function areaSketchPublicReleaseGate(
       ? ["human_privacy_review", "boundary_redaction_review", "consent_or_authority_evidence"]
       : ["human_review_before_public_claim"],
     reason: sensitive
-      ? "Area Sketch contains school, child, private-land, rare-species, or sensitive-place context and cannot be used for public claims without redaction and review."
+      ? "Area Sketch contains school, child, home-nearby, private-land, rare-species, or sensitive-place context and cannot be used for public claims without redaction and review."
       : "Area Sketch is a draft diagnostic and cannot become a public claim without human review."
   };
 }

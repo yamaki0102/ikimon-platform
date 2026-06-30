@@ -14909,7 +14909,7 @@ test("production area sketch draft boundary keeps public visibility and near-thr
   }
 });
 
-test("production area sketch public release gate blocks school children private-land and sensitive-place contexts", async () => {
+test("production area sketch public release gate blocks school children home-nearby private-land rare-species and sensitive-place contexts", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
     ...env,
@@ -14986,7 +14986,7 @@ test("production area sketch public release gate blocks school children private-
           { category: "building", ratio: 0.3 }
         ],
         owner_assertion: { note: "子どもの活動範囲と自宅近辺に近いので公開資料にはしない" },
-        evidence_payload: { source: "private_land_contract", note: "私有地の境界確認前。絶滅危惧種の保護区に近い。" }
+        evidence_payload: { source: "private_land_contract", note: "私有地の境界確認前。絶滅危惧種の営巣地と医療機関に近い。" }
       })
     }), productionEnv);
     const createPayload = await create.json() as any;
@@ -14998,7 +14998,7 @@ test("production area sketch public release gate blocks school children private-
     assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.publicSummaryAllowed, "blocked_until_redacted_review");
     assert.deepEqual(
       new Set(createPayload.assessment.resultPayload.publicReleaseGate.matchedContexts),
-      new Set(["school_or_children", "private_land", "sensitive_place"])
+      new Set(["school_or_children", "home_nearby", "private_land", "rare_species", "sensitive_place"])
     );
     assert.equal(createPayload.assessment.resultPayload.publicReleaseGate.requiredReview.includes("human_privacy_review"), true);
 
@@ -15008,7 +15008,7 @@ test("production area sketch public release gate blocks school children private-
     assert.equal(stored?.visibility, "private");
     assert.equal(storedResult.publicReleaseGate.status, "blocked_sensitive_context");
     assert.equal(storedResult.publicReleaseGate.publicClaimAllowed, false);
-    assert.deepEqual(new Set(storedAudit.public_release_contexts), new Set(["school_or_children", "private_land", "sensitive_place"]));
+    assert.deepEqual(new Set(storedAudit.public_release_contexts), new Set(["school_or_children", "home_nearby", "private_land", "rare_species", "sensitive_place"]));
     assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
