@@ -84,6 +84,8 @@ function productionSmokePrefix(): string {
   return process.env.PRODUCTION_SMOKE_UI_PREFIX?.trim() || `smoke-ui-local-${Date.now()}`;
 }
 
+const productionSmokeObservationVisibility = "private" as const;
+
 function productionSmokeCheckpointFile(): string {
   return process.env.PRODUCTION_SMOKE_CHECKPOINT_FILE?.trim() ||
     path.resolve(process.cwd(), "test-results", "production-smoke-checkpoints.jsonl");
@@ -292,6 +294,7 @@ async function postPlaceMemorySmokeRecord(
       observedAt: "2026-05-25T09:00:00.000Z",
       latitude: input.latitude,
       longitude: input.longitude,
+      visibility: productionSmokeObservationVisibility,
       localityNote: `production place memory smoke ${prefix}`,
       note: `production place memory smoke record ${prefix} ${suffix}`,
       taxon: { vernacularName: "クスノキ", scientificName: "Cinnamomum camphora", rank: "species" },
@@ -999,6 +1002,7 @@ test.describe("production candidate smoke", () => {
           observedAt,
           latitude: 34.7108,
           longitude: 137.7261,
+          visibility: productionSmokeObservationVisibility,
           localityNote: `連理の木の下 ${prefix}`,
           note: `production place event smoke record ${prefix}`,
           taxon: { vernacularName: "クスノキ", scientificName: "Cinnamomum camphora", rank: "species" },
@@ -1045,6 +1049,7 @@ test.describe("production candidate smoke", () => {
           observedAt,
           latitude: 34.71079,
           longitude: 137.72608,
+          visibility: productionSmokeObservationVisibility,
           localityNote: `連理の木の下 ${prefix}`,
           note: `production place event smoke field scan ${prefix}`,
           taxon: { vernacularName: "地点スキャン", scientificName: null, rank: "unknown" },
