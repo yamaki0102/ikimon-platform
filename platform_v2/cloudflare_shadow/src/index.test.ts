@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { deflateSync } from "node:zlib";
 import * as bcrypt from "bcryptjs";
@@ -15840,6 +15841,32 @@ test("production guide read entry routes serve localized materialized html witho
     assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("materialized original UI core entry registry is single-sourced from the Worker", async () => {
+  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const materializerSource = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
+  const parseArray = (source: string, constName: string): string[] => {
+    const match = source.match(new RegExp(`const\\s+${constName}\\s*=\\s*\\[\\s*([\\s\\S]*?)\\s*\\]\\s*as const;`));
+    assert.ok(match, `${constName} should be a Worker-owned const array`);
+    return [...match[1]!.matchAll(/"([^"]+)"/g)].map((entry) => entry[1]!);
+  };
+
+  const corePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_CORE_PATHS");
+  const localizablePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_LOCALIZABLE_PATHS");
+
+  assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_CORE_PATHS"\)/);
+  assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
+  assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
+  assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
+  assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);
+
+  for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/ja/guide-programs", "/ja/my-guides"]) {
+    assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
+  }
+  for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/map"]) {
+    assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
   }
 });
 

@@ -1650,21 +1650,39 @@ const SHADOW_MAP_GUIDE_SPOTS: ShadowMapGuideSpot[] = [
     sourceLinks: [{ label: "浜松市: 浜松地域遺産認定制度", url: HAMAMATSU_CITY_HERITAGE_URL }]
   }
 ];
-const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
+const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/",
   "/demo/place-feeling-tags",
   "/guide",
   "/guide-programs",
   "/lens",
+  "/login",
   "/record",
   "/records",
-  "/my-guides",
+  "/register",
   "/map",
+  "/my-guides",
   "/app-refresh",
-  "/login",
   "/profile",
   "/profile/settings",
-  "/en",
+  "/community/events/new",
+  "/ja/community/events/new",
+  "/en/community/events/new",
+  "/es/community/events/new",
+  "/pt-br/community/events/new",
+  "/ja/",
+  "/ja/demo/place-feeling-tags",
+  "/ja/guide",
+  "/ja/guide-programs",
+  "/ja/lens",
+  "/ja/login",
+  "/ja/record",
+  "/ja/records",
+  "/ja/register",
+  "/ja/map",
+  "/ja/my-guides",
+  "/ja/profile",
+  "/ja/profile/settings",
   "/en/",
   "/en/demo/place-feeling-tags",
   "/en/guide",
@@ -1672,13 +1690,12 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/en/lens",
   "/en/login",
   "/en/map",
+  "/en/my-guides",
   "/en/profile",
   "/en/profile/settings",
+  "/en/register",
   "/en/record",
   "/en/records",
-  "/en/my-guides",
-  "/en/register",
-  "/es",
   "/es/",
   "/es/demo/place-feeling-tags",
   "/es/guide",
@@ -1686,13 +1703,12 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/es/lens",
   "/es/login",
   "/es/map",
+  "/es/my-guides",
   "/es/profile",
   "/es/profile/settings",
+  "/es/register",
   "/es/record",
   "/es/records",
-  "/es/my-guides",
-  "/es/register",
-  "/pt-br",
   "/pt-br/",
   "/pt-br/demo/place-feeling-tags",
   "/pt-br/guide",
@@ -1700,13 +1716,37 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/pt-br/lens",
   "/pt-br/login",
   "/pt-br/map",
+  "/pt-br/my-guides",
   "/pt-br/profile",
   "/pt-br/profile/settings",
-  "/pt-br/record",
-  "/pt-br/records",
-  "/pt-br/my-guides",
   "/pt-br/register",
-  "/register",
+  "/pt-br/record",
+  "/pt-br/records"
+] as const;
+
+const ORIGINAL_UI_HTML_LOCALIZABLE_PATHS = [
+  "/",
+  "/community/events/new",
+  "/demo/place-feeling-tags",
+  "/guide",
+  "/guide-programs",
+  "/lens",
+  "/login",
+  "/map",
+  "/my-guides",
+  "/profile",
+  "/profile/settings",
+  "/record",
+  "/records",
+  "/register"
+] as const;
+const ORIGINAL_UI_HTML_LOCALIZABLE_PATH_SET = new Set<string>(ORIGINAL_UI_HTML_LOCALIZABLE_PATHS);
+
+const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
+  ...ORIGINAL_UI_HTML_CORE_PATHS,
+  "/en",
+  "/es",
+  "/pt-br",
   "/learn",
   "/community",
   "/community/events",
@@ -17651,22 +17691,7 @@ function langQueryToUrlSegment(value: string | null): string | null {
 
 function localizedMaterializedPath(pathname: string, langSegment: string): string | null {
   if (pathname.startsWith(`/${langSegment}/`) || pathname === `/${langSegment}`) return pathname;
-  const localizable = new Set([
-    "/",
-    "/demo/place-feeling-tags",
-    "/guide",
-    "/guide-programs",
-    "/lens",
-    "/login",
-    "/map",
-    "/my-guides",
-    "/profile",
-    "/profile/settings",
-    "/record",
-    "/records",
-    "/register"
-  ]);
-  if (!localizable.has(pathname)) return null;
+  if (!ORIGINAL_UI_HTML_LOCALIZABLE_PATH_SET.has(pathname)) return null;
   if (pathname === "/") return `/${langSegment}`;
   return `/${langSegment}${pathname}`;
 }

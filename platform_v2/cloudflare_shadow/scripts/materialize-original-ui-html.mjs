@@ -66,81 +66,9 @@ const r2PutMaxAttempts = 4;
 
 process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html");
 
-const corePaths = [
-  "/",
-  "/demo/place-feeling-tags",
-  "/guide",
-  "/guide-programs",
-  "/lens",
-  "/login",
-  "/record",
-  "/records",
-  "/register",
-  "/map",
-  "/my-guides",
-  "/profile",
-  "/profile/settings",
-  "/app-refresh",
-  "/community/events/new",
-  "/ja/community/events/new",
-  "/en/community/events/new",
-  "/es/community/events/new",
-  "/pt-br/community/events/new",
-  "/ja/",
-  "/ja/demo/place-feeling-tags",
-  "/ja/guide",
-  "/ja/guide-programs",
-  "/ja/lens",
-  "/ja/login",
-  "/ja/record",
-  "/ja/records",
-  "/ja/register",
-  "/ja/map",
-  "/ja/my-guides",
-  "/ja/profile",
-  "/ja/profile/settings",
-  "/en/",
-  "/en/demo/place-feeling-tags",
-  "/en/guide",
-  "/en/guide-programs",
-  "/en/lens",
-  "/en/login",
-  "/en/map",
-  "/en/my-guides",
-  "/en/profile",
-  "/en/profile/settings",
-  "/en/register",
-  "/en/record",
-  "/en/records",
-  "/es/",
-  "/es/demo/place-feeling-tags",
-  "/es/guide",
-  "/es/guide-programs",
-  "/es/lens",
-  "/es/login",
-  "/es/map",
-  "/es/my-guides",
-  "/es/profile",
-  "/es/profile/settings",
-  "/es/register",
-  "/es/record",
-  "/es/records",
-  "/pt-br/",
-  "/pt-br/demo/place-feeling-tags",
-  "/pt-br/guide",
-  "/pt-br/guide-programs",
-  "/pt-br/lens",
-  "/pt-br/login",
-  "/pt-br/map",
-  "/pt-br/my-guides",
-  "/pt-br/profile",
-  "/pt-br/profile/settings",
-  "/pt-br/register",
-  "/pt-br/record",
-  "/pt-br/records"
-];
-
 const stagingOnlyAdminPreviewPaths = [];
+const corePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS");
+const localizedRenderPaths = new Set(await readWorkerStringArray("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"));
 
 const staticAssetPaths = [
   "/offline.html",
@@ -191,7 +119,7 @@ function renderUrlForPath(pathname) {
     const segment = localizedMatch[1];
     const rest = localizedMatch[2] || "/";
     const lang = segment === "pt-br" ? "pt-BR" : segment;
-    if (["/", "/community/events/new", "/demo/place-feeling-tags", "/guide", "/guide-programs", "/lens", "/login", "/map", "/my-guides", "/profile", "/profile/settings", "/record", "/records", "/register"].includes(rest)) {
+    if (localizedRenderPaths.has(rest)) {
       return `${rest}?lang=${encodeURIComponent(lang)}`;
     }
   }
@@ -234,6 +162,20 @@ function staticContentType(pathname) {
   return "application/octet-stream";
 }
 
+async function readWorkerStringArray(constName) {
+  const source = await readFile(workerSourcePath, "utf8");
+  const escapedName = constName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = source.match(new RegExp(`const\\s+${escapedName}\\s*=\\s*\\[\\s*([\\s\\S]*?)\\s*\\]\\s*as const;`));
+  if (!match) {
+    throw new Error(`Could not find ${constName} in Worker source.`);
+  }
+  const paths = [];
+  for (const pathMatch of match[1].matchAll(/"([^"]+)"/g)) {
+    paths.push(normalizePublicPath(pathMatch[1]));
+  }
+  return [...new Set(paths)];
+}
+
 async function readAllOriginalUiStaticPaths() {
   const source = await readFile(workerSourcePath, "utf8");
   const match = source.match(/const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*([\s\S]*?)\s*\]\);/);
@@ -241,6 +183,9 @@ async function readAllOriginalUiStaticPaths() {
     throw new Error("Could not find ORIGINAL_UI_HTML_STATIC_PATHS in Worker source.");
   }
   const paths = [];
+  if (match[1].includes("...ORIGINAL_UI_HTML_CORE_PATHS")) {
+    paths.push(...await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS"));
+  }
   for (const pathMatch of match[1].matchAll(/"([^"]+)"/g)) {
     paths.push(normalizePublicPath(pathMatch[1]));
   }
