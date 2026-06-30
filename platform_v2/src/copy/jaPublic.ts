@@ -43,4 +43,23 @@ export const JA_PUBLIC_INTERNAL_JARGON = [
   "field loop",
 ] as const;
 
+export const JA_PUBLIC_INTERNAL_AI_BOUNDARY_TERMS = [
+  "ai_judgement",
+  "authority_reviewed",
+  "compatibility",
+  "evidence_tier",
+  "migration",
+  "origin fallback",
+  "pipeline",
+  "public claim",
+  "public_claim",
+  "quality_grade",
+  "read model",
+  "read-model",
+  "reassess",
+  "reviewed occurrence",
+  "reviewed_occurrence",
+  "source_payload",
+] as const;
+
 export const JA_PUBLIC_SHARED_COPY = getShortCopy<JaPublicSharedCopy>("ja", "shared", "publicShared");

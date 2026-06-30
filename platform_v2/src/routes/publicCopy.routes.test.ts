@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { JA_PUBLIC_INTERNAL_JARGON } from "../copy/jaPublic.js";
+import { JA_PUBLIC_INTERNAL_AI_BOUNDARY_TERMS, JA_PUBLIC_INTERNAL_JARGON } from "../copy/jaPublic.js";
 import { buildApp } from "../app.js";
 import { recordsPostHrefForView, renderHomePageHtml } from "./read.js";
 import type { HomeSnapshot } from "../services/readModels.js";
@@ -45,6 +45,31 @@ const shallowJaRoutes = [
   "/contact?lang=ja",
 ];
 
+const publicAiBoundaryRoutes = [
+  ...shallowJaRoutes,
+  "/learn?lang=ja",
+  "/learn/glossary?lang=ja",
+  "/learn/methodology?lang=ja",
+  "/learn/terms/ai-candidate?lang=ja",
+  "/for-business?lang=ja",
+  "/for-business/status?lang=ja",
+  "/learn/updates?lang=ja",
+];
+
+function visibleTextOnly(html: string): string {
+  return html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z0-9#]+;/gi, " ")
+    .replace(/\s+/g, " ");
+}
+
+function literalPattern(term: string): RegExp {
+  return new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+}
+
 test("shallow public ja routes avoid internal jargon", async () => {
   const app = buildApp();
   try {
@@ -56,6 +81,22 @@ test("shallow public ja routes avoid internal jargon", async () => {
         assert.doesNotMatch(visibleBody, new RegExp(jargon, "i"), `${url} should not include ${jargon}`);
       }
       assert.doesNotMatch(visibleBody, /AI が自動で(決め|確定)/, `${url} should keep AI as a hint`);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("public ja rendered copy keeps AI review internals out of reader-facing text", async () => {
+  const app = buildApp();
+  try {
+    for (const url of publicAiBoundaryRoutes) {
+      const response = await app.inject({ method: "GET", url, headers: { accept: "text/html" } });
+      assert.equal(response.statusCode, 200, `${url} should render`);
+      const visibleText = visibleTextOnly(response.body);
+      for (const term of JA_PUBLIC_INTERNAL_AI_BOUNDARY_TERMS) {
+        assert.doesNotMatch(visibleText, literalPattern(term), `${url} should not include ${term}`);
+      }
     }
   } finally {
     await app.close();
