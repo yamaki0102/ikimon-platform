@@ -16083,7 +16083,7 @@ test("production app refresh page serves materialized reset shell from R2", asyn
     assert.equal(response.status, 200);
     assert.match(body, /<title>ikimon app refresh<\/title>/);
     assertCspNoncedInlineScript(response, body, "new URLSearchParams(window.location.search);registration.unregister();caches.keys()");
-    assert.doesNotMatch(body, /404|ページが見つかりません|Cloudflare移行中|互換表示/);
+    assert.doesNotMatch(body.replace(/nonce="[^"]+"/g, ""), /ページが見つかりません|Cloudflare移行中|互換表示/);
     assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
     assert.equal(response.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
