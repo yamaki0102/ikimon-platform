@@ -34,6 +34,7 @@ type SmokeState = {
     duplicateVisitId?: string;
     duplicateObservationId?: string;
     sameVisit?: boolean;
+    reused?: boolean;
     matchingVisitCount?: number;
   };
   photo?: {
@@ -325,6 +326,7 @@ async function verifyDuplicateGuard(state: SmokeState, observedAt: string, clien
   const pool = getPool();
   const userId = state.userId ?? "";
   const clientSubmissionId = state.duplicateGuard?.clientSubmissionId ?? "";
+  const httpReused = state.duplicateGuard?.sameVisit === true && state.duplicateGuard?.reused === true;
   const result = await timed(state, "info", "db_duplicate_guard_verify", { userId, clientSubmissionId }, async () => {
     const [idempotency, matchingVisits] = await Promise.all([
       pool.query<{ c: string }>(
@@ -361,6 +363,13 @@ async function verifyDuplicateGuard(state: SmokeState, observedAt: string, clien
     ...(state.duplicateGuard ?? { clientSubmissionId }),
     matchingVisitCount: result.matchingVisitCount,
   };
+  if (httpReused && result.idempotencyCount === 0 && result.matchingVisitCount === 0) {
+    await appendLog(state.logFile, "info", "db_duplicate_guard_verify:skipped_d1_native", {
+      reason: "http_idempotency_reused_without_legacy_postgres_rows",
+      clientSubmissionId,
+    });
+    return;
+  }
   if (result.idempotencyCount !== 1) {
     throw new Error(`idempotency_duplicate_count_missing:${result.idempotencyCount}`);
   }
@@ -433,11 +442,22 @@ async function removeLegacyJson(state: SmokeState): Promise<number> {
   });
 }
 
-async function cleanupDatabaseAndFiles(state: SmokeState): Promise<Record<string, unknown>> {
+async function hideNativeObservationForCleanup(state: SmokeState, cookie: string): Promise<Record<string, unknown>> {
+  if (!state.visitId) return { skipped: "visit_id_missing" };
+  try {
+    const response = await requestJson(state, "POST", `/api/v1/observations/${encodeURIComponent(state.visitId)}/hide`, {}, { cookie });
+    return { status: response.status, body: publicSummary(response.body) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function cleanupDatabaseAndFiles(state: SmokeState, cookie: string): Promise<Record<string, unknown>> {
   const config = loadConfig();
   const pool = getPool();
   const client = await pool.connect();
   const summary: Record<string, unknown> = {};
+  summary.nativeHide = await hideNativeObservationForCleanup(state, cookie);
   try {
     await timed(state, "info", "cleanup_db", { fixturePrefix: state.fixturePrefix }, async () => {
       await client.query("begin");
@@ -446,6 +466,11 @@ async function cleanupDatabaseAndFiles(state: SmokeState): Promise<Record<string
         [state.email ?? "", state.userId ?? ""],
       );
       if (targetUsers.rows.length !== 1) {
+        if (targetUsers.rows.length === 0 && isRecord(summary.nativeHide) && !summary.nativeHide.error) {
+          await client.query("rollback");
+          summary.dbSkipped = "legacy_postgres_rows_not_found_cloudflare_native";
+          return;
+        }
         throw new Error(`cleanup_expected_one_user:${targetUsers.rows.length}`);
       }
       const userIds = targetUsers.rows.map((row) => row.user_id);
@@ -458,6 +483,11 @@ async function cleanupDatabaseAndFiles(state: SmokeState): Promise<Record<string
         [`${state.fixturePrefix}%`, userIds, `%${state.fixturePrefix}%`],
       );
       if (targetVisits.rows.length !== 1) {
+        if (targetVisits.rows.length === 0 && isRecord(summary.nativeHide) && !summary.nativeHide.error) {
+          await client.query("rollback");
+          summary.dbSkipped = "legacy_postgres_visit_not_found_cloudflare_native";
+          return;
+        }
         throw new Error(`cleanup_expected_one_visit:${targetVisits.rows.length}`);
       }
       const visitIds = targetVisits.rows.map((row) => row.visit_id);
@@ -630,6 +660,9 @@ async function main(): Promise<void> {
     if (!isRecord(duplicateObservation.body)) throw new Error("duplicate_observation_response_invalid");
     state.duplicateGuard.duplicateVisitId = stringField(duplicateObservation.body.visitId);
     state.duplicateGuard.sameVisit = state.duplicateGuard.duplicateVisitId === state.visitId;
+    state.duplicateGuard.reused = isRecord(duplicateObservation.body.idempotency)
+      ? duplicateObservation.body.idempotency.reused === true
+      : false;
     if (!state.duplicateGuard.sameVisit) {
       throw new Error(`duplicate_upsert_created_new_visit:${state.duplicateGuard.duplicateVisitId}`);
     }
@@ -689,7 +722,7 @@ async function main(): Promise<void> {
     await verifyDuplicateGuard(state, observedAt, clientPhotoHash);
 
     if (options.cleanup) {
-      state.cleanup = await cleanupDatabaseAndFiles(state);
+      state.cleanup = await cleanupDatabaseAndFiles(state, cookie);
     } else {
       await appendLog(state.logFile, "warn", "cleanup:skipped", { fixturePrefix: state.fixturePrefix });
     }

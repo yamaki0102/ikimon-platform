@@ -20158,6 +20158,104 @@ async function attachVideoAssetToObservation(input: {
   ]);
 }
 
+type LegacyObservationIdempotencyRow = {
+  user_id: string;
+  visit_id: string | null;
+  occurrence_id: string | null;
+  occurrence_ids: string | null;
+  place_id: string | null;
+  request_fingerprint: string;
+  write_status: string;
+};
+
+function normalizeCompatibleClientSubmissionId(value: unknown): string | null {
+  const text = normalizeOptionalText(value);
+  if (!text) return null;
+  if (text.length > 180) {
+    throw new HttpError(400, "client_submission_id_too_long");
+  }
+  if (!/^[A-Za-z0-9._:-]+$/.test(text)) {
+    throw new HttpError(400, "client_submission_id_invalid");
+  }
+  return text;
+}
+
+function parseLegacyOccurrenceIds(raw: string | null | undefined, fallback: string): string[] {
+  if (!raw) return [fallback];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [fallback];
+    const ids = parsed.filter((id): id is string => typeof id === "string" && id.trim() !== "");
+    return ids.length > 0 ? ids : [fallback];
+  } catch {
+    return [fallback];
+  }
+}
+
+async function legacyObservationRequestFingerprint(input: LegacyObservationUpsertInput): Promise<string> {
+  const subjects = (input.subjects ?? []).map((subject) => ({
+    scientificName: normalizeOptionalText(subject.scientificName),
+    vernacularName: normalizeOptionalText(subject.vernacularName),
+    rank: normalizeOptionalText(subject.rank),
+    isPrimary: Boolean(subject.isPrimary)
+  }));
+  const clientPhotoHashes = Array.isArray(input.sourcePayload?.client_photo_sha256s)
+    ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
+    : null;
+  return sha256Hex(textToArrayBuffer(stableJson({
+    userId: input.userId,
+    observedAt: input.observedAt,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    siteId: normalizeOptionalText(input.siteId),
+    siteName: normalizeOptionalText(input.siteName),
+    municipality: normalizeOptionalText(input.municipality),
+    prefecture: normalizeOptionalText(input.prefecture),
+    clientPhotoHashes,
+    subjects,
+    taxon: input.taxon ?? null
+  })));
+}
+
+function buildLegacyCompatibleObservationResponse(input: {
+  visitId: string;
+  occurrenceId: string;
+  occurrenceIds: string[];
+  placeId: string;
+  placeName: string;
+  taxonLabel: string | null;
+  clientSubmissionId: string | null;
+  idempotencyReused: boolean;
+  placeMemory?: unknown;
+  placeMemorySample?: unknown;
+}, source: LegacyObservationUpsertInput) {
+  return {
+    ok: true,
+    visitId: input.visitId,
+    occurrenceId: input.occurrenceId,
+    occurrenceIds: input.occurrenceIds,
+    placeId: input.placeId,
+    impact: {
+      placeName: input.placeName,
+      visitCount: 1,
+      previousObservedAt: null,
+      focusLabel: input.taxonLabel,
+      captureState: normalizeOptionalText(source.sourcePayload?.quick_capture_state) ?? null
+    },
+    compatibility: {
+      attempted: false,
+      succeeded: false
+    },
+    idempotency: input.clientSubmissionId ? {
+      clientSubmissionId: input.clientSubmissionId,
+      reused: input.idempotencyReused
+    } : undefined,
+    placeMemory: input.placeMemory ?? null,
+    placeMemorySample: input.placeMemorySample ?? [],
+    contributionReceipts: buildLegacyContributionReceipts(input.visitId, input.occurrenceId, input.occurrenceIds.length, input.placeName, source)
+  };
+}
+
 async function upsertLegacyCompatibleObservation(request: Request, env: Env): Promise<Response> {
   const input = await readJson<LegacyObservationUpsertInput>(request);
   if (env.ENVIRONMENT === "production") {
@@ -20176,6 +20274,67 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     throw new HttpError(400, "missing_location");
   }
   assertNonEmpty(input.observedAt, "observedAt");
+
+  const clientSubmissionId = normalizeCompatibleClientSubmissionId(input.clientSubmissionId);
+  const idempotencyFingerprint = clientSubmissionId
+    ? await legacyObservationRequestFingerprint(input)
+    : null;
+  if (clientSubmissionId && idempotencyFingerprint) {
+    const inserted = await env.OBS_DB.prepare(
+      `INSERT OR IGNORE INTO observation_write_idempotency (
+         client_submission_id, user_id, request_fingerprint, write_status, source_payload,
+         created_at, updated_at, last_seen_at
+       ) VALUES (?, ?, ?, 'in_progress', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      clientSubmissionId,
+      input.userId,
+      idempotencyFingerprint,
+      JSON.stringify({
+        source: "cloudflare_observation_write",
+        observation_id: normalizeOptionalId(input.observationId),
+        client_photo_sha256s: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+          ? input.sourcePayload?.client_photo_sha256s.filter((value): value is string => typeof value === "string")
+          : []
+      })
+    ).run() as { meta?: { changes?: number } };
+    if (inserted.meta?.changes === 0) {
+      const existing = await env.OBS_DB.prepare(
+        `SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status
+           FROM observation_write_idempotency
+          WHERE client_submission_id = ?`
+      ).bind(clientSubmissionId).first<LegacyObservationIdempotencyRow>();
+      if (!existing || existing.user_id !== input.userId || existing.request_fingerprint !== idempotencyFingerprint) {
+        return json({ ok: false, error: "client_submission_id_conflict" }, 409);
+      }
+      if (!existing.visit_id) {
+        return json({ ok: false, error: "duplicate_submission_in_progress" }, 409);
+      }
+      const occurrenceId = normalizeOptionalId(existing.occurrence_id) ?? `occ:${existing.visit_id}:0`;
+      const occurrenceIds = parseLegacyOccurrenceIds(existing.occurrence_ids, occurrenceId);
+      await env.OBS_DB.prepare(
+        `UPDATE observation_write_idempotency
+            SET duplicate_count = duplicate_count + 1,
+                last_seen_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE client_submission_id = ?`
+      ).bind(clientSubmissionId).run();
+      const placeId = normalizeOptionalId(existing.place_id) ?? `place:${blurLocation(input.latitude, input.longitude)}`;
+      const placeName = normalizeOptionalText(input.siteName)
+        ?? normalizeOptionalText(input.municipality)
+        ?? normalizeOptionalText(input.prefecture)
+        ?? "unknown place";
+      return json(buildLegacyCompatibleObservationResponse({
+        visitId: existing.visit_id,
+        occurrenceId,
+        occurrenceIds,
+        placeId,
+        placeName,
+        taxonLabel: resolveLegacyTaxonLabel(input),
+        clientSubmissionId,
+        idempotencyReused: true
+      }, input), 200);
+    }
+  }
 
   const draftId = newId("draft");
   const visitId = normalizeOptionalId(input.observationId) ?? newId("obs");
@@ -20291,6 +20450,17 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     env.OBS_DB.prepare(
       "UPDATE draft_observations SET processing_state = 'finalized', finalized_at = CURRENT_TIMESTAMP WHERE draft_id = ?"
     ).bind(draftId),
+    ...(clientSubmissionId ? [env.OBS_DB.prepare(
+      `UPDATE observation_write_idempotency
+          SET visit_id = ?,
+              occurrence_id = ?,
+              occurrence_ids = ?,
+              place_id = ?,
+              write_status = 'succeeded',
+              updated_at = CURRENT_TIMESTAMP,
+              last_seen_at = CURRENT_TIMESTAMP
+        WHERE client_submission_id = ?`
+    ).bind(visitId, occurrenceId, JSON.stringify(occurrenceIds), placeId, clientSubmissionId)] : []),
     env.OBS_DB.prepare(
       `INSERT INTO observation_data_rights
          (visit_id, occurrence_id, record_consent, research_use_consent, enterprise_report_consent,
@@ -20385,31 +20555,18 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     taxonLabel
   });
 
-  return json({
-    ok: true,
+  return json(buildLegacyCompatibleObservationResponse({
     visitId,
     occurrenceId,
     occurrenceIds,
     placeId,
-    impact: {
-      placeName,
-      visitCount: 1,
-      previousObservedAt: null,
-      focusLabel: taxonLabel,
-      captureState: normalizeOptionalText(input.sourcePayload?.quick_capture_state) ?? null
-    },
-    compatibility: {
-      attempted: false,
-      succeeded: false
-    },
-    idempotency: input.clientSubmissionId ? {
-      clientSubmissionId: input.clientSubmissionId,
-      reused: false
-    } : undefined,
+    placeName,
+    taxonLabel,
+    clientSubmissionId,
+    idempotencyReused: false,
     placeMemory: placeMemory.result,
     placeMemorySample: placeMemory.sample,
-    contributionReceipts: buildLegacyContributionReceipts(visitId, occurrenceId, occurrenceIds.length, placeName, input)
-  }, 201);
+  }, input), 201);
 }
 
 async function upsertCompatibleWaterRecordIfPresent(

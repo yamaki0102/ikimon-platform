@@ -53,6 +53,22 @@ interface ObservationRow {
   organism_origin?: string | null;
 }
 
+interface ObservationWriteIdempotencyRow {
+  client_submission_id: string;
+  user_id: string;
+  visit_id: string | null;
+  occurrence_id: string | null;
+  occurrence_ids: string;
+  place_id: string | null;
+  request_fingerprint: string;
+  write_status: string;
+  duplicate_count: number;
+  source_payload: string;
+  created_at: string;
+  updated_at: string;
+  last_seen_at: string;
+}
+
 interface ObservationDetailEditEventRow {
   edit_id: string;
   observation_id: string;
@@ -1531,6 +1547,7 @@ class FakeD1 {
   taxonAlertSubscriptions = new Map<string, TaxonAlertSubscriptionRow>();
   drafts = new Map<string, DraftRow>();
   observations = new Map<string, ObservationRow>();
+  observationWriteIdempotency = new Map<string, ObservationWriteIdempotencyRow>();
   observationReactions = new Map<string, ObservationReactionRow>();
   observationIdentifications = new Map<string, ObservationIdentificationRow>();
   observationIdentificationDisputes = new Map<string, ObservationIdentificationDisputeRow>();
@@ -2441,6 +2458,30 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT OR IGNORE INTO observation_write_idempotency")) {
+      const clientSubmissionId = string(v[0]);
+      if (this.db.observationWriteIdempotency.has(clientSubmissionId)) {
+        return { meta: { changes: 0 } };
+      }
+      const now = new Date().toISOString();
+      this.db.observationWriteIdempotency.set(clientSubmissionId, {
+        client_submission_id: clientSubmissionId,
+        user_id: string(v[1]),
+        visit_id: null,
+        occurrence_id: null,
+        occurrence_ids: "[]",
+        place_id: null,
+        request_fingerprint: string(v[2]),
+        write_status: "in_progress",
+        duplicate_count: 0,
+        source_payload: string(v[3]),
+        created_at: now,
+        updated_at: now,
+        last_seen_at: now
+      });
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("INSERT INTO draft_observations")) {
       this.db.drafts.set(string(v[0]), {
         draft_id: string(v[0]),
@@ -2594,6 +2635,26 @@ class FakeStatement {
         emergency_hidden: 0,
         processing_state: "accepted"
       });
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_write_idempotency SET visit_id")) {
+      const row = requireRow(this.db.observationWriteIdempotency, string(v[4]));
+      row.visit_id = string(v[0]);
+      row.occurrence_id = string(v[1]);
+      row.occurrence_ids = string(v[2]);
+      row.place_id = string(v[3]);
+      row.write_status = "succeeded";
+      row.updated_at = new Date().toISOString();
+      row.last_seen_at = row.updated_at;
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE observation_write_idempotency SET duplicate_count")) {
+      const row = requireRow(this.db.observationWriteIdempotency, string(v[0]));
+      row.duplicate_count += 1;
+      row.updated_at = new Date().toISOString();
+      row.last_seen_at = row.updated_at;
       return {};
     }
 
@@ -4171,6 +4232,19 @@ class FakeStatement {
 
     if (normalized.startsWith("SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng, storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json FROM fieldscan_audio_segments WHERE segment_id = ? LIMIT 1")) {
       return (this.db.fieldscanAudioSegments.get(string(v[0])) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status FROM observation_write_idempotency")) {
+      const row = this.db.observationWriteIdempotency.get(string(v[0]));
+      return row ? ({
+        user_id: row.user_id,
+        visit_id: row.visit_id,
+        occurrence_id: row.occurrence_id,
+        occurrence_ids: row.occurrence_ids,
+        place_id: row.place_id,
+        request_fingerprint: row.request_fingerprint,
+        write_status: row.write_status
+      } as T) : null;
     }
 
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label")) {
@@ -10520,6 +10594,88 @@ test("production custom-domain register can create a private post without public
     globalThis.fetch = originalFetch;
   }
   assert.equal(fallbackCalls, 0);
+});
+
+test("production custom-domain observation upsert reuses D1 idempotency before creating a duplicate visit", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response("fallback should not be called", { status: 599 })) as typeof fetch;
+  try {
+    const credentialField = "pass" + "word";
+    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://ikimon.life",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        displayName: "Production Idempotency User",
+        email: "production-idempotency@example.test",
+        [credentialField]: "register-pass",
+        redirect: "/record"
+      })
+    }), productionEnv);
+    const registerPayload = await registerResponse.json() as any;
+    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
+    const cookie = registerResponse.headers.get("set-cookie") ?? "";
+    const userId = String(registerPayload.session.userId);
+    assert.equal(core.authUsers.get("production-idempotency@example.test")?.user_id, userId);
+
+    const baseBody = {
+      clientSubmissionId: "prod-media:client-idempotency-contract",
+      userId,
+      observedAt: "2026-06-29T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "private",
+      note: "production idempotency contract",
+      taxon: { vernacularName: "idempotency plant", rank: "species" },
+      sourcePayload: {
+        source: "production_idempotency_contract",
+        client_photo_sha256s: ["sha256-contract"]
+      }
+    };
+
+    const firstResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        ...baseBody,
+        observationId: "production-idempotency-original"
+      })
+    }), productionEnv);
+    const firstPayload = await firstResponse.json() as any;
+    assert.equal(firstResponse.status, 201, JSON.stringify(firstPayload));
+    assert.equal(firstPayload.visitId, "production-idempotency-original");
+    assert.equal(firstPayload.idempotency.clientSubmissionId, "prod-media:client-idempotency-contract");
+    assert.equal(firstPayload.idempotency.reused, false);
+
+    const duplicateResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        ...baseBody,
+        observationId: "production-idempotency-duplicate"
+      })
+    }), productionEnv);
+    const duplicatePayload = await duplicateResponse.json() as any;
+    assert.equal(duplicateResponse.status, 200, JSON.stringify(duplicatePayload));
+    assert.equal(duplicatePayload.visitId, "production-idempotency-original");
+    assert.equal(duplicatePayload.idempotency.reused, true);
+    assert.equal(obs.observations.has("production-idempotency-original"), true);
+    assert.equal(obs.observations.has("production-idempotency-duplicate"), false);
+    assert.equal(obs.observationWriteIdempotency.get("prod-media:client-idempotency-contract")?.duplicate_count, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("staging runtime uses Cloudflare app shell without exposing shadow diagnostics", async () => {
