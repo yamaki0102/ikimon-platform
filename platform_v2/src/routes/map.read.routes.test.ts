@@ -120,6 +120,21 @@ test("map read route stays in its route lane module", () => {
   assert.match(mapReadRoute, /mapExplorerBootScript/);
 });
 
+test("guide read routes stay in the guide route lane module", () => {
+  const readRoute = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+  const guideReadRoute = readFileSync(new URL("./guideRead.ts", import.meta.url), "utf8");
+
+  assert.match(readRoute, /registerGuideReadRoutes\(app\)/);
+  assert.doesNotMatch(readRoute, /app\.get\("\/guide"/);
+  assert.doesNotMatch(readRoute, /app\.get\("\/my-guides"/);
+  assert.doesNotMatch(readRoute, /app\.get\("\/guide-programs"/);
+  assert.match(guideReadRoute, /export async function registerGuideReadRoutes/);
+  assert.match(guideReadRoute, /app\.get\("\/guide"/);
+  assert.match(guideReadRoute, /app\.get\("\/my-guides"/);
+  assert.match(guideReadRoute, /app\.get\("\/guide-programs"/);
+  assert.match(guideReadRoute, /app\.get<\{ Params: \{ slug: string \} \}>\("\/guide-programs\/:slug"/);
+});
+
 test("record upload flow lets 60 second videos continue when browser duration metadata is unreadable", () => {
   const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 
@@ -129,7 +144,7 @@ test("record upload flow lets 60 second videos continue when browser duration me
 });
 
 test("my guides page exposes unlocked guide replay and map return", () => {
-  const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("./guideRead.ts", import.meta.url), "utf8");
 
   assert.match(source, /app\.get\("\/my-guides"/);
   assert.match(source, /listMyGuideUnlocks\(session\.userId\)/);
@@ -141,7 +156,7 @@ test("my guides page exposes unlocked guide replay and map return", () => {
 });
 
 test("guide relay program pages expose public detail and private progress", () => {
-  const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("./guideRead.ts", import.meta.url), "utf8");
   const staticMapSource = readFileSync(new URL("../services/guideProgramStaticMap.ts", import.meta.url), "utf8");
 
   assert.match(source, /app\.get\("\/guide-programs"/);
@@ -163,7 +178,7 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /data-guide-static-tile="true"/);
   assert.match(staticMapSource, /cyberjapandata\.gsi\.go\.jp\/xyz\/std/);
   assert.match(staticMapSource, /guideProgramWorldPixel/);
-  assert.match(source, /tile\.openstreetmap\.org/);
+  assert.doesNotMatch(source, /tile\.openstreetmap\.org/);
   assert.match(source, /isAdminOrAnalystRole/);
   assert.match(source, /運営recap/);
   assert.match(source, /\/admin\/guide-programs\/\$\{program\.programId\}\/recap/);
