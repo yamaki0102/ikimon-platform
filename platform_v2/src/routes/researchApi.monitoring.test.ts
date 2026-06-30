@@ -34,10 +34,11 @@ test("research API exposes monitoring readiness and license guard fields", () =>
   assert.match(source, /external_taxon_id_count/);
 });
 
-test("AI actor or AI source cannot self-promote into authority-backed public claim even with authority payload", () => {
+test("production public claim readmodel gate keeps AI-sourced authority-looking identifications candidate-only", () => {
   const source = readFileSync(path.join(process.cwd(), "src", "routes", "researchApi.ts"), "utf8");
 
   assert.match(source, /PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL/);
+  assert.match(source, /PUBLIC_CLAIM_AUTHORITY_REVIEW_SQL/);
   assert.match(source, /i\.actor_kind = 'human'/);
   assert.match(source, /coalesce\(i\.source_payload->>'source', ''\) not in/);
   assert.match(source, /ai_judgement_observation_record/);
@@ -48,4 +49,6 @@ test("AI actor or AI source cannot self-promote into authority-backed public cla
 
   const aggregateUses = source.match(/\$\{PUBLIC_CLAIM_REVIEWABLE_IDENTIFICATION_SQL\}/g) ?? [];
   assert.equal(aggregateUses.length, 2);
+  const authorityReviewUses = source.match(/\$\{PUBLIC_CLAIM_AUTHORITY_REVIEW_SQL\}/g) ?? [];
+  assert.equal(authorityReviewUses.length, 2);
 });
