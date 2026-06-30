@@ -144,6 +144,23 @@ jobs:
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
 
+      - name: Check legacy entrypoint reason
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          git fetch origin '${{ github.base_ref }}' --quiet
+          ./scripts/check_legacy_entrypoint_reason.ps1 -BaseRef 'origin/${{ github.base_ref }}'
+
+      - name: Check legacy entrypoint reason on push
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $baseRef = '${{ github.event.before }}'
+          if ([string]::IsNullOrWhiteSpace($baseRef) -or $baseRef -match '^0+$') {
+            $baseRef = 'origin/main'
+          }
+          ./scripts/check_legacy_entrypoint_reason.ps1 -BaseRef $baseRef
+
       - name: Check platform migration guardrails
         if: needs.plan.outputs.platform_changed == 'true' || needs.plan.outputs.deploy_changed == 'true'
         shell: pwsh
