@@ -121,6 +121,7 @@ function maintenancePgDependencyReason(relativeFile) {
     "platform_v2/src/scripts/repairStagingNatsIdentity.ts": "manual_repair_or_admin_tool",
     "platform_v2/src/scripts/replacementReadinessReport.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/reportLegacyDrift.ts": "manual_audit_report_tool",
+    "platform_v2/src/scripts/reportMigrationBaseline.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/reportVisitWindows.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/rehearseCutover.ts": "manual_audit_report_tool",
     "platform_v2/src/scripts/runGuideEnvironmentPostDeploy.ts": "deploy_or_postdeploy_tool",
