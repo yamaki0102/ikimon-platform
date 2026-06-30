@@ -7,7 +7,7 @@ const pages = [
   { path: "/", marker: /ikimon/i },
   { path: "/records", marker: /記録を見る|Records/i },
   { path: "/learn", marker: /ikimon|Learn/i },
-  { path: "/contact", marker: /送信|Contact/i },
+  { path: "/ja/contact", marker: /送信|お問い合わせ|Contact/i },
 ];
 
 const publicSurfacePages = ["/", "/records", "/map"];
@@ -397,7 +397,7 @@ async function thumbUrlsOnPage(page: import("@playwright/test").Page): Promise<s
   return page.locator("img").evaluateAll((imgs) => {
     return Array.from(new Set(imgs
       .map((img) => (img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src || img.getAttribute("src") || "")
-      .filter((src) => src.includes("/thumb/"))));
+      .filter((src) => src.includes("/thumb/") || src.includes("/derived/"))));
   });
 }
 
@@ -483,7 +483,7 @@ test.describe("production candidate smoke", () => {
   });
 
   test("guide relay static GSI map loads real tile images", async ({ page, request }) => {
-    const response = await page.goto("/guide-programs/aikan-renri-guide-relay", { waitUntil: "domcontentloaded" });
+    const response = await page.goto("/ja/guide-programs/aikan-renri-guide-relay", { waitUntil: "domcontentloaded" });
     expect(response?.status(), "guide program status").toBeLessThan(500);
 
     const staticMap = page.locator('[data-guide-static-map="gsi-std"]');
@@ -533,7 +533,7 @@ test.describe("production candidate smoke", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("public surfaces do not leak fixtures or 1x1 placeholder thumbnails", async ({ page, request }) => {
+  test("public surfaces do not leak fixtures or 1x1 placeholder record images", async ({ page, request }) => {
     const checkedThumbs = new Set<string>();
     for (const path of publicSurfacePages) {
       const response = await page.goto(path, { waitUntil: "domcontentloaded" });
@@ -554,7 +554,7 @@ test.describe("production candidate smoke", () => {
         expect(body.length, `${url} should not be a 1x1 / placeholder asset`).toBeGreaterThan(512);
       }
     }
-    expect(checkedThumbs.size, "public smoke should inspect at least one public thumbnail").toBeGreaterThan(0);
+    expect(checkedThumbs.size, "public smoke should inspect at least one public record image").toBeGreaterThan(0);
   });
 
   for (const scene of canonicalAiSubjectScenes) {
@@ -570,8 +570,8 @@ test.describe("production candidate smoke", () => {
     await expect(page.locator("body")).not.toContainText("この映像に写っているもの");
     await expect(page.locator("body")).not.toContainText("この映像で読む対象を切り替える");
     await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
-    await expect(page.locator("body")).toContainText("IDENTIFICATION");
-    await expect(page.locator("body")).toContainText("EVENT / OCCURRENCE");
+    await expect(page.locator("body")).toContainText("AI候補");
+    await expect(page.locator("body")).toContainText("観察記録 / 環境情報");
     await expect(page.locator(".obs-ai-readout")).toBeVisible();
     await expect(page.locator(".obs-local-quality-inline")).toBeVisible();
     await expect(page.locator(".obs-frame-identify-card")).toBeVisible();
@@ -675,7 +675,7 @@ test.describe("production candidate smoke", () => {
       await page.goto(joinUrl(baseUrl, canonicalFieldAdviceScene), { waitUntil: "domcontentloaded" });
       await expect(page.locator("body")).not.toContainText("現場アドバイス");
       await expect(page.locator("[data-care-policy-form]")).toHaveCount(0);
-      await expect(page.locator("body")).toContainText("EVENT / OCCURRENCE");
+      await expect(page.locator("body")).toContainText("観察記録 / 環境情報");
       await recordSmokeCheckpoint("field_policy_ui_hidden_on_observation_detail", {
         path: page.url(),
       });

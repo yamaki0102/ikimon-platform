@@ -81,6 +81,19 @@ test("guide program public detail reads progress without copying coordinates", (
   assert.doesNotMatch(source, /guide_programs[\s\S]*longitude/);
 });
 
+test("guide program public read model falls back to static published programs", () => {
+  const source = readFileSync(join(process.cwd(), "src", "services", "guidePrograms.ts"), "utf8");
+  assert.match(source, /MAP_GUIDE_PROGRAMS/);
+  assert.match(source, /publishedStaticGuidePrograms/);
+  assert.match(source, /toStaticPublicDetail/);
+  assert.match(source, /fallbackProgram/);
+  assert.match(source, /staticPrograms/);
+  assert.match(source, /program\.status === "published"/);
+  assert.match(source, /program\.guideSpotIds/);
+  assert.match(source, /guideSpotIsAssignableToProgram\(spot\)/);
+  assert.match(source, /!dbSlugs\.has\(program\.slug\)/);
+});
+
 test("guide program recap suppresses small cohorts and buckets rates", () => {
   assert.equal(roundedGuideParticipantCount(0), null);
   assert.equal(roundedGuideParticipantCount(2), null);
