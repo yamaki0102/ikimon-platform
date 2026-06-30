@@ -33,6 +33,7 @@ test("place feeling tags have safe labels and ignore unknown keys", () => {
 
 test("record route saves place feeling tags and prefers recent device selections", () => {
   const readRoute = readFileSync(join(process.cwd(), "src/routes/read.ts"), "utf8");
+  const demoReadRoute = readFileSync(join(process.cwd(), "src/routes/placeFeelingDemoRead.ts"), "utf8");
 
   assert.match(readRoute, /name="placeFeelingTags"/);
   assert.match(readRoute, /data-place-feeling-tag/);
@@ -41,8 +42,9 @@ test("record route saves place feeling tags and prefers recent device selections
   assert.match(readRoute, /place_feeling_tags: placeFeelingTags/);
   assert.match(readRoute, /placeFeelingTags,/);
   assert.match(readRoute, /この場所で感じたこと/);
-  assert.match(readRoute, /\/demo\/place-feeling-tags/);
-  assert.match(readRoute, /renderPlaceFeelingTagDemo/);
+  assert.match(readRoute, /registerPlaceFeelingDemoReadRoutes\(app\)/);
+  assert.match(demoReadRoute, /\/demo\/place-feeling-tags/);
+  assert.match(demoReadRoute, /renderPlaceFeelingTagDemo/);
 });
 
 test("server write and detail read normalize place feeling tags through the shared module", () => {

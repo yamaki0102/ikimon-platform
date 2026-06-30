@@ -163,6 +163,7 @@ import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/pla
 import { getFixedPointStation } from "../services/fixedPointStation.js";
 import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
 import { registerSpecialistReadApiRoutes } from "./specialistReadApi.js";
+import { registerPlaceFeelingDemoReadRoutes } from "./placeFeelingDemoRead.js";
 import {
   PLACE_FEELING_TAG_LIMIT,
   PLACE_FEELING_TAGS,
@@ -170,10 +171,6 @@ import {
   placeFeelingTagLabels,
   type PlaceFeelingTagKey,
 } from "../services/placeFeelingTags.js";
-import {
-  PLACE_FEELING_DEMO_STYLES,
-  renderPlaceFeelingTagDemo,
-} from "../ui/placeFeelingTagDemo.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -19845,27 +19842,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.get("/demo/place-feeling-tags", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const url = new URL(String((request as unknown as { url?: string }).url ?? "/demo/place-feeling-tags"), "https://ikimon.local");
-    const lang = detectLangFromUrl(url.pathname + url.search);
-    const recordHref = appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang);
-    const currentPath = appendLangToHref(withBasePath(basePath, "/demo/place-feeling-tags"), lang);
-    return reply
-      .type("text/html")
-      .send(layout(
-        basePath,
-        lang === "ja" ? "ひとことタグ デモ | ikimon" : "Place feeling tag demo | ikimon",
-        renderPlaceFeelingTagDemo({ lang, recordHref }),
-        "記録する",
-        undefined,
-        PLACE_FEELING_DEMO_STYLES,
-        currentPath,
-        false,
-        "shell-place-feeling-demo",
-        lang,
-      ));
-  });
+  await registerPlaceFeelingDemoReadRoutes(app);
 
   app.get("/explore", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
