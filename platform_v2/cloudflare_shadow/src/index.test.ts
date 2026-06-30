@@ -15760,6 +15760,36 @@ test("production public entry redirects are native and do not require materializ
   }
 });
 
+test("production lens query route serves localized materialized html without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/lens.html", "<!doctype html><title>生きものレンズ | ikimon</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/lens?lang=ja"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "<!doctype html><title>生きものレンズ | ikimon</title>");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production home collapses materialized header actions into a hamburger menu", async () => {
   const { env } = createEnv();
   const productionEnv = {
