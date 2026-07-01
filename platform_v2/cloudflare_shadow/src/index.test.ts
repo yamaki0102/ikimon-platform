@@ -8095,6 +8095,43 @@ test("v1 observation public safety gate requires public civic audience for readm
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "class-audience-safety-contract"), false);
 });
 
+test("v1 observation public stream blocks site precision even for public civic audience", async () => {
+  const { env, obs, queue } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "public-site-precision-safety-contract",
+    userId: "public-site-precision-user",
+    observedAt: "2026-06-29T01:45:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    municipality: "浜松市中央区",
+    prefecture: "静岡県",
+    taxon: { vernacularName: "公開詳細地名テスト", rank: "species" },
+    civicContext: {
+      contextKind: "site_summary",
+      audienceScope: "public",
+      publicPrecision: "site",
+      riskLane: "normal"
+    }
+  });
+
+  assert.equal(response.ok, true);
+  const context = obs.civicObservationContexts.get("public-site-precision-safety-contract");
+  assert.equal(context?.audience_scope, "public");
+  assert.equal(context?.public_precision, "site");
+
+  await post("/api/v1/observations/public-site-precision-safety-contract/photos/upload", env, {
+    filename: "public-site-precision.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+
+  assert.equal(obs.readmodel.has("public-site-precision-safety-contract"), false);
+  assert.equal(obs.observations.get("public-site-precision-safety-contract")?.public_area_label, null);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "public-site-precision-safety-contract"), false);
+});
+
 test("v1 observation public safety gate removes existing public surfaces when visibility becomes private", async () => {
   const { env, obs, queue } = createEnv();
   await post("/api/v1/observations/upsert", env, {
