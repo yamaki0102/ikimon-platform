@@ -16893,15 +16893,25 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /data-media-kind="audio"/);
   const homeRecordKinds = Array.from(homeBody.matchAll(/data-media-kind="(photo|video|audio|record)" data-record-feed-card data-cloudflare-home-record/g), (match) => match[1]);
   assert.deepEqual(homeRecordKinds.slice(0, 2), ["audio", "photo"]);
+  assert.match(homeBody, /data-home-record-media-nav/);
+  assert.match(homeBody, /data-home-record-media-filter="all"/);
+  assert.match(homeBody, /data-home-record-media-filter="photo"/);
+  assert.match(homeBody, /data-home-record-media-filter="audio"/);
+  assert.doesNotMatch(homeBody, /data-home-record-media-filter="memo"/);
+  assert.match(homeBody, /const cardMatchesFilter = \(card\) => activeKind === 'all' \|\| card\.getAttribute\('data-media-kind'\) === activeKind;/);
+  assert.match(homeBody, /applyFilter\(\);/);
+  assert.match(homeBody, /ensureVisibleCards\(\);/);
   assert.match(homeBody, /prototype-record-feed-media-icons/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
+  assert.match(homeBody, /<span>近くの記録 · 6月24日<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>近くの記録 · 2026-06-24T09:38:45\.358Z<\/span>/);
   assert.match(homeBody, /width:min\(100%,680px\)/);
   assert.match(homeBody, /height:clamp\(300px,48vh,460px\);min-height:300px/);
   assert.match(homeBody, /height:48vh;min-height:320px/);
   assert.doesNotMatch(homeBody, /width:min\(100%,540px\)|clamp\(520px,78vh,760px\)|height:76vh;min-height:540px/);
   assert.doesNotMatch(homeBody, /record-shadow-materialized/);
-  assert.doesNotMatch(homeBody, /<span>写真<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>写真<\/span>/);
   assert.match(homeBody, /prototype-record-feed is-guest/);
   assert.match(homeBody, /data-cloudflare-home-infinite-feed/);
   assert.match(homeBody, /data-cloudflare-home-record-id="record-live-materialized"/);
@@ -16972,6 +16982,7 @@ test("production home keeps public record feed within the initial DOM budget", a
   assert.equal(initialCards.length, 36);
   assert.match(homeBody, /const maxCards = 96;/);
   assert.doesNotMatch(homeBody, /const maxCards = 240;/);
+  assert.doesNotMatch(homeBody, /<div class="cf-home-record-media-nav" data-home-record-media-nav/);
   assert.match(homeBody, /public-home-budget-0/);
   assert.match(homeBody, /public-home-budget-35/);
   assert.doesNotMatch(homeBody, /public-home-budget-36/);
@@ -17057,9 +17068,12 @@ test("staging audio upload route creates a real public audio home card state", a
   assert.match(homeBody, /prototype-record-feed-empty-media is-media-audio/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
+  assert.doesNotMatch(homeBody, /<div class="cf-home-record-media-nav" data-home-record-media-nav/);
+  assert.match(homeBody, /<span>近くの記録 · 7月1日<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>近くの記録 · 2026-07-01T08:10:00\.000Z<\/span>/);
   assert.match(homeBody, /height:clamp\(300px,48vh,460px\);min-height:300px/);
   assert.doesNotMatch(homeBody, /clamp\(520px,78vh,760px\)|height:76vh;min-height:540px/);
-  assert.doesNotMatch(homeBody, /<span>写真<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>写真<\/span>/);
 
   const productionResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/staging-clean-audio-card/audio/upload", {
     method: "POST",

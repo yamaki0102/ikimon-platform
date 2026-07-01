@@ -17782,13 +17782,21 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: "ja" | "en" | "es" | "pt-br" = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
   const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source, lang)).join("");
+  const mediaNav = renderHomeRecordMediaNav(feedCards.map((card) => card.item.mediaKind), lang);
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
-    .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*(<script\b[^>]*>)/, `<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div>$1`);
+    .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*(<script\b[^>]*>)/, `${mediaNav}<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div>$1`);
   next = next.replace(/class="prototype-record-feed(?![^"]*\bis-(?:guest|owner)\b)"/, `class="prototype-record-feed ${isOwnerFeed ? "is-owner" : "is-guest"}"`);
   if (!next.includes("cf-home-record-feed-style")) {
     next = next.replace("</head>", `<style id="cf-home-record-feed-style">
       .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{width:min(100%,680px);margin-top:clamp(10px,2.6vw,24px)}
+      .cf-home-record-media-nav{position:relative;display:flex;gap:8px;max-width:100%;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 2px 8px;scrollbar-width:none}
+      .cf-home-record-media-nav::-webkit-scrollbar{display:none}
+      .cf-home-record-media-nav button{flex:0 0 auto;min-height:38px;display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(15,23,42,.1);border-radius:999px;background:rgba(255,255,255,.92);color:#10251a;font-size:13px;font-weight:900;line-height:1;scroll-snap-align:start;box-shadow:0 10px 22px rgba(15,23,42,.08);cursor:pointer}
+      .cf-home-record-media-nav button[aria-pressed="true"]{background:#10251a;color:#fff;border-color:#10251a}
+      .cf-home-record-media-nav .prototype-content-icon{width:18px;height:18px;background:rgba(15,23,42,.1);box-shadow:none}
+      .cf-home-record-media-nav button[aria-pressed="true"] .prototype-content-icon{background:rgba(255,255,255,.18)}
+      .cf-home-record-media-nav .prototype-content-icon::before{width:10px;height:10px}
       .prototype-record-feed.is-guest .prototype-record-feed-card,.prototype-record-feed.is-owner .prototype-record-feed-card{border-color:rgba(15,23,42,.08);box-shadow:0 12px 30px rgba(15,23,42,.12)}
       .prototype-record-feed.is-guest .prototype-record-feed-main,.prototype-record-feed.is-owner .prototype-record-feed-main{position:relative}
       .prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:clamp(300px,48vh,460px);min-height:300px;background:#0f172a}
@@ -17811,9 +17819,23 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   if (!feed || !sentinel) return;
   const sourceCards = Array.from(feed.querySelectorAll('[data-cloudflare-home-record]'));
   if (sourceCards.length < 2) return;
+  const nav = document.querySelector('[data-home-record-media-nav]');
+  const filterButtons = nav ? Array.from(nav.querySelectorAll('[data-home-record-media-filter]')) : [];
+  let activeKind = 'all';
   let nextIndex = Math.max(1, Math.floor(sourceCards.length / 2));
   let cycle = 0;
   const maxCards = ${HOME_RECORD_FEED_MAX_DOM_CARDS};
+  const cardMatchesFilter = (card) => activeKind === 'all' || card.getAttribute('data-media-kind') === activeKind;
+  const visibleCards = () => Array.from(feed.querySelectorAll('[data-cloudflare-home-record]')).filter(cardMatchesFilter);
+  const applyFilter = () => {
+    Array.from(feed.querySelectorAll('[data-cloudflare-home-record]')).forEach((card) => {
+      card.hidden = !cardMatchesFilter(card);
+    });
+  };
+  const candidateSourceCards = () => {
+    const candidates = activeKind === 'all' ? sourceCards : sourceCards.filter(cardMatchesFilter);
+    return candidates.length ? candidates : sourceCards;
+  };
   const gcd = (a, b) => {
     while (b) {
       const t = b;
@@ -17824,25 +17846,26 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   };
   let step = Math.max(1, Math.floor(sourceCards.length / 3));
   while (sourceCards.length > 2 && gcd(step, sourceCards.length) !== 1) step += 1;
-  const pickNextCard = (usedIds) => {
+  const pickNextCard = (usedIds, candidates) => {
     const lastCard = feed.querySelector('[data-cloudflare-home-record]:last-child');
     const lastId = lastCard ? lastCard.getAttribute('data-cloudflare-home-record-id') : '';
-    for (let tries = 0; tries < sourceCards.length; tries += 1) {
-      const candidate = sourceCards[nextIndex % sourceCards.length];
-      const candidateId = candidate.getAttribute('data-cloudflare-home-record-id') || String(nextIndex % sourceCards.length);
+    for (let tries = 0; tries < candidates.length; tries += 1) {
+      const candidate = candidates[nextIndex % candidates.length];
+      const candidateId = candidate.getAttribute('data-cloudflare-home-record-id') || String(nextIndex % candidates.length);
       nextIndex += step;
       if (candidateId !== lastId && !usedIds.has(candidateId)) return candidate;
     }
     cycle += 1;
-    nextIndex = (cycle * 7 + Math.floor(sourceCards.length / 2)) % sourceCards.length;
-    return sourceCards[nextIndex++ % sourceCards.length];
+    nextIndex = (cycle * 7 + Math.floor(candidates.length / 2)) % candidates.length;
+    return candidates[nextIndex++ % candidates.length];
   };
   const appendMore = () => {
     if (feed.querySelectorAll('[data-cloudflare-home-record]').length >= maxCards) return;
-    const batchSize = Math.min(8, sourceCards.length);
+    const candidates = candidateSourceCards();
+    const batchSize = Math.min(8, candidates.length);
     const usedIds = new Set();
     for (let i = 0; i < batchSize; i += 1) {
-      const source = pickNextCard(usedIds);
+      const source = pickNextCard(usedIds, candidates);
       const sourceId = source.getAttribute('data-cloudflare-home-record-id') || '';
       if (sourceId) usedIds.add(sourceId);
       const clone = source.cloneNode(true);
@@ -17851,7 +17874,23 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       if (img) img.setAttribute('loading', 'lazy');
       feed.appendChild(clone);
     }
+    applyFilter();
   };
+  const ensureVisibleCards = () => {
+    let guard = 0;
+    while (activeKind !== 'all' && visibleCards().length < 6 && feed.querySelectorAll('[data-cloudflare-home-record]').length < maxCards && guard < 8) {
+      appendMore();
+      guard += 1;
+    }
+  };
+  filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      activeKind = button.getAttribute('data-home-record-media-filter') || 'all';
+      filterButtons.forEach((item) => item.setAttribute('aria-pressed', item === button ? 'true' : 'false'));
+      applyFilter();
+      ensureVisibleCards();
+    });
+  });
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) appendMore();
@@ -18056,6 +18095,21 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
   </a>`;
 }
 
+function renderHomeRecordMediaNav(mediaKinds: HomeRecordMediaKind[], lang: "ja" | "en" | "es" | "pt-br"): string {
+  const visibleKinds = HOME_RECORD_FEED_MEDIA_ORDER.filter((kind) => mediaKinds.includes(kind));
+  if (visibleKinds.length < 2) return "";
+  const allLabel = lang === "ja" ? "すべて" : lang === "es" ? "Todo" : lang === "pt-br" ? "Tudo" : "All";
+  const buttons = [
+    `<button type="button" aria-pressed="true" data-home-record-media-filter="all"><span class="prototype-content-icon is-record" aria-hidden="true"></span><span>${escapeHtml(allLabel)}</span></button>`,
+    ...visibleKinds.map((kind) => {
+      const label = homeRecordMediaLabel(kind, lang);
+      const icon = homeRecordIconKind(kind);
+      return `<button type="button" aria-pressed="false" data-home-record-media-filter="${escapeHtml(kind)}"><span class="prototype-content-icon is-${escapeHtml(icon)}" aria-hidden="true"></span><span>${escapeHtml(label)}</span></button>`;
+    })
+  ];
+  return `<div class="cf-home-record-media-nav" data-home-record-media-nav aria-label="${escapeHtml(lang === "ja" ? "記録の種類" : "Record types")}">${buttons.join("")}</div>`;
+}
+
 function renderHomeRecordCard(
   item: ReturnType<typeof publicMapObservationItem>,
   copy: ReturnType<typeof recordsInjectionCopy>,
@@ -18068,6 +18122,7 @@ function renderHomeRecordCard(
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
     : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true"></span>`;
   const title = item.displayName || copy.unknown;
+  const observedLabel = formatHomeRecordObservedAt(item.observedAt, lang);
   return `<article class="prototype-record-feed-card is-media-${escapeHtml(item.mediaKind)}" data-media-kind="${escapeHtml(item.mediaKind)}" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
@@ -18076,10 +18131,26 @@ function renderHomeRecordCard(
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml([copy.placeContext, item.observedAt].filter(Boolean).join(" · "))}</span>
+        <span>${escapeHtml([copy.placeContext, observedLabel].filter(Boolean).join(" · "))}</span>
       </span>
     </a>
   </article>`;
+}
+
+function formatHomeRecordObservedAt(value: string | null | undefined, lang: "ja" | "en" | "es" | "pt-br"): string | null {
+  if (!value) return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return formatPublicObservationDate(value);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(month) || !Number.isFinite(day)) return formatPublicObservationDate(value);
+  if (lang === "ja") return `${month}月${day}日`;
+  const monthNames = {
+    en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"],
+    "pt-br": ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+  }[lang];
+  return `${day} ${monthNames[month - 1] ?? String(month).padStart(2, "0")}`;
 }
 
 function homeRecordMediaLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
