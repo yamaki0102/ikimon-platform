@@ -505,14 +505,17 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
 
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /記録を始める/);
+        assert.match(response.body, /shell-record-start/);
         assert.match(response.body, /ログインして記録を始める/);
-        assert.match(response.body, /分類や長い説明は最初にいりません/);
-        assert.match(response.body, /あとからAIのヒント/);
+        assert.match(response.body, /写真、動画、メモから始められます。名前はあとで大丈夫です。/);
+        assert.match(response.body, /自分の記録に残ります。/);
+        assert.match(response.body, /場所と時刻も一緒に残り、あとでヒントを見返せます。/);
+        assert.match(response.body, /保存後の状態/);
         assert.match(response.body, /地図を見る/);
         assert.match(response.body, /みんなの発見/);
-        assert.match(response.body, /あとで戻れる/);
-        assert.match(response.body, /写真なしでも残せる/);
-        assert.match(response.body, /公開前に確認できる/);
+        assert.match(response.body, /場所/);
+        assert.match(response.body, /時刻/);
+        assert.match(response.body, /あとでヒント/);
         assert.match(response.body, /メモで始める/);
         assert.match(response.body, /使い方を読む/);
         assert.match(response.body, /アカウント作成/);
@@ -521,6 +524,12 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         assert.doesNotMatch(response.body, /class="global-record-launcher"/);
         assert.doesNotMatch(response.body, /site-shell has-global-record-launcher/);
         assert.doesNotMatch(response.body, /class="record-capture-dock"/);
+        assert.doesNotMatch(response.body, /分類や長い説明は最初にいりません/);
+        assert.doesNotMatch(response.body, /あとで見返す、同じ場所を比べる/);
+        assert.doesNotMatch(response.body, /あとで戻れる/);
+        assert.doesNotMatch(response.body, /写真なしでも残せる/);
+        assert.doesNotMatch(response.body, /公開前に確認できる/);
+        assert.doesNotMatch(response.body, /\u30dd\u30c1|\u307d\u3061/);
         assert.doesNotMatch(response.body, /まず写真を残す/);
         assert.doesNotMatch(response.body, /主役と周囲を分ける/);
         assert.doesNotMatch(response.body, /Session required/);
