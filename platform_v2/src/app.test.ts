@@ -170,7 +170,7 @@ test("app sends HSTS in production", async () => {
   }
 });
 
-test("root route serves the regional atlas feed home HTML even for generic accept headers", async () => {
+test("root route serves the local record feed home HTML even for generic accept headers", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({

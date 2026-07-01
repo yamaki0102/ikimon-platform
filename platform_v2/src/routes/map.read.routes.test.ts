@@ -19,11 +19,11 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /serializeSharedMapState/);
     assert.match(html, /source: 'map'/);
     assert.match(html, /id: 'map:state'/);
-    assert.match(html, /me-map-kicker">地域図鑑マップ/);
+    assert.match(html, /me-map-kicker">近くを見る/);
     assert.doesNotMatch(html, /class="me-map-cues"/);
     assert.match(html, /class="me-map-role-strip"/);
     assert.match(html, /近くを見る・振り返る/);
-    assert.match(html, /記録を場所から見返す道具/);
+    assert.match(html, /記録が多い場所・少ない場所を見返せます/);
     assert.match(html, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;/);
     assert.match(html, /\.me-map-status \{[\s\S]*?bottom: 18px;/);
     assert.match(html, /me-detail-panel/);
@@ -34,6 +34,8 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /me-discovery-preview/);
     assert.match(html, /pickDiscoveryPreviewRecords/);
     assert.match(html, /<title>ikimon - 皆で作る地域図鑑 \| ikimon/);
+    assert.match(html, /<meta name="description" content="近くの記録を、場所から見返す地図。"/);
+    assert.doesNotMatch(html, /地域図鑑マップ/);
     assert.match(html, /aria-label="近くの記録"/);
     assert.match(html, /aria-label="季節"/);
     assert.match(html, /aria-label="ガイド"/);
@@ -45,7 +47,8 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.doesNotMatch(html, /\.me-map-cues/);
     assert.match(html, /id="me-contribution-panel"/);
     assert.match(html, /\.me-side\[data-tab="results"\] \.me-contribution-panel \{ display: none; \}/);
-    assert.match(html, /場所ストーリー/);
+    assert.match(html, /この場所/);
+    assert.doesNotMatch(html, /場所ストーリー/);
     assert.match(html, /me-detail-visit/);
     assert.match(html, /me-detail-recent/);
     assert.match(html, /me-detail-walk/);

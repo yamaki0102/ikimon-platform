@@ -172,7 +172,7 @@ test("updates page keeps the full release history on the v2 public shell", async
   }
 });
 
-test("home page uses the regional atlas feed surface", async () => {
+test("home page uses the local record feed surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
