@@ -16916,6 +16916,67 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
 });
 
+test("production home keeps public record feed within the initial DOM budget", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+    "<!doctype html><head></head><body>",
+    "<main><section class=\"prototype-record-feed\" data-record-feed>",
+    "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
+    "<script nonce=\"feed-budget-nonce\">/* feed */</script></section></main>",
+    "</body>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  for (let index = 0; index < 60; index += 1) {
+    const observationId = `public-home-budget-${index}`;
+    const assetId = `asset-public-home-budget-${index}`;
+    const observedAt = new Date(Date.UTC(2026, 5, 25, 12, 0, 0) - index * 3600_000).toISOString();
+    env.OBS_DB.publicMapSnapshotRecords.push({
+      occurrence_id: `occ:${observationId}:0`,
+      visit_id: observationId,
+      observed_at: observedAt,
+      display_name: `公開記録${index}`,
+      cell_1000: "34.82,137.74",
+      asset_count: 1
+    });
+    env.OBS_DB.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: observationId,
+      owner_user_id: "public-home-budget-user",
+      object_key: `original/${observationId}/photo.jpg`,
+      partition_month: "2026-06",
+      sha256: `${assetId}-sha`,
+      mime: "image/jpeg",
+      bytes: 1234,
+      processing_state: "uploaded",
+      public_derivative_key: `derived/import/20260625/observation_photo/${assetId}/display.webp`,
+      public_derivative_sha256: `${assetId}-derivative-sha`,
+      public_derivative_verified_at: observedAt,
+      public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+      exif_scrub_state: "scrubbed",
+      public_ready_at: observedAt
+    });
+  }
+
+  const homeResponse = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
+  const homeBody = await homeResponse.text();
+  const initialCards = homeBody.match(/data-cloudflare-home-record data-cloudflare-home-record-id=/g) ?? [];
+
+  assert.equal(homeResponse.status, 200);
+  assert.equal(initialCards.length, 36);
+  assert.match(homeBody, /const maxCards = 96;/);
+  assert.doesNotMatch(homeBody, /const maxCards = 240;/);
+  assert.match(homeBody, /public-home-budget-0/);
+  assert.match(homeBody, /public-home-budget-35/);
+  assert.doesNotMatch(homeBody, /public-home-budget-36/);
+});
+
 test("staging audio upload route creates a real public audio home card state", async () => {
   const { env, queue, obs } = createEnv();
   const stagingEnv = {
