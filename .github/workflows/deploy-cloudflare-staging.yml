@@ -30,7 +30,10 @@ on:
       - "codex/**"
     paths:
       - ".github/workflows/deploy-cloudflare-staging.yml"
+      - ".github/actions/setup-platform-browser/**"
       - "platform_v2/cloudflare_shadow/**"
+      - "platform_v2/e2e/**"
+      - "platform_v2/playwright.staging.config.ts"
       - "platform_v2/src/**"
       - "platform_v2/package.json"
       - "platform_v2/package-lock.json"
@@ -111,7 +114,7 @@ jobs:
       - name: Materialize original UI into staging R2
         if: env.DEPLOY_STAGING == 'true'
         working-directory: platform_v2/cloudflare_shadow
-        run: npm run materialize:original-ui -- --target-env staging --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --output materialize-staging-original-ui.json
+        run: npm run materialize:original-ui -- --target-env staging --scope staging-qa --approval "${IKIMON_CF_STAGING_DEPLOY_APPROVAL}" --output materialize-staging-original-ui.json
 
       - name: Verify Cloudflare staging public routes
         if: env.DEPLOY_STAGING == 'true'
@@ -133,7 +136,19 @@ jobs:
           grep -qi '^content-type: image/png' staging-brand-icon.headers
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
 
+      - name: Install Playwright Chromium for Cloudflare staging QA sitemap smoke
+        working-directory: platform_v2
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Cloudflare staging QA sitemap smoke
+        working-directory: platform_v2
+        timeout-minutes: 10
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+        run: npm run e2e:staging:site-map
+
       - name: Upload Cloudflare staging artifacts
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: cloudflare-staging-evidence
@@ -149,6 +164,8 @@ jobs:
             platform_v2/cloudflare_shadow/staging-walk-map-reviews.*
             platform_v2/cloudflare_shadow/staging-walk-map-review-shizuoka.*
             platform_v2/cloudflare_shadow/staging-brand-icon.*
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
           if-no-files-found: ignore
           retention-days: 7
 
@@ -170,6 +187,7 @@ jobs:
           console.log("- Data plane: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`, `ikimon-shadow-media`");
           console.log("- Production DB/R2 mutation: `false`");
           console.log("- VPS SSH/deploy: `not used`");
+          console.log("- QA sitemap smoke: `npm run e2e:staging:site-map`");
           console.log(`- Status: \`${report.status}\``);
           console.log(`- Test profile: \`${report.testProfile}\``);
           if (report.triggerWarning) {

@@ -68,6 +68,7 @@ process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html
 
 const stagingOnlyAdminPreviewPaths = [];
 const corePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS");
+const stagingQaSmokePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS");
 const localizedRenderPaths = new Set(await readWorkerStringArray("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"));
 
 const staticAssetPaths = [
@@ -186,6 +187,9 @@ async function readAllOriginalUiStaticPaths() {
   if (match[1].includes("...ORIGINAL_UI_HTML_CORE_PATHS")) {
     paths.push(...await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS"));
   }
+  if (match[1].includes("...ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS")) {
+    paths.push(...await readWorkerStringArray("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"));
+  }
   for (const pathMatch of match[1].matchAll(/"([^"]+)"/g)) {
     paths.push(normalizePublicPath(pathMatch[1]));
   }
@@ -196,6 +200,12 @@ async function resolveTargetPaths() {
   if (explicitPaths.length > 0) return [...new Set(explicitPaths)];
   if (scope === "core") {
     return targetEnv === "staging" ? [...corePaths, ...stagingOnlyAdminPreviewPaths] : corePaths;
+  }
+  if (scope === "staging-qa") {
+    if (targetEnv !== "staging") {
+      throw new Error("--scope staging-qa is only supported with --target-env staging.");
+    }
+    return [...new Set([...corePaths, ...stagingOnlyAdminPreviewPaths, ...stagingQaSmokePaths])];
   }
   if (scope === "all") return await readAllOriginalUiStaticPaths();
   throw new Error(`Unsupported materialize scope: ${scope}`);

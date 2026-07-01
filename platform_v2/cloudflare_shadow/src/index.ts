@@ -1734,6 +1734,25 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/pt-br/records"
 ] as const;
 
+const ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS = [
+  "/learn",
+  "/community",
+  "/community/events",
+  "/community/fields",
+  "/for-business",
+  "/impact",
+  "/cases",
+  "/for-business/field-programs",
+  "/ja/learn",
+  "/ja/community",
+  "/ja/community/events",
+  "/ja/community/fields",
+  "/ja/for-business",
+  "/ja/impact",
+  "/ja/cases",
+  "/ja/for-business/field-programs"
+] as const;
+
 const ORIGINAL_UI_HTML_LOCALIZABLE_PATHS = [
   "/",
   "/community/events/new",
@@ -1756,26 +1775,17 @@ const ORIGINAL_UI_HTML_LOCALIZABLE_PATH_SET = new Set<string>(ORIGINAL_UI_HTML_L
 
 const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   ...ORIGINAL_UI_HTML_CORE_PATHS,
+  ...ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS,
   "/en",
   "/es",
   "/pt-br",
-  "/learn",
-  "/community",
-  "/community/events",
   "/community/events/new",
-  "/community/fields",
-  "/for-business",
-  "/for-business/field-programs",
   "/for-business/invasive-reporting",
   "/ja",
   "/ja/",
   "/ja/about",
-  "/ja/cases",
-  "/ja/community",
   "/ja/demo/place-feeling-tags",
-  "/ja/community/events",
   "/ja/community/events/new",
-  "/ja/community/fields",
   "/en/community/events/new",
   "/es/community/events/new",
   "/pt-br/community/events/new",
@@ -1784,10 +1794,8 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/pt-br/community/fields",
   "/ja/contact",
   "/ja/faq",
-  "/ja/for-business",
   "/ja/for-business/apply",
   "/ja/for-business/demo",
-  "/ja/for-business/field-programs",
   "/ja/for-business/invasive-reporting",
   "/ja/for-business/monitoring/apply",
   "/ja/for-business/pricing",
@@ -1803,8 +1811,6 @@ const ORIGINAL_UI_HTML_STATIC_PATHS = new Set([
   "/ja/walk-maps/jp-shizuoka-asahata-waterfront-sample-v0",
   "/ja/walk-maps/jp-shizuoka-mariko-waterfront-sample-v0",
   "/ja/home",
-  "/ja/impact",
-  "/ja/learn",
   "/ja/learn/biodiversity",
   "/ja/learn/biomonweek",
   "/ja/learn/citizen-science",

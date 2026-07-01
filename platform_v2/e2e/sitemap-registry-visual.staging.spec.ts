@@ -6,7 +6,7 @@ import {
   visualQaViewport,
   type SitePageMaterializationContext,
 } from "../src/siteMap.js";
-import { newStagingContext, suppressMapLibreForSmoke } from "./support/staging.js";
+import { installMapLibreStubForSmoke, newStagingContext, suppressMapLibreForSmoke } from "./support/staging.js";
 
 function firstMatch(source: string, pattern: RegExp): string | undefined {
   const match = source.match(pattern);
@@ -83,6 +83,7 @@ test.describe("sitemap registry visual smoke", () => {
         const context = await newStagingContext(browser, viewport);
         const page = await context.newPage();
         try {
+          await installMapLibreStubForSmoke(page);
           await suppressMapLibreForSmoke(page);
           const materialization = await resolveMaterializationContext(page);
           if (qa.requires === "user" && !materialization.userId) {

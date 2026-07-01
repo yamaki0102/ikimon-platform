@@ -29,8 +29,13 @@ if ($manifest.platform -eq "cloudflare_worker") {
         "deploy:staging:dry-run",
         "materialize:original-ui",
         "target-env staging",
+        "--scope staging-qa",
         "CLOUDFLARE_API_TOKEN",
-        "VPS SSH/deploy"
+        "VPS SSH/deploy",
+        "Run Cloudflare staging QA sitemap smoke",
+        "e2e:staging:site-map",
+        "STAGING_BASE_URL: https://staging.ikimon.life",
+        "playwright-report/staging"
     )) {
         if (-not [string]::IsNullOrWhiteSpace($requiredText) -and $workflowText -notmatch [regex]::Escape($requiredText)) {
             $issues.Add("deploy-cloudflare-staging.yml is missing Cloudflare staging contract text: $requiredText")
