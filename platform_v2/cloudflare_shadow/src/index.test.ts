@@ -16891,9 +16891,15 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /asset-record-live-real-derivative/);
   assert.match(homeBody, /data-media-kind="photo"/);
   assert.match(homeBody, /data-media-kind="audio"/);
+  const homeRecordKinds = Array.from(homeBody.matchAll(/data-media-kind="(photo|video|audio|record)" data-record-feed-card data-cloudflare-home-record/g), (match) => match[1]);
+  assert.deepEqual(homeRecordKinds.slice(0, 2), ["audio", "photo"]);
   assert.match(homeBody, /prototype-record-feed-media-icons/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
+  assert.match(homeBody, /width:min\(100%,680px\)/);
+  assert.match(homeBody, /height:clamp\(300px,48vh,460px\);min-height:300px/);
+  assert.match(homeBody, /height:48vh;min-height:320px/);
+  assert.doesNotMatch(homeBody, /width:min\(100%,540px\)|clamp\(520px,78vh,760px\)|height:76vh;min-height:540px/);
   assert.doesNotMatch(homeBody, /record-shadow-materialized/);
   assert.doesNotMatch(homeBody, /<span>写真<\/span>/);
   assert.match(homeBody, /prototype-record-feed is-guest/);
@@ -16990,6 +16996,8 @@ test("staging audio upload route creates a real public audio home card state", a
   assert.match(homeBody, /prototype-record-feed-empty-media is-media-audio/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
+  assert.match(homeBody, /height:clamp\(300px,48vh,460px\);min-height:300px/);
+  assert.doesNotMatch(homeBody, /clamp\(520px,78vh,760px\)|height:76vh;min-height:540px/);
   assert.doesNotMatch(homeBody, /<span>写真<\/span>/);
 
   const productionResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/staging-clean-audio-card/audio/upload", {

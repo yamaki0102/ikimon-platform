@@ -757,6 +757,7 @@ interface PublicMapRow {
 }
 
 type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
+const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "audio"];
 
 interface PublicMapPhotoRow {
   observation_id: string;
@@ -17785,10 +17786,10 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   next = next.replace(/class="prototype-record-feed(?![^"]*\bis-(?:guest|owner)\b)"/, `class="prototype-record-feed ${isOwnerFeed ? "is-owner" : "is-guest"}"`);
   if (!next.includes("cf-home-record-feed-style")) {
     next = next.replace("</head>", `<style id="cf-home-record-feed-style">
-      .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{width:min(100%,540px);margin-top:clamp(10px,2.6vw,24px)}
+      .prototype-record-feed.is-guest,.prototype-record-feed.is-owner{width:min(100%,680px);margin-top:clamp(10px,2.6vw,24px)}
       .prototype-record-feed.is-guest .prototype-record-feed-card,.prototype-record-feed.is-owner .prototype-record-feed-card{border-color:rgba(15,23,42,.08);box-shadow:0 12px 30px rgba(15,23,42,.12)}
       .prototype-record-feed.is-guest .prototype-record-feed-main,.prototype-record-feed.is-owner .prototype-record-feed-main{position:relative}
-      .prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:clamp(520px,78vh,760px);min-height:520px;background:#0f172a}
+      .prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:clamp(300px,48vh,460px);min-height:300px;background:#0f172a}
       .prototype-record-feed.is-guest .prototype-record-feed-copy,.prototype-record-feed.is-owner .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
       .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy strong,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
       .prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
@@ -17797,7 +17798,7 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed-media-icons{display:inline-flex;align-items:center;gap:5px}
       .prototype-record-feed-media-icons .prototype-content-icon{width:14px;height:14px}
       .cf-home-feed-sentinel{width:1px;height:1px}
-      @media(max-width:640px){.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:76vh;min-height:540px}}
+      @media(max-width:640px){.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:48vh;min-height:320px}}
     </style></head>`);
   }
   if (!next.includes("cf-home-record-feed-infinite-script")) {
@@ -17872,7 +17873,7 @@ function buildHomeFeedCards(
 ): Array<{ item: ReturnType<typeof publicMapObservationItem>; copy: ReturnType<typeof recordsInjectionCopy>; source: "owner" | "public" }> {
   if (ownerItems.length === 0) {
     const publicCopy = recordsInjectionCopy(url);
-    return publicItems.slice(0, 120).map((item) => ({ item, copy: publicCopy, source: "public" }));
+    return diversifyHomeRecordCards(publicItems).slice(0, 120).map((item) => ({ item, copy: publicCopy, source: "public" }));
   }
 
   const ownerCopy = ownerHomeRecordsCopy(url);
@@ -17907,6 +17908,29 @@ function buildHomeFeedCards(
   }
 
   return cards;
+}
+
+function diversifyHomeRecordCards<T extends { visitId: string; mediaKind: HomeRecordMediaKind }>(items: T[]): T[] {
+  if (items.length <= 1) return items;
+  const first = items[0];
+  if (!first) return items;
+  const selected: T[] = [first];
+  const selectedIds = new Set<string>([first.visitId]);
+  const selectedMediaKinds = new Set<HomeRecordMediaKind>([first.mediaKind]);
+  for (const mediaKind of HOME_RECORD_FEED_MEDIA_ORDER) {
+    if (selectedMediaKinds.has(mediaKind)) continue;
+    const item = items.find((candidate) => !selectedIds.has(candidate.visitId) && candidate.mediaKind === mediaKind);
+    if (!item) continue;
+    selected.push(item);
+    selectedIds.add(item.visitId);
+    selectedMediaKinds.add(mediaKind);
+  }
+  for (const item of items) {
+    if (selectedIds.has(item.visitId)) continue;
+    selected.push(item);
+    selectedIds.add(item.visitId);
+  }
+  return selected;
 }
 
 function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {

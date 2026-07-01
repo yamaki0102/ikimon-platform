@@ -464,6 +464,8 @@ function landingContentCardPlaceLine(lang: SiteLang, obs: LandingContentWallItem
 }
 
 type LandingContentMediaKind = "photo" | "video" | "audio" | "memo" | "id" | "record";
+const LANDING_RECORD_FEED_LIMIT = 12;
+const LANDING_RECORD_FEED_MEDIA_ORDER: LandingContentMediaKind[] = ["photo", "video", "audio", "memo"];
 type LandingMediaSource = LandingObservation & {
   audioUrl?: string | null;
   audioAssets?: unknown[] | null;
@@ -650,7 +652,31 @@ function landingRecordFeedItems(snapshot: LandingSnapshot): LandingObservation[]
     obs.librarySourceKind !== "scan" &&
     isReturnableOwnLandingContent(obs),
   );
-  return Array.from(new Map(feedable.map((obs) => [obs.occurrenceId, obs])).values()).slice(0, 12);
+  return diversifyLandingRecordFeedItems(Array.from(new Map(feedable.map((obs) => [obs.occurrenceId, obs])).values()));
+}
+
+function diversifyLandingRecordFeedItems(items: LandingObservation[]): LandingObservation[] {
+  if (items.length <= 1) return items;
+  const first = items[0];
+  if (!first) return items;
+  const selected: LandingObservation[] = [first];
+  const selectedIds = new Set<string>([first.occurrenceId]);
+  const selectedMediaKinds = new Set<LandingContentMediaKind>([landingContentMediaKind(first)]);
+  for (const mediaKind of LANDING_RECORD_FEED_MEDIA_ORDER) {
+    if (selectedMediaKinds.has(mediaKind)) continue;
+    const item = items.find((obs) => !selectedIds.has(obs.occurrenceId) && landingContentMediaKind(obs) === mediaKind);
+    if (!item) continue;
+    selected.push(item);
+    selectedIds.add(item.occurrenceId);
+    selectedMediaKinds.add(mediaKind);
+  }
+  for (const item of items) {
+    if (selected.length >= LANDING_RECORD_FEED_LIMIT) break;
+    if (selectedIds.has(item.occurrenceId)) continue;
+    selected.push(item);
+    selectedIds.add(item.occurrenceId);
+  }
+  return selected.slice(0, LANDING_RECORD_FEED_LIMIT);
 }
 
 function isPlayableLandingVideoUrl(url: string | null): boolean {
@@ -1945,7 +1971,7 @@ export const LANDING_TOP_STYLES = `
     max-width: none;
     margin-left: calc(var(--ikimon-landing-sidebar-w) + var(--ikimon-landing-side-space));
     margin-right: var(--ikimon-landing-side-space);
-    padding-top: clamp(18px, 3vw, 38px);
+    padding-top: clamp(34px, 3.4vw, 48px);
     color: #1a2e1f;
   }
   .prototype-record-feed {
@@ -1955,7 +1981,7 @@ export const LANDING_TOP_STYLES = `
     gap: clamp(14px, 2.2vw, 22px);
   }
   .prototype-record-feed.is-guest {
-    width: min(100%, 540px);
+    width: min(100%, 680px);
     margin-top: clamp(10px, 2.6vw, 24px);
     margin-bottom: clamp(18px, 4vw, 44px);
   }
@@ -2063,8 +2089,8 @@ export const LANDING_TOP_STYLES = `
     position: relative;
   }
   .prototype-record-feed.is-guest .prototype-record-feed-media-wrap {
-    height: clamp(520px, 78vh, 760px);
-    min-height: 520px;
+    height: clamp(300px, 48vh, 460px);
+    min-height: 300px;
     background: #0f172a;
   }
   .prototype-record-feed.is-guest .prototype-record-feed-card.is-guest-preview .prototype-record-feed-media-wrap {
@@ -4264,7 +4290,7 @@ export const LANDING_TOP_STYLES = `
   }
   @media (min-width: 1161px) and (max-width: 1380px) {
     .shell.shell-bleed.prototype-shell {
-      padding-top: clamp(14px, 2vw, 24px);
+      padding-top: clamp(34px, 3vw, 44px);
     }
     .prototype-topa-card-grid,
     .prototype-topa-card-grid.is-primary {
@@ -4305,7 +4331,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 720px) {
-    .shell.shell-bleed.prototype-shell { padding-top: 14px; }
+    .shell.shell-bleed.prototype-shell { padding-top: 36px; }
     .prototype-record-feed { width: 100%; gap: 12px; margin-bottom: 34px; }
     .prototype-record-feed.is-guest { width: 100%; margin-top: 4px; }
     .prototype-record-feed-head { align-items: start; }
@@ -4313,7 +4339,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-record-feed-head a { min-height: 38px; padding: 9px 12px; font-size: 12px; }
     .prototype-record-feed-list { gap: 14px; }
     .prototype-record-feed-media-wrap { height: 57vh; min-height: 310px; }
-    .prototype-record-feed.is-guest .prototype-record-feed-media-wrap { height: 76vh; min-height: 540px; }
+    .prototype-record-feed.is-guest .prototype-record-feed-media-wrap { height: 48vh; min-height: 320px; }
     .prototype-record-feed.is-guest .prototype-record-feed-card.is-guest-preview .prototype-record-feed-media-wrap { height: 180px; min-height: 180px; }
     .prototype-record-feed-copy { padding: 13px 14px 11px; }
     .prototype-record-feed-copy strong { font-size: 18px; }
