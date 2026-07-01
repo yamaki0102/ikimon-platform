@@ -9,6 +9,9 @@ const workerSource = readFileSync(new URL("../../cloudflare_shadow/src/index.ts"
 test("observation detail wires the record reading cards into the existing insight block", () => {
   assert.match(readSource, /listRecordReadingCards\(\{ visitId: bundle\.visitId, viewerUserId \}\)/);
   assert.match(readSource, /getRecordReadingAvailability\(\{ observationId: bundle\.visitId, viewerUserId \}\)/);
+  assert.match(readSource, /id="record-feedback"/);
+  assert.match(readSource, /data-record-feedback-loop/);
+  assert.match(readSource, /data-feedback-loop-status="\$\{escapeHtml\(feedbackStatus\)\}"/);
   assert.match(readSource, /この記録を読み解く/);
   assert.match(readSource, /公開情報をもとに作成。内容は出典で確認できます。/);
 });
@@ -20,5 +23,6 @@ test("record reading card writes are retired from Fastify origin and owned by Wo
   assert.doesNotMatch(writeSource, /hideRecordReadingCard/);
   assert.match(workerSource, /generateCompatibleRecordReadingCards/);
   assert.match(workerSource, /hideCompatibleRecordReadingCard/);
+  assert.match(workerSource, /buildLegacyRecordFeedbackLoopReady/);
   assert.match(workerSource, /record_reading_cards/);
 });

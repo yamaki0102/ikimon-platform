@@ -176,6 +176,10 @@ jobs:
         working-directory: platform_v2/cloudflare_shadow
         run: npm run materialize:original-ui:dry-run
 
+      - name: Apply production D1 core migrations
+        working-directory: platform_v2/cloudflare_shadow
+        run: npx wrangler d1 migrations apply CORE_DB --remote --env production
+
       - name: Apply production D1 observation migrations
         working-directory: platform_v2/cloudflare_shadow
         run: npx wrangler d1 migrations apply OBS_DB --remote --env production

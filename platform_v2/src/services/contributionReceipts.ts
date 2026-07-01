@@ -23,6 +23,20 @@ export type ContributionReceipt = {
   };
 };
 
+export type RecordFeedbackLoop = {
+  kind: "record_feedback_loop";
+  status: "queued";
+  claimLevel: "deferred";
+  title: string;
+  body: string;
+  signalKinds: Array<"season" | "place" | "environment">;
+  nextAction: {
+    label: string;
+    href: string;
+    actionKey: "open_record_feedback";
+  };
+};
+
 export type ContributionReceiptInput = {
   input: ObservationUpsertInput;
   result: ObservationWriteResult;
@@ -175,4 +189,21 @@ export function buildContributionReceipts({ input, result, guideUnlocks = [] }: 
   }
 
   return receipts.slice(0, 3);
+}
+
+export function buildRecordFeedbackLoop({ result }: Pick<ContributionReceiptInput, "result">): RecordFeedbackLoop {
+  const observationHref = `/observations/${encodeURIComponent(result.visitId)}?subject=${encodeURIComponent(result.occurrenceId)}`;
+  return {
+    kind: "record_feedback_loop",
+    status: "queued",
+    claimLevel: "deferred",
+    title: "ヒント待ち",
+    body: "季節・場所・環境の手がかりを、記録ページで見返せます。",
+    signalKinds: ["season", "place", "environment"],
+    nextAction: {
+      label: "記録を見る",
+      href: observationHref,
+      actionKey: "open_record_feedback",
+    },
+  };
 }

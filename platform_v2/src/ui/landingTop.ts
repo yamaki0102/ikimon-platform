@@ -274,7 +274,7 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEyebrow: "PLACE MEMORY",
       communityTitle: "場所の今を残す記録",
       minePulse: "投稿した記録をここから開けます。",
-      communityPulse: "今日も写真・動画つきの記録が届いています。",
+      communityPulse: "今日も記録が届いています。",
       emptyPulse: "まだ少ない場所ほど、次に見に行く楽しみがあります。",
       emptyTitle: "この場所の余白を見つける",
       emptyBody: "記録がないことも、季節や場所を知る手がかりです。気になったら、写真1枚や短いメモから残せます。",
@@ -291,7 +291,7 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "Everyone's records",
       minePulse: "Your saved records are always one tap away.",
-      communityPulse: "New photo and video records are arriving.",
+      communityPulse: "New records are arriving.",
       emptyPulse: "Quieter places are often the best places to look next.",
       emptyTitle: "Find the open space in this place",
       emptyBody: "A blank area is still a clue. Browse the map first, then save a photo or short note when something catches your eye.",
@@ -308,7 +308,7 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "Registros de todos",
       minePulse: "Tus registros guardados quedan a un toque.",
-      communityPulse: "Siguen llegando registros con foto y video.",
+      communityPulse: "Siguen llegando registros.",
       emptyPulse: "Los lugares tranquilos tambien dicen donde mirar despues.",
       emptyTitle: "Encuentra el espacio abierto de este lugar",
       emptyBody: "Un area vacia tambien es una pista. Mira el mapa primero y guarda una foto o nota breve cuando algo te llame.",
@@ -325,7 +325,7 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEyebrow: "EVERYONE'S RECORDS",
       communityTitle: "Registros de todos",
       minePulse: "Seus registros salvos ficam a um toque.",
-      communityPulse: "Novos registros com foto e video estao chegando.",
+      communityPulse: "Novos registros estao chegando.",
       emptyPulse: "Lugares mais quietos tambem mostram onde olhar depois.",
       emptyTitle: "Encontre o espaco aberto deste lugar",
       emptyBody: "Uma area vazia tambem e uma pista. Veja o mapa primeiro e salve uma foto ou nota curta quando algo chamar atencao.",
@@ -463,6 +463,66 @@ function landingContentCardPlaceLine(lang: SiteLang, obs: LandingContentWallItem
   return [observed, placeLabel].filter(Boolean).join(" · ");
 }
 
+type LandingContentMediaKind = "photo" | "video" | "audio" | "memo" | "id" | "record";
+type LandingMediaSource = LandingObservation & {
+  audioUrl?: string | null;
+  audioAssets?: unknown[] | null;
+};
+
+function hasLandingAudioSignal(obs: LandingMediaSource): boolean {
+  return Boolean(
+    obs.hasAudio
+    || obs.librarySourceKind === "audio"
+    || obs.audioUrl
+    || (Array.isArray(obs.audioAssets) && obs.audioAssets.length > 0),
+  );
+}
+
+function landingContentMediaKind(obs: LandingMediaSource): LandingContentMediaKind {
+  if (obs.hasVideo || obs.librarySourceKind === "video") return "video";
+  if (hasLandingAudioSignal(obs)) return "audio";
+  if (obs.photoUrl || obs.librarySourceKind === "photo") return "photo";
+  if (obs.librarySourceKind === "note") return "memo";
+  if (obs.entryType === "identification") return "id";
+  return "record";
+}
+
+function landingContentIconKind(mediaKind: LandingContentMediaKind): string {
+  if (mediaKind === "photo") return "image";
+  if (mediaKind === "memo") return "memo";
+  return mediaKind;
+}
+
+function landingContentMediaLabel(lang: SiteLang, mediaKind: LandingContentMediaKind): string {
+  if (lang === "ja") {
+    return {
+      photo: "写真",
+      video: "動画",
+      audio: "音",
+      memo: "短いメモ",
+      id: "名前の手がかり",
+      record: "記録",
+    }[mediaKind];
+  }
+  return {
+    photo: "Photo",
+    video: "Video",
+    audio: "Sound",
+    memo: "Short note",
+    id: "Identification hint",
+    record: "Record",
+  }[mediaKind];
+}
+
+function renderLandingMediaIconSet(lang: SiteLang, mediaKinds: LandingContentMediaKind[], className: string): string {
+  const uniqueKinds = Array.from(new Set(mediaKinds));
+  const label = uniqueKinds.map((kind) => landingContentMediaLabel(lang, kind)).join(" / ");
+  return `<span class="${escapeHtml(className)}" aria-label="${escapeHtml(label)}">${uniqueKinds.map((kind) => {
+    const icon = landingContentIconKind(kind);
+    return `<span class="prototype-content-icon is-${escapeHtml(icon)}"></span>`;
+  }).join("")}</span>`;
+}
+
 function renderLandingContentWallCard(
   basePath: string,
   lang: SiteLang,
@@ -474,17 +534,19 @@ function renderLandingContentWallCard(
   const title = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, copy.heroPhotoFallback);
   const placeLabel = observationPlaceLabel(obs) || copy.heroLatestLabel;
   const placeLine = landingContentCardPlaceLine(lang, obs, placeLabel);
-  const mediaIcon = obs.hasVideo ? "video" : obs.photoUrl ? "image" : obs.entryType === "identification" ? "id" : "record";
+  const mediaKind = landingContentMediaKind(obs);
+  const mediaIcon = landingContentIconKind(mediaKind);
+  const mediaLabel = landingContentMediaLabel(lang, mediaKind);
   const imageUrl = observationImageUrl(obs, "md");
   const observerName = obs.observerName || (lang === "ja" ? "観察者" : "Observer");
   const recordCount = Math.max(obs.contentRecordCount ?? 1, obs.subjectCount ?? 1);
   const thumbHtml = imageUrl
     ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index < 4 ? "eager" : "lazy"}" decoding="async" />`
     : `<span class="prototype-content-empty-thumb" aria-hidden="true"></span>`;
-  return `<a class="prototype-content-card is-${escapeHtml(obs.contentSource)}" href="${escapeHtml(href)}" data-kpi-action="landing:content_wall:${escapeHtml(obs.contentSource)}">
-    <span class="prototype-content-thumb">
+  return `<a class="prototype-content-card is-${escapeHtml(obs.contentSource)} is-media-${escapeHtml(mediaKind)}" href="${escapeHtml(href)}" data-kpi-action="landing:content_wall:${escapeHtml(obs.contentSource)}" data-media-kind="${escapeHtml(mediaKind)}">
+    <span class="prototype-content-thumb is-media-${escapeHtml(mediaKind)}">
       ${thumbHtml}
-      <span class="prototype-content-icon-row" aria-hidden="true">
+      <span class="prototype-content-icon-row" aria-label="${escapeHtml(mediaLabel)}">
         <span class="prototype-content-icon is-${escapeHtml(mediaIcon)}"></span>
       </span>
     </span>
@@ -623,14 +685,12 @@ function renderLandingRecordFeedCard(options: LandingTopRenderOptions, obs: Land
     ? (lang === "ja" ? "公開範囲を変更" : "Change visibility")
     : (lang === "ja" ? "通報" : "Report");
   const showTools = Boolean(snapshot.viewerUserId);
-  const mediaBadge = obs.hasVideo || obs.librarySourceKind === "video"
-    ? (lang === "ja" ? "動画" : "Video")
-    : (lang === "ja" ? "写真" : "Photo");
-  return `<article class="prototype-record-feed-card${isMine ? " is-mine" : ""}" data-record-feed-card>
+  const mediaKind = landingContentMediaKind(obs);
+  return `<article class="prototype-record-feed-card${isMine ? " is-mine" : ""} is-media-${escapeHtml(mediaKind)}" data-record-feed-card data-media-kind="${escapeHtml(mediaKind)}">
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:card">
       <span class="prototype-record-feed-media-wrap">
         ${renderLandingRecordFeedMedia(obs, title, index)}
-        <span class="prototype-record-feed-badges"><span>${escapeHtml(label)}</span><span>${escapeHtml(mediaBadge)}</span></span>
+        <span class="prototype-record-feed-badges"><span>${escapeHtml(label)}</span>${renderLandingMediaIconSet(lang, [mediaKind], "prototype-record-feed-media-icons")}</span>
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>
@@ -679,19 +739,17 @@ function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): stri
     ? {
         title: "みんなの記録",
         badge: "近くの記録",
-        media: "写真・動画",
       }
     : {
         title: "Community records",
         badge: "Nearby record",
-        media: "Photo and video",
       };
   return `<article class="prototype-record-feed-card is-preview is-guest-preview" data-record-feed-card>
     <a class="prototype-record-feed-main" href="${escapeHtml(recordsHref)}" data-kpi-action="landing:record_feed:guest_preview">
       <span class="prototype-record-feed-media-wrap">
         <span class="prototype-record-feed-empty-media" aria-hidden="true"></span>
         <span class="prototype-record-feed-preview-stack" aria-hidden="true"><span></span><span></span><span></span></span>
-        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.badge)}</span><span>${escapeHtml(copy.media)}</span></span>
+        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.badge)}</span>${renderLandingMediaIconSet(lang, ["photo", "video", "audio", "memo"], "prototype-record-feed-media-icons")}</span>
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(copy.title)}</strong>
@@ -722,7 +780,7 @@ function renderLandingRecordFeed(options: LandingTopRenderOptions): string {
     ? ""
     : `<div class="prototype-record-feed-head">
       <div>
-        <span>${escapeHtml(lang === "ja" ? "写真・動画の記録" : "Photo and video records")}</span>
+        ${renderLandingMediaIconSet(lang, ["photo", "video", "audio", "memo"], "prototype-record-feed-head-icons")}
         <h1>${escapeHtml(lang === "ja" ? "今日の記録が、場所の記憶に育つ。" : "Today's records grow into place memory.")}</h1>
       </div>
       ${headActionHtml}
@@ -1907,12 +1965,30 @@ export const LANDING_TOP_STYLES = `
     justify-content: space-between;
     gap: 14px;
   }
-  .prototype-record-feed-head span {
+  .prototype-record-feed-head > div > span {
     display: block;
     color: #0f766e;
     font-size: 12px;
     font-weight: 950;
     letter-spacing: 0;
+  }
+  .prototype-record-feed-head > div > .prototype-record-feed-head-icons {
+    width: fit-content;
+    display: inline-flex;
+    gap: 5px;
+    padding: 4px 6px;
+    border-radius: 999px;
+    background: rgba(16,37,26,.82);
+  }
+  .prototype-record-feed-head-icons .prototype-content-icon {
+    width: 22px;
+    height: 22px;
+    background: rgba(255,255,255,.14);
+    box-shadow: none;
+  }
+  .prototype-record-feed-head-icons .prototype-content-icon::before {
+    width: 11px;
+    height: 11px;
   }
   .prototype-record-feed-head h1 {
     margin: 4px 0 0;
@@ -2054,7 +2130,7 @@ export const LANDING_TOP_STYLES = `
     flex-wrap: wrap;
     gap: 6px;
   }
-  .prototype-record-feed-badges span {
+  .prototype-record-feed-badges > span {
     display: inline-flex;
     min-height: 28px;
     align-items: center;
@@ -2065,6 +2141,20 @@ export const LANDING_TOP_STYLES = `
     font-size: 11px;
     font-weight: 900;
     line-height: 1;
+  }
+  .prototype-record-feed-media-icons {
+    gap: 4px;
+    padding: 4px 6px;
+  }
+  .prototype-record-feed-media-icons .prototype-content-icon {
+    width: 20px;
+    height: 20px;
+    background: rgba(255,255,255,.14);
+    box-shadow: none;
+  }
+  .prototype-record-feed-media-icons .prototype-content-icon::before {
+    width: 10px;
+    height: 10px;
   }
   .prototype-record-feed-copy {
     display: grid;
@@ -2410,6 +2500,24 @@ export const LANDING_TOP_STYLES = `
     background-size: 22px 22px, 22px 22px, auto;
     box-shadow: var(--ikimon-record-card-thumb-shadow);
   }
+  .prototype-content-thumb.is-media-video {
+    background:
+      radial-gradient(circle at 76% 22%, rgba(16,185,129,.2), transparent 28%),
+      linear-gradient(135deg, rgba(15,23,42,.09), rgba(14,165,233,.1)),
+      #f8fffc;
+  }
+  .prototype-content-thumb.is-media-audio {
+    background:
+      repeating-linear-gradient(90deg, rgba(4,120,87,.18) 0 3px, transparent 3px 12px),
+      linear-gradient(135deg, rgba(236,253,245,.96), rgba(224,242,254,.92));
+  }
+  .prototype-content-thumb.is-media-memo,
+  .prototype-content-thumb.is-media-id,
+  .prototype-content-thumb.is-media-record {
+    background:
+      linear-gradient(180deg, transparent 0 20px, rgba(15,23,42,.07) 20px 21px, transparent 21px 34px),
+      linear-gradient(135deg, rgba(255,255,255,.96), rgba(236,253,245,.9));
+  }
   .prototype-content-thumb img {
     width: 100%;
     height: 100%;
@@ -2429,6 +2537,24 @@ export const LANDING_TOP_STYLES = `
     color: #047857;
     font-size: 14px;
     font-weight: 950;
+  }
+  .prototype-content-thumb.is-media-audio .prototype-content-empty-thumb {
+    width: 62%;
+    height: 34px;
+    border-radius: 999px;
+    background:
+      linear-gradient(90deg, transparent 0 8%, #047857 8% 13%, transparent 13% 22%, #047857 22% 30%, transparent 30% 40%, #047857 40% 48%, transparent 48% 58%, #047857 58% 64%, transparent 64% 76%, #047857 76% 81%, transparent 81% 100%);
+    opacity: .72;
+  }
+  .prototype-content-thumb.is-media-memo .prototype-content-empty-thumb,
+  .prototype-content-thumb.is-media-id .prototype-content-empty-thumb,
+  .prototype-content-thumb.is-media-record .prototype-content-empty-thumb {
+    width: 54%;
+    height: 42%;
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, #047857 0 3px, transparent 3px 12px, #047857 12px 15px, transparent 15px 24px, #047857 24px 27px, transparent 27px 100%);
+    opacity: .62;
   }
   .prototype-content-icon-row {
     position: absolute;
@@ -2460,6 +2586,8 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-content-icon.is-image { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M5 5h14v14H5V5Zm2 2v8.6l3.2-3.2 2.6 2.6 1.7-1.7L17 15.8V7H7Zm2.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z'/%3E%3C/svg%3E"); }
   .prototype-content-icon.is-video { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 6h11v12H4V6Zm13 4.2 4-2.4v8.4l-4-2.4v-3.6Z'/%3E%3C/svg%3E"); }
+  .prototype-content-icon.is-audio { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 9h3l4-4v14l-4-4H4V9Zm11.5-2 1.4 1.4A5 5 0 0 1 18.4 12a5 5 0 0 1-1.5 3.6L15.5 14.2A3 3 0 0 0 16.4 12a3 3 0 0 0-.9-2.2V7Zm2.8-2 1.4 1.4A8 8 0 0 1 22 12a8 8 0 0 1-2.3 5.6l-1.4-1.4A6 6 0 0 0 20 12a6 6 0 0 0-1.7-4.2V5Z'/%3E%3C/svg%3E"); }
+  .prototype-content-icon.is-memo { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M6 3h9l3 3v15H6V3Zm2 4v2h8V7H8Zm0 4v2h8v-2H8Zm0 4v2h5v-2H8Z'/%3E%3C/svg%3E"); }
   .prototype-content-icon.is-id { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5h16v14H4V5Zm3 3v2h10V8H7Zm0 4v2h6v-2H7Z'/%3E%3C/svg%3E"); }
   .prototype-content-icon.is-record { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 5v3h3v2h-3v3h-2v-3H8v-2h3V8h2Z'/%3E%3C/svg%3E"); }
   .prototype-content-body {

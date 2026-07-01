@@ -101,6 +101,24 @@ jobs:
         working-directory: platform_v2/cloudflare_shadow
         run: npm run deploy:staging:dry-run -- --test-profile "${TEST_PROFILE}" --write-preflight-report .deploy/staging-preflight-latest.json
 
+      - name: Sync staging Worker write key
+        if: env.DEPLOY_STAGING == 'true'
+        working-directory: platform_v2/cloudflare_shadow
+        env:
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${V2_PRIVILEGED_WRITE_API_KEY:-}" ]; then
+            echo "V2_PRIVILEGED_WRITE_API_KEY is required for Cloudflare staging smoke."
+            exit 1
+          fi
+          printf '%s' "$V2_PRIVILEGED_WRITE_API_KEY" | npx wrangler secret put V2_PRIVILEGED_WRITE_API_KEY --env staging
+
+      - name: Apply staging D1 core migrations
+        if: env.DEPLOY_STAGING == 'true'
+        working-directory: platform_v2/cloudflare_shadow
+        run: npx wrangler d1 migrations apply CORE_DB --remote --env staging
+
       - name: Apply staging D1 observation migrations
         if: env.DEPLOY_STAGING == 'true'
         working-directory: platform_v2/cloudflare_shadow
@@ -148,6 +166,15 @@ jobs:
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
         run: npm run e2e:staging:site-map
+
+      - name: Run Cloudflare staging record feedback loop smoke
+        if: env.DEPLOY_STAGING == 'true'
+        working-directory: platform_v2
+        timeout-minutes: 10
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: npm run e2e:staging:record-feedback-loop
 
       - name: Upload Cloudflare staging artifacts
         if: always()

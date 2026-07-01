@@ -4,8 +4,10 @@ import {
   assessLegacyObservationQuality,
   isMeaningfulPublicObservationLabel,
   PUBLIC_OBSERVATION_DISCOVERY_EXCLUSION_SQL,
+  PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
+  VALID_OBSERVATION_AUDIO_ASSET_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
 
@@ -65,4 +67,15 @@ test("public photo gates reject known 1x1 placeholder assets without requiring l
   assert.match(VALID_OBSERVATION_PHOTO_ASSET_SQL, /coalesce\(ab\.bytes, 1024\) > 512/);
   assert.match(VALID_OBSERVATION_PHOTO_ASSET_SQL, /coalesce\(ab\.width_px, 2\) > 1/);
   assert.match(PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL, /coalesce\(public_photo_ab\.bytes, 1024\) > 512/);
+});
+
+test("public media gate accepts only clean non-voice observation audio", () => {
+  assert.match(VALID_OBSERVATION_AUDIO_ASSET_SQL, /ea\.asset_role = 'observation_audio'/);
+  assert.match(VALID_OBSERVATION_AUDIO_ASSET_SQL, /audio\.privacy_status = 'clean'/);
+  assert.match(VALID_OBSERVATION_AUDIO_ASSET_SQL, /coalesce\(audio\.voice_flag, false\) = false/);
+  assert.match(VALID_OBSERVATION_AUDIO_ASSET_SQL, /coalesce\(audio\.transcription_status, 'pending'\) <> 'skipped'/);
+  assert.match(VALID_OBSERVATION_AUDIO_ASSET_SQL, /smoke\[-_\]\?ui/);
+  assert.match(PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL, /public_media_ea\.asset_role = 'observation_audio'/);
+  assert.match(PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL, /public_media_audio\.privacy_status = 'clean'/);
+  assert.match(PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL, /coalesce\(public_media_audio\.voice_flag, false\) = false/);
 });

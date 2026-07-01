@@ -447,6 +447,18 @@ interface LegacyPhotoUploadInput {
   facePrivacy?: string | null;
 }
 
+interface LegacyAudioUploadInput {
+  filename?: string | null;
+  mimeType?: string | null;
+  base64Data?: string | null;
+  mediaRole?: string | null;
+  privacyStatus?: string | null;
+  voiceFlag?: string | boolean | null;
+  transcriptionStatus?: string | null;
+  durationMs?: number | null;
+  meta?: Record<string, unknown> | null;
+}
+
 interface SessionIssueInput {
   userId: string;
   ttlHours?: number | null;
@@ -732,6 +744,8 @@ interface MediaJob {
 interface UploadedAssetRow {
   asset_id: string;
   object_key: string;
+  sha256: string | null;
+  mime: string;
 }
 
 interface PublicMapRow {
@@ -742,9 +756,18 @@ interface PublicMapRow {
   asset_count: number;
 }
 
+type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
+
 interface PublicMapPhotoRow {
   observation_id: string;
   public_derivative_key: string;
+}
+
+interface PublicMapMediaKindRow {
+  observation_id: string;
+  has_video: number;
+  has_photo: number;
+  has_audio: number;
 }
 
 const VALID_PERSONAL_TAXON_MATCH_FIELDS = new Set([
@@ -2503,6 +2526,10 @@ export const worker = {
         return upsertLegacyCompatibleObservation(request, env);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/ops/staging/record-feedback-loop/cleanup") {
+        return cleanupStagingRecordFeedbackLoopSmoke(request, env);
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/auth/session/issue") {
         return issueCompatibleSession(request, env);
       }
@@ -2548,6 +2575,11 @@ export const worker = {
       const photoUploadMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/photos\/upload$/);
       if (request.method === "POST" && photoUploadMatch?.[1]) {
         return uploadLegacyCompatiblePhoto(decodeURIComponent(photoUploadMatch[1]), request, env);
+      }
+
+      const audioUploadMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/audio\/upload$/);
+      if (request.method === "POST" && audioUploadMatch?.[1]) {
+        return uploadStagingCompatibleAudio(decodeURIComponent(audioUploadMatch[1]), request, env);
       }
 
       const hideObservationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/hide$/);
@@ -7607,15 +7639,71 @@ async function generateCompatibleRecordReadingCards(observationId: string, reque
   }
 
   const cards = await listD1RecordReadingCards(signals.visitId, session.userId, env);
+  const feedbackLoop = buildLegacyRecordFeedbackLoopReady(
+    signals.visitId,
+    signals.subjects[0]?.occurrence_id ?? `occ:${signals.visitId}:0`,
+    cards
+  );
+  if (cards.length > 0) {
+    await enqueueD1RecordFeedbackReadyAlert(signals, feedbackLoop, env);
+  }
   return json({
     ok: cards.length > 0,
     cards,
     reason: cards.length > 0 ? "eligible" : "not_grounded",
+    feedbackLoop,
     compatibility: {
       source: "cloudflare_record_reading_cards",
       generationMode: "deterministic_catalog"
     }
   }, cards.length > 0 ? 200 : 422, { "cache-control": "no-store" });
+}
+
+async function enqueueD1RecordFeedbackReadyAlert(
+  signals: {
+    visitId: string;
+    ownerUserId: string | null;
+    subjects: Array<{ occurrence_id: string; scientific_name: string | null; vernacular_name: string | null; taxon_rank: string | null }>;
+  },
+  feedbackLoop: ReturnType<typeof buildLegacyRecordFeedbackLoopReady>,
+  env: Env
+): Promise<void> {
+  const userId = normalizeOptionalText(signals.ownerUserId);
+  const occurrenceId = normalizeOptionalText(signals.subjects[0]?.occurrence_id);
+  if (!userId || !occurrenceId) return;
+
+  const existing = await env.CORE_DB.prepare(
+    `SELECT delivery_id
+       FROM alert_deliveries
+      WHERE occurrence_id = ?
+        AND user_id = ?
+        AND trigger_kind = 'record_feedback_ready'
+      LIMIT 1`
+  ).bind(occurrenceId, userId).first<{ delivery_id: string }>();
+  if (existing?.delivery_id) return;
+
+  const now = new Date().toISOString();
+  await env.CORE_DB.prepare(
+    `INSERT INTO alert_deliveries (
+       delivery_id, occurrence_id, user_id, recipient_id, subscription_id, area_subscription_id,
+       trigger_kind, channel, delivered_at, delivery_status, error_message,
+       payload_json, acknowledged_at, created_at
+     ) VALUES (?, ?, ?, NULL, NULL, NULL, 'record_feedback_ready', 'none', ?, 'sent', NULL, ?, NULL, ?)`
+  ).bind(
+    newId("alert_delivery"),
+    occurrenceId,
+    userId,
+    now,
+    JSON.stringify({
+      title: feedbackLoop.title,
+      body: feedbackLoop.body,
+      href: feedbackLoop.nextAction.href,
+      visitId: signals.visitId,
+      occurrenceId,
+      feedbackLoop
+    }),
+    now
+  ).run();
 }
 
 async function hideCompatibleRecordReadingCard(cardId: string, request: Request, env: Env): Promise<Response> {
@@ -7710,7 +7798,44 @@ async function resolveD1RecordReadingSignals(observationId: string, env: Env): P
     public_visibility: string | null;
     observed_at: string | null;
   }>();
-  if (!visit) return null;
+  if (!visit) {
+    const nativeObservationId = nativeObservationIdFromRecordReadingTarget(observationId);
+    const native = await env.OBS_DB.prepare(
+      `SELECT observation_id, owner_user_id, COALESCE(visibility, 'public') AS public_visibility, observed_at, taxon_label
+         FROM observations
+        WHERE observation_id = ?
+        LIMIT 1`
+    ).bind(nativeObservationId).first<{
+      observation_id: string;
+      owner_user_id: string | null;
+      public_visibility: string | null;
+      observed_at: string | null;
+      taxon_label: string | null;
+    }>();
+    if (!native) return null;
+
+    const nativeAssetCount = await env.OBS_DB.prepare(
+      `SELECT COUNT(*) AS count
+         FROM asset_ledger
+        WHERE observation_id = ?
+          AND processing_state = 'uploaded'
+          AND (mime LIKE 'image/%' OR mime LIKE 'video/%')`
+    ).bind(native.observation_id).first<{ count: number }>();
+    const nativeOccurrenceId = observationId === native.observation_id ? `occ:${native.observation_id}:0` : observationId;
+    return {
+      visitId: native.observation_id,
+      ownerUserId: native.owner_user_id,
+      publicVisibility: native.public_visibility ?? "public",
+      observedAt: native.observed_at,
+      mediaCount: Number(nativeAssetCount?.count ?? 0),
+      subjects: [{
+        occurrence_id: nativeOccurrenceId,
+        scientific_name: null,
+        vernacular_name: native.taxon_label,
+        taxon_rank: null
+      }]
+    };
+  }
 
   const subjectsResult = await env.OBS_DB.prepare(
     `SELECT occurrence_id, scientific_name, vernacular_name, taxon_rank
@@ -7750,6 +7875,11 @@ async function resolveD1RecordReadingSignals(observationId: string, env: Env): P
     mediaCount: Number(assetCount?.count ?? 0),
     subjects
   };
+}
+
+function nativeObservationIdFromRecordReadingTarget(observationId: string): string {
+  const occurrenceMatch = /^occ:(.*):\d+$/u.exec(observationId);
+  return occurrenceMatch?.[1] ? occurrenceMatch[1] : observationId;
 }
 
 function buildD1RecordReadingCardDrafts(signals: {
@@ -8068,6 +8198,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (url.pathname === "/api/v1/videos/stream-webhook") return true;
   if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observations\/[^/]+\/audio\/upload$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
@@ -17536,7 +17667,6 @@ function recordsInjectionCopy(url: URL) {
       empty: "No recent public records yet.",
       open: "Open",
       homeBadge: "Nearby",
-      media: "Photo",
       map: "Map",
       placeContext: "Nearby record",
       unknown: "Awaiting ID"
@@ -17549,7 +17679,6 @@ function recordsInjectionCopy(url: URL) {
     empty: "まだ最近の公開記録はありません。",
     open: "開く",
     homeBadge: "近くの記録",
-    media: "写真",
     map: "地図",
     placeContext: "近くの記録",
     unknown: "同定待ち"
@@ -17566,7 +17695,6 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
       empty: "No records yet.",
       open: "Open",
       homeBadge: "Your record",
-      media: "Photo",
       map: "Saved",
       placeContext: "Saved record",
       unknown: "Awaiting ID"
@@ -17579,7 +17707,6 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
     empty: "まだ記録はありません。",
     open: "開く",
     homeBadge: "自分の記録",
-    media: "写真",
     map: "保存済み",
     placeContext: "保存済み",
     unknown: "同定待ち"
@@ -17649,7 +17776,9 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   const publicItems = await recentPublicRecordCards(env, isOwnerFeed ? 40 : 120).catch(() => []);
   const feedCards = buildHomeFeedCards(ownerItems, publicItems, url);
   if (feedCards.length === 0) return html;
-  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source)).join("");
+  const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
+  const lang: "ja" | "en" | "es" | "pt-br" = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source, lang)).join("");
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
     .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*(<script\b[^>]*>)/, `<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div>$1`);
@@ -17663,6 +17792,10 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed.is-guest .prototype-record-feed-copy,.prototype-record-feed.is-owner .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
       .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy strong,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
       .prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
+      .prototype-record-feed-empty-media.is-media-audio{background:linear-gradient(135deg,#10251a,#0f766e 46%,#d1fae5)}
+      .prototype-record-feed-empty-media.is-media-video{background:linear-gradient(135deg,#18233a,#1d4ed8 48%,#bae6fd)}
+      .prototype-record-feed-media-icons{display:inline-flex;align-items:center;gap:5px}
+      .prototype-record-feed-media-icons .prototype-content-icon{width:14px;height:14px}
       .cf-home-feed-sentinel{width:1px;height:1px}
       @media(max-width:640px){.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:76vh;min-height:540px}}
     </style></head>`);
@@ -17830,11 +17963,15 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
   const rows = await queryPublicMapRows(env);
   if (rows.length === 0) return [];
   const photoUrls = await queryPublicMapPhotoUrls(env);
+  const mediaKinds = await queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>());
   const uniqueItems: Array<ReturnType<typeof publicMapObservationItem>> = [];
   const seen = new Set<string>();
   for (const item of rows
-    .filter((row) => photoUrls.has(row.observation_id))
-    .map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null))) {
+    .map((row) => {
+      const mediaKind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
+      return publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, mediaKind);
+    })
+    .filter((item) => item.photoUrl || item.mediaKind === "video" || item.mediaKind === "audio")) {
     const key = `${item.visitId}:${item.photoUrl ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -17893,17 +18030,23 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
   </a>`;
 }
 
-function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>, index: number, source: "owner" | "public" = "public"): string {
+function renderHomeRecordCard(
+  item: ReturnType<typeof publicMapObservationItem>,
+  copy: ReturnType<typeof recordsInjectionCopy>,
+  index: number,
+  source: "owner" | "public" = "public",
+  lang: "ja" | "en" | "es" | "pt-br" = "ja"
+): string {
   const href = `/observations/${encodeURIComponent(item.visitId)}`;
   const image = item.photoUrl
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
-    : `<span class="prototype-record-feed-empty-media" aria-hidden="true"></span>`;
+    : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true"></span>`;
   const title = item.displayName || copy.unknown;
-  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
+  return `<article class="prototype-record-feed-card is-media-${escapeHtml(item.mediaKind)}" data-media-kind="${escapeHtml(item.mediaKind)}" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
         ${image}
-        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.homeBadge)}</span><span>${escapeHtml(copy.media)}</span></span>
+        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.homeBadge)}</span>${renderHomeRecordMediaIcons(item.mediaKind, lang)}</span>
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>
@@ -17911,6 +18054,34 @@ function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>,
       </span>
     </a>
   </article>`;
+}
+
+function homeRecordMediaLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
+  if (lang === "ja") {
+    return {
+      photo: "写真",
+      video: "動画",
+      audio: "音",
+      record: "記録"
+    }[mediaKind];
+  }
+  return {
+    photo: "Photo",
+    video: "Video",
+    audio: "Sound",
+    record: "Record"
+  }[mediaKind];
+}
+
+function homeRecordIconKind(mediaKind: HomeRecordMediaKind): string {
+  if (mediaKind === "photo") return "image";
+  return mediaKind;
+}
+
+function renderHomeRecordMediaIcons(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
+  const label = homeRecordMediaLabel(mediaKind, lang);
+  const icon = homeRecordIconKind(mediaKind);
+  return `<span class="prototype-record-feed-media-icons" aria-label="${escapeHtml(label)}"><span class="prototype-content-icon is-${escapeHtml(icon)}"></span></span>`;
 }
 
 function activateMaterializedAuthOAuthLinks(html: string, url: URL): string {
@@ -18109,7 +18280,60 @@ async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
   return map;
 }
 
-function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null) {
+async function queryPublicMapMediaKinds(env: Env): Promise<Map<string, HomeRecordMediaKind>> {
+  const map = new Map<string, HomeRecordMediaKind>();
+  const imported = await env.OBS_DB.prepare(
+    `SELECT COALESCE(visit_id, occurrence_id) AS observation_id,
+            MAX(CASE WHEN asset_role = 'observation_video' THEN 1 ELSE 0 END) AS has_video,
+            MAX(CASE WHEN asset_role IN ('observation_photo', 'observation_photo_original') THEN 1 ELSE 0 END) AS has_photo,
+            MAX(CASE WHEN asset_role = 'observation_audio' THEN 1 ELSE 0 END) AS has_audio
+       FROM production_import_evidence_assets
+      WHERE COALESCE(visit_id, occurrence_id) IS NOT NULL
+        AND asset_role IN ('observation_photo', 'observation_photo_original', 'observation_video', 'observation_audio')
+      GROUP BY COALESCE(visit_id, occurrence_id)
+      LIMIT 5000`
+  ).all<PublicMapMediaKindRow>();
+  for (const row of imported.results) {
+    setHomeRecordMediaKind(map, row.observation_id, mediaKindFromSignals(row));
+  }
+
+  const nativeRows = await env.OBS_DB.prepare(
+    `SELECT observation_id,
+            MAX(CASE WHEN mime LIKE 'video/%' THEN 1 ELSE 0 END) AS has_video,
+            MAX(CASE WHEN mime LIKE 'image/%' THEN 1 ELSE 0 END) AS has_photo,
+            MAX(CASE WHEN mime LIKE 'audio/%' THEN 1 ELSE 0 END) AS has_audio
+       FROM asset_ledger
+      WHERE observation_id IS NOT NULL
+        AND processing_state = 'uploaded'
+      GROUP BY observation_id
+      LIMIT 5000`
+  ).all<PublicMapMediaKindRow>();
+  for (const row of nativeRows.results) {
+    setHomeRecordMediaKind(map, row.observation_id, mediaKindFromSignals(row));
+  }
+  return map;
+}
+
+function mediaKindFromSignals(row: Pick<PublicMapMediaKindRow, "has_video" | "has_photo" | "has_audio">): HomeRecordMediaKind {
+  if (Number(row.has_video) > 0) return "video";
+  if (Number(row.has_photo) > 0) return "photo";
+  if (Number(row.has_audio) > 0) return "audio";
+  return "record";
+}
+
+function homeRecordMediaPriority(kind: HomeRecordMediaKind): number {
+  return kind === "video" ? 4 : kind === "photo" ? 3 : kind === "audio" ? 2 : 1;
+}
+
+function setHomeRecordMediaKind(map: Map<string, HomeRecordMediaKind>, observationId: string | null | undefined, kind: HomeRecordMediaKind): void {
+  if (!observationId) return;
+  const current = map.get(observationId);
+  if (!current || homeRecordMediaPriority(kind) > homeRecordMediaPriority(current)) {
+    map.set(observationId, kind);
+  }
+}
+
+function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, mediaKind: HomeRecordMediaKind = photoUrl ? "photo" : "record") {
   const displayName = publicTaxonDisplayName(row.taxon_label);
   return {
     occurrenceId: `occ:${row.observation_id}:0`,
@@ -18120,6 +18344,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null) {
     localityLabel: "位置をぼかしています",
     observedAt: row.observed_at,
     photoUrl,
+    mediaKind,
     taxonGroup: taxonGroupForLabel(row.taxon_label),
     cellId: publicCellToCellId(row.public_cell),
     privacy: publicMapExactCoordinateGate()
@@ -20611,7 +20836,8 @@ function buildLegacyCompatibleObservationResponse(input: {
     } : undefined,
     placeMemory: input.placeMemory ?? null,
     placeMemorySample: input.placeMemorySample ?? [],
-    contributionReceipts: buildLegacyContributionReceipts(input.visitId, input.occurrenceId, input.occurrenceIds.length, input.placeName, source)
+    contributionReceipts: buildLegacyContributionReceipts(input.visitId, input.occurrenceId, input.occurrenceIds.length, input.placeName, source),
+    feedbackLoop: buildLegacyRecordFeedbackLoop(input.visitId, input.occurrenceId)
   };
 }
 
@@ -20913,6 +21139,10 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     occurrenceIds,
     taxonLabel
   });
+
+  if (visibility !== "public" || (await publicSafetyGateForObservation(visitId, env)).blocked) {
+    await deletePublicReadmodelRow(visitId, env);
+  }
 
   return json(buildLegacyCompatibleObservationResponse({
     visitId,
@@ -21591,6 +21821,134 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   });
 }
 
+async function uploadStagingCompatibleAudio(observationId: string, request: Request, env: Env): Promise<Response> {
+  assertNonEmpty(observationId, "observationId");
+  if (env.ENVIRONMENT !== "staging" && env.ENVIRONMENT !== "shadow") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const observation = await env.OBS_DB.prepare(
+    `SELECT draft_id, owner_user_id, partition_month
+     FROM observations
+     WHERE observation_id = ?`
+  ).bind(observationId).first<{ draft_id: string; owner_user_id: string; partition_month: string | null }>();
+  if (!observation) return json({ ok: false, error: `observation not found: ${observationId}` }, 404);
+
+  const authHeaders = [
+    request.headers.get("x-ikimon-write-key"),
+    request.headers.get("x-v2-privileged-write-api-key"),
+    request.headers.get("x-api-key"),
+    bearerToken(request.headers.get("authorization"))
+  ].some((value) => Boolean(value?.trim()));
+  if (authHeaders) {
+    const auth = assertPrivilegedWriteAccessNative(request, env);
+    if (auth instanceof Response) return auth;
+  } else {
+    const session = await readCompatibleSessionWithOriginFallback(request, env);
+    if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+    if (session.userId !== observation.owner_user_id) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+  }
+
+  const input = await readJson<LegacyAudioUploadInput>(request);
+  const mimeType = normalizeFieldscanAudioMime(input.mimeType);
+  const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "clean-audio.webm");
+  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
+  if (body.byteLength === 0) throw new HttpError(400, "decoded_audio_empty");
+  if (body.byteLength > FIELDSCAN_AUDIO_MAX_BYTES) throw new HttpError(400, "audio_too_large");
+  const audioBytes = new Uint8Array(body);
+  const magic = validateFieldscanAudioMagic(audioBytes, mimeType);
+  if (magic !== "ok") throw new HttpError(400, `audio_quarantined_${magic}`);
+
+  const privacyStatus = normalizeOptionalText(input.privacyStatus) ?? "";
+  if (privacyStatus !== "clean") throw new HttpError(400, "audio_privacy_not_clean");
+  const voiceFlag = typeof input.voiceFlag === "boolean"
+    ? (input.voiceFlag ? "human_voice" : "no_voice")
+    : normalizeOptionalText(input.voiceFlag);
+  if (voiceFlag && voiceFlag !== "no_voice" && voiceFlag !== "none" && voiceFlag !== "clean") {
+    throw new HttpError(400, "audio_voice_flag_not_clean");
+  }
+  if (normalizeOptionalText(input.transcriptionStatus) === "skipped") {
+    throw new HttpError(400, "audio_transcription_skipped");
+  }
+  const meta = asPlainObject(input.meta) ?? {};
+  const privacyDecision = decideFieldscanInitialPrivacy(meta, true);
+  if (privacyDecision.decision !== "clean") throw new HttpError(400, `audio_not_clean_${privacyDecision.reason}`);
+  const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
+
+  const sha256 = await sha256Hex(body);
+  const assetId = newId("asset_audio");
+  const outboxMediaId = newId("outbox");
+  const outboxReadModelId = newId("outbox");
+  const objectKey = `original/v1-compat/${observationId}/${assetId}-${filename}`;
+  const relativePath = objectKey;
+  const occurrenceId = `occ:${observationId}:0`;
+  await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      `INSERT INTO asset_ledger
+       (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state, uploaded_at, partition_month)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'private', 'uploaded', CURRENT_TIMESTAMP, ?)`
+    ).bind(
+      assetId,
+      observation.draft_id,
+      observationId,
+      observation.owner_user_id,
+      objectKey,
+      sha256,
+      mimeType,
+      body.byteLength,
+      partitionMonth
+    ),
+    env.OBS_DB.prepare(
+      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(outboxMediaId, "media.process", observationId, JSON.stringify({ observationId, assetId }), partitionMonth),
+    env.OBS_DB.prepare(
+      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth),
+    rollbackLedgerInsert(env, {
+      eventType: "asset.audio.upload",
+      targetId: assetId,
+      partitionMonth,
+      sourceEndpoint: "POST /api/v1/observations/:id/audio/upload",
+      payload: {
+        assetId,
+        observationId,
+        ownerUserId: observation.owner_user_id,
+        objectKey,
+        sha256,
+        mime: mimeType,
+        bytes: body.byteLength,
+        visibility: "private",
+        occurrenceId,
+        mediaRole: normalizeOptionalText(input.mediaRole) ?? "observation_audio",
+        privacyStatus,
+        voiceFlag: voiceFlag ?? "no_voice",
+        transcriptionStatus: normalizeOptionalText(input.transcriptionStatus) ?? "done",
+        privacyReason: privacyDecision.reason
+      },
+      replaySql: postgresAssetReplaySql(assetId, observationId, observation.owner_user_id, objectKey, sha256, mimeType, body.byteLength, "private")
+    })
+  ]);
+
+  const dispatch = await dispatchOutboxBestEffort(env, [
+    { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
+    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId }
+  ]);
+
+  return json({
+    ok: true,
+    visitId: observationId,
+    occurrenceId,
+    assetId,
+    mediaRole: "observation_audio",
+    relativePath,
+    publicUrl: `/${relativePath}`,
+    privacyStatus,
+    voiceFlag: voiceFlag ?? "no_voice",
+    transcriptionStatus: normalizeOptionalText(input.transcriptionStatus) ?? "done",
+    dispatch
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "staging-audio-upload" });
+}
+
 function normalizeObservationDataRightsNative(input: unknown): {
   recordConsent: string;
   researchUseConsent: string;
@@ -21914,6 +22272,12 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
   }
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(observation.observed_at);
 
+  const safetyGate = await publicSafetyGateForObservation(observationId, env);
+  if (safetyGate.blocked) {
+    await deletePublicReadmodelRow(observationId, env);
+    return;
+  }
+
   const unsafePublicAssets = await env.OBS_DB.prepare(
     `SELECT COUNT(*) AS count
      FROM asset_ledger
@@ -21961,6 +22325,43 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
     partitionMonth
   ).run();
   await upsertPublicMapSnapshotRow(observation, publicReadyAssetCount?.count ?? 0, env);
+}
+
+async function publicSafetyGateForObservation(
+  observationId: string,
+  env: Env
+): Promise<{ blocked: boolean; reason: string | null }> {
+  try {
+    const context = await env.OBS_DB.prepare(
+      `SELECT audience_scope, public_precision, risk_lane
+       FROM civic_observation_contexts
+       WHERE visit_id = ?
+       LIMIT 1`
+    ).bind(observationId).first<{ audience_scope: string | null; public_precision: string | null; risk_lane: string | null }>();
+    if (!context) return { blocked: false, reason: null };
+
+    const riskLane = normalizeOptionalText(context.risk_lane) ?? "normal";
+    if (riskLane !== "normal") {
+      return { blocked: true, reason: `risk_lane:${riskLane}` };
+    }
+
+    const audienceScope = normalizeOptionalText(context.audience_scope);
+    if (audienceScope && audienceScope !== "public") {
+      return { blocked: true, reason: `audience_scope:${audienceScope}` };
+    }
+
+    const publicPrecision = normalizeOptionalText(context.public_precision);
+    if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
+      return { blocked: true, reason: `public_precision:${publicPrecision}` };
+    }
+
+    return { blocked: false, reason: null };
+  } catch (error) {
+    if (error instanceof Error && /no such table: civic_observation_contexts/i.test(error.message)) {
+      return { blocked: false, reason: null };
+    }
+    throw error;
+  }
 }
 
 async function deletePublicReadmodelRow(observationId: string, env: Env): Promise<void> {
@@ -22109,6 +22510,111 @@ async function hideCompatibleObservation(observationId: string, request: Request
     canonicalPreserved: true,
     publicReadmodelDeleted: true
   });
+}
+
+async function cleanupStagingRecordFeedbackLoopSmoke(request: Request, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "staging" && env.ENVIRONMENT !== "shadow") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<{ fixturePrefix?: unknown }>(request);
+  const fixturePrefix = normalizeOptionalText(body.fixturePrefix);
+  if (!fixturePrefix || !/^record-feedback-loop-[A-Za-z0-9-]+$/u.test(fixturePrefix)) {
+    return json({ ok: false, error: "invalid_fixture_prefix" }, 400, { "cache-control": "no-store" });
+  }
+
+  const visitLike = `${fixturePrefix}%`;
+  const userLike = `${fixturePrefix}-%`;
+  const occurrenceLike = `occ:${fixturePrefix}%`;
+  const payloadLike = `%${fixturePrefix}%`;
+  const r2ObjectKeys = await listStagingRecordFeedbackLoopObjectKeys(env, visitLike, userLike);
+  const r2Objects = await deleteR2Objects(env.ASSET_BUCKET, r2ObjectKeys);
+  const deleted = {
+    alerts: await runD1DeleteCount(env.CORE_DB.prepare(
+      `DELETE FROM alert_deliveries
+        WHERE user_id LIKE ?
+           OR occurrence_id LIKE ?
+           OR payload_json LIKE ?`
+    ).bind(userLike, occurrenceLike, payloadLike)),
+    sessions: await runD1DeleteCount(env.CORE_DB.prepare(
+      `DELETE FROM auth_sessions
+        WHERE user_id LIKE ?`
+    ).bind(userLike)),
+    users: await runD1DeleteCount(env.CORE_DB.prepare(
+      `DELETE FROM users
+        WHERE user_id LIKE ?`
+    ).bind(userLike)),
+    recordReadingCards: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM record_reading_cards
+        WHERE visit_id LIKE ?`
+    ).bind(visitLike)),
+    publicMapRows: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM public_map_snapshot_records_v1
+        WHERE visit_id LIKE ? OR occurrence_id LIKE ?`
+    ).bind(visitLike, occurrenceLike)),
+    publicReadmodelRows: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM readmodel_public_observations
+        WHERE observation_id LIKE ?`
+    ).bind(visitLike)),
+    assets: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM asset_ledger
+        WHERE observation_id LIKE ? OR owner_user_id LIKE ?`
+    ).bind(visitLike, userLike)),
+    r2Objects,
+    outbox: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM outbox
+        WHERE target_id LIKE ? OR payload_json LIKE ?`
+    ).bind(visitLike, payloadLike)),
+    rollbackLedger: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM rollback_write_ledger
+        WHERE target_id LIKE ? OR payload_json LIKE ?`
+    ).bind(visitLike, payloadLike)),
+    dataRights: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM observation_data_rights
+        WHERE visit_id LIKE ? OR occurrence_id LIKE ?`
+    ).bind(visitLike, occurrenceLike)),
+    idempotency: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM observation_write_idempotency
+        WHERE user_id LIKE ? OR visit_id LIKE ? OR occurrence_id LIKE ? OR source_payload LIKE ?`
+    ).bind(userLike, visitLike, occurrenceLike, payloadLike)),
+    observations: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM observations
+        WHERE observation_id LIKE ? OR owner_user_id LIKE ?`
+    ).bind(visitLike, userLike)),
+    drafts: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM draft_observations
+        WHERE draft_id LIKE ? OR owner_user_id LIKE ?`
+    ).bind(visitLike, userLike))
+  };
+
+  return json({ ok: true, fixturePrefix, deleted }, 200, { "cache-control": "no-store" });
+}
+
+async function listStagingRecordFeedbackLoopObjectKeys(env: Env, visitLike: string, userLike: string): Promise<string[]> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT object_key, public_derivative_key
+       FROM asset_ledger
+      WHERE observation_id LIKE ? OR owner_user_id LIKE ?`
+  ).bind(visitLike, userLike).all<{ object_key: string | null; public_derivative_key: string | null }>();
+  return Array.from(new Set(rows.results.flatMap((row) => [
+    normalizeOptionalText(row.object_key),
+    normalizeOptionalText(row.public_derivative_key)
+  ]).filter((value): value is string => Boolean(value))));
+}
+
+async function deleteR2Objects(bucket: R2Bucket, objectKeys: string[]): Promise<number> {
+  let deleted = 0;
+  for (const key of objectKeys) {
+    await bucket.delete(key);
+    deleted += 1;
+  }
+  return deleted;
+}
+
+async function runD1DeleteCount(statement: D1PreparedStatement): Promise<number> {
+  const result = await statement.run() as { meta?: { changes?: number } };
+  return Number(result.meta?.changes ?? 0);
 }
 
 async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
@@ -23630,12 +24136,37 @@ async function countAssets(env: Env, targetValue: string | null): Promise<number
 
 async function markUploadedAssetsPublicReady(observationId: string, env: Env): Promise<void> {
   const assets = await env.OBS_DB.prepare(
-    `SELECT asset_id, object_key
+    `SELECT asset_id, object_key, sha256, mime
      FROM asset_ledger
      WHERE observation_id = ? AND processing_state = 'uploaded'`
   ).bind(observationId).all<UploadedAssetRow>();
 
   for (const asset of assets.results) {
+    if (asset.mime.startsWith("audio/")) {
+      const metadataInspection = {
+        gpsExifPresent: false,
+        contentType: asset.mime,
+        scannedContainer: "audio",
+        mediaKind: "audio"
+      };
+      await env.OBS_DB.prepare(
+        `UPDATE asset_ledger
+         SET public_derivative_key = ?,
+             public_derivative_sha256 = ?,
+             public_derivative_verified_at = CURRENT_TIMESTAMP,
+             public_derivative_metadata_json = ?,
+             exif_scrub_state = 'scrubbed',
+             public_ready_at = CURRENT_TIMESTAMP
+         WHERE asset_id = ?`
+      ).bind(
+        asset.object_key,
+        asset.sha256 ?? await sha256Hex(textToArrayBuffer(asset.object_key)),
+        JSON.stringify(metadataInspection),
+        asset.asset_id
+      ).run();
+      continue;
+    }
+
     const publicDerivativeKey = `derived/${asset.object_key.replace(/^original\//, "")}/display.webp`;
     const contentType = "image/svg+xml; charset=utf-8";
     const derivativeBody = textToArrayBuffer(shadowDerivativeSvg(asset.asset_id));
@@ -26244,6 +26775,43 @@ function buildLegacyContributionReceipts(
       nextAction: { label: hasIdentification ? "名前を確認する" : "手がかりを見る", href: observationHref, actionKey: hasIdentification ? "review_identification" : "review_unknown_observation" }
     }
   ];
+}
+
+function buildLegacyRecordFeedbackLoop(visitId: string, occurrenceId: string) {
+  const observationHref = `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}`;
+  return {
+    kind: "record_feedback_loop",
+    status: "queued",
+    claimLevel: "deferred",
+    title: "ヒント待ち",
+    body: "季節・場所・環境の手がかりを、記録ページで見返せます。",
+    signalKinds: ["season", "place", "environment"],
+    nextAction: { label: "記録を見る", href: observationHref, actionKey: "open_record_feedback" }
+  };
+}
+
+function buildLegacyRecordFeedbackLoopReady(
+  visitId: string,
+  occurrenceId: string,
+  cards: Array<{ title: string; axis: RecordReadingAxis }>
+) {
+  const observationHref = `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}#record-feedback`;
+  const signalKinds = Array.from(new Set(cards.map((card) => (
+    card.axis === "organism" ? "organism" : card.axis === "environment" ? "environment" : "place"
+  ))));
+  return {
+    kind: "record_feedback_loop",
+    status: "ready",
+    claimLevel: "deferred",
+    title: "ヒントが返ってきました",
+    body: cards.length > 0
+      ? `記録ページで ${cards.length} 件の手がかりを見返せます。`
+      : "記録ページで手がかりを見返せます。",
+    signalKinds: signalKinds.length > 0 ? signalKinds : ["place", "environment"],
+    cardCount: cards.length,
+    previewTitles: cards.slice(0, 3).map((card) => card.title),
+    nextAction: { label: "記録を見る", href: observationHref, actionKey: "open_record_feedback" }
+  };
 }
 
 function sanitizeFileName(value: string): string {

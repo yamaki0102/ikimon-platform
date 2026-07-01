@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   buildLandingTopShelves,
@@ -357,4 +358,13 @@ test("landing top keeps personal guide records for fixture-named QA users", () =
   const guideShelf = shelves.find((shelf) => shelf.kind === "guide");
   assert.ok(guideShelf);
   assert.deepEqual(guideShelf.items.map((item) => "guideRecordId" in item ? item.guideRecordId : item.occurrenceId), [ownGuideItem.guideRecordId]);
+});
+
+test("landing snapshot carries clean audio records into top card media state", async () => {
+  const source = await readFile(new URL("./landingSnapshot.ts", import.meta.url), "utf8");
+  assert.match(source, /VALID_OBSERVATION_AUDIO_ASSET_SQL/);
+  assert.match(source, /audio_media\.audio_count/);
+  assert.match(source, /join audio_segments audio on audio\.blob_id = ab\.blob_id/);
+  assert.match(source, /if \(Number\(row\.audio_count \?\? 0\) > 0\) return "audio"/);
+  assert.match(source, /hasAudio: Number\(row\.audio_count \?\? 0\) > 0/);
 });
