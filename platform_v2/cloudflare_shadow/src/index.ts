@@ -760,6 +760,7 @@ type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
 const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "audio"];
 const HOME_RECORD_FEED_INITIAL_LIMIT = 36;
 const HOME_RECORD_FEED_MAX_DOM_CARDS = 96;
+const HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS = [2, 6, 10, 14, 18];
 
 interface PublicMapPhotoRow {
   observation_id: string;
@@ -17959,20 +17960,55 @@ function diversifyHomeRecordCards<T extends { visitId: string; mediaKind: HomeRe
   if (!first) return items;
   const selected: T[] = [first];
   const selectedIds = new Set<string>([first.visitId]);
-  const selectedMediaKinds = new Set<HomeRecordMediaKind>([first.mediaKind]);
-  for (const mediaKind of HOME_RECORD_FEED_MEDIA_ORDER) {
-    if (selectedMediaKinds.has(mediaKind)) continue;
-    const item = items.find((candidate) => !selectedIds.has(candidate.visitId) && candidate.mediaKind === mediaKind);
-    if (!item) continue;
+
+  const presentMediaKinds = new Set(items.map((item) => item.mediaKind));
+  const diversityMediaKinds = [
+    ...HOME_RECORD_FEED_MEDIA_ORDER.filter((mediaKind) => mediaKind !== first.mediaKind && presentMediaKinds.has(mediaKind)),
+    ...Array.from(presentMediaKinds).filter((mediaKind) => mediaKind !== first.mediaKind && !HOME_RECORD_FEED_MEDIA_ORDER.includes(mediaKind))
+  ];
+  const diversityQueues = new Map<HomeRecordMediaKind, T[]>();
+  for (const mediaKind of diversityMediaKinds) {
+    const queue = items.filter((item, index) => index > 0 && item.mediaKind === mediaKind);
+    if (queue.length > 0) diversityQueues.set(mediaKind, queue);
+  }
+
+  let diversityMediaKindIndex = 0;
+  let nextDiversitySlotIndex = 0;
+  const appendSelected = (item: T) => {
     selected.push(item);
     selectedIds.add(item.visitId);
-    selectedMediaKinds.add(mediaKind);
-  }
-  for (const item of items) {
+  };
+  const takeDiversityCandidate = () => {
+    if (diversityQueues.size === 0) return null;
+    for (let attempt = 0; attempt < diversityMediaKinds.length; attempt += 1) {
+      const mediaKind = diversityMediaKinds[diversityMediaKindIndex % diversityMediaKinds.length];
+      diversityMediaKindIndex += 1;
+      const queue = mediaKind ? diversityQueues.get(mediaKind) : null;
+      if (!queue) continue;
+      while (queue.length > 0 && selectedIds.has(queue[0]?.visitId ?? "")) queue.shift();
+      const item = queue.shift();
+      if (item && !selectedIds.has(item.visitId)) return item;
+    }
+    return null;
+  };
+  const maybeInsertDiversityCandidate = () => {
+    while (nextDiversitySlotIndex < HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS.length) {
+      const slot = HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS[nextDiversitySlotIndex];
+      if (!slot || selected.length !== slot - 1) return;
+      nextDiversitySlotIndex += 1;
+      const item = takeDiversityCandidate();
+      if (!item) continue;
+      appendSelected(item);
+      return;
+    }
+  };
+
+  for (const item of items.slice(1)) {
+    maybeInsertDiversityCandidate();
     if (selectedIds.has(item.visitId)) continue;
-    selected.push(item);
-    selectedIds.add(item.visitId);
+    appendSelected(item);
   }
+  maybeInsertDiversityCandidate();
   return selected;
 }
 

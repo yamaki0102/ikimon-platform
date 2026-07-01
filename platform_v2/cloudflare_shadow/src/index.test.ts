@@ -17039,6 +17039,88 @@ test("production home keeps public record feed within the initial DOM budget", a
   assert.doesNotMatch(homeBody, /public-home-budget-36/);
 });
 
+test("production home keeps the newest card first while surfacing repeat video states early", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+    "<!doctype html><head></head><body>",
+    "<main><section class=\"prototype-record-feed\" data-record-feed>",
+    "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
+    "<script nonce=\"feed-diversity-nonce\">/* feed */</script></section></main>",
+    "</body>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  const videoIndexes = new Set([1, 27, 29, 30]);
+  for (let index = 0; index < 36; index += 1) {
+    const observationId = `public-home-diversity-${index}`;
+    const assetId = `asset-public-home-diversity-${index}`;
+    const observedAt = new Date(Date.UTC(2026, 5, 25, 12, 0, 0) - index * 3600_000).toISOString();
+    const isVideo = videoIndexes.has(index);
+    env.OBS_DB.publicMapSnapshotRecords.push({
+      occurrence_id: `occ:${observationId}:0`,
+      visit_id: observationId,
+      observed_at: observedAt,
+      display_name: isVideo ? `動画記録${index}` : `写真記録${index}`,
+      cell_1000: "34.82,137.74",
+      asset_count: 1
+    });
+    env.OBS_DB.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: observationId,
+      owner_user_id: "public-home-diversity-user",
+      object_key: `original/${observationId}/${isVideo ? "clip.mp4" : "photo.jpg"}`,
+      partition_month: "2026-06",
+      sha256: `${assetId}-sha`,
+      mime: isVideo ? "video/mp4" : "image/jpeg",
+      bytes: 1234,
+      processing_state: "uploaded",
+      public_derivative_key: isVideo ? null : `derived/import/20260625/observation_photo/${assetId}/display.webp`,
+      public_derivative_sha256: isVideo ? null : `${assetId}-derivative-sha`,
+      public_derivative_verified_at: isVideo ? null : observedAt,
+      public_derivative_metadata_json: isVideo ? "{\"mediaKind\":\"video\"}" : "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+      exif_scrub_state: "scrubbed",
+      public_ready_at: observedAt
+    });
+  }
+
+  const homeResponse = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
+  const homeBody = await homeResponse.text();
+  const homeRecords = Array.from(homeBody.matchAll(/data-media-kind="(photo|video|audio|record)"[^>]+data-cloudflare-home-record-id="([^"]+)"/g), (match) => ({
+    kind: match[1],
+    id: match[2]
+  }));
+  const first12Kinds = homeRecords.slice(0, 12).map((record) => record.kind);
+  const homeRecordIds = homeRecords.map((record) => record.id);
+
+  assert.equal(homeResponse.status, 200);
+  assert.equal(homeRecords[0]?.id, "public-home-diversity-0");
+  assert.equal(homeRecords[0]?.kind, "photo");
+  assert.equal(first12Kinds.filter((kind) => kind === "video").length, 3);
+  assert.deepEqual(homeRecords.slice(0, 10).map((record) => record.id), [
+    "public-home-diversity-0",
+    "public-home-diversity-1",
+    "public-home-diversity-2",
+    "public-home-diversity-3",
+    "public-home-diversity-4",
+    "public-home-diversity-27",
+    "public-home-diversity-5",
+    "public-home-diversity-6",
+    "public-home-diversity-7",
+    "public-home-diversity-29"
+  ]);
+  assert.equal(new Set(homeRecordIds).size, homeRecordIds.length);
+  assert.match(homeBody, /data-home-record-media-filter="all"/);
+  assert.match(homeBody, /data-home-record-media-filter="photo"/);
+  assert.match(homeBody, /data-home-record-media-filter="video"/);
+  assert.doesNotMatch(homeBody, /data-home-record-media-filter="new"|新しい/);
+});
+
 test("staging audio upload route creates a real public audio home card state", async () => {
   const { env, queue, obs } = createEnv();
   const stagingEnv = {
