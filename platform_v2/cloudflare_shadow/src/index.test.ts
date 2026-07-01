@@ -16904,7 +16904,7 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
   assert.match(body, /asset-record-live-real-derivative/);
-  assert.match(body, /近くの記録/);
+  assert.match(body, /地域の記録/);
   assert.doesNotMatch(body, /record-shadow-materialized/);
   assert.doesNotMatch(body, /cell:34\.81,137\.73/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
@@ -16938,8 +16938,10 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /prototype-record-feed-media-icons/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
-  assert.match(homeBody, /<span>近くの記録 · 6月24日<\/span>/);
-  assert.doesNotMatch(homeBody, /<span>近くの記録 · 2026-06-24T09:38:45\.358Z<\/span>/);
+  assert.match(homeBody, /<span>6月24日<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>2026-06-24T09:38:45\.358Z<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>地域の記録 · 6月24日<\/span>/);
+  assert.doesNotMatch(homeBody, /近くの記録|近くの公開記録/);
   assert.match(homeBody, /width:min\(100%,680px\)/);
   assert.match(homeBody, /height:clamp\(300px,48vh,460px\);min-height:300px/);
   assert.match(homeBody, /height:48vh;min-height:320px/);
@@ -17110,8 +17112,10 @@ test("staging audio upload route creates a real public audio home card state", a
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
   assert.doesNotMatch(homeBody, /<div class="cf-home-record-media-nav" data-home-record-media-nav/);
-  assert.match(homeBody, /<span>近くの記録 · 7月1日<\/span>/);
-  assert.doesNotMatch(homeBody, /<span>近くの記録 · 2026-07-01T08:10:00\.000Z<\/span>/);
+  assert.match(homeBody, /<span>7月1日<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>2026-07-01T08:10:00\.000Z<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>地域の記録 · 7月1日<\/span>/);
+  assert.doesNotMatch(homeBody, /近くの記録|近くの公開記録/);
   assert.match(homeBody, /height:clamp\(300px,48vh,460px\);min-height:300px/);
   assert.doesNotMatch(homeBody, /clamp\(520px,78vh,760px\)|height:76vh;min-height:540px/);
   assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>写真<\/span>/);
@@ -17258,7 +17262,8 @@ test("production home prioritizes signed-in owner records over public feed recor
   assert.ok((homeBody.match(/data-cloudflare-owner-home-record/g) ?? []).length >= 12);
   assert.match(homeBody, /data-cloudflare-public-home-record/);
   assert.match(homeBody, /他人の公開記録/);
-  assert.match(homeBody, /近くの公開記録/);
+  assert.match(homeBody, /地域の記録/);
+  assert.doesNotMatch(homeBody, /近くの公開記録/);
   assert.doesNotMatch(homeBody, /34\.81,137\.73/);
   assert.doesNotMatch(homeBody, /34\.81234|137\.73234|owner_user_id|ownerUserId/);
 });

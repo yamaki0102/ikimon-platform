@@ -17669,9 +17669,9 @@ function recordsInjectionCopy(url: URL) {
       body: "New posts appear here from Cloudflare immediately after their public media is ready.",
       empty: "No recent public records yet.",
       open: "Open",
-      homeBadge: "Nearby",
+      homeBadge: "Regional record",
       map: "Map",
-      placeContext: "Nearby record",
+      placeContext: "Regional record",
       unknown: "Awaiting ID"
     };
   }
@@ -17681,9 +17681,9 @@ function recordsInjectionCopy(url: URL) {
     body: "投稿後、公開用の写真処理が終わった記録からここに出ます。",
     empty: "まだ最近の公開記録はありません。",
     open: "開く",
-    homeBadge: "近くの記録",
+    homeBadge: "地域の記録",
     map: "地図",
-    placeContext: "近くの記録",
+    placeContext: "地域の記録",
     unknown: "同定待ち"
   };
 }
@@ -17720,8 +17720,8 @@ function contextualPublicHomeRecordsCopy(url: URL, index: number): ReturnType<ty
   const copy = recordsInjectionCopy(url);
   const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
   const labels = lang === "en"
-    ? ["Nearby public record", "Seasonal record", "Regional record"]
-    : ["近くの公開記録", "季節の記録", "同じ地域の記録"];
+    ? ["Regional record", "Seasonal record", "Same area record"]
+    : ["地域の記録", "季節の記録", "同じ地域の記録"];
   const label = labels[index % labels.length] ?? labels[0] ?? copy.homeBadge;
   return {
     ...copy,
@@ -18123,6 +18123,7 @@ function renderHomeRecordCard(
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
     : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true"></span>`;
   const observedLabel = formatHomeRecordObservedAt(item.observedAt, lang);
+  const metaLabel = source === "public" ? observedLabel : [copy.placeContext, observedLabel].filter(Boolean).join(" · ");
   return `<article class="prototype-record-feed-card is-media-${escapeHtml(item.mediaKind)}" data-media-kind="${escapeHtml(item.mediaKind)}" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
@@ -18131,7 +18132,7 @@ function renderHomeRecordCard(
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml([copy.placeContext, observedLabel].filter(Boolean).join(" · "))}</span>
+        <span>${escapeHtml(metaLabel ?? "")}</span>
       </span>
     </a>
   </article>`;

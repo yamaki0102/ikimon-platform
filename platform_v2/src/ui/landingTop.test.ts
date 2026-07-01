@@ -158,6 +158,8 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /data-record-feed/);
   assert.match(html, /prototype-record-feed[^"]*is-guest/);
   assert.match(html, /prototype-record-feed-card is-preview is-guest-preview/);
+  assert.match(html, /地域の記録/);
+  assert.doesNotMatch(html, /近くの記録/);
   assert.match(html, /prototype-record-feed-media-icons/);
   assert.doesNotMatch(html, /<h1>記録を見る<\/h1>/);
   assert.match(html, /みんなの記録/);
