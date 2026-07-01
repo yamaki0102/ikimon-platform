@@ -9123,6 +9123,7 @@ test("production contact/profile/remember/data-rights writes stay Cloudflare-nat
     assert.equal(upsertPayload.roleName, "admin");
     assert.equal(core.authUsers.get("profile@example.test")?.rank_label, "管理者");
 
+    const futureExpiresAt = "2099-01-01T00:00:00.000Z";
     const rawSessionToken = "profile-session-token";
     const sessionHash = createHash("sha256").update(rawSessionToken).digest("hex");
     core.authSessions.set(sessionHash, {
@@ -9132,7 +9133,7 @@ test("production contact/profile/remember/data-rights writes stay Cloudflare-nat
       role_name: "admin",
       rank_label: "管理者",
       banned: 0,
-      expires_at: "2026-07-01T00:00:00.000Z",
+      expires_at: futureExpiresAt,
       last_used_at: null
     });
     const cookie = `ikimon_v2_session=${rawSessionToken}`;
@@ -9183,7 +9184,7 @@ test("production contact/profile/remember/data-rights writes stay Cloudflare-nat
     const rememberResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/remember-tokens/issue", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer write-key" },
-      body: JSON.stringify({ userId: "profile-user", rawToken, expiresAt: "2026-07-01T00:00:00.000Z" })
+      body: JSON.stringify({ userId: "profile-user", rawToken, expiresAt: futureExpiresAt })
     }), productionEnv);
     const rememberPayload = await rememberResponse.json() as any;
     assert.equal(rememberResponse.ok, true, JSON.stringify(rememberPayload));
