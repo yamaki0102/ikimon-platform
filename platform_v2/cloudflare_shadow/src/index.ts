@@ -758,6 +758,8 @@ interface PublicMapRow {
 
 type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
 const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "audio"];
+const HOME_RECORD_FEED_INITIAL_LIMIT = 36;
+const HOME_RECORD_FEED_MAX_DOM_CARDS = 96;
 
 interface PublicMapPhotoRow {
   observation_id: string;
@@ -17774,7 +17776,7 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
     ? await ownerHomeRecordCards(session.userId, env).catch(() => [])
     : [];
   const isOwnerFeed = ownerItems.length > 0;
-  const publicItems = await recentPublicRecordCards(env, isOwnerFeed ? 40 : 120).catch(() => []);
+  const publicItems = await recentPublicRecordCards(env, isOwnerFeed ? 40 : HOME_RECORD_FEED_MAX_DOM_CARDS).catch(() => []);
   const feedCards = buildHomeFeedCards(ownerItems, publicItems, url);
   if (feedCards.length === 0) return html;
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
@@ -17811,7 +17813,7 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   if (sourceCards.length < 2) return;
   let nextIndex = Math.max(1, Math.floor(sourceCards.length / 2));
   let cycle = 0;
-  const maxCards = 240;
+  const maxCards = ${HOME_RECORD_FEED_MAX_DOM_CARDS};
   const gcd = (a, b) => {
     while (b) {
       const t = b;
@@ -17873,7 +17875,7 @@ function buildHomeFeedCards(
 ): Array<{ item: ReturnType<typeof publicMapObservationItem>; copy: ReturnType<typeof recordsInjectionCopy>; source: "owner" | "public" }> {
   if (ownerItems.length === 0) {
     const publicCopy = recordsInjectionCopy(url);
-    return diversifyHomeRecordCards(publicItems).slice(0, 120).map((item) => ({ item, copy: publicCopy, source: "public" }));
+    return diversifyHomeRecordCards(publicItems).slice(0, HOME_RECORD_FEED_INITIAL_LIMIT).map((item) => ({ item, copy: publicCopy, source: "public" }));
   }
 
   const ownerCopy = ownerHomeRecordsCopy(url);
@@ -17883,9 +17885,9 @@ function buildHomeFeedCards(
   let publicIndex = 0;
 
   for (const [ownerIndex, item] of ownerItems.entries()) {
-    if (cards.length >= 120) break;
+    if (cards.length >= HOME_RECORD_FEED_INITIAL_LIMIT) break;
     cards.push({ item, copy: ownerCopy, source: "owner" });
-    if ((ownerIndex + 1) % 4 === 0 && publicIndex < publicCandidates.length && cards.length < 120) {
+    if ((ownerIndex + 1) % 4 === 0 && publicIndex < publicCandidates.length && cards.length < HOME_RECORD_FEED_INITIAL_LIMIT) {
       const publicItem = publicCandidates[publicIndex];
       if (!publicItem) continue;
       cards.push({
@@ -17897,7 +17899,7 @@ function buildHomeFeedCards(
     }
   }
 
-  if (ownerItems.length < 4 && publicIndex < publicCandidates.length && cards.length < 120) {
+  if (ownerItems.length < 4 && publicIndex < publicCandidates.length && cards.length < HOME_RECORD_FEED_INITIAL_LIMIT) {
     const publicItem = publicCandidates[publicIndex];
     if (!publicItem) return cards;
     cards.push({
