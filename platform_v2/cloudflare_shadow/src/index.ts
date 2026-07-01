@@ -18118,10 +18118,10 @@ function renderHomeRecordCard(
   lang: "ja" | "en" | "es" | "pt-br" = "ja"
 ): string {
   const href = `/observations/${encodeURIComponent(item.visitId)}`;
+  const title = homeRecordDisplayTitle(item, copy, lang);
   const image = item.photoUrl
-    ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
+    ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
     : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true"></span>`;
-  const title = item.displayName || copy.unknown;
   const observedLabel = formatHomeRecordObservedAt(item.observedAt, lang);
   return `<article class="prototype-record-feed-card is-media-${escapeHtml(item.mediaKind)}" data-media-kind="${escapeHtml(item.mediaKind)}" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
@@ -18135,6 +18135,45 @@ function renderHomeRecordCard(
       </span>
     </a>
   </article>`;
+}
+
+function homeRecordDisplayTitle(
+  item: ReturnType<typeof publicMapObservationItem>,
+  copy: ReturnType<typeof recordsInjectionCopy>,
+  lang: "ja" | "en" | "es" | "pt-br"
+): string {
+  if (!item.isAwaitingId && item.displayName) return item.displayName;
+  return homeRecordUntitledLabel(item.mediaKind, lang) || copy.unknown;
+}
+
+function homeRecordUntitledLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
+  const labels: Record<"ja" | "en" | "es" | "pt-br", Record<HomeRecordMediaKind, string>> = {
+    ja: {
+      photo: "写真の記録",
+      video: "動画の記録",
+      audio: "音の記録",
+      record: "記録"
+    },
+    en: {
+      photo: "Photo record",
+      video: "Video record",
+      audio: "Sound record",
+      record: "Record"
+    },
+    es: {
+      photo: "Registro de foto",
+      video: "Registro de video",
+      audio: "Registro de sonido",
+      record: "Registro"
+    },
+    "pt-br": {
+      photo: "Registro de foto",
+      video: "Registro de video",
+      audio: "Registro de som",
+      record: "Registro"
+    }
+  };
+  return labels[lang]?.[mediaKind] || labels.en[mediaKind];
 }
 
 function formatHomeRecordObservedAt(value: string | null | undefined, lang: "ja" | "en" | "es" | "pt-br"): string | null {

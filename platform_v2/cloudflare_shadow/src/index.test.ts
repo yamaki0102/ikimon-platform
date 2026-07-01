@@ -16778,14 +16778,18 @@ test("production records materialized html includes recent Cloudflare D1 records
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><body><main><h1>記録を見る</h1></main></body>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
-  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+  const materializedHomeHtml = [
     "<!doctype html><head></head><body>",
     "<main><section class=\"prototype-record-feed\" data-record-feed>",
     "<div class=\"prototype-record-feed-head\"><div><h1>記録を見る</h1></div></div>",
     "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
     "<script nonce=\"stale-materialized-feed-nonce\">/* feed */</script></section></main>",
     "</body>"
-  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  ].join("");
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", materializedHomeHtml, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.ASSET_BUCKET.put("original-ui/html/en.html", materializedHomeHtml, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.ASSET_BUCKET.put("original-ui/html/es.html", materializedHomeHtml, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.ASSET_BUCKET.put("original-ui/html/pt-br.html", materializedHomeHtml, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
 
   await post("/api/v1/observations/upsert", env, {
     observationId: "record-live-materialized",
@@ -16865,6 +16869,32 @@ test("production records materialized html includes recent Cloudflare D1 records
     asset_role: "observation_audio",
     created_at: "2026-06-24T09:39:00.000Z"
   });
+  env.OBS_DB.publicMapSnapshotRecords.push({
+    occurrence_id: "occ:record-awaiting-photo-materialized:0",
+    visit_id: "record-awaiting-photo-materialized",
+    observed_at: "2026-06-21T09:38:45.358Z",
+    display_name: "unknown",
+    cell_1000: "34.82,137.74",
+    asset_count: 1
+  });
+  env.OBS_DB.assets.set("asset-record-awaiting-photo-derivative", {
+    asset_id: "asset-record-awaiting-photo-derivative",
+    draft_id: "draft-record-awaiting-photo-derivative",
+    observation_id: "record-awaiting-photo-materialized",
+    owner_user_id: "records-user",
+    object_key: "original/record-awaiting-photo-materialized/awaiting.jpg",
+    partition_month: "2026-06",
+    sha256: "records-awaiting-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260621/observation_photo/asset-record-awaiting-photo-derivative/display.webp",
+    public_derivative_sha256: "records-awaiting-derivative-sha",
+    public_derivative_verified_at: "2026-06-21T10:00:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-21T10:00:00.000Z"
+  });
 
   const response = await worker.fetch(new Request("https://ikimon.life/ja/records"), productionEnv);
   const body = await response.text();
@@ -16887,6 +16917,10 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /水路の音/);
   assert.match(homeBody, /record-live-materialized/);
   assert.match(homeBody, /record-clean-audio-materialized/);
+  assert.match(homeBody, /record-awaiting-photo-materialized/);
+  assert.match(homeBody, /<strong>写真の記録<\/strong>/);
+  assert.match(homeBody, /<img class="prototype-record-feed-media"[^>]+alt=""/);
+  assert.doesNotMatch(homeBody, /<strong>同定待ち<\/strong>/);
   assert.match(homeBody, /\/derived\/.+\/display\.webp/);
   assert.match(homeBody, /asset-record-live-real-derivative/);
   assert.match(homeBody, /data-media-kind="photo"/);
@@ -16924,6 +16958,13 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
   assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
+
+  const englishHome = await worker.fetch(new Request("https://ikimon.life/en/"), productionEnv);
+  assert.match(await englishHome.text(), /<strong>Photo record<\/strong>/);
+  const spanishHome = await worker.fetch(new Request("https://ikimon.life/es/"), productionEnv);
+  assert.match(await spanishHome.text(), /<strong>Registro de foto<\/strong>/);
+  const portugueseHome = await worker.fetch(new Request("https://ikimon.life/pt-br/"), productionEnv);
+  assert.match(await portugueseHome.text(), /<strong>Registro de foto<\/strong>/);
 });
 
 test("production home keeps public record feed within the initial DOM budget", async () => {
