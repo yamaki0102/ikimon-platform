@@ -742,9 +742,18 @@ interface PublicMapRow {
   asset_count: number;
 }
 
+type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
+
 interface PublicMapPhotoRow {
   observation_id: string;
   public_derivative_key: string;
+}
+
+interface PublicMapMediaKindRow {
+  observation_id: string;
+  has_video: number;
+  has_photo: number;
+  has_audio: number;
 }
 
 const VALID_PERSONAL_TAXON_MATCH_FIELDS = new Set([
@@ -17536,7 +17545,6 @@ function recordsInjectionCopy(url: URL) {
       empty: "No recent public records yet.",
       open: "Open",
       homeBadge: "Nearby",
-      media: "Photo",
       map: "Map",
       placeContext: "Nearby record",
       unknown: "Awaiting ID"
@@ -17549,7 +17557,6 @@ function recordsInjectionCopy(url: URL) {
     empty: "まだ最近の公開記録はありません。",
     open: "開く",
     homeBadge: "近くの記録",
-    media: "写真",
     map: "地図",
     placeContext: "近くの記録",
     unknown: "同定待ち"
@@ -17566,7 +17573,6 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
       empty: "No records yet.",
       open: "Open",
       homeBadge: "Your record",
-      media: "Photo",
       map: "Saved",
       placeContext: "Saved record",
       unknown: "Awaiting ID"
@@ -17579,7 +17585,6 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
     empty: "まだ記録はありません。",
     open: "開く",
     homeBadge: "自分の記録",
-    media: "写真",
     map: "保存済み",
     placeContext: "保存済み",
     unknown: "同定待ち"
@@ -17649,7 +17654,9 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   const publicItems = await recentPublicRecordCards(env, isOwnerFeed ? 40 : 120).catch(() => []);
   const feedCards = buildHomeFeedCards(ownerItems, publicItems, url);
   if (feedCards.length === 0) return html;
-  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source)).join("");
+  const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
+  const lang: "ja" | "en" | "es" | "pt-br" = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source, lang)).join("");
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
     .replace(/<div class="prototype-record-feed-list">[\s\S]*?<\/div>\s*(<script\b[^>]*>)/, `<div class="prototype-record-feed-list" data-cloudflare-home-infinite-feed>${cards}</div><div class="cf-home-feed-sentinel" data-cloudflare-home-feed-sentinel aria-hidden="true"></div>$1`);
@@ -17663,6 +17670,10 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed.is-guest .prototype-record-feed-copy,.prototype-record-feed.is-owner .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
       .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy strong,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
       .prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
+      .prototype-record-feed-empty-media.is-media-audio{background:linear-gradient(135deg,#10251a,#0f766e 46%,#d1fae5)}
+      .prototype-record-feed-empty-media.is-media-video{background:linear-gradient(135deg,#18233a,#1d4ed8 48%,#bae6fd)}
+      .prototype-record-feed-media-icons{display:inline-flex;align-items:center;gap:5px}
+      .prototype-record-feed-media-icons .prototype-content-icon{width:14px;height:14px}
       .cf-home-feed-sentinel{width:1px;height:1px}
       @media(max-width:640px){.prototype-record-feed.is-guest,.prototype-record-feed.is-owner{margin-top:4px}.prototype-record-feed.is-guest .prototype-record-feed-media-wrap,.prototype-record-feed.is-owner .prototype-record-feed-media-wrap{height:76vh;min-height:540px}}
     </style></head>`);
@@ -17830,11 +17841,15 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
   const rows = await queryPublicMapRows(env);
   if (rows.length === 0) return [];
   const photoUrls = await queryPublicMapPhotoUrls(env);
+  const mediaKinds = await queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>());
   const uniqueItems: Array<ReturnType<typeof publicMapObservationItem>> = [];
   const seen = new Set<string>();
   for (const item of rows
-    .filter((row) => photoUrls.has(row.observation_id))
-    .map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null))) {
+    .map((row) => {
+      const mediaKind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
+      return publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, mediaKind);
+    })
+    .filter((item) => item.photoUrl || item.mediaKind === "video" || item.mediaKind === "audio")) {
     const key = `${item.visitId}:${item.photoUrl ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -17893,17 +17908,23 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
   </a>`;
 }
 
-function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>, index: number, source: "owner" | "public" = "public"): string {
+function renderHomeRecordCard(
+  item: ReturnType<typeof publicMapObservationItem>,
+  copy: ReturnType<typeof recordsInjectionCopy>,
+  index: number,
+  source: "owner" | "public" = "public",
+  lang: "ja" | "en" | "es" | "pt-br" = "ja"
+): string {
   const href = `/observations/${encodeURIComponent(item.visitId)}`;
   const image = item.photoUrl
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName || copy.unknown)}" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
-    : `<span class="prototype-record-feed-empty-media" aria-hidden="true"></span>`;
+    : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true"></span>`;
   const title = item.displayName || copy.unknown;
-  return `<article class="prototype-record-feed-card" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
+  return `<article class="prototype-record-feed-card is-media-${escapeHtml(item.mediaKind)}" data-media-kind="${escapeHtml(item.mediaKind)}" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
         ${image}
-        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.homeBadge)}</span><span>${escapeHtml(copy.media)}</span></span>
+        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.homeBadge)}</span>${renderHomeRecordMediaIcons(item.mediaKind, lang)}</span>
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>
@@ -17911,6 +17932,34 @@ function renderHomeRecordCard(item: ReturnType<typeof publicMapObservationItem>,
       </span>
     </a>
   </article>`;
+}
+
+function homeRecordMediaLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
+  if (lang === "ja") {
+    return {
+      photo: "写真",
+      video: "動画",
+      audio: "音",
+      record: "記録"
+    }[mediaKind];
+  }
+  return {
+    photo: "Photo",
+    video: "Video",
+    audio: "Sound",
+    record: "Record"
+  }[mediaKind];
+}
+
+function homeRecordIconKind(mediaKind: HomeRecordMediaKind): string {
+  if (mediaKind === "photo") return "image";
+  return mediaKind;
+}
+
+function renderHomeRecordMediaIcons(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
+  const label = homeRecordMediaLabel(mediaKind, lang);
+  const icon = homeRecordIconKind(mediaKind);
+  return `<span class="prototype-record-feed-media-icons" aria-label="${escapeHtml(label)}"><span class="prototype-content-icon is-${escapeHtml(icon)}"></span></span>`;
 }
 
 function activateMaterializedAuthOAuthLinks(html: string, url: URL): string {
@@ -18109,7 +18158,60 @@ async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
   return map;
 }
 
-function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null) {
+async function queryPublicMapMediaKinds(env: Env): Promise<Map<string, HomeRecordMediaKind>> {
+  const map = new Map<string, HomeRecordMediaKind>();
+  const imported = await env.OBS_DB.prepare(
+    `SELECT COALESCE(visit_id, occurrence_id) AS observation_id,
+            MAX(CASE WHEN asset_role = 'observation_video' THEN 1 ELSE 0 END) AS has_video,
+            MAX(CASE WHEN asset_role IN ('observation_photo', 'observation_photo_original') THEN 1 ELSE 0 END) AS has_photo,
+            MAX(CASE WHEN asset_role = 'observation_audio' THEN 1 ELSE 0 END) AS has_audio
+       FROM production_import_evidence_assets
+      WHERE COALESCE(visit_id, occurrence_id) IS NOT NULL
+        AND asset_role IN ('observation_photo', 'observation_photo_original', 'observation_video', 'observation_audio')
+      GROUP BY COALESCE(visit_id, occurrence_id)
+      LIMIT 5000`
+  ).all<PublicMapMediaKindRow>();
+  for (const row of imported.results) {
+    setHomeRecordMediaKind(map, row.observation_id, mediaKindFromSignals(row));
+  }
+
+  const nativeRows = await env.OBS_DB.prepare(
+    `SELECT observation_id,
+            MAX(CASE WHEN mime LIKE 'video/%' THEN 1 ELSE 0 END) AS has_video,
+            MAX(CASE WHEN mime LIKE 'image/%' THEN 1 ELSE 0 END) AS has_photo,
+            MAX(CASE WHEN mime LIKE 'audio/%' THEN 1 ELSE 0 END) AS has_audio
+       FROM asset_ledger
+      WHERE observation_id IS NOT NULL
+        AND processing_state = 'uploaded'
+      GROUP BY observation_id
+      LIMIT 5000`
+  ).all<PublicMapMediaKindRow>();
+  for (const row of nativeRows.results) {
+    setHomeRecordMediaKind(map, row.observation_id, mediaKindFromSignals(row));
+  }
+  return map;
+}
+
+function mediaKindFromSignals(row: Pick<PublicMapMediaKindRow, "has_video" | "has_photo" | "has_audio">): HomeRecordMediaKind {
+  if (Number(row.has_video) > 0) return "video";
+  if (Number(row.has_photo) > 0) return "photo";
+  if (Number(row.has_audio) > 0) return "audio";
+  return "record";
+}
+
+function homeRecordMediaPriority(kind: HomeRecordMediaKind): number {
+  return kind === "video" ? 4 : kind === "photo" ? 3 : kind === "audio" ? 2 : 1;
+}
+
+function setHomeRecordMediaKind(map: Map<string, HomeRecordMediaKind>, observationId: string | null | undefined, kind: HomeRecordMediaKind): void {
+  if (!observationId) return;
+  const current = map.get(observationId);
+  if (!current || homeRecordMediaPriority(kind) > homeRecordMediaPriority(current)) {
+    map.set(observationId, kind);
+  }
+}
+
+function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, mediaKind: HomeRecordMediaKind = photoUrl ? "photo" : "record") {
   const displayName = publicTaxonDisplayName(row.taxon_label);
   return {
     occurrenceId: `occ:${row.observation_id}:0`,
@@ -18120,6 +18222,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null) {
     localityLabel: "位置をぼかしています",
     observedAt: row.observed_at,
     photoUrl,
+    mediaKind,
     taxonGroup: taxonGroupForLabel(row.taxon_label),
     cellId: publicCellToCellId(row.public_cell),
     privacy: publicMapExactCoordinateGate()

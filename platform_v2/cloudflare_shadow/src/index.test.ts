@@ -5682,6 +5682,32 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT COALESCE(visit_id, occurrence_id) AS observation_id")) {
+      const grouped = new Map<string, { observation_id: string; has_video: number; has_photo: number; has_audio: number }>();
+      for (const asset of this.db.productionEvidenceAssets) {
+        const observationId = asset.visit_id ?? asset.occurrence_id ?? "";
+        if (!observationId) continue;
+        const row = grouped.get(observationId) ?? { observation_id: observationId, has_video: 0, has_photo: 0, has_audio: 0 };
+        if (asset.asset_role === "observation_video") row.has_video = 1;
+        if (asset.asset_role === "observation_photo" || asset.asset_role === "observation_photo_original") row.has_photo = 1;
+        if (asset.asset_role === "observation_audio") row.has_audio = 1;
+        grouped.set(observationId, row);
+      }
+      return { results: [...grouped.values()] as T[] };
+    }
+    if (normalized.startsWith("SELECT observation_id, MAX(CASE WHEN mime LIKE 'video/%'")) {
+      const grouped = new Map<string, { observation_id: string; has_video: number; has_photo: number; has_audio: number }>();
+      for (const asset of this.db.assets.values()) {
+        const observationId = asset.observation_id ?? "";
+        if (!observationId || asset.processing_state !== "uploaded") continue;
+        const row = grouped.get(observationId) ?? { observation_id: observationId, has_video: 0, has_photo: 0, has_audio: 0 };
+        if (asset.mime.startsWith("video/")) row.has_video = 1;
+        if (asset.mime.startsWith("image/")) row.has_photo = 1;
+        if (asset.mime.startsWith("audio/")) row.has_audio = 1;
+        grouped.set(observationId, row);
+      }
+      return { results: [...grouped.values()] as T[] };
+    }
     if (normalized.startsWith("SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.exact_lat, o.exact_lng")) {
       const ownerUserId = string(this.values[0]);
       const limit = number(this.values[1]);
@@ -16170,6 +16196,21 @@ test("production records materialized html includes recent Cloudflare D1 records
     exif_scrub_state: "scrubbed",
     public_ready_at: "2026-06-23T10:00:00.000Z"
   });
+  env.OBS_DB.publicMapSnapshotRecords.push({
+    occurrence_id: "occ:record-clean-audio-materialized:0",
+    visit_id: "record-clean-audio-materialized",
+    observed_at: "2026-06-24T09:38:45.358Z",
+    display_name: "水路の音",
+    cell_1000: "34.82,137.74",
+    asset_count: 1
+  });
+  env.OBS_DB.productionEvidenceAssets.push({
+    asset_id: "asset-record-clean-audio",
+    visit_id: "record-clean-audio-materialized",
+    occurrence_id: "occ:record-clean-audio-materialized:0",
+    asset_role: "observation_audio",
+    created_at: "2026-06-24T09:39:00.000Z"
+  });
 
   const response = await worker.fetch(new Request("https://ikimon.life/ja/records"), productionEnv);
   const body = await response.text();
@@ -16189,10 +16230,18 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.equal(homeResponse.status, 200);
   assert.match(homeBody, /data-cloudflare-home-record/);
   assert.match(homeBody, /最近の投稿テスト/);
+  assert.match(homeBody, /水路の音/);
   assert.match(homeBody, /record-live-materialized/);
+  assert.match(homeBody, /record-clean-audio-materialized/);
   assert.match(homeBody, /\/derived\/.+\/display\.webp/);
   assert.match(homeBody, /asset-record-live-real-derivative/);
+  assert.match(homeBody, /data-media-kind="photo"/);
+  assert.match(homeBody, /data-media-kind="audio"/);
+  assert.match(homeBody, /prototype-record-feed-media-icons/);
+  assert.match(homeBody, /prototype-content-icon is-audio/);
+  assert.match(homeBody, /aria-label="音"/);
   assert.doesNotMatch(homeBody, /record-shadow-materialized/);
+  assert.doesNotMatch(homeBody, /<span>写真<\/span>/);
   assert.match(homeBody, /prototype-record-feed is-guest/);
   assert.match(homeBody, /data-cloudflare-home-infinite-feed/);
   assert.match(homeBody, /data-cloudflare-home-record-id="record-live-materialized"/);
