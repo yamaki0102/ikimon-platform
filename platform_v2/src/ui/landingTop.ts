@@ -199,182 +199,6 @@ function resolveHeroPhotoObservation(snapshot: LandingSnapshot): LandingObservat
     .find((obs) => Boolean(obs.photoUrl) && !isSameLandingPhoto(obs, dailyMainObservation)) ?? null;
 }
 
-type LandingDailyActionCopy = {
-  icon: string;
-  title: string;
-  fallbackBody: string;
-};
-
-type LandingHeroText = {
-  heading: string;
-  lead: string;
-  searchLabel: string;
-  searchPlaceholder: string;
-  searchButton: string;
-  stats: Array<{ key: "observationCount" | "speciesCount" | "placeCount"; label: string }>;
-};
-
-function landingHeroText(lang: SiteLang): LandingHeroText {
-  const localized: Record<SiteLang, LandingHeroText> = {
-    ja: {
-      heading: "みんなで作る地域図鑑",
-      lead: "写真、動画、音、短いメモ。きれいな1枚だけでなく、いつもの道で見つけた地域の記録が流れていきます。名前や説明はあとから育てられます。",
-      searchLabel: "場所や生きものを検索",
-      searchPlaceholder: "地域の記録を探す",
-      searchButton: "検索",
-      stats: [
-        { key: "observationCount", label: "地域記録" },
-        { key: "speciesCount", label: "見つけた対象" },
-        { key: "placeCount", label: "場所" },
-      ],
-    },
-    en: {
-      heading: "A regional field guide built together",
-      lead: "Photos, video, sound, and short notes from ordinary places flow here as local records. Beautiful shots are welcome, but everyday traces matter too. Names and explanations can grow later.",
-      searchLabel: "Search species or places",
-      searchPlaceholder: "Search local records",
-      searchButton: "Search",
-      stats: [
-        { key: "observationCount", label: "local records" },
-        { key: "speciesCount", label: "subjects" },
-        { key: "placeCount", label: "places" },
-      ],
-    },
-    es: {
-      heading: "Guarda lo que encontraste hoy, aunque no sepas el nombre.",
-      lead: "En un paseo o viaje, guarda primero foto, video, sonido, lugar y una nota breve. Las pistas de IA y la revision humana pueden hacerlo crecer despues.",
-      searchLabel: "Buscar especies o lugares",
-      searchPlaceholder: "Buscar especies o lugares",
-      searchButton: "Buscar",
-      stats: [
-        { key: "observationCount", label: "registros" },
-        { key: "speciesCount", label: "especies" },
-        { key: "placeCount", label: "lugares" },
-      ],
-    },
-    "pt-BR": {
-      heading: "Salve o que encontrou hoje, mesmo antes de saber o nome.",
-      lead: "Na caminhada ou viagem, guarde primeiro foto, video, som, lugar e uma nota curta. Dicas de IA e revisao humana ajudam o registro a crescer depois.",
-      searchLabel: "Buscar especies ou lugares",
-      searchPlaceholder: "Buscar especies ou lugares",
-      searchButton: "Buscar",
-      stats: [
-        { key: "observationCount", label: "registros" },
-        { key: "speciesCount", label: "especies" },
-        { key: "placeCount", label: "lugares" },
-      ],
-    },
-  };
-  return localized[lang] ?? localized.ja;
-}
-
-function landingDailyActionCopy(lang: SiteLang, kind: LandingDailyCardKind): LandingDailyActionCopy {
-  const localized: Record<SiteLang, Record<LandingDailyCardKind, LandingDailyActionCopy>> = {
-    ja: {
-      recordToday: { icon: "+", title: "場所の手がかり", fallbackBody: "名前が分からなくても、この場所の記録になります。" },
-      revisitPlace: { icon: "↻", title: "前回の続き", fallbackBody: "同じ場所の変化を見る。" },
-      nearbyPulse: { icon: "◎", title: "近くを見る", fallbackBody: "記録が増えた場所を開く。" },
-      needsId: { icon: "?", title: "名前を確かめる", fallbackBody: "分からない記録を少し確かめる。" },
-    },
-    en: {
-      recordToday: { icon: "+", title: "Place clue", fallbackBody: "A place record can start before you know the name." },
-      revisitPlace: { icon: "↻", title: "Revisit", fallbackBody: "Look for what changed in the same place." },
-      nearbyPulse: { icon: "◎", title: "Nearby", fallbackBody: "Open places where records are growing." },
-      needsId: { icon: "?", title: "Needs ID", fallbackBody: "Check one record that needs a name." },
-    },
-    es: {
-      recordToday: { icon: "+", title: "Pista del lugar", fallbackBody: "El registro del lugar puede empezar antes del nombre." },
-      revisitPlace: { icon: "↻", title: "Volver", fallbackBody: "Mira que cambio en el mismo lugar." },
-      nearbyPulse: { icon: "◎", title: "Cerca", fallbackBody: "Abre lugares con mas registros." },
-      needsId: { icon: "?", title: "Ayudar a nombrar", fallbackBody: "Revisa un registro sin nombre claro." },
-    },
-    "pt-BR": {
-      recordToday: { icon: "+", title: "Pista do lugar", fallbackBody: "O registro do lugar pode começar antes do nome." },
-      revisitPlace: { icon: "↻", title: "Voltar", fallbackBody: "Veja o que mudou no mesmo lugar." },
-      nearbyPulse: { icon: "◎", title: "Perto", fallbackBody: "Abra lugares com mais registros." },
-      needsId: { icon: "?", title: "Ajudar no nome", fallbackBody: "Revise um registro sem nome claro." },
-    },
-  };
-  return localized[lang]?.[kind] ?? localized.ja[kind];
-}
-
-function fallbackHeroDailyCards(): LandingDailyCard[] {
-  return [
-    { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
-    { kind: "nearbyPulse", href: "/map", primaryText: null, secondaryText: null, metricValue: null },
-    { kind: "needsId", href: "/records?view=needs_id", primaryText: null, secondaryText: null, metricValue: null },
-    { kind: "revisitPlace", href: "/records?view=places", primaryText: null, secondaryText: null, metricValue: null },
-  ];
-}
-
-function prioritizeHeroDailyCards(cards: LandingDailyCard[], isLoggedIn: boolean): LandingDailyCard[] {
-  const source = cards.length > 0 ? cards : fallbackHeroDailyCards();
-  const fallback = fallbackHeroDailyCards();
-  const priority: LandingDailyCardKind[] = isLoggedIn
-    ? ["revisitPlace", "nearbyPulse", "needsId"]
-    : ["nearbyPulse", "needsId"];
-  return priority
-    .map((kind) => source.find((card) => card.kind === kind) ?? fallback.find((card) => card.kind === kind))
-    .filter((card): card is LandingDailyCard => Boolean(card));
-}
-
-function landingHeroTrustItems(lang: SiteLang): Array<{ title: string; body: string }> {
-  const localized: Record<SiteLang, Array<{ title: string; body: string }>> = {
-    ja: [
-      { title: "日常でいい", body: "特別な調査日でなくても、地域の記録になります。" },
-      { title: "分類は後でいい", body: "写真・動画・メモを先に残し、意味づけはあとから育てます。" },
-      { title: "マップは道具", body: "場所から近くを見るために使い、主役は地域の記録です。" },
-    ],
-    en: [
-      { title: "Everyday is enough", body: "A normal walk can become part of the local guide." },
-      { title: "Classification can wait", body: "Keep the media and note first; meaning can grow later." },
-      { title: "The map is a tool", body: "Use it to look nearby. The subject stays the local record." },
-    ],
-    es: [
-      { title: "El nombre puede esperar", body: "Las pistas y evidencias se revisan despues." },
-      { title: "La IA solo sugiere", body: "Ayuda a revisar; no decide el nombre final." },
-      { title: "Ubicacion mas segura", body: "La vista publica usa un detalle protector." },
-    ],
-    "pt-BR": [
-      { title: "O nome pode vir depois", body: "Pistas e evidencias podem ser revisadas apos postar." },
-      { title: "IA fica como dica", body: "Ela apoia a revisao; nao define o nome final." },
-      { title: "Localizacao mais segura", body: "A area publica usa detalhe protetor." },
-    ],
-  };
-  return localized[lang] ?? localized.ja;
-}
-
-function dailyActionKpi(kind: LandingDailyCardKind): string {
-  switch (kind) {
-    case "recordToday":
-      return "landing:topA:primary:record";
-    case "revisitPlace":
-      return "landing:topA:primary:revisit";
-    case "nearbyPulse":
-      return "landing:topA:primary:map";
-    case "needsId":
-      return "landing:topA:primary:identify";
-  }
-}
-
-function renderDailyActionCard(basePath: string, lang: SiteLang, copy: LandingStrings, card: LandingDailyCard): string {
-  const action = landingDailyActionCopy(lang, card.kind);
-  const cardCopy = copy.dailyDashboard.cards[card.kind];
-  const href = landingHref(basePath, lang, card.href);
-  const metricHtml = card.metricValue && card.metricValue > 0
-    ? `<em><strong>${escapeHtml(formatLandingNumber(copy, card.metricValue))}</strong>${escapeHtml(cardCopy.metricLabel)}</em>`
-    : "";
-  const primaryClass = card.kind === "recordToday" ? " is-primary" : "";
-  const recordKpiAttrs = card.kind === "recordToday"
-    ? ` data-kpi-event="primary_cta_click" data-kpi-funnel="landing_record" data-kpi-target="${escapeHtml(href)}"`
-    : "";
-  return `<a class="prototype-topa-action prototype-topa-action-${escapeHtml(card.kind)}${primaryClass}" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(dailyActionKpi(card.kind))}"${recordKpiAttrs}>
-    <span class="prototype-topa-action-icon" aria-hidden="true">${escapeHtml(action.icon)}</span>
-    <strong>${escapeHtml(action.title)}</strong>
-    ${metricHtml}
-  </a>`;
-}
-
 function renderLandingContinuation(basePath: string, lang: SiteLang, copy: LandingStrings, snapshot: LandingSnapshot): string {
   if (!snapshot.viewerUserId) return "";
   const latest = snapshot.myFeed[0] ?? null;
@@ -1814,34 +1638,8 @@ function renderEmptyDailyState(basePath: string, lang: SiteLang, copy: LandingSt
 }
 
 function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
-  const { basePath, lang, copy, snapshot, isLoggedIn } = options;
-  const hero = landingHeroText(lang);
-  const cards = prioritizeHeroDailyCards(snapshot.dailyDashboard?.dailyCards ?? [], isLoggedIn);
-  const actionHtml = cards.map((card) => renderDailyActionCard(basePath, lang, copy, card)).join("");
-  const trustHtml = landingHeroTrustItems(lang)
-    .map((item) => `<span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span>`)
-    .join("");
-  const metricsHtml = hero.stats.map((stat) => {
-    const value = snapshot.stats[stat.key] ?? 0;
-    return `<span><strong>${escapeHtml(formatLandingNumber(copy, value))}</strong>${escapeHtml(stat.label)}</span>`;
-  }).join("");
-  const continuationHtml = renderLandingContinuation(basePath, lang, copy, snapshot);
-
-  return `<section class="prototype-topa" aria-labelledby="prototype-topa-heading">
-    <div class="prototype-topa-intro">
-      <h1 id="prototype-topa-heading">${escapeHtml(hero.heading)}</h1>
-      <p>${escapeHtml(hero.lead)}</p>
-    </div>
-    <form class="prototype-topa-search" action="${escapeHtml(landingHref(basePath, lang, "/records"))}" method="get" role="search" aria-label="${escapeHtml(hero.searchLabel)}">
-      <span aria-hidden="true">⌕</span>
-      <input type="search" name="q" placeholder="${escapeHtml(hero.searchPlaceholder)}" />
-      <button type="submit">${escapeHtml(hero.searchButton)}</button>
-    </form>
-    ${actionHtml ? `<div class="prototype-topa-actions" aria-label="${escapeHtml(copy.heroDailyLabel)}">${actionHtml}</div>` : ""}
-    <div class="prototype-topa-trust" aria-label="ikimon.life の役割">${trustHtml}</div>
-    <div class="prototype-topa-metrics" aria-label="${escapeHtml(copy.heroStatsLabel)}">${metricsHtml}</div>
-    ${continuationHtml}
-  </section>`;
+  void options;
+  return "";
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
@@ -2356,34 +2154,6 @@ export const LANDING_TOP_STYLES = `
   .prototype-btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 18px 44px rgba(16,185,129,.18); }
   .prototype-btn-secondary { background: rgba(255,255,255,.78); color: #1a2e1f; border-color: rgba(16,185,129,.28); }
   .prototype-btn-dark { background: #10251a; color: #fff; box-shadow: 0 18px 44px rgba(16,37,26,.18); }
-  .prototype-topa {
-    padding: clamp(10px, 2vw, 22px) 0 10px;
-    display: grid;
-    gap: 10px;
-  }
-  .prototype-topa-intro {
-    display: grid;
-    gap: 8px;
-    max-width: none;
-  }
-  .prototype-topa h1 {
-    margin: 0;
-    color: #10251a;
-    max-width: 18em;
-    font-size: clamp(32px, 3.35vw, 54px);
-    line-height: 1.08;
-    letter-spacing: 0;
-    font-weight: 950;
-    white-space: normal;
-  }
-  .prototype-topa p {
-    margin: 0;
-    max-width: 58em;
-    color: #475569;
-    font-size: clamp(15px, 1.35vw, 18px);
-    line-height: 1.65;
-    font-weight: 680;
-  }
   .prototype-topa-story {
     display: grid;
     grid-template-columns: 112px minmax(0, 1fr) auto;
@@ -2491,177 +2261,6 @@ export const LANDING_TOP_STYLES = `
   .prototype-topa-story-stats strong {
     color: #10251a;
     font-size: 21px;
-    line-height: 1;
-    font-weight: 950;
-  }
-  .prototype-topa-search {
-    min-height: 54px;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 10px 8px 16px;
-    border: 1px solid rgba(16,185,129,.18);
-    border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 16px 42px rgba(15,23,42,.075);
-  }
-  .prototype-topa-search input {
-    min-width: 0;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: #10251a;
-    font-size: 15px;
-    font-weight: 720;
-  }
-  .prototype-topa-search input::placeholder { color: #64748b; }
-  .prototype-topa-search button {
-    min-height: 40px;
-    padding: 0 16px;
-    border: 0;
-    border-radius: 999px;
-    background: #047857;
-    color: #fff;
-    font-size: 15px;
-    font-weight: 900;
-  }
-  .prototype-topa-actions {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-  .prototype-topa-actions::-webkit-scrollbar {
-    display: none;
-  }
-  .prototype-topa-action {
-    min-height: 56px;
-    flex: 0 0 auto;
-    display: grid;
-    grid-template-columns: 30px max-content;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px 8px 9px;
-    border: 1px solid rgba(16,185,129,.16);
-    border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 12px 26px rgba(15,23,42,.06);
-    text-align: left;
-  }
-  .prototype-topa-action.is-primary {
-    border-color: #10251a;
-    background: #10251a;
-    color: #fff;
-    box-shadow: 0 16px 38px rgba(16,37,26,.16);
-  }
-  .prototype-topa-action-icon {
-    width: 30px;
-    height: 30px;
-    display: grid;
-    place-items: center;
-    border-radius: 999px;
-    background: #e7f5ef;
-    color: #047857;
-    font-size: 12px;
-    line-height: 1;
-    font-weight: 950;
-  }
-  .prototype-topa-action.is-primary .prototype-topa-action-icon {
-    background: rgba(255,255,255,.14);
-    color: #fff;
-  }
-  .prototype-topa-action strong {
-    color: #10251a;
-    font-size: 15px;
-    line-height: 1.35;
-    font-weight: 950;
-  }
-  .prototype-topa-action.is-primary strong {
-    color: #fff;
-  }
-  .prototype-topa-action small {
-    min-width: 0;
-    color: #64748b;
-    font-size: 13px;
-    line-height: 1.48;
-    font-weight: 720;
-    display: none;
-  }
-  .prototype-topa-action.is-primary small {
-    color: rgba(255,255,255,.76);
-  }
-  .prototype-topa-action em {
-    width: fit-content;
-    min-height: 24px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 7px;
-    border-radius: 999px;
-    background: rgba(16,185,129,.1);
-    color: #047857;
-    font-size: 11px;
-    line-height: 1.2;
-    font-style: normal;
-    font-weight: 900;
-  }
-  .prototype-topa-action em strong {
-    font-size: 15px;
-    line-height: 1;
-  }
-  .prototype-topa-trust {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-  .prototype-topa-trust span {
-    min-height: 76px;
-    display: grid;
-    align-content: start;
-    gap: 4px;
-    padding: 12px 14px;
-    border: 1px solid rgba(16,185,129,.14);
-    border-radius: 8px;
-    background: rgba(255,255,255,.74);
-    box-shadow: 0 10px 28px rgba(15,23,42,.045);
-  }
-  .prototype-topa-trust strong {
-    color: #10251a;
-    font-size: 14px;
-    line-height: 1.35;
-    font-weight: 950;
-  }
-  .prototype-topa-trust small {
-    color: #64748b;
-    font-size: 12px;
-    line-height: 1.55;
-    font-weight: 720;
-  }
-  .prototype-topa-metrics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .prototype-topa-metrics span {
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 6px;
-    padding: 4px 10px;
-    border: 1px solid rgba(16,185,129,.14);
-    border-radius: 8px;
-    background: rgba(255,255,255,.82);
-    color: #475569;
-    font-size: 12px;
-    font-weight: 850;
-    box-shadow: none;
-  }
-  .prototype-topa-metrics strong {
-    color: #10251a;
-    font-size: 16px;
     line-height: 1;
     font-weight: 950;
   }
@@ -4539,26 +4138,6 @@ export const LANDING_TOP_STYLES = `
     .shell.shell-bleed.prototype-shell {
       padding-top: clamp(14px, 2vw, 24px);
     }
-    .prototype-topa h1 {
-      max-width: none;
-      font-size: clamp(32px, 3vw, 46px);
-      white-space: normal;
-      text-wrap: balance;
-    }
-    .prototype-topa-search {
-      min-height: 54px;
-    }
-    .prototype-topa-actions {
-      gap: 10px;
-    }
-    .prototype-topa-action {
-      min-height: 54px;
-      grid-template-columns: 30px max-content;
-      padding: 7px 12px 7px 8px;
-    }
-    .prototype-topa-action strong {
-      font-size: 14px;
-    }
     .prototype-topa-card-grid,
     .prototype-topa-card-grid.is-primary {
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4584,7 +4163,6 @@ export const LANDING_TOP_STYLES = `
       position: static;
     }
     .prototype-topa-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .prototype-topa-trust { grid-template-columns: 1fr; }
     .prototype-content-lanes.is-split { grid-template-columns: 1fr; }
     .prototype-content-grid { grid-template-columns: var(--ikimon-record-card-grid-tablet); gap: var(--ikimon-record-card-grid-gap-tablet); }
     .prototype-topa-map-shelf { grid-template-columns: 1fr; }
@@ -4612,9 +4190,6 @@ export const LANDING_TOP_STYLES = `
     .prototype-record-feed-copy { padding: 13px 14px 11px; }
     .prototype-record-feed-copy strong { font-size: 18px; }
     .prototype-record-feed-tools { padding: 0 14px 13px; align-items: start; }
-    .prototype-topa { padding-top: 12px; }
-    .prototype-topa h1 { font-size: 34px; line-height: 1.1; white-space: normal; }
-    .prototype-topa p { font-size: 14px; line-height: 1.55; }
     .prototype-topa-story {
       grid-template-columns: 72px minmax(0, 1fr);
       gap: 10px;
@@ -4639,37 +4214,6 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-story-stats {
       display: none;
     }
-    .prototype-topa-search { min-height: 52px; border-radius: 999px; grid-template-columns: auto minmax(0, 1fr) auto; }
-    .prototype-topa-search button { grid-column: auto; width: auto; min-height: 38px; padding: 0 12px; }
-    .prototype-topa-actions { display: flex; }
-    .prototype-topa-action {
-      min-height: 46px;
-      grid-template-columns: 30px max-content;
-      gap: 7px;
-      padding: 7px 11px 7px 8px;
-    }
-    .prototype-topa-action-icon {
-      width: 30px;
-      height: 30px;
-    }
-    .prototype-topa-action strong { font-size: 13px; }
-    .prototype-topa-action small { display: none; }
-    .prototype-topa-trust {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-      overflow-x: visible;
-      padding-bottom: 2px;
-    }
-    .prototype-topa-trust::-webkit-scrollbar { display: none; }
-    .prototype-topa-trust span {
-      min-height: 70px;
-      width: 100%;
-      padding: 10px 12px;
-    }
-    .prototype-topa-metrics { gap: 8px; }
-    .prototype-topa-metrics span { min-height: 32px; flex-direction: row; gap: 5px; }
-    .prototype-topa-metrics strong { font-size: 15px; }
     .prototype-content-wall { padding: 0; gap: 14px; }
     .prototype-content-lanes { gap: 22px; }
     .prototype-content-lane { gap: 11px; }
