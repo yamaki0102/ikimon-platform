@@ -1001,6 +1001,7 @@ interface PublicMapSnapshotRecordRow {
   observed_at: string;
   display_name: string | null;
   asset_count: number;
+  public_area_label?: string | null;
 }
 
 interface PublicMapSnapshotMetaRow {
@@ -1576,7 +1577,7 @@ class FakeD1 {
   assets = new Map<string, AssetRow>();
   outbox = new Map<string, OutboxRow>();
   rollbackLedger = new Map<string, RollbackLedgerRow>();
-  readmodel = new Map<string, { observation_id: string; public_cell: string; observed_at: string; taxon_label: string | null; asset_count: number; partition_month: string | null }>();
+  readmodel = new Map<string, { observation_id: string; public_cell: string; observed_at: string; taxon_label: string | null; asset_count: number; partition_month: string | null; public_area_label: string | null }>();
   parityRuns = new Map<string, ParityRunRow>();
   parityMetrics: ParityMetricRow[] = [];
   operationAudit: OperationAuditRow[] = [];
@@ -3191,13 +3192,15 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("INSERT INTO readmodel_public_observations")) {
+      const existing = this.db.readmodel.get(string(v[0]));
       this.db.readmodel.set(string(v[0]), {
         observation_id: string(v[0]),
         public_cell: string(v[1]),
         observed_at: string(v[2]),
         taxon_label: nullableString(v[3]),
         asset_count: number(v[4]),
-        partition_month: nullableString(v[5])
+        partition_month: nullableString(v[5]),
+        public_area_label: nullableString(v[6]) ?? existing?.public_area_label ?? null
       });
       return {};
     }
@@ -3210,7 +3213,8 @@ class FakeStatement {
         observed_at: string(v[2]),
         display_name: nullableString(v[5]),
         cell_1000: string(v[7]),
-        asset_count: number(v[10])
+        asset_count: number(v[10]),
+        public_area_label: null
       };
       const index = this.db.publicMapSnapshotRecords.findIndex((record) => record.occurrence_id === occurrenceId);
       if (index >= 0) {
@@ -5985,7 +5989,8 @@ class FakeStatement {
         .map(({ payload_json, created_at }) => ({ payload_json, created_at }));
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
+    if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label FROM readmodel_public_observations")
+      || normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
       return { results: rows as T[] };
@@ -6893,7 +6898,8 @@ test("v1 public map read routes expose current shell contracts without exact coo
     observed_at: "2026-06-15T01:00:00.000Z",
     taxon_label: "unidentified",
     asset_count: 0,
-    partition_month: "2026-06"
+    partition_month: "2026-06",
+    public_area_label: null
   });
   env.OBS_DB.publicMapSnapshotRecords.push({
     occurrence_id: "occ:visit-unidentified-contract:0",
@@ -7035,7 +7041,8 @@ test("public map routes prefer D1 snapshot records when present", async () => {
     observed_at: "2026-06-15T01:00:00.000Z",
     taxon_label: "legacy fallback",
     asset_count: 1,
-    partition_month: "2026-06"
+    partition_month: "2026-06",
+    public_area_label: null
   });
   obs.publicMapSnapshotMeta = {
     snapshot_key: "public-map:v1:global",
@@ -8889,7 +8896,8 @@ test("production occurrence detail edit APIs write to D1 without origin fallback
     observed_at: "2026-06-01T00:00:00.000Z",
     taxon_label: "テスト種",
     asset_count: 0,
-    partition_month: "2026-06"
+    partition_month: "2026-06",
+    public_area_label: null
   });
 
   const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
@@ -11693,7 +11701,8 @@ test("production runtime handles observation reactions natively without origin f
     observed_at: "2026-06-25T00:00:00.000Z",
     taxon_label: "reaction target",
     asset_count: 0,
-    partition_month: "2026-06"
+    partition_month: "2026-06",
+    public_area_label: null
   });
   const productionEnv = {
     ...env,
@@ -11756,7 +11765,8 @@ test("production runtime records observation identifications natively without or
     observed_at: "2026-06-25T00:00:00.000Z",
     taxon_label: "identification target",
     asset_count: 0,
-    partition_month: "2026-06"
+    partition_month: "2026-06",
+    public_area_label: null
   });
   const productionEnv = {
     ...env,
@@ -12005,7 +12015,8 @@ test("production runtime records observation disputes natively without origin fa
     observed_at: "2026-06-25T00:00:00.000Z",
     taxon_label: "dispute target",
     asset_count: 0,
-    partition_month: "2026-06"
+    partition_month: "2026-06",
+    public_area_label: null
   });
   const productionEnv = {
     ...env,
@@ -13304,7 +13315,8 @@ test("production observation reactions fail closed when the D1 session store is 
     observed_at: "2026-06-25T00:00:00.000Z",
     taxon_label: "reaction target",
     asset_count: 0,
-    partition_month: "2026-06"
+    partition_month: "2026-06",
+    public_area_label: null
   });
   const productionEnv = {
     ...env,
@@ -17117,6 +17129,60 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(await spanishHome.text(), /<strong>Registro de foto<\/strong>/);
   const portugueseHome = await worker.fetch(new Request("https://ikimon.life/pt-br/"), productionEnv);
   assert.match(await portugueseHome.text(), /<strong>Registro de foto<\/strong>/);
+});
+
+test("production home shows only precomputed safe public area labels", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+    "<!doctype html><head></head><body>",
+    "<main><section class=\"prototype-record-feed\" data-record-feed>",
+    "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
+    "<script nonce=\"safe-area-label-nonce\">/* feed */</script></section></main>",
+    "</body>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  obs.readmodel.set("safe-public-area-label-record", {
+    observation_id: "safe-public-area-label-record",
+    public_cell: "34.81,137.73",
+    observed_at: "2026-06-20T09:38:45.358Z",
+    taxon_label: "セーフラベルの記録",
+    asset_count: 1,
+    partition_month: "2026-06",
+    public_area_label: "浜松市中央区"
+  });
+  obs.assets.set("asset-safe-public-area-label", {
+    asset_id: "asset-safe-public-area-label",
+    draft_id: "draft-safe-public-area-label",
+    observation_id: "safe-public-area-label-record",
+    owner_user_id: "safe-public-area-user",
+    object_key: "original/safe-public-area-label-record/photo.jpg",
+    partition_month: "2026-06",
+    sha256: "asset-safe-public-area-label-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260620/observation_photo/asset-safe-public-area-label/display.webp",
+    public_derivative_sha256: "asset-safe-public-area-label-derivative-sha",
+    public_derivative_verified_at: "2026-06-20T10:00:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-20T10:00:00.000Z"
+  });
+
+  const homeResponse = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
+  const homeBody = await homeResponse.text();
+  assert.equal(homeResponse.status, 200);
+  assert.match(homeBody, /safe-public-area-label-record/);
+  assert.match(homeBody, /<span>浜松市中央区 · 6月20日<\/span>/);
+  assert.doesNotMatch(homeBody, /位置をぼかしています/);
+  assert.doesNotMatch(homeBody, /cell:34\.81,137\.73|34\.81,137\.73/);
+  assert.doesNotMatch(homeBody, /data-home-record-media-filter="nearby"|近くの記録|季節の記録|同じ地域の記録/);
 });
 
 test("production home keeps public record feed within the initial DOM budget", async () => {

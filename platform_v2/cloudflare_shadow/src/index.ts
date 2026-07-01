@@ -761,6 +761,7 @@ interface PublicMapRow {
   observed_at: string;
   taxon_label: string | null;
   asset_count: number;
+  public_area_label?: string | null;
 }
 
 type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
@@ -18203,7 +18204,9 @@ function renderHomeRecordCard(
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}"${responsiveAttrs} alt="" loading="${imageLoading}"${priority} decoding="async">`
     : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true">${renderHomeRecordEmptyMediaAffordance(item.mediaKind)}</span>`;
   const observedLabel = formatHomeRecordObservedAt(item.observedAt, lang);
-  const metaLabel = source === "public" ? observedLabel : [copy.placeContext, observedLabel].filter(Boolean).join(" · ");
+  const metaLabel = source === "public"
+    ? [item.publicAreaLabel, observedLabel].filter(Boolean).join(" · ")
+    : [copy.placeContext, observedLabel].filter(Boolean).join(" · ");
   return `<article class="prototype-record-feed-card is-media-${escapeHtml(item.mediaKind)}" data-media-kind="${escapeHtml(item.mediaKind)}" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
@@ -18547,13 +18550,24 @@ async function getShadowVideoThumbnail(uid: string, env: Env): Promise<Response>
 async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
   const snapshotRows = await queryPublicMapSnapshotRows(env);
   if (snapshotRows.length > 0) return snapshotRows;
-  const rows = await env.OBS_DB.prepare(
-    `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count
-     FROM readmodel_public_observations
-     ORDER BY observed_at DESC
-     LIMIT 5000`
-  ).all<PublicMapRow>();
-  return rows.results;
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label
+       FROM readmodel_public_observations
+       ORDER BY observed_at DESC
+       LIMIT 5000`
+    ).all<PublicMapRow>();
+    return rows.results;
+  } catch (error) {
+    if (!(error instanceof Error) || !/no such column: public_area_label/i.test(error.message)) throw error;
+    const rows = await env.OBS_DB.prepare(
+      `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count
+       FROM readmodel_public_observations
+       ORDER BY observed_at DESC
+       LIMIT 5000`
+    ).all<PublicMapRow>();
+    return rows.results.map((row) => ({ ...row, public_area_label: null }));
+  }
 }
 
 async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
@@ -18570,7 +18584,8 @@ async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
       public_cell: row.cell_1000,
       observed_at: row.observed_at,
       taxon_label: row.display_name,
-      asset_count: row.asset_count
+      asset_count: row.asset_count,
+      public_area_label: null
     }));
   } catch (error) {
     if (error instanceof Error && /no such table: public_map_snapshot_records_v1/i.test(error.message)) return [];
@@ -18677,6 +18692,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     isAiCandidate: false,
     isAwaitingId: isWeakTaxonLabel(row.taxon_label),
     localityLabel: "位置をぼかしています",
+    publicAreaLabel: normalizeOptionalText(row.public_area_label),
     observedAt: row.observed_at,
     photoUrl,
     mediaKind,
@@ -22642,14 +22658,15 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
 
   await env.OBS_DB.prepare(
     `INSERT INTO readmodel_public_observations
-     (observation_id, public_cell, observed_at, taxon_label, asset_count, partition_month)
-     VALUES (?, ?, ?, ?, ?, ?)
+     (observation_id, public_cell, observed_at, taxon_label, asset_count, partition_month, public_area_label)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(observation_id) DO UPDATE SET
        public_cell = excluded.public_cell,
        observed_at = excluded.observed_at,
        taxon_label = excluded.taxon_label,
        asset_count = excluded.asset_count,
        partition_month = excluded.partition_month,
+       public_area_label = COALESCE(excluded.public_area_label, public_area_label),
        updated_at = CURRENT_TIMESTAMP`
   ).bind(
     observation.observation_id,
@@ -22657,7 +22674,8 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
     observation.observed_at,
     observation.taxon_label,
     publicReadyAssetCount?.count ?? 0,
-    partitionMonth
+    partitionMonth,
+    null
   ).run();
   await upsertPublicMapSnapshotRow(observation, publicReadyAssetCount?.count ?? 0, env);
 }
