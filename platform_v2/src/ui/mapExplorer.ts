@@ -31,6 +31,8 @@ export type MapExplorerCopy = {
   activityRallyBody: string;
   activityRallyMeta: string;
   activityRallyLinkLabel: string;
+  enjoyTitle: string;
+  enjoyLead: string;
   tabMarkers: string;
   tabHeatmap: string;
   tabPlaces: string;
@@ -204,7 +206,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
-    tabMarkers: "写真",
+    enjoyTitle: "近くを見る・振り返る",
+    enjoyLead: "ここは地域図鑑の主役ではなく、記録を場所から見返す道具です。近くの記録、前に歩いた場所、記録が厚い場所とまだ薄い場所を確認できます。",
+    tabMarkers: "近くの記録",
     tabHeatmap: "季節",
     tabPlaces: "ガイド",
     tabRain: "雨雲",
@@ -370,6 +374,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Observation events, posting rallies, and outdoor local activities can be tied to the regional guide here. Organizer inquiries start from this guide.",
     activityRallyMeta: "Events / posting rallies",
     activityRallyLinkLabel: "For organizers",
+    enjoyTitle: "Look nearby and look back",
+    enjoyLead: "This map is a tool for reviewing local records by place. It helps you see nearby records, places you visited before, and where the guide is thick or still thin.",
     tabMarkers: "Photos",
     tabHeatmap: "Season",
     tabPlaces: "Guides",
@@ -536,6 +542,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Las salidas, los rallies de publicaciones y las actividades locales al aire libre pueden vincularse a la guía regional desde aquí. Las consultas empiezan en la guía para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
+    enjoyTitle: "Mirar cerca y volver",
+    enjoyLead: "El mapa es una herramienta para revisar registros por lugar; no es el tema principal de la guía regional.",
     tabMarkers: "Fotos",
     tabHeatmap: "Estación",
     tabPlaces: "Guías",
@@ -702,6 +710,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "Eventos de observação, rallies de publicações e atividades locais ao ar livre podem ser vinculados ao guia regional aqui. Consultas começam pela página para organizadores.",
     activityRallyMeta: "Eventos / rallies",
     activityRallyLinkLabel: "Para organizadores",
+    enjoyTitle: "Ver perto e rever",
+    enjoyLead: "O mapa e uma ferramenta para rever registros por lugar; o assunto principal continua sendo o guia regional.",
     tabMarkers: "Fotos",
     tabHeatmap: "Estação",
     tabPlaces: "Guias",
@@ -1537,6 +1547,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           </div>
         </details>
       </div>
+    </div>
+
+    <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
+      <strong>${escapeHtml(copy.enjoyTitle)}</strong>
+      <span>${escapeHtml(copy.enjoyLead)}</span>
     </div>
 
     <div class="me-main">
@@ -9852,10 +9867,11 @@ export const MAP_EXPLORER_STYLES = `
   .me-section {
     --me-header-h: 58px;
     --me-topbar-h: 48px;
+    --me-enjoy-h: 44px;
     --me-side-w: 420px;
     --me-side-rail-w: 52px;
     --me-side-gap: 0px;
-    --me-map-height: calc(100dvh - var(--me-header-h) - var(--me-topbar-h));
+    --me-map-height: calc(100dvh - var(--me-header-h) - var(--me-topbar-h) - var(--me-enjoy-h));
     margin-top: 0;
     position: relative;
   }
@@ -9906,6 +9922,36 @@ export const MAP_EXPLORER_STYLES = `
     gap: 6px;
     min-width: 0;
     flex-wrap: nowrap;
+  }
+  .me-enjoy-strip {
+    min-height: var(--me-enjoy-h);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 7px 14px;
+    background: rgba(240,253,244,.92);
+    border-bottom: 1px solid rgba(16,185,129,.14);
+    color: #334155;
+    position: relative;
+    z-index: 7;
+  }
+  .me-enjoy-strip strong {
+    color: #065f46;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .me-enjoy-strip span {
+    min-width: 0;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 750;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .me-search-shell {
     position: relative;
@@ -12911,6 +12957,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-section {
       --me-side-w: 0px;
       --me-topbar-h: 94px;
+      --me-enjoy-h: 70px;
       --me-mobile-action-space: calc(92px + max(0px, env(safe-area-inset-bottom)));
       --me-mobile-sheet-clearance: 14px;
     }
@@ -12940,6 +12987,22 @@ export const MAP_EXPLORER_STYLES = `
       display: none;
     }
     .me-topbar-secondary { grid-column: 2; grid-row: 1; }
+    .me-enjoy-strip {
+      grid-template-columns: 1fr;
+      align-content: center;
+      gap: 4px;
+      padding: 8px 12px;
+    }
+    .me-enjoy-strip strong {
+      white-space: normal;
+      font-size: 12px;
+    }
+    .me-enjoy-strip span {
+      white-space: normal;
+      display: block;
+      font-size: 11px;
+      line-height: 1.35;
+    }
     .me-tabs {
       grid-column: 1 / -1;
       grid-row: 2;

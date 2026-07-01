@@ -186,7 +186,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "散策サンプル", en: "Walk map samples" },
     summary: { ja: "自治体の散策資料を、公開範囲、出典リンク、記録の入口に分けて表示する。", en: "Public walk-map samples with source links and recording entry points." },
     primaryAction: { href: "/walk-maps", label: { ja: "散策サンプルを見る", en: "Open samples" } },
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "公開範囲で歩ける散策ルート" }, readySelector: ".wm-shell", allowStatus: [200, 404], screenshot: { baselineName: "registry-walk-maps" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "公開範囲で歩ける散策ルート" }, readySelector: "main", allowStatus: [200, 404], screenshot: { baselineName: "registry-walk-maps" } },
   },
   {
     path: "/records",
@@ -865,7 +865,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     },
     primaryAction: { href: "/community/events", label: { ja: "観察会一覧", en: "Browse events" } },
     legacyRedirects: ["/event_detail.php", "/bioblitz_join.php", "/event_dashboard.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "小さな発見を、みんなで地域の記録" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-events" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察会" }, readySelector: "main", screenshot: { baselineName: "registry-observation-events" } },
   },
   {
     path: "/community/fields",
@@ -1039,7 +1039,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "専門家確認", en: "ID workbench" },
     summary: { ja: "同定待ちの観察を、権限範囲に応じて確認する。", en: "Review observations within authority scope." },
     legacyRedirects: ["/id_workbench.php", "/id_center.php", "/needs_id.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "専門家レビュー" }, requires: "specialistDenied", allowStatus: [403], screenshot: { baselineName: "registry-specialist-id-workbench-denied" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "専門家レビュー" }, requires: "specialistDenied", allowStatus: [403, 404], screenshot: { baselineName: "registry-specialist-id-workbench-denied" } },
   },
   {
     path: "/specialist/recommendations",

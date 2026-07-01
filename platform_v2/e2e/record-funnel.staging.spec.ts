@@ -369,7 +369,7 @@ test.describe("record funnel staging QA", () => {
         await expect(page.locator("#record-status .record-success-shortcuts a").first()).toContainText(/自分の記録/);
         await expect(page.locator("#record-status a", { hasText: /見つけたものを確認する|対象ごとの記録を確認する|観察レコードを見る|観察を見る/ })).toBeVisible();
         await expect(page.locator("#record-status a", { hasText: /記録を見る|シーンを見る|ノートを見る/ })).toBeVisible();
-        const revisitLink = page.locator("#record-status a", { hasText: /同じ場所でもう1件記録する|同じ場所でもう1シーン|同じ場所でもう1件/ });
+        const revisitLink = page.locator("#record-status a", { hasText: /続けて記録する|同じ場所でもう1件記録する|同じ場所でもう1シーン|同じ場所でもう1件/ });
         await expect(revisitLink).toHaveAttribute(
           "href",
           new RegExp(`/record\\?start=gallery&revisitObservationId=${MOCK_VISIT_ID}$`),

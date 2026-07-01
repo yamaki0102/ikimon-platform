@@ -9123,6 +9123,7 @@ test("production contact/profile/remember/data-rights writes stay Cloudflare-nat
     assert.equal(upsertPayload.roleName, "admin");
     assert.equal(core.authUsers.get("profile@example.test")?.rank_label, "管理者");
 
+    const futureExpiresAt = "2099-01-01T00:00:00.000Z";
     const rawSessionToken = "profile-session-token";
     const sessionHash = createHash("sha256").update(rawSessionToken).digest("hex");
     core.authSessions.set(sessionHash, {
@@ -9132,7 +9133,7 @@ test("production contact/profile/remember/data-rights writes stay Cloudflare-nat
       role_name: "admin",
       rank_label: "管理者",
       banned: 0,
-      expires_at: "2026-07-01T00:00:00.000Z",
+      expires_at: futureExpiresAt,
       last_used_at: null
     });
     const cookie = `ikimon_v2_session=${rawSessionToken}`;
@@ -9183,7 +9184,7 @@ test("production contact/profile/remember/data-rights writes stay Cloudflare-nat
     const rememberResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/remember-tokens/issue", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer write-key" },
-      body: JSON.stringify({ userId: "profile-user", rawToken, expiresAt: "2026-07-01T00:00:00.000Z" })
+      body: JSON.stringify({ userId: "profile-user", rawToken, expiresAt: futureExpiresAt })
     }), productionEnv);
     const rememberPayload = await rememberResponse.json() as any;
     assert.equal(rememberResponse.ok, true, JSON.stringify(rememberPayload));
@@ -15880,10 +15881,12 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   const localizablePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_LOCALIZABLE_PATHS");
 
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_CORE_PATHS"\)/);
+  assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
   assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
   assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
   assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);
+  assert.match(workerSource, /\.\.\.ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS,/);
 
   for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/ja/guide-programs", "/ja/my-guides"]) {
     assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
@@ -15905,6 +15908,58 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     const path = `/guide-programs/${slug}`;
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
+  }
+});
+
+test("Cloudflare staging QA sitemap smoke materialization scope covers only public visual routes", async () => {
+  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const materializerSource = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
+  const parseArray = (source: string, constName: string): string[] => {
+    const match = source.match(new RegExp(`const\\s+${constName}\\s*=\\s*\\[\\s*([\\s\\S]*?)\\s*\\]\\s*as const;`));
+    assert.ok(match, `${constName} should be a Worker-owned const array`);
+    return [...match[1]!.matchAll(/"([^"]+)"/g)].map((entry) => entry[1]!);
+  };
+
+  const stagingQaSmokePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS");
+  assert.match(materializerSource, /scope === "staging-qa"/);
+  assert.match(materializerSource, /targetEnv !== "staging"/);
+
+  for (const path of [
+    "/learn",
+    "/community",
+    "/community/events",
+    "/community/fields",
+    "/for-business",
+    "/impact",
+    "/cases",
+    "/for-business/field-programs",
+    "/ja/learn",
+    "/ja/community",
+    "/ja/community/events",
+    "/ja/community/fields",
+    "/ja/for-business",
+    "/ja/impact",
+    "/ja/cases",
+    "/ja/for-business/field-programs"
+  ]) {
+    assert.ok(stagingQaSmokePaths.includes(path), `${path} should be materialized for the Cloudflare staging QA sitemap smoke`);
+  }
+
+  for (const path of [
+    "/home",
+    "/ja/home",
+    "/profile",
+    "/profile/:userId",
+    "/observations/:id",
+    "/walk-maps",
+    "/ja/walk-maps",
+    "/specialist/id-workbench"
+  ]) {
+    assert.equal(
+      stagingQaSmokePaths.includes(path),
+      false,
+      `${path} should stay outside the Cloudflare staging QA sitemap materialization scope`,
+    );
   }
 });
 

@@ -26,6 +26,7 @@ export type LandingTopRenderOptions = {
   fieldLoop: FieldLoopStrings;
   snapshot: LandingSnapshot;
   isLoggedIn: boolean;
+  showLocalFollowups?: boolean;
 };
 
 export type LandingTopSections = {
@@ -216,26 +217,26 @@ type LandingHeroText = {
 function landingHeroText(lang: SiteLang): LandingHeroText {
   const localized: Record<SiteLang, LandingHeroText> = {
     ja: {
-      heading: "生きものを手がかりに、この場所の今を残す。",
-      lead: "散歩中でも旅先でも、写真・動画・音・場所・ひとことを先に残せます。名前が分からない記録も、見つからなかった条件も、あとから場所の記憶と観察レコードへ育てます。",
+      heading: "みんなで作る地域図鑑",
+      lead: "写真、動画、音、短いメモ。きれいな1枚だけでなく、いつもの道で見つけた地域の記録が流れていきます。名前や説明はあとから育てられます。",
       searchLabel: "場所や生きものを検索",
-      searchPlaceholder: "場所・生きものを探す",
+      searchPlaceholder: "地域の記録を探す",
       searchButton: "検索",
       stats: [
-        { key: "observationCount", label: "観察" },
-        { key: "speciesCount", label: "種" },
+        { key: "observationCount", label: "地域記録" },
+        { key: "speciesCount", label: "見つけた対象" },
         { key: "placeCount", label: "場所" },
       ],
     },
     en: {
-      heading: "Use living things as clues to save what this place is like today.",
-      lead: "On a walk or a trip, keep the photo, video, sound, place, and short note first. Unknown records and scoped non-detections can later grow into place memory and observation records.",
+      heading: "A regional field guide built together",
+      lead: "Photos, video, sound, and short notes from ordinary places flow here as local records. Beautiful shots are welcome, but everyday traces matter too. Names and explanations can grow later.",
       searchLabel: "Search species or places",
-      searchPlaceholder: "Search species or places",
+      searchPlaceholder: "Search local records",
       searchButton: "Search",
       stats: [
-        { key: "observationCount", label: "records" },
-        { key: "speciesCount", label: "species" },
+        { key: "observationCount", label: "local records" },
+        { key: "speciesCount", label: "subjects" },
         { key: "placeCount", label: "places" },
       ],
     },
@@ -310,8 +311,8 @@ function prioritizeHeroDailyCards(cards: LandingDailyCard[], isLoggedIn: boolean
   const source = cards.length > 0 ? cards : fallbackHeroDailyCards();
   const fallback = fallbackHeroDailyCards();
   const priority: LandingDailyCardKind[] = isLoggedIn
-    ? ["recordToday", "revisitPlace", "nearbyPulse", "needsId"]
-    : ["recordToday", "nearbyPulse", "needsId"];
+    ? ["revisitPlace", "nearbyPulse", "needsId"]
+    : ["nearbyPulse", "needsId"];
   return priority
     .map((kind) => source.find((card) => card.kind === kind) ?? fallback.find((card) => card.kind === kind))
     .filter((card): card is LandingDailyCard => Boolean(card));
@@ -320,14 +321,14 @@ function prioritizeHeroDailyCards(cards: LandingDailyCard[], isLoggedIn: boolean
 function landingHeroTrustItems(lang: SiteLang): Array<{ title: string; body: string }> {
   const localized: Record<SiteLang, Array<{ title: string; body: string }>> = {
     ja: [
-      { title: "名前は後でいい", body: "候補や根拠は、記録後に確かめられます。" },
-      { title: "AIは候補まで", body: "確定名ではなく、見分ける手がかりとして扱います。" },
-      { title: "位置は安全側", body: "公開位置は、自然と人を守る粒度で表示します。" },
+      { title: "日常でいい", body: "特別な調査日でなくても、地域の記録になります。" },
+      { title: "分類は後でいい", body: "写真・動画・メモを先に残し、意味づけはあとから育てます。" },
+      { title: "マップは道具", body: "場所から近くを見るために使い、主役は地域の記録です。" },
     ],
     en: [
-      { title: "Names can come later", body: "Hints and evidence can be checked after posting." },
-      { title: "AI stays as a hint", body: "Suggestions support review; they are not final names." },
-      { title: "Location is safer", body: "Public places use a protective level of detail." },
+      { title: "Everyday is enough", body: "A normal walk can become part of the local guide." },
+      { title: "Classification can wait", body: "Keep the media and note first; meaning can grow later." },
+      { title: "The map is a tool", body: "Use it to look nearby. The subject stays the local record." },
     ],
     es: [
       { title: "El nombre puede esperar", body: "Las pistas y evidencias se revisan despues." },
@@ -1813,8 +1814,34 @@ function renderEmptyDailyState(basePath: string, lang: SiteLang, copy: LandingSt
 }
 
 function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
-  void options;
-  return "";
+  const { basePath, lang, copy, snapshot, isLoggedIn } = options;
+  const hero = landingHeroText(lang);
+  const cards = prioritizeHeroDailyCards(snapshot.dailyDashboard?.dailyCards ?? [], isLoggedIn);
+  const actionHtml = cards.map((card) => renderDailyActionCard(basePath, lang, copy, card)).join("");
+  const trustHtml = landingHeroTrustItems(lang)
+    .map((item) => `<span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span>`)
+    .join("");
+  const metricsHtml = hero.stats.map((stat) => {
+    const value = snapshot.stats[stat.key] ?? 0;
+    return `<span><strong>${escapeHtml(formatLandingNumber(copy, value))}</strong>${escapeHtml(stat.label)}</span>`;
+  }).join("");
+  const continuationHtml = renderLandingContinuation(basePath, lang, copy, snapshot);
+
+  return `<section class="prototype-topa" aria-labelledby="prototype-topa-heading">
+    <div class="prototype-topa-intro">
+      <h1 id="prototype-topa-heading">${escapeHtml(hero.heading)}</h1>
+      <p>${escapeHtml(hero.lead)}</p>
+    </div>
+    <form class="prototype-topa-search" action="${escapeHtml(landingHref(basePath, lang, "/records"))}" method="get" role="search" aria-label="${escapeHtml(hero.searchLabel)}">
+      <span aria-hidden="true">⌕</span>
+      <input type="search" name="q" placeholder="${escapeHtml(hero.searchPlaceholder)}" />
+      <button type="submit">${escapeHtml(hero.searchButton)}</button>
+    </form>
+    ${actionHtml ? `<div class="prototype-topa-actions" aria-label="${escapeHtml(copy.heroDailyLabel)}">${actionHtml}</div>` : ""}
+    <div class="prototype-topa-trust" aria-label="ikimon.life の役割">${trustHtml}</div>
+    <div class="prototype-topa-metrics" aria-label="${escapeHtml(copy.heroStatsLabel)}">${metricsHtml}</div>
+    ${continuationHtml}
+  </section>`;
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
@@ -1830,7 +1857,7 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
     ${renderLandingNearbySection(options)}
     ${renderNatureCapitalGoalSection(options)}
     ${renderLandingGuideOutcomes(options)}
-    ${renderLandingLocalFollowups(options)}
+    ${options.showLocalFollowups === false ? "" : renderLandingLocalFollowups(options)}
   </section>`;
 }
 
@@ -4628,16 +4655,16 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-action strong { font-size: 13px; }
     .prototype-topa-action small { display: none; }
     .prototype-topa-trust {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 8px;
-      overflow-x: auto;
+      overflow-x: visible;
       padding-bottom: 2px;
-      scrollbar-width: none;
     }
     .prototype-topa-trust::-webkit-scrollbar { display: none; }
     .prototype-topa-trust span {
       min-height: 70px;
-      flex: 0 0 76%;
+      width: 100%;
       padding: 10px 12px;
     }
     .prototype-topa-metrics { gap: 8px; }

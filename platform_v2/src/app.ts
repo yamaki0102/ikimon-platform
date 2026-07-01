@@ -433,6 +433,7 @@ function buildLandingRootHtml(
     fieldLoop,
     snapshot,
     isLoggedIn,
+    showLocalFollowups: false,
   });
 
   const extraStyles = [

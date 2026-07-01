@@ -172,18 +172,21 @@ test("updates page keeps the full release history on the v2 public shell", async
   }
 });
 
-test("home page uses the record feed home surface", async () => {
+test("home page uses the regional atlas feed surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<title>ikimon \| 生きものを手がかりに、この場所の今を残す<\/title>/);
+    assert.match(response.body, /<title>みんなで作る地域図鑑 \| ikimon<\/title>/);
+    assert.match(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
     assert.match(response.body, /data-record-feed/);
     assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
     assert.match(response.body, /みんなの記録/);
     assert.doesNotMatch(response.body, /公開前に安全側で確認します/);
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
+    assert.doesNotMatch(response.body, /landing:topA:primary:record/);
+    assert.doesNotMatch(response.body, /ぽち/);
     assert.doesNotMatch(response.body, /id="map-explorer"/);
     assert.doesNotMatch(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
     assert.doesNotMatch(response.body, /今日は、どこを見に行く？/);

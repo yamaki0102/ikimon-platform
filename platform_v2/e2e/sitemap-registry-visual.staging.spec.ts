@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import {
   listVisualQaPages,
   materializeSitePagePath,
@@ -6,7 +6,7 @@ import {
   visualQaViewport,
   type SitePageMaterializationContext,
 } from "../src/siteMap.js";
-import { newStagingContext, suppressMapLibreForSmoke } from "./support/staging.js";
+import { installMapLibreStubForSmoke, newStagingContext, suppressMapLibreForSmoke } from "./support/staging.js";
 
 function firstMatch(source: string, pattern: RegExp): string | undefined {
   const match = source.match(pattern);
@@ -64,6 +64,17 @@ async function expectRenderedDocument(page: Page): Promise<void> {
   expect(text.length).toBeGreaterThan(20);
 }
 
+async function closeStagingContext(context: BrowserContext): Promise<void> {
+  try {
+    await context.close();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("Target page, context or browser has been closed")) {
+      throw error;
+    }
+  }
+}
+
 function withoutDefaultLocalePrefix(pathname: string): string {
   return pathname === "/ja" ? "/" : pathname.replace(/^\/ja(?=\/)/, "");
 }
@@ -83,6 +94,7 @@ test.describe("sitemap registry visual smoke", () => {
         const context = await newStagingContext(browser, viewport);
         const page = await context.newPage();
         try {
+          await installMapLibreStubForSmoke(page);
           await suppressMapLibreForSmoke(page);
           const materialization = await resolveMaterializationContext(page);
           if (qa.requires === "user" && !materialization.userId) {
@@ -114,7 +126,7 @@ test.describe("sitemap registry visual smoke", () => {
             });
           }
         } finally {
-          await context.close();
+          await closeStagingContext(context);
         }
       });
     }
