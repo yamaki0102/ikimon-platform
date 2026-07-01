@@ -137,10 +137,12 @@ jobs:
           grep -qi '^x-ikimon-cloudflare-materialized: original-ui-static-asset' staging-brand-icon.headers
 
       - name: Install Playwright Chromium for Cloudflare staging QA sitemap smoke
+        if: env.DEPLOY_STAGING == 'true'
         working-directory: platform_v2
         run: npx playwright install --with-deps chromium
 
       - name: Run Cloudflare staging QA sitemap smoke
+        if: env.DEPLOY_STAGING == 'true'
         working-directory: platform_v2
         timeout-minutes: 10
         env:
