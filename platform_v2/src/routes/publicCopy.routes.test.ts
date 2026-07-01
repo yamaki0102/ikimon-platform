@@ -432,6 +432,9 @@ test("records mine tab opens directly into the card grid instead of a story hero
         });
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /records-post-grid/);
+        assert.match(response.body, /data-testid="records-my-places"/);
+        assert.match(response.body, /いつもの場所/);
+        assert.match(response.body, /data-my-place/);
         assert.match(response.body, /data-records-lazy-root/);
         assert.match(response.body, /data-records-lazy-endpoint="\/api\/v1\/records\/mine-page"/);
         assert.match(response.body, /detectRecordsScrollRoot/);
