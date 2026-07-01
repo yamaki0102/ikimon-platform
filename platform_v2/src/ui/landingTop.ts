@@ -641,8 +641,8 @@ function landingRecordFeedContextLabel(lang: SiteLang, obs: LandingObservation, 
   if (obs.hasVideo || obs.librarySourceKind === "video") return lang === "ja" ? "季節の記録" : "Seasonal record";
   if (obs.fieldRefs?.length) return lang === "ja" ? "観察会より" : "From a field walk";
   return index % 3 === 1
-    ? (lang === "ja" ? "同じ場所" : "Same area")
-    : (lang === "ja" ? "近くの記録" : "Nearby record");
+    ? (lang === "ja" ? "同じ地域" : "Same area")
+    : (lang === "ja" ? "地域の記録" : "Regional record");
 }
 
 function landingRecordFeedItems(snapshot: LandingSnapshot): LandingObservation[] {
@@ -764,11 +764,11 @@ function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): stri
   const copy = lang === "ja"
     ? {
         title: "みんなの記録",
-        badge: "近くの記録",
+        badge: "地域の記録",
       }
     : {
         title: "Community records",
-        badge: "Nearby record",
+        badge: "Regional record",
       };
   return `<article class="prototype-record-feed-card is-preview is-guest-preview" data-record-feed-card>
     <a class="prototype-record-feed-main" href="${escapeHtml(recordsHref)}" data-kpi-action="landing:record_feed:guest_preview">
