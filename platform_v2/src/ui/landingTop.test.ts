@@ -158,10 +158,12 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /data-record-feed/);
   assert.match(html, /prototype-record-feed[^"]*is-guest/);
   assert.match(html, /prototype-record-feed-card is-preview is-guest-preview/);
+  assert.match(html, /prototype-record-feed-media-icons/);
   assert.doesNotMatch(html, /<h1>記録を見る<\/h1>/);
   assert.match(html, /みんなの記録/);
   assert.doesNotMatch(html, /ログイン/);
   assert.doesNotMatch(html, /data-kpi-action="landing:record_feed:weak_record"/);
+  assert.doesNotMatch(html, /写真・動画/);
   assert.doesNotMatch(html, /写真、動画、音、短いメモ/);
   assert.doesNotMatch(html, /地域の記録を探す/);
   assert.doesNotMatch(html, /日常でいい/);
@@ -334,8 +336,11 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.match(html, /<img src="\/thumb\/md\/real-observation\.jpg" alt="モンシロチョウ" loading="eager"/);
   assert.match(html, /\/observations\/visit-1/);
   assert.match(html, /data-kpi-action="landing:content_wall:community"/);
+  assert.match(html, /data-media-kind="photo"/);
+  assert.match(html, /prototype-content-thumb is-media-photo/);
   assert.match(html, /prototype-content-icon is-image/);
-  assert.match(html, /今日も写真・動画つきの記録が届いています。/);
+  assert.match(html, /今日も記録が届いています。/);
+  assert.match(html, /prototype-record-feed-media-icons/);
   assert.doesNotMatch(html, /prototype-content-icon is-globe/);
   assert.doesNotMatch(html, /prototype-content-icon is-user/);
   assert.doesNotMatch(html, /写真と動画/);
@@ -687,8 +692,51 @@ test("landing top renders video items as icon-marked thumbnail content", () => {
   });
 
   assert.match(html, /<img src="\/thumb\/md\/video-thumb\.jpg" alt="鳴く鳥の記録"/);
+  assert.match(html, /data-media-kind="video"/);
+  assert.match(html, /prototype-content-thumb is-media-video/);
   assert.match(html, /prototype-content-icon is-video/);
   assert.doesNotMatch(html, /動画あり/);
+});
+
+test("landing top gives audio and memo records distinct card states without visible explanations", () => {
+  const audioObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-audio",
+    visitId: "visit-audio",
+    displayName: "水路の音",
+    photoUrl: null,
+    mediaUrl: null,
+    hasAudio: true,
+    librarySourceKind: "audio",
+  };
+  const memoObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-memo",
+    visitId: "visit-memo",
+    displayName: "朝の水路",
+    photoUrl: null,
+    mediaUrl: null,
+    librarySourceKind: "note",
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: "viewer-1",
+    feed: [audioObservation, memoObservation],
+    dailyDashboard: {
+      ...photoSnapshot.dailyDashboard!,
+      featuredObservation: photoSnapshot.dailyDashboard!.featuredObservation,
+    },
+  });
+
+  assert.match(html, /data-media-kind="audio"/);
+  assert.match(html, /data-media-kind="memo"/);
+  assert.match(html, /prototype-content-thumb is-media-audio/);
+  assert.match(html, /prototype-content-thumb is-media-memo/);
+  assert.match(html, /prototype-content-icon is-audio/);
+  assert.match(html, /prototype-content-icon is-memo/);
+  assert.match(html, /aria-label="音"/);
+  assert.match(html, /aria-label="短いメモ"/);
+  assert.doesNotMatch(html, /音声あり|メモあり|説明を追加|媒体の違い/);
 });
 
 test("landing top keeps multiple video thumbnails in the content wall", () => {

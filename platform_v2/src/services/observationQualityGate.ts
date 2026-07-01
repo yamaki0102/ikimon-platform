@@ -165,6 +165,17 @@ export const VALID_OBSERVATION_VIDEO_ASSET_SQL = `
   and coalesce(ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url', '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
 `;
 
+export const VALID_OBSERVATION_AUDIO_ASSET_SQL = `
+  ea.asset_role = 'observation_audio'
+  and audio.segment_id is not null
+  and audio.privacy_status = 'clean'
+  and coalesce(audio.voice_flag, false) = false
+  and coalesce(audio.transcription_status, 'pending') <> 'skipped'
+  and nullif(coalesce(ab.public_url, ab.storage_path, audio.storage_path), '') is not null
+  and coalesce(ab.public_url, ab.storage_path, audio.storage_path, '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
+  and coalesce(ab.bytes, audio.bytes, 1024) > 512
+`;
+
 export const PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL = `
   exists (
     select 1
@@ -187,6 +198,7 @@ export const PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL = `
     select 1
       from evidence_assets public_media_ea
       join asset_blobs public_media_ab on public_media_ab.blob_id = public_media_ea.blob_id
+      left join audio_segments public_media_audio on public_media_audio.blob_id = public_media_ab.blob_id
      where public_media_ea.visit_id = v.visit_id
        and (
          (
@@ -203,6 +215,16 @@ export const PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL = `
            public_media_ea.asset_role = 'observation_video'
            and nullif(coalesce(public_media_ab.public_url, public_media_ab.storage_path, public_media_ab.source_payload->>'iframe_url'), '') is not null
            and coalesce(public_media_ab.public_url, public_media_ab.storage_path, public_media_ab.source_payload->>'iframe_url', '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
+         )
+         or (
+           public_media_ea.asset_role = 'observation_audio'
+           and public_media_audio.segment_id is not null
+           and public_media_audio.privacy_status = 'clean'
+           and coalesce(public_media_audio.voice_flag, false) = false
+           and coalesce(public_media_audio.transcription_status, 'pending') <> 'skipped'
+           and nullif(coalesce(public_media_ab.public_url, public_media_ab.storage_path, public_media_audio.storage_path), '') is not null
+           and coalesce(public_media_ab.public_url, public_media_ab.storage_path, public_media_audio.storage_path, '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
+           and coalesce(public_media_ab.bytes, public_media_audio.bytes, 1024) > 512
          )
        )
   )

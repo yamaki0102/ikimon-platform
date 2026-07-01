@@ -355,6 +355,7 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       },
       sourceLabels: {
         video: "動画",
+        audio: "音",
         guide: "ガイド",
         scan: "スキャン",
         photo: "写真",
@@ -434,6 +435,7 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       },
       sourceLabels: {
         video: "Video",
+        audio: "Sound",
         guide: "Guide",
         scan: "Scan",
         photo: "Photo",
@@ -513,6 +515,7 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       },
       sourceLabels: {
         video: "Video",
+        audio: "Audio",
         guide: "Guía",
         scan: "Escaneo",
         photo: "Foto",
@@ -592,6 +595,7 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
       },
       sourceLabels: {
         video: "Vídeo",
+        audio: "Som",
         guide: "Guia",
         scan: "Scan",
         photo: "Foto",

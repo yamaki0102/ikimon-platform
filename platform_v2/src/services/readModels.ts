@@ -2213,8 +2213,9 @@ export type LandingObservation = RecentObservation & {
   observerUserId: string | null;
   observerAvatarUrl: string | null;
   /** /notes library source lane. Derived from visit mode and available evidence assets. */
-  librarySourceKind?: "photo" | "video" | "guide" | "scan" | "note";
+  librarySourceKind?: "photo" | "video" | "audio" | "guide" | "scan" | "note";
   hasVideo?: boolean;
+  hasAudio?: boolean;
   /** "observation" = 自分 or 誰かの観察記録。"identification" = 自分が他人の観察に付けた個人同定。 */
   entryType?: "observation" | "identification";
   /** entryType="identification" のときに自分が提案した種名。 */

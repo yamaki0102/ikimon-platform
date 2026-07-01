@@ -13,6 +13,7 @@ import {
   PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
+  VALID_OBSERVATION_AUDIO_ASSET_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
   VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "./observationQualityGate.js";
@@ -194,6 +195,7 @@ type FeedRow = {
   photo_height_px: number | null;
   photo_bytes: string | number | null;
   video_count: string | null;
+  audio_count: string | number | null;
   session_mode: string | null;
   visit_mode: string | null;
   record_mode: string | null;
@@ -356,6 +358,7 @@ const FEED_SQL_BASE = `
     photo.height_px as photo_height_px,
     photo.bytes as photo_bytes,
     video.video_count,
+    audio_media.audio_count,
     v.session_mode,
     v.visit_mode,
     v.source_payload->>'record_mode' as record_mode,
@@ -370,9 +373,9 @@ const FEED_SQL_BASE = `
     coalesce(fields.field_refs, '[]'::jsonb) as field_refs,
     v.public_visibility,
     v.quality_review_status,
-    coalesce(photo.derivative_ready, video.derivative_ready, false) as media_derivative_ready,
-    coalesce(photo.exif_stripped, video.exif_stripped, false) as media_exif_stripped,
-    coalesce(photo.face_blur_status, video.face_blur_status, '') as media_face_blur_status
+    coalesce(photo.derivative_ready, video.derivative_ready, case when coalesce(audio_media.audio_count, '0')::int > 0 then true else false end, false) as media_derivative_ready,
+    coalesce(photo.exif_stripped, video.exif_stripped, case when coalesce(audio_media.audio_count, '0')::int > 0 then true else false end, false) as media_exif_stripped,
+    coalesce(photo.face_blur_status, video.face_blur_status, case when coalesce(audio_media.audio_count, '0')::int > 0 then 'not_needed' else '' end) as media_face_blur_status
   from occurrences o
   join visits v on v.visit_id = o.visit_id
   left join users u on u.user_id = v.user_id
@@ -440,6 +443,14 @@ const FEED_SQL_BASE = `
       and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
   ) video on true
   left join lateral (
+    select count(*)::text as audio_count
+    from evidence_assets ea
+    join asset_blobs ab on ab.blob_id = ea.blob_id
+    join audio_segments audio on audio.blob_id = ab.blob_id
+    where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+      and ${VALID_OBSERVATION_AUDIO_ASSET_SQL}
+  ) audio_media on true
+  left join lateral (
     select coalesce(ab.public_url, ab.storage_path) as public_url
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
@@ -479,6 +490,7 @@ function landingLibrarySourceKind(row: FeedRow): LandingObservation["librarySour
   if (sessionMode.includes("guide") || visitMode.includes("guide") || recordMode.includes("guide")) return "guide";
   if (Number(row.video_count ?? 0) > 0) return "video";
   if (row.photo_url) return "photo";
+  if (Number(row.audio_count ?? 0) > 0) return "audio";
   return "note";
 }
 
@@ -833,6 +845,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     confidenceScore: row.confidence_score != null ? Number(row.confidence_score) : null,
     librarySourceKind: landingLibrarySourceKind(row),
     hasVideo: Number(row.video_count ?? 0) > 0,
+    hasAudio: Number(row.audio_count ?? 0) > 0,
     latitude: safeLat,
     longitude: safeLng,
     observerUserId: row.observer_user_id,
