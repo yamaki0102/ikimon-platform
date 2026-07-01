@@ -772,6 +772,7 @@ const HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS = [2, 6, 10, 14, 18];
 const PUBLIC_AREA_LABEL_MAX_LENGTH = 40;
 const PUBLIC_AREA_LABEL_SENSITIVE_PATTERN = /(学校|小学校|中学校|高校|高等学校|幼稚園|保育園|こども園|児童|自宅|住所|番地|丁目|号室|マンション|アパート|寮|private|school|home|residence|address|apartment|condo|nursery|kindergarten)/i;
 const PUBLIC_AREA_LABEL_ADDRESS_PATTERN = /[0-9]|[-.,;:/\\@#]|[!?"$%&'()*+<=>\[\]^_`{|}~]/;
+const PUBLIC_STREAM_ALLOWED_LOCATION_PRECISIONS = new Set(["municipality", "mesh"]);
 
 interface PublicMapPhotoRow {
   observation_id: string;
@@ -21180,6 +21181,11 @@ function resolveSafePublicAreaLabel(input: Pick<LegacyObservationUpsertInput, "m
   return prefecture;
 }
 
+function publicStreamAllowsLocationPrecision(value: unknown): boolean {
+  const precision = normalizeOptionalText(value);
+  return !precision || PUBLIC_STREAM_ALLOWED_LOCATION_PRECISIONS.has(precision);
+}
+
 function buildLegacyCompatibleObservationResponse(input: {
   visitId: string;
   occurrenceId: string;
@@ -22752,6 +22758,9 @@ async function publicSafetyGateForObservation(
     const publicPrecision = normalizeOptionalText(context.public_precision);
     if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
       return { blocked: true, reason: `public_precision:${publicPrecision}` };
+    }
+    if (!publicStreamAllowsLocationPrecision(publicPrecision)) {
+      return { blocked: true, reason: `public_stream_precision:${publicPrecision}` };
     }
 
     return { blocked: false, reason: null };
