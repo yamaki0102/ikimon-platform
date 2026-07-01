@@ -16938,9 +16938,14 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /prototype-record-feed-media-icons/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
+  assert.match(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
+  assert.match(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
+  assert.match(homeBody, /prototype-record-feed-badges"><span>同じ地域の記録<\/span>/);
   assert.match(homeBody, /<span>6月24日<\/span>/);
   assert.doesNotMatch(homeBody, /<span>2026-06-24T09:38:45\.358Z<\/span>/);
   assert.doesNotMatch(homeBody, /<span>地域の記録 · 6月24日<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>季節の記録 · 6月24日<\/span>/);
+  assert.doesNotMatch(homeBody, /<span>同じ地域の記録 · 6月24日<\/span>/);
   assert.doesNotMatch(homeBody, /近くの記録|近くの公開記録/);
   assert.match(homeBody, /width:min\(100%,680px\)/);
   assert.match(homeBody, /height:clamp\(300px,48vh,460px\);min-height:300px/);
@@ -17026,6 +17031,9 @@ test("production home keeps public record feed within the initial DOM budget", a
   assert.match(homeBody, /const maxCards = 96;/);
   assert.doesNotMatch(homeBody, /const maxCards = 240;/);
   assert.doesNotMatch(homeBody, /<div class="cf-home-record-media-nav" data-home-record-media-nav/);
+  assert.match(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
+  assert.match(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
+  assert.match(homeBody, /prototype-record-feed-badges"><span>同じ地域の記録<\/span>/);
   assert.match(homeBody, /public-home-budget-0/);
   assert.match(homeBody, /public-home-budget-35/);
   assert.doesNotMatch(homeBody, /public-home-budget-36/);
