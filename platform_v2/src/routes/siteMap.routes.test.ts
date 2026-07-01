@@ -166,6 +166,28 @@ test("visual smoke targets are generated from sitemap metadata", () => {
   assert.equal(sitePageLayout(pages.find((page) => page.path === "/community/events")!), "wide");
   assert.equal(sitePageLayout(pages.find((page) => page.path === "/community/fields")!), "wide");
   assert.equal(pages.find((page) => page.path === "/")?.visualQa?.expectedText.ja, "近くの記録");
+  const eventsPage = pages.find((page) => page.path === "/community/events");
+  assert.ok(eventsPage);
+  assert.equal(
+    eventsPage.visualQa?.readySelector,
+    "main",
+    "Cloudflare staging event smoke should target the Worker-native shell instead of retired original-ui classes",
+  );
+  assert.equal(
+    eventsPage.visualQa?.expectedText.ja,
+    "観察会",
+    "Cloudflare staging event smoke should use a marker shared by native and original UI shells",
+  );
+  assert.equal(
+    pages.find((page) => page.path === "/walk-maps")?.visualQa?.readySelector,
+    "main",
+    "walk map smoke should target the Worker-native shell instead of retired original-ui classes",
+  );
+  assert.deepEqual(
+    pages.find((page) => page.path === "/specialist/id-workbench")?.visualQa?.allowStatus,
+    [403, 404],
+    "Cloudflare staging specialist smoke should accept either denied-native or not-yet-provided route shells",
+  );
 
   const observation = pages.find((page) => page.path === "/observations/:id");
   assert.ok(observation);
