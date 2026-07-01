@@ -17719,6 +17719,7 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
 function contextualPublicHomeRecordsCopy(url: URL, index: number): ReturnType<typeof recordsInjectionCopy> {
   const copy = recordsInjectionCopy(url);
   const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  // Feed labels add gentle variety; they are not a strict geospatial assertion.
   const labels = lang === "en"
     ? ["Regional record", "Seasonal record", "Same area record"]
     : ["地域の記録", "季節の記録", "同じ地域の記録"];
@@ -17913,8 +17914,9 @@ function buildHomeFeedCards(
   url: URL
 ): Array<{ item: ReturnType<typeof publicMapObservationItem>; copy: ReturnType<typeof recordsInjectionCopy>; source: "owner" | "public" }> {
   if (ownerItems.length === 0) {
-    const publicCopy = recordsInjectionCopy(url);
-    return diversifyHomeRecordCards(publicItems).slice(0, HOME_RECORD_FEED_INITIAL_LIMIT).map((item) => ({ item, copy: publicCopy, source: "public" }));
+    return diversifyHomeRecordCards(publicItems)
+      .slice(0, HOME_RECORD_FEED_INITIAL_LIMIT)
+      .map((item, index) => ({ item, copy: contextualPublicHomeRecordsCopy(url, index), source: "public" }));
   }
 
   const ownerCopy = ownerHomeRecordsCopy(url);
