@@ -2526,6 +2526,10 @@ export const worker = {
         return upsertLegacyCompatibleObservation(request, env);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/ops/staging/record-feedback-loop/cleanup") {
+        return cleanupStagingRecordFeedbackLoopSmoke(request, env);
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/auth/session/issue") {
         return issueCompatibleSession(request, env);
       }
@@ -7635,15 +7639,71 @@ async function generateCompatibleRecordReadingCards(observationId: string, reque
   }
 
   const cards = await listD1RecordReadingCards(signals.visitId, session.userId, env);
+  const feedbackLoop = buildLegacyRecordFeedbackLoopReady(
+    signals.visitId,
+    signals.subjects[0]?.occurrence_id ?? `occ:${signals.visitId}:0`,
+    cards
+  );
+  if (cards.length > 0) {
+    await enqueueD1RecordFeedbackReadyAlert(signals, feedbackLoop, env);
+  }
   return json({
     ok: cards.length > 0,
     cards,
     reason: cards.length > 0 ? "eligible" : "not_grounded",
+    feedbackLoop,
     compatibility: {
       source: "cloudflare_record_reading_cards",
       generationMode: "deterministic_catalog"
     }
   }, cards.length > 0 ? 200 : 422, { "cache-control": "no-store" });
+}
+
+async function enqueueD1RecordFeedbackReadyAlert(
+  signals: {
+    visitId: string;
+    ownerUserId: string | null;
+    subjects: Array<{ occurrence_id: string; scientific_name: string | null; vernacular_name: string | null; taxon_rank: string | null }>;
+  },
+  feedbackLoop: ReturnType<typeof buildLegacyRecordFeedbackLoopReady>,
+  env: Env
+): Promise<void> {
+  const userId = normalizeOptionalText(signals.ownerUserId);
+  const occurrenceId = normalizeOptionalText(signals.subjects[0]?.occurrence_id);
+  if (!userId || !occurrenceId) return;
+
+  const existing = await env.CORE_DB.prepare(
+    `SELECT delivery_id
+       FROM alert_deliveries
+      WHERE occurrence_id = ?
+        AND user_id = ?
+        AND trigger_kind = 'record_feedback_ready'
+      LIMIT 1`
+  ).bind(occurrenceId, userId).first<{ delivery_id: string }>();
+  if (existing?.delivery_id) return;
+
+  const now = new Date().toISOString();
+  await env.CORE_DB.prepare(
+    `INSERT INTO alert_deliveries (
+       delivery_id, occurrence_id, user_id, recipient_id, subscription_id, area_subscription_id,
+       trigger_kind, channel, delivered_at, delivery_status, error_message,
+       payload_json, acknowledged_at, created_at
+     ) VALUES (?, ?, ?, NULL, NULL, NULL, 'record_feedback_ready', 'none', ?, 'sent', NULL, ?, NULL, ?)`
+  ).bind(
+    newId("alert_delivery"),
+    occurrenceId,
+    userId,
+    now,
+    JSON.stringify({
+      title: feedbackLoop.title,
+      body: feedbackLoop.body,
+      href: feedbackLoop.nextAction.href,
+      visitId: signals.visitId,
+      occurrenceId,
+      feedbackLoop
+    }),
+    now
+  ).run();
 }
 
 async function hideCompatibleRecordReadingCard(cardId: string, request: Request, env: Env): Promise<Response> {
@@ -7738,7 +7798,44 @@ async function resolveD1RecordReadingSignals(observationId: string, env: Env): P
     public_visibility: string | null;
     observed_at: string | null;
   }>();
-  if (!visit) return null;
+  if (!visit) {
+    const nativeObservationId = nativeObservationIdFromRecordReadingTarget(observationId);
+    const native = await env.OBS_DB.prepare(
+      `SELECT observation_id, owner_user_id, COALESCE(visibility, 'public') AS public_visibility, observed_at, taxon_label
+         FROM observations
+        WHERE observation_id = ?
+        LIMIT 1`
+    ).bind(nativeObservationId).first<{
+      observation_id: string;
+      owner_user_id: string | null;
+      public_visibility: string | null;
+      observed_at: string | null;
+      taxon_label: string | null;
+    }>();
+    if (!native) return null;
+
+    const nativeAssetCount = await env.OBS_DB.prepare(
+      `SELECT COUNT(*) AS count
+         FROM asset_ledger
+        WHERE observation_id = ?
+          AND processing_state = 'uploaded'
+          AND (mime LIKE 'image/%' OR mime LIKE 'video/%')`
+    ).bind(native.observation_id).first<{ count: number }>();
+    const nativeOccurrenceId = observationId === native.observation_id ? `occ:${native.observation_id}:0` : observationId;
+    return {
+      visitId: native.observation_id,
+      ownerUserId: native.owner_user_id,
+      publicVisibility: native.public_visibility ?? "public",
+      observedAt: native.observed_at,
+      mediaCount: Number(nativeAssetCount?.count ?? 0),
+      subjects: [{
+        occurrence_id: nativeOccurrenceId,
+        scientific_name: null,
+        vernacular_name: native.taxon_label,
+        taxon_rank: null
+      }]
+    };
+  }
 
   const subjectsResult = await env.OBS_DB.prepare(
     `SELECT occurrence_id, scientific_name, vernacular_name, taxon_rank
@@ -7778,6 +7875,11 @@ async function resolveD1RecordReadingSignals(observationId: string, env: Env): P
     mediaCount: Number(assetCount?.count ?? 0),
     subjects
   };
+}
+
+function nativeObservationIdFromRecordReadingTarget(observationId: string): string {
+  const occurrenceMatch = /^occ:(.*):\d+$/u.exec(observationId);
+  return occurrenceMatch?.[1] ? occurrenceMatch[1] : observationId;
 }
 
 function buildD1RecordReadingCardDrafts(signals: {
@@ -20734,7 +20836,8 @@ function buildLegacyCompatibleObservationResponse(input: {
     } : undefined,
     placeMemory: input.placeMemory ?? null,
     placeMemorySample: input.placeMemorySample ?? [],
-    contributionReceipts: buildLegacyContributionReceipts(input.visitId, input.occurrenceId, input.occurrenceIds.length, input.placeName, source)
+    contributionReceipts: buildLegacyContributionReceipts(input.visitId, input.occurrenceId, input.occurrenceIds.length, input.placeName, source),
+    feedbackLoop: buildLegacyRecordFeedbackLoop(input.visitId, input.occurrenceId)
   };
 }
 
@@ -21036,6 +21139,10 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     occurrenceIds,
     taxonLabel
   });
+
+  if (visibility !== "public" || (await publicSafetyGateForObservation(visitId, env)).blocked) {
+    await deletePublicReadmodelRow(visitId, env);
+  }
 
   return json(buildLegacyCompatibleObservationResponse({
     visitId,
@@ -22165,6 +22272,12 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
   }
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(observation.observed_at);
 
+  const safetyGate = await publicSafetyGateForObservation(observationId, env);
+  if (safetyGate.blocked) {
+    await deletePublicReadmodelRow(observationId, env);
+    return;
+  }
+
   const unsafePublicAssets = await env.OBS_DB.prepare(
     `SELECT COUNT(*) AS count
      FROM asset_ledger
@@ -22212,6 +22325,43 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
     partitionMonth
   ).run();
   await upsertPublicMapSnapshotRow(observation, publicReadyAssetCount?.count ?? 0, env);
+}
+
+async function publicSafetyGateForObservation(
+  observationId: string,
+  env: Env
+): Promise<{ blocked: boolean; reason: string | null }> {
+  try {
+    const context = await env.OBS_DB.prepare(
+      `SELECT audience_scope, public_precision, risk_lane
+       FROM civic_observation_contexts
+       WHERE visit_id = ?
+       LIMIT 1`
+    ).bind(observationId).first<{ audience_scope: string | null; public_precision: string | null; risk_lane: string | null }>();
+    if (!context) return { blocked: false, reason: null };
+
+    const riskLane = normalizeOptionalText(context.risk_lane) ?? "normal";
+    if (riskLane !== "normal") {
+      return { blocked: true, reason: `risk_lane:${riskLane}` };
+    }
+
+    const audienceScope = normalizeOptionalText(context.audience_scope);
+    if (audienceScope && audienceScope !== "public") {
+      return { blocked: true, reason: `audience_scope:${audienceScope}` };
+    }
+
+    const publicPrecision = normalizeOptionalText(context.public_precision);
+    if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
+      return { blocked: true, reason: `public_precision:${publicPrecision}` };
+    }
+
+    return { blocked: false, reason: null };
+  } catch (error) {
+    if (error instanceof Error && /no such table: civic_observation_contexts/i.test(error.message)) {
+      return { blocked: false, reason: null };
+    }
+    throw error;
+  }
 }
 
 async function deletePublicReadmodelRow(observationId: string, env: Env): Promise<void> {
@@ -22360,6 +22510,111 @@ async function hideCompatibleObservation(observationId: string, request: Request
     canonicalPreserved: true,
     publicReadmodelDeleted: true
   });
+}
+
+async function cleanupStagingRecordFeedbackLoopSmoke(request: Request, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "staging" && env.ENVIRONMENT !== "shadow") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<{ fixturePrefix?: unknown }>(request);
+  const fixturePrefix = normalizeOptionalText(body.fixturePrefix);
+  if (!fixturePrefix || !/^record-feedback-loop-[A-Za-z0-9-]+$/u.test(fixturePrefix)) {
+    return json({ ok: false, error: "invalid_fixture_prefix" }, 400, { "cache-control": "no-store" });
+  }
+
+  const visitLike = `${fixturePrefix}%`;
+  const userLike = `${fixturePrefix}-%`;
+  const occurrenceLike = `occ:${fixturePrefix}%`;
+  const payloadLike = `%${fixturePrefix}%`;
+  const r2ObjectKeys = await listStagingRecordFeedbackLoopObjectKeys(env, visitLike, userLike);
+  const r2Objects = await deleteR2Objects(env.ASSET_BUCKET, r2ObjectKeys);
+  const deleted = {
+    alerts: await runD1DeleteCount(env.CORE_DB.prepare(
+      `DELETE FROM alert_deliveries
+        WHERE user_id LIKE ?
+           OR occurrence_id LIKE ?
+           OR payload_json LIKE ?`
+    ).bind(userLike, occurrenceLike, payloadLike)),
+    sessions: await runD1DeleteCount(env.CORE_DB.prepare(
+      `DELETE FROM auth_sessions
+        WHERE user_id LIKE ?`
+    ).bind(userLike)),
+    users: await runD1DeleteCount(env.CORE_DB.prepare(
+      `DELETE FROM users
+        WHERE user_id LIKE ?`
+    ).bind(userLike)),
+    recordReadingCards: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM record_reading_cards
+        WHERE visit_id LIKE ?`
+    ).bind(visitLike)),
+    publicMapRows: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM public_map_snapshot_records_v1
+        WHERE visit_id LIKE ? OR occurrence_id LIKE ?`
+    ).bind(visitLike, occurrenceLike)),
+    publicReadmodelRows: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM readmodel_public_observations
+        WHERE observation_id LIKE ?`
+    ).bind(visitLike)),
+    assets: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM asset_ledger
+        WHERE observation_id LIKE ? OR owner_user_id LIKE ?`
+    ).bind(visitLike, userLike)),
+    r2Objects,
+    outbox: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM outbox
+        WHERE target_id LIKE ? OR payload_json LIKE ?`
+    ).bind(visitLike, payloadLike)),
+    rollbackLedger: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM rollback_write_ledger
+        WHERE target_id LIKE ? OR payload_json LIKE ?`
+    ).bind(visitLike, payloadLike)),
+    dataRights: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM observation_data_rights
+        WHERE visit_id LIKE ? OR occurrence_id LIKE ?`
+    ).bind(visitLike, occurrenceLike)),
+    idempotency: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM observation_write_idempotency
+        WHERE user_id LIKE ? OR visit_id LIKE ? OR occurrence_id LIKE ? OR source_payload LIKE ?`
+    ).bind(userLike, visitLike, occurrenceLike, payloadLike)),
+    observations: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM observations
+        WHERE observation_id LIKE ? OR owner_user_id LIKE ?`
+    ).bind(visitLike, userLike)),
+    drafts: await runD1DeleteCount(env.OBS_DB.prepare(
+      `DELETE FROM draft_observations
+        WHERE draft_id LIKE ? OR owner_user_id LIKE ?`
+    ).bind(visitLike, userLike))
+  };
+
+  return json({ ok: true, fixturePrefix, deleted }, 200, { "cache-control": "no-store" });
+}
+
+async function listStagingRecordFeedbackLoopObjectKeys(env: Env, visitLike: string, userLike: string): Promise<string[]> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT object_key, public_derivative_key
+       FROM asset_ledger
+      WHERE observation_id LIKE ? OR owner_user_id LIKE ?`
+  ).bind(visitLike, userLike).all<{ object_key: string | null; public_derivative_key: string | null }>();
+  return Array.from(new Set(rows.results.flatMap((row) => [
+    normalizeOptionalText(row.object_key),
+    normalizeOptionalText(row.public_derivative_key)
+  ]).filter((value): value is string => Boolean(value))));
+}
+
+async function deleteR2Objects(bucket: R2Bucket, objectKeys: string[]): Promise<number> {
+  let deleted = 0;
+  for (const key of objectKeys) {
+    await bucket.delete(key);
+    deleted += 1;
+  }
+  return deleted;
+}
+
+async function runD1DeleteCount(statement: D1PreparedStatement): Promise<number> {
+  const result = await statement.run() as { meta?: { changes?: number } };
+  return Number(result.meta?.changes ?? 0);
 }
 
 async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
@@ -26520,6 +26775,43 @@ function buildLegacyContributionReceipts(
       nextAction: { label: hasIdentification ? "名前を確認する" : "手がかりを見る", href: observationHref, actionKey: hasIdentification ? "review_identification" : "review_unknown_observation" }
     }
   ];
+}
+
+function buildLegacyRecordFeedbackLoop(visitId: string, occurrenceId: string) {
+  const observationHref = `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}`;
+  return {
+    kind: "record_feedback_loop",
+    status: "queued",
+    claimLevel: "deferred",
+    title: "ヒント待ち",
+    body: "季節・場所・環境の手がかりを、記録ページで見返せます。",
+    signalKinds: ["season", "place", "environment"],
+    nextAction: { label: "記録を見る", href: observationHref, actionKey: "open_record_feedback" }
+  };
+}
+
+function buildLegacyRecordFeedbackLoopReady(
+  visitId: string,
+  occurrenceId: string,
+  cards: Array<{ title: string; axis: RecordReadingAxis }>
+) {
+  const observationHref = `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}#record-feedback`;
+  const signalKinds = Array.from(new Set(cards.map((card) => (
+    card.axis === "organism" ? "organism" : card.axis === "environment" ? "environment" : "place"
+  ))));
+  return {
+    kind: "record_feedback_loop",
+    status: "ready",
+    claimLevel: "deferred",
+    title: "ヒントが返ってきました",
+    body: cards.length > 0
+      ? `記録ページで ${cards.length} 件の手がかりを見返せます。`
+      : "記録ページで手がかりを見返せます。",
+    signalKinds: signalKinds.length > 0 ? signalKinds : ["place", "environment"],
+    cardCount: cards.length,
+    previewTitles: cards.slice(0, 3).map((card) => card.title),
+    nextAction: { label: "記録を見る", href: observationHref, actionKey: "open_record_feedback" }
+  };
 }
 
 function sanitizeFileName(value: string): string {

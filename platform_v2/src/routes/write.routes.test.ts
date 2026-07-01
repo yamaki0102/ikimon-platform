@@ -15,9 +15,12 @@ test("observation upsert returns contribution receipts with the ok contract", ()
   const source = readFileSync(path.join(process.cwd(), "src/routes/write.ts"), "utf8");
 
   assert.match(source, /buildContributionReceipts/);
+  assert.match(source, /buildRecordFeedbackLoop/);
   assert.match(source, /const contributionReceipts = buildContributionReceipts\(/);
+  assert.match(source, /const feedbackLoop = buildRecordFeedbackLoop\(\{ result \}\)/);
   assert.match(source, /contributionReceiptKinds: contributionReceipts\.map/);
-  assert.match(source, /return \{\s+ok: true,\s+\.\.\.result,[\s\S]+contributionReceipts,[\s\S]+\};/);
+  assert.match(source, /feedbackLoopStatus: feedbackLoop\.status/);
+  assert.match(source, /return \{\s+ok: true,\s+\.\.\.result,[\s\S]+contributionReceipts,[\s\S]+feedbackLoop,[\s\S]+\};/);
   assert.match(source, /placeMemorySample/);
 });
 

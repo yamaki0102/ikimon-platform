@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildContributionReceipts } from "./contributionReceipts.js";
+import { buildContributionReceipts, buildRecordFeedbackLoop } from "./contributionReceipts.js";
 import type { ObservationUpsertInput, ObservationWriteResult } from "./observationWrite.js";
 
 function baseInput(overrides: Partial<ObservationUpsertInput> = {}): ObservationUpsertInput {
@@ -58,6 +58,20 @@ test("contribution receipts are immediate, bounded, and safe to show after posti
     ["record_body_saved", "place_comparison_seeded", "uncertainty_preserved"],
   );
   assert.doesNotMatch(JSON.stringify(receipts), /保全|研究成果|行政|確定|ポイント|ランキング/);
+});
+
+test("record feedback loop is deferred and light enough for post-save UI", () => {
+  const feedbackLoop = buildRecordFeedbackLoop({
+    result: baseResult(),
+  });
+
+  assert.equal(feedbackLoop.kind, "record_feedback_loop");
+  assert.equal(feedbackLoop.status, "queued");
+  assert.equal(feedbackLoop.claimLevel, "deferred");
+  assert.deepEqual(feedbackLoop.signalKinds, ["season", "place", "environment"]);
+  assert.equal(feedbackLoop.nextAction.href, "/observations/visit-1?subject=occ%3Avisit-1%3A0");
+  assert.equal(feedbackLoop.nextAction.actionKey, "open_record_feedback");
+  assert.doesNotMatch(JSON.stringify(feedbackLoop), /保全|研究成果|行政|確定|ポイント|ランキング|すごい|貢献しました/);
 });
 
 test("survey and absence observations receive follow-up receipts without overclaiming", () => {

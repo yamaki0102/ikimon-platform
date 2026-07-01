@@ -3677,6 +3677,16 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("DELETE FROM auth_sessions")) {
+      if (normalized.includes("WHERE user_id LIKE ?")) {
+        let changes = 0;
+        for (const [key, row] of [...this.db.authSessions.entries()]) {
+          if (row.user_id.startsWith(string(v[0]).replace(/%$/u, ""))) {
+            this.db.authSessions.delete(key);
+            changes++;
+          }
+        }
+        return { meta: { changes } };
+      }
       this.db.authSessions.delete(string(v[0]));
       return {};
     }
@@ -3971,6 +3981,26 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO alert_deliveries")) {
+      const row: AlertDeliveryRow = {
+        delivery_id: string(v[0]),
+        occurrence_id: string(v[1]),
+        user_id: nullableString(v[2]),
+        recipient_id: null,
+        subscription_id: null,
+        trigger_kind: "record_feedback_ready",
+        channel: "none",
+        delivered_at: nullableString(v[3]),
+        delivery_status: "sent",
+        error_message: null,
+        payload_json: string(v[4]),
+        acknowledged_at: null,
+        created_at: nullableString(v[5])
+      };
+      this.db.alertDeliveries.set(row.delivery_id, row);
+      return {};
+    }
+
     if (normalized.startsWith("INSERT INTO record_reading_cards")) {
       const visitId = string(v[1]);
       const axis = string(v[2]);
@@ -3993,6 +4023,145 @@ class FakeStatement {
       };
       this.db.recordReadingCards.set(row.card_id, row);
       return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM alert_deliveries")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.alertDeliveries.entries()]) {
+        if (
+          startsWithSqlLike(row.user_id, v[0]) ||
+          startsWithSqlLike(row.occurrence_id, v[1]) ||
+          containsSqlLike(row.payload_json, v[2])
+        ) {
+          this.db.alertDeliveries.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM users")) {
+      let changes = 0;
+      for (const key of [...this.db.users.values()]) {
+        if (startsWithSqlLike(key, v[0])) {
+          this.db.users.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM record_reading_cards")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.recordReadingCards.entries()]) {
+        if (startsWithSqlLike(row.visit_id, v[0])) {
+          this.db.recordReadingCards.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM public_map_snapshot_records_v1")) {
+      const before = this.db.publicMapSnapshotRecords.length;
+      this.db.publicMapSnapshotRecords = this.db.publicMapSnapshotRecords.filter((row) =>
+        !startsWithSqlLike(row.visit_id, v[0]) &&
+        !startsWithSqlLike(row.occurrence_id, v[1])
+      );
+      return { meta: { changes: before - this.db.publicMapSnapshotRecords.length } };
+    }
+
+    if (normalized.startsWith("DELETE FROM readmodel_public_observations")) {
+      let changes = 0;
+      for (const key of [...this.db.readmodel.keys()]) {
+        if (startsWithSqlLike(key, v[0])) {
+          this.db.readmodel.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM asset_ledger")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.assets.entries()]) {
+        if (startsWithSqlLike(row.observation_id, v[0]) || startsWithSqlLike(row.owner_user_id, v[1])) {
+          this.db.assets.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM outbox")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.outbox.entries()]) {
+        if (startsWithSqlLike(row.target_id, v[0]) || containsSqlLike(row.payload_json, v[1])) {
+          this.db.outbox.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM rollback_write_ledger")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.rollbackLedger.entries()]) {
+        if (startsWithSqlLike(row.target_id, v[0]) || containsSqlLike(row.payload_json, v[1])) {
+          this.db.rollbackLedger.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM observation_data_rights")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.observationDataRights.entries()]) {
+        if (startsWithSqlLike(row.visit_id, v[0]) || startsWithSqlLike(row.occurrence_id, v[1])) {
+          this.db.observationDataRights.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM observation_write_idempotency")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.observationWriteIdempotency.entries()]) {
+        if (
+          startsWithSqlLike(row.user_id, v[0]) ||
+          startsWithSqlLike(row.visit_id, v[1]) ||
+          startsWithSqlLike(row.occurrence_id, v[2]) ||
+          containsSqlLike(row.source_payload, v[3])
+        ) {
+          this.db.observationWriteIdempotency.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM observations")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.observations.entries()]) {
+        if (startsWithSqlLike(row.observation_id, v[0]) || startsWithSqlLike(row.owner_user_id, v[1])) {
+          this.db.observations.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
+    }
+
+    if (normalized.startsWith("DELETE FROM draft_observations")) {
+      let changes = 0;
+      for (const [key, row] of [...this.db.drafts.entries()]) {
+        if (startsWithSqlLike(row.draft_id, v[0]) || startsWithSqlLike(row.owner_user_id, v[1])) {
+          this.db.drafts.delete(key);
+          changes++;
+        }
+      }
+      return { meta: { changes } };
     }
 
     if (normalized.startsWith("UPDATE record_reading_cards SET visibility = 'hidden'")) {
@@ -4260,6 +4429,15 @@ class FakeStatement {
       } as T);
     }
 
+    if (normalized.startsWith("SELECT audience_scope, public_precision, risk_lane FROM civic_observation_contexts")) {
+      const context = this.db.civicObservationContexts.get(string(v[0]));
+      return context ? ({
+        audience_scope: context.audience_scope,
+        public_precision: context.public_precision,
+        risk_lane: context.risk_lane
+      } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT draft_id, owner_user_id, partition_month FROM observations")) {
       const observation = this.db.observations.get(string(v[0]));
       return observation ? ({
@@ -4379,6 +4557,17 @@ class FakeStatement {
       } as T) : null;
     }
 
+    if (normalized.startsWith("SELECT observation_id, owner_user_id, COALESCE(visibility, 'public') AS public_visibility, observed_at, taxon_label")) {
+      const observation = this.db.observations.get(string(v[0]));
+      return observation ? ({
+        observation_id: observation.observation_id,
+        owner_user_id: observation.owner_user_id,
+        public_visibility: observation.visibility,
+        observed_at: observation.observed_at,
+        taxon_label: observation.taxon_label
+      } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT visit_id, legacy_observation_id, place_id, user_id, observed_at,")) {
       if (normalized.includes("WHERE visit_id = ? OR legacy_observation_id = ?")) {
         const target = string(v[0]);
@@ -4420,6 +4609,18 @@ class FakeStatement {
       const count = this.db.productionEvidenceAssets.filter((row) =>
         row.visit_id === string(v[0]) &&
         (row.asset_role === "observation_photo" || row.asset_role === "observation_video")
+      ).length;
+      return ({ count } as T);
+    }
+
+    if (
+      normalized.startsWith("SELECT COUNT(*) AS count FROM asset_ledger WHERE observation_id = ?") &&
+      normalized.includes("AND (mime LIKE 'image/%' OR mime LIKE 'video/%')")
+    ) {
+      const count = [...this.db.assets.values()].filter((asset) =>
+        asset.observation_id === string(v[0]) &&
+        asset.processing_state === "uploaded" &&
+        (asset.mime.startsWith("image/") || asset.mime.startsWith("video/"))
       ).length;
       return ({ count } as T);
     }
@@ -4888,6 +5089,16 @@ class FakeStatement {
       return ({ unread_count: count } as T);
     }
 
+    if (normalized.startsWith("SELECT delivery_id FROM alert_deliveries WHERE occurrence_id = ?")) {
+      const row = [...this.db.alertDeliveries.values()]
+        .find((candidate) =>
+          candidate.occurrence_id === string(v[0]) &&
+          candidate.user_id === string(v[1]) &&
+          candidate.trigger_kind === "record_feedback_ready"
+        );
+      return row ? ({ delivery_id: row.delivery_id } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT COUNT(*) AS count FROM alert_deliveries")) {
       const recipientId = nullableString(v[0]);
       const since = string(v[1]);
@@ -5040,6 +5251,12 @@ class FakeStatement {
           liked_by_me: this.db.placeMemoryLikes.has(`${row.entry_id}:${viewerUserId}`) ? 1 : 0,
           own_entry: row.user_id === viewerUserId ? 1 : 0
         }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT object_key, public_derivative_key FROM asset_ledger")) {
+      const rows = [...this.db.assets.values()]
+        .filter((asset) => startsWithSqlLike(asset.observation_id, v[0]) || startsWithSqlLike(asset.owner_user_id, v[1]))
+        .map((asset) => ({ object_key: asset.object_key, public_derivative_key: asset.public_derivative_key }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT rs.source_id, rs.title, rs.author_text, rs.publisher, rs.publication_year")) {
@@ -7656,6 +7873,12 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(response.contributionReceipts[0].kind, "record_body_saved");
   assert.equal(response.contributionReceipts[0].nextAction.href, "/observations/visit-shadow-contract?subject=occ%3Avisit-shadow-contract%3A0");
   assert.doesNotMatch(response.contributionReceipts[0].nextAction.href, /^\/observations\/occ%3A/);
+  assert.equal(response.feedbackLoop.kind, "record_feedback_loop");
+  assert.equal(response.feedbackLoop.status, "queued");
+  assert.equal(response.feedbackLoop.claimLevel, "deferred");
+  assert.deepEqual(response.feedbackLoop.signalKinds, ["season", "place", "environment"]);
+  assert.equal(response.feedbackLoop.nextAction.href, "/observations/visit-shadow-contract?subject=occ%3Avisit-shadow-contract%3A0");
+  assert.doesNotMatch(JSON.stringify(response.feedbackLoop), /ポイント|ランキング|確定|貢献しました/);
   assert.equal(obs.observations.get("visit-shadow-contract")?.exact_lat, 34.71234);
   assert.equal(obs.observations.get("visit-shadow-contract")?.public_cell, "34.71,137.81");
   assert.equal(obs.waterRecordExtensions.size, 1);
@@ -7702,6 +7925,144 @@ test("v1 observation upsert honors private visibility before public readmodel re
   assert.equal(photoResponse.ok, true);
   assert.equal(obs.readmodel.has("private-post-smoke-contract"), false);
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
+});
+
+test("v1 observation public safety gate keeps risk records out of top and map readmodels", async () => {
+  const { env, obs } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "risk-public-safety-contract",
+    userId: "risk-public-user",
+    observedAt: "2026-06-29T01:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    note: "risk public safety contract",
+    taxon: { vernacularName: "希少種候補", rank: "species" },
+    sourcePayload: { source: "risk_public_safety_contract", risk_lane: "rare_sensitive" }
+  });
+
+  assert.equal(response.ok, true);
+  const context = obs.civicObservationContexts.get("risk-public-safety-contract");
+  assert.equal(context?.risk_lane, "rare_sensitive");
+  assert.equal(context?.public_precision, "hidden");
+
+  const photoResponse = await post("/api/v1/observations/risk-public-safety-contract/photos/upload", env, {
+    filename: "risk-public-safety.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+
+  assert.equal(photoResponse.ok, true);
+  assert.equal(obs.readmodel.has("risk-public-safety-contract"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "risk-public-safety-contract"), false);
+});
+
+test("v1 observation public safety gate requires public civic audience for readmodel promotion", async () => {
+  const { env, obs } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "class-audience-safety-contract",
+    userId: "class-audience-user",
+    observedAt: "2026-06-29T01:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    taxon: { vernacularName: "校庭の記録", rank: "species" },
+    civicContext: {
+      contextKind: "school",
+      audienceScope: "class_group",
+      publicPrecision: "site",
+      riskLane: "normal"
+    }
+  });
+
+  assert.equal(response.ok, true);
+  const context = obs.civicObservationContexts.get("class-audience-safety-contract");
+  assert.equal(context?.audience_scope, "class_group");
+  assert.equal(context?.risk_lane, "normal");
+
+  const photoResponse = await post("/api/v1/observations/class-audience-safety-contract/photos/upload", env, {
+    filename: "class-audience-safety.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+
+  assert.equal(photoResponse.ok, true);
+  assert.equal(obs.readmodel.has("class-audience-safety-contract"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "class-audience-safety-contract"), false);
+});
+
+test("v1 observation public safety gate removes existing public surfaces when visibility becomes private", async () => {
+  const { env, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "public-to-private-safety-contract",
+    userId: "public-to-private-user",
+    observedAt: "2026-06-29T02:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    taxon: { vernacularName: "公開後非公開テスト", rank: "species" }
+  });
+  await post("/api/v1/observations/public-to-private-safety-contract/photos/upload", env, {
+    filename: "public-to-private.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  assert.equal(obs.readmodel.has("public-to-private-safety-contract"), true);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "public-to-private-safety-contract"), true);
+
+  const updateResponse = await post("/api/v1/observations/upsert", env, {
+    observationId: "public-to-private-safety-contract",
+    userId: "public-to-private-user",
+    observedAt: "2026-06-29T02:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    taxon: { vernacularName: "公開後非公開テスト", rank: "species" }
+  });
+
+  assert.equal(updateResponse.ok, true);
+  assert.equal(obs.readmodel.has("public-to-private-safety-contract"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "public-to-private-safety-contract"), false);
+});
+
+test("v1 observation public safety gate removes existing public surfaces when risk context appears", async () => {
+  const { env, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "public-to-risk-safety-contract",
+    userId: "public-to-risk-user",
+    observedAt: "2026-06-29T02:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    taxon: { vernacularName: "公開後リスクテスト", rank: "species" }
+  });
+  await post("/api/v1/observations/public-to-risk-safety-contract/photos/upload", env, {
+    filename: "public-to-risk.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  assert.equal(obs.readmodel.has("public-to-risk-safety-contract"), true);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "public-to-risk-safety-contract"), true);
+
+  const updateResponse = await post("/api/v1/observations/upsert", env, {
+    observationId: "public-to-risk-safety-contract",
+    userId: "public-to-risk-user",
+    observedAt: "2026-06-29T02:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    taxon: { vernacularName: "公開後リスクテスト", rank: "species" },
+    sourcePayload: { risk_lane: "rare_sensitive" }
+  });
+
+  assert.equal(updateResponse.ok, true);
+  assert.equal(obs.civicObservationContexts.get("public-to-risk-safety-contract")?.risk_lane, "rare_sensitive");
+  assert.equal(obs.readmodel.has("public-to-risk-safety-contract"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "public-to-risk-safety-contract"), false);
+  const detailResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/occ%3Apublic-to-risk-safety-contract%3A0/public-detail"), env);
+  assert.equal(detailResponse.status, 404);
 });
 
 test("place memory runtime stores D1 entries and serves preferences list and moderation actions", async () => {
@@ -12263,14 +12624,301 @@ test("production runtime generates record reading cards natively without origin 
     assert.equal(payload.cards[0].visitId, "visit-reading-1");
     assert.equal(payload.cards[0].axis, "organism");
     assert.equal(payload.cards[0].sources.length, 3);
+    assert.equal(payload.feedbackLoop.kind, "record_feedback_loop");
+    assert.equal(payload.feedbackLoop.status, "ready");
+    assert.equal(payload.feedbackLoop.claimLevel, "deferred");
+    assert.equal(payload.feedbackLoop.cardCount, 3);
+    assert.deepEqual(payload.feedbackLoop.previewTitles.slice(0, 1), ["低く広がる白い花"]);
+    assert.equal(payload.feedbackLoop.nextAction.href, "/observations/visit-reading-1?subject=occ-reading-1#record-feedback");
+    assert.doesNotMatch(JSON.stringify(payload.feedbackLoop), /ポイント|ランキング|確定|貢献しました/);
     assert.doesNotMatch(JSON.stringify(payload), /見返せる|少し厚くなる/);
     assert.equal(obs.recordReadingCards.size, 3);
+
+    const alertRows = [...core.alertDeliveries.values()];
+    assert.equal(alertRows.length, 1);
+    const alertRow = alertRows[0];
+    assert.ok(alertRow);
+    assert.equal(alertRow.occurrence_id, "occ-reading-1");
+    assert.equal(alertRow.user_id, "reading-user");
+    assert.equal(alertRow.trigger_kind, "record_feedback_ready");
+    assert.equal(alertRow.channel, "none");
+    assert.equal(alertRow.delivery_status, "sent");
+    assert.equal(alertRow.acknowledged_at, null);
+    const alertPayload = JSON.parse(alertRow.payload_json);
+    assert.equal(alertPayload.title, "ヒントが返ってきました");
+    assert.equal(alertPayload.body, "記録ページで 3 件の手がかりを見返せます。");
+    assert.equal(alertPayload.href, "/observations/visit-reading-1?subject=occ-reading-1#record-feedback");
+    assert.equal(alertPayload.feedbackLoop.status, "ready");
+
+    const alertsResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts", {
+      headers: { cookie }
+    }), productionEnv);
+    const alertsPayload = await alertsResponse.json() as any;
+    assert.equal(alertsResponse.status, 200, JSON.stringify(alertsPayload));
+    assert.equal(alertsPayload.alerts.length, 1);
+    assert.equal(alertsPayload.alerts[0].triggerKind, "record_feedback_ready");
+    assert.equal(alertsPayload.alerts[0].acknowledgedAt, null);
+    assert.equal(alertsPayload.alerts[0].payload.href, "/observations/visit-reading-1?subject=occ-reading-1#record-feedback");
+
+    const readResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts/read", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ ids: [alertsPayload.alerts[0].deliveryId] })
+    }), productionEnv);
+    const readPayload = await readResponse.json() as any;
+    assert.equal(readResponse.status, 200, JSON.stringify(readPayload));
+    assert.equal(readPayload.acknowledgedCount, 1);
+    assert.notEqual(core.alertDeliveries.get(alertRow.delivery_id)?.acknowledged_at, null);
+
+    const secondResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-reading-1/reading-cards", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({})
+    }), productionEnv);
+    assert.equal(secondResponse.status, 200);
+    assert.equal(core.alertDeliveries.size, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   assert.equal(fetchCalls, 0);
   assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime connects native records to ready feedback notifications", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const workerOrigin = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
+  const issueResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ userId: "native-reading-user", displayName: "Native Reading User", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const upsertResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/upsert`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        observationId: "native-reading-feedback",
+        clientSubmissionId: "native-reading-feedback-client",
+        userId: "native-reading-user",
+        observedAt: "2026-06-25T00:00:00.000Z",
+        latitude: 34.71234,
+        longitude: 137.81234,
+        note: "native record feedback loop",
+        taxon: { vernacularName: "シロツメクサ", scientificName: "Trifolium repens", rank: "species" },
+        sourcePayload: { source: "native_record_feedback_loop_test" }
+      })
+    }), productionEnv);
+    const upsertPayload = await upsertResponse.json() as any;
+    assert.equal(upsertResponse.ok, true, JSON.stringify(upsertPayload));
+    assert.equal(upsertPayload.occurrenceId, "occ:native-reading-feedback:0");
+    assert.equal(upsertPayload.feedbackLoop.status, "queued");
+
+    const photoResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/native-reading-feedback/photos/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        filename: "native-reading-feedback.jpg",
+        mimeType: "image/jpeg",
+        base64Data: Buffer.from("native-reading-feedback-image").toString("base64"),
+        facePrivacy: "no_faces"
+      })
+    }), productionEnv);
+    const photoPayload = await photoResponse.json() as any;
+    assert.equal(photoResponse.ok, true, JSON.stringify(photoPayload));
+    assert.equal(obs.assets.size, 1);
+
+    const response = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/occ%3Anative-reading-feedback%3A0/reading-cards`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({})
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(payload.ok, true);
+    assert.equal(payload.feedbackLoop.status, "ready");
+    assert.equal(payload.feedbackLoop.cardCount, 3);
+    assert.equal(payload.feedbackLoop.nextAction.href, "/observations/native-reading-feedback?subject=occ%3Anative-reading-feedback%3A0#record-feedback");
+    assert.equal(obs.recordReadingCards.size, 3);
+
+    const alertRows = [...core.alertDeliveries.values()];
+    assert.equal(alertRows.length, 1);
+    const alertRow = alertRows[0];
+    assert.ok(alertRow);
+    assert.equal(alertRow.occurrence_id, "occ:native-reading-feedback:0");
+    assert.equal(alertRow.user_id, "native-reading-user");
+    assert.equal(alertRow.trigger_kind, "record_feedback_ready");
+    assert.equal(alertRow.channel, "none");
+    assert.equal(alertRow.delivery_status, "sent");
+    assert.equal(alertRow.acknowledged_at, null);
+
+    const alertsResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/me/alerts`, {
+      headers: { cookie }
+    }), productionEnv);
+    const alertsPayload = await alertsResponse.json() as any;
+    assert.equal(alertsResponse.status, 200, JSON.stringify(alertsPayload));
+    assert.equal(alertsPayload.alerts.length, 1);
+    assert.equal(alertsPayload.alerts[0].triggerKind, "record_feedback_ready");
+    assert.equal(alertsPayload.alerts[0].payload.href, "/observations/native-reading-feedback?subject=occ%3Anative-reading-feedback%3A0#record-feedback");
+
+    const readResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/me/alerts/read`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ ids: [alertsPayload.alerts[0].deliveryId] })
+    }), productionEnv);
+    const readPayload = await readResponse.json() as any;
+    assert.equal(readResponse.status, 200, JSON.stringify(readPayload));
+    assert.equal(readPayload.acknowledgedCount, 1);
+    assert.notEqual(core.alertDeliveries.get(alertRow.delivery_id)?.acknowledged_at, null);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("staging record feedback loop cleanup removes only prefixed D1 smoke rows", async () => {
+  const { env, core, obs } = createEnv();
+  const stagingEnv = {
+    ...env,
+    ENVIRONMENT: "staging",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key"
+  };
+  const fixturePrefix = "record-feedback-loop-cleanup";
+  const visitId = `${fixturePrefix}-visit`;
+  const occurrenceId = `occ:${visitId}:0`;
+  const issueResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ userId: `${fixturePrefix}-user`, displayName: "Cleanup Smoke", ttlHours: 1 })
+  }), stagingEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const upsertResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: visitId,
+      clientSubmissionId: `${fixturePrefix}-client`,
+      userId: `${fixturePrefix}-user`,
+      observedAt: "2026-06-25T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "private",
+      taxon: { vernacularName: "シロツメクサ", scientificName: "Trifolium repens", rank: "species" },
+      sourcePayload: { source: "record_feedback_loop_staging_smoke", fixturePrefix }
+    })
+  }), stagingEnv);
+  assert.equal(upsertResponse.status, 201, await upsertResponse.text());
+
+  const photoResponse = await worker.fetch(new Request(`https://staging.ikimon.life/api/v1/observations/${visitId}/photos/upload`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: `${fixturePrefix}.jpg`,
+      mimeType: "image/jpeg",
+      base64Data: Buffer.from("cleanup-image").toString("base64"),
+      facePrivacy: "no_faces"
+    })
+  }), stagingEnv);
+  assert.equal(photoResponse.status, 200, await photoResponse.text());
+
+  const cardsResponse = await worker.fetch(new Request(`https://staging.ikimon.life/api/v1/observations/${encodeURIComponent(occurrenceId)}/reading-cards`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({})
+  }), stagingEnv);
+  assert.equal(cardsResponse.status, 200, await cardsResponse.text());
+  assert.equal(obs.observations.has(visitId), true);
+  assert.equal(obs.assets.size, 1);
+  assert.equal(obs.recordReadingCards.size, 3);
+  assert.equal(core.alertDeliveries.size, 1);
+  assert.equal(core.authSessions.size, 1);
+  assert.equal(core.users.has(`${fixturePrefix}-user`), true);
+  assert.equal((stagingEnv.ASSET_BUCKET as FakeBucket).objects.size, 1);
+  obs.observations.set("record-feedback-keep-visit", {
+    observation_id: "record-feedback-keep-visit",
+    draft_id: "record-feedback-keep-draft",
+    owner_user_id: "record-feedback-keep-user",
+    observed_at: "2026-06-25T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: "シロツメクサ",
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "34.71,137.81",
+    visibility: "private",
+    emergency_hidden: 0,
+    processing_state: "accepted"
+  });
+
+  const forbiddenResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/record-feedback-loop/cleanup", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fixturePrefix })
+  }), stagingEnv);
+  assert.equal(forbiddenResponse.status, 403);
+
+  const invalidResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/record-feedback-loop/cleanup", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ fixturePrefix: "smoke-too-broad" })
+  }), stagingEnv);
+  assert.equal(invalidResponse.status, 400);
+
+  const cleanupResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/ops/staging/record-feedback-loop/cleanup", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ fixturePrefix })
+  }), stagingEnv);
+  const cleanupPayload = await cleanupResponse.json() as any;
+  assert.equal(cleanupResponse.status, 200, JSON.stringify(cleanupPayload));
+  assert.equal(cleanupPayload.ok, true);
+  assert.equal(cleanupPayload.deleted.observations, 1);
+  assert.equal(cleanupPayload.deleted.assets, 1);
+  assert.equal(cleanupPayload.deleted.r2Objects, 1);
+  assert.equal(cleanupPayload.deleted.recordReadingCards, 3);
+  assert.equal(cleanupPayload.deleted.alerts, 1);
+  assert.equal(cleanupPayload.deleted.sessions, 1);
+  assert.equal(cleanupPayload.deleted.users, 1);
+  assert.equal(obs.observations.has(visitId), false);
+  assert.equal(obs.observations.has("record-feedback-keep-visit"), true);
+  assert.equal(obs.assets.size, 0);
+  assert.equal(obs.recordReadingCards.size, 0);
+  assert.equal(core.alertDeliveries.size, 0);
+  assert.equal(core.authSessions.size, 0);
+  assert.equal(core.users.has(`${fixturePrefix}-user`), false);
+  assert.equal((stagingEnv.ASSET_BUCKET as FakeBucket).objects.size, 0);
+
+  const productionResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/ops/staging/record-feedback-loop/cleanup", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ fixturePrefix })
+  }), { ...stagingEnv, ENVIRONMENT: "production" });
+  assert.equal(productionResponse.status, 404);
 });
 
 test("production runtime returns monitoring package blueprints natively without origin fallback", async () => {
@@ -18293,6 +18941,20 @@ function number(value: D1Value | undefined): number {
 
 function nullableString(value: D1Value | undefined): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function startsWithSqlLike(value: D1Value | undefined, pattern: D1Value | undefined): boolean {
+  const text = nullableString(value);
+  const rawPattern = nullableString(pattern);
+  if (!text || !rawPattern) return false;
+  return text.startsWith(likePrefix(rawPattern));
+}
+
+function containsSqlLike(value: D1Value | undefined, pattern: D1Value | undefined): boolean {
+  const text = nullableString(value);
+  const rawPattern = nullableString(pattern);
+  if (!text || !rawPattern) return false;
+  return text.includes(rawPattern.replace(/^%|%$/gu, ""));
 }
 
 function nullableNumber(value: D1Value | undefined): number | null {

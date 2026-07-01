@@ -11,7 +11,7 @@ import { issueRememberToken, revokeRememberToken } from "../services/rememberTok
 import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../services/observationPhotoUpload.js";
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
 import { refreshProfileNoteDigestForObservation } from "../services/profileNoteDigest.js";
-import { buildContributionReceipts } from "../services/contributionReceipts.js";
+import { buildContributionReceipts, buildRecordFeedbackLoop } from "../services/contributionReceipts.js";
 import { recordGuideUnlocksForObservation } from "../services/guideUnlocks.js";
 import { hookObservationToEvent } from "../services/observationEventDualWrite.js";
 import {
@@ -491,6 +491,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         result,
         guideUnlocks,
       });
+      const feedbackLoop = buildRecordFeedbackLoop({ result });
       void recordUiKpiEvent({
         eventName: "task_completion",
         eventSource: "api",
@@ -506,6 +507,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           compatibilityAttempted: result.compatibility?.attempted ?? false,
           compatibilitySucceeded: result.compatibility?.succeeded ?? false,
           contributionReceiptKinds: contributionReceipts.map((item) => item.kind),
+          feedbackLoopStatus: feedbackLoop.status,
           guideUnlockCount: guideUnlocks.length,
         },
       }).catch(() => undefined);
@@ -535,6 +537,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         ...result,
         placeMemorySample,
         contributionReceipts,
+        feedbackLoop,
         guideUnlocks,
       };
     } catch (error) {

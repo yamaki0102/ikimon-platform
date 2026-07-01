@@ -7997,8 +7997,9 @@ function renderObservationRecordInsight(
   },
 ): string {
   const cards = reading?.cards ?? [];
+  const feedbackStatus = cards.length > 0 ? "ready" : "queued";
   const readingBlock = reading && (cards.length > 0 || reading.canGenerate)
-    ? `<details class="obs-record-reading"${cards.length > 0 ? " open" : ""}>
+    ? `<details id="record-feedback" class="obs-record-reading"${cards.length > 0 ? " open" : ""} data-record-feedback-loop data-feedback-loop-status="${escapeHtml(feedbackStatus)}">
       <summary>
         <span>この記録を読み解く</span>
         <span class="obs-record-reading-summary-sub">${cards.length > 0 ? `${cards.length}件` : "出典つき"}</span>
@@ -16379,6 +16380,37 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             '</section>';
         };
 
+        const feedbackSignalLabel = (kind) => {
+          if (kind === 'season') return '季節';
+          if (kind === 'place') return '場所';
+          if (kind === 'environment') return '環境';
+          return '';
+        };
+
+        const buildRecordFeedbackLoopHtml = (feedbackLoop) => {
+          if (!feedbackLoop || typeof feedbackLoop !== 'object') return '';
+          const status = String(feedbackLoop.status || '').trim();
+          if (status !== 'queued') return '';
+          const action = feedbackLoop.nextAction && typeof feedbackLoop.nextAction === 'object' ? feedbackLoop.nextAction : {};
+          const href = normalizeContributionReceiptHref(action.href);
+          const title = String(feedbackLoop.title || 'ヒント待ち');
+          const body = String(feedbackLoop.body || '記録ページで見返せます。');
+          const chips = Array.isArray(feedbackLoop.signalKinds)
+            ? feedbackLoop.signalKinds.slice(0, 3).map((kind) => feedbackSignalLabel(String(kind))).filter(Boolean)
+            : [];
+          const chipHtml = chips.length
+            ? '<div class="record-feedback-loop-chips">' + chips.map((label) => '<span>' + escapeHtmlText(label) + '</span>').join('') + '</div>'
+            : '';
+          const actionHtml = href
+            ? '<a href="' + escapeHtmlText(href) + '" data-record-success-cta="feedback_loop">' + escapeHtmlText(String(action.label || '記録を見る')) + '</a>'
+            : '';
+          return '<section class="record-feedback-loop" data-record-feedback-loop data-feedback-loop-status="' + escapeHtmlText(status) + '" aria-label="あとで返るヒント">' +
+            '<div><strong>' + escapeHtmlText(title) + '</strong><span>' + escapeHtmlText(body) + '</span></div>' +
+            chipHtml +
+            actionHtml +
+            '</section>';
+        };
+
         const updateRevisitContext = (params) => {
           if (!revisitContext) return;
           const hasRevisit = params.has('revisitObservationId') || params.has('revisit_of_visit_id');
@@ -18764,6 +18796,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? observationJson.contributionReceipts.slice(0, 3)
                 : [];
               const contributionReceiptsHtml = buildContributionReceiptsHtml(contributionReceipts);
+              const feedbackLoopHtml = buildRecordFeedbackLoopHtml(observationJson.feedbackLoop || null);
+              const feedbackLoopStatus = observationJson.feedbackLoop && typeof observationJson.feedbackLoop === 'object'
+                ? String(observationJson.feedbackLoop.status || '').trim()
+                : '';
               const placeMemorySample = Array.isArray(observationJson.placeMemorySample)
                 ? observationJson.placeMemorySample.slice(0, 3)
                 : [];
@@ -18830,15 +18866,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 mapHref,
                 revisitHref,
               });
-              setStatus('<div class="row"><div>' + recordReturnHtml + successSavedCardHtml + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + contributionReceiptsHtml + placeMemoryHtml + '</div></div>');
+              setStatus('<div class="row"><div>' + recordReturnHtml + successSavedCardHtml + uploadFeedbackHtml + impactHtml + publicStateHtml + locationPrivacyHtml + feedbackLoopHtml + contributionReceiptsHtml + placeMemoryHtml + '</div></div>');
               scrollStatusIntoView();
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['observation_detail', 'saved_record_card', 'notes', 'profile'].concat(mapHref ? ['map_nearby'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
+                successCtas: ['observation_detail', 'saved_record_card', 'notes', 'profile'].concat(mapHref ? ['map_nearby'] : [], feedbackLoopHtml ? ['feedback_loop'] : [], ['revisit_same_place'], contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
                 contributionReceiptCount: contributionReceipts.length,
                 contributionReceiptKinds,
+                feedbackLoopStatus,
               });
               sendRecordTaskCompletion('record_saved', {
                 visitId,
@@ -19093,6 +19130,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-success-public-state[data-public-state="hidden"] { background: #f8fafc; border-color: rgba(100,116,139,.2); }
         .record-success-public-state strong { color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
         .record-success-public-state span { color: #334155; font-size: 12px; line-height: 1.55; font-weight: 850; }
+        .record-feedback-loop { margin-top: 8px; padding: 10px 11px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px 10px; }
+        .record-feedback-loop strong { display: block; color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
+        .record-feedback-loop span { color: #475569; font-size: 12px; line-height: 1.45; font-weight: 800; }
+        .record-feedback-loop-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+        .record-feedback-loop-chips span { min-height: 22px; display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11px; line-height: 1.2; font-weight: 900; }
+        .record-feedback-loop a { grid-column: 1 / -1; width: fit-content; color: #047857; font-size: 12px; line-height: 1.25; font-weight: 950; text-decoration: underline; text-underline-offset: 3px; }
         .site-footer { padding-bottom: 104px; }
         .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
         .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; scroll-margin-top: 92px; }
@@ -19344,6 +19387,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-impact-receipts-head { align-items: flex-start; flex-direction: column; }
           .record-impact-receipt-grid { grid-template-columns: 1fr; }
           .record-impact-receipt { min-height: auto; }
+          .record-feedback-loop { grid-template-columns: 1fr; }
+          .record-feedback-loop-chips { justify-content: flex-start; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
           .record-video-guide-head { flex-direction: column; }
           .record-video-guide-head > span { width: 100%; }
