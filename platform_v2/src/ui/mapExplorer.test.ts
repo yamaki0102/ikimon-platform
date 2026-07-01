@@ -178,12 +178,12 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);/);
 });
 
-test("map home opens as a regional encyclopedia instead of a raw point finder", () => {
+test("map home opens as a nearby-record tool instead of a raw point finder", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(html, /地域図鑑マップ/);
+  assert.match(html, /me-map-kicker">近くを見る/);
   assert.match(html, /地図メニュー/);
   assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
   assert.match(html, /aria-label="地図メニューを開く"/);
@@ -970,10 +970,10 @@ test("Japanese map detail labels avoid service-authored motivation headings", ()
   assert.match(script, /"walkableFindsTitle":"近くの記録"/);
 });
 
-test("map explorer keeps the regional guide label and frames the map as a tool", () => {
+test("map explorer keeps the map framed as a tool", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
-  assert.match(html, /me-map-kicker">地域図鑑マップ/);
+  assert.match(html, /me-map-kicker">近くを見る/);
   assert.match(html, /data-side="rail"/);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /me-map-role-strip/);
@@ -1038,12 +1038,12 @@ test("mobile map filters open from the thumb zone above the record launcher", ()
   assert.match(script, /switchMapTab\(t\);[\s\S]*drawer\.removeAttribute\('open'\);/);
 });
 
-test("map explorer shows the map role without taking over the atlas subject", () => {
+test("map explorer shows the map role without taking over the service subject", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
   assert.match(html, /class="me-map-role-strip"/);
   assert.match(html, /近くを見る・振り返る/);
-  assert.match(html, /記録を場所から見返す道具/);
+  assert.match(html, /記録が多い場所・少ない場所を見返せます/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
 });
 

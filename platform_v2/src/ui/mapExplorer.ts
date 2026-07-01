@@ -203,11 +203,11 @@ function renderMapLayerTab(tab: string, label: string, mobileLabel: string, acti
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
     activityRallyTitle: "このエリアの活動・ラリー",
-    activityRallyBody: "観察会、投稿ラリー、屋外の地域活動を、地域図鑑に紐づける入口です。掲載や開催相談は主催者向け案内から受け付けます。",
+    activityRallyBody: "観察会や投稿ラリーなど、外で見つけた記録を地域に残す入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
     enjoyTitle: "近くを見る・振り返る",
-    enjoyLead: "ここは地域図鑑の主役ではなく、記録を場所から見返す道具です。近くの記録、前に歩いた場所、記録が厚い場所とまだ薄い場所を確認できます。",
+    enjoyLead: "近くの記録と、記録が多い場所・少ない場所を見返せます。",
     tabMarkers: "近くの記録",
     tabHeatmap: "季節",
     tabPlaces: "ガイド",
@@ -348,7 +348,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     osmAreaFallbackName: "OSMの公園・緑地",
     osmAreaSourceLabel: "公園・緑地 (OSM live)",
     areaLoading: "エリア情報を読み込み中…",
-    unregisteredAreaText: "このエリアはまだ ikimon のフィールドDBには未登録です。まずは地域図鑑マップ上の手がかりとして扱います。",
+    unregisteredAreaText: "このエリアはまだ登録されていません。まずは地図上の手がかりとして扱います。",
     mapLoadErrorTitle: "地図ライブラリを読み込めませんでした",
     mapLoadErrorBody: "ネットワーク状況を確認のうえ、もう一度開いてください。",
     mapLoadRetryLabel: "再読み込み",
@@ -897,7 +897,7 @@ function overlayPanelLabels(lang: SiteLang): {
   if (lang === "en") return { heading: "Layers", intro: "Toggle to stack on top of the basemap.", opacityLabel: "Opacity" };
   if (lang === "es") return { heading: "Capas", intro: "Actívalas para apilar sobre el mapa base.", opacityLabel: "Opacidad" };
   if (lang === "pt-BR") return { heading: "Camadas", intro: "Ative para empilhar sobre o mapa base.", opacityLabel: "Opacidade" };
-  return { heading: "レイヤー", intro: "ベース地図の上に重ねて、行政 GIS × 市民観察 の視点を組み合わせる。", opacityLabel: "濃度" };
+  return { heading: "重ねて見る", intro: "地図に必要な手がかりだけ重ねます。", opacityLabel: "濃さ" };
 }
 
 function ambientPanelLabels(lang: SiteLang): {
@@ -1362,14 +1362,14 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Buscar nesta área"
         : "Search this area";
   const sideTabResultsLabel = lang === "ja"
-    ? "地域図鑑"
+    ? "記録"
     : lang === "es"
       ? "Lista"
       : lang === "pt-BR"
         ? "Lista"
         : "List";
   const sideTabSelectionLabel = lang === "ja"
-    ? "場所ストーリー"
+    ? "この場所"
     : lang === "es"
       ? "Este lugar"
       : lang === "pt-BR"
@@ -1408,7 +1408,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   return `<section class="section me-section" data-side="rail" aria-label="Map Explorer">
     <div class="me-topbar">
       <div class="me-topbar-primary">
-        <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "地域図鑑マップ" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
+        <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "近くを見る" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
         <div class="me-search-shell" role="search">
           <span class="me-search-icon" aria-hidden="true">🔍</span>
           <input
@@ -1976,7 +1976,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     walkableFindsTitle: props.lang === "ja" ? "近くの記録" : props.lang === "es" ? "Lo visto cerca" : props.lang === "pt-BR" ? "O que apareceu por perto" : "What appeared nearby",
     nearDistanceImmediate: props.lang === "ja" ? "すぐ近く" : props.lang === "es" ? "muy cerca" : props.lang === "pt-BR" ? "bem perto" : "nearby",
     nearDistanceApproxPrefix: props.lang === "ja" ? "約" : props.lang === "es" ? "aprox. " : props.lang === "pt-BR" ? "aprox. " : "about ",
-    placeStoryTitle: props.lang === "ja" ? "場所ストーリー" : props.lang === "es" ? "Historia del lugar" : props.lang === "pt-BR" ? "História do local" : "Place story",
+    placeStoryTitle: props.lang === "ja" ? "この場所" : props.lang === "es" ? "Historia del lugar" : props.lang === "pt-BR" ? "História do local" : "Place story",
     placeStoryNow: props.lang === "ja" ? "今見られるもの" : props.lang === "es" ? "Lo que se puede ver ahora" : props.lang === "pt-BR" ? "O que dá para ver agora" : "What you may find now",
     placeStoryRecent: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgos recientes" : props.lang === "pt-BR" ? "Descobertas recentes" : "Recent finds",
     placeStoryMissing: props.lang === "ja" ? "この場所で足りない記録" : props.lang === "es" ? "Registros que faltan aquí" : props.lang === "pt-BR" ? "Registros que faltam aqui" : "What is missing here",

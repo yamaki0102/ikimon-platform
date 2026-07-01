@@ -190,7 +190,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
           title: "この場所のいま — 見つかりません",
           extraStyles: PLACE_SNAPSHOT_STYLES,
           lang,
-          body: `<main class="ps-shell"><section class="ps-hero"><div><div class="ps-eyebrow">この場所のいま</div><h1>フィールドが見つかりません</h1><p>フィールドDBから対象の場所を選び直してください。</p></div></section></main>`,
+          body: `<main class="ps-shell"><section class="ps-hero"><div><div class="ps-eyebrow">この場所のいま</div><h1>場所が見つかりません</h1><p>対象の場所を選び直してください。</p></div></section></main>`,
         });
       }
       const placeId = snapshot.relationshipScore.placeId ?? null;
