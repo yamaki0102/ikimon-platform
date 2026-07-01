@@ -5572,6 +5572,12 @@ class FakeStatement {
         .map((row) => ({ outbox_id: row.outbox_id, topic: row.topic, target_id: row.target_id }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT asset_id, object_key, sha256, mime FROM asset_ledger")) {
+      const rows = [...this.db.assets.values()]
+        .filter((asset) => asset.observation_id === string(this.values[0]) && asset.processing_state === "uploaded")
+        .map((asset) => ({ asset_id: asset.asset_id, object_key: asset.object_key, sha256: asset.sha256, mime: asset.mime }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT asset_id, object_key FROM asset_ledger")) {
       const rows = [...this.db.assets.values()]
         .filter((asset) => asset.observation_id === string(this.values[0]) && asset.processing_state === "uploaded")
@@ -16254,6 +16260,87 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
   assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
+});
+
+test("staging audio upload route creates a real public audio home card state", async () => {
+  const { env, queue, obs } = createEnv();
+  const stagingEnv = {
+    ...env,
+    ENVIRONMENT: "staging",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
+    "<!doctype html><head></head><body>",
+    "<main><section class=\"prototype-record-feed\" data-record-feed>",
+    "<div class=\"prototype-record-feed-list\"><article class=\"prototype-record-feed-card is-preview\" data-record-feed-card>preview</article></div>",
+    "<script nonce=\"staging-audio-feed-nonce\">/* feed */</script></section></main>",
+    "</body>"
+  ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  const recordResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      observationId: "staging-clean-audio-card",
+      clientSubmissionId: "staging-clean-audio-card-test",
+      userId: "staging-audio-user",
+      observedAt: "2026-07-01T08:10:00.000Z",
+      latitude: 34.7108,
+      longitude: 137.7261,
+      visibility: "public",
+      note: "水路の音",
+      taxon: { vernacularName: "音の記録", rank: "unknown" },
+      sourcePayload: { source: "staging_audio_card_test", mediaKind: "audio" }
+    })
+  }), stagingEnv);
+  assert.equal(recordResponse.status, 201, await recordResponse.text());
+
+  const audioResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/observations/staging-clean-audio-card/audio/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({
+      filename: "clean-tone.webm",
+      mimeType: "audio/webm;codecs=opus",
+      base64Data: Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x42, 0x86, 0x81, 0x01]).toString("base64"),
+      mediaRole: "observation_audio",
+      privacyStatus: "clean",
+      voiceFlag: "no_voice",
+      transcriptionStatus: "done",
+      meta: {
+        clientVadResult: {
+          speechLikely: false,
+          confidence: 0.98,
+          reason: "staging_clean_audio_card_test",
+          voiceBandRatio: 0.08
+        }
+      }
+    })
+  }), stagingEnv);
+  assert.equal(audioResponse.status, 200, await audioResponse.text());
+  assert.equal(audioResponse.headers.get("x-ikimon-cloudflare-native"), "staging-audio-upload");
+
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, stagingEnv);
+  const audioAsset = [...obs.assets.values()].find((asset) => asset.observation_id === "staging-clean-audio-card" && asset.mime === "audio/webm");
+  assert.ok(audioAsset);
+  assert.equal(audioAsset.public_derivative_key, audioAsset.object_key);
+  assert.match(audioAsset.public_derivative_metadata_json ?? "", /"mediaKind":"audio"/);
+
+  const homeResponse = await worker.fetch(new Request("https://staging.ikimon.life/ja/"), stagingEnv);
+  const homeBody = await homeResponse.text();
+  assert.equal(homeResponse.status, 200);
+  assert.match(homeBody, /staging-clean-audio-card/);
+  assert.match(homeBody, /data-media-kind="audio"/);
+  assert.match(homeBody, /prototype-record-feed-empty-media is-media-audio/);
+  assert.match(homeBody, /prototype-content-icon is-audio/);
+  assert.match(homeBody, /aria-label="音"/);
+  assert.doesNotMatch(homeBody, /<span>写真<\/span>/);
+
+  const productionResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/staging-clean-audio-card/audio/upload", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({})
+  }), { ...env, ENVIRONMENT: "production", PUBLIC_WRITE_MODE: "cloudflare_native" });
+  assert.equal(productionResponse.status, 404);
 });
 
 test("production home prioritizes signed-in owner records over public feed records", async () => {

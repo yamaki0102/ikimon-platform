@@ -447,6 +447,18 @@ interface LegacyPhotoUploadInput {
   facePrivacy?: string | null;
 }
 
+interface LegacyAudioUploadInput {
+  filename?: string | null;
+  mimeType?: string | null;
+  base64Data?: string | null;
+  mediaRole?: string | null;
+  privacyStatus?: string | null;
+  voiceFlag?: string | boolean | null;
+  transcriptionStatus?: string | null;
+  durationMs?: number | null;
+  meta?: Record<string, unknown> | null;
+}
+
 interface SessionIssueInput {
   userId: string;
   ttlHours?: number | null;
@@ -732,6 +744,8 @@ interface MediaJob {
 interface UploadedAssetRow {
   asset_id: string;
   object_key: string;
+  sha256: string | null;
+  mime: string;
 }
 
 interface PublicMapRow {
@@ -2557,6 +2571,11 @@ export const worker = {
       const photoUploadMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/photos\/upload$/);
       if (request.method === "POST" && photoUploadMatch?.[1]) {
         return uploadLegacyCompatiblePhoto(decodeURIComponent(photoUploadMatch[1]), request, env);
+      }
+
+      const audioUploadMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/audio\/upload$/);
+      if (request.method === "POST" && audioUploadMatch?.[1]) {
+        return uploadStagingCompatibleAudio(decodeURIComponent(audioUploadMatch[1]), request, env);
       }
 
       const hideObservationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/hide$/);
@@ -8077,6 +8096,7 @@ function isPublicAppWriteCandidatePath(url: URL): boolean {
   if (url.pathname === "/api/v1/videos/stream-webhook") return true;
   if (/^\/api\/v1\/videos\/[^/]+\/finalize$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url.pathname)) return true;
+  if (/^\/api\/v1\/observations\/[^/]+\/audio\/upload$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/hide$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/identifications$/.test(url.pathname)) return true;
   if (/^\/api\/v1\/observations\/[^/]+\/disputes$/.test(url.pathname)) return true;
@@ -21694,6 +21714,122 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   });
 }
 
+async function uploadStagingCompatibleAudio(observationId: string, request: Request, env: Env): Promise<Response> {
+  assertNonEmpty(observationId, "observationId");
+  if (env.ENVIRONMENT !== "staging" && env.ENVIRONMENT !== "shadow") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+
+  const input = await readJson<LegacyAudioUploadInput>(request);
+  const mimeType = normalizeFieldscanAudioMime(input.mimeType);
+  const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "clean-audio.webm");
+  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
+  if (body.byteLength === 0) throw new HttpError(400, "decoded_audio_empty");
+  if (body.byteLength > FIELDSCAN_AUDIO_MAX_BYTES) throw new HttpError(400, "audio_too_large");
+  const audioBytes = new Uint8Array(body);
+  const magic = validateFieldscanAudioMagic(audioBytes, mimeType);
+  if (magic !== "ok") throw new HttpError(400, `audio_quarantined_${magic}`);
+
+  const privacyStatus = normalizeOptionalText(input.privacyStatus) ?? "";
+  if (privacyStatus !== "clean") throw new HttpError(400, "audio_privacy_not_clean");
+  const voiceFlag = typeof input.voiceFlag === "boolean"
+    ? (input.voiceFlag ? "human_voice" : "no_voice")
+    : normalizeOptionalText(input.voiceFlag);
+  if (voiceFlag && voiceFlag !== "no_voice" && voiceFlag !== "none" && voiceFlag !== "clean") {
+    throw new HttpError(400, "audio_voice_flag_not_clean");
+  }
+  if (normalizeOptionalText(input.transcriptionStatus) === "skipped") {
+    throw new HttpError(400, "audio_transcription_skipped");
+  }
+  const meta = asPlainObject(input.meta) ?? {};
+  const privacyDecision = decideFieldscanInitialPrivacy(meta, true);
+  if (privacyDecision.decision !== "clean") throw new HttpError(400, `audio_not_clean_${privacyDecision.reason}`);
+
+  const observation = await env.OBS_DB.prepare(
+    `SELECT draft_id, owner_user_id, partition_month
+     FROM observations
+     WHERE observation_id = ?`
+  ).bind(observationId).first<{ draft_id: string; owner_user_id: string; partition_month: string | null }>();
+  if (!observation) return json({ ok: false, error: `observation not found: ${observationId}` }, 404);
+  const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
+
+  const sha256 = await sha256Hex(body);
+  const assetId = newId("asset_audio");
+  const outboxMediaId = newId("outbox");
+  const outboxReadModelId = newId("outbox");
+  const objectKey = `original/v1-compat/${observationId}/${assetId}-${filename}`;
+  const relativePath = objectKey;
+  const occurrenceId = `occ:${observationId}:0`;
+  await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
+  await env.OBS_DB.batch([
+    env.OBS_DB.prepare(
+      `INSERT INTO asset_ledger
+       (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state, uploaded_at, partition_month)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'private', 'uploaded', CURRENT_TIMESTAMP, ?)`
+    ).bind(
+      assetId,
+      observation.draft_id,
+      observationId,
+      observation.owner_user_id,
+      objectKey,
+      sha256,
+      mimeType,
+      body.byteLength,
+      partitionMonth
+    ),
+    env.OBS_DB.prepare(
+      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(outboxMediaId, "media.process", observationId, JSON.stringify({ observationId, assetId }), partitionMonth),
+    env.OBS_DB.prepare(
+      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+    ).bind(outboxReadModelId, "readmodel.refresh", observationId, JSON.stringify({ observationId }), partitionMonth),
+    rollbackLedgerInsert(env, {
+      eventType: "asset.audio.upload",
+      targetId: assetId,
+      partitionMonth,
+      sourceEndpoint: "POST /api/v1/observations/:id/audio/upload",
+      payload: {
+        assetId,
+        observationId,
+        ownerUserId: observation.owner_user_id,
+        objectKey,
+        sha256,
+        mime: mimeType,
+        bytes: body.byteLength,
+        visibility: "private",
+        occurrenceId,
+        mediaRole: normalizeOptionalText(input.mediaRole) ?? "observation_audio",
+        privacyStatus,
+        voiceFlag: voiceFlag ?? "no_voice",
+        transcriptionStatus: normalizeOptionalText(input.transcriptionStatus) ?? "done",
+        privacyReason: privacyDecision.reason
+      },
+      replaySql: postgresAssetReplaySql(assetId, observationId, observation.owner_user_id, objectKey, sha256, mimeType, body.byteLength, "private")
+    })
+  ]);
+
+  const dispatch = await dispatchOutboxBestEffort(env, [
+    { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
+    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId }
+  ]);
+
+  return json({
+    ok: true,
+    visitId: observationId,
+    occurrenceId,
+    assetId,
+    mediaRole: "observation_audio",
+    relativePath,
+    publicUrl: `/${relativePath}`,
+    privacyStatus,
+    voiceFlag: voiceFlag ?? "no_voice",
+    transcriptionStatus: normalizeOptionalText(input.transcriptionStatus) ?? "done",
+    dispatch
+  }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "staging-audio-upload" });
+}
+
 function normalizeObservationDataRightsNative(input: unknown): {
   recordConsent: string;
   researchUseConsent: string;
@@ -23733,12 +23869,37 @@ async function countAssets(env: Env, targetValue: string | null): Promise<number
 
 async function markUploadedAssetsPublicReady(observationId: string, env: Env): Promise<void> {
   const assets = await env.OBS_DB.prepare(
-    `SELECT asset_id, object_key
+    `SELECT asset_id, object_key, sha256, mime
      FROM asset_ledger
      WHERE observation_id = ? AND processing_state = 'uploaded'`
   ).bind(observationId).all<UploadedAssetRow>();
 
   for (const asset of assets.results) {
+    if (asset.mime.startsWith("audio/")) {
+      const metadataInspection = {
+        gpsExifPresent: false,
+        contentType: asset.mime,
+        scannedContainer: "audio",
+        mediaKind: "audio"
+      };
+      await env.OBS_DB.prepare(
+        `UPDATE asset_ledger
+         SET public_derivative_key = ?,
+             public_derivative_sha256 = ?,
+             public_derivative_verified_at = CURRENT_TIMESTAMP,
+             public_derivative_metadata_json = ?,
+             exif_scrub_state = 'scrubbed',
+             public_ready_at = CURRENT_TIMESTAMP
+         WHERE asset_id = ?`
+      ).bind(
+        asset.object_key,
+        asset.sha256 ?? await sha256Hex(textToArrayBuffer(asset.object_key)),
+        JSON.stringify(metadataInspection),
+        asset.asset_id
+      ).run();
+      continue;
+    }
+
     const publicDerivativeKey = `derived/${asset.object_key.replace(/^original\//, "")}/display.webp`;
     const contentType = "image/svg+xml; charset=utf-8";
     const derivativeBody = textToArrayBuffer(shadowDerivativeSvg(asset.asset_id));
