@@ -985,6 +985,8 @@ function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
     (pathname.startsWith("/guide/") && pathname !== "/guide/outcomes") ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
+    pathname === "/record" ||
+    pathname.startsWith("/record/") ||
     pathname === "/debug" ||
     pathname.startsWith("/debug/") ||
     pathname === "/login" ||

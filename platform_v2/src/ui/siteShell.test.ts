@@ -485,7 +485,7 @@ test("site shell localizes the mobile global record launcher", () => {
   assert.doesNotMatch(html, />写真</);
 });
 
-test("site shell keeps the global record launcher on the record page", () => {
+test("site shell excludes the global record launcher from record surfaces", () => {
   const html = renderSiteDocument({
     basePath: "",
     title: "Record",
@@ -493,10 +493,26 @@ test("site shell keeps the global record launcher on the record page", () => {
     lang: "ja",
     currentPath: "/record?lang=ja",
   });
+  const localizedHtml = renderSiteDocument({
+    basePath: "",
+    title: "Record",
+    body: "<p>record</p>",
+    lang: "ja",
+    currentPath: "/ja/record?start=photo",
+  });
+  const subpathHtml = renderSiteDocument({
+    basePath: "",
+    title: "Record draft",
+    body: "<p>record draft</p>",
+    lang: "ja",
+    currentPath: "/record/drafts?lang=ja",
+  });
 
-  assert.match(html, /class="global-record-launcher"/);
-  assert.match(html, /site-shell has-global-record-launcher/);
-  assert.doesNotMatch(html, /class="global-record-entry"/);
+  for (const rendered of [html, localizedHtml, subpathHtml]) {
+    assert.doesNotMatch(rendered, /class="global-record-launcher"/);
+    assert.doesNotMatch(rendered, /site-shell has-global-record-launcher/);
+    assert.doesNotMatch(rendered, /class="global-record-entry"/);
+  }
 });
 
 test("site shell treats guide outcomes as a reading surface with quick record actions", () => {
