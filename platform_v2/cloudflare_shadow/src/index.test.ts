@@ -6439,6 +6439,12 @@ class FakeBucket {
     return { body, httpMetadata: { contentType: object.contentType } };
   }
 
+  async head(key: string) {
+    const object = this.objects.get(key);
+    if (!object) return null;
+    return { size: object.size, httpMetadata: { contentType: object.contentType } };
+  }
+
   async delete(key: string): Promise<void> {
     this.objects.delete(key);
   }
@@ -16180,6 +16186,61 @@ test("production original UI thumbnails serve materialized bytes from R2 without
     assert.equal(await response.text(), "jpg-bytes");
     assert.equal(response.headers.get("content-type"), "image/jpeg");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-thumb");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public derived media uses bounded cache headers and HEAD without body", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("derived/import/20260615/observation_photo/asset-public-cache/display.webp", "webp-bytes", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("origin should not be used", { status: 500 });
+  }) as typeof fetch;
+  try {
+    const getResponse = await worker.fetch(new Request("https://ikimon.life/derived/import/20260615/observation_photo/asset-public-cache/display.webp"), productionEnv);
+    assert.equal(getResponse.status, 200);
+    assert.equal(await getResponse.text(), "webp-bytes");
+    assert.equal(getResponse.headers.get("content-type"), "image/webp");
+    assert.equal(getResponse.headers.get("cache-control"), "public, max-age=3600");
+
+    const headResponse = await worker.fetch(new Request("https://ikimon.life/derived/import/20260615/observation_photo/asset-public-cache/display.webp", {
+      method: "HEAD"
+    }), productionEnv);
+    assert.equal(headResponse.status, 200);
+    assert.equal(await headResponse.text(), "");
+    assert.equal(headResponse.headers.get("content-type"), "image/webp");
+    assert.equal(headResponse.headers.get("content-length"), "10");
+    assert.equal(headResponse.headers.get("cache-control"), "public, max-age=3600");
+
+    const missingResponse = await worker.fetch(new Request("https://ikimon.life/derived/import/20260615/observation_photo/missing/display.webp"), productionEnv);
+    assert.equal(missingResponse.status, 404);
+    assert.equal(missingResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+
+    const encodedSeparatorResponse = await worker.fetch(new Request("https://ikimon.life/derived/import%5cprivate/display.webp"), productionEnv);
+    assert.equal(encodedSeparatorResponse.status, 404);
+    assert.equal(encodedSeparatorResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+
+    const methodResponse = await worker.fetch(new Request("https://ikimon.life/derived/import/20260615/observation_photo/asset-public-cache/display.webp", {
+      method: "POST"
+    }), productionEnv);
+    assert.equal(methodResponse.status, 405);
+    assert.equal(methodResponse.headers.get("allow"), "GET, HEAD");
+    assert.equal(methodResponse.headers.get("cache-control"), "no-store");
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
