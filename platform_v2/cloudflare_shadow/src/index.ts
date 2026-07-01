@@ -769,6 +769,9 @@ const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "
 const HOME_RECORD_FEED_INITIAL_LIMIT = 36;
 const HOME_RECORD_FEED_MAX_DOM_CARDS = 96;
 const HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS = [2, 6, 10, 14, 18];
+const PUBLIC_AREA_LABEL_MAX_LENGTH = 40;
+const PUBLIC_AREA_LABEL_SENSITIVE_PATTERN = /(学校|小学校|中学校|高校|高等学校|幼稚園|保育園|こども園|児童|自宅|住所|番地|丁目|号室|マンション|アパート|寮|private|school|home|residence|address|apartment|condo|nursery|kindergarten)/i;
+const PUBLIC_AREA_LABEL_ADDRESS_PATTERN = /[0-9]|[-.,;:/\\@#]|[!?"$%&'()*+<=>\[\]^_`{|}~]/;
 
 interface PublicMapPhotoRow {
   observation_id: string;
@@ -20680,10 +20683,10 @@ async function updateCompatibleOccurrenceLocation(
   const publicCell = blurLocation(latitude, longitude);
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
-      "UPDATE observations SET exact_lat = ?, exact_lng = ?, public_cell = ? WHERE observation_id = ?"
+      "UPDATE observations SET exact_lat = ?, exact_lng = ?, public_cell = ?, public_area_label = NULL WHERE observation_id = ?"
     ).bind(latitude, longitude, publicCell, occurrenceId),
     env.OBS_DB.prepare(
-      "UPDATE readmodel_public_observations SET public_cell = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
+      "UPDATE readmodel_public_observations SET public_cell = ?, public_area_label = NULL, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ?"
     ).bind(publicCell, occurrenceId),
     compatibleOccurrenceDetailEditEvent(env, occurrenceId, session.userId, "location", { latitude, longitude, publicCell }),
     compatibleReadmodelRefreshOutbox(env, occurrenceId, null)
@@ -21152,6 +21155,31 @@ async function legacyObservationRequestFingerprint(input: LegacyObservationUpser
   })));
 }
 
+function normalizeSafePublicAreaLabelCandidate(value: unknown): string | null {
+  const text = normalizeOptionalText(value);
+  if (!text) return null;
+  const normalized = text.normalize("NFKC").replace(/\s+/g, "");
+  if (!normalized || normalized.length > PUBLIC_AREA_LABEL_MAX_LENGTH) return null;
+  if (PUBLIC_AREA_LABEL_SENSITIVE_PATTERN.test(normalized)) return null;
+  if (PUBLIC_AREA_LABEL_ADDRESS_PATTERN.test(normalized)) return null;
+  return normalized;
+}
+
+function shouldCoarsenPublicAreaLabel(label: string): boolean {
+  const normalized = label.normalize("NFKC").toLowerCase();
+  return normalized.endsWith("村")
+    || normalized.endsWith("mura")
+    || normalized.endsWith("son")
+    || normalized.endsWith("village");
+}
+
+function resolveSafePublicAreaLabel(input: Pick<LegacyObservationUpsertInput, "municipality" | "prefecture">): string | null {
+  const municipality = normalizeSafePublicAreaLabelCandidate(input.municipality);
+  const prefecture = normalizeSafePublicAreaLabelCandidate(input.prefecture);
+  if (municipality && !shouldCoarsenPublicAreaLabel(municipality)) return municipality;
+  return prefecture;
+}
+
 function buildLegacyCompatibleObservationResponse(input: {
   visitId: string;
   occurrenceId: string;
@@ -21285,6 +21313,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ?? "unknown place";
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const visibility = input.visibility === "private" ? "private" : "public";
+  const publicAreaLabel = visibility === "public" ? resolveSafePublicAreaLabel(input) : null;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
   const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
@@ -21353,8 +21382,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     env.OBS_DB.prepare(
       `INSERT INTO observations
        (observation_id, draft_id, owner_user_id, observed_at, taxon_label, note, exact_lat, exact_lng,
-        location_accuracy_m, public_cell, visibility, partition_month)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        location_accuracy_m, public_cell, visibility, partition_month, public_area_label)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         + ` ON CONFLICT(observation_id) DO UPDATE SET
           draft_id = excluded.draft_id,
           owner_user_id = excluded.owner_user_id,
@@ -21367,6 +21396,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
           public_cell = excluded.public_cell,
           visibility = excluded.visibility,
           partition_month = excluded.partition_month,
+          public_area_label = excluded.public_area_label,
           emergency_hidden = 0,
           processing_state = 'accepted'`
     ).bind(
@@ -21381,7 +21411,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       numberOrNull(input.locationAccuracyM),
       publicCell,
       visibility,
-      partition.partitionMonth
+      partition.partitionMonth,
+      publicAreaLabel
     ),
     env.OBS_DB.prepare(
       "UPDATE draft_observations SET processing_state = 'finalized', finalized_at = CURRENT_TIMESTAMP WHERE draft_id = ?"
@@ -21444,6 +21475,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         locationAccuracyM: numberOrNull(input.locationAccuracyM),
         publicCell,
         visibility,
+        publicAreaLabel,
         placeId,
         placeName
       },
@@ -21492,6 +21524,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   });
 
   if (visibility !== "public" || (await publicSafetyGateForObservation(visitId, env)).blocked) {
+    await clearObservationPublicAreaLabel(visitId, env);
     await deletePublicReadmodelRow(visitId, env);
   }
 
@@ -22613,11 +22646,16 @@ async function applyMediaJob(job: MediaJob, env: Env): Promise<void> {
 
 async function refreshPublicReadmodel(observationId: string, env: Env): Promise<void> {
   const observation = await env.OBS_DB.prepare(
-    `SELECT observation_id, public_cell, observed_at, taxon_label, partition_month
+    `SELECT observation_id, public_cell, observed_at, taxon_label, partition_month, visibility, emergency_hidden, public_area_label
      FROM observations
-     WHERE observation_id = ? AND visibility = 'public' AND emergency_hidden = 0`
-  ).bind(observationId).first<{ observation_id: string; public_cell: string; observed_at: string; taxon_label: string | null; partition_month: string | null }>();
+     WHERE observation_id = ?`
+  ).bind(observationId).first<{ observation_id: string; public_cell: string; observed_at: string; taxon_label: string | null; partition_month: string | null; visibility: string; emergency_hidden: number; public_area_label: string | null }>();
   if (!observation) {
+    await deletePublicReadmodelRow(observationId, env);
+    return;
+  }
+  if (observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) {
+    await clearObservationPublicAreaLabel(observationId, env);
     await deletePublicReadmodelRow(observationId, env);
     return;
   }
@@ -22625,6 +22663,7 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
 
   const safetyGate = await publicSafetyGateForObservation(observationId, env);
   if (safetyGate.blocked) {
+    await clearObservationPublicAreaLabel(observationId, env);
     await deletePublicReadmodelRow(observationId, env);
     return;
   }
@@ -22655,6 +22694,7 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
        AND public_derivative_verified_at IS NOT NULL
        AND public_derivative_metadata_json IS NOT NULL`
   ).bind(observationId).first<{ count: number }>();
+  const publicAreaLabel = normalizeSafePublicAreaLabelCandidate(observation.public_area_label);
 
   await env.OBS_DB.prepare(
     `INSERT INTO readmodel_public_observations
@@ -22666,7 +22706,7 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
        taxon_label = excluded.taxon_label,
        asset_count = excluded.asset_count,
        partition_month = excluded.partition_month,
-       public_area_label = COALESCE(excluded.public_area_label, public_area_label),
+       public_area_label = excluded.public_area_label,
        updated_at = CURRENT_TIMESTAMP`
   ).bind(
     observation.observation_id,
@@ -22675,9 +22715,15 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
     observation.taxon_label,
     publicReadyAssetCount?.count ?? 0,
     partitionMonth,
-    null
+    publicAreaLabel
   ).run();
   await upsertPublicMapSnapshotRow(observation, publicReadyAssetCount?.count ?? 0, env);
+}
+
+async function clearObservationPublicAreaLabel(observationId: string, env: Env): Promise<void> {
+  await env.OBS_DB.prepare(
+    "UPDATE observations SET public_area_label = NULL WHERE observation_id = ?"
+  ).bind(observationId).run();
 }
 
 async function publicSafetyGateForObservation(
