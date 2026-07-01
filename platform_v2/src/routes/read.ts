@@ -12273,6 +12273,105 @@ function recordsPostMemoryLine(options: { locationMode: "owner" | "public" }, da
   return `<span class="records-post-memory-line">${escapeHtml([dateLabel, placeLine].filter(Boolean).join(" · "))}</span>`;
 }
 
+type RecordsMyPlace = {
+  label: string;
+  area: string;
+  count: number;
+  latest: string;
+  href: string;
+};
+
+function recordsMyPlacesCopy(lang: SiteLang): {
+  title: string;
+  records: string;
+  places: string;
+  needsId: string;
+  empty: string;
+  latestFallback: string;
+} {
+  if (lang === "en") {
+    return { title: "My places", records: "Records", places: "Places", needsId: "Needs ID", empty: "Start with one record.", latestFallback: "Latest record" };
+  }
+  if (lang === "es") {
+    return { title: "Mis lugares", records: "Registros", places: "Lugares", needsId: "Revisar", empty: "Empieza con un registro.", latestFallback: "Registro reciente" };
+  }
+  if (lang === "pt-BR") {
+    return { title: "Meus lugares", records: "Registros", places: "Lugares", needsId: "Revisar", empty: "Comece com um registro.", latestFallback: "Registro recente" };
+  }
+  return { title: "いつもの場所", records: "記録", places: "場所", needsId: "確認待ち", empty: "まず1件", latestFallback: "最近の記録" };
+}
+
+function recordsMyPlaces(
+  basePath: string,
+  lang: SiteLang,
+  snapshot: LandingSnapshot,
+  ownEntries: LandingObservation[],
+): RecordsMyPlace[] {
+  const fromPlaceMemory = snapshot.myPlaces.slice(0, 8).map((place) => {
+    const visitId = place.latestVisitId || ownEntries.find((entry) => notesPlaceLine(entry, lang, "owner") === place.placeName)?.visitId || "";
+    return {
+      label: place.placeName,
+      area: place.municipality ?? "",
+      count: place.visitCount,
+      latest: place.latestDisplayName ?? recordsMyPlacesCopy(lang).latestFallback,
+      href: visitId
+        ? appendLangToHref(withBasePath(basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(visitId)}`), lang)
+        : appendLangToHref(withBasePath(basePath, "/record"), lang),
+    };
+  }).filter((place) => place.label.trim() !== "");
+  if (fromPlaceMemory.length > 0) return fromPlaceMemory;
+
+  const grouped = new Map<string, { count: number; latest: LandingObservation }>();
+  for (const entry of ownEntries) {
+    const label = notesPlaceLine(entry, lang, "owner");
+    if (!label) continue;
+    const current = grouped.get(label);
+    if (!current || recordsEntryTimestamp(entry) > recordsEntryTimestamp(current.latest)) {
+      grouped.set(label, { count: (current?.count ?? 0) + 1, latest: entry });
+    } else {
+      current.count += 1;
+    }
+  }
+  return Array.from(grouped.entries()).slice(0, 8).map(([label, item]) => ({
+    label,
+    area: "",
+    count: item.count,
+    latest: recordsPostSubjectName(item.latest, lang),
+    href: appendLangToHref(withBasePath(basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(item.latest.visitId || item.latest.detailId || item.latest.occurrenceId)}`), lang),
+  }));
+}
+
+function renderRecordsMyPlacesLane(
+  basePath: string,
+  lang: SiteLang,
+  snapshot: LandingSnapshot,
+  ownEntries: LandingObservation[],
+): string {
+  if (!snapshot.viewerUserId) return "";
+  const copy = recordsMyPlacesCopy(lang);
+  const places = recordsMyPlaces(basePath, lang, snapshot, ownEntries);
+  const placeCount = places.length || new Set(ownEntries.map((entry) => notesPlaceLine(entry, lang, "owner")).filter(Boolean)).size;
+  const needsIdCount = ownEntries.filter(recordsNeedsId).length;
+  const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
+  return `<section class="records-my-places" data-testid="records-my-places" aria-label="${escapeHtml(copy.title)}">
+    <div class="records-my-places-head">
+      <strong>${escapeHtml(copy.title)}</strong>
+      <span><b>${escapeHtml(formatNotesNumber(ownEntries.length, lang))}</b>${escapeHtml(copy.records)}</span>
+      <span><b>${escapeHtml(formatNotesNumber(placeCount, lang))}</b>${escapeHtml(copy.places)}</span>
+      <span><b>${escapeHtml(formatNotesNumber(needsIdCount, lang))}</b>${escapeHtml(copy.needsId)}</span>
+    </div>
+    <div class="records-my-places-list">
+      ${places.length > 0
+        ? places.map((place) => `<a href="${escapeHtml(place.href)}" data-my-place>
+            <strong>${escapeHtml(place.label)}</strong>
+            <span>${escapeHtml([place.area, place.latest].filter(Boolean).join(" · "))}</span>
+            <b>${escapeHtml(formatNotesNumber(place.count, lang))}</b>
+          </a>`).join("")
+        : `<a class="is-empty" href="${escapeHtml(recordHref)}" data-my-place><strong>${escapeHtml(copy.empty)}</strong><span>${escapeHtml(copy.records)}</span><b>+</b></a>`}
+    </div>
+  </section>`;
+}
+
 function renderRecordsPostCard(
   basePath: string,
   lang: SiteLang,
@@ -13206,6 +13305,7 @@ function renderRecordsWorkbench(
       </div>
     </header>
     <main class="records-main${isIdentifyView ? " is-identify" : ""}">
+      ${view === "mine" ? renderRecordsMyPlacesLane(basePath, lang, snapshot, ownEntries) : ""}
       <section class="records-grid-panel" data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${renderRecordsCollapsedControls(lang, searchQuery)}
         ${entries.length > 0
@@ -13301,6 +13401,116 @@ const RECORDS_WORKBENCH_STYLES = `
   .records-main.is-identify {
     grid-template-columns: minmax(0, 1fr) minmax(310px, 390px);
     align-items: start;
+  }
+  .records-my-places {
+    align-self: start;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .records-my-places-head {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .records-my-places-head strong {
+    color: #10251a;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .records-my-places-head span {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .records-my-places-head b {
+    color: #10251a;
+    font-size: 13px;
+    font-weight: 950;
+  }
+  .records-my-places-list {
+    min-width: 0;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(150px, 210px);
+    gap: 7px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .records-my-places-list::-webkit-scrollbar { display: none; }
+  .records-my-places-list a {
+    min-width: 0;
+    min-height: 50px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 7px;
+    align-content: center;
+    padding: 7px 8px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid rgba(15,23,42,.08);
+    color: #10251a;
+    text-decoration: none;
+  }
+  .records-my-places-list a:hover,
+  .records-my-places-list a:focus-visible {
+    border-color: rgba(4,120,87,.32);
+    background: #f0fdf4;
+    outline: none;
+  }
+  .records-my-places-list strong,
+  .records-my-places-list span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .records-my-places-list strong {
+    color: #10251a;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .records-my-places-list span {
+    grid-column: 1;
+    color: #475569;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+  .records-my-places-list b {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
   }
   .records-story {
     display: grid;
@@ -14128,6 +14338,19 @@ const RECORDS_WORKBENCH_STYLES = `
     }
     .records-story-cards::-webkit-scrollbar { display: none; }
     .records-story-card { min-height: 130px; }
+    .records-my-places {
+      grid-template-columns: 1fr;
+      gap: 7px;
+      padding: 7px;
+    }
+    .records-my-places-head {
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .records-my-places-head::-webkit-scrollbar { display: none; }
+    .records-my-places-list {
+      grid-auto-columns: minmax(142px, 68vw);
+    }
     .records-workbench .notes-library-controls {
       position: static;
       grid-template-columns: minmax(0, 1fr) auto;
