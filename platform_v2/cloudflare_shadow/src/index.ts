@@ -17740,18 +17740,12 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
   };
 }
 
-function contextualPublicHomeRecordsCopy(url: URL, index: number): ReturnType<typeof recordsInjectionCopy> {
+function contextualPublicHomeRecordsCopy(url: URL, _index: number): ReturnType<typeof recordsInjectionCopy> {
   const copy = recordsInjectionCopy(url);
-  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
-  // Feed labels add gentle variety; they are not a strict geospatial assertion.
-  const labels = lang === "en"
-    ? ["Regional record", "Seasonal record", "Same area record"]
-    : ["地域の記録", "季節の記録", "同じ地域の記録"];
-  const label = labels[index % labels.length] ?? labels[0] ?? copy.homeBadge;
   return {
     ...copy,
-    homeBadge: label,
-    placeContext: label
+    homeBadge: "",
+    placeContext: ""
   };
 }
 
@@ -18214,7 +18208,7 @@ function renderHomeRecordCard(
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:cloudflare_card">
       <span class="prototype-record-feed-media-wrap">
         ${image}
-        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.homeBadge)}</span>${renderHomeRecordMediaIcons(item.mediaKind, lang)}</span>
+        <span class="prototype-record-feed-badges">${copy.homeBadge ? `<span>${escapeHtml(copy.homeBadge)}</span>` : ""}${renderHomeRecordMediaIcons(item.mediaKind, lang)}</span>
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>

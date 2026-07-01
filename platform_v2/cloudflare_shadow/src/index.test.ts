@@ -17073,9 +17073,10 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /cf-home-media-affordance is-audio/);
   assert.match(homeBody, /\.cf-home-media-affordance\.is-audio/);
   assert.match(homeBody, /aria-label="音"/);
-  assert.match(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
-  assert.match(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
-  assert.match(homeBody, /prototype-record-feed-badges"><span>同じ地域の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>同じ地域の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /Same area record|Seasonal record/);
   assert.match(homeBody, /<span>6月24日<\/span>/);
   assert.doesNotMatch(homeBody, /<span>2026-06-24T09:38:45\.358Z<\/span>/);
   assert.doesNotMatch(homeBody, /<span>地域の記録 · 6月24日<\/span>/);
@@ -17175,9 +17176,9 @@ test("production home keeps public record feed within the initial DOM budget", a
   assert.match(homeBody, /const maxCards = 96;/);
   assert.doesNotMatch(homeBody, /const maxCards = 240;/);
   assert.doesNotMatch(homeBody, /<div class="cf-home-record-media-nav" data-home-record-media-nav/);
-  assert.match(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
-  assert.match(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
-  assert.match(homeBody, /prototype-record-feed-badges"><span>同じ地域の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>同じ地域の記録<\/span>/);
   assert.match(homeBody, /public-home-budget-0/);
   assert.match(homeBody, /public-home-budget-35/);
   assert.doesNotMatch(homeBody, /public-home-budget-36/);
@@ -17509,7 +17510,8 @@ test("production home prioritizes signed-in owner records over public feed recor
   assert.ok((homeBody.match(/data-cloudflare-owner-home-record/g) ?? []).length >= 12);
   assert.match(homeBody, /data-cloudflare-public-home-record/);
   assert.match(homeBody, /他人の公開記録/);
-  assert.match(homeBody, /地域の記録/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
+  assert.doesNotMatch(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>|prototype-record-feed-badges"><span>同じ地域の記録<\/span>/);
   assert.doesNotMatch(homeBody, /近くの公開記録/);
   assert.doesNotMatch(homeBody, /34\.81,137\.73/);
   assert.doesNotMatch(homeBody, /34\.81234|137\.73234|owner_user_id|ownerUserId/);
