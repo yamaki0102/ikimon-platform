@@ -16295,9 +16295,18 @@ test("staging audio upload route creates a real public audio home card state", a
   }), stagingEnv);
   assert.equal(recordResponse.status, 201, await recordResponse.text());
 
+  const sessionResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "staging-audio-user", displayName: "Staging Audio User", ttlHours: 1 })
+  }), stagingEnv);
+  assert.equal(sessionResponse.status, 200, await sessionResponse.text());
+  const cookie = sessionResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /ikimon_v2_session=/);
+
   const audioResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/observations/staging-clean-audio-card/audio/upload", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
       filename: "clean-tone.webm",
       mimeType: "audio/webm;codecs=opus",

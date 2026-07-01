@@ -21719,8 +21719,27 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
   if (env.ENVIRONMENT !== "staging" && env.ENVIRONMENT !== "shadow") {
     return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
   }
-  const auth = assertPrivilegedWriteAccessNative(request, env);
-  if (auth instanceof Response) return auth;
+  const observation = await env.OBS_DB.prepare(
+    `SELECT draft_id, owner_user_id, partition_month
+     FROM observations
+     WHERE observation_id = ?`
+  ).bind(observationId).first<{ draft_id: string; owner_user_id: string; partition_month: string | null }>();
+  if (!observation) return json({ ok: false, error: `observation not found: ${observationId}` }, 404);
+
+  const authHeaders = [
+    request.headers.get("x-ikimon-write-key"),
+    request.headers.get("x-v2-privileged-write-api-key"),
+    request.headers.get("x-api-key"),
+    bearerToken(request.headers.get("authorization"))
+  ].some((value) => Boolean(value?.trim()));
+  if (authHeaders) {
+    const auth = assertPrivilegedWriteAccessNative(request, env);
+    if (auth instanceof Response) return auth;
+  } else {
+    const session = await readCompatibleSessionWithOriginFallback(request, env);
+    if (!session) return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+    if (session.userId !== observation.owner_user_id) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+  }
 
   const input = await readJson<LegacyAudioUploadInput>(request);
   const mimeType = normalizeFieldscanAudioMime(input.mimeType);
@@ -21746,13 +21765,6 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
   const meta = asPlainObject(input.meta) ?? {};
   const privacyDecision = decideFieldscanInitialPrivacy(meta, true);
   if (privacyDecision.decision !== "clean") throw new HttpError(400, `audio_not_clean_${privacyDecision.reason}`);
-
-  const observation = await env.OBS_DB.prepare(
-    `SELECT draft_id, owner_user_id, partition_month
-     FROM observations
-     WHERE observation_id = ?`
-  ).bind(observationId).first<{ draft_id: string; owner_user_id: string; partition_month: string | null }>();
-  if (!observation) return json({ ok: false, error: `observation not found: ${observationId}` }, 404);
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
 
   const sha256 = await sha256Hex(body);
