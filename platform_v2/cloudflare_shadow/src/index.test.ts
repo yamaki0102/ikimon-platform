@@ -52,6 +52,7 @@ interface ObservationRow {
   emergency_hidden: number;
   processing_state: string;
   organism_origin?: string | null;
+  public_area_label?: string | null;
 }
 
 interface ObservationWriteIdempotencyRow {
@@ -2635,7 +2636,8 @@ class FakeStatement {
         public_cell: string(v[9]),
         visibility: string(v[10]),
         emergency_hidden: 0,
-        processing_state: "accepted"
+        processing_state: "accepted",
+        public_area_label: nullableString(v[12])
       });
       return {};
     }
@@ -3243,6 +3245,12 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observations SET public_area_label = NULL")) {
+      const observation = requireRow(this.db.observations, string(v[0]));
+      observation.public_area_label = null;
+      return {};
+    }
+
     if (normalized.startsWith("UPDATE observations SET organism_origin = ?")) {
       const observation = requireRow(this.db.observations, string(v[1]));
       observation.organism_origin = string(v[0]);
@@ -3261,6 +3269,7 @@ class FakeStatement {
       observation.exact_lat = number(v[0]);
       observation.exact_lng = number(v[1]);
       observation.public_cell = string(v[2]);
+      if (normalized.includes("public_area_label = NULL")) observation.public_area_label = null;
       return {};
     }
 
@@ -3272,7 +3281,10 @@ class FakeStatement {
 
     if (normalized.startsWith("UPDATE readmodel_public_observations SET public_cell = ?")) {
       const row = this.db.readmodel.get(string(v[1]));
-      if (row) row.public_cell = string(v[0]);
+      if (row) {
+        row.public_cell = string(v[0]);
+        if (normalized.includes("public_area_label = NULL")) row.public_area_label = null;
+      }
       return {};
     }
 
@@ -4423,13 +4435,16 @@ class FakeStatement {
 
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label")) {
       const observation = this.db.observations.get(string(v[0]));
-      if (!observation || observation.visibility !== "public" || observation.emergency_hidden) return null;
+      if (!observation) return null;
       return ({
         observation_id: observation.observation_id,
         public_cell: observation.public_cell,
         observed_at: observation.observed_at,
         taxon_label: observation.taxon_label,
-        partition_month: observation.partition_month
+        partition_month: observation.partition_month,
+        visibility: observation.visibility,
+        emergency_hidden: observation.emergency_hidden,
+        public_area_label: observation.public_area_label ?? null
       } as T);
     }
 
@@ -7940,6 +7955,79 @@ test("v1 observation upsert honors private visibility before public readmodel re
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
 });
 
+test("v1 observation upsert materializes only safe coarse public area labels", async () => {
+  const { env, obs, queue } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "safe-public-area-materializer",
+    userId: "safe-public-area-user",
+    observedAt: "2026-06-29T00:30:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    municipality: "浜松市中央区",
+    prefecture: "静岡県",
+    siteName: "中央小学校の校庭",
+    taxon: { vernacularName: "安全地域名テスト", rank: "species" }
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(obs.observations.get("safe-public-area-materializer")?.public_area_label, "浜松市中央区");
+
+  await post("/api/v1/observations/safe-public-area-materializer/photos/upload", env, {
+    filename: "safe-public-area.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+
+  assert.equal(obs.readmodel.get("safe-public-area-materializer")?.public_area_label, "浜松市中央区");
+  assert.doesNotMatch(JSON.stringify(obs.readmodel.get("safe-public-area-materializer")), /小学校|校庭|34\.71234|137\.81234/);
+});
+
+test("v1 observation upsert coarsens tiny municipalities and rejects address-like area labels", async () => {
+  const { env, obs, queue } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "tiny-village-public-area-materializer",
+    userId: "safe-public-area-user",
+    observedAt: "2026-06-29T00:40:00.000Z",
+    latitude: 35.75234,
+    longitude: 139.11234,
+    visibility: "public",
+    municipality: "青ヶ島村",
+    prefecture: "東京都",
+    taxon: { vernacularName: "村フォールバックテスト", rank: "species" }
+  });
+  await post("/api/v1/observations/tiny-village-public-area-materializer/photos/upload", env, {
+    filename: "tiny-village.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+
+  assert.equal(obs.observations.get("tiny-village-public-area-materializer")?.public_area_label, "東京都");
+  assert.equal(obs.readmodel.get("tiny-village-public-area-materializer")?.public_area_label, "東京都");
+
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "address-like-public-area-materializer",
+    userId: "safe-public-area-user",
+    observedAt: "2026-06-29T00:50:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "public",
+    municipality: "中区3丁目",
+    taxon: { vernacularName: "住所風地域名テスト", rank: "species" }
+  });
+  await post("/api/v1/observations/address-like-public-area-materializer/photos/upload", env, {
+    filename: "address-like.png",
+    mimeType: "image/png",
+    base64Data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII="
+  });
+  await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+
+  assert.equal(obs.observations.get("address-like-public-area-materializer")?.public_area_label, null);
+  assert.equal(obs.readmodel.get("address-like-public-area-materializer")?.public_area_label, null);
+});
+
 test("v1 observation public safety gate keeps risk records out of top and map readmodels", async () => {
   const { env, obs } = createEnv();
   const response = await post("/api/v1/observations/upsert", env, {
@@ -7949,6 +8037,8 @@ test("v1 observation public safety gate keeps risk records out of top and map re
     latitude: 34.71234,
     longitude: 137.81234,
     visibility: "public",
+    municipality: "浜松市中央区",
+    prefecture: "静岡県",
     note: "risk public safety contract",
     taxon: { vernacularName: "希少種候補", rank: "species" },
     sourcePayload: { source: "risk_public_safety_contract", risk_lane: "rare_sensitive" }
@@ -7958,6 +8048,7 @@ test("v1 observation public safety gate keeps risk records out of top and map re
   const context = obs.civicObservationContexts.get("risk-public-safety-contract");
   assert.equal(context?.risk_lane, "rare_sensitive");
   assert.equal(context?.public_precision, "hidden");
+  assert.equal(obs.observations.get("risk-public-safety-contract")?.public_area_label, null);
 
   const photoResponse = await post("/api/v1/observations/risk-public-safety-contract/photos/upload", env, {
     filename: "risk-public-safety.png",
@@ -8013,6 +8104,8 @@ test("v1 observation public safety gate removes existing public surfaces when vi
     latitude: 34.71234,
     longitude: 137.81234,
     visibility: "public",
+    municipality: "浜松市中央区",
+    prefecture: "静岡県",
     taxon: { vernacularName: "公開後非公開テスト", rank: "species" }
   });
   await post("/api/v1/observations/public-to-private-safety-contract/photos/upload", env, {
@@ -8022,6 +8115,7 @@ test("v1 observation public safety gate removes existing public surfaces when vi
   });
   await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
   assert.equal(obs.readmodel.has("public-to-private-safety-contract"), true);
+  assert.equal(obs.readmodel.get("public-to-private-safety-contract")?.public_area_label, "浜松市中央区");
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "public-to-private-safety-contract"), true);
 
   const updateResponse = await post("/api/v1/observations/upsert", env, {
@@ -8036,6 +8130,7 @@ test("v1 observation public safety gate removes existing public surfaces when vi
 
   assert.equal(updateResponse.ok, true);
   assert.equal(obs.readmodel.has("public-to-private-safety-contract"), false);
+  assert.equal(obs.observations.get("public-to-private-safety-contract")?.public_area_label, null);
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "public-to-private-safety-contract"), false);
 });
 
