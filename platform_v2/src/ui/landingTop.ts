@@ -638,11 +638,10 @@ function renderLandingContentWall(options: LandingTopRenderOptions): string {
 function landingRecordFeedContextLabel(lang: SiteLang, obs: LandingObservation, index: number, viewerUserId: string | null): string {
   const isMine = viewerUserId && obs.observerUserId === viewerUserId;
   if (isMine) return lang === "ja" ? "自分の記録" : "Your record";
-  if (obs.hasVideo || obs.librarySourceKind === "video") return lang === "ja" ? "季節の記録" : "Seasonal record";
-  if (obs.fieldRefs?.length) return lang === "ja" ? "観察会より" : "From a field walk";
-  return index % 3 === 1
-    ? (lang === "ja" ? "同じ地域" : "Same area")
-    : (lang === "ja" ? "地域の記録" : "Regional record");
+  void lang;
+  void obs;
+  void index;
+  return "";
 }
 
 function landingRecordFeedItems(snapshot: LandingSnapshot): LandingObservation[] {
@@ -716,7 +715,7 @@ function renderLandingRecordFeedCard(options: LandingTopRenderOptions, obs: Land
     <a class="prototype-record-feed-main" href="${escapeHtml(href)}" data-kpi-action="landing:record_feed:card">
       <span class="prototype-record-feed-media-wrap">
         ${renderLandingRecordFeedMedia(obs, title, index)}
-        <span class="prototype-record-feed-badges"><span>${escapeHtml(label)}</span>${renderLandingMediaIconSet(lang, [mediaKind], "prototype-record-feed-media-icons")}</span>
+        <span class="prototype-record-feed-badges">${label ? `<span>${escapeHtml(label)}</span>` : ""}${renderLandingMediaIconSet(lang, [mediaKind], "prototype-record-feed-media-icons")}</span>
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(title)}</strong>
@@ -764,18 +763,18 @@ function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): stri
   const copy = lang === "ja"
     ? {
         title: "みんなの記録",
-        badge: "地域の記録",
+        badge: "",
       }
     : {
         title: "Community records",
-        badge: "Regional record",
+        badge: "",
       };
   return `<article class="prototype-record-feed-card is-preview is-guest-preview" data-record-feed-card>
     <a class="prototype-record-feed-main" href="${escapeHtml(recordsHref)}" data-kpi-action="landing:record_feed:guest_preview">
       <span class="prototype-record-feed-media-wrap">
         <span class="prototype-record-feed-empty-media" aria-hidden="true"></span>
         <span class="prototype-record-feed-preview-stack" aria-hidden="true"><span></span><span></span><span></span></span>
-        <span class="prototype-record-feed-badges"><span>${escapeHtml(copy.badge)}</span>${renderLandingMediaIconSet(lang, ["photo", "video", "audio", "memo"], "prototype-record-feed-media-icons")}</span>
+        <span class="prototype-record-feed-badges">${copy.badge ? `<span>${escapeHtml(copy.badge)}</span>` : ""}${renderLandingMediaIconSet(lang, ["photo", "video", "audio", "memo"], "prototype-record-feed-media-icons")}</span>
       </span>
       <span class="prototype-record-feed-copy">
         <strong>${escapeHtml(copy.title)}</strong>

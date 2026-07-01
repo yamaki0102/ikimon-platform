@@ -158,7 +158,9 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /data-record-feed/);
   assert.match(html, /prototype-record-feed[^"]*is-guest/);
   assert.match(html, /prototype-record-feed-card is-preview is-guest-preview/);
-  assert.match(html, /地域の記録/);
+  assert.doesNotMatch(html, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
+  assert.doesNotMatch(html, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
+  assert.doesNotMatch(html, /prototype-record-feed-badges"><span>同じ地域<\/span>/);
   assert.doesNotMatch(html, /近くの記録/);
   assert.match(html, /prototype-record-feed-media-icons/);
   assert.doesNotMatch(html, /<h1>記録を見る<\/h1>/);
@@ -578,6 +580,9 @@ test("landing top surfaces available media states before photo overflow", () => 
   assert.equal(cardKinds.length, 12);
   assert.deepEqual(cardKinds.slice(0, 4), ["photo", "video", "audio", "memo"]);
   assert.doesNotMatch(html, /媒体の違い|音声あり|動画あり|メモあり/);
+  assert.doesNotMatch(html, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
+  assert.doesNotMatch(html, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
+  assert.doesNotMatch(html, /prototype-record-feed-badges"><span>同じ地域<\/span>/);
 });
 
 test("landing top keeps signed-in fallback records split by owner", () => {
