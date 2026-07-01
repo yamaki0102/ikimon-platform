@@ -178,7 +178,7 @@ test("home page uses the regional atlas feed surface", async () => {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<title>みんなで作る地域図鑑 \| ikimon<\/title>/);
-    assert.match(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
+    assert.doesNotMatch(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
     assert.match(response.body, /data-record-feed/);
     assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
@@ -187,6 +187,14 @@ test("home page uses the regional atlas feed surface", async () => {
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
     assert.doesNotMatch(response.body, /landing:topA:primary:record/);
     assert.doesNotMatch(response.body, /ぽち/);
+    assert.doesNotMatch(response.body, /写真、動画、音、短いメモ/);
+    assert.doesNotMatch(response.body, /地域の記録を探す/);
+    assert.doesNotMatch(response.body, /日常でいい/);
+    assert.doesNotMatch(response.body, /分類は後でいい/);
+    assert.doesNotMatch(response.body, /マップは道具/);
+    assert.doesNotMatch(response.body, /prototype-topa-trust/);
+    assert.doesNotMatch(response.body, /prototype-topa-metrics/);
+    assert.doesNotMatch(response.body, /prototype-topa-actions/);
     assert.doesNotMatch(response.body, /id="map-explorer"/);
     assert.doesNotMatch(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
     assert.doesNotMatch(response.body, /今日は、どこを見に行く？/);

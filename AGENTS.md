@@ -60,6 +60,15 @@ Citizen-science biodiversity platform. The current app is the Node runtime under
 - **Touch targets**: 56px minimum height for mobile
 - **Typography**: `line-height: 1.7` global, Japanese-optimized
 
+## ikimon Design Thinking
+
+- ユーザーを信じる。説明文で先回りしすぎず、写真・動画・カード・反応・導線で意味が立ち上がる画面を優先する。
+- 任天堂リスペクト。Goodpatch UI Crunch #13 の任天堂UI思想を参照し、`教える事より体験してもらう事`、`触っているうちに機能が発見される構造`、`わかりやすさと新鮮さのバランス` を ikimon のUI判断に翻訳する。
+- トップや記録導線では、文章でサービス定義を説明しない。ユーザーが見て、触って、記録の流れを理解できる密度にする。
+- メディア、HP、ヘルプ、業務資料では文章が必要な場面もある。ただし本文は目的を持つ場所に置き、主要体験のファーストビューを説明書にしない。
+- 面倒な行為は、説明で納得させるより、軽い反応・発見・次の一手で進める。分類、AI、地図、公開安全は裏で支え、主役にしすぎない。
+- デザインレビュー時は、`この文章がなくてもユーザーは進めるか`、`文章より状態・配置・反応で伝えられないか`、`ユーザーを信用せずに説明していないか` を確認する。
+
 ## Security Implementation
 
 - **XSS**: escape all HTML output and keep JSON serialization safe

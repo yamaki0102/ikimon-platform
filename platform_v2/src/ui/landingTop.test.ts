@@ -147,8 +147,8 @@ test("landing top empty state does not render sample images", () => {
 
   assert.doesNotMatch(html, /sample_/);
   assert.doesNotMatch(html, /\/uploads\/sample_/);
-  assert.match(html, /prototype-topa" aria-labelledby="prototype-topa-heading"/);
-  assert.match(html, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
+  assert.doesNotMatch(html, /prototype-topa" aria-labelledby="prototype-topa-heading"/);
+  assert.doesNotMatch(html, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
   assert.doesNotMatch(html, /今日のikimon\.life/);
   assert.doesNotMatch(html, /今日見つけた生きものを、名前が分からなくても残せる。/);
   assert.doesNotMatch(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
@@ -162,9 +162,14 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /みんなの記録/);
   assert.doesNotMatch(html, /ログイン/);
   assert.doesNotMatch(html, /data-kpi-action="landing:record_feed:weak_record"/);
-  assert.match(html, /日常でいい/);
-  assert.match(html, /分類は後でいい/);
-  assert.match(html, /マップは道具/);
+  assert.doesNotMatch(html, /写真、動画、音、短いメモ/);
+  assert.doesNotMatch(html, /地域の記録を探す/);
+  assert.doesNotMatch(html, /日常でいい/);
+  assert.doesNotMatch(html, /分類は後でいい/);
+  assert.doesNotMatch(html, /マップは道具/);
+  assert.doesNotMatch(html, /prototype-topa-trust/);
+  assert.doesNotMatch(html, /prototype-topa-metrics/);
+  assert.doesNotMatch(html, /prototype-topa-actions/);
   assert.doesNotMatch(html, /aria-label="育つ観察エリア"/);
   assert.doesNotMatch(html, /地域マップ/);
   assert.doesNotMatch(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
@@ -649,11 +654,13 @@ test("landing top keeps signed-in continuation without making record the primary
     },
   });
 
-  assert.match(html, /前回の自分から続ける/);
-  assert.match(html, /直近の発見/);
+  assert.doesNotMatch(html, /前回の自分から続ける/);
+  assert.doesNotMatch(html, /直近の発見/);
   assert.match(html, /モンシロチョウ/);
-  assert.match(html, /前回の記録を見る/);
-  assert.match(html, /同じ場所でもう1件/);
+  assert.match(html, /data-record-feed/);
+  assert.match(html, /自分の記録/);
+  assert.doesNotMatch(html, /前回の記録を見る/);
+  assert.doesNotMatch(html, /同じ場所でもう1件/);
   assert.doesNotMatch(html, /landing:topA:primary:record/);
   assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
 });
@@ -734,7 +741,7 @@ test("landing top does not render opaque overflow summary cards", () => {
   assert.doesNotMatch(html, /トップでは個別カードを並べすぎず/);
 });
 
-test("landing top keeps local map shelf visible without making record the top action", () => {
+test("landing top keeps local map shelf visible without turning the hero into action copy", () => {
   const html = renderTop({
     ...photoSnapshot,
     viewerUserId: "user-1",
@@ -757,7 +764,10 @@ test("landing top keeps local map shelf visible without making record the top ac
   assert.match(html, /地図で見る/);
   assert.doesNotMatch(html, /地図から探す。/);
   assert.doesNotMatch(html, /landing:topA:primary:record/);
-  assert.match(html, /landing:topA:primary:revisit/);
+  assert.doesNotMatch(html, /landing:topA:primary:revisit/);
+  assert.doesNotMatch(html, /prototype-topa-actions/);
+  assert.match(html, /data-record-feed/);
+  assert.match(html, /自分の記録/);
 });
 
 test("landing top surfaces active registered places before area map links", () => {
@@ -939,7 +949,7 @@ test("landing top hides municipality-only nearby place cards", () => {
 test("landing top has medium desktop width relief", () => {
   assert.match(LANDING_TOP_STYLES, /--ikimon-landing-effective-w: min\(var\(--ikimon-page-max\), calc\(var\(--ikimon-landing-available-w\) - max\(var\(--ikimon-page-inline\), 32px\)\)\);/);
   assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) \{[\s\S]*\.shell\.shell-bleed\.prototype-shell \{[\s\S]*width: var\(--ikimon-landing-effective-w\);[\s\S]*margin-left: var\(--ikimon-shell-margin-left\);/);
-  assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.prototype-topa h1 \{[\s\S]*max-width: none;[\s\S]*white-space: normal;/);
+  assert.doesNotMatch(LANDING_TOP_STYLES, /\.prototype-topa h1/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-topa-card-grid,\s*\.prototype-topa-card-grid\.is-primary \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
   assert.match(RECORD_CARD_SIZING_TOKENS, /--ikimon-record-card-grid-desktop: repeat\(6, minmax\(0, 1fr\)\);/);
   assert.match(RECORD_CARD_SIZING_TOKENS, /--ikimon-record-card-thumb-ratio: 4 \/ 5;/);
