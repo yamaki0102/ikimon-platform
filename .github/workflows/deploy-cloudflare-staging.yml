@@ -149,6 +149,15 @@ jobs:
           STAGING_BASE_URL: https://staging.ikimon.life
         run: npm run e2e:staging:site-map
 
+      - name: Run Cloudflare staging record feedback loop smoke
+        if: env.DEPLOY_STAGING == 'true'
+        working-directory: platform_v2
+        timeout-minutes: 10
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: npm run e2e:staging:record-feedback-loop
+
       - name: Upload Cloudflare staging artifacts
         if: always()
         uses: actions/upload-artifact@v6
