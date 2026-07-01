@@ -199,6 +199,9 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /data-kpi-action="landing:topA:shelf:localMap"/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-record-feed\.is-guest \.prototype-record-feed-card\.is-guest-preview \.prototype-record-feed-media-wrap \{[\s\S]*height: clamp\(160px, 24vh, 220px\);[\s\S]*min-height: 160px;/);
   assert.match(LANDING_TOP_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.prototype-record-feed\.is-guest \.prototype-record-feed-card\.is-guest-preview \.prototype-record-feed-media-wrap \{ height: 180px; min-height: 180px; \}/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-record-feed\.is-guest \{[\s\S]*width: min\(100%, 680px\);/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-record-feed\.is-guest \.prototype-record-feed-media-wrap \{[\s\S]*height: clamp\(300px, 48vh, 460px\);[\s\S]*min-height: 300px;/);
+  assert.match(LANDING_TOP_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.prototype-record-feed\.is-guest \.prototype-record-feed-media-wrap \{ height: 48vh; min-height: 320px; \}/);
 });
 
 test("guide outcome section groups full guide outcome pool instead of the shelf subset", () => {
@@ -517,6 +520,62 @@ test("landing top keeps guest community posts in the short record feed", () => {
   assert.doesNotMatch(html, /prototype-content-wall/);
   assert.doesNotMatch(html, /みんなの投稿12/);
   assert.doesNotMatch(html, /もっと見る<\/a>/);
+});
+
+test("landing top surfaces available media states before photo overflow", () => {
+  const makePhoto = (index: number): LandingObservation => ({
+    ...photoObservation,
+    occurrenceId: `occ-media-photo-${index}`,
+    visitId: `visit-media-photo-${index}`,
+    displayName: `写真の記録${index}`,
+    observedAt: `2026-04-${String(24 - index).padStart(2, "0")}T09:00:00.000Z`,
+    photoUrl: `/uploads/media-photo-${index}.jpg`,
+    librarySourceKind: "photo",
+  });
+  const videoObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-media-video",
+    visitId: "visit-media-video",
+    displayName: "夕方の動き",
+    photoUrl: null,
+    mediaUrl: "/uploads/media-video.mp4",
+    hasVideo: true,
+    librarySourceKind: "video",
+  };
+  const audioObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-media-audio",
+    visitId: "visit-media-audio",
+    displayName: "水路の音",
+    photoUrl: null,
+    mediaUrl: null,
+    hasAudio: true,
+    librarySourceKind: "audio",
+  };
+  const memoObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-media-memo",
+    visitId: "visit-media-memo",
+    displayName: "朝の水路",
+    photoUrl: null,
+    mediaUrl: null,
+    librarySourceKind: "note",
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: null,
+    feed: [
+      ...Array.from({ length: 10 }, (_, index) => makePhoto(index)),
+      audioObservation,
+      memoObservation,
+      videoObservation,
+    ],
+  });
+  const cardKinds = Array.from(html.matchAll(/data-record-feed-card data-media-kind="([^"]+)"/g), (match) => match[1]);
+
+  assert.equal(cardKinds.length, 12);
+  assert.deepEqual(cardKinds.slice(0, 4), ["photo", "video", "audio", "memo"]);
+  assert.doesNotMatch(html, /媒体の違い|音声あり|動画あり|メモあり/);
 });
 
 test("landing top keeps signed-in fallback records split by owner", () => {
@@ -997,6 +1056,9 @@ test("landing top hides municipality-only nearby place cards", () => {
 test("landing top has medium desktop width relief", () => {
   assert.match(LANDING_TOP_STYLES, /--ikimon-landing-effective-w: min\(var\(--ikimon-page-max\), calc\(var\(--ikimon-landing-available-w\) - max\(var\(--ikimon-page-inline\), 32px\)\)\);/);
   assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) \{[\s\S]*\.shell\.shell-bleed\.prototype-shell \{[\s\S]*width: var\(--ikimon-landing-effective-w\);[\s\S]*margin-left: var\(--ikimon-shell-margin-left\);/);
+  assert.match(LANDING_TOP_STYLES, /\.shell\.shell-bleed\.prototype-shell \{[\s\S]*padding-top: clamp\(34px, 3\.4vw, 48px\);/);
+  assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.shell\.shell-bleed\.prototype-shell \{[\s\S]*padding-top: clamp\(34px, 3vw, 44px\);/);
+  assert.match(LANDING_TOP_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.shell\.shell-bleed\.prototype-shell \{ padding-top: 36px; \}/);
   assert.doesNotMatch(LANDING_TOP_STYLES, /\.prototype-topa h1/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-topa-card-grid,\s*\.prototype-topa-card-grid\.is-primary \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
   assert.match(RECORD_CARD_SIZING_TOKENS, /--ikimon-record-card-grid-desktop: repeat\(6, minmax\(0, 1fr\)\);/);
