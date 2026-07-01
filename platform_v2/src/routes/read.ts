@@ -11945,7 +11945,7 @@ function formatObservationIndexCount(count: number, copy: ObservationIndexCopy):
   return `${count}${copy.countSuffix}`;
 }
 
-type RecordsWorkbenchView = "mine" | "public" | "needs_id" | "media" | "places";
+type RecordsWorkbenchView = "mine" | "public" | "identification_summary" | "needs_id" | "media" | "places";
 
 type RecordsWorkbenchCopy = {
   title: string;
@@ -11976,6 +11976,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       tabs: {
         mine: "自分",
         public: "みんな",
+        identification_summary: "同定まとめ",
         needs_id: "確認待ち",
         media: "メディア",
         places: "場所",
@@ -11998,6 +11999,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       tabs: {
         mine: "Mine",
         public: "Everyone",
+        identification_summary: "ID summary",
         needs_id: "Needs ID",
         media: "Media",
         places: "Places",
@@ -12020,6 +12022,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       tabs: {
         mine: "Mios",
         public: "Todos",
+        identification_summary: "Resumen ID",
         needs_id: "Por revisar",
         media: "Medios",
         places: "Lugares",
@@ -12042,6 +12045,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       tabs: {
         mine: "Meus",
         public: "Todos",
+        identification_summary: "Resumo ID",
         needs_id: "Revisar",
         media: "Midia",
         places: "Lugares",
@@ -12060,7 +12064,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
 
 function normalizeRecordsView(raw: unknown, hasViewer: boolean): RecordsWorkbenchView {
   const view = typeof raw === "string" ? raw.trim() : "";
-  if (view === "public" || view === "needs_id" || view === "media" || view === "places") return view;
+  if (view === "public" || view === "identification_summary" || view === "needs_id" || view === "media" || view === "places") return view;
   if (view === "mine") return hasViewer ? "mine" : "public";
   return hasViewer ? "mine" : "public";
 }
@@ -12143,7 +12147,7 @@ function renderRecordsViewTabs(
   activeView: RecordsWorkbenchView,
   copy: RecordsWorkbenchCopy,
 ): string {
-  const views: RecordsWorkbenchView[] = ["mine", "public", "needs_id", "media", "places"];
+  const views: RecordsWorkbenchView[] = ["mine", "public", "identification_summary", "needs_id", "media", "places"];
   return `<nav class="records-view-tabs" aria-label="${escapeHtml(copy.searchLabel)}">
     ${views.map((view) => `<a class="${view === activeView ? "is-active" : ""}" href="${escapeHtml(recordsViewHref(basePath, lang, view))}">
       <span>${escapeHtml(copy.tabs[view])}</span>
@@ -12183,6 +12187,7 @@ function recordWorkbenchEntriesForView(
   const all = uniqueRecords([...ownEntries, ...publicEntries]);
   if (view === "mine") return ownEntries;
   if (view === "public") return publicEntries;
+  if (view === "identification_summary") return all.filter(recordsNeedsId);
   if (view === "needs_id") return all.filter(recordsNeedsId);
   if (view === "media") return all.filter(recordsHasMedia);
   return all;
@@ -13265,6 +13270,404 @@ function renderRecordsStoryStrip(
   </section>`;
 }
 
+type IdentificationSummaryReferenceMap = Map<string, ReferenceCandidate[]>;
+
+type IdentificationSummaryCopy = {
+  title: string;
+  activeNav: string;
+  lead: string;
+  continueAction: string;
+  libraryAction: string;
+  metrics: {
+    waiting: string;
+    referenceReady: string;
+    held: string;
+    missingEvidence: string;
+    doneToday: string;
+  };
+  metricNotes: {
+    waiting: string;
+    referenceReady: string;
+    held: string;
+    missingEvidence: string;
+    doneToday: string;
+  };
+  lanes: {
+    referenceReady: string;
+    mediaReady: string;
+    stalled: string;
+  };
+  laneLeads: {
+    referenceReady: string;
+    mediaReady: string;
+    stalled: string;
+  };
+  preview: string;
+  evidenceHealth: string;
+  recentDecisions: string;
+  teamStatus: string;
+  open: string;
+  openWorkbench: string;
+  noRecords: string;
+  emptyLane: string;
+  sourceLabel: string;
+  noReference: string;
+};
+
+function identificationSummaryCopy(lang: SiteLang): IdentificationSummaryCopy {
+  if (lang === "ja") {
+    return {
+      title: "同定まとめ | ikimon",
+      activeNav: "同定まとめ",
+      lead: "確認待ちの記録と、根拠が足りない記録を整理します。",
+      continueAction: "同定を続ける",
+      libraryAction: "資料ライブラリ",
+      metrics: {
+        waiting: "確認待ち",
+        referenceReady: "資料候補あり",
+        held: "保留中",
+        missingEvidence: "追加写真が必要",
+        doneToday: "今日処理した",
+      },
+      metricNotes: {
+        waiting: "人の確認がまだ少ない対象",
+        referenceReady: "登録済み資料で確認しやすい対象",
+        held: "MVPでは作業台側で管理",
+        missingEvidence: "写真・動画が足りない可能性",
+        doneToday: "自分の同定メモから集計",
+      },
+      lanes: {
+        referenceReady: "資料で確認できる記録",
+        mediaReady: "写真を見れば進めやすい記録",
+        stalled: "止まっている記録",
+      },
+      laneLeads: {
+        referenceReady: "登録済み資料の候補が見つかった記録。",
+        mediaReady: "写真・動画と候補名があり、作業台へ進めやすい記録。",
+        stalled: "写真不足、候補名不足、または根拠補完が必要な記録。",
+      },
+      preview: "選択中の記録",
+      evidenceHealth: "根拠の状態",
+      recentDecisions: "最近の同定",
+      teamStatus: "団体ステータス",
+      open: "開く",
+      openWorkbench: "作業台で開く",
+      noRecords: "今は確認待ちの記録がありません。",
+      emptyLane: "この条件の記録はまだありません。",
+      sourceLabel: "この資料で確認",
+      noReference: "資料なし",
+    };
+  }
+  return {
+    title: "Identification summary | ikimon",
+    activeNav: "ID summary",
+    lead: "Organize records waiting for names and evidence before opening the workbench.",
+    continueAction: "Continue identifying",
+    libraryAction: "Reference library",
+    metrics: {
+      waiting: "Waiting",
+      referenceReady: "References",
+      held: "On hold",
+      missingEvidence: "Need media",
+      doneToday: "Done today",
+    },
+    metricNotes: {
+      waiting: "Records with little human confirmation",
+      referenceReady: "Records with matching reference candidates",
+      held: "Managed in the workbench MVP",
+      missingEvidence: "May need more photos or video",
+      doneToday: "From your ID notes",
+    },
+    lanes: {
+      referenceReady: "Records ready for references",
+      mediaReady: "Records easy to inspect",
+      stalled: "Records that need evidence",
+    },
+    laneLeads: {
+      referenceReady: "Registered references are available for these records.",
+      mediaReady: "Media and a candidate name make these easier to review.",
+      stalled: "These need more media, a candidate name, or evidence cleanup.",
+    },
+    preview: "Selected record",
+    evidenceHealth: "Evidence health",
+    recentDecisions: "Recent decisions",
+    teamStatus: "Team status",
+    open: "Open",
+    openWorkbench: "Open workbench",
+    noRecords: "No records are waiting for identification right now.",
+    emptyLane: "No records match this lane yet.",
+    sourceLabel: "Check with this reference",
+    noReference: "No reference",
+  };
+}
+
+async function loadIdentificationSummaryReferences(
+  viewerUserId: string | null | undefined,
+  entries: LandingObservation[],
+  lang: SiteLang,
+): Promise<IdentificationSummaryReferenceMap> {
+  if (!viewerUserId) return new Map();
+  const cards = buildRecordsPostCards(entries, lang).slice(0, 12);
+  const pairs = await Promise.all(cards.map(async (card) => {
+    const proposedName = card.aiCandidateName ?? card.displayName ?? card.proposedName ?? null;
+    const references = await listReferenceCandidatesForIdentification({
+      userId: viewerUserId,
+      occurrenceId: card.occurrenceId,
+      proposedName,
+      limit: 3,
+    }).catch(() => []);
+    return [card.occurrenceId, references] as const;
+  }));
+  return new Map(pairs.filter(([, references]) => references.length > 0));
+}
+
+function identificationSummaryHasCandidate(card: RecordsPostCard): boolean {
+  return Boolean((card.aiCandidateName || card.scientificName || card.vernacularName || card.displayName || card.proposedName || "").trim());
+}
+
+function identificationSummaryWorkHref(basePath: string, lang: SiteLang): string {
+  return recordsViewHref(basePath, lang, "needs_id");
+}
+
+function identificationSummaryRecordHref(basePath: string, lang: SiteLang, card: RecordsPostCard): string {
+  return `${notesDetailHref(basePath, lang, card)}#identify`;
+}
+
+function identificationSummaryCardTitle(card: RecordsPostCard, lang: SiteLang): string {
+  return recordsPostSubjectName(card, lang) || (lang === "ja" ? "名前を確認中" : "Name pending");
+}
+
+function identificationSummaryChipHtml(labels: string[]): string {
+  return labels.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
+}
+
+function renderIdentificationSummaryMedia(card: RecordsPostCard, lang: SiteLang): string {
+  const title = identificationSummaryCardTitle(card, lang);
+  const mediaUrl = recordsRepresentativeMediaUrl(card);
+  if (mediaUrl) {
+    return `<span class="identification-summary-thumb"><img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" /></span>`;
+  }
+  return `<span class="identification-summary-thumb is-empty"><span>${escapeHtml(lang === "ja" ? "写真なし" : "No media")}</span></span>`;
+}
+
+function renderIdentificationSummaryQueueItem(
+  basePath: string,
+  lang: SiteLang,
+  card: RecordsPostCard,
+  references: ReferenceCandidate[],
+  chips: string[],
+  copy: IdentificationSummaryCopy,
+): string {
+  const title = identificationSummaryCardTitle(card, lang);
+  const placeLine = notesPlaceLine(card, lang, "public") || (lang === "ja" ? "公開位置は丸め済み" : "Location rounded");
+  const dateLabel = notesLibraryDateLabel(card, lang);
+  const referenceTitle = references[0]?.title;
+  return `<article class="identification-summary-item">
+    <a class="identification-summary-item-main" href="${escapeHtml(identificationSummaryRecordHref(basePath, lang, card))}">
+      ${renderIdentificationSummaryMedia(card, lang)}
+      <span class="identification-summary-item-body">
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(`${placeLine} · ${dateLabel}`)}</small>
+        <span class="identification-summary-chips">${identificationSummaryChipHtml(chips)}</span>
+        ${referenceTitle ? `<em>${escapeHtml(`${copy.sourceLabel}: ${referenceTitle}`)}</em>` : ""}
+      </span>
+    </a>
+    <a class="identification-summary-open" href="${escapeHtml(identificationSummaryWorkHref(basePath, lang))}">${escapeHtml(copy.open)}</a>
+  </article>`;
+}
+
+function renderIdentificationSummaryLane(
+  basePath: string,
+  lang: SiteLang,
+  title: string,
+  lead: string,
+  cards: RecordsPostCard[],
+  referenceMap: IdentificationSummaryReferenceMap,
+  copy: IdentificationSummaryCopy,
+  chipBuilder: (card: RecordsPostCard, references: ReferenceCandidate[]) => string[],
+): string {
+  return `<section class="identification-summary-lane">
+    <div class="identification-summary-lane-head">
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(lead)}</p>
+    </div>
+    <div class="identification-summary-list">
+      ${cards.length > 0
+        ? cards.map((card) => {
+          const references = referenceMap.get(card.occurrenceId) ?? [];
+          return renderIdentificationSummaryQueueItem(basePath, lang, card, references, chipBuilder(card, references), copy);
+        }).join("")
+        : `<div class="identification-summary-empty">${escapeHtml(copy.emptyLane)}</div>`}
+    </div>
+  </section>`;
+}
+
+function renderIdentificationSummaryMetric(label: string, value: number, note: string): string {
+  return `<div class="identification-summary-metric">
+    <strong>${escapeHtml(String(value))}</strong>
+    <span>${escapeHtml(label)}</span>
+    <small>${escapeHtml(note)}</small>
+  </div>`;
+}
+
+function renderIdentificationSummaryPreview(
+  basePath: string,
+  lang: SiteLang,
+  card: RecordsPostCard | null,
+  references: ReferenceCandidate[],
+  copy: IdentificationSummaryCopy,
+): string {
+  if (!card) {
+    return `<aside class="identification-summary-preview">
+      <div class="identification-summary-panel-head"><span>${escapeHtml(copy.preview)}</span><h2>${escapeHtml(copy.noRecords)}</h2></div>
+      <a class="identification-summary-primary" href="${escapeHtml(identificationSummaryWorkHref(basePath, lang))}">${escapeHtml(copy.openWorkbench)}</a>
+    </aside>`;
+  }
+  const title = identificationSummaryCardTitle(card, lang);
+  const placeLine = notesPlaceLine(card, lang, "public") || (lang === "ja" ? "公開位置は丸め済み" : "Location rounded");
+  const dateLabel = notesLibraryDateLabel(card, lang);
+  const referenceRows = references.length > 0
+    ? references.slice(0, 3).map((reference) => `<li><strong>${escapeHtml(reference.title)}</strong><span>${escapeHtml(reference.reason)}</span></li>`).join("")
+    : `<li><strong>${escapeHtml(copy.noReference)}</strong><span>${escapeHtml(lang === "ja" ? "作業台で資料を登録・選択できます。" : "Add or select references in the workbench.")}</span></li>`;
+  return `<aside class="identification-summary-preview">
+    <div class="identification-summary-panel-head"><span>${escapeHtml(copy.preview)}</span><h2>${escapeHtml(title)}</h2></div>
+    ${renderIdentificationSummaryMedia(card, lang)}
+    <p>${escapeHtml(`${placeLine} · ${dateLabel}`)}</p>
+    <div class="identification-summary-preview-tags">
+      ${identificationSummaryChipHtml([
+        card.postNeedsId ? copy.metrics.waiting : lang === "ja" ? "確認あり" : "Has ID",
+        recordsHasMedia(card) ? (lang === "ja" ? "写真あり" : "Has media") : copy.metrics.missingEvidence,
+        references.length > 0 ? copy.metrics.referenceReady : copy.noReference,
+      ])}
+    </div>
+    <div class="identification-summary-reference-box">
+      <strong>${escapeHtml(copy.sourceLabel)}</strong>
+      <ul>${referenceRows}</ul>
+    </div>
+    <a class="identification-summary-primary" href="${escapeHtml(identificationSummaryWorkHref(basePath, lang))}">${escapeHtml(copy.openWorkbench)}</a>
+  </aside>`;
+}
+
+function renderIdentificationSummaryEvidenceHealth(copy: IdentificationSummaryCopy, referenceReadyCount: number, missingEvidenceCount: number): string {
+  const rows = [
+    { label: copy.metrics.referenceReady, value: referenceReadyCount, note: copy.metricNotes.referenceReady },
+    { label: copy.metrics.missingEvidence, value: missingEvidenceCount, note: copy.metricNotes.missingEvidence },
+    { label: copy.metrics.held, value: 0, note: copy.metricNotes.held },
+    { label: "Tier 3", value: referenceReadyCount, note: "資料根拠がある候補から確認" },
+  ];
+  return `<section class="identification-summary-panel">
+    <div class="identification-summary-panel-head"><span>${escapeHtml(copy.evidenceHealth)}</span><h2>${escapeHtml(copy.sourceLabel)}</h2></div>
+    <div class="identification-summary-health-list">
+      ${rows.map((row) => `<div><strong>${escapeHtml(row.label)}</strong><span>${escapeHtml(String(row.value))}</span><small>${escapeHtml(row.note)}</small></div>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderIdentificationSummaryRecentDecisions(lang: SiteLang, ownEntries: LandingObservation[], copy: IdentificationSummaryCopy): string {
+  const decisions = ownEntries.filter((entry) => (entry.entryType ?? "observation") === "identification").slice(0, 5);
+  return `<section class="identification-summary-panel">
+    <div class="identification-summary-panel-head"><span>${escapeHtml(copy.recentDecisions)}</span><h2>${escapeHtml(lang === "ja" ? "直近の作業ログ" : "Latest activity")}</h2></div>
+    <div class="identification-summary-decisions">
+      ${decisions.length > 0
+        ? decisions.map((entry) => `<div><strong>${escapeHtml(entry.proposedName || entry.displayName || (lang === "ja" ? "同定メモ" : "ID note"))}</strong><span>${escapeHtml(`${notesLibraryDateLabel(entry, lang)} · ${copy.noReference}`)}</span></div>`).join("")
+        : `<div><strong>${escapeHtml(lang === "ja" ? "まだありません" : "No decisions yet")}</strong><span>${escapeHtml(copy.metricNotes.doneToday)}</span></div>`}
+    </div>
+  </section>`;
+}
+
+function renderIdentificationSummaryTeamStatus(copy: IdentificationSummaryCopy, waitingCount: number, doneToday: number): string {
+  return `<section class="identification-summary-panel">
+    <div class="identification-summary-panel-head"><span>${escapeHtml(copy.teamStatus)}</span><h2>${escapeHtml("MVP")}</h2></div>
+    <div class="identification-summary-team-grid">
+      <div><strong>${escapeHtml(String(waitingCount))}</strong><span>${escapeHtml(copy.metrics.waiting)}</span></div>
+      <div><strong>${escapeHtml(String(doneToday))}</strong><span>${escapeHtml(copy.metrics.doneToday)}</span></div>
+      <div><strong>0</strong><span>${escapeHtml(copy.metrics.held)}</span></div>
+    </div>
+  </section>`;
+}
+
+function renderIdentificationSummary(
+  basePath: string,
+  lang: SiteLang,
+  snapshot: LandingSnapshot,
+  publicEntries: LandingObservation[],
+  referenceMap: IdentificationSummaryReferenceMap,
+  options: { ownPage?: LandingFeedPage | null } = {},
+): string {
+  const copy = identificationSummaryCopy(lang);
+  const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
+  const needsEntries = recordWorkbenchEntriesForView("needs_id", ownEntries, publicEntries);
+  const cards = buildRecordsPostCards(needsEntries, lang);
+  const referenceReadyCards = cards.filter((card) => (referenceMap.get(card.occurrenceId)?.length ?? 0) > 0);
+  const mediaReadyCards = cards.filter((card) => recordsHasMedia(card) && identificationSummaryHasCandidate(card) && !referenceReadyCards.includes(card));
+  const stalledCards = cards.filter((card) => !recordsHasMedia(card) || !identificationSummaryHasCandidate(card));
+  const missingEvidenceCount = cards.filter((card) => !recordsHasMedia(card)).length;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const doneToday = ownEntries.filter((entry) => (entry.entryType ?? "observation") === "identification" && notesEntryDate(entry).slice(0, 10) === todayKey).length;
+  const previewCard = referenceReadyCards[0] ?? mediaReadyCards[0] ?? stalledCards[0] ?? cards[0] ?? null;
+  const previewReferences = previewCard ? (referenceMap.get(previewCard.occurrenceId) ?? []) : [];
+  const workbenchHref = identificationSummaryWorkHref(basePath, lang);
+  const libraryHref = appendLangToHref(withBasePath(basePath, "/references"), lang);
+
+  return `<div class="records-workbench identification-summary" data-testid="identification-summary">
+    <header class="records-topbar identification-summary-topbar">
+      <div class="records-topbar-brand">
+        <strong>${escapeHtml(copy.activeNav)}</strong>
+      </div>
+      ${renderRecordsViewTabs(basePath, lang, "identification_summary", recordsWorkbenchCopy(lang))}
+      <div class="records-actions" aria-label="${escapeHtml(observationIndexCopy(lang).relatedActionsAria)}">
+        <a href="${escapeHtml(libraryHref)}">${escapeHtml(copy.libraryAction)}</a>
+        <a class="is-primary" href="${escapeHtml(workbenchHref)}">${escapeHtml(copy.continueAction)}</a>
+      </div>
+    </header>
+    <main class="identification-summary-main">
+      <section class="identification-summary-hero">
+        <div>
+          <span>${escapeHtml(copy.activeNav)}</span>
+          <h1>${escapeHtml(copy.activeNav)}</h1>
+          <p>${escapeHtml(copy.lead)}</p>
+        </div>
+        <a class="identification-summary-primary" href="${escapeHtml(workbenchHref)}">${escapeHtml(copy.continueAction)}</a>
+      </section>
+      <section class="identification-summary-scopes" aria-label="${escapeHtml(copy.activeNav)} filters">
+        ${["すべて", "自分の担当", "団体", "近く"].map((label, index) => `<button type="button" class="${index === 0 ? "is-active" : ""}">${escapeHtml(label)}</button>`).join("")}
+      </section>
+      <section class="identification-summary-metrics" aria-label="${escapeHtml(copy.activeNav)} metrics">
+        ${renderIdentificationSummaryMetric(copy.metrics.waiting, cards.length, copy.metricNotes.waiting)}
+        ${renderIdentificationSummaryMetric(copy.metrics.referenceReady, referenceReadyCards.length, copy.metricNotes.referenceReady)}
+        ${renderIdentificationSummaryMetric(copy.metrics.held, 0, copy.metricNotes.held)}
+        ${renderIdentificationSummaryMetric(copy.metrics.missingEvidence, missingEvidenceCount, copy.metricNotes.missingEvidence)}
+        ${renderIdentificationSummaryMetric(copy.metrics.doneToday, doneToday, copy.metricNotes.doneToday)}
+      </section>
+      <section class="identification-summary-work">
+        <div class="identification-summary-lanes">
+          ${renderIdentificationSummaryLane(basePath, lang, copy.lanes.referenceReady, copy.laneLeads.referenceReady, referenceReadyCards.slice(0, 5), referenceMap, copy, (_card, references) => [
+            copy.sourceLabel,
+            references[0]?.owned ? "所有確認済み" : "共有カタログ",
+            recordsHasMedia(_card) ? "写真あり" : copy.metrics.missingEvidence,
+          ])}
+          ${renderIdentificationSummaryLane(basePath, lang, copy.lanes.mediaReady, copy.laneLeads.mediaReady, mediaReadyCards.slice(0, 5), referenceMap, copy, (card) => [
+            recordsHasMedia(card) ? "写真あり" : copy.metrics.missingEvidence,
+            identificationSummaryHasCandidate(card) ? "候補名あり" : "名前を確認中",
+            copy.metrics.waiting,
+          ])}
+          ${renderIdentificationSummaryLane(basePath, lang, copy.lanes.stalled, copy.laneLeads.stalled, stalledCards.slice(0, 5), referenceMap, copy, (card) => [
+            recordsHasMedia(card) ? "写真あり" : copy.metrics.missingEvidence,
+            identificationSummaryHasCandidate(card) ? "候補名あり" : "名前を確認中",
+            copy.noReference,
+          ])}
+        </div>
+        ${renderIdentificationSummaryPreview(basePath, lang, previewCard, previewReferences, copy)}
+      </section>
+      <section class="identification-summary-bottom">
+        ${renderIdentificationSummaryEvidenceHealth(copy, referenceReadyCards.length, missingEvidenceCount)}
+        ${renderIdentificationSummaryRecentDecisions(lang, ownEntries, copy)}
+        ${renderIdentificationSummaryTeamStatus(copy, cards.length, doneToday)}
+      </section>
+    </main>
+  </div>`;
+}
+
 function renderRecordsWorkbench(
   basePath: string,
   lang: SiteLang,
@@ -14236,6 +14639,351 @@ const RECORDS_WORKBENCH_STYLES = `
     border-color: #047857;
     color: #fff;
   }
+  .records-lazy-footer button:hover { background: #f8fafc; }
+  .records-lazy-footer button[disabled] { cursor: progress; opacity: .72; }
+  .records-lazy-footer span { color: #64748b; font-size: 12px; font-weight: 800; }
+  .records-post-menu { top: 8px; right: 8px; }
+  .identification-summary-topbar .records-actions a { border-radius: 8px; }
+  .identification-summary-topbar .records-actions a.is-primary {
+    min-width: 112px;
+    padding: 0 14px;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .identification-summary-main {
+    width: min(100%, 1360px);
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+    margin: 0 auto;
+    padding: 14px;
+  }
+  .identification-summary-hero {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 16px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .identification-summary-hero div { min-width: 0; display: grid; gap: 5px; }
+  .identification-summary-hero span,
+  .identification-summary-panel-head span {
+    color: #047857;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .identification-summary-hero h1,
+  .identification-summary-panel-head h2,
+  .identification-summary-lane-head h2 {
+    margin: 0;
+    color: #10251a;
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .identification-summary-hero p,
+  .identification-summary-lane-head p,
+  .identification-summary-preview p {
+    margin: 0;
+    color: #475569;
+    font-size: 15px;
+    line-height: 1.6;
+    font-weight: 760;
+  }
+  .identification-summary-primary {
+    min-height: 56px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 18px;
+    border-radius: 8px;
+    background: #064e3b;
+    color: #fff;
+    text-decoration: none;
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .identification-summary-scopes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .identification-summary-scopes button {
+    min-height: 48px;
+    padding: 0 14px;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 950;
+    cursor: pointer;
+  }
+  .identification-summary-scopes button.is-active {
+    background: #10251a;
+    border-color: #10251a;
+    color: #fff;
+  }
+  .identification-summary-metrics {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .identification-summary-metric {
+    min-width: 0;
+    min-height: 112px;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    padding: 13px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .identification-summary-metric strong {
+    color: #10251a;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .identification-summary-metric span {
+    color: #0f172a;
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .identification-summary-metric small,
+  .identification-summary-item small,
+  .identification-summary-item em,
+  .identification-summary-reference-box li span,
+  .identification-summary-health-list small,
+  .identification-summary-decisions span,
+  .identification-summary-team-grid span {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 760;
+  }
+  .identification-summary-work {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .identification-summary-lanes {
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .identification-summary-lane,
+  .identification-summary-preview,
+  .identification-summary-panel {
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .identification-summary-lane-head,
+  .identification-summary-panel-head {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .identification-summary-list {
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .identification-summary-item {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  .identification-summary-item-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+  }
+  .identification-summary-thumb {
+    width: 88px;
+    aspect-ratio: 4 / 3;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: #ecfdf5;
+  }
+  .identification-summary-preview > .identification-summary-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+  }
+  .identification-summary-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+  .identification-summary-thumb.is-empty span {
+    color: #047857;
+    font-size: 13px;
+    font-weight: 950;
+  }
+  .identification-summary-item-body {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .identification-summary-item-body strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 16px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .identification-summary-chips,
+  .identification-summary-preview-tags {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .identification-summary-chips span,
+  .identification-summary-preview-tags span {
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 7px;
+    border-radius: 6px;
+    background: #e0f2fe;
+    color: #075985;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 900;
+  }
+  .identification-summary-open {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.12);
+    color: #10251a;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 950;
+  }
+  .identification-summary-empty {
+    min-height: 76px;
+    display: grid;
+    place-items: center;
+    padding: 12px;
+    border: 1px dashed rgba(15,23,42,.16);
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 850;
+  }
+  .identification-summary-preview {
+    position: sticky;
+    top: 130px;
+  }
+  .identification-summary-reference-box {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #f0f9ff;
+  }
+  .identification-summary-reference-box > strong {
+    color: #075985;
+    font-size: 14px;
+    font-weight: 950;
+  }
+  .identification-summary-reference-box ul {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .identification-summary-reference-box li {
+    display: grid;
+    gap: 2px;
+  }
+  .identification-summary-reference-box li strong {
+    color: #10251a;
+    font-size: 14px;
+    font-weight: 950;
+  }
+  .identification-summary-bottom {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr .8fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .identification-summary-health-list,
+  .identification-summary-decisions,
+  .identification-summary-team-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .identification-summary-health-list div,
+  .identification-summary-decisions div,
+  .identification-summary-team-grid div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    padding: 9px;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  .identification-summary-health-list div {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .identification-summary-health-list strong,
+  .identification-summary-decisions strong,
+  .identification-summary-team-grid strong {
+    color: #10251a;
+    font-size: 15px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .identification-summary-health-list span {
+    color: #047857;
+    font-size: 18px;
+    font-weight: 950;
+  }
+  .identification-summary-health-list small { grid-column: 1 / -1; }
   .records-workbench .notes-library-controls {
     margin-top: 8px;
     display: grid;
@@ -14381,6 +15129,16 @@ const RECORDS_WORKBENCH_STYLES = `
     }
     .records-workbench .notes-library-filter-toggle:checked + .notes-library-filter-label + .notes-library-filters { display: flex; }
     .records-workbench .notes-library-filters button { min-height: 31px; padding: 5px 9px; font-size: 11px; }
+    .identification-summary-main { padding: 8px; }
+    .identification-summary-hero,
+    .identification-summary-work,
+    .identification-summary-bottom {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .identification-summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .identification-summary-metric:last-child { grid-column: 1 / -1; }
+    .identification-summary-preview { position: static; }
+    .identification-summary-primary { width: 100%; }
   }
   @media (max-width: 620px) {
     .records-topbar-brand strong { font-size: 14px; }
@@ -14402,6 +15160,12 @@ const RECORDS_WORKBENCH_STYLES = `
       line-height: var(--ikimon-record-card-meta-line-height);
     }
     .records-workbench .notes-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .identification-summary-scopes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .identification-summary-scopes button { min-height: 48px; padding: 0 8px; }
+    .identification-summary-item { grid-template-columns: minmax(0, 1fr); }
+    .identification-summary-item-main { grid-template-columns: 78px minmax(0, 1fr); }
+    .identification-summary-thumb { width: 78px; }
+    .identification-summary-open { width: 100%; }
   }
   @media (max-width: 480px) {
     .records-post-grid { grid-template-columns: var(--ikimon-record-card-grid-mobile); gap: var(--ikimon-record-card-grid-gap-compact); }
@@ -19764,7 +20528,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         multiSubjectCount: 0,
       },
     } satisfies ObservationListSnapshot;
-    const needsUnionSnapshot = view === "needs_id" || view === "media" || view === "places";
+    const needsUnionSnapshot = view === "identification_summary" || view === "needs_id" || view === "media" || view === "places";
     const [snapshot, observationSnapshot, publicPage] = await Promise.all([
       getLandingSnapshot(viewerUserId),
       needsUnionSnapshot
@@ -19783,25 +20547,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     ).map(publicObservationToLandingObservation);
     const ownEntries = snapshot.viewerUserId ? (ownPage?.entries ?? snapshot.myFeed) : [];
     const activeEntries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
-    const civicContexts = await listCivicObservationContexts(activeEntries.map((obs) => obs.visitId));
+    const [civicContexts, identificationSummaryReferences] = await Promise.all([
+      listCivicObservationContexts(activeEntries.map((obs) => obs.visitId)),
+      view === "identification_summary"
+        ? loadIdentificationSummaryReferences(viewerUserId, activeEntries, lang)
+        : Promise.resolve(new Map<string, ReferenceCandidate[]>()),
+    ]);
     const copy = recordsWorkbenchCopy(lang);
+    const summaryCopy = identificationSummaryCopy(lang);
+    const isIdentificationSummary = view === "identification_summary";
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: copy.title,
-      activeNav: copy.activeNav,
+      title: isIdentificationSummary ? summaryCopy.title : copy.title,
+      activeNav: isIdentificationSummary ? summaryCopy.activeNav : copy.activeNav,
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, `/records?view=${view}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""}`), lang),
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
+      hideGlobalRecordLauncher: isIdentificationSummary,
       hideFooter: true,
-      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, {
-        ownPage,
-        publicPage: publicPage ? { nextCursor: publicPage.nextCursor } : null,
-        canWriteIdentification: Boolean(session),
-        searchQuery,
-      }),
+      body: isIdentificationSummary
+        ? renderIdentificationSummary(basePath, lang, snapshot, publicEntries, identificationSummaryReferences, { ownPage })
+        : renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, {
+          ownPage,
+          publicPage: publicPage ? { nextCursor: publicPage.nextCursor } : null,
+          canWriteIdentification: Boolean(session),
+          searchQuery,
+        }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });
   });
