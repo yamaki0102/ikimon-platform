@@ -4809,16 +4809,28 @@ const START_STATE_STYLES = `
   .record-confidence-item strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
   .record-confidence-item span { display: block; margin-top: 3px; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 750; }
   .start-guide { display: grid; gap: 20px; }
-  .start-guide-panel { max-width: 760px; margin: 0 auto; padding: 24px; border-radius: 24px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.92)); border: 1px solid rgba(16,185,129,.18); }
-  .start-guide-panel h2 { margin: 8px 0; color: #0f172a; }
-  .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
-  .start-guide-browse-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+  .shell-record-start .hero-panel { max-width: 760px; margin-inline: auto; padding: 34px 28px 30px; border-radius: 24px; }
+  .shell-record-start .hero-panel h1 { margin-top: 12px; font-size: clamp(28px, 3.4vw, 42px); line-height: 1.22; letter-spacing: 0; }
+  .shell-record-start .hero-panel p { margin-top: 12px; max-width: 30ch; font-size: 16px; line-height: 1.65; letter-spacing: 0; }
+  .shell-record-start .hero-panel .actions { margin-top: 20px; }
+  .start-guide-panel { max-width: 760px; margin: 0 auto; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.92)); border: 1px solid rgba(16,185,129,.18); }
+  .start-guide-panel h2 { margin: 6px 0; color: #0f172a; font-size: clamp(22px, 2.8vw, 26px); line-height: 1.28; letter-spacing: 0; }
+  .start-guide-panel p { margin: 0; color: #475569; line-height: 1.55; }
+  .start-guide-state-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+  .start-guide-state-chip { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 999px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 13px; line-height: 1; font-weight: 900; }
+  .start-guide-state-dot { width: 8px; height: 8px; border-radius: 999px; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
+  .start-guide-browse-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
   .start-guide-browse-actions .btn { min-height: 40px; padding: 9px 14px; }
-  .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
   .start-guide-actions .btn-solid { min-width: 210px; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
   @media (max-width: 720px) {
     .start-guide { padding-bottom: 24px; }
+    .shell-record-start .hero-panel { padding: 30px 18px 26px; border-radius: 0; }
+    .shell-record-start .hero-panel h1 { font-size: clamp(28px, 9vw, 36px); }
+    .shell-record-start .hero-panel p { max-width: 24ch; line-height: 1.6; }
+    .start-guide-panel { padding: 16px; border-radius: 16px; }
+    .start-guide-actions .btn, .start-guide-browse-actions .btn { flex: 1 1 140px; justify-content: center; }
     .site-footer { padding-bottom: 24px; }
   }
 `;
@@ -4852,6 +4864,8 @@ type RecordStartCopy = {
   dockGallery: string;
   confidenceAria: string;
   confidenceItems: RecordConfidenceItem[];
+  startStateAria: string;
+  startStateItems: string[];
 };
 
 type RecordPageCopy = {
@@ -5073,15 +5087,15 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       footerNote: "写真・動画・メモを先に残し、説明や分類はあとから育てられます。",
       heroEyebrow: "記録入口",
       heroHeading: "記録を始める",
-      heroLead: "分類や長い説明は最初にいりません。写真、動画、場所、時刻、気づいたことを先に残すと、あとからAIのヒントや人の確認を重ねられます。",
+      heroLead: "写真、動画、メモから始められます。名前はあとで大丈夫です。",
       photoAction: "ログインして記録を始める",
       registerAction: "アカウント作成",
       browseAria: "ログインせずに見られる入口",
       mapAction: "地図を見る",
       publicFindsAction: "みんなの発見",
-      panelEyebrow: "保存すると自分に返る",
-      panelHeading: "自分の記録と場所に残ります。",
-      panelBody: "あとで見返す、同じ場所を比べる、AIのヒントを受け取るためにログインします。",
+      panelEyebrow: "保存後",
+      panelHeading: "自分の記録に残ります。",
+      panelBody: "場所と時刻も一緒に残り、あとでヒントを見返せます。",
       noteAction: "メモで始める",
       learnAction: "使い方を読む",
       dockAria: "ログインして残す",
@@ -5095,6 +5109,8 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
         { title: "写真なしでも残せる", body: "メモだけで始められます。" },
         { title: "公開前に確認できる", body: "自分用に保存してから状態を選べます。" },
       ],
+      startStateAria: "保存後の状態",
+      startStateItems: ["場所", "時刻", "あとでヒント"],
     },
     en: {
       title: "Start saving | ikimon",
@@ -5102,15 +5118,15 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       footerNote: "Read the guide when you want more detail.",
       heroEyebrow: "Save the scene",
       heroHeading: "Start with a photo or note",
-      heroLead: "The map and public finds are open to browse. Sign in only when you want to save your own photo, place, and time.",
+      heroLead: "Start with a photo, video, or note. The name can come later.",
       photoAction: "Sign in to save",
       registerAction: "Create account",
       browseAria: "Ways to browse without signing in",
       mapAction: "Open map",
       publicFindsAction: "Public finds",
-      panelEyebrow: "Saved items return to you",
-      panelHeading: "Your places and records stay together.",
-      panelBody: "Sign in when you want to revisit, compare the same place, or choose the public state before sharing.",
+      panelEyebrow: "After saving",
+      panelHeading: "It stays in your records.",
+      panelBody: "Place and time stay with it, and hints can return later.",
       noteAction: "Start with a note",
       learnAction: "Read how it works",
       dockAria: "Sign in and save",
@@ -5124,6 +5140,8 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
         { title: "No photo required", body: "A note can start the entry." },
         { title: "Check before public", body: "Save for yourself, then choose the state." },
       ],
+      startStateAria: "Saved record state",
+      startStateItems: ["Place", "Time", "Later hints"],
     },
     es: {
       title: "Empezar a guardar | ikimon",
@@ -5131,15 +5149,15 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       footerNote: "Lee la guia cuando quieras mas detalle.",
       heroEyebrow: "Guardar el paisaje",
       heroHeading: "Empieza con foto o nota",
-      heroLead: "El mapa y los hallazgos publicos se pueden ver sin cuenta. Entra solo cuando quieras guardar tu foto, lugar y hora.",
+      heroLead: "Empieza con foto, video o nota. El nombre puede venir despues.",
       photoAction: "Entrar para guardar",
       registerAction: "Crear cuenta",
       browseAria: "Entradas para ver sin cuenta",
       mapAction: "Abrir mapa",
       publicFindsAction: "Hallazgos publicos",
-      panelEyebrow: "Lo guardado vuelve a ti",
-      panelHeading: "Tus lugares y registros quedan juntos.",
-      panelBody: "Entra para volver despues, comparar el mismo lugar o elegir el estado publico antes de compartir.",
+      panelEyebrow: "Despues de guardar",
+      panelHeading: "Queda en tus registros.",
+      panelBody: "Lugar y hora quedan juntos, y las pistas pueden llegar despues.",
       noteAction: "Empezar con nota",
       learnAction: "Leer como funciona",
       dockAria: "Entrar y guardar",
@@ -5153,6 +5171,8 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
         { title: "Sin foto tambien", body: "Una nota puede iniciar la entrada." },
         { title: "Revisa antes de publicar", body: "Guarda para ti y luego elige el estado." },
       ],
+      startStateAria: "Estado despues de guardar",
+      startStateItems: ["Lugar", "Hora", "Pistas luego"],
     },
     "pt-BR": {
       title: "Comecar a salvar | ikimon",
@@ -5160,15 +5180,15 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
       footerNote: "Leia o guia quando quiser mais detalhes.",
       heroEyebrow: "Salvar a cena",
       heroHeading: "Comece com foto ou nota",
-      heroLead: "O mapa e os achados publicos ficam abertos para ver. Entre apenas quando quiser salvar sua foto, local e horario.",
+      heroLead: "Comece com foto, video ou nota. O nome pode vir depois.",
       photoAction: "Entrar para salvar",
       registerAction: "Criar conta",
       browseAria: "Entradas para ver sem conta",
       mapAction: "Abrir mapa",
       publicFindsAction: "Achados publicos",
-      panelEyebrow: "O que salva volta para voce",
-      panelHeading: "Seus lugares e registros ficam juntos.",
-      panelBody: "Entre para voltar depois, comparar o mesmo local ou escolher o estado publico antes de compartilhar.",
+      panelEyebrow: "Depois de salvar",
+      panelHeading: "Fica nos seus registros.",
+      panelBody: "Local e horario ficam juntos, e dicas podem chegar depois.",
       noteAction: "Comecar com nota",
       learnAction: "Ler como funciona",
       dockAria: "Entrar e salvar",
@@ -5182,6 +5202,8 @@ function recordStartCopy(lang: SiteLang): RecordStartCopy {
         { title: "Sem foto tambem", body: "Uma nota pode iniciar a entrada." },
         { title: "Revise antes de publicar", body: "Salve para voce e depois escolha o estado." },
       ],
+      startStateAria: "Estado depois de salvar",
+      startStateItems: ["Local", "Horario", "Dicas depois"],
     },
   };
   return localized[lang] ?? localized.ja;
@@ -6247,6 +6269,12 @@ function renderRecordConfidenceStrip(lang: SiteLang): string {
     .join("")}</div>`;
 }
 
+function renderRecordStartStateRow(copy: RecordStartCopy): string {
+  return `<div class="start-guide-state-row" aria-label="${escapeHtml(copy.startStateAria)}">${copy.startStateItems
+    .map((item) => `<span class="start-guide-state-chip"><span class="start-guide-state-dot" aria-hidden="true"></span>${escapeHtml(item)}</span>`)
+    .join("")}</div>`;
+}
+
 function renderRecordFirstSuccess(copy: RecordPageCopy): string {
   return `<div class="record-first-success" aria-label="${escapeHtml(copy.firstSuccessAria)}"><strong>${escapeHtml(copy.firstSuccessLabel)}</strong><ol>${copy.firstSuccessItems
     .map((item) => `<li><span>${escapeHtml(item)}</span></li>`)
@@ -6304,11 +6332,11 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
           <div class="eyebrow">${escapeHtml(copy.panelEyebrow)}</div>
           <h2>${escapeHtml(copy.panelHeading)}</h2>
           <p>${escapeHtml(copy.panelBody)}</p>
+          ${renderRecordStartStateRow(copy)}
           <div class="start-guide-browse-actions" aria-label="${escapeHtml(copy.browseAria)}">
             <a class="btn btn-ghost" href="${escapeHtml(mapHref)}">${escapeHtml(copy.mapAction)}</a>
             <a class="btn btn-ghost" href="${escapeHtml(publicFindsHref)}">${escapeHtml(copy.publicFindsAction)}</a>
           </div>
-          ${renderRecordConfidenceStrip(lang)}
           <div class="start-guide-actions">
             <a class="btn btn-solid" href="${escapeHtml(loginHref)}">${escapeHtml(copy.photoAction)}</a>
             <a class="btn btn-ghost" href="${escapeHtml(memoHref)}">${escapeHtml(copy.noteAction)}</a>
@@ -6319,6 +6347,7 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
       </section>
     </div>`,
     footerNote: copy.footerNote,
+    shellClassName: "shell-record-start",
   });
 }
 
