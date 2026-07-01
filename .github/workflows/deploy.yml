@@ -426,6 +426,25 @@ jobs:
       - name: Record UI C110 marker check
         run: |
           set -euo pipefail
+          launcher_headers="$(mktemp)"
+          launcher_body="$(curl -fsS -D "$launcher_headers" -H 'cache-control: no-store' "https://ikimon.life/?deploy_smoke_record=${GITHUB_SHA}")"
+          if ! grep -qi '^x-ikimon-cloudflare-materialized: original-ui-html' "$launcher_headers"; then
+            echo "Home shell is not served from materialized original UI HTML."
+            cat "$launcher_headers"
+            exit 1
+          fi
+          if [[ "$launcher_body" != *'class="global-record-launcher"'* ]]; then
+            echo "Home shell is missing the mobile record launcher markup."
+            exit 1
+          fi
+          if [[ "$launcher_body" != *"photoDraftRetryDetailId = detailId"* ]]; then
+            echo "Global record launcher shell is missing the C110 saved detail retry marker."
+            exit 1
+          fi
+          if [[ "$launcher_body" == *"String(observationJson.occurrenceId || observationId)"* ]]; then
+            echo "Global record launcher shell still contains the stale C110 fallback marker."
+            exit 1
+          fi
           for record_url in \
             "https://ikimon.life/record?deploy_smoke_record=${GITHUB_SHA}" \
             "https://ikimon.life/ja/record?start=note&deploy_smoke_record=${GITHUB_SHA}"
@@ -437,16 +456,16 @@ jobs:
               cat "$record_headers"
               exit 1
             fi
-            if [[ "$record_body" != *"photoDraftRetryDetailId = detailId"* ]]; then
-              echo "Record shell is missing the C110 saved detail retry marker: $record_url"
+            if [[ "$record_body" != *"記録を始める"* ]]; then
+              echo "Record start guide is missing from materialized HTML: $record_url"
               exit 1
             fi
-            if [[ "$record_body" == *"String(observationJson.occurrenceId || observationId)"* ]]; then
-              echo "Record shell still contains the stale C110 fallback marker: $record_url"
+            if [[ "$record_body" == *'class="global-record-launcher"'* ]]; then
+              echo "Record start guide should not render the mobile global record launcher: $record_url"
               exit 1
             fi
           done
-          echo "Record materialized HTML C110 marker verified."
+          echo "Record materialized HTML and C110 launcher marker verified."
 
       - uses: actions/checkout@v5
 
