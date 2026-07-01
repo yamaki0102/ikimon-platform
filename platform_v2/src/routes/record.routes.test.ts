@@ -518,6 +518,8 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         assert.match(response.body, /アカウント作成/);
         assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dnote/);
         assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto/);
+        assert.doesNotMatch(response.body, /class="global-record-launcher"/);
+        assert.doesNotMatch(response.body, /site-shell has-global-record-launcher/);
         assert.doesNotMatch(response.body, /class="record-capture-dock"/);
         assert.doesNotMatch(response.body, /まず写真を残す/);
         assert.doesNotMatch(response.body, /主役と周囲を分ける/);
