@@ -1549,7 +1549,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </div>
     </div>
 
-    <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
+    <div class="me-map-role-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
       <strong>${escapeHtml(copy.enjoyTitle)}</strong>
       <span>${escapeHtml(copy.enjoyLead)}</span>
     </div>
@@ -9923,7 +9923,7 @@ export const MAP_EXPLORER_STYLES = `
     min-width: 0;
     flex-wrap: nowrap;
   }
-  .me-enjoy-strip {
+  .me-map-role-strip {
     min-height: var(--me-enjoy-h);
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -9936,14 +9936,14 @@ export const MAP_EXPLORER_STYLES = `
     position: relative;
     z-index: 7;
   }
-  .me-enjoy-strip strong {
+  .me-map-role-strip strong {
     color: #065f46;
     font-size: 13px;
     line-height: 1.2;
     font-weight: 950;
     white-space: nowrap;
   }
-  .me-enjoy-strip span {
+  .me-map-role-strip span {
     min-width: 0;
     color: #475569;
     font-size: 12px;
@@ -12987,17 +12987,17 @@ export const MAP_EXPLORER_STYLES = `
       display: none;
     }
     .me-topbar-secondary { grid-column: 2; grid-row: 1; }
-    .me-enjoy-strip {
+    .me-map-role-strip {
       grid-template-columns: 1fr;
       align-content: center;
       gap: 4px;
       padding: 8px 12px;
     }
-    .me-enjoy-strip strong {
+    .me-map-role-strip strong {
       white-space: normal;
       font-size: 12px;
     }
-    .me-enjoy-strip span {
+    .me-map-role-strip span {
       white-space: normal;
       display: block;
       font-size: 11px;

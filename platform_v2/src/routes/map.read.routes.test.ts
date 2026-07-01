@@ -21,7 +21,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /id: 'map:state'/);
     assert.match(html, /me-map-kicker">地域図鑑マップ/);
     assert.doesNotMatch(html, /class="me-map-cues"/);
-    assert.match(html, /class="me-enjoy-strip"/);
+    assert.match(html, /class="me-map-role-strip"/);
     assert.match(html, /近くを見る・振り返る/);
     assert.match(html, /記録を場所から見返す道具/);
     assert.match(html, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;/);
@@ -41,7 +41,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /aria-label="雨雲"/);
     assert.doesNotMatch(html, /class="me-tab me-tab-link"/);
     assert.doesNotMatch(html, /写真カード = 最近の発見/);
-    assert.match(html, /\.me-enjoy-strip/);
+    assert.match(html, /\.me-map-role-strip/);
     assert.doesNotMatch(html, /\.me-map-cues/);
     assert.match(html, /id="me-contribution-panel"/);
     assert.match(html, /\.me-side\[data-tab="results"\] \.me-contribution-panel \{ display: none; \}/);
