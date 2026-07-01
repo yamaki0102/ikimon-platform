@@ -17,8 +17,14 @@ interface D1Database {
 interface R2Bucket {
   put(key: string, value: ReadableStream | ArrayBuffer | string, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
   get(key: string): Promise<R2ObjectBody | null>;
+  head(key: string): Promise<R2Object | null>;
   delete(key: string): Promise<unknown>;
   list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<R2ListResult>;
+}
+
+interface R2Object {
+  size?: number;
+  httpMetadata?: { contentType?: string };
 }
 
 interface R2ObjectBody {
@@ -2223,8 +2229,14 @@ export const worker = {
         return handleOAuthCallback(request, url.searchParams.get("provider"), env);
       }
 
-      if (request.method === "GET" && url.pathname.startsWith("/derived/")) {
-        return getPublicDerivedMedia(url, env);
+      if (url.pathname.startsWith("/derived/")) {
+        if (request.method === "GET" || request.method === "HEAD") {
+          return getPublicDerivedMedia(request, url, env);
+        }
+        return json({ error: "method_not_allowed" }, 405, {
+          allow: "GET, HEAD",
+          "cache-control": "no-store"
+        });
       }
 
       if (request.method === "GET" && url.pathname === "/shadow-smoke/record") {
@@ -18357,19 +18369,39 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
   return `/${langSegment}${pathname}`;
 }
 
-async function getPublicDerivedMedia(url: URL, env: Env): Promise<Response> {
+const PUBLIC_DERIVED_MEDIA_CACHE_CONTROL = "public, max-age=3600";
+const PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL = "private, no-cache, no-store, must-revalidate";
+
+async function getPublicDerivedMedia(request: Request, url: URL, env: Env): Promise<Response> {
   const key = url.pathname.replace(/^\/+/, "");
-  if (!key.startsWith("derived/")) {
-    return json({ error: "not_found" }, 404);
+  if (!key.startsWith("derived/") || key.includes("..") || key.includes("\\") || /%(?:2e|5c)/i.test(key)) {
+    return json({ error: "not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
+  }
+  if (request.method === "HEAD") {
+    const object = await env.ASSET_BUCKET.head(key);
+    if (!object) {
+      return new Response(null, {
+        status: 404,
+        headers: {
+          "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL
+        }
+      });
+    }
+    const headers: Record<string, string> = {
+      "content-type": object.httpMetadata?.contentType ?? "application/octet-stream",
+      "cache-control": PUBLIC_DERIVED_MEDIA_CACHE_CONTROL
+    };
+    if (typeof object.size === "number") headers["content-length"] = String(object.size);
+    return new Response(null, { headers });
   }
   const object = await env.ASSET_BUCKET.get(key);
   if (!object?.body) {
-    return json({ error: "media_not_found" }, 404);
+    return json({ error: "media_not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
   }
   return new Response(object.body, {
     headers: {
       "content-type": object.httpMetadata?.contentType ?? "application/octet-stream",
-      "cache-control": "public, max-age=300"
+      "cache-control": PUBLIC_DERIVED_MEDIA_CACHE_CONTROL
     }
   });
 }
