@@ -757,7 +757,7 @@ interface PublicMapRow {
 }
 
 type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
-const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "audio"];
+const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "audio", "record"];
 const HOME_RECORD_FEED_INITIAL_LIMIT = 36;
 const HOME_RECORD_FEED_MAX_DOM_CARDS = 96;
 const HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS = [2, 6, 10, 14, 18];
@@ -17805,8 +17805,21 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed.is-guest .prototype-record-feed-copy,.prototype-record-feed.is-owner .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
       .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy strong,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
       .prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
-      .prototype-record-feed-empty-media.is-media-audio{background:linear-gradient(135deg,#10251a,#0f766e 46%,#d1fae5)}
-      .prototype-record-feed-empty-media.is-media-video{background:linear-gradient(135deg,#18233a,#1d4ed8 48%,#bae6fd)}
+      .prototype-record-feed-empty-media{position:relative;display:block;width:100%;height:100%;overflow:hidden}
+      .prototype-record-feed-empty-media.is-media-audio{background:radial-gradient(circle at 68% 20%,rgba(209,250,229,.42),transparent 28%),linear-gradient(135deg,#10251a,#0f766e 48%,#d1fae5)}
+      .prototype-record-feed-empty-media.is-media-video{background:radial-gradient(circle at 72% 22%,rgba(186,230,253,.36),transparent 28%),linear-gradient(135deg,#18233a,#1d4ed8 50%,#bae6fd)}
+      .prototype-record-feed-empty-media.is-media-record{background:linear-gradient(135deg,#f8fafc,#dbeafe 52%,#ecfdf5)}
+      .cf-home-media-affordance{position:absolute;inset:0;pointer-events:none}
+      .cf-home-media-affordance.is-audio{display:flex;align-items:center;justify-content:center;gap:7px;padding:0 18%}
+      .cf-home-media-affordance.is-audio span{width:8px;border-radius:999px;background:rgba(255,255,255,.78);box-shadow:0 0 0 1px rgba(15,23,42,.08)}
+      .cf-home-media-affordance.is-audio span:nth-child(1),.cf-home-media-affordance.is-audio span:nth-child(7){height:34px;opacity:.62}
+      .cf-home-media-affordance.is-audio span:nth-child(2),.cf-home-media-affordance.is-audio span:nth-child(6){height:58px;opacity:.8}
+      .cf-home-media-affordance.is-audio span:nth-child(3),.cf-home-media-affordance.is-audio span:nth-child(5){height:84px}
+      .cf-home-media-affordance.is-audio span:nth-child(4){height:116px}
+      .cf-home-media-affordance.is-video::before{content:"";position:absolute;left:50%;top:50%;width:84px;height:84px;transform:translate(-50%,-50%);border-radius:999px;background:rgba(255,255,255,.78);box-shadow:0 18px 40px rgba(2,6,23,.22)}
+      .cf-home-media-affordance.is-video::after{content:"";position:absolute;left:calc(50% - 10px);top:calc(50% - 18px);border-top:18px solid transparent;border-bottom:18px solid transparent;border-left:30px solid #10251a}
+      .cf-home-media-affordance.is-record::before{content:"";position:absolute;left:18%;right:18%;top:26%;bottom:24%;border-radius:18px;background:rgba(255,255,255,.82);box-shadow:0 18px 42px rgba(15,23,42,.12)}
+      .cf-home-media-affordance.is-record::after{content:"";position:absolute;left:27%;right:27%;top:40%;height:54px;background:repeating-linear-gradient(180deg,rgba(15,23,42,.24) 0 2px,transparent 2px 16px)}
       .prototype-record-feed-media-icons{display:inline-flex;align-items:center;gap:5px}
       .prototype-record-feed-media-icons .prototype-content-icon{width:14px;height:14px}
       .cf-home-feed-sentinel{width:1px;height:1px}
@@ -18159,7 +18172,7 @@ function renderHomeRecordCard(
   const title = homeRecordDisplayTitle(item, copy, lang);
   const image = item.photoUrl
     ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
-    : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true"></span>`;
+    : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true">${renderHomeRecordEmptyMediaAffordance(item.mediaKind)}</span>`;
   const observedLabel = formatHomeRecordObservedAt(item.observedAt, lang);
   const metaLabel = source === "public" ? observedLabel : [copy.placeContext, observedLabel].filter(Boolean).join(" · ");
   return `<article class="prototype-record-feed-card is-media-${escapeHtml(item.mediaKind)}" data-media-kind="${escapeHtml(item.mediaKind)}" data-record-feed-card data-cloudflare-home-record data-cloudflare-home-record-id="${escapeHtml(item.visitId)}"${source === "owner" ? " data-cloudflare-owner-home-record" : " data-cloudflare-public-home-record"}>
@@ -18174,6 +18187,19 @@ function renderHomeRecordCard(
       </span>
     </a>
   </article>`;
+}
+
+function renderHomeRecordEmptyMediaAffordance(mediaKind: HomeRecordMediaKind): string {
+  if (mediaKind === "audio") {
+    return `<span class="cf-home-media-affordance is-audio" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>`;
+  }
+  if (mediaKind === "video") {
+    return `<span class="cf-home-media-affordance is-video" aria-hidden="true"></span>`;
+  }
+  if (mediaKind === "record") {
+    return `<span class="cf-home-media-affordance is-record" aria-hidden="true"></span>`;
+  }
+  return "";
 }
 
 function homeRecordDisplayTitle(
@@ -18191,25 +18217,25 @@ function homeRecordUntitledLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "e
       photo: "写真の記録",
       video: "動画の記録",
       audio: "音の記録",
-      record: "記録"
+      record: "メモの記録"
     },
     en: {
       photo: "Photo record",
       video: "Video record",
       audio: "Sound record",
-      record: "Record"
+      record: "Memo record"
     },
     es: {
       photo: "Registro de foto",
       video: "Registro de video",
       audio: "Registro de sonido",
-      record: "Registro"
+      record: "Registro de nota"
     },
     "pt-br": {
       photo: "Registro de foto",
       video: "Registro de video",
       audio: "Registro de som",
-      record: "Registro"
+      record: "Registro de nota"
     }
   };
   return labels[lang]?.[mediaKind] || labels.en[mediaKind];
@@ -18237,14 +18263,14 @@ function homeRecordMediaLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" 
       photo: "写真",
       video: "動画",
       audio: "音",
-      record: "記録"
+      record: "メモ"
     }[mediaKind];
   }
   return {
     photo: "Photo",
     video: "Video",
     audio: "Sound",
-    record: "Record"
+    record: "Memo"
   }[mediaKind];
 }
 

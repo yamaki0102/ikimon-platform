@@ -16937,6 +16937,8 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /ensureVisibleCards\(\);/);
   assert.match(homeBody, /prototype-record-feed-media-icons/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
+  assert.match(homeBody, /cf-home-media-affordance is-audio/);
+  assert.match(homeBody, /\.cf-home-media-affordance\.is-audio/);
   assert.match(homeBody, /aria-label="音"/);
   assert.match(homeBody, /prototype-record-feed-badges"><span>地域の記録<\/span>/);
   assert.match(homeBody, /prototype-record-feed-badges"><span>季節の記録<\/span>/);
@@ -17118,6 +17120,8 @@ test("production home keeps the newest card first while surfacing repeat video s
   assert.match(homeBody, /data-home-record-media-filter="all"/);
   assert.match(homeBody, /data-home-record-media-filter="photo"/);
   assert.match(homeBody, /data-home-record-media-filter="video"/);
+  assert.match(homeBody, /cf-home-media-affordance is-video/);
+  assert.match(homeBody, /\.cf-home-media-affordance\.is-video::before/);
   assert.doesNotMatch(homeBody, /data-home-record-media-filter="new"|新しい/);
 });
 
@@ -17199,6 +17203,7 @@ test("staging audio upload route creates a real public audio home card state", a
   assert.match(homeBody, /staging-clean-audio-card/);
   assert.match(homeBody, /data-media-kind="audio"/);
   assert.match(homeBody, /prototype-record-feed-empty-media is-media-audio/);
+  assert.match(homeBody, /cf-home-media-affordance is-audio/);
   assert.match(homeBody, /prototype-content-icon is-audio/);
   assert.match(homeBody, /aria-label="音"/);
   assert.doesNotMatch(homeBody, /<div class="cf-home-record-media-nav" data-home-record-media-nav/);
@@ -17277,24 +17282,26 @@ test("production home prioritizes signed-in owner records over public feed recor
     });
     const extraOwnerObservation = obs.observations.get(observationId);
     if (extraOwnerObservation) extraOwnerObservation.visibility = "private";
-    obs.assets.set(assetId, {
-      asset_id: assetId,
-      draft_id: `draft-${assetId}`,
-      observation_id: observationId,
-      owner_user_id: "owner-home-user",
-      object_key: `original/${observationId}/owner-real.jpg`,
-      partition_month: "2026-06",
-      sha256: `${assetId}-sha`,
-      mime: "image/jpeg",
-      bytes: 1234,
-      processing_state: "uploaded",
-      public_derivative_key: `derived/import/202606${day}/observation_photo/${assetId}/display.webp`,
-      public_derivative_sha256: `${assetId}-derivative-sha`,
-      public_derivative_verified_at: `2026-06-${day}T09:10:00.000Z`,
-      public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
-      exif_scrub_state: "scrubbed",
-      public_ready_at: null
-    });
+    if (index !== 10) {
+      obs.assets.set(assetId, {
+        asset_id: assetId,
+        draft_id: `draft-${assetId}`,
+        observation_id: observationId,
+        owner_user_id: "owner-home-user",
+        object_key: `original/${observationId}/owner-real.jpg`,
+        partition_month: "2026-06",
+        sha256: `${assetId}-sha`,
+        mime: "image/jpeg",
+        bytes: 1234,
+        processing_state: "uploaded",
+        public_derivative_key: `derived/import/202606${day}/observation_photo/${assetId}/display.webp`,
+        public_derivative_sha256: `${assetId}-derivative-sha`,
+        public_derivative_verified_at: `2026-06-${day}T09:10:00.000Z`,
+        public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+        exif_scrub_state: "scrubbed",
+        public_ready_at: null
+      });
+    }
   }
 
   env.OBS_DB.publicMapSnapshotRecords.push({
@@ -17345,6 +17352,12 @@ test("production home prioritizes signed-in owner records over public feed recor
   assert.equal(homeResponse.status, 200);
   assert.match(homeBody, /data-cloudflare-owner-home-record/);
   assert.match(homeBody, /prototype-record-feed is-owner/);
+  assert.match(homeBody, /data-home-record-media-filter="record"/);
+  assert.match(homeBody, />メモ<\/span><\/button>/);
+  assert.match(homeBody, /data-media-kind="record"/);
+  assert.match(homeBody, /prototype-record-feed-empty-media is-media-record/);
+  assert.match(homeBody, /cf-home-media-affordance is-record/);
+  assert.match(homeBody, /aria-label="メモ"/);
   assert.match(homeBody, /自分だけの最新記録/);
   assert.match(homeBody, /自分の追加記録10/);
   assert.match(homeBody, /自分の記録/);
