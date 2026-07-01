@@ -89,6 +89,7 @@ interface Env {
   ORIGIN_FALLBACK_RESOLVE_OVERRIDE?: string;
   PUBLIC_WRITE_MODE?: string;
   PUBLIC_CUSTOM_DOMAIN_ORIGIN_FALLBACK_MODE?: string;
+  PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE?: string;
   ORIGIN_SESSION_IMPORT_MODE?: string;
   V2_PRIVILEGED_WRITE_API_KEY?: string;
   CONTACT_FORM_SECRET?: string;
@@ -2227,6 +2228,16 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/oauth_callback.php") {
         return handleOAuthCallback(request, url.searchParams.get("provider"), env);
+      }
+
+      if (url.pathname.startsWith("/derived-transform/")) {
+        if (request.method === "GET" || request.method === "HEAD") {
+          return getPublicDerivedImageTransform(request, url);
+        }
+        return json({ error: "method_not_allowed" }, 405, {
+          allow: "GET, HEAD",
+          "cache-control": "no-store"
+        });
       }
 
       if (url.pathname.startsWith("/derived/")) {
@@ -17796,7 +17807,10 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: "ja" | "en" | "es" | "pt-br" = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
   const firstImageIndex = feedCards.findIndex((card) => Boolean(card.item.photoUrl));
-  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source, lang, index === firstImageIndex)).join("");
+  const responsiveImageTransformsEnabled = env.PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE === "enabled";
+  const cards = feedCards
+    .map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source, lang, index === firstImageIndex, responsiveImageTransformsEnabled))
+    .join("");
   const mediaNav = renderHomeRecordMediaNav(feedCards.map((card) => card.item.mediaKind), lang);
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
@@ -18182,14 +18196,17 @@ function renderHomeRecordCard(
   index: number,
   source: "owner" | "public" = "public",
   lang: "ja" | "en" | "es" | "pt-br" = "ja",
-  priorityImage = false
+  priorityImage = false,
+  responsiveImageTransformsEnabled = false
 ): string {
   const href = `/observations/${encodeURIComponent(item.visitId)}`;
   const title = homeRecordDisplayTitle(item, copy, lang);
   const priority = priorityImage ? ` fetchpriority="high"` : "";
   const imageLoading = index < 2 || priorityImage ? "eager" : "lazy";
+  const imageSrcset = responsiveImageTransformsEnabled && item.photoUrl ? publicDerivedImageSrcset(item.photoUrl) : "";
+  const responsiveAttrs = imageSrcset ? ` srcset="${imageSrcset}" sizes="(max-width: 640px) 100vw, 680px"` : "";
   const image = item.photoUrl
-    ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="" loading="${imageLoading}"${priority} decoding="async">`
+    ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}"${responsiveAttrs} alt="" loading="${imageLoading}"${priority} decoding="async">`
     : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true">${renderHomeRecordEmptyMediaAffordance(item.mediaKind)}</span>`;
   const observedLabel = formatHomeRecordObservedAt(item.observedAt, lang);
   const metaLabel = source === "public" ? observedLabel : [copy.placeContext, observedLabel].filter(Boolean).join(" · ");
@@ -18371,6 +18388,91 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
 
 const PUBLIC_DERIVED_MEDIA_CACHE_CONTROL = "public, max-age=3600";
 const PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL = "private, no-cache, no-store, must-revalidate";
+const PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS = new Set([360, 680, 1020, 1360]);
+
+type CloudflareImageFetchInit = RequestInit & {
+  cf?: {
+    image?: {
+      fit?: "scale-down";
+      format?: "auto";
+      quality?: number;
+      width?: number;
+    };
+  };
+};
+
+function parsePublicDerivedImageTransformPath(pathname: string): { width: number; key: string } | null {
+  const match = pathname.match(/^\/derived-transform\/w(\d+)\/(.+)$/);
+  if (!match?.[1] || !match[2]) return null;
+  const width = Number(match[1]);
+  const key = match[2];
+  if (!PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS.has(width)) return null;
+  if (!isSafePublicDerivedImageKey(key)) return null;
+  return { width, key };
+}
+
+function isSafePublicDerivedImageKey(key: string): boolean {
+  if (!key.startsWith("derived/") || !key.endsWith("/display.webp")) return false;
+  if (key.includes("..") || key.includes("\\") || key.includes("//") || key.includes("%")) return false;
+  return !/[\u0000-\u001f\u007f]/.test(key);
+}
+
+function publicDerivedImageTransformUrl(photoUrl: string, width: number): string | null {
+  const key = photoUrl.replace(/^\/+/, "");
+  if (!PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS.has(width) || !isSafePublicDerivedImageKey(key)) return null;
+  return `/derived-transform/w${width}/${key}`;
+}
+
+function publicDerivedImageSrcset(photoUrl: string): string {
+  const candidates = Array.from(PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS)
+    .map((width) => {
+      const url = publicDerivedImageTransformUrl(photoUrl, width);
+      return url ? `${escapeHtml(url)} ${width}w` : null;
+    })
+    .filter((value): value is string => Boolean(value));
+  return candidates.join(", ");
+}
+
+async function getPublicDerivedImageTransform(request: Request, url: URL): Promise<Response> {
+  const parsed = parsePublicDerivedImageTransformPath(url.pathname);
+  if (!parsed) {
+    return json({ error: "not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
+  }
+
+  const sourceUrl = new URL(`/${parsed.key}`, url.origin);
+  const accept = request.headers.get("accept") ?? "image/avif,image/webp,image/*,*/*";
+  const response = await fetch(sourceUrl.toString(), {
+    method: request.method,
+    headers: { accept },
+    cf: {
+      image: {
+        fit: "scale-down",
+        format: "auto",
+        quality: 82,
+        width: parsed.width
+      }
+    }
+  } as CloudflareImageFetchInit);
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", response.ok ? PUBLIC_DERIVED_MEDIA_CACHE_CONTROL : PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL);
+  headers.set("vary", "Accept");
+  headers.set("x-ikimon-image-transform", "cloudflare");
+  headers.set("x-ikimon-image-transform-width", String(parsed.width));
+  const resized = response.headers.get("cf-resized");
+  if (resized) headers.set("x-ikimon-image-transform-result", resized);
+  if (request.method === "HEAD") {
+    return new Response(null, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
 
 async function getPublicDerivedMedia(request: Request, url: URL, env: Env): Promise<Response> {
   const key = url.pathname.replace(/^\/+/, "");

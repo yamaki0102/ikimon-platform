@@ -16248,6 +16248,73 @@ test("production public derived media uses bounded cache headers and HEAD withou
   }
 });
 
+test("production public derived image transform route is bounded and copy-free", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const fetchCalls: Array<{ input: unknown; init: RequestInit & { cf?: { image?: { width?: number; fit?: string; format?: string; quality?: number } } } }> = [];
+  globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
+    fetchCalls.push({ input, init: init as RequestInit & { cf?: { image?: { width?: number; fit?: string; format?: string; quality?: number } } } });
+    return new Response("tiny-webp", {
+      status: 200,
+      headers: {
+        "content-type": "image/webp",
+        "cf-resized": "internal=ok"
+      }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/derived-transform/w680/derived/import/20260615/observation_photo/asset-public-cache/display.webp", {
+      headers: { accept: "image/avif,image/webp" }
+    }), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "tiny-webp");
+    assert.equal(response.headers.get("cache-control"), "public, max-age=3600");
+    assert.equal(response.headers.get("vary"), "Accept");
+    assert.equal(response.headers.get("x-ikimon-image-transform"), "cloudflare");
+    assert.equal(response.headers.get("x-ikimon-image-transform-width"), "680");
+    assert.equal(response.headers.get("x-ikimon-image-transform-result"), "internal=ok");
+    assert.equal(String(fetchCalls[0]?.input), "https://ikimon.life/derived/import/20260615/observation_photo/asset-public-cache/display.webp");
+    assert.equal(fetchCalls[0]?.init.method, "GET");
+    assert.equal(fetchCalls[0]?.init.cf?.image?.width, 680);
+    assert.equal(fetchCalls[0]?.init.cf?.image?.fit, "scale-down");
+    assert.equal(fetchCalls[0]?.init.cf?.image?.format, "auto");
+    assert.equal(fetchCalls[0]?.init.cf?.image?.quality, 82);
+
+    const headResponse = await worker.fetch(new Request("https://ikimon.life/derived-transform/w360/derived/import/20260615/observation_photo/asset-public-cache/display.webp", {
+      method: "HEAD"
+    }), productionEnv);
+    assert.equal(headResponse.status, 200);
+    assert.equal(await headResponse.text(), "");
+    assert.equal(fetchCalls[1]?.init.method, "HEAD");
+    assert.equal(fetchCalls[1]?.init.cf?.image?.width, 360);
+
+    const invalidWidthResponse = await worker.fetch(new Request("https://ikimon.life/derived-transform/w999/derived/import/20260615/observation_photo/asset-public-cache/display.webp"), productionEnv);
+    assert.equal(invalidWidthResponse.status, 404);
+    assert.equal(invalidWidthResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+
+    const encodedSeparatorResponse = await worker.fetch(new Request("https://ikimon.life/derived-transform/w680/derived/import%5cprivate/display.webp"), productionEnv);
+    assert.equal(encodedSeparatorResponse.status, 404);
+    assert.equal(encodedSeparatorResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+
+    const methodResponse = await worker.fetch(new Request("https://ikimon.life/derived-transform/w680/derived/import/20260615/observation_photo/asset-public-cache/display.webp", {
+      method: "POST"
+    }), productionEnv);
+    assert.equal(methodResponse.status, 405);
+    assert.equal(methodResponse.headers.get("allow"), "GET, HEAD");
+    assert.equal(methodResponse.headers.get("cache-control"), "no-store");
+    assert.equal(fetchCalls.length, 2);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production legacy observation thumbnails resolve to public derivatives without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
@@ -16981,6 +17048,8 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /record-awaiting-photo-materialized/);
   assert.match(homeBody, /<strong>写真の記録<\/strong>/);
   assert.match(homeBody, /<img class="prototype-record-feed-media"[^>]+alt=""/);
+  assert.doesNotMatch(homeBody, /srcset="\/derived-transform\//);
+  assert.doesNotMatch(homeBody, /sizes="\(max-width: 640px\) 100vw, 680px"/);
   assert.match(homeBody, /<img class="prototype-record-feed-media"[^>]+loading="eager" fetchpriority="high" decoding="async"/);
   assert.match(homeBody, /prototype-record-feed-card\.is-media-photo \.prototype-record-feed-media-wrap\{background:radial-gradient/);
   assert.match(homeBody, /\.prototype-record-feed-media\{display:block;width:100%;height:100%;object-fit:cover\}/);
@@ -17031,6 +17100,15 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.doesNotMatch(homeBody, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(homeBody, /is-preview/);
   assert.doesNotMatch(homeBody, /cell:34\.81,137\.73/);
+
+  const responsiveHomeResponse = await worker.fetch(new Request("https://ikimon.life/ja/"), {
+    ...productionEnv,
+    PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE: "enabled"
+  });
+  const responsiveHomeBody = await responsiveHomeResponse.text();
+  assert.equal(responsiveHomeResponse.status, 200);
+  assert.match(responsiveHomeBody, /<img class="prototype-record-feed-media"[^>]+srcset="\/derived-transform\/w360\/derived\/.+? 360w, \/derived-transform\/w680\/derived\/.+? 680w, \/derived-transform\/w1020\/derived\/.+? 1020w, \/derived-transform\/w1360\/derived\/.+? 1360w"/);
+  assert.match(responsiveHomeBody, /sizes="\(max-width: 640px\) 100vw, 680px"/);
 
   const englishHome = await worker.fetch(new Request("https://ikimon.life/en/"), productionEnv);
   assert.match(await englishHome.text(), /<strong>Photo record<\/strong>/);
