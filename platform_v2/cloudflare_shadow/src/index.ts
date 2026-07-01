@@ -17783,7 +17783,8 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
   if (feedCards.length === 0) return html;
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: "ja" | "en" | "es" | "pt-br" = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
-  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source, lang)).join("");
+  const firstImageIndex = feedCards.findIndex((card) => Boolean(card.item.photoUrl));
+  const cards = feedCards.map((card, index) => renderHomeRecordCard(card.item, card.copy, index, card.source, lang, index === firstImageIndex)).join("");
   const mediaNav = renderHomeRecordMediaNav(feedCards.map((card) => card.item.mediaKind), lang);
   let next = html
     .replace(/<div class="prototype-record-feed-head">[\s\S]*?<\/div>\s*(?=<div class="prototype-record-feed-list">)/, "")
@@ -17805,6 +17806,8 @@ async function injectHomeObservationRecords(html: string, session: SessionSnapsh
       .prototype-record-feed.is-guest .prototype-record-feed-copy,.prototype-record-feed.is-owner .prototype-record-feed-copy{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 16px;background:linear-gradient(180deg,transparent,rgba(2,6,23,.74))}
       .prototype-record-feed.is-guest .prototype-record-feed-copy strong,.prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy strong,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.32)}
       .prototype-record-feed.is-guest .prototype-record-feed-copy span,.prototype-record-feed.is-owner .prototype-record-feed-copy span{color:rgba(255,255,255,.84)}
+      .prototype-record-feed-card.is-media-photo .prototype-record-feed-media-wrap{background:radial-gradient(circle at 68% 18%,rgba(250,204,21,.18),transparent 28%),radial-gradient(circle at 22% 78%,rgba(20,184,166,.18),transparent 30%),linear-gradient(135deg,#e8f5ec,#cfe4d8 48%,#edf7f2)}
+      .prototype-record-feed-media{display:block;width:100%;height:100%;object-fit:cover}
       .prototype-record-feed-empty-media{position:relative;display:block;width:100%;height:100%;overflow:hidden}
       .prototype-record-feed-empty-media.is-media-audio{background:radial-gradient(circle at 68% 20%,rgba(209,250,229,.42),transparent 28%),linear-gradient(135deg,#10251a,#0f766e 48%,#d1fae5)}
       .prototype-record-feed-empty-media.is-media-video{background:radial-gradient(circle at 72% 22%,rgba(186,230,253,.36),transparent 28%),linear-gradient(135deg,#18233a,#1d4ed8 50%,#bae6fd)}
@@ -18166,12 +18169,15 @@ function renderHomeRecordCard(
   copy: ReturnType<typeof recordsInjectionCopy>,
   index: number,
   source: "owner" | "public" = "public",
-  lang: "ja" | "en" | "es" | "pt-br" = "ja"
+  lang: "ja" | "en" | "es" | "pt-br" = "ja",
+  priorityImage = false
 ): string {
   const href = `/observations/${encodeURIComponent(item.visitId)}`;
   const title = homeRecordDisplayTitle(item, copy, lang);
+  const priority = priorityImage ? ` fetchpriority="high"` : "";
+  const imageLoading = index < 2 || priorityImage ? "eager" : "lazy";
   const image = item.photoUrl
-    ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="" loading="${index < 2 ? "eager" : "lazy"}" decoding="async">`
+    ? `<img class="prototype-record-feed-media" src="${escapeHtml(item.photoUrl)}" alt="" loading="${imageLoading}"${priority} decoding="async">`
     : `<span class="prototype-record-feed-empty-media is-media-${escapeHtml(item.mediaKind)}" aria-hidden="true">${renderHomeRecordEmptyMediaAffordance(item.mediaKind)}</span>`;
   const observedLabel = formatHomeRecordObservedAt(item.observedAt, lang);
   const metaLabel = source === "public" ? observedLabel : [copy.placeContext, observedLabel].filter(Boolean).join(" · ");

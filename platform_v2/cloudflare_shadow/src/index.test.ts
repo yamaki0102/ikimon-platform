@@ -16920,6 +16920,9 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /record-awaiting-photo-materialized/);
   assert.match(homeBody, /<strong>写真の記録<\/strong>/);
   assert.match(homeBody, /<img class="prototype-record-feed-media"[^>]+alt=""/);
+  assert.match(homeBody, /<img class="prototype-record-feed-media"[^>]+loading="eager" fetchpriority="high" decoding="async"/);
+  assert.match(homeBody, /prototype-record-feed-card\.is-media-photo \.prototype-record-feed-media-wrap\{background:radial-gradient/);
+  assert.match(homeBody, /\.prototype-record-feed-media\{display:block;width:100%;height:100%;object-fit:cover\}/);
   assert.doesNotMatch(homeBody, /<strong>同定待ち<\/strong>/);
   assert.match(homeBody, /\/derived\/.+\/display\.webp/);
   assert.match(homeBody, /asset-record-live-real-derivative/);
@@ -17122,6 +17125,8 @@ test("production home keeps the newest card first while surfacing repeat video s
   assert.match(homeBody, /data-home-record-media-filter="video"/);
   assert.match(homeBody, /cf-home-media-affordance is-video/);
   assert.match(homeBody, /\.cf-home-media-affordance\.is-video::before/);
+  assert.match(homeBody, /fetchpriority="high"/);
+  assert.match(homeBody, /prototype-record-feed-card\.is-media-photo \.prototype-record-feed-media-wrap\{background:radial-gradient/);
   assert.doesNotMatch(homeBody, /data-home-record-media-filter="new"|新しい/);
 });
 
