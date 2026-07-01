@@ -147,10 +147,13 @@ test("landing top empty state does not render sample images", () => {
 
   assert.doesNotMatch(html, /sample_/);
   assert.doesNotMatch(html, /\/uploads\/sample_/);
-  assert.doesNotMatch(html, /prototype-topa" aria-labelledby="landing-hero-heading"/);
+  assert.match(html, /prototype-topa" aria-labelledby="prototype-topa-heading"/);
+  assert.match(html, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
   assert.doesNotMatch(html, /今日のikimon\.life/);
   assert.doesNotMatch(html, /今日見つけた生きものを、名前が分からなくても残せる。/);
   assert.doesNotMatch(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
+  assert.doesNotMatch(html, /landing:topA:primary:record/);
+  assert.doesNotMatch(html, /ぽち/);
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
   assert.match(html, /data-record-feed/);
   assert.match(html, /prototype-record-feed[^"]*is-guest/);
@@ -159,10 +162,9 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /みんなの記録/);
   assert.doesNotMatch(html, /ログイン/);
   assert.doesNotMatch(html, /data-kpi-action="landing:record_feed:weak_record"/);
-  assert.doesNotMatch(html, /名前を確かめる/);
-  assert.doesNotMatch(html, /名前は後でいい/);
-  assert.doesNotMatch(html, /AIは候補まで/);
-  assert.doesNotMatch(html, /位置は安全側/);
+  assert.match(html, /日常でいい/);
+  assert.match(html, /分類は後でいい/);
+  assert.match(html, /マップは道具/);
   assert.doesNotMatch(html, /aria-label="育つ観察エリア"/);
   assert.doesNotMatch(html, /地域マップ/);
   assert.doesNotMatch(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
@@ -443,11 +445,14 @@ test("landing top keeps guide and scan outputs out of the photo-first content wa
     feed: [guideObservation, alternatePhotoObservation],
   });
 
-  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?モンシロチョウ/);
-  assert.doesNotMatch(html, /スキャンだけの候補/);
-  assert.doesNotMatch(html, /ガイドだけの候補/);
-  assert.doesNotMatch(html, /scan-output/);
-  assert.doesNotMatch(html, /guide-output/);
+  const mineLane = html.match(/<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<\/section>/)?.[0] ?? "";
+  const communityLane = html.match(/<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<\/section>/)?.[0] ?? "";
+
+  assert.match(mineLane, /モンシロチョウ/);
+  assert.doesNotMatch(mineLane, /スキャンだけの候補/);
+  assert.doesNotMatch(communityLane, /ガイドだけの候補/);
+  assert.doesNotMatch(mineLane, /scan-output/);
+  assert.doesNotMatch(communityLane, /guide-output/);
 });
 
 test("landing top gives signed-in own and community posts two desktop rows each", () => {
@@ -578,8 +583,8 @@ test("landing top does not show contentless own records in the first signed-in l
   });
 
   assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?朝の水音メモ/);
-  assert.doesNotMatch(html, /visit-contentless-own/);
-  assert.doesNotMatch(html, /occ-contentless-own/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine"[^>]*visit-contentless-own/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine"[^>]*occ-contentless-own/);
   assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 1);
 });
 
@@ -613,7 +618,7 @@ test("landing top groups multiple occurrences from the same visit into one conte
   assert.doesNotMatch(html, /<time>/);
 });
 
-test("landing top does not render the signed-in continuation hero above the content wall", () => {
+test("landing top keeps signed-in continuation without making record the primary hero action", () => {
   const html = renderTop({
     ...photoSnapshot,
     viewerUserId: "user-1",
@@ -644,13 +649,12 @@ test("landing top does not render the signed-in continuation hero above the cont
     },
   });
 
-  assert.doesNotMatch(html, /前回の自分から続ける/);
-  assert.doesNotMatch(html, /直近の発見/);
+  assert.match(html, /前回の自分から続ける/);
+  assert.match(html, /直近の発見/);
   assert.match(html, /モンシロチョウ/);
-  assert.doesNotMatch(html, /前回の記録を見る/);
-  assert.doesNotMatch(html, /同じ場所でもう1件/);
-  assert.doesNotMatch(html, /data-kpi-action="landing:story:revisit_record"/);
-  assert.doesNotMatch(html, /data-kpi-funnel="landing_record"/);
+  assert.match(html, /前回の記録を見る/);
+  assert.match(html, /同じ場所でもう1件/);
+  assert.doesNotMatch(html, /landing:topA:primary:record/);
   assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
 });
 
@@ -730,7 +734,7 @@ test("landing top does not render opaque overflow summary cards", () => {
   assert.doesNotMatch(html, /トップでは個別カードを並べすぎず/);
 });
 
-test("landing top keeps local map shelf visible without top daily actions", () => {
+test("landing top keeps local map shelf visible without making record the top action", () => {
   const html = renderTop({
     ...photoSnapshot,
     viewerUserId: "user-1",
@@ -752,7 +756,8 @@ test("landing top keeps local map shelf visible without top daily actions", () =
   assert.doesNotMatch(html, /BioMonWeek/);
   assert.match(html, /地図で見る/);
   assert.doesNotMatch(html, /地図から探す。/);
-  assert.doesNotMatch(html, /landing:topA:primary:revisit/);
+  assert.doesNotMatch(html, /landing:topA:primary:record/);
+  assert.match(html, /landing:topA:primary:revisit/);
 });
 
 test("landing top surfaces active registered places before area map links", () => {

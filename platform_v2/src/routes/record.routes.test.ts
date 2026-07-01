@@ -68,7 +68,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /activityIntent/);
         assert.match(response.body, /participantRole/);
         assert.match(response.body, /revisitObservationId/);
-        assert.match(response.body, /写真で記録する/);
+        assert.match(response.body, /記録を始める/);
+        assert.match(response.body, /写真で記録/);
         assert.match(response.body, /音や様子をメモ/);
         assert.match(response.body, /聞こえた音・周囲の様子・場所を残せます。/);
         assert.match(response.body, /水辺の柵のそば \/ 鳥の声 \/ 草刈り直後/);
@@ -239,7 +240,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.doesNotMatch(response.body, /pendingMediaRetryObservationId = observationId/);
         assert.doesNotMatch(response.body, /const observationId = pendingMediaRetryObservationId \|\| 'record-'/);
         assert.match(response.body, /key: 'revisit_same_place', label: recordUiCopy\.successRevisitCta, primary: false/);
-        assert.match(response.body, /同じ場所でもう1件記録する/);
+        assert.match(response.body, /続けて記録する/);
+        assert.match(response.body, /あとからAIのヒント/);
         assert.match(response.body, /revisitObservationId=/);
         assert.match(response.body, /RECORD_REVISIT_CONTEXT_STORAGE_PREFIX = 'ikimon:record-revisit-context:'/);
         assert.match(response.body, /rememberRevisitContext\(visitId, \{/);
@@ -496,9 +498,10 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         });
 
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /写真・メモから始める/);
-        assert.match(response.body, /ログインして残す/);
-        assert.match(response.body, /地図や公開された発見はこのまま見られます/);
+        assert.match(response.body, /記録を始める/);
+        assert.match(response.body, /ログインして記録を始める/);
+        assert.match(response.body, /分類や長い説明は最初にいりません/);
+        assert.match(response.body, /あとからAIのヒント/);
         assert.match(response.body, /地図を見る/);
         assert.match(response.body, /みんなの発見/);
         assert.match(response.body, /あとで戻れる/);

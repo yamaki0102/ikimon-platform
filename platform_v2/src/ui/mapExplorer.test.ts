@@ -970,13 +970,14 @@ test("Japanese map detail labels avoid service-authored motivation headings", ()
   assert.match(script, /"walkableFindsTitle":"近くの記録"/);
 });
 
-test("map explorer keeps the regional guide label in the header and leaves the map canvas unobstructed", () => {
+test("map explorer keeps the regional guide label and frames the map as a tool", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
   assert.match(html, /me-map-kicker">地域図鑑マップ/);
   assert.match(html, /data-side="rail"/);
   assert.match(html, /aria-expanded="false"/);
-  assert.doesNotMatch(html, /me-enjoy-strip/);
+  assert.match(html, /me-enjoy-strip/);
+  assert.match(html, /近くを見る・振り返る/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
   assert.doesNotMatch(html, /このエリアの活動・ラリー/);
   assert.doesNotMatch(html, /data-testid="map-activity-rally-panel"/);
@@ -1037,10 +1038,12 @@ test("mobile map filters open from the thumb zone above the record launcher", ()
   assert.match(script, /switchMapTab\(t\);[\s\S]*drawer\.removeAttribute\('open'\);/);
 });
 
-test("map explorer does not paint the field-guide title over the map", () => {
+test("map explorer shows the map role without taking over the atlas subject", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
-  assert.doesNotMatch(html, /class="me-enjoy-strip"/);
+  assert.match(html, /class="me-enjoy-strip"/);
+  assert.match(html, /近くを見る・振り返る/);
+  assert.match(html, /記録を場所から見返す道具/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
 });
 

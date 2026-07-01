@@ -170,7 +170,7 @@ test("app sends HSTS in production", async () => {
   }
 });
 
-test("root route serves the record feed home HTML even for generic accept headers", async () => {
+test("root route serves the regional atlas feed home HTML even for generic accept headers", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -181,8 +181,11 @@ test("root route serves the record feed home HTML even for generic accept header
     assert.equal(response.statusCode, 200);
     assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
     assert.doesNotMatch(response.body, /"status":"bootstrapping"/);
-    assert.match(response.body, /<title>ikimon \| 生きものを手がかりに、この場所の今を残す<\/title>/);
+    assert.match(response.body, /<title>みんなで作る地域図鑑 \| ikimon<\/title>/);
+    assert.match(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
     assert.doesNotMatch(response.body, /class="me-enjoy-strip"/);
+    assert.doesNotMatch(response.body, /landing:topA:primary:record/);
+    assert.doesNotMatch(response.body, /ぽち/);
     assert.match(response.body, /data-record-feed/);
     assert.match(response.body, /みんなの記録/);
     assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
