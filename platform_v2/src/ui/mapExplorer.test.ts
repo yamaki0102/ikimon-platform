@@ -976,7 +976,7 @@ test("map explorer keeps the regional guide label and frames the map as a tool",
   assert.match(html, /me-map-kicker">地域図鑑マップ/);
   assert.match(html, /data-side="rail"/);
   assert.match(html, /aria-expanded="false"/);
-  assert.match(html, /me-enjoy-strip/);
+  assert.match(html, /me-map-role-strip/);
   assert.match(html, /近くを見る・振り返る/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
   assert.doesNotMatch(html, /このエリアの活動・ラリー/);
@@ -1041,7 +1041,7 @@ test("mobile map filters open from the thumb zone above the record launcher", ()
 test("map explorer shows the map role without taking over the atlas subject", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
-  assert.match(html, /class="me-enjoy-strip"/);
+  assert.match(html, /class="me-map-role-strip"/);
   assert.match(html, /近くを見る・振り返る/);
   assert.match(html, /記録を場所から見返す道具/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
