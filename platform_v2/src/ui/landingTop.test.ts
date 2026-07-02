@@ -17,6 +17,19 @@ function renderTop(snapshot: LandingSnapshot, lang: "ja" | "en" = "ja"): string 
   })).join("\n");
 }
 
+function extractBetween(html: string, start: string, end: string): string {
+  const startIndex = html.indexOf(start);
+  if (startIndex === -1) {
+    return "";
+  }
+  const endIndex = html.indexOf(end, startIndex);
+  return endIndex === -1 ? html.slice(startIndex) : html.slice(startIndex, endIndex);
+}
+
+function extractContentWall(html: string): string {
+  return extractBetween(html, '<section class="prototype-content-wall"', '<section class="prototype-monitoring-areas"');
+}
+
 const emptySnapshot: LandingSnapshot = {
   viewerUserId: null,
   stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
@@ -381,19 +394,28 @@ test("landing top uses public registered area labels in card metadata", () => {
     },
   });
 
-  assert.match(html, /<small>浜松市 · 浜松城公園<\/small>/);
+  const contentWall = extractContentWall(html);
+  assert.match(contentWall, /<span class="prototype-content-meta">\s*<small>浜松市<\/small><small>4月8日<\/small>/);
   assert.doesNotMatch(html, /浜松城公園 共生エリア/);
+  assert.doesNotMatch(contentWall, /浜松城公園/);
 });
 
-test("landing top keeps observer avatar separate from long area metadata", () => {
-  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author \{[\s\S]*?grid-template-columns: 24px minmax\(0, 1fr\);/);
-  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author-copy \{[\s\S]*?display: grid;/);
-  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author-copy small \{[\s\S]*?display: block;[\s\S]*?max-width: 100%;/);
-  assert.doesNotMatch(LANDING_TOP_STYLES, /\.prototype-content-author-copy \{[\s\S]*?display: contents;/);
-  assert.doesNotMatch(LANDING_TOP_STYLES, /grid-template-columns: 24px minmax\(0, 1fr\) auto;/);
+test("landing top keeps observer identity out of public content cards", () => {
+  const html = renderTop({
+    ...photoSnapshot,
+    feed: [{ ...photoObservation, observerAvatarUrl: "/uploads/avatar.jpg" }],
+  });
+  const contentWall = extractContentWall(html);
+
+  assert.match(contentWall, /prototype-content-meta/);
+  assert.match(contentWall, /prototype-content-reaction/);
+  assert.doesNotMatch(contentWall, /prototype-content-author/);
+  assert.doesNotMatch(contentWall, /prototype-content-avatar/);
+  assert.doesNotMatch(contentWall, /テスト観察者/);
+  assert.doesNotMatch(contentWall, /uploads\/avatar/);
 });
 
-test("landing top renders signed-in own and community posts as thumbnail content", () => {
+test("landing top renders signed-in public posts as thumbnail content with a my-record chip", () => {
   const communityObservation: LandingObservation = {
     ...photoObservation,
     occurrenceId: "occ-community",
@@ -411,31 +433,31 @@ test("landing top renders signed-in own and community posts as thumbnail content
     feed: [{ ...photoObservation, observerAvatarUrl: "/uploads/my-avatar.jpg" }, communityObservation],
   });
 
+  const contentWall = extractContentWall(html);
   assert.match(html, /<section class="prototype-content-wall" aria-label="場所の記録">/);
-  assert.match(html, /prototype-content-lanes is-split/);
-  assert.match(html, /prototype-content-lane is-mine/);
+  assert.doesNotMatch(contentWall, /prototype-content-lanes is-split/);
+  assert.doesNotMatch(contentWall, /prototype-content-lane is-mine/);
   assert.match(html, /prototype-content-lane is-community/);
-  assert.match(html, /<h3>自分の記録<\/h3>/);
   assert.match(html, /<h3>場所の今を残す記録<\/h3>/);
-  assert.match(html, />MY RECORDS<\/span>/);
+  assert.doesNotMatch(contentWall, /<h3>自分の記録<\/h3>/);
+  assert.doesNotMatch(contentWall, />MY RECORDS<\/span>/);
   assert.match(html, />PLACE MEMORY<\/span>/);
-  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=mine" aria-label="自分の記録をもっと見る"/);
+  assert.match(html, /class="prototype-content-filter-chip is-my" href="\/ja\/records\?view=mine" data-media-filter="mine"/);
   assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=public" aria-label="場所の今を残す記録をもっと見る"/);
-  assert.match(html, /data-kpi-action="landing:content_wall:mine:more"/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine:more"/);
   assert.match(html, /data-kpi-action="landing:content_wall:community:more"/);
-  assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
+  assert.doesNotMatch(contentWall, /data-kpi-action="landing:content_wall:mine"/);
   assert.match(html, /data-kpi-action="landing:content_wall:community"/);
-  assert.match(html, /prototype-content-avatar/);
-  assert.match(html, /<img src="\/thumb\/sm\/my-avatar\.jpg" alt="" loading="lazy" decoding="async"/);
-  assert.match(html, /<img src="\/thumb\/sm\/community-avatar\.jpg" alt="" loading="lazy" decoding="async"/);
+  assert.doesNotMatch(contentWall, /prototype-content-avatar/);
+  assert.doesNotMatch(contentWall, /my-avatar/);
+  assert.doesNotMatch(contentWall, /community-avatar/);
   assert.doesNotMatch(html, /prototype-content-icon is-user/);
   assert.doesNotMatch(html, /prototype-content-icon is-globe/);
-  assert.match(html, /モンシロチョウ/);
-  assert.match(html, /ナナホシテントウ/);
-  assert.match(html, /テスト観察者/);
-  assert.match(html, /別の観察者/);
-  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<small>4月8日 · 浜松市<\/small>/);
-  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<small>浜松市<\/small>/);
+  assert.doesNotMatch(contentWall, /モンシロチョウ/);
+  assert.match(contentWall, /ナナホシテントウ/);
+  assert.doesNotMatch(contentWall, /テスト観察者/);
+  assert.doesNotMatch(contentWall, /別の観察者/);
+  assert.match(contentWall, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<small>浜松市<\/small><small>4月8日<\/small>/);
 });
 
 test("landing top keeps guide and scan outputs out of the photo-first content wall", () => {
@@ -459,20 +481,19 @@ test("landing top keeps guide and scan outputs out of the photo-first content wa
     ...photoSnapshot,
     viewerUserId: "user-1",
     myFeed: [scanObservation, { ...photoObservation, observerAvatarUrl: "/uploads/my-avatar.jpg" }],
-    feed: [guideObservation, alternatePhotoObservation],
+    feed: [guideObservation, { ...alternatePhotoObservation, observerUserId: "user-2" }],
   });
 
-  const mineLane = html.match(/<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<\/section>/)?.[0] ?? "";
-  const communityLane = html.match(/<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<\/section>/)?.[0] ?? "";
+  const contentWall = extractContentWall(html);
 
-  assert.match(mineLane, /モンシロチョウ/);
-  assert.doesNotMatch(mineLane, /スキャンだけの候補/);
-  assert.doesNotMatch(communityLane, /ガイドだけの候補/);
-  assert.doesNotMatch(mineLane, /scan-output/);
-  assert.doesNotMatch(communityLane, /guide-output/);
+  assert.match(contentWall, /ナナホシテントウ/);
+  assert.doesNotMatch(contentWall, /スキャンだけの候補/);
+  assert.doesNotMatch(contentWall, /ガイドだけの候補/);
+  assert.doesNotMatch(contentWall, /scan-output/);
+  assert.doesNotMatch(contentWall, /guide-output/);
 });
 
-test("landing top gives signed-in own and community posts two desktop rows each", () => {
+test("landing top gives signed-in public posts two desktop rows and a my-record chip", () => {
   const makeObservation = (index: number, observerUserId: string): LandingObservation => ({
     ...photoObservation,
     occurrenceId: `occ-balanced-${observerUserId}-${index}`,
@@ -490,12 +511,13 @@ test("landing top gives signed-in own and community posts two desktop rows each"
     feed: Array.from({ length: 12 }, (_, index) => makeObservation(index, `user-${index + 2}`)),
   });
 
-  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 12);
+  const contentWall = extractContentWall(html);
+  assert.equal((contentWall.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 0);
   assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
-  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<h3>自分の記録<\/h3>/);
+  assert.doesNotMatch(contentWall, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">/);
   assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?<h3>場所の今を残す記録<\/h3>/);
   assert.doesNotMatch(html, /prototype-content-lane-title">[\s\S]*?<span>\d+<\/span>/);
-  assert.match(html, /href="\/ja\/records\?view=mine"[^>]*>もっと見る<\/a>/);
+  assert.match(html, /class="prototype-content-filter-chip is-my" href="\/ja\/records\?view=mine" data-media-filter="mine"/);
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
 });
 
@@ -585,7 +607,7 @@ test("landing top surfaces available media states before photo overflow", () => 
   assert.doesNotMatch(html, /prototype-record-feed-badges"><span>同じ地域<\/span>/);
 });
 
-test("landing top keeps signed-in fallback records split by owner", () => {
+test("landing top keeps signed-in fallback records public-first", () => {
   const ownObservation: LandingObservation = {
     ...photoObservation,
     occurrenceId: "occ-fallback-own",
@@ -611,13 +633,15 @@ test("landing top keeps signed-in fallback records split by owner", () => {
     feed: [ownObservation, communityObservation],
   });
 
-  assert.match(html, /prototype-content-lanes is-split/);
-  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?自分のfallback記録/);
+  const contentWall = extractContentWall(html);
+  assert.doesNotMatch(contentWall, /prototype-content-lanes is-split/);
+  assert.doesNotMatch(contentWall, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">/);
+  assert.match(html, /class="prototype-content-filter-chip is-my" href="\/ja\/records\?view=mine" data-media-filter="mine"/);
+  assert.doesNotMatch(contentWall, /自分のfallback記録/);
   assert.match(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?みんなのfallback記録/);
-  assert.doesNotMatch(html, /<section class="prototype-content-lane is-community" aria-label="場所の今を残す記録">[\s\S]*?自分のfallback記録/);
 });
 
-test("landing top does not show contentless own records in the first signed-in lane", () => {
+test("landing top does not show contentless own records in the signed-in public wall", () => {
   const contentlessOwnObservation: LandingObservation = {
     ...photoObservation,
     occurrenceId: "occ-contentless-own",
@@ -658,10 +682,13 @@ test("landing top does not show contentless own records in the first signed-in l
     feed: [],
   });
 
-  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?朝の水音メモ/);
-  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine"[^>]*visit-contentless-own/);
-  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine"[^>]*occ-contentless-own/);
-  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 1);
+  const contentWall = extractContentWall(html);
+  assert.match(html, /class="prototype-content-filter-chip is-my" href="\/ja\/records\?view=mine" data-media-filter="mine"/);
+  assert.doesNotMatch(contentWall, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">/);
+  assert.doesNotMatch(contentWall, /朝の水音メモ/);
+  assert.doesNotMatch(contentWall, /visit-contentless-own/);
+  assert.doesNotMatch(contentWall, /occ-contentless-own/);
+  assert.equal((contentWall.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 0);
 });
 
 test("landing top groups multiple occurrences from the same visit into one content card", () => {
@@ -733,7 +760,8 @@ test("landing top keeps signed-in continuation without making record the primary
   assert.doesNotMatch(html, /前回の記録を見る/);
   assert.doesNotMatch(html, /同じ場所でもう1件/);
   assert.doesNotMatch(html, /landing:topA:primary:record/);
-  assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
+  assert.match(html, /class="prototype-content-filter-chip is-my" href="\/ja\/records\?view=mine" data-media-filter="mine"/);
+  assert.doesNotMatch(extractContentWall(html), /data-kpi-action="landing:content_wall:mine"/);
 });
 
 test("landing top renders video items as icon-marked thumbnail content", () => {

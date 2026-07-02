@@ -100,11 +100,21 @@ function landingItemPlaceLabel(item: Pick<LandingTopShelfItem, "publicLocation" 
 }
 
 function landingItemMeta(lang: SiteLang, item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality" | "observedAt" | "observerName"> & { fieldRefs?: PublicAreaFieldRef[] | null }): string {
-  return [item.observerName, landingItemPlaceLabel(item), formatLandingObservedAt(lang, item.observedAt)].filter(Boolean).join(" · ");
+  if (item.publicLocation?.scope === "blurred") return "";
+  return [landingItemPlaceLabel(item), formatLandingObservedAt(lang, item.observedAt)].filter(Boolean).join(" · ");
 }
 
 function observationPlaceLabel(obs: LandingObservation): string {
-  return landingItemPlaceLabel(obs);
+  if (obs.publicLocation?.scope === "blurred") return "";
+  const publicLabel = String(obs.publicLocation?.label || "").trim();
+  const municipality = String(obs.municipality || "").trim();
+  if (publicLabel) return publicLabel;
+  if (municipality) return municipality;
+  return "";
+}
+
+function shouldSuppressPublicCardTimeAndPlace(obs: LandingObservation): boolean {
+  return obs.publicLocation?.scope === "blurred";
 }
 
 function landingObservationMeta(lang: SiteLang, obs: LandingObservation): string {
@@ -262,6 +272,13 @@ type LandingContentWallCopy = {
   communityEmptyTitle: string;
   emptyCta: string;
   allCta: string;
+  filterLabel: string;
+  filterAll: string;
+  filterPhoto: string;
+  filterVideo: string;
+  filterAudio: string;
+  filterMemo: string;
+  myAtlas: string;
 };
 
 function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
@@ -282,6 +299,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "この場所の余白を見つける",
       emptyCta: "近くを見る",
       allCta: "すべて見る",
+      filterLabel: "媒体",
+      filterAll: "すべて",
+      filterPhoto: "写真",
+      filterVideo: "動画",
+      filterAudio: "音",
+      filterMemo: "メモ",
+      myAtlas: "自分",
     },
     en: {
       eyebrow: "WATCH",
@@ -299,6 +323,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "Find the open space in this place",
       emptyCta: "Browse nearby",
       allCta: "See all",
+      filterLabel: "Media",
+      filterAll: "All",
+      filterPhoto: "Photos",
+      filterVideo: "Videos",
+      filterAudio: "Sounds",
+      filterMemo: "Notes",
+      myAtlas: "Mine",
     },
     es: {
       eyebrow: "WATCH",
@@ -316,6 +347,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "Encuentra el espacio abierto de este lugar",
       emptyCta: "Ver cerca",
       allCta: "Ver todo",
+      filterLabel: "Medios",
+      filterAll: "Todo",
+      filterPhoto: "Fotos",
+      filterVideo: "Videos",
+      filterAudio: "Sonidos",
+      filterMemo: "Notas",
+      myAtlas: "Mio",
     },
     "pt-BR": {
       eyebrow: "WATCH",
@@ -333,6 +371,13 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "Encontre o espaco aberto deste lugar",
       emptyCta: "Ver perto",
       allCta: "Ver tudo",
+      filterLabel: "Midia",
+      filterAll: "Tudo",
+      filterPhoto: "Fotos",
+      filterVideo: "Videos",
+      filterAudio: "Sons",
+      filterMemo: "Notas",
+      myAtlas: "Meus",
     },
   };
   return localized[lang] ?? localized.ja;
@@ -448,21 +493,6 @@ function renderLandingContentSubjects(obs: LandingContentWallItem): string {
   return `<span class="prototype-content-subjects" aria-label="${escapeHtml("確度順の観察対象")}"><span>${escapeHtml(second.name)}</span>${restHtml}</span>`;
 }
 
-function renderLandingContentAvatar(obs: LandingContentWallItem): string {
-  const avatarUrl = itemImageUrl({ photoUrl: obs.observerAvatarUrl }, "sm");
-  const fallback = `<span class="prototype-content-avatar-symbol"></span>`;
-  const image = avatarUrl
-    ? `<img src="${escapeHtml(avatarUrl)}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />`
-    : "";
-  return `<span class="prototype-content-avatar" aria-hidden="true">${image}${fallback}</span>`;
-}
-
-function landingContentCardPlaceLine(lang: SiteLang, obs: LandingContentWallItem, placeLabel: string): string {
-  if (obs.contentSource !== "mine") return placeLabel;
-  const observed = formatLandingObservedAt(lang, landingObservationTimestamp(obs));
-  return [observed, placeLabel].filter(Boolean).join(" · ");
-}
-
 type LandingContentMediaKind = "photo" | "video" | "audio" | "memo" | "id" | "record";
 const LANDING_RECORD_FEED_LIMIT = 12;
 const LANDING_RECORD_FEED_MEDIA_ORDER: LandingContentMediaKind[] = ["photo", "video", "audio", "memo"];
@@ -516,6 +546,39 @@ function landingContentMediaLabel(lang: SiteLang, mediaKind: LandingContentMedia
   }[mediaKind];
 }
 
+function renderLandingContentMediaFilter(
+  basePath: string,
+  lang: SiteLang,
+  copy: LandingContentWallCopy,
+  items: LandingContentWallItem[],
+  isSignedIn: boolean,
+): string {
+  const counts = new Map<LandingContentMediaKind, number>();
+  for (const item of items) {
+    const kind = landingContentMediaKind(item);
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  const visibleKinds = (["photo", "video", "audio", "memo"] as const).filter((kind) => (counts.get(kind) ?? 0) > 0);
+  const labels: Record<typeof visibleKinds[number], string> = {
+    photo: copy.filterPhoto,
+    video: copy.filterVideo,
+    audio: copy.filterAudio,
+    memo: copy.filterMemo,
+  };
+  const chips = [
+    `<a class="prototype-content-filter-chip is-active" href="${escapeHtml(landingHref(basePath, lang, "/records?view=public"))}" data-media-filter="all"><span class="prototype-content-filter-dot" aria-hidden="true"></span>${escapeHtml(copy.filterAll)}</a>`,
+    ...visibleKinds.map((kind) => {
+      const href = landingHref(basePath, lang, `/records?view=public&media=${encodeURIComponent(kind === "memo" ? "note" : kind)}`);
+      return `<a class="prototype-content-filter-chip" href="${escapeHtml(href)}" data-media-filter="${escapeHtml(kind === "memo" ? "note" : kind)}"><span class="prototype-content-filter-dot" aria-hidden="true"></span>${escapeHtml(labels[kind])}</a>`;
+    }),
+    isSignedIn
+      ? `<a class="prototype-content-filter-chip is-my" href="${escapeHtml(landingHref(basePath, lang, "/records?view=mine"))}" data-media-filter="mine"><span class="prototype-content-filter-dot" aria-hidden="true"></span>${escapeHtml(copy.myAtlas)}</a>`
+      : "",
+  ].filter(Boolean).join("");
+
+  return `<nav class="prototype-content-filter" aria-label="${escapeHtml(copy.filterLabel)}">${chips}</nav>`;
+}
+
 function renderLandingMediaIconSet(lang: SiteLang, mediaKinds: LandingContentMediaKind[], className: string): string {
   const uniqueKinds = Array.from(new Set(mediaKinds));
   const label = uniqueKinds.map((kind) => landingContentMediaLabel(lang, kind)).join(" / ");
@@ -533,17 +596,19 @@ function renderLandingContentWallCard(
   index: number,
 ): string {
   const href = observationDetailHref(basePath, lang, obs);
-  const title = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, copy.heroPhotoFallback);
-  const placeLabel = observationPlaceLabel(obs) || copy.heroLatestLabel;
-  const placeLine = landingContentCardPlaceLine(lang, obs, placeLabel);
+  const rawTitle = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, "");
+  const title = isPublicCardRealTitle(rawTitle, copy.heroPhotoFallback) ? rawTitle.trim() : "";
+  const suppressTimeAndPlace = shouldSuppressPublicCardTimeAndPlace(obs);
+  const placeLabel = suppressTimeAndPlace ? "" : observationPlaceLabel(obs);
   const mediaKind = landingContentMediaKind(obs);
   const mediaIcon = landingContentIconKind(mediaKind);
   const mediaLabel = landingContentMediaLabel(lang, mediaKind);
   const imageUrl = observationImageUrl(obs, "md");
-  const observerName = obs.observerName || (lang === "ja" ? "観察者" : "Observer");
-  const recordCount = Math.max(obs.contentRecordCount ?? 1, obs.subjectCount ?? 1);
+  const observedAt = suppressTimeAndPlace ? "" : formatLandingObservedAt(lang, obs.observedAt);
+  const titleHtml = title ? `<span class="prototype-content-title-line"><strong>${escapeHtml(title)}</strong>${renderLandingContentSubjects(obs)}</span>` : "";
+  const metaHtml = [placeLabel, observedAt].filter(Boolean).map((item) => `<small>${escapeHtml(item)}</small>`).join("");
   const thumbHtml = imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index < 4 ? "eager" : "lazy"}" decoding="async" />`
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title || placeLabel || copy.heroPhotoFallback)}" loading="${index < 4 ? "eager" : "lazy"}" decoding="async" />`
     : `<span class="prototype-content-empty-thumb" aria-hidden="true"></span>`;
   return `<a class="prototype-content-card is-${escapeHtml(obs.contentSource)} is-media-${escapeHtml(mediaKind)}" href="${escapeHtml(href)}" data-kpi-action="landing:content_wall:${escapeHtml(obs.contentSource)}" data-media-kind="${escapeHtml(mediaKind)}">
     <span class="prototype-content-thumb is-media-${escapeHtml(mediaKind)}">
@@ -553,19 +618,35 @@ function renderLandingContentWallCard(
       </span>
     </span>
     <span class="prototype-content-body">
-      <span class="prototype-content-title-line">
-        <strong>${escapeHtml(title)}</strong>
-        ${renderLandingContentSubjects(obs)}
-      </span>
-      <span class="prototype-content-author">
-        ${renderLandingContentAvatar(obs)}
-        <span class="prototype-content-author-copy">
-          <em>${escapeHtml(observerName)}</em>
-          <small>${escapeHtml(placeLine)}</small>
-        </span>
+      ${titleHtml}
+      <span class="prototype-content-meta">
+        ${metaHtml}
+        <span class="prototype-content-reaction" aria-label="ハート">♡</span>
       </span>
     </span>
   </a>`;
+}
+
+function isPublicCardRealTitle(value: string | null | undefined, fallback: string): boolean {
+  const title = String(value ?? "").trim();
+  if (!title) return false;
+  const blocked = new Set([
+    fallback,
+    "同定待ち",
+    "写真の記録",
+    "動画の記録",
+    "地域の記録",
+    "季節の記録",
+    "Photo record",
+    "Video record",
+    "Local record",
+    "Seasonal record",
+    "Awaiting ID",
+    "Unknown",
+    "Record",
+    "Observation",
+  ].map((item) => item.toLowerCase()));
+  return !blocked.has(title.toLowerCase());
 }
 
 function renderLandingContentWallEmpty(title: string, body: string, href: string, cta: string): string {
@@ -613,25 +694,15 @@ function renderLandingContentWallLane(
 function renderLandingContentWall(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
   const wallCopy = landingContentWallCopy(lang);
-  const mineItems = snapshot.viewerUserId ? landingContentWallItems(snapshot, "mine") : [];
   const communityItems = landingContentWallItems(snapshot, "community");
-  const laneHtml = [
-    snapshot.viewerUserId
-      ? renderLandingContentWallLane(basePath, lang, copy, wallCopy, "mine", mineItems.slice(0, LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT))
-      : "",
-    renderLandingContentWallLane(
-      basePath,
-      lang,
-      copy,
-      wallCopy,
-      "community",
-      communityItems.slice(0, snapshot.viewerUserId ? LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT : LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT),
-    ),
-  ].filter(Boolean).join("");
-  const splitClass = snapshot.viewerUserId ? " is-split" : "";
+  const communityLimit = snapshot.viewerUserId ? LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT : LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT;
+  const visibleCommunityItems = communityItems.slice(0, communityLimit);
+  const filterHtml = renderLandingContentMediaFilter(basePath, lang, wallCopy, visibleCommunityItems, Boolean(snapshot.viewerUserId));
+  const laneHtml = renderLandingContentWallLane(basePath, lang, copy, wallCopy, "community", visibleCommunityItems);
 
   return `<section class="prototype-content-wall" aria-label="${escapeHtml(wallCopy.title)}">
-    <div class="prototype-content-lanes${splitClass}">${laneHtml}</div>
+    ${filterHtml}
+    <div class="prototype-content-lanes">${laneHtml}</div>
   </section>`;
 }
 
@@ -2402,6 +2473,61 @@ export const LANDING_TOP_STYLES = `
     color: #fff;
     border-color: #10251a;
   }
+  .prototype-content-filter {
+    position: sticky;
+    top: calc(var(--ikimon-header-height, 64px) + 8px);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 0 10px;
+    background: linear-gradient(180deg, rgba(249,255,254,.98), rgba(249,255,254,.82));
+    scrollbar-width: none;
+  }
+  .prototype-content-filter::-webkit-scrollbar {
+    display: none;
+  }
+  .prototype-content-filter-chip {
+    min-height: 38px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 13px;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color: #10251a;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 950;
+    text-decoration: none;
+    box-shadow: 0 8px 18px rgba(15,23,42,.045);
+  }
+  .prototype-content-filter-chip.is-active {
+    border-color: #10251a;
+    background: #10251a;
+    color: #fff;
+  }
+  .prototype-content-filter-chip.is-my {
+    margin-left: auto;
+    border-color: rgba(15,118,110,.2);
+    background: #eefaf5;
+    color: #0f4f45;
+  }
+  .prototype-content-filter-dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: .22;
+  }
+  .prototype-content-filter-chip.is-active .prototype-content-filter-dot {
+    background: #36d8bd;
+    opacity: 1;
+    box-shadow: inset 0 0 0 4px #10251a;
+  }
   .prototype-content-wall {
     display: grid;
     gap: 18px;
@@ -2669,6 +2795,39 @@ export const LANDING_TOP_STYLES = `
     line-height: 1;
     font-style: normal;
     font-weight: 950;
+  }
+  .prototype-content-meta {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+  }
+  .prototype-content-meta small {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: var(--ikimon-record-card-meta-size);
+    line-height: var(--ikimon-record-card-meta-line-height);
+    font-weight: 850;
+  }
+  .prototype-content-reaction {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 999px;
+    background: rgba(255,255,255,.74);
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 900;
   }
   .prototype-content-author {
     min-width: 0;
@@ -4367,6 +4526,13 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-story-stats {
       display: none;
     }
+    .prototype-content-filter {
+      top: calc(var(--ikimon-header-height, 62px) + 4px);
+      padding-bottom: 9px;
+    }
+    .prototype-content-filter-chip.is-my {
+      margin-left: 0;
+    }
     .prototype-content-wall { padding: 0; gap: 14px; }
     .prototype-content-lanes { gap: 22px; }
     .prototype-content-lane { gap: 11px; }
@@ -4424,6 +4590,15 @@ export const LANDING_TOP_STYLES = `
       height: 17px;
       padding: 0 4px;
       font-size: 9px;
+    }
+    .prototype-content-meta small {
+      font-size: 9.5px;
+      line-height: 1.2;
+    }
+    .prototype-content-reaction {
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
     }
     .prototype-content-author {
       max-width: 100%;
