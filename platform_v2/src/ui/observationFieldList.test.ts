@@ -51,11 +51,14 @@ test("field list splits first choice into place search and event setup", () => {
   assert.match(html, /いつもの場所に、記録が積み上がる。/);
   assert.match(html, /校庭や庭先は、公開せず自分やグループだけの非公開フィールド/);
   assert.match(html, /公開フィールドを見る/);
+  assert.match(html, /非公開で場所を作る/);
+  assert.doesNotMatch(html, />観察会を作る<\/a>/);
   assert.match(html, /id="field-db-search"/);
   assert.match(html, /一覧から見て、必要なら名前・市町村・都道府県で絞り込めます/);
   assert.doesNotMatch(html, />学校<\/a>/);
   assert.match(html, /href="\/community\/events\/new"/);
   assert.match(html, /<summary class="evt-eyebrow"[^>]*>都道府県で絞り込み<\/summary>/);
+  assert.match(html, /<summary class="evt-eyebrow"[^>]*>どんな場所が公開されるの\?<\/summary>/);
 });
 
 test("field cards keep existing actions while exposing field and event readiness", () => {

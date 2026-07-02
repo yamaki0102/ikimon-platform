@@ -311,7 +311,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(html, /id="me-own-trail-list"/);
   assert.match(html, /自分の撮影/);
   assert.match(html, /自分だけに表示/);
-  assert.match(html, /みんなの写真は場所をぼかして表示/);
+  assert.match(html, /みんなの写真は地点ではなくエリアで表示/);
   assert.match(html, /class="me-map-privacy-strip"/);
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
@@ -327,7 +327,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /function syncViewerOwnedRecordSource\(map\)/);
   assert.match(script, /viewer-owned-observations/);
   assert.match(script, /viewer-owned-observation-dot/);
-  assert.match(script, /record\.isViewerOwned \? '正確' : 'メッシュ内'/);
+  assert.match(script, /record\.isViewerOwned \? '自分だけ正確' : 'おおよその位置'/);
   assert.match(script, /var maxCards = zoom >= 16 \? 36 : \(zoom >= 15 \? 28 : 24\);/);
   assert.match(script, /if \(isFinite\(gridM\) && gridM <= 500\) return 15\.4;/);
   assert.match(script, /data-own-trail-id/);
@@ -741,6 +741,7 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(html, /id="me-layer-hint-jump"[^>]*>見える場所へ<\/button>/);
   assert.match(html, /aria-label="閉じる"/);
   assert.match(html, /class="me-layer-key" aria-label="表示中のレイヤー"/);
+  assert.match(html, /公開記録 \/ エリア表示/);
   assert.match(html, /data-layer-key-item="frontier"/);
   assert.match(html, /まだ少ない場所/);
   assert.match(script, /function layerHintInfo\(tab\)/);

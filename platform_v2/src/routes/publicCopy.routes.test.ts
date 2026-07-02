@@ -417,7 +417,8 @@ test("identification queue is a records workbench tab", async () => {
     assert.match(response.body, /data-records-identify-panel/);
     assert.match(response.body, /data-testid="records-identify-intro"/);
     assert.match(response.body, /名前待ちの記録は今はありません/);
-    assert.match(response.body, /確認が進んでいる状態です/);
+    assert.match(response.body, /今は名前を待つ公開記録が見つかりません/);
+    assert.match(response.body, /名前がつく流れを見返す/);
     assert.match(response.body, /名前を確かめる/);
     assert.equal(recordsPostHrefForView("needs_id", true, "/ja/observations/record-1"), "/ja/observations/record-1#identify");
     assert.equal(recordsPostHrefForView("needs_id", false, "/ja/observations/record-1"), "/ja/observations/record-1");

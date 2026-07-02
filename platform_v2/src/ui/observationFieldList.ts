@@ -145,8 +145,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     <p>公園や散歩道の公開フィールドを見つけ、次も見返せる観察の場所として残す。校庭や庭先は、公開せず自分やグループだけの非公開フィールドとして扱えます。</p>
     <div style="display:flex; flex-wrap:wrap; gap:8px;">
       <a class="evt-btn evt-btn-primary" href="${escapeHtml(heroPrimaryHref)}">${escapeHtml(heroPrimaryLabel)}</a>
-      <a class="evt-btn evt-btn-ghost" href="/map">地図で見る</a>
-      <a class="evt-btn evt-btn-ghost" href="/community/events/new">観察会を作る</a>
+      <a class="evt-btn evt-btn-ghost" href="/community/events/new">非公開で場所を作る</a>
     </div>
   </article>
 
@@ -174,7 +173,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
   </details>
 
   <details style="display:grid; gap:8px; padding:12px; border-radius:8px; border:1px solid var(--evt-line); background:rgba(255,255,255,.82);">
-    <summary class="evt-eyebrow" style="cursor:pointer;">公開ソースの種類</summary>
+    <summary class="evt-eyebrow" style="cursor:pointer;">どんな場所が公開されるの?</summary>
     <p class="evt-lead" style="font-size:12px; margin:0;">自然共生サイト・TSUNAG は公表済みの公開ソース、マイフィールドはログイン後の非公開/グループ用です。</p>
     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${sourceChips}</div>
   </details>

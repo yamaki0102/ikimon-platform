@@ -1068,7 +1068,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "So para voce"
         : "Only you see this";
   const communityBlurLabel = lang === "ja"
-    ? "みんなの写真は場所をぼかして表示"
+    ? "みんなの写真は地点ではなくエリアで表示"
     : lang === "es"
       ? "Community photos are blurred by area"
       : lang === "pt-BR"
@@ -1176,7 +1176,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         : "Visible layer";
   const layerKeyDescriptions = lang === "ja"
     ? {
-        markers: "公開記録 / 位置はぼかし",
+        markers: "公開記録 / エリア表示",
         places: "公開エリア・散策",
         heatmap: "季節の濃淡",
         rain: "雨雲",
@@ -1406,7 +1406,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Buscar nesta área"
         : "Search this area";
   const safetyCue = lang === "ja"
-    ? "公開記録はおおよその位置で表示"
+    ? "公開記録は地点ではなく、おおよそのエリアで表示"
     : lang === "es"
       ? "Los registros publicos usan ubicacion aproximada"
       : lang === "pt-BR"
@@ -2015,7 +2015,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     selectedRoleLead: props.lang === "ja" ? "手がかり" : props.lang === "es" ? "Pistas" : props.lang === "pt-BR" ? "Pistas" : "Clues",
     selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
     selectionPlaceLabel: props.lang === "ja" ? "地図の手がかり" : props.lang === "es" ? "Pistas del mapa" : props.lang === "pt-BR" ? "Pistas do mapa" : "Map clues",
-    awaitingIdLabel: props.lang === "ja" ? "名前待ち" : props.lang === "es" ? "Sin identificar" : props.lang === "pt-BR" ? "Sem identificação" : "Needs name",
+    awaitingIdLabel: props.lang === "ja" ? "名前はあとで確認" : props.lang === "es" ? "Sin identificar" : props.lang === "pt-BR" ? "Sem identificação" : "Needs name",
     aiCandidateLabel: props.lang === "ja" ? "AI候補" : props.lang === "es" ? "Candidato IA" : props.lang === "pt-BR" ? "Candidato de IA" : "AI candidate",
     recentDiscoveryFallback: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgo reciente" : props.lang === "pt-BR" ? "Descoberta recente" : "Recent find",
     discoveryFallback: props.lang === "ja" ? "発見" : props.lang === "es" ? "Hallazgo" : props.lang === "pt-BR" ? "Descoberta" : "Find",
@@ -3839,7 +3839,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       el.type = 'button';
       el.className = 'me-discovery-preview me-community-photo-marker' + (record.photoUrl ? ' has-photo' : '') + (record.isViewerOwned ? ' is-exact' : ' is-grid');
       el.setAttribute('aria-label', recordDisplayName(record, COPY.recentDiscoveryFallback) + COPY.openDiscoverySuffix);
-      var placementBadge = record.isViewerOwned ? '正確' : 'メッシュ内';
+      var placementBadge = record.isViewerOwned ? '自分だけ正確' : 'おおよその位置';
       el.innerHTML = record.photoUrl
         ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span><em>' + escapeHtml(placementBadge) + '</em>'
         : '<i aria-hidden="true">✦</i><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span><em>' + escapeHtml(placementBadge) + '</em>';
@@ -6945,7 +6945,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           var meta = [item && item.seasonLabel, item && item.observedAt ? String(item.observedAt).slice(0, 10) : ''].filter(Boolean).join(' / ');
           return '<a class="me-area-positive-record" href="' + escapeHtml(href) + '">'
             + photo
-            + '<strong>' + escapeHtml(localizedDisplayName(item && item.displayName, '名前待ち')) + '</strong>'
+            + '<strong>' + escapeHtml(localizedDisplayName(item && item.displayName, '名前はあとで')) + '</strong>'
             + '<small>' + escapeHtml(meta) + '</small>'
             + '</a>';
         }).join('')

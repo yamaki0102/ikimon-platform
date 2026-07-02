@@ -12546,7 +12546,7 @@ function recordsPostSubjectsHtml(card: RecordsPostCard): string {
 
 function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
   if (!card.postNeedsId) return "";
-  const label = lang === "ja" ? "なまえ調べ中" : lang === "es" ? "En revisión" : lang === "pt-BR" ? "Em revisão" : "Name in review";
+  const label = lang === "ja" ? "名前はあとで確認" : lang === "es" ? "Revisar nombre luego" : lang === "pt-BR" ? "Rever nome depois" : "Name can be checked later";
   const candidate = card.postCandidateName?.trim();
   return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
 }
@@ -12918,7 +12918,7 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   return {
     kicker: "名前を確かめる",
     empty: "名前待ちの記録は今はありません。",
-    emptyBody: "確認が進んでいる状態です。名前が分からない発見があれば、まず記録として残せます。",
+    emptyBody: "今は名前を待つ公開記録が見つかりません。名前が分からない発見があれば、まず記録として残せます。",
     emptyRecords: "名前不明でも記録",
     emptyMap: "最近の記録を見る",
     candidate: "候補",
@@ -12960,11 +12960,15 @@ function renderRecordsIdentifyPanel(
           title: "最近名前がついた記録",
           emptyTitle: "名前がついた記録を見る",
           emptyBody: "最近の公開記録から、名前のつき方を見返せます。",
+          panelTitle: "名前がつく流れを見返す",
+          panelBody: "今は確認待ちのカードを出さず、最近の公開記録を手がかりにできます。",
         }
       : {
           title: "Recently named records",
           emptyTitle: "View named records",
           emptyBody: "Recent public records show how names get resolved.",
+          panelTitle: "Review how names get resolved",
+          panelBody: "No waiting card is shown now; recent public records can be used as examples.",
         };
     const namedCards = buildRecordsPostCards(options.fallbackEntries ?? [], lang)
       .filter((item) => !item.postNeedsId)
@@ -12982,8 +12986,8 @@ function renderRecordsIdentifyPanel(
     return `<aside class="records-identify-panel is-empty" data-records-identify-panel>
       <div class="records-identify-head">
         <span>${escapeHtml(copy.kicker)}</span>
-        <strong data-identify-panel-title>${escapeHtml(copy.empty)}</strong>
-        <p>${escapeHtml(copy.emptyBody)}</p>
+        <strong data-identify-panel-title>${escapeHtml(proofCopy.panelTitle)}</strong>
+        <p>${escapeHtml(proofCopy.panelBody)}</p>
       </div>
       <div class="records-identify-proof">
         <strong>${escapeHtml(proofCopy.title)}</strong>
@@ -14047,7 +14051,7 @@ function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: L
         candidate: "候補あり",
         open: "カードを選ぶ",
         noWaitingTitle: "名前待ちの記録は今はありません",
-        noWaitingLead: "確認が進んでいる状態です。名前が分からない発見があれば、まず記録として残せます。",
+        noWaitingLead: "今は名前を待つ公開記録が見つかりません。名前が分からない発見があれば、まず記録として残せます。",
         records: "名前不明でも記録",
         map: "最近の記録を見る",
         reference: "資料を登録",
@@ -23144,6 +23148,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           `<p style="margin:0 0 12px">記録一覧を起点に、マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
           <div aria-label="マイページの表示イメージ" style="display:grid; gap:8px; margin:14px 0; padding:12px; border-radius:8px; background:#f8fafc; border:1px solid rgba(15,23,42,.08);">
             <span style="width:fit-content; padding:3px 8px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:12px; font-weight:900;">表示イメージ</span>
+            <p style="margin:0; color:#334155; font-size:12.5px; line-height:1.55; font-weight:750;">これはサンプルです。あなたの記録で、数字・場所・季節の入口が育ちます。</p>
             <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;">
               <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">12</strong><span style="color:#64748b; font-size:12px;">残した記録</span></div>
               <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">4</strong><span style="color:#64748b; font-size:12px;">見返す場所</span></div>
@@ -23153,8 +23158,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </div>
           <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">すでに記録がある方はログインすると、このページに自分の場所と記録史が戻ります。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(registerHref)}">アカウントを作る</a>
-            <a class="btn btn-ghost" href="${escapeHtml(loginHref)}">ログインしてマイページへ</a>
+            <a class="btn btn-solid" href="${escapeHtml(registerHref)}" data-kpi-action="profile:logged_out:register">アカウントを作る</a>
+            <a class="btn btn-ghost" href="${escapeHtml(loginHref)}" data-kpi-action="profile:logged_out:login">ログインしてマイページへ</a>
           </div>`,
         ),
         "ホーム",

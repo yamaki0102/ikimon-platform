@@ -2486,5 +2486,6 @@ export type LandingSnapshot = {
   ambient: AmbientObserver[];
   habit: LandingHabitStats | null;
   dailyDashboard: LandingDailyDashboard | null;
+  publicProofFeed?: LandingObservation[];
   regionalStory?: RegionalStoryCue | null;
 };
