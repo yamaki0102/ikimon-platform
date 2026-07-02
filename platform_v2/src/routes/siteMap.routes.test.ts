@@ -203,10 +203,16 @@ test("visual QA route pages render their declared shell layouts", async () => {
     const businessDemo = await app.inject({ method: "GET", url: "/for-business/demo?lang=ja", headers: { accept: "text/html" } });
     const events = await app.inject({ method: "GET", url: "/community/events?lang=ja", headers: { accept: "text/html" } });
     const fields = await app.inject({ method: "GET", url: "/community/fields?lang=ja", headers: { accept: "text/html" } });
+    const fieldsAlias = await app.inject({ method: "GET", url: "/fields?prefecture=%E9%9D%99%E5%B2%A1%E7%9C%8C&lang=ja", headers: { accept: "text/html" } });
+    const fieldDetailAlias = await app.inject({ method: "GET", url: "/fields/demo-field?lang=ja", headers: { accept: "text/html" } });
 
     assert.equal(businessDemo.statusCode, 200);
     assert.equal(events.statusCode, 200);
     assert.equal(fields.statusCode, 200);
+    assert.equal(fieldsAlias.statusCode, 308);
+    assert.equal(fieldsAlias.headers.location, "/ja/community/fields?prefecture=%E9%9D%99%E5%B2%A1%E7%9C%8C");
+    assert.equal(fieldDetailAlias.statusCode, 308);
+    assert.equal(fieldDetailAlias.headers.location, "/ja/community/fields/demo-field");
     assert.match(businessDemo.body, /class="shell shell-layout-wide"/);
     assert.match(events.body, /class="shell shell-layout-wide"/);
     assert.match(fields.body, /class="shell shell-layout-wide"/);
