@@ -77,10 +77,10 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
   }).join("");
 
   const sources: Array<{ key: string; label: string }> = [
-    { key: "any", label: "すべて" },
+    { key: "any", label: "公開フィールド" },
     { key: "nature_symbiosis_site", label: "自然共生サイト" },
     { key: "tsunag", label: "TSUNAG" },
-    { key: "user_defined", label: "マイ" },
+    { key: "user_defined", label: "マイフィールド" },
   ];
   const sourceChips = sources.map((s) => {
     const cur = filter.source ?? "any";
@@ -97,11 +97,12 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
   const emptyHref = filter.prefecture || filter.source || filter.query ? "/community/fields" : "/map";
   const cards = fields.length === 0
     ? `<div class="evt-card" style="display:grid; gap:10px;">
-        <h3 class="evt-heading" style="margin:0; font-size:18px;">条件に合うフィールドはまだありません</h3>
-        <p class="evt-lead" style="font-size:13px;">地図で近くの記録を見たり、条件を外して公開フィールドを探せます。</p>
+        <span class="evt-badge evt-mode-effort" style="width:fit-content;">公開フィールドの見方</span>
+        <h3 class="evt-heading" style="margin:0; font-size:18px;">公開できる場所だけを表示します</h3>
+        <p class="evt-lead" style="font-size:13px;">学校や庭先のような私的な場所は、公開フィールドではなく自分やグループだけの非公開フィールドとして扱います。</p>
         <div style="display:flex; flex-wrap:wrap; gap:8px;">
-          <a class="evt-btn evt-btn-primary" href="${escapeHtml(emptyHref)}">${filter.prefecture || filter.source || filter.query ? "条件を外す" : "地図で見る"}</a>
-          <a class="evt-btn evt-btn-ghost" href="/community/events/new">観察会から作る</a>
+          <a class="evt-btn evt-btn-primary" href="${escapeHtml(emptyHref)}">${filter.prefecture || filter.source || filter.query ? "条件を外す" : "地図で近くを見る"}</a>
+          <a class="evt-btn evt-btn-ghost" href="/community/events/new">非公開で場所を作る</a>
         </div>
       </div>`
     : fields.map((f) => {
@@ -133,9 +134,9 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
   <article class="evt-hero" style="padding:18px; display:grid; gap:10px;">
     <span class="evt-hero-eyebrow">フィールド DB</span>
     <h1>いつもの場所に、記録が積み上がる。</h1>
-    <p>公園、校庭、散歩道、庭先を、次も見返せる観察の場所として残す。記録の厚みや観察会の準備も、ここから始められます。</p>
+    <p>公園や散歩道の公開フィールドを見つけ、次も見返せる観察の場所として残す。校庭や庭先は、公開せず自分やグループだけの非公開フィールドとして扱えます。</p>
     <div style="display:flex; flex-wrap:wrap; gap:8px;">
-      <a class="evt-btn evt-btn-primary" href="#field-db-search">フィールドを探す</a>
+      <a class="evt-btn evt-btn-primary" href="#field-db-search">公開フィールドを見る</a>
       <a class="evt-btn evt-btn-ghost" href="/map">地図で見る</a>
       <a class="evt-btn evt-btn-ghost" href="/community/events/new">観察会を作る</a>
     </div>
@@ -143,8 +144,8 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
 
   <section class="evt-card" aria-label="フィールドを検索" style="display:grid; gap:10px;">
     <div>
-      <span class="evt-eyebrow">まず検索</span>
-      <p class="evt-lead" style="font-size:13px; margin-top:4px;">名前・市町村・都道府県から、記録を見たい場所や次も歩きたい場所を探す。</p>
+      <span class="evt-eyebrow">公開フィールドを見る</span>
+      <p class="evt-lead" style="font-size:13px; margin-top:4px;">一覧から見て、必要なら名前・市町村・都道府県で絞り込めます。</p>
     </div>
     <form id="field-db-search" action="/community/fields" method="get" style="display:flex; gap:8px;">
       ${filter.source ? `<input type="hidden" name="source" value="${escapeHtml(filter.source)}" />` : ""}
@@ -166,13 +167,14 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
 
   <section style="display:grid; gap:8px;">
     <span class="evt-eyebrow">種別</span>
+    <p class="evt-lead" style="font-size:12px; margin:0;">自然共生サイト・TSUNAG は公表済みの公開ソース、マイフィールドはログイン後の非公開/グループ用です。</p>
     <div style="display:flex; flex-wrap:wrap; gap:6px;">${sourceChips}</div>
   </section>
 
   <section>
     <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-      <h2 class="evt-heading" style="margin:0;">${escapeHtml(filter.prefecture ?? "全国")}のフィールド</h2>
-      <span class="evt-eyebrow">${fields.length} 件</span>
+      <h2 class="evt-heading" style="margin:0;">${escapeHtml(filter.prefecture ?? "公開")}フィールド</h2>
+      ${fields.length > 0 ? `<span class="evt-eyebrow">${fields.length} 件</span>` : ""}
     </header>
     <div class="evt-stagger" style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
       ${cards}

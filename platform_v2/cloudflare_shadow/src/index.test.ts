@@ -6927,7 +6927,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81&limit=10"), env);
   const unidentifiedPayload = await unidentifiedResponse.json() as any;
   const unidentified = unidentifiedPayload.items.find((item: any) => item.visitId === "visit-unidentified-contract");
-  assert.equal(unidentified.displayName, "同定待ち");
+  assert.equal(unidentified.displayName, "名前待ち");
   assert.equal(unidentified.isAwaitingId, true);
 
   const areaResponse = await worker.fetch(new Request(

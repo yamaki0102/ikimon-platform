@@ -12198,12 +12198,12 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       activeNav: "記録を見る",
       searchLabel: "記録を探す",
       mapLabel: "地図",
-      recordLabel: "+",
+      recordLabel: "記録",
       empty: "表示できる記録がまだありません。",
       tabs: {
         mine: "自分",
         public: "みんな",
-        identification_summary: "名前確認",
+        identification_summary: "名前の流れ",
         needs_id: "名前待ち",
         media: "メディア",
         places: "場所",
@@ -12221,7 +12221,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       activeNav: "Records",
       searchLabel: "Search records",
       mapLabel: "Map",
-      recordLabel: "+",
+      recordLabel: "Record",
       empty: "No records are ready to show yet.",
       tabs: {
         mine: "Mine",
@@ -12244,7 +12244,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       activeNav: "Registros",
       searchLabel: "Buscar registros",
       mapLabel: "Mapa",
-      recordLabel: "+",
+      recordLabel: "Registrar",
       empty: "Aun no hay registros listos para mostrar.",
       tabs: {
         mine: "Mios",
@@ -12267,7 +12267,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       activeNav: "Registros",
       searchLabel: "Buscar registros",
       mapLabel: "Mapa",
-      recordLabel: "+",
+      recordLabel: "Registrar",
       empty: "Ainda nao ha registros prontos para mostrar.",
       tabs: {
         mine: "Meus",
@@ -12898,11 +12898,35 @@ function renderRecordsIdentifyPanel(
   basePath: string,
   lang: SiteLang,
   entries: LandingObservation[],
-  options: { locationMode: "owner" | "public"; canWrite: boolean; civicContexts?: Map<string, CivicObservationContext> },
+  options: { locationMode: "owner" | "public"; canWrite: boolean; civicContexts?: Map<string, CivicObservationContext>; fallbackEntries?: LandingObservation[] },
 ): string {
   const copy = recordsIdentifyPanelCopy(lang);
   const card = buildRecordsPostCards(entries, lang).find((item) => item.postNeedsId) ?? null;
   if (!card) {
+    const proofCopy = lang === "ja"
+      ? {
+          title: "最近名前がついた記録",
+          emptyTitle: "名前がついた記録を見る",
+          emptyBody: "名前待ちが空のときは、最近の公開記録から名前のつき方を見返せます。",
+        }
+      : {
+          title: "Recently named records",
+          emptyTitle: "View named records",
+          emptyBody: "When the queue is quiet, recent public records still show how names get resolved.",
+        };
+    const namedCards = buildRecordsPostCards(options.fallbackEntries ?? [], lang)
+      .filter((item) => !item.postNeedsId)
+      .slice(0, 3);
+    const proofItems = namedCards.length > 0
+      ? namedCards.map((item) => {
+          const href = notesDetailHref(basePath, lang, item);
+          const name = recordsPostSubjectName(item, lang);
+          const meta = [notesPlaceLine(item, lang, "public") || notesLibraryCopy(lang).card.fallbackPlace, notesLibraryDateLabel(item, lang)]
+            .filter(Boolean)
+            .join(" · ");
+          return `<a href="${escapeHtml(href)}"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(meta)}</span></a>`;
+        }).join("")
+      : `<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}"><strong>${escapeHtml(proofCopy.emptyTitle)}</strong><span>${escapeHtml(proofCopy.emptyBody)}</span></a>`;
     return `<aside class="records-identify-panel is-empty" data-records-identify-panel>
       <div class="records-identify-head">
         <span>${escapeHtml(copy.kicker)}</span>
@@ -12912,6 +12936,10 @@ function renderRecordsIdentifyPanel(
       <div class="records-identify-empty-actions">
         <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}">${escapeHtml(copy.emptyRecords)}</a>
         <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.emptyMap)}</a>
+      </div>
+      <div class="records-identify-proof">
+        <strong>${escapeHtml(proofCopy.title)}</strong>
+        ${proofItems}
       </div>
     </aside>`;
   }
@@ -14049,6 +14077,7 @@ function renderRecordsWorkbench(
   const lazyNextCursor = canLazyLoadPublic ? options.publicPage?.nextCursor ?? null : options.ownPage?.nextCursor ?? null;
   const isIdentifyView = view === "needs_id";
   const canWriteIdentification = Boolean(options.canWriteIdentification);
+  const identifyEmpty = isIdentifyView && entries.length === 0;
   return `<div class="records-workbench${isIdentifyView ? " has-identify-panel" : ""}" data-testid="records-workbench"${isIdentifyView ? " data-records-identify-workbench" : ""}>
     <header class="records-topbar">
       <div class="records-topbar-brand">
@@ -14064,14 +14093,16 @@ function renderRecordsWorkbench(
       ${view === "mine" ? renderRecordsMyPlacesLane(basePath, lang, snapshot, ownEntries) : ""}
       <section class="records-grid-panel" ${isIdentifyView ? `id="records-identify-list"` : ""} data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${isIdentifyView ? renderRecordsIdentifyIntro(basePath, lang, entries, canWriteIdentification) : ""}
-        ${renderRecordsCollapsedControls(lang, searchQuery)}
+        ${identifyEmpty ? "" : renderRecordsCollapsedControls(lang, searchQuery)}
         ${entries.length > 0
           ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
+          : identifyEmpty
+            ? ""
           : `<div class="notes-library-empty">${escapeHtml(searchQuery ? recordsSearchEmptyCopy(lang, searchQuery) : copy.empty)}${searchQuery ? "" : ` <a class="notes-library-empty-cta" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.recordLabel)}</a>`}</div>`}
         <div class="notes-library-empty notes-library-search-empty" data-library-search-empty hidden>${escapeHtml(recordsSearchEmptyCopy(lang, searchQuery))}</div>
         ${canLazyLoad ? renderRecordsLazyFooter(lang, lazyNextCursor) : ""}
       </section>
-      ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts }) : ""}
+      ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts, fallbackEntries: publicEntries }) : ""}
     </main>
     ${renderNotesLibraryScript(lang)}
     ${canLazyLoad ? renderRecordsLazyScript(lang) : ""}
@@ -14498,6 +14529,48 @@ const RECORDS_WORKBENCH_STYLES = `
     background: #047857;
     border-color: #047857;
     color: #fff;
+  }
+  .records-identify-proof {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid rgba(15,23,42,.08);
+  }
+  .records-identify-proof > strong {
+    color: #10251a;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 950;
+  }
+  .records-identify-proof a {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: #fff;
+    color: #10251a;
+    text-decoration: none;
+    border: 1px solid rgba(15,23,42,.06);
+  }
+  .records-identify-proof a strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .records-identify-proof a span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 750;
   }
   .records-tools {
     justify-self: start;
@@ -23014,9 +23087,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "マイページ",
           "ログインすると、自分の記録史を読み返せます",
           `<p style="margin:0 0 12px">記録一覧を起点に、マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
+          <div aria-label="マイページの表示イメージ" style="display:grid; gap:8px; margin:14px 0; padding:12px; border-radius:8px; background:#f8fafc; border:1px solid rgba(15,23,42,.08);">
+            <span style="width:fit-content; padding:3px 8px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:12px; font-weight:900;">表示イメージ</span>
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;">
+              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">12</strong><span style="color:#64748b; font-size:12px;">残した記録</span></div>
+              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">4</strong><span style="color:#64748b; font-size:12px;">見返す場所</span></div>
+              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">春</strong><span style="color:#64748b; font-size:12px;">季節の入口</span></div>
+            </div>
+            <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">実際の表示では、公開できる範囲だけを使い、自宅・学校・詳しすぎる位置は外して見返せます。</p>
+          </div>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインしてマイページへ</a>
-            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}">新しく登録する</a>
+            <a class="btn btn-solid" href="${escapeHtml(registerHref)}">新しく登録する</a>
+            <a class="btn btn-ghost" href="${escapeHtml(loginHref)}">ログインしてマイページへ</a>
           </div>`,
         ),
         "ホーム",

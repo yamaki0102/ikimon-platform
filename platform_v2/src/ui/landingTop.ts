@@ -876,8 +876,8 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
         guide: "ライブガイド",
         stats: [
           { label: "公開エリア", value: nearbyCount > 0 ? `${nearbyCount}` : "地図" },
-          { label: "公開記録", value: publicCount > 0 ? `${publicCount}` : "準備中" },
-          { label: "名前待ち", value: awaitingCount > 0 ? `${awaitingCount}` : "確認中" },
+          ...(publicCount > 0 ? [{ label: "公開記録", value: `${publicCount}` }] : []),
+          ...(awaitingCount > 0 ? [{ label: "名前待ち", value: `${awaitingCount}` }] : []),
         ],
         notes: ["場所から入る", "名前は後で確かめる", "位置はぼかして表示"],
       }
@@ -891,8 +891,8 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
         guide: "Live guide",
         stats: [
           { label: "Public areas", value: nearbyCount > 0 ? `${nearbyCount}` : "Map" },
-          { label: "Records", value: publicCount > 0 ? `${publicCount}` : "Loading" },
-          { label: "Awaiting ID", value: awaitingCount > 0 ? `${awaitingCount}` : "Review" },
+          ...(publicCount > 0 ? [{ label: "Records", value: `${publicCount}` }] : []),
+          ...(awaitingCount > 0 ? [{ label: "Awaiting ID", value: `${awaitingCount}` }] : []),
         ],
         notes: ["Start from place", "Confirm names later", "Locations are blurred"],
       };
