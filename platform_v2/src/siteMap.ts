@@ -220,8 +220,8 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["qa"],
     title: { ja: "プロフィール", en: "Profile" },
-    summary: { ja: "一人の観察と場所の履歴を見る。", en: "Read one observer's observations and places." },
-    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "最近の場所" }, requires: "user", allowStatus: [200], screenshot: { baselineName: "registry-profile" } },
+    summary: { ja: "一人の公開された観察履歴を見る。", en: "Read one observer's public observations." },
+    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "地域図鑑に公開された観察" }, requires: "user", allowStatus: [200], screenshot: { baselineName: "registry-profile" } },
   },
   {
     path: "/observations/:id",

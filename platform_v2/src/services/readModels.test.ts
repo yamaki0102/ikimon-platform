@@ -91,3 +91,18 @@ test("profile snapshot stats reuse the public quality gate so hidden records do 
   assert.match(profileSnapshot, /from visits v\s+where v\.user_id = \$1\s+and \$\{PUBLIC_OBSERVATION_QUALITY_SQL\}/);
   assert.match(profileSnapshot, /where v\.user_id = \$1\s+and \$\{PUBLIC_OBSERVATION_QUALITY_SQL\}\s+and coalesce/);
 });
+
+test("public profile snapshots do not build owner-only place or exact activity fields", async () => {
+  const readModels = await readFile(path.join(process.cwd(), "src", "services", "readModels.ts"), "utf8");
+  const profileSnapshot = readModels.slice(
+    readModels.indexOf("export async function getProfileSnapshot"),
+    readModels.indexOf("export async function getObservationListSnapshot"),
+  );
+
+  assert.match(profileSnapshot, /visibility = options\.visibility \?\? "public"/);
+  assert.match(profileSnapshot, /visibility === "owner"\s+\? await getHomeSnapshot\(userId\)\s+:\s+\{ viewerUserId: null, recentObservations: \[\], myPlaces: \[\] \}/);
+  assert.match(profileSnapshot, /visibility === "owner"\s+\? exactStats\s+:\s+\{/);
+  assert.match(profileSnapshot, /currentStreakDays: 0/);
+  assert.match(profileSnapshot, /lifeListPreview: visibility === "owner" \? lifeListPreview : \[\]/);
+  assert.match(profileSnapshot, /publicContributionRange: formatPublicProfileContributionRange\(exactStats\.totalObservations\)/);
+});
