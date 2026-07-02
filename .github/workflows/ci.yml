@@ -345,6 +345,12 @@ jobs:
           IKIMON_SCENE_READ_SUBJECT_ID="occ:${SCENE_READ_FIXTURE_PREFIX}-scene:0" \
           npm run e2e:local:observation-candidates
 
+      - name: Run map mobile overlap browser QA
+        working-directory: platform_v2
+        run: |
+          STAGING_BASE_URL=http://127.0.0.1:3200 \
+          npm run e2e:local:map-compact-ui
+
       - name: Cleanup local scene fixture
         if: always()
         run: |
