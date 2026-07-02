@@ -4,16 +4,28 @@ import type { HomePlace } from "../services/readModels.js";
 
 export function daysSinceIso(value: string | null | undefined, now: Date = new Date()): number | null {
   if (!value) return null;
-  const parsed = new Date(value);
+  const parsed = parseLooseDate(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return Math.floor((now.getTime() - parsed.getTime()) / 86_400_000);
 }
 
 export function formatShortDate(value: string | null | undefined, locale = "ja-JP"): string {
   if (!value) return "";
-  const parsed = new Date(value);
+  const parsed = parseLooseDate(value);
   if (Number.isNaN(parsed.getTime())) return "";
   return parsed.toLocaleDateString(locale, { month: "short", day: "numeric" });
+}
+
+function parseLooseDate(value: string): Date {
+  const trimmed = value.trim();
+  const withTimeSeparator = trimmed.includes(" ") ? trimmed.replace(" ", "T") : trimmed;
+  const withOffsetMinutes = withTimeSeparator.replace(/([+-]\d{2})$/, "$1:00");
+  const candidates = [trimmed, withTimeSeparator, withOffsetMinutes];
+  for (const candidate of candidates) {
+    const parsed = new Date(candidate);
+    if (Number.isFinite(parsed.getTime())) return parsed;
+  }
+  return new Date(Number.NaN);
 }
 
 export function pickPlaceFocus(place: Pick<HomePlace, "nextLookFor" | "revisitReason" | "latestDisplayName">): string | null {

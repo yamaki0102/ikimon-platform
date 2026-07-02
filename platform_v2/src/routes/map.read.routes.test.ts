@@ -23,7 +23,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.doesNotMatch(html, /class="me-map-cues"/);
     assert.match(html, /class="me-map-role-strip"/);
     assert.match(html, /近くを探索する/);
-    assert.match(html, /写真・ガイド・散策候補を見ながら/);
+    assert.match(html, /記録・ガイド・散策候補を見ながら/);
     assert.match(html, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;/);
     assert.match(html, /\.me-map-status \{[\s\S]*?bottom: 18px;/);
     assert.match(html, /me-detail-panel/);

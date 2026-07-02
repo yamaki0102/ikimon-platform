@@ -207,7 +207,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
     enjoyTitle: "近くを探索する",
-    enjoyLead: "写真・ガイド・散策候補を見ながら、今いる場所から探索できます。",
+    enjoyLead: "記録・ガイド・散策候補を見ながら、今いる場所から探索できます。",
     tabMarkers: "近くの記録",
     tabHeatmap: "季節",
     tabPlaces: "ガイド",
@@ -268,7 +268,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     layerHintHeatmap: "ズームすると季節の気配の濃淡が見えます。",
     layerHintJump: "見える場所へ",
     layerHintDismiss: "閉じる",
-    purposeHintTitle: "写真・ガイド・散策",
+    purposeHintTitle: "記録・ガイド・散策",
     purposeHintBody: "",
     purposeHintDismiss: "この案内を閉じる",
     loading: "読み込み中…",
@@ -276,7 +276,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "記録が少ない場所でも、近くの記録や季節を変えると手がかりが見つかります。",
     emptyTitle: "近くを探索中",
-    emptyLead: "少し広げると近くの写真や場所が出ます。今いる場所で見えたものも残せます。",
+    emptyLead: "少し広げると近くの記録や場所が出ます。今いる場所で見えたものも残せます。",
     emptyActionAreas: "エリア",
     emptyActionWiden: "広げる",
     emptyActionRecord: "記録",
@@ -336,7 +336,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     areaNextStepScopeLine: "現地の案内板・公開範囲・管理者のルールを優先する。",
     areaNextStepRecordLine: "公開範囲で見つけたものだけを記録し、正確な立入場所を無理に残さない。",
     areaNextStepFirstRecordLine: "まだ記録が少ない場所です。公開範囲で見つけたものが最初の手がかりになります。",
-    areaNextStepBrowseLine: "先に写真や季節の記録を見て、場所の状態をつかむ。",
+    areaNextStepBrowseLine: "先に公開記録や季節の記録を見て、場所の状態をつかむ。",
     areaNextStepGuideLine: "現地ガイドがある場所は、近づいてから音声や説明を開く。",
     areaNextStepRestrictedLine: "学校・私有地・未確認区域では、敷地内へ入らず、許可された観察だけを扱う。",
     areaNextStepRecordCta: "安全に記録する",
@@ -1035,7 +1035,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const mobileTabLabels = lang === "ja"
-    ? { markers: "写真", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "記録空白" }
+    ? { markers: "記録", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "空白" }
     : lang === "es"
       ? { markers: "Hoy", heatmap: "Est.", places: "Área", rain: "Lluvia", frontier: "Huecos" }
       : lang === "pt-BR"
@@ -1068,7 +1068,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "So para voce"
         : "Only you see this";
   const communityBlurLabel = lang === "ja"
-    ? "みんなの写真は地点ではなくエリアで表示"
+    ? "みんなの記録は地点ではなくエリアで表示"
     : lang === "es"
       ? "Community photos are blurred by area"
       : lang === "pt-BR"
@@ -1118,7 +1118,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Se já permitiu, começa por perto. Toque para ir à sua localização."
         : "If already allowed, the map starts nearby. Tap to use your current place.";
   const startPanelBrief = lang === "ja"
-    ? "候補"
+    ? "記録・ガイド"
     : lang === "es"
       ? "Fotos · guías · paseos"
       : lang === "pt-BR"
@@ -1176,11 +1176,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         : "Visible layer";
   const layerKeyDescriptions = lang === "ja"
     ? {
-        markers: "公開記録 / エリア表示",
+        markers: "公開記録 / おおよその位置",
         places: "公開エリア・散策",
         heatmap: "季節の濃淡",
         rain: "雨雲",
-        frontier: "まだ少ない場所",
+        frontier: "記録がまだ少ない場所",
       }
     : lang === "es"
       ? {
@@ -1214,7 +1214,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const startCards = [
     {
       icon: "📷",
-      title: lang === "ja" ? "写真" : lang === "es" ? "Fotos" : lang === "pt-BR" ? "Fotos" : "Photos",
+      title: lang === "ja" ? "記録" : lang === "es" ? "Fotos" : lang === "pt-BR" ? "Fotos" : "Photos",
       href: communityRecordsHref,
       action: "map:start_panel:photos",
     },

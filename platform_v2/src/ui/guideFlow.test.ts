@@ -133,7 +133,7 @@ test("guide start sheet presents the Japanese field UX as one clear decision", (
 
   assert.match(html, /歩いた場所の自然の手がかりを、AIと一緒に残します/);
   assert.match(html, /まずはカメラだけで歩き始める/);
-  assert.match(html, /今日の発見を自分の記録に戻せます/);
+  assert.match(html, /記録にするものはあとで選べます/);
   assert.match(html, /今日のミッション/);
   assert.match(html, /迷ったら「歩きながら見る」で始めてください/);
   assert.match(html, /🚶 歩きながら見る/);
@@ -145,14 +145,17 @@ test("guide start sheet presents the Japanese field UX as one clear decision", (
   assert.match(html, /成果サンプル/);
   assert.match(html, /候補: 水辺の草地で、湿った地面と低い葉が見えます/);
   assert.match(html, /許可するまでカメラとマイクは起動しません/);
+  assert.match(html, /記録として残すかはあとで選びます/);
   assert.match(html, /開始前の許可/);
   assert.match(html, /まずカメラだけ許可すれば始められます/);
   assert.match(html, /電波が弱い時は端末に一時保存/);
+  assert.match(html, /30分ごとに電池と通信を確認/);
   assert.match(html, /細かく調整する/);
   assert.match(html, /カメラだけで開始する/);
   assert.match(html, /自然音も使いますか？/);
   assert.match(html, /声らしい音は保存候補から外すよう処理します/);
   assert.match(html, /見つけたものは、あとから自分の記録として残せます/);
+  assert.match(html, /公開記録には正確な移動軌跡を出しません/);
   assert.match(html, /仕組みを見る/);
   assert.match(html, /音声ONで、録った音が研究まで届きます/);
   assert.match(html, /残す → 整理する → 人が確かめる → 研究に渡す/);

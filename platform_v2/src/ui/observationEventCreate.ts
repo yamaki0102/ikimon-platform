@@ -218,7 +218,7 @@ export function renderEventCreateBody(args: {
       </div>
 
       <div data-field-panel="manual" style="display:none;">
-        <p class="evt-lead">座標を手入力。あとからフィールド DB に保存できます。</p>
+        <p class="evt-lead">座標を手入力。あとからフィールドとして保存できます。</p>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
           <label>緯度
             <input name="location_lat" type="number" step="0.000001" placeholder="35.681236" />
@@ -230,7 +230,7 @@ export function renderEventCreateBody(args: {
         <label>半径(m)
           <input name="location_radius_m" type="number" min="30" max="50000" value="1000" />
         </label>
-        <label>このエリアに名前をつけてフィールド DB に保存
+        <label>このエリアに名前をつけてフィールドとして保存
           <input name="new_field_name" placeholder="例: 鎌倉広町緑地（北側エントランス）" />
         </label>
       </div>
