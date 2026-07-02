@@ -17,9 +17,9 @@ test("db migration baseline rehearsal locks the current migration head and risk 
   });
 
   assert.equal(report.schemaVersion, "platform_migration_baseline_rehearsal/v0");
-  assert.equal(report.totalMigrations, 126);
+  assert.equal(report.totalMigrations, 127);
   assert.equal(report.firstMigration, "0001_extensions_and_core.sql");
-  assert.equal(report.headMigration, "0124_record_feedback_ready_notifications.sql");
+  assert.equal(report.headMigration, "0125_identification_workbench_holds.sql");
   assert.deepEqual(report.extensionRequirements, ["timescaledb", "vector"]);
   assert.equal(report.riskSummary.destructiveApproved, 12);
   assert.equal(report.riskSummary.destructiveUnapproved, 1);

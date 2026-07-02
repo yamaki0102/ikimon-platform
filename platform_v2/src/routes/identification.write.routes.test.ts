@@ -154,15 +154,17 @@ test("public observation write routes apply per-user rate limits", async () => {
 });
 
 test("identification workbench hold has a migration and read/write guards", async () => {
-  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0118_identification_workbench_holds.sql"), "utf8");
+  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0125_identification_workbench_holds.sql"), "utf8");
   const service = await readFile(path.join(process.cwd(), "src", "services", "identificationWorkbenchHolds.ts"), "utf8");
   const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
   const writeRoute = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS identification_workbench_holds/);
+  assert.match(migration, /occurrence_id\s+TEXT\s+NOT NULL REFERENCES occurrences\(occurrence_id\)/);
   assert.match(migration, /UNIQUE \(occurrence_id, actor_user_id\)/);
   assert.match(service, /holdIdentificationWorkbenchItem/);
   assert.match(service, /listHeldIdentificationOccurrenceIds/);
+  assert.doesNotMatch(service, /\$1::uuid/);
   assert.match(readRoute, /listHeldIdentificationOccurrenceIds/);
   assert.match(readRoute, /data-hold-endpoint/);
   assert.match(writeRoute, /identification-workbench-hold/);

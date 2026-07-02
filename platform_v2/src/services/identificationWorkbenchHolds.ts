@@ -44,7 +44,7 @@ export async function holdIdentificationWorkbenchItem(input: IdentificationWorkb
       `insert into identification_workbench_holds (
           occurrence_id, actor_user_id, hold_reason, source_payload, created_at, updated_at
        ) values (
-          $1::uuid, $2, $3, $4::jsonb, now(), now()
+          $1, $2, $3, $4::jsonb, now(), now()
        )
        on conflict (occurrence_id, actor_user_id) do update set
           hold_reason = excluded.hold_reason,
