@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS identification_workbench_holds (
     hold_id        UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    occurrence_id  UUID        NOT NULL REFERENCES occurrences(occurrence_id) ON DELETE CASCADE,
+    occurrence_id  TEXT        NOT NULL REFERENCES occurrences(occurrence_id) ON DELETE CASCADE,
     actor_user_id  TEXT        NOT NULL,
     hold_reason    TEXT        NOT NULL DEFAULT '',
     source_payload JSONB       NOT NULL DEFAULT '{}'::jsonb,
