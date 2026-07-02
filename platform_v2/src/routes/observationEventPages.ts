@@ -374,7 +374,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       reply.type("text/html; charset=utf-8");
       return pageDocument({
         basePath: "",
-        title: `${field.name} — フィールド — ikimon.life`,
+        title: `${field.name} — エリア図鑑 — ikimon.life`,
         currentPath: currentPathOf(request),
         body: renderFieldDetailBody({ field, stats, snapshot }),
         extraStyles: `${PLACE_SNAPSHOT_STYLES}\n${FIELD_DETAIL_ALBUM_STYLES}`,

@@ -19313,15 +19313,50 @@ test("production field detail can render from Cloudflare public readmodel withou
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "field-detail-readmodel");
     assert.equal(body.includes("春の里小学校"), true);
-    assert.equal(body.includes("34.95,137.17"), true);
+    assert.equal(body.includes("エリア図鑑"), true);
+    assert.equal(body.includes("このエリアで記録する"), true);
+    assert.equal(body.includes("詳細位置は非公開"), true);
+    assert.equal(body.includes("学校・教育施設"), true);
+    assert.equal(body.includes("認定情報と一致"), true);
     assert.equal(body.includes("data-cloudflare-source=\"field-detail-readmodel\""), true);
+    assert.equal(body.includes("34.95,137.17"), false);
     assert.equal(body.includes("137.17123"), false);
     assert.equal(body.includes("geom_simplified"), false);
+    assert.equal(body.includes(">school<"), false);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("production field detail misses return 404 when readmodel table is unavailable", async () => {
+  const { env } = createEnv();
+  const originalObsDb = env.OBS_DB;
+  env.OBS_DB = {
+    prepare(query: string) {
+      if (normalize(query).includes("FROM PRODUCTION_IMPORT_FIELD_DETAIL_READMODEL")) {
+        throw new Error("D1_ERROR: no such table: production_import_field_detail_readmodel: SQLITE_ERROR");
+      }
+      return originalObsDb.prepare(query);
+    },
+    batch(statements: FakeStatement[]) {
+      return originalObsDb.batch(statements);
+    }
+  } as typeof env.OBS_DB;
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const response = await worker.fetch(
+    new Request("https://ikimon.life/ja/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5"),
+    productionEnv
+  );
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { ok: false, error: "html_not_materialized" });
 });
 
 test("production field detail public-detail API exposes public-safe readmodel only", async () => {
