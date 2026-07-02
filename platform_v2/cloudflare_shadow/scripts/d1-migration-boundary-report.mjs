@@ -226,6 +226,7 @@ function replacedProductionRuntimePgDependencyReason(relativeFile) {
     "platform_v2/src/services/observationFieldRegistry.ts": "cloudflare_observation_field_registry_runtime",
     "platform_v2/src/services/identificationParticipation.ts": "cloudflare_identification_participation_runtime",
     "platform_v2/src/services/identificationConsensus.ts": "cloudflare_identification_consensus_runtime",
+    "platform_v2/src/services/identificationWorkbenchHolds.ts": "cloudflare_identification_workbench_hold_runtime",
     "platform_v2/src/services/specialistReview.ts": "cloudflare_specialist_review_runtime",
     "platform_v2/src/services/reviewerAuthorities.ts": "cloudflare_specialist_authority_runtime",
     "platform_v2/src/services/authorityRecommendations.ts": "cloudflare_specialist_authority_runtime",
