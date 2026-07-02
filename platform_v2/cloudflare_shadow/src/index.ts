@@ -10470,7 +10470,7 @@ const STATIC_MUNICIPAL_WALK_MAP_SUMMARIES = [
     schemaVersion: "municipal_walk_map_public_summary/v0",
     walkMapId: "jp-shizuoka-yatsuyama-sample-v0",
     municipality: "静岡市",
-    title: "八ツ山周辺を歩くサンプル",
+    title: "谷津山周辺を歩く",
     summary: "静岡市公式資料を出典として、公開範囲で木陰、足元の草地、鳥の声を軽く残すために再構成したサンプルです。",
     theme: "satoyama",
     publishMode: "public_preview",
@@ -10803,8 +10803,8 @@ function municipalWalkMapStaticDetail(walkMapId: string) {
         areaKind: summary.theme === "waterfront" ? "waterfront" : "other",
         access: "public_access",
         estimatedMinutes: null,
-        noticeCues: ["案内板", "足元", "周辺の風景"],
-        recordCues: ["写真", "メモ"],
+        noticeCues: summary.theme === "waterfront" ? ["水面の色", "水辺の草", "鳥の声"] : ["木陰", "足元の草地", "鳥の声"],
+        recordCues: summary.theme === "waterfront" ? ["水辺の写真", "聞こえた音", "草地の変化"] : ["葉の色", "聞こえた音", "足元の様子"],
         safetyNotes: ["公開範囲で観察する"],
         areaHint: summary.areaHint,
         safetyNote: "公開範囲で観察する"
@@ -10858,27 +10858,175 @@ async function getMunicipalWalkMapPublicDetailApi(walkMapId: string, env: Env): 
   return json({ ok: true, detail }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
+function municipalWalkMapPublicText(value: string | null): string {
+  return (value ?? "")
+    .replace(/八ツ山/g, "谷津山")
+    .replace(/再構成したサンプル/g, "再構成した散策候補")
+    .replace(/サンプルとして/g, "散策候補として")
+    .replace(/サンプルです/g, "散策候補です")
+    .replace(/サンプル/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function municipalWalkMapPublicTitle(walkMapId: string, rawTitle: string | null, areaLabel: string): string {
+  if (walkMapId === "jp-shizuoka-yatsuyama-sample-v0") return "谷津山周辺を歩く";
+  const normalized = municipalWalkMapPublicText(rawTitle);
+  if (normalized) return normalized;
+  return `${areaLabel}を歩く`;
+}
+
+function municipalWalkMapPublicSummary(rawSummary: string | null, areaLabel: string): string {
+  const normalized = municipalWalkMapPublicText(rawSummary);
+  return normalized || `${areaLabel}を歩きながら、見つけた季節や足元の変化を軽く残せる散策候補です。`;
+}
+
+function municipalWalkMapBackMapHref(areaHint: Record<string, unknown>): string {
+  const lat = finiteNumberOrNull(areaHint.lat);
+  const lng = finiteNumberOrNull(areaHint.lng);
+  const query = new URLSearchParams({ tab: "places" });
+  if (lng !== null && lat !== null) {
+    query.set("lng", lng.toFixed(4));
+    query.set("lat", lat.toFixed(4));
+    query.set("z", "13.5");
+  }
+  return `/ja/map?${query.toString()}`;
+}
+
+function municipalWalkMapRecordHref(walkMapId: string, stopId: string | null): string {
+  const query = new URLSearchParams({ context: "municipal_walk_map" });
+  if (walkMapId) query.set("walkMapId", walkMapId);
+  if (stopId) query.set("stopId", stopId);
+  return `/ja/record?${query.toString()}`;
+}
+
+function municipalWalkMapMobilityLabel(routeFlexibility: Record<string, unknown>): string {
+  const labels = new Map<string, string>([
+    ["walk", "徒歩"],
+    ["bike", "自転車"],
+    ["public_transport", "公共交通"],
+    ["car", "車"],
+    ["motorbike", "バイク"]
+  ]);
+  const modes = arrayOrEmpty(routeFlexibility.mobilityModes)
+    .map((mode) => labels.get(String(mode)) ?? "")
+    .filter(Boolean);
+  return modes.length > 0 ? modes.join("・") : "徒歩";
+}
+
+function municipalWalkMapStopBadge(stop: Record<string, unknown>): string {
+  const kind = normalizeOptionalText(stop.areaKind);
+  const access = normalizeOptionalText(stop.access);
+  const kindLabel = new Map<string, string>([
+    ["waterfront", "水辺"],
+    ["satoyama", "里山"],
+    ["park", "公園"],
+    ["route", "道沿い"],
+    ["other", "立ち寄り先"]
+  ]).get(kind ?? "") ?? "立ち寄り先";
+  const accessLabel = access === "public_access"
+    ? "公開範囲"
+    : access === "permission_required"
+      ? "確認範囲"
+      : "範囲確認";
+  return `${kindLabel}・${accessLabel}`;
+}
+
+function municipalWalkMapCompactCueList(value: unknown): string[] {
+  return arrayOrEmpty(value)
+    .map((item) => normalizeOptionalText(item))
+    .filter((item): item is string => Boolean(item && item !== "現地で確認"))
+    .slice(0, 4);
+}
+
+function municipalWalkMapCueList(
+  value: unknown,
+  kind: "notice" | "record",
+  detail: Record<string, unknown>,
+  stop: Record<string, unknown>
+): string[] {
+  const explicit = municipalWalkMapCompactCueList(value);
+  if (explicit.length > 0) return explicit;
+  const haystack = [
+    detail.walkMapId,
+    detail.title,
+    detail.summary,
+    detail.theme,
+    stop.title,
+    stop.note,
+    stop.areaKind
+  ].map((item) => normalizeOptionalText(item) ?? "").join(" ");
+  if (/麻機|水辺|川|海岸|waterfront/i.test(haystack)) {
+    return kind === "notice"
+      ? ["水面の色", "水辺の草", "鳥の声"]
+      : ["水辺の写真", "聞こえた音", "草地の変化"];
+  }
+  if (/谷津山|里山|木陰|satoyama|park/i.test(haystack)) {
+    return kind === "notice"
+      ? ["木陰", "足元の草地", "鳥の声"]
+      : ["葉の色", "聞こえた音", "足元の様子"];
+  }
+  return kind === "notice"
+    ? ["足元の草地", "季節の変化", "聞こえる音"]
+    : ["写真", "メモ", "気づいた変化"];
+}
+
+function municipalWalkMapCueSection(title: string, cues: string[]): string {
+  if (cues.length === 0) return "";
+  return `<section class="wm-detail-cue"><strong>${escapeHtml(title)}</strong><ul>${cues.map((cue) => `<li>${escapeHtml(cue)}</li>`).join("")}</ul></section>`;
+}
+
+function municipalWalkMapSafetyCopy(value: string): string {
+  if (/道を外れず|立入可能な道/.test(value)) return "公開されている道から観察します。";
+  if (/水辺に近づきすぎない/.test(value)) return "水辺では足元と距離を確認します。";
+  if (/私有地|学校/.test(value)) return "私有地や学校敷地には入りません。";
+  return municipalWalkMapPublicText(value) || "公開範囲で観察します。";
+}
+
 function renderMunicipalWalkMapPublicDetailHtml(detail: Awaited<ReturnType<typeof getMunicipalWalkMapPublicDetail>>): string {
   if (!detail) return "";
-  const stops = arrayOrEmpty((detail as Record<string, unknown>).stops).map((raw, index) => {
+  const detailRecord = detail as Record<string, unknown>;
+  const walkMapId = normalizeOptionalText(detailRecord.walkMapId) ?? "";
+  const areaHint = recordOrEmpty(detailRecord.areaHint);
+  const areaLabel = normalizeOptionalText(areaHint.label)
+    ?? normalizeOptionalText(detailRecord.municipality)
+    ?? "この周辺";
+  const title = municipalWalkMapPublicTitle(walkMapId, normalizeOptionalText(detailRecord.title), areaLabel);
+  const summary = municipalWalkMapPublicSummary(normalizeOptionalText(detailRecord.summary), areaLabel);
+  const backMapHref = municipalWalkMapBackMapHref(areaHint);
+  const rawStops = arrayOrEmpty(detailRecord.stops);
+  const firstStop = recordOrEmpty(rawStops[0]);
+  const firstStopId = normalizeOptionalText(firstStop.stopId);
+  const primaryRecordHref = municipalWalkMapRecordHref(walkMapId, firstStopId);
+  const mobilityLabel = municipalWalkMapMobilityLabel(recordOrEmpty(detailRecord.routeFlexibility));
+  const stops = rawStops.map((raw, index) => {
     const stop = recordOrEmpty(raw);
     const title = normalizeOptionalText(stop.title) ?? `立ち寄り先 ${index + 1}`;
-    const note = normalizeOptionalText(stop.note) ?? "";
+    const note = municipalWalkMapPublicText(normalizeOptionalText(stop.note));
     const safetyNote = normalizeOptionalText(stop.safetyNote) ?? "";
+    const stopId = normalizeOptionalText(stop.stopId);
+    const badge = municipalWalkMapStopBadge(stop);
+    const noticeCues = municipalWalkMapCueList(stop.noticeCues, "notice", detailRecord, stop);
+    const recordCues = municipalWalkMapCueList(stop.recordCues, "record", detailRecord, stop);
+    const cueSections = [
+      municipalWalkMapCueSection("見つける手がかり", noticeCues),
+      municipalWalkMapCueSection("残すと良い記録", recordCues)
+    ].filter(Boolean).join("");
+    const stopRecordHref = municipalWalkMapRecordHref(walkMapId, stopId);
     return `<article class="wm-detail-stop">
       <div class="wm-detail-stop-head">
         <h2>${index + 1}. ${escapeHtml(title)}</h2>
-        <span>${escapeHtml(normalizeOptionalText(stop.areaKind) ?? "other")} / ${escapeHtml(normalizeOptionalText(stop.access) ?? "public_access")}</span>
+        <span>${escapeHtml(badge)}</span>
       </div>
       ${note ? `<p>${escapeHtml(note)}</p>` : ""}
-      <div class="wm-detail-cues">
-        <section><strong>見るもの</strong><ul>${htmlList(arrayOrEmpty(stop.noticeCues))}</ul></section>
-        <section><strong>残すもの</strong><ul>${htmlList(arrayOrEmpty(stop.recordCues))}</ul></section>
+      ${cueSections ? `<div class="wm-detail-cues">${cueSections}</div>` : ""}
+      <div class="wm-detail-stop-actions">
+        ${safetyNote ? `<small>${escapeHtml(municipalWalkMapSafetyCopy(safetyNote))}</small>` : "<small>公開範囲の道や案内を優先して、無理なく見られるところだけ使います。</small>"}
+        <a href="${escapeHtml(stopRecordHref)}" data-kpi-action="walk_map_detail:stop_record">この場所で記録する</a>
       </div>
-      ${safetyNote ? `<small>${escapeHtml(safetyNote)}</small>` : ""}
     </article>`;
   }).join("");
-  const sources = arrayOrEmpty((detail as Record<string, unknown>).sourceReferences)
+  const sources = arrayOrEmpty(detailRecord.sourceReferences)
     .map((source) => recordOrEmpty(source))
     .map((source) => {
       const label = normalizeOptionalText(source.label) ?? "出典";
@@ -10888,52 +11036,97 @@ function renderMunicipalWalkMapPublicDetailHtml(detail: Awaited<ReturnType<typeo
         : `<li>${escapeHtml(label)}</li>`;
     })
     .join("");
-  const routeFlexibility = recordOrEmpty((detail as Record<string, unknown>).routeFlexibility);
   return `<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).title) ?? "散策マップ")} - ikimon</title>
+<title>${escapeHtml(title)} - ikimon</title>
 <style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
-.wm-detail{max-width:1080px;margin:0 auto;padding:24px 16px 72px}
-.wm-detail-hero{display:grid;gap:10px;margin-bottom:18px}
-.wm-detail-hero small{color:#0f766e;font-size:12px;font-weight:900}
-.wm-detail-hero h1{margin:0;font-size:32px;line-height:1.18;letter-spacing:0}
-.wm-detail-hero p{margin:0;color:#475569;line-height:1.7}
-.wm-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
-.wm-detail-stops{display:grid;gap:12px}
-.wm-detail-stop,.wm-detail-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:14px}
-.wm-detail-stop-head{display:flex;justify-content:space-between;gap:10px;align-items:start}
-.wm-detail-stop h2,.wm-detail-panel h2{margin:0 0 10px;font-size:18px;color:#0f172a}
-.wm-detail-stop-head span{font-size:11px;font-weight:900;color:#0f766e}
-.wm-detail-cues{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.wm-detail-cues section{border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px}
-.wm-detail-cues ul,.wm-detail-panel ul{margin:6px 0 0;padding-left:18px;color:#475569;font-size:12px;line-height:1.7}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f6faf7;font-size:16px;line-height:1.6}
+a{color:inherit}
+.wm-detail-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:13px;min-height:64px;padding:10px 16px;background:rgba(255,255,255,.94);border-bottom:1px solid #dbe7e2;backdrop-filter:blur(14px)}
+.wm-detail-brand{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:900}
+.wm-detail-logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#10d6c7 0%,#2ddf73 62%,#ecfdf5 100%);box-shadow:0 8px 22px rgba(16,185,129,.22)}
+.wm-detail-topbar-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 14px;border:1px solid #cfe5dc;border-radius:999px;background:#eefcf4;color:#0f6f61;font-weight:900;text-decoration:none}
+.wm-detail{max-width:1080px;margin:0 auto;padding:21px 16px 34px}
+.wm-detail-hero{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:21px;align-items:stretch;margin-bottom:21px}
+.wm-detail-hero-copy{display:grid;gap:13px;padding:24px 0}
+.wm-detail-kicker{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:#0f766e;font-size:14px;font-weight:900}
+.wm-detail-kicker span{display:inline-flex;align-items:center;min-height:30px;padding:4px 10px;border-radius:999px;background:#e5fbf1}
+.wm-detail-hero h1{margin:0;color:#0f172a;font-size:34px;line-height:1.2;letter-spacing:0}
+.wm-detail-hero p{max-width:680px;margin:0;color:#475569;font-size:17px;line-height:1.7}
+.wm-detail-hero-actions{display:flex;flex-wrap:wrap;gap:12px}
+.wm-detail-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:11px 16px;border-radius:999px;border:1px solid #cfe5dc;background:#fff;color:#0f5f55;font-weight:900;text-decoration:none;box-shadow:0 8px 24px rgba(15,95,85,.08)}
+.wm-detail-btn.is-primary{background:#10b981;border-color:#10b981;color:#fff}
+.wm-detail-map-card{display:grid;gap:13px;align-content:start;padding:14px;border:1px solid #dbe7e2;border-radius:8px;background:#fff;box-shadow:0 18px 40px rgba(15,23,42,.08)}
+.wm-detail-map-visual{position:relative;min-height:174px;overflow:hidden;border-radius:8px;background:linear-gradient(135deg,rgba(208,245,221,.96),rgba(236,253,245,.9)),linear-gradient(72deg,transparent 0 37%,rgba(14,165,233,.32) 38% 42%,transparent 43% 100%),linear-gradient(150deg,transparent 0 53%,rgba(148,163,184,.34) 54% 57%,transparent 58% 100%)}
+.wm-detail-map-visual:before,.wm-detail-map-visual:after{content:"";position:absolute;inset:auto;border-radius:999px;background:rgba(255,255,255,.75)}
+.wm-detail-map-visual:before{width:140%;height:18px;left:-28px;top:66px;transform:rotate(-8deg)}
+.wm-detail-map-visual:after{width:118%;height:12px;left:-18px;bottom:44px;transform:rotate(9deg)}
+.wm-detail-map-pin{position:absolute;left:50%;top:50%;display:grid;gap:2px;min-width:150px;transform:translate(-50%,-50%);padding:10px 12px;border:1px solid rgba(16,185,129,.24);border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 12px 32px rgba(15,118,110,.18);font-weight:900}
+.wm-detail-map-pin span{color:#0f766e;font-size:13px}
+.wm-detail-map-pin strong{color:#17211d;font-size:15px}
+.wm-detail-map-card p{margin:0;color:#475569;line-height:1.6}
+.wm-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:21px;align-items:start}
+.wm-detail-stops{display:grid;gap:13px}
+.wm-detail-stop,.wm-detail-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:16px;box-shadow:0 12px 28px rgba(15,23,42,.05)}
+.wm-detail-stop-head{display:flex;justify-content:space-between;gap:13px;align-items:start;margin-bottom:10px}
+.wm-detail-stop h2,.wm-detail-panel h2{margin:0;color:#0f172a;font-size:21px;line-height:1.3;letter-spacing:0}
+.wm-detail-stop-head span{flex:0 0 auto;display:inline-flex;align-items:center;min-height:30px;padding:4px 10px;border-radius:999px;background:#eefcf4;color:#0f766e;font-size:13px;font-weight:900}
 .wm-detail-stop p,.wm-detail-panel p{margin:0;color:#475569;line-height:1.7}
-.wm-detail-stop small{display:block;margin-top:10px;color:#64748b;font-weight:800}
-.wm-detail-panel{display:grid;gap:12px}
+.wm-detail-cues{display:grid;gap:10px;margin-top:13px}
+.wm-detail-cue{display:grid;gap:5px}
+.wm-detail-cue strong{color:#17211d;font-size:16px}
+.wm-detail-cue ul,.wm-detail-panel ul{margin:0;padding-left:20px;color:#475569;line-height:1.7}
+.wm-detail-cue li,.wm-detail-panel li{margin:2px 0}
+.wm-detail-stop-actions{display:flex;align-items:center;justify-content:space-between;gap:13px;margin-top:14px;padding-top:13px;border-top:1px solid #edf2ef}
+.wm-detail-stop-actions small{color:#475569;font-size:14px;font-weight:800;line-height:1.6}
+.wm-detail-stop-actions a{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:44px;padding:9px 14px;border-radius:999px;background:#e8fbf2;color:#0f6f61;font-weight:900;text-decoration:none}
+.wm-detail-panel{display:grid;gap:14px;position:sticky;top:84px}
+.wm-detail-panel section{display:grid;gap:7px}
 .wm-detail-panel a{color:#0f766e;font-weight:900;text-decoration:none}
-@media(max-width:760px){.wm-detail-grid,.wm-detail-cues{grid-template-columns:1fr}.wm-detail{padding:18px 12px 56px}.wm-detail-hero h1{font-size:26px}}
+.wm-detail-actions{display:flex;gap:12px;justify-content:center;max-width:640px;margin:0 auto 24px;padding:0 14px 10px;background:transparent}
+.wm-detail-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:52px;width:min(46%,240px);padding:10px 16px;border-radius:999px;border:1px solid #cfe5dc;background:#fff;color:#0f5f55;font-weight:900;text-decoration:none}
+.wm-detail-actions a.is-primary{background:#10b981;border-color:#10b981;color:#fff}
+@media(max-width:760px){.wm-detail-topbar{padding:9px 14px}.wm-detail{padding:16px 12px 24px}.wm-detail-hero,.wm-detail-grid{grid-template-columns:1fr}.wm-detail-hero{gap:13px}.wm-detail-hero-copy{padding:10px 0}.wm-detail-hero h1{font-size:28px}.wm-detail-hero p{font-size:16px}.wm-detail-map-card{order:-1}.wm-detail-map-visual{min-height:150px}.wm-detail-panel{position:static}.wm-detail-stop-head{display:grid}.wm-detail-stop-actions{display:grid}.wm-detail-stop-actions a{width:100%}.wm-detail-actions{padding:0 12px 18px}.wm-detail-actions a{width:50%;font-size:15px}}
 </style>
 </head>
 <body>
+<header class="wm-detail-topbar">
+  <a class="wm-detail-brand" href="/ja/" aria-label="ikimon ホーム"><span class="wm-detail-logo" aria-hidden="true"></span><strong>ikimon</strong></a>
+  <a class="wm-detail-topbar-link" href="${escapeHtml(backMapHref)}" data-kpi-action="walk_map_detail:top_back_to_map">地図に戻る</a>
+</header>
 <main class="wm-detail">
   <header class="wm-detail-hero">
-    <small>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).municipality) ?? "")} / ${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).publishMode) ?? "")}</small>
-    <h1>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).title) ?? "散策マップ")}</h1>
-    <p>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).summary) ?? "")}</p>
+    <div class="wm-detail-hero-copy">
+      <div class="wm-detail-kicker"><span>${escapeHtml(normalizeOptionalText(detailRecord.municipality) ?? "地域")}</span><span>公開範囲の散策候補</span><span>${escapeHtml(mobilityLabel)}</span></div>
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(summary)}</p>
+      <div class="wm-detail-hero-actions">
+        <a class="wm-detail-btn is-primary" href="${escapeHtml(primaryRecordHref)}" data-kpi-action="walk_map_detail:hero_record">この近くで記録する</a>
+        <a class="wm-detail-btn" href="${escapeHtml(backMapHref)}" data-kpi-action="walk_map_detail:hero_back_to_map">地図で見る</a>
+      </div>
+    </div>
+    <section class="wm-detail-map-card" aria-label="おおよその散策エリア">
+      <div class="wm-detail-map-visual" aria-hidden="true"><div class="wm-detail-map-pin"><span>散策</span><strong>${escapeHtml(areaLabel)}</strong></div></div>
+      <p>公開記録は地点ではなく、おおよそのエリアで表示します。</p>
+    </section>
   </header>
   <div class="wm-detail-grid">
-    <section class="wm-detail-stops">${stops}</section>
+    <section class="wm-detail-stops" aria-label="立ち寄り先">${stops}</section>
     <aside class="wm-detail-panel">
-      <section><h2>移動</h2><p>${escapeHtml(normalizeOptionalText(routeFlexibility.routeStyle) ?? "loose_stops")} / ${escapeHtml(arrayOrEmpty(routeFlexibility.mobilityModes).map(String).join(" / ") || "walk")}</p></section>
+      <section><h2>歩き方</h2><p>順路を固定せず、公開されている道や広場から無理なく見られる範囲だけを使います。</p></section>
       <section><h2>出典</h2><ul>${sources || "<li>出典リンクなし</li>"}</ul></section>
-      <section><h2>場所の出し方</h2><p>${escapeHtml(normalizeOptionalText((detail as Record<string, unknown>).publicPrecisionPolicy) ?? "mesh_or_coarser")}</p></section>
+      <section><h2>場所の出し方</h2><p>個人の正確な位置や生活圏は出さず、公開面ではエリアとして扱います。</p></section>
     </aside>
   </div>
 </main>
+<nav class="wm-detail-actions" aria-label="散策の操作">
+  <a href="${escapeHtml(backMapHref)}" data-kpi-action="walk_map_detail:bottom_back_to_map">地図に戻る</a>
+  <a class="is-primary" href="${escapeHtml(primaryRecordHref)}" data-kpi-action="walk_map_detail:bottom_record">記録する</a>
+</nav>
 </body>
 </html>`;
 }
@@ -11059,17 +11252,17 @@ function renderMunicipalWalkMapListHtml(summaries: unknown[]): string {
     .map((raw) => recordOrEmpty(raw))
     .map((summary) => {
       const walkMapId = normalizeOptionalText(summary.walkMapId) ?? "";
-      const title = normalizeOptionalText(summary.title) ?? "散策マップ";
       const municipality = normalizeOptionalText(summary.municipality) ?? "";
-      const description = normalizeOptionalText(summary.summary) ?? "";
       const areaHint = recordOrEmpty(summary.areaHint);
       const areaLabel = normalizeOptionalText(areaHint.label) ?? municipality;
+      const title = municipalWalkMapPublicTitle(walkMapId, normalizeOptionalText(summary.title), areaLabel || "この周辺");
+      const description = municipalWalkMapPublicSummary(normalizeOptionalText(summary.summary), areaLabel || "この周辺");
       const href = walkMapId ? `/walk-maps/${encodeURIComponent(walkMapId)}` : "/walk-maps";
       return `<article class="wm-list-card">
         <a href="${escapeHtml(href)}">
           <span>${escapeHtml(municipality)}</span>
           <strong>${escapeHtml(title)}</strong>
-          <small>${escapeHtml(areaLabel)} / ${escapeHtml(normalizeOptionalText(summary.routeStyle) ?? "loose_stops")}</small>
+          <small>${escapeHtml(areaLabel)} / 公開範囲の散策候補</small>
           <p>${escapeHtml(description)}</p>
         </a>
       </article>`;

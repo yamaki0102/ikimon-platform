@@ -824,7 +824,7 @@ export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
       verificationStatus: "verified",
       commercialIntent: "none",
     },
-    title: "八ツ山周辺を歩くサンプル",
+    title: "谷津山周辺を歩く",
     summary: "静岡市公式資料を出典として、公開範囲で木陰、足元の草地、鳥の声を軽く残すために再構成したサンプルです。",
     theme: "satoyama",
     publishMode: "public_preview",
@@ -873,7 +873,7 @@ export const STATIC_MUNICIPAL_WALK_MAPS_V0: MunicipalWalkMapConfigV0[] = [
     sourceReferences: [
       SHIZUOKA_SOURCE_REFERENCE,
       {
-        label: "八ツ山 関連PDF",
+        label: "谷津山 関連PDF",
         url: "https://www.city.shizuoka.lg.jp/documents/1483/yatsuyama-map.pdf",
         note: "静岡市公式ページ掲載PDF。内容は転載せず、サンプル構成の出典として表示します。",
       },
@@ -2357,7 +2357,7 @@ function buildShizuokaIkimonoWalkRouteDraftV0(source: MunicipalWalkMapSourceCata
       commercialIntent: "none",
     },
     title: "静岡市 いきもの散策マップ 下書き",
-    summary: "静岡市の公式ページを引用元に、八ツ山、麻機、丸子川・広野海岸公園周辺を、公開範囲で立ち寄れる複数スポットとして整理する下書きです。",
+    summary: "静岡市の公式ページを引用元に、谷津山、麻機、丸子川・広野海岸公園周辺を、公開範囲で立ち寄れる複数スポットとして整理する下書きです。",
     theme: "seasonal_walk",
     publishMode: "draft",
     areaScope: {
