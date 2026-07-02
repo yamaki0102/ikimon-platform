@@ -110,6 +110,7 @@ import {
   type ObservationDetailSnapshot,
   type ObservationListSnapshot,
   type ProfileSnapshot,
+  type ProfileSnapshotVisibility,
 } from "../services/readModels.js";
 import { getProfileNoteDigest, type ProfileNoteDigest } from "../services/profileNoteDigest.js";
 import {
@@ -10636,37 +10637,70 @@ function renderProfileSnapshotBody(
   viewerUserId: string | null | undefined,
   snapshot: ProfileSnapshot,
   mode: "registered" | "guest" = "registered",
+  profileVisibility: ProfileSnapshotVisibility = "public",
 ): string {
-  const places = renderPlaceRows(
-    basePath,
-    lang,
-    viewerUserId,
-    snapshot.recentPlaces,
-    "まだ場所の記録はありません。",
-  );
+  const isOwnerView = profileVisibility === "owner";
+  const places = isOwnerView
+    ? renderPlaceRows(
+        basePath,
+        lang,
+        viewerUserId,
+        snapshot.recentPlaces,
+        "まだ場所の記録はありません。",
+      )
+    : "";
   const observations = snapshot.recentObservations.map((item) => `
       <div class="row">
         <div>
           <a style="font-weight:800;color:inherit;text-decoration:none" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">${escapeHtml(formatTaxonDisplayName(item, lang).primaryLabel)}</a>
-          <div class="meta">${escapeHtml(formatPlaceDisplay(item, lang, viewerUserId ? "owner" : "public"))} · ${escapeHtml(item.observedAt)}</div>
+          <div class="meta">${escapeHtml(formatPlaceDisplay(item, lang, isOwnerView ? "owner" : "public"))} · ${escapeHtml(isOwnerView ? item.observedAt : formatProfilePublicObservedAt(item.observedAt, lang))}</div>
         </div>
         <div class="actions">
-          <span class="pill">${escapeHtml(formatIdentificationCount(item.identificationCount, lang))}</span>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)) + "#identify")}">同定する</a>
+          <span class="pill">${escapeHtml(isOwnerView ? formatIdentificationCount(item.identificationCount, lang) : "公開")}</span>
+          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)) + (isOwnerView ? "#identify" : ""))}">${isOwnerView ? "同定する" : "記録を読む"}</a>
         </div>
       </div>`).join("");
+  const ownPublicPreview = !isOwnerView && viewerUserId === snapshot.userId
+    ? `<section class="section" data-testid="profile-public-preview-banner"><div class="card is-soft"><div class="card-body stack">
+        <div class="eyebrow">公開プレビュー</div>
+        <h2>他の人からの見え方</h2>
+        <p class="meta">このページでは、正確な場所、下書き、非公開記録、ストリーク、未公開件数は表示しません。自分用の整理はマイページで行います。</p>
+        <div class="actions"><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/profile"))}">マイページへ戻る</a></div>
+      </div></div></section>`
+    : "";
+  const publicBoundary = !isOwnerView
+    ? `<section class="section" data-testid="profile-public-boundary"><div class="card is-soft"><div class="card-body stack">
+        <div class="eyebrow">公開プロフィール</div>
+        <h2>地域図鑑に公開された記録</h2>
+        <p class="meta">公開面では、粗い地域ラベルと公開済みの記録だけを表示します。正確な場所、いつものルート、下書き、非公開件数、反応者は出しません。</p>
+        ${snapshot.publicContributionRange ? `<p class="meta"><strong>公開記録:</strong> ${escapeHtml(snapshot.publicContributionRange)}</p>` : ""}
+      </div></div></section>`
+    : "";
+  const placesSection = isOwnerView
+    ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の場所</h2></div></div><div class="list">${places || `<div class="row"><div><strong>まだ場所の記録はありません。</strong><p class="meta" style="margin:4px 0 0">最初の記録を残すと、よく歩く場所としてここにまとまります。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a></div>`}</div></section>`
+    : "";
   const guestIntro = mode === "guest"
     ? `<section class="section"><div class="card is-soft"><div class="card-body stack">
         <div class="eyebrow">Guest notebook</div>
         <h2>匿名のまま残された、小さな記録</h2>
-        <p class="meta">Guest の記録はアカウントのプロフィールではなく、公開された観察レコードと場所の履歴だけで読める簡易ライブラリとして表示します。名前よりも、何を見つけ、どこを歩いたかを中心に残します。</p>
+        <p class="meta">Guest の記録はアカウントのプロフィールではなく、公開された観察レコードを粗い地域ラベルで読める簡易ライブラリとして表示します。</p>
       </div></div></section>`
     : "";
 
   return `${guestIntro}
       ${mode === "registered" ? renderProfileIntro(basePath, snapshot) : ""}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の場所</h2></div></div><div class="list">${places || `<div class="row"><div><strong>まだ場所の記録はありません。</strong><p class="meta" style="margin:4px 0 0">最初の記録を残すと、よく歩く場所としてここにまとまります。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a></div>`}</div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div></div><div class="list">${observations || `<div class="row"><div><strong>写真つきの観察はまだありません。</strong><p class="meta" style="margin:4px 0 0">ここには写真つきの記録が並びます。写真なしのメモでも始められて、あとから写真や名前を足せます。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record?start=note"))}">メモを残す</a></div>`}</div></section>`;
+      ${ownPublicPreview}
+      ${publicBoundary}
+      ${placesSection}
+      <section class="section" id="profile-public-records"><div class="section-header"><div><div class="eyebrow">${isOwnerView ? "記録" : "公開記録"}</div><h2>${isOwnerView ? "最近の観察" : "地域図鑑に公開された観察"}</h2></div></div><div class="list">${observations || `<div class="row"><div><strong>公開できる記録はまだありません。</strong><p class="meta" style="margin:4px 0 0">ここには公開済みの記録だけが並びます。非公開や下書きの存在は表示しません。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record?start=note"))}">自分も記録する</a></div>`}</div></section>`;
+}
+
+function formatProfilePublicObservedAt(value: string | null | undefined, lang: SiteLang): string {
+  if (!value) return lang === "ja" ? "公開時期未設定" : "Public date unavailable";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return lang === "ja" ? "公開時期未設定" : "Public date unavailable";
+  if (lang === "ja") return `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月`;
+  return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", timeZone: "UTC" }).format(date);
 }
 
 function notesEntryDate(obs: LandingObservation): string {
@@ -22429,7 +22463,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Guest record not found", stateCard("Guest 記録なし", "この Guest 記録は見つかりません", "Guest 記録のURLではない、または記録が非公開の可能性があります。"), "ホーム");
     }
-    const snapshot = await getProfileSnapshot(request.params.userId);
+    const snapshot = await getProfileSnapshot(request.params.userId, { visibility: "public" });
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Guest record not found", stateCard("Guest 記録なし", "この Guest 記録は見つかりません", "リンクが古い、または公開できる観察がまだありません。"), "ホーム");
@@ -22439,15 +22473,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return layout(
       basePath,
       `${snapshot.displayName} notebook | ikimon`,
-      renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot, "guest"),
+      renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot, "guest", "public"),
       "ホーム",
       {
         eyebrow: "Guest observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "匿名の観察者が残した、最近の場所と観察の記録。",
+        lead: "匿名の観察者が公開した、地域図鑑の記録。",
         actions: [
-          { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このGuestのホームを見る" },
+          { href: "#profile-public-records", label: "公開記録を見る" },
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
@@ -22462,28 +22496,28 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       const guestHref = appendLangToHref(withBasePath(basePath, `/guest/${encodeURIComponent(request.params.userId)}`), lang);
       return reply.redirect(guestHref, 302);
     }
-    const snapshot = await getProfileSnapshot(request.params.userId);
+    const snapshot = await getProfileSnapshot(request.params.userId, { visibility: "public" });
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古い、または非公開の可能性があります。"), "ホーム");
     }
     const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-    const isOwnProfile = viewerSession?.userId === snapshot.userId;
-    const profileHomeHref = isOwnProfile ? "/home" : `/home?userId=${encodeURIComponent(snapshot.userId)}`;
+    const isOwnProfile = Boolean(viewerSession?.userId && viewerSession.userId === snapshot.userId);
+    const profileHomeHref = isOwnProfile ? "/profile" : "#profile-public-records";
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot),
+      renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot, "registered", "public"),
       "ホーム",
       {
         eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: isOwnProfile ? "自分の記録 — 最近の場所と観察を読み返す。" : "この人の記録 — 最近の場所と観察を追う。",
+        lead: isOwnProfile ? "他の人からの見え方プレビュー。公開済みの記録だけを粗い地域で表示します。" : "地域図鑑に公開された記録を、粗い地域ラベルで見る。",
         actions: [
-          { href: profileHomeHref, label: isOwnProfile ? "マイページを見る" : "このユーザーのホームを見る" },
+          { href: profileHomeHref, label: isOwnProfile ? "マイページへ戻る" : "公開記録を見る" },
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
@@ -22520,7 +22554,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       );
     }
     const [snapshot, digest, referenceSummary] = await Promise.all([
-      getProfileSnapshot(session.userId),
+      getProfileSnapshot(session.userId, { visibility: "owner" }),
       getProfileNoteDigest(session.userId),
       getReferenceProfileSummary(session.userId).catch(() => null),
     ]);
@@ -22571,7 +22605,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         "ホーム",
       );
     }
-    const snapshot = await getProfileSnapshot(session.userId);
+    const snapshot = await getProfileSnapshot(session.userId, { visibility: "owner" });
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "プロフィール編集 | ikimon", stateCard("プロフィールなし", "編集できるプロフィールがありません", "記録を 1 つでも残すとプロフィールが育ち始めます。"), "ホーム");

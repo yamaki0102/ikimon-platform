@@ -244,13 +244,17 @@ export type ObservationDetailSnapshot = {
   }>;
 };
 
+export type ProfileSnapshotVisibility = "owner" | "public";
+
 export type ProfileSnapshot = {
+  visibility: ProfileSnapshotVisibility;
   userId: string;
   displayName: string;
   rankLabel: string | null;
   avatarUrl: string | null;
   profileBio: string | null;
   expertise: string | null;
+  publicContributionRange: string | null;
   stats: {
     totalObservations: number;
     thisMonthObservations: number;
@@ -1478,7 +1482,20 @@ export async function getObservationDetailSnapshot(
   };
 }
 
-export async function getProfileSnapshot(userId: string): Promise<ProfileSnapshot | null> {
+function formatPublicProfileContributionRange(count: number): string | null {
+  const safeCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  if (safeCount >= 100) return "100件以上";
+  if (safeCount >= 50) return "50件以上";
+  if (safeCount >= 10) return "10件以上";
+  if (safeCount > 0) return "公開記録あり";
+  return null;
+}
+
+export async function getProfileSnapshot(
+  userId: string,
+  options: { visibility?: ProfileSnapshotVisibility } = {},
+): Promise<ProfileSnapshot | null> {
+  const visibility = options.visibility ?? "public";
   const pool = getPool();
   const userResult = await pool.query<{
     user_id: string;
@@ -1515,7 +1532,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     return null;
   }
 
-  const home = await getHomeSnapshot(userId);
+  const home = visibility === "owner" ? await getHomeSnapshot(userId) : { viewerUserId: null, recentObservations: [], myPlaces: [] };
   const [recentObservations, statsResult, streakResult, lifeListResult] = await Promise.all([
     loadVisitSummaryObservations(8, { userId }),
     pool.query<{
@@ -1615,7 +1632,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     ),
   ]);
   const statsRow = statsResult.rows[0];
-  const stats = {
+  const exactStats = {
     totalObservations: Number(statsRow?.total_observations ?? 0),
     thisMonthObservations: Number(statsRow?.this_month_observations ?? 0),
     placeCount: Number(statsRow?.place_count ?? 0),
@@ -1625,6 +1642,17 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     tier3PlusCount: Number(statsRow?.tier3_plus_count ?? 0),
     firstObservedAt: statsRow?.first_observed_at ?? null,
     latestObservedAt: statsRow?.latest_observed_at ?? null,
+  };
+  const stats = visibility === "owner" ? exactStats : {
+    totalObservations: 0,
+    thisMonthObservations: 0,
+    placeCount: 0,
+    uniqueTaxaAllTime: 0,
+    currentStreakDays: 0,
+    tier2PlusCount: 0,
+    tier3PlusCount: 0,
+    firstObservedAt: null,
+    latestObservedAt: null,
   };
   const lifeListPreview = lifeListResult.rows.map((row) => ({
     displayName: row.display_name,
@@ -1655,28 +1683,32 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
       return null;
     }
     return {
+      visibility,
       userId: guest.user_id,
       displayName: guest.display_name ?? "Guest",
       rankLabel: "Guest observer",
       avatarUrl: null,
       profileBio: null,
       expertise: null,
+      publicContributionRange: formatPublicProfileContributionRange(exactStats.totalObservations),
       stats,
-      lifeListPreview,
+      lifeListPreview: visibility === "owner" ? lifeListPreview : [],
       recentPlaces: home.myPlaces,
       recentObservations,
     };
   }
 
   return {
+    visibility,
     userId: user.user_id,
     displayName: user.display_name,
     rankLabel: user.rank_label,
     avatarUrl: normalizeAssetUrl(user.avatar_url),
     profileBio: user.profile_bio,
     expertise: user.expertise,
+    publicContributionRange: formatPublicProfileContributionRange(exactStats.totalObservations),
     stats,
-    lifeListPreview,
+    lifeListPreview: visibility === "owner" ? lifeListPreview : [],
     recentPlaces: home.myPlaces,
     recentObservations,
   };

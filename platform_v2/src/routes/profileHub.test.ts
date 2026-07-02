@@ -6,12 +6,14 @@ import type { RegionalStoryCue } from "../services/regionalStory.js";
 
 function profileSnapshot(overrides: Partial<ProfileSnapshot> = {}): ProfileSnapshot {
   return {
+    visibility: "owner",
     userId: "user-profile-test",
     displayName: "YAMAKI",
     rankLabel: null,
     avatarUrl: null,
     profileBio: null,
     expertise: null,
+    publicContributionRange: null,
     stats: {
       totalObservations: 0,
       thisMonthObservations: 0,
