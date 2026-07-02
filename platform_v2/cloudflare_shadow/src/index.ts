@@ -1691,6 +1691,7 @@ const SHADOW_MAP_GUIDE_SPOTS: ShadowMapGuideSpot[] = [
 ];
 const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/",
+  "/home",
   "/demo/place-feeling-tags",
   "/guide",
   "/guide-programs",
@@ -1717,6 +1718,7 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/es/community/fields",
   "/pt-br/community/fields",
   "/ja/",
+  "/ja/home",
   "/ja/demo/place-feeling-tags",
   "/ja/guide",
   "/ja/guide-programs",
@@ -1732,6 +1734,7 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/ja/profile",
   "/ja/profile/settings",
   "/en/",
+  "/en/home",
   "/en/demo/place-feeling-tags",
   "/en/guide",
   "/en/guide-programs",
@@ -1747,6 +1750,7 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/en/record",
   "/en/records",
   "/es/",
+  "/es/home",
   "/es/demo/place-feeling-tags",
   "/es/guide",
   "/es/guide-programs",
@@ -1762,6 +1766,7 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/es/record",
   "/es/records",
   "/pt-br/",
+  "/pt-br/home",
   "/pt-br/demo/place-feeling-tags",
   "/pt-br/guide",
   "/pt-br/guide-programs",
@@ -1810,6 +1815,7 @@ const ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS = [
 
 const ORIGINAL_UI_HTML_LOCALIZABLE_PATHS = [
   "/",
+  "/home",
   "/community/events/new",
   "/demo/place-feeling-tags",
   "/guide",
@@ -17328,7 +17334,7 @@ function isAuthHtmlPath(pathname: string): boolean {
 }
 
 function isHomeHtmlPath(pathname: string): boolean {
-  return pathname === "/" || /^(?:\/(?:ja|en|es|pt-br))\/?$/.test(pathname);
+  return pathname === "/" || pathname === "/home" || /^(?:\/(?:ja|en|es|pt-br))(?:\/home)?\/?$/.test(pathname);
 }
 
 function isRecordHtmlPath(pathname: string): boolean {
