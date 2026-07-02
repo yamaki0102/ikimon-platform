@@ -41,6 +41,10 @@ test("formatTaxonDisplayName normalizes unresolved labels", () => {
     formatTaxonDisplayName({ displayName: "同定待ち", aiCandidateName: "シロツメクサ" }, "ja"),
     { primaryLabel: "シロツメクサ", qualifier: "ai", isAwaitingId: false },
   );
+  assert.deepEqual(
+    formatTaxonDisplayName({ displayName: "名前待ち" }, "ja"),
+    { primaryLabel: "名前待ち", qualifier: null, isAwaitingId: true },
+  );
 });
 
 test("formatTaxonDisplayName rejects scene labels as taxon names", () => {

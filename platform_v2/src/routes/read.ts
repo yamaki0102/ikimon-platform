@@ -10137,29 +10137,53 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
       ]
     : [];
   const homeActionCards = latest
-    ? [
-        {
-          href: latestHref,
-          label: "前回を見る",
-          title: latest.displayName,
-          body: `${formatProfileDate(latest.observedAt)} · ${latest.placeName}`,
-          primary: true,
-        },
-        {
-          href: withBasePath(basePath, "/records?view=mine"),
-          label: "記録棚",
-          title: `${formatProfileNumber(snapshot.recentObservations.length)} 件`,
-          body: "写真と場所を、後から探しやすい形で読み返す",
-          primary: false,
-        },
-        {
-          href: placeHref,
-          label: isPersonalHome ? "地図で見る" : "場所を探す",
-          title: placeTitle,
-          body: placeBody,
-          primary: false,
-        },
-      ]
+    ? isPersonalHome
+      ? [
+          {
+            href: latestHref,
+            label: "前回を見る",
+            title: latest.displayName,
+            body: `${formatProfileDate(latest.observedAt)} · ${latest.placeName}`,
+            primary: true,
+          },
+          {
+            href: withBasePath(basePath, "/records?view=mine"),
+            label: "記録棚",
+            title: `${formatProfileNumber(snapshot.recentObservations.length)} 件`,
+            body: "写真と場所を、後から探しやすい形で読み返す",
+            primary: false,
+          },
+          {
+            href: placeHref,
+            label: "地図で見る",
+            title: placeTitle,
+            body: placeBody,
+            primary: false,
+          },
+        ]
+      : [
+          {
+            href: placeHref,
+            label: "場所を探す",
+            title: placeTitle,
+            body: placeBody,
+            primary: true,
+          },
+          {
+            href: withBasePath(basePath, "/records"),
+            label: "みんなの記録",
+            title: "公開記録を見る",
+            body: "写真と場所から、地域の自然を読み返す",
+            primary: false,
+          },
+          {
+            href: latestHref,
+            label: "最近の記録",
+            title: latest.displayName,
+            body: `${formatProfileDate(latest.observedAt)} · ${latest.placeName}`,
+            primary: false,
+          },
+        ]
     : [
         {
           href: placeHref,
@@ -10205,8 +10229,8 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         <div class="home-today-panel" aria-label="${escapeHtml(isPersonalHome ? "今日の入口" : "今日の入口")}">
           <div class="home-today-head">
             <span>今日の入口</span>
-            <strong>${escapeHtml(latest?.displayName ?? "近くの自然を見る")}</strong>
-            <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "地域の記録や地図から、次に歩く場所を選べます。")}</em>
+            <strong>${escapeHtml(isPersonalHome && latest ? latest.displayName : "近くの自然を見る")}</strong>
+            <em>${escapeHtml(isPersonalHome && latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "地域の記録や地図から、次に歩く場所を選べます。")}</em>
           </div>
           <div class="home-action-grid">
             ${homeActionCards.map((card) => `<a class="home-action-card${card.primary ? " is-primary" : ""}" href="${escapeHtml(card.href)}">

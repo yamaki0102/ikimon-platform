@@ -226,6 +226,48 @@ test("home page gives guests a clear place-first path without competing with foo
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
 
+test("home page keeps anonymous users place-first even when public records exist", () => {
+  const html = renderHomePageHtml("", "ja", {
+    viewerUserId: null,
+    recentObservations: [
+      {
+        occurrenceId: "occ-1",
+        visitId: "visit-1",
+        displayName: "コガネムシ科",
+        scientificName: null,
+        vernacularName: null,
+        aiCandidateName: null,
+        observedAt: "2026-06-12T08:25:00.000Z",
+        observerName: "YAMAKI",
+        placeName: "浜松市中央区",
+        municipality: "浜松市中央区",
+        publicLocation: {
+          label: "浜松市中央区",
+          scope: "municipality",
+          cellId: null,
+          gridM: null,
+          radiusM: null,
+          centroidLat: null,
+          centroidLng: null,
+          displayMode: "area",
+        },
+        photoUrl: null,
+        hasPhoto: false,
+        hasVideo: false,
+        identificationCount: 0,
+      },
+    ],
+    myPlaces: [],
+  } satisfies HomeSnapshot);
+
+  assert.match(html, /<strong>近くの自然を見る<\/strong>/);
+  assert.match(html, /<span>場所を探す<\/span>\s*<strong>近くの発見を見る<\/strong>/);
+  assert.match(html, /<span>みんなの記録<\/span>\s*<strong>公開記録を見る<\/strong>/);
+  assert.match(html, /<span>最近の記録<\/span>\s*<strong>コガネムシ科<\/strong>/);
+  assert.doesNotMatch(html, /<span>前回を見る<\/span>\s*<strong>コガネムシ科<\/strong>/);
+  assert.doesNotMatch(html, /<strong>コガネムシ科<\/strong>\s*<em>2026\.06\.12/);
+});
+
 test("home page keeps the signed-in desktop dashboard compact", () => {
   const html = renderHomePageHtml("", "ja", {
     viewerUserId: "user-1",
