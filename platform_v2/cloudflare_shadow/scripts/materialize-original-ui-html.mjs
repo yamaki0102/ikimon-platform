@@ -169,7 +169,10 @@ function originalUiHtmlVariantKey(pathname, variant) {
 function originalUiHtmlQueryVariant(publicPath) {
   const parsed = publicPathUrl(publicPath);
   if (!/^(?:\/(?:ja|en|es|pt-br))?\/records$/.test(parsed.pathname)) return null;
-  return parsed.searchParams.get("view") === "identification_summary" ? "view-identification-summary" : null;
+  const view = parsed.searchParams.get("view");
+  if (view === "identification_summary") return "view-identification-summary";
+  if (view === "needs_id") return "view-needs-id";
+  return null;
 }
 
 function originalUiHtmlKeyForPublicPath(publicPath) {

@@ -24,6 +24,36 @@ const SOURCE_BADGE: Record<string, string> = {
   school: "evt-mode-effort",
 };
 
+function dateIsPast(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && time < Date.now();
+}
+
+function fieldStatusBadge(field: ObservationField): { label: string; className: string } {
+  if (field.supersededBy) return { label: "更新済み", className: "evt-mode-absence" };
+  if (dateIsPast(field.validTo)) return { label: "期間終了", className: "evt-mode-absence" };
+  if (
+    field.certifiedAt ||
+    ["registry_matched", "page_verified", "owner_verified", "staff_verified"].includes(field.verificationLevel) ||
+    field.sourceConfidence >= 0.75
+  ) {
+    return { label: "確認済み", className: "evt-mode-effort" };
+  }
+  if (field.source === "user_defined") return { label: "マイフィールド", className: "evt-mode-discovery" };
+  return { label: "確認中", className: "evt-mode-quest" };
+}
+
+function fieldUseBadge(field: ObservationField): { label: string; className: string } {
+  if (field.source === "school" || field.adminLevel === "school") {
+    return { label: "許可確認が必要", className: "evt-mode-absence" };
+  }
+  if (field.source === "user_defined") {
+    return { label: "イベント作成OK", className: "evt-mode-discovery" };
+  }
+  return { label: "観察会の範囲に使える", className: "evt-mode-bingo" };
+}
+
 export interface RenderFieldListArgs {
   fields: ObservationField[];
   prefectures: PrefectureBucket[];
@@ -70,6 +100,8 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     : fields.map((f) => {
         const badgeCls = SOURCE_BADGE[f.source] ?? "evt-mode-discovery";
         const sourceLabel = SOURCE_LABEL[f.source] ?? f.source;
+        const statusBadge = fieldStatusBadge(f);
+        const useBadge = fieldUseBadge(f);
         return `<article class="evt-card" style="display:grid; gap:6px;">
           <header style="display:flex; gap:6px; align-items:center; justify-content:space-between;">
             <span class="evt-badge ${badgeCls}">${escapeHtml(sourceLabel)}</span>
@@ -78,8 +110,12 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
           <h3 class="evt-heading" style="margin:0; font-size:17px;">${escapeHtml(f.name)}</h3>
           <p class="evt-lead" style="font-size:13px;">${escapeHtml([f.prefecture, f.city].filter(Boolean).join(" / "))}</p>
           ${f.summary ? `<p class="evt-lead" style="font-size:12px;">${escapeHtml(f.summary)}</p>` : ""}
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <span class="evt-badge ${statusBadge.className}">${escapeHtml(statusBadge.label)}</span>
+            <span class="evt-badge ${useBadge.className}">${escapeHtml(useBadge.label)}</span>
+          </div>
           <div style="display:flex; gap:6px;">
-            <a class="evt-btn evt-btn-ghost" href="/community/fields/${escapeHtml(f.fieldId)}" style="flex:1; min-height:36px; padding:6px 10px;">詳細</a>
+            <a class="evt-btn evt-btn-ghost" href="/community/fields/${encodeURIComponent(f.fieldId)}" style="flex:1; min-height:36px; padding:6px 10px;">詳細</a>
             <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(f.fieldId)}" style="flex:1; min-height:36px; padding:6px 10px;" title="このフィールドで観察会を作る">観察会</a>
           </div>
         </article>`;
@@ -92,6 +128,19 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     <h1>「いつもの場所」を、観察会のひな型として残す。</h1>
     <p>環境省「自然共生サイト」、国交省 TSUNAG、自分で登録した観察フィールド。すべてここから検索して、次の観察会を 1 タップで開ける。</p>
   </article>
+
+  <section aria-label="フィールド DB の入口" style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+    <a class="evt-card" href="#field-db-search" style="display:grid; gap:8px; text-decoration:none; color:inherit;">
+      <span class="evt-eyebrow">探す</span>
+      <h2 class="evt-heading" style="margin:0; font-size:18px;">場所を探す</h2>
+      <p class="evt-lead" style="font-size:13px;">名前・市町村・都道府県から、記録を見たい場所や観察会に使える場所を探す。</p>
+    </a>
+    <a class="evt-card" href="/community/events/new" style="display:grid; gap:8px; text-decoration:none; color:inherit;">
+      <span class="evt-eyebrow">作る</span>
+      <h2 class="evt-heading" style="margin:0; font-size:18px;">フィールドを登録・イベントを開く</h2>
+      <p class="evt-lead" style="font-size:13px;">登録済みフィールドを選ぶか、新しい範囲を指定して観察会の準備へ進む。</p>
+    </a>
+  </section>
 
   <section style="display:grid; gap:8px;">
     <span class="evt-eyebrow">都道府県で絞り込み</span>
@@ -106,7 +155,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     <div style="display:flex; flex-wrap:wrap; gap:6px;">${sourceChips}</div>
   </section>
 
-  <form action="/community/fields" method="get" style="display:flex; gap:8px;">
+  <form id="field-db-search" action="/community/fields" method="get" style="display:flex; gap:8px;">
     ${filter.source ? `<input type="hidden" name="source" value="${escapeHtml(filter.source)}" />` : ""}
     ${filter.prefecture ? `<input type="hidden" name="prefecture" value="${escapeHtml(filter.prefecture)}" />` : ""}
     <input type="search" name="q" value="${escapeHtml(filter.query ?? "")}"

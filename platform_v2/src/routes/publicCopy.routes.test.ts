@@ -232,6 +232,10 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
 
   assert.match(html, /data-testid="home-channel"/);
   assert.match(html, /マイページ/);
+  assert.match(html, /観察ノート/);
+  assert.match(html, /続きから読む/);
+  assert.match(html, /名前を確かめる/);
+  assert.match(html, /home-continue-strip/);
   assert.match(html, /今日の入口/);
   assert.match(html, /ikimon\.lifeの流れ/);
   assert.match(html, /記録する/);
@@ -365,6 +369,9 @@ test("identification queue is a records workbench tab", async () => {
     assert.match(response.body, /data-records-identify-workbench/);
     assert.match(response.body, /records-identify-panel/);
     assert.match(response.body, /data-records-identify-panel/);
+    assert.match(response.body, /data-testid="records-identify-intro"/);
+    assert.match(response.body, /名前を確かめる手伝いをする/);
+    assert.match(response.body, /AI候補は確定名ではなく、確認の入口として扱います。/);
     assert.match(response.body, /同定ワークベンチ/);
     assert.equal(recordsPostHrefForView("needs_id", true, "/ja/observations/record-1"), "/ja/observations/record-1#identify");
     assert.equal(recordsPostHrefForView("needs_id", false, "/ja/observations/record-1"), "/ja/observations/record-1");

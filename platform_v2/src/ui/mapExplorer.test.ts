@@ -183,7 +183,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(html, /me-map-kicker">近くを見る/);
+  assert.match(html, /me-map-kicker">探索する/);
   assert.match(html, /地図メニュー/);
   assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
   assert.match(html, /aria-label="地図メニューを開く"/);
@@ -235,6 +235,8 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="ガイド" data-tab="places"/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
   assert.match(html, /class="me-filter-group me-filter-display-group"/);
+  assert.match(html, /<summary class="me-filter-toggle">表示<\/summary>/);
+  assert.match(html, /<span class="me-filter-label">レイヤー<\/span>/);
   assert.match(html, /data-filter-tab="rain" aria-pressed="false">雨雲<\/button>/);
   assert.match(html, /data-filter-tab="frontier" aria-pressed="false">未確認<\/button>/);
   assert.doesNotMatch(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
@@ -973,11 +975,11 @@ test("Japanese map detail labels avoid service-authored motivation headings", ()
 test("map explorer keeps the map framed as a tool", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
-  assert.match(html, /me-map-kicker">近くを見る/);
+  assert.match(html, /me-map-kicker">探索する/);
   assert.match(html, /data-side="rail"/);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /me-map-role-strip/);
-  assert.match(html, /近くを見る・振り返る/);
+  assert.match(html, /近くを探索する/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
   assert.doesNotMatch(html, /このエリアの活動・ラリー/);
   assert.doesNotMatch(html, /data-testid="map-activity-rally-panel"/);
@@ -1042,8 +1044,8 @@ test("map explorer shows the map role without taking over the service subject", 
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
 
   assert.match(html, /class="me-map-role-strip"/);
-  assert.match(html, /近くを見る・振り返る/);
-  assert.match(html, /記録が多い場所・少ない場所を見返せます/);
+  assert.match(html, /近くを探索する/);
+  assert.match(html, /写真・ガイド・散策候補を見ながら、今いる場所から探索できます。/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
 });
 
