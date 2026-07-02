@@ -8,6 +8,9 @@ type GuideCopy = {
   startBtn: string;
   startSheetTitle: string;
   startSheetBody: string;
+  startOutcomeTitle: string;
+  startOutcomeSample: string;
+  startOutcomeBenefit: string;
   missionChoiceTitle: string;
   missionChoiceBody: string;
   missions: { id: string; label: string; body: string }[];
@@ -114,6 +117,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "ガイドを開始する",
     startSheetTitle: "まずはカメラだけで歩き始める",
     startSheetBody: "音声はあとからONにできます。気になる場所だけ詳しく残して、今日の発見を自分の記録に戻せます。",
+    startOutcomeTitle: "成果サンプル",
+    startOutcomeSample: "候補: 水辺の草地で、湿った地面と低い葉が見えます。次は葉の裏や水際を近くで見ると、観察のヒントが増えます。",
+    startOutcomeBenefit: "許可するまでカメラとマイクは起動しません。音声は初期OFFで、人の声らしい音は保存しません。",
     missionChoiceTitle: "今日のミッション",
     missionChoiceBody: "迷ったら「歩きながら見る」で始めてください。音声や移動手段はあとから調整できます。",
     missions: [
@@ -235,6 +241,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "Start Guide",
     startSheetTitle: "Choose what Guide can use",
     startSheetBody: "Camera and audio are separate choices. You can still change audio later.",
+    startOutcomeTitle: "Outcome sample",
+    startOutcomeSample: "Possible clue: moist ground and low leaves near a water edge. Next, look closer at leaf undersides or the shoreline to add observation hints.",
+    startOutcomeBenefit: "Before you allow access, camera and microphone stay off. Audio starts off by default, and speech-like clips are skipped.",
     missionChoiceTitle: "Today's mission",
     missionChoiceBody: "Pick the movement style first, and Guide will match camera and audio.",
     missions: [
@@ -356,6 +365,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "Iniciar Guía",
     startSheetTitle: "Elige qué puede usar la guía",
     startSheetBody: "La cámara y el audio se eligen por separado. Luego puedes cambiar solo el audio.",
+    startOutcomeTitle: "Muestra de resultado",
+    startOutcomeSample: "Pista posible: suelo húmedo y hojas bajas junto al borde del agua. Mira el envés de las hojas o la orilla para sumar indicios de observación.",
+    startOutcomeBenefit: "Antes de dar permiso, cámara y micrófono siguen apagados. El audio empieza apagado y se omite la voz probable.",
     missionChoiceTitle: "Misión de hoy",
     missionChoiceBody: "Elige una intención y la guía ajustará la cámara y el audio recomendados.",
     missions: [
@@ -475,6 +487,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "Iniciar Guia",
     startSheetTitle: "Escolha o que o guia pode usar",
     startSheetBody: "Câmera e áudio são escolhas separadas. Depois você ainda pode mudar só o áudio.",
+    startOutcomeTitle: "Exemplo de resultado",
+    startOutcomeSample: "Pista possível: solo úmido e folhas baixas perto da margem. Olhe o verso das folhas ou a beira da água para somar dicas de observação.",
+    startOutcomeBenefit: "Antes de permitir acesso, câmera e microfone ficam desligados. O áudio começa desligado e voz provável é ignorada.",
     missionChoiceTitle: "Missão de hoje",
     missionChoiceBody: "Escolha uma intenção e o guia ajusta a câmera e o áudio recomendados.",
     missions: [
@@ -727,6 +742,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <div class="guide-start-sheet-head">
         <h2 id="guide-start-sheet-title">${escapeHtml(c.startSheetTitle)}</h2>
         <p>${escapeHtml(c.startSheetBody)}</p>
+      </div>
+      <div class="guide-start-outcome" aria-label="${escapeHtml(c.startOutcomeTitle)}">
+        <span>${escapeHtml(c.startOutcomeTitle)}</span>
+        <strong>${escapeHtml(c.startOutcomeSample)}</strong>
+        <p>${escapeHtml(c.startOutcomeBenefit)}</p>
       </div>
 
       <fieldset class="guide-start-choice guide-mission-choice">
@@ -3624,6 +3644,10 @@ export const GUIDE_FLOW_STYLES = `
   .guide-start-sheet-head { display: grid; gap: 6px; }
   .guide-start-sheet-head h2 { margin: 0; color: #0f172a; font-size: 20px; line-height: 1.28; font-weight: 950; letter-spacing: 0; }
   .guide-start-sheet-head p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 500; }
+  .guide-start-outcome { display: grid; gap: 6px; padding: 12px; border-radius: 8px; background: #f0fdf4; border: 1px solid rgba(5,150,105,.16); }
+  .guide-start-outcome span { width: fit-content; min-height: 24px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; background: #fff; color: #047857; border: 1px solid rgba(5,150,105,.18); font-size: 11px; font-weight: 950; }
+  .guide-start-outcome strong { color: #0f172a; font-size: 13px; line-height: 1.55; font-weight: 850; }
+  .guide-start-outcome p { margin: 0; color: #047857; font-size: 12px; line-height: 1.55; font-weight: 700; }
   .guide-start-choice { margin: 0; padding: 13px; border-radius: 8px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; display: grid; gap: 9px; }
   .guide-start-choice legend { padding: 0 4px; color: #0f172a; font-size: 13px; font-weight: 950; }
   .guide-start-choice p { margin: 0; color: #475569; font-size: 13px; line-height: 1.6; font-weight: 500; }

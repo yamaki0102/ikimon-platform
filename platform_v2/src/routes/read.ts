@@ -10057,12 +10057,23 @@ function profileChannelFallbackText(primary: string | null | undefined, secondar
   return fallback;
 }
 
+function homeObservationNeedsId(item: HomeSnapshot["recentObservations"][number]): boolean {
+  const name = (item.displayName || item.aiCandidateName || "").trim();
+  return item.isAiCandidate === true
+    || item.identificationCount === 0
+    || name === ""
+    || name === "同定待ち"
+    || /未同定|名前待ち|unknown|unresolved|awaiting id/iu.test(name);
+}
+
 function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): string {
   const isPersonalHome = Boolean(snapshot.viewerUserId);
   const latest = snapshot.recentObservations[0] ?? null;
   const firstPlace = snapshot.myPlaces[0] ?? null;
   const secondPlace = snapshot.myPlaces[1] ?? null;
   const latestHref = latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record");
+  const needsIdCount = snapshot.recentObservations.filter(homeObservationNeedsId).length;
+  const continueHref = isPersonalHome && latest ? latestHref : withBasePath(basePath, "/records?view=mine");
   const placeHref = withBasePath(basePath, isPersonalHome && (secondPlace || firstPlace) ? "/records?view=places" : "/map");
   const placeTitle = secondPlace?.placeName ?? firstPlace?.placeName ?? (isPersonalHome ? "地図から探す" : "近くの発見を見る");
   const placeBody = secondPlace
@@ -10078,21 +10089,50 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
   const placeCountLabel = isPersonalHome
     ? `${formatProfileNumber(snapshot.myPlaces.length)} か所`
     : "地域";
-  const heroTitle = isPersonalHome ? "マイページ" : "今日のikimon.life";
+  const heroTitle = isPersonalHome ? "観察ノート" : "今日のikimon.life";
   const heroLead = isPersonalHome
-    ? "見つけた自然を残し、あとから自分の記録・地図・公開プロフィールへつなぐ個人ホームです。"
+    ? "自分が見た場所、前回の発見、名前を確かめたい記録を、続きから読み返すための個人ホームです。"
     : "見つけた自然を残し、地域の記録から次に歩く場所を選べます。";
+  const continueItems = isPersonalHome
+    ? [
+        {
+          href: continueHref,
+          label: latest ? "続きから" : "記録棚",
+          value: latest?.displayName ?? "まだ記録はありません",
+          body: latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "自分の記録が入る場所を先に確認できます。",
+        },
+        {
+          href: withBasePath(basePath, "/records?view=needs_id"),
+          label: "名前を確かめる",
+          value: `${formatProfileNumber(needsIdCount)} 件`,
+          body: needsIdCount > 0 ? "候補名や証拠を見ながら確認できます。" : "名前が揺れている記録はここに集まります。",
+        },
+        {
+          href: placeHref,
+          label: "再訪する場所",
+          value: placeTitle,
+          body: placeBody,
+        },
+      ]
+    : [];
   return `<section class="section home-mypage-section" data-testid="home-channel">
     <div class="home-workbench" aria-label="${escapeHtml(isPersonalHome ? "マイページ操作" : "はじめる操作")}">
       <div class="home-mypage-hero">
         <div class="home-mypage-copy">
-          <div class="eyebrow">${escapeHtml(isPersonalHome ? "Personal home" : "Local nature")}</div>
+          <div class="eyebrow">${escapeHtml(isPersonalHome ? "マイページ" : "Local nature")}</div>
           <h1>${escapeHtml(heroTitle)}</h1>
           <p>${escapeHtml(heroLead)}</p>
           <div class="home-mypage-cta">
-            <a class="home-mypage-button is-primary" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a>
-            <a class="home-mypage-button" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">自分の記録</a>
+            <a class="home-mypage-button is-primary" href="${escapeHtml(isPersonalHome ? continueHref : withBasePath(basePath, "/record"))}">${escapeHtml(isPersonalHome ? "続きから読む" : "記録する")}</a>
+            <a class="home-mypage-button" href="${escapeHtml(isPersonalHome ? withBasePath(basePath, "/records?view=needs_id") : withBasePath(basePath, "/records?view=mine"))}">${escapeHtml(isPersonalHome ? "名前を確かめる" : "自分の記録")}</a>
           </div>
+          ${continueItems.length > 0 ? `<div class="home-continue-strip" aria-label="続きから">
+            ${continueItems.map((item) => `<a href="${escapeHtml(item.href)}">
+              <span>${escapeHtml(item.label)}</span>
+              <strong>${escapeHtml(item.value)}</strong>
+              <em>${escapeHtml(item.body)}</em>
+            </a>`).join("")}
+          </div>` : ""}
         </div>
         <div class="home-today-panel" aria-label="${escapeHtml(isPersonalHome ? "今日の入口" : "今日の入口")}">
           <div class="home-today-head">
@@ -10183,6 +10223,13 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
         .home-mypage-cta { display: flex; flex-wrap: wrap; gap: 10px; }
         .home-mypage-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: #fff; text-decoration: none; font-size: 15px; font-weight: 950; }
         .home-mypage-button.is-primary { background: #10b981; border-color: #10b981; color: #052e1c; }
+        .home-continue-strip { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
+        .home-continue-strip a { min-width: 0; min-height: 92px; display: grid; align-content: start; gap: 5px; padding: 11px; border-radius: 8px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); color: #fff; text-decoration: none; overflow-wrap: anywhere; }
+        .home-continue-strip a:hover,
+        .home-continue-strip a:focus-visible { background: rgba(255,255,255,.16); outline: none; }
+        .home-continue-strip span { color: #a7f3d0; font-size: 11px; line-height: 1.2; font-weight: 950; }
+        .home-continue-strip strong { color: #fff; font-size: 15px; line-height: 1.25; font-weight: 950; }
+        .home-continue-strip em { color: #d1fae5; font-size: 12px; line-height: 1.45; font-style: normal; font-weight: 720; }
         .home-today-panel { min-width: 0; display: grid; gap: 12px; padding: 16px; border-radius: 16px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.94); box-shadow: 0 14px 32px rgba(15,23,42,.06); }
         .home-today-head { min-width: 0; display: grid; gap: 4px; }
         .home-today-head span { color: #047857; font-size: 13px; line-height: 1.2; font-weight: 950; }
@@ -10212,11 +10259,14 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
         @media (max-width: 980px) {
           .home-mypage-hero { grid-template-columns: 1fr; }
           .home-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .home-continue-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .home-mypage-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 620px) {
           .home-mypage-copy { padding: 20px; border-radius: 14px; }
           .home-mypage-copy h1 { font-size: 28px; }
+          .home-continue-strip { grid-template-columns: 1fr; }
+          .home-continue-strip a { min-height: 82px; }
           .home-action-grid { grid-template-columns: 1fr; }
           .home-action-card { min-height: 98px; }
           .home-mypage-rail { grid-template-columns: 1fr; }
@@ -12354,6 +12404,35 @@ function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
   return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
 }
 
+function recordsPostEvidenceChips(lang: SiteLang, card: RecordsPostCard, context: {
+  sourceLabel: string;
+  placeLine: string;
+  hasCandidate: boolean;
+}): string {
+  if (!card.postNeedsId) return "";
+  const labels = lang === "ja"
+    ? {
+        place: "場所あり",
+        candidate: "候補あり",
+        media: context.sourceLabel,
+        needMedia: "証拠追加",
+      }
+    : lang === "es"
+      ? { place: "Lugar", candidate: "Candidato", media: context.sourceLabel, needMedia: "Falta evidencia" }
+      : lang === "pt-BR"
+        ? { place: "Local", candidate: "Candidato", media: context.sourceLabel, needMedia: "Falta evidencia" }
+        : { place: "Place", candidate: "Candidate", media: context.sourceLabel, needMedia: "Need evidence" };
+  const chips = [
+    context.sourceLabel || labels.needMedia,
+    context.placeLine ? labels.place : "",
+    context.hasCandidate ? labels.candidate : "",
+  ].filter(Boolean).slice(0, 3);
+  if (chips.length === 0) chips.push(labels.needMedia);
+  return `<span class="records-post-evidence" aria-label="${escapeHtml(lang === "ja" ? "同定の手がかり" : "Identification evidence")}">
+    ${chips.map((chip) => `<small>${escapeHtml(chip)}</small>`).join("")}
+  </span>`;
+}
+
 function recordsPostMemoryLine(options: { locationMode: "owner" | "public" }, dateLabel: string, placeLine: string): string {
   if (options.locationMode !== "owner") return "";
   return `<span class="records-post-memory-line">${escapeHtml([dateLabel, placeLine].filter(Boolean).join(" · "))}</span>`;
@@ -12494,6 +12573,13 @@ function renderRecordsPostCard(
   const identifyAction = view === "needs_id" && card.postNeedsId
     ? `<span class="records-post-action">${escapeHtml(identifyActionLabel)}</span>`
     : "";
+  const evidenceChips = view === "needs_id"
+    ? recordsPostEvidenceChips(lang, card, {
+        sourceLabel,
+        placeLine,
+        hasCandidate: Boolean(card.postCandidateName?.trim()),
+      })
+    : "";
   const identifyDefaultName = card.postCandidateName?.trim() || (isWeakIdentificationCandidateName(displayName) ? "" : displayName);
   const identifyEndpointId = encodeURIComponent(card.occurrenceId);
   const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identifications`);
@@ -12530,6 +12616,7 @@ function renderRecordsPostCard(
         </span>
         ${memoryLine}
         <span class="records-post-meta">${escapeHtml(metaLine)}</span>
+        ${evidenceChips}
         ${identifyAction}
       </span>
     </a>
@@ -13749,6 +13836,53 @@ function renderIdentificationSummary(
   </div>`;
 }
 
+function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: LandingObservation[], canWriteIdentification: boolean): string {
+  const cards = buildRecordsPostCards(entries, lang).filter((card) => card.postNeedsId);
+  const waitingCount = cards.length;
+  const mediaReadyCount = cards.filter(recordsHasMedia).length;
+  const candidateCount = cards.filter((card) => Boolean(card.postCandidateName?.trim())).length;
+  const copy = lang === "ja"
+    ? {
+        eyebrow: "同定",
+        title: "名前を確かめる手伝いをする",
+        lead: "写真・動画・場所・候補名を見比べて、確信できる根拠だけを残します。AI候補は確定名ではなく、確認の入口として扱います。",
+        waiting: "確認待ち",
+        media: "写真・動画あり",
+        candidate: "候補あり",
+        open: "カードを選ぶ",
+        reference: "資料を登録",
+        login: "ログインすると同定メモを保存できます。",
+      }
+    : {
+        eyebrow: "Identification",
+        title: "Help check names with evidence",
+        lead: "Compare media, place, and candidate names, then save only the basis you can support. AI candidates stay as hints.",
+        waiting: "Waiting",
+        media: "Media ready",
+        candidate: "Candidates",
+        open: "Choose a card",
+        reference: "Add reference",
+        login: "Log in to save identification notes.",
+      };
+  return `<section class="records-identify-intro" data-testid="records-identify-intro">
+    <div class="records-identify-intro-copy">
+      <span>${escapeHtml(copy.eyebrow)}</span>
+      <h1>${escapeHtml(copy.title)}</h1>
+      <p>${escapeHtml(copy.lead)}</p>
+      ${canWriteIdentification ? "" : `<em>${escapeHtml(copy.login)}</em>`}
+    </div>
+    <div class="records-identify-intro-metrics" aria-label="${escapeHtml(copy.eyebrow)} metrics">
+      <a href="#records-identify-list"><strong>${escapeHtml(formatNotesNumber(waitingCount, lang))}</strong><span>${escapeHtml(copy.waiting)}</span></a>
+      <a href="#records-identify-list"><strong>${escapeHtml(formatNotesNumber(mediaReadyCount, lang))}</strong><span>${escapeHtml(copy.media)}</span></a>
+      <a href="#records-identify-list"><strong>${escapeHtml(formatNotesNumber(candidateCount, lang))}</strong><span>${escapeHtml(copy.candidate)}</span></a>
+    </div>
+    <div class="records-identify-intro-actions">
+      <a class="is-primary" href="#records-identify-list">${escapeHtml(copy.open)}</a>
+      <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/references/capture?returnTo=%2Frecords%3Fview%3Dneeds_id"), lang))}">${escapeHtml(copy.reference)}</a>
+    </div>
+  </section>`;
+}
+
 function renderRecordsWorkbench(
   basePath: string,
   lang: SiteLang,
@@ -13790,7 +13924,8 @@ function renderRecordsWorkbench(
     </header>
     <main class="records-main${isIdentifyView ? " is-identify" : ""}">
       ${view === "mine" ? renderRecordsMyPlacesLane(basePath, lang, snapshot, ownEntries) : ""}
-      <section class="records-grid-panel" data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
+      <section class="records-grid-panel" ${isIdentifyView ? `id="records-identify-list"` : ""} data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
+        ${isIdentifyView ? renderRecordsIdentifyIntro(basePath, lang, entries, canWriteIdentification) : ""}
         ${renderRecordsCollapsedControls(lang, searchQuery)}
         ${entries.length > 0
           ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
@@ -14126,6 +14261,103 @@ const RECORDS_WORKBENCH_STYLES = `
     align-content: start;
     gap: 12px;
   }
+  .records-identify-intro {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid rgba(16,185,129,.18);
+    border-radius: 8px;
+    background:
+      linear-gradient(135deg, rgba(236,253,245,.96), rgba(255,255,255,.96)),
+      #fff;
+    box-shadow: 0 14px 32px rgba(15,23,42,.055);
+  }
+  .records-identify-intro-copy {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+  .records-identify-intro-copy span {
+    color: #047857;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .records-identify-intro-copy h1 {
+    margin: 0;
+    color: #10251a;
+    font-size: 24px;
+    line-height: 1.18;
+    letter-spacing: 0;
+    font-weight: 950;
+  }
+  .records-identify-intro-copy p,
+  .records-identify-intro-copy em {
+    margin: 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.55;
+    font-style: normal;
+    font-weight: 760;
+  }
+  .records-identify-intro-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    gap: 7px;
+  }
+  .records-identify-intro-metrics a {
+    min-width: 0;
+    min-height: 64px;
+    display: grid;
+    place-items: center;
+    gap: 3px;
+    padding: 8px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.08);
+    color: #10251a;
+    text-decoration: none;
+  }
+  .records-identify-intro-metrics strong {
+    font-size: 21px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-identify-intro-metrics span {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 900;
+    text-align: center;
+  }
+  .records-identify-intro-actions {
+    display: grid;
+    gap: 7px;
+  }
+  .records-identify-intro-actions a {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .records-identify-intro-actions a.is-primary {
+    background: #047857;
+    border-color: #047857;
+    color: #fff;
+  }
   .records-tools {
     justify-self: start;
     position: sticky;
@@ -14369,6 +14601,24 @@ const RECORDS_WORKBENCH_STYLES = `
     font-size: var(--ikimon-record-card-meta-size);
     line-height: var(--ikimon-record-card-meta-line-height);
     font-weight: 850;
+  }
+  .records-post-evidence {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .records-post-evidence small {
+    min-height: 22px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 900;
   }
   .records-post-action {
     justify-self: start;
@@ -15116,6 +15366,13 @@ const RECORDS_WORKBENCH_STYLES = `
     .records-actions a.is-primary { font-size: 21px; }
     .records-main { grid-template-columns: 1fr; padding: 6px 8px 10px; }
     .records-main.is-identify { grid-template-columns: 1fr; padding-bottom: 232px; }
+    .records-identify-intro {
+      grid-template-columns: 1fr;
+      align-items: start;
+      padding: 12px;
+    }
+    .records-identify-intro-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .records-identify-intro-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .records-identify-panel {
       position: fixed;
       left: max(8px, env(safe-area-inset-left));
@@ -15224,6 +15481,9 @@ const RECORDS_WORKBENCH_STYLES = `
   @media (max-width: 620px) {
     .records-topbar-brand strong { font-size: 14px; }
     .records-actions a { min-width: 34px; min-height: 34px; }
+    .records-identify-intro-copy h1 { font-size: 21px; }
+    .records-identify-intro-metrics,
+    .records-identify-intro-actions { grid-template-columns: 1fr; }
     .records-post-grid { grid-template-columns: var(--ikimon-record-card-grid-mobile); gap: var(--ikimon-record-card-grid-gap-mobile); }
     .records-post-card,
     .records-post-card-link { gap: var(--ikimon-record-card-inner-gap-mobile); }

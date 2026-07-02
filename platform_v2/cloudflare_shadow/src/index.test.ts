@@ -16898,7 +16898,12 @@ test("materialized original UI core entry registry is single-sourced from the Wo
     "/ja/records?view=identification_summary",
     "/en/records?view=identification_summary",
     "/es/records?view=identification_summary",
-    "/pt-br/records?view=identification_summary"
+    "/pt-br/records?view=identification_summary",
+    "/records?view=needs_id",
+    "/ja/records?view=needs_id",
+    "/en/records?view=needs_id",
+    "/es/records?view=needs_id",
+    "/pt-br/records?view=needs_id"
   ]) {
     assert.ok(queryVariantPaths.includes(path), `${path} should be materialized as a query-specific original UI variant`);
   }

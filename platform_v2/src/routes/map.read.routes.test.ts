@@ -19,11 +19,11 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /serializeSharedMapState/);
     assert.match(html, /source: 'map'/);
     assert.match(html, /id: 'map:state'/);
-    assert.match(html, /me-map-kicker">近くを見る/);
+    assert.match(html, /me-map-kicker">探索する/);
     assert.doesNotMatch(html, /class="me-map-cues"/);
     assert.match(html, /class="me-map-role-strip"/);
-    assert.match(html, /近くを見る・振り返る/);
-    assert.match(html, /記録が多い場所・少ない場所を見返せます/);
+    assert.match(html, /近くを探索する/);
+    assert.match(html, /写真・ガイド・散策候補を見ながら/);
     assert.match(html, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;/);
     assert.match(html, /\.me-map-status \{[\s\S]*?bottom: 18px;/);
     assert.match(html, /me-detail-panel/);

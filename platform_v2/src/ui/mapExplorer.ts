@@ -206,8 +206,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     activityRallyBody: "観察会や投稿ラリーなど、外で見つけた記録を地域に残す入口です。掲載や開催相談は主催者向け案内から受け付けます。",
     activityRallyMeta: "イベント / 投稿ラリー",
     activityRallyLinkLabel: "主催者の方へ",
-    enjoyTitle: "近くを見る・振り返る",
-    enjoyLead: "近くの記録と、記録が多い場所・少ない場所を見返せます。",
+    enjoyTitle: "近くを探索する",
+    enjoyLead: "写真・ガイド・散策候補を見ながら、今いる場所から探索できます。",
     tabMarkers: "近くの記録",
     tabHeatmap: "季節",
     tabPlaces: "ガイド",
@@ -1151,7 +1151,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     { label: lang === "ja" ? "一覧" : lang === "es" ? "Lista" : lang === "pt-BR" ? "Lista" : "All", href: routeHintsHref, action: "map:start_panel:route_list", region: "all" },
   ];
   const displayFilterLabel = lang === "ja"
-    ? "表示"
+    ? "レイヤー"
     : lang === "es"
       ? "Vista"
       : lang === "pt-BR"
@@ -1341,7 +1341,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     .join("");
 
   const filterToggleLabel = lang === "ja"
-    ? "フィルタ"
+    ? "表示"
     : lang === "es"
       ? "Filtros"
       : lang === "pt-BR"
@@ -1408,7 +1408,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   return `<section class="section me-section" data-side="rail" aria-label="Map Explorer">
     <div class="me-topbar">
       <div class="me-topbar-primary">
-        <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "近くを見る" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
+        <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "探索する" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
         <div class="me-search-shell" role="search">
           <span class="me-search-icon" aria-hidden="true">🔍</span>
           <input

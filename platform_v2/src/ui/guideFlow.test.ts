@@ -23,6 +23,9 @@ test("guide flow keeps the live guide plumbing while simplifying the entry UI", 
   assert.match(html, /Bike \/ open car/);
   assert.match(html, /Car \/ train \/ bus/);
   assert.match(html, /Drivers must not operate this/);
+  assert.match(html, /Outcome sample/);
+  assert.match(html, /Possible clue: moist ground and low leaves near a water edge/);
+  assert.match(html, /Before you allow access, camera and microphone stay off/);
   assert.match(html, /Fine-tune settings/);
   assert.match(html, /id="guide-audio-opt-btn" type="button" aria-pressed="false" hidden/);
   assert.match(html, /Speech-like audio is not saved/);
@@ -136,6 +139,9 @@ test("guide start sheet presents the Japanese field UX as one clear decision", (
   assert.match(html, /🚲 自転車・オープンカー/);
   assert.match(html, /🚌 車内・電車・バス/);
   assert.match(html, /運転者は操作しないでください/);
+  assert.match(html, /成果サンプル/);
+  assert.match(html, /候補: 水辺の草地で、湿った地面と低い葉が見えます/);
+  assert.match(html, /許可するまでカメラとマイクは起動しません/);
   assert.match(html, /細かく調整する/);
   assert.match(html, /カメラだけで開始する/);
   assert.match(html, /自然音も使いますか？/);
