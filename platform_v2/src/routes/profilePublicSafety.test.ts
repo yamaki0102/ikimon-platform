@@ -22,13 +22,18 @@ test("public profile route uses public visibility and never owner mode for signe
   assert.match(publicProfileBody, /const isOwnerView = profileVisibility === "owner"/);
   assert.match(publicProfileBody, /formatPlaceDisplay\(item, lang, isOwnerView \? "owner" : "public"\)/);
   assert.doesNotMatch(publicProfileBody, /formatPlaceDisplay\(item, lang, viewerUserId \? "owner" : "public"\)/);
+  assert.doesNotMatch(publicProfileBody, /profile-public-preview-banner/);
+  assert.doesNotMatch(publicProfileBody, /マイページへ戻る/);
 
   assert.match(publicProfileRoute, /getProfileSnapshot\(request\.params\.userId, \{ visibility: "public" \}\)/);
-  assert.match(publicProfileRoute, /const isOwnProfile = Boolean\(viewerSession\?\.userId && viewerSession\.userId === snapshot\.userId\)/);
-  assert.match(publicProfileRoute, /renderProfileSnapshotBody\(basePath, lang, viewerSession\?\.userId \?\? null, snapshot, "registered", "public"\)/);
+  assert.match(publicProfileRoute, /renderProfileSnapshotBody\(basePath, lang, null, snapshot, "registered", "public"\)/);
+  assert.doesNotMatch(publicProfileRoute, /isOwnProfile/);
+  assert.doesNotMatch(publicProfileRoute, /getSessionFromCookie/);
   assert.doesNotMatch(publicProfileRoute, /\/home\?userId=/);
   assert.doesNotMatch(publicProfileRoute, /このユーザーのホームを見る/);
   assert.doesNotMatch(publicProfileRoute, /最近の場所と観察を追う/);
+  assert.doesNotMatch(publicProfileRoute, /公開プレビュー/);
+  assert.doesNotMatch(publicProfileRoute, /マイページへ戻る/);
 
   assert.match(guestProfileRoute, /getProfileSnapshot\(request\.params\.userId, \{ visibility: "public" \}\)/);
   assert.match(guestProfileRoute, /renderProfileSnapshotBody\(basePath, lang, viewerSession\?\.userId \?\? null, snapshot, "guest", "public"\)/);
@@ -46,4 +51,20 @@ test("public profile visual QA contract targets public records instead of owner 
   assert.match(publicProfilePage, /expectedText: \{ ja: "地域図鑑に公開された観察" \}/);
   assert.doesNotMatch(publicProfilePage, /expectedText: \{ ja: "最近の場所" \}/);
   assert.doesNotMatch(publicProfilePage, /一人の観察と場所の履歴を見る/);
+});
+
+test("signed-in /profile uses the same public profile surface as visitors", async () => {
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const selfProfileRoute = readRoute.slice(
+    readRoute.indexOf('app.get("/profile", async'),
+    readRoute.indexOf('app.get("/profile/settings"'),
+  );
+
+  assert.match(selfProfileRoute, /getProfileSnapshot\(session\.userId, \{ visibility: "public" \}\)/);
+  assert.match(selfProfileRoute, /renderProfileSnapshotBody\(basePath, lang, session\.userId, snapshot, "registered", "public"\)/);
+  assert.doesNotMatch(selfProfileRoute, /visibility: "owner"/);
+  assert.doesNotMatch(selfProfileRoute, /renderSelfProfileHub/);
+  assert.doesNotMatch(selfProfileRoute, /getProfileNoteDigest/);
+  assert.doesNotMatch(selfProfileRoute, /getReferenceProfileSummary/);
+  assert.doesNotMatch(selfProfileRoute, /getRegionalStoryCue/);
 });
