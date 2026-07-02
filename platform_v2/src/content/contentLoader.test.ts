@@ -30,7 +30,7 @@ test("content store loads canonical ja and partial fallback languages", () => {
   const enPublic = store.short.en.public as any;
   const enShared = store.short.en.shared as any;
 
-  assert.equal(jaPublic.landing.title, "近くの自然を見る | ikimon");
+  assert.equal(jaPublic.landing.title, "地域の記録から始める | ikimon");
   assert.equal(enPublic.landing.title, "A regional field guide built together | ikimon");
   assert.equal(enPublic.marketing.pages.about.heading, jaPublic.marketing.pages.about.heading);
   assert.equal(enShared.shell.skipToContent, "Skip to content");

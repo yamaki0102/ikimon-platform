@@ -856,6 +856,38 @@ function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): stri
   </article>`;
 }
 
+function renderLandingGuestRecordProof(options: LandingTopRenderOptions): string {
+  const { basePath, lang, copy, snapshot } = options;
+  const recordsHref = landingHref(basePath, lang, "/records?view=public");
+  const items = landingContentWallItems(snapshot, "community")
+    .filter((obs) => Boolean(observationImageUrl(obs, "sm") ?? observationImageUrl(obs, "md")))
+    .slice(0, 4);
+  if (items.length === 0) return "";
+  const heading = lang === "ja" ? "実際の公開記録" : "Real public records";
+  const more = lang === "ja" ? "記録を見る" : "View records";
+  const cards = items.map((obs, index) => {
+    const rawTitle = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, "");
+    const title = isPublicCardRealTitle(rawTitle, copy.heroPhotoFallback)
+      ? rawTitle.trim()
+      : (lang === "ja" ? "地域の記録" : "Local record");
+    const href = observationDetailHref(basePath, lang, obs);
+    const imageUrl = observationImageUrl(obs, "sm") ?? observationImageUrl(obs, "md");
+    const mediaKind = landingContentMediaKind(obs);
+    const mediaLabel = landingContentMediaLabel(lang, mediaKind);
+    return `<a href="${escapeHtml(href)}" class="prototype-guest-home-proof-card" data-kpi-action="landing:guest_home:proof:${index + 1}">
+      <img src="${escapeHtml(imageUrl ?? "")}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />
+      <span>${escapeHtml(mediaLabel)}</span>
+    </a>`;
+  }).join("");
+  return `<div class="prototype-guest-home-proof" aria-label="${escapeHtml(heading)}">
+    <div class="prototype-guest-home-proof-head">
+      <strong>${escapeHtml(heading)}</strong>
+      <a href="${escapeHtml(recordsHref)}" data-kpi-action="landing:guest_home:proof_more">${escapeHtml(more)}</a>
+    </div>
+    <div class="prototype-guest-home-proof-grid">${cards}</div>
+  </div>`;
+}
+
 function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string {
   const { basePath, lang, snapshot } = options;
   const mapHref = landingHref(basePath, lang, "/map");
@@ -868,33 +900,33 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
   const copy = lang === "ja"
     ? {
         eyebrow: "ikimon.life",
-        title: "近くの自然を見る",
-        lead: "地図、フィールド、みんなの公開記録から、今日歩く場所を選べます。写真を残す前に、周りで何が動いているかを先に見られる入口です。",
-        primary: "地図で探す",
-        secondary: "フィールドを探す",
-        tertiary: "みんなの記録",
+        title: "地域の記録から始める",
+        lead: "地図、フィールド、みんなの公開記録から、今日歩く場所やあとで見返す手がかりを探せます。名前が分からない記録も、地域の記憶として残ります。",
+        primary: "みんなの記録",
+        secondary: "地図で探す",
+        tertiary: "フィールドを探す",
         guide: "ライブガイド",
         stats: [
           { label: "公開エリア", value: nearbyCount > 0 ? `${nearbyCount}` : "地図" },
           ...(publicCount > 0 ? [{ label: "公開記録", value: `${publicCount}` }] : []),
-          ...(awaitingCount > 0 ? [{ label: "名前待ち", value: `${awaitingCount}` }] : []),
+          ...(awaitingCount > 0 ? [{ label: "名前確認中", value: `${awaitingCount}` }] : []),
         ],
-        notes: ["場所から入る", "名前は後で確かめる", "位置はぼかして表示"],
+        notes: ["地域の記録から入る", "名前は後で確かめる", "位置はぼかして表示"],
       }
     : {
         eyebrow: "ikimon.life",
-        title: "See nearby nature",
-        lead: "Start from the map, public fields, and community records before you add your own record.",
-        primary: "Open map",
-        secondary: "Find fields",
-        tertiary: "Community records",
+        title: "Start from local records",
+        lead: "Browse public records, the map, and fields to choose where to walk today and what to revisit later.",
+        primary: "Community records",
+        secondary: "Open map",
+        tertiary: "Find fields",
         guide: "Live guide",
         stats: [
           { label: "Public areas", value: nearbyCount > 0 ? `${nearbyCount}` : "Map" },
           ...(publicCount > 0 ? [{ label: "Records", value: `${publicCount}` }] : []),
-          ...(awaitingCount > 0 ? [{ label: "Awaiting ID", value: `${awaitingCount}` }] : []),
+          ...(awaitingCount > 0 ? [{ label: "Names in review", value: `${awaitingCount}` }] : []),
         ],
-        notes: ["Start from place", "Confirm names later", "Locations are blurred"],
+        notes: ["Start from local records", "Confirm names later", "Locations are blurred"],
       };
   return `<section class="prototype-guest-home" aria-labelledby="prototype-guest-home-heading">
     <div class="prototype-guest-home-copy">
@@ -902,15 +934,16 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
       <h1 id="prototype-guest-home-heading">${escapeHtml(copy.title)}</h1>
       <p>${escapeHtml(copy.lead)}</p>
       <div class="prototype-guest-home-actions">
-        <a class="prototype-guest-home-primary" href="${escapeHtml(mapHref)}" data-kpi-action="landing:guest_home:map">${escapeHtml(copy.primary)}</a>
-        <a href="${escapeHtml(fieldsHref)}" data-kpi-action="landing:guest_home:fields">${escapeHtml(copy.secondary)}</a>
-        <a href="${escapeHtml(recordsHref)}" data-kpi-action="landing:guest_home:records">${escapeHtml(copy.tertiary)}</a>
+        <a class="prototype-guest-home-primary" href="${escapeHtml(recordsHref)}" data-kpi-action="landing:guest_home:records">${escapeHtml(copy.primary)}</a>
+        <a href="${escapeHtml(mapHref)}" data-kpi-action="landing:guest_home:map">${escapeHtml(copy.secondary)}</a>
+        <a href="${escapeHtml(fieldsHref)}" data-kpi-action="landing:guest_home:fields">${escapeHtml(copy.tertiary)}</a>
       </div>
     </div>
     <div class="prototype-guest-home-panel" aria-label="${escapeHtml(copy.tertiary)}">
       <div class="prototype-guest-home-stats">
         ${copy.stats.map((item) => `<span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>`).join("")}
       </div>
+      ${renderLandingGuestRecordProof(options)}
       <div class="prototype-guest-home-notes">
         ${copy.notes.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
       </div>
@@ -2219,6 +2252,74 @@ export const LANDING_TOP_STYLES = `
     font-size: 11px;
     line-height: 1.2;
     font-weight: 850;
+  }
+  .prototype-guest-home-proof {
+    display: grid;
+    gap: 9px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid rgba(15,23,42,.06);
+  }
+  .prototype-guest-home-proof-head {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .prototype-guest-home-proof-head strong {
+    color: #10251a;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .prototype-guest-home-proof-head a {
+    flex: 0 0 auto;
+    color: #047857;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+    text-decoration: none;
+  }
+  .prototype-guest-home-proof-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .prototype-guest-home-proof-card {
+    position: relative;
+    min-width: 0;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #e7f5ef;
+    color: #fff;
+    text-decoration: none;
+  }
+  .prototype-guest-home-proof-card img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+  .prototype-guest-home-proof-card span {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 4px 6px;
+    border-radius: 999px;
+    background: rgba(16,37,26,.76);
+    color: #fff;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 950;
+    text-align: center;
   }
   .prototype-guest-home-notes {
     display: grid;
@@ -4734,6 +4835,17 @@ export const LANDING_TOP_STYLES = `
     }
     .prototype-guest-home-stats strong {
       font-size: 20px;
+    }
+    .prototype-guest-home-proof {
+      padding: 9px;
+      gap: 8px;
+    }
+    .prototype-guest-home-proof-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+    }
+    .prototype-guest-home-proof-card span {
+      display: none;
     }
     .prototype-guest-home-notes {
       gap: 6px;

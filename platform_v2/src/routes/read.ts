@@ -10229,7 +10229,7 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         <div class="home-today-panel" aria-label="${escapeHtml(isPersonalHome ? "今日の入口" : "今日の入口")}">
           <div class="home-today-head">
             <span>今日の入口</span>
-            <strong>${escapeHtml(isPersonalHome && latest ? latest.displayName : "近くの自然を見る")}</strong>
+            <strong>${escapeHtml(isPersonalHome && latest ? latest.displayName : "地域の記録から始める")}</strong>
             <em>${escapeHtml(isPersonalHome && latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "地域の記録や地図から、次に歩く場所を選べます。")}</em>
           </div>
           <div class="home-action-grid">
@@ -12444,6 +12444,57 @@ function recordsPostSubjectName(entry: LandingObservation, lang: SiteLang): stri
   }, lang).primaryLabel;
 }
 
+function recordsPendingRecordTitle(lang: SiteLang, sourceKind: NonNullable<LandingObservation["librarySourceKind"]>): string {
+  if (lang === "en") {
+    if (sourceKind === "video") return "Video record";
+    if (sourceKind === "audio") return "Sound record";
+    if (sourceKind === "guide") return "Guide record";
+    if (sourceKind === "scan") return "Scan record";
+    if (sourceKind === "photo") return "Photo record";
+    return "Local record";
+  }
+  if (lang === "es") {
+    if (sourceKind === "video") return "Registro de video";
+    if (sourceKind === "audio") return "Registro de sonido";
+    if (sourceKind === "guide") return "Registro de guía";
+    if (sourceKind === "scan") return "Registro escaneado";
+    if (sourceKind === "photo") return "Registro con foto";
+    return "Registro local";
+  }
+  if (lang === "pt-BR") {
+    if (sourceKind === "video") return "Registro em vídeo";
+    if (sourceKind === "audio") return "Registro de som";
+    if (sourceKind === "guide") return "Registro de guia";
+    if (sourceKind === "scan") return "Registro escaneado";
+    if (sourceKind === "photo") return "Registro com foto";
+    return "Registro local";
+  }
+  if (sourceKind === "video") return "動画の記録";
+  if (sourceKind === "audio") return "音の記録";
+  if (sourceKind === "guide") return "ガイドの記録";
+  if (sourceKind === "scan") return "スキャン記録";
+  if (sourceKind === "photo") return "写真の記録";
+  return "地域の記録";
+}
+
+function recordsPostDisplayName(
+  lang: SiteLang,
+  card: RecordsPostCard,
+  sourceKind: NonNullable<LandingObservation["librarySourceKind"]>,
+  rawDisplayName: string,
+): string {
+  if (!card.postNeedsId || !isWeakIdentificationCandidateName(rawDisplayName)) return rawDisplayName;
+  return recordsPendingRecordTitle(lang, sourceKind);
+}
+
+function recordsPostDisplayOrder(cards: RecordsPostCard[], view: RecordsWorkbenchView): RecordsPostCard[] {
+  if (view !== "public") return cards;
+  const named = cards.filter((card) => !card.postNeedsId);
+  if (named.length === 0) return cards;
+  const pending = cards.filter((card) => card.postNeedsId);
+  return [...named, ...pending];
+}
+
 function recordsEntryTimestamp(entry: LandingObservation): number {
   const time = new Date(notesEntryDate(entry)).getTime();
   return Number.isFinite(time) ? time : 0;
@@ -12495,7 +12546,7 @@ function recordsPostSubjectsHtml(card: RecordsPostCard): string {
 
 function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
   if (!card.postNeedsId) return "";
-  const label = lang === "ja" ? "名前待ち" : lang === "es" ? "Por revisar" : lang === "pt-BR" ? "Revisar" : "Needs ID";
+  const label = lang === "ja" ? "なまえ調べ中" : lang === "es" ? "En revisión" : lang === "pt-BR" ? "Em revisão" : "Name in review";
   const candidate = card.postCandidateName?.trim();
   return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
 }
@@ -12646,7 +12697,8 @@ function renderRecordsPostCard(
   const sourceKind = recordsPostSourceKind(card);
   const sourceLabel = notesLibrarySourceLabel(sourceKind, lang);
   const mediaUrl = recordsRepresentativeMediaUrl(card);
-  const displayName = recordsPostSubjectName(card, lang);
+  const rawDisplayName = recordsPostSubjectName(card, lang);
+  const displayName = recordsPostDisplayName(lang, card, sourceKind, rawDisplayName);
   const placeLine = notesPlaceLine(card, lang, options.locationMode) || copy.card.fallbackPlace;
   const dateLabel = notesLibraryDateLabel(card, lang);
   const isUncertain = card.postNeedsId || notesLibraryIsUncertain(card);
@@ -12676,7 +12728,7 @@ function renderRecordsPostCard(
         hasCandidate: Boolean(card.postCandidateName?.trim()),
       })
     : "";
-  const identifyDefaultName = card.postCandidateName?.trim() || (isWeakIdentificationCandidateName(displayName) ? "" : displayName);
+  const identifyDefaultName = card.postCandidateName?.trim() || (isWeakIdentificationCandidateName(rawDisplayName) ? "" : rawDisplayName);
   const identifyEndpointId = encodeURIComponent(card.occurrenceId);
   const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/identifications`);
   const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${identifyEndpointId}/disputes`);
@@ -12727,7 +12779,7 @@ function renderRecordsPostMonths(
   entries: LandingObservation[],
   options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
 ): string {
-  const cards = buildRecordsPostCards(entries, lang);
+  const cards = recordsPostDisplayOrder(buildRecordsPostCards(entries, lang), view);
   if (cards.length === 0) {
     return `<div class="notes-library-empty">${escapeHtml(notesLibraryCopy(lang).emptyLibrary)}</div>`;
   }
@@ -12778,10 +12830,10 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
 } {
   if (lang === "en") return {
     kicker: "ID workbench",
-    empty: "No records are waiting for ID.",
-    emptyBody: "Use this quiet moment to review recent observations or open the map and find the next place to check.",
-    emptyRecords: "Review records",
-    emptyMap: "Open map",
+    empty: "No records are waiting for names right now.",
+    emptyBody: "That means the queue has moved forward. If you find something unnamed, save it first and review recent named records for the loop.",
+    emptyRecords: "Record even without a name",
+    emptyMap: "Review recent records",
     candidate: "Candidate",
     open: "Check details",
     next: "Next",
@@ -12807,10 +12859,10 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   };
   if (lang === "es") return {
     kicker: "Mesa de identificacion",
-    empty: "No hay registros por revisar.",
-    emptyBody: "Aprovecha este momento para revisar registros recientes o abrir el mapa y encontrar el siguiente lugar.",
-    emptyRecords: "Ver registros",
-    emptyMap: "Abrir mapa",
+    empty: "Ahora no hay registros esperando nombre.",
+    emptyBody: "La cola avanzó. Si encuentras algo sin nombre, guárdalo primero y revisa registros recientes.",
+    emptyRecords: "Registrar sin nombre",
+    emptyMap: "Ver registros recientes",
     candidate: "Candidato",
     open: "Revisar detalle",
     next: "Siguiente",
@@ -12836,10 +12888,10 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   };
   if (lang === "pt-BR") return {
     kicker: "Bancada de identificacao",
-    empty: "Nao ha registros para revisar.",
-    emptyBody: "Use este momento para revisar registros recentes ou abrir o mapa e encontrar o proximo lugar.",
-    emptyRecords: "Ver registros",
-    emptyMap: "Abrir mapa",
+    empty: "Agora nao ha registros esperando nome.",
+    emptyBody: "A fila avançou. Se encontrar algo sem nome, registre primeiro e revise registros recentes.",
+    emptyRecords: "Registrar sem nome",
+    emptyMap: "Ver registros recentes",
     candidate: "Candidato",
     open: "Ver detalhe",
     next: "Proximo",
@@ -12865,10 +12917,10 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   };
   return {
     kicker: "名前を確かめる",
-    empty: "いま名前待ちの記録はありません。",
-    emptyBody: "この状態は終点ではありません。最近の記録を見返すか、地図から次に歩く場所を選べます。",
-    emptyRecords: "記録を見る",
-    emptyMap: "地図を開く",
+    empty: "名前待ちの記録は今はありません。",
+    emptyBody: "確認が進んでいる状態です。名前が分からない発見があれば、まず記録として残せます。",
+    emptyRecords: "名前不明でも記録",
+    emptyMap: "最近の記録を見る",
     candidate: "候補",
     open: "詳細で確認",
     next: "次へ",
@@ -12907,12 +12959,12 @@ function renderRecordsIdentifyPanel(
       ? {
           title: "最近名前がついた記録",
           emptyTitle: "名前がついた記録を見る",
-          emptyBody: "名前待ちが空のときは、最近の公開記録から名前のつき方を見返せます。",
+          emptyBody: "最近の公開記録から、名前のつき方を見返せます。",
         }
       : {
           title: "Recently named records",
           emptyTitle: "View named records",
-          emptyBody: "When the queue is quiet, recent public records still show how names get resolved.",
+          emptyBody: "Recent public records show how names get resolved.",
         };
     const namedCards = buildRecordsPostCards(options.fallbackEntries ?? [], lang)
       .filter((item) => !item.postNeedsId)
@@ -12933,13 +12985,13 @@ function renderRecordsIdentifyPanel(
         <strong data-identify-panel-title>${escapeHtml(copy.empty)}</strong>
         <p>${escapeHtml(copy.emptyBody)}</p>
       </div>
-      <div class="records-identify-empty-actions">
-        <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}">${escapeHtml(copy.emptyRecords)}</a>
-        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.emptyMap)}</a>
-      </div>
       <div class="records-identify-proof">
         <strong>${escapeHtml(proofCopy.title)}</strong>
         ${proofItems}
+      </div>
+      <div class="records-identify-empty-actions">
+        <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.emptyRecords)}</a>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}">${escapeHtml(copy.emptyMap)}</a>
       </div>
     </aside>`;
   }
@@ -13994,10 +14046,10 @@ function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: L
         media: "写真・動画あり",
         candidate: "候補あり",
         open: "カードを選ぶ",
-        noWaitingTitle: "いま名前待ちの記録はありません",
-        noWaitingLead: "次に名前を確かめる材料を探すなら、最近の記録か地図から始められます。",
-        records: "記録を見る",
-        map: "地図を開く",
+        noWaitingTitle: "名前待ちの記録は今はありません",
+        noWaitingLead: "確認が進んでいる状態です。名前が分からない発見があれば、まず記録として残せます。",
+        records: "名前不明でも記録",
+        map: "最近の記録を見る",
         reference: "資料を登録",
         login: "ログインすると名前確認メモを保存できます。",
       }
@@ -14009,10 +14061,10 @@ function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: L
         media: "Media ready",
         candidate: "Candidates",
         open: "Choose a card",
-        noWaitingTitle: "No records are waiting for names",
-        noWaitingLead: "Review recent records or open the map to find the next place to check.",
-        records: "Review records",
-        map: "Open map",
+        noWaitingTitle: "No records are waiting for names right now",
+        noWaitingLead: "The queue has moved forward. If you find something unnamed, save it first and review recent records for the loop.",
+        records: "Record without a name",
+        map: "Review recent records",
         reference: "Add reference",
         login: "Log in to save identification notes.",
       };
@@ -14025,8 +14077,8 @@ function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: L
         ${canWriteIdentification ? "" : `<em>${escapeHtml(copy.login)}</em>`}
       </div>
       <div class="records-identify-intro-actions">
-        <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}">${escapeHtml(copy.records)}</a>
-        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.map)}</a>
+        <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.records)}</a>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}">${escapeHtml(copy.map)}</a>
       </div>
     </section>`;
   }
@@ -14710,25 +14762,28 @@ const RECORDS_WORKBENCH_STYLES = `
   .records-post-icon.is-note { --records-post-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 5v3h3v2h-3v3h-2v-3H8v-2h3V8h2Z'/%3E%3C/svg%3E"); }
   .records-post-needs-id {
     position: absolute;
-    left: 8px;
+    left: auto;
     right: 8px;
-    bottom: 8px;
+    top: 8px;
+    bottom: auto;
     min-width: 0;
+    max-width: calc(100% - 48px);
     display: flex;
     align-items: center;
-    gap: 6px;
-    min-height: 30px;
-    padding: 7px 9px;
+    gap: 5px;
+    min-height: 24px;
+    padding: 5px 7px;
     border-radius: 999px;
-    background: rgba(254,243,199,.96);
-    color: #78350f;
-    border: 1px solid rgba(180,83,9,.22);
-    box-shadow: 0 8px 18px rgba(120,53,15,.16);
+    background: rgba(255,255,255,.9);
+    color: #475569;
+    border: 1px solid rgba(15,23,42,.1);
+    box-shadow: 0 6px 14px rgba(15,23,42,.1);
+    backdrop-filter: blur(8px);
   }
   .records-post-needs-id b {
     flex: 0 0 auto;
-    color: #92400e;
-    font-size: 11px;
+    color: #334155;
+    font-size: 10px;
     line-height: 1;
     font-weight: 950;
   }
@@ -14737,8 +14792,8 @@ const RECORDS_WORKBENCH_STYLES = `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #78350f;
-    font-size: 10.5px;
+    color: #64748b;
+    font-size: 9.5px;
     line-height: 1;
     font-weight: 850;
   }
@@ -23092,12 +23147,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;">
               <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">12</strong><span style="color:#64748b; font-size:12px;">残した記録</span></div>
               <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">4</strong><span style="color:#64748b; font-size:12px;">見返す場所</span></div>
-              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">春</strong><span style="color:#64748b; font-size:12px;">季節の入口</span></div>
+              <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">今季</strong><span style="color:#64748b; font-size:12px;">季節の入口</span></div>
             </div>
             <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">実際の表示では、公開できる範囲だけを使い、自宅・学校・詳しすぎる位置は外して見返せます。</p>
           </div>
+          <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">すでに記録がある方はログインすると、このページに自分の場所と記録史が戻ります。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(registerHref)}">新しく登録する</a>
+            <a class="btn btn-solid" href="${escapeHtml(registerHref)}">アカウントを作る</a>
             <a class="btn btn-ghost" href="${escapeHtml(loginHref)}">ログインしてマイページへ</a>
           </div>`,
         ),

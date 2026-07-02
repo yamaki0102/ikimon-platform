@@ -740,7 +740,11 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(html, /id="me-layer-hint"/);
   assert.match(html, /id="me-layer-hint-jump"[^>]*>見える場所へ<\/button>/);
   assert.match(html, /aria-label="閉じる"/);
+  assert.match(html, /class="me-layer-key" aria-label="表示中のレイヤー"/);
+  assert.match(html, /data-layer-key-item="frontier"/);
+  assert.match(html, /まだ少ない場所/);
   assert.match(script, /function layerHintInfo\(tab\)/);
+  assert.match(script, /data-layer-key-item/);
   assert.match(script, /ズームするとエリア図鑑の範囲が見えます。/);
   assert.match(script, /ズームするとまだ少ない場所が面で見えます。/);
   assert.match(script, /ズームすると季節の気配の濃淡が見えます。/);
@@ -749,6 +753,7 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(script, /fallbackRegionBounds/);
   assert.match(script, /layerHintJumpEl\.addEventListener\('click'/);
   assert.match(styles, /\.me-layer-hint \{/);
+  assert.match(styles, /\.me-layer-key \{/);
   assert.match(styles, /\.me-layer-hint\.is-hidden \{ display: none; \}/);
   assert.match(styles, /\.me-layer-hint-jump \{/);
 });
