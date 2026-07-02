@@ -1798,10 +1798,15 @@ const ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS = [
 
 const ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS = [
   "/records?view=identification_summary",
+  "/records?view=needs_id",
   "/ja/records?view=identification_summary",
+  "/ja/records?view=needs_id",
   "/en/records?view=identification_summary",
+  "/en/records?view=needs_id",
   "/es/records?view=identification_summary",
-  "/pt-br/records?view=identification_summary"
+  "/es/records?view=needs_id",
+  "/pt-br/records?view=identification_summary",
+  "/pt-br/records?view=needs_id"
 ] as const;
 
 const ORIGINAL_UI_HTML_LOCALIZABLE_PATHS = [
@@ -18606,7 +18611,10 @@ function originalUiHtmlVariantKey(pathname: string, variant: string): string {
 
 function originalUiHtmlQueryVariant(url: URL): string | null {
   if (!/^(?:\/(?:ja|en|es|pt-br))?\/records$/.test(url.pathname)) return null;
-  return url.searchParams.get("view") === "identification_summary" ? "view-identification-summary" : null;
+  const view = url.searchParams.get("view");
+  if (view === "identification_summary") return "view-identification-summary";
+  if (view === "needs_id") return "view-needs-id";
+  return null;
 }
 
 function originalUiHtmlKeysForRequest(url: URL): string[] {

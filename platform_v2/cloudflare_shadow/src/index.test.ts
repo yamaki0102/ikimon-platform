@@ -16779,6 +16779,9 @@ test("production records query variants serve dedicated materialized HTML", asyn
   await env.ASSET_BUCKET.put("original-ui/html/ja/records.view-identification-summary.html", "<!doctype html><title>同定まとめ | ikimon</title><main data-testid=\"identification-summary\">summary records</main>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.view-needs-id.html", "<!doctype html><title>確認待ち | ikimon</title><main data-records-identify-workbench data-identify-hold>needs id records</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
 
   const originalFetch = globalThis.fetch;
   let fallbackCalls = 0;
@@ -16797,6 +16800,16 @@ test("production records query variants serve dedicated materialized HTML", asyn
     assert.equal(await prefixedSummary.text(), "<!doctype html><title>同定まとめ | ikimon</title><main data-testid=\"identification-summary\">summary records</main>");
     assert.equal(prefixedSummary.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
+    const queryNeedsId = await worker.fetch(new Request("https://ikimon.life/records?view=needs_id&lang=ja"), productionEnv);
+    assert.equal(queryNeedsId.status, 200);
+    assert.equal(await queryNeedsId.text(), "<!doctype html><title>確認待ち | ikimon</title><main data-records-identify-workbench data-identify-hold>needs id records</main>");
+    assert.equal(queryNeedsId.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const prefixedNeedsId = await worker.fetch(new Request("https://ikimon.life/ja/records?view=needs_id"), productionEnv);
+    assert.equal(prefixedNeedsId.status, 200);
+    assert.equal(await prefixedNeedsId.text(), "<!doctype html><title>確認待ち | ikimon</title><main data-records-identify-workbench data-identify-hold>needs id records</main>");
+    assert.equal(prefixedNeedsId.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
     const normalRecords = await worker.fetch(new Request("https://ikimon.life/records?lang=ja"), productionEnv);
     assert.equal(normalRecords.status, 200);
     const normalRecordsBody = await normalRecords.text();
@@ -16804,6 +16817,7 @@ test("production records query variants serve dedicated materialized HTML", asyn
     assert.match(normalRecordsBody, /data-cloudflare-records-live/);
     assert.match(normalRecordsBody, /public records/);
     assert.doesNotMatch(normalRecordsBody, /summary records/);
+    assert.doesNotMatch(normalRecordsBody, /needs id records/);
     assert.equal(normalRecords.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
     assert.equal(fallbackCalls, 0);
@@ -16982,6 +16996,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
+  assert.match(materializerSource, /view-needs-id/);
   assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
   assert.doesNotMatch(materializerSource, /const\s+corePaths\s*=\s*\[/);
   assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);
@@ -16992,10 +17007,15 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   }
   for (const path of [
     "/records?view=identification_summary",
+    "/records?view=needs_id",
     "/ja/records?view=identification_summary",
+    "/ja/records?view=needs_id",
     "/en/records?view=identification_summary",
+    "/en/records?view=needs_id",
     "/es/records?view=identification_summary",
-    "/pt-br/records?view=identification_summary"
+    "/es/records?view=needs_id",
+    "/pt-br/records?view=identification_summary",
+    "/pt-br/records?view=needs_id"
   ]) {
     assert.ok(queryVariantPaths.includes(path), `${path} should be materialized as a query-specific original UI variant`);
   }
