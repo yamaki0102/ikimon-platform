@@ -68,6 +68,7 @@ process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html
 
 const stagingOnlyAdminPreviewPaths = [];
 const corePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS");
+const queryVariantPaths = await readWorkerStringArray("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS");
 const stagingQaSmokePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS");
 const localizedRenderPaths = new Set(await readWorkerStringArray("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"));
 
@@ -108,20 +109,33 @@ const staticAssetPaths = [
 
 function normalizePublicPath(value) {
   const path = String(value || "").trim();
-  if (!path || path.includes("..") || path.includes("\\")) {
+  if (!path || path.includes("\\")) {
     throw new Error(`Unsafe public path: ${value}`);
   }
-  return path.startsWith("/") ? path : `/${path}`;
+  const prefixed = path.startsWith("/") ? path : `/${path}`;
+  const parsed = new URL(prefixed, "https://ikimon-materialize.local");
+  if (parsed.hash || parsed.pathname.includes("..")) {
+    throw new Error(`Unsafe public path: ${value}`);
+  }
+  return `${parsed.pathname}${parsed.search}`;
 }
 
-function renderUrlForPath(pathname) {
+function publicPathUrl(publicPath) {
+  return new URL(publicPath, "https://ikimon-materialize.local");
+}
+
+function renderUrlForPath(publicPath) {
+  const parsed = publicPathUrl(publicPath);
+  const pathname = parsed.pathname;
   const localizedMatch = pathname.match(/^\/(ja|en|es|pt-br)(\/.*)?$/);
   if (localizedMatch) {
     const segment = localizedMatch[1];
     const rest = localizedMatch[2] || "/";
     const lang = segment === "pt-br" ? "pt-BR" : segment;
     if (localizedRenderPaths.has(rest)) {
-      return `${rest}?lang=${encodeURIComponent(lang)}`;
+      const params = new URLSearchParams(parsed.searchParams);
+      params.set("lang", lang);
+      return `${rest}?${params.toString()}`;
     }
   }
   switch (pathname) {
@@ -138,13 +152,30 @@ function renderUrlForPath(pathname) {
     case "/pt-br/":
       return "/?lang=pt-BR";
     default:
-      return pathname;
+      return `${pathname}${parsed.search}`;
   }
 }
 
 function originalUiHtmlKey(pathname) {
   const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
   return `original-ui/html/${cleanPath}.html`;
+}
+
+function originalUiHtmlVariantKey(pathname, variant) {
+  const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+  return `original-ui/html/${cleanPath}.${variant}.html`;
+}
+
+function originalUiHtmlQueryVariant(publicPath) {
+  const parsed = publicPathUrl(publicPath);
+  if (!/^(?:\/(?:ja|en|es|pt-br))?\/records$/.test(parsed.pathname)) return null;
+  return parsed.searchParams.get("view") === "identification_summary" ? "view-identification-summary" : null;
+}
+
+function originalUiHtmlKeyForPublicPath(publicPath) {
+  const parsed = publicPathUrl(publicPath);
+  const variant = originalUiHtmlQueryVariant(publicPath);
+  return variant ? originalUiHtmlVariantKey(parsed.pathname, variant) : originalUiHtmlKey(parsed.pathname);
 }
 
 function originalUiStaticKey(pathname) {
@@ -187,6 +218,7 @@ async function readAllOriginalUiStaticPaths() {
   if (match[1].includes("...ORIGINAL_UI_HTML_CORE_PATHS")) {
     paths.push(...await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS"));
   }
+  paths.push(...await readWorkerStringArray("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS"));
   if (match[1].includes("...ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS")) {
     paths.push(...await readWorkerStringArray("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"));
   }
@@ -199,13 +231,13 @@ async function readAllOriginalUiStaticPaths() {
 async function resolveTargetPaths() {
   if (explicitPaths.length > 0) return [...new Set(explicitPaths)];
   if (scope === "core") {
-    return targetEnv === "staging" ? [...corePaths, ...stagingOnlyAdminPreviewPaths] : corePaths;
+    return targetEnv === "staging" ? [...corePaths, ...queryVariantPaths, ...stagingOnlyAdminPreviewPaths] : [...corePaths, ...queryVariantPaths];
   }
   if (scope === "staging-qa") {
     if (targetEnv !== "staging") {
       throw new Error("--scope staging-qa is only supported with --target-env staging.");
     }
-    return [...new Set([...corePaths, ...stagingOnlyAdminPreviewPaths, ...stagingQaSmokePaths])];
+    return [...new Set([...corePaths, ...queryVariantPaths, ...stagingOnlyAdminPreviewPaths, ...stagingQaSmokePaths])];
   }
   if (scope === "all") return await readAllOriginalUiStaticPaths();
   throw new Error(`Unsupported materialize scope: ${scope}`);
@@ -350,7 +382,7 @@ try {
     if (!ok) {
       throw new Error(`Failed to render ${pathname}: ${response.statusCode} ${contentType}`);
     }
-    const key = originalUiHtmlKey(pathname);
+    const key = originalUiHtmlKeyForPublicPath(pathname);
     const filePath = join(tempDir, key.replaceAll("/", "__"));
     await writeFile(filePath, response.body, "utf8");
     rendered.push({ pathname, key, bytes: Buffer.byteLength(response.body), filePath });

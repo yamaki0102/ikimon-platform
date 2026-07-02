@@ -1792,6 +1792,14 @@ const ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS = [
   "/ja/for-business/field-programs"
 ] as const;
 
+const ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS = [
+  "/records?view=identification_summary",
+  "/ja/records?view=identification_summary",
+  "/en/records?view=identification_summary",
+  "/es/records?view=identification_summary",
+  "/pt-br/records?view=identification_summary"
+] as const;
+
 const ORIGINAL_UI_HTML_LOCALIZABLE_PATHS = [
   "/",
   "/community/events/new",
@@ -17215,7 +17223,11 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  const object = await env.ASSET_BUCKET.get(originalUiHtmlKeyForRequest(url));
+  let object: R2ObjectBody | null = null;
+  for (const key of originalUiHtmlKeysForRequest(url)) {
+    object = await env.ASSET_BUCKET.get(key);
+    if (object?.body) break;
+  }
   if (object?.body) {
     const cspNonce = createHtmlCspNonce();
     const rawBody = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, request, url, env);
@@ -17295,7 +17307,8 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
     return injectHomeObservationRecords(text, session, url, env);
   }
   if (isRecordsHtmlPath(url.pathname)) {
-    return injectRecentObservationRecords(injectCompactHeaderMenu(text, url, session), url, env);
+    const withHeaderMenu = injectCompactHeaderMenu(text, url, session);
+    return originalUiHtmlQueryVariant(url) ? withHeaderMenu : injectRecentObservationRecords(withHeaderMenu, url, env);
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
   if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
@@ -18363,13 +18376,25 @@ function originalUiHtmlKey(pathname: string): string {
   return `original-ui/html/${cleanPath}.html`;
 }
 
-function originalUiHtmlKeyForRequest(url: URL): string {
+function originalUiHtmlVariantKey(pathname: string, variant: string): string {
+  const cleanPath = pathname === "/" ? "root" : pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+  return `original-ui/html/${cleanPath}.${variant}.html`;
+}
+
+function originalUiHtmlQueryVariant(url: URL): string | null {
+  if (!/^(?:\/(?:ja|en|es|pt-br))?\/records$/.test(url.pathname)) return null;
+  return url.searchParams.get("view") === "identification_summary" ? "view-identification-summary" : null;
+}
+
+function originalUiHtmlKeysForRequest(url: URL): string[] {
   const adminSourceDraftKey = municipalWalkMapAdminSourceDraftKey(url);
-  if (adminSourceDraftKey) return adminSourceDraftKey;
+  if (adminSourceDraftKey) return [adminSourceDraftKey];
   const langSegment = langQueryToUrlSegment(url.searchParams.get("lang"));
-  if (!langSegment) return originalUiHtmlKey(url.pathname);
-  const localizedPath = localizedMaterializedPath(url.pathname, langSegment);
-  return originalUiHtmlKey(localizedPath ?? url.pathname);
+  const localizedPath = langSegment ? localizedMaterializedPath(url.pathname, langSegment) : null;
+  const pathname = localizedPath ?? url.pathname;
+  const baseKey = originalUiHtmlKey(pathname);
+  const variant = originalUiHtmlQueryVariant(url);
+  return variant ? [originalUiHtmlVariantKey(pathname, variant), baseKey] : [baseKey];
 }
 
 function langQueryToUrlSegment(value: string | null): string | null {
