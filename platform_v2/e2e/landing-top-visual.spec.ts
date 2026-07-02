@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { getStrings } from "../src/i18n/index.js";
 import type { LandingObservation, LandingSnapshot } from "../src/services/readModels.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "../src/ui/landingTop.js";
+import { renderSiteDocument } from "../src/ui/siteShell.js";
 
 const productionVisualBaseUrl = process.env.PRODUCTION_VISUAL_BASE_URL ?? "https://ikimon.life";
 const productionVisualBbox = process.env.PRODUCTION_VISUAL_BBOX ?? "137.60,34.60,137.91,34.85";
@@ -350,7 +351,71 @@ function renderProductionDensityHtml(): string {
   return renderLandingSnapshotHtml(productionDensitySnapshot());
 }
 
+function renderMinimalChromeLandingDocumentHtml(snapshot: LandingSnapshot): string {
+  const strings = getStrings("ja");
+  const sections = renderLandingTopSections({
+    basePath: "",
+    lang: "ja",
+    copy: strings.landing,
+    fieldLoop: strings.fieldLoop,
+    snapshot,
+    isLoggedIn: false,
+  });
+  return renderSiteDocument({
+    basePath: "",
+    title: strings.landing.title,
+    description: strings.landing.heroLead,
+    activeNav: "ホーム",
+    lang: "ja",
+    currentPath: "/ja/",
+    extraStyles: LANDING_TOP_STYLES,
+    shellClassName: "shell-bleed prototype-shell",
+    minimalChrome: true,
+    body: `${sections.heroHtml}
+${sections.dailyDashboardHtml}`,
+    footerNote: strings.landing.footerNote,
+  });
+}
+
 test.describe("landing top visual regression", () => {
+  test("desktop guest top keeps landing width under minimal chrome", async ({ browser }) => {
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 900 },
+    });
+
+    await page.setContent(renderMinimalChromeLandingDocumentHtml(productionDensitySnapshot()), { waitUntil: "load" });
+    await expect(page.locator(".site-shell.is-minimal-chrome")).toBeVisible();
+    await expect(page.locator(".prototype-guest-home")).toBeVisible();
+
+    const metrics = await page.evaluate(() => {
+      const rectFor = (selector: string) => {
+        const rect = document.querySelector(selector)?.getBoundingClientRect();
+        return {
+          width: Math.round(rect?.width ?? 0),
+          height: Math.round(rect?.height ?? 0),
+          bottom: Math.round(rect?.bottom ?? 0),
+        };
+      };
+      return {
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        shell: rectFor(".shell.shell-bleed.prototype-shell"),
+        guest: rectFor(".prototype-guest-home"),
+        copy: rectFor(".prototype-guest-home-copy"),
+        panel: rectFor(".prototype-guest-home-panel"),
+      };
+    });
+
+    expect(metrics.scrollWidth, "minimal chrome landing has no horizontal scroll").toBe(metrics.clientWidth);
+    expect(metrics.shell.width, "desktop guest shell must not collapse to the mobile feed width").toBeGreaterThanOrEqual(1040);
+    expect(metrics.guest.width, "desktop guest hero uses the available landing width").toBeGreaterThanOrEqual(1040);
+    expect(metrics.copy.width, "desktop headline column stays readable").toBeGreaterThanOrEqual(460);
+    expect(metrics.panel.width, "desktop proof panel stays usable").toBeGreaterThanOrEqual(500);
+    expect(metrics.guest.bottom, "desktop guest hero should fit the first viewport").toBeLessThan(860);
+
+    await page.close();
+  });
+
   for (const viewport of viewports) {
     test(`${viewport.name} production-density content stays scannable`, async ({ browser }) => {
       const page = await browser.newPage({
@@ -368,16 +433,17 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator(".prototype-content-wall")).toBeVisible();
-      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("場所の今を残す記録");
-      await expect(page.locator("#topa-local-map")).toBeVisible();
-      expect(await page.locator(".prototype-content-card").count(), "fixture keeps production-like card volume").toBeGreaterThanOrEqual(8);
+      await expect(page.locator(".prototype-guest-home")).toBeVisible();
+      await expect(page.locator(".prototype-record-feed.is-guest")).toBeVisible();
+      expect(await page.locator("[data-record-feed-card]").count(), "fixture keeps production-like card volume").toBeGreaterThanOrEqual(8);
 
       const metrics = await page.evaluate(() => {
         const viewportHeight = window.innerHeight;
-        const contentWall = document.querySelector(".prototype-content-wall")?.getBoundingClientRect();
-        const monitoring = document.querySelector("#topa-local-map")?.getBoundingClientRect();
-        const visibleCards = Array.from(document.querySelectorAll(".prototype-content-card"))
+        const guestHome = document.querySelector(".prototype-guest-home")?.getBoundingClientRect();
+        const guestCopy = document.querySelector(".prototype-guest-home-copy")?.getBoundingClientRect();
+        const guestPanel = document.querySelector(".prototype-guest-home-panel")?.getBoundingClientRect();
+        const recordFeed = document.querySelector(".prototype-record-feed.is-guest")?.getBoundingClientRect();
+        const visibleCards = Array.from(document.querySelectorAll("[data-record-feed-card]"))
           .filter((card) => {
             const rect = card.getBoundingClientRect();
             return rect.bottom > 0 && rect.top < viewportHeight;
@@ -385,20 +451,27 @@ test.describe("landing top visual regression", () => {
         return {
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
-          contentWallTop: Math.round(contentWall?.top ?? 9999),
-          monitoringTop: Math.round(monitoring?.top ?? 9999),
+          guestWidth: Math.round(guestHome?.width ?? 0),
+          guestBottom: Math.round(guestHome?.bottom ?? 9999),
+          guestCopyWidth: Math.round(guestCopy?.width ?? 0),
+          guestPanelWidth: Math.round(guestPanel?.width ?? 0),
+          recordFeedTop: Math.round(recordFeed?.top ?? 9999),
           visibleCards,
         };
       });
 
       expect(metrics.scrollWidth, "production-density fixture has no horizontal scroll").toBe(metrics.clientWidth);
       if (viewport.name === "mobile") {
-        expect(metrics.contentWallTop, "mobile shows real content immediately").toBeLessThan(120);
-        expect(metrics.monitoringTop, "mobile exposes monitoring areas after the first feed lane").toBeLessThan(1600);
-        expect(metrics.visibleCards, "mobile first viewport includes multiple real cards").toBeGreaterThanOrEqual(2);
+        expect(metrics.guestBottom, "mobile guest hero fits the first viewport").toBeLessThan(820);
+        expect(metrics.recordFeedTop, "mobile exposes the record feed after the hero").toBeLessThan(900);
+        expect(metrics.visibleCards, "mobile first viewport reaches a public record card").toBeGreaterThanOrEqual(1);
       } else {
-        expect(metrics.contentWallTop, "desktop shows real content immediately").toBeLessThan(80);
-        expect(metrics.visibleCards, "desktop first viewport gives a dense content grid").toBeGreaterThanOrEqual(6);
+        expect(metrics.guestWidth, "desktop guest hero uses the landing width").toBeGreaterThanOrEqual(1040);
+        expect(metrics.guestCopyWidth, "desktop headline column remains readable").toBeGreaterThanOrEqual(460);
+        expect(metrics.guestPanelWidth, "desktop proof panel remains usable").toBeGreaterThanOrEqual(500);
+        expect(metrics.guestBottom, "desktop guest hero leaves room for the feed").toBeLessThan(560);
+        expect(metrics.recordFeedTop, "desktop record feed starts inside the first viewport").toBeLessThan(700);
+        expect(metrics.visibleCards, "desktop first viewport includes public record cards").toBeGreaterThanOrEqual(2);
       }
 
       if (process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1") {
@@ -434,30 +507,35 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator(".prototype-content-wall")).toBeVisible();
-      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("場所の今を残す記録");
-      expect(await page.locator(".prototype-content-card").count(), "live production card volume").toBeGreaterThanOrEqual(8);
+      await expect(page.locator(".prototype-guest-home")).toBeVisible();
+      await expect(page.locator(".prototype-record-feed.is-guest")).toBeVisible();
+      expect(await page.locator("[data-record-feed-card]").count(), "live production card volume").toBeGreaterThanOrEqual(8);
       await page.waitForFunction(() => {
-        return Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-content-card img"))
+        return Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-record-feed-card img"))
           .filter((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0).length >= 6;
       }, null, { timeout: 20_000 });
 
       const metrics = await page.evaluate(() => {
         const viewportHeight = window.innerHeight;
-        const contentWall = document.querySelector(".prototype-content-wall")?.getBoundingClientRect();
-        const monitoring = document.querySelector("#topa-local-map")?.getBoundingClientRect();
-        const visibleCards = Array.from(document.querySelectorAll(".prototype-content-card"))
+        const guestHome = document.querySelector(".prototype-guest-home")?.getBoundingClientRect();
+        const guestCopy = document.querySelector(".prototype-guest-home-copy")?.getBoundingClientRect();
+        const guestPanel = document.querySelector(".prototype-guest-home-panel")?.getBoundingClientRect();
+        const recordFeed = document.querySelector(".prototype-record-feed.is-guest")?.getBoundingClientRect();
+        const visibleCards = Array.from(document.querySelectorAll("[data-record-feed-card]"))
           .filter((card) => {
             const rect = card.getBoundingClientRect();
             return rect.bottom > 0 && rect.top < viewportHeight;
           }).length;
-        const loadedImages = Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-content-card img"))
+        const loadedImages = Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-record-feed-card img"))
           .filter((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0).length;
         return {
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
-          contentWallTop: Math.round(contentWall?.top ?? 9999),
-          monitoringTop: Math.round(monitoring?.top ?? 9999),
+          guestWidth: Math.round(guestHome?.width ?? 0),
+          guestBottom: Math.round(guestHome?.bottom ?? 9999),
+          guestCopyWidth: Math.round(guestCopy?.width ?? 0),
+          guestPanelWidth: Math.round(guestPanel?.width ?? 0),
+          recordFeedTop: Math.round(recordFeed?.top ?? 9999),
           visibleCards,
           loadedImages,
         };
@@ -466,12 +544,16 @@ test.describe("landing top visual regression", () => {
       expect(metrics.scrollWidth, "live production data has no horizontal scroll").toBe(metrics.clientWidth);
       expect(metrics.loadedImages, "production thumbnails load inside cards").toBeGreaterThanOrEqual(6);
       if (viewport.name === "mobile") {
-        expect(metrics.contentWallTop, "mobile shows real production content immediately").toBeLessThan(120);
-        expect(metrics.monitoringTop, "mobile exposes monitoring areas after the first feed lane").toBeLessThan(1600);
-        expect(metrics.visibleCards, "mobile first viewport includes several production cards").toBeGreaterThanOrEqual(2);
+        expect(metrics.guestBottom, "mobile guest hero fits the first viewport").toBeLessThan(820);
+        expect(metrics.recordFeedTop, "mobile exposes the record feed after the hero").toBeLessThan(900);
+        expect(metrics.visibleCards, "mobile first viewport reaches a public record card").toBeGreaterThanOrEqual(1);
       } else {
-        expect(metrics.contentWallTop, "desktop moves live content to the top of the landing surface").toBeLessThan(80);
-        expect(metrics.visibleCards, "desktop first viewport gives a dense content grid").toBeGreaterThanOrEqual(6);
+        expect(metrics.guestWidth, "desktop guest hero uses the landing width").toBeGreaterThanOrEqual(1040);
+        expect(metrics.guestCopyWidth, "desktop headline column remains readable").toBeGreaterThanOrEqual(460);
+        expect(metrics.guestPanelWidth, "desktop proof panel remains usable").toBeGreaterThanOrEqual(500);
+        expect(metrics.guestBottom, "desktop guest hero leaves room for the feed").toBeLessThan(560);
+        expect(metrics.recordFeedTop, "desktop record feed starts inside the first viewport").toBeLessThan(700);
+        expect(metrics.visibleCards, "desktop first viewport includes public record cards").toBeGreaterThanOrEqual(2);
       }
 
       await testInfo.attach(`${viewport.name}-production-public-data-summary`, {
