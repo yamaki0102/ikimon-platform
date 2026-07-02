@@ -16668,6 +16668,54 @@ test("production original UI html serves localized auth and guest profile shells
   }
 });
 
+test("production records query variants serve dedicated materialized HTML", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", "<!doctype html><title>記録を見る | ikimon</title><main>public records</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.view-identification-summary.html", "<!doctype html><title>同定まとめ | ikimon</title><main data-testid=\"identification-summary\">summary records</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const querySummary = await worker.fetch(new Request("https://ikimon.life/records?view=identification_summary&lang=ja"), productionEnv);
+    assert.equal(querySummary.status, 200);
+    assert.equal(await querySummary.text(), "<!doctype html><title>同定まとめ | ikimon</title><main data-testid=\"identification-summary\">summary records</main>");
+    assert.equal(querySummary.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const prefixedSummary = await worker.fetch(new Request("https://ikimon.life/ja/records?view=identification_summary"), productionEnv);
+    assert.equal(prefixedSummary.status, 200);
+    assert.equal(await prefixedSummary.text(), "<!doctype html><title>同定まとめ | ikimon</title><main data-testid=\"identification-summary\">summary records</main>");
+    assert.equal(prefixedSummary.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const normalRecords = await worker.fetch(new Request("https://ikimon.life/records?lang=ja"), productionEnv);
+    assert.equal(normalRecords.status, 200);
+    const normalRecordsBody = await normalRecords.text();
+    assert.match(normalRecordsBody, /記録を見る \| ikimon/);
+    assert.match(normalRecordsBody, /data-cloudflare-records-live/);
+    assert.match(normalRecordsBody, /public records/);
+    assert.doesNotMatch(normalRecordsBody, /summary records/);
+    assert.equal(normalRecords.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production public entry redirects are native and do not require materialized html", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
@@ -16830,9 +16878,11 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   };
 
   const corePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_CORE_PATHS");
+  const queryVariantPaths = parseArray(workerSource, "ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS");
   const localizablePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_LOCALIZABLE_PATHS");
 
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_CORE_PATHS"\)/);
+  assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
   assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
@@ -16842,6 +16892,15 @@ test("materialized original UI core entry registry is single-sourced from the Wo
 
   for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/ja/guide-programs", "/ja/my-guides"]) {
     assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
+  }
+  for (const path of [
+    "/records?view=identification_summary",
+    "/ja/records?view=identification_summary",
+    "/en/records?view=identification_summary",
+    "/es/records?view=identification_summary",
+    "/pt-br/records?view=identification_summary"
+  ]) {
+    assert.ok(queryVariantPaths.includes(path), `${path} should be materialized as a query-specific original UI variant`);
   }
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     for (const path of [
