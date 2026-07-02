@@ -70,7 +70,7 @@ function encyclopediaField(): ObservationField {
             lng: 137.6292,
             public_record_count: 8,
             guide_count: 1,
-            actor_ids: ["actor-1"],
+            actor_ids: ["actor-1", "actor-2", "actor-3"],
           },
           {
             id: "lakeside-table",
@@ -278,6 +278,8 @@ test("area encyclopedia renders payload spots, guides, actors, and only public s
   assert.match(html, /外部名鑑/);
   assert.doesNotMatch(html, /ロック前に出してはいけない本文|audio\.mp3/);
   assert.deepEqual(mapSpots.map((spot: { name: string }) => spot.name), ["葦原デッキ"]);
+  assert.notEqual(mapSpots[0].lat, 34.7221);
+  assert.notEqual(mapSpots[0].lng, 137.6292);
 });
 
 test("area encyclopedia screen copy avoids reserved implementation and brand terms", () => {

@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeAreaEncyclopediaPayload, resolveAreaGuideTemplates, spotHasPublicCoordinates } from "./areaEncyclopediaPayload.js";
+import {
+  AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+  AREA_SPOT_MIN_PUBLIC_RECORDS,
+  AREA_SPOT_PUBLIC_COORDINATE_GRID_M,
+  normalizeAreaEncyclopediaPayload,
+  resolveAreaGuideTemplates,
+  spotHasPublicCoordinates,
+} from "./areaEncyclopediaPayload.js";
 
 test("area encyclopedia payload normalizes optional P0 data safely", () => {
   const payload = normalizeAreaEncyclopediaPayload({
@@ -8,7 +15,15 @@ test("area encyclopedia payload normalizes optional P0 data safely", () => {
       page_kind: "spot",
       tags: ["水辺", "水辺", ""],
       spots: [
-        { id: "a", name: "水辺入口", type: "water_care", lat: "34.7", lng: "137.6", public_record_count: 3.9 },
+        {
+          id: "a",
+          name: "水辺入口",
+          type: "water_care",
+          lat: "34.700123",
+          lng: "137.600456",
+          public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
+          public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+        },
         { id: "bad-type", name: "使わない", type: "ranking" },
         { id: "", name: "使わない", type: "food" },
       ],
@@ -37,8 +52,11 @@ test("area encyclopedia payload normalizes optional P0 data safely", () => {
   assert.equal(payload.pageKind, "spot");
   assert.deepEqual(payload.tags, ["水辺"]);
   assert.equal(payload.spots.length, 1);
-  assert.equal(payload.spots[0]?.publicRecordCount, 3);
+  assert.equal(payload.spots[0]?.publicRecordCount, AREA_SPOT_MIN_PUBLIC_RECORDS);
+  assert.equal(payload.spots[0]?.publicContributorCount, AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS);
   assert.ok(payload.spots[0] && spotHasPublicCoordinates(payload.spots[0]));
+  assert.notEqual(payload.spots[0]?.lat, 34.700123);
+  assert.notEqual(payload.spots[0]?.lng, 137.600456);
   assert.equal(payload.localGuides[0]?.status, "available");
   assert.equal(payload.localGuides[0]?.transcriptAvailable, true);
   assert.deepEqual(payload.guideTemplates, ["water_edge", "seasonal_entry"]);
@@ -46,6 +64,69 @@ test("area encyclopedia payload normalizes optional P0 data safely", () => {
   assert.deepEqual(payload.externalLinks.map((link) => link.label), ["名鑑"]);
   assert.equal("audio_url" in payload.localGuides[0], false);
   assert.equal("transcript" in payload.localGuides[0], false);
+});
+
+test("area encyclopedia spot coordinates require k-anonymity and coarsening", () => {
+  const payload = normalizeAreaEncyclopediaPayload({
+    area_encyclopedia: {
+      spots: [
+        {
+          id: "low-records",
+          name: "少数記録",
+          type: "observation_point",
+          lat: 34.7101,
+          lng: 137.7101,
+          public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS - 1,
+          public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+        },
+        {
+          id: "low-contributors",
+          name: "少数投稿者",
+          type: "observation_point",
+          lat: 34.7201,
+          lng: 137.7201,
+          public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
+          public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS - 1,
+        },
+        {
+          id: "rare",
+          name: "希少種候補",
+          type: "observation_point",
+          lat: 34.7301,
+          lng: 137.7301,
+          public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
+          public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+          risk_lane: "rare_sensitive",
+        },
+        {
+          id: "exact-private",
+          name: "私有詳細",
+          type: "observation_point",
+          lat: 34.7401,
+          lng: 137.7401,
+          public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
+          public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+          public_precision: "exact_private",
+        },
+        {
+          id: "safe",
+          name: "公開メッシュ",
+          type: "observation_point",
+          lat: 34.750123,
+          lng: 137.750456,
+          public_record_count: AREA_SPOT_MIN_PUBLIC_RECORDS,
+          public_contributor_count: AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS,
+        },
+      ],
+    },
+  });
+
+  const publicSpots = payload.spots.filter(spotHasPublicCoordinates);
+
+  assert.deepEqual(publicSpots.map((spot) => spot.id), ["safe"]);
+  assert.equal(AREA_SPOT_PUBLIC_COORDINATE_GRID_M, 500);
+  assert.notEqual(publicSpots[0]?.lat, 34.750123);
+  assert.notEqual(publicSpots[0]?.lng, 137.750456);
 });
 
 test("area encyclopedia payload stays empty when the extension data is absent", () => {
