@@ -16940,6 +16940,8 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   }
   assert.match(workerSource, /pathname === "\/home"/);
   assert.match(workerSource, /\(\?:\\\/home\)\?/);
+  assert.match(materializerSource, /pathname === "\/home"/);
+  assert.match(materializerSource, /rest === "\/home"/);
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     const path = `/guide-programs/${slug}`;
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
