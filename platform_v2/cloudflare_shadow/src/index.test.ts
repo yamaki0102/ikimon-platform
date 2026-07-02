@@ -16890,7 +16890,19 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(workerSource, /const ORIGINAL_UI_HTML_STATIC_PATHS = new Set\(\[\s*\.\.\.ORIGINAL_UI_HTML_CORE_PATHS,/);
   assert.match(workerSource, /\.\.\.ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS,/);
 
-  for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/ja/guide-programs", "/ja/my-guides"]) {
+  for (const path of [
+    "/guide",
+    "/guide-programs",
+    "/my-guides",
+    "/lens",
+    "/ja/guide-programs",
+    "/ja/my-guides",
+    "/community/fields",
+    "/ja/community/fields",
+    "/en/community/fields",
+    "/es/community/fields",
+    "/pt-br/community/fields"
+  ]) {
     assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
   }
   for (const path of [
@@ -16944,7 +16956,6 @@ test("Cloudflare staging QA sitemap smoke materialization scope covers only publ
     "/learn",
     "/community",
     "/community/events",
-    "/community/fields",
     "/for-business",
     "/impact",
     "/cases",
@@ -16952,7 +16963,6 @@ test("Cloudflare staging QA sitemap smoke materialization scope covers only publ
     "/ja/learn",
     "/ja/community",
     "/ja/community/events",
-    "/ja/community/fields",
     "/ja/for-business",
     "/ja/impact",
     "/ja/cases",
