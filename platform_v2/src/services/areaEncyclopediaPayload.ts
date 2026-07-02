@@ -1,3 +1,5 @@
+import { coarsenPublicCoordinateToCell } from "./publicLocation.js";
+
 export type AreaSpotType =
   | "park_land"
   | "facility"
@@ -14,6 +16,7 @@ export type AreaEncyclopediaSpot = {
   lat: number | null;
   lng: number | null;
   publicRecordCount: number;
+  publicContributorCount: number;
   guideCount: number;
   actorIds: string[];
 };
@@ -76,6 +79,9 @@ export const AREA_SPOT_TYPE_LABELS: Record<AreaSpotType, string> = {
 };
 
 const SPOT_TYPES: ReadonlySet<string> = new Set(Object.keys(AREA_SPOT_TYPE_LABELS));
+export const AREA_SPOT_PUBLIC_COORDINATE_GRID_M = 500;
+export const AREA_SPOT_MIN_PUBLIC_RECORDS = 5;
+export const AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS = 3;
 const GUIDE_TEMPLATE_KEYS: ReadonlySet<string> = new Set([
   "basic_park",
   "seasonal_entry",
@@ -142,6 +148,14 @@ function cleanNumber(value: unknown): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
+function isFiniteLatitude(value: number | null): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= -90 && value <= 90;
+}
+
+function isFiniteLongitude(value: number | null): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= -180 && value <= 180;
+}
+
 function cleanNonNegativeInteger(value: unknown): number {
   const num = cleanNumber(value);
   if (num == null) return 0;
@@ -198,22 +212,63 @@ function readAreaRoot(payload: Record<string, unknown>): Record<string, unknown>
   return isRecord(root) ? root : null;
 }
 
+function maxContributorCount(value: unknown, actorIds: string[]): number {
+  return Math.max(cleanNonNegativeInteger(value), actorIds.length);
+}
+
+function textFlag(value: unknown): string {
+  return cleanString(value, 80).toLowerCase();
+}
+
+function safePublicSpotCoordinates(input: {
+  lat: number | null;
+  lng: number | null;
+  publicRecordCount: number;
+  publicContributorCount: number;
+  publicPrecision: string;
+  locationPrivacy: string;
+  riskLane: string;
+}): { lat: number; lng: number } | null {
+  if (!isFiniteLatitude(input.lat) || !isFiniteLongitude(input.lng)) return null;
+  if (input.publicRecordCount < AREA_SPOT_MIN_PUBLIC_RECORDS) return null;
+  if (input.publicContributorCount < AREA_SPOT_MIN_PUBLIC_CONTRIBUTORS) return null;
+  if (input.riskLane === "rare_sensitive" || input.riskLane === "sensitive") return null;
+  if (input.locationPrivacy === "private" || input.locationPrivacy === "hidden") return null;
+  if (input.publicPrecision === "hidden" || input.publicPrecision === "exact_private") return null;
+
+  const coarsened = coarsenPublicCoordinateToCell(input.lat, input.lng, AREA_SPOT_PUBLIC_COORDINATE_GRID_M);
+  return coarsened ? { lat: coarsened.lat, lng: coarsened.lng } : null;
+}
+
 function normalizeSpot(value: unknown): AreaEncyclopediaSpot | null {
   if (!isRecord(value)) return null;
   const id = cleanString(value.id, 80);
   const name = cleanString(value.name, 120);
   const type = cleanString(value.type, 40);
   if (!id || !name || !SPOT_TYPES.has(type)) return null;
+  const publicRecordCount = cleanNonNegativeInteger(value.public_record_count);
+  const actorIds = cleanStringList(value.actor_ids, 12, 80);
+  const publicContributorCount = maxContributorCount(value.public_contributor_count, actorIds);
+  const publicCoordinates = safePublicSpotCoordinates({
+    lat: cleanNumber(value.lat),
+    lng: cleanNumber(value.lng),
+    publicRecordCount,
+    publicContributorCount,
+    publicPrecision: textFlag(value.public_precision ?? value.public_coordinate_precision ?? value.coordinate_precision),
+    locationPrivacy: textFlag(value.location_privacy ?? value.privacy),
+    riskLane: textFlag(value.risk_lane ?? value.riskLane),
+  });
   return {
     id,
     name,
     type: type as AreaSpotType,
     summary: cleanString(value.summary, 240),
-    lat: cleanNumber(value.lat),
-    lng: cleanNumber(value.lng),
-    publicRecordCount: cleanNonNegativeInteger(value.public_record_count),
+    lat: publicCoordinates?.lat ?? null,
+    lng: publicCoordinates?.lng ?? null,
+    publicRecordCount,
+    publicContributorCount,
     guideCount: cleanNonNegativeInteger(value.guide_count),
-    actorIds: cleanStringList(value.actor_ids, 12, 80),
+    actorIds,
   };
 }
 
