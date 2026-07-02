@@ -145,7 +145,7 @@ test("guide start sheet presents the Japanese field UX as one clear decision", (
   assert.match(html, /細かく調整する/);
   assert.match(html, /カメラだけで開始する/);
   assert.match(html, /自然音も使いますか？/);
-  assert.match(html, /人の声らしい音は保存しない設計です/);
+  assert.match(html, /声らしい音は保存候補から外します/);
   assert.match(html, /仕組みを見る/);
   assert.match(html, /音声ONで、録った音が研究まで届きます/);
   assert.match(html, /残す → 整理する → 人が確かめる → 研究に渡す/);

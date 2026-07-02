@@ -17003,7 +17003,7 @@ function emptyAreaWatch() {
     emptyAreaWatchDimension("season_clues", "季節の手がかり", "今の季節に見えたものを残す"),
     emptyAreaWatchDimension("freshness", "最近の手がかり", "最近の写真かメモを追加する"),
     emptyAreaWatchDimension("method_clues", "見方の手がかり", "何分見たか、どこを歩いたかを添える"),
-    emptyAreaWatchDimension("trust_clues", "確認の手がかり", "同定待ちと確認済みを分ける"),
+    emptyAreaWatchDimension("trust_clues", "確認の手がかり", "名前待ちと確認済みを分ける"),
     emptyAreaWatchDimension("continuity", "継続の手がかり", "同じ場所を別の日にも見る")
   ];
   return {
@@ -18345,7 +18345,7 @@ function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem
     <span class="cf-record-card-body">
       <strong>${escapeHtml(item.displayName || copy.unknown)}</strong>
       <span>${escapeHtml(item.observedAt)} · ${escapeHtml(copy.placeContext)}</span>
-      <span>${escapeHtml(copy.open)} / ${escapeHtml(copy.map)}</span>
+      <span>${escapeHtml(copy.open)}</span>
     </span>
   </a>`;
 }
@@ -19232,7 +19232,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
     occurrenceId: `occ:${row.observation_id}:0`,
     visitId: row.observation_id,
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
-    displayName: row.taxon_label ?? "同定待ち",
+    displayName: row.taxon_label ?? "名前待ち",
     isAwaitingId: !row.taxon_label,
     observedAt: row.observed_at,
     note: row.note,
@@ -23012,7 +23012,7 @@ async function upsertPublicMapSnapshotRow(
       observation.observed_at,
       Number(observation.observed_at.slice(0, 4)) || new Date(observation.observed_at).getUTCFullYear(),
       taxonGroupForLabel(observation.taxon_label),
-      observation.taxon_label ?? "同定待ち",
+      observation.taxon_label ?? "名前待ち",
       isWeakTaxonLabel(observation.taxon_label) ? 1 : 0,
       observation.public_cell,
       observation.public_cell,
@@ -25068,7 +25068,7 @@ function isWeakTaxonLabel(label: string | null): boolean {
 }
 
 function publicTaxonDisplayName(label: string | null): string {
-  return isWeakTaxonLabel(label) ? "同定待ち" : (label as string).trim();
+  return isWeakTaxonLabel(label) ? "名前待ち" : (label as string).trim();
 }
 
 function taxonGroupForLabel(label: string | null): string {
@@ -25405,7 +25405,7 @@ function renderPublicObservationDetailHtml(detail: PublicObservationDetail): str
   const related = detail.relatedObservations ?? [];
   const observedLabel = polish?.observedLabel ?? formatPublicObservationDate(detail.observedAt);
   const placeLabel = polish?.placeLabel ?? detail.publicLocation.label;
-  const stateLabel = polish?.stateLabel ?? (detail.isAwaitingId ? "同定待ち" : "名前あり");
+  const stateLabel = polish?.stateLabel ?? (detail.isAwaitingId ? "名前待ち" : "名前あり");
   const relatedForDisplay = typeof polish?.relatedLimit === "number" ? related.slice(0, polish.relatedLimit) : related;
   const relatedCards = polish?.relatedCards ?? (relatedForDisplay.length > 0
     ? relatedForDisplay.map((item) => `<a class="obs-nearby-card" href="/observations/${encodeURIComponent(item.visitId)}">
@@ -26096,13 +26096,13 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
         href: "/ja/observations/record-1779005636197?subject=occ%3Arecord-1779005636197%3A1"
       },
       {
-        title: "同定待ち",
+        title: "名前待ち",
         badge: "名前待ち",
         reason: "この場所で、まだ名前が決まっていない写り込みです。",
         meta: "YAMAKI · 5月17日",
         href: "/ja/observations/record-1779005636197?subject=occ%3Arecord-1779005636197%3A0",
         imageSrc: "/thumb/sm/v2-observations/record-1779005636197/ikimon-photo-1779005589177-a2b46533bedd.jpg",
-        imageAlt: "同定待ち"
+        imageAlt: "名前待ち"
       }
     ],
     photos: [
@@ -26150,13 +26150,13 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
         href: "/ja/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A1"
       },
       {
-        title: "同定待ち",
+        title: "名前待ち",
         badge: "名前待ち",
         reason: "この場所で、まだ名前が決まっていない写り込みです。",
         meta: "YAMAKI · 6月9日",
         href: "/ja/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0",
         imageSrc: "/thumb/sm/v2-observations/record-1780970378665/ikimon-photo-1780970363543-cbb7b0c7dabc.jpg",
-        imageAlt: "同定待ち"
+        imageAlt: "名前待ち"
       }
     ],
     photos: [
@@ -26205,13 +26205,13 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
         href: "/ja/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A2"
       },
       {
-        title: "同定待ち",
+        title: "名前待ち",
         badge: "名前待ち",
         reason: "この場所で、まだ名前が決まっていない写り込みです。",
         meta: "YAMAKI · 6月9日",
         href: "/ja/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A0",
         imageSrc: "/thumb/sm/v2-observations/record-1780982506049/ikimon-photo-1780982481796-b8dd5185edb9.jpg",
-        imageAlt: "同定待ち"
+        imageAlt: "名前待ち"
       }
     ],
     photos: [
@@ -26303,7 +26303,7 @@ function buildImageObservationFeedback(
 ): ImageObservationFeedback {
   const kind = imageObservationSubjectKind(subjectName, meta?.scientificName ?? "");
   const evidenceSummary = summarizeEvidence(meta?.evidence ?? []);
-  const awaitingLabel = detail.isAwaitingId || subjectName === "unidentified" || subjectName === "同定待ち" ? "名前は確認待ち" : "名前あり";
+  const awaitingLabel = detail.isAwaitingId || subjectName === "unidentified" || subjectName === "同定待ち" || subjectName === "名前待ち" ? "名前は確認待ち" : "名前あり";
   const placeLabel = safeFeedbackPlaceLabel(detail.publicLocation.label);
   const hasEnvironment = hasPublicEnvironmentRecord(detail);
   const chips = [
@@ -26642,9 +26642,9 @@ function renderImageEnvironmentQualityBlock(
 
 function publicImageObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish {
   const meta = IMAGE_OBSERVATION_DETAIL_TARGET_META[detail.visitId];
-  const fallbackDisplayName = detail.displayName && detail.displayName !== "同定待ち"
+  const fallbackDisplayName = detail.displayName && detail.displayName !== "同定待ち" && detail.displayName !== "名前待ち"
     ? detail.displayName
-    : "同定待ちの写真記録";
+    : "名前待ちの写真記録";
   const displayName = meta?.title ?? fallbackDisplayName;
   const subjectName = meta?.subjectName ?? fallbackDisplayName;
   const subjectRank = meta?.subjectRank ?? "候補";
@@ -26884,7 +26884,7 @@ function renderImageObservationRelatedCards(detail: PublicObservationDetail, met
   const place = meta?.placeLabel ?? "同じ周辺";
   return [
     ["草本群落", `${place} · 近い投稿`],
-    ["同定待ちの記録", `${place} · 写真あり`],
+    ["名前待ちの記録", `${place} · 写真あり`],
     ["周囲の環境", `${place} · 比較候補`]
   ].map(([title, body]) => `<a class="obs-nearby-card" href="/map">
       <span class="obs-nearby-nophoto" aria-hidden="true">📷</span>

@@ -1361,6 +1361,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       : lang === "pt-BR"
         ? "Buscar nesta área"
         : "Search this area";
+  const safetyCue = lang === "ja"
+    ? "公開記録はおおよその位置で表示"
+    : lang === "es"
+      ? "Los registros publicos usan ubicacion aproximada"
+      : lang === "pt-BR"
+        ? "Registros publicos usam local aproximado"
+        : "Public records use approximate location";
   const sideTabResultsLabel = lang === "ja"
     ? "記録"
     : lang === "es"
@@ -1552,6 +1559,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     <div class="me-map-role-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
       <strong>${escapeHtml(copy.enjoyTitle)}</strong>
       <span>${escapeHtml(copy.enjoyLead)}</span>
+      <em>${escapeHtml(safetyCue)}</em>
     </div>
 
     <div class="me-main">
@@ -9926,7 +9934,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-map-role-strip {
     min-height: var(--me-enjoy-h);
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
     padding: 7px 14px;
@@ -9951,6 +9959,19 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 750;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .me-map-role-strip em {
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.82);
+    color: #047857;
+    border: 1px solid rgba(16,185,129,.18);
+    font-size: 11px;
+    line-height: 1.2;
+    font-style: normal;
+    font-weight: 950;
     white-space: nowrap;
   }
   .me-search-shell {
@@ -13002,6 +13023,11 @@ export const MAP_EXPLORER_STYLES = `
       display: block;
       font-size: 11px;
       line-height: 1.35;
+    }
+    .me-map-role-strip em {
+      width: fit-content;
+      font-size: 10px;
+      white-space: normal;
     }
     .me-tabs {
       grid-column: 1 / -1;
