@@ -17273,7 +17273,7 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /record-live-materialized/);
   assert.match(homeBody, /record-clean-audio-materialized/);
   assert.match(homeBody, /record-awaiting-photo-materialized/);
-  assert.match(homeBody, /<strong>写真の記録<\/strong>/);
+  assert.match(homeBody, /<strong>名前待ちの写真<\/strong>/);
   assert.match(homeBody, /<img class="prototype-record-feed-media"[^>]+alt=""/);
   assert.doesNotMatch(homeBody, /srcset="\/derived-transform\//);
   assert.doesNotMatch(homeBody, /sizes="\(max-width: 640px\) 100vw, 680px"/);
@@ -17281,6 +17281,7 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /prototype-record-feed-card\.is-media-photo \.prototype-record-feed-media-wrap\{background:radial-gradient/);
   assert.match(homeBody, /\.prototype-record-feed-media\{display:block;width:100%;height:100%;object-fit:cover\}/);
   assert.doesNotMatch(homeBody, /<strong>同定待ち<\/strong>/);
+  assert.doesNotMatch(homeBody, /<strong>写真の記録<\/strong>/);
   assert.match(homeBody, /\/derived\/.+\/display\.webp/);
   assert.match(homeBody, /asset-record-live-real-derivative/);
   assert.match(homeBody, /data-media-kind="photo"/);

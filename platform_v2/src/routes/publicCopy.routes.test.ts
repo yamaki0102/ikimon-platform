@@ -177,7 +177,7 @@ test("home page uses the local record feed surface", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<title>みんなで作る地域図鑑 \| ikimon<\/title>/);
+    assert.match(response.body, /<title>近くの自然を見る \| ikimon<\/title>/);
     assert.doesNotMatch(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
     assert.match(response.body, /data-record-feed/);
     assert.match(response.body, /prototype-record-feed[^"]*is-guest/);

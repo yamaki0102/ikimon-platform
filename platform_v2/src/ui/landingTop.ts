@@ -134,6 +134,7 @@ function hasSpecificLandingContentName(obs: LandingObservation): boolean {
   if (!name) return false;
   return ![
     "同定待ち",
+    "名前待ち",
     "未同定",
     "発見",
     "記録",
@@ -418,7 +419,7 @@ function landingContentWallSubject(obs: LandingContentWallItem): LandingContentW
       : null;
   return {
     occurrenceId: obs.occurrenceId,
-    name: displayObservationName(obs, "同定待ち"),
+    name: displayObservationName(obs, "名前待ち"),
     confidence,
     identificationCount: obs.identificationCount ?? 0,
     evidenceTier: obs.evidenceTier ?? null,
@@ -633,6 +634,7 @@ function isPublicCardRealTitle(value: string | null | undefined, fallback: strin
   const blocked = new Set([
     fallback,
     "同定待ち",
+    "名前待ち",
     "写真の記録",
     "動画の記録",
     "地域の記録",
@@ -854,6 +856,69 @@ function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): stri
   </article>`;
 }
 
+function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string {
+  const { basePath, lang, snapshot } = options;
+  const mapHref = landingHref(basePath, lang, "/map");
+  const fieldsHref = landingHref(basePath, lang, "/community/fields");
+  const recordsHref = landingHref(basePath, lang, "/records?view=public");
+  const guideHref = landingHref(basePath, lang, "/guide");
+  const nearbyCount = Math.max(0, snapshot.nearbyFields?.length ?? 0);
+  const publicCount = Math.max(0, snapshot.feed?.length ?? 0);
+  const awaitingCount = snapshot.feed.filter((obs) => !hasSpecificLandingContentName(obs)).length;
+  const copy = lang === "ja"
+    ? {
+        eyebrow: "ikimon.life",
+        title: "近くの自然を見る",
+        lead: "地図、フィールド、みんなの公開記録から、今日歩く場所を選べます。写真を残す前に、周りで何が動いているかを先に見られる入口です。",
+        primary: "地図で探す",
+        secondary: "フィールドを探す",
+        tertiary: "みんなの記録",
+        guide: "ライブガイド",
+        stats: [
+          { label: "公開エリア", value: nearbyCount > 0 ? `${nearbyCount}` : "地図" },
+          { label: "公開記録", value: publicCount > 0 ? `${publicCount}` : "準備中" },
+          { label: "名前待ち", value: awaitingCount > 0 ? `${awaitingCount}` : "確認中" },
+        ],
+        notes: ["場所から入る", "名前は後で確かめる", "位置はぼかして表示"],
+      }
+    : {
+        eyebrow: "ikimon.life",
+        title: "See nearby nature",
+        lead: "Start from the map, public fields, and community records before you add your own record.",
+        primary: "Open map",
+        secondary: "Find fields",
+        tertiary: "Community records",
+        guide: "Live guide",
+        stats: [
+          { label: "Public areas", value: nearbyCount > 0 ? `${nearbyCount}` : "Map" },
+          { label: "Records", value: publicCount > 0 ? `${publicCount}` : "Loading" },
+          { label: "Awaiting ID", value: awaitingCount > 0 ? `${awaitingCount}` : "Review" },
+        ],
+        notes: ["Start from place", "Confirm names later", "Locations are blurred"],
+      };
+  return `<section class="prototype-guest-home" aria-labelledby="prototype-guest-home-heading">
+    <div class="prototype-guest-home-copy">
+      <span>${escapeHtml(copy.eyebrow)}</span>
+      <h1 id="prototype-guest-home-heading">${escapeHtml(copy.title)}</h1>
+      <p>${escapeHtml(copy.lead)}</p>
+      <div class="prototype-guest-home-actions">
+        <a class="prototype-guest-home-primary" href="${escapeHtml(mapHref)}" data-kpi-action="landing:guest_home:map">${escapeHtml(copy.primary)}</a>
+        <a href="${escapeHtml(fieldsHref)}" data-kpi-action="landing:guest_home:fields">${escapeHtml(copy.secondary)}</a>
+        <a href="${escapeHtml(recordsHref)}" data-kpi-action="landing:guest_home:records">${escapeHtml(copy.tertiary)}</a>
+      </div>
+    </div>
+    <div class="prototype-guest-home-panel" aria-label="${escapeHtml(copy.tertiary)}">
+      <div class="prototype-guest-home-stats">
+        ${copy.stats.map((item) => `<span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>`).join("")}
+      </div>
+      <div class="prototype-guest-home-notes">
+        ${copy.notes.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+      </div>
+      <a class="prototype-guest-home-guide" href="${escapeHtml(guideHref)}" data-kpi-action="landing:guest_home:guide">${escapeHtml(copy.guide)}</a>
+    </div>
+  </section>`;
+}
+
 function renderLandingRecordFeed(options: LandingTopRenderOptions): string {
   const { basePath, lang, snapshot } = options;
   const items = landingRecordFeedItems(snapshot);
@@ -952,7 +1017,7 @@ function nearbyFieldLabel(source: string | null | undefined, adminLevel: string 
 
 function normalizeDisplaySubject(value: string | null | undefined): string {
   const subject = value?.trim() ?? "";
-  if (!subject || subject === "同定待ち") return "";
+  if (!subject || subject === "同定待ち" || subject === "名前待ち") return "";
   return subject;
 }
 
@@ -1414,7 +1479,7 @@ function renderLandingGuideOutcomes(options: LandingTopRenderOptions): string {
 
 function observationStatusLabel(lang: SiteLang, obs: LandingTopShelfItem): { label: string; tone: "green" | "blue" | "amber" } {
   const labels: Record<SiteLang, { guide: string; guidePromoted: string; ai: string; reviewing: string; needsId: string }> = {
-    ja: { guide: "未検証候補", guidePromoted: "対象ごとの記録", ai: "AI候補", reviewing: "確認中", needsId: "同定待ち" },
+    ja: { guide: "未検証候補", guidePromoted: "対象ごとの記録", ai: "AI候補", reviewing: "確認中", needsId: "名前待ち" },
     en: { guide: "Unverified lead", guidePromoted: "Observation made", ai: "AI hint", reviewing: "In review", needsId: "Needs ID" },
     es: { guide: "Candidato sin verificar", guidePromoted: "Observacion creada", ai: "Pista IA", reviewing: "En revision", needsId: "Sin nombre" },
     "pt-BR": { guide: "Candidato nao verificado", guidePromoted: "Observacao criada", ai: "Dica IA", reviewing: "Em revisao", needsId: "Sem nome" },
@@ -1750,8 +1815,8 @@ function renderObservationEvidenceCard(
   return `<a class="prototype-evidence-card prototype-evidence-${size}" href="${escapeHtml(href)}"${kpiAttr}>
     <small>${escapeHtml(landingObservationMeta(lang, obs) || copy.heroLatestLabel)}</small>
     <strong>${escapeHtml(displayObservationName(obs, copy.heroPhotoFallback))}</strong>
-    <p>写真なしの観察です。場所、日時、同定状態を手がかりに詳細を確認できます。</p>
-    <span>${obs.identificationCount > 0 ? `${escapeHtml(formatLandingNumber(copy, obs.identificationCount))}件の同定` : "同定待ち"}</span>
+    <p>写真なしの観察です。場所、日時、名前の確認状態を手がかりに詳細を確認できます。</p>
+    <span>${obs.identificationCount > 0 ? `${escapeHtml(formatLandingNumber(copy, obs.identificationCount))}件の確認` : "名前待ち"}</span>
   </a>`;
 }
 
@@ -1799,6 +1864,7 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
   if (!options.isLoggedIn) {
     return `<section class="prototype-topa-shelves prototype-topa-shelves-feed-only" aria-label="トップページの記録フィード">
+    ${renderLandingGuestPlaceIntro(options)}
     ${renderLandingRecordFeed(options)}
   </section>`;
   }
@@ -2043,6 +2109,150 @@ export const LANDING_TOP_STYLES = `
     margin-right: var(--ikimon-landing-side-space);
     padding-top: clamp(34px, 3.4vw, 48px);
     color: #1a2e1f;
+  }
+  .prototype-guest-home {
+    width: min(100%, 1040px);
+    margin: 0 auto clamp(16px, 3vw, 28px);
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+    gap: clamp(14px, 2.4vw, 24px);
+    align-items: stretch;
+  }
+  .prototype-guest-home-copy,
+  .prototype-guest-home-panel {
+    min-width: 0;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 18px 42px rgba(15,23,42,.08);
+  }
+  .prototype-guest-home-copy {
+    display: grid;
+    align-content: center;
+    gap: 13px;
+    padding: clamp(22px, 4vw, 40px);
+    background:
+      linear-gradient(135deg, rgba(16,37,26,.96), rgba(15,118,110,.92) 58%, rgba(245,158,11,.18)),
+      #10251a;
+    color: #fff;
+  }
+  .prototype-guest-home-copy > span {
+    width: fit-content;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.12);
+    color: #a7f3d0;
+    font-size: 12px;
+    font-weight: 950;
+    line-height: 1;
+  }
+  .prototype-guest-home-copy h1 {
+    margin: 0;
+    max-width: 12em;
+    color: #fff;
+    font-size: clamp(34px, 5.2vw, 68px);
+    line-height: 1.04;
+    letter-spacing: 0;
+  }
+  .prototype-guest-home-copy p {
+    margin: 0;
+    max-width: 680px;
+    color: rgba(236,253,245,.9);
+    font-size: clamp(15px, 1.55vw, 18px);
+    line-height: 1.68;
+    font-weight: 760;
+  }
+  .prototype-guest-home-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 2px;
+  }
+  .prototype-guest-home-actions a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.24);
+    background: rgba(255,255,255,.1);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 950;
+    line-height: 1;
+    text-decoration: none;
+  }
+  .prototype-guest-home-actions .prototype-guest-home-primary {
+    background: #fbbf24;
+    border-color: #fbbf24;
+    color: #10251a;
+  }
+  .prototype-guest-home-panel {
+    display: grid;
+    align-content: space-between;
+    gap: 14px;
+    padding: clamp(18px, 3vw, 28px);
+  }
+  .prototype-guest-home-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .prototype-guest-home-stats span {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    padding: 12px 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid rgba(15,23,42,.06);
+  }
+  .prototype-guest-home-stats strong {
+    color: #10251a;
+    font-size: clamp(20px, 3vw, 30px);
+    line-height: 1;
+    font-weight: 950;
+  }
+  .prototype-guest-home-stats small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+  .prototype-guest-home-notes {
+    display: grid;
+    gap: 8px;
+  }
+  .prototype-guest-home-notes span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #10251a;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 900;
+  }
+  .prototype-guest-home-notes span::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #10b981;
+  }
+  .prototype-guest-home-guide {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 13px;
+    border-radius: 999px;
+    background: #e0f2fe;
+    color: #075985;
+    font-size: 13px;
+    font-weight: 950;
+    text-decoration: none;
   }
   .prototype-record-feed {
     width: min(100%, 780px);
@@ -4490,6 +4700,47 @@ export const LANDING_TOP_STYLES = `
   }
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell { padding-top: 36px; }
+    .prototype-guest-home {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .prototype-guest-home-copy {
+      padding: 20px;
+    }
+    .prototype-guest-home-copy h1 {
+      max-width: 9em;
+      font-size: 38px;
+      line-height: 1.06;
+    }
+    .prototype-guest-home-copy p {
+      font-size: 14px;
+      line-height: 1.58;
+    }
+    .prototype-guest-home-actions a {
+      min-height: 40px;
+      padding: 9px 12px;
+      font-size: 13px;
+    }
+    .prototype-guest-home-panel {
+      padding: 14px;
+      gap: 11px;
+    }
+    .prototype-guest-home-stats {
+      gap: 6px;
+    }
+    .prototype-guest-home-stats span {
+      padding: 10px 8px;
+    }
+    .prototype-guest-home-stats strong {
+      font-size: 20px;
+    }
+    .prototype-guest-home-notes {
+      gap: 6px;
+    }
+    .prototype-guest-home-notes span {
+      font-size: 13px;
+    }
     .prototype-record-feed { width: 100%; gap: 12px; margin-bottom: 34px; }
     .prototype-record-feed.is-guest { width: 100%; margin-top: 4px; }
     .prototype-record-feed-head { align-items: start; }
