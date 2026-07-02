@@ -169,6 +169,11 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /ぽち/);
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
   assert.match(html, /data-record-feed/);
+  assert.match(html, /prototype-guest-home/);
+  assert.match(html, /<h1 id="prototype-guest-home-heading">近くの自然を見る<\/h1>/);
+  assert.match(html, /data-kpi-action="landing:guest_home:map"/);
+  assert.match(html, /data-kpi-action="landing:guest_home:fields"/);
+  assert.match(html, /フィールドを探す/);
   assert.match(html, /prototype-record-feed[^"]*is-guest/);
   assert.match(html, /prototype-record-feed-card is-preview is-guest-preview/);
   assert.doesNotMatch(html, /prototype-record-feed-badges"><span>地域の記録<\/span>/);

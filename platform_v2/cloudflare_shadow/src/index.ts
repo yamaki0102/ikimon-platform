@@ -17889,7 +17889,7 @@ function recordsInjectionCopy(url: URL) {
     homeBadge: "地域の記録",
     map: "地図",
     placeContext: "地域の記録",
-    unknown: "同定待ち"
+    unknown: "名前待ち"
   };
 }
 
@@ -17917,7 +17917,7 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
     homeBadge: "自分の記録",
     map: "保存済み",
     placeContext: "保存済み",
-    unknown: "同定待ち"
+    unknown: "名前待ち"
   };
 }
 
@@ -18426,10 +18426,10 @@ function homeRecordDisplayTitle(
 function homeRecordUntitledLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
   const labels: Record<"ja" | "en" | "es" | "pt-br", Record<HomeRecordMediaKind, string>> = {
     ja: {
-      photo: "写真の記録",
-      video: "動画の記録",
-      audio: "音の記録",
-      record: "メモの記録"
+      photo: "名前待ちの写真",
+      video: "名前待ちの動画",
+      audio: "名前待ちの音",
+      record: "名前待ちのメモ"
     },
     en: {
       photo: "Photo record",
