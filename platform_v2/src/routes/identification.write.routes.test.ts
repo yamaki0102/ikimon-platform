@@ -164,8 +164,10 @@ test("identification workbench hold has a migration and read/write guards", asyn
   assert.match(migration, /UNIQUE \(occurrence_id, actor_user_id\)/);
   assert.match(service, /holdIdentificationWorkbenchItem/);
   assert.match(service, /listHeldIdentificationOccurrenceIds/);
+  assert.match(service, /where actor_user_id = \$1/);
   assert.doesNotMatch(service, /\$1::uuid/);
   assert.match(readRoute, /listHeldIdentificationOccurrenceIds/);
+  assert.match(readRoute, /view === "needs_id" && session\?\.userId[\s\S]*listHeldIdentificationOccurrenceIds\(session\.userId\)/);
   assert.match(readRoute, /data-hold-endpoint/);
   assert.match(writeRoute, /identification-workbench-hold/);
 });
