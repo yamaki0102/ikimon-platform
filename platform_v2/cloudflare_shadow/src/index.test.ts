@@ -18846,7 +18846,25 @@ test("Cloudflare public municipal walk map detail API and page render D1 readmod
   assert.match(pageHtml, /D1散策ディテール/);
   assert.match(pageHtml, /水辺の入口/);
   assert.match(pageHtml, /静岡市 いきもの散策マップ/);
+  assert.match(pageHtml, /地図に戻る/);
+  assert.match(pageHtml, /この場所で記録する/);
   assert.doesNotMatch(pageHtml, /exact_lat|exact_lng|internalMemo|internal_memo/);
+  assert.doesNotMatch(pageHtml, /public_preview|other \/ public_access|loose_stops|mesh_or_coarser|現地で確認/);
+});
+
+test("Cloudflare static municipal walk map detail page hides raw review fields and fixes Yatsuyama naming", async () => {
+  const { env } = createEnv();
+  const page = await worker.fetch(new Request(
+    "https://staging.ikimon.life/ja/walk-maps/jp-shizuoka-yatsuyama-sample-v0",
+    { headers: { accept: "text/html" } }
+  ), { ...env, ENVIRONMENT: "staging" });
+  const pageHtml = await page.text();
+  assert.equal(page.status, 200);
+  assert.match(pageHtml, /谷津山周辺を歩く/);
+  assert.match(pageHtml, /地図に戻る/);
+  assert.match(pageHtml, /この近くで記録する/);
+  assert.match(pageHtml, /公開記録は地点ではなく、おおよそのエリアで表示します。/);
+  assert.doesNotMatch(pageHtml, /八ツ山|public_preview|other \/ public_access|loose_stops|mesh_or_coarser|現地で確認/);
 });
 
 test("municipal walk map admin creator API requires an admin session before D1 writes", async () => {
