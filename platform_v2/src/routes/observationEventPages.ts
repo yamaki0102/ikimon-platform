@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getPool } from "../db.js";
-import { detectLangFromUrl, type SiteLang } from "../i18n.js";
+import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getStrings } from "../i18n/index.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import {
@@ -275,6 +275,22 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       });
     },
   );
+
+  app.get<{
+    Querystring: { prefecture?: string; source?: string; q?: string };
+  }>("/fields", async (request, reply) => {
+    const params = new URLSearchParams();
+    for (const key of ["prefecture", "source", "q"] as const) {
+      const value = request.query[key];
+      if (typeof value === "string" && value.length > 0) params.set(key, value);
+    }
+    const target = `/community/fields${params.toString() ? `?${params.toString()}` : ""}`;
+    return reply.redirect(appendLangToHref(target, langOf(request)), 308);
+  });
+
+  app.get<{ Params: { fieldId: string } }>("/fields/:fieldId", async (request, reply) => (
+    reply.redirect(appendLangToHref(`/community/fields/${encodeURIComponent(request.params.fieldId)}`, langOf(request)), 308)
+  ));
 
   // /community/fields  --- フィールド一覧(都道府県/種別フィルタ)
   app.get<{
