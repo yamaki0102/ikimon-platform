@@ -10072,24 +10072,58 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
       : isPersonalHome
         ? "近くの発見から、次に歩く場所を選ぶ"
         : "地域の記録から、最初に歩く場所を決める";
-  return `<section class="section" data-testid="home-channel">
+  const recordCountLabel = isPersonalHome
+    ? `${formatProfileNumber(snapshot.recentObservations.length)} 件`
+    : "公開記録";
+  const placeCountLabel = isPersonalHome
+    ? `${formatProfileNumber(snapshot.myPlaces.length)} か所`
+    : "地域";
+  const heroTitle = isPersonalHome ? "マイページ" : "今日のikimon.life";
+  const heroLead = isPersonalHome
+    ? "見つけた自然を残し、あとから自分の記録・地図・公開プロフィールへつなぐ個人ホームです。"
+    : "見つけた自然を残し、地域の記録から次に歩く場所を選べます。";
+  return `<section class="section home-mypage-section" data-testid="home-channel">
     <div class="home-workbench" aria-label="${escapeHtml(isPersonalHome ? "マイページ操作" : "はじめる操作")}">
-      <div class="home-action-grid">
-        <a class="home-action-card is-primary" href="${escapeHtml(withBasePath(basePath, "/record"))}">
-          <span>記録する</span>
-          <strong>${escapeHtml(firstPlace?.placeName ?? "いま見つけたもの")}</strong>
-          <em>${escapeHtml(firstPlace ? "同じ場所で次の観察を残す" : "写真と場所を残す")}</em>
-        </a>
-        <a class="home-action-card" href="${escapeHtml(latestHref)}">
-          <span>前回を見る</span>
-          <strong>${escapeHtml(latest?.displayName ?? "まだ記録はありません")}</strong>
-          <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "最初の記録を作る")}</em>
-        </a>
-        <a class="home-action-card" href="${escapeHtml(placeHref)}">
-          <span>${escapeHtml(isPersonalHome ? "次に行く" : "場所を探す")}</span>
-          <strong>${escapeHtml(placeTitle)}</strong>
-          <em>${escapeHtml(placeBody)}</em>
-        </a>
+      <div class="home-mypage-hero">
+        <div class="home-mypage-copy">
+          <div class="eyebrow">${escapeHtml(isPersonalHome ? "Personal home" : "Local nature")}</div>
+          <h1>${escapeHtml(heroTitle)}</h1>
+          <p>${escapeHtml(heroLead)}</p>
+          <div class="home-mypage-cta">
+            <a class="home-mypage-button is-primary" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a>
+            <a class="home-mypage-button" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">自分の記録</a>
+          </div>
+        </div>
+        <div class="home-today-panel" aria-label="${escapeHtml(isPersonalHome ? "今日の入口" : "今日の入口")}">
+          <div class="home-today-head">
+            <span>今日の入口</span>
+            <strong>${escapeHtml(latest?.displayName ?? "最初の記録を作る")}</strong>
+            <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "写真、場所、メモのどれか一つから始められます。")}</em>
+          </div>
+          <div class="home-action-grid">
+            <a class="home-action-card is-primary" href="${escapeHtml(withBasePath(basePath, "/record"))}">
+              <span>記録する</span>
+              <strong>${escapeHtml(firstPlace?.placeName ?? "いま見つけたもの")}</strong>
+              <em>${escapeHtml(firstPlace ? "同じ場所で次の観察を残す" : "写真と場所を残す")}</em>
+            </a>
+            <a class="home-action-card" href="${escapeHtml(latestHref)}">
+              <span>前回を見る</span>
+              <strong>${escapeHtml(latest?.displayName ?? "まだ記録はありません")}</strong>
+              <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "最初の記録を作る")}</em>
+            </a>
+            <a class="home-action-card" href="${escapeHtml(placeHref)}">
+              <span>${escapeHtml(isPersonalHome ? "地図で見る" : "場所を探す")}</span>
+              <strong>${escapeHtml(placeTitle)}</strong>
+              <em>${escapeHtml(placeBody)}</em>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="home-mypage-rail" aria-label="ikimon.lifeの流れ">
+        <a href="${escapeHtml(withBasePath(basePath, "/record"))}"><span>見つける</span><strong>記録する</strong></a>
+        <a href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}"><span>${escapeHtml(recordCountLabel)}</span><strong>自分の記録</strong></a>
+        <a href="${escapeHtml(placeHref)}"><span>${escapeHtml(placeCountLabel)}</span><strong>地図・場所</strong></a>
+        <a href="${escapeHtml(withBasePath(basePath, "/profile"))}"><span>公開面</span><strong>プロフィール</strong></a>
       </div>
     </div>
   </section>`;
@@ -10133,24 +10167,41 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
   );
   return layout(
     basePath,
-    "ホーム | ikimon",
+    snapshot.viewerUserId ? "マイページ | ikimon" : "ホーム | ikimon",
     `${renderHomeChannelDashboard(basePath, snapshot)}
       <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">すべて見る</a></div><div class="home-grid">${cards}</div></section>
       ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">場所</div><h2>再訪したい場所</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, "/records?view=places"))}">場所を見る</a></div><div class="list">${myPlaces}</div></section>` : ""}`,
     "ホーム",
     undefined,
     `${OBSERVATION_CARD_STYLES}
-        .home-workbench { min-width: 0; }
+        .home-workbench { min-width: 0; display: grid; gap: 14px; }
+        .home-mypage-hero { min-width: 0; display: grid; grid-template-columns: minmax(0, 1.06fr) minmax(320px, .94fr); gap: 14px; align-items: stretch; }
+        .home-mypage-copy { min-width: 0; display: grid; align-content: center; gap: 12px; padding: 24px; border-radius: 16px; background: #10251a; color: #fff; box-shadow: 0 18px 40px rgba(16,37,26,.16); }
+        .home-mypage-copy .eyebrow { color: #a7f3d0; opacity: 1; letter-spacing: 0; text-transform: none; font-size: 13px; font-weight: 950; }
+        .home-mypage-copy h1 { margin: 0; font-size: 34px; line-height: 1.12; letter-spacing: 0; }
+        .home-mypage-copy p { margin: 0; max-width: 620px; color: #d1fae5; font-size: 16px; line-height: 1.62; font-weight: 700; }
+        .home-mypage-cta { display: flex; flex-wrap: wrap; gap: 10px; }
+        .home-mypage-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: #fff; text-decoration: none; font-size: 15px; font-weight: 950; }
+        .home-mypage-button.is-primary { background: #10b981; border-color: #10b981; color: #052e1c; }
+        .home-today-panel { min-width: 0; display: grid; gap: 12px; padding: 16px; border-radius: 16px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.94); box-shadow: 0 14px 32px rgba(15,23,42,.06); }
+        .home-today-head { min-width: 0; display: grid; gap: 4px; }
+        .home-today-head span { color: #047857; font-size: 13px; line-height: 1.2; font-weight: 950; }
+        .home-today-head strong { color: #10251a; font-size: 21px; line-height: 1.25; font-weight: 950; overflow-wrap: anywhere; }
+        .home-today-head em { color: #475569; font-size: 14px; line-height: 1.45; font-style: normal; font-weight: 750; }
         .home-action-grid { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .home-action-card { min-width: 0; min-height: 118px; display: grid; align-content: start; gap: 7px; padding: 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.92); box-shadow: 0 10px 24px rgba(15,23,42,.045); color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+        .home-action-card { min-width: 0; min-height: 120px; display: grid; align-content: start; gap: 7px; padding: 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #f8fafc; box-shadow: 0 10px 24px rgba(15,23,42,.045); color: inherit; text-decoration: none; overflow-wrap: anywhere; }
         .home-action-card:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(15,23,42,.075); }
-        .home-action-card span { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
+        .home-action-card span { color: #047857; font-size: 12px; line-height: 1.2; font-weight: 950; }
         .home-action-card strong { color: #10251a; font-size: 16px; line-height: 1.35; font-weight: 950; }
-        .home-action-card em { color: #64748b; font-size: 12px; line-height: 1.55; font-style: normal; font-weight: 720; }
-        .home-action-card.is-primary { background: #10251a; border-color: #10251a; color: #fff; }
+        .home-action-card em { color: #475569; font-size: 13px; line-height: 1.5; font-style: normal; font-weight: 720; }
+        .home-action-card.is-primary { background: #047857; border-color: #047857; color: #fff; }
         .home-action-card.is-primary span,
         .home-action-card.is-primary strong,
         .home-action-card.is-primary em { color: #fff; }
+        .home-mypage-rail { min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .home-mypage-rail a { min-width: 0; min-height: 58px; display: grid; align-content: center; gap: 3px; padding: 11px 13px; border-radius: 12px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #10251a; text-decoration: none; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+        .home-mypage-rail span { color: #64748b; font-size: 12px; line-height: 1.25; font-weight: 850; }
+        .home-mypage-rail strong { font-size: 15px; line-height: 1.25; font-weight: 950; overflow-wrap: anywhere; }
         .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; align-items: start; }
         .home-grid .obs-card { border-radius: 8px; box-shadow: 0 8px 20px rgba(15,23,42,.045); }
         .home-grid .obs-card:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15,23,42,.075); }
@@ -10159,11 +10210,16 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
         .home-grid .obs-card-place { -webkit-line-clamp: 1; }
         .home-grid .obs-card-actions { display: none; }
         @media (max-width: 980px) {
+          .home-mypage-hero { grid-template-columns: 1fr; }
           .home-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .home-mypage-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 620px) {
+          .home-mypage-copy { padding: 20px; border-radius: 14px; }
+          .home-mypage-copy h1 { font-size: 28px; }
           .home-action-grid { grid-template-columns: 1fr; }
           .home-action-card { min-height: 98px; }
+          .home-mypage-rail { grid-template-columns: 1fr; }
           .home-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
           .home-grid .obs-card-attribution { font-size: 12px; }
           .home-grid .obs-card-when { display: none; }
