@@ -681,7 +681,10 @@ test("profile route gives unauthenticated visitors a mypage start guide", async 
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /ログインすると、自分の記録史を読み返せます/);
     assert.match(response.body, /記録一覧を起点に/);
+    assert.match(response.body, /これはサンプルです。あなたの記録で、数字・場所・季節の入口が育ちます。/);
     assert.match(response.body, /ログインしてマイページへ/);
+    assert.match(response.body, /data-kpi-action="profile:logged_out:register"/);
+    assert.match(response.body, /data-kpi-action="profile:logged_out:login"/);
     assert.match(response.body, /\/ja\/login\?redirect=%2Fprofile/);
     assert.match(response.body, /\/ja\/register\?redirect=%2Fprofile/);
   } finally {

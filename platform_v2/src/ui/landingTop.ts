@@ -856,17 +856,93 @@ function renderLandingGuestRecordPreview(basePath: string, lang: SiteLang): stri
   </article>`;
 }
 
+function landingGuestRecordProofItems(snapshot: LandingSnapshot): LandingObservation[] {
+  const fallbackItems = [
+    ...(snapshot.publicProofFeed ?? []),
+    snapshot.dailyDashboard?.featuredObservation,
+    ...(snapshot.dailyDashboard?.seasonalStrip ?? []).map((item) => item.observation),
+    ...(snapshot.dailyDashboard?.dailyCards ?? []).map((card) => card.observation),
+  ].filter((obs): obs is LandingObservation => Boolean(obs));
+  const candidates = [...landingRecordFeedItems(snapshot), ...fallbackItems];
+  return Array.from(new Map(candidates.map((obs) => [obs.occurrenceId, obs])).values())
+    .filter((obs) => Boolean(observationImageUrl(obs, "sm") ?? observationImageUrl(obs, "md")))
+    .slice(0, 4);
+}
+
 function renderLandingGuestRecordProof(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
   const recordsHref = landingHref(basePath, lang, "/records?view=public");
-  const items = landingContentWallItems(snapshot, "community")
-    .filter((obs) => Boolean(observationImageUrl(obs, "sm") ?? observationImageUrl(obs, "md")))
-    .slice(0, 4);
-  if (items.length === 0) return "";
+  const items = landingGuestRecordProofItems(snapshot);
   const heading = lang === "ja" ? "実際の公開記録" : "Real public records";
   const more = lang === "ja" ? "記録を見る" : "View records";
+  if (items.length === 0) {
+    return `<div class="prototype-guest-home-proof is-lazy" aria-label="${escapeHtml(heading)}" data-guest-home-proof-lazy data-records-href="${escapeHtml(recordsHref)}" hidden>
+      <div class="prototype-guest-home-proof-head">
+        <strong>${escapeHtml(heading)}</strong>
+        <a href="${escapeHtml(recordsHref)}" data-kpi-action="landing:guest_home:proof_more">${escapeHtml(more)}</a>
+      </div>
+      <div class="prototype-guest-home-proof-grid"></div>
+    </div>
+    <script>
+(() => {
+  const root = document.querySelector("[data-guest-home-proof-lazy]");
+  if (!root) return;
+  const grid = root.querySelector(".prototype-guest-home-proof-grid");
+  const recordsHref = root.getAttribute("data-records-href") || "/records?view=public";
+  if (!grid) return;
+  const normalizeHref = (value) => {
+    try {
+      const url = new URL(value || recordsHref, window.location.href);
+      return url.pathname + url.search + url.hash;
+    } catch {
+      return recordsHref;
+    }
+  };
+  fetch(recordsHref, { credentials: "same-origin", cache: "no-store" })
+    .then((response) => response.ok ? response.text() : "")
+    .then((html) => {
+      if (!html) return;
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const seen = new Set();
+      const candidates = [];
+      doc.querySelectorAll("a[href] img[src]").forEach((image) => {
+        if (candidates.length >= 4) return;
+        const src = image.getAttribute("src") || "";
+        if (!src || seen.has(src) || /\\/assets\\/brand\\//.test(src)) return;
+        const link = image.closest("a[href]");
+        if (!link) return;
+        seen.add(src);
+        candidates.push({
+          href: normalizeHref(link.getAttribute("href") || recordsHref),
+          src,
+          alt: image.getAttribute("alt") || "${lang === "ja" ? "地域の記録" : "Local record"}",
+        });
+      });
+      if (candidates.length === 0) return;
+      candidates.forEach((item, index) => {
+        const card = document.createElement("a");
+        card.className = "prototype-guest-home-proof-card";
+        card.href = item.href;
+        card.dataset.kpiAction = "landing:guest_home:proof:" + String(index + 1);
+        const image = document.createElement("img");
+        image.src = item.src;
+        image.alt = item.alt;
+        image.loading = index === 0 ? "eager" : "lazy";
+        image.decoding = "async";
+        const label = document.createElement("span");
+        label.textContent = "${lang === "ja" ? "写真" : "Photo"}";
+        card.append(image, label);
+        grid.append(card);
+      });
+      root.hidden = false;
+      root.classList.remove("is-lazy");
+    })
+    .catch(() => {});
+})();
+    </script>`;
+  }
   const cards = items.map((obs, index) => {
-    const rawTitle = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, "");
+    const rawTitle = displayObservationName(obs, "");
     const title = isPublicCardRealTitle(rawTitle, copy.heroPhotoFallback)
       ? rawTitle.trim()
       : (lang === "ja" ? "地域の記録" : "Local record");
@@ -902,10 +978,10 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
         eyebrow: "ikimon.life",
         title: "地域の記録から始める",
         lead: "地図、フィールド、みんなの公開記録から、今日歩く場所やあとで見返す手がかりを探せます。名前が分からない記録も、地域の記憶として残ります。",
-        primary: "みんなの記録",
+        primary: "地域の記録を見る",
         secondary: "地図で探す",
         tertiary: "フィールドを探す",
-        guide: "ライブガイド",
+        guide: "歩きながらAIガイド",
         stats: [
           { label: "公開エリア", value: nearbyCount > 0 ? `${nearbyCount}` : "地図" },
           ...(publicCount > 0 ? [{ label: "公開記録", value: `${publicCount}` }] : []),
@@ -940,10 +1016,10 @@ function renderLandingGuestPlaceIntro(options: LandingTopRenderOptions): string 
       </div>
     </div>
     <div class="prototype-guest-home-panel" aria-label="${escapeHtml(copy.tertiary)}">
+      ${renderLandingGuestRecordProof(options)}
       <div class="prototype-guest-home-stats">
         ${copy.stats.map((item) => `<span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>`).join("")}
       </div>
-      ${renderLandingGuestRecordProof(options)}
       <div class="prototype-guest-home-notes">
         ${copy.notes.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
       </div>
@@ -2144,10 +2220,10 @@ export const LANDING_TOP_STYLES = `
     color: #1a2e1f;
   }
   .prototype-guest-home {
-    width: min(100%, 1040px);
+    width: min(100%, 1120px);
     margin: 0 auto clamp(16px, 3vw, 28px);
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+    grid-template-columns: minmax(0, .92fr) minmax(360px, 1.08fr);
     gap: clamp(14px, 2.4vw, 24px);
     align-items: stretch;
   }
@@ -2224,8 +2300,8 @@ export const LANDING_TOP_STYLES = `
   .prototype-guest-home-panel {
     display: grid;
     align-content: space-between;
-    gap: 14px;
-    padding: clamp(18px, 3vw, 28px);
+    gap: 12px;
+    padding: clamp(16px, 2.4vw, 24px);
   }
   .prototype-guest-home-stats {
     display: grid;
@@ -2290,7 +2366,7 @@ export const LANDING_TOP_STYLES = `
   .prototype-guest-home-proof-card {
     position: relative;
     min-width: 0;
-    aspect-ratio: 1;
+    aspect-ratio: 4 / 3;
     overflow: hidden;
     border-radius: 8px;
     background: #e7f5ef;

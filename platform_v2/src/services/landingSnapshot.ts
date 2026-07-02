@@ -1,5 +1,5 @@
 import { getPool } from "../db.js";
-import { getHomeSnapshot, normalizeFieldRefs } from "./readModels.js";
+import { getHomeSnapshot, getObservationListPage, normalizeFieldRefs } from "./readModels.js";
 import { buildObserverNameSql } from "./observerNameSql.js";
 import {
   buildPublicCellGeometry,
@@ -41,6 +41,8 @@ import type {
   LandingTopShelfKind,
 } from "./readModels.js";
 import { refreshGuideSessionPublicSummaries, type GuideSessionSummarySourceRow } from "./guideSessionPublicSummary.js";
+
+type PublicProofObservationListItem = Awaited<ReturnType<typeof getObservationListPage>>["observations"][number];
 
 const LANDING_HOME_SNAPSHOT_TIMEOUT_MS = 250;
 
@@ -894,6 +896,44 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     fieldRefs: hidePublicLocation ? [] : normalizeFieldRefs(row.field_refs),
     publicFeedGateStatus,
     publicFeedEligible: publicFeedGateStatus === "public_eligible" || publicFeedGateStatus === "public_limited",
+  };
+}
+
+function publicProofObservationToLandingObservation(item: PublicProofObservationListItem): LandingObservation {
+  return {
+    occurrenceId: item.occurrenceId,
+    visitId: item.visitId,
+    detailId: item.detailId,
+    featuredOccurrenceId: item.featuredOccurrenceId,
+    featuredSubjectName: item.featuredSubjectName,
+    subjectCount: item.subjectCount,
+    isMultiSubject: item.isMultiSubject,
+    featuredConfidenceBand: item.featuredConfidenceBand,
+    displayStability: item.displayStability,
+    displayName: item.displayName,
+    scientificName: item.scientificName,
+    vernacularName: item.vernacularName,
+    featuredTaxonRank: item.featuredTaxonRank,
+    aiCandidateName: item.aiCandidateName,
+    aiCandidateRank: item.aiCandidateRank,
+    isAiCandidate: item.isAiCandidate,
+    observedAt: item.observedAt,
+    observerName: item.observerName,
+    placeName: item.placeName,
+    municipality: item.municipality,
+    publicLocation: item.publicLocation,
+    photoUrl: item.photoUrl,
+    mediaUrl: item.mediaUrl,
+    hasPhoto: item.hasPhoto,
+    hasVideo: item.hasVideo,
+    identificationCount: item.identificationCount,
+    fieldRefs: item.fieldRefs,
+    latitude: null,
+    longitude: null,
+    observerUserId: null,
+    observerAvatarUrl: null,
+    librarySourceKind: item.hasVideo ? "video" : item.photoUrl ? "photo" : "note",
+    entryType: "observation",
   };
 }
 
@@ -1820,6 +1860,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       mapPreviewCells: [],
       ambient: [],
       habit: null,
+      publicProofFeed: [],
     } satisfies Omit<LandingSnapshot, "dailyDashboard">;
     return {
       ...emptySnapshot,
@@ -1846,6 +1887,18 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     heroCandidateRows = result.rows;
   } catch {
     heroCandidateRows = [];
+  }
+
+  let publicProofFeed: LandingObservation[] = [];
+  if (!userId) {
+    try {
+      const publicPage = await getObservationListPage({ limit: 12 });
+      publicProofFeed = filterLandingDummyObservations(publicPage.observations.map(publicProofObservationToLandingObservation))
+        .filter((obs) => Boolean(obs.photoUrl || obs.mediaUrl))
+        .slice(0, 8);
+    } catch {
+      publicProofFeed = [];
+    }
   }
 
   let guideTopRows: GuideTopRow[] = [];
@@ -2460,6 +2513,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     mapPreviewCells: buildMapPreviewCells(filteredFeedRows),
     ambient,
     habit,
+    publicProofFeed,
     regionalStory,
   } satisfies Omit<LandingSnapshot, "dailyDashboard">;
 

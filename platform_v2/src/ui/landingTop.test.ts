@@ -171,7 +171,7 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /data-record-feed/);
   assert.match(html, /prototype-guest-home/);
   assert.match(html, /<h1 id="prototype-guest-home-heading">地域の記録から始める<\/h1>/);
-  assert.match(html, /data-kpi-action="landing:guest_home:records">みんなの記録<\/a>/);
+  assert.match(html, /data-kpi-action="landing:guest_home:records">地域の記録を見る<\/a>/);
   assert.match(html, /data-kpi-action="landing:guest_home:map"/);
   assert.match(html, /data-kpi-action="landing:guest_home:fields"/);
   assert.match(html, /フィールドを探す/);
@@ -225,6 +225,60 @@ test("landing top empty state does not render sample images", () => {
   assert.match(LANDING_TOP_STYLES, /\.prototype-record-feed\.is-guest \{[\s\S]*width: min\(100%, 680px\);/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-record-feed\.is-guest \.prototype-record-feed-media-wrap \{[\s\S]*height: clamp\(300px, 48vh, 460px\);[\s\S]*min-height: 300px;/);
   assert.match(LANDING_TOP_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.prototype-record-feed\.is-guest \.prototype-record-feed-media-wrap \{ height: 48vh; min-height: 320px; \}/);
+});
+
+test("landing guest hero uses daily dashboard observations as real proof when feed is empty", () => {
+  const html = renderTop({
+    ...emptySnapshot,
+    feed: [],
+    dailyDashboard: {
+      ...emptySnapshot.dailyDashboard!,
+      featuredObservation: {
+        ...photoObservation,
+        score: 84,
+        reasonKey: "vividPhoto",
+        scoreBreakdown: {
+          season: 8,
+          region: 9,
+          photo: 20,
+          evidence: 17,
+          freshness: 18,
+          dailyVariation: 12,
+          total: 84,
+        },
+      },
+      seasonalStrip: [{ observation: photoObservation, score: 84, reasonKey: "vividPhoto" }],
+    },
+  });
+
+  assert.match(html, /実際の公開記録/);
+  assert.match(html, /data-kpi-action="landing:guest_home:proof:1"/);
+  assert.match(html, /<img src="\/thumb\/sm\/real-observation\.jpg"/);
+  assert.ok(
+    html.indexOf("prototype-guest-home-proof") < html.indexOf("prototype-guest-home-stats"),
+    "daily-dashboard proof should precede guest hero stats",
+  );
+});
+
+test("landing guest hero uses public proof feed when home public feed is empty", () => {
+  const html = renderTop({
+    ...emptySnapshot,
+    feed: [],
+    publicProofFeed: [photoObservation],
+    dailyDashboard: {
+      ...emptySnapshot.dailyDashboard!,
+      featuredObservation: null,
+      seasonalStrip: [],
+    },
+  });
+
+  assert.match(html, /実際の公開記録/);
+  assert.match(html, /data-kpi-action="landing:guest_home:proof:1"/);
+  assert.match(html, /<img src="\/thumb\/sm\/real-observation\.jpg"/);
+  assert.ok(
+    html.indexOf("prototype-guest-home-proof") < html.indexOf("prototype-guest-home-stats"),
+    "public proof feed should precede guest hero stats",
+  );
 });
 
 test("guide outcome section groups full guide outcome pool instead of the shelf subset", () => {
@@ -548,6 +602,12 @@ test("landing top keeps guest community posts in the short record feed", () => {
   assert.equal((html.match(/data-record-feed-card/g) ?? []).length, 12);
   assert.match(html, /data-record-feed/);
   assert.match(html, /prototype-record-feed[^"]*is-guest/);
+  assert.match(html, /実際の公開記録/);
+  assert.match(html, /data-kpi-action="landing:guest_home:proof:1"/);
+  assert.ok(
+    html.indexOf("prototype-guest-home-proof") < html.indexOf("prototype-guest-home-stats"),
+    "real record proof should precede summary stats in the guest hero panel",
+  );
   assert.doesNotMatch(html, /<h1>記録を見る<\/h1>/);
   assert.doesNotMatch(html, /prototype-content-wall/);
   assert.doesNotMatch(html, /みんなの投稿12/);

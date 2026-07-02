@@ -11,6 +11,9 @@ type GuideCopy = {
   startOutcomeTitle: string;
   startOutcomeSample: string;
   startOutcomeBenefit: string;
+  startPermissionTitle: string;
+  startPermissionBody: string;
+  startFieldRiskNote: string;
   missionChoiceTitle: string;
   missionChoiceBody: string;
   missions: { id: string; label: string; body: string }[];
@@ -121,6 +124,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startOutcomeTitle: "成果サンプル",
     startOutcomeSample: "候補: 水辺の草地で、湿った地面と低い葉が見えます。次は葉の裏や水際を近くで見ると、観察のヒントが増えます。",
     startOutcomeBenefit: "許可するまでカメラとマイクは起動しません。音声は初期OFFで、声らしい音は保存候補から外すよう処理します。",
+    startPermissionTitle: "開始前の許可",
+    startPermissionBody: "OSの確認画面では、まずカメラだけ許可すれば始められます。自然音を使う時だけ、あとからマイクをONにできます。",
+    startFieldRiskNote: "電波が弱い時は端末に一時保存し、容量が少ない時は映像頻度を下げます。",
     missionChoiceTitle: "今日のミッション",
     missionChoiceBody: "迷ったら「歩きながら見る」で始めてください。音声や移動手段はあとから調整できます。",
     missions: [
@@ -246,6 +252,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startOutcomeTitle: "Outcome sample",
     startOutcomeSample: "Possible clue: moist ground and low leaves near a water edge. Next, look closer at leaf undersides or the shoreline to add observation hints.",
     startOutcomeBenefit: "Before you allow access, camera and microphone stay off. Audio starts off by default, and speech-like clips are skipped.",
+    startPermissionTitle: "Before permissions",
+    startPermissionBody: "When the OS prompt appears, camera permission is enough to begin. Turn the microphone on later only when you want natural sound.",
+    startFieldRiskNote: "Weak signal is queued on this device; low storage reduces video frequency first.",
     missionChoiceTitle: "Today's mission",
     missionChoiceBody: "Pick the movement style first, and Guide will match camera and audio.",
     missions: [
@@ -371,6 +380,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startOutcomeTitle: "Muestra de resultado",
     startOutcomeSample: "Pista posible: suelo húmedo y hojas bajas junto al borde del agua. Mira el envés de las hojas o la orilla para sumar indicios de observación.",
     startOutcomeBenefit: "Antes de dar permiso, cámara y micrófono siguen apagados. El audio empieza apagado y se omite la voz probable.",
+    startPermissionTitle: "Antes de los permisos",
+    startPermissionBody: "Cuando aparezca el permiso del sistema, basta con permitir la cámara para empezar. Activa el micrófono después solo si quieres sonido natural.",
+    startFieldRiskNote: "Con poca señal se guarda temporalmente en el dispositivo; con poco espacio baja primero la frecuencia de video.",
     missionChoiceTitle: "Misión de hoy",
     missionChoiceBody: "Elige una intención y la guía ajustará la cámara y el audio recomendados.",
     missions: [
@@ -494,6 +506,9 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startOutcomeTitle: "Exemplo de resultado",
     startOutcomeSample: "Pista possível: solo úmido e folhas baixas perto da margem. Olhe o verso das folhas ou a beira da água para somar dicas de observação.",
     startOutcomeBenefit: "Antes de permitir acesso, câmera e microfone ficam desligados. O áudio começa desligado e voz provável é ignorada.",
+    startPermissionTitle: "Antes das permissões",
+    startPermissionBody: "Quando o sistema pedir permissão, a câmera basta para começar. Ligue o microfone depois apenas se quiser sons naturais.",
+    startFieldRiskNote: "Com sinal fraco, fica salvo temporariamente no dispositivo; com pouco espaço, a frequência de vídeo baixa primeiro.",
     missionChoiceTitle: "Missão de hoje",
     missionChoiceBody: "Escolha uma intenção e o guia ajusta a câmera e o áudio recomendados.",
     missions: [
@@ -740,6 +755,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <span class="guide-offline-state" id="guide-offline-state">${escapeHtml(c.offlineOnline)}</span>
       <span class="guide-offline-queued" id="guide-offline-queued" hidden>${escapeHtml(c.offlineQueued.replace("{count}", "0"))}</span>
       <span class="guide-offline-pressure" id="guide-offline-pressure" hidden>${escapeHtml(c.storagePressure)}</span>
+      <span class="guide-offline-note">${escapeHtml(c.startFieldRiskNote)}</span>
     </div>
     <details class="guide-explain-details guide-language-details">
       <summary>${escapeHtml(c.langLabel)}</summary>
@@ -775,6 +791,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         <span>${escapeHtml(c.startOutcomeTitle)}</span>
         <strong>${escapeHtml(c.startOutcomeSample)}</strong>
         <p>${escapeHtml(c.startOutcomeBenefit)}</p>
+      </div>
+      <div class="guide-start-permission" aria-label="${escapeHtml(c.startPermissionTitle)}">
+        <strong>${escapeHtml(c.startPermissionTitle)}</strong>
+        <p>${escapeHtml(c.startPermissionBody)}</p>
+        <small>${escapeHtml(c.startFieldRiskNote)}</small>
       </div>
 
       <fieldset class="guide-start-choice guide-mission-choice">
@@ -3669,6 +3690,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-offline-state, .guide-offline-queued { display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 0 9px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.08); }
   .guide-offline-queued[hidden], .guide-offline-pressure[hidden] { display: none; }
   .guide-offline-pressure { flex-basis: 100%; color: #b45309; line-height: 1.5; font-weight: 850; }
+  .guide-offline-note { flex-basis: 100%; color: #475569; line-height: 1.5; font-weight: 650; }
   .guide-selects { display: flex; gap: 10px; flex-wrap: wrap; }
   .guide-select-label { font-size: 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0; display: flex; flex-direction: column; gap: 5px; }
   .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 13px; font-weight: 650; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
@@ -3684,6 +3706,10 @@ export const GUIDE_FLOW_STYLES = `
   .guide-start-outcome span { width: fit-content; min-height: 24px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; background: #fff; color: #047857; border: 1px solid rgba(5,150,105,.18); font-size: 11px; font-weight: 950; }
   .guide-start-outcome strong { color: #0f172a; font-size: 13px; line-height: 1.55; font-weight: 850; }
   .guide-start-outcome p { margin: 0; color: #047857; font-size: 12px; line-height: 1.55; font-weight: 700; }
+  .guide-start-permission { display: grid; gap: 5px; padding: 12px; border-radius: 8px; background: #eff6ff; border: 1px solid rgba(37,99,235,.14); }
+  .guide-start-permission strong { color: #1e3a8a; font-size: 13px; line-height: 1.35; font-weight: 950; }
+  .guide-start-permission p { margin: 0; color: #334155; font-size: 13px; line-height: 1.6; font-weight: 620; }
+  .guide-start-permission small { color: #1d4ed8; font-size: 12px; line-height: 1.5; font-weight: 750; }
   .guide-start-choice { margin: 0; padding: 13px; border-radius: 8px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; display: grid; gap: 9px; }
   .guide-start-choice legend { padding: 0 4px; color: #0f172a; font-size: 13px; font-weight: 950; }
   .guide-start-choice p { margin: 0; color: #475569; font-size: 13px; line-height: 1.6; font-weight: 500; }
@@ -3814,7 +3840,14 @@ export const GUIDE_FLOW_STYLES = `
     .guide-start-sheet-backdrop { align-items: center; }
   }
   @media (max-width: 520px) {
+    .guide-root { padding-top: 18px; }
+    .guide-header { margin-bottom: 12px; }
+    .guide-title { font-size: 28px; margin-bottom: 6px; }
+    .guide-subtitle { font-size: 14px; line-height: 1.55; }
+    .guide-preview-card { padding: 12px; gap: 8px; margin-bottom: 10px; box-shadow: 0 8px 20px rgba(15,23,42,.1); }
+    .guide-preview-card p { line-height: 1.5; }
     .guide-preview-card ol { grid-template-columns: 1fr; }
+    .guide-preview-card li { padding: 8px 9px; }
     .guide-audio-chain { grid-template-columns: 1fr; }
     .guide-audio-chain ol { grid-template-columns: 1fr; }
     .guide-start-sheet-backdrop { padding: 10px; }
