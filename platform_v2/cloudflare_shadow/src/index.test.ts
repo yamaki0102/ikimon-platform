@@ -16891,6 +16891,11 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(workerSource, /\.\.\.ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS,/);
 
   for (const path of [
+    "/home",
+    "/ja/home",
+    "/en/home",
+    "/es/home",
+    "/pt-br/home",
     "/guide",
     "/guide-programs",
     "/my-guides",
@@ -16930,9 +16935,11 @@ test("materialized original UI core entry registry is single-sourced from the Wo
       assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
     }
   }
-  for (const path of ["/guide", "/guide-programs", "/my-guides", "/lens", "/map"]) {
+  for (const path of ["/home", "/guide", "/guide-programs", "/my-guides", "/lens", "/map"]) {
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
   }
+  assert.match(workerSource, /pathname === "\/home"/);
+  assert.match(workerSource, /\(\?:\\\/home\)\?/);
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     const path = `/guide-programs/${slug}`;
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
