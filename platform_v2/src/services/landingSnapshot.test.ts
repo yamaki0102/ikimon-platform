@@ -87,6 +87,42 @@ test("landing public feed ranks by observer so one active poster cannot monopoli
   assert.match(publicFeedQuery, /limit 180/);
 });
 
+test("landing public surfaces exclude private civic context before rendering", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
+  const publicFeedQuery = source.slice(
+    source.indexOf("const LANDING_PUBLIC_FEED_SQL"),
+    source.indexOf("const LANDING_NEARBY_FIELD_ACTIVITY_SQL"),
+  );
+  const toObservation = source.slice(
+    source.indexOf("function toLandingObservation"),
+    source.indexOf("function toNumberOrNull"),
+  );
+  const mapPreview = source.slice(
+    source.indexOf("function buildMapPreviewCells"),
+    source.indexOf("export async function getLandingOwnFeedPage"),
+  );
+  const statsQuery = source.slice(
+    source.indexOf("// Stats"),
+    source.indexOf("// Ambient presence"),
+  );
+  const ambientQuery = source.slice(
+    source.indexOf("// Ambient presence"),
+    source.indexOf("// Merge own observations"),
+  );
+
+  assert.match(source, /function landingPublicContextExclusionSql/);
+  assert.match(source, /public_context\.risk_lane = 'rare_sensitive'/);
+  assert.match(source, /public_context\.public_precision in \('exact_private', 'hidden'\)/);
+  assert.match(publicFeedQuery, /LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL/);
+  assert.match(toObservation, /landingFeedRowHidesPublicLocation\(row\)/);
+  assert.match(toObservation, /fieldRefs: hidePublicLocation \? \[\] : normalizeFieldRefs/);
+  assert.match(toObservation, /publicFeedGateStatus/);
+  assert.match(mapPreview, /if \(landingFeedRowHidesPublicLocation\(row\)\) continue;/);
+  assert.match(statsQuery, /LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL/);
+  assert.match(ambientQuery, /landingPublicContextExclusionSql\("v2"\)/);
+  assert.match(ambientQuery, /landingPublicContextExclusionSql\("v3"\)/);
+});
+
 test("landing nearby shelf uses named registered fields instead of municipality cells", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
   const nearbyQuery = source.slice(

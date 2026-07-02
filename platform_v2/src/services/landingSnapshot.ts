@@ -203,6 +203,10 @@ type FeedRow = {
   confidence_score: string | number | null;
   evidence_tier: number | null;
   quality_grade: string | null;
+  context_precision: string | null;
+  risk_lane: string | null;
+  has_private_location_context: boolean | string | number | null;
+  has_rare_sensitive_context: boolean | string | number | null;
   field_refs: unknown;
   public_visibility: string | null;
   quality_review_status: string | null;
@@ -370,6 +374,10 @@ const FEED_SQL_BASE = `
     o.confidence_score::text as confidence_score,
     o.evidence_tier,
     o.quality_grade,
+    civic.context_precision,
+    civic.risk_lane,
+    coalesce(civic.has_private_location_context, false) as has_private_location_context,
+    coalesce(civic.has_rare_sensitive_context, false) as has_rare_sensitive_context,
     coalesce(fields.field_refs, '[]'::jsonb) as field_refs,
     v.public_visibility,
     v.quality_review_status,
@@ -457,6 +465,15 @@ const FEED_SQL_BASE = `
     where ea.asset_id = u.avatar_asset_id
     limit 1
   ) avatar on true
+  left join lateral (
+    select
+      max(c.public_precision) as context_precision,
+      max(c.risk_lane) as risk_lane,
+      bool_or(c.public_precision in ('exact_private', 'hidden')) as has_private_location_context,
+      bool_or(c.risk_lane = 'rare_sensitive') as has_rare_sensitive_context
+    from civic_observation_contexts c
+    where c.visit_id = v.visit_id
+  ) civic on true
   left join lateral (
     select jsonb_agg(jsonb_build_object(
       'fieldId', f.field_id::text,
@@ -572,6 +589,22 @@ const PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL = `
   and coalesce(o.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
 `;
 
+function landingPublicContextExclusionSql(visitAlias: string): string {
+  return `
+    not exists (
+      select 1
+        from civic_observation_contexts public_context
+       where public_context.visit_id = ${visitAlias}.visit_id
+         and (
+           public_context.risk_lane = 'rare_sensitive'
+           or public_context.public_precision in ('exact_private', 'hidden')
+         )
+    )
+  `;
+}
+
+const LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL = landingPublicContextExclusionSql("v");
+
 const LANDING_PUBLIC_FEED_SQL = `
   with other_public_feed as materialized (
     ${FEED_SQL_BASE}
@@ -579,6 +612,7 @@ const LANDING_PUBLIC_FEED_SQL = `
       and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
       and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
       and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+      and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL}
       and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
     order by v.observed_at desc
     limit 720
@@ -590,6 +624,7 @@ const LANDING_PUBLIC_FEED_SQL = `
       and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
       and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
       and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+      and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL}
       and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
     order by v.observed_at desc
     limit 120
@@ -683,6 +718,7 @@ const LANDING_NEARBY_FIELD_ACTIVITY_SQL = `
       and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
       and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
       and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+      and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL}
     order by v.observed_at desc
     limit 1500
   ),
@@ -817,6 +853,9 @@ function toLandingObservation(row: FeedRow): LandingObservation {
   const safeLat = lat !== null && Number.isFinite(lat) ? lat : null;
   const safeLng = lng !== null && Number.isFinite(lng) ? lng : null;
   const publicFeedGateStatus = derivePublicFeedGateStatus(row);
+  const hidePublicLocation = landingFeedRowHidesPublicLocation(row);
+  const publicLat = hidePublicLocation ? null : safeLat;
+  const publicLng = hidePublicLocation ? null : safeLng;
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
@@ -828,14 +867,14 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     isAiCandidate: Boolean(row.is_ai_candidate),
     observedAt: row.observed_at,
     observerName: row.observer_name ?? "",
-    placeName: row.place_name ?? "",
-    municipality: row.municipality,
+    placeName: hidePublicLocation ? "" : row.place_name ?? "",
+    municipality: hidePublicLocation ? null : row.municipality,
     publicLocation: buildPublicLocationSummary({
-      country: row.country,
-      municipality: row.municipality,
-      prefecture: row.prefecture,
-      latitude: safeLat,
-      longitude: safeLng,
+      country: hidePublicLocation ? null : row.country,
+      municipality: hidePublicLocation ? null : row.municipality,
+      prefecture: hidePublicLocation ? null : row.prefecture,
+      latitude: publicLat,
+      longitude: publicLng,
     }),
     photoUrl: normalizeAssetUrl(row.photo_url),
     mediaUrl: normalizeAssetUrl(row.video_thumb_url),
@@ -846,16 +885,32 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     librarySourceKind: landingLibrarySourceKind(row),
     hasVideo: Number(row.video_count ?? 0) > 0,
     hasAudio: Number(row.audio_count ?? 0) > 0,
-    latitude: safeLat,
-    longitude: safeLng,
+    latitude: publicLat,
+    longitude: publicLng,
     observerUserId: row.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
     entryType: "observation",
     evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
-    fieldRefs: normalizeFieldRefs(row.field_refs),
+    fieldRefs: hidePublicLocation ? [] : normalizeFieldRefs(row.field_refs),
     publicFeedGateStatus,
     publicFeedEligible: publicFeedGateStatus === "public_eligible" || publicFeedGateStatus === "public_limited",
   };
+}
+
+function isTruthyDbBool(value: boolean | string | number | null | undefined): boolean {
+  return value === true || value === 1 || value === "1" || value === "t" || value === "true";
+}
+
+function landingFeedRowHidesPublicLocation(row: Pick<FeedRow, "context_precision" | "risk_lane" | "has_private_location_context" | "has_rare_sensitive_context">): boolean {
+  const contextPrecision = String(row.context_precision ?? "").trim().toLowerCase();
+  const riskLane = String(row.risk_lane ?? "").trim().toLowerCase();
+  return (
+    isTruthyDbBool(row.has_private_location_context) ||
+    isTruthyDbBool(row.has_rare_sensitive_context) ||
+    riskLane === "rare_sensitive" ||
+    contextPrecision === "exact_private" ||
+    contextPrecision === "hidden"
+  );
 }
 
 function toNumberOrNull(value: string | number | null | undefined): number | null {
@@ -1608,6 +1663,7 @@ function buildMapPreviewCells(rows: FeedRow[]): LandingMapPreviewCell[] {
   }>();
 
   for (const row of rows) {
+    if (landingFeedRowHidesPublicLocation(row)) continue;
     const location = buildPublicLocationSummary({
       municipality: row.municipality,
       prefecture: row.prefecture,
@@ -1785,7 +1841,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let heroCandidateRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 60`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 60`,
     );
     heroCandidateRows = result.rows;
   } catch {
@@ -1960,6 +2016,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          where i.actor_user_id = $1
            and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL}
            and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by i.created_at desc
          limit 24`,
@@ -2121,8 +2178,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       place_count: string | number;
     }>(
       `select
-         (select count(*) from occurrences o join visits v on v.visit_id = o.visit_id where ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as observation_count,
-         (select count(distinct o.scientific_name) from occurrences o join visits v on v.visit_id = o.visit_id where o.scientific_name is not null and o.scientific_name <> '' and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as species_count,
+         (select count(*) from occurrences o join visits v on v.visit_id = o.visit_id where ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as observation_count,
+         (select count(distinct o.scientific_name) from occurrences o join visits v on v.visit_id = o.visit_id where o.scientific_name is not null and o.scientific_name <> '' and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as species_count,
          (select count(*) from places) as place_count`,
     );
     const row = statsResult.rows[0];
@@ -2178,6 +2235,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            and coalesce(v.source_payload->>'import_source', '') !~* '^(dummy|seed)$'
            and coalesce(v.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and ${LANDING_PUBLIC_CONTEXT_EXCLUSION_SQL}
            and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by v.user_id, v.observed_at desc
        )
@@ -2203,6 +2261,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            and ${AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL}
            and coalesce(v2.public_visibility, 'public') = 'public'
            and coalesce(v2.quality_review_status, 'accepted') = 'accepted'
+           and ${landingPublicContextExclusionSql("v2")}
          order by o.subject_index asc, o.created_at asc
          limit 1
        ) latest_obs on true
@@ -2212,6 +2271,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          left join places p3 on p3.place_id = v3.place_id
          where coalesce(v3.public_visibility, 'public') = 'public'
            and coalesce(v3.quality_review_status, 'accepted') = 'accepted'
+           and ${landingPublicContextExclusionSql("v3")}
            and v3.observed_at >= now() - interval '90 days'
            and exists (
              select 1
