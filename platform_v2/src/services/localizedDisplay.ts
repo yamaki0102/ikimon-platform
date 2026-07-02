@@ -10,6 +10,7 @@ const UNKNOWN_VALUES = new Set([
   "unresolved",
   "awaiting id",
   "同定待ち",
+  "名前待ち",
 ]);
 
 function clean(value: string | null | undefined): string | null {
