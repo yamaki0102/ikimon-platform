@@ -755,6 +755,7 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(script, /layerHintJumpEl\.addEventListener\('click'/);
   assert.match(styles, /\.me-layer-hint \{/);
   assert.match(styles, /\.me-layer-key \{/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-layer-key \{\s*display: none;\s*\}/);
   assert.match(styles, /\.me-layer-hint\.is-hidden \{ display: none; \}/);
   assert.match(styles, /\.me-layer-hint-jump \{/);
 });

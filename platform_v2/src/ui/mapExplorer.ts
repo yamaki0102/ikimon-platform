@@ -13445,19 +13445,6 @@ export const MAP_EXPLORER_STYLES = `
       min-width: 0;
     }
     .me-layer-key {
-      right: 10px;
-      bottom: calc(var(--me-mobile-action-space) + 72px);
-      width: min(270px, calc(100% - 20px));
-      padding: 8px;
-    }
-    .me-layer-key > div {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 5px;
-    }
-    .me-layer-key span {
-      padding: 6px;
-    }
-    .me-layer-key small {
       display: none;
     }
     .me-bottom-sheet {
