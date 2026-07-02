@@ -2113,14 +2113,14 @@ const ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS = [
 
 const ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS = [
   "/records?view=identification_summary",
-  "/ja/records?view=identification_summary",
-  "/en/records?view=identification_summary",
-  "/es/records?view=identification_summary",
-  "/pt-br/records?view=identification_summary",
   "/records?view=needs_id",
+  "/ja/records?view=identification_summary",
   "/ja/records?view=needs_id",
+  "/en/records?view=identification_summary",
   "/en/records?view=needs_id",
+  "/es/records?view=identification_summary",
   "/es/records?view=needs_id",
+  "/pt-br/records?view=identification_summary",
   "/pt-br/records?view=needs_id"
 ] as const;
 
