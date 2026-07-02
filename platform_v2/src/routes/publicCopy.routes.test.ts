@@ -231,12 +231,18 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
   } satisfies HomeSnapshot);
 
   assert.match(html, /data-testid="home-channel"/);
+  assert.match(html, /マイページ/);
+  assert.match(html, /今日の入口/);
+  assert.match(html, /ikimon\.lifeの流れ/);
   assert.match(html, /記録する/);
   assert.match(html, /前回を見る/);
+  assert.match(html, /自分の記録/);
+  assert.match(html, /プロフィール/);
   assert.match(html, /最近の観察/);
   assert.match(html, /\.home-grid \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(230px, 1fr\)\);/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
   assert.doesNotMatch(html, /今日の作業台/);
+  assert.doesNotMatch(html, /権限|ランク|admin|管理者|ログイン中/);
 });
 
 test("records workbench unifies personal library and public observations", async () => {

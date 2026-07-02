@@ -18466,10 +18466,18 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
   await env.ASSET_BUCKET.put("original-ui/html/ja/record.html", "<!doctype html><title>materialized record</title>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
   });
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "profile-owner-latest-record",
+    userId: "profile-user",
+    observedAt: "2026-07-02T08:10:00.000Z",
+    latitude: 34.81234,
+    longitude: 137.73234,
+    taxon: { vernacularName: "八巻の最初の記録", rank: "species" }
+  });
   const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ userId: "profile-user", displayName: "八巻テスト", ttlHours: 1 })
+    body: JSON.stringify({ userId: "profile-user", displayName: "八巻テスト", roleName: "admin", rankLabel: "管理者", ttlHours: 1 })
   }), env);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
 
@@ -18502,6 +18510,17 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
         assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
         assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
+        assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
+      }
+      if (check.path === "/ja/profile") {
+        assert.match(body, /data-testid="profile-home"/);
+        assert.match(body, /今日の入口/);
+        assert.match(body, /ikimon\.lifeの流れ/);
+        assert.match(body, /八巻の最初の記録/);
+        assert.match(body, /href="\/ja\/records\?view=mine"/);
+        assert.match(body, /href="\/ja\/record"/);
+        assert.match(body, /href="\/ja\/map"/);
+        assert.match(body, /href="\/ja\/profile\/settings"/);
       }
       if (check.native === "record") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);

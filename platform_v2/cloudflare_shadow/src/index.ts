@@ -17584,12 +17584,16 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
     return getOriginalUiHtml(request, url, env);
   }
 
+  const settings = /\/profile\/settings$/.test(url.pathname);
+  const ownerRecords = request.method === "HEAD" || settings
+    ? []
+    : await ownerHomeRecordCards(session.userId, env, 8).catch(() => []);
   const body = request.method === "HEAD"
     ? null
     : renderCloudflareProfileHtml(session, {
       lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
-      settings: /\/profile\/settings$/.test(url.pathname)
-    });
+      settings
+    }, ownerRecords);
 
   return new Response(body, {
     headers: {
@@ -17603,59 +17607,113 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
 
 function renderCloudflareProfileHtml(
   session: SessionSnapshot,
-  options: { lang: string; settings: boolean }
+  options: { lang: string; settings: boolean },
+  ownerRecords: Array<ReturnType<typeof publicMapObservationItem>> = []
 ): string {
   const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const copy = lang === "ja"
     ? {
       title: options.settings ? "プロフィール設定" : "マイページ",
+      eyebrow: "マイページ",
+      lead: "見つけた自然を残し、あとから自分の記録・地図・公開プロフィールへつなぐ場所です。",
+      today: "今日の入口",
+      latest: "最近の記録",
+      latestEmpty: "まだ記録はありません",
+      latestEmptyBody: "最初の写真やメモを残すと、ここから自分の記録を見返せます。",
+      recordsLead: "保存した観察を時系列で見る",
       records: "自分の記録",
       record: "記録する",
+      recordLead: "写真・場所・メモを残す",
       map: "地図",
+      mapLead: "記録した場所と地域を見る",
       settings: "設定",
-      signedIn: "ログイン中",
-      role: "権限",
-      rank: "ランク",
-      back: "マイページへ"
+      settingsLead: "表示名とプロフィールを整える",
+      publicProfile: "公開プロフィール",
+      publicProfileLead: "公開できる記録を人に見せる",
+      flow: "ikimon.lifeの流れ",
+      flowRecord: "見つける",
+      flowLibrary: "見返す",
+      flowMap: "場所で見る",
+      flowPublic: "公開面へ",
+      back: "マイページへ",
+      displayName: "表示名"
     }
     : {
       title: options.settings ? "Profile Settings" : "My Page",
+      eyebrow: "My Page",
+      lead: "Keep your nature records connected to your library, map, and public profile.",
+      today: "Start here",
+      latest: "Recent records",
+      latestEmpty: "No records yet",
+      latestEmptyBody: "Your first photo or note will appear here.",
+      recordsLead: "Review your saved observations",
       records: "My records",
       record: "Record",
+      recordLead: "Save a photo, place, or note",
       map: "Map",
+      mapLead: "See your places and local records",
       settings: "Settings",
-      signedIn: "Signed in",
-      role: "Role",
-      rank: "Rank",
-      back: "Back to profile"
+      settingsLead: "Edit display and profile details",
+      publicProfile: "Public profile",
+      publicProfileLead: "Share records that are ready to publish",
+      flow: "ikimon.life flow",
+      flowRecord: "Find",
+      flowLibrary: "Review",
+      flowMap: "Map",
+      flowPublic: "Publish",
+      back: "Back to profile",
+      displayName: "Display name"
     };
   const title = escapeHtml(copy.title);
   const displayName = escapeHtml(session.displayName || session.userId);
-  const roleName = escapeHtml(session.roleName || "Observer");
-  const rankLabel = escapeHtml(session.rankLabel ?? "-");
+  const recordCards = ownerRecords.length > 0
+    ? ownerRecords.slice(0, 6).map((item) => renderCloudflareProfileRecordCard(item, copy, lang)).join("")
+    : `<div class="cf-profile-empty"><strong>${escapeHtml(copy.latestEmpty)}</strong><p>${escapeHtml(copy.latestEmptyBody)}</p><a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a></div>`;
   const settingsBody = options.settings
-    ? `<section class="cf-profile-panel">
-        <h2>${escapeHtml(copy.settings)}</h2>
+    ? `<section class="cf-profile-settings" data-testid="profile-settings">
+        <div>
+          <span>${escapeHtml(copy.eyebrow)}</span>
+          <h2>${escapeHtml(copy.settings)}</h2>
+          <p>${escapeHtml(copy.settingsLead)}</p>
+        </div>
         <dl>
-          <div><dt>${escapeHtml(copy.signedIn)}</dt><dd>${displayName}</dd></div>
-          <div><dt>${escapeHtml(copy.role)}</dt><dd>${roleName}</dd></div>
-          <div><dt>${escapeHtml(copy.rank)}</dt><dd>${rankLabel}</dd></div>
+          <div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div>
+          <div><dt>${escapeHtml(copy.records)}</dt><dd><a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.recordsLead)}</a></dd></div>
+          <div><dt>${escapeHtml(copy.publicProfile)}</dt><dd><a href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.publicProfileLead)}</a></dd></div>
         </dl>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
       </section>`
-    : `<nav class="cf-profile-actions" aria-label="${escapeHtml(copy.title)}">
-        <a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.records)}</a>
-        <a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a>
-        <a href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.map)}</a>
-        <a href="${escapeHtml(`${prefix}/profile/settings`)}">${escapeHtml(copy.settings)}</a>
-      </nav>
-      <section class="cf-profile-panel">
-        <dl>
-          <div><dt>${escapeHtml(copy.signedIn)}</dt><dd>${displayName}</dd></div>
-          <div><dt>${escapeHtml(copy.role)}</dt><dd>${roleName}</dd></div>
-          <div><dt>${escapeHtml(copy.rank)}</dt><dd>${rankLabel}</dd></div>
-        </dl>
+    : `<section class="cf-profile-dashboard" data-testid="profile-home">
+        <div class="cf-profile-hero">
+          <div class="cf-profile-hero-copy">
+            <span>${escapeHtml(copy.eyebrow)}</span>
+            <h1 data-testid="profile-heading">${displayName}</h1>
+            <p>${escapeHtml(copy.lead)}</p>
+          </div>
+          <nav class="cf-profile-primary-actions" aria-label="${escapeHtml(copy.today)}">
+            ${renderCloudflareProfileAction(`${prefix}/record`, copy.record, copy.recordLead, true)}
+            ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.records, copy.recordsLead)}
+            ${renderCloudflareProfileAction(`${prefix}/map`, copy.map, copy.mapLead)}
+            ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead)}
+          </nav>
+        </div>
+        <section class="cf-profile-latest" aria-labelledby="cf-profile-latest-title">
+          <div class="cf-profile-section-head">
+            <span>${escapeHtml(copy.today)}</span>
+            <h2 id="cf-profile-latest-title">${escapeHtml(copy.latest)}</h2>
+          </div>
+          <div class="cf-profile-record-grid">${recordCards}</div>
+        </section>
+        <section class="cf-profile-flow" aria-label="${escapeHtml(copy.flow)}">
+          <span>${escapeHtml(copy.flow)}</span>
+          <ol>
+            <li><a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.flowRecord)}</a></li>
+            <li><a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.flowLibrary)}</a></li>
+            <li><a href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.flowMap)}</a></li>
+            <li><a href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.flowPublic)}</a></li>
+          </ol>
+        </section>
       </section>`;
 
   return `<!doctype html>
@@ -17665,37 +17723,88 @@ function renderCloudflareProfileHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} - ikimon</title>
   <style>
-    :root{color-scheme:light;--ink:#10251a;--muted:#53645d;--line:#dceee8;--mint:#effbf7;--teal:#059b8d}
+    :root{color-scheme:light;--ink:#10251a;--muted:#475569;--line:#d9e8e2;--surface:#fff;--soft:#f5faf7;--mint:#e8f7ef;--sky:#e0f2fe;--amber:#fef3c7;--teal:#047857;--blue:#0369a1;--gold:#92400e}
     *{box-sizing:border-box}
-    body{margin:0;background:#f7fbf9;color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
+    body{margin:0;background:#f4f8f6;color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
     .cf-profile-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:#fff;border-bottom:1px solid var(--line)}
     .cf-profile-brand{font-weight:900;text-decoration:none;color:var(--ink);font-size:20px}
-    .cf-profile-shell{width:min(960px,calc(100% - 32px));margin:28px auto}
-    .cf-profile-title{margin:0 0 18px}
-    .cf-profile-title small{display:block;color:var(--teal);font-size:13px;font-weight:800}
-    .cf-profile-title h1{margin:4px 0 0;font-size:32px;line-height:1.15;letter-spacing:0}
-    .cf-profile-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 14px}
-    .cf-profile-actions a,.cf-profile-link{display:flex;align-items:center;justify-content:center;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font-weight:800;text-decoration:none;box-shadow:0 10px 24px rgba(16,37,26,.06)}
-    .cf-profile-panel{padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.07)}
-    .cf-profile-panel h2{margin:0 0 14px;font-size:20px}
-    .cf-profile-panel dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
-    .cf-profile-panel div{min-width:0;padding:12px;border-radius:12px;background:var(--mint)}
-    .cf-profile-panel dt{color:var(--muted);font-size:12px;font-weight:800}
-    .cf-profile-panel dd{margin:4px 0 0;font-weight:900;overflow-wrap:anywhere}
-    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:18px auto}.cf-profile-title h1{font-size:26px}.cf-profile-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-panel dl{grid-template-columns:1fr}.cf-profile-header{padding:12px 14px}}
+    .cf-profile-shell{width:min(1080px,calc(100% - 32px));margin:22px auto 38px}
+    .cf-profile-dashboard{display:grid;gap:16px}
+    .cf-profile-hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr);gap:14px;align-items:stretch}
+    .cf-profile-hero-copy{min-width:0;padding:24px;border-radius:18px;background:#10251a;color:#fff;box-shadow:0 18px 38px rgba(16,37,26,.16)}
+    .cf-profile-hero-copy span,.cf-profile-section-head span,.cf-profile-flow>span,.cf-profile-settings span{display:block;color:#0f766e;font-size:13px;line-height:1.2;font-weight:950}
+    .cf-profile-hero-copy span{color:#a7f3d0}
+    .cf-profile-hero-copy h1{margin:8px 0 10px;font-size:34px;line-height:1.15;letter-spacing:0;overflow-wrap:anywhere}
+    .cf-profile-hero-copy p{margin:0;max-width:620px;color:#d1fae5;font-size:16px;line-height:1.62;font-weight:700}
+    .cf-profile-primary-actions{min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .cf-profile-action,.cf-profile-link,.cf-profile-empty a{min-width:0;min-height:72px;display:grid;align-content:center;gap:4px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);text-decoration:none;box-shadow:0 12px 26px rgba(15,23,42,.07)}
+    .cf-profile-action strong{font-size:17px;line-height:1.25;font-weight:950;overflow-wrap:anywhere}
+    .cf-profile-action span{color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
+    .cf-profile-action.is-primary{background:#047857;border-color:#047857;color:#fff;box-shadow:0 16px 30px rgba(4,120,87,.22)}
+    .cf-profile-action.is-primary span{color:#d1fae5}
+    .cf-profile-latest,.cf-profile-settings,.cf-profile-flow{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 14px 32px rgba(15,23,42,.06)}
+    .cf-profile-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .cf-profile-section-head h2,.cf-profile-settings h2{margin:3px 0 0;font-size:22px;line-height:1.25;letter-spacing:0}
+    .cf-profile-record-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .cf-profile-record{min-width:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;padding:10px;border:1px solid rgba(15,23,42,.08);border-radius:14px;background:var(--soft);color:var(--ink);text-decoration:none}
+    .cf-profile-record-media{width:96px;aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,var(--mint),var(--sky));display:grid;place-items:center;overflow:hidden;color:var(--teal);font-size:13px;font-weight:950}
+    .cf-profile-record-media img{width:100%;height:100%;object-fit:cover;display:block}
+    .cf-profile-record strong{display:block;font-size:15px;line-height:1.3;font-weight:950;overflow-wrap:anywhere}
+    .cf-profile-record span{display:block;margin-top:4px;color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
+    .cf-profile-empty{grid-column:1/-1;display:grid;gap:8px;padding:16px;border-radius:14px;background:var(--soft);border:1px dashed var(--line)}
+    .cf-profile-empty strong{font-size:17px}
+    .cf-profile-empty p{margin:0;color:var(--muted);font-weight:700}
+    .cf-profile-empty a,.cf-profile-link{width:fit-content;min-height:44px;padding:10px 14px;font-weight:950}
+    .cf-profile-flow{display:grid;gap:12px}
+    .cf-profile-flow ol{counter-reset:profile-flow;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+    .cf-profile-flow li{counter-increment:profile-flow;min-width:0}
+    .cf-profile-flow a{min-height:52px;display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:13px;background:var(--soft);color:var(--ink);text-decoration:none;font-weight:900}
+    .cf-profile-flow a::before{content:counter(profile-flow);width:26px;height:26px;display:grid;place-items:center;flex:0 0 auto;border-radius:999px;background:#10251a;color:#fff;font-size:12px;font-weight:950}
+    .cf-profile-settings{display:grid;gap:16px}
+    .cf-profile-settings p{margin:6px 0 0;color:var(--muted);font-weight:700}
+    .cf-profile-settings dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+    .cf-profile-settings dl div{min-width:0;padding:13px;border-radius:13px;background:var(--soft)}
+    .cf-profile-settings dt{color:var(--muted);font-size:13px;font-weight:850}
+    .cf-profile-settings dd{margin:4px 0 0;font-weight:950;overflow-wrap:anywhere}
+    .cf-profile-settings a{color:var(--blue);font-weight:950}
+    @media (max-width:900px){.cf-profile-hero{grid-template-columns:1fr}.cf-profile-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-settings dl{grid-template-columns:1fr}}
+    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:16px auto 28px}.cf-profile-header{padding:12px 14px}.cf-profile-hero-copy{padding:20px;border-radius:16px}.cf-profile-hero-copy h1{font-size:28px}.cf-profile-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.cf-profile-action{min-height:78px;padding:12px}.cf-profile-record-grid{grid-template-columns:1fr}.cf-profile-record{grid-template-columns:82px minmax(0,1fr)}.cf-profile-record-media{width:82px}.cf-profile-flow ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body data-cloudflare-profile="signed-in">
   <header class="cf-profile-header"><a class="cf-profile-brand" href="${escapeHtml(`${prefix}/map`)}">ikimon</a></header>
   <main class="cf-profile-shell">
-    <div class="cf-profile-title">
-      <small>${escapeHtml(copy.title)}</small>
-      <h1 data-testid="profile-heading">${displayName}</h1>
-    </div>
     ${settingsBody}
   </main>
 </body>
 </html>`;
+}
+
+function renderCloudflareProfileAction(href: string, title: string, body: string, primary = false): string {
+  return `<a class="cf-profile-action${primary ? " is-primary" : ""}" href="${escapeHtml(href)}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></a>`;
+}
+
+function renderCloudflareProfileRecordCard(
+  item: ReturnType<typeof publicMapObservationItem>,
+  copy: {
+    latestEmpty: string;
+    publicProfile: string;
+  },
+  lang: "ja" | "en" | "es" | "pt-br"
+): string {
+  const title = homeRecordDisplayTitle(item, ownerHomeRecordsCopy(new URL(`https://ikimon.life/${lang === "ja" ? "ja" : lang}/`)), lang);
+  const observedAt = formatHomeRecordObservedAt(item.observedAt, lang);
+  const href = `/${lang === "ja" ? "ja" : lang}/observations/${encodeURIComponent(item.visitId)}`;
+  const media = item.photoUrl
+    ? `<img src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy" decoding="async">`
+    : `<span>${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
+  return `<a class="cf-profile-record" href="${escapeHtml(href)}">
+    <span class="cf-profile-record-media">${media}</span>
+    <span>
+      <strong>${escapeHtml(title || copy.latestEmpty)}</strong>
+      <span>${escapeHtml([observedAt, copy.publicProfile].filter(Boolean).join(" · "))}</span>
+    </span>
+  </a>`;
 }
 
 function isRecordsHtmlPath(pathname: string): boolean {
