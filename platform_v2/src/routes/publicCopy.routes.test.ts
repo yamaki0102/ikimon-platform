@@ -177,7 +177,7 @@ test("home page uses the local record feed surface", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<title>近くの自然を見る \| ikimon<\/title>/);
+    assert.match(response.body, /<title>地域の記録から始める \| ikimon<\/title>/);
     assert.doesNotMatch(response.body, /<h1 id="prototype-topa-heading">みんなで作る地域図鑑<\/h1>/);
     assert.match(response.body, /data-record-feed/);
     assert.match(response.body, /prototype-record-feed[^"]*is-guest/);
@@ -260,7 +260,7 @@ test("home page keeps anonymous users place-first even when public records exist
     myPlaces: [],
   } satisfies HomeSnapshot);
 
-  assert.match(html, /<strong>近くの自然を見る<\/strong>/);
+  assert.match(html, /<strong>地域の記録から始める<\/strong>/);
   assert.match(html, /<span>場所を探す<\/span>\s*<strong>近くの発見を見る<\/strong>/);
   assert.match(html, /<span>みんなの記録<\/span>\s*<strong>公開記録を見る<\/strong>/);
   assert.match(html, /<span>最近の記録<\/span>\s*<strong>コガネムシ科<\/strong>/);
@@ -416,8 +416,8 @@ test("identification queue is a records workbench tab", async () => {
     assert.match(response.body, /records-identify-panel/);
     assert.match(response.body, /data-records-identify-panel/);
     assert.match(response.body, /data-testid="records-identify-intro"/);
-    assert.match(response.body, /いま名前待ちの記録はありません/);
-    assert.match(response.body, /次に名前を確かめる材料を探すなら/);
+    assert.match(response.body, /名前待ちの記録は今はありません/);
+    assert.match(response.body, /確認が進んでいる状態です/);
     assert.match(response.body, /名前を確かめる/);
     assert.equal(recordsPostHrefForView("needs_id", true, "/ja/observations/record-1"), "/ja/observations/record-1#identify");
     assert.equal(recordsPostHrefForView("needs_id", false, "/ja/observations/record-1"), "/ja/observations/record-1");

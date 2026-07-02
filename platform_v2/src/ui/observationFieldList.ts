@@ -94,12 +94,20 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     </a>`;
   }).join("");
 
+  const hasFields = fields.length > 0;
   const emptyHref = filter.prefecture || filter.source || filter.query ? "/community/fields" : "/map";
+  const heroPrimaryHref = hasFields ? "#field-db-search" : "/map";
+  const heroPrimaryLabel = hasFields ? "公開フィールドを見る" : "地図で近くを見る";
   const cards = fields.length === 0
     ? `<div class="evt-card" style="display:grid; gap:10px;">
         <span class="evt-badge evt-mode-effort" style="width:fit-content;">公開フィールドの見方</span>
-        <h3 class="evt-heading" style="margin:0; font-size:18px;">公開できる場所だけを表示します</h3>
-        <p class="evt-lead" style="font-size:13px;">学校や庭先のような私的な場所は、公開フィールドではなく自分やグループだけの非公開フィールドとして扱います。</p>
+        <h3 class="evt-heading" style="margin:0; font-size:18px;">公開フィールドは安全に出せる場所だけを表示します</h3>
+        <p class="evt-lead" style="font-size:13px;">一覧が空のときも、地図では公開記録を粗い位置で見られます。学校や庭先のような私的な場所は、自分やグループだけの非公開フィールドとして扱います。</p>
+        <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px;">
+          <span class="evt-badge evt-mode-discovery" style="justify-content:center;">公園</span>
+          <span class="evt-badge evt-mode-effort" style="justify-content:center;">散歩道</span>
+          <span class="evt-badge evt-mode-absence" style="justify-content:center;">非公開</span>
+        </div>
         <div style="display:flex; flex-wrap:wrap; gap:8px;">
           <a class="evt-btn evt-btn-primary" href="${escapeHtml(emptyHref)}">${filter.prefecture || filter.source || filter.query ? "条件を外す" : "地図で近くを見る"}</a>
           <a class="evt-btn evt-btn-ghost" href="/community/events/new">非公開で場所を作る</a>
@@ -136,7 +144,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     <h1>いつもの場所に、記録が積み上がる。</h1>
     <p>公園や散歩道の公開フィールドを見つけ、次も見返せる観察の場所として残す。校庭や庭先は、公開せず自分やグループだけの非公開フィールドとして扱えます。</p>
     <div style="display:flex; flex-wrap:wrap; gap:8px;">
-      <a class="evt-btn evt-btn-primary" href="#field-db-search">公開フィールドを見る</a>
+      <a class="evt-btn evt-btn-primary" href="${escapeHtml(heroPrimaryHref)}">${escapeHtml(heroPrimaryLabel)}</a>
       <a class="evt-btn evt-btn-ghost" href="/map">地図で見る</a>
       <a class="evt-btn evt-btn-ghost" href="/community/events/new">観察会を作る</a>
     </div>
@@ -165,11 +173,11 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     </div>
   </details>
 
-  <section style="display:grid; gap:8px;">
-    <span class="evt-eyebrow">種別</span>
+  <details style="display:grid; gap:8px; padding:12px; border-radius:8px; border:1px solid var(--evt-line); background:rgba(255,255,255,.82);">
+    <summary class="evt-eyebrow" style="cursor:pointer;">公開ソースの種類</summary>
     <p class="evt-lead" style="font-size:12px; margin:0;">自然共生サイト・TSUNAG は公表済みの公開ソース、マイフィールドはログイン後の非公開/グループ用です。</p>
-    <div style="display:flex; flex-wrap:wrap; gap:6px;">${sourceChips}</div>
-  </section>
+    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${sourceChips}</div>
+  </details>
 
   <section>
     <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">

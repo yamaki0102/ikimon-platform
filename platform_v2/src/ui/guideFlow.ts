@@ -79,6 +79,7 @@ type GuideCopy = {
   naturalSoundBadge: string;
   voiceExcludedNotice: string;
   audioOffNotice: string;
+  recordBridge: string;
   audioOptInBtn: string;
   audioOptOutBtn: string;
   audioOptInNotice: string;
@@ -119,7 +120,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startSheetBody: "音声はあとからONにできます。気になる場所だけ詳しく残して、今日の発見を自分の記録に戻せます。",
     startOutcomeTitle: "成果サンプル",
     startOutcomeSample: "候補: 水辺の草地で、湿った地面と低い葉が見えます。次は葉の裏や水際を近くで見ると、観察のヒントが増えます。",
-    startOutcomeBenefit: "許可するまでカメラとマイクは起動しません。音声は初期OFFで、声らしい音は保存候補から外します。",
+    startOutcomeBenefit: "許可するまでカメラとマイクは起動しません。音声は初期OFFで、声らしい音は保存候補から外すよう処理します。",
     missionChoiceTitle: "今日のミッション",
     missionChoiceBody: "迷ったら「歩きながら見る」で始めてください。音声や移動手段はあとから調整できます。",
     missions: [
@@ -139,7 +140,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     cameraOffBtn: "カメラOFF",
     cameraOffHint: "カメラOFFでは映像解析は行わず、音声ONの場合だけ自然音を記録します。",
     audioChoiceTitle: "自然音も使いますか？",
-    audioChoiceBody: "鳥・虫・水音を拾いたい時だけON。声らしい音は保存候補から外します。",
+    audioChoiceBody: "鳥・虫・水音を拾いたい時だけON。声らしい音は保存候補から外すよう処理します。",
     audioOnBtn: "音声ON",
     audioOffBtn: "音声OFF",
     beginWithChoices: "この設定で開始する",
@@ -149,7 +150,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOnlyTitle: "音声だけで記録中",
     audioOnlyBody: "カメラ映像は取得していません。ポケットに入れて歩くときは、このまま自然音の手がかりを集められます。",
     cameraOnlyNotice: "カメラだけで開始しました。音声は記録しません。",
-    cameraAudioNotice: "カメラと音声で開始しました。声らしい音は保存候補から外します。",
+    cameraAudioNotice: "カメラと音声で開始しました。声らしい音は保存候補から外すよう処理します。",
     recommendedTitle: "おすすめ設定",
     recommendedBody: "徒歩、自転車、オープンカーのように自然音も拾える時は「カメラON + 音声ON」が一番情報量を増やせます。",
     recommendedApply: "おすすめを使う",
@@ -200,14 +201,15 @@ const COPY: Record<SiteLang, GuideCopy> = {
     started: "ガイド中。解析用フレームを送り、元画像は保存しない設計です。Trailでサムネイルと保存理由を確認できます。",
     stopped: "停止しました。解析済みの足跡は下に残ります。",
     playing: "▶ ガイド音声を再生中",
-    privacyNotice: "許可するまで起動しません。音声は初期OFF。声らしい音は保存候補から外します。",
+    privacyNotice: "許可するまで起動しません。音声は初期OFF。声らしい音は保存候補から外すよう処理します。",
     frameNotice: "端末画像全体のアップロードボタンはありません。解析用の小さなフレームだけを送り、保存するのはサムネイル・解析結果・保存/除外理由です。自然音はONにした時だけ短い候補を別記録にします。",
     naturalSoundBadge: "音声は初期OFF",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
     audioOffNotice: "音声記録はOFFです。野外らしい発見は自動保存し、室内・人物中心・自然手がかりが弱いものは残しません。",
+    recordBridge: "見つけたものは、あとから自分の記録として残せます。",
     audioOptInBtn: "自然音も記録する",
     audioOptOutBtn: "音声記録を止める",
-    audioOptInNotice: "音声記録をONにしました。声らしい音は保存候補から外し、自然音候補だけ2秒単位で保存します。",
+    audioOptInNotice: "音声記録をONにしました。声らしい音は保存候補から外すよう処理し、自然音候補だけ2秒単位で保存します。",
     audioUnavailableNotice: "マイクなしで開始しました。映像だけで解析します。",
     contextTitle: "種名より、場所の状態を読む",
     contextBody: "ライブガイドは、種名が確定しない場面でも、植生・草刈り・水路・道路際・土地利用の細かな変化を足跡として残します。看板や車名は生きものとして扱いません。",
@@ -329,6 +331,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     naturalSoundBadge: "Audio off by default",
     voiceExcludedNotice: "Possible human voice was excluded",
     audioOffNotice: "Audio recording is off. Field-like discoveries are saved automatically; indoor, person-first, or weak nature signals are not kept.",
+    recordBridge: "Anything useful you find can become one of your own records later.",
     audioOptInBtn: "Record natural sounds",
     audioOptOutBtn: "Stop audio recording",
     audioOptInNotice: "Natural sound recording is on. Speech-like clips are not stored; natural-sound candidates are saved in short chunks.",
@@ -451,6 +454,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     naturalSoundBadge: "Audio apagado por defecto",
     voiceExcludedNotice: "Se excluyó audio con posible voz humana",
     audioOffNotice: "La grabación de audio está apagada. Los hallazgos de campo se guardan automáticamente; las escenas de interior, personas o señales débiles no se conservan.",
+    recordBridge: "Lo útil que encuentres puede guardarse luego como tu propio registro.",
     audioOptInBtn: "Grabar sonidos naturales",
     audioOptOutBtn: "Detener audio",
     audioOptInNotice: "La grabación de sonidos naturales está activa. Los clips con posible voz humana no se guardan.",
@@ -573,6 +577,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     naturalSoundBadge: "Áudio desligado por padrão",
     voiceExcludedNotice: "Possível voz humana foi excluída",
     audioOffNotice: "A gravação de áudio está desligada. Descobertas de campo são salvas automaticamente; cenas internas, pessoas ou sinais fracos não ficam registradas.",
+    recordBridge: "O que for útil pode virar seu próprio registro depois.",
     audioOptInBtn: "Gravar sons naturais",
     audioOptOutBtn: "Parar áudio",
     audioOptInNotice: "A gravação de sons naturais está ligada. Clipes com possível voz humana não são salvos.",
@@ -730,6 +735,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <button class="guide-audio-opt-btn" id="guide-audio-opt-btn" type="button" aria-pressed="false" hidden>${escapeHtml(c.audioOptInBtn)}</button>
     </div>
     <p class="guide-privacy-live" id="guide-privacy-live" aria-live="polite">${escapeHtml(c.audioOffNotice)}</p>
+    <p class="guide-record-bridge">${escapeHtml(c.recordBridge)}</p>
     <div class="guide-offline-row" id="guide-offline-row" data-state="online" aria-live="polite">
       <span class="guide-offline-state" id="guide-offline-state">${escapeHtml(c.offlineOnline)}</span>
       <span class="guide-offline-queued" id="guide-offline-queued" hidden>${escapeHtml(c.offlineQueued.replace("{count}", "0"))}</span>
@@ -3654,8 +3660,9 @@ export const GUIDE_FLOW_STYLES = `
   .guide-privacy-note { margin: 0; font-size: 13px; color: #047857; line-height: 1.55; font-weight: 600; }
   .guide-audio-opt-btn { width: fit-content; min-height: 38px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.14); background: #fff; color: #0f172a; font-size: 12px; font-weight: 900; cursor: pointer; }
   .guide-audio-opt-btn.is-on { background: #0f172a; color: #fff; border-color: #0f172a; }
-  .guide-privacy-live { margin: -2px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(254,249,195,.92); color: #854d0e; border: 1px solid rgba(202,138,4,.2); font-size: 13px; line-height: 1.55; font-weight: 650; }
+  .guide-privacy-live { margin: -2px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(248,250,252,.92); color: #475569; border: 1px solid rgba(15,23,42,.08); border-left: 3px solid rgba(5,150,105,.42); font-size: 13px; line-height: 1.55; font-weight: 650; }
   .guide-privacy-live[hidden] { display: none; }
+  .guide-record-bridge { margin: -4px 0 0; color: #065f46; font-size: 13px; line-height: 1.55; font-weight: 780; }
   .guide-offline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 36px; padding: 8px 10px; border-radius: 8px; background: rgba(248,250,252,.92); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 13px; font-weight: 700; }
   .guide-offline-row[data-state="offline"], .guide-offline-row[data-state="failed"] { background: rgba(255,247,237,.94); border-color: rgba(234,88,12,.22); color: #9a3412; }
   .guide-offline-row[data-state="syncing"] { background: rgba(239,246,255,.94); border-color: rgba(37,99,235,.18); color: #1d4ed8; }

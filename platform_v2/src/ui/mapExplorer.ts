@@ -1167,6 +1167,50 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const filterDisplayTabsHtml = filterDisplayTabs
     .map((item) => `<button type="button" class="me-chip me-filter-tab-chip${item.tab === "places" ? " is-active" : ""}" data-filter-tab="${escapeHtml(item.tab)}" aria-pressed="${item.tab === "places" ? "true" : "false"}">${escapeHtml(item.label)}</button>`)
     .join("");
+  const layerKeyTitle = lang === "ja"
+    ? "表示中のレイヤー"
+    : lang === "es"
+      ? "Capa visible"
+      : lang === "pt-BR"
+        ? "Camada visível"
+        : "Visible layer";
+  const layerKeyDescriptions = lang === "ja"
+    ? {
+        markers: "公開記録 / 位置はぼかし",
+        places: "公開エリア・散策",
+        heatmap: "季節の濃淡",
+        rain: "雨雲",
+        frontier: "まだ少ない場所",
+      }
+    : lang === "es"
+      ? {
+          markers: "Registros / ubicación aproximada",
+          places: "Áreas públicas",
+          heatmap: "Temporada",
+          rain: "Lluvia",
+          frontier: "Huecos de registro",
+        }
+      : lang === "pt-BR"
+        ? {
+            markers: "Registros / local aproximado",
+            places: "Áreas públicas",
+            heatmap: "Estação",
+            rain: "Chuva",
+            frontier: "Lacunas de registro",
+          }
+        : {
+            markers: "Records / approximate place",
+            places: "Public areas",
+            heatmap: "Season intensity",
+            rain: "Rain",
+            frontier: "Recording gaps",
+          };
+  const layerKeyHtml = `<div class="me-layer-key" aria-label="${escapeHtml(layerKeyTitle)}">
+    <strong>${escapeHtml(layerKeyTitle)}</strong>
+    <div>
+      ${filterDisplayTabs.map((item) => `<span class="${item.tab === "places" ? "is-active" : ""}" data-layer-key-item="${escapeHtml(item.tab)}"><b>${escapeHtml(item.label)}</b><small>${escapeHtml(layerKeyDescriptions[item.tab as keyof typeof layerKeyDescriptions])}</small></span>`).join("")}
+    </div>
+  </div>`;
   const startCards = [
     {
       icon: "📷",
@@ -1639,6 +1683,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <button type="button" class="me-layer-hint-jump" id="me-layer-hint-jump">${escapeHtml(copy.layerHintJump)}</button>
           <button type="button" class="me-layer-hint-close" id="me-layer-hint-close" aria-label="${escapeHtml(copy.layerHintDismiss)}">×</button>
         </div>
+        ${layerKeyHtml}
         <div class="me-bottom-sheet" id="me-bottom-sheet" aria-hidden="true">
           <button type="button" class="me-bottom-close" id="me-bottom-close" aria-label="${escapeHtml(copy.bottomSheetCloseLabel)}">×</button>
           <button type="button" class="me-bottom-grip" id="me-bottom-grip" aria-label="${escapeHtml(copy.bottomSheetExpandLabel)}"></button>
@@ -6465,6 +6510,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var active = b.getAttribute('data-filter-tab') === state.tab;
       b.classList.toggle('is-active', active);
       b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('[data-layer-key-item]').forEach(function (item) {
+      item.classList.toggle('is-active', item.getAttribute('data-layer-key-item') === state.tab);
     });
     if (state.tab === 'rain') {
       closeBottomSheet();
@@ -11483,6 +11531,67 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-chip.is-park i { background: linear-gradient(135deg, rgba(187,247,208,.9), rgba(74,222,128,.42)); border-color: #16a34a; }
   .me-legend-chip.is-school i { background: rgba(254,243,199,.9); border-color: #d97706; border-style: dashed; }
   .me-legend-chip.is-water i { height: 8px; border-radius: 999px; background: #7dd3fc; border-color: #0284c7; }
+  .me-layer-key {
+    position: absolute;
+    right: 14px;
+    bottom: 112px;
+    z-index: 4;
+    width: min(270px, calc(100% - 28px));
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(15,23,42,.1);
+    box-shadow: 0 12px 28px rgba(15,23,42,.12);
+    backdrop-filter: blur(12px);
+  }
+  .me-layer-key > strong {
+    color: #0f172a;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .me-layer-key > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .me-layer-key span {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    padding: 7px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid rgba(15,23,42,.06);
+    opacity: .72;
+  }
+  .me-layer-key span.is-active {
+    opacity: 1;
+    background: #ecfdf5;
+    border-color: rgba(5,150,105,.3);
+    box-shadow: inset 0 0 0 1px rgba(5,150,105,.1);
+  }
+  .me-layer-key b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #0f172a;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .me-layer-key small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 9px;
+    line-height: 1.2;
+    font-weight: 780;
+  }
   .me-layer-hint {
     position: absolute;
     left: 12px;
@@ -13334,6 +13443,22 @@ export const MAP_EXPLORER_STYLES = `
     .me-layer-hint-jump {
       flex: 1 1 auto;
       min-width: 0;
+    }
+    .me-layer-key {
+      right: 10px;
+      bottom: calc(var(--me-mobile-action-space) + 72px);
+      width: min(270px, calc(100% - 20px));
+      padding: 8px;
+    }
+    .me-layer-key > div {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px;
+    }
+    .me-layer-key span {
+      padding: 6px;
+    }
+    .me-layer-key small {
+      display: none;
     }
     .me-bottom-sheet {
       display: block;
