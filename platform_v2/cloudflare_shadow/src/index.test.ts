@@ -18509,6 +18509,11 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
       if (check.native === "profile") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
         assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
+        assert.match(body, /class="site-header"/, check.path);
+        assert.match(body, /class="site-header-inner"/, check.path);
+        assert.match(body, /href="\/ja\/profile" title="マイページ"/, check.path);
+        assert.match(body, /href="\/ja\/profile\/settings" title="設定"/, check.path);
+        assert.doesNotMatch(body, /cf-profile-header/, check.path);
         assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
         assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
       }
