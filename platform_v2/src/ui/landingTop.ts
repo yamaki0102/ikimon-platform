@@ -5,8 +5,6 @@ import { findInvasiveSpeciesByName, invasiveSpeciesDetailPath, INVASIVE_SPECIES_
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import type {
   LandingObservation,
-  LandingDailyCard,
-  LandingDailyCardKind,
   LandingSnapshot,
   LandingTopGuideItem,
   LandingTopShelf,
@@ -26,6 +24,7 @@ export type LandingTopRenderOptions = {
   fieldLoop: FieldLoopStrings;
   snapshot: LandingSnapshot;
   isLoggedIn: boolean;
+  showLocalFollowups?: boolean;
 };
 
 export type LandingTopSections = {
@@ -103,7 +102,16 @@ function landingItemMeta(lang: SiteLang, item: Pick<LandingTopShelfItem, "public
 }
 
 function observationPlaceLabel(obs: LandingObservation): string {
-  return landingItemPlaceLabel(obs);
+  if (obs.publicLocation?.scope === "blurred") return "";
+  const publicLabel = String(obs.publicLocation?.label || "").trim();
+  const municipality = String(obs.municipality || "").trim();
+  if (publicLabel) return publicLabel;
+  if (municipality) return municipality;
+  return "";
+}
+
+function shouldSuppressPublicCardTimeAndPlace(obs: LandingObservation): boolean {
+  return obs.publicLocation?.scope === "blurred";
 }
 
 function landingObservationMeta(lang: SiteLang, obs: LandingObservation): string {
@@ -174,229 +182,6 @@ function resolveHeroPhotoObservation(snapshot: LandingSnapshot): LandingObservat
     .find((obs) => Boolean(obs.photoUrl) && !isSameLandingPhoto(obs, dailyMainObservation)) ?? null;
 }
 
-type LandingDailyActionCopy = {
-  icon: string;
-  title: string;
-  fallbackBody: string;
-};
-
-type LandingHeroText = {
-  heading: string;
-  lead: string;
-  searchLabel: string;
-  searchPlaceholder: string;
-  searchButton: string;
-  stats: Array<{ key: "observationCount" | "speciesCount" | "placeCount"; label: string }>;
-};
-
-function landingHeroText(lang: SiteLang): LandingHeroText {
-  const localized: Record<SiteLang, LandingHeroText> = {
-    ja: {
-      heading: "今日見つけた生きものを、名前が分からなくても残せる。",
-      lead: "散歩中でも旅先でも、写真・動画・音・場所・ひとことを先に残せます。名前や根拠は、AI候補と人の確認であとから観察レコードへ育てます。",
-      searchLabel: "場所や生きものを検索",
-      searchPlaceholder: "場所・生きものを探す",
-      searchButton: "検索",
-      stats: [
-        { key: "observationCount", label: "観察" },
-        { key: "speciesCount", label: "種" },
-        { key: "placeCount", label: "場所" },
-      ],
-    },
-    en: {
-      heading: "Save what you found today, even before you know the name.",
-      lead: "On a walk or a trip, keep the photo, video, sound, place, and short note first. AI hints and human review can help the record grow later.",
-      searchLabel: "Search species or places",
-      searchPlaceholder: "Search species or places",
-      searchButton: "Search",
-      stats: [
-        { key: "observationCount", label: "records" },
-        { key: "speciesCount", label: "species" },
-        { key: "placeCount", label: "places" },
-      ],
-    },
-    es: {
-      heading: "Guarda lo que encontraste hoy, aunque no sepas el nombre.",
-      lead: "En un paseo o viaje, guarda primero foto, video, sonido, lugar y una nota breve. Las pistas de IA y la revision humana pueden hacerlo crecer despues.",
-      searchLabel: "Buscar especies o lugares",
-      searchPlaceholder: "Buscar especies o lugares",
-      searchButton: "Buscar",
-      stats: [
-        { key: "observationCount", label: "registros" },
-        { key: "speciesCount", label: "especies" },
-        { key: "placeCount", label: "lugares" },
-      ],
-    },
-    "pt-BR": {
-      heading: "Salve o que encontrou hoje, mesmo antes de saber o nome.",
-      lead: "Na caminhada ou viagem, guarde primeiro foto, video, som, lugar e uma nota curta. Dicas de IA e revisao humana ajudam o registro a crescer depois.",
-      searchLabel: "Buscar especies ou lugares",
-      searchPlaceholder: "Buscar especies ou lugares",
-      searchButton: "Buscar",
-      stats: [
-        { key: "observationCount", label: "registros" },
-        { key: "speciesCount", label: "especies" },
-        { key: "placeCount", label: "lugares" },
-      ],
-    },
-  };
-  return localized[lang] ?? localized.ja;
-}
-
-function landingDailyActionCopy(lang: SiteLang, kind: LandingDailyCardKind): LandingDailyActionCopy {
-  const localized: Record<SiteLang, Record<LandingDailyCardKind, LandingDailyActionCopy>> = {
-    ja: {
-      recordToday: { icon: "+", title: "記録する", fallbackBody: "名前が分からなくても始められます。" },
-      revisitPlace: { icon: "↻", title: "前回の続き", fallbackBody: "同じ場所の変化を見る。" },
-      nearbyPulse: { icon: "◎", title: "近くを見る", fallbackBody: "記録が増えた場所を開く。" },
-      needsId: { icon: "?", title: "名前を確かめる", fallbackBody: "分からない記録を少し確かめる。" },
-    },
-    en: {
-      recordToday: { icon: "+", title: "Post", fallbackBody: "A record can start before you know the name." },
-      revisitPlace: { icon: "↻", title: "Revisit", fallbackBody: "Look for what changed in the same place." },
-      nearbyPulse: { icon: "◎", title: "Nearby", fallbackBody: "Open places where records are growing." },
-      needsId: { icon: "?", title: "Needs ID", fallbackBody: "Check one record that needs a name." },
-    },
-    es: {
-      recordToday: { icon: "+", title: "Guardar foto", fallbackBody: "Puedes registrar antes de saber el nombre." },
-      revisitPlace: { icon: "↻", title: "Volver", fallbackBody: "Mira que cambio en el mismo lugar." },
-      nearbyPulse: { icon: "◎", title: "Cerca", fallbackBody: "Abre lugares con mas registros." },
-      needsId: { icon: "?", title: "Ayudar a nombrar", fallbackBody: "Revisa un registro sin nombre claro." },
-    },
-    "pt-BR": {
-      recordToday: { icon: "+", title: "Salvar foto", fallbackBody: "Voce pode registrar antes de saber o nome." },
-      revisitPlace: { icon: "↻", title: "Voltar", fallbackBody: "Veja o que mudou no mesmo lugar." },
-      nearbyPulse: { icon: "◎", title: "Perto", fallbackBody: "Abra lugares com mais registros." },
-      needsId: { icon: "?", title: "Ajudar no nome", fallbackBody: "Revise um registro sem nome claro." },
-    },
-  };
-  return localized[lang]?.[kind] ?? localized.ja[kind];
-}
-
-function fallbackHeroDailyCards(): LandingDailyCard[] {
-  return [
-    { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
-    { kind: "nearbyPulse", href: "/map", primaryText: null, secondaryText: null, metricValue: null },
-    { kind: "needsId", href: "/records?view=needs_id", primaryText: null, secondaryText: null, metricValue: null },
-    { kind: "revisitPlace", href: "/records?view=places", primaryText: null, secondaryText: null, metricValue: null },
-  ];
-}
-
-function prioritizeHeroDailyCards(cards: LandingDailyCard[], isLoggedIn: boolean): LandingDailyCard[] {
-  const source = cards.length > 0 ? cards : fallbackHeroDailyCards();
-  const fallback = fallbackHeroDailyCards();
-  const priority: LandingDailyCardKind[] = isLoggedIn
-    ? ["recordToday", "revisitPlace", "nearbyPulse", "needsId"]
-    : ["recordToday", "nearbyPulse", "needsId"];
-  return priority
-    .map((kind) => source.find((card) => card.kind === kind) ?? fallback.find((card) => card.kind === kind))
-    .filter((card): card is LandingDailyCard => Boolean(card));
-}
-
-function landingHeroTrustItems(lang: SiteLang): Array<{ title: string; body: string }> {
-  const localized: Record<SiteLang, Array<{ title: string; body: string }>> = {
-    ja: [
-      { title: "名前は後でいい", body: "候補や根拠は、記録後に確かめられます。" },
-      { title: "AIは候補まで", body: "確定名ではなく、見分ける手がかりとして扱います。" },
-      { title: "位置は安全側", body: "公開位置は、自然と人を守る粒度で表示します。" },
-    ],
-    en: [
-      { title: "Names can come later", body: "Hints and evidence can be checked after posting." },
-      { title: "AI stays as a hint", body: "Suggestions support review; they are not final names." },
-      { title: "Location is safer", body: "Public places use a protective level of detail." },
-    ],
-    es: [
-      { title: "El nombre puede esperar", body: "Las pistas y evidencias se revisan despues." },
-      { title: "La IA solo sugiere", body: "Ayuda a revisar; no decide el nombre final." },
-      { title: "Ubicacion mas segura", body: "La vista publica usa un detalle protector." },
-    ],
-    "pt-BR": [
-      { title: "O nome pode vir depois", body: "Pistas e evidencias podem ser revisadas apos postar." },
-      { title: "IA fica como dica", body: "Ela apoia a revisao; nao define o nome final." },
-      { title: "Localizacao mais segura", body: "A area publica usa detalhe protetor." },
-    ],
-  };
-  return localized[lang] ?? localized.ja;
-}
-
-function dailyActionKpi(kind: LandingDailyCardKind): string {
-  switch (kind) {
-    case "recordToday":
-      return "landing:topA:primary:record";
-    case "revisitPlace":
-      return "landing:topA:primary:revisit";
-    case "nearbyPulse":
-      return "landing:topA:primary:map";
-    case "needsId":
-      return "landing:topA:primary:identify";
-  }
-}
-
-function renderDailyActionCard(basePath: string, lang: SiteLang, copy: LandingStrings, card: LandingDailyCard): string {
-  const action = landingDailyActionCopy(lang, card.kind);
-  const cardCopy = copy.dailyDashboard.cards[card.kind];
-  const href = landingHref(basePath, lang, card.href);
-  const metricHtml = card.metricValue && card.metricValue > 0
-    ? `<em><strong>${escapeHtml(formatLandingNumber(copy, card.metricValue))}</strong>${escapeHtml(cardCopy.metricLabel)}</em>`
-    : "";
-  const primaryClass = card.kind === "recordToday" ? " is-primary" : "";
-  const recordKpiAttrs = card.kind === "recordToday"
-    ? ` data-kpi-event="primary_cta_click" data-kpi-funnel="landing_record" data-kpi-target="${escapeHtml(href)}"`
-    : "";
-  return `<a class="prototype-topa-action prototype-topa-action-${escapeHtml(card.kind)}${primaryClass}" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(dailyActionKpi(card.kind))}"${recordKpiAttrs}>
-    <span class="prototype-topa-action-icon" aria-hidden="true">${escapeHtml(action.icon)}</span>
-    <strong>${escapeHtml(action.title)}</strong>
-    ${metricHtml}
-  </a>`;
-}
-
-function renderLandingContinuation(basePath: string, lang: SiteLang, copy: LandingStrings, snapshot: LandingSnapshot): string {
-  if (!snapshot.viewerUserId) return "";
-  const latest = snapshot.myFeed[0] ?? null;
-  if (!latest) return "";
-  const title = displayObservationName(latest, copy.heroPhotoFallback);
-  const meta = landingObservationMeta(lang, latest);
-  const detailHref = observationDetailHref(basePath, lang, latest);
-  const revisitSourceId = latest.visitId || latest.detailId || latest.occurrenceId;
-  const revisitHref = landingHref(basePath, lang, `/record?start=gallery&revisitObservationId=${encodeURIComponent(revisitSourceId)}`);
-  const photoUrl = observationImageUrl(latest, "sm");
-  const imageHtml = photoUrl
-    ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(title)}" loading="eager" />`
-    : `<span aria-hidden="true">REC</span>`;
-  const storyCopy = lang === "en"
-    ? {
-        eyebrow: "Continue from last time",
-        titlePrefix: "Your latest find",
-        openLabel: "Open last record",
-        recordLabel: "Add one more nearby",
-      }
-    : {
-        eyebrow: "前回の自分から続ける",
-        titlePrefix: "直近の発見",
-        openLabel: "前回の記録を見る",
-        recordLabel: "同じ場所でもう1件",
-      };
-  const habitHtml = snapshot.habit
-    ? `<div class="prototype-topa-story-stats">
-        <span><strong>${escapeHtml(formatLandingNumber(copy, snapshot.habit.thisWeekCount))}</strong>${lang === "en" ? "this week" : "今週"}</span>
-        <span><strong>${escapeHtml(formatLandingNumber(copy, snapshot.habit.activeDaysLast60))}</strong>${lang === "en" ? "active days" : "観察日"}</span>
-      </div>`
-    : "";
-  return `<section class="prototype-topa-story" aria-label="${escapeHtml(storyCopy.eyebrow)}">
-    <a class="prototype-topa-story-media" href="${escapeHtml(detailHref)}" data-kpi-action="landing:story:latest">${imageHtml}</a>
-    <div class="prototype-topa-story-copy">
-      <small>${escapeHtml(storyCopy.eyebrow)}</small>
-      <h2><span>${escapeHtml(storyCopy.titlePrefix)}</span>${escapeHtml(title)}</h2>
-      <em>${escapeHtml(meta)}</em>
-      <div class="prototype-topa-story-actions">
-        <a href="${escapeHtml(detailHref)}" data-kpi-action="landing:story:latest">${escapeHtml(storyCopy.openLabel)}</a>
-        <a class="is-primary" href="${escapeHtml(revisitHref)}" data-kpi-action="landing:story:revisit_record" data-kpi-event="primary_cta_click" data-kpi-funnel="landing_record" data-kpi-target="${escapeHtml(revisitHref)}">${escapeHtml(storyCopy.recordLabel)}</a>
-      </div>
-    </div>
-    ${habitHtml}
-  </section>`;
-}
-
 type LandingContentWallCopy = {
   eyebrow: string;
   title: string;
@@ -410,6 +195,12 @@ type LandingContentWallCopy = {
   communityEmptyTitle: string;
   emptyCta: string;
   allCta: string;
+  filterLabel: string;
+  filterAll: string;
+  filterPhoto: string;
+  filterVideo: string;
+  filterNote: string;
+  myAtlas: string;
 };
 
 function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
@@ -427,6 +218,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "みんなの投稿を準備中です",
       emptyCta: "記録する",
       allCta: "すべて見る",
+      filterLabel: "媒体",
+      filterAll: "すべて",
+      filterPhoto: "写真",
+      filterVideo: "動画",
+      filterNote: "メモ",
+      myAtlas: "自分",
     },
     en: {
       eyebrow: "WATCH",
@@ -441,6 +238,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "Everyone's posts are still warming up",
       emptyCta: "Post a record",
       allCta: "See all",
+      filterLabel: "Media",
+      filterAll: "All",
+      filterPhoto: "Photos",
+      filterVideo: "Videos",
+      filterNote: "Notes",
+      myAtlas: "My",
     },
     es: {
       eyebrow: "WATCH",
@@ -455,6 +258,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "Aun no hay publicaciones de todos",
       emptyCta: "Registrar",
       allCta: "Ver todo",
+      filterLabel: "Medio",
+      filterAll: "Todo",
+      filterPhoto: "Fotos",
+      filterVideo: "Videos",
+      filterNote: "Notas",
+      myAtlas: "Mis",
     },
     "pt-BR": {
       eyebrow: "WATCH",
@@ -469,6 +278,12 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       communityEmptyTitle: "Ainda nao ha publicacoes de todos",
       emptyCta: "Registrar",
       allCta: "Ver tudo",
+      filterLabel: "Midia",
+      filterAll: "Tudo",
+      filterPhoto: "Fotos",
+      filterVideo: "Videos",
+      filterNote: "Notas",
+      myAtlas: "Meu",
     },
   };
   return localized[lang] ?? localized.ja;
@@ -487,6 +302,51 @@ type LandingContentWallSubject = {
   identificationCount: number;
   evidenceTier: number | null;
 };
+
+const LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT = 12;
+const LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT = 18;
+
+type LandingContentMediaKind = "photo" | "video" | "note" | "record";
+
+function landingContentMediaKind(obs: Pick<LandingObservation, "hasVideo" | "hasPhoto" | "photoUrl" | "librarySourceKind" | "entryType">): LandingContentMediaKind {
+  if (obs.hasVideo || obs.librarySourceKind === "video") return "video";
+  if (obs.librarySourceKind === "note") return "note";
+  if (obs.photoUrl || obs.hasPhoto || obs.librarySourceKind === "photo") return "photo";
+  return "record";
+}
+
+function renderLandingContentMediaFilter(
+  basePath: string,
+  lang: SiteLang,
+  copy: LandingContentWallCopy,
+  items: LandingContentWallItem[],
+  isSignedIn: boolean,
+): string {
+  const counts = new Map<LandingContentMediaKind, number>();
+  for (const item of items) {
+    const kind = landingContentMediaKind(item);
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  const visibleKinds = (["photo", "video", "note"] as const).filter((kind) => (counts.get(kind) ?? 0) > 0);
+  const labels: Record<Extract<LandingContentMediaKind, "photo" | "video" | "note">, string> = {
+    photo: copy.filterPhoto,
+    video: copy.filterVideo,
+    note: copy.filterNote,
+  };
+  const allHref = landingHref(basePath, lang, "/records?view=public");
+  const chips = [
+    `<a class="prototype-content-filter-chip is-active" href="${escapeHtml(allHref)}" data-media-filter="all"><span class="prototype-content-filter-dot" aria-hidden="true"></span>${escapeHtml(copy.filterAll)}</a>`,
+    ...visibleKinds.map((kind) => {
+      const href = landingHref(basePath, lang, `/records?view=public&media=${encodeURIComponent(kind)}`);
+      return `<a class="prototype-content-filter-chip" href="${escapeHtml(href)}" data-media-filter="${escapeHtml(kind)}"><span class="prototype-content-filter-dot" aria-hidden="true"></span>${escapeHtml(labels[kind])}</a>`;
+    }),
+    isSignedIn
+      ? `<a class="prototype-content-filter-chip is-my" href="${escapeHtml(landingHref(basePath, lang, "/records?view=mine"))}" data-media-filter="mine"><span class="prototype-content-filter-dot" aria-hidden="true"></span>${escapeHtml(copy.myAtlas)}</a>`
+      : "",
+  ].filter(Boolean).join("");
+
+  return `<nav class="prototype-content-filter" aria-label="${escapeHtml(copy.filterLabel)}">${chips}</nav>`;
+}
 
 function landingContentWallGroupKey(obs: LandingContentWallItem): string {
   return obs.visitId
@@ -595,14 +455,18 @@ function renderLandingContentWallCard(
   index: number,
 ): string {
   const href = observationDetailHref(basePath, lang, obs);
-  const title = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, copy.heroPhotoFallback);
-  const placeLabel = observationPlaceLabel(obs) || copy.heroLatestLabel;
-  const mediaIcon = obs.hasVideo ? "video" : obs.photoUrl ? "image" : obs.entryType === "identification" ? "id" : "record";
+  const rawTitle = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, "");
+  const title = isPublicCardRealTitle(rawTitle, copy.heroPhotoFallback) ? rawTitle.trim() : "";
+  const suppressTimeAndPlace = shouldSuppressPublicCardTimeAndPlace(obs);
+  const placeLabel = suppressTimeAndPlace ? "" : observationPlaceLabel(obs);
+  const mediaKind = landingContentMediaKind(obs);
+  const mediaIcon = mediaKind === "video" ? "video" : mediaKind === "photo" ? "image" : mediaKind === "note" ? "note" : obs.entryType === "identification" ? "id" : "record";
   const imageUrl = observationImageUrl(obs, "md");
-  const observerName = obs.observerName || (lang === "ja" ? "観察者" : "Observer");
-  const recordCount = Math.max(obs.contentRecordCount ?? 1, obs.subjectCount ?? 1);
+  const observedAt = suppressTimeAndPlace ? "" : formatLandingObservedAt(lang, obs.observedAt);
+  const titleHtml = title ? `<span class="prototype-content-title-line"><strong>${escapeHtml(title)}</strong>${renderLandingContentSubjects(obs)}</span>` : "";
+  const metaHtml = [placeLabel, observedAt].filter(Boolean).map((item) => `<small>${escapeHtml(item)}</small>`).join("");
   const thumbHtml = imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index < 4 ? "eager" : "lazy"}" decoding="async" />`
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title || placeLabel || copy.heroPhotoFallback)}" loading="${index < 4 ? "eager" : "lazy"}" decoding="async" />`
     : `<span class="prototype-content-empty-thumb" aria-hidden="true"></span>`;
   return `<a class="prototype-content-card is-${escapeHtml(obs.contentSource)}" href="${escapeHtml(href)}" data-kpi-action="landing:content_wall:${escapeHtml(obs.contentSource)}">
     <span class="prototype-content-thumb">
@@ -612,19 +476,31 @@ function renderLandingContentWallCard(
       </span>
     </span>
     <span class="prototype-content-body">
-      <span class="prototype-content-title-line">
-        <strong>${escapeHtml(title)}</strong>
-        ${renderLandingContentSubjects(obs)}
-      </span>
-      <span class="prototype-content-author">
-        ${renderLandingContentAvatar(obs)}
-        <span class="prototype-content-author-copy">
-          <em>${escapeHtml(observerName)}</em>
-          <small>${escapeHtml(placeLabel)}</small>
-        </span>
+      ${titleHtml}
+      <span class="prototype-content-meta">
+        ${metaHtml}
+        <span class="prototype-content-reaction" aria-label="ハート">♡</span>
       </span>
     </span>
   </a>`;
+}
+
+function isPublicCardRealTitle(value: string | null | undefined, fallback: string): boolean {
+  const title = String(value ?? "").trim();
+  if (!title) return false;
+  const blocked = new Set([
+    fallback,
+    "同定待ち",
+    "写真の記録",
+    "動画の記録",
+    "地域の記録",
+    "季節の記録",
+    "Photo record",
+    "Video record",
+    "Local record",
+    "Season record",
+  ].filter(Boolean));
+  return !blocked.has(title);
 }
 
 function renderLandingContentWallEmpty(title: string, body: string, href: string, cta: string): string {
@@ -670,18 +546,15 @@ function renderLandingContentWallLane(
 function renderLandingContentWall(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
   const wallCopy = landingContentWallCopy(lang);
-  const mineItems = snapshot.viewerUserId ? landingContentWallItems(snapshot, "mine") : [];
   const communityItems = landingContentWallItems(snapshot, "community");
-  const mineLimit = Math.min(6, Math.max(4, communityItems.length));
-  const communityLimit = 12;
-  const laneHtml = [
-    snapshot.viewerUserId ? renderLandingContentWallLane(basePath, lang, copy, wallCopy, "mine", mineItems.slice(0, mineLimit)) : "",
-    renderLandingContentWallLane(basePath, lang, copy, wallCopy, "community", communityItems.slice(0, snapshot.viewerUserId ? communityLimit : 18)),
-  ].filter(Boolean).join("");
-  const splitClass = snapshot.viewerUserId ? " is-split" : "";
+  const communityLimit = snapshot.viewerUserId ? LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT : LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT;
+  const visibleCommunityItems = communityItems.slice(0, communityLimit);
+  const filterHtml = renderLandingContentMediaFilter(basePath, lang, wallCopy, visibleCommunityItems, Boolean(snapshot.viewerUserId));
+  const laneHtml = renderLandingContentWallLane(basePath, lang, copy, wallCopy, "community", visibleCommunityItems);
 
   return `<section class="prototype-content-wall" aria-label="${escapeHtml(wallCopy.title)}">
-    <div class="prototype-content-lanes${splitClass}">${laneHtml}</div>
+    ${filterHtml}
+    <div class="prototype-content-lanes">${laneHtml}</div>
   </section>`;
 }
 
@@ -866,8 +739,9 @@ function renderLandingNearbySection(options: LandingTopRenderOptions): string {
   const mapHref = landingHref(basePath, lang, "/map");
   const placesHref = landingHref(basePath, lang, "/records?view=places");
   const cards = buildLandingNearbyCards(snapshot, basePath, lang, placesHref);
-  const cardHtml = cards.length > 0
-    ? cards.map((card, index) => {
+  if (cards.length === 0) return "";
+
+  const cardHtml = cards.map((card, index) => {
       const variant = index === 0 ? "feature" : "compact";
       const thumbUrl = landingPreviewMediaUrl(toThumbnailUrl(card.imageUrl, "md") ?? card.imageUrl);
       const thumbHtml = thumbUrl
@@ -884,8 +758,7 @@ function renderLandingNearbySection(options: LandingTopRenderOptions): string {
         <p>${escapeHtml(card.insight)}</p>
         <em class="prototype-monitoring-metrics">${escapeHtml(nearbyMetricText(options.copy, card))}</em>
       </a>`;
-    }).join("")
-    : `<a class="prototype-monitoring-empty" href="${escapeHtml(mapHref)}" data-kpi-action="landing:nearby:empty">公開できるエリアを準備中です</a>`;
+    }).join("");
 
   return `<section class="prototype-monitoring-areas" id="topa-local-map" aria-label="育つ観察エリア">
     <div class="prototype-monitoring-head">
@@ -1580,11 +1453,12 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
+  const localFollowupsHtml = options.showLocalFollowups === false ? "" : renderLandingLocalFollowups(options);
   return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
     ${renderLandingContentWall(options)}
-    ${renderLandingNearbySection(options)}
     ${renderLandingGuideOutcomes(options)}
-    ${renderLandingLocalFollowups(options)}
+    ${localFollowupsHtml}
+    ${renderLandingNearbySection(options)}
   </section>`;
 }
 
@@ -1603,7 +1477,7 @@ function renderSoundIntelligenceSection(basePath: string, lang: SiteLang): strin
     {
       label: "Review",
       title: "AI候補を人が確かめる",
-      body: "BirdNET-Go や Perch v2 由来の候補は確定名にせず、代表音、確信度、モデル情報、レビュー状態を分けて扱います。",
+      body: "音声AI由来の候補は確定名にせず、代表音、確信度、モデル情報、レビュー状態を分けて扱います。",
     },
     {
       label: "Research",
@@ -1783,8 +1657,6 @@ export const LANDING_TOP_STYLES = `
       linear-gradient(180deg, #ffffff 0%, #f9fffe 48%, #f2fbf7 100%);
     background-size: 56px 56px, 56px 56px, auto;
   }
-  .site-header { background: rgba(255,255,255,.84); border-bottom-color: rgba(26,46,31,.08); }
-  .site-header-inner { min-height: 58px; }
   .shell.shell-bleed.prototype-shell {
     --ikimon-landing-sidebar-w: var(--ikimon-desktop-sidebar-w, 0px);
     --ikimon-landing-available-w: calc(100vw - var(--ikimon-landing-sidebar-w));
@@ -2145,6 +2017,61 @@ export const LANDING_TOP_STYLES = `
     color: #fff;
     border-color: #10251a;
   }
+  .prototype-content-filter {
+    position: sticky;
+    top: calc(var(--ikimon-header-height, 64px) + 8px);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 0 10px;
+    background: linear-gradient(180deg, rgba(249,255,254,.98), rgba(249,255,254,.82));
+    scrollbar-width: none;
+  }
+  .prototype-content-filter::-webkit-scrollbar {
+    display: none;
+  }
+  .prototype-content-filter-chip {
+    min-height: 38px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 13px;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color: #10251a;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 950;
+    text-decoration: none;
+    box-shadow: 0 8px 18px rgba(15,23,42,.045);
+  }
+  .prototype-content-filter-chip.is-active {
+    border-color: #10251a;
+    background: #10251a;
+    color: #fff;
+  }
+  .prototype-content-filter-chip.is-my {
+    margin-left: auto;
+    border-color: rgba(15,118,110,.2);
+    background: #eefaf5;
+    color: #0f4f45;
+  }
+  .prototype-content-filter-dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: .22;
+  }
+  .prototype-content-filter-chip.is-active .prototype-content-filter-dot {
+    background: #36d8bd;
+    opacity: 1;
+    box-shadow: inset 0 0 0 4px #10251a;
+  }
   .prototype-content-wall {
     display: grid;
     gap: 18px;
@@ -2311,6 +2238,7 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-content-icon.is-image { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M5 5h14v14H5V5Zm2 2v8.6l3.2-3.2 2.6 2.6 1.7-1.7L17 15.8V7H7Zm2.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z'/%3E%3C/svg%3E"); }
   .prototype-content-icon.is-video { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 6h11v12H4V6Zm13 4.2 4-2.4v8.4l-4-2.4v-3.6Z'/%3E%3C/svg%3E"); }
+  .prototype-content-icon.is-note { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M6 3h9l3 3v15H6V3Zm8 1.8V7h2.2L14 4.8ZM8 10v2h8v-2H8Zm0 4v2h8v-2H8Z'/%3E%3C/svg%3E"); }
   .prototype-content-icon.is-id { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5h16v14H4V5Zm3 3v2h10V8H7Zm0 4v2h6v-2H7Z'/%3E%3C/svg%3E"); }
   .prototype-content-icon.is-record { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 5v3h3v2h-3v3h-2v-3H8v-2h3V8h2Z'/%3E%3C/svg%3E"); }
   .prototype-content-body {
@@ -2334,6 +2262,39 @@ export const LANDING_TOP_STYLES = `
     font-size: var(--ikimon-record-card-title-size);
     line-height: var(--ikimon-record-card-title-line-height);
     font-weight: 950;
+  }
+  .prototype-content-meta {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+  }
+  .prototype-content-meta small {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: var(--ikimon-record-card-meta-size);
+    line-height: var(--ikimon-record-card-meta-line-height);
+    font-weight: 850;
+  }
+  .prototype-content-reaction {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 999px;
+    background: rgba(255,255,255,.74);
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 900;
   }
   .prototype-content-subjects {
     min-width: 0;
@@ -3992,21 +3953,28 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-action strong { font-size: 13px; }
     .prototype-topa-action small { display: none; }
     .prototype-topa-trust {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 8px;
-      overflow-x: auto;
+      overflow-x: visible;
       padding-bottom: 2px;
-      scrollbar-width: none;
     }
     .prototype-topa-trust::-webkit-scrollbar { display: none; }
     .prototype-topa-trust span {
       min-height: 70px;
-      flex: 0 0 76%;
+      width: 100%;
       padding: 10px 12px;
     }
     .prototype-topa-metrics { gap: 8px; }
     .prototype-topa-metrics span { min-height: 32px; flex-direction: row; gap: 5px; }
     .prototype-topa-metrics strong { font-size: 15px; }
+    .prototype-content-filter {
+      top: calc(var(--ikimon-header-height, 62px) + 4px);
+      padding-bottom: 9px;
+    }
+    .prototype-content-filter-chip.is-my {
+      margin-left: 0;
+    }
     .prototype-content-wall { padding: 0; gap: 14px; }
     .prototype-content-lanes { gap: 22px; }
     .prototype-content-lane { gap: 11px; }
@@ -4064,6 +4032,15 @@ export const LANDING_TOP_STYLES = `
       height: 17px;
       padding: 0 4px;
       font-size: 9px;
+    }
+    .prototype-content-meta small {
+      font-size: 9.5px;
+      line-height: 1.2;
+    }
+    .prototype-content-reaction {
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
     }
     .prototype-content-author {
       max-width: 100%;

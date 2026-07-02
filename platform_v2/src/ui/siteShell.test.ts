@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
 
@@ -87,10 +88,26 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
   assert.match(html, /<span class="brand-wordmark" aria-label="ikimon">/);
+  assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/img\/ikimon-wordmark-black\.png" alt="" \/>/);
+  assert.match(html, /<span class="brand-descriptor">みんなで作る地域図鑑<\/span>/);
+  assert.match(html, /<span class="brand-mark"><img src="\/assets\/img\/icon-192\.png" alt="" \/><\/span>/);
+  assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ikimon" \/>/);
   assert.match(html, /<meta property="og:site_name" content="ikimon" \/>/);
   assert.match(html, /<span>ikimon<\/span>\s*<span>Enjoy Life<\/span>/);
+});
+
+test("site shell adds the active CSP nonce to inline and external scripts", () => {
+  const html = runWithCspNonce("test-nonce", () => renderSiteDocument({
+    basePath: "",
+    title: "Nonce",
+    body: "<script>window.__nonce_test = true;</script>",
+    lang: "ja",
+  }));
+
+  assert.match(html, /<script nonce="test-nonce">window\.__nonce_test = true;<\/script>/);
+  assert.doesNotMatch(html, /<script(?![^>]*nonce=)/);
 });
 
 test("mobile menu panel can render outside the sticky header", () => {
@@ -102,9 +119,26 @@ test("mobile menu panel can render outside the sticky header", () => {
   });
 
   assert.match(html, /\.site-header \{[^}]*z-index: 90;[^}]*overflow: visible;/);
+  assert.match(html, /--ikimon-header-height: 64px;/);
+  assert.match(html, /\.site-header-inner \{[^}]*min-height: var\(--ikimon-header-height\);/);
+  assert.match(html, /@media \(min-width: 1161px\)[\s\S]*--ikimon-header-height: 58px;/);
+  assert.match(html, /@media \(max-width: 720px\)[\s\S]*--ikimon-header-height: 62px;/);
   assert.match(html, /class="site-mobile-menu-toggle" aria-label="メニュー" title="メニュー"/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*position: absolute;[^}]*z-index: 2;[^}]*top: calc\(100% \+ 9px\);/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*background: #ffffff;/);
+});
+
+test("site shell keeps desktop side toggle and mobile hamburger mutually exclusive", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Header",
+    body: "<p>body</p>",
+    lang: "ja",
+  });
+
+  assert.match(html, /@media \(min-width: 1161px\)[\s\S]*?\.site-header-actions-mobile \{\s*display: none !important;/);
+  assert.match(html, /@media \(max-width: 1160px\)[\s\S]*?\.desktop-side-nav-toggle \{\s*display: none !important;/);
+  assert.match(html, /site-header-actions-desktop[\s\S]*site-account-icons/);
 });
 
 test("language switch is user-facing while SEO stays Japanese canonical", () => {

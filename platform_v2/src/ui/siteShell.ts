@@ -2,6 +2,7 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
 import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, appInstallCopy } from "../appInstall.js";
+import { getCspNonce } from "../services/cspNonce.js";
 import {
   getSiteShellLayoutForPath,
   listPagesByLane,
@@ -101,6 +102,15 @@ export function escapeHtml(value: string | null | undefined): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function applyScriptNonce(html: string): string {
+  const nonce = getCspNonce();
+  if (!nonce) {
+    return html;
+  }
+  const nonceAttr = ` nonce="${escapeHtml(nonce)}"`;
+  return html.replace(/<script(?=[\s>])(?![^>]*\bnonce=)/g, `<script${nonceAttr}`);
 }
 
 function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): string {
@@ -692,6 +702,14 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
   const brandMarkSrc = "/assets/img/icon-192.png";
+  const brandWordmarkSrc = "/assets/img/ikimon-wordmark-black.png";
+  const brandDescriptor = lang === "ja"
+    ? "みんなで作る地域図鑑"
+    : lang === "en"
+      ? "Regional field atlas"
+      : lang === "es"
+        ? "Atlas regional"
+        : "Atlas regional";
   const navLinks = buildNavLinks(basePath, lang, activeNav);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop");
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile");
@@ -715,8 +733,11 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
           <span class="brand-logo-lockup">
             <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ikimon">
-              <span class="brand-name">ikimon</span>
+            <span class="brand-copy-lockup">
+              <span class="brand-wordmark" aria-label="ikimon">
+                <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
+              </span>
+              <span class="brand-descriptor">${escapeHtml(brandDescriptor)}</span>
             </span>
           </span>
         </a>
@@ -3729,7 +3750,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   } catch (_) {}
 })();
 </script>`;
-  return `<!doctype html>
+  const document = `<!doctype html>
 <html lang="${escapeHtml(lang)}">
 <head>
   <meta charset="utf-8" />
@@ -3797,6 +3818,7 @@ ${alternateLinks}
       --ikimon-form-max: 760px;
       --ikimon-page-inline: clamp(24px, 3.4vw, 48px);
       --ikimon-desktop-sidebar-w: 0px;
+      --ikimon-header-height: 64px;
       --ikimon-shell-margin-left: auto;
       --ikimon-shell-margin-right: auto;
     }
@@ -3945,7 +3967,7 @@ ${alternateLinks}
     }
     .md-hidden { display: none; }
     .site-header { position: sticky; top: 0; z-index: 90; width: 100%; max-width: 100%; overflow: visible; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
-    .site-header-inner { width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline))); max-width: none; min-width: 0; margin: 0 auto; padding: 10px 0; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: nowrap; box-sizing: border-box; transition: width .18s ease, margin .18s ease, grid-template-columns .18s ease; }
+    .site-header-inner { width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline))); max-width: none; min-width: 0; min-height: var(--ikimon-header-height); margin: 0 auto; padding: 10px 0; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: nowrap; box-sizing: border-box; transition: width .18s ease, margin .18s ease, grid-template-columns .18s ease; }
     .site-brand-cluster { display: inline-flex; align-items: center; gap: 8px; min-width: 0; transition: width .18s ease; }
     .desktop-side-nav-toggle {
       display: none;
@@ -4004,13 +4026,40 @@ ${alternateLinks}
       padding: 0;
       box-shadow: 0 7px 16px rgba(15,23,42,.10);
     }
+    .brand-copy-lockup {
+      min-width: 0;
+      display: grid;
+      gap: 1px;
+      align-items: center;
+    }
     .brand-wordmark {
       display: inline-flex;
-      align-items: baseline;
+      align-items: center;
       min-width: 0;
+      width: 92px;
+      height: 26px;
       line-height: 1;
       white-space: nowrap;
       letter-spacing: 0;
+    }
+    .brand-wordmark-img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: left center;
+    }
+    .brand-descriptor {
+      min-width: 0;
+      max-width: 132px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #475569;
+      font-size: 10.5px;
+      line-height: 1.05;
+      letter-spacing: 0;
+      font-weight: 850;
     }
     .brand-name {
       font-size: 18px;
@@ -6092,6 +6141,7 @@ ${alternateLinks}
     @media (min-width: 1161px) {
       :root {
         --ikimon-desktop-sidebar-w: 204px;
+        --ikimon-header-height: 58px;
         --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
         --ikimon-shell-margin-right: 24px;
       }
@@ -6104,7 +6154,7 @@ ${alternateLinks}
       }
       .site-header-inner {
         width: calc(100% - 32px);
-        min-height: 58px;
+        min-height: var(--ikimon-header-height);
         margin: 0 16px;
         padding: 7px 0;
         display: grid;
@@ -6117,6 +6167,9 @@ ${alternateLinks}
       }
       .desktop-side-nav-toggle {
         display: grid;
+      }
+      .site-header-actions-mobile {
+        display: none !important;
       }
       .brand {
         flex: none;
@@ -6380,6 +6433,9 @@ ${alternateLinks}
         gap: 7px;
         min-width: 0;
       }
+      .desktop-side-nav-toggle {
+        display: none !important;
+      }
       .site-record-link {
         min-height: 40px;
         padding: 10px 13px;
@@ -6408,7 +6464,10 @@ ${alternateLinks}
     }
     @media (max-width: 720px) {
       .md-hidden { display: inline; }
-      :root { --ikimon-page-inline: 24px; }
+      :root {
+        --ikimon-page-inline: 24px;
+        --ikimon-header-height: 62px;
+      }
       .shell { padding: 16px 0 18px; }
       .shell.shell-bleed { padding: 14px 0 18px; }
       .shell.shell-map { padding: 0; }
@@ -6490,6 +6549,14 @@ ${alternateLinks}
         padding-right: 6px;
       }
       .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
+      .brand-wordmark {
+        width: 78px;
+        height: 23px;
+      }
+      .brand-descriptor {
+        max-width: 96px;
+        font-size: 9px;
+      }
       .brand-name { font-size: 16px; }
       .brand-domain { font-size: 11px; }
     }
@@ -6606,4 +6673,5 @@ ${alternateLinks}
   ${uiKpiScript}
 </body>
 </html>`;
+  return applyScriptNonce(document);
 }

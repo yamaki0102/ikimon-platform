@@ -147,18 +147,23 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /sample_/);
   assert.doesNotMatch(html, /\/uploads\/sample_/);
   assert.doesNotMatch(html, /prototype-topa" aria-labelledby="landing-hero-heading"/);
+  assert.doesNotMatch(html, /きれいな写真だけでなく、日常の写真・動画・メモ/);
   assert.doesNotMatch(html, /今日のikimon\.life/);
   assert.doesNotMatch(html, /今日見つけた生きものを、名前が分からなくても残せる。/);
   assert.doesNotMatch(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
   assert.doesNotMatch(html, /名前が分からなくても始められます。/);
-  assert.match(html, /記録する/);
+  assert.doesNotMatch(html, /ぽち/);
   assert.doesNotMatch(html, /名前を確かめる/);
   assert.doesNotMatch(html, /名前は後でいい/);
   assert.doesNotMatch(html, /AIは候補まで/);
   assert.doesNotMatch(html, /位置は安全側/);
-  assert.match(html, /aria-label="育つ観察エリア"/);
+  assert.doesNotMatch(html, /日常でいい/);
+  assert.doesNotMatch(html, /マップは道具/);
+  assert.doesNotMatch(html, /aria-label="育つ観察エリア"/);
   assert.doesNotMatch(html, /地域マップ/);
   assert.match(html, /<section class="prototype-content-wall" aria-label="投稿一覧">/);
+  assert.match(html, /<nav class="prototype-content-filter" aria-label="媒体">/);
+  assert.match(html, /data-media-filter="all"/);
   assert.doesNotMatch(html, /prototype-content-wall-heading/);
   assert.doesNotMatch(html, /WATCH/);
   assert.doesNotMatch(html, /すべて見る/);
@@ -172,7 +177,7 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /data-kpi-action="landing:topA:primary:record"/);
   assert.doesNotMatch(html, /data-kpi-event="primary_cta_click"/);
   assert.doesNotMatch(html, /data-kpi-funnel="landing_record"/);
-  assert.match(html, /data-kpi-action="landing:topA:shelf:localMap"/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:topA:shelf:localMap"/);
 });
 
 test("guide outcome section groups full guide outcome pool instead of the shelf subset", () => {
@@ -280,8 +285,11 @@ test("guide outcome section shows up to four public summaries", () => {
 test("landing top localizes the content-first shelves in English", () => {
   const html = renderTop(emptySnapshot, "en");
 
-  assert.doesNotMatch(html, /Save what you found today/);
+  assert.doesNotMatch(html, /A regional field atlas built together/);
+  assert.doesNotMatch(html, /everyday moments/);
   assert.match(html, /<section class="prototype-content-wall" aria-label="Posts">/);
+  assert.match(html, /<nav class="prototype-content-filter" aria-label="Media">/);
+  assert.match(html, /data-media-filter="all"[^>]*>[\s\S]*All<\/a>/);
   assert.doesNotMatch(html, /WATCH/);
   assert.match(html, /<h3>Everyone&#39;s records<\/h3>/);
   assert.doesNotMatch(html, /Names can come later/);
@@ -299,12 +307,76 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.match(html, /\/observations\/visit-1/);
   assert.match(html, /data-kpi-action="landing:content_wall:community"/);
   assert.match(html, /prototype-content-icon is-image/);
+  assert.match(html, /data-media-filter="photo"/);
+  assert.doesNotMatch(html, /data-media-filter="video"/);
+  assert.match(html, /aria-label="ハート"/);
   assert.doesNotMatch(html, /prototype-content-icon is-globe/);
   assert.doesNotMatch(html, /prototype-content-icon is-user/);
   assert.doesNotMatch(html, /写真と動画/);
   assert.match(html, /<section class="prototype-content-wall" aria-label="投稿一覧">/);
   assert.match(html, /prototype-content-card/);
   assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
+});
+
+test("landing top does not fabricate titles for untitled public cards", () => {
+  const untitledObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-untitled",
+    visitId: "visit-untitled",
+    displayName: "同定待ち",
+    aiCandidateName: null,
+    isAiCandidate: false,
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    feed: [untitledObservation],
+    dailyDashboard: {
+      ...photoSnapshot.dailyDashboard!,
+      featuredObservation: null,
+      seasonalStrip: [],
+    },
+  });
+
+  assert.doesNotMatch(html, /<strong>同定待ち<\/strong>/);
+  assert.doesNotMatch(html, /写真の記録|動画の記録|地域の記録|季節の記録/);
+  assert.match(html, /<span class="prototype-content-meta">\s*<small>浜松市<\/small><small>4月8日<\/small>/);
+  assert.match(html, /aria-label="ハート"/);
+});
+
+test("landing top suppresses place and date on blurred public cards", () => {
+  const sensitiveObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-sensitive",
+    visitId: "visit-sensitive",
+    displayName: "大切な生きもの",
+    municipality: "浜松市中央区",
+    placeName: "希少種の詳しい場所",
+    publicLocation: {
+      label: "位置をぼかしています",
+      scope: "blurred",
+      cellId: null,
+      gridM: null,
+      radiusM: null,
+      centroidLat: null,
+      centroidLng: null,
+      displayMode: "area",
+    },
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    feed: [sensitiveObservation],
+    dailyDashboard: {
+      ...photoSnapshot.dailyDashboard!,
+      featuredObservation: null,
+      seasonalStrip: [],
+    },
+  });
+
+  assert.match(html, /<strong>大切な生きもの<\/strong>/);
+  assert.doesNotMatch(html, /浜松市中央区/);
+  assert.doesNotMatch(html, /希少種の詳しい場所/);
+  assert.doesNotMatch(html, /位置をぼかしています/);
+  assert.doesNotMatch(html, /4月8日/);
 });
 
 test("landing top uses public registered area labels in card metadata", () => {
@@ -332,11 +404,12 @@ test("landing top uses public registered area labels in card metadata", () => {
     },
   });
 
-  assert.match(html, /<small>浜松市 · 浜松城公園<\/small>/);
+  assert.match(html, /<span class="prototype-content-meta">\s*<small>浜松市<\/small>/);
+  assert.doesNotMatch(html, /浜松市 · 浜松城公園/);
   assert.doesNotMatch(html, /浜松城公園 共生エリア/);
 });
 
-test("landing top renders signed-in own and community posts as thumbnail content", () => {
+test("landing top keeps signed-in public stream first with a small my entry", () => {
   const communityObservation: LandingObservation = {
     ...photoObservation,
     occurrenceId: "occ-community",
@@ -355,31 +428,31 @@ test("landing top renders signed-in own and community posts as thumbnail content
   });
 
   assert.match(html, /<section class="prototype-content-wall" aria-label="投稿一覧">/);
-  assert.match(html, /prototype-content-lanes is-split/);
-  assert.match(html, /prototype-content-lane is-mine/);
+  assert.doesNotMatch(html, /prototype-content-lanes is-split/);
+  assert.doesNotMatch(html, /prototype-content-lane is-mine/);
   assert.match(html, /prototype-content-lane is-community/);
-  assert.match(html, /<h3>自分の記録<\/h3>/);
+  assert.doesNotMatch(html, /<h3>自分の記録<\/h3>/);
   assert.match(html, /<h3>みんなの記録<\/h3>/);
-  assert.match(html, />MY RECORDS<\/span>/);
+  assert.doesNotMatch(html, />MY RECORDS<\/span>/);
   assert.match(html, />EVERYONE&#39;S RECORDS<\/span>/);
-  assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=mine" aria-label="自分の記録の投稿をもっと見る"/);
+  assert.match(html, /class="prototype-content-filter-chip is-my" href="\/ja\/records\?view=mine" data-media-filter="mine"/);
   assert.match(html, /class="prototype-content-lane-more" href="\/ja\/records\?view=public" aria-label="みんなの記録の投稿をもっと見る"/);
-  assert.match(html, /data-kpi-action="landing:content_wall:mine:more"/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine:more"/);
   assert.match(html, /data-kpi-action="landing:content_wall:community:more"/);
-  assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine"/);
   assert.match(html, /data-kpi-action="landing:content_wall:community"/);
-  assert.match(html, /prototype-content-avatar/);
-  assert.match(html, /<img src="\/thumb\/sm\/my-avatar\.jpg" alt="" loading="lazy" decoding="async"/);
-  assert.match(html, /<img src="\/thumb\/sm\/community-avatar\.jpg" alt="" loading="lazy" decoding="async"/);
+  assert.doesNotMatch(html, /prototype-content-avatar/);
+  assert.doesNotMatch(html, /<img src="\/thumb\/sm\/my-avatar\.jpg" alt="" loading="lazy" decoding="async"/);
+  assert.doesNotMatch(html, /<img src="\/thumb\/sm\/community-avatar\.jpg" alt="" loading="lazy" decoding="async"/);
   assert.doesNotMatch(html, /prototype-content-icon is-user/);
   assert.doesNotMatch(html, /prototype-content-icon is-globe/);
-  assert.match(html, /モンシロチョウ/);
+  assert.doesNotMatch(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?モンシロチョウ/);
   assert.match(html, /ナナホシテントウ/);
-  assert.match(html, /テスト観察者/);
-  assert.match(html, /別の観察者/);
+  assert.doesNotMatch(html, /テスト観察者/);
+  assert.doesNotMatch(html, /別の観察者/);
 });
 
-test("landing top balances signed-in own posts against twelve community posts", () => {
+test("landing top keeps signed-in home on the public community stream", () => {
   const makeObservation = (index: number, observerUserId: string): LandingObservation => ({
     ...photoObservation,
     occurrenceId: `occ-balanced-${observerUserId}-${index}`,
@@ -393,20 +466,20 @@ test("landing top balances signed-in own posts against twelve community posts", 
   const html = renderTop({
     ...photoSnapshot,
     viewerUserId: "user-1",
-    myFeed: Array.from({ length: 10 }, (_, index) => makeObservation(index, "user-1")),
+    myFeed: Array.from({ length: 14 }, (_, index) => makeObservation(index, "user-1")),
     feed: Array.from({ length: 12 }, (_, index) => makeObservation(index, `user-${index + 2}`)),
   });
 
-  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 6);
+  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 0);
   assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
-  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<h3>自分の記録<\/h3>/);
+  assert.doesNotMatch(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<h3>自分の記録<\/h3>/);
   assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?<h3>みんなの記録<\/h3>/);
   assert.doesNotMatch(html, /prototype-content-lane-title">[\s\S]*?<span>\d+<\/span>/);
-  assert.match(html, /href="\/ja\/records\?view=mine"[^>]*>もっと見る<\/a>/);
+  assert.match(html, /href="\/ja\/records\?view=mine"[^>]*data-media-filter="mine"/);
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
 });
 
-test("landing top keeps signed-in fallback records split by owner", () => {
+test("landing top excludes viewer-owned fallback records from the public stream", () => {
   const ownObservation: LandingObservation = {
     ...photoObservation,
     occurrenceId: "occ-fallback-own",
@@ -432,8 +505,8 @@ test("landing top keeps signed-in fallback records split by owner", () => {
     feed: [ownObservation, communityObservation],
   });
 
-  assert.match(html, /prototype-content-lanes is-split/);
-  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?自分のfallback記録/);
+  assert.doesNotMatch(html, /prototype-content-lanes is-split/);
+  assert.doesNotMatch(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?自分のfallback記録/);
   assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?みんなのfallback記録/);
   assert.doesNotMatch(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?自分のfallback記録/);
 });
@@ -505,8 +578,10 @@ test("landing top does not render the signed-in continuation hero above the cont
   assert.doesNotMatch(html, /前回の記録を見る/);
   assert.doesNotMatch(html, /同じ場所でもう1件/);
   assert.doesNotMatch(html, /data-kpi-action="landing:story:revisit_record"/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:topA:primary:record"/);
   assert.doesNotMatch(html, /data-kpi-funnel="landing_record"/);
-  assert.match(html, /data-kpi-action="landing:content_wall:mine"/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:content_wall:mine"/);
+  assert.match(html, /data-media-filter="mine"/);
 });
 
 test("landing top renders video items as icon-marked thumbnail content", () => {
@@ -531,6 +606,7 @@ test("landing top renders video items as icon-marked thumbnail content", () => {
 
   assert.match(html, /<img src="\/thumb\/md\/video-thumb\.jpg" alt="鳴く鳥の記録"/);
   assert.match(html, /prototype-content-icon is-video/);
+  assert.match(html, /data-media-filter="video"/);
   assert.doesNotMatch(html, /動画あり/);
 });
 
@@ -583,12 +659,28 @@ test("landing top does not render opaque overflow summary cards", () => {
   assert.doesNotMatch(html, /トップでは個別カードを並べすぎず/);
 });
 
-test("landing top keeps local map shelf visible without top daily actions", () => {
+test("landing top keeps local map shelf visible below the atlas role actions", () => {
   const html = renderTop({
     ...photoSnapshot,
     viewerUserId: "user-1",
     stats: { observationCount: 2, speciesCount: 2, placeCount: 1 },
     feed: [photoObservation, alternatePhotoObservation],
+    nearbyFields: [{
+      fieldId: "11111111-1111-4111-8111-111111111111",
+      name: "佐鳴湖公園",
+      source: "user_defined",
+      adminLevel: "osm_park",
+      city: "浜松市",
+      prefecture: "静岡県",
+      localityLabel: "浜松市西区",
+      observationCount: 7,
+      speciesCount: 4,
+      observerCount: 2,
+      latestDisplayName: "モンシロチョウ",
+      signatureDisplayName: "モンシロチョウ",
+      latestObservedAt: "2026-04-25T09:00:00.000Z",
+      latestPhotoUrl: "/uploads/nearby-field.jpg",
+    }],
     dailyDashboard: {
       ...photoSnapshot.dailyDashboard!,
       featuredObservation: photoSnapshot.dailyDashboard!.featuredObservation,
@@ -606,6 +698,7 @@ test("landing top keeps local map shelf visible without top daily actions", () =
   assert.match(html, /地図で見る/);
   assert.doesNotMatch(html, /地図から探す。/);
   assert.doesNotMatch(html, /landing:topA:primary:revisit/);
+  assert.doesNotMatch(html, /マップは道具/);
 });
 
 test("landing top surfaces active registered places before area map links", () => {
@@ -786,6 +879,7 @@ test("landing top hides municipality-only nearby place cards", () => {
 
 test("landing top has medium desktop width relief", () => {
   assert.match(LANDING_TOP_STYLES, /--ikimon-landing-effective-w: min\(var\(--ikimon-page-max\), calc\(var\(--ikimon-landing-available-w\) - max\(var\(--ikimon-page-inline\), 32px\)\)\);/);
+  assert.doesNotMatch(LANDING_TOP_STYLES, /\.site-header/);
   assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) \{[\s\S]*\.shell\.shell-bleed\.prototype-shell \{[\s\S]*width: var\(--ikimon-landing-effective-w\);[\s\S]*margin-left: var\(--ikimon-shell-margin-left\);/);
   assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.prototype-topa h1 \{[\s\S]*max-width: none;[\s\S]*white-space: normal;/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-topa-card-grid,\s*\.prototype-topa-card-grid\.is-primary \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
