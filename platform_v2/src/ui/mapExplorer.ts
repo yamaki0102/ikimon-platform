@@ -212,7 +212,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     tabHeatmap: "季節",
     tabPlaces: "ガイド",
     tabRain: "雨雲",
-    tabCoverage: "未確認",
+    tabCoverage: "記録の空白",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
@@ -1035,7 +1035,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const mobileTabLabels = lang === "ja"
-    ? { markers: "写真", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "未確認" }
+    ? { markers: "写真", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "空白" }
     : lang === "es"
       ? { markers: "Hoy", heatmap: "Est.", places: "Área", rain: "Lluvia", frontier: "Huecos" }
       : lang === "pt-BR"
@@ -1341,7 +1341,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     .join("");
 
   const filterToggleLabel = lang === "ja"
-    ? "表示"
+    ? "レイヤー"
     : lang === "es"
       ? "Filtros"
       : lang === "pt-BR"
@@ -1962,7 +1962,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     selectedRoleLead: props.lang === "ja" ? "手がかり" : props.lang === "es" ? "Pistas" : props.lang === "pt-BR" ? "Pistas" : "Clues",
     selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
     selectionPlaceLabel: props.lang === "ja" ? "地図の手がかり" : props.lang === "es" ? "Pistas del mapa" : props.lang === "pt-BR" ? "Pistas do mapa" : "Map clues",
-    awaitingIdLabel: props.lang === "ja" ? "同定待ち" : props.lang === "es" ? "Sin identificar" : props.lang === "pt-BR" ? "Sem identificação" : "Needs name",
+    awaitingIdLabel: props.lang === "ja" ? "名前待ち" : props.lang === "es" ? "Sin identificar" : props.lang === "pt-BR" ? "Sem identificação" : "Needs name",
     aiCandidateLabel: props.lang === "ja" ? "AI候補" : props.lang === "es" ? "Candidato IA" : props.lang === "pt-BR" ? "Candidato de IA" : "AI candidate",
     recentDiscoveryFallback: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgo reciente" : props.lang === "pt-BR" ? "Descoberta recente" : "Recent find",
     discoveryFallback: props.lang === "ja" ? "発見" : props.lang === "es" ? "Hallazgo" : props.lang === "pt-BR" ? "Descoberta" : "Find",
@@ -6889,7 +6889,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           var meta = [item && item.seasonLabel, item && item.observedAt ? String(item.observedAt).slice(0, 10) : ''].filter(Boolean).join(' / ');
           return '<a class="me-area-positive-record" href="' + escapeHtml(href) + '">'
             + photo
-            + '<strong>' + escapeHtml(localizedDisplayName(item && item.displayName, '同定待ち')) + '</strong>'
+            + '<strong>' + escapeHtml(localizedDisplayName(item && item.displayName, '名前待ち')) + '</strong>'
             + '<small>' + escapeHtml(meta) + '</small>'
             + '</a>';
         }).join('')
