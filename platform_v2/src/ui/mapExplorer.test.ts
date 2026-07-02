@@ -327,7 +327,8 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /function syncViewerOwnedRecordSource\(map\)/);
   assert.match(script, /viewer-owned-observations/);
   assert.match(script, /viewer-owned-observation-dot/);
-  assert.match(script, /record\.isViewerOwned \? '自分だけ正確' : 'おおよその位置'/);
+  assert.match(script, /\.filter\(function \(record\) \{ return !\(record && record\.isViewerOwned\); \}\)/);
+  assert.doesNotMatch(script, /record\.isViewerOwned \? '自分だけ正確' : 'おおよその位置'/);
   assert.match(script, /var maxCards = zoom >= 16 \? 36 : \(zoom >= 15 \? 28 : 24\);/);
   assert.match(script, /if \(isFinite\(gridM\) && gridM <= 500\) return 15\.4;/);
   assert.match(script, /data-own-trail-id/);
@@ -732,7 +733,7 @@ test("area legend explains place meanings and safety states", () => {
   assert.match(styles, /\.me-legend-chip\.is-water i/);
 });
 
-test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
+test("layer tabs expose low-zoom guidance without a floating layer key", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
@@ -740,12 +741,9 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(html, /id="me-layer-hint"/);
   assert.match(html, /id="me-layer-hint-jump"[^>]*>見える場所へ<\/button>/);
   assert.match(html, /aria-label="閉じる"/);
-  assert.match(html, /class="me-layer-key" aria-label="表示中のレイヤー"/);
-  assert.match(html, /公開記録 \/ おおよその位置/);
-  assert.match(html, /data-layer-key-item="frontier"/);
-  assert.match(html, /記録がまだ少ない場所/);
+  assert.doesNotMatch(html, /me-layer-key|表示中のレイヤー|data-layer-key-item/);
   assert.match(script, /function layerHintInfo\(tab\)/);
-  assert.match(script, /data-layer-key-item/);
+  assert.doesNotMatch(script, /data-layer-key-item/);
   assert.match(script, /ズームするとエリア図鑑の範囲が見えます。/);
   assert.match(script, /ズームするとまだ少ない場所が面で見えます。/);
   assert.match(script, /ズームすると季節の気配の濃淡が見えます。/);
@@ -754,8 +752,7 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(script, /fallbackRegionBounds/);
   assert.match(script, /layerHintJumpEl\.addEventListener\('click'/);
   assert.match(styles, /\.me-layer-hint \{/);
-  assert.match(styles, /\.me-layer-key \{/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-layer-key \{\s*display: none;\s*\}/);
+  assert.doesNotMatch(styles, /\.me-layer-key/);
   assert.match(styles, /\.me-layer-hint\.is-hidden \{ display: none; \}/);
   assert.match(styles, /\.me-layer-hint-jump \{/);
 });
@@ -959,9 +956,11 @@ test("community photo preview markers stay compact while allowing more visible p
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /var maxCards = zoom >= 16 \? 36 : \(zoom >= 15 \? 28 : 24\);/);
+  assert.match(script, /\.filter\(function \(record\) \{ return !\(record && record\.isViewerOwned\); \}\)/);
   assert.match(script, /picked\.length >= maxCards/);
   assert.match(script, /var cellCounts = \{\};/);
-  assert.match(script, /if \(!record\.isViewerOwned && cellCount >= \(zoom >= 15 \? 5 : 3\)\) return;/);
+  assert.match(script, /if \(cellCount >= \(zoom >= 15 \? 5 : 3\)\) return;/);
+  assert.doesNotMatch(script, /me-community-photo-marker[\s\S]{0,120}is-exact/);
   assert.match(script, /\[0\.0022, 0\.0016\]/);
   assert.match(script, /center: \{ lng: center\.lng \+ offset\[0\], lat: center\.lat \+ offset\[1\] \}/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview \{\s+width: 50px;\s+min-height: 58px;/);

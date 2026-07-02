@@ -38,6 +38,7 @@ test("map start controls stay compact while key actions remain available", async
   await expect(page.getByRole("tab", { name: "ガイド" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "記録の空白" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "雨雲" })).toBeVisible();
+  await expect(page.locator(".me-layer-key")).toHaveCount(0);
   await expect(startPanel.getByText("記録・ガイド")).toBeVisible();
   const panelBox = await startPanel.boundingBox();
   expect(panelBox?.width).toBeLessThanOrEqual(230);
@@ -83,7 +84,7 @@ test("mobile map bottom surfaces do not cover each other", async ({ browser }) =
 
   await page.goto("/ja/map?tab=guide&lng=137.8589&lat=34.7219&z=16", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".global-record-launcher")).toBeVisible();
-  await expect(page.locator(".me-layer-key")).toBeHidden();
+  await expect(page.locator(".me-layer-key")).toHaveCount(0);
 
   await page.evaluate(() => {
     const trail = document.getElementById("me-own-trail");
@@ -102,7 +103,6 @@ test("mobile map bottom surfaces do not cover each other", async ({ browser }) =
 
   const rects = await page.evaluate<SurfaceRect[]>(() => {
     const surfaces = [
-      { selector: ".me-layer-key", label: "visible layer key" },
       { selector: "#me-own-trail", label: "own photo tray" },
       { selector: ".global-record-launcher", label: "global record launcher" },
       { selector: ".me-layer-hint:not(.is-hidden)", label: "layer hint" },
