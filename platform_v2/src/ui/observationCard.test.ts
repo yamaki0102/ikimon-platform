@@ -163,6 +163,6 @@ test("renderObservationCard does not show non-taxon scene labels as species", ()
     isAiCandidate: true,
   }, { locationMode: "public" });
 
-  assert.match(html, /同定待ち/);
+  assert.match(html, /名前待ち/);
   assert.doesNotMatch(html, /芝生/);
 });

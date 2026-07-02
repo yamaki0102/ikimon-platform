@@ -80,7 +80,6 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     { key: "any", label: "すべて" },
     { key: "nature_symbiosis_site", label: "自然共生サイト" },
     { key: "tsunag", label: "TSUNAG" },
-    { key: "school", label: "学校" },
     { key: "user_defined", label: "マイ" },
   ];
   const sourceChips = sources.map((s) => {
@@ -95,8 +94,16 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     </a>`;
   }).join("");
 
+  const emptyHref = filter.prefecture || filter.source || filter.query ? "/community/fields" : "/map";
   const cards = fields.length === 0
-    ? `<p class="evt-lead">条件に合うフィールドはまだありません。</p>`
+    ? `<div class="evt-card" style="display:grid; gap:10px;">
+        <h3 class="evt-heading" style="margin:0; font-size:18px;">条件に合うフィールドはまだありません</h3>
+        <p class="evt-lead" style="font-size:13px;">地図で近くの記録を見たり、条件を外して公開フィールドを探せます。</p>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <a class="evt-btn evt-btn-primary" href="${escapeHtml(emptyHref)}">${filter.prefecture || filter.source || filter.query ? "条件を外す" : "地図で見る"}</a>
+          <a class="evt-btn evt-btn-ghost" href="/community/events/new">観察会から作る</a>
+        </div>
+      </div>`
     : fields.map((f) => {
         const badgeCls = SOURCE_BADGE[f.source] ?? "evt-mode-discovery";
         const sourceLabel = SOURCE_LABEL[f.source] ?? f.source;
@@ -128,8 +135,9 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     <h1>いつもの場所に、記録が積み上がる。</h1>
     <p>公園、校庭、散歩道、庭先を、次も見返せる観察の場所として残す。記録の厚みや観察会の準備も、ここから始められます。</p>
     <div style="display:flex; flex-wrap:wrap; gap:8px;">
-      <a class="evt-btn evt-btn-primary" href="/community/events/new">観察会を作る</a>
+      <a class="evt-btn evt-btn-primary" href="#field-db-search">フィールドを探す</a>
       <a class="evt-btn evt-btn-ghost" href="/map">地図で見る</a>
+      <a class="evt-btn evt-btn-ghost" href="/community/events/new">観察会を作る</a>
     </div>
   </article>
 

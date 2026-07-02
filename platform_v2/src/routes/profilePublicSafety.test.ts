@@ -53,18 +53,17 @@ test("public profile visual QA contract targets public records instead of owner 
   assert.doesNotMatch(publicProfilePage, /一人の観察と場所の履歴を見る/);
 });
 
-test("signed-in /profile uses the same public profile surface as visitors", async () => {
+test("signed-in /profile uses the owner profile hub while public routes stay public", async () => {
   const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
   const selfProfileRoute = readRoute.slice(
     readRoute.indexOf('app.get("/profile", async'),
     readRoute.indexOf('app.get("/profile/settings"'),
   );
 
-  assert.match(selfProfileRoute, /getProfileSnapshot\(session\.userId, \{ visibility: "public" \}\)/);
-  assert.match(selfProfileRoute, /renderProfileSnapshotBody\(basePath, lang, session\.userId, snapshot, "registered", "public"\)/);
-  assert.doesNotMatch(selfProfileRoute, /visibility: "owner"/);
-  assert.doesNotMatch(selfProfileRoute, /renderSelfProfileHub/);
-  assert.doesNotMatch(selfProfileRoute, /getProfileNoteDigest/);
-  assert.doesNotMatch(selfProfileRoute, /getReferenceProfileSummary/);
-  assert.doesNotMatch(selfProfileRoute, /getRegionalStoryCue/);
+  assert.match(selfProfileRoute, /getProfileSnapshot\(session\.userId, \{ visibility: "owner" \}\)/);
+  assert.match(selfProfileRoute, /renderSelfProfileHub\(basePath, lang, snapshot, digest, \[\], referenceSummary\)/);
+  assert.match(selfProfileRoute, /getProfileNoteDigest\(session\.userId\)/);
+  assert.match(selfProfileRoute, /getReferenceProfileSummary\(session\.userId\)/);
+  assert.doesNotMatch(selfProfileRoute, /getRegionalStoryCue\(profileRegionalStoryInputForPlace\(session\.userId, place\)\)/);
+  assert.doesNotMatch(selfProfileRoute, /renderProfileSnapshotBody\(basePath, lang, session\.userId, snapshot, "registered", "public"\)/);
 });

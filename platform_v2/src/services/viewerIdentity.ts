@@ -4,7 +4,7 @@
  * Security model:
  *  - Authenticated session (cookie) is the only trusted source of identity in production.
  *  - A `?userId=...` query-string override is accepted ONLY when:
- *      (a) `ALLOW_QUERY_USER_ID=1` env is set (staging/QA opt-in), OR
+ *      (a) `ALLOW_QUERY_USER_ID=1` env is set outside production (staging/QA opt-in), OR
  *      (b) the caller's session user id already matches the query userId
  *          (harmless self-identification).
  *  - Without those conditions, `?userId=` is ignored — the session userId wins,
@@ -45,12 +45,16 @@ export function readQueryUserId(query: unknown): string {
   return "";
 }
 
+function isProductionRuntime(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.ENVIRONMENT === "production";
+}
+
 function queryOverrideAllowed(session: SessionLike, requestedUserId: string): boolean {
   if (!requestedUserId) {
     return false;
   }
-  // Explicit staging opt-in.
-  if (process.env.ALLOW_QUERY_USER_ID === "1") {
+  // Explicit staging opt-in. Production must never trust query-string identity.
+  if (process.env.ALLOW_QUERY_USER_ID === "1" && !isProductionRuntime()) {
     return true;
   }
   // Self-identification: the user may spell out their own id in the query.

@@ -89,7 +89,9 @@ export function renderObservationCard(
   const mediaUrl = obs.mediaUrl ?? obs.photoUrl;
   const missingMediaLabel = hasVideo
     ? (lang === "ja" ? "動画" : lang === "es" ? "Video" : lang === "pt-BR" ? "Video" : "Video")
-    : (lang === "ja" ? "写真なし" : lang === "es" ? "Sin foto" : lang === "pt-BR" ? "Sem foto" : "No photo");
+    : mediaUrl
+      ? (lang === "ja" ? "画像を確認中" : lang === "es" ? "Imagen pendiente" : lang === "pt-BR" ? "Imagem pendente" : "Image pending")
+      : (lang === "ja" ? "写真なし" : lang === "es" ? "Sin foto" : lang === "pt-BR" ? "Sem foto" : "No photo");
   const sketchFallback = `<div class="obs-card-photo is-sketch" aria-hidden="true">
     <span class="obs-card-sketch-icon">${isIdentification ? "📝" : hasVideo ? "▶" : "📷"}</span>
     <span class="obs-card-sketch-name">${escapeHtml(subjectLabel)}</span>
@@ -114,19 +116,19 @@ export function renderObservationCard(
   const timestamp = isIdentification ? (obs.identifiedAt ?? obs.observedAt) : obs.observedAt;
   const attribution = kind.attribution(observerLabel);
   const multiBadge = obs.isMultiSubject
-    ? `<span class="obs-card-multi">${lang === "ja" ? `複数対象 ${obs.subjectCount ?? ""}`.trim() : "Multi-subject"}</span>`
+    ? `<span class="obs-card-multi">${lang === "ja" ? `複数あり ${obs.subjectCount ?? ""}`.trim() : "Multi-subject"}</span>`
     : "";
   const focusMeta = obs.isMultiSubject
     ? `<div class="obs-card-focus">
-         <span class="obs-card-focus-label">${lang === "ja" ? "有力対象" : "Featured"}</span>
+         <span class="obs-card-focus-label">${lang === "ja" ? "主に見えているもの" : "Featured"}</span>
          <strong>${escapeHtml(obs.featuredSubjectName ?? subjectLabel)}</strong>
          ${obs.displayStability
            ? `<span class="obs-card-stability is-${escapeHtml(obs.displayStability)}">${escapeHtml(
              obs.displayStability === "locked"
-               ? (lang === "ja" ? "安定表示" : "Stable")
+               ? (lang === "ja" ? "確認済み表示" : "Stable")
                : obs.displayStability === "adaptive"
-                 ? (lang === "ja" ? "AI 既定" : "AI default")
-                 : (lang === "ja" ? "既定表示" : "Default"),
+                 ? (lang === "ja" ? "AI候補" : "AI default")
+                 : (lang === "ja" ? "表示中" : "Default"),
            )}</span>`
            : ""}
        </div>`
@@ -140,7 +142,7 @@ export function renderObservationCard(
   const awaitingId = subjectDisplay.isAwaitingId;
   const speciesClass = `obs-card-species${isAi ? " is-ai-candidate" : ""}${awaitingId ? " is-awaiting" : ""}`;
   const speciesInnerHtml = awaitingId
-    ? `<span class="obs-card-species-label">${lang === "ja" ? "同定待ち" : "Awaiting ID"}</span>`
+    ? `<span class="obs-card-species-label">${lang === "ja" ? "名前待ち" : "Awaiting ID"}</span>`
     : `${subjectQualifier ? `<span class="obs-card-species-ai-badge" aria-label="${escapeHtml(subjectQualifier)}">${escapeHtml(subjectQualifier)}</span>` : ""}<span class="obs-card-species-label">${escapeHtml(subjectLabel)}</span>`;
   return `<article class="obs-card${options.compact ? " is-compact" : ""}${isIdentification ? " is-identification" : ""}" data-entry-type="${escapeHtml(entryType)}">
     <a class="obs-card-media" href="${escapeHtml(appendLangToHref(detailHref, lang))}" aria-label="${escapeHtml(subjectLabel)}">
@@ -161,7 +163,7 @@ export function renderObservationCard(
       ${areaLine ? `<div class="obs-card-area">${escapeHtml(areaLine)}</div>` : ""}
       ${focusMeta}
       <div class="obs-card-actions">
-        <a href="${escapeHtml(identifyHref)}">同定する</a>
+        <a href="${escapeHtml(identifyHref)}">${escapeHtml(lang === "ja" ? "名前を手伝う" : "Identify")}</a>
         ${options.showSpecialistCta ? `<a href="${escapeHtml(specialistHref)}">専門レビュー</a>` : ""}
       </div>
     </footer>

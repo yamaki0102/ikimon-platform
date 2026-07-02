@@ -2547,7 +2547,7 @@ function renderAiCandidateLearningPanel(options: {
                data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/${options.isOwner ? "adopt" : "propose"}`))}">
                ${escapeHtml(options.isOwner ? "観測レコードにする" : "写っている対象として知らせる")}
              </button>`
-          : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">同定する</a>`;
+          : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">名前を手伝う</a>`;
         const displayName = observationDetailUiName(candidate.displayName);
         return `<div class="obs-ai-cutout-card">
           <div>
@@ -10162,24 +10162,24 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
       ]
     : [
         {
-          href: withBasePath(basePath, "/record"),
-          label: "最初の記録",
-          title: firstPlace?.placeName ?? "いま見つけたもの",
-          body: firstPlace ? "同じ場所で次の観察を残す" : "写真と場所を残す",
-          primary: true,
-        },
-        {
-          href: withBasePath(basePath, "/records?view=mine"),
-          label: "記録棚",
-          title: "まだ記録はありません",
-          body: "自分の記録が入る場所を先に確認できます。",
-          primary: false,
-        },
-        {
           href: placeHref,
           label: isPersonalHome ? "地図で見る" : "場所を探す",
           title: placeTitle,
           body: placeBody,
+          primary: true,
+        },
+        {
+          href: withBasePath(basePath, isPersonalHome ? "/records?view=mine" : "/records"),
+          label: isPersonalHome ? "記録棚" : "みんなの記録",
+          title: isPersonalHome ? "まだ記録はありません" : "公開記録を見る",
+          body: isPersonalHome ? "自分の記録が入る場所を先に確認できます。" : "写真と場所から、地域の自然を読み返す",
+          primary: false,
+        },
+        {
+          href: withBasePath(basePath, "/record"),
+          label: "フッターから記録",
+          title: firstPlace?.placeName ?? "いま見つけたもの",
+          body: firstPlace ? "同じ場所で次の観察を残す" : "外では画面下の記録ボタンから始められます。",
           primary: false,
         },
       ];
@@ -10191,8 +10191,8 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
           <h1>${escapeHtml(heroTitle)}</h1>
           <p>${escapeHtml(heroLead)}</p>
           <div class="home-mypage-cta">
-            <a class="home-mypage-button is-primary" href="${escapeHtml(isPersonalHome ? continueHref : withBasePath(basePath, "/record"))}">${escapeHtml(isPersonalHome ? "続きから読む" : "記録する")}</a>
-            <a class="home-mypage-button" href="${escapeHtml(isPersonalHome ? withBasePath(basePath, "/records?view=needs_id") : withBasePath(basePath, "/records?view=mine"))}">${escapeHtml(isPersonalHome ? "名前を確かめる" : "自分の記録")}</a>
+            <a class="home-mypage-button is-primary" href="${escapeHtml(isPersonalHome ? continueHref : withBasePath(basePath, "/map"))}">${escapeHtml(isPersonalHome ? "続きから読む" : "近くを見る")}</a>
+            <a class="home-mypage-button" href="${escapeHtml(isPersonalHome ? withBasePath(basePath, "/records?view=needs_id") : withBasePath(basePath, "/records"))}">${escapeHtml(isPersonalHome ? "名前を確かめる" : "記録を見る")}</a>
           </div>
           ${continueItems.length > 0 ? `<div class="home-continue-strip" aria-label="続きから">
             ${continueItems.map((item) => `<a href="${escapeHtml(item.href)}">
@@ -10205,8 +10205,8 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         <div class="home-today-panel" aria-label="${escapeHtml(isPersonalHome ? "今日の入口" : "今日の入口")}">
           <div class="home-today-head">
             <span>今日の入口</span>
-            <strong>${escapeHtml(latest?.displayName ?? "最初の記録を作る")}</strong>
-            <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "写真、場所、メモのどれか一つから始められます。")}</em>
+            <strong>${escapeHtml(latest?.displayName ?? "近くの自然を見る")}</strong>
+            <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "地域の記録や地図から、次に歩く場所を選べます。")}</em>
           </div>
           <div class="home-action-grid">
             ${homeActionCards.map((card) => `<a class="home-action-card${card.primary ? " is-primary" : ""}" href="${escapeHtml(card.href)}">
@@ -10218,7 +10218,7 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         </div>
       </div>
       <div class="home-mypage-rail" aria-label="ikimon.lifeの流れ">
-        <a href="${escapeHtml(withBasePath(basePath, "/record"))}"><span>見つける</span><strong>記録する</strong></a>
+        <a href="${escapeHtml(withBasePath(basePath, "/record"))}"><span>フッターから</span><strong>記録する</strong></a>
         <a href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}"><span>${escapeHtml(recordCountLabel)}</span><strong>自分の記録</strong></a>
         <a href="${escapeHtml(placeHref)}"><span>${escapeHtml(placeCountLabel)}</span><strong>地図・場所</strong></a>
         <a href="${escapeHtml(withBasePath(basePath, "/profile"))}"><span>公開面</span><strong>プロフィール</strong></a>
@@ -11936,7 +11936,7 @@ function observationIndexCopy(lang: SiteLang): ObservationIndexCopy {
       emptyFiltered: "該当する観察がありません。",
       shortcutIdentify: "名前を確認",
       shortcutConfirm: "確認",
-      identifyAriaTemplate: "{name}を同定する",
+      identifyAriaTemplate: "{name}の名前を手伝う",
       status: { ai: "AI候補", awaiting: "名前待ち", identified: "名前あり" },
       filters: {
         all: "すべて",
@@ -11945,10 +11945,10 @@ function observationIndexCopy(lang: SiteLang): ObservationIndexCopy {
         no_id: "名前なし",
         photo: "写真あり",
         video: "動画あり",
-        multi: "複数対象",
+        multi: "複数あり",
         identified: "名前あり",
       },
-      advanced: { status: "状態", evidence: "証拠", taxon: "分類", rank: "階級", date: "日付", ids: "同定数", sort: "並び" },
+      advanced: { status: "状態", evidence: "証拠", taxon: "分類", rank: "階級", date: "日付", ids: "名前確認数", sort: "並び" },
       options: {
         all: "すべて",
         noPhoto: "写真なし",
@@ -12500,7 +12500,7 @@ function recordsPostEvidenceChips(lang: SiteLang, card: RecordsPostCard, context
     context.hasCandidate ? labels.candidate : "",
   ].filter(Boolean).slice(0, 3);
   if (chips.length === 0) chips.push(labels.needMedia);
-  return `<span class="records-post-evidence" aria-label="${escapeHtml(lang === "ja" ? "同定の手がかり" : "Identification evidence")}">
+  return `<span class="records-post-evidence" aria-label="${escapeHtml(lang === "ja" ? "名前確認の手がかり" : "Identification evidence")}">
     ${chips.map((chip) => `<small>${escapeHtml(chip)}</small>`).join("")}
   </span>`;
 }
@@ -12641,7 +12641,7 @@ function renderRecordsPostCard(
     : `${observerLine}${placeLine} · ${dateLabel}`;
   const memoryLine = recordsPostMemoryLine(options, dateLabel, placeLine);
   const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
-  const identifyActionLabel = lang === "ja" ? "同定する" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify";
+  const identifyActionLabel = lang === "ja" ? "名前を手伝う" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify";
   const identifyAction = view === "needs_id" && card.postNeedsId
     ? `<span class="records-post-action">${escapeHtml(identifyActionLabel)}</span>`
     : "";
@@ -13935,8 +13935,8 @@ function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: L
   const candidateCount = cards.filter((card) => Boolean(card.postCandidateName?.trim())).length;
   const copy = lang === "ja"
     ? {
-        eyebrow: "名前確認",
-        title: "名前を確かめる手伝いをする",
+        eyebrow: "名前待ち",
+        title: "名前待ちの記録を確かめる",
         lead: "写真・動画・場所・候補名を見比べて、確信できる根拠だけを残します。AI候補は確定名ではなく、確認の入口として扱います。",
         waiting: "名前待ち",
         media: "写真・動画あり",
@@ -14071,6 +14071,9 @@ const RECORDS_WORKBENCH_STYLES = `
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     background: #f8fafc;
+  }
+  .records-workbench [hidden] {
+    display: none !important;
   }
   .records-topbar {
     position: sticky;
@@ -15506,7 +15509,7 @@ const RECORDS_WORKBENCH_STYLES = `
     .records-actions { display: none; }
     .records-actions a { min-width: 34px; min-height: 34px; padding: 0 11px; font-size: 12px; }
     .records-actions a.is-primary { font-size: 21px; }
-    .records-main { grid-template-columns: 1fr; padding: 6px 8px 10px; }
+    .records-main { grid-template-columns: 1fr; padding: 6px 8px calc(110px + env(safe-area-inset-bottom)); }
     .records-main.is-identify { grid-template-columns: 1fr; padding-bottom: 232px; }
     .records-identify-intro {
       grid-template-columns: 1fr;
@@ -22998,25 +23001,33 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         appendLangToHref(withBasePath(basePath, "/profile"), lang),
       );
     }
-    const snapshot = await getProfileSnapshot(session.userId, { visibility: "public" });
+    const snapshot = await getProfileSnapshot(session.userId, { visibility: "owner" });
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "記録として読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
+    const [digest, referenceSummary] = await Promise.all([
+      getProfileNoteDigest(session.userId).catch((error) => {
+        console.warn("[read] profile note digest lookup failed", error);
+        return null;
+      }),
+      getReferenceProfileSummary(session.userId).catch((error) => {
+        console.warn("[read] profile reference summary lookup failed", error);
+        return null;
+      }),
+    ]);
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      renderProfileSnapshotBody(basePath, lang, session.userId, snapshot, "registered", "public"),
+      renderSelfProfileHub(basePath, lang, snapshot, digest, [], referenceSummary),
       "ホーム",
       {
         eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "地域図鑑に公開された記録を、粗い地域ラベルで見る。",
-        actions: [
-          { href: "#profile-public-records", label: "公開記録を見る" },
-        ],
+        lead: "自分の記録、場所、名前待ち、地域に残った手がかりを読み返す。",
+        actions: profileHeroActions(),
       },
       PLACE_REVISIT_ROW_STYLES,
       appendLangToHref(withBasePath(basePath, "/profile"), lang),
