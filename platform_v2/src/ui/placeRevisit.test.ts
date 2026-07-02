@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPlaceRecordHref, pickPlaceFocus } from "./placeRevisit.js";
+import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "./placeRevisit.js";
 
 test("pickPlaceFocus prefers next-look guidance over older labels", () => {
   assert.equal(
@@ -11,6 +11,10 @@ test("pickPlaceFocus prefers next-look guidance over older labels", () => {
     }),
     "水辺の鳥",
   );
+});
+
+test("formatShortDate accepts PostgreSQL-style timezone offsets", () => {
+  assert.equal(formatShortDate("2026-06-12 17:25:49+09", "ja-JP"), "6月12日");
 });
 
 test("buildPlaceRecordHref carries quick-mode revisit context", () => {

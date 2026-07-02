@@ -874,13 +874,13 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
-    title: { ja: "フィールド DB", en: "Field database" },
+    title: { ja: "フィールド", en: "Fields" },
     summary: {
       ja: "自然共生サイト・TSUNAG・自分の観察フィールドを横断検索する。",
       en: "Search 自然共生サイト / TSUNAG and your own saved observation fields.",
     },
     primaryAction: { href: "/community/fields", label: { ja: "フィールドを探す", en: "Browse fields" } },
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "フィールド DB" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-fields" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "フィールド" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-fields" } },
   },
   {
     path: "/community/fields/:fieldId",

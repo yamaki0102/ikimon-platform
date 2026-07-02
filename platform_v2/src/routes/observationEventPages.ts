@@ -320,7 +320,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
 
     const html = pageDocument({
       basePath: "",
-      title: "フィールド DB — ikimon.life",
+      title: "フィールド — ikimon.life",
       currentPath: currentPathOf(request),
       body: renderFieldListBody({
         fields,
@@ -374,7 +374,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       reply.type("text/html; charset=utf-8");
       return pageDocument({
         basePath: "",
-        title: `${field.name} — フィールド DB — ikimon.life`,
+        title: `${field.name} — フィールド — ikimon.life`,
         currentPath: currentPathOf(request),
         body: renderFieldDetailBody({ field, stats, snapshot }),
         extraStyles: `${PLACE_SNAPSHOT_STYLES}\n${FIELD_DETAIL_ALBUM_STYLES}`,

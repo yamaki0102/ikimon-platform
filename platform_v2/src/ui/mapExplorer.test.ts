@@ -187,11 +187,11 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /地図メニュー/);
   assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
   assert.match(html, /aria-label="地図メニューを開く"/);
-  assert.match(html, /class="me-start-panel-brief">候補<\/span>/);
+  assert.match(html, /class="me-start-panel-brief">記録・ガイド<\/span>/);
   assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">⌄<\/span>/);
   assert.match(html, /近く/);
   assert.match(html, /許可済みなら近くから始めます。押すと現在地へ移動します。/);
-  assert.match(html, /写真/);
+  assert.match(html, /記録/);
   assert.match(html, /ガイド/);
   assert.match(html, /散策/);
   assert.match(html, /静岡の散策候補/);
@@ -214,7 +214,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.doesNotMatch(html, /data-kpi-action="map:start_panel:record"/);
   assert.doesNotMatch(html, new RegExp("写真、ガイド、散策の" + "手がかり、記録の" + "入口"));
   assert.match(html, /id="me-purpose-hint"/);
-  assert.match(html, /写真・ガイド・散策/);
+  assert.match(html, /記録・ガイド・散策/);
   assert.doesNotMatch(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
   assert.match(html, /この範囲の記録/);
   assert.match(html, /data-testid="map-personal-pulse-panel"/);
@@ -311,7 +311,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(html, /id="me-own-trail-list"/);
   assert.match(html, /自分の撮影/);
   assert.match(html, /自分だけに表示/);
-  assert.match(html, /みんなの写真は地点ではなくエリアで表示/);
+  assert.match(html, /みんなの記録は地点ではなくエリアで表示/);
   assert.match(html, /class="me-map-privacy-strip"/);
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
@@ -741,9 +741,9 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
   assert.match(html, /id="me-layer-hint-jump"[^>]*>見える場所へ<\/button>/);
   assert.match(html, /aria-label="閉じる"/);
   assert.match(html, /class="me-layer-key" aria-label="表示中のレイヤー"/);
-  assert.match(html, /公開記録 \/ エリア表示/);
+  assert.match(html, /公開記録 \/ おおよその位置/);
   assert.match(html, /data-layer-key-item="frontier"/);
-  assert.match(html, /まだ少ない場所/);
+  assert.match(html, /記録がまだ少ない場所/);
   assert.match(script, /function layerHintInfo\(tab\)/);
   assert.match(script, /data-layer-key-item/);
   assert.match(script, /ズームするとエリア図鑑の範囲が見えます。/);
@@ -1051,7 +1051,7 @@ test("map explorer shows the map role without taking over the service subject", 
 
   assert.match(html, /class="me-map-role-strip"/);
   assert.match(html, /近くを探索する/);
-  assert.match(html, /写真・ガイド・散策候補を見ながら、今いる場所から探索できます。/);
+  assert.match(html, /記録・ガイド・散策候補を見ながら、今いる場所から探索できます。/);
   assert.doesNotMatch(html, /ikimon - 皆で作る地域図鑑/);
 });
 

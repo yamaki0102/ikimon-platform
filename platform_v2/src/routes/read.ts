@@ -11000,6 +11000,16 @@ function notesLibraryDateLabel(obs: LandingObservation, lang: SiteLang): string 
   return formatShortDate(notesEntryDate(obs), lang === "ja" ? "ja-JP" : "en-US") || notesEntryDate(obs);
 }
 
+function recordsPublicCardMetaLine(
+  lang: SiteLang,
+  args: { observerLine: string; placeLine: string; sourceLabel: string; civicLabel: string; dateLabel: string },
+): string {
+  const fallbackPlace = notesLibraryCopy(lang).card.fallbackPlace;
+  const placeContext = args.placeLine && args.placeLine !== fallbackPlace ? args.placeLine : "";
+  const context = args.civicLabel || placeContext || args.sourceLabel;
+  return `${args.observerLine}${[context, args.dateLabel].filter(Boolean).join(" · ")}`;
+}
+
 function notesLibraryIsUncertain(obs: LandingObservation): boolean {
   const name = (obs.displayName || obs.proposedName || "").trim();
   return obs.isAiCandidate === true
@@ -12699,7 +12709,8 @@ function renderRecordsPostCard(
   const mediaUrl = recordsRepresentativeMediaUrl(card);
   const rawDisplayName = recordsPostSubjectName(card, lang);
   const displayName = recordsPostDisplayName(lang, card, sourceKind, rawDisplayName);
-  const placeLine = notesPlaceLine(card, lang, options.locationMode) || copy.card.fallbackPlace;
+  const rawPlaceLine = notesPlaceLine(card, lang, options.locationMode);
+  const placeLine = rawPlaceLine || copy.card.fallbackPlace;
   const dateLabel = notesLibraryDateLabel(card, lang);
   const isUncertain = card.postNeedsId || notesLibraryIsUncertain(card);
   const civicContext = options.civicContexts?.get(card.visitId);
@@ -12714,7 +12725,7 @@ function renderRecordsPostCard(
   const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
   const metaLine = options.locationMode === "owner"
     ? [sourceLabel, civicLabel].filter(Boolean).join(" · ")
-    : `${observerLine}${placeLine} · ${dateLabel}`;
+    : recordsPublicCardMetaLine(lang, { observerLine, placeLine, sourceLabel, civicLabel, dateLabel });
   const memoryLine = recordsPostMemoryLine(options, dateLabel, placeLine);
   const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
   const identifyActionLabel = lang === "ja" ? "名前を手伝う" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify";
@@ -23143,23 +23154,25 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         basePath,
         "マイページ | ikimon",
         stateCard(
-          "マイページ",
-          "ログインすると、自分の記録史を読み返せます",
-          `<p style="margin:0 0 12px">記録一覧を起点に、マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
-          <div aria-label="マイページの表示イメージ" style="display:grid; gap:8px; margin:14px 0; padding:12px; border-radius:8px; background:#f8fafc; border:1px solid rgba(15,23,42,.08);">
-            <span style="width:fit-content; padding:3px 8px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:12px; font-weight:900;">表示イメージ</span>
-            <p style="margin:0; color:#334155; font-size:12.5px; line-height:1.55; font-weight:750;">これはサンプルです。あなたの記録で、数字・場所・季節の入口が育ちます。</p>
-            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;">
+          "自分の記録",
+          "ログインすると、残した記録と場所へ戻れます",
+          `<p style="margin:0 0 12px">マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
+          <div aria-label="マイページの表示イメージ" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:14px 0; padding:12px; border-radius:8px; background:#f8fafc; border:1px solid rgba(15,23,42,.08);">
+            <div style="display:grid; gap:8px; align-content:start;">
+              <span style="width:fit-content; padding:3px 8px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:12px; font-weight:900;">表示イメージ</span>
+              <p style="margin:0; color:#334155; font-size:12.5px; line-height:1.55; font-weight:750;">これはサンプルです。あなたの記録で、数字・場所・季節の入口が育ちます。</p>
+              <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">実際の表示では、公開できる範囲だけを使い、自宅・学校・詳しすぎる位置は外して見返せます。</p>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; align-content:start;">
               <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">12</strong><span style="color:#64748b; font-size:12px;">残した記録</span></div>
               <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">4</strong><span style="color:#64748b; font-size:12px;">見返す場所</span></div>
               <div style="padding:10px; border-radius:8px; background:#fff;"><strong style="display:block; font-size:18px;">今季</strong><span style="color:#64748b; font-size:12px;">季節の入口</span></div>
             </div>
-            <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">実際の表示では、公開できる範囲だけを使い、自宅・学校・詳しすぎる位置は外して見返せます。</p>
           </div>
           <p style="margin:0; color:#475569; font-size:13px; line-height:1.55;">すでに記録がある方はログインすると、このページに自分の場所と記録史が戻ります。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(registerHref)}" data-kpi-action="profile:logged_out:register">アカウントを作る</a>
-            <a class="btn btn-ghost" href="${escapeHtml(loginHref)}" data-kpi-action="profile:logged_out:login">ログインしてマイページへ</a>
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}" data-kpi-action="profile:logged_out:login">ログインしてマイページへ</a>
+            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}" data-kpi-action="profile:logged_out:register">アカウントを作る</a>
           </div>`,
         ),
         "ホーム",
