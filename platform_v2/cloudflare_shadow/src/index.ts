@@ -15048,7 +15048,7 @@ async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env:
       }
     });
   }
-  const row = await getFieldDetailReadmodelRow(fieldId, env);
+  const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (row) {
     const viewer = await getAreaSnapshotViewer(request, fieldId, env);
     return json({
@@ -15453,7 +15453,7 @@ async function getUserObservationField(fieldId: string, env: Env): Promise<UserO
 async function getObservationFieldRegistryRow(fieldId: string, env: Env): Promise<{ row: FieldDetailReadmodelRow; ownerUserId: string | null } | null> {
   const userField = await getUserObservationField(fieldId, env).catch(() => null);
   if (userField) return { row: userObservationFieldToReadmodel(userField), ownerUserId: userField.owner_user_id };
-  const readmodel = await getFieldDetailReadmodelRow(fieldId, env);
+  const readmodel = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   return readmodel ? { row: readmodel, ownerUserId: null } : null;
 }
 
@@ -16401,7 +16401,7 @@ async function handleFieldManagers(request: Request, fieldId: string, env: Env):
     if (error instanceof HttpError) return json({ ok: false, error: error.message }, error.status, { "cache-control": "no-store" });
     throw error;
   }
-  const field = await getFieldDetailReadmodelRow(fieldId, env);
+  const field = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (!field) return json({ ok: false, error: "field_not_found" }, 404, { "cache-control": "no-store" });
   if (request.method === "GET") {
     const rows = await env.OBS_DB.prepare(
@@ -16478,7 +16478,7 @@ async function deleteFieldManagerGrant(
 }
 
 async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> {
-  const row = await getFieldDetailReadmodelRow(fieldId, env);
+  const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (!row) {
     return json({ ok: false, error: "field_not_found" }, 404, { "cache-control": "no-store" });
   }
@@ -16502,7 +16502,7 @@ async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> 
 async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, env: Env): Promise<Response | null> {
   const match = parseFieldDetailPath(url.pathname);
   if (!match) return null;
-  const row = await getFieldDetailReadmodelRow(match.fieldId, env);
+  const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(match.fieldId, env);
   if (!row) return null;
   return html(request.method === "HEAD" ? "" : renderFieldDetailHtml(row, match.lang), 200, {
     "cache-control": "no-store",
@@ -16520,7 +16520,7 @@ function parseFieldDetailPath(pathname: string): { lang: string; fieldId: string
 async function getNativePlaceSnapshotHtmlIfAvailable(request: Request, url: URL, env: Env): Promise<Response | null> {
   const match = parsePlaceSnapshotPath(url.pathname);
   if (!match) return null;
-  const row = await getFieldDetailReadmodelRow(match.fieldId, env);
+  const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(match.fieldId, env);
   if (!row) return null;
   return html(request.method === "HEAD" ? "" : renderPlaceSnapshotHtml(row, match.lang), 200, {
     "cache-control": "no-store",
@@ -16585,7 +16585,7 @@ interface D1FixedPointStationAction {
 async function getD1FixedPointStation(placeId: string, env: Env): Promise<D1FixedPointStation | null> {
   const normalizedPlaceId = normalizeOptionalId(placeId);
   if (!normalizedPlaceId || normalizedPlaceId.length > 128) return null;
-  const field = await getFieldDetailReadmodelRow(normalizedPlaceId, env);
+  const field = await getFieldDetailReadmodelRowOrNullOnMissingTable(normalizedPlaceId, env);
   const visitRows = await env.OBS_DB.prepare(
     `SELECT visit_id, observed_at
        FROM production_import_visits
@@ -16775,6 +16775,15 @@ async function getFieldDetailReadmodelRow(fieldId: string, env: Env): Promise<Fi
          FROM production_import_field_detail_readmodel
         WHERE field_id = ?`
     ).bind(fieldId).first<FieldDetailReadmodelRow>();
+  } catch (error) {
+    if (isMissingD1TableError(error, "production_import_field_detail_readmodel")) return null;
+    throw error;
+  }
+}
+
+async function getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId: string, env: Env): Promise<FieldDetailReadmodelRow | null> {
+  try {
+    return await getFieldDetailReadmodelRow(fieldId, env);
   } catch (error) {
     if (isMissingD1TableError(error, "production_import_field_detail_readmodel")) return null;
     throw error;
