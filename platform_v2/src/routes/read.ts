@@ -10660,14 +10660,6 @@ function renderProfileSnapshotBody(
           <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)) + (isOwnerView ? "#identify" : ""))}">${isOwnerView ? "同定する" : "記録を読む"}</a>
         </div>
       </div>`).join("");
-  const ownPublicPreview = !isOwnerView && viewerUserId === snapshot.userId
-    ? `<section class="section" data-testid="profile-public-preview-banner"><div class="card is-soft"><div class="card-body stack">
-        <div class="eyebrow">公開プレビュー</div>
-        <h2>他の人からの見え方</h2>
-        <p class="meta">このページでは、正確な場所、下書き、非公開記録、ストリーク、未公開件数は表示しません。自分用の整理はマイページで行います。</p>
-        <div class="actions"><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/profile"))}">マイページへ戻る</a></div>
-      </div></div></section>`
-    : "";
   const publicBoundary = !isOwnerView
     ? `<section class="section" data-testid="profile-public-boundary"><div class="card is-soft"><div class="card-body stack">
         <div class="eyebrow">公開プロフィール</div>
@@ -10689,7 +10681,6 @@ function renderProfileSnapshotBody(
 
   return `${guestIntro}
       ${mode === "registered" ? renderProfileIntro(basePath, snapshot) : ""}
-      ${ownPublicPreview}
       ${publicBoundary}
       ${placesSection}
       <section class="section" id="profile-public-records"><div class="section-header"><div><div class="eyebrow">${isOwnerView ? "記録" : "公開記録"}</div><h2>${isOwnerView ? "最近の観察" : "地域図鑑に公開された観察"}</h2></div></div><div class="list">${observations || `<div class="row"><div><strong>公開できる記録はまだありません。</strong><p class="meta" style="margin:4px 0 0">ここには公開済みの記録だけが並びます。非公開や下書きの存在は表示しません。</p></div><a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record?start=note"))}">自分も記録する</a></div>`}</div></section>`;
@@ -22501,23 +22492,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古い、または非公開の可能性があります。"), "ホーム");
     }
-    const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-    const isOwnProfile = Boolean(viewerSession?.userId && viewerSession.userId === snapshot.userId);
-    const profileHomeHref = isOwnProfile ? "/profile" : "#profile-public-records";
-
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot, "registered", "public"),
+      renderProfileSnapshotBody(basePath, lang, null, snapshot, "registered", "public"),
       "ホーム",
       {
         eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: isOwnProfile ? "他の人からの見え方プレビュー。公開済みの記録だけを粗い地域で表示します。" : "地域図鑑に公開された記録を、粗い地域ラベルで見る。",
+        lead: "地域図鑑に公開された記録を、粗い地域ラベルで見る。",
         actions: [
-          { href: profileHomeHref, label: isOwnProfile ? "マイページへ戻る" : "公開記録を見る" },
+          { href: "#profile-public-records", label: "公開記録を見る" },
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
@@ -22553,32 +22540,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         appendLangToHref(withBasePath(basePath, "/profile"), lang),
       );
     }
-    const [snapshot, digest, referenceSummary] = await Promise.all([
-      getProfileSnapshot(session.userId, { visibility: "owner" }),
-      getProfileNoteDigest(session.userId),
-      getReferenceProfileSummary(session.userId).catch(() => null),
-    ]);
+    const snapshot = await getProfileSnapshot(session.userId, { visibility: "public" });
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "記録として読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
-    const regionalStories = (await Promise.all(snapshot.recentPlaces.slice(0, 3).map((place) =>
-      getRegionalStoryCue(profileRegionalStoryInputForPlace(session.userId, place)).catch(() => null),
-    ))).filter((story): story is RegionalStoryCue => Boolean(story));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `マイページ | ${snapshot.displayName} | ikimon`,
-      renderSelfProfileHub(basePath, lang, snapshot, digest, regionalStories, referenceSummary),
+      `${snapshot.displayName} | ikimon`,
+      renderProfileSnapshotBody(basePath, lang, session.userId, snapshot, "registered", "public"),
       "ホーム",
       {
-        eyebrow: snapshot.rankLabel || "観察者",
+        eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "あなたのマイページ。記録一覧を起点に、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
-        actions: profileHeroActions(),
+        lead: "地域図鑑に公開された記録を、粗い地域ラベルで見る。",
+        actions: [
+          { href: "#profile-public-records", label: "公開記録を見る" },
+        ],
       },
-      PROFILE_HUB_STYLES,
+      PLACE_REVISIT_ROW_STYLES,
       appendLangToHref(withBasePath(basePath, "/profile"), lang),
     );
   });
