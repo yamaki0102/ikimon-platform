@@ -329,6 +329,29 @@ const MAP_OBSERVER_NAME_SQL = buildObserverNameSql({
   defaultFallback: "Unknown observer",
 });
 
+const PUBLIC_MAP_PRESENTABLE_PHOTO_MIN_BYTES = 8192;
+const PUBLIC_MAP_PRESENTABLE_PHOTO_MAX_TINY_WIDTH = 640;
+const PUBLIC_MAP_PRESENTABLE_PHOTO_MAX_TINY_HEIGHT = 640;
+
+function mapPresentablePhotoAssetSql(assetAlias: string, blobAlias: string): string {
+  const base = VALID_OBSERVATION_PHOTO_ASSET_SQL
+    .replace(/\bea\./g, `${assetAlias}.`)
+    .replace(/\bab\./g, `${blobAlias}.`);
+  return `
+  ${base}
+  and not (
+    coalesce(${blobAlias}.bytes, 0) > 0
+    and ${blobAlias}.bytes <= ${PUBLIC_MAP_PRESENTABLE_PHOTO_MIN_BYTES}
+    and coalesce(${blobAlias}.width_px, 0) > 0
+    and ${blobAlias}.width_px <= ${PUBLIC_MAP_PRESENTABLE_PHOTO_MAX_TINY_WIDTH}
+    and coalesce(${blobAlias}.height_px, 0) > 0
+    and ${blobAlias}.height_px <= ${PUBLIC_MAP_PRESENTABLE_PHOTO_MAX_TINY_HEIGHT}
+  )
+`;
+}
+
+const PUBLIC_MAP_PRESENTABLE_PHOTO_ASSET_SQL = mapPresentablePhotoAssetSql("ea", "ab");
+
 // Kingdom / class-level latin prefixes or Japanese vernacular cues for each
 // coarse group. Order matters: first match wins. The list is intentionally
 // conservative — unknowns fall through to "other" rather than being misplaced.
@@ -792,7 +815,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters, db?: MapSnapshotQuer
       from evidence_assets ea
       join asset_blobs ab on ab.blob_id = ea.blob_id
       where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
-        and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+        and ${PUBLIC_MAP_PRESENTABLE_PHOTO_ASSET_SQL}
       order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
         ea.created_at asc
       limit 1
@@ -1011,7 +1034,7 @@ async function fetchViewerOwnedMapRows(
       from evidence_assets ea
       join asset_blobs ab on ab.blob_id = ea.blob_id
       where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
-        and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+        and ${PUBLIC_MAP_PRESENTABLE_PHOTO_ASSET_SQL}
       order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
         ea.created_at asc
       limit 1
@@ -1889,6 +1912,7 @@ export const __test__ = {
   publicRecordInFixedScope,
   buildPublicMapSnapshotPayload,
   publicMapSnapshotStatusFromRow,
+  mapPresentablePhotoAssetSql,
 };
 
 /**
