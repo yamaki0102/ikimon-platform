@@ -16764,16 +16764,28 @@ function actionLabelForD1FixedPoint(kind: string): string {
 
 async function getFieldDetailReadmodelRow(fieldId: string, env: Env): Promise<FieldDetailReadmodelRow | null> {
   if (!isSafeFieldId(fieldId)) return null;
-  return env.OBS_DB.prepare(
-    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
-            public_cell, public_lat, public_lng, radius_m, area_ha,
-            has_polygon, has_simplified_geometry,
-            certification_id, certification_url, official_url, owner_url, story_url,
-            verification_level, verification_method, verification_label, source_confidence,
-            valid_from, valid_to, entity_key, updated_at
-       FROM production_import_field_detail_readmodel
-      WHERE field_id = ?`
-  ).bind(fieldId).first<FieldDetailReadmodelRow>();
+  try {
+    return await env.OBS_DB.prepare(
+      `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+              public_cell, public_lat, public_lng, radius_m, area_ha,
+              has_polygon, has_simplified_geometry,
+              certification_id, certification_url, official_url, owner_url, story_url,
+              verification_level, verification_method, verification_label, source_confidence,
+              valid_from, valid_to, entity_key, updated_at
+         FROM production_import_field_detail_readmodel
+        WHERE field_id = ?`
+    ).bind(fieldId).first<FieldDetailReadmodelRow>();
+  } catch (error) {
+    if (isMissingD1TableError(error, "production_import_field_detail_readmodel")) return null;
+    throw error;
+  }
+}
+
+function isMissingD1TableError(error: unknown, tableName: string): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("D1_ERROR")
+    && message.includes("no such table")
+    && message.includes(tableName);
 }
 
 function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
@@ -17075,11 +17087,51 @@ function emptyAreaPerspective(key: string, label: string) {
 }
 
 function publicFieldSourceLabel(row: FieldDetailReadmodelRow): string {
+  if (row.source === "user_defined") return "利用者が作成したエリア";
+  if (row.source === "nature_symbiosis_site") return "連携エリア";
+  if (row.source === "tsunag") return "地域連携エリア";
+  if (row.source === "protected_area") return "保護区由来のエリア";
+  if (row.source === "oecm") return "保全候補エリア";
   if (row.source === "school" || row.admin_level === "school") return "学校・教育施設";
-  if (row.source === "nature_symbiosis_site") return "自然共生サイト";
   if (row.source === "park" || row.source === "osm_park") return "公園・緑地";
+  if (row.source === "admin_municipality") return "市区町村データ由来のエリア";
+  if (row.source === "admin_prefecture") return "都道府県データ由来のエリア";
+  if (row.source === "admin_country") return "国・地域データ由来のエリア";
   if (row.source === "water") return "水辺・水路";
-  return row.source || "公開フィールド";
+  return "登録エリア";
+}
+
+function publicFieldVerificationLabel(row: FieldDetailReadmodelRow): string {
+  if (row.verification_label?.trim()) return row.verification_label.trim();
+  switch (row.verification_level) {
+    case "registry_matched":
+      return "台帳確認済み";
+    case "page_verified":
+      return "公式ページ確認済み";
+    case "owner_verified":
+      return "管理者確認済み";
+    case "staff_verified":
+      return "担当者確認済み";
+    default:
+      return "確認待ち";
+  }
+}
+
+function publicFieldVerificationBody(row: FieldDetailReadmodelRow): string {
+  switch (publicFieldVerificationLabel(row)) {
+    case "確認待ち":
+      return "名称や公開範囲は確認中です。安全のため詳細位置は出しません。";
+    case "台帳確認済み":
+      return "公的台帳と照合した範囲で表示しています。";
+    case "公式ページ確認済み":
+      return "公式ページで確認できる範囲に絞って表示しています。";
+    case "管理者確認済み":
+      return "管理主体の確認が取れた範囲で表示しています。";
+    case "担当者確認済み":
+      return "担当者が確認した公開情報として表示しています。";
+    default:
+      return "公開できる範囲の根拠を確認済みです。";
+  }
 }
 
 function publicFieldAccessGuidance(row: FieldDetailReadmodelRow) {
@@ -25090,17 +25142,22 @@ function clampInteger(value: number, min: number, max: number): number {
 function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): string {
   const payload = fieldDetailPublicPayload(row);
   const isEnglish = lang === "en";
-  const title = isEnglish ? `${payload.name} - ikimon field` : `${payload.name} - ikimon フィールド`;
+  const title = isEnglish ? `${payload.name} - area encyclopedia` : `${payload.name} - エリア図鑑`;
   const locationLabel = payload.publicLocation.label;
+  const sourceLabel = publicFieldSourceLabel(row);
+  const verificationLabel = publicFieldVerificationLabel(row);
+  const verificationBody = publicFieldVerificationBody(row);
+  const radiusLabel = payload.radiusM ? `${payload.radiusM}m` : (isEnglish ? "Coarse public range" : "公開範囲を丸めて表示");
+  const publicRangeLabel = payload.radiusM ? `${isEnglish ? "About" : "半径約"} ${payload.radiusM}m` : (isEnglish ? "Coarse public range" : "粗い範囲のみ表示");
   const links = [
-    ["official", payload.links.official],
-    ["certification", payload.links.certification],
-    ["owner", payload.links.owner],
-    ["story", payload.links.story]
+    [isEnglish ? "Official" : "公式", payload.links.official],
+    [isEnglish ? "Certification" : "認定情報", payload.links.certification],
+    [isEnglish ? "Owner" : "管理主体", payload.links.owner],
+    [isEnglish ? "Story" : "事例", payload.links.story]
   ].filter(([, href]) => href);
   const linkHtml = links.length > 0
-    ? `<ul>${links.map(([label, href]) => `<li><a href="${escapeHtml(href)}" rel="nofollow noopener">${escapeHtml(label)}</a></li>`).join("")}</ul>`
-    : `<p class="muted">${isEnglish ? "No public links are available." : "公開リンクはまだありません。"}</p>`;
+    ? `<div class="links">${links.map(([label, href]) => `<a href="${escapeHtml(href)}" rel="nofollow noopener">${escapeHtml(label)} ↗</a>`).join("")}</div>`
+    : `<p class="muted">${isEnglish ? "No public links are available yet." : "公開リンクはまだありません。"}</p>`;
   return `<!doctype html>
 <html lang="${escapeHtml(lang)}">
 <head>
@@ -25108,35 +25165,144 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escapeHtml(title)}</title>
   <style>
-    body { margin: 0; font-family: system-ui, sans-serif; color: #17201a; background: #f6f8f5; }
-    main { max-width: 920px; margin: 0 auto; padding: 30px 18px 56px; }
-    a { color: #176b45; font-weight: 800; }
-    h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: 0; }
-    .meta, .muted { color: #53615a; line-height: 1.7; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 22px; }
-    .panel { background: #fff; border: 1px solid #d8e0da; border-radius: 8px; padding: 15px 16px; }
-    .label { color: #53615a; font-size: 13px; margin: 0 0 6px; }
-    .value { margin: 0; font-weight: 800; overflow-wrap: anywhere; }
-    .summary { font-size: 16px; line-height: 1.85; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; background: #f8fafc; }
+    main { max-width: 1160px; margin: 0 auto; padding: 32px 16px 64px; }
+    a { color: inherit; font-weight: 850; }
+    h1, h2, p { margin: 0; letter-spacing: 0; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+      gap: 16px;
+      padding: clamp(18px, 3vw, 34px);
+      border: 1px solid rgba(15,23,42,.08);
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(240,253,250,.96), rgba(240,249,255,.94) 58%, rgba(255,251,235,.90));
+      box-shadow: 0 18px 50px rgba(15,23,42,.10);
+    }
+    .copy { min-width: 0; display: grid; align-content: center; gap: 12px; }
+    .eyebrow { color: #0f766e; font-size: 12px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { max-width: 24ch; font-size: clamp(30px, 4vw, 48px); line-height: 1.08; font-weight: 950; overflow-wrap: anywhere; }
+    .summary { max-width: 62ch; color: #334155; font-size: 15px; line-height: 1.75; font-weight: 650; }
+    .chips, .actions, .links { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chips span {
+      width: fit-content;
+      max-width: 100%;
+      padding: 7px 10px;
+      border: 1px solid rgba(15,118,110,.18);
+      border-radius: 999px;
+      background: rgba(255,255,255,.78);
+      color: #0f766e;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1.15;
+    }
+    .actions { margin-top: 10px; }
+    .button {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(15,23,42,.10);
+      background: #ffffff;
+      color: #0f172a;
+      text-decoration: none;
+      box-shadow: 0 8px 20px rgba(15,23,42,.08);
+    }
+    .button.primary {
+      border-color: transparent;
+      background: linear-gradient(135deg, #0ea5e9, #10b981);
+      color: #ffffff;
+      box-shadow: 0 18px 36px rgba(16,185,129,.25);
+    }
+    .feature, .panel {
+      min-width: 0;
+      border: 1px solid rgba(15,23,42,.08);
+      border-radius: 18px;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 12px 34px rgba(15,23,42,.07);
+    }
+    .feature { display: grid; align-content: center; gap: 14px; min-height: 250px; padding: 18px; }
+    .mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      border: 1px solid rgba(15,118,110,.16);
+      background: linear-gradient(90deg, rgba(15,118,110,.14) 1px, transparent 1px), linear-gradient(0deg, rgba(14,165,233,.12) 1px, transparent 1px), #f8fffc;
+      background-size: 13px 13px, 13px 13px, auto;
+    }
+    .feature small, .label { color: #0f766e; font-size: 12px; line-height: 1.15; font-weight: 950; }
+    .feature strong { color: #0f172a; font-size: 22px; line-height: 1.25; font-weight: 950; overflow-wrap: anywhere; }
+    .feature em { color: #475569; font-style: normal; font-size: 13px; line-height: 1.55; font-weight: 750; }
+    .range { display: grid; gap: 14px; margin-top: 18px; padding: 18px; }
+    .range header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .range h2 { font-size: 22px; line-height: 1.2; font-weight: 950; }
+    .badge { width: fit-content; max-width: 100%; padding: 7px 10px; border: 1px solid rgba(15,118,110,.18); border-radius: 999px; background: rgba(240,253,250,.96); color: #0f766e; font-size: 12px; font-weight: 900; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .panel { padding: 14px; box-shadow: none; }
+    .label { display: block; margin-bottom: 6px; color: #64748b; font-size: 11px; }
+    .value { display: block; margin-bottom: 6px; color: #0f172a; font-size: 15px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+    .muted { color: #475569; font-size: 12px; line-height: 1.55; font-weight: 750; }
+    .links { margin-top: 10px; }
+    .links a { padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.10); background: #ffffff; color: #0f766e; text-decoration: none; font-size: 13px; }
+    @media (max-width: 880px) {
+      .hero { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      main { padding: 32px 16px 56px; }
+      .hero { padding: 18px; border-radius: 18px; }
+      h1 { font-size: 30px; }
+      .actions .button { flex: 1 1 160px; }
+      .range header { align-items: flex-start; flex-direction: column; }
+      .grid { grid-template-columns: 1fr; }
+      .feature { min-height: 0; }
+    }
   </style>
 </head>
 <body>
 <main data-ikimon-field-detail="1" data-field-id="${escapeHtml(payload.fieldId)}" data-cloudflare-source="field-detail-readmodel">
-  <p class="meta">${isEnglish ? "ikimon public field" : "ikimon 公開フィールド"}</p>
-  <h1>${escapeHtml(payload.name)}</h1>
-  ${payload.summary ? `<p class="summary">${escapeHtml(payload.summary)}</p>` : ""}
-  <section class="grid" aria-label="field metadata">
-    <div class="panel"><p class="label">${isEnglish ? "Public location" : "公開位置"}</p><p class="value">${escapeHtml(locationLabel)} / ${escapeHtml(payload.publicLocation.cell)}</p></div>
-    <div class="panel"><p class="label">${isEnglish ? "Radius" : "半径"}</p><p class="value">${payload.radiusM ? `${payload.radiusM}m` : "-"}</p></div>
-    <div class="panel"><p class="label">${isEnglish ? "Source" : "ソース"}</p><p class="value">${escapeHtml(payload.source)}</p></div>
-    <div class="panel"><p class="label">${isEnglish ? "Verification" : "確認状態"}</p><p class="value">${escapeHtml(payload.verification.label || payload.verification.level || "-")}</p></div>
+  <section class="hero" aria-label="${isEnglish ? "Area encyclopedia" : "エリア図鑑"}">
+    <div class="copy">
+      <p class="eyebrow">${isEnglish ? "Area Encyclopedia" : "エリア図鑑"}</p>
+      <h1>${escapeHtml(payload.name)}</h1>
+      <div class="chips" aria-label="${isEnglish ? "Public range and verification" : "公開範囲と確認状態"}">
+        <span>${isEnglish ? "Public range: approximate" : "公開範囲: 位置をぼかして表示"}</span>
+        <span>${escapeHtml(publicRangeLabel)}</span>
+        <span>${escapeHtml(verificationLabel)}</span>
+        <span>${escapeHtml(sourceLabel)}</span>
+        <span>${escapeHtml(locationLabel)}</span>
+      </div>
+      <p class="summary">${payload.summary ? escapeHtml(payload.summary) : (isEnglish ? "Read public records for this area without exposing exact coordinates." : "このエリアに積み上がる公開記録を、安全な範囲で読むためのページです。")}</p>
+      <div class="actions">
+        <a class="button primary" href="/record?field_id=${encodeURIComponent(payload.fieldId)}">${isEnglish ? "Record in this area" : "このエリアで記録する"}</a>
+        <a class="button" href="#area-public-range">${isEnglish ? "Check public range" : "公開範囲を見る"}</a>
+      </div>
+    </div>
+    <article class="feature">
+      <span class="mark" aria-hidden="true"></span>
+      <small>${isEnglish ? "Public records" : "記録の蓄積"}</small>
+      <strong>${isEnglish ? "Area records are ready to grow" : "このエリアの記録を育てる"}</strong>
+      <em>${isEnglish ? "Photos, sounds, and notes will make this place easier to understand over time." : "写真、音、メモが増えるほど、この場所の変化が読みやすくなります。"}</em>
+    </article>
   </section>
-  <section class="panel">
-    <h2>${isEnglish ? "Links" : "関連リンク"}</h2>
-    ${linkHtml}
-  </section>
-  <section class="panel">
-    <p class="muted">${isEnglish ? "Exact coordinates and geometry are not exposed on this public page." : "この公開ページでは、正確な座標とジオメトリ本体は表示しません。"}</p>
+  <section class="range panel" id="area-public-range" aria-label="${isEnglish ? "Public range and verification" : "公開範囲と確認"}">
+    <header>
+      <div><p class="eyebrow">Safety / Evidence</p><h2>${isEnglish ? "Public range and verification" : "公開範囲と確認"}</h2></div>
+      <span class="badge">${isEnglish ? "Exact location hidden" : "詳細位置は非公開"}</span>
+    </header>
+    <div class="grid">
+      <article class="panel"><span class="label">${isEnglish ? "Public range" : "公開範囲"}</span><strong class="value">${isEnglish ? "Approximate location" : "位置をぼかして表示"}</strong><p class="muted">${isEnglish ? "Exact coordinates and geometry are not exposed on this public page." : "正確な座標とジオメトリ本体は、この公開ページでは表示しません。"}</p></article>
+      <article class="panel"><span class="label">${isEnglish ? "Verification" : "確認状態"}</span><strong class="value">${escapeHtml(verificationLabel)}</strong><p class="muted">${escapeHtml(isEnglish ? "Public evidence is shown only within a safe range." : verificationBody)}</p></article>
+      <article class="panel"><span class="label">${isEnglish ? "Source" : "作成元"}</span><strong class="value">${escapeHtml(sourceLabel)}</strong><p class="muted">${isEnglish ? "Internal source values are translated into readable public labels." : "内部の登録値ではなく、利用者が読める意味に直して表示しています。"}</p></article>
+      <article class="panel"><span class="label">${isEnglish ? "Coarse place" : "粗い場所"}</span><strong class="value">${escapeHtml(locationLabel)}</strong><p class="muted">${escapeHtml(radiusLabel)}</p></article>
+    </div>
+    <section aria-label="${isEnglish ? "Related links" : "関連リンク"}">
+      <p class="label">${isEnglish ? "Evidence links" : "関連リンク"}</p>
+      ${linkHtml}
+    </section>
   </section>
 </main>
 </body>
