@@ -235,10 +235,10 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="ガイド" data-tab="places"/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
   assert.match(html, /class="me-filter-group me-filter-display-group"/);
-  assert.match(html, /<summary class="me-filter-toggle">表示<\/summary>/);
+  assert.match(html, /<summary class="me-filter-toggle">レイヤー<\/summary>/);
   assert.match(html, /<span class="me-filter-label">レイヤー<\/span>/);
   assert.match(html, /data-filter-tab="rain" aria-pressed="false">雨雲<\/button>/);
-  assert.match(html, /data-filter-tab="frontier" aria-pressed="false">未確認<\/button>/);
+  assert.match(html, /data-filter-tab="frontier" aria-pressed="false">記録の空白<\/button>/);
   assert.doesNotMatch(html, /<span class="me-tab-short" aria-hidden="true">余白<\/span>/);
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="写真" data-tab="markers"/);
   assert.doesNotMatch(html, /class="me-tab me-tab-link"/);

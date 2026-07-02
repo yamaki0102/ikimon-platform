@@ -678,6 +678,17 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const privacyAria = lang === "ja" ? "音声と映像のプライバシー" : "Audio and camera privacy";
   const detailsLabel = lang === "ja" ? "仕組みを見る" : "How Guide works";
   const advancedLabel = lang === "ja" ? "細かく調整する" : "Fine-tune settings";
+  const previewCopy = lang === "ja"
+    ? {
+        title: "開始すると表示されるもの",
+        body: "カメラの候補、自然音、歩いた範囲をその場でまとめ、あとから記録として読み返せます。",
+        items: ["いま見えている候補", "自然音のまとまり", "歩いた範囲と空白"],
+      }
+    : {
+        title: "What appears after start",
+        body: "Guide groups camera hints, natural sound, and coverage so you can review the walk later.",
+        items: ["Live candidates", "Natural sound bundles", "Coverage and gaps"],
+      };
   const missions = c.missions.map((mission, index) => `<label class="guide-start-option guide-mission-option">
             <input type="radio" name="guide-mission-choice" value="${escapeHtml(mission.id)}"${index === 0 ? " checked" : ""}>
             <span><b>${escapeHtml(mission.label)}</b><small>${escapeHtml(mission.body)}</small><strong class="guide-mission-badge">${escapeHtml(missionSensorBadge(mission.id))}</strong></span>
@@ -700,6 +711,16 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <h1 class="guide-title">${escapeHtml(c.title)}</h1>
     <p class="guide-subtitle">${escapeHtml(c.subtitle)}</p>
   </div>
+
+  <section class="guide-preview-card" aria-label="${escapeHtml(previewCopy.title)}">
+    <div>
+      <strong>${escapeHtml(previewCopy.title)}</strong>
+      <p>${escapeHtml(previewCopy.body)}</p>
+    </div>
+    <ol>
+      ${previewCopy.items.map((item, index) => `<li><b>${escapeHtml(String(index + 1))}</b><span>${escapeHtml(item)}</span></li>`).join("")}
+    </ol>
+  </section>
 
   <div class="guide-controls">
     <div class="guide-selects">
@@ -3609,6 +3630,13 @@ export const GUIDE_FLOW_STYLES = `
   .guide-header { margin-bottom: 18px; }
   .guide-title { font-size: 32px; font-weight: 950; color: #0f172a; letter-spacing: 0; line-height: 1.12; margin: 0 0 8px; }
   .guide-subtitle { font-size: 15px; color: #334155; margin: 0; line-height: 1.65; font-weight: 500; }
+  .guide-preview-card { margin: 0 0 14px; display: grid; gap: 12px; padding: 14px; border-radius: 8px; background: #10251a; color: #fff; border: 1px solid rgba(15,23,42,.12); box-shadow: 0 14px 32px rgba(15,23,42,.12); }
+  .guide-preview-card strong { display: block; color: #fff; font-size: 15px; line-height: 1.35; font-weight: 950; }
+  .guide-preview-card p { margin: 6px 0 0; color: #d1fae5; font-size: 13px; line-height: 1.65; font-weight: 720; }
+  .guide-preview-card ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .guide-preview-card li { min-width: 0; display: grid; gap: 5px; padding: 10px; border-radius: 8px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); }
+  .guide-preview-card b { width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 999px; background: #10b981; color: #052e1c; font-size: 12px; line-height: 1; font-weight: 950; }
+  .guide-preview-card span { color: #fff; font-size: 12px; line-height: 1.35; font-weight: 850; }
   .guide-context-card { margin-top: 14px; display: grid; gap: 5px; padding: 12px 13px; border-radius: 8px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.9)); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-context-card strong { color: #064e3b; font-size: 13px; line-height: 1.35; font-weight: 800; }
   .guide-context-card p { margin: 0; color: #475569; font-size: 13px; line-height: 1.65; font-weight: 500; }
@@ -3778,6 +3806,7 @@ export const GUIDE_FLOW_STYLES = `
     .guide-start-sheet-backdrop { align-items: center; }
   }
   @media (max-width: 520px) {
+    .guide-preview-card ol { grid-template-columns: 1fr; }
     .guide-audio-chain { grid-template-columns: 1fr; }
     .guide-audio-chain ol { grid-template-columns: 1fr; }
     .guide-start-sheet-backdrop { padding: 10px; }

@@ -151,6 +151,8 @@ test("self profile channel uses real fallback labels instead of English placehol
   assert.match(html, /<span>朝の水音メモ<\/span>/);
   assert.match(html, /<span>水辺の鳥<\/span>/);
   assert.match(html, /<span>タンポポ<\/span>/);
+  assert.match(html, /<span>名前待ち<\/span><strong>1 件<\/strong>/);
+  assert.match(html, /href="\/records\?view=needs_id">名前待ちを見る<\/a>/);
   assert.doesNotMatch(html, />FIELD<\/span>/);
   assert.doesNotMatch(html, />PHOTO<\/span>/);
   assert.doesNotMatch(html, />NEXT<\/span>/);

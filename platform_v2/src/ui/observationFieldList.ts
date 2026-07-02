@@ -123,46 +123,43 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
 
   return `
 <section class="evt-recap-shell">
-  <article class="evt-hero">
+  <article class="evt-hero" style="padding:18px; display:grid; gap:10px;">
     <span class="evt-hero-eyebrow">フィールド DB</span>
-    <h1>「いつもの場所」を、観察会のひな型として残す。</h1>
-    <p>環境省「自然共生サイト」、国交省 TSUNAG、自分で登録した観察フィールド。すべてここから検索して、次の観察会を 1 タップで開ける。</p>
+    <h1>いつもの場所に、記録が積み上がる。</h1>
+    <p>公園、校庭、散歩道、庭先を、次も見返せる観察の場所として残す。記録の厚みや観察会の準備も、ここから始められます。</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <a class="evt-btn evt-btn-primary" href="/community/events/new">観察会を作る</a>
+      <a class="evt-btn evt-btn-ghost" href="/map">地図で見る</a>
+    </div>
   </article>
 
-  <section aria-label="フィールド DB の入口" style="display:grid; gap:12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
-    <a class="evt-card" href="#field-db-search" style="display:grid; gap:8px; text-decoration:none; color:inherit;">
-      <span class="evt-eyebrow">探す</span>
-      <h2 class="evt-heading" style="margin:0; font-size:18px;">場所を探す</h2>
-      <p class="evt-lead" style="font-size:13px;">名前・市町村・都道府県から、記録を見たい場所や観察会に使える場所を探す。</p>
-    </a>
-    <a class="evt-card" href="/community/events/new" style="display:grid; gap:8px; text-decoration:none; color:inherit;">
-      <span class="evt-eyebrow">作る</span>
-      <h2 class="evt-heading" style="margin:0; font-size:18px;">フィールドを登録・イベントを開く</h2>
-      <p class="evt-lead" style="font-size:13px;">登録済みフィールドを選ぶか、新しい範囲を指定して観察会の準備へ進む。</p>
-    </a>
+  <section class="evt-card" aria-label="フィールドを検索" style="display:grid; gap:10px;">
+    <div>
+      <span class="evt-eyebrow">まず検索</span>
+      <p class="evt-lead" style="font-size:13px; margin-top:4px;">名前・市町村・都道府県から、記録を見たい場所や次も歩きたい場所を探す。</p>
+    </div>
+    <form id="field-db-search" action="/community/fields" method="get" style="display:flex; gap:8px;">
+      ${filter.source ? `<input type="hidden" name="source" value="${escapeHtml(filter.source)}" />` : ""}
+      ${filter.prefecture ? `<input type="hidden" name="prefecture" value="${escapeHtml(filter.prefecture)}" />` : ""}
+      <input type="search" name="q" value="${escapeHtml(filter.query ?? "")}"
+             placeholder="名前・市町村・都道府県で検索"
+             style="flex:1; min-height:48px; min-width:0; padding:10px 14px; border-radius:14px; border:1px solid var(--evt-line);" />
+      <button type="submit" class="evt-btn evt-btn-primary">検索</button>
+    </form>
   </section>
 
-  <section style="display:grid; gap:8px;">
-    <span class="evt-eyebrow">都道府県で絞り込み</span>
-    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+  <details style="display:grid; gap:8px; padding:12px; border-radius:8px; border:1px solid var(--evt-line); background:rgba(255,255,255,.82);">
+    <summary class="evt-eyebrow" style="cursor:pointer;">都道府県で絞り込み</summary>
+    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
       <a href="/community/fields" class="evt-mode-pill${filter.prefecture ? "" : " is-active"}" style="text-decoration:none;">全国</a>
       ${prefChips}
     </div>
-  </section>
+  </details>
 
   <section style="display:grid; gap:8px;">
     <span class="evt-eyebrow">種別</span>
     <div style="display:flex; flex-wrap:wrap; gap:6px;">${sourceChips}</div>
   </section>
-
-  <form id="field-db-search" action="/community/fields" method="get" style="display:flex; gap:8px;">
-    ${filter.source ? `<input type="hidden" name="source" value="${escapeHtml(filter.source)}" />` : ""}
-    ${filter.prefecture ? `<input type="hidden" name="prefecture" value="${escapeHtml(filter.prefecture)}" />` : ""}
-    <input type="search" name="q" value="${escapeHtml(filter.query ?? "")}"
-           placeholder="名前・市町村・都道府県で検索"
-           style="flex:1; min-height:48px; padding:10px 14px; border-radius:14px; border:1px solid var(--evt-line);" />
-    <button type="submit" class="evt-btn evt-btn-primary">検索</button>
-  </form>
 
   <section>
     <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">

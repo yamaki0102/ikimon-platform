@@ -9692,6 +9692,9 @@ const PROFILE_HUB_STYLES = `
   .profile-saved-record-pulse span { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
   .profile-saved-record-pulse strong { color: #10251a; font-size: clamp(18px, 2.4vw, 26px); line-height: 1.18; font-weight: 950; overflow-wrap: anywhere; }
   .profile-saved-record-pulse p { margin: 0; color: #475569; font-size: 13px; line-height: 1.65; font-weight: 760; overflow-wrap: anywhere; }
+  .profile-saved-record-stats { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 2px; }
+  .profile-saved-record-stats small { min-height: 32px; display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border-radius: 999px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.14); color: #475569; font-size: 11px; line-height: 1.15; font-weight: 900; }
+  .profile-saved-record-stats b { color: #10251a; font-size: 12px; font-weight: 950; }
   .profile-saved-record-actions { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; }
   .profile-saved-record-pulse a { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; max-width: 100%; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #10251a; text-decoration: none; font-size: 12.5px; line-height: 1.2; font-weight: 950; text-align: center; }
   .profile-saved-record-pulse a.is-primary { background: #10251a; border-color: #10251a; color: #fff; }
@@ -9707,7 +9710,7 @@ const PROFILE_HUB_STYLES = `
   .profile-reading-main { min-width: 0; }
   .profile-reading-main h3 { margin: 8px 0 0; color: #1a2e1f; font-size: clamp(28px, 3.2vw, 44px); line-height: 1.1; letter-spacing: 0; max-width: 18ch; }
   .profile-reading-main p { margin: 12px 0 0; color: #475569; line-height: 1.8; font-weight: 720; max-width: 68em; }
-  .profile-reading-points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .profile-reading-points { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .profile-reading-points div { min-width: 0; min-height: 142px; padding: 14px; border-radius: 8px; border: 1px solid rgba(16,185,129,.14); background: rgba(255,255,255,.78); overflow-wrap: anywhere; }
   .profile-reading-points span { display: block; color: #047857; font-size: 12px; font-weight: 950; }
   .profile-reading-points strong { display: block; margin-top: 8px; color: #1a2e1f; font-size: 16px; line-height: 1.35; }
@@ -9808,6 +9811,8 @@ const PROFILE_HUB_STYLES = `
   }
   @media (max-width: 620px) {
     .profile-saved-record-pulse { display: grid; gap: 12px; padding: 15px; }
+    .profile-saved-record-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .profile-saved-record-stats small { min-width: 0; display: grid; place-items: center; gap: 2px; text-align: center; border-radius: 8px; }
     .profile-saved-record-actions { width: 100%; display: grid; grid-template-columns: 1fr; }
     .profile-saved-record-pulse a { width: 100%; border-radius: 14px; }
     .profile-summary-grid, .profile-next-grid, .profile-life-grid { grid-template-columns: 1fr; }
@@ -9841,6 +9846,14 @@ function profileObservationYears(snapshot: ProfileSnapshot): number {
   if (!Number.isFinite(first)) return 0;
   const days = Math.max(1, Math.round((Date.now() - first) / 86400000));
   return Math.max(1, Math.ceil(days / 365));
+}
+
+function profileObservationNeedsName(item: ProfileSnapshot["recentObservations"][number]): boolean {
+  const name = (item.displayName || item.aiCandidateName || "").trim();
+  return item.isAiCandidate === true
+    || item.identificationCount === 0
+    || name.length === 0
+    || /未同定|同定待ち|名前待ち|unknown|unresolved|awaiting id/iu.test(name);
 }
 
 function profileRevisitCount(snapshot: ProfileSnapshot): number {
@@ -9995,6 +10008,12 @@ function renderProfileSavedRecordPulse(basePath: string, lang: SiteLang, snapsho
   const latest = snapshot.recentObservations[0] ?? null;
   const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
   const recordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
+  const lastRecordLabel = latest ? formatProfileDate(latest.observedAt) : formatProfileDate(snapshot.stats.firstObservedAt);
+  const statsHtml = `<div class="profile-saved-record-stats" aria-label="記録史の要約">
+    <small><b>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</b>記録</small>
+    <small><b>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))}</b>種</small>
+    <small><b>${escapeHtml(lastRecordLabel)}</b>最終</small>
+  </div>`;
   if (!latest) {
     return `<section class="section" data-testid="profile-saved-record-pulse">
       <div class="profile-saved-record-pulse is-empty">
@@ -10002,6 +10021,7 @@ function renderProfileSavedRecordPulse(basePath: string, lang: SiteLang, snapsho
           <span>${escapeHtml(copy.emptyEyebrow)}</span>
           <strong>${escapeHtml(copy.emptyTitle)}</strong>
           <p>${escapeHtml(copy.emptyBody)}</p>
+          ${statsHtml}
         </div>
         <a href="${escapeHtml(recordHref)}" data-kpi-action="profile:saved_record:first_record">${escapeHtml(copy.emptyCta)}</a>
       </div>
@@ -10017,6 +10037,7 @@ function renderProfileSavedRecordPulse(basePath: string, lang: SiteLang, snapsho
         <span>${escapeHtml(copy.savedEyebrow)}</span>
         <strong>${escapeHtml(copy.savedTitlePrefix)} ${escapeHtml(title)}</strong>
         <p>${escapeHtml(`${copy.savedBodyPrefix} ${date} · ${place}`)}</p>
+        ${statsHtml}
       </div>
       <div class="profile-saved-record-actions">
         <a class="is-primary" href="${escapeHtml(latestHref)}" data-kpi-action="profile:saved_record:latest">${escapeHtml(copy.savedCta)}</a>
@@ -10115,6 +10136,53 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         },
       ]
     : [];
+  const homeActionCards = latest
+    ? [
+        {
+          href: latestHref,
+          label: "前回を見る",
+          title: latest.displayName,
+          body: `${formatProfileDate(latest.observedAt)} · ${latest.placeName}`,
+          primary: true,
+        },
+        {
+          href: withBasePath(basePath, "/records?view=mine"),
+          label: "記録棚",
+          title: `${formatProfileNumber(snapshot.recentObservations.length)} 件`,
+          body: "写真と場所を、後から探しやすい形で読み返す",
+          primary: false,
+        },
+        {
+          href: placeHref,
+          label: isPersonalHome ? "地図で見る" : "場所を探す",
+          title: placeTitle,
+          body: placeBody,
+          primary: false,
+        },
+      ]
+    : [
+        {
+          href: withBasePath(basePath, "/record"),
+          label: "最初の記録",
+          title: firstPlace?.placeName ?? "いま見つけたもの",
+          body: firstPlace ? "同じ場所で次の観察を残す" : "写真と場所を残す",
+          primary: true,
+        },
+        {
+          href: withBasePath(basePath, "/records?view=mine"),
+          label: "記録棚",
+          title: "まだ記録はありません",
+          body: "自分の記録が入る場所を先に確認できます。",
+          primary: false,
+        },
+        {
+          href: placeHref,
+          label: isPersonalHome ? "地図で見る" : "場所を探す",
+          title: placeTitle,
+          body: placeBody,
+          primary: false,
+        },
+      ];
   return `<section class="section home-mypage-section" data-testid="home-channel">
     <div class="home-workbench" aria-label="${escapeHtml(isPersonalHome ? "マイページ操作" : "はじめる操作")}">
       <div class="home-mypage-hero">
@@ -10141,21 +10209,11 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
             <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "写真、場所、メモのどれか一つから始められます。")}</em>
           </div>
           <div class="home-action-grid">
-            <a class="home-action-card is-primary" href="${escapeHtml(withBasePath(basePath, "/record"))}">
-              <span>記録する</span>
-              <strong>${escapeHtml(firstPlace?.placeName ?? "いま見つけたもの")}</strong>
-              <em>${escapeHtml(firstPlace ? "同じ場所で次の観察を残す" : "写真と場所を残す")}</em>
-            </a>
-            <a class="home-action-card" href="${escapeHtml(latestHref)}">
-              <span>前回を見る</span>
-              <strong>${escapeHtml(latest?.displayName ?? "まだ記録はありません")}</strong>
-              <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "最初の記録を作る")}</em>
-            </a>
-            <a class="home-action-card" href="${escapeHtml(placeHref)}">
-              <span>${escapeHtml(isPersonalHome ? "地図で見る" : "場所を探す")}</span>
-              <strong>${escapeHtml(placeTitle)}</strong>
-              <em>${escapeHtml(placeBody)}</em>
-            </a>
+            ${homeActionCards.map((card) => `<a class="home-action-card${card.primary ? " is-primary" : ""}" href="${escapeHtml(card.href)}">
+              <span>${escapeHtml(card.label)}</span>
+              <strong>${escapeHtml(card.title)}</strong>
+              <em>${escapeHtml(card.body)}</em>
+            </a>`).join("")}
           </div>
         </div>
       </div>
@@ -10205,11 +10263,13 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
     snapshot.myPlaces,
     "まだ記録した場所はありません。",
   );
+  const recentHeading = snapshot.viewerUserId ? "自分の最近の観察" : "みんなの最近の観察";
+  const recentHref = snapshot.viewerUserId ? "/records?view=mine" : "/records";
   return layout(
     basePath,
     snapshot.viewerUserId ? "マイページ | ikimon" : "ホーム | ikimon",
     `${renderHomeChannelDashboard(basePath, snapshot)}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">すべて見る</a></div><div class="home-grid">${cards}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>${escapeHtml(recentHeading)}</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, recentHref))}">すべて見る</a></div><div class="home-grid">${cards}</div></section>
       ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">場所</div><h2>再訪したい場所</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, "/records?view=places"))}">場所を見る</a></div><div class="list">${myPlaces}</div></section>` : ""}`,
     "ホーム",
     undefined,
@@ -10263,12 +10323,18 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
           .home-mypage-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 620px) {
-          .home-mypage-copy { padding: 20px; border-radius: 14px; }
+          .home-mypage-copy { padding: 16px; border-radius: 14px; gap: 9px; }
           .home-mypage-copy h1 { font-size: 28px; }
-          .home-continue-strip { grid-template-columns: 1fr; }
-          .home-continue-strip a { min-height: 82px; }
-          .home-action-grid { grid-template-columns: 1fr; }
-          .home-action-card { min-height: 98px; }
+          .home-mypage-copy p { font-size: 14px; line-height: 1.55; }
+          .home-continue-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+          .home-continue-strip::-webkit-scrollbar { display: none; }
+          .home-continue-strip a { flex: 0 0 min(72vw, 210px); min-height: 72px; padding: 10px; }
+          .home-today-panel { padding: 13px; gap: 9px; }
+          .home-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+          .home-action-card:first-child { grid-column: 1 / -1; }
+          .home-action-card { min-height: 78px; padding: 11px; gap: 5px; }
+          .home-action-card strong { font-size: 15px; }
+          .home-action-card em { font-size: 12px; line-height: 1.42; }
           .home-mypage-rail { grid-template-columns: 1fr; }
           .home-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
           .home-grid .obs-card-attribution { font-size: 12px; }
@@ -10351,6 +10417,10 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
   const contributionValue = digest
     ? `${escapeHtml(formatProfileNumber(digest.sourceStats.observationCount))} ページ`
     : `${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))} ページ`;
+  const needsNameCount = snapshot.recentObservations.filter(profileObservationNeedsName).length;
+  const needsNameBody = needsNameCount > 0
+    ? "写真やメモを見返すと、地域図鑑として読める記録に近づきます。"
+    : "いま見える範囲の記録は、名前付きのページとして読み返せます。";
   return `<section class="section" data-testid="profile-next-actions">
     <div class="section-header"><div><div class="eyebrow">My history</div><h2>自分の記録史</h2></div></div>
     <div class="profile-reading-digest">
@@ -10363,10 +10433,12 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
         <div><span>はじまり</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(snapshot.stats.firstObservedAt ? `${profileObservationYears(snapshot)} 年分の記録史として読み返せます。` : "最初の記録が入ると、ここから自分の歴史が始まります。")}</p></div>
         <div><span>見えてきたこと</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))} 種を見てきた</strong><p>${escapeHtml(learningBody)}</p></div>
         <div><span>地域への手がかり</span><strong>${contributionValue}</strong><p>${escapeHtml(contributionBody)}</p></div>
+        <div><span>名前待ち</span><strong>${escapeHtml(formatProfileNumber(needsNameCount))} 件</strong><p>${escapeHtml(needsNameBody)}</p></div>
       </div>
       <div class="profile-reading-actions">
         <a class="btn btn-solid" href="${escapeHtml(latestHref)}">前回のページを読む</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録一覧を見る</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=needs_id"))}">名前待ちを見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/guide/outcomes"))}">ガイド成果を見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=places"))}">場所を見る</a>
       </div>
@@ -11847,7 +11919,7 @@ function observationIndexCopy(lang: SiteLang): ObservationIndexCopy {
     ja: {
       activeNav: "見つける",
       title: "観察レコード一覧",
-      identifyTitle: "同定",
+      identifyTitle: "名前を確かめる",
       footerNote: "公開されている観察レコードを、見つける・確かめる・記録する流れにつなげます。",
       countSuffix: "件",
       relatedActionsAria: "関連する操作",
@@ -11862,15 +11934,15 @@ function observationIndexCopy(lang: SiteLang): ObservationIndexCopy {
       resultPanelAria: "観察カード",
       emptyInitial: "まだ表示できる観察レコードがありません。",
       emptyFiltered: "該当する観察がありません。",
-      shortcutIdentify: "同定",
+      shortcutIdentify: "名前を確認",
       shortcutConfirm: "確認",
       identifyAriaTemplate: "{name}を同定する",
-      status: { ai: "AI候補", awaiting: "同定待ち", identified: "同定あり" },
+      status: { ai: "AI候補", awaiting: "名前待ち", identified: "名前あり" },
       filters: {
         all: "すべて",
-        needs_id: "同定待ち",
+        needs_id: "名前待ち",
         ai: "AI候補",
-        no_id: "未同定",
+        no_id: "名前なし",
         photo: "写真あり",
         video: "動画あり",
         multi: "複数対象",
@@ -12107,8 +12179,8 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       tabs: {
         mine: "自分",
         public: "みんな",
-        identification_summary: "同定まとめ",
-        needs_id: "確認待ち",
+        identification_summary: "名前確認",
+        needs_id: "名前待ち",
         media: "メディア",
         places: "場所",
       },
@@ -12116,7 +12188,7 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
         title: "この棚の状態",
         latest: "最新",
         places: "場所",
-        needsId: "確認待ち",
+        needsId: "名前待ち",
         photos: "メディア",
       },
     },
@@ -12399,7 +12471,7 @@ function recordsPostSubjectsHtml(card: RecordsPostCard): string {
 
 function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
   if (!card.postNeedsId) return "";
-  const label = lang === "ja" ? "確認待ち" : lang === "es" ? "Por revisar" : lang === "pt-BR" ? "Revisar" : "Needs ID";
+  const label = lang === "ja" ? "名前待ち" : lang === "es" ? "Por revisar" : lang === "pt-BR" ? "Revisar" : "Needs ID";
   const candidate = card.postCandidateName?.trim();
   return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
 }
@@ -12463,7 +12535,7 @@ function recordsMyPlacesCopy(lang: SiteLang): {
   if (lang === "pt-BR") {
     return { title: "Meus lugares", records: "Registros", places: "Lugares", needsId: "Revisar", empty: "Comece com um registro.", latestFallback: "Registro recente" };
   }
-  return { title: "いつもの場所", records: "記録", places: "場所", needsId: "確認待ち", empty: "まず1件", latestFallback: "最近の記録" };
+  return { title: "いつもの場所", records: "記録", places: "場所", needsId: "名前待ち", empty: "まず1件", latestFallback: "最近の記録" };
 }
 
 function recordsMyPlaces(
@@ -12607,7 +12679,7 @@ function renderRecordsPostCard(
       <span class="records-post-thumb">
         ${thumbHtml}
         <span class="records-post-icon is-${escapeHtml(sourceKind)}" aria-hidden="true"></span>
-        ${view === "needs_id" ? recordsNeedsIdBadge(lang, card) : ""}
+        ${recordsNeedsIdBadge(lang, card)}
       </span>
       <span class="records-post-body">
         <span class="records-post-title-line">
@@ -12654,6 +12726,9 @@ function renderRecordsPostMonths(
 function recordsIdentifyPanelCopy(lang: SiteLang): {
   kicker: string;
   empty: string;
+  emptyBody: string;
+  emptyRecords: string;
+  emptyMap: string;
   candidate: string;
   open: string;
   next: string;
@@ -12680,6 +12755,9 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   if (lang === "en") return {
     kicker: "ID workbench",
     empty: "No records are waiting for ID.",
+    emptyBody: "Use this quiet moment to review recent observations or open the map and find the next place to check.",
+    emptyRecords: "Review records",
+    emptyMap: "Open map",
     candidate: "Candidate",
     open: "Check details",
     next: "Next",
@@ -12706,6 +12784,9 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   if (lang === "es") return {
     kicker: "Mesa de identificacion",
     empty: "No hay registros por revisar.",
+    emptyBody: "Aprovecha este momento para revisar registros recientes o abrir el mapa y encontrar el siguiente lugar.",
+    emptyRecords: "Ver registros",
+    emptyMap: "Abrir mapa",
     candidate: "Candidato",
     open: "Revisar detalle",
     next: "Siguiente",
@@ -12732,6 +12813,9 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
   if (lang === "pt-BR") return {
     kicker: "Bancada de identificacao",
     empty: "Nao ha registros para revisar.",
+    emptyBody: "Use este momento para revisar registros recentes ou abrir o mapa e encontrar o proximo lugar.",
+    emptyRecords: "Ver registros",
+    emptyMap: "Abrir mapa",
     candidate: "Candidato",
     open: "Ver detalhe",
     next: "Proximo",
@@ -12756,8 +12840,11 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     nameRequired: "Adicione um nome, ou use Falta evidencia.",
   };
   return {
-    kicker: "同定ワークベンチ",
-    empty: "確認待ちの記録はありません。",
+    kicker: "名前を確かめる",
+    empty: "いま名前待ちの記録はありません。",
+    emptyBody: "この状態は終点ではありません。最近の記録を見返すか、地図から次に歩く場所を選べます。",
+    emptyRecords: "記録を見る",
+    emptyMap: "地図を開く",
     candidate: "候補",
     open: "詳細で確認",
     next: "次へ",
@@ -12769,7 +12856,7 @@ function recordsIdentifyPanelCopy(lang: SiteLang): {
     nameLabel: "名前",
     noteLabel: "理由メモ",
     reference: "この資料で確認",
-    login: "ログインすると同定を記録できます。",
+    login: "ログインすると名前確認メモを保存できます。",
     noReferences: "この分類群の参照資料はまだありません。",
     loadingReferences: "資料を確認しています...",
     locator: "ページ・図版番号",
@@ -12796,6 +12883,11 @@ function renderRecordsIdentifyPanel(
       <div class="records-identify-head">
         <span>${escapeHtml(copy.kicker)}</span>
         <strong data-identify-panel-title>${escapeHtml(copy.empty)}</strong>
+        <p>${escapeHtml(copy.emptyBody)}</p>
+      </div>
+      <div class="records-identify-empty-actions">
+        <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}">${escapeHtml(copy.emptyRecords)}</a>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.emptyMap)}</a>
       </div>
     </aside>`;
   }
@@ -13432,7 +13524,7 @@ function renderRecordsStoryStrip(
         <small>${escapeHtml(copy.naming)}</small>
         <strong>${escapeHtml(formatNotesNumber(needsNameCount, lang))}</strong>
         <span>${escapeHtml(lang === "ja" ? "名前を確かめる余地がある記録" : "Records still open for naming")}</span>
-        <em>${escapeHtml(lang === "ja" ? "確認待ちを見る" : "Open needs ID")}</em>
+        <em>${escapeHtml(lang === "ja" ? "名前待ちを見る" : "Open needs ID")}</em>
       </a>
     </div>
   </section>`;
@@ -13485,13 +13577,13 @@ type IdentificationSummaryCopy = {
 function identificationSummaryCopy(lang: SiteLang): IdentificationSummaryCopy {
   if (lang === "ja") {
     return {
-      title: "同定まとめ | ikimon",
-      activeNav: "同定まとめ",
-      lead: "確認待ちの記録と、根拠が足りない記録を整理します。",
-      continueAction: "同定を続ける",
+      title: "名前確認 | ikimon",
+      activeNav: "名前確認",
+      lead: "名前待ちの記録と、根拠が足りない記録を整理します。",
+      continueAction: "名前確認を続ける",
       libraryAction: "資料ライブラリ",
       metrics: {
-        waiting: "確認待ち",
+        waiting: "名前待ち",
         referenceReady: "資料候補あり",
         held: "保留中",
         missingEvidence: "追加写真が必要",
@@ -13520,7 +13612,7 @@ function identificationSummaryCopy(lang: SiteLang): IdentificationSummaryCopy {
       teamStatus: "団体ステータス",
       open: "開く",
       openWorkbench: "作業台で開く",
-      noRecords: "今は確認待ちの記録がありません。",
+      noRecords: "今は名前待ちの記録がありません。",
       emptyLane: "この条件の記録はまだありません。",
       sourceLabel: "この資料で確認",
       noReference: "資料なし",
@@ -13843,15 +13935,19 @@ function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: L
   const candidateCount = cards.filter((card) => Boolean(card.postCandidateName?.trim())).length;
   const copy = lang === "ja"
     ? {
-        eyebrow: "同定",
+        eyebrow: "名前確認",
         title: "名前を確かめる手伝いをする",
         lead: "写真・動画・場所・候補名を見比べて、確信できる根拠だけを残します。AI候補は確定名ではなく、確認の入口として扱います。",
-        waiting: "確認待ち",
+        waiting: "名前待ち",
         media: "写真・動画あり",
         candidate: "候補あり",
         open: "カードを選ぶ",
+        noWaitingTitle: "いま名前待ちの記録はありません",
+        noWaitingLead: "次に名前を確かめる材料を探すなら、最近の記録か地図から始められます。",
+        records: "記録を見る",
+        map: "地図を開く",
         reference: "資料を登録",
-        login: "ログインすると同定メモを保存できます。",
+        login: "ログインすると名前確認メモを保存できます。",
       }
     : {
         eyebrow: "Identification",
@@ -13861,9 +13957,27 @@ function renderRecordsIdentifyIntro(basePath: string, lang: SiteLang, entries: L
         media: "Media ready",
         candidate: "Candidates",
         open: "Choose a card",
+        noWaitingTitle: "No records are waiting for names",
+        noWaitingLead: "Review recent records or open the map to find the next place to check.",
+        records: "Review records",
+        map: "Open map",
         reference: "Add reference",
         login: "Log in to save identification notes.",
       };
+  if (waitingCount === 0) {
+    return `<section class="records-identify-intro is-empty" data-testid="records-identify-intro">
+      <div class="records-identify-intro-copy">
+        <span>${escapeHtml(copy.eyebrow)}</span>
+        <h1>${escapeHtml(copy.noWaitingTitle)}</h1>
+        <p>${escapeHtml(copy.noWaitingLead)}</p>
+        ${canWriteIdentification ? "" : `<em>${escapeHtml(copy.login)}</em>`}
+      </div>
+      <div class="records-identify-intro-actions">
+        <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=public"), lang))}">${escapeHtml(copy.records)}</a>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.map)}</a>
+      </div>
+    </section>`;
+  }
   return `<section class="records-identify-intro" data-testid="records-identify-intro">
     <div class="records-identify-intro-copy">
       <span>${escapeHtml(copy.eyebrow)}</span>
@@ -14503,16 +14617,18 @@ const RECORDS_WORKBENCH_STYLES = `
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 8px;
+    min-height: 30px;
+    padding: 7px 9px;
     border-radius: 999px;
-    background: rgba(255,255,255,.92);
-    color: #10251a;
-    box-shadow: 0 8px 18px rgba(15,23,42,.14);
+    background: rgba(254,243,199,.96);
+    color: #78350f;
+    border: 1px solid rgba(180,83,9,.22);
+    box-shadow: 0 8px 18px rgba(120,53,15,.16);
   }
   .records-post-needs-id b {
     flex: 0 0 auto;
-    color: #047857;
-    font-size: 10px;
+    color: #92400e;
+    font-size: 11px;
     line-height: 1;
     font-weight: 950;
   }
@@ -14521,8 +14637,8 @@ const RECORDS_WORKBENCH_STYLES = `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #334155;
-    font-size: 10px;
+    color: #78350f;
+    font-size: 10.5px;
     line-height: 1;
     font-weight: 850;
   }
@@ -14697,6 +14813,32 @@ const RECORDS_WORKBENCH_STYLES = `
     font-size: 12px;
     line-height: 1.5;
     font-weight: 780;
+  }
+  .records-identify-empty-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .records-identify-empty-actions a {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 1.15;
+    font-weight: 950;
+    text-align: center;
+  }
+  .records-identify-empty-actions a.is-primary {
+    background: #047857;
+    border-color: #047857;
+    color: #fff;
   }
   .records-identify-media {
     width: 100%;

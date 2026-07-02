@@ -3135,7 +3135,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     const observationCount = Number(stats.observationCount || 0);
     const needsIdCount = Number(stats.needsIdCount || 0);
     if (observationCount > 0) parts.push(observationCount + '件');
-    if (needsIdCount > 0) parts.push('同定待ち' + needsIdCount);
+    if (needsIdCount > 0) parts.push('名前待ち' + needsIdCount);
     if (stats.followed) parts.push('フォロー中');
     return parts.slice(0, 2).join(' · ');
   };
@@ -6757,7 +6757,7 @@ ${alternateLinks}
       }
       .has-global-record-launcher .site-header-actions-mobile .site-record-link { display: none; }
       .is-reading-surface .site-header-actions-mobile .site-record-link { display: none; }
-      .site-shell.has-global-record-launcher { padding-bottom: 88px; }
+      .site-shell.has-global-record-launcher { padding-bottom: calc(112px + max(0px, env(safe-area-inset-bottom))); }
       .site-shell.has-global-record-launcher.is-map-surface { padding-bottom: 0; }
       .site-shell.is-map-surface .global-record-launcher { z-index: 72; }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
