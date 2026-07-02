@@ -127,11 +127,19 @@ function publicPathUrl(publicPath) {
 function renderUrlForPath(publicPath) {
   const parsed = publicPathUrl(publicPath);
   const pathname = parsed.pathname;
+  if (pathname === "/home") {
+    return `/${parsed.search}`;
+  }
   const localizedMatch = pathname.match(/^\/(ja|en|es|pt-br)(\/.*)?$/);
   if (localizedMatch) {
     const segment = localizedMatch[1];
     const rest = localizedMatch[2] || "/";
     const lang = segment === "pt-br" ? "pt-BR" : segment;
+    if (rest === "/home") {
+      const params = new URLSearchParams(parsed.searchParams);
+      params.set("lang", lang);
+      return `/?${params.toString()}`;
+    }
     if (localizedRenderPaths.has(rest)) {
       const params = new URLSearchParams(parsed.searchParams);
       params.set("lang", lang);
