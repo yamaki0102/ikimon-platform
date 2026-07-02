@@ -52,7 +52,8 @@ test("field list splits first choice into place search and event setup", () => {
   assert.match(html, /記録を見たい場所や次も歩きたい場所/);
   assert.match(html, /まず検索/);
   assert.match(html, /id="field-db-search"/);
-  assert.match(html, /観察会を作る/);
+  assert.match(html, /フィールドを探す/);
+  assert.doesNotMatch(html, />学校<\/a>/);
   assert.match(html, /href="\/community\/events\/new"/);
   assert.match(html, /<summary class="evt-eyebrow"[^>]*>都道府県で絞り込み<\/summary>/);
 });

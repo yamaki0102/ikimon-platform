@@ -119,7 +119,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startSheetBody: "音声はあとからONにできます。気になる場所だけ詳しく残して、今日の発見を自分の記録に戻せます。",
     startOutcomeTitle: "成果サンプル",
     startOutcomeSample: "候補: 水辺の草地で、湿った地面と低い葉が見えます。次は葉の裏や水際を近くで見ると、観察のヒントが増えます。",
-    startOutcomeBenefit: "許可するまでカメラとマイクは起動しません。音声は初期OFFで、人の声らしい音は保存しません。",
+    startOutcomeBenefit: "許可するまでカメラとマイクは起動しません。音声は初期OFFで、人の声らしい音は保存しない設計です。",
     missionChoiceTitle: "今日のミッション",
     missionChoiceBody: "迷ったら「歩きながら見る」で始めてください。音声や移動手段はあとから調整できます。",
     missions: [
@@ -139,7 +139,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     cameraOffBtn: "カメラOFF",
     cameraOffHint: "カメラOFFでは映像解析は行わず、音声ONの場合だけ自然音を記録します。",
     audioChoiceTitle: "自然音も使いますか？",
-    audioChoiceBody: "鳥・虫・水音を拾いたい時だけON。人の声らしい音は保存しません。",
+    audioChoiceBody: "鳥・虫・水音を拾いたい時だけON。人の声らしい音は保存しない設計です。",
     audioOnBtn: "音声ON",
     audioOffBtn: "音声OFF",
     beginWithChoices: "この設定で開始する",
@@ -149,7 +149,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOnlyTitle: "音声だけで記録中",
     audioOnlyBody: "カメラ映像は取得していません。ポケットに入れて歩くときは、このまま自然音の手がかりを集められます。",
     cameraOnlyNotice: "カメラだけで開始しました。音声は記録しません。",
-    cameraAudioNotice: "カメラと音声で開始しました。人声らしい音は保存しません。",
+    cameraAudioNotice: "カメラと音声で開始しました。人声らしい音は保存しない設計です。",
     recommendedTitle: "おすすめ設定",
     recommendedBody: "徒歩、自転車、オープンカーのように自然音も拾える時は「カメラON + 音声ON」が一番情報量を増やせます。",
     recommendedApply: "おすすめを使う",
@@ -167,7 +167,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryEvidenceEmpty: "まず1つ、近い特徴か場所の状態を足すと強くなります。",
     sessionSummaryNextEmpty: "同じ場所で葉・花・水辺・地面のどれかをもう一度見てください。",
     sessionSummaryResultsLink: "ガイド成果を確認する",
-    offlineOnline: "オンライン",
+    offlineOnline: "オンライン。電波が弱い場所では端末に一時保存します。",
     offlineOffline: "オフライン中",
     offlineQueued: "未同期 {count}件",
     offlineSyncing: "同期中",
@@ -197,22 +197,22 @@ const COPY: Record<SiteLang, GuideCopy> = {
     choosePhotoBtn: "記録用写真を選ぶ",
     photoAnalysing: "写真を解析中…",
     analysing: "解析中…",
-    started: "ガイド中。解析用フレームは自動送信され、元画像は保存しません。Trailでサムネイルと保存理由を確認できます。",
+    started: "ガイド中。解析用フレームを送り、元画像は保存しない設計です。Trailでサムネイルと保存理由を確認できます。",
     stopped: "停止しました。解析済みの足跡は下に残ります。",
     playing: "▶ ガイド音声を再生中",
-    privacyNotice: "人の声らしい音は保存しません。映像は解析用の小さなフレームだけ送り、元画像は保存しません。",
-    frameNotice: "端末画像全体のアップロードボタンはありません。解析用の小さなフレームだけ自動で送り、保存するのはサムネイル・解析結果・保存/除外理由です。自然音はONにした時だけ短い候補を別記録にします。",
+    privacyNotice: "音声は初期OFFです。人の声らしい音は保存しない設計で、映像は解析用フレームだけを扱います。",
+    frameNotice: "端末画像全体のアップロードボタンはありません。解析用の小さなフレームだけを送り、保存するのはサムネイル・解析結果・保存/除外理由です。自然音はONにした時だけ短い候補を別記録にします。",
     naturalSoundBadge: "音声は初期OFF",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
     audioOffNotice: "音声記録はOFFです。野外らしい発見は自動保存し、室内・人物中心・自然手がかりが弱いものは残しません。",
     audioOptInBtn: "自然音も記録する",
     audioOptOutBtn: "音声記録を止める",
-    audioOptInNotice: "音声記録をONにしました。人声らしい音は保存せず、自然音候補だけ2秒単位で保存します。",
+    audioOptInNotice: "音声記録をONにしました。人声らしい音は保存しない設計で、自然音候補だけ2秒単位で保存します。",
     audioUnavailableNotice: "マイクなしで開始しました。映像だけで解析します。",
     contextTitle: "種名より、場所の状態を読む",
     contextBody: "ライブガイドは、種名が確定しない場面でも、植生・草刈り・水路・道路際・土地利用の細かな変化を足跡として残します。看板や車名は生きものとして扱いません。",
     audioTitle: "今回の音の記録",
-    audioEmpty: "自然音のまとまりはまだありません",
+    audioEmpty: "音声をONにすると自然音の候補がここに並びます",
     audioSkipped: "一部の音声はプライバシー保護のため保存していません",
     audioUnnamed: "まだ名前が付いていない音",
     nowTitle: "Now",
@@ -222,7 +222,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     nowNextAnalysing: "その場で止まらず、次は近い特徴か周辺環境を1つ足してください。",
     nowNextFallback: "次は葉・花・水辺・地面・人工物との境目のどれかを1つ見てください。",
     trailTitle: "Trail",
-    trailEmpty: "さっきの発見はまだありません",
+    trailEmpty: "開始すると発見候補がここに並びます",
     trailPending: "さっきの景色を解析中",
     trailDeferred: "移動中なので足跡に残しました",
     playTrail: "聞く",
@@ -682,7 +682,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     ? {
         title: "開始すると表示されるもの",
         body: "カメラの候補、自然音、歩いた範囲をその場でまとめ、あとから記録として読み返せます。",
-        items: ["いま見えている候補", "自然音のまとまり", "歩いた範囲と空白"],
+        items: ["いま見えている候補", "自然音のまとまり", "見た範囲と空白"],
       }
     : {
         title: "What appears after start",
@@ -821,7 +821,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       </details>
 
       <p class="guide-start-sheet-live" id="guide-start-sheet-live" aria-live="polite"></p>
-      <p class="guide-start-consent">${escapeHtml(c.privacyNotice)}</p>
+      <p class="guide-start-consent">${escapeHtml(c.frameNotice)}</p>
       <div class="guide-start-sheet-actions">
         <button class="guide-sheet-secondary" id="guide-start-cancel" type="button">${escapeHtml(c.startSheetCancel)}</button>
         <button class="guide-sheet-primary" id="guide-start-confirm" type="button">${escapeHtml(c.beginWithChoices)}</button>
@@ -909,7 +909,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   <div class="guide-audio" id="guide-audio">
     <div class="guide-audio-header">
       <h2 class="guide-audio-title">${escapeHtml(c.audioTitle)}</h2>
-      <p class="guide-audio-note">${escapeHtml(c.privacyNotice)}</p>
+      <p class="guide-audio-note">${escapeHtml(c.audioChoiceBody)}</p>
     </div>
     <p class="guide-audio-skipped" id="guide-audio-skipped" hidden></p>
     <ul class="guide-audio-list" id="guide-audio-list">

@@ -35,7 +35,7 @@ test("formatTaxonDisplayName uses Japanese AI candidate before Latin fallback", 
 test("formatTaxonDisplayName normalizes unresolved labels", () => {
   assert.deepEqual(
     formatTaxonDisplayName({ displayName: "Awaiting ID" }, "ja"),
-    { primaryLabel: "同定待ち", qualifier: null, isAwaitingId: true },
+    { primaryLabel: "名前待ち", qualifier: null, isAwaitingId: true },
   );
   assert.deepEqual(
     formatTaxonDisplayName({ displayName: "同定待ち", aiCandidateName: "シロツメクサ" }, "ja"),
@@ -46,7 +46,7 @@ test("formatTaxonDisplayName normalizes unresolved labels", () => {
 test("formatTaxonDisplayName rejects scene labels as taxon names", () => {
   assert.deepEqual(
     formatTaxonDisplayName({ displayName: "芝生", aiCandidateName: "芝生" }, "ja"),
-    { primaryLabel: "同定待ち", qualifier: null, isAwaitingId: true },
+    { primaryLabel: "名前待ち", qualifier: null, isAwaitingId: true },
   );
   assert.deepEqual(
     formatTaxonDisplayName({ displayName: "イネ科", aiCandidateName: "芝生" }, "ja"),
@@ -54,7 +54,7 @@ test("formatTaxonDisplayName rejects scene labels as taxon names", () => {
   );
   assert.deepEqual(
     formatTaxonDisplayName({ displayName: "城壁と周辺植生", aiCandidateName: "石垣・城壁の植生" }, "ja"),
-    { primaryLabel: "同定待ち", qualifier: null, isAwaitingId: true },
+    { primaryLabel: "名前待ち", qualifier: null, isAwaitingId: true },
   );
 });
 
@@ -80,6 +80,6 @@ test("formatActorDisplay localizes common actor fallbacks", () => {
 });
 
 test("formatIdentificationCount localizes ids on Japanese UI", () => {
-  assert.equal(formatIdentificationCount(3, "ja"), "同定 3 件");
+  assert.equal(formatIdentificationCount(3, "ja"), "名前確認 3 件");
   assert.equal(formatIdentificationCount(3, "en"), "3 ids");
 });

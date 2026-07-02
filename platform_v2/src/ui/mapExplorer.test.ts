@@ -756,8 +756,8 @@ test("layer tabs expose low-zoom guidance and a visible-layer jump", () => {
 test("mobile layer tabs fit within the topbar instead of clipping the final tab", () => {
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab\[data-tab="frontier"\] \{[\s\S]*display: none;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tabs \{[\s\S]*display: grid;[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);[\s\S]*overflow: hidden;/);
+  assert.doesNotMatch(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab\[data-tab="frontier"\] \{[\s\S]*display: none;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-tab \{[\s\S]*min-width: 0;[\s\S]*text-overflow: ellipsis;/);
 });
 

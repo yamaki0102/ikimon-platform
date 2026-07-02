@@ -63,7 +63,7 @@ export function formatTaxonDisplayName(
   },
   lang: SiteLang,
 ): TaxonDisplayName {
-  const awaiting = lang === "ja" ? "同定待ち" : "Awaiting ID";
+  const awaiting = lang === "ja" ? "名前待ち" : "Awaiting ID";
   const vernacular = normalizeTaxonDisplayLabel(input.vernacularName);
   const scientific = clean(input.scientificName);
   const display = normalizeTaxonDisplayLabel(input.displayName);
@@ -126,6 +126,6 @@ export function formatActorDisplay(value: string | null | undefined, lang: SiteL
 
 export function formatIdentificationCount(count: number, lang: SiteLang): string {
   const safeCount = Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0;
-  if (lang === "ja") return `同定 ${safeCount} 件`;
+  if (lang === "ja") return `名前確認 ${safeCount} 件`;
   return `${safeCount} ids`;
 }

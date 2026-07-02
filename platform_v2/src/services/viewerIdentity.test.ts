@@ -2,12 +2,24 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveViewer } from "./viewerIdentity.js";
 
-async function withQueryOverrideEnv<T>(value: string | undefined, run: () => T | Promise<T>): Promise<T> {
+async function withViewerEnv<T>(env: { allowQueryUserId?: string; nodeEnv?: string; environment?: string }, run: () => T | Promise<T>): Promise<T> {
   const previous = process.env.ALLOW_QUERY_USER_ID;
-  if (value === undefined) {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousEnvironment = process.env.ENVIRONMENT;
+  if (env.allowQueryUserId === undefined) {
     delete process.env.ALLOW_QUERY_USER_ID;
   } else {
-    process.env.ALLOW_QUERY_USER_ID = value;
+    process.env.ALLOW_QUERY_USER_ID = env.allowQueryUserId;
+  }
+  if (env.nodeEnv === undefined) {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = env.nodeEnv;
+  }
+  if (env.environment === undefined) {
+    delete process.env.ENVIRONMENT;
+  } else {
+    process.env.ENVIRONMENT = env.environment;
   }
   try {
     return await run();
@@ -17,7 +29,21 @@ async function withQueryOverrideEnv<T>(value: string | undefined, run: () => T |
     } else {
       process.env.ALLOW_QUERY_USER_ID = previous;
     }
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+    if (previousEnvironment === undefined) {
+      delete process.env.ENVIRONMENT;
+    } else {
+      process.env.ENVIRONMENT = previousEnvironment;
+    }
   }
+}
+
+async function withQueryOverrideEnv<T>(value: string | undefined, run: () => T | Promise<T>): Promise<T> {
+  return withViewerEnv({ allowQueryUserId: value }, run);
 }
 
 test("resolveViewer ignores another user's query id unless staging override is enabled", async () => {
@@ -43,6 +69,15 @@ test("resolveViewer only honors arbitrary query ids behind the staging opt-in", 
     assert.equal(result.viewerUserId, "qa-user");
     assert.equal(result.requestedUserId, "qa-user");
     assert.equal(result.queryOverrideHonored, true);
+  });
+});
+
+test("resolveViewer ignores arbitrary query ids in production even when the QA opt-in leaks", async () => {
+  await withViewerEnv({ allowQueryUserId: "1", nodeEnv: "production", environment: "production" }, () => {
+    const result = resolveViewer({ userId: "qa-user" }, { userId: "session-user" });
+    assert.equal(result.viewerUserId, "session-user");
+    assert.equal(result.requestedUserId, "qa-user");
+    assert.equal(result.queryOverrideHonored, false);
   });
 });
 

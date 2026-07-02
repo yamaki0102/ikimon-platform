@@ -1035,7 +1035,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const mobileTabLabels = lang === "ja"
-    ? { markers: "写真", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "空白" }
+    ? { markers: "写真", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "記録空白" }
     : lang === "es"
       ? { markers: "Hoy", heatmap: "Est.", places: "Área", rain: "Lluvia", frontier: "Huecos" }
       : lang === "pt-BR"
@@ -1957,7 +1957,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     overlapChoiceArea: props.lang === "ja" ? "エリアを開く" : props.lang === "es" ? "Abrir área" : props.lang === "pt-BR" ? "Abrir área" : "Open area",
     placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
     selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
-    identifyLabel: props.lang === "ja" ? "同定する" : props.lang === "es" ? "Identificar" : props.lang === "pt-BR" ? "Identificar" : "Identify",
+    identifyLabel: props.lang === "ja" ? "名前を手伝う" : props.lang === "es" ? "Identificar" : props.lang === "pt-BR" ? "Identificar" : "Identify",
     selectedFieldLabel: props.lang === "ja" ? "この場所の見え方" : props.lang === "es" ? "Cómo se ve este lugar" : props.lang === "pt-BR" ? "Como este lugar aparece" : "How this place reads",
     selectedRoleLead: props.lang === "ja" ? "手がかり" : props.lang === "es" ? "Pistas" : props.lang === "pt-BR" ? "Pistas" : "Clues",
     selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
@@ -13007,19 +13007,16 @@ export const MAP_EXPLORER_STYLES = `
       grid-column: 1 / -1;
       grid-row: 2;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       width: 100%;
       min-width: 0;
       overflow: hidden;
       scrollbar-width: none;
     }
-    .me-tab[data-tab="frontier"] {
-      display: none;
-    }
     .me-rain-mode .me-tabs {
       grid-column: 1;
       grid-row: 1;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       align-self: center;
       gap: 3px;
       padding: 2px;
@@ -13031,8 +13028,8 @@ export const MAP_EXPLORER_STYLES = `
     .me-tab {
       min-width: 0;
       min-height: 34px;
-      padding: 4px 5px;
-      font-size: 11px;
+      padding: 4px 3px;
+      font-size: 10.5px;
       line-height: 1.15;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -13042,7 +13039,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-rain-mode .me-tab {
       flex: 0 0 auto;
       min-height: 29px;
-      padding: 3px 9px;
+      padding: 3px 6px;
       border-radius: 8px;
       font-size: 11.5px;
     }

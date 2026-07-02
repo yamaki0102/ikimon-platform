@@ -207,7 +207,7 @@ test("home page uses the local record feed surface", async () => {
   }
 });
 
-test("home page gives guests a clear first-record path", () => {
+test("home page gives guests a clear place-first path without competing with footer record", () => {
   const html = renderHomePageHtml("", "ja", {
     viewerUserId: null,
     recentObservations: [],
@@ -217,7 +217,10 @@ test("home page gives guests a clear first-record path", () => {
   assert.match(html, /data-testid="home-channel"/);
   assert.match(html, /記録する/);
   assert.match(html, /場所を探す/);
-  assert.match(html, /写真と場所を残す/);
+  assert.match(html, /近くを見る/);
+  assert.match(html, /公開記録を見る/);
+  assert.match(html, /フッターから記録/);
+  assert.match(html, /地域の記録や地図から、次に歩く場所を選べます。/);
   assert.match(html, /みんなの最近の観察/);
   assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/home" \/>/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
@@ -239,7 +242,8 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
   assert.match(html, /今日の入口/);
   assert.match(html, /ikimon\.lifeの流れ/);
   assert.match(html, /記録する/);
-  assert.match(html, /最初の記録/);
+  assert.match(html, /地図で見る/);
+  assert.match(html, /フッターから記録/);
   assert.match(html, /自分の記録/);
   assert.match(html, /プロフィール/);
   assert.match(html, /自分の最近の観察/);
