@@ -3,6 +3,7 @@ import {
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
   VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "./observationQualityGate.js";
+import { haversineMeters } from "./observationEventAreaGeometry.js";
 
 export type MapOwnObservation = {
   occurrenceId: string;
@@ -14,6 +15,22 @@ export type MapOwnObservation = {
   photoUrl: string | null;
   mediaKind: "photo" | "video";
   localityLabel: string;
+};
+
+export type MapOwnObservationCluster = {
+  clusterId: string;
+  label: string;
+  localityLabel: string;
+  recordCount: number;
+  photoCount: number;
+  firstObservedAt: string;
+  lastObservedAt: string;
+  latitude: number;
+  longitude: number;
+  representativePhotoUrl: string | null;
+  representativeOccurrenceId: string | null;
+  representativeDisplayName: string | null;
+  occurrenceIds: string[];
 };
 
 type MapOwnObservationRow = {
@@ -53,6 +70,95 @@ export function isMeaningfulOwnObservationLabel(value: unknown): boolean {
 
 function localityLabel(row: MapOwnObservationRow): string {
   return cleanText(row.municipality) || cleanText(row.prefecture);
+}
+
+function observationTime(value: string): number {
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function mostCommonText(values: string[]): string {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    const clean = cleanText(value);
+    if (!clean) continue;
+    counts.set(clean, (counts.get(clean) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ja"))
+    [0]?.[0] ?? "";
+}
+
+export function buildMapOwnObservationClusters(
+  items: MapOwnObservation[],
+  options: { limit?: number; radiusMeters?: number; minRecords?: number } = {},
+): MapOwnObservationCluster[] {
+  const radiusMeters = Math.max(150, Math.min(options.radiusMeters ?? 1000, 3000));
+  const minRecords = Math.max(2, Math.min(options.minRecords ?? 3, 12));
+  const limit = Math.max(1, Math.min(options.limit ?? 3, 12));
+  const clusters: Array<{
+    records: MapOwnObservation[];
+    latitude: number;
+    longitude: number;
+  }> = [];
+
+  const sorted = items
+    .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+    .slice()
+    .sort((a, b) => observationTime(b.observedAt) - observationTime(a.observedAt));
+
+  for (const item of sorted) {
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+    clusters.forEach((cluster, index) => {
+      const distance = haversineMeters(cluster.latitude, cluster.longitude, item.latitude, item.longitude);
+      if (distance <= radiusMeters && distance < bestDistance) {
+        bestIndex = index;
+        bestDistance = distance;
+      }
+    });
+
+    if (bestIndex < 0) {
+      clusters.push({ records: [item], latitude: item.latitude, longitude: item.longitude });
+      continue;
+    }
+
+    const cluster = clusters[bestIndex]!;
+    cluster.records.push(item);
+    const count = cluster.records.length;
+    cluster.latitude = cluster.latitude + (item.latitude - cluster.latitude) / count;
+    cluster.longitude = cluster.longitude + (item.longitude - cluster.longitude) / count;
+  }
+
+  return clusters
+    .filter((cluster) => cluster.records.length >= minRecords)
+    .map((cluster, index): MapOwnObservationCluster => {
+      const records = cluster.records
+        .slice()
+        .sort((a, b) => observationTime(b.observedAt) - observationTime(a.observedAt));
+      const observedTimes = records.map((record) => observationTime(record.observedAt)).filter((time) => time > 0);
+      const representative = records.find((record) => record.photoUrl) ?? records[0] ?? null;
+      const label = mostCommonText(records.map((record) => record.localityLabel)) ||
+        mostCommonText(records.map((record) => record.displayName)) ||
+        "よく撮った場所";
+      return {
+        clusterId: `own-area:${index}:${records[0]?.occurrenceId ?? "unknown"}`,
+        label,
+        localityLabel: mostCommonText(records.map((record) => record.localityLabel)),
+        recordCount: records.length,
+        photoCount: records.filter((record) => Boolean(record.photoUrl)).length,
+        firstObservedAt: observedTimes.length ? new Date(Math.min(...observedTimes)).toISOString() : records[records.length - 1]?.observedAt ?? "",
+        lastObservedAt: observedTimes.length ? new Date(Math.max(...observedTimes)).toISOString() : records[0]?.observedAt ?? "",
+        latitude: cluster.latitude,
+        longitude: cluster.longitude,
+        representativePhotoUrl: representative?.photoUrl ?? null,
+        representativeOccurrenceId: representative?.occurrenceId ?? null,
+        representativeDisplayName: representative?.displayName ?? null,
+        occurrenceIds: records.map((record) => record.occurrenceId).slice(0, 48),
+      };
+    })
+    .sort((a, b) => b.recordCount - a.recordCount || observationTime(b.lastObservedAt) - observationTime(a.lastObservedAt))
+    .slice(0, limit);
 }
 
 export async function listMapOwnObservations(

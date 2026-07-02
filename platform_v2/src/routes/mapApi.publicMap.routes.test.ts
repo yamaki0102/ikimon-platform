@@ -95,7 +95,7 @@ test("map my-observations endpoints are private-by-session and safe for guests",
       });
 
       assert.equal(response.statusCode, 200, url);
-      assert.deepEqual(response.json(), { signedIn: false, items: [] });
+      assert.deepEqual(response.json(), { signedIn: false, items: [], clusters: [] });
     }
   } finally {
     await app.close();
@@ -107,6 +107,7 @@ test("map my-observations reads only the signed-in user's records", async () => 
 
   assert.match(source, /where v\.user_id = \$1/);
   assert.match(source, /\[userId, limit\]/);
+  assert.match(source, /buildMapOwnObservationClusters/);
   assert.doesNotMatch(source, /public_visibility/);
   assert.doesNotMatch(source, /display_name from users|join users/i);
 });

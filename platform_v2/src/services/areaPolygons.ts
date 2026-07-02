@@ -157,6 +157,19 @@ const LIVE_OSM_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 const APPROXIMATE_SCHOOL_BOUNDARY_LABEL = "境界未確認・代表点からの仮範囲";
+const APPROXIMATE_RADIUS_BOUNDARY_LABEL = "中心点からの概略範囲";
+const RADIUS_FALLBACK_AREA_SOURCES = new Set<AreaPolygonSource>([
+  "nature_symbiosis_site",
+  "tsunag",
+  "protected_area",
+  "oecm",
+]);
+const RADIUS_FALLBACK_AREA_SOURCE_SQL = Array.from(RADIUS_FALLBACK_AREA_SOURCES)
+  .map((source) => `'${source}'`)
+  .join(", ");
+const RADIUS_FALLBACK_MIN_M = 80;
+const RADIUS_FALLBACK_MAX_M = 2500;
+const RADIUS_FALLBACK_SEGMENTS = 36;
 
 function cleanGuideStopString(value: unknown, maxLength: number): string {
   if (typeof value !== "string") return "";
@@ -395,6 +408,40 @@ function approximateSchoolSourceConfidence(sourceConfidence: number): number {
   return Math.min(Number.isFinite(sourceConfidence) ? sourceConfidence : 0, 0.35);
 }
 
+function approximateRadiusBoundaryLabel(label: string | null | undefined): string {
+  const clean = (label ?? "").trim();
+  if (!clean || clean === APPROXIMATE_RADIUS_BOUNDARY_LABEL) return APPROXIMATE_RADIUS_BOUNDARY_LABEL;
+  if (clean.includes(APPROXIMATE_RADIUS_BOUNDARY_LABEL)) return clean;
+  return `${APPROXIMATE_RADIUS_BOUNDARY_LABEL} / ${clean}`;
+}
+
+function canUseRadiusFallbackAreaSource(source: AreaPolygonSource): boolean {
+  return RADIUS_FALLBACK_AREA_SOURCES.has(source);
+}
+
+function radiusFallbackMeters(value: unknown): number {
+  const raw = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  const radius = Number.isFinite(raw) ? raw : RADIUS_FALLBACK_MIN_M;
+  return Math.max(RADIUS_FALLBACK_MIN_M, Math.min(radius, RADIUS_FALLBACK_MAX_M));
+}
+
+function radiusFallbackGeometry(lng: number, lat: number, radiusM: unknown): Record<string, unknown> | null {
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  const radius = radiusFallbackMeters(radiusM);
+  const metersPerDegreeLat = 111_320;
+  const metersPerDegreeLng = 111_320 * Math.max(0.05, Math.cos(lat * Math.PI / 180));
+  const ring: number[][] = [];
+  for (let i = 0; i < RADIUS_FALLBACK_SEGMENTS; i += 1) {
+    const angle = (2 * Math.PI * i) / RADIUS_FALLBACK_SEGMENTS;
+    ring.push([
+      Number((lng + (Math.cos(angle) * radius) / metersPerDegreeLng).toFixed(7)),
+      Number((lat + (Math.sin(angle) * radius) / metersPerDegreeLat).toFixed(7)),
+    ]);
+  }
+  ring.push(ring[0]!.slice());
+  return { type: "Polygon", coordinates: [ring] };
+}
+
 function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource[]): boolean {
   const zoom = query.zoom ?? 0;
   if (zoom < LIVE_OSM_MIN_ZOOM) return false;
@@ -484,7 +531,8 @@ function isWeakLiveOsmAreaFeature(feature: AreaPolygonFeature): boolean {
 
 function isDisplayableAreaFeature(feature: AreaPolygonFeature): boolean {
   const props = feature.properties;
-  if (props.approximate_boundary || props.boundary_approximation === "point_buffer") return false;
+  if (props.source === "school" && (props.approximate_boundary || props.boundary_approximation === "point_buffer")) return false;
+  if (props.boundary_approximation === "point_buffer") return false;
   return !isWeakLiveOsmAreaFeature(feature);
 }
 
@@ -1050,6 +1098,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     verification_label: string | null;
     lat: string;
     lng: string;
+    radius_m: number | null;
     payload: Record<string, unknown> | null;
     polygon: Record<string, unknown> | null;
     polygon_simplified: Record<string, unknown> | null;
@@ -1058,19 +1107,31 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
             area_ha::text AS area_ha, official_url,
             owner_url, story_url, certification_url, source_confidence::text AS source_confidence,
             verification_level, verification_label,
-            lat::text AS lat, lng::text AS lng,
+            lat::text AS lat, lng::text AS lng, radius_m,
             payload,
             polygon,
             geom_simplified AS polygon_simplified
        FROM observation_fields
-      WHERE polygon IS NOT NULL
-        AND bbox_min_lat IS NOT NULL
-        AND bbox_max_lat >= $1
-        AND bbox_min_lat <= $2
-        AND bbox_max_lng >= $3
-        AND bbox_min_lng <= $4
-        AND ${AREA_LAYER_SOURCE_SQL} = ANY($5)
+      WHERE ${AREA_LAYER_SOURCE_SQL} = ANY($5)
         AND ${SCHOOL_POINT_BUFFER_FALLBACK_SQL}
+        AND (
+          (
+            polygon IS NOT NULL
+            AND bbox_min_lat IS NOT NULL
+            AND bbox_max_lat >= $1
+            AND bbox_min_lat <= $2
+            AND bbox_max_lng >= $3
+            AND bbox_min_lng <= $4
+          )
+          OR (
+            polygon IS NULL
+            AND source IN (${RADIUS_FALLBACK_AREA_SOURCE_SQL})
+            AND lat BETWEEN $1::float8 - (LEAST(GREATEST(COALESCE(radius_m, 0), ${RADIUS_FALLBACK_MIN_M}), ${RADIUS_FALLBACK_MAX_M}) / 111000.0)
+                        AND $2::float8 + (LEAST(GREATEST(COALESCE(radius_m, 0), ${RADIUS_FALLBACK_MIN_M}), ${RADIUS_FALLBACK_MAX_M}) / 111000.0)
+            AND lng BETWEEN $3::float8 - (LEAST(GREATEST(COALESCE(radius_m, 0), ${RADIUS_FALLBACK_MIN_M}), ${RADIUS_FALLBACK_MAX_M}) / (111000.0 * GREATEST(0.05, COS(RADIANS(lat)))))
+                        AND $4::float8 + (LEAST(GREATEST(COALESCE(radius_m, 0), ${RADIUS_FALLBACK_MIN_M}), ${RADIUS_FALLBACK_MAX_M}) / (111000.0 * GREATEST(0.05, COS(RADIANS(lat)))))
+          )
+        )
         -- 現行版のみ (廃止された旧公園・旧合併前市町村などは除外)。
         -- 過去版を引きたい場合は別 endpoint で as_of 指定する想定。
         AND valid_to IS NULL
@@ -1085,12 +1146,16 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     const areaHa = row.area_ha == null ? null : Number(row.area_ha);
     // 行政界 (面積 1000 ha 超) は GeoJSON が重いので、間引いた版があれば優先。
     const useSimplified = Boolean(areaHa != null && areaHa > 1000 && row.polygon_simplified);
-    const geometry = useSimplified ? row.polygon_simplified : row.polygon;
+    const approximateRadiusBoundary = !row.polygon && canUseRadiusFallbackAreaSource(source);
+    const geometry = (useSimplified ? row.polygon_simplified : row.polygon) ??
+      (approximateRadiusBoundary ? radiusFallbackGeometry(Number(row.lng), Number(row.lat), row.radius_m) : null);
+    if (!geometry) return [];
     if (!isRenderableStoredAreaPolygon(source, row.payload, geometry)) return [];
     const approximateSchoolBoundary = isApproximateSchoolBoundary(source, row.payload, geometry);
     const rawSourceConfidence = row.source_confidence == null ? 0 : Number(row.source_confidence);
     const sourceConfidence = Number.isFinite(rawSourceConfidence) ? rawSourceConfidence : 0;
     const guideStop = normalizeGuideStop(row.payload && row.payload.guide_stop);
+    const boundaryApproximation = approximateSchoolBoundary ? "point_buffer" : approximateRadiusBoundary ? "radius" : undefined;
     return [{
       type: "Feature",
       properties: {
@@ -1108,9 +1173,13 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         certification_url: row.certification_url,
         source_confidence: approximateSchoolBoundary ? approximateSchoolSourceConfidence(sourceConfidence) : sourceConfidence,
         verification_level: row.verification_level ?? "unverified",
-        verification_label: approximateSchoolBoundary ? approximateSchoolBoundaryLabel(row.verification_label) : row.verification_label ?? "",
-        approximate_boundary: approximateSchoolBoundary || undefined,
-        boundary_approximation: approximateSchoolBoundary ? "point_buffer" : undefined,
+        verification_label: approximateSchoolBoundary
+          ? approximateSchoolBoundaryLabel(row.verification_label)
+          : approximateRadiusBoundary
+            ? approximateRadiusBoundaryLabel(row.verification_label)
+            : row.verification_label ?? "",
+        approximate_boundary: (approximateSchoolBoundary || approximateRadiusBoundary) || undefined,
+        boundary_approximation: boundaryApproximation,
         center: [Number(row.lng), Number(row.lat)],
         entity_key: row.entity_key ?? undefined,
         guide_stop: guideStop,
@@ -1209,6 +1278,10 @@ export const __test__ = {
   isApproximateSchoolBoundary,
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
+  approximateRadiusBoundaryLabel,
+  canUseRadiusFallbackAreaSource,
+  radiusFallbackMeters,
+  radiusFallbackGeometry,
   isDisplayableAreaFeature,
   isWeakLiveOsmAreaFeature,
   shouldFetchLiveOsm,
