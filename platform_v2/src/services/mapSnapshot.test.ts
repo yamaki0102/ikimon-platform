@@ -308,6 +308,17 @@ test("public map photo URLs are derived thumbnails, not original upload paths", 
   assert.equal(list.items.find((item) => item.occurrenceId === "occ-absolute-original")?.photoUrl, null);
 });
 
+test("public map photos reject tiny placeholder-like assets", () => {
+  const sql = __test__.mapPresentablePhotoAssetSql("ea", "ab");
+
+  assert.match(sql, /ea\.asset_role = 'observation_photo'/);
+  assert.match(sql, /coalesce\(ab\.bytes, 1024\) > 512/);
+  assert.match(sql, /coalesce\(ab\.bytes, 0\) > 0/);
+  assert.match(sql, /ab\.bytes <= 8192/);
+  assert.match(sql, /ab\.width_px <= 640/);
+  assert.match(sql, /ab\.height_px <= 640/);
+});
+
 test("public map observation id lookup reads the snapshot without aggregate list filtering", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "mapSnapshot.ts"), "utf8");
   const functionSource = source.slice(
