@@ -4825,6 +4825,11 @@ export const LANDING_TOP_STYLES = `
       margin-left: var(--ikimon-shell-margin-left);
       margin-right: var(--ikimon-shell-margin-right);
     }
+    .site-shell.is-minimal-chrome .shell.shell-bleed.prototype-shell {
+      width: min(1120px, calc(100% - 96px));
+      margin-left: auto;
+      margin-right: auto;
+    }
     .prototype-content-grid {
       grid-template-columns: var(--ikimon-record-card-grid-desktop);
       gap: var(--ikimon-record-card-grid-gap-desktop);
