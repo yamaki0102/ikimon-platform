@@ -8,6 +8,7 @@
 -- Safety:
 --   Defaults are fail-closed. Existing fields remain draft/private until a
 --   manager or internal process explicitly enables public summaries.
+-- owner-sensitive-ok: additive defaulted columns on observation_fields; deploy after app compatibility, rollback by forward migration disabling public_profile_enabled rather than dropping columns.
 
 ALTER TABLE observation_fields
     ADD COLUMN IF NOT EXISTS profile_status TEXT NOT NULL DEFAULT 'draft',

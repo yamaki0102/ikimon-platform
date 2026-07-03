@@ -4,6 +4,7 @@
 --   Keep source records immutable and explicit about whether they may
 --   contribute to public area profiles. Public aggregation is separate from
 --   external dataset export and stays fail-closed by default.
+-- owner-sensitive-ok: additive defaulted columns on observation_data_rights; deploy after app compatibility, rollback by forward migration setting public_aggregation_allowed=false rather than dropping columns.
 
 ALTER TABLE observation_data_rights
     ADD COLUMN IF NOT EXISTS area_profile_use_consent TEXT NOT NULL DEFAULT 'none',
