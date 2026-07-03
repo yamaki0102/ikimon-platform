@@ -1050,6 +1050,47 @@ interface PlaceBriefPilotRow {
   updated_at: string;
 }
 
+interface SiteBriefArtifactRow {
+  artifact_id: string;
+  generation_run_id: string;
+  place_id: string;
+  public_cell: string;
+  artifact_scope: string;
+  artifact_status: string;
+  share_token: string | null;
+  brief_json: string;
+  evidence_contract_json: string;
+  decision_state: string;
+  limitations_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SiteBriefGenerationRunRow {
+  generation_run_id: string;
+  place_id: string;
+  status: string;
+  generation_method: string;
+  artifact_contract_version: string;
+  ruleset_version: string;
+  source_summary_json: string;
+  human_decision_json: string;
+  suppression_reason: string | null;
+  generated_at: string;
+  updated_at: string;
+}
+
+interface SiteBriefSourceLinkRow {
+  source_link_id: string;
+  generation_run_id: string;
+  source_type: string;
+  source_id: string;
+  source_role: string;
+  public_safe: number;
+  source_summary_json: string;
+  created_at: string;
+}
+
 interface UserObservationFieldRow {
   field_id: string;
   owner_user_id: string;
@@ -2142,6 +2183,16 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/site-brief") {
         return getPublicMapSiteBrief(url, env);
+      }
+
+      const siteBriefShareMatch = nativePathname.match(/^\/api\/v1\/site-brief-shares\/([^/]+)$/);
+      if (request.method === "GET" && siteBriefShareMatch?.[1]) {
+        return getSiteBriefShare(decodeURIComponent(siteBriefShareMatch[1]), env);
+      }
+
+      const siteBriefShareFeedbackMatch = nativePathname.match(/^\/api\/v1\/site-brief-shares\/([^/]+)\/feedback$/);
+      if (request.method === "POST" && siteBriefShareFeedbackMatch?.[1]) {
+        return postSiteBriefShareFeedback(request, decodeURIComponent(siteBriefShareFeedbackMatch[1]), env);
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/guide-spots") {
@@ -16348,6 +16399,13 @@ async function getPublicMapSiteBrief(url: URL, env: Env): Promise<Response> {
     return json({ error: "invalid_coords" }, 400, { "cache-control": "no-store" });
   }
   const publicCell = publicCellFromCoordinates(lat, lng);
+  const artifact = await getSiteBriefArtifactForPublicCell(publicCell, env);
+  if (artifact) {
+    return json(await siteBriefArtifactPayload(artifact, env, { includeShareFeedback: false }), 200, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "site-brief-artifact-readmodel"
+    });
+  }
   const pilot = await getPlaceBriefPilotForPublicCell(publicCell, env);
   if (pilot) {
     return json(placeBriefPilotPayload(pilot), 200, {
@@ -16356,6 +16414,91 @@ async function getPublicMapSiteBrief(url: URL, env: Env): Promise<Response> {
     });
   }
   return getPublicMapSiteBriefShim();
+}
+
+const SITE_BRIEF_SHARE_TOKEN_RE = /^[A-Za-z0-9._-]{8,120}$/u;
+const SITE_BRIEF_FEEDBACK_TYPES = new Set([
+  "use_case",
+  "price_signal",
+  "correction",
+  "approval",
+  "internal_only",
+  "suppress",
+  "follow_up",
+  "other"
+]);
+
+async function getSiteBriefShare(token: string, env: Env): Promise<Response> {
+  if (!SITE_BRIEF_SHARE_TOKEN_RE.test(token)) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const artifact = await getSiteBriefArtifactForShareToken(token, env);
+  if (!artifact) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  return json(await siteBriefArtifactPayload(artifact, env, { includeShareFeedback: true }), 200, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "site-brief-artifact-share"
+  });
+}
+
+async function postSiteBriefShareFeedback(request: Request, token: string, env: Env): Promise<Response> {
+  if (!SITE_BRIEF_SHARE_TOKEN_RE.test(token)) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const artifact = await getSiteBriefArtifactForShareToken(token, env);
+  if (!artifact) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const body = await readJson<Record<string, unknown>>(request);
+  const feedbackType = normalizeSiteBriefFeedbackType(body.feedbackType ?? body.feedback_type);
+  if (!feedbackType) {
+    throw new HttpError(400, "invalid_feedback_type");
+  }
+  const feedbackText = normalizeBoundedText(body.feedbackText ?? body.feedback_text, 800) ?? "";
+  const buyerSegment = normalizeBoundedText(body.buyerSegment ?? body.buyer_segment, 120);
+  const useCase = normalizeBoundedText(body.useCase ?? body.use_case, 160);
+  const priceSignal = normalizeBoundedText(body.priceSignal ?? body.price_signal, 120);
+  const contactIntent = normalizeBoundedText(body.contactIntent ?? body.contact_intent, 120);
+  if (!feedbackText && !buyerSegment && !useCase && !priceSignal && !contactIntent) {
+    throw new HttpError(400, "feedback_signal_required");
+  }
+  const feedbackId = newId("site_brief_feedback");
+  const now = new Date().toISOString();
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO site_brief_feedback_events (
+         feedback_id, artifact_id, place_id, feedback_type, feedback_text,
+         buyer_segment, use_case, price_signal, contact_intent, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      feedbackId,
+      artifact.artifact_id,
+      artifact.place_id,
+      feedbackType,
+      feedbackText,
+      buyerSegment,
+      useCase,
+      priceSignal,
+      contactIntent,
+      now
+    ).run();
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_feedback_events")) {
+      return json({ ok: false, error: "site_brief_feedback_not_ready" }, 503, { "cache-control": "no-store" });
+    }
+    throw error;
+  }
+  return json({
+    ok: true,
+    feedbackId,
+    artifactId: artifact.artifact_id,
+    placeId: artifact.place_id,
+    accepted: true
+  }, 201, {
+    "cache-control": "no-store",
+    "x-ikimon-cloudflare-native": "site-brief-feedback-capture"
+  });
 }
 
 function getPublicMapSiteBriefShim(): Response {
@@ -16395,6 +16538,178 @@ async function getPlaceBriefPilotForPublicCell(publicCell: string, env: Env): Pr
     if (isMissingD1TableError(error, "place_brief_pilots")) return null;
     throw error;
   }
+}
+
+async function getSiteBriefArtifactForPublicCell(publicCell: string, env: Env): Promise<SiteBriefArtifactRow | null> {
+  try {
+    return await env.OBS_DB.prepare(
+      `SELECT artifact_id, generation_run_id, place_id, public_cell, artifact_scope,
+              artifact_status, share_token, brief_json, evidence_contract_json,
+              decision_state, limitations_json, created_at, updated_at
+         FROM site_brief_artifacts
+        WHERE artifact_status = 'active'
+          AND artifact_scope = 'external'
+          AND public_cell = ?
+        ORDER BY updated_at DESC, artifact_id ASC
+        LIMIT 1`
+    ).bind(publicCell).first<SiteBriefArtifactRow>();
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_artifacts")) return null;
+    throw error;
+  }
+}
+
+async function getSiteBriefArtifactForShareToken(token: string, env: Env): Promise<SiteBriefArtifactRow | null> {
+  try {
+    return await env.OBS_DB.prepare(
+      `SELECT artifact_id, generation_run_id, place_id, public_cell, artifact_scope,
+              artifact_status, share_token, brief_json, evidence_contract_json,
+              decision_state, limitations_json, created_at, updated_at
+         FROM site_brief_artifacts
+        WHERE artifact_status = 'active'
+          AND artifact_scope IN ('external', 'private_share')
+          AND share_token = ?
+        LIMIT 1`
+    ).bind(token).first<SiteBriefArtifactRow>();
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_artifacts")) return null;
+    throw error;
+  }
+}
+
+async function getSiteBriefGenerationRun(generationRunId: string, env: Env): Promise<SiteBriefGenerationRunRow | null> {
+  try {
+    return await env.OBS_DB.prepare(
+      `SELECT generation_run_id, place_id, status, generation_method,
+              artifact_contract_version, ruleset_version, source_summary_json,
+              human_decision_json, suppression_reason, generated_at, updated_at
+         FROM site_brief_generation_runs
+        WHERE generation_run_id = ?
+        LIMIT 1`
+    ).bind(generationRunId).first<SiteBriefGenerationRunRow>();
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_generation_runs")) return null;
+    throw error;
+  }
+}
+
+async function getSiteBriefPublicSourceLinks(generationRunId: string, env: Env): Promise<SiteBriefSourceLinkRow[]> {
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT source_link_id, generation_run_id, source_type, source_id, source_role,
+              public_safe, source_summary_json, created_at
+         FROM site_brief_source_links
+        WHERE generation_run_id = ?
+          AND public_safe = 1
+        ORDER BY created_at ASC, source_link_id ASC
+        LIMIT 20`
+    ).bind(generationRunId).all<SiteBriefSourceLinkRow>();
+    return rows.results;
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_source_links")) return [];
+    throw error;
+  }
+}
+
+async function siteBriefArtifactPayload(row: SiteBriefArtifactRow, env: Env, options: { includeShareFeedback: boolean }) {
+  const brief = publicProfileReadmodelRecord(row.brief_json, {});
+  const evidenceContract = enforceNoExactLocationContract(publicProfileReadmodelRecord(row.evidence_contract_json, {
+    contractVersion: "site_brief_artifact_v1",
+    claimLevel: "site_brief"
+  }));
+  const generationRun = await getSiteBriefGenerationRun(row.generation_run_id, env);
+  const sourceLinks = await getSiteBriefPublicSourceLinks(row.generation_run_id, env);
+  return {
+    ...brief,
+    siteBriefArtifact: {
+      artifactId: row.artifact_id,
+      placeId: row.place_id,
+      artifactScope: row.artifact_scope,
+      artifactStatus: row.artifact_status,
+      decisionState: row.decision_state,
+      publicLocationMode: "area_or_public_place",
+      exactLocationExposed: false,
+      geometryExposed: false,
+      artifactContractVersion: generationRun?.artifact_contract_version ?? "site_brief_artifact_v1",
+      rulesetVersion: generationRun?.ruleset_version ?? "site_brief_manual_pilot_v1",
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    },
+    evidenceContract,
+    provenance: siteBriefGenerationRunPayload(generationRun, row),
+    publicSafeSources: sourceLinks.map(siteBriefPublicSourceLinkPayload),
+    limitations: siteBriefLimitations(row.limitations_json, brief.limitations),
+    feedback: options.includeShareFeedback && row.share_token ? {
+      captureEnabled: true,
+      endpoint: `/api/v1/site-brief-shares/${encodeURIComponent(row.share_token)}/feedback`,
+      acceptedTypes: [...SITE_BRIEF_FEEDBACK_TYPES]
+    } : {
+      captureEnabled: false
+    },
+    compatibility: {
+      source: "cloudflare_site_brief_artifact_readmodel",
+      exactLocationExposed: false,
+      generationRunId: row.generation_run_id,
+      artifactContractVersion: generationRun?.artifact_contract_version ?? "site_brief_artifact_v1"
+    }
+  };
+}
+
+function siteBriefGenerationRunPayload(row: SiteBriefGenerationRunRow | null, artifact: SiteBriefArtifactRow) {
+  if (!row) {
+    return {
+      generationRunId: artifact.generation_run_id,
+      placeId: artifact.place_id,
+      status: "unknown",
+      generationMethod: "unknown",
+      artifactContractVersion: "site_brief_artifact_v1",
+      rulesetVersion: "site_brief_manual_pilot_v1",
+      sourceSummary: {},
+      humanDecision: {},
+      suppressionReason: null,
+      generatedAt: artifact.created_at,
+      updatedAt: artifact.updated_at
+    };
+  }
+  return {
+    generationRunId: row.generation_run_id,
+    placeId: row.place_id,
+    status: row.status,
+    generationMethod: row.generation_method,
+    artifactContractVersion: row.artifact_contract_version,
+    rulesetVersion: row.ruleset_version,
+    sourceSummary: publicProfileReadmodelRecord(row.source_summary_json, {}),
+    humanDecision: publicProfileReadmodelRecord(row.human_decision_json, {}),
+    suppressionReason: row.suppression_reason,
+    generatedAt: row.generated_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function siteBriefPublicSourceLinkPayload(row: SiteBriefSourceLinkRow) {
+  return {
+    sourceType: row.source_type,
+    sourceRole: row.source_role,
+    publicSafe: row.public_safe === 1,
+    summary: publicProfileReadmodelRecord(row.source_summary_json, {}),
+    createdAt: row.created_at
+  };
+}
+
+function siteBriefLimitations(limitationsJson: string, fallback: unknown): unknown[] {
+  const parsed = parseJsonArray(limitationsJson).map(stripUnsafePublicProfileKeys);
+  if (parsed.length > 0) return parsed;
+  return Array.isArray(fallback) ? fallback.map(stripUnsafePublicProfileKeys) : [];
+}
+
+function normalizeSiteBriefFeedbackType(value: unknown): string | null {
+  const type = normalizeOptionalText(value);
+  return type && SITE_BRIEF_FEEDBACK_TYPES.has(type) ? type : null;
+}
+
+function normalizeBoundedText(value: unknown, maxLength: number): string | null {
+  const text = normalizeOptionalText(value);
+  return text ? text.slice(0, maxLength) : null;
 }
 
 function placeBriefPilotPayload(row: PlaceBriefPilotRow) {
@@ -18347,7 +18662,16 @@ function stripUnsafePublicProfileKeys(value: unknown): unknown {
   if (!isPublicProfileObject(value)) return value;
   const sanitized: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value)) {
-    if (UNSAFE_PUBLIC_PROFILE_KEYS.has(key.toLowerCase())) continue;
+    const normalizedKey = key.toLowerCase();
+    if (UNSAFE_PUBLIC_PROFILE_KEYS.has(normalizedKey)) continue;
+    if (
+      normalizedKey === "exactlocationexposed" ||
+      normalizedKey === "exactcoordinatesexposed" ||
+      normalizedKey === "geometryexposed"
+    ) {
+      sanitized[key] = false;
+      continue;
+    }
     sanitized[key] = stripUnsafePublicProfileKeys(child);
   }
   return sanitized;
