@@ -5649,6 +5649,24 @@ class FakeStatement {
         .slice(0, 20);
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT f.feedback_id, f.artifact_id, f.place_id, f.feedback_type")) {
+      const limit = number(v[0]);
+      const rows = this.db.siteBriefFeedbackEvents
+        .slice()
+        .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.feedback_id.localeCompare(a.feedback_id))
+        .slice(0, limit)
+        .map((row) => {
+          const artifact = this.db.siteBriefArtifacts.get(row.artifact_id);
+          return {
+            ...row,
+            artifact_scope: artifact?.artifact_scope ?? null,
+            artifact_status: artifact?.artifact_status ?? null,
+            decision_state: artifact?.decision_state ?? null,
+            brief_json: artifact?.brief_json ?? null
+          };
+        });
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN")) {
       const rows = this.db.environmentRecordTablesAvailable
         ? [{ name: "observation_environment_records" }, { name: "observation_detail_edit_events" }]
@@ -7868,6 +7886,136 @@ test("site brief share endpoint returns artifact and captures bounded validation
   assert.equal(stored.use_case, "internal_report");
   assert.equal(stored.price_signal, "paid_pilot_possible");
   assert.equal(stored.contact_intent, "follow_up");
+});
+
+test("site brief feedback admin summary requires admin and hides share tokens", async () => {
+  const { env, obs } = createEnv();
+  obs.siteBriefArtifacts.set("site-brief-artifact-admin-a", {
+    artifact_id: "site-brief-artifact-admin-a",
+    generation_run_id: "site-brief-run-admin-a",
+    place_id: "pilot-admin-waterside",
+    public_cell: "34.72,137.70",
+    artifact_scope: "private_share",
+    artifact_status: "active",
+    share_token: "share-secret-admin-a-20260703",
+    brief_json: JSON.stringify({
+      hypothesis: { label: "水辺のSite Brief", confidence: 0.76 },
+      placeBrief: { placeName: "佐鳴湖周辺の水辺プロフィール" }
+    }),
+    evidence_contract_json: JSON.stringify({ exactCoordinatesExposed: false, geometryExposed: false }),
+    decision_state: "approved_external",
+    limitations_json: "[]",
+    created_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  obs.siteBriefArtifacts.set("site-brief-artifact-admin-b", {
+    artifact_id: "site-brief-artifact-admin-b",
+    generation_run_id: "site-brief-run-admin-b",
+    place_id: "pilot-admin-park-edge",
+    public_cell: "34.71,137.72",
+    artifact_scope: "external",
+    artifact_status: "active",
+    share_token: "share-secret-admin-b-20260703",
+    brief_json: JSON.stringify({
+      hypothesis: { label: "緑地境界のSite Brief", confidence: 0.69 },
+      placeBrief: { placeName: "住宅地そばの緑地プロフィール" }
+    }),
+    evidence_contract_json: JSON.stringify({ exactCoordinatesExposed: false, geometryExposed: false }),
+    decision_state: "approved_external",
+    limitations_json: "[]",
+    created_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  obs.siteBriefFeedbackEvents.push(
+    {
+      feedback_id: "site-brief-feedback-a1",
+      artifact_id: "site-brief-artifact-admin-a",
+      place_id: "pilot-admin-waterside",
+      feedback_type: "price_signal",
+      feedback_text: "月次更新なら有料PoCで見たい。",
+      buyer_segment: "facility_manager",
+      use_case: "monthly_report",
+      price_signal: "paid_pilot_possible",
+      contact_intent: "follow_up",
+      created_at: "2026-07-04T01:00:00.000Z"
+    },
+    {
+      feedback_id: "site-brief-feedback-a2",
+      artifact_id: "site-brief-artifact-admin-a",
+      place_id: "pilot-admin-waterside",
+      feedback_type: "use_case",
+      feedback_text: "現地説明資料の下書きに使える。",
+      buyer_segment: "municipality",
+      use_case: "public_explanation",
+      price_signal: null,
+      contact_intent: "none",
+      created_at: "2026-07-04T00:30:00.000Z"
+    },
+    {
+      feedback_id: "site-brief-feedback-b1",
+      artifact_id: "site-brief-artifact-admin-b",
+      place_id: "pilot-admin-park-edge",
+      feedback_type: "correction",
+      feedback_text: "用途は良いが、制限事項を少し強めたい。",
+      buyer_segment: "school",
+      use_case: "field_learning",
+      price_signal: "needs_budget_owner",
+      contact_intent: "none",
+      created_at: "2026-07-03T23:30:00.000Z"
+    }
+  );
+
+  const guestResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-summary"), env);
+  assert.equal(guestResponse.status, 401);
+
+  const userIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "observer-user", displayName: "Observer User", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const userCookie = userIssue.headers.get("set-cookie") ?? "";
+  const userResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-summary", {
+    headers: { cookie: userCookie }
+  }), env);
+  assert.equal(userResponse.status, 403);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "admin-user", displayName: "Admin User", roleName: "Admin", ttlHours: 1 })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+  const summaryResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-summary?limit=10", {
+    headers: { cookie: adminCookie }
+  }), env);
+  const summaryPayload = await summaryResponse.json() as any;
+  assert.equal(summaryResponse.status, 200, JSON.stringify(summaryPayload));
+  assert.equal(summaryResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-feedback-admin-api");
+  assert.equal(summaryPayload.summary.totalFeedback, 3);
+  assert.equal(summaryPayload.summary.strongSignalCount, 1);
+  assert.equal(summaryPayload.artifacts[0].artifactId, "site-brief-artifact-admin-a");
+  assert.equal(summaryPayload.artifacts[0].feedbackCount, 2);
+  assert.equal(summaryPayload.artifacts[0].placeName, "佐鳴湖周辺の水辺プロフィール");
+  assert.equal(summaryPayload.recent[0].feedbackType, "price_signal");
+  const summaryText = JSON.stringify(summaryPayload);
+  assert.doesNotMatch(summaryText, /share-secret-admin/);
+  assert.doesNotMatch(summaryText, /34\.72|137\.70|34\.71|137\.72|"public_cell"|"publicCell"|"shareToken"\s*:/);
+  assert.deepEqual(summaryPayload.privacyBoundary, {
+    exactCoordinatesIncluded: false,
+    publicCellsIncluded: false,
+    shareTokensIncluded: false,
+    rowLevelSourceRecordsIncluded: false
+  });
+
+  const htmlResponse = await worker.fetch(new Request("https://shadow.test/admin/site-brief-feedback", {
+    headers: { cookie: adminCookie }
+  }), env);
+  const htmlBody = await htmlResponse.text();
+  assert.equal(htmlResponse.status, 200);
+  assert.equal(htmlResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-feedback-admin-html");
+  assert.match(htmlBody, /Site Brief反応検証/);
+  assert.match(htmlBody, /佐鳴湖周辺の水辺プロフィール/);
+  assert.doesNotMatch(htmlBody, /share-secret-admin|34\.72|137\.70|public_cell|shareToken/);
 });
 
 test("privacy exact-coordinate gate keeps public map responses on public cells only", async () => {
