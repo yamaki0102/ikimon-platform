@@ -10244,6 +10244,50 @@ type PublicEvidenceContract = {
   limitations: string[];
 };
 
+const FIELD_PUBLIC_AGGREGATION_GATE_RULESET_VERSION = "site_intelligence_aggregation_gate_v2";
+
+type FieldPublicAggregationGate = {
+  rulesetVersion: typeof FIELD_PUBLIC_AGGREGATION_GATE_RULESET_VERSION;
+  publicationAllowed: false;
+  status: "suppressed";
+  displaySuppressionReason:
+    | "source_record_statistics_unavailable"
+    | "sensitive_precheck_failed"
+    | "minimum_threshold_not_met";
+  thresholds: {
+    minObservationCount: number;
+    minObserverCount: number;
+    minTimeSpanDays: number;
+    suppressIfSingleSource: boolean;
+  };
+  observed: {
+    observationCount: number | null;
+    observerCount: number | null;
+    timeSpanDays: number | null;
+    sourceRecordCount: number | null;
+    sensitiveSourceRecordCount: number | null;
+  };
+  evaluationOrder: [
+    "sensitivity_precheck",
+    "rights_consent_scope",
+    "aggregation_thresholds",
+    "display_contract"
+  ];
+  sensitivity: {
+    status: "not_evaluated_without_source_records";
+    decision: "suppress";
+    preemptsCountThresholds: true;
+    reason: string;
+  };
+  output: {
+    confirmedLifeAllowed: false;
+    seasonalTrendAllowed: false;
+    observationDensityAllowed: false;
+    exactLocationExposed: false;
+    publicTimePrecision: "hidden";
+  };
+};
+
 type GbifAreaSummaryRow = {
   cell_id: string;
   query_cell_id: string;
@@ -17900,6 +17944,7 @@ function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
   const summary = row.summary?.trim()
     || `${row.name} は、公開できる範囲だけを使って場所単位で読む Site Intelligence プロフィールです。`;
   const access = publicFieldAccessGuidance(row);
+  const aggregationGate = fieldPublicAggregationGate();
   const policyVersion = "cloudflare-site-intelligence-p0-v1";
   return {
     ok: true,
@@ -17921,7 +17966,7 @@ function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
       confirmedLife: {
         status: "not_enough_public_records",
         taxa: [],
-        note: "本番D1 readmodelでは、少数記録から個別記録が逆算されないよう、生きものリストは集計条件が揃ってから表示します。"
+        note: fieldAggregationGateDisplayReason(aggregationGate)
       },
       seasonalTrend: {
         status: "not_enough_public_records",
@@ -17932,7 +17977,7 @@ function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
       observationDensity: {
         status: "collecting",
         label: "観察密度は集計準備中",
-        suppressionReason: "公開集約の最小件数しきい値を満たすまで、件数を強く見せません。"
+        suppressionReason: fieldAggregationGateDisplayReason(aggregationGate)
       },
       confidence: {
         label: verificationLabel,
@@ -17952,6 +17997,7 @@ function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
       updatedAt: row.updated_at ?? ""
     },
     evidenceContract: fieldPublicProfileEvidenceContract(row, placeType),
+    aggregationGate,
     publicBrief: {
       title: `${row.name} Site Brief`,
       summary,
@@ -17980,6 +18026,57 @@ function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
       fullProfileAggregation: false
     }
   };
+}
+
+function fieldPublicAggregationGate(): FieldPublicAggregationGate {
+  return {
+    rulesetVersion: FIELD_PUBLIC_AGGREGATION_GATE_RULESET_VERSION,
+    publicationAllowed: false,
+    status: "suppressed",
+    displaySuppressionReason: "source_record_statistics_unavailable",
+    thresholds: {
+      minObservationCount: 3,
+      minObserverCount: 2,
+      minTimeSpanDays: 14,
+      suppressIfSingleSource: true
+    },
+    observed: {
+      observationCount: null,
+      observerCount: null,
+      timeSpanDays: null,
+      sourceRecordCount: null,
+      sensitiveSourceRecordCount: null
+    },
+    evaluationOrder: [
+      "sensitivity_precheck",
+      "rights_consent_scope",
+      "aggregation_thresholds",
+      "display_contract"
+    ],
+    sensitivity: {
+      status: "not_evaluated_without_source_records",
+      decision: "suppress",
+      preemptsCountThresholds: true,
+      reason: "source record の感度・同意・AI確度・管理者制限がこの readmodel に未接続のため、件数が十分に見えても公開集約へ進めません。"
+    },
+    output: {
+      confirmedLifeAllowed: false,
+      seasonalTrendAllowed: false,
+      observationDensityAllowed: false,
+      exactLocationExposed: false,
+      publicTimePrecision: "hidden"
+    }
+  };
+}
+
+function fieldAggregationGateDisplayReason(gate: FieldPublicAggregationGate): string {
+  if (gate.displaySuppressionReason === "source_record_statistics_unavailable") {
+    return "source record の件数・観察者数・期間・感度確認が未接続のため、少数記録から個別記録が逆算されないよう公開集約を抑制しています。";
+  }
+  if (gate.displaySuppressionReason === "sensitive_precheck_failed") {
+    return "感度確認が公開条件を満たしていないため、件数条件より前に公開集約を抑制しています。";
+  }
+  return "公開集約の最小件数・観察者数・期間しきい値を満たすまで、件数や生きものリストを強く見せません。";
 }
 
 function fieldPublicProfileEvidenceContract(row: FieldDetailReadmodelRow, placeType: string): PublicEvidenceContract {
