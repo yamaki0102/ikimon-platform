@@ -2780,6 +2780,10 @@ export const worker = {
         return internalUpsertGbifJapaneseNameOverride(request, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/internal/gbif-japanese-name-display-audit") {
+        return internalListGbifJapaneseNameDisplayAudit(url, env);
+      }
+
       if (request.method === "GET" && url.pathname === "/internal/gbif-japanese-name-gap-candidates") {
         return internalListGbifJapaneseNameGapCandidates(url, env);
       }
@@ -10334,6 +10338,53 @@ type GbifJapaneseNameOverrideRow = {
   reviewed_at: string | null;
 };
 
+type GbifAreaTaxonBuildResult = {
+  taxon: GbifAreaTaxon;
+  audit: GbifJapaneseNameDisplayAuditDecision;
+};
+
+type GbifJapaneseNameDisplayAuditDecision = {
+  taxonKey: number;
+  scientificName: string;
+  canonicalName: string;
+  rank: string;
+  taxonGroup: GbifAreaTaxon["taxonGroup"];
+  displayNameJa: string;
+  commonNameJa: string | null;
+  commonNameSource: "gbif_vernacular" | "approved_override" | "none";
+  nameStatus: GbifAreaTaxon["nameStatus"];
+  overrideStatus: string | null;
+  overrideSourceKind: string | null;
+  overrideReviewedBy: string | null;
+  overrideReviewedAt: string | null;
+  decisionReason: "gbif_japanese_vernacular_name" | "approved_override_name" | "no_approved_japanese_name";
+};
+
+type GbifJapaneseNameDisplayAuditRow = {
+  audit_key: string;
+  taxon_key: number;
+  cell_id: string;
+  query_cell_id: string;
+  scientific_name: string;
+  canonical_name: string | null;
+  rank: string;
+  taxon_group: string;
+  display_name_ja: string;
+  common_name_ja: string | null;
+  common_name_source: string;
+  name_status: string;
+  override_status: string | null;
+  override_source_kind: string | null;
+  override_reviewed_by: string | null;
+  override_reviewed_at: string | null;
+  decision_reason: string;
+  policy_version: string;
+  source_url: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  seen_count: number;
+};
+
 type GbifJapaneseNameGapCandidateRow = {
   taxon_key: number;
   scientific_name: string;
@@ -10510,10 +10561,12 @@ async function fetchGbifAreaSummary(env: Env, queryCell: GbifQueryCell): Promise
     .map((item) => ({ taxonKey: toFiniteNumber(item.name), recordCount: toFiniteNumber(item.count) }))
     .filter((item): item is { taxonKey: number; recordCount: number } => Boolean(item.taxonKey && item.recordCount))
     .slice(0, 8);
-  const topTaxa = (await Promise.all(speciesCounts.map((item) => fetchGbifSpecies(env, item.taxonKey, item.recordCount))))
-    .filter((item): item is GbifAreaTaxon => item !== null);
+  const taxonResults = (await Promise.all(speciesCounts.map((item) => fetchGbifSpecies(env, item.taxonKey, item.recordCount))))
+    .filter((item): item is GbifAreaTaxonBuildResult => item !== null);
+  const topTaxa = taxonResults.map((result) => result.taxon);
   const sourceUrl = sourceUrlForGbifQueryCell(queryCell);
   await writeGbifJapaneseNameGapCandidates(env, queryCell, topTaxa, sourceUrl);
+  await writeGbifJapaneseNameDisplayAudit(env, queryCell, taxonResults.map((result) => result.audit), sourceUrl);
   const latestYear = gbifFacetCounts(payload, "YEAR")
     .map((item) => toFiniteNumber(item.name))
     .filter((year): year is number => year !== null && year >= 1800 && year <= new Date().getUTCFullYear())
@@ -10538,7 +10591,7 @@ async function fetchGbifAreaSummary(env: Env, queryCell: GbifQueryCell): Promise
   };
 }
 
-async function fetchGbifSpecies(env: Env, taxonKey: number, recordCount: number): Promise<GbifAreaTaxon | null> {
+async function fetchGbifSpecies(env: Env, taxonKey: number, recordCount: number): Promise<GbifAreaTaxonBuildResult | null> {
   try {
     const payload = await fetchGbifJson<GbifSpeciesResponse>(`${GBIF_SPECIES_ENDPOINT}/${encodeURIComponent(String(taxonKey))}`);
     const scientificName = gbifStringValue(payload.scientificName) || gbifStringValue(payload.canonicalName);
@@ -10548,17 +10601,44 @@ async function fetchGbifSpecies(env: Env, taxonKey: number, recordCount: number)
     const override = gbifCommonNameJa ? null : await readApprovedGbifJapaneseNameOverride(env, taxonKey);
     const commonNameJa = gbifCommonNameJa ?? override?.name_ja ?? null;
     const commonNameSource = gbifCommonNameJa ? "gbif_vernacular" : override ? "approved_override" : null;
-    return {
+    const canonicalName = gbifStringValue(payload.canonicalName) || scientificName;
+    const rank = gbifStringValue(payload.rank) || "SPECIES";
+    const displayNameJa = commonNameJa ?? `${gbifTaxonGroupLabelJa(taxonGroup)}（和名未確認）`;
+    const nameStatus = commonNameJa ? "japanese_common_name" : "scientific_name_only";
+    const taxon: GbifAreaTaxon = {
       taxonKey,
       scientificName,
-      canonicalName: gbifStringValue(payload.canonicalName) || scientificName,
-      rank: gbifStringValue(payload.rank) || "SPECIES",
+      canonicalName,
+      rank,
       taxonGroup,
       commonNameJa,
       commonNameSource,
-      displayNameJa: commonNameJa ?? `${gbifTaxonGroupLabelJa(taxonGroup)}（和名未確認）`,
-      nameStatus: commonNameJa ? "japanese_common_name" : "scientific_name_only",
+      displayNameJa,
+      nameStatus,
       recordCount
+    };
+    return {
+      taxon,
+      audit: {
+        taxonKey,
+        scientificName,
+        canonicalName,
+        rank,
+        taxonGroup,
+        displayNameJa,
+        commonNameJa,
+        commonNameSource: commonNameSource ?? "none",
+        nameStatus,
+        overrideStatus: override?.status ?? null,
+        overrideSourceKind: override?.source_kind ?? null,
+        overrideReviewedBy: override?.reviewed_by ?? null,
+        overrideReviewedAt: override?.reviewed_at ?? null,
+        decisionReason: gbifCommonNameJa
+          ? "gbif_japanese_vernacular_name"
+          : override
+            ? "approved_override_name"
+            : "no_approved_japanese_name"
+      }
     };
   } catch {
     return null;
@@ -10612,6 +10692,127 @@ async function writeGbifJapaneseNameGapCandidates(env: Env, queryCell: GbifQuery
       now
     ).run();
   }
+}
+
+async function writeGbifJapaneseNameDisplayAudit(
+  env: Env,
+  queryCell: GbifQueryCell,
+  decisions: GbifJapaneseNameDisplayAuditDecision[],
+  sourceUrl: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  for (const decision of decisions) {
+    const auditKey = `${queryCell.queryCellId}:${decision.taxonKey}:${decision.commonNameSource}:${decision.nameStatus}`;
+    try {
+      await env.OBS_DB.prepare(
+        `INSERT INTO gbif_japanese_name_display_audit (
+           audit_key, taxon_key, cell_id, query_cell_id,
+           scientific_name, canonical_name, rank, taxon_group,
+           display_name_ja, common_name_ja, common_name_source, name_status,
+           override_status, override_source_kind, override_reviewed_by, override_reviewed_at,
+           decision_reason, policy_version, source_url,
+           first_seen_at, last_seen_at, seen_count, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'gbif_name_governance_v1', ?, ?, ?, 1, ?)
+         ON CONFLICT(audit_key) DO UPDATE SET
+           scientific_name = excluded.scientific_name,
+           canonical_name = excluded.canonical_name,
+           rank = excluded.rank,
+           taxon_group = excluded.taxon_group,
+           display_name_ja = excluded.display_name_ja,
+           common_name_ja = excluded.common_name_ja,
+           common_name_source = excluded.common_name_source,
+           name_status = excluded.name_status,
+           override_status = excluded.override_status,
+           override_source_kind = excluded.override_source_kind,
+           override_reviewed_by = excluded.override_reviewed_by,
+           override_reviewed_at = excluded.override_reviewed_at,
+           decision_reason = excluded.decision_reason,
+           policy_version = excluded.policy_version,
+           source_url = excluded.source_url,
+           last_seen_at = excluded.last_seen_at,
+           seen_count = gbif_japanese_name_display_audit.seen_count + 1,
+           updated_at = excluded.updated_at`
+      ).bind(
+        auditKey,
+        decision.taxonKey,
+        queryCell.cellId,
+        queryCell.queryCellId,
+        decision.scientificName,
+        decision.canonicalName,
+        decision.rank,
+        decision.taxonGroup,
+        decision.displayNameJa,
+        decision.commonNameJa,
+        decision.commonNameSource,
+        decision.nameStatus,
+        decision.overrideStatus,
+        decision.overrideSourceKind,
+        decision.overrideReviewedBy,
+        decision.overrideReviewedAt,
+        decision.decisionReason,
+        sourceUrl,
+        now,
+        now,
+        now
+      ).run();
+    } catch (error) {
+      if (isMissingD1TableError(error, "gbif_japanese_name_display_audit")) return;
+      throw error;
+    }
+  }
+}
+
+async function internalListGbifJapaneseNameDisplayAudit(url: URL, env: Env): Promise<Response> {
+  const limit = Math.min(100, Math.max(1, toFiniteNumber(url.searchParams.get("limit")) ?? 50));
+  const taxonKey = toFiniteNumber(url.searchParams.get("taxon_key"));
+  const commonNameSource = normalizeGbifNameAuditSource(url.searchParams.get("common_name_source"));
+  const nameStatus = normalizeGbifNameAuditStatus(url.searchParams.get("name_status"));
+  const where: string[] = [];
+  const binds: Array<string | number> = [];
+  if (taxonKey && taxonKey > 0) {
+    where.push("taxon_key = ?");
+    binds.push(taxonKey);
+  }
+  if (commonNameSource) {
+    where.push("common_name_source = ?");
+    binds.push(commonNameSource);
+  }
+  if (nameStatus) {
+    where.push("name_status = ?");
+    binds.push(nameStatus);
+  }
+  try {
+    const rows = (await env.OBS_DB.prepare(
+      `SELECT audit_key, taxon_key, cell_id, query_cell_id,
+              scientific_name, canonical_name, rank, taxon_group,
+              display_name_ja, common_name_ja, common_name_source, name_status,
+              override_status, override_source_kind, override_reviewed_by, override_reviewed_at,
+              decision_reason, policy_version, source_url,
+              first_seen_at, last_seen_at, seen_count
+         FROM gbif_japanese_name_display_audit
+        ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+        ORDER BY last_seen_at DESC, seen_count DESC, taxon_key ASC
+        LIMIT ?`
+    ).bind(...binds, limit).all<GbifJapaneseNameDisplayAuditRow>()).results;
+    return json({ items: rows, limit, filters: { taxonKey: taxonKey ?? null, commonNameSource, nameStatus } }, 200, { "cache-control": "no-store" });
+  } catch (error) {
+    if (isMissingD1TableError(error, "gbif_japanese_name_display_audit")) {
+      return json({ items: [], limit, filters: { taxonKey: taxonKey ?? null, commonNameSource, nameStatus } }, 200, { "cache-control": "no-store" });
+    }
+    throw error;
+  }
+}
+
+function normalizeGbifNameAuditSource(value: unknown): "gbif_vernacular" | "approved_override" | "none" | null {
+  const source = normalizeOptionalText(value);
+  if (source === "gbif_vernacular" || source === "approved_override" || source === "none") return source;
+  return null;
+}
+
+function normalizeGbifNameAuditStatus(value: unknown): "japanese_common_name" | "scientific_name_only" | null {
+  const status = normalizeOptionalText(value);
+  if (status === "japanese_common_name" || status === "scientific_name_only") return status;
+  return null;
 }
 
 async function internalListGbifJapaneseNameGapCandidates(url: URL, env: Env): Promise<Response> {

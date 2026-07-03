@@ -1610,6 +1610,31 @@ interface GbifJapaneseNameGapCandidateTestRow {
   resolved_at: string | null;
 }
 
+interface GbifJapaneseNameDisplayAuditTestRow {
+  audit_key: string;
+  taxon_key: number;
+  cell_id: string;
+  query_cell_id: string;
+  scientific_name: string;
+  canonical_name: string | null;
+  rank: string;
+  taxon_group: string;
+  display_name_ja: string;
+  common_name_ja: string | null;
+  common_name_source: string;
+  name_status: string;
+  override_status: string | null;
+  override_source_kind: string | null;
+  override_reviewed_by: string | null;
+  override_reviewed_at: string | null;
+  decision_reason: string;
+  policy_version: string;
+  source_url: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  seen_count: number;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -1738,6 +1763,7 @@ class FakeD1 {
   gbifAreaSummaryState = new Map<string, { state_key: string; state_value: string; updated_at: string }>();
   gbifJapaneseNameOverrides = new Map<number, GbifJapaneseNameOverrideTestRow>();
   gbifJapaneseNameGapCandidates = new Map<number, GbifJapaneseNameGapCandidateTestRow>();
+  gbifJapaneseNameDisplayAudit = new Map<string, GbifJapaneseNameDisplayAuditTestRow>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -4342,6 +4368,37 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO gbif_japanese_name_display_audit")) {
+      const auditKey = string(v[0]);
+      const existing = this.db.gbifJapaneseNameDisplayAudit.get(auditKey);
+      const row: GbifJapaneseNameDisplayAuditTestRow = {
+        audit_key: auditKey,
+        taxon_key: number(v[1]),
+        cell_id: string(v[2]),
+        query_cell_id: string(v[3]),
+        scientific_name: string(v[4]),
+        canonical_name: nullableString(v[5]),
+        rank: string(v[6]),
+        taxon_group: string(v[7]),
+        display_name_ja: string(v[8]),
+        common_name_ja: nullableString(v[9]),
+        common_name_source: string(v[10]),
+        name_status: string(v[11]),
+        override_status: nullableString(v[12]),
+        override_source_kind: nullableString(v[13]),
+        override_reviewed_by: nullableString(v[14]),
+        override_reviewed_at: nullableString(v[15]),
+        decision_reason: string(v[16]),
+        policy_version: "gbif_name_governance_v1",
+        source_url: nullableString(v[17]),
+        first_seen_at: existing?.first_seen_at ?? string(v[18]),
+        last_seen_at: string(v[19]),
+        seen_count: (existing?.seen_count ?? 0) + 1
+      };
+      this.db.gbifJapaneseNameDisplayAudit.set(auditKey, row);
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
@@ -5412,6 +5469,31 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT audit_key, taxon_key, cell_id, query_cell_id")) {
+      let bindIndex = 0;
+      let rows = [...this.db.gbifJapaneseNameDisplayAudit.values()];
+      if (normalized.includes("taxon_key = ?")) {
+        const taxonKey = number(v[bindIndex++]);
+        rows = rows.filter((row) => row.taxon_key === taxonKey);
+      }
+      if (normalized.includes("common_name_source = ?")) {
+        const source = string(v[bindIndex++]);
+        rows = rows.filter((row) => row.common_name_source === source);
+      }
+      if (normalized.includes("name_status = ?")) {
+        const status = string(v[bindIndex++]);
+        rows = rows.filter((row) => row.name_status === status);
+      }
+      const limit = number(v[bindIndex]);
+      rows = rows
+        .sort((a, b) =>
+          b.last_seen_at.localeCompare(a.last_seen_at) ||
+          b.seen_count - a.seen_count ||
+          a.taxon_key - b.taxon_key
+        )
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT taxon_key, scientific_name, canonical_name, rank, taxon_group")) {
       const state = string(v[0]);
       const limit = number(v[1]);
@@ -7300,6 +7382,38 @@ test("v1 public map read routes expose current shell contracts without exact coo
     assert.equal(fallbackPayload.topTaxa[0].displayNameJa, "テスト補完和名");
     assert.equal(fallbackPayload.topTaxa[0].nameStatus, "japanese_common_name");
     assert.doesNotMatch(JSON.stringify(fallbackPayload), /未承認テスト名|photo|imageUrl|latitude|longitude/i);
+
+    const auditResponse = await worker.fetch(internalRequest("/internal/gbif-japanese-name-display-audit?limit=10"), env);
+    const auditPayload = await auditResponse.json() as any;
+    assert.equal(auditResponse.ok, true, JSON.stringify(auditPayload));
+    const gbifAudit = auditPayload.items.find((item: any) => item.taxon_key === 2492321);
+    assert.equal(gbifAudit.display_name_ja, "スズメ");
+    assert.equal(gbifAudit.common_name_source, "gbif_vernacular");
+    assert.equal(gbifAudit.name_status, "japanese_common_name");
+    assert.equal(gbifAudit.decision_reason, "gbif_japanese_vernacular_name");
+    assert.equal(gbifAudit.policy_version, "gbif_name_governance_v1");
+    const unresolvedAudit = auditPayload.items.find((item: any) =>
+      item.taxon_key === 999999 && item.common_name_source === "none"
+    );
+    assert.equal(unresolvedAudit.display_name_ja, "昆虫類（和名未確認）");
+    assert.equal(unresolvedAudit.common_name_ja, null);
+    assert.equal(unresolvedAudit.name_status, "scientific_name_only");
+    assert.equal(unresolvedAudit.decision_reason, "no_approved_japanese_name");
+    const approvedAudit = auditPayload.items.find((item: any) =>
+      item.taxon_key === 999999 && item.common_name_source === "approved_override"
+    );
+    assert.equal(approvedAudit.display_name_ja, "テスト補完和名");
+    assert.equal(approvedAudit.common_name_ja, "テスト補完和名");
+    assert.equal(approvedAudit.name_status, "japanese_common_name");
+    assert.equal(approvedAudit.override_status, "approved");
+    assert.equal(approvedAudit.override_source_kind, "manual_review");
+    assert.equal(approvedAudit.decision_reason, "approved_override_name");
+    assert.doesNotMatch(JSON.stringify(auditPayload), /未承認テスト名/);
+
+    const approvedAuditResponse = await worker.fetch(internalRequest("/internal/gbif-japanese-name-display-audit?common_name_source=approved_override&limit=5"), env);
+    const approvedAuditPayload = await approvedAuditResponse.json() as any;
+    assert.equal(approvedAuditPayload.items.length, 1);
+    assert.equal(approvedAuditPayload.items[0].taxon_key, 999999);
   } finally {
     globalThis.fetch = originalFetch;
   }
