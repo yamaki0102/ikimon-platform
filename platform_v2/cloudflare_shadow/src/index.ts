@@ -2750,6 +2750,14 @@ export const worker = {
         return internalSentinelEnvironmentRun(url, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/internal/gbif-japanese-name-overrides") {
+        return internalGetGbifJapaneseNameOverride(url, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/internal/gbif-japanese-name-overrides") {
+        return internalUpsertGbifJapaneseNameOverride(request, env);
+      }
+
       if (url.pathname.startsWith("/internal/")) {
         return json({ error: "not_found" }, 404);
       }
@@ -10173,6 +10181,7 @@ type GbifAreaTaxon = {
   scientificName: string;
   canonicalName: string;
   commonNameJa: string | null;
+  commonNameSource: "gbif_vernacular" | "approved_override" | null;
   displayNameJa: string;
   nameStatus: "japanese_common_name" | "scientific_name_only";
   rank: string;
@@ -10214,6 +10223,16 @@ type GbifAreaSummaryRow = {
   citation_text: string;
   generated_at: string;
   expires_at: string;
+};
+
+type GbifJapaneseNameOverrideRow = {
+  taxon_key: number;
+  name_ja: string;
+  status: string;
+  source_kind: string;
+  source_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
 };
 
 type GbifOccurrenceSearchResponse = {
@@ -10271,7 +10290,7 @@ async function getGbifAreaSummaryForCell(env: Env, queryCell: GbifQueryCell, opt
   const cached = options.forceRefresh ? null : await readCachedGbifAreaSummary(env, queryCell.cellId, true);
   if (cached) return cached;
   try {
-    const refreshed = await fetchGbifAreaSummary(queryCell);
+    const refreshed = await fetchGbifAreaSummary(env, queryCell);
     await writeGbifAreaSummary(env, refreshed);
     return refreshed;
   } catch (error) {
@@ -10368,13 +10387,13 @@ async function writeGbifAreaSummaryRefreshError(env: Env, queryCell: GbifQueryCe
   ).run();
 }
 
-async function fetchGbifAreaSummary(queryCell: GbifQueryCell): Promise<GbifAreaSummary> {
+async function fetchGbifAreaSummary(env: Env, queryCell: GbifQueryCell): Promise<GbifAreaSummary> {
   const payload = await fetchGbifJson<GbifOccurrenceSearchResponse>(occurrenceSummaryUrlForGbifQueryCell(queryCell));
   const speciesCounts = gbifFacetCounts(payload, "SPECIES_KEY")
     .map((item) => ({ taxonKey: toFiniteNumber(item.name), recordCount: toFiniteNumber(item.count) }))
     .filter((item): item is { taxonKey: number; recordCount: number } => Boolean(item.taxonKey && item.recordCount))
     .slice(0, 8);
-  const topTaxa = (await Promise.all(speciesCounts.map((item) => fetchGbifSpecies(item.taxonKey, item.recordCount))))
+  const topTaxa = (await Promise.all(speciesCounts.map((item) => fetchGbifSpecies(env, item.taxonKey, item.recordCount))))
     .filter((item): item is GbifAreaTaxon => item !== null);
   const latestYear = gbifFacetCounts(payload, "YEAR")
     .map((item) => toFiniteNumber(item.name))
@@ -10399,13 +10418,16 @@ async function fetchGbifAreaSummary(queryCell: GbifQueryCell): Promise<GbifAreaS
   };
 }
 
-async function fetchGbifSpecies(taxonKey: number, recordCount: number): Promise<GbifAreaTaxon | null> {
+async function fetchGbifSpecies(env: Env, taxonKey: number, recordCount: number): Promise<GbifAreaTaxon | null> {
   try {
     const payload = await fetchGbifJson<GbifSpeciesResponse>(`${GBIF_SPECIES_ENDPOINT}/${encodeURIComponent(String(taxonKey))}`);
     const scientificName = gbifStringValue(payload.scientificName) || gbifStringValue(payload.canonicalName);
     if (!scientificName) return null;
     const taxonGroup = inferGbifTaxonGroup(payload);
-    const commonNameJa = await fetchGbifJapaneseCommonName(taxonKey);
+    const gbifCommonNameJa = await fetchGbifJapaneseCommonName(taxonKey);
+    const override = gbifCommonNameJa ? null : await readApprovedGbifJapaneseNameOverride(env, taxonKey);
+    const commonNameJa = gbifCommonNameJa ?? override?.name_ja ?? null;
+    const commonNameSource = gbifCommonNameJa ? "gbif_vernacular" : override ? "approved_override" : null;
     return {
       taxonKey,
       scientificName,
@@ -10413,6 +10435,7 @@ async function fetchGbifSpecies(taxonKey: number, recordCount: number): Promise<
       rank: gbifStringValue(payload.rank) || "SPECIES",
       taxonGroup,
       commonNameJa,
+      commonNameSource,
       displayNameJa: commonNameJa ?? `${gbifTaxonGroupLabelJa(taxonGroup)}（和名未確認）`,
       nameStatus: commonNameJa ? "japanese_common_name" : "scientific_name_only",
       recordCount
@@ -10420,6 +10443,85 @@ async function fetchGbifSpecies(taxonKey: number, recordCount: number): Promise<
   } catch {
     return null;
   }
+}
+
+async function readApprovedGbifJapaneseNameOverride(env: Env, taxonKey: number): Promise<GbifJapaneseNameOverrideRow | null> {
+  return await env.OBS_DB.prepare(
+    `SELECT taxon_key, name_ja, status, source_kind, source_note, reviewed_by, reviewed_at
+       FROM gbif_japanese_name_overrides
+      WHERE taxon_key = ?
+        AND status = 'approved'
+      LIMIT 1`
+  ).bind(taxonKey).first<GbifJapaneseNameOverrideRow>();
+}
+
+async function internalGetGbifJapaneseNameOverride(url: URL, env: Env): Promise<Response> {
+  const taxonKey = toFiniteNumber(url.searchParams.get("taxon_key"));
+  if (!taxonKey || taxonKey < 1) return json({ error: "invalid_taxon_key" }, 400, { "cache-control": "no-store" });
+  const row = await env.OBS_DB.prepare(
+    `SELECT taxon_key, name_ja, status, source_kind, source_note, reviewed_by, reviewed_at
+       FROM gbif_japanese_name_overrides
+      WHERE taxon_key = ?
+      LIMIT 1`
+  ).bind(taxonKey).first<GbifJapaneseNameOverrideRow>();
+  return json({ item: row ?? null }, 200, { "cache-control": "no-store" });
+}
+
+async function internalUpsertGbifJapaneseNameOverride(request: Request, env: Env): Promise<Response> {
+  const input = await readJson<Record<string, unknown>>(request);
+  const taxonKey = toFiniteNumber(input.taxonKey ?? input.taxon_key);
+  const nameJa = normalizeGbifJapaneseOverrideName(input.nameJa ?? input.name_ja);
+  const status = normalizeGbifOverrideStatus(input.status);
+  const sourceKind = normalizeGbifOverrideSourceKind(input.sourceKind ?? input.source_kind);
+  const sourceNote = normalizeOptionalText(input.sourceNote ?? input.source_note) ?? "";
+  const reviewedBy = normalizeOptionalText(input.reviewedBy ?? input.reviewed_by) ?? "internal";
+  if (!taxonKey || taxonKey < 1) return json({ error: "invalid_taxon_key" }, 400, { "cache-control": "no-store" });
+  if (!nameJa) return json({ error: "invalid_japanese_name" }, 400, { "cache-control": "no-store" });
+  if (!status) return json({ error: "invalid_status" }, 400, { "cache-control": "no-store" });
+  if (!sourceKind) return json({ error: "invalid_source_kind" }, 400, { "cache-control": "no-store" });
+  if (status === "approved" && sourceNote.length < 3) {
+    return json({ error: "source_note_required_for_approved_name" }, 400, { "cache-control": "no-store" });
+  }
+  const reviewedAt = status === "approved" ? new Date().toISOString() : null;
+  await env.OBS_DB.prepare(
+    `INSERT INTO gbif_japanese_name_overrides (
+       taxon_key, name_ja, status, source_kind, source_note, reviewed_by, reviewed_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(taxon_key) DO UPDATE SET
+       name_ja = excluded.name_ja,
+       status = excluded.status,
+       source_kind = excluded.source_kind,
+       source_note = excluded.source_note,
+       reviewed_by = excluded.reviewed_by,
+       reviewed_at = excluded.reviewed_at,
+       updated_at = excluded.updated_at`
+  ).bind(taxonKey, nameJa, status, sourceKind, sourceNote || null, reviewedBy, reviewedAt, new Date().toISOString()).run();
+  const row = await env.OBS_DB.prepare(
+    `SELECT taxon_key, name_ja, status, source_kind, source_note, reviewed_by, reviewed_at
+       FROM gbif_japanese_name_overrides
+      WHERE taxon_key = ?
+      LIMIT 1`
+  ).bind(taxonKey).first<GbifJapaneseNameOverrideRow>();
+  return json({ ok: true, item: row }, 200, { "cache-control": "no-store" });
+}
+
+function normalizeGbifJapaneseOverrideName(value: unknown): string | null {
+  const name = normalizeOptionalText(value);
+  if (!name || name.length > 80) return null;
+  if (!/[一-龯ぁ-んァ-ヶー]/u.test(name)) return null;
+  return name;
+}
+
+function normalizeGbifOverrideStatus(value: unknown): "candidate" | "approved" | "rejected" | "retired" | null {
+  const status = normalizeOptionalText(value) ?? "candidate";
+  if (status === "candidate" || status === "approved" || status === "rejected" || status === "retired") return status;
+  return null;
+}
+
+function normalizeGbifOverrideSourceKind(value: unknown): "manual_review" | "curated_source" | "operator_import" | "gbif_gap_review" | null {
+  const kind = normalizeOptionalText(value) ?? "manual_review";
+  if (kind === "manual_review" || kind === "curated_source" || kind === "operator_import" || kind === "gbif_gap_review") return kind;
+  return null;
 }
 
 async function fetchGbifJapaneseCommonName(taxonKey: number): Promise<string | null> {
@@ -10469,6 +10571,7 @@ function gbifAreaSummaryFromRow(row: GbifAreaSummaryRow): GbifAreaSummary {
             scientificName,
             canonicalName: gbifStringValue(raw.canonicalName) || scientificName,
             commonNameJa: gbifStringValue(raw.commonNameJa) || null,
+            commonNameSource: gbifAreaTaxonCommonNameSource(raw.commonNameSource),
             displayNameJa: gbifStringValue(raw.displayNameJa) || gbifStringValue(raw.commonNameJa) || scientificName,
             nameStatus: gbifStringValue(raw.nameStatus) === "japanese_common_name" ? "japanese_common_name" : "scientific_name_only",
             rank: gbifStringValue(raw.rank) || "SPECIES",
@@ -10496,6 +10599,12 @@ function gbifAreaSummaryFromRow(row: GbifAreaSummaryRow): GbifAreaSummary {
     expiresAt: row.expires_at,
     policy: gbifAreaDisplayPolicy()
   };
+}
+
+function gbifAreaTaxonCommonNameSource(value: unknown): GbifAreaTaxon["commonNameSource"] {
+  const source = gbifStringValue(value);
+  if (source === "gbif_vernacular" || source === "approved_override") return source;
+  return null;
 }
 
 function resolveGbifQueryCell(rawCellId: string): GbifQueryCell | null {

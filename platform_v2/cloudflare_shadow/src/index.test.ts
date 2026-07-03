@@ -1561,6 +1561,16 @@ interface GbifAreaSummaryCacheTestRow {
   refresh_error: string | null;
 }
 
+interface GbifJapaneseNameOverrideTestRow {
+  taxon_key: number;
+  name_ja: string;
+  status: string;
+  source_kind: string;
+  source_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -1686,6 +1696,7 @@ class FakeD1 {
   authorityRecommendationAudit: Array<{ audit_id: string; recommendation_id: string; actor_user_id: string | null; action: string; payload_json: string; created_at: string }> = [];
   gbifAreaSummaryCache = new Map<string, GbifAreaSummaryCacheTestRow>();
   gbifAreaSummaryState = new Map<string, { state_key: string; state_value: string; updated_at: string }>();
+  gbifJapaneseNameOverrides = new Map<number, GbifJapaneseNameOverrideTestRow>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -4244,6 +4255,20 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO gbif_japanese_name_overrides")) {
+      const row: GbifJapaneseNameOverrideTestRow = {
+        taxon_key: number(v[0]),
+        name_ja: string(v[1]),
+        status: string(v[2]),
+        source_kind: string(v[3]),
+        source_note: nullableString(v[4]),
+        reviewed_by: nullableString(v[5]),
+        reviewed_at: nullableString(v[6]),
+      };
+      this.db.gbifJapaneseNameOverrides.set(row.taxon_key, row);
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
@@ -4265,6 +4290,13 @@ class FakeStatement {
     if (normalized.startsWith("SELECT state_value FROM gbif_area_summary_state")) {
       const row = this.db.gbifAreaSummaryState.get("japan_schedule_cursor");
       return (row as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT taxon_key, name_ja, status, source_kind, source_note, reviewed_by, reviewed_at FROM gbif_japanese_name_overrides")) {
+      const row = this.db.gbifJapaneseNameOverrides.get(number(v[0]));
+      if (!row) return null;
+      if (normalized.includes("AND status = 'approved'") && row.status !== "approved") return null;
+      return (row as T);
     }
 
     if (normalized.startsWith("SELECT user_id, default_photo_echo_enabled, default_tags_public")) {
@@ -7027,12 +7059,15 @@ test("v1 public map read routes expose current shell contracts without exact coo
 
   const originalFetch = globalThis.fetch;
   const requestedGbifUrls: string[] = [];
+  let occurrenceRequestCount = 0;
   try {
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const href = typeof input === "string" || input instanceof URL ? String(input) : input.url;
       requestedGbifUrls.push(href);
       const gbifUrl = new URL(href);
       if (gbifUrl.pathname === "/v1/occurrence/search") {
+        occurrenceRequestCount += 1;
+        const taxonKey = occurrenceRequestCount === 1 ? "2492321" : "999999";
         assert.equal(gbifUrl.searchParams.get("country"), "JP");
         assert.equal(gbifUrl.searchParams.get("hasCoordinate"), "true");
         assert.equal(gbifUrl.searchParams.get("hasGeospatialIssue"), "false");
@@ -7041,7 +7076,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
         return new Response(JSON.stringify({
           count: 7,
           facets: [
-            { field: "SPECIES_KEY", counts: [{ name: "2492321", count: 7 }] },
+            { field: "SPECIES_KEY", counts: [{ name: taxonKey, count: 7 }] },
             { field: "YEAR", counts: [{ name: "2025", count: 3 }] }
           ]
         }), { headers: { "content-type": "application/json" } });
@@ -7056,11 +7091,28 @@ test("v1 public map read routes expose current shell contracts without exact coo
           class: "Aves"
         }), { headers: { "content-type": "application/json" } });
       }
+      if (gbifUrl.pathname === "/v1/species/999999") {
+        return new Response(JSON.stringify({
+          key: 999999,
+          scientificName: "Testus supplementalis",
+          canonicalName: "Testus supplementalis",
+          rank: "SPECIES",
+          kingdom: "Animalia",
+          class: "Insecta"
+        }), { headers: { "content-type": "application/json" } });
+      }
       if (gbifUrl.pathname === "/v1/species/2492321/vernacularNames") {
         return new Response(JSON.stringify({
           results: [
             { vernacularName: "Eurasian Tree Sparrow", language: "eng" },
             { vernacularName: "スズメ", language: "jpn", country: "JP", preferred: true }
+          ]
+        }), { headers: { "content-type": "application/json" } });
+      }
+      if (gbifUrl.pathname === "/v1/species/999999/vernacularNames") {
+        return new Response(JSON.stringify({
+          results: [
+            { vernacularName: "supplemental test insect", language: "eng" }
           ]
         }), { headers: { "content-type": "application/json" } });
       }
@@ -7078,10 +7130,50 @@ test("v1 public map read routes expose current shell contracts without exact coo
     assert.equal(gbifPayload.policy.exactCoordinatesExposed, false);
     assert.equal(gbifPayload.policy.thirdPartyMediaUsed, false);
     assert.equal(gbifPayload.topTaxa[0].commonNameJa, "スズメ");
+    assert.equal(gbifPayload.topTaxa[0].commonNameSource, "gbif_vernacular");
     assert.equal(gbifPayload.topTaxa[0].displayNameJa, "スズメ");
     assert.equal(gbifPayload.topTaxa[0].nameStatus, "japanese_common_name");
     assert.doesNotMatch(JSON.stringify(gbifPayload), /photo|imageUrl|latitude|longitude|34\.71234|137\.81234/i);
     assert.ok(requestedGbifUrls.some((href) => href.includes("/v1/occurrence/search")));
+
+    const candidateOverride = await worker.fetch(internalRequest("/internal/gbif-japanese-name-overrides", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        taxonKey: 999999,
+        nameJa: "未承認テスト名",
+        status: "candidate",
+        sourceKind: "gbif_gap_review",
+        sourceNote: "not approved yet",
+        reviewedBy: "test"
+      })
+    }), env);
+    assert.equal(candidateOverride.ok, true);
+
+    const approvedOverride = await worker.fetch(internalRequest("/internal/gbif-japanese-name-overrides", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        taxonKey: 999999,
+        nameJa: "テスト補完和名",
+        status: "approved",
+        sourceKind: "manual_review",
+        sourceNote: "test reviewed source",
+        reviewedBy: "test"
+      })
+    }), env);
+    assert.equal(approvedOverride.ok, true);
+    const approvedPayload = await approvedOverride.json() as any;
+    assert.equal(approvedPayload.item.status, "approved");
+
+    const fallbackResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/gbif-area-summary?cell_id=cell%3A34.81%2C137.91"), env);
+    const fallbackPayload = await fallbackResponse.json() as any;
+    assert.equal(fallbackResponse.ok, true, JSON.stringify(fallbackPayload));
+    assert.equal(fallbackPayload.topTaxa[0].commonNameJa, "テスト補完和名");
+    assert.equal(fallbackPayload.topTaxa[0].commonNameSource, "approved_override");
+    assert.equal(fallbackPayload.topTaxa[0].displayNameJa, "テスト補完和名");
+    assert.equal(fallbackPayload.topTaxa[0].nameStatus, "japanese_common_name");
+    assert.doesNotMatch(JSON.stringify(fallbackPayload), /未承認テスト名|photo|imageUrl|latitude|longitude/i);
   } finally {
     globalThis.fetch = originalFetch;
   }
