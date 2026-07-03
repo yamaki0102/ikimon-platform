@@ -2758,6 +2758,10 @@ export const worker = {
         return internalUpsertGbifJapaneseNameOverride(request, env);
       }
 
+      if (request.method === "GET" && url.pathname === "/internal/gbif-japanese-name-gap-candidates") {
+        return internalListGbifJapaneseNameGapCandidates(url, env);
+      }
+
       if (url.pathname.startsWith("/internal/")) {
         return json({ error: "not_found" }, 404);
       }
@@ -10235,6 +10239,23 @@ type GbifJapaneseNameOverrideRow = {
   reviewed_at: string | null;
 };
 
+type GbifJapaneseNameGapCandidateRow = {
+  taxon_key: number;
+  scientific_name: string;
+  canonical_name: string | null;
+  rank: string;
+  taxon_group: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  seen_count: number;
+  record_count_total: number;
+  example_cell_id: string | null;
+  example_query_cell_id: string | null;
+  source_url: string | null;
+  review_state: string;
+  resolved_at: string | null;
+};
+
 type GbifOccurrenceSearchResponse = {
   count?: unknown;
   facets?: Array<{ field?: unknown; counts?: Array<{ name?: unknown; count?: unknown }> }>;
@@ -10395,6 +10416,8 @@ async function fetchGbifAreaSummary(env: Env, queryCell: GbifQueryCell): Promise
     .slice(0, 8);
   const topTaxa = (await Promise.all(speciesCounts.map((item) => fetchGbifSpecies(env, item.taxonKey, item.recordCount))))
     .filter((item): item is GbifAreaTaxon => item !== null);
+  const sourceUrl = sourceUrlForGbifQueryCell(queryCell);
+  await writeGbifJapaneseNameGapCandidates(env, queryCell, topTaxa, sourceUrl);
   const latestYear = gbifFacetCounts(payload, "YEAR")
     .map((item) => toFiniteNumber(item.name))
     .filter((year): year is number => year !== null && year >= 1800 && year <= new Date().getUTCFullYear())
@@ -10409,7 +10432,7 @@ async function fetchGbifAreaSummary(env: Env, queryCell: GbifQueryCell): Promise
     latestYear,
     topTaxa,
     sourceProvider: "GBIF",
-    sourceUrl: sourceUrlForGbifQueryCell(queryCell),
+    sourceUrl,
     licenseScope: "CC0_1_0,CC_BY_4_0",
     citationText: gbifAreaCitationText(),
     generatedAt: now.toISOString(),
@@ -10455,6 +10478,66 @@ async function readApprovedGbifJapaneseNameOverride(env: Env, taxonKey: number):
   ).bind(taxonKey).first<GbifJapaneseNameOverrideRow>();
 }
 
+async function writeGbifJapaneseNameGapCandidates(env: Env, queryCell: GbifQueryCell, topTaxa: GbifAreaTaxon[], sourceUrl: string): Promise<void> {
+  const now = new Date().toISOString();
+  const gapTaxa = topTaxa.filter((taxon) => taxon.nameStatus === "scientific_name_only" && taxon.commonNameSource === null);
+  for (const taxon of gapTaxa) {
+    await env.OBS_DB.prepare(
+      `INSERT INTO gbif_japanese_name_gap_candidates (
+         taxon_key, scientific_name, canonical_name, rank, taxon_group,
+         first_seen_at, last_seen_at, seen_count, record_count_total,
+         example_cell_id, example_query_cell_id, source_url, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+       ON CONFLICT(taxon_key) DO UPDATE SET
+         scientific_name = excluded.scientific_name,
+         canonical_name = excluded.canonical_name,
+         rank = excluded.rank,
+         taxon_group = excluded.taxon_group,
+         last_seen_at = excluded.last_seen_at,
+         seen_count = gbif_japanese_name_gap_candidates.seen_count + 1,
+         record_count_total = gbif_japanese_name_gap_candidates.record_count_total + excluded.record_count_total,
+         example_cell_id = excluded.example_cell_id,
+         example_query_cell_id = excluded.example_query_cell_id,
+         source_url = excluded.source_url,
+         updated_at = excluded.updated_at`
+    ).bind(
+      taxon.taxonKey,
+      taxon.scientificName,
+      taxon.canonicalName,
+      taxon.rank,
+      taxon.taxonGroup,
+      now,
+      now,
+      taxon.recordCount,
+      queryCell.cellId,
+      queryCell.queryCellId,
+      sourceUrl,
+      now
+    ).run();
+  }
+}
+
+async function internalListGbifJapaneseNameGapCandidates(url: URL, env: Env): Promise<Response> {
+  const state = normalizeGbifGapCandidateReviewState(url.searchParams.get("state")) ?? "pending";
+  const limit = Math.min(100, Math.max(1, toFiniteNumber(url.searchParams.get("limit")) ?? 50));
+  const rows = (await env.OBS_DB.prepare(
+    `SELECT taxon_key, scientific_name, canonical_name, rank, taxon_group,
+            first_seen_at, last_seen_at, seen_count, record_count_total,
+            example_cell_id, example_query_cell_id, source_url, review_state, resolved_at
+       FROM gbif_japanese_name_gap_candidates
+      WHERE review_state = ?
+      ORDER BY record_count_total DESC, seen_count DESC, last_seen_at DESC
+      LIMIT ?`
+  ).bind(state, limit).all<GbifJapaneseNameGapCandidateRow>()).results;
+  return json({ items: rows, state, limit }, 200, { "cache-control": "no-store" });
+}
+
+function normalizeGbifGapCandidateReviewState(value: unknown): "pending" | "reviewing" | "resolved" | "ignored" | null {
+  const state = normalizeOptionalText(value) ?? "pending";
+  if (state === "pending" || state === "reviewing" || state === "resolved" || state === "ignored") return state;
+  return null;
+}
+
 async function internalGetGbifJapaneseNameOverride(url: URL, env: Env): Promise<Response> {
   const taxonKey = toFiniteNumber(url.searchParams.get("taxon_key"));
   if (!taxonKey || taxonKey < 1) return json({ error: "invalid_taxon_key" }, 400, { "cache-control": "no-store" });
@@ -10496,6 +10579,15 @@ async function internalUpsertGbifJapaneseNameOverride(request: Request, env: Env
        reviewed_at = excluded.reviewed_at,
        updated_at = excluded.updated_at`
   ).bind(taxonKey, nameJa, status, sourceKind, sourceNote || null, reviewedBy, reviewedAt, new Date().toISOString()).run();
+  if (status === "approved") {
+    await env.OBS_DB.prepare(
+      `UPDATE gbif_japanese_name_gap_candidates
+          SET review_state = 'resolved',
+              resolved_at = COALESCE(resolved_at, ?),
+              updated_at = ?
+        WHERE taxon_key = ?`
+    ).bind(reviewedAt, reviewedAt, taxonKey).run();
+  }
   const row = await env.OBS_DB.prepare(
     `SELECT taxon_key, name_ja, status, source_kind, source_note, reviewed_by, reviewed_at
        FROM gbif_japanese_name_overrides

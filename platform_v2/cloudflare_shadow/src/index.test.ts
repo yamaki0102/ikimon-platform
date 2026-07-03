@@ -1571,6 +1571,23 @@ interface GbifJapaneseNameOverrideTestRow {
   reviewed_at: string | null;
 }
 
+interface GbifJapaneseNameGapCandidateTestRow {
+  taxon_key: number;
+  scientific_name: string;
+  canonical_name: string | null;
+  rank: string;
+  taxon_group: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  seen_count: number;
+  record_count_total: number;
+  example_cell_id: string | null;
+  example_query_cell_id: string | null;
+  source_url: string | null;
+  review_state: string;
+  resolved_at: string | null;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -1697,6 +1714,7 @@ class FakeD1 {
   gbifAreaSummaryCache = new Map<string, GbifAreaSummaryCacheTestRow>();
   gbifAreaSummaryState = new Map<string, { state_key: string; state_value: string; updated_at: string }>();
   gbifJapaneseNameOverrides = new Map<number, GbifJapaneseNameOverrideTestRow>();
+  gbifJapaneseNameGapCandidates = new Map<number, GbifJapaneseNameGapCandidateTestRow>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -4269,6 +4287,38 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO gbif_japanese_name_gap_candidates")) {
+      const taxonKey = number(v[0]);
+      const existing = this.db.gbifJapaneseNameGapCandidates.get(taxonKey);
+      const row: GbifJapaneseNameGapCandidateTestRow = {
+        taxon_key: taxonKey,
+        scientific_name: string(v[1]),
+        canonical_name: nullableString(v[2]),
+        rank: string(v[3]),
+        taxon_group: string(v[4]),
+        first_seen_at: existing?.first_seen_at ?? string(v[5]),
+        last_seen_at: string(v[6]),
+        seen_count: (existing?.seen_count ?? 0) + 1,
+        record_count_total: (existing?.record_count_total ?? 0) + number(v[7]),
+        example_cell_id: nullableString(v[8]),
+        example_query_cell_id: nullableString(v[9]),
+        source_url: nullableString(v[10]),
+        review_state: existing?.review_state ?? "pending",
+        resolved_at: existing?.resolved_at ?? null,
+      };
+      this.db.gbifJapaneseNameGapCandidates.set(taxonKey, row);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE gbif_japanese_name_gap_candidates")) {
+      const row = this.db.gbifJapaneseNameGapCandidates.get(number(v[2]));
+      if (row) {
+        row.review_state = "resolved";
+        row.resolved_at = row.resolved_at ?? nullableString(v[0]);
+      }
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
@@ -5334,6 +5384,19 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT taxon_key, scientific_name, canonical_name, rank, taxon_group")) {
+      const state = string(v[0]);
+      const limit = number(v[1]);
+      const rows = [...this.db.gbifJapaneseNameGapCandidates.values()]
+        .filter((row) => row.review_state === state)
+        .sort((a, b) =>
+          b.record_count_total - a.record_count_total ||
+          b.seen_count - a.seen_count ||
+          b.last_seen_at.localeCompare(a.last_seen_at)
+        )
+        .slice(0, limit);
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT assessment_id, field_id, actor_user_id, status, visibility, policy_version, estimate_version")) {
       const fieldId = string(v[0]);
       const actorUserId = string(v[1]);
@@ -7150,6 +7213,24 @@ test("v1 public map read routes expose current shell contracts without exact coo
     }), env);
     assert.equal(candidateOverride.ok, true);
 
+    const gapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/gbif-area-summary?cell_id=cell%3A34.80%2C137.90"), env);
+    const gapPayload = await gapResponse.json() as any;
+    assert.equal(gapResponse.ok, true, JSON.stringify(gapPayload));
+    assert.equal(gapPayload.topTaxa[0].taxonKey, 999999);
+    assert.equal(gapPayload.topTaxa[0].commonNameJa, null);
+    assert.equal(gapPayload.topTaxa[0].commonNameSource, null);
+    assert.equal(gapPayload.topTaxa[0].displayNameJa, "昆虫類（和名未確認）");
+    assert.equal(gapPayload.topTaxa[0].nameStatus, "scientific_name_only");
+
+    const gapCandidatesResponse = await worker.fetch(internalRequest("/internal/gbif-japanese-name-gap-candidates?state=pending&limit=5"), env);
+    const gapCandidatesPayload = await gapCandidatesResponse.json() as any;
+    assert.equal(gapCandidatesResponse.ok, true, JSON.stringify(gapCandidatesPayload));
+    assert.equal(gapCandidatesPayload.items.length, 1);
+    assert.equal(gapCandidatesPayload.items[0].taxon_key, 999999);
+    assert.equal(gapCandidatesPayload.items[0].scientific_name, "Testus supplementalis");
+    assert.equal(gapCandidatesPayload.items[0].record_count_total, 7);
+    assert.equal(gapCandidatesPayload.items[0].review_state, "pending");
+
     const approvedOverride = await worker.fetch(internalRequest("/internal/gbif-japanese-name-overrides", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -7165,6 +7246,13 @@ test("v1 public map read routes expose current shell contracts without exact coo
     assert.equal(approvedOverride.ok, true);
     const approvedPayload = await approvedOverride.json() as any;
     assert.equal(approvedPayload.item.status, "approved");
+
+    const pendingAfterApprovalResponse = await worker.fetch(internalRequest("/internal/gbif-japanese-name-gap-candidates?state=pending&limit=5"), env);
+    const pendingAfterApprovalPayload = await pendingAfterApprovalResponse.json() as any;
+    assert.equal(pendingAfterApprovalPayload.items.length, 0);
+    const resolvedAfterApprovalResponse = await worker.fetch(internalRequest("/internal/gbif-japanese-name-gap-candidates?state=resolved&limit=5"), env);
+    const resolvedAfterApprovalPayload = await resolvedAfterApprovalResponse.json() as any;
+    assert.equal(resolvedAfterApprovalPayload.items[0].taxon_key, 999999);
 
     const fallbackResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/gbif-area-summary?cell_id=cell%3A34.81%2C137.91"), env);
     const fallbackPayload = await fallbackResponse.json() as any;
