@@ -3135,7 +3135,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     const observationCount = Number(stats.observationCount || 0);
     const needsIdCount = Number(stats.needsIdCount || 0);
     if (observationCount > 0) parts.push(observationCount + '件');
-    if (needsIdCount > 0) parts.push('名前待ち' + needsIdCount);
+    if (needsIdCount > 0) parts.push('確認中' + needsIdCount + '件');
     if (stats.followed) parts.push('フォロー中');
     return parts.slice(0, 2).join(' · ');
   };

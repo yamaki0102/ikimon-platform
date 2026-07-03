@@ -234,7 +234,8 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.doesNotMatch(html, new RegExp("色 = 季節と記録の" + "厚" + "み"));
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
-  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="ガイド" data-tab="places"/);
+  assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" aria-label="現地ガイド" data-tab="places"/);
+  assert.match(html, /<span class="me-tab-short" aria-hidden="true">現地ガイド<\/span>/);
   assert.match(html, /class="me-tab" role="tab" aria-selected="false" aria-label="雨雲" data-tab="rain"/);
   assert.match(html, /class="me-filter-group me-filter-display-group"/);
   assert.match(html, /<summary class="me-filter-toggle">レイヤー<\/summary>/);
@@ -336,7 +337,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /viewer-owned-observation-dot/);
   assert.match(script, /\.filter\(function \(record\) \{ return !\(record && record\.isViewerOwned\); \}\)/);
   assert.doesNotMatch(script, /record\.isViewerOwned \? '自分だけ正確' : 'おおよその位置'/);
-  assert.match(script, /var maxCards = zoom >= 16 \? 36 : \(zoom >= 15 \? 28 : 24\);/);
+  assert.match(script, /var maxCards = zoom >= 16 \? 18 : \(zoom >= 15 \? 14 : 10\);/);
   assert.match(script, /if \(isFinite\(gridM\) && gridM <= 500\) return 15\.4;/);
   assert.match(script, /data-own-trail-id/);
   assert.match(script, /map:own_observation_trail_focus/);
@@ -964,15 +965,20 @@ test("community photo selection keeps nearby map context and opens the side pane
 test("community photo preview markers stay compact while allowing more visible places", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
-  assert.match(script, /var maxCards = zoom >= 16 \? 36 : \(zoom >= 15 \? 28 : 24\);/);
+  assert.match(script, /var maxCards = zoom >= 16 \? 18 : \(zoom >= 15 \? 14 : 10\);/);
   assert.match(script, /\.filter\(function \(record\) \{ return !\(record && record\.isViewerOwned\); \}\)/);
   assert.match(script, /picked\.length >= maxCards/);
   assert.match(script, /var cellCounts = \{\};/);
   assert.match(script, /if \(cellCount >= \(zoom >= 15 \? 5 : 3\)\) return;/);
+  assert.match(script, /\^\(同定待ち\|名前待ち\|名前を確認中\|名前確認中\|名前はあとで確認\|確認中\)\$/);
+  assert.match(script, /var placementBadge = '範囲表示';/);
+  assert.doesNotMatch(script, /var placementBadge = 'おおよその位置';/);
+  assert.match(script, /sendMapKpi\('funnel_step', 'map:discovery_preview_open'/);
   assert.doesNotMatch(script, /me-community-photo-marker[\s\S]{0,120}is-exact/);
   assert.match(script, /\[0\.0022, 0\.0016\]/);
   assert.match(script, /center: \{ lng: center\.lng \+ offset\[0\], lat: center\.lat \+ offset\[1\] \}/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview \{\s+width: 50px;\s+min-height: 58px;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview\.is-grid \{[\s\S]*outline: 2px dashed rgba\(14,165,233,\.38\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview img,\s+\.me-discovery-preview i \{\s+width: 42px;\s+height: 31px;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview span \{\s+max-width: 42px;\s+min-height: 18px;[\s\S]+font-size: 8\.5px;/);
 });

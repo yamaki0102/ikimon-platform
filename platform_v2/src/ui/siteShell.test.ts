@@ -60,6 +60,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /desktop-side-nav-section--signed-in/);
   assert.match(html, /desktop-side-nav-section--personalized/);
   assert.match(html, /data-side-nav-personalized-list/);
+  assert.match(html, /parts\.push\('確認中' \+ needsIdCount \+ '件'\)/);
+  assert.doesNotMatch(html, /parts\.push\('名前待ち' \+ needsIdCount\)/);
   assert.doesNotMatch(html, /ログインすると、フォロー中の分類群や観察エリアをここに固定します。/);
   assert.match(html, /desktop-side-nav-mini-card/);
   assert.match(html, /class="shell shell-layout-home"/);
