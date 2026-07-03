@@ -225,7 +225,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     enjoyLead: "記録・ガイド・散策候補を見ながら、今いる場所から探索できます。",
     tabMarkers: "近くの記録",
     tabHeatmap: "季節",
-    tabPlaces: "ガイド",
+    tabPlaces: "現地ガイド",
     tabRain: "雨雲",
     tabCoverage: "記録の空白",
     tabAriaLabel: "マップの表示切替",
@@ -1110,7 +1110,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const profileHref = appendLangToHref(withBasePath(props.basePath, "/profile"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const mobileTabLabels = lang === "ja"
-    ? { markers: "記録", heatmap: "季節", places: "ガイド", rain: "雨雲", frontier: "空白" }
+    ? { markers: "記録", heatmap: "季節", places: "現地ガイド", rain: "雨雲", frontier: "空白" }
     : lang === "es"
       ? { markers: "Hoy", heatmap: "Est.", places: "Área", rain: "Lluvia", frontier: "Huecos" }
       : lang === "pt-BR"
@@ -1259,7 +1259,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     },
     {
       icon: "🧭",
-      title: lang === "ja" ? "ガイド" : lang === "es" ? "Guías" : lang === "pt-BR" ? "Guias" : "Guides",
+      title: lang === "ja" ? "現地ガイド" : lang === "es" ? "Guías" : lang === "pt-BR" ? "Guias" : "Guides",
       href: guideHref,
       action: "map:start_panel:guide",
     },
@@ -3110,7 +3110,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function localizedDisplayName(value, fallback) {
     var text = String(value || '').trim();
-    if (!text || text === '同定待ち' || /awaiting id|unknown|unidentified|unresolved/i.test(text)) return fallback || COPY.awaitingIdLabel;
+    if (!text || /^(同定待ち|名前待ち|名前を確認中|名前確認中|名前はあとで確認|確認中)$/i.test(text) || /awaiting id|unknown|unidentified|unresolved/i.test(text)) return fallback || COPY.awaitingIdLabel;
     return friendlyTaxonLabel(text);
   }
   function recordDisplayName(record, fallback) {
@@ -3857,7 +3857,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var seenGroups = {};
     var candidates = sortedDiscoveryPreviewCandidates();
     var zoom = state.map && typeof state.map.getZoom === 'function' ? Number(state.map.getZoom()) : 12;
-    var maxCards = zoom >= 16 ? 36 : (zoom >= 15 ? 28 : 24);
+    var maxCards = zoom >= 16 ? 18 : (zoom >= 15 ? 14 : 10);
     var pushIfUsable = function (record, preferNewGroup) {
       if (!record || picked.length >= maxCards || !record.cellId) return;
       var cellCount = cellCounts[record.cellId] || 0;
@@ -3892,14 +3892,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var el = document.createElement('button');
       el.type = 'button';
       el.className = 'me-discovery-preview me-community-photo-marker' + (record.photoUrl ? ' has-photo' : '') + ' is-grid';
-      el.setAttribute('aria-label', recordDisplayName(record, COPY.recentDiscoveryFallback) + COPY.openDiscoverySuffix);
-      var placementBadge = 'おおよその位置';
+      var placementBadge = '範囲表示';
+      var previewLabel = recordDisplayName(record, COPY.discoveryFallback);
+      el.setAttribute('aria-label', recordDisplayName(record, COPY.recentDiscoveryFallback) + ' ' + placementBadge + COPY.openDiscoverySuffix);
       el.innerHTML = record.photoUrl
-        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span><em>' + escapeHtml(placementBadge) + '</em>'
-        : '<i aria-hidden="true">✦</i><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span><em>' + escapeHtml(placementBadge) + '</em>';
+        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(previewLabel) + '</span><em>' + escapeHtml(placementBadge) + '</em>'
+        : '<i aria-hidden="true">✦</i><span>' + escapeHtml(previewLabel) + '</span><em>' + escapeHtml(placementBadge) + '</em>';
       el.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
+        sendMapKpi('funnel_step', 'map:discovery_preview_open', {
+          funnel: 'map_discovery_preview',
+          step: 'open_marker',
+          recordId: String(record.id || '').slice(0, 128),
+          approximate: true
+        });
         selectRecord(record, { focusMap: false, openSheet: shouldUseBottomSheet(), preserveSurroundings: true });
       });
       var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
@@ -11051,7 +11058,9 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-discovery-preview:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(15,23,42,.20); }
   .me-discovery-preview.is-grid {
-    box-shadow: 0 8px 18px rgba(14,165,233,.16), 0 0 0 1px rgba(14,165,233,.22);
+    outline: 2px dashed rgba(14,165,233,.38);
+    outline-offset: 3px;
+    box-shadow: 0 8px 18px rgba(14,165,233,.16), 0 0 0 1px rgba(14,165,233,.22), 0 0 0 7px rgba(14,165,233,.07);
   }
   .me-discovery-preview img,
   .me-discovery-preview i {
