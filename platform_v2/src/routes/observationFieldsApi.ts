@@ -17,6 +17,7 @@ import {
 } from "../services/observationFieldRegistry.js";
 import { getPlaceSnapshot } from "../services/placeSnapshot.js";
 import { getAreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
+import { buildFieldPublicProfileView } from "../services/fieldPublicProfileView.js";
 import { getSiteEvidenceReport } from "../services/siteEvidenceReport.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import {
@@ -206,6 +207,25 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
     const stats = await getFieldStats(request.params.fieldId);
     if (!stats) return reply.status(404).send({ error: "field not found" });
     return reply.send({ stats });
+  });
+
+  // GET /api/v1/fields/:fieldId/public-profile — exact pin を返さない公開エリアプロフィール
+  app.get<{ Params: { fieldId: string } }>("/api/v1/fields/:fieldId/public-profile", async (request, reply) => {
+    const [field, stats, snapshot] = await Promise.all([
+      getField(request.params.fieldId),
+      getFieldStats(request.params.fieldId),
+      getAreaPlaceSnapshot(request.params.fieldId, {
+        viewer: { isAdminOrAnalyst: false, fieldRole: null },
+        viewerUserId: null,
+      }).catch(() => null),
+    ]);
+    if (!field || !stats) return reply.status(404).send({ error: "field not found" });
+    const view = buildFieldPublicProfileView({ field, stats, snapshot });
+    reply.header("Cache-Control", "public, max-age=60");
+    return reply.send({
+      profile: view.profile,
+      publicBrief: view.publicBrief,
+    });
   });
 
   // GET /api/v1/fields/:fieldId/place-snapshot  — 場所のいま / monitoring brief

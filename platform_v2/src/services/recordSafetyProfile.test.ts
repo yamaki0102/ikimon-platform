@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { CivicObservationContext } from "./civicNatureContext.js";
 import type { ObservationDataRights } from "./observationDataRights.js";
+import { normalizeObservationDataRights } from "./observationDataRights.js";
 import { buildRecordSafetyProfileV0 } from "./recordSafetyProfile.js";
 
 function civicContext(overrides: Partial<CivicObservationContext> = {}): CivicObservationContext {
@@ -27,7 +28,7 @@ function civicContext(overrides: Partial<CivicObservationContext> = {}): CivicOb
 }
 
 function dataRights(overrides: Partial<ObservationDataRights> = {}): ObservationDataRights {
-  return {
+  return normalizeObservationDataRights({
     visitId: "visit-1",
     occurrenceId: "occ-1",
     recordConsent: "public_summary",
@@ -39,7 +40,7 @@ function dataRights(overrides: Partial<ObservationDataRights> = {}): Observation
     withdrawalStatus: "active",
     sourcePayload: {},
     ...overrides,
-  };
+  });
 }
 
 test("record safety profile allows public story and municipal use for allowlisted public places", () => {

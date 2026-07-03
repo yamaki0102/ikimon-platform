@@ -14,6 +14,10 @@ import {
 } from "../services/areaEncyclopediaPayload.js";
 import { renderPlaceSnapshotTeaser } from "./placeSnapshot.js";
 import { RECORD_CARD_SIZING_TOKENS } from "./recordCardSizing.js";
+import {
+  buildFieldPublicProfileView,
+  type FieldPublicProfileView,
+} from "../services/fieldPublicProfileView.js";
 
 function escapeHtml(str: string): string {
   return str
@@ -545,10 +549,42 @@ function renderFieldPublicRange(field: ObservationField): string {
   </section>`;
 }
 
+function renderFieldPublicProfile(view: FieldPublicProfileView): string {
+  const profile = view.profile;
+  const taxa = profile.confirmedTaxa.length > 0
+    ? profile.confirmedTaxa.slice(0, 8).map((taxon) => `<span>${escapeHtml(taxon.name)} ×${formatNumber(taxon.observationCount)}</span>`).join("")
+    : `<span>${escapeHtml(profile.limitations[0]?.label ?? "確認記録が少ないため、詳細な傾向はまだ表示していません")}</span>`;
+  const environments = profile.environmentTypes.length > 0
+    ? profile.environmentTypes.map((label) => `<span>${escapeHtml(label)}</span>`).join("")
+    : "<span>環境タイプ確認中</span>";
+  const sections = view.publicBrief.sections.map((section) => `<article>
+    <span>${escapeHtml(section.title)}</span>
+    <p>${escapeHtml(section.body)}</p>
+  </article>`).join("");
+  return `<section class="field-public-profile" data-field-public-profile aria-label="Site Intelligence">
+    <header>
+      <div>
+        <span class="evt-eyebrow">Site Intelligence</span>
+        <h2 class="evt-heading">場所プロフィール</h2>
+      </div>
+      <span class="field-public-profile-confidence">${escapeHtml(profile.confidence.label)}</span>
+    </header>
+    <p class="evt-lead">${escapeHtml(view.publicBrief.summary)}</p>
+    <div class="field-public-profile-grid">${sections}</div>
+    <div class="field-public-profile-strip" aria-label="確認された生きもの">${taxa}</div>
+    <div class="field-public-profile-strip" aria-label="環境タイプ">${environments}</div>
+    <div class="field-public-profile-next">
+      <strong>次の観察</strong>
+      <span>${escapeHtml(profile.nextObservationPrompts.slice(0, 3).join(" / "))}</span>
+    </div>
+  </section>`;
+}
+
 export function renderFieldDetailBody(args: { field: ObservationField; stats: FieldStats; snapshot?: PlaceSnapshot | null }): string {
   const { field, stats, snapshot } = args;
   const encyclopedia = normalizeAreaEncyclopediaPayload(field.payload);
   const guideTemplates = resolveAreaGuideTemplates(encyclopedia);
+  const publicProfileView = buildFieldPublicProfileView({ field, stats, snapshot: isAreaSnapshot(snapshot) ? snapshot : null });
   const heroMetrics = fieldHeroMetrics(stats, snapshot);
   const areaHeroMetrics = fieldHeroAreaMetrics(encyclopedia, snapshot, guideTemplates.length);
   const latestObservedAt = snapshot?.observationSummary.latestObservedAt ?? null;
@@ -600,6 +636,8 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
   </article>
 
   ${renderFieldViewerMemory(snapshot)}
+
+  ${renderFieldPublicProfile(publicProfileView)}
 
   ${renderLocalGuides(encyclopedia, guideTemplates)}
 
@@ -997,6 +1035,101 @@ ${RECORD_CARD_SIZING_TOKENS}
   font-size: 12px;
   line-height: 1.55;
   font-weight: 750;
+}
+.field-public-profile {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(248,250,252,.94);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.field-public-profile > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-public-profile .evt-heading {
+  margin: 0;
+}
+.field-public-profile-confidence {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(22,163,74,.18);
+  background: rgba(236,253,245,.96);
+  color: #166534;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+.field-public-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.field-public-profile-grid article {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: #ffffff;
+}
+.field-public-profile-grid span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+.field-public-profile-grid p {
+  margin: 0;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 750;
+}
+.field-public-profile-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.field-public-profile-strip span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,.08);
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 850;
+}
+.field-public-profile-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid rgba(245,158,11,.2);
+}
+.field-public-profile-next strong {
+  flex-shrink: 0;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 950;
+}
+.field-public-profile-next span {
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 780;
 }
 .field-map-hero {
   min-height: clamp(340px, 36vw, 430px);
@@ -1618,6 +1751,9 @@ ${RECORD_CARD_SIZING_TOKENS}
   .field-public-range-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .field-public-profile-grid {
+    grid-template-columns: 1fr;
+  }
   .field-map-hero {
     min-height: clamp(420px, 58vw, 500px);
   }
@@ -1675,6 +1811,10 @@ ${RECORD_CARD_SIZING_TOKENS}
   .field-public-range > header {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .field-public-profile > header,
+  .field-public-profile-next {
+    display: grid;
   }
   .field-public-range-grid {
     grid-template-columns: 1fr;

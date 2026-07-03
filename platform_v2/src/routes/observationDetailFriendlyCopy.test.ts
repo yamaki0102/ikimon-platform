@@ -12,6 +12,7 @@ const cardSource = readFileSync(new URL("../ui/observationCard.ts", import.meta.
 const mediaSource = readFileSync(new URL("../ui/observationMedia.ts", import.meta.url), "utf8");
 const identificationParticipationSource = readFileSync(new URL("../services/identificationParticipation.ts", import.meta.url), "utf8");
 const observationVisitBundleSource = readFileSync(new URL("../services/observationVisitBundle.ts", import.meta.url), "utf8");
+const siteContributionSource = readFileSync(new URL("../services/observationSiteContribution.ts", import.meta.url), "utf8");
 const cloudflareWorkerSource = readFileSync(new URL("../../cloudflare_shadow/src/index.ts", import.meta.url), "utf8");
 
 function sourceBetween(startMarker: string, endMarker: string): string {
@@ -252,6 +253,25 @@ test("observation detail keeps nearby guide cards owner-scoped and capped", () =
   assert.match(registrationSource, /canSeeCanonicalLocation && snapshot\.latitude != null && snapshot\.longitude != null/);
   assert.match(registrationSource, /maxCards: 2/);
   assert.match(registrationSource, /heroBlock\}\$\{recordPageNearbyGuideBlock\}/);
+});
+
+test("observation detail exposes owner-only site contribution state through policy services", () => {
+  const contributionSource = sourceBetween("function renderObservationSiteContributionPanel", "function renderObservationOwnerDeleteScript");
+  const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
+
+  assert.match(routeSource, /buildObservationSiteContribution/);
+  assert.match(routeSource, /decideObservationPublicationPolicy/);
+  assert.match(routeSource, /getObservationDataRights/);
+  assert.match(routeSource, /getField\(options\.snapshot\.placeId\)/);
+  assert.match(contributionSource, /data-site-contribution/);
+  assert.match(contributionSource, /この記録が場所のプロフィールにどう使われるか/);
+  assert.match(contributionSource, /data-site-contribution-action/);
+  assert.match(siteContributionSource, /違う/);
+  assert.match(siteContributionSource, /非公開/);
+  assert.match(siteContributionSource, /追加で撮る/);
+  assert.doesNotMatch(contributionSource, /latitude|longitude|正確な座標|exact/);
+  assert.match(registrationSource, /const siteContributionBlock = await buildObservationDetailSiteContribution/);
+  assert.match(registrationSource, /ownerPublicStateBlock\}\$\{siteContributionBlock\}\$\{ownerToolsBlock/);
 });
 
 test("observation detail hero readout keeps scene candidates out of identification tabs", () => {

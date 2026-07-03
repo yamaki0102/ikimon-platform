@@ -125,6 +125,18 @@ function stats(): FieldStats {
   };
 }
 
+function statsWithTaxa(): FieldStats {
+  return {
+    ...stats(),
+    totalObservations: 12,
+    uniqueSpeciesCount: 4,
+    topTaxa: [
+      { name: "ヤマトシジミ", count: 4 },
+      { name: "シロツメクサ", count: 3 },
+    ],
+  };
+}
+
 function snapshot(): AreaPlaceSnapshot {
   return {
     field: { fieldId: "5133aea8-7b1d-49b2-950e-b3c9ac74bc79" },
@@ -151,6 +163,31 @@ function snapshot(): AreaPlaceSnapshot {
     relationshipScore: { score: { totalScore: 20 } },
     observationGallery: [],
     seasonalCoverage: [],
+  } as unknown as AreaPlaceSnapshot;
+}
+
+function snapshotProfileReady(): AreaPlaceSnapshot {
+  return {
+    ...snapshot(),
+    seasonalCoverage: [
+      { season: "spring", label: "春", observations: 8, isCurrentSeason: false },
+      { season: "summer", label: "夏", observations: 4, isCurrentSeason: true },
+      { season: "autumn", label: "秋", observations: 0, isCurrentSeason: false },
+    ],
+    effortIndicators: {
+      effortReportedRate: 0,
+      completeChecklistRate: 0,
+      temporalSpreadIndex: 0,
+      observerDiversity: 0.7,
+      nonDetectionRate: 0,
+      effortIndex: 0,
+      observerCount: 4,
+      topObserverShare: 0.4,
+      yearsCovered: 1,
+      monthsCovered: 3,
+      seasonsCovered: 2,
+    },
+    sensitiveMasking: { totalRare: 0, maskedSpecies: 0, viewerCanSeeExact: false },
   } as unknown as AreaPlaceSnapshot;
 }
 
@@ -293,6 +330,17 @@ test("field detail public HTML does not expose exact field coordinates or geomet
   assert.doesNotMatch(html, /data-lat|data-lng|data-radius|data-polygon|data-area-spots/);
   assert.doesNotMatch(html, /26\.2179484|127\.6918878/);
   assert.doesNotMatch(html, /"Polygon"|"coordinates"/);
+});
+
+test("field detail renders public Site Intelligence profile without exact pins", () => {
+  const html = renderFieldDetailBody({ field: encyclopediaField(), stats: statsWithTaxa(), snapshot: snapshotProfileReady() });
+
+  assert.match(html, /data-field-public-profile/);
+  assert.match(html, /Site Intelligence/);
+  assert.match(html, /この場所で言えること/);
+  assert.match(html, /ヤマトシジミ/);
+  assert.match(html, /次の観察/);
+  assert.doesNotMatch(html, /26\.2179484|127\.6918878|data-lat|data-lng|exact/);
 });
 
 test("area encyclopedia screen copy avoids reserved implementation and brand terms", () => {
