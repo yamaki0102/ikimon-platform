@@ -44,6 +44,18 @@ import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight, type TaxonInsight } from "../services/taxonInsights.js";
 import { lookupLocalTaxonName } from "../services/taxonNameNormalizer.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
+import { normalizeFieldProfilePolicy } from "../services/fieldProfilePolicy.js";
+import { getField } from "../services/observationFieldRegistry.js";
+import { getObservationDataRights, type ObservationDataRights } from "../services/observationDataRights.js";
+import {
+  decideObservationPublicationPolicy,
+  type ObservationPublicationPolicy,
+} from "../services/observationPublicationPolicy.js";
+import {
+  buildObservationSiteContribution,
+  type ObservationContributionStatus,
+  type ObservationSiteContribution,
+} from "../services/observationSiteContribution.js";
 import {
   ENVIRONMENT_RECORD_FIELDS,
   deriveEnvironmentRecordFromSiteBrief,
@@ -1373,6 +1385,15 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-public-state span { display: block; color: #64748b; font-size: 10px; line-height: 1.25; letter-spacing: .08em; font-weight: 950; text-transform: uppercase; }
   .obs-public-state strong { display: block; margin-top: 3px; color: #0f172a; font-size: 12.5px; line-height: 1.55; font-weight: 850; }
   .obs-public-state small { flex: 0 0 190px; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 800; text-align: right; }
+  .obs-site-contribution { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; max-width: var(--ikimon-content-max); margin: 0 auto 12px; padding: 12px 13px; border-radius: 14px; background: #f0fdf4; border: 1px solid rgba(22,163,74,.2); box-shadow: 0 6px 16px rgba(15,23,42,.04); }
+  .obs-site-contribution[data-site-contribution="pending"] { background: #fffbeb; border-color: rgba(217,119,6,.22); }
+  .obs-site-contribution[data-site-contribution="suppressed"], .obs-site-contribution[data-site-contribution="private"] { background: #f8fafc; border-color: rgba(100,116,139,.2); }
+  .obs-site-contribution span { display: block; color: #64748b; font-size: 10px; line-height: 1.25; letter-spacing: .08em; font-weight: 950; text-transform: uppercase; }
+  .obs-site-contribution strong { display: block; margin-top: 3px; color: #0f172a; font-size: 13px; line-height: 1.45; font-weight: 900; }
+  .obs-site-contribution p { margin: 4px 0 0; color: #334155; font-size: 12px; line-height: 1.55; font-weight: 700; }
+  .obs-site-contribution small { display: block; margin-top: 4px; color: #475569; font-size: 11px; line-height: 1.4; font-weight: 800; }
+  .obs-site-contribution-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .obs-site-contribution-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 10px; border-radius: 999px; background: rgba(255,255,255,.84); border: 1px solid rgba(148,163,184,.24); color: #166534; font-size: 12px; font-weight: 900; text-decoration: none; white-space: nowrap; }
   .obs-owner-tool,
   .obs-reassess-row { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 34px; padding: 0; border: 0; background: transparent; margin: 0; }
   .obs-reassess-row.section, .obs-photo-recovery.section, .obs-owner-delete.section { margin-top: 0; }
@@ -1409,6 +1430,8 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-owner-tools::before { width: 100%; }
     .obs-public-state { flex-direction: column; }
     .obs-public-state small { flex-basis: auto; text-align: left; }
+    .obs-site-contribution { grid-template-columns: 1fr; }
+    .obs-site-contribution-actions { justify-content: flex-start; }
     .obs-owner-tool, .obs-reassess-row, .obs-photo-recovery-form { width: 100%; }
     .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button, .obs-reassess-btn { min-height: 38px; border-radius: 12px; }
     .obs-invasive-reporting { padding: 13px; border-radius: 14px; }
@@ -4748,6 +4771,99 @@ function renderObservationOwnerPublicStatePanel(snapshot: ObservationDetailSnaps
     </div>
     <small>${escapeHtml(copy.removeHint)}</small>
   </section>`;
+}
+
+function observationContributionStatus(
+  policy: ObservationPublicationPolicy,
+  rights: ObservationDataRights | null,
+  snapshot: ObservationDetailSnapshot,
+): ObservationContributionStatus {
+  if (String(snapshot.publicVisibility || "") === "hidden") return "private";
+  if (rights?.withdrawalStatus && rights.withdrawalStatus !== "active") return "private";
+  if (rights?.recordConsent === "private") return "private";
+  if (policy.publicLocationMode !== "hidden") return "public";
+  if (
+    policy.sensitivityReason === "sensitive_context"
+    || policy.sensitivityReason === "human_or_school_context"
+    || policy.sensitivityReason === "taxon_sensitive"
+  ) {
+    return "suppressed";
+  }
+  return "internal";
+}
+
+function renderObservationSiteContributionPanel(options: {
+  contribution: ObservationSiteContribution;
+  basePath: string;
+  visitId: string;
+  lang: SiteLang;
+}): string {
+  const revisitHref = appendLangToHref(
+    withBasePath(options.basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(options.visitId)}`),
+    options.lang,
+  );
+  const hrefForAction = (key: string): string => {
+    if (key === "dispute") return "#identify";
+    if (key === "add_evidence") return revisitHref;
+    return "#owner-tools";
+  };
+  return `<section class="obs-site-contribution" data-site-contribution="${escapeHtml(options.contribution.status)}" aria-label="この記録が場所のプロフィールにどう使われるか">
+    <div>
+      <span>場所プロフィール</span>
+      <strong>${escapeHtml(options.contribution.headline)}</strong>
+      <p>${escapeHtml(options.contribution.body)}</p>
+      <small>${escapeHtml(options.contribution.publicStateLabel)}${options.contribution.publicationReason ? ` / ${escapeHtml(options.contribution.publicationReason)}` : ""}</small>
+    </div>
+    <div class="obs-site-contribution-actions" aria-label="記録の扱いを変える">
+      ${options.contribution.actions.map((action) => `<a href="${escapeHtml(hrefForAction(action.key))}" data-site-contribution-action="${escapeHtml(action.key)}">${escapeHtml(action.label)}</a>`).join("")}
+    </div>
+  </section>`;
+}
+
+async function buildObservationDetailSiteContribution(options: {
+  basePath: string;
+  snapshot: ObservationDetailSnapshot;
+  bundle: ObservationVisitBundle;
+  subject: ObservationVisitSubject;
+  civicContext: CivicObservationContext | null;
+  isOwner: boolean;
+  lang: SiteLang;
+}): Promise<string> {
+  if (!options.isOwner) return "";
+  const rights = await getObservationDataRights(options.bundle.visitId).catch(() => null);
+  const field = options.snapshot.placeId
+    ? await getField(options.snapshot.placeId).catch(() => null)
+    : null;
+  const fieldPolicy = field ? normalizeFieldProfilePolicy(field) : null;
+  const policy = decideObservationPublicationPolicy({
+    fieldPolicy,
+    dataRights: rights,
+    civicContext: options.civicContext,
+    identification: {
+      aiOnly: options.subject.isAiCandidate === true || (
+        options.subject.identificationCount <= 0
+        && !options.subject.hasSpecialistApproval
+        && options.subject.aiAssessmentStatus != null
+      ),
+      confidence: options.subject.confidence,
+      taxonSensitive: false,
+    },
+  });
+  const contribution = buildObservationSiteContribution({
+    fieldName: field?.name || options.snapshot.placeName || options.snapshot.publicLocation.label,
+    contributionStatus: observationContributionStatus(policy, rights, options.snapshot),
+    publicLocationMode: policy.publicLocationMode,
+    publicTimePrecision: policy.publicTimePrecision,
+    aiOnly: options.subject.isAiCandidate,
+    verified: options.subject.hasSpecialistApproval || (options.subject.evidenceTier ?? 0) >= 3,
+    publicationReason: policy.sensitivityReason,
+  });
+  return renderObservationSiteContributionPanel({
+    contribution,
+    basePath: options.basePath,
+    visitId: options.bundle.visitId,
+    lang: options.lang,
+  });
 }
 
 function renderObservationOwnerDeleteScript(isOwner: boolean): string {
@@ -22384,6 +22500,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     });
     const ownerPublicStateBlock = renderObservationOwnerPublicStatePanel(snapshot, isOwner, lang);
+    const siteContributionBlock = await buildObservationDetailSiteContribution({
+      basePath,
+      snapshot,
+      bundle,
+      subject: currentSubject,
+      civicContext,
+      isOwner,
+      lang,
+    });
 
     const hintBlock = "";
     const aiCandidateLearningBlock = "";
@@ -23047,7 +23172,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerPublicStateBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
+    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerPublicStateBlock}${siteContributionBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,

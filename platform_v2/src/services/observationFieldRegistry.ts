@@ -3,6 +3,12 @@ import { encodeGeohash } from "./geohash.js";
 import { computeBbox } from "./geoJsonBbox.js";
 import { defaultCertifiedEntityKey } from "./observationFieldIdentity.js";
 import {
+  FIELD_PROFILE_POLICY_VERSION,
+  normalizeFieldProfilePolicy,
+  type FieldProfileStatus,
+  type FieldPublicLocationMode,
+} from "./fieldProfilePolicy.js";
+import {
   bboxOverlaps,
   entityKeyForUserField,
   haversineMeters,
@@ -173,6 +179,11 @@ export interface ObservationField {
   validFrom?: string | null;
   validTo?: string | null;
   supersededBy?: string | null;
+  profileStatus?: FieldProfileStatus;
+  defaultPublicLocationMode?: FieldPublicLocationMode;
+  publicProfileEnabled?: boolean;
+  profilePolicyVersion?: string;
+  profileNotes?: string;
   payload: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -208,6 +219,11 @@ interface RawFieldRow extends Record<string, unknown> {
   valid_from: string | null;
   valid_to: string | null;
   superseded_by: string | null;
+  profile_status: string | null;
+  default_public_location_mode: string | null;
+  public_profile_enabled: boolean | null;
+  profile_policy_version: string | null;
+  profile_notes: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -224,6 +240,11 @@ const SELECT = `
   COALESCE(entity_key, '') AS entity_key,
   valid_from::text AS valid_from, valid_to::text AS valid_to,
   superseded_by::text AS superseded_by,
+  COALESCE(profile_status, 'draft') AS profile_status,
+  COALESCE(default_public_location_mode, 'site') AS default_public_location_mode,
+  COALESCE(public_profile_enabled, FALSE) AS public_profile_enabled,
+  COALESCE(profile_policy_version, '${FIELD_PROFILE_POLICY_VERSION}') AS profile_policy_version,
+  COALESCE(profile_notes, '') AS profile_notes,
   payload,
   created_at::text AS created_at, updated_at::text AS updated_at
 `;
@@ -234,6 +255,13 @@ function isFieldSource(value: unknown): value is FieldSource {
 }
 
 function mapRow(row: RawFieldRow): ObservationField {
+  const profilePolicy = normalizeFieldProfilePolicy({
+    profileStatus: row.profile_status,
+    defaultPublicLocationMode: row.default_public_location_mode,
+    publicProfileEnabled: row.public_profile_enabled === true,
+    profilePolicyVersion: row.profile_policy_version,
+    profileNotes: row.profile_notes,
+  });
   return {
     fieldId: row.field_id,
     source: isFieldSource(row.source) ? row.source : "user_defined",
@@ -264,6 +292,11 @@ function mapRow(row: RawFieldRow): ObservationField {
     validFrom: row.valid_from,
     validTo: row.valid_to,
     supersededBy: row.superseded_by,
+    profileStatus: profilePolicy.profileStatus,
+    defaultPublicLocationMode: profilePolicy.defaultPublicLocationMode,
+    publicProfileEnabled: profilePolicy.publicProfileEnabled,
+    profilePolicyVersion: profilePolicy.profilePolicyVersion,
+    profileNotes: profilePolicy.profileNotes,
     payload: row.payload ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -292,6 +325,11 @@ export interface CreateFieldInput {
   ownerUserId?: string | null;
   entityKey?: string | null;
   validFrom?: string | null;
+  profileStatus?: FieldProfileStatus;
+  defaultPublicLocationMode?: FieldPublicLocationMode;
+  publicProfileEnabled?: boolean;
+  profilePolicyVersion?: string;
+  profileNotes?: string;
   payload?: Record<string, unknown>;
 }
 
@@ -319,6 +357,7 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
   const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
   const entityKey = defaultEntityKey(input);
   const sourceLinks = normalizeSourceLinks(input);
+  const profilePolicy = normalizeFieldProfilePolicy(input);
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
@@ -326,14 +365,16 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
        certification_id, certified_at, official_url, owner_url, story_url, certification_url, source_confidence,
        owner_user_id, payload,
        bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
-       entity_key, valid_from
+       entity_key, valid_from,
+       profile_status, default_public_location_mode, public_profile_enabled, profile_policy_version, profile_notes
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
        $12, $13, $14, $15, $16, $17, $18,
        $19, $20::jsonb,
        $21, $22, $23, $24, $25,
-       $26, COALESCE($27::date, current_date)
+       $26, COALESCE($27::date, current_date),
+       $28, $29, $30, $31, $32
      )
      RETURNING ${SELECT}`,
     [
@@ -364,6 +405,11 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
       adminLevel,
       entityKey,
       input.validFrom ?? null,
+      profilePolicy.profileStatus,
+      profilePolicy.defaultPublicLocationMode,
+      profilePolicy.publicProfileEnabled,
+      profilePolicy.profilePolicyVersion,
+      profilePolicy.profileNotes,
     ],
   );
   const row = result.rows[0];
@@ -378,6 +424,7 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
   const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
   const entityKey = defaultEntityKey(input);
   const sourceLinks = normalizeSourceLinks(input);
+  const profilePolicy = normalizeFieldProfilePolicy(input);
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
@@ -385,14 +432,16 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
        certification_id, certified_at, official_url, owner_url, story_url, certification_url, source_confidence,
        owner_user_id, payload,
        bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
-       entity_key, valid_from
+       entity_key, valid_from,
+       profile_status, default_public_location_mode, public_profile_enabled, profile_policy_version, profile_notes
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
        $12, $13, $14, $15, $16, $17, $18,
        $19, $20::jsonb,
        $21, $22, $23, $24, $25,
-       $26, COALESCE($27::date, current_date)
+       $26, COALESCE($27::date, current_date),
+       $28, $29, $30, $31, $32
      )
      ON CONFLICT (source, certification_id) WHERE certification_id <> ''
      DO UPDATE SET
@@ -420,6 +469,11 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
        admin_level  = COALESCE(EXCLUDED.admin_level, observation_fields.admin_level),
        entity_key   = COALESCE(NULLIF(EXCLUDED.entity_key, ''), observation_fields.entity_key),
        valid_from   = COALESCE(observation_fields.valid_from, EXCLUDED.valid_from),
+       profile_status = COALESCE(EXCLUDED.profile_status, observation_fields.profile_status),
+       default_public_location_mode = COALESCE(EXCLUDED.default_public_location_mode, observation_fields.default_public_location_mode),
+       public_profile_enabled = COALESCE(EXCLUDED.public_profile_enabled, observation_fields.public_profile_enabled),
+       profile_policy_version = COALESCE(NULLIF(EXCLUDED.profile_policy_version, ''), observation_fields.profile_policy_version),
+       profile_notes = COALESCE(EXCLUDED.profile_notes, observation_fields.profile_notes),
        updated_at   = NOW()
      RETURNING ${SELECT}`,
     [
@@ -450,6 +504,11 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
       adminLevel,
       entityKey,
       input.validFrom ?? null,
+      profilePolicy.profileStatus,
+      profilePolicy.defaultPublicLocationMode,
+      profilePolicy.publicProfileEnabled,
+      profilePolicy.profilePolicyVersion,
+      profilePolicy.profileNotes,
     ],
   );
   const row = result.rows[0];
@@ -664,6 +723,11 @@ export interface UpdateFieldInput {
   radiusM?: number;
   polygon?: Record<string, unknown> | null;
   areaHa?: number | null;
+  profileStatus?: FieldProfileStatus;
+  defaultPublicLocationMode?: FieldPublicLocationMode;
+  publicProfileEnabled?: boolean;
+  profilePolicyVersion?: string;
+  profileNotes?: string;
   payload?: Record<string, unknown>;
 }
 
@@ -689,6 +753,11 @@ export async function updateField(fieldId: string, input: UpdateFieldInput): Pro
     sets.push(`bbox_max_lng = $${idx++}`); values.push(bbox.maxLng);
   }
   if (input.areaHa !== undefined) { sets.push(`area_ha = $${idx++}`); values.push(input.areaHa); }
+  if (input.profileStatus !== undefined) { sets.push(`profile_status = $${idx++}`); values.push(input.profileStatus); }
+  if (input.defaultPublicLocationMode !== undefined) { sets.push(`default_public_location_mode = $${idx++}`); values.push(input.defaultPublicLocationMode); }
+  if (input.publicProfileEnabled !== undefined) { sets.push(`public_profile_enabled = $${idx++}`); values.push(input.publicProfileEnabled); }
+  if (input.profilePolicyVersion !== undefined) { sets.push(`profile_policy_version = $${idx++}`); values.push(input.profilePolicyVersion); }
+  if (input.profileNotes !== undefined) { sets.push(`profile_notes = $${idx++}`); values.push(input.profileNotes); }
   if (input.payload !== undefined) { sets.push(`payload = $${idx++}::jsonb`); values.push(JSON.stringify(input.payload)); }
   if (sets.length === 0) return getField(fieldId);
   sets.push("updated_at = NOW()");
