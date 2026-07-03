@@ -1091,6 +1091,59 @@ interface SiteBriefSourceLinkRow {
   created_at: string;
 }
 
+interface SiteBriefFeedbackAdminD1Row {
+  feedback_id: string;
+  artifact_id: string;
+  place_id: string;
+  feedback_type: string;
+  feedback_text: string;
+  buyer_segment: string | null;
+  use_case: string | null;
+  price_signal: string | null;
+  contact_intent: string | null;
+  created_at: string;
+  artifact_scope: string | null;
+  artifact_status: string | null;
+  decision_state: string | null;
+  brief_json: string | null;
+}
+
+interface SiteBriefFeedbackBreakdown {
+  value: string;
+  count: number;
+}
+
+interface SiteBriefFeedbackArtifactSummary {
+  artifactId: string;
+  placeId: string;
+  placeName: string;
+  feedbackCount: number;
+  latestAt: string;
+  artifactScope: string | null;
+  artifactStatus: string | null;
+  decisionState: string | null;
+  strongSignalCount: number;
+  feedbackTypes: SiteBriefFeedbackBreakdown[];
+  buyerSegments: SiteBriefFeedbackBreakdown[];
+  useCases: SiteBriefFeedbackBreakdown[];
+  priceSignals: SiteBriefFeedbackBreakdown[];
+  contactIntents: SiteBriefFeedbackBreakdown[];
+}
+
+interface SiteBriefFeedbackAdminItem {
+  feedbackId: string;
+  artifactId: string;
+  placeId: string;
+  placeName: string;
+  feedbackType: string;
+  feedbackText: string;
+  buyerSegment: string | null;
+  useCase: string | null;
+  priceSignal: string | null;
+  contactIntent: string | null;
+  createdAt: string;
+}
+
 interface UserObservationFieldRow {
   field_id: string;
   owner_user_id: string;
@@ -2254,6 +2307,14 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/municipal-walk-map-reviews") {
         return await getMunicipalWalkMapReviewsAdminPage(request, url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/site-brief-feedback") {
+        return await getSiteBriefFeedbackAdminPage(request, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/admin/site-brief-feedback-summary") {
+        return await getSiteBriefFeedbackSummaryAdmin(request, url, env);
       }
 
       if (nativePathname === "/api/v1/admin/municipal-walk-map-creators") {
@@ -15217,6 +15278,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
       <a href="/admin/municipal-walk-maps">作成</a>
       <a href="/admin/municipal-walk-map-reviews">審査</a>
       <a href="/admin/municipal-walk-map-creators">作成者</a>
+      <a href="/admin/site-brief-feedback">Site Brief</a>
     </nav>
   </header>
   <div class="wm-admin-grid">
@@ -16499,6 +16561,244 @@ async function postSiteBriefShareFeedback(request: Request, token: string, env: 
     "cache-control": "no-store",
     "x-ikimon-cloudflare-native": "site-brief-feedback-capture"
   });
+}
+
+async function getSiteBriefFeedbackSummaryAdmin(request: Request, url: URL, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 300);
+  try {
+    const payload = await buildSiteBriefFeedbackAdminPayload(env, limit);
+    return json(payload, 200, nativeGuideHeaders("site-brief-feedback-admin-api"));
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_feedback_events")) {
+      return json({ ok: false, error: "site_brief_feedback_not_ready" }, 503, nativeGuideHeaders("site-brief-feedback-admin-api"));
+    }
+    throw error;
+  }
+}
+
+async function getSiteBriefFeedbackAdminPage(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  try {
+    const payload = await buildSiteBriefFeedbackAdminPayload(env, 120);
+    return html(renderSiteBriefFeedbackAdminHtml(payload), 200, nativeGuideHeaders("site-brief-feedback-admin-html"));
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_feedback_events")) {
+      return html(renderSiteBriefFeedbackNotReadyHtml(), 503, nativeGuideHeaders("site-brief-feedback-admin-html"));
+    }
+    throw error;
+  }
+}
+
+async function getSiteBriefFeedbackAdminRows(env: Env, limit: number): Promise<SiteBriefFeedbackAdminD1Row[]> {
+  const rows = await env.OBS_DB.prepare(
+    `SELECT f.feedback_id, f.artifact_id, f.place_id, f.feedback_type, f.feedback_text,
+            f.buyer_segment, f.use_case, f.price_signal, f.contact_intent, f.created_at,
+            a.artifact_scope, a.artifact_status, a.decision_state, a.brief_json
+       FROM site_brief_feedback_events f
+       LEFT JOIN site_brief_artifacts a ON a.artifact_id = f.artifact_id
+      ORDER BY f.created_at DESC, f.feedback_id DESC
+      LIMIT ?`
+  ).bind(limit).all<SiteBriefFeedbackAdminD1Row>();
+  return rows.results;
+}
+
+async function buildSiteBriefFeedbackAdminPayload(env: Env, limit: number) {
+  const rows = await getSiteBriefFeedbackAdminRows(env, limit);
+  const artifacts = new Map<string, {
+    artifactId: string;
+    placeId: string;
+    placeName: string;
+    feedbackCount: number;
+    latestAt: string;
+    artifactScope: string | null;
+    artifactStatus: string | null;
+    decisionState: string | null;
+    strongSignalCount: number;
+    feedbackTypes: Map<string, number>;
+    buyerSegments: Map<string, number>;
+    useCases: Map<string, number>;
+    priceSignals: Map<string, number>;
+    contactIntents: Map<string, number>;
+  }>();
+  const countByFeedbackType = new Map<string, number>();
+  const countByBuyerSegment = new Map<string, number>();
+  const countByUseCase = new Map<string, number>();
+  const countByPriceSignal = new Map<string, number>();
+  const countByContactIntent = new Map<string, number>();
+  let strongSignalCount = 0;
+
+  const recent: SiteBriefFeedbackAdminItem[] = rows.map((row) => {
+    const placeName = siteBriefFeedbackAdminPlaceName(row);
+    const strongSignal = isStrongSiteBriefFeedbackSignal(row);
+    if (strongSignal) strongSignalCount += 1;
+    incrementSiteBriefFeedbackCount(countByFeedbackType, row.feedback_type);
+    incrementSiteBriefFeedbackCount(countByBuyerSegment, row.buyer_segment);
+    incrementSiteBriefFeedbackCount(countByUseCase, row.use_case);
+    incrementSiteBriefFeedbackCount(countByPriceSignal, row.price_signal);
+    incrementSiteBriefFeedbackCount(countByContactIntent, row.contact_intent);
+
+    const current = artifacts.get(row.artifact_id) ?? {
+      artifactId: row.artifact_id,
+      placeId: row.place_id,
+      placeName,
+      feedbackCount: 0,
+      latestAt: row.created_at,
+      artifactScope: row.artifact_scope,
+      artifactStatus: row.artifact_status,
+      decisionState: row.decision_state,
+      strongSignalCount: 0,
+      feedbackTypes: new Map<string, number>(),
+      buyerSegments: new Map<string, number>(),
+      useCases: new Map<string, number>(),
+      priceSignals: new Map<string, number>(),
+      contactIntents: new Map<string, number>()
+    };
+    current.feedbackCount += 1;
+    current.latestAt = row.created_at > current.latestAt ? row.created_at : current.latestAt;
+    if (strongSignal) current.strongSignalCount += 1;
+    incrementSiteBriefFeedbackCount(current.feedbackTypes, row.feedback_type);
+    incrementSiteBriefFeedbackCount(current.buyerSegments, row.buyer_segment);
+    incrementSiteBriefFeedbackCount(current.useCases, row.use_case);
+    incrementSiteBriefFeedbackCount(current.priceSignals, row.price_signal);
+    incrementSiteBriefFeedbackCount(current.contactIntents, row.contact_intent);
+    artifacts.set(row.artifact_id, current);
+
+    return {
+      feedbackId: row.feedback_id,
+      artifactId: row.artifact_id,
+      placeId: row.place_id,
+      placeName,
+      feedbackType: row.feedback_type,
+      feedbackText: row.feedback_text,
+      buyerSegment: row.buyer_segment,
+      useCase: row.use_case,
+      priceSignal: row.price_signal,
+      contactIntent: row.contact_intent,
+      createdAt: row.created_at
+    };
+  });
+
+  const artifactSummaries: SiteBriefFeedbackArtifactSummary[] = [...artifacts.values()]
+    .map((item) => ({
+      artifactId: item.artifactId,
+      placeId: item.placeId,
+      placeName: item.placeName,
+      feedbackCount: item.feedbackCount,
+      latestAt: item.latestAt,
+      artifactScope: item.artifactScope,
+      artifactStatus: item.artifactStatus,
+      decisionState: item.decisionState,
+      strongSignalCount: item.strongSignalCount,
+      feedbackTypes: siteBriefFeedbackBreakdown(item.feedbackTypes),
+      buyerSegments: siteBriefFeedbackBreakdown(item.buyerSegments),
+      useCases: siteBriefFeedbackBreakdown(item.useCases),
+      priceSignals: siteBriefFeedbackBreakdown(item.priceSignals),
+      contactIntents: siteBriefFeedbackBreakdown(item.contactIntents)
+    }))
+    .sort((a, b) => b.feedbackCount - a.feedbackCount || b.latestAt.localeCompare(a.latestAt) || a.artifactId.localeCompare(b.artifactId));
+
+  return {
+    ok: true,
+    source: "d1_observations",
+    limit,
+    generatedAt: new Date().toISOString(),
+    summary: {
+      totalFeedback: rows.length,
+      artifactCount: artifactSummaries.length,
+      strongSignalCount,
+      feedbackTypes: siteBriefFeedbackBreakdown(countByFeedbackType),
+      buyerSegments: siteBriefFeedbackBreakdown(countByBuyerSegment),
+      useCases: siteBriefFeedbackBreakdown(countByUseCase),
+      priceSignals: siteBriefFeedbackBreakdown(countByPriceSignal),
+      contactIntents: siteBriefFeedbackBreakdown(countByContactIntent)
+    },
+    artifacts: artifactSummaries,
+    recent,
+    privacyBoundary: {
+      exactCoordinatesIncluded: false,
+      publicCellsIncluded: false,
+      shareTokensIncluded: false,
+      rowLevelSourceRecordsIncluded: false
+    },
+    compatibility: {
+      source: "cloudflare_site_brief_feedback_admin_readmodel",
+      exactLocationExposed: false,
+      shareTokensExposed: false
+    }
+  };
+}
+
+function siteBriefFeedbackAdminPlaceName(row: SiteBriefFeedbackAdminD1Row): string {
+  const brief = publicProfileReadmodelRecord(row.brief_json ?? "{}", {});
+  const placeBrief = recordOrEmpty(brief.placeBrief);
+  const hypothesis = recordOrEmpty(brief.hypothesis);
+  return normalizeOptionalText(placeBrief.placeName)
+    ?? normalizeOptionalText(brief.placeName)
+    ?? normalizeOptionalText(hypothesis.label)
+    ?? row.place_id;
+}
+
+function incrementSiteBriefFeedbackCount(counts: Map<string, number>, value: string | null): void {
+  const key = normalizeOptionalText(value) ?? "unspecified";
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+}
+
+function siteBriefFeedbackBreakdown(counts: Map<string, number>): SiteBriefFeedbackBreakdown[] {
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
+
+function isStrongSiteBriefFeedbackSignal(row: SiteBriefFeedbackAdminD1Row): boolean {
+  const priceSignal = row.price_signal ?? "";
+  const contactIntent = row.contact_intent ?? "";
+  return ["paid_pilot_possible", "purchase_intent", "quote_requested", "budget_confirmed"].includes(priceSignal)
+    || ["follow_up", "meeting_requested", "demo_requested"].includes(contactIntent);
+}
+
+function renderSiteBriefFeedbackAdminHtml(payload: Awaited<ReturnType<typeof buildSiteBriefFeedbackAdminPayload>>): string {
+  const summaryCards = [
+    ["反応", String(payload.summary.totalFeedback)],
+    ["brief", String(payload.summary.artifactCount)],
+    ["強いシグナル", String(payload.summary.strongSignalCount)]
+  ].map(([label, value]) => `<article class="wm-admin-card"><h2>${escapeHtml(label)}</h2><p>${escapeHtml(value)}</p></article>`).join("");
+  const artifactCards = payload.artifacts.map((artifact) => `
+    <article class="wm-admin-card">
+      <h2>${escapeHtml(artifact.placeName)}</h2>
+      <p>${escapeHtml(`${artifact.feedbackCount} feedback / strong ${artifact.strongSignalCount}`)}</p>
+      <small>${escapeHtml(artifact.artifactId)} / ${escapeHtml(artifact.decisionState ?? "unknown")}</small>
+      <ul>
+        <li>segment: ${escapeHtml(compactSiteBriefFeedbackBreakdown(artifact.buyerSegments))}</li>
+        <li>use: ${escapeHtml(compactSiteBriefFeedbackBreakdown(artifact.useCases))}</li>
+        <li>price: ${escapeHtml(compactSiteBriefFeedbackBreakdown(artifact.priceSignals))}</li>
+      </ul>
+    </article>`).join("");
+  const recentRows = payload.recent.slice(0, 30).map((item) => `
+    <article class="wm-admin-card">
+      <h2>${escapeHtml(item.feedbackType)} / ${escapeHtml(item.placeName)}</h2>
+      <p>${escapeHtml(item.feedbackText)}</p>
+      <small>${escapeHtml([item.buyerSegment, item.useCase, item.priceSignal, item.contactIntent, item.createdAt].filter(Boolean).join(" / "))}</small>
+    </article>`).join("");
+  return renderMunicipalWalkMapAdminShellHtml({
+    title: "Site Brief反応検証",
+    lead: "共有したPlace Briefへの反応を、場所単位で集約して次の営業・検証判断に使います。",
+    body: `${summaryCards}${artifactCards || "<article class=\"wm-admin-card\"><h2>反応なし</h2><p>共有リンクからのフィードバックはまだありません。</p></article>"}`,
+    aside: `<article class="wm-admin-card"><h2>公開境界</h2><ul><li>share tokenは表示しません</li><li>public cellや精密座標は表示しません</li><li>個別source recordは表示しません</li></ul></article><article class="wm-admin-card"><h2>最近の反応</h2><p>新しい順に最大30件。</p></article>${recentRows}`
+  });
+}
+
+function renderSiteBriefFeedbackNotReadyHtml(): string {
+  return renderMunicipalWalkMapAdminShellHtml({
+    title: "Site Brief反応検証",
+    lead: "site_brief_feedback_events がまだ利用できません。",
+    body: "<article class=\"wm-admin-card\"><h2>D1 migration待ち</h2><p>0060_site_brief_artifact_provenance.sql を適用してください。</p></article>",
+    aside: ""
+  });
+}
+
+function compactSiteBriefFeedbackBreakdown(items: SiteBriefFeedbackBreakdown[]): string {
+  return items.slice(0, 4).map((item) => `${item.value} ${item.count}`).join(", ") || "none";
 }
 
 function getPublicMapSiteBriefShim(): Response {
