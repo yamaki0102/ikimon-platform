@@ -2214,6 +2214,11 @@ export const worker = {
         return getFieldDetailJson(decodeURIComponent(fieldDetailApiMatch[1]), env);
       }
 
+      const fieldPublicProfileApiMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/public-profile$/);
+      if (request.method === "GET" && fieldPublicProfileApiMatch?.[1]) {
+        return getFieldPublicProfileJson(decodeURIComponent(fieldPublicProfileApiMatch[1]), env);
+      }
+
       const areaSnapshotMatch = url.pathname.match(/^\/api\/v1\/fields\/([^/]+)\/area-snapshot$/);
       if (request.method === "GET" && areaSnapshotMatch?.[1]) {
         return getOriginalUiAreaSnapshot(request, decodeURIComponent(areaSnapshotMatch[1]), env);
@@ -16743,6 +16748,17 @@ async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> 
   });
 }
 
+async function getFieldPublicProfileJson(fieldId: string, env: Env): Promise<Response> {
+  const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
+  if (!row) {
+    return json({ ok: false, error: "field_not_found" }, 404, { "cache-control": "no-store" });
+  }
+  return json(fieldPublicProfilePayload(row), 200, {
+    "cache-control": "public, max-age=60",
+    "x-ikimon-cloudflare-native": "field-public-profile-readmodel"
+  });
+}
+
 async function getNativeFieldDetailHtmlIfAvailable(request: Request, url: URL, env: Env): Promise<Response | null> {
   const match = parseFieldDetailPath(url.pathname);
   if (!match) return null;
@@ -17078,6 +17094,94 @@ function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
     validTo: row.valid_to ?? "",
     entityKey: row.entity_key ?? "",
     updatedAt: row.updated_at ?? ""
+  };
+}
+
+function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
+  const placeType = publicFieldSourceLabel(row);
+  const verificationLabel = publicFieldVerificationLabel(row);
+  const locationLabel = publicFieldLocationLabel(row);
+  const summary = row.summary?.trim()
+    || `${row.name} は、公開できる範囲だけを使って場所単位で読む Site Intelligence プロフィールです。`;
+  const access = publicFieldAccessGuidance(row);
+  const policyVersion = "cloudflare-site-intelligence-p0-v1";
+  return {
+    ok: true,
+    profile: {
+      fieldId: row.field_id,
+      name: row.name,
+      placeType,
+      profileStatus: "public_readmodel_profile",
+      publicProfileEnabled: true,
+      profilePolicyVersion: policyVersion,
+      publicLocation: {
+        mode: "area_or_public_place",
+        label: locationLabel,
+        publicCell: row.public_cell,
+        radiusLabel: row.radius_m ? `半径約${row.radius_m}m` : "粗い範囲のみ表示",
+        exactLocationExposed: false,
+        geometryExposed: false
+      },
+      confirmedLife: {
+        status: "not_enough_public_records",
+        taxa: [],
+        note: "本番D1 readmodelでは、少数記録から個別記録が逆算されないよう、生きものリストは集計条件が揃ってから表示します。"
+      },
+      seasonalTrend: {
+        status: "not_enough_public_records",
+        label: "季節傾向は準備中",
+        limitation: "複数時期・複数観察者の公開記録が揃うまで断定しません。"
+      },
+      environmentTypes: [placeType],
+      observationDensity: {
+        status: "collecting",
+        label: "観察密度は集計準備中",
+        suppressionReason: "公開集約の最小件数しきい値を満たすまで、件数を強く見せません。"
+      },
+      confidence: {
+        label: verificationLabel,
+        score: row.source_confidence,
+        source: "cloudflare_field_detail_readmodel"
+      },
+      limitations: [
+        "正確なピンとジオメトリは公開しません。",
+        "少数記録の推測や改善余地の断定公開はしません。",
+        publicFieldVerificationBody(row)
+      ],
+      nextObservation: [
+        "同じ場所で季節を変えて記録する",
+        "写真だけでなく音・環境メモも残す",
+        access.body
+      ],
+      updatedAt: row.updated_at ?? ""
+    },
+    publicBrief: {
+      title: `${row.name} Site Brief`,
+      summary,
+      sections: [
+        {
+          title: "場所の文脈",
+          body: `${placeType}として、${locationLabel}の粗い範囲で公開します。`
+        },
+        {
+          title: "公開安全",
+          body: "exact pin と geometry を出さず、場所プロフィールとして読める情報だけを返します。"
+        },
+        {
+          title: "次の観察",
+          body: "時期・観察者・証拠の幅が増えると、生きものリストや季節傾向を公開できます。"
+        }
+      ]
+    },
+    privacy: {
+      exactLocationExposed: false,
+      geometryExposed: false,
+      publicCellPrecision: "0.01_degree"
+    },
+    compatibility: {
+      source: "cloudflare_field_detail_readmodel",
+      fullProfileAggregation: false
+    }
   };
 }
 
@@ -25630,17 +25734,25 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
     .muted { color: #475569; font-size: 12px; line-height: 1.55; font-weight: 750; }
     .links { margin-top: 10px; }
     .links a { padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.10); background: #ffffff; color: #0f766e; text-decoration: none; font-size: 13px; }
+    .site-intelligence { display: grid; gap: 14px; margin-top: 18px; padding: 18px; border-color: rgba(14,116,144,.16); background: #ffffff; }
+    .site-intelligence > header { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+    .site-intelligence h2 { margin-top: 4px; font-size: 24px; line-height: 1.2; font-weight: 950; }
+    .site-intelligence .brief { color: #334155; font-size: 14px; line-height: 1.7; font-weight: 720; }
+    .si-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .si-next { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border-radius: 14px; background: #f0fdfa; border: 1px solid rgba(15,118,110,.14); }
+    .si-next strong { color: #0f766e; font-size: 13px; font-weight: 950; }
+    .si-next span { padding: 6px 9px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; font-weight: 850; }
     @media (max-width: 880px) {
       .hero { grid-template-columns: 1fr; }
-      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid, .si-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 640px) {
       main { padding: 32px 16px 56px; }
       .hero { padding: 18px; border-radius: 18px; }
       h1 { font-size: 30px; }
       .actions .button { flex: 1 1 160px; }
-      .range header { align-items: flex-start; flex-direction: column; }
-      .grid { grid-template-columns: 1fr; }
+      .range header, .site-intelligence > header { align-items: flex-start; flex-direction: column; }
+      .grid, .si-grid { grid-template-columns: 1fr; }
       .feature { min-height: 0; }
     }
   </style>
@@ -25671,6 +25783,7 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
       <em>${isEnglish ? "Photos, sounds, and notes will make this place easier to understand over time." : "写真、音、メモが増えるほど、この場所の変化が読みやすくなります。"}</em>
     </article>
   </section>
+  ${renderFieldSiteIntelligenceSection(row, isEnglish)}
   <section class="range panel" id="area-public-range" aria-label="${isEnglish ? "Public range and verification" : "公開範囲と確認"}">
     <header>
       <div><p class="eyebrow">Safety / Evidence</p><h2>${isEnglish ? "Public range and verification" : "公開範囲と確認"}</h2></div>
@@ -25690,6 +25803,28 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string): stri
 </main>
 </body>
 </html>`;
+}
+
+function renderFieldSiteIntelligenceSection(row: FieldDetailReadmodelRow, isEnglish: boolean): string {
+  const payload = fieldPublicProfilePayload(row);
+  const profile = payload.profile;
+  const sections = payload.publicBrief.sections.map((section) => `
+      <article class="panel"><span class="label">${escapeHtml(section.title)}</span><strong class="value">${escapeHtml(section.body)}</strong></article>`).join("");
+  const next = profile.nextObservation.slice(0, 3).map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+  return `<section class="site-intelligence panel" data-field-public-profile aria-label="Site Intelligence">
+    <header>
+      <div><p class="eyebrow">Site Intelligence</p><h2>${isEnglish ? "Place profile" : "場所プロフィール"}</h2></div>
+      <span class="badge">${escapeHtml(profile.confidence.label)}</span>
+    </header>
+    <p class="brief">${escapeHtml(payload.publicBrief.summary)}</p>
+    <div class="si-grid">
+      ${sections}
+      <article class="panel"><span class="label">${isEnglish ? "Observation density" : "観察密度"}</span><strong class="value">${escapeHtml(profile.observationDensity.label)}</strong><p class="muted">${escapeHtml(profile.observationDensity.suppressionReason)}</p></article>
+      <article class="panel"><span class="label">${isEnglish ? "Confirmed life" : "確認された生きもの"}</span><strong class="value">${escapeHtml(profile.confirmedLife.status === "not_enough_public_records" ? "集約条件待ち" : "公開中")}</strong><p class="muted">${escapeHtml(profile.confirmedLife.note)}</p></article>
+      <article class="panel"><span class="label">${isEnglish ? "Seasonality" : "季節傾向"}</span><strong class="value">${escapeHtml(profile.seasonalTrend.label)}</strong><p class="muted">${escapeHtml(profile.seasonalTrend.limitation)}</p></article>
+    </div>
+    <div class="si-next"><strong>${isEnglish ? "Next observation" : "次に観察するとよいこと"}</strong>${next}</div>
+  </section>`;
 }
 
 function renderPlaceSnapshotHtml(row: FieldDetailReadmodelRow, lang: string): string {

@@ -19589,6 +19589,118 @@ test("production field detail public-detail API exposes public-safe readmodel on
   assert.equal(text.includes("\"geom_simplified\""), false);
 });
 
+test("production field detail public-profile API exposes Site Intelligence without exact location", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const fieldId = "84577038-21e9-4d57-92bd-d48b5ff407c0";
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "osm_park",
+    admin_level: null,
+    name: "西伊場一条南公園",
+    name_kana: null,
+    summary: "住宅地の中の小さな緑地",
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: "34.70,137.70",
+    public_lat: 34.70123,
+    public_lng: 137.70234,
+    radius_m: 200,
+    area_ha: 0.3,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: null,
+    certification_url: null,
+    official_url: "https://example.test/park",
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "台帳確認済み",
+    source_confidence: 0.92,
+    valid_from: null,
+    valid_to: null,
+    entity_key: "osm:way:263321117",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+
+  const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/public-profile`), productionEnv);
+  const payload = await response.json() as any;
+  const text = JSON.stringify(payload);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "field-public-profile-readmodel");
+  assert.equal(payload.ok, true);
+  assert.equal(payload.profile.name, "西伊場一条南公園");
+  assert.equal(payload.profile.placeType, "公園・緑地");
+  assert.equal(payload.profile.publicLocation.mode, "area_or_public_place");
+  assert.equal(payload.profile.publicLocation.exactLocationExposed, false);
+  assert.equal(payload.profile.publicLocation.geometryExposed, false);
+  assert.equal(payload.profile.observationDensity.status, "collecting");
+  assert.equal(payload.publicBrief.sections.length >= 3, true);
+  assert.equal(text.includes("34.70123"), false);
+  assert.equal(text.includes("137.70234"), false);
+  assert.equal(text.includes("geom_simplified"), false);
+  assert.equal(text.includes("polygon"), false);
+});
+
+test("production field detail HTML renders Site Intelligence section from D1 readmodel", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "school",
+    admin_level: "school",
+    name: "春の里小学校",
+    name_kana: null,
+    summary: "地域の観察フィールド",
+    prefecture: "愛知",
+    city: "岡崎市",
+    public_cell: "34.95,137.17",
+    public_lat: 34.95123,
+    public_lng: 137.17123,
+    radius_m: 200,
+    area_ha: 1.2,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: null,
+    certification_url: null,
+    official_url: "https://example.test/field",
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "認定情報と一致",
+    source_confidence: 0.95,
+    valid_from: null,
+    valid_to: null,
+    entity_key: null,
+    updated_at: "2026-06-17T00:00:00.000Z"
+  });
+
+  const response = await worker.fetch(new Request(`https://ikimon.life/ja/community/fields/${fieldId}`), productionEnv);
+  const body = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(body.includes("data-field-public-profile"), true);
+  assert.equal(body.includes("Site Intelligence"), true);
+  assert.equal(body.includes("観察密度"), true);
+  assert.equal(body.includes("次に観察するとよいこと"), true);
+  assert.equal(body.includes("春の里小学校"), true);
+  assert.equal(body.includes("34.95123"), false);
+  assert.equal(body.includes("137.17123"), false);
+  assert.equal(body.includes("geom_simplified"), false);
+});
+
 test("production original UI html misses return 404 without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
