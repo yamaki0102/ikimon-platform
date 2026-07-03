@@ -1106,6 +1106,12 @@ interface SiteBriefFeedbackAdminD1Row {
   artifact_status: string | null;
   decision_state: string | null;
   brief_json: string | null;
+  validation_status: string | null;
+  sales_decision_note: string | null;
+  next_action: string | null;
+  validated_by_user_id: string | null;
+  validated_at: string | null;
+  validation_updated_at: string | null;
 }
 
 interface SiteBriefFeedbackBreakdown {
@@ -1142,6 +1148,23 @@ interface SiteBriefFeedbackAdminItem {
   priceSignal: string | null;
   contactIntent: string | null;
   createdAt: string;
+  strongSignal: boolean;
+  validation: SiteBriefFeedbackValidationState;
+}
+
+interface SiteBriefFeedbackValidationState {
+  validationStatus: string;
+  salesDecisionNote: string;
+  nextAction: string;
+  validatedByUserId: string | null;
+  validatedAt: string | null;
+  updatedAt: string | null;
+}
+
+interface SiteBriefFeedbackValidationSourceRow {
+  feedback_id: string;
+  artifact_id: string;
+  place_id: string;
 }
 
 interface UserObservationFieldRow {
@@ -2310,11 +2333,33 @@ export const worker = {
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/site-brief-feedback") {
-        return await getSiteBriefFeedbackAdminPage(request, env);
+        return await getSiteBriefFeedbackAdminPage(request, url, env);
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/admin/site-brief-feedback-summary") {
         return await getSiteBriefFeedbackSummaryAdmin(request, url, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/admin/site-brief-feedback-validation-queue") {
+        return await getSiteBriefFeedbackValidationQueueAdmin(request, url, env);
+      }
+
+      const siteBriefFeedbackValidationApiMatch = nativePathname.match(/^\/api\/v1\/admin\/site-brief-feedback-validation-queue\/([^/]+)$/);
+      if (request.method === "POST" && siteBriefFeedbackValidationApiMatch?.[1]) {
+        return await updateSiteBriefFeedbackValidationAdmin(
+          request,
+          decodeURIComponent(siteBriefFeedbackValidationApiMatch[1]),
+          env
+        );
+      }
+
+      const siteBriefFeedbackValidationFormMatch = nativePathname.match(/^\/admin\/site-brief-feedback\/([^/]+)\/validation$/);
+      if (request.method === "POST" && siteBriefFeedbackValidationFormMatch?.[1]) {
+        return await updateSiteBriefFeedbackValidationFromFormAdmin(
+          request,
+          decodeURIComponent(siteBriefFeedbackValidationFormMatch[1]),
+          env
+        );
       }
 
       if (nativePathname === "/api/v1/admin/municipal-walk-map-creators") {
@@ -15264,6 +15309,11 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 .wm-admin-card small{display:block;font-weight:800}
 .wm-admin-card ul{margin:8px 0 0;padding-left:18px;color:#475569;line-height:1.7}
 .wm-admin-card a{color:#0f766e;font-weight:900;text-decoration:none}
+.wm-admin-card form{display:grid;gap:8px;margin-top:12px}
+.wm-admin-card label{display:grid;gap:4px;font-size:12px;font-weight:900;color:#334155}
+.wm-admin-card select,.wm-admin-card textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#17211d;font:inherit;padding:8px}
+.wm-admin-card textarea{min-height:84px;resize:vertical}
+.wm-admin-card button{border:0;border-radius:8px;background:#0f766e;color:#fff;font-weight:900;padding:9px 10px;cursor:pointer}
 @media(max-width:800px){.wm-admin-head{display:grid;align-items:start}.wm-admin-grid{grid-template-columns:1fr}.wm-admin{padding:18px 12px 56px}.wm-admin-head h1{font-size:24px}}
 </style>
 </head>
@@ -16479,6 +16529,7 @@ async function getPublicMapSiteBrief(url: URL, env: Env): Promise<Response> {
 }
 
 const SITE_BRIEF_SHARE_TOKEN_RE = /^[A-Za-z0-9._-]{8,120}$/u;
+const SITE_BRIEF_FEEDBACK_ID_RE = /^[A-Za-z0-9._:-]{4,180}$/u;
 const SITE_BRIEF_FEEDBACK_TYPES = new Set([
   "use_case",
   "price_signal",
@@ -16488,6 +16539,21 @@ const SITE_BRIEF_FEEDBACK_TYPES = new Set([
   "suppress",
   "follow_up",
   "other"
+]);
+const SITE_BRIEF_FEEDBACK_VALIDATION_STATUSES = new Set([
+  "open",
+  "validated",
+  "deferred",
+  "dismissed"
+]);
+const SITE_BRIEF_FEEDBACK_NEXT_ACTIONS = new Set([
+  "none",
+  "follow_up",
+  "prepare_pitch",
+  "revise_brief",
+  "suppress_brief",
+  "ask_correction",
+  "mark_learned"
 ]);
 
 async function getSiteBriefShare(token: string, env: Env): Promise<Response> {
@@ -16566,8 +16632,9 @@ async function postSiteBriefShareFeedback(request: Request, token: string, env: 
 async function getSiteBriefFeedbackSummaryAdmin(request: Request, url: URL, env: Env): Promise<Response> {
   await requireMunicipalWalkMapAdminSession(request, env);
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 300);
+  const statusFilter = normalizeSiteBriefFeedbackValidationFilter(url.searchParams.get("status"));
   try {
-    const payload = await buildSiteBriefFeedbackAdminPayload(env, limit);
+    const payload = await buildSiteBriefFeedbackAdminPayload(env, limit, statusFilter);
     return json(payload, 200, nativeGuideHeaders("site-brief-feedback-admin-api"));
   } catch (error) {
     if (isMissingD1TableError(error, "site_brief_feedback_events")) {
@@ -16577,10 +16644,67 @@ async function getSiteBriefFeedbackSummaryAdmin(request: Request, url: URL, env:
   }
 }
 
-async function getSiteBriefFeedbackAdminPage(request: Request, env: Env): Promise<Response> {
+async function getSiteBriefFeedbackValidationQueueAdmin(request: Request, url: URL, env: Env): Promise<Response> {
   await requireMunicipalWalkMapAdminSession(request, env);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 300);
+  const statusFilter = normalizeSiteBriefFeedbackValidationFilter(url.searchParams.get("status"));
   try {
-    const payload = await buildSiteBriefFeedbackAdminPayload(env, 120);
+    const payload = await buildSiteBriefFeedbackAdminPayload(env, limit, statusFilter);
+    return json({ ...payload, queue: payload.recent }, 200, nativeGuideHeaders("site-brief-feedback-validation-queue-api"));
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_feedback_events")) {
+      return json({ ok: false, error: "site_brief_feedback_not_ready" }, 503, nativeGuideHeaders("site-brief-feedback-validation-queue-api"));
+    }
+    throw error;
+  }
+}
+
+async function updateSiteBriefFeedbackValidationAdmin(request: Request, feedbackId: string, env: Env): Promise<Response> {
+  const session = await requireMunicipalWalkMapAdminSession(request, env);
+  const body = await readJson<Record<string, unknown>>(request);
+  try {
+    const payload = await writeSiteBriefFeedbackValidation(env, feedbackId, {
+      validationStatus: body.validationStatus ?? body.validation_status,
+      salesDecisionNote: body.salesDecisionNote ?? body.sales_decision_note,
+      nextAction: body.nextAction ?? body.next_action,
+      actorUserId: session.userId ?? null
+    });
+    return json(payload, 200, nativeGuideHeaders("site-brief-feedback-validation-write"));
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_feedback_validations")) {
+      return json({ ok: false, error: "site_brief_feedback_validation_not_ready" }, 503, nativeGuideHeaders("site-brief-feedback-validation-write"));
+    }
+    throw error;
+  }
+}
+
+async function updateSiteBriefFeedbackValidationFromFormAdmin(request: Request, feedbackId: string, env: Env): Promise<Response> {
+  const session = await requireMunicipalWalkMapAdminSession(request, env);
+  const form = await request.formData();
+  const validationStatus = formDataText(form, "validationStatus") || formDataText(form, "validation_status");
+  try {
+    await writeSiteBriefFeedbackValidation(env, feedbackId, {
+      validationStatus,
+      salesDecisionNote: formDataText(form, "salesDecisionNote") || formDataText(form, "sales_decision_note"),
+      nextAction: formDataText(form, "nextAction") || formDataText(form, "next_action"),
+      actorUserId: session.userId ?? null
+    });
+  } catch (error) {
+    if (isMissingD1TableError(error, "site_brief_feedback_validations")) {
+      return redirect303("/admin/site-brief-feedback?error=validation_not_ready", nativeGuideHeaders("site-brief-feedback-validation-form-write"));
+    }
+    throw error;
+  }
+  const nextStatus = normalizeSiteBriefFeedbackValidationStatus(validationStatus) ?? "all";
+  const statusParam = nextStatus === "open" ? "open" : "all";
+  return redirect303(`/admin/site-brief-feedback?status=${encodeURIComponent(statusParam)}&ok=validation_saved`, nativeGuideHeaders("site-brief-feedback-validation-form-write"));
+}
+
+async function getSiteBriefFeedbackAdminPage(request: Request, url: URL, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  const statusFilter = normalizeSiteBriefFeedbackValidationFilter(url.searchParams.get("status"));
+  try {
+    const payload = await buildSiteBriefFeedbackAdminPayload(env, 120, statusFilter);
     return html(renderSiteBriefFeedbackAdminHtml(payload), 200, nativeGuideHeaders("site-brief-feedback-admin-html"));
   } catch (error) {
     if (isMissingD1TableError(error, "site_brief_feedback_events")) {
@@ -16590,21 +16714,120 @@ async function getSiteBriefFeedbackAdminPage(request: Request, env: Env): Promis
   }
 }
 
-async function getSiteBriefFeedbackAdminRows(env: Env, limit: number): Promise<SiteBriefFeedbackAdminD1Row[]> {
-  const rows = await env.OBS_DB.prepare(
-    `SELECT f.feedback_id, f.artifact_id, f.place_id, f.feedback_type, f.feedback_text,
-            f.buyer_segment, f.use_case, f.price_signal, f.contact_intent, f.created_at,
-            a.artifact_scope, a.artifact_status, a.decision_state, a.brief_json
-       FROM site_brief_feedback_events f
-       LEFT JOIN site_brief_artifacts a ON a.artifact_id = f.artifact_id
-      ORDER BY f.created_at DESC, f.feedback_id DESC
-      LIMIT ?`
-  ).bind(limit).all<SiteBriefFeedbackAdminD1Row>();
-  return rows.results;
+async function writeSiteBriefFeedbackValidation(env: Env, feedbackId: string, input: {
+  validationStatus: unknown;
+  salesDecisionNote: unknown;
+  nextAction: unknown;
+  actorUserId: string | null;
+}) {
+  if (!SITE_BRIEF_FEEDBACK_ID_RE.test(feedbackId)) {
+    throw new HttpError(400, "invalid_feedback_id");
+  }
+  const validationStatus = normalizeSiteBriefFeedbackValidationStatus(input.validationStatus);
+  if (!validationStatus) {
+    throw new HttpError(400, "invalid_validation_status");
+  }
+  const rawNextAction = normalizeOptionalText(input.nextAction);
+  const nextAction = rawNextAction ? normalizeSiteBriefFeedbackNextAction(rawNextAction) : "none";
+  if (!nextAction) {
+    throw new HttpError(400, "invalid_next_action");
+  }
+  const salesDecisionNote = normalizeBoundedText(input.salesDecisionNote, 1200) ?? "";
+  const feedback = await env.OBS_DB.prepare(
+    `SELECT feedback_id, artifact_id, place_id
+       FROM site_brief_feedback_events
+      WHERE feedback_id = ?`
+  ).bind(feedbackId).first<SiteBriefFeedbackValidationSourceRow>();
+  if (!feedback) {
+    throw new HttpError(404, "site_brief_feedback_not_found");
+  }
+  const now = new Date().toISOString();
+  const validatedAt = validationStatus === "open" ? null : now;
+  const validatedByUserId = validationStatus === "open" ? null : input.actorUserId;
+  await env.OBS_DB.prepare(
+    `INSERT INTO site_brief_feedback_validations (
+       feedback_id, artifact_id, place_id, validation_status, sales_decision_note,
+       next_action, validated_by_user_id, validated_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(feedback_id) DO UPDATE SET
+       artifact_id = excluded.artifact_id,
+       place_id = excluded.place_id,
+       validation_status = excluded.validation_status,
+       sales_decision_note = excluded.sales_decision_note,
+       next_action = excluded.next_action,
+       validated_by_user_id = excluded.validated_by_user_id,
+       validated_at = excluded.validated_at,
+       updated_at = excluded.updated_at`
+  ).bind(
+    feedback.feedback_id,
+    feedback.artifact_id,
+    feedback.place_id,
+    validationStatus,
+    salesDecisionNote,
+    nextAction,
+    validatedByUserId,
+    validatedAt,
+    now
+  ).run();
+  return {
+    ok: true,
+    feedbackId: feedback.feedback_id,
+    artifactId: feedback.artifact_id,
+    placeId: feedback.place_id,
+    validation: {
+      validationStatus,
+      salesDecisionNote,
+      nextAction,
+      validatedByUserId,
+      validatedAt,
+      updatedAt: now
+    }
+  };
 }
 
-async function buildSiteBriefFeedbackAdminPayload(env: Env, limit: number) {
+async function getSiteBriefFeedbackAdminRows(env: Env, limit: number): Promise<SiteBriefFeedbackAdminD1Row[]> {
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT f.feedback_id, f.artifact_id, f.place_id, f.feedback_type, f.feedback_text,
+              f.buyer_segment, f.use_case, f.price_signal, f.contact_intent, f.created_at,
+              a.artifact_scope, a.artifact_status, a.decision_state, a.brief_json,
+              v.validation_status, v.sales_decision_note, v.next_action,
+              v.validated_by_user_id, v.validated_at, v.updated_at AS validation_updated_at
+         FROM site_brief_feedback_events f
+         LEFT JOIN site_brief_artifacts a ON a.artifact_id = f.artifact_id
+         LEFT JOIN site_brief_feedback_validations v ON v.feedback_id = f.feedback_id
+        ORDER BY f.created_at DESC, f.feedback_id DESC
+        LIMIT ?`
+    ).bind(limit).all<SiteBriefFeedbackAdminD1Row>();
+    return rows.results;
+  } catch (error) {
+    if (!isMissingD1TableError(error, "site_brief_feedback_validations")) {
+      throw error;
+    }
+    const rows = await env.OBS_DB.prepare(
+      `SELECT f.feedback_id, f.artifact_id, f.place_id, f.feedback_type, f.feedback_text,
+              f.buyer_segment, f.use_case, f.price_signal, f.contact_intent, f.created_at,
+              a.artifact_scope, a.artifact_status, a.decision_state, a.brief_json,
+              NULL AS validation_status, NULL AS sales_decision_note, NULL AS next_action,
+              NULL AS validated_by_user_id, NULL AS validated_at, NULL AS validation_updated_at
+         FROM site_brief_feedback_events f
+         LEFT JOIN site_brief_artifacts a ON a.artifact_id = f.artifact_id
+        ORDER BY f.created_at DESC, f.feedback_id DESC
+        LIMIT ?`
+    ).bind(limit).all<SiteBriefFeedbackAdminD1Row>();
+    return rows.results;
+  }
+}
+
+async function buildSiteBriefFeedbackAdminPayload(env: Env, limit: number, statusFilter = "all") {
   const rows = await getSiteBriefFeedbackAdminRows(env, limit);
+  const rowStates = rows.map((row) => ({
+    row,
+    validation: siteBriefFeedbackValidationStateFromRow(row)
+  }));
+  const filteredRowStates = statusFilter === "all"
+    ? rowStates
+    : rowStates.filter((item) => item.validation.validationStatus === statusFilter);
   const artifacts = new Map<string, {
     artifactId: string;
     placeId: string;
@@ -16626,9 +16849,15 @@ async function buildSiteBriefFeedbackAdminPayload(env: Env, limit: number) {
   const countByUseCase = new Map<string, number>();
   const countByPriceSignal = new Map<string, number>();
   const countByContactIntent = new Map<string, number>();
+  const countByValidationStatus = new Map<string, number>();
+  const countByNextAction = new Map<string, number>();
+  for (const item of rowStates) {
+    incrementSiteBriefFeedbackCount(countByValidationStatus, item.validation.validationStatus);
+    incrementSiteBriefFeedbackCount(countByNextAction, item.validation.nextAction);
+  }
   let strongSignalCount = 0;
 
-  const recent: SiteBriefFeedbackAdminItem[] = rows.map((row) => {
+  const recent: SiteBriefFeedbackAdminItem[] = filteredRowStates.map(({ row, validation }) => {
     const placeName = siteBriefFeedbackAdminPlaceName(row);
     const strongSignal = isStrongSiteBriefFeedbackSignal(row);
     if (strongSignal) strongSignalCount += 1;
@@ -16675,7 +16904,9 @@ async function buildSiteBriefFeedbackAdminPayload(env: Env, limit: number) {
       useCase: row.use_case,
       priceSignal: row.price_signal,
       contactIntent: row.contact_intent,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      strongSignal,
+      validation
     };
   });
 
@@ -16705,16 +16936,24 @@ async function buildSiteBriefFeedbackAdminPayload(env: Env, limit: number) {
     generatedAt: new Date().toISOString(),
     summary: {
       totalFeedback: rows.length,
+      filteredFeedback: recent.length,
       artifactCount: artifactSummaries.length,
       strongSignalCount,
+      openFeedback: countByValidationStatus.get("open") ?? 0,
+      validatedFeedback: countByValidationStatus.get("validated") ?? 0,
+      deferredFeedback: countByValidationStatus.get("deferred") ?? 0,
+      dismissedFeedback: countByValidationStatus.get("dismissed") ?? 0,
       feedbackTypes: siteBriefFeedbackBreakdown(countByFeedbackType),
       buyerSegments: siteBriefFeedbackBreakdown(countByBuyerSegment),
       useCases: siteBriefFeedbackBreakdown(countByUseCase),
       priceSignals: siteBriefFeedbackBreakdown(countByPriceSignal),
-      contactIntents: siteBriefFeedbackBreakdown(countByContactIntent)
+      contactIntents: siteBriefFeedbackBreakdown(countByContactIntent),
+      validationStatuses: siteBriefFeedbackBreakdown(countByValidationStatus),
+      nextActions: siteBriefFeedbackBreakdown(countByNextAction)
     },
     artifacts: artifactSummaries,
     recent,
+    statusFilter,
     privacyBoundary: {
       exactCoordinatesIncluded: false,
       publicCellsIncluded: false,
@@ -16727,6 +16966,33 @@ async function buildSiteBriefFeedbackAdminPayload(env: Env, limit: number) {
       shareTokensExposed: false
     }
   };
+}
+
+function siteBriefFeedbackValidationStateFromRow(row: SiteBriefFeedbackAdminD1Row): SiteBriefFeedbackValidationState {
+  return {
+    validationStatus: normalizeSiteBriefFeedbackValidationStatus(row.validation_status) ?? "open",
+    salesDecisionNote: row.sales_decision_note ?? "",
+    nextAction: normalizeSiteBriefFeedbackNextAction(row.next_action) ?? "none",
+    validatedByUserId: row.validated_by_user_id ?? null,
+    validatedAt: row.validated_at ?? null,
+    updatedAt: row.validation_updated_at ?? null
+  };
+}
+
+function normalizeSiteBriefFeedbackValidationStatus(value: unknown): string | null {
+  const status = normalizeOptionalText(value);
+  return status && SITE_BRIEF_FEEDBACK_VALIDATION_STATUSES.has(status) ? status : null;
+}
+
+function normalizeSiteBriefFeedbackValidationFilter(value: unknown): string {
+  const filter = normalizeOptionalText(value);
+  if (filter === "all") return "all";
+  return normalizeSiteBriefFeedbackValidationStatus(filter) ?? "all";
+}
+
+function normalizeSiteBriefFeedbackNextAction(value: unknown): string | null {
+  const action = normalizeOptionalText(value);
+  return action && SITE_BRIEF_FEEDBACK_NEXT_ACTIONS.has(action) ? action : null;
 }
 
 function siteBriefFeedbackAdminPlaceName(row: SiteBriefFeedbackAdminD1Row): string {
@@ -16758,10 +17024,17 @@ function isStrongSiteBriefFeedbackSignal(row: SiteBriefFeedbackAdminD1Row): bool
 }
 
 function renderSiteBriefFeedbackAdminHtml(payload: Awaited<ReturnType<typeof buildSiteBriefFeedbackAdminPayload>>): string {
+  const statusLinks = ["open", "validated", "deferred", "dismissed", "all"]
+    .map((status) => `<a href="/admin/site-brief-feedback?status=${encodeURIComponent(status)}">${escapeHtml(status === payload.statusFilter ? `${status} *` : status)}</a>`)
+    .join("");
   const summaryCards = [
     ["反応", String(payload.summary.totalFeedback)],
+    ["表示中", String(payload.summary.filteredFeedback)],
     ["brief", String(payload.summary.artifactCount)],
-    ["強いシグナル", String(payload.summary.strongSignalCount)]
+    ["強いシグナル", String(payload.summary.strongSignalCount)],
+    ["open", String(payload.summary.openFeedback)],
+    ["validated", String(payload.summary.validatedFeedback)],
+    ["deferred", String(payload.summary.deferredFeedback)]
   ].map(([label, value]) => `<article class="wm-admin-card"><h2>${escapeHtml(label)}</h2><p>${escapeHtml(value)}</p></article>`).join("");
   const artifactCards = payload.artifacts.map((artifact) => `
     <article class="wm-admin-card">
@@ -16779,26 +17052,50 @@ function renderSiteBriefFeedbackAdminHtml(payload: Awaited<ReturnType<typeof bui
       <h2>${escapeHtml(item.feedbackType)} / ${escapeHtml(item.placeName)}</h2>
       <p>${escapeHtml(item.feedbackText)}</p>
       <small>${escapeHtml([item.buyerSegment, item.useCase, item.priceSignal, item.contactIntent, item.createdAt].filter(Boolean).join(" / "))}</small>
+      <small>${escapeHtml(`validation: ${item.validation.validationStatus} / next: ${item.validation.nextAction}${item.validation.validatedAt ? ` / ${item.validation.validatedAt}` : ""}`)}</small>
+      ${item.validation.salesDecisionNote ? `<p>${escapeHtml(item.validation.salesDecisionNote)}</p>` : ""}
+      <form method="post" action="/admin/site-brief-feedback/${encodeURIComponent(item.feedbackId)}/validation">
+        <label>validation_status
+          <select name="validationStatus">
+            ${renderSiteBriefFeedbackOptions([...SITE_BRIEF_FEEDBACK_VALIDATION_STATUSES], item.validation.validationStatus)}
+          </select>
+        </label>
+        <label>next_action
+          <select name="nextAction">
+            ${renderSiteBriefFeedbackOptions([...SITE_BRIEF_FEEDBACK_NEXT_ACTIONS], item.validation.nextAction)}
+          </select>
+        </label>
+        <label>営業判断メモ
+          <textarea name="salesDecisionNote">${escapeHtml(item.validation.salesDecisionNote)}</textarea>
+        </label>
+        <button type="submit">検証を保存</button>
+      </form>
     </article>`).join("");
   return renderMunicipalWalkMapAdminShellHtml({
     title: "Site Brief反応検証",
     lead: "共有したPlace Briefへの反応を、場所単位で集約して次の営業・検証判断に使います。",
-    body: `${summaryCards}${artifactCards || "<article class=\"wm-admin-card\"><h2>反応なし</h2><p>共有リンクからのフィードバックはまだありません。</p></article>"}`,
-    aside: `<article class="wm-admin-card"><h2>公開境界</h2><ul><li>share tokenは表示しません</li><li>public cellや精密座標は表示しません</li><li>個別source recordは表示しません</li></ul></article><article class="wm-admin-card"><h2>最近の反応</h2><p>新しい順に最大30件。</p></article>${recentRows}`
+    body: `<article class="wm-admin-card"><h2>検証キュー</h2><p>${escapeHtml(payload.statusFilter)} を表示しています。</p><p>${statusLinks}</p></article>${summaryCards}${artifactCards || "<article class=\"wm-admin-card\"><h2>反応なし</h2><p>共有リンクからのフィードバックはまだありません。</p></article>"}`,
+    aside: `<article class="wm-admin-card"><h2>公開境界</h2><ul><li>share tokenは表示しません</li><li>public cellや精密座標は表示しません</li><li>個別source recordは表示しません</li></ul></article><article class="wm-admin-card"><h2>最近の反応</h2><p>新しい順に最大30件。</p></article>${recentRows || "<article class=\"wm-admin-card\"><h2>対象なし</h2><p>現在の状態フィルタに該当する反応はありません。</p></article>"}`
   });
 }
 
 function renderSiteBriefFeedbackNotReadyHtml(): string {
   return renderMunicipalWalkMapAdminShellHtml({
     title: "Site Brief反応検証",
-    lead: "site_brief_feedback_events がまだ利用できません。",
-    body: "<article class=\"wm-admin-card\"><h2>D1 migration待ち</h2><p>0060_site_brief_artifact_provenance.sql を適用してください。</p></article>",
+    lead: "Site Brief feedback のD1テーブルがまだ利用できません。",
+    body: "<article class=\"wm-admin-card\"><h2>D1 migration待ち</h2><p>0060_site_brief_artifact_provenance.sql と 0061_site_brief_feedback_validation_queue.sql を適用してください。</p></article>",
     aside: ""
   });
 }
 
 function compactSiteBriefFeedbackBreakdown(items: SiteBriefFeedbackBreakdown[]): string {
   return items.slice(0, 4).map((item) => `${item.value} ${item.count}`).join(", ") || "none";
+}
+
+function renderSiteBriefFeedbackOptions(values: string[], selected: string): string {
+  return values
+    .map((value) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(value)}</option>`)
+    .join("");
 }
 
 function getPublicMapSiteBriefShim(): Response {

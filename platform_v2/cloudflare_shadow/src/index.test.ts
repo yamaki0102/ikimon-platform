@@ -737,6 +737,18 @@ interface SiteBriefFeedbackEventTestRow {
   created_at: string;
 }
 
+interface SiteBriefFeedbackValidationTestRow {
+  feedback_id: string;
+  artifact_id: string;
+  place_id: string;
+  validation_status: string;
+  sales_decision_note: string;
+  next_action: string;
+  validated_by_user_id: string | null;
+  validated_at: string | null;
+  updated_at: string;
+}
+
 interface UserObservationFieldTestRow {
   field_id: string;
   owner_user_id: string;
@@ -1780,6 +1792,7 @@ class FakeD1 {
   siteBriefGenerationRuns = new Map<string, SiteBriefGenerationRunTestRow>();
   siteBriefSourceLinks: SiteBriefSourceLinkTestRow[] = [];
   siteBriefFeedbackEvents: SiteBriefFeedbackEventTestRow[] = [];
+  siteBriefFeedbackValidations = new Map<string, SiteBriefFeedbackValidationTestRow>();
   userObservationFields = new Map<string, UserObservationFieldTestRow>();
   sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
   placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
@@ -1886,6 +1899,22 @@ class FakeStatement {
         contact_intent: nullableString(v[8]),
         created_at: string(v[9])
       });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO site_brief_feedback_validations")) {
+      const row: SiteBriefFeedbackValidationTestRow = {
+        feedback_id: string(v[0]),
+        artifact_id: string(v[1]),
+        place_id: string(v[2]),
+        validation_status: string(v[3]),
+        sales_decision_note: string(v[4]),
+        next_action: string(v[5]),
+        validated_by_user_id: nullableString(v[6]),
+        validated_at: nullableString(v[7]),
+        updated_at: string(v[8])
+      };
+      this.db.siteBriefFeedbackValidations.set(row.feedback_id, row);
       return {};
     }
 
@@ -4514,6 +4543,15 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT feedback_id, artifact_id, place_id FROM site_brief_feedback_events WHERE feedback_id = ?")) {
+      const row = this.db.siteBriefFeedbackEvents.find((candidate) => candidate.feedback_id === string(this.values[0]));
+      return row ? ({
+        feedback_id: row.feedback_id,
+        artifact_id: row.artifact_id,
+        place_id: row.place_id
+      } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT taxon_key, name_ja, status, source_kind, source_note, reviewed_by, reviewed_at FROM gbif_japanese_name_overrides")) {
       const row = this.db.gbifJapaneseNameOverrides.get(number(v[0]));
       if (!row) return null;
@@ -5657,12 +5695,19 @@ class FakeStatement {
         .slice(0, limit)
         .map((row) => {
           const artifact = this.db.siteBriefArtifacts.get(row.artifact_id);
+          const validation = this.db.siteBriefFeedbackValidations.get(row.feedback_id);
           return {
             ...row,
             artifact_scope: artifact?.artifact_scope ?? null,
             artifact_status: artifact?.artifact_status ?? null,
             decision_state: artifact?.decision_state ?? null,
-            brief_json: artifact?.brief_json ?? null
+            brief_json: artifact?.brief_json ?? null,
+            validation_status: validation?.validation_status ?? null,
+            sales_decision_note: validation?.sales_decision_note ?? null,
+            next_action: validation?.next_action ?? null,
+            validated_by_user_id: validation?.validated_by_user_id ?? null,
+            validated_at: validation?.validated_at ?? null,
+            validation_updated_at: validation?.updated_at ?? null
           };
         });
       return { results: rows as T[] };
@@ -8016,6 +8061,129 @@ test("site brief feedback admin summary requires admin and hides share tokens", 
   assert.match(htmlBody, /Site Brief反応検証/);
   assert.match(htmlBody, /佐鳴湖周辺の水辺プロフィール/);
   assert.doesNotMatch(htmlBody, /share-secret-admin|34\.72|137\.70|public_cell|shareToken/);
+});
+
+test("site brief feedback validation queue lets admins close sales decisions", async () => {
+  const { env, obs } = createEnv();
+  obs.siteBriefArtifacts.set("site-brief-artifact-validation", {
+    artifact_id: "site-brief-artifact-validation",
+    generation_run_id: "site-brief-run-validation",
+    place_id: "pilot-validation-waterside",
+    public_cell: "34.70,137.71",
+    artifact_scope: "private_share",
+    artifact_status: "active",
+    share_token: "share-secret-validation-20260704",
+    brief_json: JSON.stringify({
+      hypothesis: { label: "営業検証中の水辺Brief", confidence: 0.78 },
+      placeBrief: { placeName: "営業検証用の水辺プロフィール" }
+    }),
+    evidence_contract_json: JSON.stringify({ exactCoordinatesExposed: false, geometryExposed: false }),
+    decision_state: "approved_external",
+    limitations_json: "[]",
+    created_at: "2026-07-04T00:00:00.000Z",
+    updated_at: "2026-07-04T00:00:00.000Z"
+  });
+  obs.siteBriefFeedbackEvents.push({
+    feedback_id: "site-brief-feedback-validation-1",
+    artifact_id: "site-brief-artifact-validation",
+    place_id: "pilot-validation-waterside",
+    feedback_type: "price_signal",
+    feedback_text: "月次レポートなら予算化できるか検討したい。",
+    buyer_segment: "facility_manager",
+    use_case: "monthly_report",
+    price_signal: "paid_pilot_possible",
+    contact_intent: "follow_up",
+    created_at: "2026-07-04T02:00:00.000Z"
+  });
+
+  const guestQueue = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-validation-queue"), env);
+  assert.equal(guestQueue.status, 401);
+
+  const observerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "observer-user", displayName: "Observer User", roleName: "Observer", ttlHours: 1 })
+  }), env);
+  const observerCookie = observerIssue.headers.get("set-cookie") ?? "";
+  const observerWrite = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-validation-queue/site-brief-feedback-validation-1", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: observerCookie },
+    body: JSON.stringify({
+      validationStatus: "validated",
+      salesDecisionNote: "observer should not write",
+      nextAction: "prepare_pitch"
+    })
+  }), env);
+  assert.equal(observerWrite.status, 403);
+  assert.equal(obs.siteBriefFeedbackValidations.size, 0);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "admin-user", displayName: "Admin User", roleName: "Admin", ttlHours: 1 })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+  const openQueueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-validation-queue?status=open", {
+    headers: { cookie: adminCookie }
+  }), env);
+  const openQueuePayload = await openQueueResponse.json() as any;
+  assert.equal(openQueueResponse.status, 200, JSON.stringify(openQueuePayload));
+  assert.equal(openQueueResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-feedback-validation-queue-api");
+  assert.equal(openQueuePayload.summary.openFeedback, 1);
+  assert.equal(openQueuePayload.queue[0].validation.validationStatus, "open");
+  assert.doesNotMatch(JSON.stringify(openQueuePayload), /share-secret-validation|34\.70|137\.71|"public_cell"|"publicCell"|"shareToken"\s*:/);
+
+  const writeResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-validation-queue/site-brief-feedback-validation-1", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: adminCookie },
+    body: JSON.stringify({
+      validationStatus: "validated",
+      salesDecisionNote: "有料PoC候補。初回提案に入れる。",
+      nextAction: "prepare_pitch"
+    })
+  }), env);
+  const writePayload = await writeResponse.json() as any;
+  assert.equal(writeResponse.status, 200, JSON.stringify(writePayload));
+  assert.equal(writeResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-feedback-validation-write");
+  assert.equal(writePayload.validation.validationStatus, "validated");
+  assert.equal(writePayload.validation.salesDecisionNote, "有料PoC候補。初回提案に入れる。");
+  assert.equal(writePayload.validation.nextAction, "prepare_pitch");
+  assert.ok(writePayload.validation.validatedAt);
+  assert.equal(obs.siteBriefFeedbackValidations.get("site-brief-feedback-validation-1")?.validated_by_user_id, "admin-user");
+
+  const validatedQueueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/admin/site-brief-feedback-validation-queue?status=validated", {
+    headers: { cookie: adminCookie }
+  }), env);
+  const validatedQueuePayload = await validatedQueueResponse.json() as any;
+  assert.equal(validatedQueueResponse.status, 200, JSON.stringify(validatedQueuePayload));
+  assert.equal(validatedQueuePayload.summary.validatedFeedback, 1);
+  assert.equal(validatedQueuePayload.queue[0].validation.nextAction, "prepare_pitch");
+
+  const htmlResponse = await worker.fetch(new Request("https://shadow.test/admin/site-brief-feedback?status=validated", {
+    headers: { cookie: adminCookie }
+  }), env);
+  const htmlBody = await htmlResponse.text();
+  assert.equal(htmlResponse.status, 200);
+  assert.match(htmlBody, /営業検証用の水辺プロフィール/);
+  assert.match(htmlBody, /有料PoC候補。初回提案に入れる。/);
+  assert.match(htmlBody, /prepare_pitch/);
+  assert.match(htmlBody, /method="post"/i);
+  assert.match(htmlBody, /\/admin\/site-brief-feedback\/site-brief-feedback-validation-1\/validation/);
+  assert.doesNotMatch(htmlBody, /share-secret-validation|34\.70|137\.71|public_cell|shareToken/);
+
+  const formResponse = await worker.fetch(new Request("https://shadow.test/admin/site-brief-feedback/site-brief-feedback-validation-1/validation", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", cookie: adminCookie },
+    body: new URLSearchParams({
+      validationStatus: "deferred",
+      salesDecisionNote: "面談後に再確認する。",
+      nextAction: "follow_up"
+    })
+  }), env);
+  assert.equal(formResponse.status, 303);
+  assert.equal(formResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-feedback-validation-form-write");
+  assert.equal(obs.siteBriefFeedbackValidations.get("site-brief-feedback-validation-1")?.validation_status, "deferred");
+  assert.equal(obs.siteBriefFeedbackValidations.get("site-brief-feedback-validation-1")?.sales_decision_note, "面談後に再確認する。");
 });
 
 test("privacy exact-coordinate gate keeps public map responses on public cells only", async () => {
