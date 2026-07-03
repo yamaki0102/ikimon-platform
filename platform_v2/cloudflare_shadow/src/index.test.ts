@@ -19962,6 +19962,24 @@ test("production field detail public-profile API exposes Site Intelligence witho
   assert.equal(payload.evidenceContract.location.geometryExposed, false);
   assert.equal(payload.evidenceContract.suppression.countRulesApplied, true);
   assert.equal(payload.evidenceContract.suppression.sensitiveTaxaPolicy, "suppress_before_count_rules");
+  assert.equal(payload.aggregationGate.rulesetVersion, "site_intelligence_aggregation_gate_v2");
+  assert.equal(payload.aggregationGate.publicationAllowed, false);
+  assert.equal(payload.aggregationGate.displaySuppressionReason, "source_record_statistics_unavailable");
+  assert.equal(payload.aggregationGate.thresholds.minObservationCount, 3);
+  assert.equal(payload.aggregationGate.thresholds.minObserverCount, 2);
+  assert.equal(payload.aggregationGate.thresholds.minTimeSpanDays, 14);
+  assert.equal(payload.aggregationGate.thresholds.suppressIfSingleSource, true);
+  assert.equal(payload.aggregationGate.observed.observationCount, null);
+  assert.equal(payload.aggregationGate.sensitivity.preemptsCountThresholds, true);
+  assert.equal(payload.aggregationGate.sensitivity.decision, "suppress");
+  assert.deepEqual(payload.aggregationGate.evaluationOrder, [
+    "sensitivity_precheck",
+    "rights_consent_scope",
+    "aggregation_thresholds",
+    "display_contract"
+  ]);
+  assert.equal(payload.aggregationGate.output.confirmedLifeAllowed, false);
+  assert.equal(payload.aggregationGate.output.exactLocationExposed, false);
   assert.equal(payload.publicBrief.sections.length >= 3, true);
   assert.equal(text.includes("34.70123"), false);
   assert.equal(text.includes("137.70234"), false);
