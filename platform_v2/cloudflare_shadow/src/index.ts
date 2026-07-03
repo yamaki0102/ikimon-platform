@@ -1033,6 +1033,23 @@ interface FieldPublicProfileReadmodelRow {
   updated_at: string;
 }
 
+interface PlaceBriefPilotRow {
+  place_id: string;
+  status: string;
+  place_name: string;
+  place_type: string;
+  public_cell: string;
+  location_label: string;
+  brief_json: string;
+  evidence_contract_json: string;
+  generation_method: string;
+  generation_run_id: string | null;
+  policy_version: string;
+  created_by: string;
+  generated_at: string;
+  updated_at: string;
+}
+
 interface UserObservationFieldRow {
   field_id: string;
   owner_user_id: string;
@@ -2124,7 +2141,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/site-brief") {
-        return getPublicMapSiteBriefShim(url);
+        return getPublicMapSiteBrief(url, env);
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/guide-spots") {
@@ -16324,12 +16341,24 @@ function getPublicMapEffortSummaryShim(): Response {
   }, 200, { "cache-control": "no-store" });
 }
 
-function getPublicMapSiteBriefShim(url: URL): Response {
+async function getPublicMapSiteBrief(url: URL, env: Env): Promise<Response> {
   const lat = Number(url.searchParams.get("lat"));
   const lng = Number(url.searchParams.get("lng"));
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
     return json({ error: "invalid_coords" }, 400, { "cache-control": "no-store" });
   }
+  const publicCell = publicCellFromCoordinates(lat, lng);
+  const pilot = await getPlaceBriefPilotForPublicCell(publicCell, env);
+  if (pilot) {
+    return json(placeBriefPilotPayload(pilot), 200, {
+      "cache-control": "no-store",
+      "x-ikimon-cloudflare-native": "place-brief-pilot-readmodel"
+    });
+  }
+  return getPublicMapSiteBriefShim();
+}
+
+function getPublicMapSiteBriefShim(): Response {
   return json({
     hypothesis: {
       label: "まだ見落としがありそうな場所",
@@ -16344,6 +16373,60 @@ function getPublicMapSiteBriefShim(url: URL): Response {
       source: "cloudflare_compat_empty"
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+function publicCellFromCoordinates(lat: number, lng: number): string {
+  return `${(Math.round(lat * 100) / 100).toFixed(2)},${(Math.round(lng * 100) / 100).toFixed(2)}`;
+}
+
+async function getPlaceBriefPilotForPublicCell(publicCell: string, env: Env): Promise<PlaceBriefPilotRow | null> {
+  try {
+    return await env.OBS_DB.prepare(
+      `SELECT place_id, status, place_name, place_type, public_cell, location_label,
+              brief_json, evidence_contract_json, generation_method, generation_run_id,
+              policy_version, created_by, generated_at, updated_at
+         FROM place_brief_pilots
+        WHERE status = 'published'
+          AND public_cell = ?
+        ORDER BY updated_at DESC, place_id ASC
+        LIMIT 1`
+    ).bind(publicCell).first<PlaceBriefPilotRow>();
+  } catch (error) {
+    if (isMissingD1TableError(error, "place_brief_pilots")) return null;
+    throw error;
+  }
+}
+
+function placeBriefPilotPayload(row: PlaceBriefPilotRow) {
+  const brief = publicProfileReadmodelRecord(row.brief_json, {});
+  const evidenceContract = enforceNoExactLocationContract(publicProfileReadmodelRecord(row.evidence_contract_json, {
+    contractVersion: "manual_place_brief_pilot_v1",
+    claimLevel: "place_context_brief"
+  }));
+  return {
+    ...brief,
+    placeBrief: {
+      placeId: row.place_id,
+      placeName: row.place_name,
+      placeType: row.place_type,
+      publicLocationMode: "area_or_public_place",
+      locationLabel: row.location_label,
+      exactLocationExposed: false,
+      geometryExposed: false,
+      policyVersion: row.policy_version
+    },
+    evidenceContract,
+    manualPilot: {
+      status: row.status,
+      generationMethod: row.generation_method,
+      generationRunId: row.generation_run_id,
+      generatedAt: row.generated_at,
+      updatedAt: row.updated_at
+    },
+    compatibility: {
+      source: "cloudflare_place_brief_pilot_readmodel"
+    }
+  };
 }
 
 async function getOriginalUiAreaSnapshot(request: Request, fieldId: string, env: Env): Promise<Response> {
@@ -18251,7 +18334,10 @@ const UNSAFE_PUBLIC_PROFILE_KEYS = new Set([
   "polygon",
   "geom_simplified",
   "geometry",
-  "coordinates"
+  "coordinates",
+  "privatesource",
+  "sourcerecords",
+  "source_records"
 ]);
 
 function stripUnsafePublicProfileKeys(value: unknown): unknown {
