@@ -666,6 +666,23 @@ interface FieldPublicProfileReadmodelTestRow {
   updated_at: string;
 }
 
+interface PlaceBriefPilotTestRow {
+  place_id: string;
+  status: string;
+  place_name: string;
+  place_type: string;
+  public_cell: string;
+  location_label: string;
+  brief_json: string;
+  evidence_contract_json: string;
+  generation_method: string;
+  generation_run_id: string | null;
+  policy_version: string;
+  created_by: string;
+  generated_at: string;
+  updated_at: string;
+}
+
 interface UserObservationFieldTestRow {
   field_id: string;
   owner_user_id: string;
@@ -1704,6 +1721,7 @@ class FakeD1 {
   candidateActionRequests = new Map<string, CandidateActionRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   fieldPublicProfiles = new Map<string, FieldPublicProfileReadmodelTestRow>();
+  placeBriefPilots = new Map<string, PlaceBriefPilotTestRow>();
   userObservationFields = new Map<string, UserObservationFieldTestRow>();
   sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
   placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
@@ -4905,6 +4923,14 @@ class FakeStatement {
       return (row?.profile_status === "published" ? row : null) as T | null;
     }
 
+    if (normalized.startsWith("SELECT place_id, status, place_name, place_type, public_cell, location_label")) {
+      const publicCell = string(v[0]);
+      const rows = [...this.db.placeBriefPilots.values()]
+        .filter((row) => row.status === "published" && row.public_cell === publicCell)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.place_id.localeCompare(b.place_id));
+      return (rows[0] as T | undefined) ?? null;
+    }
+
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
       return (this.db.productionFieldDetails.get(string(v[0])) as T | undefined) ?? null;
     }
@@ -7465,13 +7491,69 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(effortPayload.actorLens.actorClass, "community");
   assert.equal(effortPayload.frontierRemaining.blankCount, 0);
 
+  env.OBS_DB.placeBriefPilots.set("pilot-test-waterside", {
+    place_id: "pilot-test-waterside",
+    status: "published",
+    place_name: "浜松東部の水辺・緑地境界",
+    place_type: "waterside_green_edge",
+    public_cell: "34.71,137.81",
+    location_label: "浜松市東部の粗い公開セル",
+    brief_json: JSON.stringify({
+      hypothesis: {
+        label: "水辺と緑地の境目を読む場所",
+        confidence: 0.68
+      },
+      reasons: ["公開できる場所文脈だけで、水辺と緑地の境目を見比べる brief です。"],
+      checks: ["水際、草地の縁、日陰を分けて見る。"],
+      captureHints: ["広い景色と近景を1枚ずつ残す。"],
+      environmentEvidence: [
+        {
+          label: "環境タイプ",
+          value: "水辺・草地・市街地の境界",
+          source: "manual_place_brief_pilot",
+          limitation: "公開記録が増えるまで断定しません。",
+          lat: 34.71234,
+          lng: 137.81234,
+          polygon: [[137.81, 34.71]]
+        }
+      ],
+      officialNotices: [],
+      privateSource: { lat: 34.71234, lng: 137.81234 }
+    }),
+    evidence_contract_json: JSON.stringify({
+      contractVersion: "manual_place_brief_pilot_v1",
+      claimLevel: "place_context_brief",
+      exactCoordinatesExposed: true,
+      geometryExposed: true,
+      location: {
+        exactCoordinatesExposed: true,
+        geometryExposed: true,
+        coordinates: [137.81234, 34.71234]
+      }
+    }),
+    generation_method: "manual_pilot",
+    generation_run_id: "manual-place-brief-pilot-test",
+    policy_version: "manual_place_brief_pilot_v1",
+    created_by: "test",
+    generated_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+
   const siteBriefResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/site-brief?lat=34.71&lng=137.81&lang=ja"), env);
   const siteBriefPayload = await siteBriefResponse.json() as any;
   assert.equal(siteBriefResponse.ok, true);
-  assert.equal(siteBriefPayload.hypothesis.label, "まだ見落としがありそうな場所");
-  assert.match(siteBriefPayload.reasons[0], /身近な環境の境目/);
+  assert.equal(siteBriefResponse.headers.get("x-ikimon-cloudflare-native"), "place-brief-pilot-readmodel");
+  assert.equal(siteBriefPayload.hypothesis.label, "水辺と緑地の境目を読む場所");
+  assert.equal(siteBriefPayload.placeBrief.placeName, "浜松東部の水辺・緑地境界");
+  assert.equal(siteBriefPayload.placeBrief.exactLocationExposed, false);
+  assert.equal(siteBriefPayload.evidenceContract.exactCoordinatesExposed, false);
+  assert.equal(siteBriefPayload.evidenceContract.geometryExposed, false);
+  assert.equal(siteBriefPayload.evidenceContract.location.exactCoordinatesExposed, false);
+  assert.equal(siteBriefPayload.evidenceContract.location.geometryExposed, false);
+  assert.equal(siteBriefPayload.manualPilot.generationMethod, "manual_pilot");
+  assert.equal(siteBriefPayload.compatibility.source, "cloudflare_place_brief_pilot_readmodel");
   assert.doesNotMatch(JSON.stringify(siteBriefPayload), /Cloudflare|互換表示|移行中/);
-  assert.doesNotMatch(JSON.stringify(siteBriefPayload), /34\.71|137\.81/);
+  assert.doesNotMatch(JSON.stringify(siteBriefPayload), /34\.71|137\.81|34\.71234|137\.81234|polygon|coordinates|privateSource/);
 
   const kpiResponse = await worker.fetch(new Request("https://shadow.test/api/v1/ui-kpi/events", {
     method: "POST",
