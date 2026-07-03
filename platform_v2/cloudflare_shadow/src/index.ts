@@ -828,6 +828,34 @@ interface OwnMapObservationRow {
   public_derivative_key: string | null;
 }
 
+interface OwnMapObservationItem {
+  occurrenceId: string;
+  visitId: string;
+  displayName: string;
+  observedAt: string;
+  latitude: number;
+  longitude: number;
+  photoUrl: string | null;
+  mediaKind: "photo" | "none";
+  localityLabel: string;
+}
+
+interface OwnMapObservationCluster {
+  clusterId: string;
+  label: string;
+  localityLabel: string;
+  recordCount: number;
+  photoCount: number;
+  firstObservedAt: string;
+  lastObservedAt: string;
+  latitude: number;
+  longitude: number;
+  representativePhotoUrl: string | null;
+  representativeOccurrenceId: string | null;
+  representativeDisplayName: string | null;
+  occurrenceIds: string[];
+}
+
 interface OwnerHomeRecordRow {
   observation_id: string;
   observed_at: string;
@@ -10416,7 +10444,8 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
   const rows = await queryAreaPolygonRows(env, bbox, sources, limit);
   const features = rows
     .map((row) => areaPolygonFeatureFromReadmodel(row))
-    .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature));
+    .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
+    .filter(isDisplayableAreaPolygonFeature);
 
   return json({
     type: "FeatureCollection",
@@ -14975,10 +15004,10 @@ async function getPublicMapMyPlaces(request: Request, env: Env): Promise<Respons
 async function getPublicMapMyObservations(request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session || session.banned) {
-    return json({ signedIn: false, items: [] }, 200, { "cache-control": "no-store" });
+    return json({ signedIn: false, items: [], clusters: [] }, 200, { "cache-control": "private, no-store" });
   }
 
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "48"), 1, 120);
+  const limit = clampInteger(Number(url.searchParams.get("limit") ?? "120"), 1, 120);
   const rows = await env.OBS_DB.prepare(
     `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.exact_lat, o.exact_lng,
             (
@@ -15007,7 +15036,7 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
   ).bind(session.userId, limit).all<OwnMapObservationRow>();
 
   const seen = new Set<string>();
-  const items = [];
+  const items: OwnMapObservationItem[] = [];
   for (const row of rows.results) {
     if (seen.has(row.observation_id)) continue;
     seen.add(row.observation_id);
@@ -15027,7 +15056,11 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
     });
   }
 
-  return json({ signedIn: true, items }, 200, { "cache-control": "no-store" });
+  return json({
+    signedIn: true,
+    items,
+    clusters: buildOwnMapObservationClusters(items, { limit: 3 })
+  }, 200, { "cache-control": "private, no-store" });
 }
 
 function stewardshipLang(url: URL): "ja" | "en" | "es" | "pt-BR" {
@@ -19151,6 +19184,111 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
   };
 }
 
+function ownObservationTime(value: string): number {
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function ownClusterTextMode(values: string[]): string {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    const clean = normalizeOptionalText(value);
+    if (!clean) continue;
+    counts.set(clean, (counts.get(clean) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ja"))
+    [0]?.[0] ?? "";
+}
+
+function buildOwnMapObservationClusters(
+  items: OwnMapObservationItem[],
+  options: { limit?: number; radiusMeters?: number; minRecords?: number } = {}
+): OwnMapObservationCluster[] {
+  const radiusMeters = Math.max(150, Math.min(options.radiusMeters ?? 1000, 3000));
+  const minRecords = Math.max(2, Math.min(options.minRecords ?? 3, 12));
+  const limit = Math.max(1, Math.min(options.limit ?? 3, 12));
+  const clusters: Array<{ records: OwnMapObservationItem[]; latitude: number; longitude: number }> = [];
+  const sorted = items
+    .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+    .slice()
+    .sort((a, b) => ownObservationTime(b.observedAt) - ownObservationTime(a.observedAt));
+
+  for (const item of sorted) {
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+    clusters.forEach((cluster, index) => {
+      const distance = fieldDistanceMeters(cluster.latitude, cluster.longitude, item.latitude, item.longitude);
+      if (distance <= radiusMeters && distance < bestDistance) {
+        bestIndex = index;
+        bestDistance = distance;
+      }
+    });
+    if (bestIndex < 0) {
+      clusters.push({ records: [item], latitude: item.latitude, longitude: item.longitude });
+      continue;
+    }
+    const cluster = clusters[bestIndex]!;
+    cluster.records.push(item);
+    cluster.latitude = cluster.records.reduce((sum, record) => sum + record.latitude, 0) / cluster.records.length;
+    cluster.longitude = cluster.records.reduce((sum, record) => sum + record.longitude, 0) / cluster.records.length;
+  }
+
+  return clusters
+    .filter((cluster) => cluster.records.length >= minRecords)
+    .sort((a, b) => {
+      const densityDelta = b.records.length - a.records.length;
+      if (densityDelta !== 0) return densityDelta;
+      return ownObservationTime(b.records[0]?.observedAt ?? "") - ownObservationTime(a.records[0]?.observedAt ?? "");
+    })
+    .slice(0, limit)
+    .map((cluster, index) => {
+      const records = cluster.records
+        .slice()
+        .sort((a, b) => ownObservationTime(b.observedAt) - ownObservationTime(a.observedAt));
+      const representative = records.find((record) => record.photoUrl) ?? records[0] ?? null;
+      const firstObservedAt = records.reduce((min, record) =>
+        ownObservationTime(record.observedAt) < ownObservationTime(min) ? record.observedAt : min,
+        records[0]?.observedAt ?? ""
+      );
+      const lastObservedAt = records.reduce((max, record) =>
+        ownObservationTime(record.observedAt) > ownObservationTime(max) ? record.observedAt : max,
+        records[0]?.observedAt ?? ""
+      );
+      const localityLabel = ownClusterTextMode(records.map((record) => record.localityLabel)) || "自分だけに表示";
+      const label = ownClusterTextMode(records.map((record) => record.displayName)) || localityLabel;
+      return {
+        clusterId: `own:${index}:${cluster.latitude.toFixed(5)},${cluster.longitude.toFixed(5)}:${lastObservedAt}`,
+        label,
+        localityLabel,
+        recordCount: records.length,
+        photoCount: records.filter((record) => record.photoUrl).length,
+        firstObservedAt,
+        lastObservedAt,
+        latitude: Number(cluster.latitude.toFixed(6)),
+        longitude: Number(cluster.longitude.toFixed(6)),
+        representativePhotoUrl: representative?.photoUrl ?? null,
+        representativeOccurrenceId: representative?.occurrenceId ?? null,
+        representativeDisplayName: representative?.displayName ?? null,
+        occurrenceIds: records.map((record) => record.occurrenceId).slice(0, 48)
+      };
+    });
+}
+
+const RADIUS_FALLBACK_AREA_SOURCES = new Set(["nature_symbiosis_site", "tsunag", "protected_area", "oecm"]);
+const APPROXIMATE_RADIUS_BOUNDARY_LABEL = "中心点からの概略範囲";
+
+function isRadiusFallbackAreaSource(source: string): boolean {
+  return RADIUS_FALLBACK_AREA_SOURCES.has(source);
+}
+
+function approximateRadiusBoundaryLabel(label: string | null | undefined): string {
+  const clean = normalizeOptionalText(label) ?? "";
+  if (!clean || clean === APPROXIMATE_RADIUS_BOUNDARY_LABEL) return APPROXIMATE_RADIUS_BOUNDARY_LABEL;
+  if (clean.includes(APPROXIMATE_RADIUS_BOUNDARY_LABEL)) return clean;
+  return `${APPROXIMATE_RADIUS_BOUNDARY_LABEL} / ${clean}`;
+}
+
 async function queryAreaPolygonRows(
   env: Env,
   bbox: [number, number, number, number],
@@ -19158,23 +19296,31 @@ async function queryAreaPolygonRows(
   limit: number
 ): Promise<AreaPolygonReadmodelRow[]> {
   const [minLng, minLat, maxLng, maxLat] = bbox;
-  const allRows = await env.OBS_DB.prepare(
-    `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
-            public_cell, public_lat, public_lng, radius_m, area_ha,
-            has_polygon, has_simplified_geometry,
-            certification_id, certification_url, official_url, owner_url, story_url,
-            verification_level, verification_method, verification_label, source_confidence,
-            valid_from, valid_to, entity_key, updated_at
-       FROM production_import_field_detail_readmodel
-      WHERE public_lat >= ?
-        AND public_lat <= ?
-        AND public_lng >= ?
-        AND public_lng <= ?
-      ORDER BY COALESCE(area_ha, 999999), name
-      LIMIT ?`
-  ).bind(minLat, maxLat, minLng, maxLng, limit).all<AreaPolygonReadmodelRow>();
-  const allowed = new Set(sources);
-  return allRows.results.filter((row) => sources.length === 0 || allowed.has(areaLayerSource(row)));
+  try {
+    const allRows = await env.OBS_DB.prepare(
+      `SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city,
+              public_cell, public_lat, public_lng, radius_m, area_ha,
+              has_polygon, has_simplified_geometry,
+              certification_id, certification_url, official_url, owner_url, story_url,
+              verification_level, verification_method, verification_label, source_confidence,
+              valid_from, valid_to, entity_key, updated_at
+         FROM production_import_field_detail_readmodel
+        WHERE public_lat >= ?
+          AND public_lat <= ?
+          AND public_lng >= ?
+          AND public_lng <= ?
+        ORDER BY COALESCE(area_ha, 999999), name
+        LIMIT ?`
+    ).bind(minLat, maxLat, minLng, maxLng, limit).all<AreaPolygonReadmodelRow>();
+    const allowed = new Set(sources);
+    return allRows.results.filter((row) => sources.length === 0 || allowed.has(areaLayerSource(row)));
+  } catch (error) {
+    const message = String(error);
+    if (message.includes("production_import_field_detail_readmodel") || /no such table|no such column/i.test(message)) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 async function queryNativeAreaPolygonRows(
@@ -19207,7 +19353,8 @@ async function queryNativeAreaPolygonRows(
     ).bind(minLat, maxLat, minLng, maxLng, ...sources, limit).all<AreaPolygonGeometryReadmodelRow>();
     return rows.results;
   } catch (error) {
-    if (String(error).includes("production_import_area_polygon_readmodel") || String(error).includes("no such table")) {
+    const message = String(error);
+    if (message.includes("production_import_area_polygon_readmodel") || /no such table|no such column/i.test(message)) {
       return [];
     }
     throw error;
@@ -19270,9 +19417,13 @@ function isApproximateAreaPolygonFeature(feature: unknown): boolean {
   const props = areaPolygonFeatureProps(feature);
   if (!props) return false;
   const label = textProp(props, "verification_label");
-  return booleanishProp(props, "approximate_boundary")
-    || textProp(props, "boundary_approximation") === "point_buffer"
-    || label.includes("境界未確認・代表点からの仮範囲");
+  const source = textProp(props, "source");
+  const approximation = textProp(props, "boundary_approximation");
+  if (approximation === "point_buffer") return true;
+  return source === "school" && (
+    booleanishProp(props, "approximate_boundary")
+    || label.includes("境界未確認・代表点からの仮範囲")
+  );
 }
 
 function isWeakLiveOsmAreaPolygonFeature(feature: unknown): boolean {
@@ -19333,6 +19484,13 @@ function areaPolygonFeatureFromGeometryReadmodel(row: AreaPolygonGeometryReadmod
 function areaPolygonFeatureFromReadmodel(row: AreaPolygonReadmodelRow) {
   if (!Number.isFinite(row.public_lat) || !Number.isFinite(row.public_lng)) return null;
   const source = areaLayerSource(row);
+  const radiusFallback = row.has_polygon !== 1 && isRadiusFallbackAreaSource(source);
+  const schoolPointFallback = row.has_polygon !== 1 && source === "school";
+  const verificationLabel = schoolPointFallback
+    ? `境界未確認・代表点からの仮範囲${row.verification_label ? ` / ${row.verification_label}` : ""}`
+    : radiusFallback
+      ? approximateRadiusBoundaryLabel(row.verification_label)
+      : row.verification_label ?? "公開read model";
   return {
     type: "Feature",
     geometry: {
@@ -19354,9 +19512,11 @@ function areaPolygonFeatureFromReadmodel(row: AreaPolygonReadmodelRow) {
       certification_url: row.certification_url ?? "",
       source_confidence: row.source_confidence ?? 0.55,
       verification_level: row.verification_level ?? "readmodel_public",
-      verification_label: row.verification_label ?? "公開read model",
+      verification_label: verificationLabel,
       center: [row.public_lng, row.public_lat],
       transient: row.has_polygon !== 1,
+      approximate_boundary: radiusFallback || schoolPointFallback || undefined,
+      boundary_approximation: schoolPointFallback ? "point_buffer" : radiusFallback ? "radius" : undefined,
       entity_key: row.entity_key ?? undefined,
       biodiversity_groups: []
     }
