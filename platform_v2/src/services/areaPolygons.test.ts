@@ -19,6 +19,10 @@ const {
   isApproximateSchoolBoundary,
   approximateSchoolBoundaryLabel,
   approximateSchoolSourceConfidence,
+  approximateRadiusBoundaryLabel,
+  canUseRadiusFallbackAreaSource,
+  radiusFallbackMeters,
+  radiusFallbackGeometry,
   isDisplayableAreaFeature,
   shouldFetchLiveOsm,
   shouldSupplementLiveOsm,
@@ -460,6 +464,48 @@ test("stored school point-buffer rows render when the geometry is no longer a ge
       [137.394, 34.739],
       [137.39, 34.73],
     ]],
+  }), true);
+});
+
+test("non-school certified areas without polygons can render as conservative radius areas", () => {
+  const geometry = radiusFallbackGeometry(139.774, 35.683, 200);
+
+  assert.equal(canUseRadiusFallbackAreaSource("nature_symbiosis_site"), true);
+  assert.equal(canUseRadiusFallbackAreaSource("tsunag"), true);
+  assert.equal(canUseRadiusFallbackAreaSource("protected_area"), true);
+  assert.equal(canUseRadiusFallbackAreaSource("oecm"), true);
+  assert.equal(canUseRadiusFallbackAreaSource("school"), false);
+  assert.equal(canUseRadiusFallbackAreaSource("user_defined"), false);
+  assert.ok(geometry);
+  assert.equal(geometry?.type, "Polygon");
+  assert.equal(radiusFallbackMeters(10), 80);
+  assert.equal(radiusFallbackMeters(99999), 2500);
+  assert.equal(approximateRadiusBoundaryLabel(""), "中心点からの概略範囲");
+  assert.equal(approximateRadiusBoundaryLabel("認定情報と一致"), "中心点からの概略範囲 / 認定情報と一致");
+
+  assert.equal(isDisplayableAreaFeature({
+    type: "Feature",
+    geometry,
+    properties: {
+      field_id: "tsunag-radius",
+      name: "TSUNAG サンプル",
+      source: "tsunag",
+      source_label: "TSUNAG",
+      admin_level: "tsunag",
+      prefecture: "東京都",
+      city: "中央区",
+      area_ha: 0.8,
+      official_url: "",
+      owner_url: "",
+      story_url: "",
+      certification_url: "",
+      source_confidence: 0.75,
+      verification_level: "registry_matched",
+      verification_label: "中心点からの概略範囲",
+      center: [139.774, 35.683],
+      approximate_boundary: true,
+      boundary_approximation: "radius",
+    },
   }), true);
 });
 

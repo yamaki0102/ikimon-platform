@@ -7139,7 +7139,7 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
   const { env, obs } = createEnv();
   const guest = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-observations?limit=48"), env);
   assert.equal(guest.ok, true);
-  assert.deepEqual(await guest.json(), { signedIn: false, items: [] });
+  assert.deepEqual(await guest.json(), { signedIn: false, items: [], clusters: [] });
 
   await post("/api/v1/observations/upsert", env, {
     observationId: "owner-map-visit",
@@ -7161,10 +7161,18 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
     observationId: "owner-map-note-only",
     userId: "owner-user",
     observedAt: "2026-06-22T09:00:00.000Z",
-    latitude: 35.0204,
-    longitude: 138.4029,
+    latitude: 35.0108,
+    longitude: 138.3932,
     visibility: "private",
     taxon: { vernacularName: "写真なし記録" }
+  });
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "owner-map-nearby",
+    userId: "owner-user",
+    observedAt: "2026-06-22T08:30:00.000Z",
+    latitude: 35.0109,
+    longitude: 138.3933,
+    taxon: { vernacularName: "近くの記録" }
   });
 
   const ownerAsset = {
@@ -7207,7 +7215,15 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
 
   assert.equal(response.ok, true);
   assert.equal(payload.signedIn, true);
-  assert.equal(payload.items.length, 2);
+  assert.equal(payload.items.length, 3);
+  assert.equal(payload.clusters.length, 1);
+  assert.equal(payload.clusters[0].recordCount, 3);
+  assert.equal(payload.clusters[0].photoCount, 1);
+  assert.deepEqual(payload.clusters[0].occurrenceIds, [
+    "occ:owner-map-visit:0",
+    "occ:owner-map-note-only:0",
+    "occ:owner-map-nearby:0"
+  ]);
   const photoItem = payload.items.find((item: any) => item.visitId === "owner-map-visit");
   assert.ok(photoItem);
   assert.equal(photoItem.photoUrl, "/thumb/sm/owner-map.jpg");
@@ -7219,8 +7235,8 @@ test("owner map observations route is native, guest-safe, and owner-scoped", asy
   assert.ok(noteOnlyItem);
   assert.equal(noteOnlyItem.photoUrl, null);
   assert.equal(noteOnlyItem.mediaKind, "none");
-  assert.equal(noteOnlyItem.latitude, 35.0204);
-  assert.equal(noteOnlyItem.longitude, 138.4029);
+  assert.equal(noteOnlyItem.latitude, 35.0108);
+  assert.equal(noteOnlyItem.longitude, 138.3932);
   assert.equal(noteOnlyItem.localityLabel, "自分だけに表示");
   assert.ok(!JSON.stringify(payload).includes("other-map-visit"));
 });
@@ -15122,6 +15138,130 @@ test("production map area polygons filter D1 geometry without origin fallback", 
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("production map area polygons show certified radius approximations while hiding school point buffers", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-radius-tsunag", productionAreaPolygonRow("native-radius-tsunag", {
+    name: "TSUNAG屋上緑地",
+    source: "tsunag",
+    admin_level: null,
+    approximate_boundary: 1,
+    boundary_approximation: "radius",
+    verification_label: "中心点からの概略範囲 / 優良緑地確保計画",
+    source_confidence: 0.7,
+    certification_url: "https://example.test/tsunag"
+  }));
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", productionAreaPolygonRow("native-approx-school", {
+    name: "代表点小学校",
+    source: "school",
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    source_confidence: 0.45
+  }));
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const response = await worker.fetch(new Request(
+    "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=tsunag%2Cschool"
+  ), productionEnv);
+  const payload = await response.json() as any;
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
+  assert.equal(payload.features.length, 1);
+  assert.equal(payload.features[0].properties.field_id, "native-radius-tsunag");
+  assert.equal(payload.features[0].properties.boundary_approximation, "radius");
+  assert.equal(payload.features[0].properties.approximate_boundary, true);
+  assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|代表点小学校/);
+});
+
+test("production map area polygons use field detail radius fallback for non-school registered areas only", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionFieldDetails.set("tsunag-readmodel", {
+    field_id: "tsunag-readmodel",
+    source: "tsunag",
+    admin_level: null,
+    name: "TSUNAG登録地",
+    name_kana: null,
+    summary: "中心点と半径で登録された公開地",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "34.69,137.70",
+    public_lat: 34.695,
+    public_lng: 137.705,
+    radius_m: 250,
+    area_ha: 1.8,
+    has_polygon: 0,
+    has_simplified_geometry: 0,
+    certification_id: "tsunag-readmodel",
+    certification_url: "https://example.test/tsunag-readmodel",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "優良緑地確保計画",
+    source_confidence: 0.8,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "tsunag:readmodel",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  env.OBS_DB.productionFieldDetails.set("school-point-readmodel", {
+    field_id: "school-point-readmodel",
+    source: "school",
+    admin_level: "school",
+    name: "代表点だけの学校",
+    name_kana: null,
+    summary: "中心点のみ",
+    prefecture: "静岡県",
+    city: "静岡市",
+    public_cell: "34.69,137.70",
+    public_lat: 34.696,
+    public_lng: 137.706,
+    radius_m: 180,
+    area_ha: 0.7,
+    has_polygon: 0,
+    has_simplified_geometry: 0,
+    certification_id: null,
+    certification_url: null,
+    official_url: "https://example.test/school",
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "学校台帳と一致",
+    source_confidence: 0.9,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "school:point",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const response = await worker.fetch(new Request(
+    "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=tsunag%2Cschool"
+  ), productionEnv);
+  const payload = await response.json() as any;
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.stats.source, "cloudflare_field_detail_readmodel");
+  assert.equal(payload.features.length, 1);
+  assert.equal(payload.features[0].properties.field_id, "tsunag-readmodel");
+  assert.equal(payload.features[0].properties.boundary_approximation, "radius");
+  assert.match(payload.features[0].properties.verification_label, /中心点からの概略範囲/);
+  assert.doesNotMatch(JSON.stringify(payload), /school-point-readmodel|代表点だけの学校/);
 });
 
 test("production map area polygons use native polygon readmodel without origin fallback", async () => {

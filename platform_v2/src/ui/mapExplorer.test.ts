@@ -219,6 +219,8 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /この範囲の記録/);
   assert.match(html, /data-testid="map-personal-pulse-panel"/);
   assert.match(html, /自分の記録へすぐ戻る/);
+  assert.match(html, /id="me-personal-memory"/);
+  assert.match(html, /濃く撮った場所/);
   assert.match(html, /href="\/ja\/profile"/);
   assert.match(html, /href="\/ja\/records\?view=mine"/);
   assert.doesNotMatch(html, /class="me-map-momentum"/);
@@ -315,7 +317,12 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(html, /class="me-map-privacy-strip"/);
   assert.match(script, /var apiMyObservations = root\.getAttribute\('data-api-my-observations'\)/);
   assert.match(script, /function loadMyObservations\(\)/);
+  assert.match(script, /apiMyObservations \+ '\?limit=120'/);
   assert.match(script, /credentials: 'same-origin'/);
+  assert.match(script, /function renderPersonalMemoryClusters\(\)/);
+  assert.match(script, /function openPersonalMemoryCluster\(cluster\)/);
+  assert.match(script, /state\.myObservationClusters = payload && payload\.signedIn \? \(payload\.clusters \|\| \[\]\)\.filter\(isRenderableMapCluster\) : \[\]/);
+  assert.match(script, /map:personal_memory_cluster_open/);
   assert.match(script, /function renderOwnObservationTrail\(records\)/);
   assert.match(script, /function hideOwnObservationTrail\(\)/);
   assert.match(script, /function isMeaningfulMapRecordLabel\(value\)/);
@@ -379,6 +386,8 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /openOwnObservationDetail\(match\)/);
   assert.match(script, /map:own_observation_exact_open/);
   assert.match(script, /function maybeFitOwnObservationsOnFirstOpen\(\)/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-personal-memory \{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-personal-memory-item \{/);
   assert.match(script, /state\._ownObservationFirstViewApplied/);
   assert.match(script, /Math\.abs\(maxLng - minLng\) > 2\.2 \|\| Math\.abs\(maxLat - minLat\) > 1\.8/);
   assert.match(script, /state\.map\.flyTo\(\{ center: \[latestLng, latestLat\], zoom: 12\.2/);

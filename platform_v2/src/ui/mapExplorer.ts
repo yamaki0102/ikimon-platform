@@ -92,6 +92,11 @@ export type MapExplorerCopy = {
   personalPulseBody: string;
   personalPulseProfile: string;
   personalPulseRecords: string;
+  personalMemoryTitle: string;
+  personalMemoryBody: string;
+  personalMemoryRecords: string;
+  personalMemoryOpen: string;
+  personalMemoryFallbackLabel: string;
   sideRecentLabel: string;
   recentFindsHint: string;
   sideRevisitLabel: string;
@@ -284,6 +289,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "投稿したあとは、マイページや自分の記録一覧から開けます。地図には最近の記録も重なります。",
     personalPulseProfile: "マイページ",
     personalPulseRecords: "自分の記録",
+    personalMemoryTitle: "濃く撮った場所",
+    personalMemoryBody: "公園や旅先でまとまって残した写真を、あとで戻れる場所にします。",
+    personalMemoryRecords: "件",
+    personalMemoryOpen: "開く",
+    personalMemoryFallbackLabel: "よく撮った場所",
     sideRecentLabel: "この範囲の記録",
     recentFindsHint: "記録",
     sideRevisitLabel: "選んだ場所",
@@ -452,6 +462,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "After posting, My page and your record list are one tap away. Recent public finds keep adding life to the map.",
     personalPulseProfile: "My page",
     personalPulseRecords: "My records",
+    personalMemoryTitle: "Places you photographed often",
+    personalMemoryBody: "Parks and trip areas with many saved photos become quick return points.",
+    personalMemoryRecords: " records",
+    personalMemoryOpen: "Open",
+    personalMemoryFallbackLabel: "Frequent photo area",
     sideRecentLabel: "Nearby finds",
     recentFindsHint: "Seen here",
     sideRevisitLabel: "Place story",
@@ -620,6 +635,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "Después de publicar, tu página y tu lista de registros quedan a un toque. Los hallazgos recientes dan vida al mapa.",
     personalPulseProfile: "Mi página",
     personalPulseRecords: "Mis registros",
+    personalMemoryTitle: "Lugares más fotografiados",
+    personalMemoryBody: "Parques y zonas de viaje con muchas fotos quedan como accesos de regreso.",
+    personalMemoryRecords: " registros",
+    personalMemoryOpen: "Abrir",
+    personalMemoryFallbackLabel: "Zona frecuente",
     sideRecentLabel: "Hallazgos cercanos",
     recentFindsHint: "Visto aquí",
     sideRevisitLabel: "Historia del lugar",
@@ -788,6 +808,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     personalPulseBody: "Depois de publicar, sua página e sua lista de registros ficam a um toque. Descobertas recentes dão vida ao mapa.",
     personalPulseProfile: "Minha página",
     personalPulseRecords: "Meus registros",
+    personalMemoryTitle: "Lugares mais fotografados",
+    personalMemoryBody: "Parques e áreas de viagem com muitas fotos viram atalhos de retorno.",
+    personalMemoryRecords: " registros",
+    personalMemoryOpen: "Abrir",
+    personalMemoryFallbackLabel: "Área frequente",
     sideRecentLabel: "Descobertas por perto",
     recentFindsHint: "Visto aqui",
     sideRevisitLabel: "História do local",
@@ -1083,6 +1108,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       <div class="me-map-privacy-strip" aria-label="${escapeHtml(ownOnlyLabel + " / " + communityBlurLabel)}">
         <span>${escapeHtml(ownOnlyLabel)}</span>
         <span>${escapeHtml(communityBlurLabel)}</span>
+      </div>
+      <div class="me-personal-memory is-hidden" id="me-personal-memory" aria-hidden="true">
+        <div class="me-personal-memory-head">
+          <strong>${escapeHtml(copy.personalMemoryTitle)}</strong>
+          <small>${escapeHtml(copy.personalMemoryBody)}</small>
+        </div>
+        <div class="me-personal-memory-list" id="me-personal-memory-list"></div>
       </div>
       <div class="me-personal-pulse-actions">
         <a href="${escapeHtml(profileHref)}" data-kpi-action="map:personal_pulse_profile">${escapeHtml(copy.personalPulseProfile)}</a>
@@ -1671,6 +1703,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var ownTrailEl = document.getElementById('me-own-trail');
   var ownTrailListEl = document.getElementById('me-own-trail-list');
   var ownTrailCountEl = document.getElementById('me-own-trail-count');
+  var personalMemoryEl = document.getElementById('me-personal-memory');
+  var personalMemoryListEl = document.getElementById('me-personal-memory-list');
   var layerHintEl = document.getElementById('me-layer-hint');
   var layerHintTextEl = document.getElementById('me-layer-hint-text');
   var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
@@ -2428,6 +2462,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     features: [],
     records: [],
     myObservations: [],
+    myObservationClusters: [],
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
@@ -3846,6 +3881,84 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownTrailEl.setAttribute('aria-hidden', 'true');
     if (ownTrailListEl) ownTrailListEl.innerHTML = '';
     if (ownTrailCountEl) ownTrailCountEl.textContent = '';
+  }
+
+  function isRenderableMapCluster(cluster) {
+    var lat = Number(cluster && cluster.latitude);
+    var lng = Number(cluster && cluster.longitude);
+    var count = Number(cluster && cluster.recordCount);
+    return !!cluster && Number.isFinite(lat) && Number.isFinite(lng) && count >= 3 && Array.isArray(cluster.occurrenceIds);
+  }
+
+  function hidePersonalMemoryClusters() {
+    if (!personalMemoryEl) return;
+    personalMemoryEl.classList.add('is-hidden');
+    personalMemoryEl.setAttribute('aria-hidden', 'true');
+    if (personalMemoryListEl) personalMemoryListEl.innerHTML = '';
+  }
+
+  function recordsForPersonalMemoryCluster(cluster) {
+    var ids = Array.isArray(cluster && cluster.occurrenceIds) ? cluster.occurrenceIds.map(String) : [];
+    if (!ids.length) return [];
+    var idSet = {};
+    ids.forEach(function (id) { if (id) idSet[id] = true; });
+    return validOwnObservationRecords()
+      .filter(function (record) { return !!idSet[String(record && record.occurrenceId || '')]; })
+      .sort(function (a, b) { return ids.indexOf(String(a && a.occurrenceId || '')) - ids.indexOf(String(b && b.occurrenceId || '')); });
+  }
+
+  function personalMemoryMeta(cluster) {
+    var count = Number(cluster && cluster.recordCount) || 0;
+    var suffix = COPY.personalMemoryRecords || '';
+    var first = cluster && cluster.firstObservedAt ? String(cluster.firstObservedAt).slice(0, 10) : '';
+    var last = cluster && cluster.lastObservedAt ? String(cluster.lastObservedAt).slice(0, 10) : '';
+    var range = first && last && first !== last ? first + ' - ' + last : (last || first);
+    return [String(count) + suffix, range].filter(Boolean).join(' / ');
+  }
+
+  function openPersonalMemoryCluster(cluster) {
+    if (!cluster || !state.map) return;
+    var lat = Number(cluster.latitude);
+    var lng = Number(cluster.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    try {
+      state.map.flyTo({ center: [lng, lat], zoom: Math.max(Number(state.map.getZoom && state.map.getZoom() || 0), 15.6), duration: 680, essential: true });
+    } catch (_) {}
+    sendMapKpi('map_interaction', 'map:personal_memory_cluster_open', {
+      clusterId: String(cluster.clusterId || ''),
+      recordCount: Number(cluster.recordCount || 0),
+    });
+    var records = recordsForPersonalMemoryCluster(cluster);
+    if (records.length) openOwnObservationStackSheet(records);
+  }
+
+  function renderPersonalMemoryClusters() {
+    if (!personalMemoryEl || !personalMemoryListEl) return;
+    var clusters = (Array.isArray(state.myObservationClusters) ? state.myObservationClusters : [])
+      .filter(isRenderableMapCluster)
+      .slice(0, 3);
+    if (!clusters.length) {
+      hidePersonalMemoryClusters();
+      return;
+    }
+    personalMemoryEl.classList.remove('is-hidden');
+    personalMemoryEl.setAttribute('aria-hidden', 'false');
+    personalMemoryListEl.innerHTML = clusters.map(function (cluster, index) {
+      var label = String(cluster.label || cluster.localityLabel || COPY.personalMemoryFallbackLabel || '').trim();
+      var photo = cluster.representativePhotoUrl ? '<img src="' + escapeHtml(toThumbUrl(cluster.representativePhotoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-personal-memory-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' : '<i aria-hidden="true">●</i>';
+      return '<button type="button" class="me-personal-memory-item" data-personal-memory-index="' + String(index) + '">' +
+        photo +
+        '<span><strong>' + escapeHtml(label || COPY.personalMemoryFallbackLabel || '') + '</strong><small>' + escapeHtml(personalMemoryMeta(cluster)) + '</small></span>' +
+        '<b>' + escapeHtml(COPY.personalMemoryOpen || COPY.popupOpenLabel) + '</b>' +
+      '</button>';
+    }).join('');
+    personalMemoryListEl.querySelectorAll('.me-personal-memory-item').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.getAttribute('data-personal-memory-index'));
+        if (!Number.isFinite(index)) return;
+        openPersonalMemoryCluster(clusters[index]);
+      });
+    });
   }
 
   function renderOwnObservationTrail(records) {
@@ -8293,11 +8406,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function loadMyObservations() {
     if (!state.map || !apiMyObservations) return;
-    fetch(apiMyObservations + '?limit=48', { credentials: 'same-origin' })
+    fetch(apiMyObservations + '?limit=120', { credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('my observations ' + r.status)); })
       .then(function (payload) {
         state.myObservations = payload && payload.signedIn ? (payload.items || []).filter(isRenderableMapRecord) : [];
+        state.myObservationClusters = payload && payload.signedIn ? (payload.clusters || []).filter(isRenderableMapCluster) : [];
         if (root) root.setAttribute('data-own-observations-fetch', payload && payload.signedIn ? 'signed-in' : 'signed-out');
+        renderPersonalMemoryClusters();
         try {
           renderOwnObservationMarkers();
         } catch (_) {
@@ -8309,10 +8424,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       })
       .catch(function () {
         state.myObservations = [];
+        state.myObservationClusters = [];
         if (root) {
           root.setAttribute('data-own-observations-fetch', 'error');
           root.setAttribute('data-own-observation-record-count', '0');
         }
+        hidePersonalMemoryClusters();
         hideOwnObservationTrail();
         clearOwnObservationMarkers();
       });
@@ -10671,6 +10788,95 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 10.5px;
     line-height: 1.1;
     font-weight: 900;
+  }
+  .me-personal-memory {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.74);
+    border: 1px solid rgba(15,118,110,.14);
+  }
+  .me-personal-memory.is-hidden { display: none; }
+  .me-personal-memory-head {
+    display: grid;
+    gap: 2px;
+  }
+  .me-personal-memory-head strong {
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .me-personal-memory-head small {
+    color: #64748b;
+    font-size: 10.5px;
+    line-height: 1.45;
+    font-weight: 760;
+  }
+  .me-personal-memory-list {
+    display: grid;
+    gap: 6px;
+  }
+  .me-personal-memory-item {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(15,23,42,.08);
+    background: #fff;
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-personal-memory-item:hover { border-color: rgba(15,118,110,.26); }
+  .me-personal-memory-item img,
+  .me-personal-memory-item i {
+    width: 42px;
+    height: 34px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: rgba(16,185,129,.12);
+  }
+  .me-personal-memory-item i {
+    display: grid;
+    place-items: center;
+    color: transparent;
+  }
+  .me-personal-memory-item span {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .me-personal-memory-item strong,
+  .me-personal-memory-item small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .me-personal-memory-item strong {
+    color: #0f172a;
+    font-size: 11.5px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .me-personal-memory-item small {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 760;
+  }
+  .me-personal-memory-item b {
+    color: #0f766e;
+    font-size: 10.5px;
+    line-height: 1.2;
+    font-weight: 950;
   }
   .me-personal-pulse-actions {
     display: grid;
