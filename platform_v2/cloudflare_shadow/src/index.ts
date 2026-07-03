@@ -2064,6 +2064,10 @@ export const worker = {
         return getPublicMapObservations(url, env);
       }
 
+      if (request.method === "GET" && nativePathname === "/api/v1/map/gbif-area-summary") {
+        return getGbifAreaSummary(url, env);
+      }
+
       if (request.method === "GET" && nativePathname === "/api/v1/map/coverage") {
         return getPublicMapCoverage(url, env);
       }
@@ -2768,6 +2772,7 @@ export const worker = {
     ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
     ctx.waitUntil(runScheduledObservationEventQuests(env));
     ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
+    ctx.waitUntil(runScheduledGbifAreaSummaryRefresh(env, controller));
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
@@ -10161,6 +10166,530 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
   }, 200, { "cache-control": "no-store" });
+}
+
+type GbifAreaTaxon = {
+  taxonKey: number;
+  scientificName: string;
+  canonicalName: string;
+  commonNameJa: string | null;
+  displayNameJa: string;
+  nameStatus: "japanese_common_name" | "scientific_name_only";
+  rank: string;
+  taxonGroup: "insect" | "bird" | "plant" | "amphibian_reptile" | "mammal" | "fungi" | "other";
+  recordCount: number;
+};
+
+type GbifAreaSummary = {
+  cellId: string;
+  queryCellId: string;
+  queryGridM: number;
+  totalRecords: number;
+  latestYear: number | null;
+  topTaxa: GbifAreaTaxon[];
+  sourceProvider: "GBIF";
+  sourceUrl: string;
+  licenseScope: "CC0_1_0,CC_BY_4_0";
+  citationText: string;
+  generatedAt: string;
+  expiresAt: string;
+  policy: {
+    displayMode: "area_summary";
+    occurrenceClaim: "recorded_not_current_presence";
+    exactCoordinatesExposed: false;
+    thirdPartyMediaUsed: false;
+    minQueryGridM: number;
+  };
+};
+
+type GbifAreaSummaryRow = {
+  cell_id: string;
+  query_cell_id: string;
+  query_grid_m: number;
+  source_url: string;
+  license_scope: string;
+  total_records: number;
+  top_taxa_json: string;
+  latest_year: number | null;
+  citation_text: string;
+  generated_at: string;
+  expires_at: string;
+};
+
+type GbifOccurrenceSearchResponse = {
+  count?: unknown;
+  facets?: Array<{ field?: unknown; counts?: Array<{ name?: unknown; count?: unknown }> }>;
+};
+
+type GbifSpeciesResponse = {
+  key?: unknown;
+  scientificName?: unknown;
+  canonicalName?: unknown;
+  rank?: unknown;
+  kingdom?: unknown;
+  phylum?: unknown;
+  class?: unknown;
+};
+
+type GbifVernacularNameResponse = {
+  results?: Array<{
+    vernacularName?: unknown;
+    language?: unknown;
+    country?: unknown;
+    preferred?: unknown;
+  }>;
+};
+
+type GbifQueryCell = {
+  cellId: string;
+  queryCellId: string;
+  centerLat: number;
+  centerLng: number;
+  halfLat: number;
+  halfLng: number;
+  queryGridM: number;
+};
+
+const GBIF_OCCURRENCE_SEARCH_ENDPOINT = "https://api.gbif.org/v1/occurrence/search";
+const GBIF_SPECIES_ENDPOINT = "https://api.gbif.org/v1/species";
+const GBIF_AREA_CACHE_TTL_DAYS = 30;
+const GBIF_AREA_MIN_QUERY_GRID_M = 10_000;
+const GBIF_AREA_JAPAN_BBOX = { minLng: 122.9, minLat: 24.0, maxLng: 146.0, maxLat: 45.6 };
+const GBIF_AREA_SCHEDULE_GRID_DEGREES = 1.8;
+const GBIF_AREA_DAILY_REFRESH_LIMIT = 12;
+
+async function getGbifAreaSummary(url: URL, env: Env): Promise<Response> {
+  const cellId = normalizeOptionalText(url.searchParams.get("cell_id"));
+  if (!cellId) return json({ error: "missing_cell_id" }, 400, { "cache-control": "no-store" });
+  const queryCell = resolveGbifQueryCell(cellId);
+  if (!queryCell) return json({ error: "invalid_cell_id" }, 400, { "cache-control": "no-store" });
+  const summary = await getGbifAreaSummaryForCell(env, queryCell);
+  return json(summary, 200, { "cache-control": "no-store" });
+}
+
+async function getGbifAreaSummaryForCell(env: Env, queryCell: GbifQueryCell, options: { forceRefresh?: boolean } = {}): Promise<GbifAreaSummary> {
+  const cached = options.forceRefresh ? null : await readCachedGbifAreaSummary(env, queryCell.cellId, true);
+  if (cached) return cached;
+  try {
+    const refreshed = await fetchGbifAreaSummary(queryCell);
+    await writeGbifAreaSummary(env, refreshed);
+    return refreshed;
+  } catch (error) {
+    await writeGbifAreaSummaryRefreshError(env, queryCell, error);
+    const stale = await readCachedGbifAreaSummary(env, queryCell.cellId, false);
+    if (stale) return stale;
+    const now = new Date();
+    const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    return {
+      cellId: queryCell.cellId,
+      queryCellId: queryCell.queryCellId,
+      queryGridM: queryCell.queryGridM,
+      totalRecords: 0,
+      latestYear: null,
+      topTaxa: [],
+      sourceProvider: "GBIF",
+      sourceUrl: sourceUrlForGbifQueryCell(queryCell),
+      licenseScope: "CC0_1_0,CC_BY_4_0",
+      citationText: gbifAreaCitationText(),
+      generatedAt: now.toISOString(),
+      expiresAt: expires.toISOString(),
+      policy: gbifAreaDisplayPolicy()
+    };
+  }
+}
+
+async function readCachedGbifAreaSummary(env: Env, cellId: string, freshOnly: boolean): Promise<GbifAreaSummary | null> {
+  const now = new Date().toISOString();
+  const row = await env.OBS_DB.prepare(
+    `SELECT cell_id, query_cell_id, query_grid_m, source_url, license_scope, total_records,
+            top_taxa_json, latest_year, citation_text, generated_at, expires_at
+       FROM gbif_area_summary_cache
+      WHERE cell_id = ?
+        AND (? = 0 OR expires_at > ?)
+      LIMIT 1`
+  ).bind(cellId, freshOnly ? 1 : 0, now).first<GbifAreaSummaryRow>();
+  return row ? gbifAreaSummaryFromRow(row) : null;
+}
+
+async function writeGbifAreaSummary(env: Env, summary: GbifAreaSummary): Promise<void> {
+  await env.OBS_DB.prepare(
+    `INSERT INTO gbif_area_summary_cache (
+       cell_id, query_cell_id, query_grid_m, source_url, license_scope, total_records,
+       top_taxa_json, latest_year, citation_text, generated_at, expires_at, refresh_error
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+     ON CONFLICT(cell_id) DO UPDATE SET
+       query_cell_id = excluded.query_cell_id,
+       query_grid_m = excluded.query_grid_m,
+       source_url = excluded.source_url,
+       license_scope = excluded.license_scope,
+       total_records = excluded.total_records,
+       top_taxa_json = excluded.top_taxa_json,
+       latest_year = excluded.latest_year,
+       citation_text = excluded.citation_text,
+       generated_at = excluded.generated_at,
+       expires_at = excluded.expires_at,
+       refresh_error = NULL`
+  ).bind(
+    summary.cellId,
+    summary.queryCellId,
+    summary.queryGridM,
+    summary.sourceUrl,
+    summary.licenseScope,
+    summary.totalRecords,
+    JSON.stringify(summary.topTaxa),
+    summary.latestYear,
+    summary.citationText,
+    summary.generatedAt,
+    summary.expiresAt
+  ).run();
+}
+
+async function writeGbifAreaSummaryRefreshError(env: Env, queryCell: GbifQueryCell, error: unknown): Promise<void> {
+  const now = new Date();
+  const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const message = error instanceof Error ? error.message.slice(0, 300) : "unknown_error";
+  await env.OBS_DB.prepare(
+    `INSERT INTO gbif_area_summary_cache (
+       cell_id, query_cell_id, query_grid_m, source_url, license_scope, total_records,
+       top_taxa_json, citation_text, generated_at, expires_at, refresh_error
+     ) VALUES (?, ?, ?, ?, 'CC0_1_0,CC_BY_4_0', 0, '[]', ?, ?, ?, ?)
+     ON CONFLICT(cell_id) DO UPDATE SET
+       refresh_error = excluded.refresh_error,
+       expires_at = excluded.expires_at`
+  ).bind(
+    queryCell.cellId,
+    queryCell.queryCellId,
+    queryCell.queryGridM,
+    sourceUrlForGbifQueryCell(queryCell),
+    gbifAreaCitationText(),
+    now.toISOString(),
+    expires.toISOString(),
+    message
+  ).run();
+}
+
+async function fetchGbifAreaSummary(queryCell: GbifQueryCell): Promise<GbifAreaSummary> {
+  const payload = await fetchGbifJson<GbifOccurrenceSearchResponse>(occurrenceSummaryUrlForGbifQueryCell(queryCell));
+  const speciesCounts = gbifFacetCounts(payload, "SPECIES_KEY")
+    .map((item) => ({ taxonKey: toFiniteNumber(item.name), recordCount: toFiniteNumber(item.count) }))
+    .filter((item): item is { taxonKey: number; recordCount: number } => Boolean(item.taxonKey && item.recordCount))
+    .slice(0, 8);
+  const topTaxa = (await Promise.all(speciesCounts.map((item) => fetchGbifSpecies(item.taxonKey, item.recordCount))))
+    .filter((item): item is GbifAreaTaxon => item !== null);
+  const latestYear = gbifFacetCounts(payload, "YEAR")
+    .map((item) => toFiniteNumber(item.name))
+    .filter((year): year is number => year !== null && year >= 1800 && year <= new Date().getUTCFullYear())
+    .sort((a, b) => b - a)[0] ?? null;
+  const now = new Date();
+  const expires = new Date(now.getTime() + GBIF_AREA_CACHE_TTL_DAYS * 24 * 60 * 60 * 1000);
+  return {
+    cellId: queryCell.cellId,
+    queryCellId: queryCell.queryCellId,
+    queryGridM: queryCell.queryGridM,
+    totalRecords: toFiniteNumber(payload.count) ?? 0,
+    latestYear,
+    topTaxa,
+    sourceProvider: "GBIF",
+    sourceUrl: sourceUrlForGbifQueryCell(queryCell),
+    licenseScope: "CC0_1_0,CC_BY_4_0",
+    citationText: gbifAreaCitationText(),
+    generatedAt: now.toISOString(),
+    expiresAt: expires.toISOString(),
+    policy: gbifAreaDisplayPolicy()
+  };
+}
+
+async function fetchGbifSpecies(taxonKey: number, recordCount: number): Promise<GbifAreaTaxon | null> {
+  try {
+    const payload = await fetchGbifJson<GbifSpeciesResponse>(`${GBIF_SPECIES_ENDPOINT}/${encodeURIComponent(String(taxonKey))}`);
+    const scientificName = gbifStringValue(payload.scientificName) || gbifStringValue(payload.canonicalName);
+    if (!scientificName) return null;
+    const taxonGroup = inferGbifTaxonGroup(payload);
+    const commonNameJa = await fetchGbifJapaneseCommonName(taxonKey);
+    return {
+      taxonKey,
+      scientificName,
+      canonicalName: gbifStringValue(payload.canonicalName) || scientificName,
+      rank: gbifStringValue(payload.rank) || "SPECIES",
+      taxonGroup,
+      commonNameJa,
+      displayNameJa: commonNameJa ?? `${gbifTaxonGroupLabelJa(taxonGroup)}（和名未確認）`,
+      nameStatus: commonNameJa ? "japanese_common_name" : "scientific_name_only",
+      recordCount
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchGbifJapaneseCommonName(taxonKey: number): Promise<string | null> {
+  try {
+    const payload = await fetchGbifJson<GbifVernacularNameResponse>(`${GBIF_SPECIES_ENDPOINT}/${encodeURIComponent(String(taxonKey))}/vernacularNames?limit=100`);
+    const candidates = (payload.results ?? [])
+      .map((item) => ({
+        name: gbifStringValue(item.vernacularName),
+        language: gbifStringValue(item.language).toLowerCase(),
+        country: gbifStringValue(item.country).toUpperCase(),
+        preferred: item.preferred === true
+      }))
+      .filter((item) => item.name && (item.language === "jpn" || item.language === "ja" || item.country === "JP"));
+    const preferred = candidates.find((item) => item.preferred) ?? candidates[0];
+    return preferred?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchGbifJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error(`gbif_fetch_failed:${response.status}`);
+  return await response.json() as T;
+}
+
+function gbifFacetCounts(payload: GbifOccurrenceSearchResponse, field: string): Array<{ name?: unknown; count?: unknown }> {
+  const facet = (payload.facets ?? []).find((item) => gbifStringValue(item.field).toUpperCase() === field.toUpperCase());
+  return Array.isArray(facet?.counts) ? facet.counts : [];
+}
+
+function gbifAreaSummaryFromRow(row: GbifAreaSummaryRow): GbifAreaSummary {
+  let topTaxa: GbifAreaTaxon[] = [];
+  try {
+    const parsed = JSON.parse(row.top_taxa_json);
+    if (Array.isArray(parsed)) {
+      topTaxa = parsed
+        .map((item): GbifAreaTaxon | null => {
+          if (!item || typeof item !== "object") return null;
+          const raw = item as Record<string, unknown>;
+          const taxonKey = toFiniteNumber(raw.taxonKey);
+          const recordCount = toFiniteNumber(raw.recordCount);
+          const scientificName = gbifStringValue(raw.scientificName);
+          if (!taxonKey || !recordCount || !scientificName) return null;
+          return {
+            taxonKey,
+            scientificName,
+            canonicalName: gbifStringValue(raw.canonicalName) || scientificName,
+            commonNameJa: gbifStringValue(raw.commonNameJa) || null,
+            displayNameJa: gbifStringValue(raw.displayNameJa) || gbifStringValue(raw.commonNameJa) || scientificName,
+            nameStatus: gbifStringValue(raw.nameStatus) === "japanese_common_name" ? "japanese_common_name" : "scientific_name_only",
+            rank: gbifStringValue(raw.rank) || "SPECIES",
+            taxonGroup: validGbifTaxonGroup(gbifStringValue(raw.taxonGroup)),
+            recordCount
+          };
+        })
+        .filter((item): item is GbifAreaTaxon => item !== null);
+    }
+  } catch {
+    topTaxa = [];
+  }
+  return {
+    cellId: row.cell_id,
+    queryCellId: row.query_cell_id,
+    queryGridM: Number(row.query_grid_m),
+    totalRecords: Number(row.total_records) || 0,
+    latestYear: toFiniteNumber(row.latest_year),
+    topTaxa,
+    sourceProvider: "GBIF",
+    sourceUrl: row.source_url,
+    licenseScope: "CC0_1_0,CC_BY_4_0",
+    citationText: row.citation_text,
+    generatedAt: row.generated_at,
+    expiresAt: row.expires_at,
+    policy: gbifAreaDisplayPolicy()
+  };
+}
+
+function resolveGbifQueryCell(rawCellId: string): GbifQueryCell | null {
+  const normalized = rawCellId.startsWith("cell:") ? rawCellId.slice("cell:".length) : rawCellId;
+  const scheduled = normalized.match(/^gbif:(\d+)km:(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+  if (scheduled) {
+    const gridKm = Number(scheduled[1]);
+    const lat = Number(scheduled[2]);
+    const lng = Number(scheduled[3]);
+    if (!validJapanLatLng(lat, lng) || !Number.isFinite(gridKm) || gridKm < 10) return null;
+    const half = Math.max(0.05, gridKm / 111 / 2);
+    return {
+      cellId: rawCellId,
+      queryCellId: `gbif:${gridKm}km:${lat.toFixed(2)},${lng.toFixed(2)}`,
+      centerLat: lat,
+      centerLng: lng,
+      halfLat: half,
+      halfLng: half,
+      queryGridM: Math.round(gridKm * 1000)
+    };
+  }
+  const parsed = parsePublicCell(normalized);
+  if (!parsed || !validJapanLatLng(parsed.lat, parsed.lng)) return null;
+  const centerLat = Math.round(parsed.lat * 10) / 10;
+  const centerLng = Math.round(parsed.lng * 10) / 10;
+  return {
+    cellId: rawCellId,
+    queryCellId: `gbif:10km:${centerLat.toFixed(1)},${centerLng.toFixed(1)}`,
+    centerLat,
+    centerLng,
+    halfLat: 0.05,
+    halfLng: 0.05,
+    queryGridM: GBIF_AREA_MIN_QUERY_GRID_M
+  };
+}
+
+function sourceUrlForGbifQueryCell(queryCell: GbifQueryCell): string {
+  const url = new URL(GBIF_OCCURRENCE_SEARCH_ENDPOINT);
+  url.searchParams.set("country", "JP");
+  url.searchParams.set("hasCoordinate", "true");
+  url.searchParams.set("hasGeospatialIssue", "false");
+  url.searchParams.append("license", "CC0_1_0");
+  url.searchParams.append("license", "CC_BY_4_0");
+  url.searchParams.set("geometry", wktPolygonForGbifQueryCell(queryCell));
+  return url.toString();
+}
+
+function occurrenceSummaryUrlForGbifQueryCell(queryCell: GbifQueryCell): string {
+  const url = new URL(sourceUrlForGbifQueryCell(queryCell));
+  url.searchParams.set("limit", "0");
+  url.searchParams.append("facet", "speciesKey");
+  url.searchParams.set("speciesKey.facetLimit", "8");
+  url.searchParams.append("facet", "year");
+  url.searchParams.set("year.facetLimit", "5");
+  return url.toString();
+}
+
+function wktPolygonForGbifQueryCell(queryCell: GbifQueryCell): string {
+  const minLat = clampGbifCoordinate(queryCell.centerLat - queryCell.halfLat, GBIF_AREA_JAPAN_BBOX.minLat, GBIF_AREA_JAPAN_BBOX.maxLat);
+  const maxLat = clampGbifCoordinate(queryCell.centerLat + queryCell.halfLat, GBIF_AREA_JAPAN_BBOX.minLat, GBIF_AREA_JAPAN_BBOX.maxLat);
+  const minLng = clampGbifCoordinate(queryCell.centerLng - queryCell.halfLng, GBIF_AREA_JAPAN_BBOX.minLng, GBIF_AREA_JAPAN_BBOX.maxLng);
+  const maxLng = clampGbifCoordinate(queryCell.centerLng + queryCell.halfLng, GBIF_AREA_JAPAN_BBOX.minLng, GBIF_AREA_JAPAN_BBOX.maxLng);
+  return `POLYGON((${minLng.toFixed(6)} ${minLat.toFixed(6)},${maxLng.toFixed(6)} ${minLat.toFixed(6)},${maxLng.toFixed(6)} ${maxLat.toFixed(6)},${minLng.toFixed(6)} ${maxLat.toFixed(6)},${minLng.toFixed(6)} ${minLat.toFixed(6)}))`;
+}
+
+function gbifAreaDisplayPolicy(): GbifAreaSummary["policy"] {
+  return {
+    displayMode: "area_summary",
+    occurrenceClaim: "recorded_not_current_presence",
+    exactCoordinatesExposed: false,
+    thirdPartyMediaUsed: false,
+    minQueryGridM: GBIF_AREA_MIN_QUERY_GRID_M
+  };
+}
+
+function gbifAreaCitationText(): string {
+  return "GBIF.org occurrence search summary, filtered to georeferenced Japan records without geospatial issues and CC0/CC BY licenses. This is an aggregate record summary, not a current-presence or population estimate.";
+}
+
+function inferGbifTaxonGroup(payload: GbifSpeciesResponse): GbifAreaTaxon["taxonGroup"] {
+  const className = gbifStringValue(payload.class).toLowerCase();
+  const phylum = gbifStringValue(payload.phylum).toLowerCase();
+  const kingdom = gbifStringValue(payload.kingdom).toLowerCase();
+  if (className === "aves") return "bird";
+  if (className === "mammalia") return "mammal";
+  if (className === "insecta") return "insect";
+  if (className === "amphibia" || className === "reptilia") return "amphibian_reptile";
+  if (kingdom === "plantae") return "plant";
+  if (kingdom === "fungi" || phylum.includes("mycota")) return "fungi";
+  return "other";
+}
+
+function validGbifTaxonGroup(value: string): GbifAreaTaxon["taxonGroup"] {
+  if (value === "bird" || value === "plant" || value === "insect" || value === "amphibian_reptile" || value === "mammal" || value === "fungi") return value;
+  return "other";
+}
+
+function gbifTaxonGroupLabelJa(group: GbifAreaTaxon["taxonGroup"]): string {
+  switch (group) {
+    case "bird":
+      return "鳥類";
+    case "mammal":
+      return "哺乳類";
+    case "insect":
+      return "昆虫類";
+    case "amphibian_reptile":
+      return "両生類・爬虫類";
+    case "plant":
+      return "植物";
+    case "fungi":
+      return "菌類";
+    default:
+      return "生物";
+  }
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function gbifStringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function clampGbifCoordinate(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function validJapanLatLng(lat: number, lng: number): boolean {
+  return Number.isFinite(lat)
+    && Number.isFinite(lng)
+    && lat >= GBIF_AREA_JAPAN_BBOX.minLat
+    && lat <= GBIF_AREA_JAPAN_BBOX.maxLat
+    && lng >= GBIF_AREA_JAPAN_BBOX.minLng
+    && lng <= GBIF_AREA_JAPAN_BBOX.maxLng;
+}
+
+async function runScheduledGbifAreaSummaryRefresh(env: Env, controller: ScheduledController): Promise<void> {
+  if (!shouldRunGbifAreaSummarySchedule(controller)) return;
+  const cells = buildGbifJapanScheduleCells();
+  if (cells.length === 0) return;
+  const cursor = await readGbifAreaSummaryCursor(env);
+  const limit = GBIF_AREA_DAILY_REFRESH_LIMIT;
+  for (let offset = 0; offset < limit; offset += 1) {
+    const cell = cells[(cursor + offset) % cells.length];
+    if (!cell) continue;
+    try {
+      await getGbifAreaSummaryForCell(env, cell, { forceRefresh: true });
+    } catch (error) {
+      console.error("gbif_area_summary_scheduled_refresh_failed", error);
+    }
+  }
+  await writeGbifAreaSummaryCursor(env, (cursor + limit) % cells.length);
+}
+
+function shouldRunGbifAreaSummarySchedule(controller: ScheduledController): boolean {
+  const scheduledAt = new Date(controller.scheduledTime ?? Date.now());
+  return scheduledAt.getUTCHours() === 18 && scheduledAt.getUTCMinutes() < 5;
+}
+
+function buildGbifJapanScheduleCells(): GbifQueryCell[] {
+  const cells: GbifQueryCell[] = [];
+  const step = GBIF_AREA_SCHEDULE_GRID_DEGREES;
+  for (let lat = GBIF_AREA_JAPAN_BBOX.minLat + step / 2; lat <= GBIF_AREA_JAPAN_BBOX.maxLat; lat += step) {
+    for (let lng = GBIF_AREA_JAPAN_BBOX.minLng + step / 2; lng <= GBIF_AREA_JAPAN_BBOX.maxLng; lng += step) {
+      const cellId = `gbif:200km:${lat.toFixed(2)},${lng.toFixed(2)}`;
+      const cell = resolveGbifQueryCell(cellId);
+      if (cell) cells.push(cell);
+    }
+  }
+  return cells;
+}
+
+async function readGbifAreaSummaryCursor(env: Env): Promise<number> {
+  const row = await env.OBS_DB.prepare(
+    "SELECT state_value FROM gbif_area_summary_state WHERE state_key = 'japan_schedule_cursor' LIMIT 1"
+  ).first<{ state_value: string }>();
+  const value = row ? Number(row.state_value) : 0;
+  return Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
+async function writeGbifAreaSummaryCursor(env: Env, cursor: number): Promise<void> {
+  await env.OBS_DB.prepare(
+    `INSERT INTO gbif_area_summary_state (state_key, state_value, updated_at)
+     VALUES ('japan_schedule_cursor', ?, ?)
+     ON CONFLICT(state_key) DO UPDATE SET
+       state_value = excluded.state_value,
+       updated_at = excluded.updated_at`
+  ).bind(String(cursor), new Date().toISOString()).run();
 }
 
 async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {

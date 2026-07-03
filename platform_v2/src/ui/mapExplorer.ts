@@ -157,6 +157,16 @@ export type MapExplorerCopy = {
   cellAggregateTitle: string;
   cellAggregateBadge: string;
   cellAggregateSafety: string;
+  gbifAreaTitle: string;
+  gbifAreaBadge: string;
+  gbifAreaLoading: string;
+  gbifAreaEmpty: string;
+  gbifAreaSafety: string;
+  gbifAreaLatestYearLabel: string;
+  gbifAreaRecordCountLabel: string;
+  gbifAreaTopTaxaLabel: string;
+  gbifAreaSourceLabel: string;
+  gbifAreaSourceLink: string;
   mapPointSafety: string;
   osmAreaFallbackName: string;
   osmAreaSourceLabel: string;
@@ -354,6 +364,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     cellAggregateTitle: "この範囲の記録",
     cellAggregateBadge: "地域単位の集計",
     cellAggregateSafety: "地域全体のまとまりとして表示しています。記録を足すときは、公開範囲と現地のルールを確認してください。",
+    gbifAreaTitle: "この周辺で記録されたイキモノ",
+    gbifAreaBadge: "GBIF公開記録",
+    gbifAreaLoading: "GBIFの公開記録サマリを確認中…",
+    gbifAreaEmpty: "この範囲のGBIF公開記録サマリはまだありません。",
+    gbifAreaSafety: "GBIFの公開データを地域単位で集計しています。現在の生息や個体数を保証するものではありません。希少種の正確な地点や第三者写真は表示しません。",
+    gbifAreaLatestYearLabel: "最新記録年",
+    gbifAreaRecordCountLabel: "公開記録数",
+    gbifAreaTopTaxaLabel: "記録が多い分類",
+    gbifAreaSourceLabel: "出典",
+    gbifAreaSourceLink: "GBIFで確認",
     mapPointSafety: "地図だけでは現地の安全や立入可否は判断できません。案内板、管理者、公開範囲を優先してください。",
     osmAreaFallbackName: "OSMの公園・緑地",
     osmAreaSourceLabel: "公園・緑地 (OSM live)",
@@ -527,6 +547,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     cellAggregateTitle: "Record density in this area",
     cellAggregateBadge: "Area aggregate",
     cellAggregateSafety: "This view shows the area as a whole. Before adding a record, check public scope and local rules.",
+    gbifAreaTitle: "Organisms recorded around this area",
+    gbifAreaBadge: "GBIF public records",
+    gbifAreaLoading: "Checking GBIF public record summary…",
+    gbifAreaEmpty: "No GBIF public record summary is cached for this area yet.",
+    gbifAreaSafety: "This is an area-level summary of public GBIF records. It does not guarantee current presence or population size. Exact sensitive locations and third-party photos are not shown.",
+    gbifAreaLatestYearLabel: "Latest record year",
+    gbifAreaRecordCountLabel: "Public records",
+    gbifAreaTopTaxaLabel: "Top recorded taxa",
+    gbifAreaSourceLabel: "Source",
+    gbifAreaSourceLink: "View on GBIF",
     mapPointSafety: "The map alone cannot confirm safety or access. Follow signs, managers, and public-scope rules first.",
     osmAreaFallbackName: "OSM park or green space",
     osmAreaSourceLabel: "Park / green space (OSM live)",
@@ -700,6 +730,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     cellAggregateTitle: "Densidad de registros en esta zona",
     cellAggregateBadge: "Agregado de zona",
     cellAggregateSafety: "Esta vista muestra la zona en conjunto. Antes de registrar, revisa el alcance público y las reglas locales.",
+    gbifAreaTitle: "Organismos registrados cerca de esta zona",
+    gbifAreaBadge: "Registros públicos GBIF",
+    gbifAreaLoading: "Consultando resumen público de GBIF…",
+    gbifAreaEmpty: "Aún no hay resumen público GBIF en caché para esta zona.",
+    gbifAreaSafety: "Es un resumen por zona de registros públicos de GBIF. No garantiza presencia actual ni tamaño de población. No se muestran ubicaciones sensibles exactas ni fotos de terceros.",
+    gbifAreaLatestYearLabel: "Último año",
+    gbifAreaRecordCountLabel: "Registros públicos",
+    gbifAreaTopTaxaLabel: "Taxones más registrados",
+    gbifAreaSourceLabel: "Fuente",
+    gbifAreaSourceLink: "Ver en GBIF",
     mapPointSafety: "El mapa solo no confirma seguridad ni acceso. Prioriza señales, gestores y reglas de alcance público.",
     osmAreaFallbackName: "Parque o zona verde de OSM",
     osmAreaSourceLabel: "Parque / zona verde (OSM live)",
@@ -873,6 +913,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     cellAggregateTitle: "Densidade de registros nesta área",
     cellAggregateBadge: "Agregado da área",
     cellAggregateSafety: "Esta visão mostra a área como um todo. Antes de registrar, verifique o escopo público e as regras locais.",
+    gbifAreaTitle: "Organismos registrados perto desta área",
+    gbifAreaBadge: "Registros públicos GBIF",
+    gbifAreaLoading: "Verificando resumo público do GBIF…",
+    gbifAreaEmpty: "Ainda não há resumo público GBIF em cache para esta área.",
+    gbifAreaSafety: "Este é um resumo por área de registros públicos do GBIF. Não garante presença atual nem tamanho populacional. Locais sensíveis exatos e fotos de terceiros não são exibidos.",
+    gbifAreaLatestYearLabel: "Último ano",
+    gbifAreaRecordCountLabel: "Registros públicos",
+    gbifAreaTopTaxaLabel: "Táxons mais registrados",
+    gbifAreaSourceLabel: "Fonte",
+    gbifAreaSourceLink: "Ver no GBIF",
     mapPointSafety: "O mapa sozinho não confirma segurança ou acesso. Priorize placas, gestores e regras de escopo público.",
     osmAreaFallbackName: "Parque ou área verde do OSM",
     osmAreaSourceLabel: "Parque / área verde (OSM live)",
@@ -1075,6 +1125,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
   const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
   const apiGuideSpots = withBasePath(props.basePath, "/api/v1/map/guide-spots");
+  const apiGbifAreaSummary = withBasePath(props.basePath, "/api/v1/map/gbif-area-summary");
   const apiJmaNowcastTimes = withBasePath(props.basePath, "/api/v1/weather/jma-nowcast/times");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
@@ -1625,7 +1676,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-gbif-area-summary="${escapeHtml(apiGbifAreaSummary)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
         ${startPanelHtml}
         <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
           <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
@@ -1797,6 +1848,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
   var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
   var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
+  var apiGbifAreaSummary = root.getAttribute('data-api-gbif-area-summary') || '';
   var apiJmaNowcastTimes = root.getAttribute('data-api-jma-nowcast-times') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
@@ -1898,6 +1950,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     cellAggregateTitle: copy.cellAggregateTitle,
     cellAggregateBadge: copy.cellAggregateBadge,
     cellAggregateSafety: copy.cellAggregateSafety,
+    gbifAreaTitle: copy.gbifAreaTitle,
+    gbifAreaBadge: copy.gbifAreaBadge,
+    gbifAreaLoading: copy.gbifAreaLoading,
+    gbifAreaEmpty: copy.gbifAreaEmpty,
+    gbifAreaSafety: copy.gbifAreaSafety,
+    gbifAreaLatestYearLabel: copy.gbifAreaLatestYearLabel,
+    gbifAreaRecordCountLabel: copy.gbifAreaRecordCountLabel,
+    gbifAreaTopTaxaLabel: copy.gbifAreaTopTaxaLabel,
+    gbifAreaSourceLabel: copy.gbifAreaSourceLabel,
+    gbifAreaSourceLink: copy.gbifAreaSourceLink,
     mapPointSafety: copy.mapPointSafety,
     osmAreaFallbackName: copy.osmAreaFallbackName,
     osmAreaSourceLabel: copy.osmAreaSourceLabel,
@@ -4765,6 +4827,67 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return '<div><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>';
     }).join('') + '</div>';
   }
+  function gbifTaxonIcon(group) {
+    if (group === 'bird') return '鳥';
+    if (group === 'insect') return '虫';
+    if (group === 'plant') return '植';
+    if (group === 'amphibian_reptile') return '両';
+    if (group === 'mammal') return '哺';
+    if (group === 'fungi') return '菌';
+    return '生';
+  }
+  function renderGbifAreaSummarySlot(slotId) {
+    return '<section id="' + escapeHtml(slotId) + '" class="me-gbif-area-summary me-detail-section is-loading" aria-live="polite">' +
+      '<div class="me-detail-section-head"><span>' + escapeHtml(COPY.gbifAreaBadge) + '</span><strong>' + escapeHtml(COPY.gbifAreaTitle) + '</strong></div>' +
+      '<p class="me-gbif-area-note">' + escapeHtml(COPY.gbifAreaLoading) + '</p>' +
+    '</section>';
+  }
+  function renderGbifAreaSummary(summary) {
+    if (!summary || summary.unavailable || !Number(summary.totalRecords || 0)) {
+      return '<div class="me-detail-section-head"><span>' + escapeHtml(COPY.gbifAreaBadge) + '</span><strong>' + escapeHtml(COPY.gbifAreaTitle) + '</strong></div>' +
+        '<p class="me-gbif-area-note">' + escapeHtml(COPY.gbifAreaEmpty) + '</p>';
+    }
+    var taxa = Array.isArray(summary.topTaxa) ? summary.topTaxa.slice(0, 6) : [];
+    var total = Number(summary.totalRecords || 0).toLocaleString();
+    var latest = summary.latestYear ? String(summary.latestYear) : '—';
+    var sourceUrl = String(summary.sourceUrl || '');
+    var taxonRows = taxa.length
+      ? '<div class="me-gbif-taxa-list" aria-label="' + escapeHtml(COPY.gbifAreaTopTaxaLabel) + '">' + taxa.map(function (taxon) {
+          var label = taxon.displayNameJa || taxon.commonNameJa || taxon.canonicalName || taxon.scientificName || 'GBIF taxon';
+          var scientific = taxon.scientificName || taxon.canonicalName || '';
+          var scientificHtml = scientific && scientific !== label ? '<em>' + escapeHtml(scientific) + '</em>' : '';
+          var count = Number(taxon.recordCount || 0).toLocaleString();
+          return '<div class="me-gbif-taxon"><span aria-hidden="true">' + escapeHtml(gbifTaxonIcon(taxon.taxonGroup)) + '</span><strong>' + escapeHtml(label) + scientificHtml + '</strong><small>' + escapeHtml(count) + '</small></div>';
+        }).join('') + '</div>'
+      : '';
+    return '<div class="me-detail-section-head"><span>' + escapeHtml(COPY.gbifAreaBadge) + '</span><strong>' + escapeHtml(COPY.gbifAreaTitle) + '</strong></div>' +
+      '<p class="me-gbif-area-note">' + escapeHtml(COPY.gbifAreaSafety) + '</p>' +
+      '<div class="me-gbif-area-stats">' +
+        '<div><span>' + escapeHtml(COPY.gbifAreaRecordCountLabel) + '</span><strong>' + escapeHtml(total) + '</strong></div>' +
+        '<div><span>' + escapeHtml(COPY.gbifAreaLatestYearLabel) + '</span><strong>' + escapeHtml(latest) + '</strong></div>' +
+      '</div>' +
+      taxonRows +
+      '<div class="me-gbif-area-source"><span>' + escapeHtml(COPY.gbifAreaSourceLabel) + ': GBIF / CC0・CC BY</span>' +
+        (sourceUrl ? '<a href="' + escapeHtml(sourceUrl) + '" target="_blank" rel="noopener">' + escapeHtml(COPY.gbifAreaSourceLink) + ' ↗</a>' : '') +
+      '</div>';
+  }
+  function fetchGbifAreaSummary(cellId, target) {
+    if (!apiGbifAreaSummary || !cellId || !target) return;
+    var url = apiGbifAreaSummary + '?cell_id=' + encodeURIComponent(cellId);
+    fetch(url, { headers: { accept: 'application/json' } })
+      .then(function (response) {
+        if (!response.ok) throw new Error('gbif area summary ' + response.status);
+        return response.json();
+      })
+      .then(function (payload) {
+        target.classList.remove('is-loading');
+        target.innerHTML = renderGbifAreaSummary(payload);
+      })
+      .catch(function () {
+        target.classList.remove('is-loading');
+        target.innerHTML = renderGbifAreaSummary(null);
+      });
+  }
   function currentSeasonLabel() {
     if (state.season === 'spring') return COPY.seasonSpring;
     if (state.season === 'summer') return COPY.seasonSummer;
@@ -4989,11 +5112,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var countLabel = Number(cellProps.count || 0) + ' ' + COPY.resultCountLabel;
       var latest = cellProps.latestObservedAt ? String(cellProps.latestObservedAt).slice(0, 10) : '';
       var era = cellProps.nameEraLabel ? String(cellProps.nameEraLabel) : '';
+      var gbifSlotId = 'me-selected-gbif-area-slot';
       var cellSeq = ++siteBriefSeq;
       selectedCardEl.innerHTML =
         '<article class="me-detail-panel me-detail-panel-cell">' +
           renderDetailHero({ title: COPY.cellAggregateTitle, meta: countLabel + (latest ? ' · ' + latest : '') + (era ? ' · ' + era : ''), badge: COPY.cellAggregateBadge }) +
           renderAggregateSafety(COPY.cellAggregateSafety) +
+          renderGbifAreaSummarySlot(gbifSlotId) +
           renderDetailVisitReasons(context) +
           renderSiteBriefSlot('me-selected-brief-slot', context) +
           renderDetailRecentFinds(context) +
@@ -5008,6 +5133,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       selectedCardEl.classList.add('is-visible');
       markSideSelection();
       bindDetailRecentFinds(selectedCardEl);
+      fetchGbifAreaSummary(cellProps.cellId, document.getElementById(gbifSlotId));
       fetchSiteBrief(context.lat, context.lng, cellSeq, document.getElementById('me-selected-brief-slot'));
       return;
     }
@@ -6083,6 +6209,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedPoint = detailContext;
     var seq = ++siteBriefSeq;
     var p = feature.properties || {};
+    var gbifSlotId = 'me-sheet-gbif-area-slot';
     sheetInnerEl.innerHTML =
       '<article class="me-detail-panel me-bottom-detail me-detail-panel-cell">' +
         renderDetailHero({
@@ -6091,6 +6218,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           badge: COPY.cellAggregateBadge,
         }) +
         renderAggregateSafety(COPY.cellAggregateSafety) +
+        renderGbifAreaSummarySlot(gbifSlotId) +
         renderDetailVisitReasons(detailContext) +
         renderSiteBriefSlot('me-site-brief-slot', detailContext) +
         renderDetailRecentFinds(detailContext) +
@@ -6104,6 +6232,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       '</article>';
     showDetailBottomSheet();
     bindDetailRecentFinds(sheetInnerEl);
+    fetchGbifAreaSummary(p.cellId, document.getElementById(gbifSlotId));
     fetchSiteBrief(center.lat, center.lng, seq, document.getElementById('me-site-brief-slot'));
   }
 
@@ -12568,6 +12697,111 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 12px;
     font-weight: 760;
     line-height: 1.5;
+  }
+  .me-gbif-area-summary {
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(248,250,252,.94);
+    border: 1px solid rgba(15,118,110,.16);
+  }
+  .me-gbif-area-summary.is-loading {
+    background: linear-gradient(90deg, rgba(248,250,252,.94), rgba(240,253,250,.96));
+  }
+  .me-gbif-area-note {
+    margin: 0 0 10px;
+    color: #475569;
+    font-size: 11.5px;
+    line-height: 1.55;
+    font-weight: 760;
+  }
+  .me-gbif-area-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .me-gbif-area-stats div {
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid rgba(148,163,184,.14);
+  }
+  .me-gbif-area-stats span {
+    display: block;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+  .me-gbif-area-stats strong {
+    display: block;
+    margin-top: 3px;
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .me-gbif-taxa-list {
+    display: grid;
+    gap: 7px;
+  }
+  .me-gbif-taxon {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 7px 8px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.82);
+    border: 1px solid rgba(148,163,184,.12);
+  }
+  .me-gbif-taxon > span {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(20,184,166,.10);
+  }
+  .me-gbif-taxon strong {
+    min-width: 0;
+    color: #0f172a;
+    font-size: 11.5px;
+    line-height: 1.3;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+  }
+  .me-gbif-taxon strong em {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 10px;
+    font-style: italic;
+    font-weight: 650;
+  }
+  .me-gbif-taxon small {
+    color: #0f766e;
+    font-size: 10px;
+    font-weight: 950;
+  }
+  .me-gbif-area-source {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    color: #64748b;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 760;
+  }
+  .me-gbif-area-source a {
+    color: #0f766e;
+    font-weight: 950;
+    text-decoration: none;
   }
   .me-detail-section-head {
     display: flex;

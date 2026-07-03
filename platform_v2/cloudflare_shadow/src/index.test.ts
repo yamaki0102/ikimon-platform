@@ -1546,6 +1546,21 @@ interface AuthorityRecommendationTestRow {
   updated_at: string;
 }
 
+interface GbifAreaSummaryCacheTestRow {
+  cell_id: string;
+  query_cell_id: string;
+  query_grid_m: number;
+  source_url: string;
+  license_scope: string;
+  total_records: number;
+  top_taxa_json: string;
+  latest_year: number | null;
+  citation_text: string;
+  generated_at: string;
+  expires_at: string;
+  refresh_error: string | null;
+}
+
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
@@ -1669,6 +1684,8 @@ class FakeD1 {
   authorityRecommendations = new Map<string, AuthorityRecommendationTestRow>();
   authorityRecommendationEvidence: SpecialistAuthorityEvidenceTestRow[] = [];
   authorityRecommendationAudit: Array<{ audit_id: string; recommendation_id: string; actor_user_id: string | null; action: string; payload_json: string; created_at: string }> = [];
+  gbifAreaSummaryCache = new Map<string, GbifAreaSummaryCacheTestRow>();
+  gbifAreaSummaryState = new Map<string, { state_key: string; state_value: string; updated_at: string }>();
 
   prepare(query: string): FakeStatement {
     return new FakeStatement(this, query);
@@ -4198,6 +4215,35 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO gbif_area_summary_cache")) {
+      const existing = this.db.gbifAreaSummaryCache.get(string(v[0]));
+      const row: GbifAreaSummaryCacheTestRow = {
+        cell_id: string(v[0]),
+        query_cell_id: string(v[1]),
+        query_grid_m: number(v[2]),
+        source_url: string(v[3]),
+        license_scope: normalized.includes("'CC0_1_0,CC_BY_4_0'") ? "CC0_1_0,CC_BY_4_0" : string(v[4]),
+        total_records: normalized.includes(" 0, '[]'") ? 0 : number(v[5]),
+        top_taxa_json: normalized.includes(" 0, '[]'") ? "[]" : string(v[6]),
+        latest_year: normalized.includes(" 0, '[]'") ? null : numberOrNull(v[7]),
+        citation_text: normalized.includes(" 0, '[]'") ? string(v[4]) : string(v[8]),
+        generated_at: normalized.includes(" 0, '[]'") ? string(v[5]) : string(v[9]),
+        expires_at: normalized.includes(" 0, '[]'") ? string(v[6]) : string(v[10]),
+        refresh_error: normalized.includes(" 0, '[]'") ? string(v[7]) : null,
+      };
+      this.db.gbifAreaSummaryCache.set(row.cell_id, { ...(existing ?? row), ...row });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO gbif_area_summary_state")) {
+      this.db.gbifAreaSummaryState.set("japan_schedule_cursor", {
+        state_key: "japan_schedule_cursor",
+        state_value: string(v[0]),
+        updated_at: string(v[1]),
+      });
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
@@ -4208,6 +4254,18 @@ class FakeStatement {
     }
 
     const v = this.values;
+
+    if (normalized.startsWith("SELECT cell_id, query_cell_id, query_grid_m, source_url, license_scope, total_records")) {
+      const row = this.db.gbifAreaSummaryCache.get(string(v[0]));
+      if (!row) return null;
+      if (number(v[1]) === 1 && row.expires_at <= string(v[2])) return null;
+      return (row as T);
+    }
+
+    if (normalized.startsWith("SELECT state_value FROM gbif_area_summary_state")) {
+      const row = this.db.gbifAreaSummaryState.get("japan_schedule_cursor");
+      return (row as T | undefined) ?? null;
+    }
 
     if (normalized.startsWith("SELECT user_id, default_photo_echo_enabled, default_tags_public")) {
       return (this.db.placeMemoryPreferences.get(string(v[0])) as T | undefined) ?? null;
@@ -6966,6 +7024,67 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const unidentified = unidentifiedPayload.items.find((item: any) => item.visitId === "visit-unidentified-contract");
   assert.equal(unidentified.displayName, "名前待ち");
   assert.equal(unidentified.isAwaitingId, true);
+
+  const originalFetch = globalThis.fetch;
+  const requestedGbifUrls: string[] = [];
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const href = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+      requestedGbifUrls.push(href);
+      const gbifUrl = new URL(href);
+      if (gbifUrl.pathname === "/v1/occurrence/search") {
+        assert.equal(gbifUrl.searchParams.get("country"), "JP");
+        assert.equal(gbifUrl.searchParams.get("hasCoordinate"), "true");
+        assert.equal(gbifUrl.searchParams.get("hasGeospatialIssue"), "false");
+        assert.deepEqual(gbifUrl.searchParams.getAll("license"), ["CC0_1_0", "CC_BY_4_0"]);
+        assert.match(gbifUrl.searchParams.get("geometry") ?? "", /^POLYGON\(\(/);
+        return new Response(JSON.stringify({
+          count: 7,
+          facets: [
+            { field: "SPECIES_KEY", counts: [{ name: "2492321", count: 7 }] },
+            { field: "YEAR", counts: [{ name: "2025", count: 3 }] }
+          ]
+        }), { headers: { "content-type": "application/json" } });
+      }
+      if (gbifUrl.pathname === "/v1/species/2492321") {
+        return new Response(JSON.stringify({
+          key: 2492321,
+          scientificName: "Passer montanus (Linnaeus, 1758)",
+          canonicalName: "Passer montanus",
+          rank: "SPECIES",
+          kingdom: "Animalia",
+          class: "Aves"
+        }), { headers: { "content-type": "application/json" } });
+      }
+      if (gbifUrl.pathname === "/v1/species/2492321/vernacularNames") {
+        return new Response(JSON.stringify({
+          results: [
+            { vernacularName: "Eurasian Tree Sparrow", language: "eng" },
+            { vernacularName: "スズメ", language: "jpn", country: "JP", preferred: true }
+          ]
+        }), { headers: { "content-type": "application/json" } });
+      }
+      throw new Error(`unexpected GBIF URL ${href}`);
+    }) as typeof fetch;
+    const gbifResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/gbif-area-summary?cell_id=cell%3A34.71%2C137.81"), env);
+    const gbifPayload = await gbifResponse.json() as any;
+    assert.equal(gbifResponse.ok, true, JSON.stringify(gbifPayload));
+    assert.equal(gbifPayload.sourceProvider, "GBIF");
+    assert.equal(gbifPayload.totalRecords, 7);
+    assert.equal(gbifPayload.latestYear, 2025);
+    assert.equal(gbifPayload.licenseScope, "CC0_1_0,CC_BY_4_0");
+    assert.equal(gbifPayload.policy.displayMode, "area_summary");
+    assert.equal(gbifPayload.policy.occurrenceClaim, "recorded_not_current_presence");
+    assert.equal(gbifPayload.policy.exactCoordinatesExposed, false);
+    assert.equal(gbifPayload.policy.thirdPartyMediaUsed, false);
+    assert.equal(gbifPayload.topTaxa[0].commonNameJa, "スズメ");
+    assert.equal(gbifPayload.topTaxa[0].displayNameJa, "スズメ");
+    assert.equal(gbifPayload.topTaxa[0].nameStatus, "japanese_common_name");
+    assert.doesNotMatch(JSON.stringify(gbifPayload), /photo|imageUrl|latitude|longitude|34\.71234|137\.81234/i);
+    assert.ok(requestedGbifUrls.some((href) => href.includes("/v1/occurrence/search")));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 
   const areaResponse = await worker.fetch(new Request(
     "https://shadow.test/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72&sources=school"
@@ -19963,6 +20082,10 @@ function string(value: D1Value | undefined): string {
 function number(value: D1Value | undefined): number {
   if (typeof value !== "number") throw new Error(`expected number: ${value}`);
   return value;
+}
+
+function numberOrNull(value: D1Value | undefined): number | null {
+  return typeof value === "number" ? value : null;
 }
 
 function nullableString(value: D1Value | undefined): string | null {
