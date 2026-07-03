@@ -270,6 +270,8 @@ interface AssetRow {
   sha256: string | null;
   mime: string;
   bytes: number;
+  width?: number | null;
+  height?: number | null;
   processing_state: string;
   public_derivative_key: string | null;
   public_derivative_sha256: string | null;
@@ -277,6 +279,13 @@ interface AssetRow {
   public_derivative_metadata_json: string | null;
   exif_scrub_state: string;
   public_ready_at: string | null;
+}
+
+function isPublicMapPlaceholderLikeAsset(asset: Pick<AssetRow, "bytes" | "width" | "height">): boolean {
+  const width = asset.width ?? 0;
+  const height = asset.height ?? 0;
+  if (width === 1 && height === 1) return true;
+  return width === 320 && height === 240 && asset.bytes > 0 && asset.bytes <= 12_000;
 }
 
 interface SubjectMediaRegionTestRow {
@@ -5856,7 +5865,8 @@ class FakeStatement {
           asset.public_derivative_verified_at &&
           asset.public_derivative_metadata_json &&
           !asset.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
-          !asset.public_derivative_metadata_json.includes('"contentType":"image/svg')
+          !asset.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
+          !isPublicMapPlaceholderLikeAsset(asset)
         )
         .map((asset) => ({
           asset_id: asset.asset_id,
@@ -5889,7 +5899,8 @@ class FakeStatement {
               !candidate.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
               !candidate.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
               candidate.exif_scrub_state === "scrubbed" &&
-              candidate.mime.startsWith("image/")
+              candidate.mime.startsWith("image/") &&
+              !isPublicMapPlaceholderLikeAsset(candidate)
             )
             .sort((a, b) => (b.public_ready_at ?? b.public_derivative_verified_at ?? "").localeCompare(a.public_ready_at ?? a.public_derivative_verified_at ?? ""))[0];
           return {
@@ -5915,7 +5926,8 @@ class FakeStatement {
           asset.public_derivative_metadata_json &&
           !asset.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
           !asset.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
-          asset.mime.startsWith("image/")
+          asset.mime.startsWith("image/") &&
+          !isPublicMapPlaceholderLikeAsset(asset)
         )
         .sort((a, b) => (b.public_ready_at ?? "").localeCompare(a.public_ready_at ?? ""))
         .map((asset) => ({
@@ -5974,7 +5986,8 @@ class FakeStatement {
               !asset.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
               asset.exif_scrub_state === "scrubbed" &&
               asset.public_ready_at &&
-              asset.mime.startsWith("image/")
+              asset.mime.startsWith("image/") &&
+              !isPublicMapPlaceholderLikeAsset(asset)
             )
             .sort((a, b) => (b.public_ready_at ?? b.public_derivative_verified_at ?? "").localeCompare(a.public_ready_at ?? a.public_derivative_verified_at ?? ""))[0];
           return {
@@ -6860,6 +6873,26 @@ test("v1 public map read routes expose current shell contracts without exact coo
     exif_scrub_state: "scrubbed",
     public_ready_at: "2026-06-15T02:30:00.000Z"
   });
+  env.OBS_DB.assets.set("asset-map-contract-placeholder-derivative", {
+    asset_id: "asset-map-contract-placeholder-derivative",
+    draft_id: "draft-map-contract-placeholder-derivative",
+    observation_id: "visit-map-contract",
+    owner_user_id: "map-user",
+    object_key: "original/visit-map-contract/colorbar-placeholder.jpg",
+    partition_month: "2026-06",
+    sha256: "map-placeholder-sha",
+    mime: "image/jpeg",
+    bytes: 9374,
+    width: 320,
+    height: 240,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260615/observation_photo/asset-map-contract-placeholder-derivative/display.webp",
+    public_derivative_sha256: "map-placeholder-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T03:30:00.000Z",
+    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\",\"bytes\":3838,\"sourceWidth\":320,\"sourceHeight\":240,\"derivativeWidth\":320,\"derivativeHeight\":240}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T03:30:00.000Z"
+  });
   await env.ASSET_BUCKET.put(
     "derived/import/20260615/observation_photo/asset-map-contract-real-derivative/display.webp",
     "map-real-webp",
@@ -6903,9 +6936,13 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(observationsPayload.items[0].displayName, "地図テスト植物");
   assert.equal(observationsPayload.items[0].cellId, "cell:34.71,137.81");
   assert.match(observationsPayload.items[0].photoUrl, /^\/derived\/.+\/display\.webp$/);
+  assert.match(observationsPayload.items[0].photoUrl, /asset-map-contract-real-derivative/);
+  assert.doesNotMatch(observationsPayload.items[0].photoUrl, /placeholder/);
   assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
   assert.ok(!("features" in observationsPayload));
   assert.doesNotMatch(JSON.stringify(observationsPayload), /34\.71234|137\.81234/);
+  const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  assert.match(workerSource, /async function queryPublicMapPhotoUrls[\s\S]*presentablePublicPhotoSql\(\)/);
 
   env.OBS_DB.readmodel.set("visit-unidentified-contract", {
     observation_id: "visit-unidentified-contract",
