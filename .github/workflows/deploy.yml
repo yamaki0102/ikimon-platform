@@ -423,6 +423,33 @@ jobs:
           fi
           echo "Area Sketch production surface verified."
 
+      - name: Area encyclopedia field detail production smoke
+        run: |
+          set -euo pipefail
+          field_headers="$(mktemp)"
+          field_body="$(curl -fsS -D "$field_headers" -H 'cache-control: no-store' "https://ikimon.life/ja/community/fields/1730fc82-95f3-4c64-9c82-4f06d56d940f?deploy_smoke_area_field=${GITHUB_SHA}")"
+          if ! grep -qi '^x-ikimon-cloudflare-native: field-detail-readmodel' "$field_headers"; then
+            echo "Area encyclopedia field detail is not served by the native readmodel route."
+            cat "$field_headers"
+            exit 1
+          fi
+          for marker in "エリア図鑑" "西伊場一条南公園" "このエリアで記録する" "公開範囲を見る" "詳細位置は非公開" "位置をぼかしています" "利用者が作成したエリア"; do
+            if [[ "$field_body" != *"$marker"* ]]; then
+              echo "Area encyclopedia field detail is missing marker: $marker"
+              exit 1
+            fi
+          done
+          if grep -Eq 'data-(lat|lng|radius|polygon|area-spots|evt-field-map)=' <<< "$field_body"; then
+            echo "Area encyclopedia field detail leaked exact coordinate or map geometry data attributes."
+            exit 1
+          fi
+          leaked_token="$(grep -Eo 'D1_ERROR|1101|no such table|Cloudflare移行中|互換表示|user_defined|system_import|unverified|needs_review|geom_simplified|geometry_json' <<< "$field_body" | sort -u | tr '\n' ' ' || true)"
+          if [[ -n "$leaked_token" ]]; then
+            echo "Area encyclopedia field detail leaked internal or migration token(s): $leaked_token"
+            exit 1
+          fi
+          echo "Area encyclopedia field detail production smoke verified."
+
       - name: Record UI C110 marker check
         run: |
           set -euo pipefail
