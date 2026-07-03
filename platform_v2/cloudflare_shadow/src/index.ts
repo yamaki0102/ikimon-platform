@@ -10213,6 +10213,35 @@ type GbifAreaSummary = {
     thirdPartyMediaUsed: false;
     minQueryGridM: number;
   };
+  evidenceContract: PublicEvidenceContract;
+};
+
+type PublicEvidenceContract = {
+  contractVersion: "public_evidence_contract_v1";
+  claimLevel: "place_profile_context" | "surrounding_area_recorded";
+  claimText: string;
+  sourceProvider: "ikimon" | "GBIF";
+  sourceTypes: string[];
+  rights: {
+    licenseScope: string;
+    attribution: string;
+    attributionUrl: string | null;
+    commercialUse: "internal_policy_required" | "license_conditioned_by_cc0_cc_by_attribution";
+    thirdPartyMediaUsed: false;
+  };
+  location: {
+    publicLocationMode: "area_or_public_place" | "area_summary";
+    exactCoordinatesExposed: false;
+    geometryExposed: false;
+    minQueryGridM: number | null;
+  };
+  suppression: {
+    status: "insufficient_public_evidence" | "source_area_summary_only";
+    countRulesApplied: boolean;
+    sensitiveTaxaPolicy: "suppress_before_count_rules";
+    reason: string;
+  };
+  limitations: string[];
 };
 
 type GbifAreaSummaryRow = {
@@ -10333,7 +10362,8 @@ async function getGbifAreaSummaryForCell(env: Env, queryCell: GbifQueryCell, opt
       citationText: gbifAreaCitationText(),
       generatedAt: now.toISOString(),
       expiresAt: expires.toISOString(),
-      policy: gbifAreaDisplayPolicy()
+      policy: gbifAreaDisplayPolicy(),
+      evidenceContract: gbifAreaEvidenceContract(sourceUrlForGbifQueryCell(queryCell), "CC0_1_0,CC_BY_4_0")
     };
   }
 }
@@ -10437,7 +10467,8 @@ async function fetchGbifAreaSummary(env: Env, queryCell: GbifQueryCell): Promise
     citationText: gbifAreaCitationText(),
     generatedAt: now.toISOString(),
     expiresAt: expires.toISOString(),
-    policy: gbifAreaDisplayPolicy()
+    policy: gbifAreaDisplayPolicy(),
+    evidenceContract: gbifAreaEvidenceContract(sourceUrl, "CC0_1_0,CC_BY_4_0")
   };
 }
 
@@ -10689,7 +10720,8 @@ function gbifAreaSummaryFromRow(row: GbifAreaSummaryRow): GbifAreaSummary {
     citationText: row.citation_text,
     generatedAt: row.generated_at,
     expiresAt: row.expires_at,
-    policy: gbifAreaDisplayPolicy()
+    policy: gbifAreaDisplayPolicy(),
+    evidenceContract: gbifAreaEvidenceContract(row.source_url, "CC0_1_0,CC_BY_4_0")
   };
 }
 
@@ -10774,6 +10806,40 @@ function gbifAreaDisplayPolicy(): GbifAreaSummary["policy"] {
 
 function gbifAreaCitationText(): string {
   return "GBIF.org occurrence search summary, filtered to georeferenced Japan records without geospatial issues and CC0/CC BY licenses. This is an aggregate record summary, not a current-presence or population estimate.";
+}
+
+function gbifAreaEvidenceContract(sourceUrl: string, licenseScope: string): PublicEvidenceContract {
+  return {
+    contractVersion: "public_evidence_contract_v1",
+    claimLevel: "surrounding_area_recorded",
+    claimText: "この周辺で記録された公開記録のエリア集計です。現在その場所にいることや個体数を意味しません。",
+    sourceProvider: "GBIF",
+    sourceTypes: ["external_occurrence_area_summary"],
+    rights: {
+      licenseScope,
+      attribution: "GBIF.org",
+      attributionUrl: sourceUrl,
+      commercialUse: "license_conditioned_by_cc0_cc_by_attribution",
+      thirdPartyMediaUsed: false
+    },
+    location: {
+      publicLocationMode: "area_summary",
+      exactCoordinatesExposed: false,
+      geometryExposed: false,
+      minQueryGridM: GBIF_AREA_MIN_QUERY_GRID_M
+    },
+    suppression: {
+      status: "source_area_summary_only",
+      countRulesApplied: false,
+      sensitiveTaxaPolicy: "suppress_before_count_rules",
+      reason: "GBIFはエリア集計だけを返し、個別観察点・第三者写真・正確座標は公開レスポンスに含めません。"
+    },
+    limitations: [
+      "現在の生息や個体数を保証しません。",
+      "正確な観察座標と第三者写真は表示しません。",
+      "CC0/CC BY の公開記録だけをエリア集計として扱います。"
+    ]
+  };
 }
 
 function inferGbifTaxonGroup(payload: GbifSpeciesResponse): GbifAreaTaxon["taxonGroup"] {
@@ -17885,6 +17951,7 @@ function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
       ],
       updatedAt: row.updated_at ?? ""
     },
+    evidenceContract: fieldPublicProfileEvidenceContract(row, placeType),
     publicBrief: {
       title: `${row.name} Site Brief`,
       summary,
@@ -17912,6 +17979,40 @@ function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {
       source: "cloudflare_field_detail_readmodel",
       fullProfileAggregation: false
     }
+  };
+}
+
+function fieldPublicProfileEvidenceContract(row: FieldDetailReadmodelRow, placeType: string): PublicEvidenceContract {
+  return {
+    contractVersion: "public_evidence_contract_v1",
+    claimLevel: "place_profile_context",
+    claimText: "公開できる場所文脈だけを返すエリアプロフィールです。個別観察点や少数記録の推測を公開するものではありません。",
+    sourceProvider: "ikimon",
+    sourceTypes: ["cloudflare_field_detail_readmodel", "ikimon_place_registry"],
+    rights: {
+      licenseScope: "ikimon_public_profile_policy",
+      attribution: "ikimon.life",
+      attributionUrl: `https://ikimon.life/fields/${encodeURIComponent(row.field_id)}`,
+      commercialUse: "internal_policy_required",
+      thirdPartyMediaUsed: false
+    },
+    location: {
+      publicLocationMode: "area_or_public_place",
+      exactCoordinatesExposed: false,
+      geometryExposed: false,
+      minQueryGridM: null
+    },
+    suppression: {
+      status: "insufficient_public_evidence",
+      countRulesApplied: true,
+      sensitiveTaxaPolicy: "suppress_before_count_rules",
+      reason: `${placeType}の公開プロフィールでは、公開集約の最小件数・同意・感度確認を満たすまで生きものリストと季節傾向を抑制します。`
+    },
+    limitations: [
+      "exact pin と geometry は公開しません。",
+      "AI候補や少数記録を確定情報として扱いません。",
+      "管理者未確認の評価表現や改善余地は公開断定しません。"
+    ]
   };
 }
 
