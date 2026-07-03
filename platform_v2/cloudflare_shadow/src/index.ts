@@ -18354,14 +18354,14 @@ function stripUnsafePublicProfileKeys(value: unknown): unknown {
 }
 
 function enforceNoExactLocationContract(record: Record<string, unknown>): Record<string, unknown> {
-  const location = record.location;
-  if (isPublicProfileObject(location)) {
-    record.location = {
-      ...location,
-      exactCoordinatesExposed: false,
-      geometryExposed: false
-    };
-  }
+  if ("exactCoordinatesExposed" in record) record.exactCoordinatesExposed = false;
+  if ("geometryExposed" in record) record.geometryExposed = false;
+  const location = isPublicProfileObject(record.location) ? record.location : {};
+  record.location = {
+    ...location,
+    exactCoordinatesExposed: false,
+    geometryExposed: false
+  };
   const output = record.output;
   if (isPublicProfileObject(output)) {
     record.output = {

@@ -7523,6 +7523,8 @@ test("v1 public map read routes expose current shell contracts without exact coo
     evidence_contract_json: JSON.stringify({
       contractVersion: "manual_place_brief_pilot_v1",
       claimLevel: "place_context_brief",
+      exactCoordinatesExposed: true,
+      geometryExposed: true,
       location: {
         exactCoordinatesExposed: true,
         geometryExposed: true,
@@ -7544,6 +7546,8 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(siteBriefPayload.hypothesis.label, "水辺と緑地の境目を読む場所");
   assert.equal(siteBriefPayload.placeBrief.placeName, "浜松東部の水辺・緑地境界");
   assert.equal(siteBriefPayload.placeBrief.exactLocationExposed, false);
+  assert.equal(siteBriefPayload.evidenceContract.exactCoordinatesExposed, false);
+  assert.equal(siteBriefPayload.evidenceContract.geometryExposed, false);
   assert.equal(siteBriefPayload.evidenceContract.location.exactCoordinatesExposed, false);
   assert.equal(siteBriefPayload.evidenceContract.location.geometryExposed, false);
   assert.equal(siteBriefPayload.manualPilot.generationMethod, "manual_pilot");
