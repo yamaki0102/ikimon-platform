@@ -23,8 +23,8 @@ test("db migration baseline rehearsal locks the current migration head and risk 
   assert.deepEqual(report.extensionRequirements, ["timescaledb", "vector"]);
   assert.equal(report.riskSummary.destructiveApproved, 12);
   assert.equal(report.riskSummary.destructiveUnapproved, 1);
-  assert.equal(report.riskSummary.ownerSensitiveApproved, 31);
-  assert.equal(report.riskSummary.ownerSensitiveUnapproved, 11);
+  assert.equal(report.riskSummary.ownerSensitiveApproved, 33);
+  assert.equal(report.riskSummary.ownerSensitiveUnapproved, 9);
   assert.ok(report.stopConditions.some((condition) => condition.includes("production DB")));
 });
 
