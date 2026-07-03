@@ -1011,6 +1011,28 @@ interface FieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface FieldPublicProfileReadmodelRow {
+  field_id: string;
+  profile_status: string;
+  profile_json: string;
+  public_brief_json: string;
+  evidence_contract_json: string;
+  aggregation_gate_json: string;
+  source_records_json: string;
+  observation_count: number | null;
+  observer_count: number | null;
+  time_span_days: number | null;
+  source_record_count: number | null;
+  sensitive_source_record_count: number | null;
+  display_suppression_reason: string | null;
+  generation_run_id: string | null;
+  profile_policy_version: string;
+  aggregation_ruleset_version: string;
+  evidence_contract_version: string;
+  generated_at: string;
+  updated_at: string;
+}
+
 interface UserObservationFieldRow {
   field_id: string;
   owner_user_id: string;
@@ -17589,6 +17611,13 @@ async function getFieldDetailJson(fieldId: string, env: Env): Promise<Response> 
 }
 
 async function getFieldPublicProfileJson(fieldId: string, env: Env): Promise<Response> {
+  const profileRow = await getFieldPublicProfileReadmodelRowOrNullOnMissingTable(fieldId, env);
+  if (profileRow) {
+    return json(fieldPublicProfileReadmodelPayload(profileRow), 200, {
+      "cache-control": "public, max-age=60",
+      "x-ikimon-cloudflare-native": "field-public-profile-readmodel"
+    });
+  }
   const row = await getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId, env);
   if (!row) {
     return json({ ok: false, error: "field_not_found" }, 404, { "cache-control": "no-store" });
@@ -17890,6 +17919,30 @@ async function getFieldDetailReadmodelRowOrNullOnMissingTable(fieldId: string, e
   }
 }
 
+async function getFieldPublicProfileReadmodelRow(fieldId: string, env: Env): Promise<FieldPublicProfileReadmodelRow | null> {
+  if (!isSafeFieldId(fieldId)) return null;
+  return await env.OBS_DB.prepare(
+    `SELECT field_id, profile_status, profile_json, public_brief_json,
+            evidence_contract_json, aggregation_gate_json, source_records_json,
+            observation_count, observer_count, time_span_days, source_record_count,
+            sensitive_source_record_count, display_suppression_reason,
+            generation_run_id, profile_policy_version, aggregation_ruleset_version,
+            evidence_contract_version, generated_at, updated_at
+       FROM field_public_profile_readmodel
+      WHERE field_id = ?
+        AND profile_status = 'published'`
+  ).bind(fieldId).first<FieldPublicProfileReadmodelRow>();
+}
+
+async function getFieldPublicProfileReadmodelRowOrNullOnMissingTable(fieldId: string, env: Env): Promise<FieldPublicProfileReadmodelRow | null> {
+  try {
+    return await getFieldPublicProfileReadmodelRow(fieldId, env);
+  } catch (error) {
+    if (isMissingD1TableError(error, "field_public_profile_readmodel")) return null;
+    throw error;
+  }
+}
+
 function isMissingD1TableError(error: unknown, tableName: string): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes("D1_ERROR")
@@ -17935,6 +17988,105 @@ function fieldDetailPublicPayload(row: FieldDetailReadmodelRow) {
     entityKey: row.entity_key ?? "",
     updatedAt: row.updated_at ?? ""
   };
+}
+
+function fieldPublicProfileReadmodelPayload(row: FieldPublicProfileReadmodelRow) {
+  const profile = publicProfileReadmodelRecord(row.profile_json, {
+    fieldId: row.field_id,
+    profileStatus: row.profile_status,
+    profilePolicyVersion: row.profile_policy_version
+  });
+  const evidenceContract = enforceNoExactLocationContract(publicProfileReadmodelRecord(row.evidence_contract_json, {
+    contractVersion: row.evidence_contract_version,
+    claimLevel: "place_profile_context"
+  }));
+  const aggregationGate = enforceNoExactLocationContract(publicProfileReadmodelRecord(row.aggregation_gate_json, {
+    rulesetVersion: row.aggregation_ruleset_version,
+    displaySuppressionReason: row.display_suppression_reason ?? "minimum_threshold_not_met",
+    observed: {
+      observationCount: row.observation_count,
+      observerCount: row.observer_count,
+      timeSpanDays: row.time_span_days,
+      sourceRecordCount: row.source_record_count,
+      sensitiveSourceRecordCount: row.sensitive_source_record_count
+    }
+  }));
+  const publicBrief = publicProfileReadmodelRecord(row.public_brief_json, {});
+  return {
+    ok: true,
+    profile,
+    evidenceContract,
+    aggregationGate,
+    publicBrief,
+    privacy: {
+      exactLocationExposed: false,
+      geometryExposed: false,
+      publicCellPrecision: "readmodel_profile"
+    },
+    compatibility: {
+      source: "cloudflare_field_public_profile_readmodel",
+      fullProfileAggregation: true,
+      generationRunId: row.generation_run_id,
+      profileStatus: row.profile_status,
+      profilePolicyVersion: row.profile_policy_version,
+      aggregationRulesetVersion: row.aggregation_ruleset_version,
+      evidenceContractVersion: row.evidence_contract_version,
+      generatedAt: row.generated_at,
+      updatedAt: row.updated_at
+    }
+  };
+}
+
+function publicProfileReadmodelRecord(value: string, fallback: Record<string, unknown>): Record<string, unknown> {
+  const parsed = parseJsonRecord(value);
+  return stripUnsafePublicProfileKeys(parsed ?? fallback) as Record<string, unknown>;
+}
+
+const UNSAFE_PUBLIC_PROFILE_KEYS = new Set([
+  "lat",
+  "lng",
+  "latitude",
+  "longitude",
+  "polygon",
+  "geom_simplified",
+  "geometry",
+  "coordinates"
+]);
+
+function stripUnsafePublicProfileKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripUnsafePublicProfileKeys);
+  }
+  if (!isPublicProfileObject(value)) return value;
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (UNSAFE_PUBLIC_PROFILE_KEYS.has(key.toLowerCase())) continue;
+    sanitized[key] = stripUnsafePublicProfileKeys(child);
+  }
+  return sanitized;
+}
+
+function enforceNoExactLocationContract(record: Record<string, unknown>): Record<string, unknown> {
+  const location = record.location;
+  if (isPublicProfileObject(location)) {
+    record.location = {
+      ...location,
+      exactCoordinatesExposed: false,
+      geometryExposed: false
+    };
+  }
+  const output = record.output;
+  if (isPublicProfileObject(output)) {
+    record.output = {
+      ...output,
+      exactLocationExposed: false
+    };
+  }
+  return record;
+}
+
+function isPublicProfileObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function fieldPublicProfilePayload(row: FieldDetailReadmodelRow) {

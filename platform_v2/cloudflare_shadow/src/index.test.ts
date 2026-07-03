@@ -644,6 +644,28 @@ interface ProductionFieldDetailReadmodelRow {
   updated_at: string | null;
 }
 
+interface FieldPublicProfileReadmodelTestRow {
+  field_id: string;
+  profile_status: string;
+  profile_json: string;
+  public_brief_json: string;
+  evidence_contract_json: string;
+  aggregation_gate_json: string;
+  source_records_json: string;
+  observation_count: number | null;
+  observer_count: number | null;
+  time_span_days: number | null;
+  source_record_count: number | null;
+  sensitive_source_record_count: number | null;
+  display_suppression_reason: string | null;
+  generation_run_id: string | null;
+  profile_policy_version: string;
+  aggregation_ruleset_version: string;
+  evidence_contract_version: string;
+  generated_at: string;
+  updated_at: string;
+}
+
 interface UserObservationFieldTestRow {
   field_id: string;
   owner_user_id: string;
@@ -1656,6 +1678,7 @@ class FakeD1 {
   observationReassessmentRequests = new Map<string, ObservationReassessmentRequestRow>();
   candidateActionRequests = new Map<string, CandidateActionRequestRow>();
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
+  fieldPublicProfiles = new Map<string, FieldPublicProfileReadmodelTestRow>();
   userObservationFields = new Map<string, UserObservationFieldTestRow>();
   sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
   placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
@@ -4818,6 +4841,11 @@ class FakeStatement {
 
     if (normalized.startsWith("SELECT snapshot_key, generated_at, source_sample_size, public_record_count, refreshed_by, policy_json")) {
       return (this.db.publicMapSnapshotMeta as T | null) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT field_id, profile_status, profile_json, public_brief_json")) {
+      const row = this.db.fieldPublicProfiles.get(string(v[0]));
+      return (row?.profile_status === "published" ? row : null) as T | null;
     }
 
     if (normalized.startsWith("SELECT field_id, source, admin_level, name, name_kana, summary, prefecture, city")) {
@@ -19985,6 +20013,153 @@ test("production field detail public-profile API exposes Site Intelligence witho
   assert.equal(text.includes("137.70234"), false);
   assert.equal(text.includes("geom_simplified"), false);
   assert.equal(text.includes("polygon"), false);
+});
+
+test("production field public-profile API prefers dedicated profile readmodel snapshot", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const fieldId = "dedicated-public-profile-field";
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "osm_park",
+    admin_level: null,
+    name: "fallback detail name",
+    name_kana: null,
+    summary: "fallback detail summary",
+    prefecture: "静岡県",
+    city: "浜松市",
+    public_cell: "34.71,137.81",
+    public_lat: 34.71999,
+    public_lng: 137.81999,
+    radius_m: 200,
+    area_ha: 0.7,
+    has_polygon: 1,
+    has_simplified_geometry: 1,
+    certification_id: null,
+    certification_url: null,
+    official_url: null,
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "台帳確認済み",
+    source_confidence: 0.8,
+    valid_from: null,
+    valid_to: null,
+    entity_key: "osm:way:dedicated-profile",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  obs.fieldPublicProfiles.set(fieldId, {
+    field_id: fieldId,
+    profile_status: "published",
+    profile_json: JSON.stringify({
+      fieldId,
+      name: "専用プロフィール公園",
+      profileStatus: "published",
+      publicLocation: {
+        mode: "area_or_public_place",
+        label: "浜松市周辺",
+        lat: 34.71234,
+        lng: 137.81234,
+        polygon: [[137.81, 34.71]],
+        coordinates: [137.81234, 34.71234],
+        exactLocationExposed: false,
+        geometryExposed: false
+      },
+      confirmedLife: {
+        status: "published",
+        taxa: ["アブラゼミ", "ツバメ"],
+        coordinates: [137.81234, 34.71234]
+      }
+    }),
+    public_brief_json: JSON.stringify({
+      title: "専用プロフィール公園 Site Brief",
+      sections: [
+        { title: "場所の文脈", body: "公開条件を満たしたプロフィールです。" }
+      ]
+    }),
+    evidence_contract_json: JSON.stringify({
+      contractVersion: "public_evidence_contract_v1",
+      claimLevel: "place_profile_context",
+      sourceProvider: "ikimon",
+      location: {
+        publicLocationMode: "area_or_public_place",
+        exactCoordinatesExposed: true,
+        geometryExposed: true,
+        lat: 34.71234,
+        lng: 137.81234
+      }
+    }),
+    aggregation_gate_json: JSON.stringify({
+      rulesetVersion: "site_intelligence_aggregation_gate_v2",
+      publicationAllowed: true,
+      status: "published",
+      displaySuppressionReason: null,
+      observed: {
+        observationCount: 6,
+        observerCount: 3,
+        timeSpanDays: 42,
+        sourceRecordCount: 6,
+        sensitiveSourceRecordCount: 0
+      },
+      output: {
+        confirmedLifeAllowed: true,
+        seasonalTrendAllowed: true,
+        observationDensityAllowed: true,
+        exactLocationExposed: true
+      }
+    }),
+    source_records_json: JSON.stringify([
+      { observationId: "private-source", lat: 34.71234, lng: 137.81234 }
+    ]),
+    observation_count: 6,
+    observer_count: 3,
+    time_span_days: 42,
+    source_record_count: 6,
+    sensitive_source_record_count: 0,
+    display_suppression_reason: null,
+    generation_run_id: "run_profile_snapshot_001",
+    profile_policy_version: "cloudflare-site-intelligence-p0-v1",
+    aggregation_ruleset_version: "site_intelligence_aggregation_gate_v2",
+    evidence_contract_version: "public_evidence_contract_v1",
+    generated_at: "2026-07-03T01:00:00.000Z",
+    updated_at: "2026-07-03T01:05:00.000Z"
+  });
+
+  const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/public-profile`), productionEnv);
+  const payload = await response.json() as any;
+  const text = JSON.stringify(payload);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "field-public-profile-readmodel");
+  assert.equal(payload.ok, true);
+  assert.equal(payload.profile.name, "専用プロフィール公園");
+  assert.equal(payload.profile.name === "fallback detail name", false);
+  assert.equal(payload.compatibility.source, "cloudflare_field_public_profile_readmodel");
+  assert.equal(payload.compatibility.fullProfileAggregation, true);
+  assert.equal(payload.compatibility.generationRunId, "run_profile_snapshot_001");
+  assert.equal(payload.aggregationGate.publicationAllowed, true);
+  assert.equal(payload.aggregationGate.observed.observationCount, 6);
+  assert.equal(payload.aggregationGate.output.exactLocationExposed, false);
+  assert.equal(payload.evidenceContract.location.exactCoordinatesExposed, false);
+  assert.equal(payload.evidenceContract.location.geometryExposed, false);
+  assert.equal(payload.privacy.exactLocationExposed, false);
+  assert.equal(payload.privacy.geometryExposed, false);
+  assert.equal(payload.profile.publicLocation.lat, undefined);
+  assert.equal(payload.profile.publicLocation.lng, undefined);
+  assert.equal(payload.profile.publicLocation.polygon, undefined);
+  assert.equal(payload.profile.publicLocation.coordinates, undefined);
+  assert.equal(text.includes("34.71234"), false);
+  assert.equal(text.includes("137.81234"), false);
+  assert.equal(text.includes("private-source"), false);
+  assert.equal(text.includes("\"lat\""), false);
+  assert.equal(text.includes("\"lng\""), false);
+  assert.equal(text.includes("polygon"), false);
+  assert.equal(text.includes("coordinates"), false);
 });
 
 test("production field detail HTML renders Site Intelligence section from D1 readmodel", async () => {
