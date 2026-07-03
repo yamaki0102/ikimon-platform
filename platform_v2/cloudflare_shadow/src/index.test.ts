@@ -683,6 +683,60 @@ interface PlaceBriefPilotTestRow {
   updated_at: string;
 }
 
+interface SiteBriefArtifactTestRow {
+  artifact_id: string;
+  generation_run_id: string;
+  place_id: string;
+  public_cell: string;
+  artifact_scope: string;
+  artifact_status: string;
+  share_token: string | null;
+  brief_json: string;
+  evidence_contract_json: string;
+  decision_state: string;
+  limitations_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SiteBriefGenerationRunTestRow {
+  generation_run_id: string;
+  place_id: string;
+  status: string;
+  generation_method: string;
+  artifact_contract_version: string;
+  ruleset_version: string;
+  source_summary_json: string;
+  human_decision_json: string;
+  suppression_reason: string | null;
+  generated_at: string;
+  updated_at: string;
+}
+
+interface SiteBriefSourceLinkTestRow {
+  source_link_id: string;
+  generation_run_id: string;
+  source_type: string;
+  source_id: string;
+  source_role: string;
+  public_safe: number;
+  source_summary_json: string;
+  created_at: string;
+}
+
+interface SiteBriefFeedbackEventTestRow {
+  feedback_id: string;
+  artifact_id: string;
+  place_id: string;
+  feedback_type: string;
+  feedback_text: string;
+  buyer_segment: string | null;
+  use_case: string | null;
+  price_signal: string | null;
+  contact_intent: string | null;
+  created_at: string;
+}
+
 interface UserObservationFieldTestRow {
   field_id: string;
   owner_user_id: string;
@@ -1722,6 +1776,10 @@ class FakeD1 {
   productionFieldDetails = new Map<string, ProductionFieldDetailReadmodelRow>();
   fieldPublicProfiles = new Map<string, FieldPublicProfileReadmodelTestRow>();
   placeBriefPilots = new Map<string, PlaceBriefPilotTestRow>();
+  siteBriefArtifacts = new Map<string, SiteBriefArtifactTestRow>();
+  siteBriefGenerationRuns = new Map<string, SiteBriefGenerationRunTestRow>();
+  siteBriefSourceLinks: SiteBriefSourceLinkTestRow[] = [];
+  siteBriefFeedbackEvents: SiteBriefFeedbackEventTestRow[] = [];
   userObservationFields = new Map<string, UserObservationFieldTestRow>();
   sourceSnapshots = new Map<string, SourceSnapshotTestRow>();
   placeEnvironmentSnapshots = new Map<string, PlaceEnvironmentSnapshotTestRow>();
@@ -1812,6 +1870,22 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT OR IGNORE INTO users")) {
       this.db.users.add(string(v[0]));
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO site_brief_feedback_events")) {
+      this.db.siteBriefFeedbackEvents.push({
+        feedback_id: string(v[0]),
+        artifact_id: string(v[1]),
+        place_id: string(v[2]),
+        feedback_type: string(v[3]),
+        feedback_text: string(v[4]),
+        buyer_segment: nullableString(v[5]),
+        use_case: nullableString(v[6]),
+        price_signal: nullableString(v[7]),
+        contact_intent: nullableString(v[8]),
+        created_at: string(v[9])
+      });
       return {};
     }
 
@@ -4923,6 +4997,30 @@ class FakeStatement {
       return (row?.profile_status === "published" ? row : null) as T | null;
     }
 
+    if (normalized.startsWith("SELECT artifact_id, generation_run_id, place_id, public_cell")) {
+      if (normalized.includes("public_cell = ?")) {
+        const publicCell = string(v[0]);
+        const rows = [...this.db.siteBriefArtifacts.values()]
+          .filter((row) => row.artifact_status === "active" && row.artifact_scope === "external" && row.public_cell === publicCell)
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.artifact_id.localeCompare(b.artifact_id));
+        return (rows[0] as T | undefined) ?? null;
+      }
+      if (normalized.includes("share_token = ?")) {
+        const token = string(v[0]);
+        const row = [...this.db.siteBriefArtifacts.values()]
+          .find((candidate) =>
+            candidate.artifact_status === "active" &&
+            (candidate.artifact_scope === "external" || candidate.artifact_scope === "private_share") &&
+            candidate.share_token === token
+          );
+        return (row as T | undefined) ?? null;
+      }
+    }
+
+    if (normalized.startsWith("SELECT generation_run_id, place_id, status, generation_method")) {
+      return (this.db.siteBriefGenerationRuns.get(string(v[0])) as T | undefined) ?? null;
+    }
+
     if (normalized.startsWith("SELECT place_id, status, place_name, place_type, public_cell, location_label")) {
       const publicCell = string(v[0]);
       const rows = [...this.db.placeBriefPilots.values()]
@@ -5541,6 +5639,14 @@ class FakeStatement {
         .filter((row) => row.field_id === fieldId && row.actor_user_id === actorUserId && row.status === "draft")
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
         .slice(0, limit);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT source_link_id, generation_run_id, source_type, source_id, source_role")) {
+      const generationRunId = string(v[0]);
+      const rows = this.db.siteBriefSourceLinks
+        .filter((row) => row.generation_run_id === generationRunId && row.public_safe === 1)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.source_link_id.localeCompare(b.source_link_id))
+        .slice(0, 20);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN")) {
@@ -7563,6 +7669,205 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const kpiPayload = await kpiResponse.json() as any;
   assert.equal(kpiResponse.ok, true);
   assert.equal(kpiPayload.ok, true);
+});
+
+test("site brief artifact readmodel takes precedence over pilot and keeps provenance exact-free", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.placeBriefPilots.set("pilot-shadowed-waterside", {
+    place_id: "pilot-shadowed-waterside",
+    status: "published",
+    place_name: "pilot should not win",
+    place_type: "waterside_green_edge",
+    public_cell: "34.71,137.81",
+    location_label: "浜松市東部の粗い公開セル",
+    brief_json: JSON.stringify({ hypothesis: { label: "pilot fallback", confidence: 0.2 } }),
+    evidence_contract_json: "{}",
+    generation_method: "manual_pilot",
+    generation_run_id: "manual-place-brief-pilot-test",
+    policy_version: "manual_place_brief_pilot_v1",
+    created_by: "test",
+    generated_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  env.OBS_DB.siteBriefGenerationRuns.set("site-brief-run-waterside", {
+    generation_run_id: "site-brief-run-waterside",
+    place_id: "pilot-test-waterside",
+    status: "approved",
+    generation_method: "manual",
+    artifact_contract_version: "site_brief_artifact_v1",
+    ruleset_version: "site_brief_manual_pilot_v1",
+    source_summary_json: JSON.stringify({
+      sourceTypes: ["manual_place_brief_pilot", "public_area_context"],
+      exactCoordinatesExposed: true,
+      privateSource: { lat: 34.71234, lng: 137.81234 }
+    }),
+    human_decision_json: JSON.stringify({
+      decision: "approved_external",
+      reviewer: "site_intelligence_p0",
+      coordinates: [137.81234, 34.71234]
+    }),
+    suppression_reason: null,
+    generated_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  env.OBS_DB.siteBriefArtifacts.set("site-brief-artifact-waterside", {
+    artifact_id: "site-brief-artifact-waterside",
+    generation_run_id: "site-brief-run-waterside",
+    place_id: "pilot-test-waterside",
+    public_cell: "34.71,137.81",
+    artifact_scope: "external",
+    artifact_status: "active",
+    share_token: "share-waterside-test-20260703",
+    brief_json: JSON.stringify({
+      hypothesis: { label: "Artifact contractで読む水辺境界", confidence: 0.74 },
+      placeBrief: {
+        placeName: "浜松東部の水辺・緑地境界",
+        placeType: "waterside_green_edge",
+        publicLocationMode: "area_or_public_place",
+        exactLocationExposed: true,
+        geometryExposed: true,
+        lat: 34.71234,
+        lng: 137.81234
+      },
+      reasons: ["公開できる場所文脈と来歴だけで判断する brief です。"],
+      privateSource: { lat: 34.71234, lng: 137.81234 },
+      environmentEvidence: [{ label: "環境", value: "水辺", polygon: [[137.81234, 34.71234]] }]
+    }),
+    evidence_contract_json: JSON.stringify({
+      contractVersion: "site_brief_artifact_v1",
+      claimLevel: "site_brief",
+      exactCoordinatesExposed: true,
+      geometryExposed: true,
+      location: { exactCoordinatesExposed: true, geometryExposed: true, coordinates: [137.81234, 34.71234] }
+    }),
+    decision_state: "approved_external",
+    limitations_json: JSON.stringify([{ label: "少数記録は断定しない", lat: 34.71234, lng: 137.81234 }]),
+    created_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  env.OBS_DB.siteBriefSourceLinks.push({
+    source_link_id: "source-public-context",
+    generation_run_id: "site-brief-run-waterside",
+    source_type: "manual_place_brief_pilot",
+    source_id: "pilot-test-waterside",
+    source_role: "brief_seed",
+    public_safe: 1,
+    source_summary_json: JSON.stringify({ label: "公開安全な概要", lat: 34.71234, privateSource: { lng: 137.81234 } }),
+    created_at: "2026-07-03T00:00:00.000Z"
+  }, {
+    source_link_id: "source-secret-record",
+    generation_run_id: "site-brief-run-waterside",
+    source_type: "source_record",
+    source_id: "source-secret-001",
+    source_role: "raw_record",
+    public_safe: 0,
+    source_summary_json: JSON.stringify({ label: "出してはいけない個別記録" }),
+    created_at: "2026-07-03T00:00:00.000Z"
+  });
+
+  const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/site-brief?lat=34.71&lng=137.81&lang=ja"), env);
+  const payload = await response.json() as any;
+  assert.equal(response.ok, true, JSON.stringify(payload));
+  assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "site-brief-artifact-readmodel");
+  assert.equal(payload.hypothesis.label, "Artifact contractで読む水辺境界");
+  assert.equal(payload.manualPilot, undefined);
+  assert.equal(payload.placeBrief.exactLocationExposed, false);
+  assert.equal(payload.placeBrief.geometryExposed, false);
+  assert.equal(payload.siteBriefArtifact.artifactId, "site-brief-artifact-waterside");
+  assert.equal(payload.siteBriefArtifact.decisionState, "approved_external");
+  assert.equal(payload.siteBriefArtifact.exactLocationExposed, false);
+  assert.equal(payload.evidenceContract.exactCoordinatesExposed, false);
+  assert.equal(payload.evidenceContract.geometryExposed, false);
+  assert.equal(payload.evidenceContract.location.exactCoordinatesExposed, false);
+  assert.equal(payload.provenance.generationRunId, "site-brief-run-waterside");
+  assert.equal(payload.provenance.artifactContractVersion, "site_brief_artifact_v1");
+  assert.equal(payload.publicSafeSources.length, 1);
+  assert.equal(payload.publicSafeSources[0].sourceRole, "brief_seed");
+  assert.equal(payload.feedback.captureEnabled, false);
+  const text = JSON.stringify(payload);
+  assert.doesNotMatch(text, /pilot should not win|source-secret-001|出してはいけない個別記録/);
+  assert.doesNotMatch(text, /34\.71234|137\.81234|privateSource|polygon|coordinates/);
+});
+
+test("site brief share endpoint returns artifact and captures bounded validation feedback", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.siteBriefGenerationRuns.set("site-brief-run-share", {
+    generation_run_id: "site-brief-run-share",
+    place_id: "pilot-sanaruko-park-edge",
+    status: "approved",
+    generation_method: "manual",
+    artifact_contract_version: "site_brief_artifact_v1",
+    ruleset_version: "site_brief_manual_pilot_v1",
+    source_summary_json: JSON.stringify({ sourceTypes: ["manual_place_brief_pilot"] }),
+    human_decision_json: JSON.stringify({ decision: "share_for_buyer_validation" }),
+    suppression_reason: null,
+    generated_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+  env.OBS_DB.siteBriefArtifacts.set("site-brief-artifact-share", {
+    artifact_id: "site-brief-artifact-share",
+    generation_run_id: "site-brief-run-share",
+    place_id: "pilot-sanaruko-park-edge",
+    public_cell: "34.72,137.70",
+    artifact_scope: "private_share",
+    artifact_status: "active",
+    share_token: "share-sanaruko-test-20260703",
+    brief_json: JSON.stringify({
+      hypothesis: { label: "湖岸の季節変化を読むSite Brief", confidence: 0.72 },
+      placeBrief: { placeName: "佐鳴湖周辺の水辺プロフィール", publicLocationMode: "area_or_public_place" },
+      reasons: ["営業共有で用途と価格の反応を見るためのbriefです。"]
+    }),
+    evidence_contract_json: JSON.stringify({
+      contractVersion: "site_brief_artifact_v1",
+      claimLevel: "site_brief",
+      exactCoordinatesExposed: false,
+      geometryExposed: false
+    }),
+    decision_state: "approved_external",
+    limitations_json: JSON.stringify(["exact pin と個別記録は公開しません。"]),
+    created_at: "2026-07-03T00:00:00.000Z",
+    updated_at: "2026-07-03T00:00:00.000Z"
+  });
+
+  const shareResponse = await worker.fetch(new Request("https://shadow.test/api/v1/site-brief-shares/share-sanaruko-test-20260703"), env);
+  const sharePayload = await shareResponse.json() as any;
+  assert.equal(shareResponse.ok, true, JSON.stringify(sharePayload));
+  assert.equal(shareResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-artifact-share");
+  assert.equal(sharePayload.siteBriefArtifact.artifactScope, "private_share");
+  assert.equal(sharePayload.hypothesis.label, "湖岸の季節変化を読むSite Brief");
+  assert.equal(sharePayload.feedback.captureEnabled, true);
+  assert.match(sharePayload.feedback.endpoint, /\/api\/v1\/site-brief-shares\/share-sanaruko-test-20260703\/feedback$/);
+  assert.equal("shareToken" in sharePayload.siteBriefArtifact, false);
+
+  const longFeedback = "月次更新なら有料検証したい。".repeat(80);
+  const feedbackResponse = await worker.fetch(new Request("https://shadow.test/api/v1/site-brief-shares/share-sanaruko-test-20260703/feedback", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      feedbackType: "price_signal",
+      feedbackText: longFeedback,
+      buyerSegment: "facility_manager",
+      useCase: "internal_report",
+      priceSignal: "paid_pilot_possible",
+      contactIntent: "follow_up"
+    })
+  }), env);
+  const feedbackPayload = await feedbackResponse.json() as any;
+  assert.equal(feedbackResponse.status, 201, JSON.stringify(feedbackPayload));
+  assert.equal(feedbackResponse.headers.get("x-ikimon-cloudflare-native"), "site-brief-feedback-capture");
+  assert.equal(feedbackPayload.ok, true);
+  assert.equal(feedbackPayload.artifactId, "site-brief-artifact-share");
+  assert.equal(env.OBS_DB.siteBriefFeedbackEvents.length, 1);
+  const stored = env.OBS_DB.siteBriefFeedbackEvents[0];
+  if (!stored) throw new Error("site brief feedback event was not stored");
+  assert.equal(stored.artifact_id, "site-brief-artifact-share");
+  assert.equal(stored.place_id, "pilot-sanaruko-park-edge");
+  assert.equal(stored.feedback_type, "price_signal");
+  assert.equal(stored.feedback_text.length, 800);
+  assert.equal(stored.buyer_segment, "facility_manager");
+  assert.equal(stored.use_case, "internal_report");
+  assert.equal(stored.price_signal, "paid_pilot_possible");
+  assert.equal(stored.contact_intent, "follow_up");
 });
 
 test("privacy exact-coordinate gate keeps public map responses on public cells only", async () => {
