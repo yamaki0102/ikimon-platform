@@ -17612,6 +17612,40 @@ test("production original UI static assets serve materialized bytes from R2 with
   }
 });
 
+test("production legacy Service Worker aliases serve cleanup script without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    for (const path of ["/sw.js", "/sw.php"]) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+      const body = await response.text();
+      assert.equal(response.status, 200, path);
+      assert.equal(response.headers.get("content-type"), "application/javascript; charset=utf-8", path);
+      assert.equal(response.headers.get("cache-control"), "no-cache, no-store, must-revalidate", path);
+      assert.equal(response.headers.get("service-worker-allowed"), "/", path);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "legacy-service-worker-cleanup", path);
+      assert.match(body, /LEGACY_CACHE_PREFIXES/, path);
+      assert.match(body, /self\.registration\.unregister\(\)/, path);
+      assert.match(body, /No respondWith/, path);
+    }
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production original UI static asset misses return 404 without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
@@ -19794,11 +19828,17 @@ test("production record shell renders signed-in Cloudflare form for valid sessio
   assert.match(body, /id="record-media-video"/);
   assert.match(body, /id="record-submit-panel"/);
   assert.match(body, /id="record-status"/);
+  assert.match(body, /id="record-recovery"/);
   assert.match(body, /name="latitude"/);
   assert.match(body, /name="longitude"/);
   assert.match(body, /\/api\/v1\/observations\/upsert/);
   assert.match(body, /\/api\/v1\/videos\/direct-upload/);
   assert.match(body, /visibility: "private"/);
+  assert.match(body, /ikimon\.record\.recentAttempt\.v1/);
+  assert.match(body, /destinationForRecord/);
+  assert.match(body, /\/ja\/records\?view=mine/);
+  assert.match(body, /window\.location\.assign\(destination\)/);
+  assert.match(body, /記録の作成までは終わっています/);
   assert.doesNotMatch(body, /materialized record/);
 });
 

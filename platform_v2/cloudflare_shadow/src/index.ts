@@ -2449,6 +2449,10 @@ export const worker = {
       const referenceLibraryResponse = await handleReferenceLibraryRuntime(request, url, env);
       if (referenceLibraryResponse) return referenceLibraryResponse;
 
+      if ((request.method === "GET" || request.method === "HEAD") && isLegacyServiceWorkerCleanupPath(url.pathname)) {
+        return getLegacyServiceWorkerCleanupScript(request);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
         return getOriginalUiStaticAsset(request, url, env);
       }
@@ -19845,6 +19849,48 @@ function cacheControlForOriginalUiStaticAsset(pathname: string): string {
   return "public, max-age=31536000, immutable";
 }
 
+const LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT = `// ikimon.life no longer uses the legacy Service Worker URLs.
+// Returning this script from /sw.js and /sw.php lets browsers replace the old
+// worker, clear app-shell caches, and unregister the legacy registration.
+const LEGACY_CACHE_PREFIXES = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-', 'ikimon-app-'];
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    if ('caches' in self) {
+      const keys = await caches.keys();
+      await Promise.all(keys
+        .filter((key) => LEGACY_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)))
+        .map((key) => caches.delete(key)));
+    }
+    await self.clients.claim();
+    await self.registration.unregister();
+  })());
+});
+
+self.addEventListener('fetch', () => {
+  // No respondWith: every request falls through to the network.
+});
+`;
+
+function isLegacyServiceWorkerCleanupPath(pathname: string): boolean {
+  return pathname === "/sw.js" || pathname === "/sw.php";
+}
+
+function getLegacyServiceWorkerCleanupScript(request: Request): Response {
+  return new Response(request.method === "HEAD" ? null : LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT, {
+    headers: {
+      "content-type": "application/javascript; charset=utf-8",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "service-worker-allowed": "/",
+      "x-ikimon-cloudflare-native": "legacy-service-worker-cleanup"
+    }
+  });
+}
+
 async function getOriginalUiThumb(request: Request, url: URL, env: Env): Promise<Response> {
   const object = await env.ASSET_BUCKET.get(originalUiThumbKey(url.pathname));
   if (object?.body) {
@@ -20083,6 +20129,10 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       saved: "記録を保存しました",
       photoSaved: "写真1枚を同じ記録に保存しました。",
       videoSaved: "動画は保存済みです。",
+      savedRedirect: "記録一覧へ移動します。",
+      recordCreatedCheck: "記録の作成までは終わっています。記録一覧で確認できます。",
+      checkRecords: "記録一覧を確認する",
+      recentAttempt: "直前の投稿結果を確認できます。",
       missingMedia: "写真または動画を選択してください。",
       failed: "保存に失敗しました。時間をおいてもう一度試してください。"
     }
@@ -20100,6 +20150,10 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       saved: "Record saved",
       photoSaved: "Saved one photo to the same record.",
       videoSaved: "Video saved.",
+      savedRedirect: "Opening your records.",
+      recordCreatedCheck: "The record body was created. Check your records to confirm the media.",
+      checkRecords: "Check records",
+      recentAttempt: "You can check the last posting attempt.",
       missingMedia: "Choose a photo or video.",
       failed: "Save failed. Try again later."
     };
@@ -20136,6 +20190,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
+    .cf-record-status a,.cf-record-recovery a{color:var(--teal);font-weight:900;text-decoration:underline;text-underline-offset:3px}
+    .cf-record-recovery{margin:0 0 12px;padding:10px 12px;border:1px solid #bfe6d5;border-radius:12px;background:#f2fbf6;color:var(--ink);font-size:13px;font-weight:800}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
   </style>
 </head>
@@ -20149,6 +20205,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       <h1>${escapeHtml(title)}</h1>
       <p>${escapeHtml(mediaCopy.prompt)}</p>
     </section>
+    <div id="record-recovery" class="cf-record-recovery" hidden></div>
     <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
       <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>image/jpeg, image/png</span><input id="record-media-photo" type="file" accept="image/*"></label>
       <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>video/mp4</span><input id="record-media-video" type="file" accept="video/*"></label>
@@ -20169,17 +20226,67 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(mediaCopy)};
+    const recordsHref = ${JSON.stringify(`${prefix}/records?view=mine`)};
+    const recentAttemptKey = "ikimon.record.recentAttempt.v1";
+    const recentAttemptMaxAgeMs = 24 * 60 * 60 * 1000;
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
+    const recovery = document.getElementById("record-recovery");
     const submitPanel = document.getElementById("record-submit-panel");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
-    function setStatus(message, error) {
+    function destinationForRecord(visitId) {
+      const target = new URL(recordsHref, window.location.href);
+      target.searchParams.set("saved", "1");
+      if (visitId) target.searchParams.set("highlight", visitId);
+      return target.pathname + target.search;
+    }
+    function setLinkedMessage(target, message, href) {
+      if (!target) return;
+      target.textContent = "";
+      target.append(document.createTextNode(message));
+      if (href) {
+        target.append(document.createTextNode(" "));
+        const link = document.createElement("a");
+        link.href = href;
+        link.textContent = copy.checkRecords;
+        target.append(link);
+      }
+    }
+    function setStatus(message, error, href) {
       if (!status) return;
-      status.textContent = message;
+      setLinkedMessage(status, message, href);
       status.style.color = error ? "#b42318" : "";
     }
+    function rememberAttempt(state, visitId) {
+      try {
+        localStorage.setItem(recentAttemptKey, JSON.stringify({
+          state,
+          visitId: visitId || "",
+          updatedAt: Date.now()
+        }));
+      } catch {
+        // localStorage may be unavailable in private browsing or constrained webviews.
+      }
+    }
+    function showRecentAttempt() {
+      if (!recovery) return;
+      try {
+        const raw = localStorage.getItem(recentAttemptKey);
+        if (!raw) return;
+        const attempt = JSON.parse(raw);
+        if (!attempt || typeof attempt.updatedAt !== "number") return;
+        if (Date.now() - attempt.updatedAt > recentAttemptMaxAgeMs) return;
+        const visitId = typeof attempt.visitId === "string" ? attempt.visitId : "";
+        const href = visitId ? destinationForRecord(visitId) : recordsHref;
+        setLinkedMessage(recovery, copy.recentAttempt, href);
+        recovery.hidden = false;
+      } catch {
+        // Ignore malformed recovery data; the form must remain usable.
+      }
+    }
+    showRecentAttempt();
     function selectedFile() {
       const input = mediaKind === "video" ? videoInput : photoInput;
       return input && input.files && input.files[0] ? input.files[0] : null;
@@ -20227,7 +20334,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
       const observationId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      let visitId = "";
       setStatus(copy.saving, false);
+      rememberAttempt("saving", observationId);
       try {
         if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           throw new Error("invalid_coordinates");
@@ -20244,7 +20353,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           taxon: { vernacularName: "未同定", rank: "unknown" },
           sourcePayload: { source: "cloudflare_record_session_form", mediaKind }
         });
-        const visitId = String(observation.visitId || observation.observationId || observationId);
+        visitId = String(observation.visitId || observation.observationId || observationId);
+        rememberAttempt("upserted", visitId);
         if (mediaKind === "photo") {
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             filename: file.name || "record-photo.jpg",
@@ -20253,7 +20363,10 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
             mediaRole: "primary",
             facePrivacy: "no_faces"
           });
-          setStatus(copy.saved + " " + copy.photoSaved, false);
+          const destination = destinationForRecord(visitId);
+          rememberAttempt("saved", visitId);
+          setStatus(copy.saved + " " + copy.photoSaved + " " + copy.savedRedirect, false, destination);
+          window.setTimeout(() => window.location.assign(destination), 650);
           return;
         }
         const direct = await postJson("/api/v1/videos/direct-upload", {
@@ -20277,10 +20390,18 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           durationMs: 1000,
           readyToStream: true
         });
-        setStatus(copy.saved + " " + copy.videoSaved, false);
+        const destination = destinationForRecord(visitId);
+        rememberAttempt("saved", visitId);
+        setStatus(copy.saved + " " + copy.videoSaved + " " + copy.savedRedirect, false, destination);
+        window.setTimeout(() => window.location.assign(destination), 650);
       } catch (error) {
         console.error(error);
-        setStatus(copy.failed, true);
+        if (visitId) {
+          rememberAttempt("upserted", visitId);
+          setStatus(copy.recordCreatedCheck, true, destinationForRecord(visitId));
+        } else {
+          setStatus(copy.failed, true);
+        }
       }
     });
   })();
