@@ -55,6 +55,13 @@ type SessionPayload = {
   error?: string;
 };
 
+type DirectPostPayload = {
+  userId?: string;
+  latitude?: number;
+  longitude?: number;
+  sourcePayload?: Record<string, unknown>;
+};
+
 function firstMatch(source: string, pattern: RegExp): string | null {
   const match = source.match(pattern);
   return match?.[1] ? decodeURIComponent(match[1]) : null;
@@ -196,6 +203,56 @@ async function installRecordMocks(page: Page, userId: string, kpiPayloads: KpiPa
   });
 }
 
+async function installGlobalCameraDirectPostMocks(
+  page: Page,
+  userId: string,
+  kpiPayloads: KpiPayload[],
+  upsertPayloads: DirectPostPayload[],
+): Promise<void> {
+  await page.route("**/api/v1/ui-kpi/events", async (route) => {
+    const payload = route.request().postDataJSON() as KpiPayload;
+    kpiPayloads.push(payload);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, eventId: `mock-global-camera-kpi-${kpiPayloads.length}` }),
+    });
+  });
+
+  await page.route("**/api/v1/observations/upsert", async (route) => {
+    const payload = route.request().postDataJSON() as DirectPostPayload;
+    upsertPayloads.push(payload);
+    expect(payload.userId).toBe(userId);
+    expect(payload.latitude).toBeCloseTo(34.7108, 4);
+    expect(payload.longitude).toBeCloseTo(137.7261, 4);
+    expect(payload.sourcePayload?.source).toBe("global_photo_tray");
+    expect(payload.sourcePayload?.media_count).toBe(1);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        visitId: MOCK_VISIT_ID,
+        occurrenceId: MOCK_OCCURRENCE_ID,
+        occurrenceIds: [MOCK_OCCURRENCE_ID],
+        placeId: MOCK_PLACE_ID,
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/observations/*/photos/upload", async (route) => {
+    const payload = route.request().postDataJSON() as { filename?: string; mediaRole?: string; base64Data?: string };
+    expect(payload.filename).toBeTruthy();
+    expect(payload.mediaRole).toBe("primary_subject");
+    expect(payload.base64Data?.length ?? 0).toBeGreaterThan(20);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, photo: { publicUrl: "/uploads/qa/global-camera.jpg" } }),
+    });
+  });
+}
+
 function tinyPngFile(): { name: string; mimeType: string; buffer: Buffer } {
   return {
     name: "record-funnel.png",
@@ -257,6 +314,63 @@ async function installFakeCamera(page: Page): Promise<void> {
         },
       },
     });
+  });
+}
+
+async function installFakeGeolocation(page: Page, mode: "success" | "failure"): Promise<void> {
+  await page.addInitScript(({ geoMode }) => {
+    type GeoCall = { type: string; options: PositionOptions | null; at: number };
+    const globalWindow = window as unknown as { __ikimonGeoCalls?: GeoCall[] };
+    const geoCalls: GeoCall[] = [];
+    globalWindow.__ikimonGeoCalls = geoCalls;
+    const fakePosition = {
+      coords: {
+        latitude: 34.7108,
+        longitude: 137.7261,
+        accuracy: 15,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now(),
+    };
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(success: PositionCallback, error?: PositionErrorCallback, options?: PositionOptions) {
+          geoCalls.push({ type: "getCurrentPosition", options: options ?? null, at: Date.now() });
+          setTimeout(() => {
+            if (geoMode === "success") {
+              success(fakePosition as GeolocationPosition);
+              return;
+            }
+            error?.({ code: 1, message: "permission denied by test", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError);
+          }, 0);
+        },
+        watchPosition(success: PositionCallback, _error?: PositionErrorCallback, options?: PositionOptions) {
+          geoCalls.push({ type: "watchPosition", options: options ?? null, at: Date.now() });
+          setTimeout(() => success(fakePosition as GeolocationPosition), 0);
+          return 42;
+        },
+        clearWatch() {},
+      },
+    });
+  }, { geoMode: mode });
+}
+
+async function clickCapturedPhotoDirectPostButton(page: Page): Promise<void> {
+  const submitButton = page.locator("[data-global-record-camera-capture]");
+  await expect(submitButton).toContainText("この1枚を記録");
+  await submitButton.click();
+  await expect(submitButton).toContainText("もう一度押すと記録");
+  await submitButton.click();
+}
+
+async function geolocationCallCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const globalWindow = window as unknown as { __ikimonGeoCalls?: Array<{ type: string }> };
+    return (globalWindow.__ikimonGeoCalls ?? []).filter((call) => call.type === "getCurrentPosition").length;
   });
 }
 
@@ -406,13 +520,97 @@ test.describe("record funnel staging QA", () => {
       }
     });
   }
+
+  test("global camera direct post requests submit-time location before saving", async ({ browser }) => {
+    const profile = CAMERA_DEVICE_VIEWPORTS[0];
+    const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
+    await addSessionCookie(context, sessionCookie);
+    const page = await context.newPage();
+    const kpiPayloads: KpiPayload[] = [];
+    const upsertPayloads: DirectPostPayload[] = [];
+
+    try {
+      await installFakeCamera(page);
+      await installFakeGeolocation(page, "success");
+      await installGlobalCameraDirectPostMocks(page, userId, kpiPayloads, upsertPayloads);
+      await suppressMapLibreForSmoke(page);
+
+      await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
+      await page.locator('[data-global-record-trigger="photo"]').click();
+      const sheet = page.locator("[data-global-record-camera-sheet]");
+      await expect(sheet).toBeVisible();
+      await expect(sheet).toHaveAttribute("data-camera-active", "true");
+
+      await page.locator("[data-global-record-camera-capture]").click();
+      await clickCapturedPhotoDirectPostButton(page);
+
+      await expect(page.locator("[data-global-record-camera-status]")).toContainText("記録を保存しました");
+      await expect(page.locator('[data-global-record-saved-action="records"]')).toBeVisible();
+      await expect.poll(() => geolocationCallCount(page)).toBe(1);
+      expect(upsertPayloads).toHaveLength(1);
+      expect(actions(kpiPayloads)).toEqual(expect.arrayContaining([
+        "location_request_ms",
+        "observation_upsert_ms",
+        "photo_upload_ms",
+        "direct_post_total_ms",
+      ]));
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("global camera direct post preserves draft when submit-time location is denied", async ({ browser }) => {
+    const profile = CAMERA_DEVICE_VIEWPORTS[0];
+    const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
+    await addSessionCookie(context, sessionCookie);
+    const page = await context.newPage();
+    const kpiPayloads: KpiPayload[] = [];
+    let upsertCalled = false;
+
+    try {
+      await installFakeCamera(page);
+      await installFakeGeolocation(page, "failure");
+      await page.route("**/api/v1/ui-kpi/events", async (route) => {
+        const payload = route.request().postDataJSON() as KpiPayload;
+        kpiPayloads.push(payload);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, eventId: `mock-global-camera-kpi-${kpiPayloads.length}` }),
+        });
+      });
+      await page.route("**/api/v1/observations/upsert", async (route) => {
+        upsertCalled = true;
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: false, error: "upsert_should_not_run_without_location" }),
+        });
+      });
+      await suppressMapLibreForSmoke(page);
+
+      await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
+      await page.locator('[data-global-record-trigger="photo"]').click();
+      await expect(page.locator("[data-global-record-camera-sheet]")).toBeVisible();
+
+      await page.locator("[data-global-record-camera-capture]").click();
+      await clickCapturedPhotoDirectPostButton(page);
+
+      await expect.poll(() => geolocationCallCount(page)).toBe(1);
+      await page.waitForURL(/\/record\?.*draft=1/, { timeout: 30_000 });
+      expect(upsertCalled).toBe(false);
+      expect(actions(kpiPayloads)).toContain("location_request_failed");
+    } finally {
+      await context.close();
+    }
+  });
 });
 
 test.describe("record entry viewport reachability", () => {
   for (const profile of VIEWPORTS) {
     for (const route of RECORD_ENTRY_ROUTES) {
       test(`record start remains reachable on ${route.slug} (${profile.slug})`, async ({ browser }) => {
-        const context = await newStagingContext(browser, profile);
+        const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
         const page = await context.newPage();
 
         try {
