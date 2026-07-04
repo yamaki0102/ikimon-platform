@@ -257,6 +257,10 @@ function normalizeObservationCoordinates(input: ObservationUpsertInput): {
   };
 }
 
+function isGlobalPhotoTrayDirectPost(input: ObservationUpsertInput): boolean {
+  return input.sourcePayload?.source === "global_photo_tray";
+}
+
 function hasObservationPlaceAnchor(
   input: ObservationUpsertInput,
   locality: NormalizedObservationLocality,
@@ -547,6 +551,9 @@ function buildServerLocationAuditPayload(
 export async function upsertObservation(input: ObservationUpsertInput): Promise<ObservationWriteResult> {
   assertObservationInput(input);
   const coordinates = normalizeObservationCoordinates(input);
+  if (!coordinates.hasLocation && isGlobalPhotoTrayDirectPost(input)) {
+    throw new Error("missing_location");
+  }
   input.latitude = coordinates.latitude;
   input.longitude = coordinates.longitude;
   const hasLocation = coordinates.hasLocation;

@@ -167,8 +167,15 @@ async function installRecordMocks(page: Page, userId: string, kpiPayloads: KpiPa
   });
 
   await page.route("**/api/v1/observations/upsert", async (route) => {
-    const payload = route.request().postDataJSON() as { userId?: string; sourcePayload?: Record<string, unknown> };
+    const payload = route.request().postDataJSON() as {
+      userId?: string;
+      latitude?: number;
+      longitude?: number;
+      sourcePayload?: Record<string, unknown>;
+    };
     expect(payload.userId).toBe(userId);
+    expect(payload.latitude).toBeCloseTo(34.7108, 4);
+    expect(payload.longitude).toBeCloseTo(137.7261, 4);
     expect(payload.sourcePayload?.location_provenance).toBeTruthy();
     await route.fulfill({
       status: 200,
@@ -323,6 +330,17 @@ async function installFakeGeolocation(page: Page, mode: "success" | "failure"): 
     const globalWindow = window as unknown as { __ikimonGeoCalls?: GeoCall[] };
     const geoCalls: GeoCall[] = [];
     globalWindow.__ikimonGeoCalls = geoCalls;
+    const geoCallCountKey = "__ikimonGeoCallCount";
+    const recordGeoCall = (call: GeoCall) => {
+      geoCalls.push(call);
+      if (call.type !== "getCurrentPosition") return;
+      try {
+        const current = Number(window.sessionStorage.getItem(geoCallCountKey) ?? "0");
+        window.sessionStorage.setItem(geoCallCountKey, String((Number.isFinite(current) ? current : 0) + 1));
+      } catch {
+        // Session storage can be unavailable in constrained browser modes; in-memory calls still cover same-page assertions.
+      }
+    };
     const fakePosition = {
       coords: {
         latitude: 34.7108,
@@ -339,7 +357,7 @@ async function installFakeGeolocation(page: Page, mode: "success" | "failure"): 
       configurable: true,
       value: {
         getCurrentPosition(success: PositionCallback, error?: PositionErrorCallback, options?: PositionOptions) {
-          geoCalls.push({ type: "getCurrentPosition", options: options ?? null, at: Date.now() });
+          recordGeoCall({ type: "getCurrentPosition", options: options ?? null, at: Date.now() });
           setTimeout(() => {
             if (geoMode === "success") {
               success(fakePosition as GeolocationPosition);
@@ -349,7 +367,7 @@ async function installFakeGeolocation(page: Page, mode: "success" | "failure"): 
           }, 0);
         },
         watchPosition(success: PositionCallback, _error?: PositionErrorCallback, options?: PositionOptions) {
-          geoCalls.push({ type: "watchPosition", options: options ?? null, at: Date.now() });
+          recordGeoCall({ type: "watchPosition", options: options ?? null, at: Date.now() });
           setTimeout(() => success(fakePosition as GeolocationPosition), 0);
           return 42;
         },
@@ -370,7 +388,13 @@ async function clickCapturedPhotoDirectPostButton(page: Page): Promise<void> {
 async function geolocationCallCount(page: Page): Promise<number> {
   return page.evaluate(() => {
     const globalWindow = window as unknown as { __ikimonGeoCalls?: Array<{ type: string }> };
-    return (globalWindow.__ikimonGeoCalls ?? []).filter((call) => call.type === "getCurrentPosition").length;
+    const memoryCount = (globalWindow.__ikimonGeoCalls ?? []).filter((call) => call.type === "getCurrentPosition").length;
+    try {
+      const storedCount = Number(window.sessionStorage.getItem("__ikimonGeoCallCount") ?? "0");
+      return Math.max(memoryCount, Number.isFinite(storedCount) ? storedCount : 0);
+    } catch {
+      return memoryCount;
+    }
   });
 }
 

@@ -385,6 +385,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /capture_to_review_ms/);
   assert.match(html, /location_request_ms/);
   assert.match(html, /location_request_failed/);
+  assert.match(html, /timeout: 5000/);
+  assert.match(html, /maximumAge: 60000/);
+  assert.match(html, /browser_geolocation_on_submit/);
   assert.doesNotMatch(html, /gps_wait_ms/);
   assert.match(html, /camera_start_ms/);
   assert.match(html, /photo_prepare_ms/);

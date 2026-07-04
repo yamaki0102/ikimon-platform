@@ -9131,6 +9131,28 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(obs.civicObservationContexts.size, 0);
 });
 
+test("v1 observation upsert rejects global camera direct posts without coordinates", async () => {
+  const { env, obs } = createEnv();
+  const response = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      observationId: "global-camera-missing-location",
+      clientSubmissionId: "global-camera-missing-location-1",
+      userId: "global-camera-user",
+      observedAt: "2026-07-04T08:30:00.000Z",
+      taxon: { vernacularName: "カメラ投稿テスト", rank: "species" },
+      sourcePayload: { source: "global_photo_tray", media_count: 1 },
+    }),
+  }), env);
+  const payload = await response.json() as { ok?: boolean; error?: string };
+
+  assert.equal(response.status, 400, JSON.stringify(payload));
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "missing_location");
+  assert.equal(obs.observations.has("global-camera-missing-location"), false);
+});
+
 test("v1 observation upsert honors private visibility before public readmodel refresh", async () => {
   const { env, obs } = createEnv();
   const response = await post("/api/v1/observations/upsert", env, {

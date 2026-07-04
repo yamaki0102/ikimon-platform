@@ -24808,7 +24808,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     assertNonEmpty(input.userId, "userId");
   }
   if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
-    throw new HttpError(400, "missing_location");
+    return json({ ok: false, error: "missing_location" }, 400, { "cache-control": "no-store" });
   }
   assertNonEmpty(input.observedAt, "observedAt");
 
