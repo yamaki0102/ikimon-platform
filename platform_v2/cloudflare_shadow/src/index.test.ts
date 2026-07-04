@@ -17579,13 +17579,6 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(sitemap.headers.get("content-type"), "application/xml; charset=utf-8");
     assert.equal(sitemap.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
-    const appSw = await worker.fetch(new Request("https://ikimon.life/app-sw.js"), productionEnv);
-    assert.equal(appSw.status, 200);
-    assert.equal(await appSw.text(), "const VERSION = 'ikimon-app-v2';");
-    assert.equal(appSw.headers.get("content-type"), "application/javascript; charset=utf-8");
-    assert.equal(appSw.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
-    assert.equal(appSw.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
-
     const offline = await worker.fetch(new Request("https://ikimon.life/offline.html"), productionEnv);
     assert.equal(offline.status, 200);
     assert.equal(await offline.text(), "<!doctype html><title>offline</title>");
@@ -17605,6 +17598,45 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(invasive.headers.get("content-type"), "image/webp");
     assert.equal(invasive.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production app Service Worker is Worker-native and does not cache record navigation", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/static/app-sw.js", "const VERSION = 'ikimon-app-v2';", {
+    httpMetadata: { contentType: "application/javascript; charset=utf-8" }
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/app-sw.js"), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "application/javascript; charset=utf-8");
+    assert.equal(response.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
+    assert.equal(response.headers.get("service-worker-allowed"), "/");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "app-service-worker");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), null);
+    assert.match(body, /ikimon-app-v7/);
+    assert.match(body, /RECORD_NAV_RE/);
+    assert.match(body, /REFRESH_NAV_RE[\s\S]*record/);
+    assert.match(body, /isRecordShell \|\| isMapShell \|\| isPersonalShell/);
+    assert.match(body, /&& !isRecordShell && !isMapShell && !isPersonalShell/);
+    assert.doesNotMatch(body, /ikimon-app-v2/);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {

@@ -2449,6 +2449,10 @@ export const worker = {
       const referenceLibraryResponse = await handleReferenceLibraryRuntime(request, url, env);
       if (referenceLibraryResponse) return referenceLibraryResponse;
 
+      if ((request.method === "GET" || request.method === "HEAD") && isAppServiceWorkerPath(url.pathname)) {
+        return getAppServiceWorkerScript(request);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isLegacyServiceWorkerCleanupPath(url.pathname)) {
         return getLegacyServiceWorkerCleanupScript(request);
       }
@@ -19847,6 +19851,135 @@ function cacheControlForOriginalUiStaticAsset(pathname: string): string {
   if (pathname === "/app-sw.js" || pathname === "/offline.html") return "no-cache, no-store, must-revalidate";
   if (pathname === "/manifest.webmanifest") return "public, max-age=300";
   return "public, max-age=31536000, immutable";
+}
+
+const APP_SERVICE_WORKER_SCRIPT = `const VERSION = 'ikimon-app-v7';
+const SHELL_CACHE = VERSION + ':shell';
+const STATIC_CACHE = VERSION + ':static';
+const OFFLINE_URL = '/offline.html';
+const OFFLINE_URLS = {
+  ja: '/offline.html?lang=ja',
+  en: '/offline.html?lang=en',
+  es: '/offline.html?lang=es',
+  'pt-br': '/offline.html?lang=pt-BR'
+};
+const STATIC_ASSETS = [
+  OFFLINE_URL,
+  OFFLINE_URLS.ja,
+  OFFLINE_URLS.en,
+  OFFLINE_URLS.es,
+  OFFLINE_URLS['pt-br'],
+  '/assets/brand/app-icon-192.png',
+  '/assets/brand/app-icon-192-maskable.png',
+  '/assets/brand/app-icon-512.png',
+  '/assets/brand/favicon-32.png'
+];
+const APP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|guide\\/?$|record\\/?$|map\\/?$)/;
+const RECORD_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?record\\/?$/;
+const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
+const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$)/;
+const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:record\\/?$|records\\/?$|map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$)/;
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key.startsWith('ikimon-app-') && !key.startsWith(VERSION)).map((key) => caches.delete(key)));
+    await self.clients.claim();
+    const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(clientsList.map((client) => {
+      try {
+        const url = new URL(client.url);
+        if (url.origin === location.origin && REFRESH_NAV_RE.test(url.pathname) && url.searchParams.get('sw') !== VERSION) {
+          url.searchParams.set('sw', VERSION);
+          return client.navigate(url.toString());
+        }
+      } catch (_) {
+        return undefined;
+      }
+      return undefined;
+    }));
+  })());
+});
+
+async function networkFirstNavigation(request) {
+  const cache = await caches.open(SHELL_CACHE);
+  const path = new URL(request.url).pathname;
+  const isRecordShell = RECORD_NAV_RE.test(path);
+  const isMapShell = MAP_NAV_RE.test(path);
+  const isPersonalShell = PERSONAL_NAV_RE.test(path);
+  try {
+    const response = await fetch(request, (isRecordShell || isMapShell || isPersonalShell) ? { cache: 'no-store' } : undefined);
+    if (response && response.ok && APP_NAV_RE.test(path) && !isRecordShell && !isMapShell && !isPersonalShell) {
+      cache.put(request, response.clone()).catch(() => undefined);
+    }
+    return response;
+  } catch (_) {
+    if (isRecordShell || isMapShell || isPersonalShell) {
+      const match = path.match(/^\\/(ja|en|es|pt-br)(?:\\/|$)/);
+      const offlineUrl = match && OFFLINE_URLS[match[1]] ? OFFLINE_URLS[match[1]] : OFFLINE_URLS.ja;
+      return (await caches.match(offlineUrl))
+        || (await caches.match(OFFLINE_URL))
+        || new Response('offline', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    const match = path.match(/^\\/(ja|en|es|pt-br)(?:\\/|$)/);
+    const offlineUrl = match && OFFLINE_URLS[match[1]] ? OFFLINE_URLS[match[1]] : OFFLINE_URLS.ja;
+    return (await caches.match(offlineUrl))
+      || (await caches.match(OFFLINE_URL))
+      || new Response('offline', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  }
+}
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== location.origin) return;
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstNavigation(request));
+    return;
+  }
+  if (url.pathname.startsWith('/assets/img/')) {
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+      if (response && response.ok) caches.open(STATIC_CACHE).then((cache) => cache.put(request, response.clone())).catch(() => undefined);
+      return response;
+    })));
+  }
+});
+
+async function notifyOutboxSyncClients(reason) {
+  const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  await Promise.all(clientsList.map((client) => client.postMessage({
+    type: 'ikimon:app-outbox-sync',
+    reason: reason || 'background-sync'
+  })));
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag !== 'ikimon-app-outbox-sync') return;
+  event.waitUntil(notifyOutboxSyncClients('background-sync'));
+});
+`;
+
+function isAppServiceWorkerPath(pathname: string): boolean {
+  return pathname === "/app-sw.js";
+}
+
+function getAppServiceWorkerScript(request: Request): Response {
+  return new Response(request.method === "HEAD" ? null : APP_SERVICE_WORKER_SCRIPT, {
+    headers: {
+      "content-type": "application/javascript; charset=utf-8",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "service-worker-allowed": "/",
+      "x-ikimon-cloudflare-native": "app-service-worker"
+    }
+  });
 }
 
 const LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT = `// ikimon.life no longer uses the legacy Service Worker URLs.
