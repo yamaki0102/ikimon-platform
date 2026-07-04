@@ -62,6 +62,12 @@ type DirectPostPayload = {
   sourcePayload?: Record<string, unknown>;
 };
 
+type PhotoUploadPayload = {
+  filename?: string;
+  mediaRole?: string;
+  base64Data?: string;
+};
+
 function firstMatch(source: string, pattern: RegExp): string | null {
   const match = source.match(pattern);
   return match?.[1] ? decodeURIComponent(match[1]) : null;
@@ -256,6 +262,57 @@ async function installGlobalCameraDirectPostMocks(
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ ok: true, photo: { publicUrl: "/uploads/qa/global-camera.jpg" } }),
+    });
+  });
+}
+
+async function installGlobalCameraDraftRecoveryMocks(
+  page: Page,
+  userId: string,
+  kpiPayloads: KpiPayload[],
+  upsertPayloads: DirectPostPayload[],
+  photoUploadPayloads: PhotoUploadPayload[],
+): Promise<void> {
+  await page.route("**/api/v1/ui-kpi/events", async (route) => {
+    const payload = route.request().postDataJSON() as KpiPayload;
+    kpiPayloads.push(payload);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, eventId: `mock-global-camera-kpi-${kpiPayloads.length}` }),
+    });
+  });
+
+  await page.route("**/api/v1/observations/upsert", async (route) => {
+    const payload = route.request().postDataJSON() as DirectPostPayload;
+    upsertPayloads.push(payload);
+    expect(payload.userId).toBe(userId);
+    expect(payload.latitude).toBeCloseTo(34.7108, 4);
+    expect(payload.longitude).toBeCloseTo(137.7261, 4);
+    expect(payload.sourcePayload?.location_provenance).toBeTruthy();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        visitId: MOCK_VISIT_ID,
+        occurrenceId: MOCK_OCCURRENCE_ID,
+        occurrenceIds: [MOCK_OCCURRENCE_ID],
+        placeId: MOCK_PLACE_ID,
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/observations/*/photos/upload", async (route) => {
+    const payload = route.request().postDataJSON() as PhotoUploadPayload;
+    photoUploadPayloads.push(payload);
+    expect(payload.filename).toBeTruthy();
+    expect(payload.mediaRole).toBe("primary_subject");
+    expect(payload.base64Data?.length ?? 0).toBeGreaterThan(20);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, photo: { publicUrl: "/uploads/qa/reloaded-draft.jpg" } }),
     });
   });
 }
@@ -636,51 +693,12 @@ test.describe("record funnel staging QA", () => {
     const page = await context.newPage();
     const kpiPayloads: KpiPayload[] = [];
     const upsertPayloads: DirectPostPayload[] = [];
-    const photoUploadPayloads: Array<{ filename?: string; mediaRole?: string; base64Data?: string }> = [];
+    const photoUploadPayloads: PhotoUploadPayload[] = [];
 
     try {
       await installFakeCamera(page);
       await installFakeGeolocation(page, "failure");
-      await page.route("**/api/v1/ui-kpi/events", async (route) => {
-        const payload = route.request().postDataJSON() as KpiPayload;
-        kpiPayloads.push(payload);
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ ok: true, eventId: `mock-global-camera-kpi-${kpiPayloads.length}` }),
-        });
-      });
-      await page.route("**/api/v1/observations/upsert", async (route) => {
-        const payload = route.request().postDataJSON() as DirectPostPayload;
-        upsertPayloads.push(payload);
-        expect(payload.userId).toBe(userId);
-        expect(payload.latitude).toBeCloseTo(34.7108, 4);
-        expect(payload.longitude).toBeCloseTo(137.7261, 4);
-        expect(payload.sourcePayload?.location_provenance).toBeTruthy();
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            ok: true,
-            visitId: MOCK_VISIT_ID,
-            occurrenceId: MOCK_OCCURRENCE_ID,
-            occurrenceIds: [MOCK_OCCURRENCE_ID],
-            placeId: MOCK_PLACE_ID,
-          }),
-        });
-      });
-      await page.route("**/api/v1/observations/*/photos/upload", async (route) => {
-        const payload = route.request().postDataJSON() as { filename?: string; mediaRole?: string; base64Data?: string };
-        photoUploadPayloads.push(payload);
-        expect(payload.filename).toBeTruthy();
-        expect(payload.mediaRole).toBe("primary_subject");
-        expect(payload.base64Data?.length ?? 0).toBeGreaterThan(20);
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ ok: true, photo: { publicUrl: "/uploads/qa/reloaded-draft.jpg" } }),
-        });
-      });
+      await installGlobalCameraDraftRecoveryMocks(page, userId, kpiPayloads, upsertPayloads, photoUploadPayloads);
       await suppressMapLibreForSmoke(page);
 
       await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
@@ -707,6 +725,66 @@ test.describe("record funnel staging QA", () => {
       await page.locator("#record-submit-panel button[type='submit']").click();
 
       await expect(page.locator("#record-status")).toContainText(/記録を保存しました|シーンを保存しました/);
+      expect(upsertPayloads).toHaveLength(1);
+      expect(photoUploadPayloads).toHaveLength(1);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("global camera direct-post draft survives record tab reopen after navigation", async ({ browser }) => {
+    const profile = CAMERA_DEVICE_VIEWPORTS[0];
+    const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
+    await addSessionCookie(context, sessionCookie);
+    const page = await context.newPage();
+    const kpiPayloads: KpiPayload[] = [];
+    const upsertPayloads: DirectPostPayload[] = [];
+    const photoUploadPayloads: PhotoUploadPayload[] = [];
+
+    try {
+      await installFakeCamera(page);
+      await installFakeGeolocation(page, "failure");
+      await installGlobalCameraDraftRecoveryMocks(page, userId, kpiPayloads, upsertPayloads, photoUploadPayloads);
+      await suppressMapLibreForSmoke(page);
+
+      await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
+      await page.locator('[data-global-record-trigger="photo"]').click();
+      await expect(page.locator("[data-global-record-camera-sheet]")).toBeVisible();
+
+      await page.locator("[data-global-record-camera-capture]").click();
+      await clickCapturedPhotoDirectPostButton(page);
+
+      await page.waitForURL(/\/record\?.*draft=1/, { timeout: 30_000 });
+      const recoveryUrl = page.url();
+      expect(recoveryUrl).toMatch(/\/record\?.*draft=1/);
+      await expect.poll(() => geolocationCallCount(page)).toBe(1);
+      expect(upsertPayloads).toHaveLength(0);
+      expect(actions(kpiPayloads)).toContain("location_request_failed");
+      await page.close();
+
+      const recoveredPage = await context.newPage();
+      await installGlobalCameraDraftRecoveryMocks(
+        recoveredPage,
+        userId,
+        kpiPayloads,
+        upsertPayloads,
+        photoUploadPayloads,
+      );
+      await suppressMapLibreForSmoke(recoveredPage);
+      await recoveredPage.goto(recoveryUrl, { waitUntil: "domcontentloaded" });
+
+      await expect(recoveredPage.locator("#record-form")).toBeVisible();
+      await expect(recoveredPage.locator("#record-submit-panel")).toBeVisible();
+      await expect(recoveredPage.locator("#record-submit-panel-title")).toContainText("写真1枚 / 地点未指定");
+      await expect(recoveredPage.locator("#record-submit-dock-meta")).toContainText("写真1枚 / 地点未指定");
+      expect(upsertPayloads).toHaveLength(0);
+
+      await recoveredPage.locator("summary", { hasText: "座標を直接編集" }).click();
+      await recoveredPage.locator("input[name='latitude']").fill("34.710800");
+      await recoveredPage.locator("input[name='longitude']").fill("137.726100");
+      await recoveredPage.locator("#record-submit-panel button[type='submit']").click();
+
+      await expect(recoveredPage.locator("#record-status")).toContainText(/記録を保存しました|シーンを保存しました/);
       expect(upsertPayloads).toHaveLength(1);
       expect(photoUploadPayloads).toHaveLength(1);
     } finally {
