@@ -19920,6 +19920,8 @@ test("production record draft route restores global camera drafts in the signed-
   assert.match(body, /draft\.savedAt/);
   assert.match(body, /shouldAutoRestoreDraft/);
   assert.match(body, /restoreDraftRecord\(draft\)/);
+  assert.match(body, /coordinatesDetails\.open = true/);
+  assert.match(body, /const appliedLocation = applyDraftCoordinates\(draft\)/);
   assert.doesNotMatch(body, /materialized record draft consumer/);
 });
 

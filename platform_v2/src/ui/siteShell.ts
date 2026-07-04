@@ -1874,6 +1874,50 @@ function globalRecordEntryScript(basePath: string): string {
     }
     return String(json.session.userId);
   };
+  const hasUsableDraftLocation = (metadata) => {
+    const location = metadata && metadata.location ? metadata.location : null;
+    return Boolean(location && Number.isFinite(Number(location.latitude)) && Number.isFinite(Number(location.longitude)));
+  };
+  const requestCurrentLocationForDirectPost = () => new Promise((resolve) => {
+    if (!(navigator.geolocation && typeof navigator.geolocation.getCurrentPosition === 'function')) {
+      resolve(null);
+      return;
+    }
+    const startedAt = nowMs();
+    navigator.geolocation.getCurrentPosition((position) => {
+      const coords = position && position.coords ? position.coords : null;
+      const latitude = Number(coords && coords.latitude);
+      const longitude = Number(coords && coords.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        sendGlobalRecordErrorKpi('location_request_failed', 'invalid_position', {
+          durationMs: durationSince(startedAt),
+        });
+        resolve(null);
+        return;
+      }
+      sendGlobalRecordKpi('location_request_ms', durationSince(startedAt), {
+        ok: true,
+        accuracyM: Number(coords && coords.accuracy || 0),
+      });
+      resolve({
+        latitude,
+        longitude,
+        accuracyM: Number(coords && coords.accuracy || 0),
+        source: 'browser_geolocation_on_submit',
+        capturedAt: new Date().toISOString(),
+      });
+    }, (error) => {
+      sendGlobalRecordErrorKpi('location_request_failed', error && error.message ? String(error.message) : 'geolocation_unavailable', {
+        durationMs: durationSince(startedAt),
+        code: error && error.code ? Number(error.code) : 0,
+      });
+      resolve(null);
+    }, {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 60000,
+    });
+  });
   const withDraftParams = (href, kind) => {
     let target = String(href || '/record?start=' + encodeURIComponent(kind || 'gallery'));
     try {
@@ -2188,11 +2232,19 @@ function globalRecordEntryScript(basePath: string): string {
       captureButton.textContent = '記録中...';
     }
     if (startButton) startButton.disabled = true;
-    const metadata = capturedReviewMeta || {};
-    if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
-      setStatus('地点を確認してから記録します。記録画面で場所を選べます。');
-      await navigateWithDraft(files, 'photo', metadata);
-      return;
+    let metadata = capturedReviewMeta || {};
+    if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !hasUsableDraftLocation(metadata)) {
+      setStatus('現在地を確認しています...');
+      const location = await requestCurrentLocationForDirectPost();
+      if (location) {
+        metadata = Object.assign({}, metadata, { location });
+        capturedReviewMeta = metadata;
+        setStatus('現在地を確認しました。記録を保存します...');
+      } else {
+        setStatus('現在地を確認できませんでした。記録画面で座標を確認して保存してください。');
+        await navigateWithDraft(files, 'photo', metadata);
+        return;
+      }
     }
     try {
       setStatus('写真を記録用に整えています...');

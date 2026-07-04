@@ -20380,6 +20380,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     const status = document.getElementById("record-status");
     const recovery = document.getElementById("record-recovery");
     const submitPanel = document.getElementById("record-submit-panel");
+    const coordinatesDetails = document.querySelector(".cf-record-coordinates");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
@@ -20596,14 +20597,15 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     }
     function applyDraftCoordinates(draft) {
       const location = draft && draft.metadata && typeof draft.metadata === "object" ? draft.metadata.location : null;
-      if (!location || typeof location !== "object") return;
+      if (!location || typeof location !== "object") return false;
       const latitude = Number(location.latitude);
       const longitude = Number(location.longitude);
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
       const latitudeInput = form && form.elements ? form.elements.namedItem("latitude") : null;
       const longitudeInput = form && form.elements ? form.elements.namedItem("longitude") : null;
       if (latitudeInput && "value" in latitudeInput) latitudeInput.value = latitude.toFixed(6);
       if (longitudeInput && "value" in longitudeInput) longitudeInput.value = longitude.toFixed(6);
+      return true;
     }
     function restoreDraftRecord(draft) {
       const file = draftFileFromRecord(draft);
@@ -20611,7 +20613,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       restoredDraftFile = file;
       restoredDraftKind = draft.mediaKind;
       reveal(draft.mediaKind);
-      applyDraftCoordinates(draft);
+      const appliedLocation = applyDraftCoordinates(draft);
+      if (!appliedLocation && coordinatesDetails) coordinatesDetails.open = true;
       setStatus(copy.draftRestored, false);
       sendRecordStep("record:draft_restored", {
         mediaKind: draft.mediaKind,
