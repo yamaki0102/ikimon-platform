@@ -19853,7 +19853,7 @@ function cacheControlForOriginalUiStaticAsset(pathname: string): string {
   return "public, max-age=31536000, immutable";
 }
 
-const APP_SERVICE_WORKER_SCRIPT = `const VERSION = 'ikimon-app-v7';
+const APP_SERVICE_WORKER_SCRIPT = `const VERSION = 'ikimon-app-v8';
 const SHELL_CACHE = VERSION + ':shell';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
@@ -19878,7 +19878,7 @@ const APP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|guide\\/?$|record\\/?$|map\\
 const RECORD_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?record\\/?$/;
 const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
 const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$)/;
-const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:record\\/?$|records\\/?$|map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$)/;
+const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:records\\/?$|map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$)/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined));

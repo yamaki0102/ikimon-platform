@@ -17631,9 +17631,10 @@ test("production app Service Worker is Worker-native and does not cache record n
     assert.equal(response.headers.get("service-worker-allowed"), "/");
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "app-service-worker");
     assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), null);
-    assert.match(body, /ikimon-app-v7/);
+    assert.match(body, /ikimon-app-v8/);
     assert.match(body, /RECORD_NAV_RE/);
-    assert.match(body, /REFRESH_NAV_RE[\s\S]*record/);
+    assert.doesNotMatch(body, /REFRESH_NAV_RE[\s\S]*record\\\/\?\$/);
+    assert.match(body, /REFRESH_NAV_RE[\s\S]*records/);
     assert.match(body, /isRecordShell \|\| isMapShell \|\| isPersonalShell/);
     assert.match(body, /&& !isRecordShell && !isMapShell && !isPersonalShell/);
     assert.doesNotMatch(body, /ikimon-app-v2/);
