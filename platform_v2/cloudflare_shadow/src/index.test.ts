@@ -19885,6 +19885,70 @@ test("production record shell renders signed-in Cloudflare form for valid sessio
   assert.doesNotMatch(body, /materialized record/);
 });
 
+test("production record draft route keeps original record screen for global camera drafts", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/ja/record.html",
+    "<!doctype html><main data-record-original>materialized record draft consumer</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "record-draft-user", displayName: "Record Draft", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/record?start=photo&draft=1", {
+    headers: { cookie }
+  }), productionEnv);
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+  assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+  assert.match(body, /materialized record draft consumer/);
+  assert.doesNotMatch(body, /id="record-form"[^>]*hidden/);
+  assert.notEqual(response.headers.get("x-ikimon-cloudflare-native"), "record-session");
+});
+
+test("production record gallery and revisit routes keep original record screen", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/ja/record.html",
+    "<!doctype html><main data-record-original>materialized record full screen</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "record-gallery-user", displayName: "Record Gallery", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  for (const path of ["/ja/record?start=gallery", "/ja/record?start=gallery&revisitObservationId=visit-1"]) {
+    const response = await worker.fetch(new Request(`https://ikimon.life${path}`, { headers: { cookie } }), productionEnv);
+    const body = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.match(body, /materialized record full screen/);
+    assert.notEqual(response.headers.get("x-ikimon-cloudflare-native"), "record-session");
+  }
+});
+
 test("production profile shell renders signed-in Cloudflare page for valid session cookies", async () => {
   const { env, core } = createEnv();
   const productionEnv = {

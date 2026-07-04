@@ -20217,11 +20217,23 @@ function isRecordHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/record$/.test(pathname);
 }
 
+function shouldUseOriginalRecordHtml(url: URL): boolean {
+  const start = url.searchParams.get("start")?.trim().toLowerCase() ?? "";
+  return url.searchParams.get("draft") === "1"
+    || url.searchParams.has("retry")
+    || url.searchParams.has("revisitObservationId")
+    || (start !== "" && start !== "photo" && start !== "video");
+}
+
 function isProfileHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname);
 }
 
 async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
+  if (shouldUseOriginalRecordHtml(url)) {
+    return getOriginalUiHtml(request, url, env);
+  }
+
   const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session || session.banned) {
     return getOriginalUiHtml(request, url, env);
@@ -20266,6 +20278,10 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       recordCreatedCheck: "記録の作成までは終わっています。記録一覧で確認できます。",
       checkRecords: "記録一覧を確認する",
       recentAttempt: "直前の投稿結果を確認できます。",
+      draftAvailable: "前回選んだ写真・動画を復元できます。",
+      restoreDraft: "復元する",
+      clearDraft: "破棄",
+      draftRestored: "前回選んだメディアを復元しました。座標を確認して保存してください。",
       missingMedia: "写真または動画を選択してください。",
       failed: "保存に失敗しました。時間をおいてもう一度試してください。"
     }
@@ -20287,6 +20303,10 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       recordCreatedCheck: "The record body was created. Check your records to confirm the media.",
       checkRecords: "Check records",
       recentAttempt: "You can check the last posting attempt.",
+      draftAvailable: "You can restore the media selected last time.",
+      restoreDraft: "Restore",
+      clearDraft: "Discard",
+      draftRestored: "Restored the previous media. Check the coordinates and save.",
       missingMedia: "Choose a photo or video.",
       failed: "Save failed. Try again later."
     };
@@ -20325,6 +20345,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
     .cf-record-status a,.cf-record-recovery a{color:var(--teal);font-weight:900;text-decoration:underline;text-underline-offset:3px}
     .cf-record-recovery{margin:0 0 12px;padding:10px 12px;border:1px solid #bfe6d5;border-radius:12px;background:#f2fbf6;color:var(--ink);font-size:13px;font-weight:800}
+    .cf-record-recovery button{margin-left:8px;border:0;border-radius:999px;background:#d8f4e8;color:var(--ink);font:inherit;font-weight:900;padding:5px 10px}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
   </style>
 </head>
@@ -20362,6 +20383,11 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     const recordsHref = ${JSON.stringify(`${prefix}/records?view=mine`)};
     const recentAttemptKey = "ikimon.record.recentAttempt.v1";
     const recentAttemptMaxAgeMs = 24 * 60 * 60 * 1000;
+    const recordDraftDbName = "ikimon-record-draft";
+    const recordDraftStoreName = "drafts";
+    const recordDraftKey = "latest";
+    const recordDraftMaxAgeMs = 12 * 60 * 60 * 1000;
+    const recordDraftMaxBytes = 25 * 1024 * 1024;
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
     const recovery = document.getElementById("record-recovery");
@@ -20369,6 +20395,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
+    let restoredDraftFile = null;
+    let restoredDraftKind = "";
     function destinationForRecord(visitId) {
       const target = new URL(recordsHref, window.location.href);
       target.searchParams.set("saved", "1");
@@ -20392,6 +20420,51 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       setLinkedMessage(status, message, href);
       status.style.color = error ? "#b42318" : "";
     }
+    function sendRecordEvent(eventName, actionKey, metadata) {
+      try {
+        const payload = {
+          eventName,
+          pagePath: window.location.pathname + window.location.search,
+          routeKey: "cloudflare_record_session_form",
+          actionKey,
+          metadata: Object.assign({
+            funnel: "cloudflare_record_session_form",
+            lang: document.documentElement.lang || "ja",
+            ts: new Date().toISOString()
+          }, metadata || {})
+        };
+        const body = JSON.stringify(payload);
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon("/api/v1/ui-kpi/events", blob)) return;
+        }
+        fetch("/api/v1/ui-kpi/events", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body,
+          keepalive: true
+        }).catch(() => undefined);
+      } catch {
+        // Metrics must never block record submission.
+      }
+    }
+    function sendRecordStep(actionKey, metadata) {
+      sendRecordEvent("funnel_step", actionKey, metadata);
+    }
+    function sendRecordError(actionKey, error, metadata) {
+      sendRecordEvent("funnel_error", actionKey, Object.assign({
+        error: String(error || "unknown_error").slice(0, 160)
+      }, metadata || {}));
+    }
+    function appendLinkedMessage(target, message, href) {
+      if (!target) return null;
+      const row = document.createElement("div");
+      setLinkedMessage(row, message, href);
+      target.append(row);
+      target.hidden = false;
+      return row;
+    }
     function rememberAttempt(state, visitId) {
       try {
         localStorage.setItem(recentAttemptKey, JSON.stringify({
@@ -20413,16 +20486,143 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         if (Date.now() - attempt.updatedAt > recentAttemptMaxAgeMs) return;
         const visitId = typeof attempt.visitId === "string" ? attempt.visitId : "";
         const href = visitId ? destinationForRecord(visitId) : recordsHref;
-        setLinkedMessage(recovery, copy.recentAttempt, href);
-        recovery.hidden = false;
+        appendLinkedMessage(recovery, copy.recentAttempt, href);
       } catch {
         // Ignore malformed recovery data; the form must remain usable.
       }
     }
     showRecentAttempt();
+    function runDraftStore(mode, action) {
+      if (!("indexedDB" in window)) return Promise.resolve(null);
+      return new Promise((resolve, reject) => {
+        const openRequest = indexedDB.open(recordDraftDbName, 1);
+        let db = null;
+        openRequest.onupgradeneeded = () => {
+          const upgradeDb = openRequest.result;
+          if (!upgradeDb.objectStoreNames.contains(recordDraftStoreName)) {
+            upgradeDb.createObjectStore(recordDraftStoreName);
+          }
+        };
+        openRequest.onerror = () => reject(openRequest.error || new Error("draft_db_open_failed"));
+        openRequest.onsuccess = () => {
+          db = openRequest.result;
+          const transaction = db.transaction(recordDraftStoreName, mode);
+          const store = transaction.objectStore(recordDraftStoreName);
+          let request = null;
+          let requestResolved = false;
+          transaction.oncomplete = () => {
+            if (db) db.close();
+            if (!request || !requestResolved) resolve(null);
+          };
+          transaction.onerror = () => {
+            if (db) db.close();
+            reject(transaction.error || new Error("draft_db_transaction_failed"));
+          };
+          try {
+            request = action(store);
+          } catch (error) {
+            if (db) db.close();
+            reject(error);
+            return;
+          }
+          if (request && "onsuccess" in request) {
+            request.onsuccess = () => {
+              requestResolved = true;
+              resolve(request.result ?? null);
+            };
+            request.onerror = () => reject(request.error || new Error("draft_db_request_failed"));
+          }
+        };
+      });
+    }
+    function fileSizeBucket(file) {
+      const size = file && typeof file.size === "number" ? file.size : 0;
+      if (size <= 0) return "unknown";
+      if (size < 1024 * 1024) return "lt_1mb";
+      if (size < 5 * 1024 * 1024) return "1_5mb";
+      if (size < 15 * 1024 * 1024) return "5_15mb";
+      if (size < 25 * 1024 * 1024) return "15_25mb";
+      return "gte_25mb";
+    }
+    async function saveDraft(file, kind) {
+      if (!file || typeof file.size !== "number" || file.size <= 0 || file.size > recordDraftMaxBytes) return;
+      try {
+        await runDraftStore("readwrite", (store) => store.put({
+          updatedAt: Date.now(),
+          mediaKind: kind,
+          name: file.name || (kind === "video" ? "record-video.mp4" : "record-photo.jpg"),
+          type: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
+          size: file.size,
+          file
+        }, recordDraftKey));
+      } catch {
+        // Draft persistence is best-effort; submit must still work without it.
+      }
+    }
+    async function loadDraft() {
+      const draft = await runDraftStore("readonly", (store) => store.get(recordDraftKey));
+      if (!draft || typeof draft !== "object") return null;
+      if (typeof draft.updatedAt !== "number" || Date.now() - draft.updatedAt > recordDraftMaxAgeMs) {
+        await clearDraft();
+        return null;
+      }
+      if (draft.mediaKind !== "photo" && draft.mediaKind !== "video") return null;
+      if (!draft.file || (typeof Blob === "function" && !(draft.file instanceof Blob))) return null;
+      return draft;
+    }
+    async function clearDraft() {
+      try {
+        await runDraftStore("readwrite", (store) => store.delete(recordDraftKey));
+      } catch {
+        // Ignore unavailable storage.
+      }
+    }
+    function draftFileFromRecord(draft) {
+      if (!draft || !draft.file) return null;
+      const file = draft.file;
+      if (typeof File === "function" && !(file instanceof File)) {
+        return new File([file], draft.name || (draft.mediaKind === "video" ? "record-video.mp4" : "record-photo.jpg"), {
+          type: draft.type || file.type || ""
+        });
+      }
+      return file;
+    }
+    function showDraftRecovery(draft) {
+      if (!recovery || !draft) return;
+      const row = appendLinkedMessage(recovery, copy.draftAvailable, "");
+      if (!row) return;
+      const restore = document.createElement("button");
+      restore.type = "button";
+      restore.textContent = copy.restoreDraft;
+      restore.addEventListener("click", () => {
+        const file = draftFileFromRecord(draft);
+        if (!file) return;
+        restoredDraftFile = file;
+        restoredDraftKind = draft.mediaKind;
+        reveal(draft.mediaKind);
+        setStatus(copy.draftRestored, false);
+        sendRecordStep("record:draft_restored", {
+          mediaKind: draft.mediaKind,
+          fileSizeBucket: fileSizeBucket(file)
+        });
+      });
+      const discard = document.createElement("button");
+      discard.type = "button";
+      discard.textContent = copy.clearDraft;
+      discard.addEventListener("click", () => {
+        restoredDraftFile = null;
+        restoredDraftKind = "";
+        row.remove();
+        void clearDraft();
+        if (recovery && !recovery.textContent.trim()) recovery.hidden = true;
+      });
+      row.append(restore, discard);
+    }
+    void loadDraft().then(showDraftRecovery).catch(() => undefined);
     function selectedFile() {
       const input = mediaKind === "video" ? videoInput : photoInput;
-      return input && input.files && input.files[0] ? input.files[0] : null;
+      if (input && input.files && input.files[0]) return input.files[0];
+      return restoredDraftFile && restoredDraftKind === mediaKind ? restoredDraftFile : null;
     }
     function reveal(kind) {
       mediaKind = kind;
@@ -20430,8 +20630,20 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       if (submitPanel) submitPanel.hidden = false;
       setStatus(copy.statusReady, false);
     }
-    photoInput?.addEventListener("change", () => reveal("photo"));
-    videoInput?.addEventListener("change", () => reveal("video"));
+    function handleMediaChange(kind) {
+      restoredDraftFile = null;
+      restoredDraftKind = "";
+      reveal(kind);
+      const file = selectedFile();
+      void saveDraft(file, kind);
+      sendRecordStep("record:media_selected", {
+        mediaKind: kind,
+        fileSizeBucket: fileSizeBucket(file),
+        mimeType: file && file.type ? file.type : ""
+      });
+    }
+    photoInput?.addEventListener("change", () => handleMediaChange("photo"));
+    videoInput?.addEventListener("change", () => handleMediaChange("video"));
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -20470,6 +20682,11 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       let visitId = "";
       setStatus(copy.saving, false);
       rememberAttempt("saving", observationId);
+      sendRecordStep("record:submit_attempt", {
+        mediaKind,
+        fileSizeBucket: fileSizeBucket(file),
+        mimeType: file && file.type ? file.type : ""
+      });
       try {
         if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           throw new Error("invalid_coordinates");
@@ -20488,6 +20705,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         });
         visitId = String(observation.visitId || observation.observationId || observationId);
         rememberAttempt("upserted", visitId);
+        sendRecordStep("record:upsert_succeeded", { mediaKind, visitId });
         if (mediaKind === "photo") {
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             filename: file.name || "record-photo.jpg",
@@ -20498,6 +20716,8 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           });
           const destination = destinationForRecord(visitId);
           rememberAttempt("saved", visitId);
+          void clearDraft();
+          sendRecordStep("record:upload_succeeded", { mediaKind, visitId });
           setStatus(copy.saved + " " + copy.photoSaved + " " + copy.savedRedirect, false, destination);
           window.setTimeout(() => window.location.assign(destination), 650);
           return;
@@ -20525,10 +20745,17 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
         });
         const destination = destinationForRecord(visitId);
         rememberAttempt("saved", visitId);
+        void clearDraft();
+        sendRecordStep("record:upload_succeeded", { mediaKind, visitId });
         setStatus(copy.saved + " " + copy.videoSaved + " " + copy.savedRedirect, false, destination);
         window.setTimeout(() => window.location.assign(destination), 650);
       } catch (error) {
         console.error(error);
+        sendRecordError("record:submit_failed", error && error.message ? error.message : "record_submit_failed", {
+          mediaKind,
+          phase: visitId ? "media_upload" : "observation_upsert",
+          visitId
+        });
         if (visitId) {
           rememberAttempt("upserted", visitId);
           setStatus(copy.recordCreatedCheck, true, destinationForRecord(visitId));
@@ -23402,6 +23629,43 @@ async function recordUiKpiEventShim(request: Request): Promise<Response> {
   ].includes(eventName)) {
     return json({ ok: false, error: "invalid_event_name" }, 400, { "cache-control": "no-store" });
   }
+  const metadata = input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+    ? input.metadata as Record<string, unknown>
+    : {};
+  const safeMetadataKeys = [
+    "funnel",
+    "metricName",
+    "durationMs",
+    "kind",
+    "mediaKind",
+    "photoCount",
+    "fileCount",
+    "fileSizeBucket",
+    "status",
+    "ok",
+    "phase",
+    "succeeded",
+    "failed",
+    "concurrency",
+    "index",
+    "error"
+  ];
+  const safeMetadata = Object.fromEntries(
+    safeMetadataKeys
+      .filter((key) => metadata[key] !== undefined)
+      .map((key) => {
+        const value = metadata[key];
+        return [key, typeof value === "string" ? value.slice(0, 160) : value];
+      })
+  );
+  console.log(JSON.stringify({
+    message: "ui_kpi_event",
+    eventName,
+    pagePath: (normalizeOptionalText(input.pagePath) ?? "").slice(0, 160),
+    routeKey: (normalizeOptionalText(input.routeKey) ?? "").slice(0, 120),
+    actionKey: (normalizeOptionalText(input.actionKey) ?? "").slice(0, 120),
+    metadata: safeMetadata
+  }));
   return json({
     ok: true,
     eventId: `cf-ui-kpi-${crypto.randomUUID()}`,
