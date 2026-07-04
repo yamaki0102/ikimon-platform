@@ -20217,23 +20217,11 @@ function isRecordHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/record$/.test(pathname);
 }
 
-function shouldUseOriginalRecordHtml(url: URL): boolean {
-  const start = url.searchParams.get("start")?.trim().toLowerCase() ?? "";
-  return url.searchParams.get("draft") === "1"
-    || url.searchParams.has("retry")
-    || url.searchParams.has("revisitObservationId")
-    || (start !== "" && start !== "photo" && start !== "video");
-}
-
 function isProfileHtmlPath(pathname: string): boolean {
   return /^(?:\/(?:ja|en|es|pt-br))?\/profile(?:\/settings)?$/.test(pathname);
 }
 
 async function getSessionAwareRecordHtml(request: Request, url: URL, env: Env): Promise<Response> {
-  if (shouldUseOriginalRecordHtml(url)) {
-    return getOriginalUiHtml(request, url, env);
-  }
-
   const session = await readCompatibleSessionWithOriginFallback(request, env);
   if (!session || session.banned) {
     return getOriginalUiHtml(request, url, env);
@@ -20561,14 +20549,13 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     }
     async function loadDraft() {
       const draft = await runDraftStore("readonly", (store) => store.get(recordDraftKey));
-      if (!draft || typeof draft !== "object") return null;
-      if (typeof draft.updatedAt !== "number" || Date.now() - draft.updatedAt > recordDraftMaxAgeMs) {
+      const normalized = normalizeDraftRecord(draft);
+      if (!normalized) return null;
+      if (Date.now() - normalized.updatedAt > recordDraftMaxAgeMs) {
         await clearDraft();
         return null;
       }
-      if (draft.mediaKind !== "photo" && draft.mediaKind !== "video") return null;
-      if (!draft.file || (typeof Blob === "function" && !(draft.file instanceof Blob))) return null;
-      return draft;
+      return normalized;
     }
     async function clearDraft() {
       try {
@@ -20576,6 +20563,26 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       } catch {
         // Ignore unavailable storage.
       }
+    }
+    function normalizeDraftRecord(draft) {
+      if (!draft || typeof draft !== "object") return null;
+      const files = Array.isArray(draft.files) ? draft.files : [];
+      const file = draft.file || files.find((candidate) => candidate && typeof candidate === "object") || null;
+      if (!file || (typeof Blob === "function" && !(file instanceof Blob))) return null;
+      const rawKind = String(draft.mediaKind || draft.kind || "").toLowerCase();
+      const type = String(draft.type || file.type || "");
+      const normalizedKind = rawKind === "video" || type.indexOf("video/") === 0 ? "video" : "photo";
+      const updatedAt = Number(draft.updatedAt || draft.savedAt || 0);
+      if (!Number.isFinite(updatedAt) || updatedAt <= 0) return null;
+      return {
+        updatedAt,
+        mediaKind: normalizedKind,
+        name: draft.name || file.name || (normalizedKind === "video" ? "record-video.mp4" : "record-photo.jpg"),
+        type: type || (normalizedKind === "video" ? "video/mp4" : "image/jpeg"),
+        size: Number(draft.size || file.size || 0),
+        metadata: draft.metadata && typeof draft.metadata === "object" ? draft.metadata : {},
+        file
+      };
     }
     function draftFileFromRecord(draft) {
       if (!draft || !draft.file) return null;
@@ -20587,6 +20594,31 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       }
       return file;
     }
+    function applyDraftCoordinates(draft) {
+      const location = draft && draft.metadata && typeof draft.metadata === "object" ? draft.metadata.location : null;
+      if (!location || typeof location !== "object") return;
+      const latitude = Number(location.latitude);
+      const longitude = Number(location.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+      const latitudeInput = form && form.elements ? form.elements.namedItem("latitude") : null;
+      const longitudeInput = form && form.elements ? form.elements.namedItem("longitude") : null;
+      if (latitudeInput && "value" in latitudeInput) latitudeInput.value = latitude.toFixed(6);
+      if (longitudeInput && "value" in longitudeInput) longitudeInput.value = longitude.toFixed(6);
+    }
+    function restoreDraftRecord(draft) {
+      const file = draftFileFromRecord(draft);
+      if (!file) return false;
+      restoredDraftFile = file;
+      restoredDraftKind = draft.mediaKind;
+      reveal(draft.mediaKind);
+      applyDraftCoordinates(draft);
+      setStatus(copy.draftRestored, false);
+      sendRecordStep("record:draft_restored", {
+        mediaKind: draft.mediaKind,
+        fileSizeBucket: fileSizeBucket(file)
+      });
+      return true;
+    }
     function showDraftRecovery(draft) {
       if (!recovery || !draft) return;
       const row = appendLinkedMessage(recovery, copy.draftAvailable, "");
@@ -20595,16 +20627,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       restore.type = "button";
       restore.textContent = copy.restoreDraft;
       restore.addEventListener("click", () => {
-        const file = draftFileFromRecord(draft);
-        if (!file) return;
-        restoredDraftFile = file;
-        restoredDraftKind = draft.mediaKind;
-        reveal(draft.mediaKind);
-        setStatus(copy.draftRestored, false);
-        sendRecordStep("record:draft_restored", {
-          mediaKind: draft.mediaKind,
-          fileSizeBucket: fileSizeBucket(file)
-        });
+        restoreDraftRecord(draft);
       });
       const discard = document.createElement("button");
       discard.type = "button";
@@ -20618,7 +20641,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       });
       row.append(restore, discard);
     }
-    void loadDraft().then(showDraftRecovery).catch(() => undefined);
+    const shouldAutoRestoreDraft = new URLSearchParams(window.location.search).get("draft") === "1";
+    void loadDraft().then((draft) => {
+      if (!draft) return;
+      if (shouldAutoRestoreDraft && restoreDraftRecord(draft)) return;
+      showDraftRecovery(draft);
+    }).catch(() => undefined);
     function selectedFile() {
       const input = mediaKind === "video" ? videoInput : photoInput;
       if (input && input.files && input.files[0]) return input.files[0];
