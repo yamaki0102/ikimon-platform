@@ -628,6 +628,91 @@ test.describe("record funnel staging QA", () => {
       await context.close();
     }
   });
+
+  test("global camera direct-post draft restores photo after record page reload", async ({ browser }) => {
+    const profile = CAMERA_DEVICE_VIEWPORTS[0];
+    const context = await newStagingContext(browser, profile, { serviceWorkers: "block" });
+    await addSessionCookie(context, sessionCookie);
+    const page = await context.newPage();
+    const kpiPayloads: KpiPayload[] = [];
+    const upsertPayloads: DirectPostPayload[] = [];
+    const photoUploadPayloads: Array<{ filename?: string; mediaRole?: string; base64Data?: string }> = [];
+
+    try {
+      await installFakeCamera(page);
+      await installFakeGeolocation(page, "failure");
+      await page.route("**/api/v1/ui-kpi/events", async (route) => {
+        const payload = route.request().postDataJSON() as KpiPayload;
+        kpiPayloads.push(payload);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, eventId: `mock-global-camera-kpi-${kpiPayloads.length}` }),
+        });
+      });
+      await page.route("**/api/v1/observations/upsert", async (route) => {
+        const payload = route.request().postDataJSON() as DirectPostPayload;
+        upsertPayloads.push(payload);
+        expect(payload.userId).toBe(userId);
+        expect(payload.latitude).toBeCloseTo(34.7108, 4);
+        expect(payload.longitude).toBeCloseTo(137.7261, 4);
+        expect(payload.sourcePayload?.location_provenance).toBeTruthy();
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            visitId: MOCK_VISIT_ID,
+            occurrenceId: MOCK_OCCURRENCE_ID,
+            occurrenceIds: [MOCK_OCCURRENCE_ID],
+            placeId: MOCK_PLACE_ID,
+          }),
+        });
+      });
+      await page.route("**/api/v1/observations/*/photos/upload", async (route) => {
+        const payload = route.request().postDataJSON() as { filename?: string; mediaRole?: string; base64Data?: string };
+        photoUploadPayloads.push(payload);
+        expect(payload.filename).toBeTruthy();
+        expect(payload.mediaRole).toBe("primary_subject");
+        expect(payload.base64Data?.length ?? 0).toBeGreaterThan(20);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, photo: { publicUrl: "/uploads/qa/reloaded-draft.jpg" } }),
+        });
+      });
+      await suppressMapLibreForSmoke(page);
+
+      await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
+      await page.locator('[data-global-record-trigger="photo"]').click();
+      await expect(page.locator("[data-global-record-camera-sheet]")).toBeVisible();
+
+      await page.locator("[data-global-record-camera-capture]").click();
+      await clickCapturedPhotoDirectPostButton(page);
+
+      await page.waitForURL(/\/record\?.*draft=1/, { timeout: 30_000 });
+      await page.reload({ waitUntil: "domcontentloaded" });
+
+      await expect(page.locator("#record-form")).toBeVisible();
+      await expect(page.locator("#record-submit-panel")).toBeVisible();
+      await expect(page.locator("#record-submit-panel-title")).toContainText("写真1枚 / 地点未指定");
+      await expect(page.locator("#record-submit-dock-meta")).toContainText("写真1枚 / 地点未指定");
+      await expect.poll(() => geolocationCallCount(page)).toBe(1);
+      expect(upsertPayloads).toHaveLength(0);
+      expect(actions(kpiPayloads)).toContain("location_request_failed");
+
+      await page.locator("summary", { hasText: "座標を直接編集" }).click();
+      await page.locator("input[name='latitude']").fill("34.710800");
+      await page.locator("input[name='longitude']").fill("137.726100");
+      await page.locator("#record-submit-panel button[type='submit']").click();
+
+      await expect(page.locator("#record-status")).toContainText(/記録を保存しました|シーンを保存しました/);
+      expect(upsertPayloads).toHaveLength(1);
+      expect(photoUploadPayloads).toHaveLength(1);
+    } finally {
+      await context.close();
+    }
+  });
 });
 
 test.describe("record entry viewport reachability", () => {
