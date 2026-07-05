@@ -16322,7 +16322,7 @@ test("production map area polygons show certified radius approximations while hi
     PUBLIC_WRITE_MODE: "cloudflare_native"
   };
   const response = await worker.fetch(new Request(
-    "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=tsunag%2Cschool"
+    "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=12&sources=tsunag%2Cschool"
   ), productionEnv);
   const payload = await response.json() as any;
 
@@ -16333,6 +16333,113 @@ test("production map area polygons show certified radius approximations while hi
   assert.equal(payload.features[0].properties.boundary_approximation, "radius");
   assert.equal(payload.features[0].properties.approximate_boundary, true);
   assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|代表点小学校/);
+});
+
+test("production map area polygons supplement live OSM school polygons when native school rows are only point buffers", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-park", productionAreaPolygonRow("native-park", {
+    source: "osm_park",
+    admin_level: "osm_park",
+    name: "ネイティブ公園",
+    source_confidence: 0.8,
+    verification_level: "unverified",
+    verification_label: "未確認",
+    official_url: null
+  }));
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", productionAreaPolygonRow("native-approx-school", {
+    name: "代表点小学校",
+    source: "school",
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    source_confidence: 0.45
+  }));
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let overpassCalls = 0;
+  let overpassBody = "";
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    overpassCalls += 1;
+    overpassBody = String(init?.body ?? "");
+    return Response.json({
+      elements: [{
+        type: "way",
+        id: 603994619,
+        tags: { amenity: "school", name: "静岡県立浜松西高等学校" },
+        geometry: [
+          { lat: 34.690, lon: 137.700 },
+          { lat: 34.690, lon: 137.710 },
+          { lat: 34.700, lon: 137.710 },
+          { lat: 34.700, lon: 137.700 },
+          { lat: 34.690, lon: 137.700 }
+        ],
+        bounds: { minlat: 34.690, minlon: 137.700, maxlat: 34.700, maxlon: 137.710 }
+      }]
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14"
+    ), productionEnv);
+    const payload = await response.json() as any;
+    const featureNames = payload.features.map((feature: any) => feature.properties.name);
+
+    assert.equal(response.status, 200);
+    assert.equal(overpassCalls, 1);
+    assert.match(decodeURIComponent(overpassBody), /amenity.*school/);
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel+live_osm_school");
+    assert.equal(payload.features.length, 2);
+    assert.deepEqual(featureNames.sort(), ["ネイティブ公園", "静岡県立浜松西高等学校"].sort());
+    assert.equal(payload.features.some((feature: any) => feature.properties.field_id === "osm-live:way:603994619"), true);
+    assert.equal(payload.features.some((feature: any) => feature.properties.osm_named === true), true);
+    assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|境界未確認・代表点からの仮範囲/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production map area polygons skip live OSM school fallback below human-scale zoom", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", productionAreaPolygonRow("native-approx-school", {
+    name: "代表点小学校",
+    source: "school",
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    source_confidence: 0.45
+  }));
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let overpassCalls = 0;
+  globalThis.fetch = (async () => {
+    overpassCalls += 1;
+    return Response.json({ elements: [] });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=12&sources=school"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.equal(overpassCalls, 0);
+    assert.equal(payload.features.length, 0);
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("production map area polygons use field detail radius fallback for non-school registered areas only", async () => {
