@@ -16595,6 +16595,54 @@ test("production map area polygons skip live OSM school fallback below human-sca
   }
 });
 
+test("production map area polygons bounds live OSM school latency to one endpoint attempt", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("native-school", productionAreaPolygonRow("native-school", {
+    name: "ネイティブポリゴン小学校",
+    source: "school",
+    approximate_boundary: 0,
+    boundary_approximation: "osm_matched",
+    verification_label: "公開情報と一致"
+  }));
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", productionAreaPolygonRow("native-approx-school", {
+    name: "代表点だけの学校",
+    source: "school",
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    source_confidence: 0.45
+  }));
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    OVERPASS_API_URL: "https://slow-overpass.test/api/interpreter"
+  };
+  const originalFetch = globalThis.fetch;
+  const overpassUrls: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    overpassUrls.push(String(input));
+    return new Response("overpass unavailable", { status: 503 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(overpassUrls, ["https://slow-overpass.test/api/interpreter"]);
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
+    assert.equal(payload.features.length, 1);
+    assert.equal(payload.features[0].properties.field_id, "native-school");
+    assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|境界未確認/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production map area polygons use field detail radius fallback for non-school registered areas only", async () => {
   const { env } = createEnv();
   env.OBS_DB.productionFieldDetails.set("tsunag-readmodel", {
