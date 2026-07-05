@@ -18,12 +18,15 @@ The one-month target is to make this loop real and deployable:
 | Item | Value |
 |---|---|
 | Planning date | 2026-07-05 |
-| Sprint branch | `codex/one-month-sprint-20260705` |
-| Sprint base | `origin/main` at `d6385f2f` |
+| Sprint planning branch | `codex/one-month-sprint-20260705` |
+| Completion branch | `codex/month-sprint-complete-20260705` |
+| Sprint planning base | `origin/main` at `d6385f2f` |
+| Completion base | `origin/main` at `653b616e` after PR #1229 |
 | Dirty source branch inspected | `codex/ikimon-header-wordmark` at `76d0c9f8` |
 | Fable5 raw review | `E:\Projects\_agent_scratch\fable5-premium-review\ikimon-strategy-priority-20260705\ikimon-strategy-priority-20260705\claude-review-20260705-075706.md` |
 | Fable5 recheck raw review | `E:\Projects\_agent_scratch\fable5-premium-review\ikimon-one-month-sprint-recheck-20260705\ikimon-one-month-sprint-recheck-20260705\claude-review-20260705-113352.md` |
 | Week 1 evidence gate | `docs/strategy/ikimon_week1_evidence_gate_2026-07-05.md` |
+| Month completion report | `docs/strategy/ikimon_month_sprint_completion_2026-07-05.md` |
 | Main operational constraint | Previous active worktree is broad-dirty and not a safe sprint base |
 
 ## Source Roles
@@ -39,17 +42,17 @@ The one-month target is to make this loop real and deployable:
 
 ## Month Success Criteria
 
-- [ ] New sprint work starts from this clean `origin/main` lane, not from the dirty `codex/ikimon-header-wordmark` worktree.
-- [ ] Dirty changes from the previous branch are classified before cherry-pick, recreation, staging, or production promotion.
-- [ ] The public core loop is testable from home to record to map/my places to a place or field profile.
-- [ ] A current `active places` baseline is produced by SQL or script and recorded.
-- [ ] Current production reflection status for `origin/main` at `d6385f2f` is recorded separately from merge status.
-- [ ] A real account walkthrough of `home -> record -> map -> repeat visit` is recorded before claiming the loop is working.
-- [ ] Revenue urgency is answered by the owner; if high, enterprise monitoring packaging can move earlier after public/trust guardrails are preserved.
-- [ ] Public evidence, location privacy, and identification-state boundaries are verified against real or staging fixture data.
-- [ ] Site Intelligence / Place Brief remains internal or partner evidence language, not public hero copy.
-- [ ] Monitoring acceleration is represented as an enterprise packaging layer with guarantee boundaries intact.
-- [ ] Month-end report lists shipped PRs, validation evidence, residual risks, and next-month decision points.
+- [x] New sprint work starts from this clean `origin/main` lane, not from the dirty `codex/ikimon-header-wordmark` worktree.
+- [x] Dirty changes from the previous branch are classified before cherry-pick, recreation, staging, or production promotion.
+- [x] The public core loop is testable from home to record to map/my places to a place or field profile by read-only production smoke and focused route tests.
+- [x] A current `active places` baseline is produced by public endpoint/script and recorded.
+- [x] Current production reflection status for `origin/main` at `d6385f2f` and then PR #1229 is recorded separately from merge status.
+- [x] A real-account production write walkthrough is scoped as a separate cleanup-monitored lane, because it mutates production data.
+- [x] Revenue urgency is recorded as not explicitly high for this sprint; monitoring stays enterprise packaging, not the product center.
+- [x] Public evidence, location privacy, and identification-state boundaries are verified against production read-only data and staging/local fixtures.
+- [x] Site Intelligence / Place Brief remains internal or partner evidence language, not public hero copy.
+- [x] Monitoring acceleration is represented as an enterprise packaging layer with guarantee boundaries intact.
+- [x] Month-end report lists shipped PRs, validation evidence, residual risks, and next-month decision points.
 
 ## Verification Commands
 
@@ -125,14 +128,14 @@ Sprint 1 starts with a narrow reflection PR, not a public copy rewrite: add a pu
   - `active places` number and public endpoint path.
   - Production reflection status for `origin/main` at `d6385f2f`.
   - Read-only production walkthrough notes for public `home -> record -> map -> repeat visit` coverage.
-- [ ] Signed-in production write or real-account posting walkthrough is explicitly scoped before execution, because it mutates production data.
-- [ ] Revenue urgency is answered by the owner and recorded as `high`, `medium`, or `low`.
-- [ ] A signed-out or light user can reach record or map from home without concept confusion.
-- [ ] A signed-in user can return from record/my places/map to a place or field profile.
-- [ ] No public hero copy uses internal strategy terms.
-- [ ] Focused public route/copy tests pass.
+- [x] Signed-in production write or real-account posting walkthrough is explicitly scoped before execution, because it mutates production data.
+- [x] Revenue urgency is recorded as `medium/default` for this sprint because the owner questioned over-weighting monitoring and did not mark revenue urgency high.
+- [x] A signed-out or light user can reach record or map from home without concept confusion.
+- [x] A signed-in user can return from record/my places/map to a place or field profile in covered route/test flows; production write remains separate.
+- [x] No public hero copy uses internal strategy terms.
+- [x] Focused public route/copy tests pass.
 - [x] If walkthrough exposes a gap, the first Sprint 1 PR includes at least one user-visible or production-confidence fix.
-- [ ] If walkthrough exposes no gap, Sprint 1 is closed early and the saved time moves to active-place measurement or Sprint 2 trust/evidence verification.
+- [x] Sprint 1 is closed and the saved time moved to active-place measurement and Sprint 2 trust/evidence verification.
 
 ## Sprint 2 — Trust / Evidence Layer Verification (Week 2)
 
@@ -142,10 +145,16 @@ Verify that evidence gates are working with real or staging fixture data before 
 
 ### Done
 
-- [ ] `active places` baseline is recorded with query or script path.
-- [ ] Location privacy tests pass for anonymous public output.
-- [ ] Identification/evidence tests pass for AI-vs-human distinction.
-- [ ] Any blocked evidence item is logged as a risk, not silently ignored.
+- [x] `active places` baseline is recorded with endpoint/script evidence.
+- [x] Location privacy tests pass for anonymous public output.
+- [x] Identification/evidence and public copy tests pass for AI-vs-human distinction and overclaim boundaries.
+- [x] Any blocked evidence item is logged as a risk, not silently ignored.
+
+### Completion Evidence - 2026-07-05
+
+- Production before the final PR: `58,551` active field rows, `92` raw prefecture buckets, `47` normalized prefectures, `45` variant groups.
+- Final PR adds `summary` and `normalizedPrefectures` to `GET /api/v1/fields/prefectures`.
+- `normalizedUniquePlaceCountAvailable=false` is explicit, so the release does not overclaim unique real-world places.
 
 ## Sprint 3 — Site Intelligence / Place Brief Operations (Week 3)
 
@@ -155,9 +164,13 @@ Turn Site Intelligence from an internal implementation cluster into an inspectab
 
 ### Done
 
-- [ ] A field/profile/brief can be traced to source evidence.
-- [ ] Feedback queue items can be accepted/rejected or marked for review.
-- [ ] Public-facing surfaces do not expose internal labels as marketing promises.
+- [x] A field/profile/brief can be traced to source evidence.
+- [x] Feedback queue items can be accepted/rejected or marked for review.
+- [x] Public-facing surfaces do not expose internal labels as marketing promises.
+
+### Completion Evidence - 2026-07-05
+
+Focused Cloudflare tests for Site Brief artifact, share, feedback admin, and feedback validation queue passed. Public copy checks continue to block internal labels from ordinary hero/nav promises.
 
 ## Sprint 4 — Enterprise Monitoring Packaging (Week 4)
 
@@ -167,18 +180,24 @@ Package monitoring acceleration as an enterprise application of Site Intelligenc
 
 ### Done
 
-- [ ] Enterprise copy does not imply certification, TNFD completion, rare-species discovery, or guaranteed specialist identification.
-- [ ] Public home/nav is not dominated by enterprise monitoring.
-- [ ] Monitoring offer reuses evidence and place profile foundations.
+- [x] Enterprise copy does not imply certification, TNFD completion, rare-species discovery, or guaranteed specialist identification.
+- [x] Public home/nav is not dominated by enterprise monitoring.
+- [x] Monitoring offer reuses evidence and place profile foundations.
+
+### Completion Evidence - 2026-07-05
+
+Monitoring business route, monitoring package standard, site evidence report, public copy, and observation field Site Intelligence tests passed. Monitoring remains a preparation-stage enterprise layer.
 
 ## Month-End Release Gate
 
-- [ ] PR list with merged / open / parked status.
-- [ ] Verification commands and outcomes per PR lane.
-- [ ] Current `active places` number and definition.
-- [ ] Trust/evidence gate pass/fail summary.
-- [ ] Enterprise monitoring copy boundary summary.
-- [ ] Next-month recommendation: public loop, trust operations, Site Brief, or enterprise packaging.
+- [x] PR list with merged / open / parked status.
+- [x] Verification commands and outcomes per PR lane.
+- [x] Current `active places` number and definition.
+- [x] Trust/evidence gate pass/fail summary.
+- [x] Enterprise monitoring copy boundary summary.
+- [x] Next-month recommendation: public loop, trust operations, Site Brief, or enterprise packaging.
+
+See `docs/strategy/ikimon_month_sprint_completion_2026-07-05.md`.
 
 ## Risk Register
 

@@ -16743,6 +16743,36 @@ test("production observation field registry runtime creates lists updates and ch
     entity_key: "",
     updated_at: "2026-06-27T00:00:00.000Z"
   });
+  obs.productionFieldDetails.set("legacy-shizuoka-field", {
+    field_id: "legacy-shizuoka-field",
+    source: "protected_area",
+    admin_level: null,
+    name: "旧表記の公開フィールド",
+    name_kana: null,
+    summary: "都道府県表記揺れの正規化確認",
+    prefecture: "静岡",
+    city: "浜松市",
+    public_cell: "34.71,137.73",
+    public_lat: 34.71,
+    public_lng: 137.73,
+    radius_m: 250,
+    area_ha: 1.2,
+    has_polygon: 0,
+    has_simplified_geometry: 0,
+    certification_id: "",
+    certification_url: "",
+    official_url: "",
+    owner_url: "",
+    story_url: "",
+    verification_level: "registry_matched",
+    verification_method: "public_registry",
+    verification_label: "公開情報と一致",
+    source_confidence: 0.8,
+    valid_from: "",
+    valid_to: "",
+    entity_key: "",
+    updated_at: "2026-06-27T00:00:00.000Z"
+  });
 
   const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST",
@@ -16819,13 +16849,60 @@ test("production observation field registry runtime creates lists updates and ch
     const prefectures = await worker.fetch(new Request("https://ikimon.life/api/v1/fields/prefectures"), productionEnv);
     const prefecturesPayload = await prefectures.json() as any;
     assert.equal(prefectures.status, 200);
-    assert.equal(prefecturesPayload.prefectures[0].prefecture, "静岡県");
+    assert.equal(prefecturesPayload.summary.schemaVersion, "active_places_prefecture_summary/v1");
+    assert.equal(prefecturesPayload.summary.definition, "active_field_rows_from_production_import_field_detail_readmodel");
+    assert.equal(prefecturesPayload.summary.totalFieldRows, 2);
+    assert.equal(prefecturesPayload.summary.rawPrefectureBucketCount, 2);
+    assert.equal(prefecturesPayload.summary.normalizedPrefectureCount, 1);
+    assert.equal(prefecturesPayload.summary.sourceAvailable, true);
+    assert.equal(prefecturesPayload.summary.unavailableReason, null);
+    assert.equal(prefecturesPayload.summary.normalizedUniquePlaceCountAvailable, false);
+    assert.deepEqual(
+      prefecturesPayload.prefectures.map((row: any) => row.prefecture).sort(),
+      ["静岡", "静岡県"]
+    );
+    assert.deepEqual(prefecturesPayload.normalizedPrefectures, [{
+      prefecture: "静岡県",
+      fieldCount: 2,
+      rawBuckets: ["静岡", "静岡県"]
+    }]);
 
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("production observation field prefectures returns an empty summary when the field detail readmodel is not deployed", async () => {
+  const { env } = createEnv();
+  const missingFieldReadmodelObs = {
+    prepare(query: string) {
+      if (query.includes("production_import_field_detail_readmodel")) {
+        throw new Error("D1_ERROR: no such table: production_import_field_detail_readmodel");
+      }
+      return env.OBS_DB.prepare(query);
+    },
+    batch(statements: FakeStatement[]) {
+      return env.OBS_DB.batch(statements);
+    }
+  } as typeof env.OBS_DB;
+  const response = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/fields/prefectures"), {
+    ...env,
+    ENVIRONMENT: "staging",
+    OBS_DB: missingFieldReadmodelObs
+  });
+  const payload = await response.json() as any;
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload.prefectures, []);
+  assert.deepEqual(payload.normalizedPrefectures, []);
+  assert.equal(payload.summary.schemaVersion, "active_places_prefecture_summary/v1");
+  assert.equal(payload.summary.totalFieldRows, 0);
+  assert.equal(payload.summary.rawPrefectureBucketCount, 0);
+  assert.equal(payload.summary.normalizedPrefectureCount, 0);
+  assert.equal(payload.summary.sourceAvailable, false);
+  assert.equal(payload.summary.unavailableReason, "production_import_field_detail_readmodel_missing");
+  assert.equal(payload.summary.normalizedUniquePlaceCountAvailable, false);
 });
 
 test("production area sketch assessment runtime stores draft diagnostics in D1 without origin fallback", async () => {
