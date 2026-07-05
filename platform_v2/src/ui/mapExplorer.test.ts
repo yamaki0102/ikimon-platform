@@ -335,7 +335,17 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /function syncViewerOwnedRecordSource\(map\)/);
   assert.match(script, /viewer-owned-observations/);
   assert.match(script, /viewer-owned-observation-dot/);
-  assert.match(script, /\.filter\(function \(record\) \{ return !\(record && record\.isViewerOwned\); \}\)/);
+  assert.match(script, /function normalizeMapMediaKey\(value\)/);
+  assert.match(script, /function mapMarkerDisplayKey\(record\)/);
+  assert.match(script, /function mapCardDisplayKey\(record\)/);
+  assert.match(script, /function suppressOwnerRepresentedPublicRecords\(publicRecords, ownedRecords\)/);
+  assert.match(script, /function publicRecordsForSignedInSurface\(records\)/);
+  assert.match(script, /function recordRepresentedByOwnObservations\(record\)/);
+  assert.match(script, /return suppressOwnerRepresentedPublicRecords\(records, state\.myObservations\)/);
+  assert.match(script, /recordHasExactCoordinateDisclosure\(record\)/);
+  assert.match(script, /sortedDiscoveryPreviewCandidates\(\)[\s\S]*dedupeRecordsForSurface\(publicRecordsForSignedInSurface/);
+  assert.match(script, /renderOwnObservationTrail\(records\)[\s\S]*dedupeRecordsForSurface\(\(Array\.isArray\(records\) \? records : \[\]\)[\s\S]*'card'\)/);
+  assert.match(script, /if \(recordRepresentedByOwnObservations\(record\)\) return null;/);
   assert.doesNotMatch(script, /record\.isViewerOwned \? '自分だけ正確' : 'おおよその位置'/);
   assert.match(script, /var maxCards = zoom >= 16 \? 18 : \(zoom >= 15 \? 14 : 10\);/);
   assert.match(script, /if \(isFinite\(gridM\) && gridM <= 500\) return 15\.4;/);
@@ -378,6 +388,7 @@ test("map explorer overlays signed-in owner observations separately from public 
   assert.match(script, /data-own-observation-detail="1"/);
   assert.match(script, /ownObservationExactBadge/);
   assert.match(script, /自分にだけ正確な位置/);
+  assert.match(script, /公開マップではおおよその位置で表示されます/);
   assert.match(script, /data-own-observation-stack-sheet="1"/);
   assert.match(script, /data-own-observation-choice/);
   assert.match(script, /return NOTES_HREF;/);
@@ -966,7 +977,9 @@ test("community photo preview markers stay compact while allowing more visible p
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /var maxCards = zoom >= 16 \? 18 : \(zoom >= 15 \? 14 : 10\);/);
-  assert.match(script, /\.filter\(function \(record\) \{ return !\(record && record\.isViewerOwned\); \}\)/);
+  assert.match(script, /dedupeRecordsForSurface\(publicRecordsForSignedInSurface\(Array\.isArray\(state\.records\) \? state\.records\.slice\(\) : \[\]\), 'card'\)/);
+  assert.match(script, /function suppressOwnerRepresentedPublicRecords\(publicRecords, ownedRecords\)/);
+  assert.match(script, /recordHasExactCoordinateDisclosure\(record\)/);
   assert.match(script, /picked\.length >= maxCards/);
   assert.match(script, /var cellCounts = \{\};/);
   assert.match(script, /if \(cellCount >= \(zoom >= 15 \? 5 : 3\)\) return;/);
