@@ -105,7 +105,7 @@ function quoteCmdArg(value) {
 }
 
 async function smoke(baseUrl) {
-  for (const path of ["/healthz", "/readyz", "/qa/reflection-loop.json"]) {
+  for (const path of ["/healthz", "/readyz", "/api/v1/runtime/version", "/qa/reflection-loop.json"]) {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
       redirect: "manual",
       headers: { accept: "application/json", "cache-control": "no-store" }
@@ -123,6 +123,15 @@ async function smoke(baseUrl) {
         && payload.service === "ikimon.life"
         && payload.runtime === "cloudflare-worker"
         && payload.loop_contract?.no_personal_data === true
+      : path === "/api/v1/runtime/version"
+        ? response.ok
+          && typeof payload === "object"
+          && payload !== null
+          && payload.ok === true
+          && payload.service === "ikimon.life"
+          && payload.runtime === "cloudflare-worker"
+          && payload.schemaVersion === "cloudflare_worker_runtime/v1"
+          && payload.publicSafe === true
       : response.ok
         && typeof payload === "object"
         && payload !== null

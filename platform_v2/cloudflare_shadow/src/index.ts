@@ -106,6 +106,8 @@ interface Env {
   SENTINEL_ENVIRONMENT_BATCH_SIZE?: string;
   SENTINEL_ENVIRONMENT_DAYS_BACK?: string;
   SENTINEL_ENVIRONMENT_MAX_CLOUD?: string;
+  IKIMON_GIT_SHA?: string;
+  GITHUB_SHA?: string;
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -115,6 +117,7 @@ function isAppRuntime(env: Env): boolean {
 const IKIMON_GA4_MEASUREMENT_ID = "G-NCL0M1VJZ2";
 const IKIMON_CLARITY_PROJECT_ID = "wl2ezvfqbh";
 const REFLECTION_LOOP_MANIFEST_PATH = "/qa/reflection-loop.json";
+const RUNTIME_VERSION_PATH = "/api/v1/runtime/version";
 
 interface DraftAssetInput {
   mime: string;
@@ -1508,7 +1511,7 @@ const PUBLIC_MAP_EXACT_COORDINATE_GATE = Object.freeze({
   rawCoordinateFieldsExposed: [] as string[]
 });
 const OBSERVATION_PARTITION_STRATEGY = "single_active_d1_logical_month";
-const WORKER_BUILD_MARKER = "top-record-feed-20260628";
+const WORKER_BUILD_MARKER = "one-month-sprint-evidence-gate-20260705";
 const PUBLIC_CUSTOM_HOSTS = new Set(["ikimon.life", "www.ikimon.life", "staging.ikimon.life"]);
 const HAMAMATSU_CITY_HERITAGE_URL = "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html";
 const JMA_NOWCAST_TARGET_N1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
@@ -2187,6 +2190,10 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && url.pathname === REFLECTION_LOOP_MANIFEST_PATH) {
         return getReflectionLoopManifest(url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && url.pathname === RUNTIME_VERSION_PATH) {
+        return getRuntimeVersion(url, env);
       }
 
       if (url.pathname.startsWith("/internal/")) {
@@ -30109,6 +30116,32 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
   });
 }
 
+function getRuntimeVersion(url: URL, env: Env): Response {
+  const gitSha = env.IKIMON_GIT_SHA?.trim() || env.GITHUB_SHA?.trim() || null;
+  return json({
+    schemaVersion: "cloudflare_worker_runtime/v1",
+    ok: true,
+    service: "ikimon.life",
+    runtime: "cloudflare-worker",
+    environment: env.ENVIRONMENT,
+    origin: url.origin,
+    buildMarker: WORKER_BUILD_MARKER,
+    gitSha,
+    source: {
+      worker: "platform_v2/cloudflare_shadow/src/index.ts",
+      endpoint: RUNTIME_VERSION_PATH,
+      reflectionManifest: REFLECTION_LOOP_MANIFEST_PATH
+    },
+    featureFlags: {
+      cloudflareNativeWrite: env.PUBLIC_WRITE_MODE === "cloudflare_native",
+      reflectionLoopManifest: true,
+      publicRuntimeVersionEndpoint: true,
+      originalUiMaterializedHtml: true
+    },
+    publicSafe: true
+  }, 200, { "cache-control": "no-store" });
+}
+
 function getReflectionLoopManifest(url: URL, env: Env): Response {
   const publicHtmlPaths = [...ORIGINAL_UI_HTML_STATIC_PATHS].sort();
   return json({
@@ -30153,6 +30186,7 @@ function getReflectionLoopManifest(url: URL, env: Env): Response {
         smoke_paths: [
           "/healthz",
           "/readyz",
+          RUNTIME_VERSION_PATH,
           REFLECTION_LOOP_MANIFEST_PATH
         ]
       },

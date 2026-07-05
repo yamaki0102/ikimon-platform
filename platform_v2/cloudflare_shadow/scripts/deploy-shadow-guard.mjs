@@ -175,7 +175,8 @@ async function smoke(baseUrl) {
   const checks = [
     { path: "/health", service: undefined },
     { path: "/healthz", service: "ikimon-life-cloudflare-worker" },
-    { path: "/readyz", service: "ikimon-life-cloudflare-worker" }
+    { path: "/readyz", service: "ikimon-life-cloudflare-worker" },
+    { path: "/api/v1/runtime/version", service: "ikimon.life", runtime: "cloudflare-worker" }
   ];
   for (const check of checks) {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${check.path}`, {
@@ -188,7 +189,8 @@ async function smoke(baseUrl) {
       && typeof payload === "object"
       && payload !== null
       && payload.ok === true
-      && (!check.service || payload.service === check.service);
+      && (!check.service || payload.service === check.service)
+      && (!check.runtime || payload.runtime === check.runtime);
     events.push({
       command: `smoke ${baseUrl}${check.path}`,
       exitCode: ok ? 0 : 1,
