@@ -1901,6 +1901,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
     ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
     ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
+    ownObservationPublicApproxHint: props.lang === "ja" ? "公開マップではおおよその位置で表示されます。" : props.lang === "es" ? "On the public map, this is shown at an approximate location." : props.lang === "pt-BR" ? "No mapa publico, isto aparece em uma localizacao aproximada." : "On the public map, this is shown at an approximate location.",
     ownObservationExactBadge: props.lang === "ja" ? "自分にだけ正確な位置" : props.lang === "es" ? "Exacto solo para ti" : props.lang === "pt-BR" ? "Exato so para voce" : "Exact for you only",
     ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
     ownObservationTrailHeading: props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos",
@@ -3129,6 +3130,94 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (record.photoUrl) return true;
     return String(record.displayName || '') === '大切な生きもの';
   }
+  function normalizeMapMediaKey(value) {
+    var raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      var parsed = /^https?:\/\//i.test(raw) ? new URL(raw) : new URL(raw, window.location.origin);
+      raw = parsed.pathname || raw;
+    } catch (_) {
+      raw = raw.split('?')[0].split('#')[0];
+    }
+    raw = raw.split('?')[0].split('#')[0];
+    try { raw = decodeURIComponent(raw); } catch (_) {}
+    raw = raw.replace(/^\\/thumb\\/(?:sm|md|lg)\\//i, '/media/');
+    raw = raw.replace(/^\\/(?:uploads|data\\/uploads)\\//i, '/media/');
+    return raw.toLowerCase();
+  }
+  function mapVisitKey(record) {
+    var visitId = String(record && record.visitId || '').trim();
+    return visitId ? 'visit:' + visitId : '';
+  }
+  function mapOccurrenceKey(record) {
+    var occurrenceId = String(record && record.occurrenceId || '').trim();
+    return occurrenceId ? 'occ:' + occurrenceId : '';
+  }
+  function mapMediaKey(record) {
+    var media = normalizeMapMediaKey(record && record.photoUrl);
+    return media ? 'media:' + media : '';
+  }
+  function mapMarkerDisplayKey(record) {
+    return mapVisitKey(record) || mapOccurrenceKey(record) || mapMediaKey(record);
+  }
+  function mapCardDisplayKey(record) {
+    var visit = mapVisitKey(record);
+    var media = mapMediaKey(record);
+    if (visit && media) return visit + '|' + media;
+    return visit || mapOccurrenceKey(record) || media;
+  }
+  function mapSuppressionKeys(record) {
+    var keys = [mapVisitKey(record), mapOccurrenceKey(record)].filter(Boolean);
+    if (!keys.length) {
+      var media = mapMediaKey(record);
+      if (media) keys.push(media);
+    }
+    return keys;
+  }
+  function recordHasExactCoordinateDisclosure(record) {
+    var exactLat = Number(record && record.exactLatitude);
+    var exactLng = Number(record && record.exactLongitude);
+    return !!(record && (record.isViewerOwned || (Number.isFinite(exactLat) && Number.isFinite(exactLng))));
+  }
+  function dedupeRecordsForSurface(records, mode) {
+    var seen = {};
+    var output = [];
+    var keyFn = mode === 'card' ? mapCardDisplayKey : mapMarkerDisplayKey;
+    (Array.isArray(records) ? records : []).forEach(function (record) {
+      var key = keyFn(record);
+      if (!key) {
+        output.push(record);
+        return;
+      }
+      if (seen[key]) return;
+      seen[key] = true;
+      output.push(record);
+    });
+    return output;
+  }
+  function ownedDisplayKeySet(records) {
+    var set = {};
+    (Array.isArray(records) ? records : []).forEach(function (record) {
+      mapSuppressionKeys(record).forEach(function (key) { set[key] = true; });
+    });
+    return set;
+  }
+  function suppressOwnerRepresentedPublicRecords(publicRecords, ownedRecords) {
+    var owned = ownedDisplayKeySet(ownedRecords);
+    return (Array.isArray(publicRecords) ? publicRecords : []).filter(function (record) {
+      if (!record || recordHasExactCoordinateDisclosure(record)) return false;
+      var keys = mapSuppressionKeys(record);
+      return !keys.length || !keys.some(function (key) { return !!owned[key]; });
+    });
+  }
+  function publicRecordsForSignedInSurface(records) {
+    return suppressOwnerRepresentedPublicRecords(records, state.myObservations);
+  }
+  function recordRepresentedByOwnObservations(record) {
+    var owned = ownedDisplayKeySet(state.myObservations);
+    var keys = mapSuppressionKeys(record);
+    return !!keys.length && keys.some(function (key) { return !!owned[key]; });
+  }
   var TAXON_GENUS_JA_FALLBACK = {
     Chloris: 'カワラヒワ属',
     Monticola: 'イソヒヨドリ属',
@@ -3755,7 +3844,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderResultList() {
-    var records = Array.isArray(state.records) ? state.records : [];
+    var records = publicRecordsForSignedInSurface(Array.isArray(state.records) ? state.records : []);
     var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
     setResultsLoadState(records.length ? 'ready' : 'empty', records.length);
     updateSideRailSignal(records);
@@ -3842,8 +3931,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function sortedDiscoveryPreviewCandidates() {
-    return (Array.isArray(state.records) ? state.records.slice() : [])
-      .filter(function (record) { return !(record && record.isViewerOwned); })
+    return dedupeRecordsForSurface(publicRecordsForSignedInSurface(Array.isArray(state.records) ? state.records.slice() : []), 'card')
       .sort(function (a, b) {
         var photoDelta = (b && b.photoUrl ? 1 : 0) - (a && a.photoUrl ? 1 : 0);
         if (photoDelta) return photoDelta;
@@ -4032,12 +4120,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderOwnObservationTrail(records) {
     if (!ownTrailEl || !ownTrailListEl) return;
-    var list = (Array.isArray(records) ? records : [])
+    var list = dedupeRecordsForSurface((Array.isArray(records) ? records : [])
       .filter(function (record) {
         var lat = Number(record && record.latitude);
         var lng = Number(record && record.longitude);
         return Number.isFinite(lat) && Number.isFinite(lng) && !!record.photoUrl;
-      })
+      }), 'card')
       .slice(0, 6);
     if (state.tab === 'rain' || !list.length) {
       hideOwnObservationTrail();
@@ -4268,6 +4356,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         photoUrl: record && record.photoUrl ? record.photoUrl : '',
       }) +
       '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationStackHint || '') + '</p>' +
+      '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationPublicApproxHint || '') + '</p>' +
       renderDetailActions([
         { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF, actionKey: 'map:own_observation:notes' },
       ]) +
@@ -4303,6 +4392,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         photoUrl: list[0] && list[0].photoUrl ? list[0].photoUrl : '',
       }) +
       '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationStackHint || '') + '</p>' +
+      '<p class="me-own-stack-hint">' + escapeHtml(COPY.ownObservationPublicApproxHint || '') + '</p>' +
       '<div class="me-own-stack-list">' + list.map(function (record) {
         var label = recordDisplayName(record, COPY.discoveryFallback);
         var metaText = ownObservationMeta(record);
@@ -7419,6 +7509,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       features: (records || []).map(function (record) {
         var center = viewerOwnedRecordCenter(record);
         if (!center) return null;
+        if (recordRepresentedByOwnObservations(record)) return null;
         return {
           type: 'Feature',
           geometry: { type: 'Point', coordinates: [center.lng, center.lat] },
@@ -8549,6 +8640,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         state.myObservationClusters = payload && payload.signedIn ? (payload.clusters || []).filter(isRenderableMapCluster) : [];
         if (root) root.setAttribute('data-own-observations-fetch', payload && payload.signedIn ? 'signed-in' : 'signed-out');
         renderPersonalMemoryClusters();
+        syncViewerOwnedRecordSource(state.map);
         try {
           renderOwnObservationMarkers();
         } catch (_) {
@@ -8568,6 +8660,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         hidePersonalMemoryClusters();
         hideOwnObservationTrail();
         clearOwnObservationMarkers();
+        syncViewerOwnedRecordSource(state.map);
       });
   }
 
