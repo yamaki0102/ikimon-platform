@@ -8451,8 +8451,8 @@ function mapAreaPolygonsFallbackLimit(zoom: number | null): number {
   if (zoom == null || !Number.isFinite(zoom)) return 48;
   if (zoom < 11) return 40;
   if (zoom < 13) return 56;
-  if (zoom < 15) return 48;
-  return 72;
+  if (zoom < 15) return 120;
+  return 220;
 }
 
 function isShadowDiagnosticPath(pathname: string): boolean {
@@ -11676,6 +11676,7 @@ interface PublicMapAreaPolygonOptions {
 const LIVE_SCHOOL_OSM_TIMEOUT_MS = 4_500;
 const LIVE_SCHOOL_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_SCHOOL_OSM_MIN_ZOOM = 13;
+const LIVE_SCHOOL_OSM_MIN_RESPONSE_LIMIT = 220;
 const LIVE_SCHOOL_OSM_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://z.overpass-api.de/api/interpreter",
@@ -11698,9 +11699,11 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
     return json({ error: "missing_or_invalid_bbox" }, 400, { "cache-control": "no-store" });
   }
   const sources = parseSourceParam(url.searchParams.get("sources"));
-  const zoom = Number(url.searchParams.get("zoom"));
+  const rawZoom = url.searchParams.get("zoom");
+  const zoom = rawZoom == null || rawZoom.trim() === "" ? null : Number(rawZoom);
   const defaultLimit = mapAreaPolygonsFallbackLimit(zoom);
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
+  const requestedLimit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
+  const limit = mapAreaPolygonsResponseLimit(bbox, sources, zoom, requestedLimit);
   const nativeRows = await queryNativeAreaPolygonRows(env, bbox, sources, limit);
   if (nativeRows.length > 0) {
     const nativeFeatures = nativeRows
@@ -11761,28 +11764,52 @@ function isSchoolAreaSourceRequested(sources: string[]): boolean {
   return sources.length === 0 || sources.includes("school");
 }
 
-function shouldFetchLiveSchoolAreaPolygons(
-  bbox: [number, number, number, number],
-  sources: string[],
-  zoom: number,
-  nativeRows: AreaPolygonGeometryReadmodelRow[],
-  displayableFeatures: unknown[]
-): boolean {
-  if (!isSchoolAreaSourceRequested(sources)) return false;
-  if (!Number.isFinite(zoom) || zoom < LIVE_SCHOOL_OSM_MIN_ZOOM) return false;
-  if (!nativeRows.some((row) => row.source === "school")) return false;
-  if (displayableFeatures.some((feature) => areaPolygonFeatureProps(feature)?.source === "school")) return false;
+function isHumanScaleSchoolAreaBbox(bbox: [number, number, number, number]): boolean {
   const [minLng, minLat, maxLng, maxLat] = bbox;
   if (maxLng <= minLng || maxLat <= minLat) return false;
   return (maxLng - minLng) <= LIVE_SCHOOL_OSM_MAX_SPAN_DEGREES
     && (maxLat - minLat) <= LIVE_SCHOOL_OSM_MAX_SPAN_DEGREES;
 }
 
+function isHumanScaleSchoolAreaRequest(
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null
+): boolean {
+  if (!isSchoolAreaSourceRequested(sources)) return false;
+  if (!isHumanScaleSchoolAreaBbox(bbox)) return false;
+  if (zoom == null) return true;
+  return Number.isFinite(zoom) && zoom >= LIVE_SCHOOL_OSM_MIN_ZOOM;
+}
+
+function mapAreaPolygonsResponseLimit(
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null,
+  requestedLimit: number
+): number {
+  if (!isHumanScaleSchoolAreaRequest(bbox, sources, zoom)) return requestedLimit;
+  return Math.max(requestedLimit, LIVE_SCHOOL_OSM_MIN_RESPONSE_LIMIT);
+}
+
+function shouldFetchLiveSchoolAreaPolygons(
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null,
+  nativeRows: AreaPolygonGeometryReadmodelRow[],
+  displayableFeatures: unknown[]
+): boolean {
+  if (!isHumanScaleSchoolAreaRequest(bbox, sources, zoom)) return false;
+  if (!nativeRows.some((row) => row.source === "school")) return false;
+  if (displayableFeatures.some((feature) => areaPolygonFeatureProps(feature)?.source === "school")) return false;
+  return true;
+}
+
 async function fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
   env: Env,
   bbox: [number, number, number, number],
   sources: string[],
-  zoom: number,
+  zoom: number | null,
   nativeRows: AreaPolygonGeometryReadmodelRow[],
   displayableFeatures: unknown[],
   remainingLimit: number

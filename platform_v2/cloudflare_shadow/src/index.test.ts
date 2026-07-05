@@ -16404,6 +16404,76 @@ test("production map area polygons supplement live OSM school polygons when nati
   }
 });
 
+test("production map area polygons expand low legacy limits for human-scale school overlays", async () => {
+  const { env } = createEnv();
+  for (let index = 0; index < 90; index += 1) {
+    const key = `native-park-${String(index).padStart(2, "0")}`;
+    env.OBS_DB.productionAreaPolygons.set(key, productionAreaPolygonRow(key, {
+      source: "osm_park",
+      admin_level: "osm_park",
+      name: `公園 ${String(index).padStart(2, "0")}`,
+      area_ha: 1 + index / 1000,
+      source_confidence: 0.8,
+      verification_level: "unverified",
+      verification_label: "未確認",
+      official_url: null
+    }));
+  }
+  env.OBS_DB.productionAreaPolygons.set("native-approx-school", productionAreaPolygonRow("native-approx-school", {
+    name: "代表点小学校",
+    source: "school",
+    area_ha: 2,
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    source_confidence: 0.45
+  }));
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let overpassCalls = 0;
+  globalThis.fetch = (async () => {
+    overpassCalls += 1;
+    return Response.json({
+      elements: [{
+        type: "way",
+        id: 603994619,
+        tags: { amenity: "school", name: "静岡県立浜松西高等学校" },
+        geometry: [
+          { lat: 34.690, lon: 137.700 },
+          { lat: 34.690, lon: 137.710 },
+          { lat: 34.700, lon: 137.710 },
+          { lat: 34.700, lon: 137.700 },
+          { lat: 34.690, lon: 137.700 }
+        ],
+        bounds: { minlat: 34.690, minlon: 137.700, maxlat: 34.700, maxlon: 137.710 }
+      }]
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&limit=80"
+    ), productionEnv);
+    const payload = await response.json() as any;
+
+    assert.equal(response.status, 200);
+    assert.equal(overpassCalls, 1);
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel+live_osm_school");
+    assert.equal(payload.features.length, 91);
+    assert.equal(payload.truncated, false);
+    assert.equal(payload.features.some((feature: any) => feature.properties.field_id === "osm-live:way:603994619"), true);
+    assert.equal(payload.features.some((feature: any) => feature.properties.source === "school"), true);
+    assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|境界未確認・代表点からの仮範囲/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production map area polygons skip live OSM school fallback below human-scale zoom", async () => {
   const { env } = createEnv();
   env.OBS_DB.productionAreaPolygons.set("native-approx-school", productionAreaPolygonRow("native-approx-school", {
