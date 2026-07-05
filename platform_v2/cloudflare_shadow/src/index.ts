@@ -12017,6 +12017,7 @@ async function fetchLiveSchoolAreaPolygons(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json",
+          "User-Agent": "ikimon.life area polygon repair contact: https://ikimon.life",
           "X-Ikimon-Client": "ikimon.life-area-polygons"
         },
         body,
