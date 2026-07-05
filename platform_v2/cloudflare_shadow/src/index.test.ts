@@ -16260,7 +16260,7 @@ test("production map area polygons filter D1 geometry without origin fallback", 
   let fallbackCalls = 0;
   globalThis.fetch = (async () => {
     fallbackCalls += 1;
-    return new Response("fallback should not be called", { status: 599 });
+    return Response.json({ elements: [] });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
@@ -16275,7 +16275,7 @@ test("production map area polygons filter D1 geometry without origin fallback", 
     assert.equal(payload.stats.totalReturned, 1);
     assert.equal(payload.stats.totalAll, 1);
     assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
-    assert.equal(fallbackCalls, 0);
+    assert.equal(fallbackCalls, 1);
     assert.equal(core.operationAudit.length, 0);
 
     const localizedResponse = await worker.fetch(new Request(
@@ -16287,7 +16287,7 @@ test("production map area polygons filter D1 geometry without origin fallback", 
     assert.equal(localizedPayload.features[0].properties.name, "native polygon school");
     assert.equal(localizedPayload.stats.totalReturned, 1);
     assert.equal(localizedPayload.stats.totalAll, 1);
-    assert.equal(fallbackCalls, 0);
+    assert.equal(fallbackCalls, 2);
     assert.doesNotMatch(JSON.stringify(localizedPayload), /native-approx-school|OSMの学校・キャンパス|OSMの公園・緑地|境界未確認/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -16399,6 +16399,89 @@ test("production map area polygons supplement live OSM school polygons when nati
     assert.equal(payload.features.some((feature: any) => feature.properties.field_id === "osm-live:way:603994619"), true);
     assert.equal(payload.features.some((feature: any) => feature.properties.osm_named === true), true);
     assert.doesNotMatch(JSON.stringify(payload), /native-approx-school|境界未確認・代表点からの仮範囲/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production map area polygons complement registered school polygons with missing live OSM school boundaries", async () => {
+  const { env } = createEnv();
+  env.OBS_DB.productionAreaPolygons.set("registered-high-school", productionAreaPolygonRow("registered-high-school", {
+    name: "静岡県立浜松西高等学校",
+    source: "school",
+    approximate_boundary: 0,
+    boundary_approximation: "osm_matched",
+    verification_label: "OSM校地境界確認済み (https://www.openstreetmap.org/way/194423248)",
+    official_url: "https://www.edu.pref.shizuoka.jp/hamamatsunishi-h/home.nsf/",
+    entity_key: "mext_school:D122210000689"
+  }));
+  env.OBS_DB.productionAreaPolygons.set("native-approx-elementary", productionAreaPolygonRow("native-approx-elementary", {
+    name: "代表点だけの小学校",
+    source: "school",
+    approximate_boundary: 1,
+    boundary_approximation: "point_buffer",
+    verification_label: "境界未確認・代表点からの仮範囲 / 学校台帳と一致",
+    source_confidence: 0.45
+  }));
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let overpassCalls = 0;
+  globalThis.fetch = (async () => {
+    overpassCalls += 1;
+    return Response.json({
+      elements: [
+        {
+          type: "way",
+          id: 194423248,
+          tags: { amenity: "school", name: "静岡県立浜松西高等学校" },
+          geometry: [
+            { lat: 34.690, lon: 137.700 },
+            { lat: 34.690, lon: 137.710 },
+            { lat: 34.700, lon: 137.710 },
+            { lat: 34.700, lon: 137.700 },
+            { lat: 34.690, lon: 137.700 }
+          ],
+          bounds: { minlat: 34.690, minlon: 137.700, maxlat: 34.700, maxlon: 137.710 }
+        },
+        {
+          type: "way",
+          id: 777777777,
+          tags: { amenity: "school", name: "浜松市立鴨江小学校" },
+          geometry: [
+            { lat: 34.701, lon: 137.704 },
+            { lat: 34.701, lon: 137.712 },
+            { lat: 34.708, lon: 137.712 },
+            { lat: 34.708, lon: 137.704 },
+            { lat: 34.701, lon: 137.704 }
+          ],
+          bounds: { minlat: 34.701, minlon: 137.704, maxlat: 34.708, maxlon: 137.712 }
+        }
+      ]
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(
+      "https://ikimon.life/api/v1/map/area-polygons?bbox=137.65%2C34.66%2C137.76%2C34.73&zoom=14&sources=school"
+    ), productionEnv);
+    const payload = await response.json() as any;
+    const fieldIds = payload.features.map((feature: any) => feature.properties.field_id);
+    const featureNames = payload.features.map((feature: any) => feature.properties.name);
+
+    assert.equal(response.status, 200);
+    assert.equal(overpassCalls, 1);
+    assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel+live_osm_school");
+    assert.equal(payload.features.length, 2);
+    assert.deepEqual(featureNames.sort(), ["浜松市立鴨江小学校", "静岡県立浜松西高等学校"].sort());
+    assert.equal(fieldIds.includes("registered-high-school"), true);
+    assert.equal(fieldIds.includes("osm-live:way:777777777"), true);
+    assert.equal(fieldIds.includes("osm-live:way:194423248"), false);
+    assert.doesNotMatch(JSON.stringify(payload), /native-approx-elementary|境界未確認・代表点からの仮範囲/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -16680,7 +16763,7 @@ test("production map area polygons use native polygon readmodel without origin f
   let fallbackCalls = 0;
   globalThis.fetch = (async () => {
     fallbackCalls += 1;
-    return new Response("fallback should not be called", { status: 599 });
+    return Response.json({ elements: [] });
   }) as typeof fetch;
   try {
     const response = await worker.fetch(new Request(
@@ -16689,7 +16772,7 @@ test("production map area polygons use native polygon readmodel without origin f
     const payload = await response.json() as any;
 
     assert.equal(response.status, 200);
-    assert.equal(fallbackCalls, 0);
+    assert.equal(fallbackCalls, 1);
     assert.equal(payload.stats.source, "cloudflare_area_polygon_readmodel");
     assert.equal(payload.features.length, 1);
     assert.equal(payload.features[0].properties.field_id, "native-school");

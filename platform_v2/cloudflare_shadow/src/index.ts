@@ -11797,12 +11797,14 @@ function shouldFetchLiveSchoolAreaPolygons(
   sources: string[],
   zoom: number | null,
   nativeRows: AreaPolygonGeometryReadmodelRow[],
-  displayableFeatures: unknown[]
+  _displayableFeatures: unknown[]
 ): boolean {
   if (!isHumanScaleSchoolAreaRequest(bbox, sources, zoom)) return false;
   if (!nativeRows.some((row) => row.source === "school")) return false;
-  if (displayableFeatures.some((feature) => areaPolygonFeatureProps(feature)?.source === "school")) return false;
-  return true;
+  return nativeRows.some((row) => row.source === "school" && (
+    row.approximate_boundary === 1 ||
+    row.boundary_approximation === "point_buffer"
+  ));
 }
 
 async function fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
@@ -12009,15 +12011,38 @@ function publicAreaPolygonFeatureTouchesBbox(feature: unknown, bbox: [number, nu
   return fMaxLat >= minLat && fMinLat <= maxLat && fMaxLng >= minLng && fMinLng <= maxLng;
 }
 
+function osmEntityKeyFromAreaPolygonProps(props: Record<string, unknown>): string {
+  const explicit = textProp(props, "entity_key");
+  if (/^osm:(way|relation):[0-9]+$/.test(explicit)) return explicit;
+  const fieldId = textProp(props, "field_id");
+  const liveIdMatch = fieldId.match(/^osm-live:(way|relation):([0-9]+)$/);
+  if (liveIdMatch?.[1] && liveIdMatch[2]) return `osm:${liveIdMatch[1]}:${liveIdMatch[2]}`;
+  const osmType = textProp(props, "osm_type");
+  const osmId = String(props.osm_id ?? "").trim();
+  if (/^(way|relation)$/.test(osmType) && /^[0-9]+$/.test(osmId)) return `osm:${osmType}:${osmId}`;
+  const label = [
+    textProp(props, "verification_label"),
+    textProp(props, "official_url"),
+    textProp(props, "owner_url"),
+    textProp(props, "certification_url"),
+    textProp(props, "story_url")
+  ].join(" ");
+  const urlMatch = label.match(/openstreetmap\.org\/(way|relation)\/([0-9]+)/);
+  return urlMatch?.[1] && urlMatch[2] ? `osm:${urlMatch[1]}:${urlMatch[2]}` : "";
+}
+
 function dedupePublicAreaPolygonFeatures<T>(features: T[], limit: number, bbox?: [number, number, number, number]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const feature of features) {
     if (bbox && !publicAreaPolygonFeatureTouchesBbox(feature, bbox)) continue;
     const props = areaPolygonFeatureProps(feature);
+    const osmKey = props ? osmEntityKeyFromAreaPolygonProps(props) : "";
+    if (osmKey && seen.has(osmKey)) continue;
     const key = textProp(props ?? {}, "entity_key") || textProp(props ?? {}, "field_id");
     if (!key || seen.has(key)) continue;
     seen.add(key);
+    if (osmKey) seen.add(osmKey);
     out.push(feature);
     if (out.length >= limit) break;
   }
