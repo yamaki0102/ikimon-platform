@@ -140,8 +140,11 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS https://staging.ikimon.life/healthz | tee staging-healthz.json | grep -q '"environment":"staging"'
-          grep -q '"buildMarker":"top-record-feed-20260628"' staging-healthz.json
+          grep -q '"buildMarker":"one-month-sprint-evidence-gate-20260705"' staging-healthz.json
           curl -fsS https://staging.ikimon.life/readyz | tee staging-readyz.json | grep -q '"environment":"staging"'
+          curl -fsS https://staging.ikimon.life/api/v1/runtime/version | tee staging-runtime-version.json | grep -q '"schemaVersion":"cloudflare_worker_runtime/v1"'
+          grep -q '"buildMarker":"one-month-sprint-evidence-gate-20260705"' staging-runtime-version.json
+          grep -q '"publicSafe":true' staging-runtime-version.json
           curl -fsS -D staging-root.headers https://staging.ikimon.life/ -o staging-root.html
           grep -q 'data-record-feed' staging-root.html
           ! grep -q 'id="map-explorer"' staging-root.html

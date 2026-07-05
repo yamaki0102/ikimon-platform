@@ -21210,15 +21210,27 @@ test("production public health endpoints are served by Cloudflare instead of ori
     const healthPayload = await health.json() as any;
     assert.equal(healthPayload.ok, true);
     assert.equal(healthPayload.service, "ikimon-life-cloudflare-worker");
-    assert.equal(healthPayload.buildMarker, "top-record-feed-20260628");
+    assert.equal(healthPayload.buildMarker, "one-month-sprint-evidence-gate-20260705");
 
     const ready = await worker.fetch(new Request("https://ikimon.life/readyz"), productionEnv);
     assert.equal(ready.status, 200);
     const readyPayload = await ready.json() as any;
     assert.equal(readyPayload.ok, true);
-    assert.equal(readyPayload.buildMarker, "top-record-feed-20260628");
+    assert.equal(readyPayload.buildMarker, "one-month-sprint-evidence-gate-20260705");
     assert.equal(readyPayload.coreDb, "ok");
     assert.equal(readyPayload.observationDb, "ok");
+
+    const runtime = await worker.fetch(new Request("https://ikimon.life/api/v1/runtime/version"), productionEnv);
+    assert.equal(runtime.status, 200);
+    const runtimePayload = await runtime.json() as any;
+    assert.equal(runtimePayload.ok, true);
+    assert.equal(runtimePayload.schemaVersion, "cloudflare_worker_runtime/v1");
+    assert.equal(runtimePayload.runtime, "cloudflare-worker");
+    assert.equal(runtimePayload.environment, "production");
+    assert.equal(runtimePayload.buildMarker, "one-month-sprint-evidence-gate-20260705");
+    assert.equal(runtimePayload.publicSafe, true);
+    assert.equal(runtimePayload.featureFlags.publicRuntimeVersionEndpoint, true);
+
     assert.equal(fallbackCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
@@ -21253,6 +21265,7 @@ test("production reflection loop manifest is served by Cloudflare instead of ori
     assert.equal(payload.analytics.ga4_measurement_id, "G-NCL0M1VJZ2");
     assert.equal(payload.analytics.clarity_project_id, "wl2ezvfqbh");
     assert.equal(payload.coverage.cloudflare_worker.public_html_path_count > 50, true);
+    assert.equal(payload.coverage.cloudflare_worker.smoke_paths.includes("/api/v1/runtime/version"), true);
     assert.equal(payload.coverage.cloudflare_worker.smoke_paths.includes("/qa/reflection-loop.json"), true);
     assert.equal(payload.coverage.node_platform.registry_source, "platform_v2/src/siteMap.ts");
     assert.equal(payload.improvement_loop.priority_basis.continuously_updated, true);
