@@ -18532,19 +18532,173 @@ async function getObservationFieldStatsNative(fieldId: string, env: Env): Promis
 }
 
 async function listObservationFieldPrefecturesNative(env: Env): Promise<Response> {
-  const rows = await env.OBS_DB.prepare(
-    `SELECT prefecture, COUNT(*) AS field_count
-       FROM production_import_field_detail_readmodel
-      WHERE prefecture IS NOT NULL AND prefecture <> ''
-      GROUP BY prefecture
-      ORDER BY prefecture ASC
-      LIMIT 100`
-  ).all<{ prefecture: string; field_count: number }>();
+  let prefectures: Array<{ prefecture: string; fieldCount: number }>;
+  let sourceAvailable = true;
+  let unavailableReason: string | null = null;
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT prefecture, COUNT(*) AS field_count
+         FROM production_import_field_detail_readmodel
+        WHERE prefecture IS NOT NULL AND prefecture <> ''
+        GROUP BY prefecture
+        ORDER BY prefecture ASC
+        LIMIT 100`
+    ).all<{ prefecture: string; field_count: number }>();
+    prefectures = rows.results.map((row) => ({ prefecture: row.prefecture, fieldCount: Number(row.field_count ?? 0) }));
+  } catch (error) {
+    if (!isMissingD1TableError(error, "production_import_field_detail_readmodel")) throw error;
+    prefectures = [];
+    sourceAvailable = false;
+    unavailableReason = "production_import_field_detail_readmodel_missing";
+  }
+  const normalizedPrefectures = summarizeNormalizedPrefectureBuckets(prefectures);
+  const totalFieldRows = prefectures.reduce((sum, row) => sum + row.fieldCount, 0);
+  const spellingVariantBucketCount = normalizedPrefectures
+    .filter((row) => row.rawBuckets.length > 1)
+    .reduce((sum, row) => sum + row.rawBuckets.length, 0);
   return json({
-    prefectures: rows.results.map((row) => ({ prefecture: row.prefecture, fieldCount: Number(row.field_count ?? 0) })),
+    prefectures,
+    normalizedPrefectures,
+    summary: {
+      schemaVersion: "active_places_prefecture_summary/v1",
+      definition: "active_field_rows_from_production_import_field_detail_readmodel",
+      totalFieldRows,
+      rawPrefectureBucketCount: prefectures.length,
+      normalizedPrefectureCount: normalizedPrefectures.length,
+      spellingVariantBucketCount,
+      sourceAvailable,
+      unavailableReason,
+      normalizedUniquePlaceCountAvailable: false,
+      caveat: "This is an active field row baseline, not a deduplicated real-world place identity count."
+    },
     compatibility: { source: "cloudflare_observation_field_registry_runtime" }
   }, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "observation-field-registry-runtime" });
 }
+
+function summarizeNormalizedPrefectureBuckets(
+  rows: Array<{ prefecture: string; fieldCount: number }>
+): Array<{ prefecture: string; fieldCount: number; rawBuckets: string[] }> {
+  const buckets = new Map<string, { prefecture: string; fieldCount: number; rawBuckets: Set<string> }>();
+  for (const row of rows) {
+    const normalizedPrefecture = normalizeJapanesePrefectureName(row.prefecture);
+    const current = buckets.get(normalizedPrefecture) ?? {
+      prefecture: normalizedPrefecture,
+      fieldCount: 0,
+      rawBuckets: new Set<string>()
+    };
+    current.fieldCount += row.fieldCount;
+    current.rawBuckets.add(row.prefecture);
+    buckets.set(normalizedPrefecture, current);
+  }
+  return [...buckets.values()]
+    .sort((a, b) => a.prefecture.localeCompare(b.prefecture, "ja"))
+    .map((row) => ({
+      prefecture: row.prefecture,
+      fieldCount: row.fieldCount,
+      rawBuckets: [...row.rawBuckets].sort((a, b) => a.localeCompare(b, "ja"))
+    }));
+}
+
+function normalizeJapanesePrefectureName(value: string): string {
+  const clean = value.normalize("NFKC").replace(/\s+/g, "").trim();
+  return JAPANESE_PREFECTURE_ALIASES[clean] ?? clean;
+}
+
+const JAPANESE_PREFECTURE_ALIASES: Record<string, string> = Object.freeze({
+  北海道: "北海道",
+  青森: "青森県",
+  青森県: "青森県",
+  岩手: "岩手県",
+  岩手県: "岩手県",
+  宮城: "宮城県",
+  宮城県: "宮城県",
+  秋田: "秋田県",
+  秋田県: "秋田県",
+  山形: "山形県",
+  山形県: "山形県",
+  福島: "福島県",
+  福島県: "福島県",
+  茨城: "茨城県",
+  茨城県: "茨城県",
+  栃木: "栃木県",
+  栃木県: "栃木県",
+  群馬: "群馬県",
+  群馬県: "群馬県",
+  埼玉: "埼玉県",
+  埼玉県: "埼玉県",
+  千葉: "千葉県",
+  千葉県: "千葉県",
+  東京: "東京都",
+  東京都: "東京都",
+  神奈川: "神奈川県",
+  神奈川県: "神奈川県",
+  新潟: "新潟県",
+  新潟県: "新潟県",
+  富山: "富山県",
+  富山県: "富山県",
+  石川: "石川県",
+  石川県: "石川県",
+  福井: "福井県",
+  福井県: "福井県",
+  山梨: "山梨県",
+  山梨県: "山梨県",
+  長野: "長野県",
+  長野県: "長野県",
+  岐阜: "岐阜県",
+  岐阜県: "岐阜県",
+  静岡: "静岡県",
+  静岡県: "静岡県",
+  愛知: "愛知県",
+  愛知県: "愛知県",
+  三重: "三重県",
+  三重県: "三重県",
+  滋賀: "滋賀県",
+  滋賀県: "滋賀県",
+  京都: "京都府",
+  京都府: "京都府",
+  大阪: "大阪府",
+  大阪府: "大阪府",
+  兵庫: "兵庫県",
+  兵庫県: "兵庫県",
+  奈良: "奈良県",
+  奈良県: "奈良県",
+  和歌山: "和歌山県",
+  和歌山県: "和歌山県",
+  鳥取: "鳥取県",
+  鳥取県: "鳥取県",
+  島根: "島根県",
+  島根県: "島根県",
+  岡山: "岡山県",
+  岡山県: "岡山県",
+  広島: "広島県",
+  広島県: "広島県",
+  山口: "山口県",
+  山口県: "山口県",
+  徳島: "徳島県",
+  徳島県: "徳島県",
+  香川: "香川県",
+  香川県: "香川県",
+  愛媛: "愛媛県",
+  愛媛県: "愛媛県",
+  高知: "高知県",
+  高知県: "高知県",
+  福岡: "福岡県",
+  福岡県: "福岡県",
+  佐賀: "佐賀県",
+  佐賀県: "佐賀県",
+  長崎: "長崎県",
+  長崎県: "長崎県",
+  熊本: "熊本県",
+  熊本県: "熊本県",
+  大分: "大分県",
+  大分県: "大分県",
+  宮崎: "宮崎県",
+  宮崎県: "宮崎県",
+  鹿児島: "鹿児島県",
+  鹿児島県: "鹿児島県",
+  沖縄: "沖縄県",
+  沖縄県: "沖縄県"
+});
 
 async function listObservationFieldsNative(request: Request, url: URL, env: Env): Promise<Response> {
   const params = url.searchParams;
