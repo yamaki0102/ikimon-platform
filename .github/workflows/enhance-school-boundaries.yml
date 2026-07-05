@@ -1,51 +1,63 @@
 name: Enhance School Boundaries
-run-name: Enhance school boundaries · ${{ github.event.inputs.target || 'production' }} · ${{ github.event.inputs.prefecture || '静岡県' }}
+run-name: Enhance school boundaries · ${{ github.event.inputs.target || 'staging' }} · ${{ github.event.inputs.prefecture || '静岡県' }}
 
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Target database'
+        description: "Target database"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - staging
           - production
       prefecture:
-        description: 'Prefecture label filter'
+        description: "Prefecture label filter"
         required: true
-        default: '静岡県'
+        default: "静岡県"
         type: string
       bbox:
-        description: 'Overpass bbox as south,west,north,east'
+        description: "Overpass bbox as south,west,north,east"
         required: true
-        default: '34.57,137.47,35.65,139.16'
+        default: "34.57,137.47,35.65,139.16"
         type: string
       max_distance_m:
-        description: 'Maximum school point to boundary match distance'
+        description: "Manual-review distance threshold. Automatic writes require containment unless explicitly opted in."
         required: true
-        default: '500'
+        default: "150"
+        type: string
+      city:
+        description: "Optional city label filter"
+        required: false
+        default: ""
+        type: string
+      field_ids:
+        description: "Optional comma-separated field_id allowlist for pilot writes"
+        required: false
+        default: ""
         type: string
       dry_run:
-        description: 'Only parse and preview matches'
+        description: "Only parse and preview matches"
         required: false
-        default: false
+        default: true
         type: boolean
       limit:
-        description: 'Optional maximum boundary candidates'
+        description: "Optional maximum boundary candidates"
         required: false
-        default: ''
+        default: ""
         type: string
-  schedule:
-    # Weekly after the Sunday branch hygiene audit, JST Monday morning.
-    - cron: "0 16 * * 0"
+      confirm_production_write:
+        description: "Required exact phrase for production dry_run=false: CONFIRM_PRODUCTION_SCHOOL_BOUNDARY_WRITE"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   enhance:
     name: Match OSM campus polygons to P29 school points
     runs-on: ubuntu-latest
-    environment: ${{ (github.event.inputs.target || 'production') == 'production' && 'production' || 'staging' }}
+    environment: ${{ (github.event.inputs.target || 'staging') == 'production' && 'production' || 'staging' }}
     steps:
       - name: Resolve inputs
         id: vars
@@ -54,29 +66,43 @@ jobs:
           INPUT_PREFECTURE: ${{ github.event.inputs.prefecture }}
           INPUT_BBOX: ${{ github.event.inputs.bbox }}
           INPUT_MAX_DISTANCE_M: ${{ github.event.inputs.max_distance_m }}
+          INPUT_CITY: ${{ github.event.inputs.city }}
+          INPUT_FIELD_IDS: ${{ github.event.inputs.field_ids }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_CONFIRM_PRODUCTION_WRITE: ${{ github.event.inputs.confirm_production_write }}
         run: |
           set -euo pipefail
-          target="${INPUT_TARGET:-production}"
+          target="${INPUT_TARGET:-staging}"
           prefecture="${INPUT_PREFECTURE:-静岡県}"
           bbox="${INPUT_BBOX:-34.57,137.47,35.65,139.16}"
-          max_distance_m="${INPUT_MAX_DISTANCE_M:-500}"
-          dry_run="${INPUT_DRY_RUN:-false}"
+          max_distance_m="${INPUT_MAX_DISTANCE_M:-150}"
+          city="${INPUT_CITY:-}"
+          field_ids="${INPUT_FIELD_IDS:-}"
+          dry_run="${INPUT_DRY_RUN:-true}"
           limit="${INPUT_LIMIT:-}"
+          confirm_production_write="${INPUT_CONFIRM_PRODUCTION_WRITE:-}"
 
           case "$target" in staging|production) ;; *) echo "invalid target: $target"; exit 1 ;; esac
           [ -n "$prefecture" ] && [ "${#prefecture}" -le 40 ] || { echo "prefecture must be 1-40 characters"; exit 1; }
+          if [ -n "$city" ]; then [ "${#city}" -le 40 ] || { echo "city must be 40 characters or fewer"; exit 1; }; fi
           printf '%s' "$bbox" | grep -qE '^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$' || { echo "bbox must be south,west,north,east"; exit 1; }
           printf '%s' "$max_distance_m" | grep -qE '^[0-9]{2,4}$' || { echo "max_distance_m must be numeric"; exit 1; }
+          if [ -n "$field_ids" ]; then printf '%s' "$field_ids" | grep -qE '^[0-9a-fA-F-]+(,[0-9a-fA-F-]+)*$' || { echo "field_ids must be comma-separated UUIDs"; exit 1; }; fi
           case "$dry_run" in true|false) ;; *) echo "dry_run must be true or false"; exit 1 ;; esac
           if [ -n "$limit" ]; then printf '%s' "$limit" | grep -qE '^[0-9]{1,6}$' || { echo "limit must be numeric"; exit 1; }; fi
+          if [ "$target" = "production" ] && [ "$dry_run" != "true" ] && [ "$confirm_production_write" != "CONFIRM_PRODUCTION_SCHOOL_BOUNDARY_WRITE" ]; then
+            echo "production writes require confirm_production_write=CONFIRM_PRODUCTION_SCHOOL_BOUNDARY_WRITE"
+            exit 1
+          fi
 
           {
             echo "target=$target"
             echo "prefecture=$prefecture"
             echo "bbox=$bbox"
             echo "max_distance_m=$max_distance_m"
+            echo "city=$city"
+            echo "field_ids=$field_ids"
             echo "dry_run=$dry_run"
             echo "limit=$limit"
           } >> "$GITHUB_OUTPUT"
@@ -94,20 +120,30 @@ jobs:
           PREFECTURE: ${{ steps.vars.outputs.prefecture }}
           BBOX: ${{ steps.vars.outputs.bbox }}
           MAX_DISTANCE_M: ${{ steps.vars.outputs.max_distance_m }}
+          CITY: ${{ steps.vars.outputs.city }}
+          FIELD_IDS: ${{ steps.vars.outputs.field_ids }}
           DRY_RUN: ${{ steps.vars.outputs.dry_run }}
           LIMIT: ${{ steps.vars.outputs.limit }}
         run: |
           set -euo pipefail
           b64() { printf '%s' "$1" | base64 -w 0; }
           ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "TARGET_B64='$(b64 "$TARGET")' PREFECTURE_B64='$(b64 "$PREFECTURE")' BBOX_B64='$(b64 "$BBOX")' MAX_DISTANCE_M_B64='$(b64 "$MAX_DISTANCE_M")' DRY_RUN_B64='$(b64 "$DRY_RUN")' LIMIT_B64='$(b64 "$LIMIT")' bash -s" <<'REMOTE'
+            "TARGET_B64='$(b64 "$TARGET")' PREFECTURE_B64='$(b64 "$PREFECTURE")' BBOX_B64='$(b64 "$BBOX")' MAX_DISTANCE_M_B64='$(b64 "$MAX_DISTANCE_M")' CITY_B64='$(b64 "$CITY")' FIELD_IDS_B64='$(b64 "$FIELD_IDS")' DRY_RUN_B64='$(b64 "$DRY_RUN")' LIMIT_B64='$(b64 "$LIMIT")' bash -s" <<'REMOTE'
           set -euo pipefail
           TARGET="$(printf '%s' "$TARGET_B64" | base64 -d)"
           PREFECTURE="$(printf '%s' "$PREFECTURE_B64" | base64 -d)"
           BBOX="$(printf '%s' "$BBOX_B64" | base64 -d)"
           MAX_DISTANCE_M="$(printf '%s' "$MAX_DISTANCE_M_B64" | base64 -d)"
+          CITY="$(printf '%s' "$CITY_B64" | base64 -d)"
+          FIELD_IDS="$(printf '%s' "$FIELD_IDS_B64" | base64 -d)"
           DRY_RUN="$(printf '%s' "$DRY_RUN_B64" | base64 -d)"
           LIMIT="$(printf '%s' "$LIMIT_B64" | base64 -d)"
+          if [ "$TARGET" = "production" ] && [ "$DRY_RUN" != "true" ]; then
+            case "$FIELD_IDS" in
+              fbe4dccc-83b9-4833-ac88-1b0a2cb68d90,818da461-166c-4395-89ff-739ffe4c2951|818da461-166c-4395-89ff-739ffe4c2951,fbe4dccc-83b9-4833-ac88-1b0a2cb68d90) ;;
+              *) echo "production write pilot is limited to the two Hamamatsu Nishi field_ids"; exit 1 ;;
+            esac
+          fi
 
           case "$TARGET" in
             production)
@@ -135,6 +171,7 @@ jobs:
           cleanup() { rm -rf "$work"; }
           trap cleanup EXIT
           geojson="$work/osm-school-boundaries.geojson"
+          report="$work/school-boundary-match-report.json"
 
           python3 - "$BBOX" "$geojson" <<'PY'
           import json
@@ -216,10 +253,14 @@ jobs:
 
           npm ci --include=dev --silent
           npm run migrate
-          args=(-- --file="$geojson" --boundary-source=osm --prefecture="$PREFECTURE" --max-distance-m="$MAX_DISTANCE_M")
+          args=(-- --file="$geojson" --boundary-source=osm --prefecture="$PREFECTURE" --max-distance-m="$MAX_DISTANCE_M" --report-file="$report")
+          if [ -n "${CITY:-}" ]; then args+=(--city="$CITY"); fi
+          if [ -n "${FIELD_IDS:-}" ]; then args+=(--field-id="$FIELD_IDS"); fi
           if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
           if [ -n "${LIMIT:-}" ]; then args+=(--limit="$LIMIT"); fi
           npm run enhance:school-boundaries "${args[@]}"
+          echo "school_boundary_match_report=$report"
+          cat "$report"
           npm run audit:field-entity-keys -- --fail-on-error
 
           PREFECTURE="$PREFECTURE" node <<'NODE'
@@ -254,5 +295,7 @@ jobs:
             echo "- target: \`${{ steps.vars.outputs.target }}\`"
             echo "- prefecture: \`${{ steps.vars.outputs.prefecture }}\`"
             echo "- bbox: \`${{ steps.vars.outputs.bbox }}\`"
+            echo "- city: \`${{ steps.vars.outputs.city }}\`"
+            echo "- field_ids: \`${{ steps.vars.outputs.field_ids }}\`"
             echo "- dry_run: \`${{ steps.vars.outputs.dry_run }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
