@@ -106,6 +106,7 @@ interface Env {
   SENTINEL_ENVIRONMENT_BATCH_SIZE?: string;
   SENTINEL_ENVIRONMENT_DAYS_BACK?: string;
   SENTINEL_ENVIRONMENT_MAX_CLOUD?: string;
+  OVERPASS_API_URL?: string;
   IKIMON_GIT_SHA?: string;
   GITHUB_SHA?: string;
 }
@@ -8450,8 +8451,8 @@ function mapAreaPolygonsFallbackLimit(zoom: number | null): number {
   if (zoom == null || !Number.isFinite(zoom)) return 48;
   if (zoom < 11) return 40;
   if (zoom < 13) return 56;
-  if (zoom < 15) return 48;
-  return 72;
+  if (zoom < 15) return 120;
+  return 220;
 }
 
 function isShadowDiagnosticPath(pathname: string): boolean {
@@ -11672,35 +11673,68 @@ interface PublicMapAreaPolygonOptions {
   allowApproximateFallback?: boolean;
 }
 
+const LIVE_SCHOOL_OSM_TIMEOUT_MS = 4_500;
+const LIVE_SCHOOL_OSM_MAX_SPAN_DEGREES = 0.18;
+const LIVE_SCHOOL_OSM_MIN_ZOOM = 13;
+const LIVE_SCHOOL_OSM_MIN_RESPONSE_LIMIT = 220;
+const LIVE_SCHOOL_OSM_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://z.overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter"
+];
+
+type OverpassAreaElement = {
+  type: "way" | "relation" | "node";
+  id: number;
+  tags?: Record<string, string>;
+  geometry?: Array<{ lat: number; lon: number }>;
+  members?: Array<{ type: string; ref: number; role: string; geometry?: Array<{ lat: number; lon: number }> }>;
+  center?: { lat?: number; lon?: number };
+  bounds?: { minlat: number; minlon: number; maxlat: number; maxlon: number };
+};
+
 async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAreaPolygonOptions = {}): Promise<Response | null> {
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   if (!bbox) {
     return json({ error: "missing_or_invalid_bbox" }, 400, { "cache-control": "no-store" });
   }
   const sources = parseSourceParam(url.searchParams.get("sources"));
-  const defaultLimit = mapAreaPolygonsFallbackLimit(Number(url.searchParams.get("zoom")));
-  const limit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
+  const rawZoom = url.searchParams.get("zoom");
+  const zoom = rawZoom == null || rawZoom.trim() === "" ? null : Number(rawZoom);
+  const defaultLimit = mapAreaPolygonsFallbackLimit(zoom);
+  const requestedLimit = clampInteger(Number(url.searchParams.get("limit") ?? String(defaultLimit)), 1, 1000);
+  const limit = mapAreaPolygonsResponseLimit(bbox, sources, zoom, requestedLimit);
   const nativeRows = await queryNativeAreaPolygonRows(env, bbox, sources, limit);
   if (nativeRows.length > 0) {
     const nativeFeatures = nativeRows
       .map((row) => areaPolygonFeatureFromGeometryReadmodel(row))
       .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
       .filter(isDisplayableAreaPolygonFeature);
+    const liveSchoolFeatures = await fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
+      env,
+      bbox,
+      sources,
+      zoom,
+      nativeRows,
+      nativeFeatures,
+      limit
+    );
+    const features = dedupePublicAreaPolygonFeatures([...nativeFeatures, ...liveSchoolFeatures], limit);
     if (
       options.allowApproximateFallback === false
       && sources.includes("school")
-      && !nativeFeatures.some((feature) => feature.properties?.source === "school")
+      && !features.some((feature) => feature.properties?.source === "school")
     ) {
       return null;
     }
     return json({
       type: "FeatureCollection",
-      features: nativeFeatures,
-      truncated: nativeRows.length >= limit,
+      features,
+      truncated: nativeRows.length >= limit || features.length >= limit,
       stats: {
-        totalReturned: nativeFeatures.length,
-        totalAll: nativeFeatures.length,
-        source: "cloudflare_area_polygon_readmodel",
+        totalReturned: features.length,
+        totalAll: features.length,
+        source: liveSchoolFeatures.length > 0 ? "cloudflare_area_polygon_readmodel+live_osm_school" : "cloudflare_area_polygon_readmodel",
         kind: "area-polygons"
       }
     }, 200, { "cache-control": "public, max-age=60" });
@@ -11724,6 +11758,318 @@ async function getPublicMapAreaPolygons(url: URL, env: Env, options: PublicMapAr
       kind: "area-polygons"
     }
   }, 200, { "cache-control": "public, max-age=60" });
+}
+
+function isSchoolAreaSourceRequested(sources: string[]): boolean {
+  return sources.length === 0 || sources.includes("school");
+}
+
+function isHumanScaleSchoolAreaBbox(bbox: [number, number, number, number]): boolean {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  if (maxLng <= minLng || maxLat <= minLat) return false;
+  return (maxLng - minLng) <= LIVE_SCHOOL_OSM_MAX_SPAN_DEGREES
+    && (maxLat - minLat) <= LIVE_SCHOOL_OSM_MAX_SPAN_DEGREES;
+}
+
+function isHumanScaleSchoolAreaRequest(
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null
+): boolean {
+  if (!isSchoolAreaSourceRequested(sources)) return false;
+  if (!isHumanScaleSchoolAreaBbox(bbox)) return false;
+  if (zoom == null) return true;
+  return Number.isFinite(zoom) && zoom >= LIVE_SCHOOL_OSM_MIN_ZOOM;
+}
+
+function mapAreaPolygonsResponseLimit(
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null,
+  requestedLimit: number
+): number {
+  if (!isHumanScaleSchoolAreaRequest(bbox, sources, zoom)) return requestedLimit;
+  return Math.max(requestedLimit, LIVE_SCHOOL_OSM_MIN_RESPONSE_LIMIT);
+}
+
+function shouldFetchLiveSchoolAreaPolygons(
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null,
+  nativeRows: AreaPolygonGeometryReadmodelRow[],
+  displayableFeatures: unknown[]
+): boolean {
+  if (!isHumanScaleSchoolAreaRequest(bbox, sources, zoom)) return false;
+  if (!nativeRows.some((row) => row.source === "school")) return false;
+  if (displayableFeatures.some((feature) => areaPolygonFeatureProps(feature)?.source === "school")) return false;
+  return true;
+}
+
+async function fetchLiveSchoolAreaPolygonsWhenNativeSchoolIsOnlyApproximate(
+  env: Env,
+  bbox: [number, number, number, number],
+  sources: string[],
+  zoom: number | null,
+  nativeRows: AreaPolygonGeometryReadmodelRow[],
+  displayableFeatures: unknown[],
+  remainingLimit: number
+): Promise<LiveSchoolAreaPolygonFeature[]> {
+  if (remainingLimit <= 0) return [];
+  if (!shouldFetchLiveSchoolAreaPolygons(bbox, sources, zoom, nativeRows, displayableFeatures)) return [];
+  const live = await fetchLiveSchoolAreaPolygons(env, bbox, remainingLimit);
+  if (!live.ok && live.error) {
+    console.warn("[area-polygons] live school OSM fallback failed", live.error);
+  }
+  return live.features;
+}
+
+function buildLiveSchoolOsmAreaQuery(bbox: [number, number, number, number]): string {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const bb = `${minLat},${minLng},${maxLat},${maxLng}`;
+  return `
+[out:json][timeout:8];
+(
+  way["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
+  relation["amenity"~"^(school|college|university|kindergarten|childcare)$"](${bb});
+  way["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
+  relation["landuse"~"^(education|school|college|university|kindergarten)$"](${bb});
+  way["building"~"^(school|college|university|kindergarten)$"](${bb});
+  relation["building"~"^(school|college|university|kindergarten)$"](${bb});
+);
+out tags geom;
+`;
+}
+
+function liveOsmRingFromGeometry(geometry: Array<{ lat: number; lon: number }> | undefined): number[][] | null {
+  if (!Array.isArray(geometry) || geometry.length < 3) return null;
+  const ring = geometry
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lon))
+    .map((point) => [point.lon, point.lat]);
+  if (ring.length < 3) return null;
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (!first || !last) return null;
+  const firstLng = first[0] ?? NaN;
+  const firstLat = first[1] ?? NaN;
+  const lastLng = last[0] ?? NaN;
+  const lastLat = last[1] ?? NaN;
+  if (
+    !Number.isFinite(firstLng) ||
+    !Number.isFinite(firstLat) ||
+    !Number.isFinite(lastLng) ||
+    !Number.isFinite(lastLat)
+  ) return null;
+  if (firstLng !== lastLng || firstLat !== lastLat) ring.push([firstLng, firstLat]);
+  return ring;
+}
+
+function liveSchoolElementToPolygon(element: OverpassAreaElement): { type: "Polygon" | "MultiPolygon"; coordinates: unknown[] } | null {
+  if (element.type === "way") {
+    const ring = liveOsmRingFromGeometry(element.geometry);
+    return ring ? { type: "Polygon", coordinates: [ring] } : null;
+  }
+  if (element.type === "relation" && Array.isArray(element.members)) {
+    const polygons: number[][][][] = [];
+    for (const member of element.members) {
+      if (member.type !== "way") continue;
+      const ring = liveOsmRingFromGeometry(member.geometry);
+      if (ring) polygons.push([ring]);
+    }
+    if (polygons.length === 0) return null;
+    if (polygons.length === 1) return { type: "Polygon", coordinates: polygons[0] ?? [] };
+    return { type: "MultiPolygon", coordinates: polygons };
+  }
+  return null;
+}
+
+function liveSchoolElementHasName(element: OverpassAreaElement): boolean {
+  const tags = element.tags ?? {};
+  return Boolean((tags["name:ja"] ?? tags.name ?? tags.alt_name ?? "").trim());
+}
+
+function liveSchoolElementDisplayName(element: OverpassAreaElement): string {
+  const tags = element.tags ?? {};
+  return tags["name:ja"] ?? tags.name ?? tags.alt_name ?? "OSMの学校・キャンパス";
+}
+
+function liveSchoolElementIsSchool(element: OverpassAreaElement): boolean {
+  const tags = element.tags ?? {};
+  const amenity = tags.amenity ?? "";
+  const landuse = tags.landuse ?? "";
+  const building = tags.building ?? "";
+  const namedEducationBuilding = liveSchoolElementHasName(element)
+    && ["school", "college", "university", "kindergarten"].includes(building);
+  return ["school", "college", "university", "kindergarten", "childcare"].includes(amenity)
+    || ["education", "school", "college", "university", "kindergarten"].includes(landuse)
+    || namedEducationBuilding;
+}
+
+function liveSchoolElementCenter(element: OverpassAreaElement, geometry: { coordinates: unknown[] }): [number, number] | null {
+  if (Number.isFinite(element.center?.lat) && Number.isFinite(element.center?.lon)) {
+    return [Number(element.center!.lon), Number(element.center!.lat)];
+  }
+  if (element.bounds) {
+    return [
+      (element.bounds.minlon + element.bounds.maxlon) / 2,
+      (element.bounds.minlat + element.bounds.maxlat) / 2
+    ];
+  }
+  const ring = Array.isArray(geometry.coordinates[0]) ? geometry.coordinates[0] : null;
+  if (!Array.isArray(ring) || ring.length === 0) return null;
+  let lng = 0;
+  let lat = 0;
+  let count = 0;
+  for (const point of ring) {
+    if (!Array.isArray(point) || point.length < 2) continue;
+    const pointLng = Number(point[0]);
+    const pointLat = Number(point[1]);
+    if (!Number.isFinite(pointLng) || !Number.isFinite(pointLat)) continue;
+    lng += pointLng;
+    lat += pointLat;
+    count += 1;
+  }
+  return count > 0 ? [lng / count, lat / count] : null;
+}
+
+function liveSchoolElementToFeature(element: OverpassAreaElement) {
+  if (element.type !== "way" && element.type !== "relation") return null;
+  if (!liveSchoolElementIsSchool(element)) return null;
+  const geometry = liveSchoolElementToPolygon(element);
+  if (!geometry) return null;
+  const center = liveSchoolElementCenter(element, geometry);
+  if (!center) return null;
+  const tags = element.tags ?? {};
+  const website = tags.website ?? tags["contact:website"] ?? "";
+  const hasName = liveSchoolElementHasName(element);
+  return {
+    type: "Feature",
+    geometry,
+    properties: {
+      field_id: `osm-live:${element.type}:${element.id}`,
+      name: liveSchoolElementDisplayName(element),
+      source: "school",
+      source_label: "学校・キャンパス (OSM live)",
+      admin_level: "school",
+      prefecture: "",
+      city: "",
+      area_ha: null,
+      official_url: website,
+      owner_url: website,
+      story_url: "",
+      certification_url: "",
+      source_confidence: website ? 0.75 : 0.45,
+      verification_level: "unverified",
+      verification_label: website ? "公式ページ候補あり" : "未確認",
+      center,
+      access: tags.access ?? "",
+      transient: true,
+      entity_key: `osm:${element.type}:${element.id}`,
+      osm_type: element.type,
+      osm_id: element.id,
+      osm_named: hasName,
+      biodiversity_groups: []
+    }
+  };
+}
+
+type LiveSchoolAreaPolygonFeature = NonNullable<ReturnType<typeof liveSchoolElementToFeature>>;
+
+function walkPublicAreaPolygonGeometry(value: unknown, visit: (lng: number, lat: number) => void): void {
+  if (!Array.isArray(value)) return;
+  if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
+    visit(value[0], value[1]);
+    return;
+  }
+  for (const item of value) walkPublicAreaPolygonGeometry(item, visit);
+}
+
+function publicAreaPolygonFeatureTouchesBbox(feature: unknown, bbox: [number, number, number, number]): boolean {
+  const [minLng, minLat, maxLng, maxLat] = bbox;
+  const props = areaPolygonFeatureProps(feature);
+  const center = props?.center;
+  if (Array.isArray(center) && center.length >= 2) {
+    const lng = Number(center[0]);
+    const lat = Number(center[1]);
+    if (lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat) return true;
+  }
+  if (!feature || typeof feature !== "object" || Array.isArray(feature)) return false;
+  const geometry = (feature as { geometry?: { coordinates?: unknown } }).geometry;
+  let fMinLng = Infinity;
+  let fMinLat = Infinity;
+  let fMaxLng = -Infinity;
+  let fMaxLat = -Infinity;
+  walkPublicAreaPolygonGeometry(geometry?.coordinates, (lng, lat) => {
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+    fMinLng = Math.min(fMinLng, lng);
+    fMinLat = Math.min(fMinLat, lat);
+    fMaxLng = Math.max(fMaxLng, lng);
+    fMaxLat = Math.max(fMaxLat, lat);
+  });
+  if (!Number.isFinite(fMinLng)) return false;
+  return fMaxLat >= minLat && fMinLat <= maxLat && fMaxLng >= minLng && fMinLng <= maxLng;
+}
+
+function dedupePublicAreaPolygonFeatures<T>(features: T[], limit: number, bbox?: [number, number, number, number]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const feature of features) {
+    if (bbox && !publicAreaPolygonFeatureTouchesBbox(feature, bbox)) continue;
+    const props = areaPolygonFeatureProps(feature);
+    const key = textProp(props ?? {}, "entity_key") || textProp(props ?? {}, "field_id");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(feature);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+async function fetchLiveSchoolAreaPolygons(
+  env: Env,
+  bbox: [number, number, number, number],
+  limit: number
+): Promise<{ ok: boolean; features: LiveSchoolAreaPolygonFeature[]; error?: string }> {
+  const endpoints = Array.from(new Set([
+    ...(env.OVERPASS_API_URL?.trim() ? [env.OVERPASS_API_URL.trim()] : []),
+    ...LIVE_SCHOOL_OSM_ENDPOINTS
+  ]));
+  const body = `data=${encodeURIComponent(buildLiveSchoolOsmAreaQuery(bbox))}`;
+  let lastError = "overpass_failed";
+  for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LIVE_SCHOOL_OSM_TIMEOUT_MS);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+          "User-Agent": "ikimon.life area polygon repair contact: https://ikimon.life",
+          "X-Ikimon-Client": "ikimon.life-area-polygons"
+        },
+        body,
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        lastError = `overpass_${response.status}`;
+        continue;
+      }
+      const payload = await response.json() as { elements?: OverpassAreaElement[] };
+      const features = (payload.elements ?? [])
+        .map((element) => liveSchoolElementToFeature(element))
+        .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
+        .filter(isDisplayableAreaPolygonFeature);
+      return {
+        ok: true,
+        features: dedupePublicAreaPolygonFeatures(features, limit, bbox)
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "overpass_failed";
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  return { ok: false, features: [], error: lastError };
 }
 
 function getPublicMapGuideSpots(url: URL): Response {
@@ -22011,7 +22357,8 @@ function isWeakLiveOsmAreaPolygonFeature(feature: unknown): boolean {
       textProp(props, "owner_url") ||
       textProp(props, "certification_url")
     );
-    return !hasExternalEvidence && numericProp(props, "source_confidence") < 0.75;
+    const hasSpecificName = booleanishProp(props, "osm_named");
+    return !hasExternalEvidence && !hasSpecificName && numericProp(props, "source_confidence") < 0.75;
   }
   return false;
 }
