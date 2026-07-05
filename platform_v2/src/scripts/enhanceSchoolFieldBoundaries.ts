@@ -98,6 +98,17 @@ type MatchReportEntry = {
     before: Record<string, unknown>;
     proposedBoundary: Record<string, unknown>;
   };
+  chosenMatches: Array<{
+    fieldId: string;
+    name: string;
+    method: SchoolMatch["method"];
+    contains: boolean;
+    distanceM: number;
+    nameScore: number;
+    score: number;
+    before: Record<string, unknown>;
+    proposedBoundary: Record<string, unknown>;
+  }>;
   candidates: Array<{
     fieldId: string;
     name: string;
@@ -375,8 +386,13 @@ export function scoreSchoolCandidates(boundary: BoundaryCandidate, schools: Cand
 }
 
 export function chooseSchool(boundary: BoundaryCandidate, schools: CandidateSchool[], options: Pick<Options, "allowDistanceFallback" | "maxDistanceM">): SchoolMatch | null {
+  return chooseSchools(boundary, schools, options)[0] ?? null;
+}
+
+export function chooseSchools(boundary: BoundaryCandidate, schools: CandidateSchool[], options: Pick<Options, "allowDistanceFallback" | "maxDistanceM">): SchoolMatch[] {
   const scored = scoreSchoolCandidates(boundary, schools, options);
-  return scored[0] ?? null;
+  const contained = scored.filter((item) => item.contains);
+  return contained.length > 0 ? contained : scored.slice(0, 1);
 }
 
 function proposedSchoolBoundaryPayload(boundary: BoundaryCandidate, match: SchoolMatch, options: Options): Record<string, unknown> {
@@ -477,7 +493,22 @@ function candidateReportRows(boundary: BoundaryCandidate, schools: CandidateScho
   }).sort((a, b) => a.score - b.score);
 }
 
-function matchReportEntry(boundary: BoundaryCandidate, schools: CandidateSchool[], chosen: SchoolMatch | null, options: Options): MatchReportEntry {
+function chosenReportRow(boundary: BoundaryCandidate, chosen: SchoolMatch, options: Options): NonNullable<MatchReportEntry["chosen"]> {
+  return {
+    fieldId: chosen.school.field_id,
+    name: chosen.school.name,
+    method: chosen.method,
+    contains: chosen.contains,
+    distanceM: Number(chosen.distanceM.toFixed(2)),
+    nameScore: chosen.nameScore,
+    score: Number(chosen.score.toFixed(2)),
+    before: beforeSnapshot(chosen.school),
+    proposedBoundary: proposedSchoolBoundaryPayload(boundary, chosen, options),
+  };
+}
+
+function matchReportEntry(boundary: BoundaryCandidate, schools: CandidateSchool[], chosenMatches: SchoolMatch[], options: Options): MatchReportEntry {
+  const chosenRows = chosenMatches.map((chosen) => chosenReportRow(boundary, chosen, options));
   return {
     boundaryName: boundary.name || "",
     boundary: {
@@ -486,17 +517,8 @@ function matchReportEntry(boundary: BoundaryCandidate, schools: CandidateSchool[
       radiusM: boundary.radiusM,
       sourceProperties: boundary.feature.properties,
     },
-    chosen: chosen ? {
-      fieldId: chosen.school.field_id,
-      name: chosen.school.name,
-      method: chosen.method,
-      contains: chosen.contains,
-      distanceM: Number(chosen.distanceM.toFixed(2)),
-      nameScore: chosen.nameScore,
-      score: Number(chosen.score.toFixed(2)),
-      before: beforeSnapshot(chosen.school),
-      proposedBoundary: proposedSchoolBoundaryPayload(boundary, chosen, options),
-    } : null,
+    chosen: chosenRows[0] ?? null,
+    chosenMatches: chosenRows,
     candidates: candidateReportRows(boundary, schools, options),
   };
 }
@@ -510,23 +532,25 @@ async function main(): Promise<void> {
   const plannedUpdates: PlannedBoundaryUpdate[] = [];
   for (const boundary of candidates.slice(0, options.limit ?? candidates.length)) {
     const schools = await candidateSchools(boundary, options);
-    const chosen = chooseSchool(boundary, schools, options);
-    const entry = matchReportEntry(boundary, schools, chosen, options);
+    const chosenMatches = chooseSchools(boundary, schools, options);
+    const entry = matchReportEntry(boundary, schools, chosenMatches, options);
     report.push(entry);
-    if (!chosen) {
+    if (chosenMatches.length === 0) {
       skipped++;
       continue;
     }
-    if (entry.chosen) {
+    for (const [index, chosen] of chosenMatches.entries()) {
+      const chosenRow = entry.chosenMatches[index];
+      if (!chosenRow) continue;
       plannedUpdates.push({
         boundary,
         match: chosen,
-        schoolBoundaryPayload: entry.chosen.proposedBoundary,
+        schoolBoundaryPayload: chosenRow.proposedBoundary,
       });
+      matched++;
+      // eslint-disable-next-line no-console
+      console.log(`${options.dryRun ? "[dry-run] " : ""}${boundary.name || "(unnamed boundary)"} -> ${chosen.school.name} method=${chosen.method} score=${chosen.score.toFixed(1)} contains=${chosen.contains} distance_m=${chosen.distanceM.toFixed(1)} name_score=${chosen.nameScore}`);
     }
-    matched++;
-    // eslint-disable-next-line no-console
-    console.log(`${options.dryRun ? "[dry-run] " : ""}${boundary.name || "(unnamed boundary)"} -> ${chosen.school.name} method=${chosen.method} score=${chosen.score.toFixed(1)} contains=${chosen.contains} distance_m=${chosen.distanceM.toFixed(1)} name_score=${chosen.nameScore}`);
   }
   if (options.reportFile) {
     writeFileSync(resolve(process.cwd(), options.reportFile), JSON.stringify({

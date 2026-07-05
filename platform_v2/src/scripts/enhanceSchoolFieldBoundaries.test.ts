@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chooseSchool, pointInGeometry, scoreSchoolCandidates } from "./enhanceSchoolFieldBoundaries.js";
+import { chooseSchool, chooseSchools, pointInGeometry, scoreSchoolCandidates } from "./enhanceSchoolFieldBoundaries.js";
 
 const squareBoundary = {
   feature: {
@@ -72,6 +72,27 @@ test("school boundary matching accepts point-in-polygon containment", () => {
   assert.equal(chosen?.school.field_id, containedSchool.field_id);
   assert.equal(chosen?.method, "containment");
   assert.equal(chosen?.contains, true);
+});
+
+test("school boundary matching accepts multiple contained school rows for shared campus polygons", () => {
+  const juniorHigh = {
+    ...containedSchool,
+    field_id: "818da461-166c-4395-89ff-739ffe4c2951",
+    name: "静岡県立浜松西高等学校中等部",
+    lat: 34.7005,
+    lng: 137.7085,
+  };
+
+  const chosen = chooseSchools(squareBoundary, [containedSchool, juniorHigh], {
+    allowDistanceFallback: false,
+    maxDistanceM: 150,
+  });
+
+  assert.deepEqual(chosen.map((item) => item.school.field_id).sort(), [
+    "818da461-166c-4395-89ff-739ffe4c2951",
+    "fbe4dccc-83b9-4833-ac88-1b0a2cb68d90",
+  ]);
+  assert.equal(chosen.every((item) => item.method === "containment"), true);
 });
 
 test("school boundary matching rejects nearby distance-only candidates by default", () => {
