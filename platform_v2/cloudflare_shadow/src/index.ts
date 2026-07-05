@@ -11673,10 +11673,11 @@ interface PublicMapAreaPolygonOptions {
   allowApproximateFallback?: boolean;
 }
 
-const LIVE_SCHOOL_OSM_TIMEOUT_MS = 4_500;
+const LIVE_SCHOOL_OSM_TIMEOUT_MS = 2_500;
 const LIVE_SCHOOL_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_SCHOOL_OSM_MIN_ZOOM = 13;
 const LIVE_SCHOOL_OSM_MIN_RESPONSE_LIMIT = 220;
+const LIVE_SCHOOL_OSM_MAX_ENDPOINT_ATTEMPTS = 1;
 const LIVE_SCHOOL_OSM_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://z.overpass-api.de/api/interpreter",
@@ -12057,7 +12058,7 @@ async function fetchLiveSchoolAreaPolygons(
   const endpoints = Array.from(new Set([
     ...(env.OVERPASS_API_URL?.trim() ? [env.OVERPASS_API_URL.trim()] : []),
     ...LIVE_SCHOOL_OSM_ENDPOINTS
-  ]));
+  ])).slice(0, LIVE_SCHOOL_OSM_MAX_ENDPOINT_ATTEMPTS);
   const body = `data=${encodeURIComponent(buildLiveSchoolOsmAreaQuery(bbox))}`;
   let lastError = "overpass_failed";
   for (const endpoint of endpoints) {
