@@ -18658,6 +18658,12 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   assert.match(workerSource, /\(\?:\\\/home\)\?/);
   assert.match(materializerSource, /pathname === "\/home"/);
   assert.match(materializerSource, /rest === "\/home"/);
+  assert.match(materializerSource, /"--skip-if-unchanged"/);
+  assert.match(materializerSource, /materializeManifestSchemaVersion = "original-ui-materialize\/v1"/);
+  assert.match(materializerSource, /previousManifest\?\.bundleHash === bundleHash/);
+  assert.match(materializerSource, /explicitPaths\.length > 0/);
+  assert.match(materializerSource, /explicit_paths_not_manifested/);
+  assert.match(materializerSource, /tryUploadMaterializeManifest/);
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     const path = `/guide-programs/${slug}`;
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);

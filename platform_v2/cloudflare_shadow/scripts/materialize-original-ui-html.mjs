@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,7 +9,20 @@ const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
-const allowedArgs = new Set(["--execute", "--approval", "--target-env", "--scope", "--path", "--bucket", "--output", "--concurrency"]);
+const materializeManifestSchemaVersion = "original-ui-materialize/v1";
+const uploadCacheControl = "no-store";
+const allowedArgs = new Set([
+  "--execute",
+  "--approval",
+  "--target-env",
+  "--scope",
+  "--path",
+  "--bucket",
+  "--output",
+  "--concurrency",
+  "--skip-if-unchanged",
+  "--manifest-key"
+]);
 const args = new Map();
 const explicitPaths = [];
 
@@ -37,6 +51,7 @@ const scope = args.get("--scope") ?? "core";
 const bucket = args.get("--bucket") ?? (targetEnv === "staging" ? stagingBucket : productionBucket);
 const outputPath = args.get("--output") ?? "";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
+const skipIfUnchanged = args.get("--skip-if-unchanged") === "true";
 
 if (!["production", "staging"].includes(targetEnv)) {
   throw new Error("--target-env must be one of: production, staging.");
@@ -49,6 +64,10 @@ if (targetEnv === "production" && bucket !== productionBucket) {
 if (targetEnv === "staging" && bucket === productionBucket) {
   throw new Error("Staging materialization must not target the production R2 bucket.");
 }
+
+const manifestKey = normalizeR2ObjectKey(
+  args.get("--manifest-key") ?? `original-ui/materialize-manifest/${targetEnv}/${scope}.json`
+);
 
 if (execute && targetEnv === "production" && approval !== productionApproval) {
   throw new Error(`Refusing production R2 materialization. Pass --approval ${productionApproval} or set IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL.`);
@@ -193,6 +212,14 @@ function originalUiStaticKey(pathname) {
   return `original-ui/static/${pathname.replace(/^\/+/, "")}`;
 }
 
+function normalizeR2ObjectKey(value) {
+  const key = String(value || "").trim().replace(/^\/+/, "");
+  if (!key || key.includes("\\") || key.split("/").includes("..")) {
+    throw new Error(`Unsafe R2 object key: ${value}`);
+  }
+  return key;
+}
+
 function staticContentType(pathname) {
   if (pathname.endsWith(".html")) return "text/html";
   if (pathname.endsWith(".txt")) return "text/plain";
@@ -312,6 +339,77 @@ function sleep(ms) {
   });
 }
 
+function sha256(payload) {
+  return createHash("sha256").update(payload).digest("hex");
+}
+
+function buildBundleEntry(item) {
+  return {
+    pathname: item.pathname,
+    key: item.key,
+    bytes: item.bytes,
+    sha256: item.sha256,
+    contentType: item.contentType,
+    cacheControl: uploadCacheControl
+  };
+}
+
+function computeBundleHash(entries) {
+  const canonical = {
+    schemaVersion: materializeManifestSchemaVersion,
+    targetEnv,
+    scope,
+    entries: [...entries].sort((a, b) => a.key.localeCompare(b.key))
+  };
+  return sha256(JSON.stringify(canonical));
+}
+
+async function readPreviousMaterializeManifest(tempDir, key) {
+  const filePath = join(tempDir, "__previous_materialize_manifest.json");
+  try {
+    await run("npx", [
+      "wrangler",
+      "r2",
+      "object",
+      "get",
+      `${bucket}/${key}`,
+      "--remote",
+      "--file",
+      filePath
+    ]);
+    return JSON.parse(await readFile(filePath, "utf8"));
+  } catch (error) {
+    console.warn(`Previous materialize manifest unavailable at ${key}; full R2 materialization will run.`);
+    return null;
+  }
+}
+
+async function tryUploadMaterializeManifest(tempDir, key, manifest) {
+  const filePath = join(tempDir, "__materialize_manifest.json");
+  await writeFile(filePath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  try {
+    await runR2PutWithRetry([
+      "wrangler",
+      "r2",
+      "object",
+      "put",
+      `${bucket}/${key}`,
+      "--remote",
+      "--file",
+      filePath,
+      "--content-type",
+      "application/json",
+      "--cache-control",
+      uploadCacheControl,
+      "--force"
+    ], key);
+    return { ok: true, key };
+  } catch (error) {
+    console.warn(`Materialize manifest upload failed at ${key}; deploy output is kept, future skips are disabled until the next successful manifest write.`);
+    return { ok: false, key, error: error.message };
+  }
+}
+
 function auditAnonymousHtmlShell(pathname, body) {
   if (!/^(?:\/(?:ja|en|es|pt-br))?\/community\/events\/new$/.test(pathname)) return;
   const lowerBody = body.toLowerCase();
@@ -368,6 +466,11 @@ const tempDir = await mkdtemp(join(tmpdir(), "ikimon-original-ui-"));
 const targets = await resolveTargetPaths();
 const rendered = [];
 const renderedStatic = [];
+let bundleHash = "";
+let materializeSkipped = false;
+let skipReason = execute ? "not_requested" : "dry_run";
+let previousManifestSummary = null;
+let manifestUpload = { ok: false, key: manifestKey, skipped: true, reason: "not_executed" };
 
 try {
   for (const pathname of targets) {
@@ -396,7 +499,14 @@ try {
     const key = originalUiHtmlKeyForPublicPath(pathname);
     const filePath = join(tempDir, key.replaceAll("/", "__"));
     await writeFile(filePath, response.body, "utf8");
-    rendered.push({ pathname, key, bytes: Buffer.byteLength(response.body), filePath });
+    rendered.push({
+      pathname,
+      key,
+      bytes: Buffer.byteLength(response.body),
+      sha256: sha256(response.body),
+      filePath,
+      contentType: "text/html"
+    });
   }
 
   for (const pathname of staticAssetPaths) {
@@ -425,10 +535,54 @@ try {
     const filePath = join(tempDir, key.replaceAll("/", "__"));
     const payload = response.rawPayload ?? Buffer.from(response.body);
     await writeFile(filePath, payload);
-    renderedStatic.push({ pathname, key, bytes: payload.byteLength, filePath, contentType: expectedContentType });
+    renderedStatic.push({
+      pathname,
+      key,
+      bytes: payload.byteLength,
+      sha256: sha256(payload),
+      filePath,
+      contentType: expectedContentType
+    });
   }
 
-  if (execute) {
+  const bundleEntries = [
+    ...rendered.map(buildBundleEntry),
+    ...renderedStatic.map(buildBundleEntry)
+  ];
+  bundleHash = computeBundleHash(bundleEntries);
+
+  if (execute && skipIfUnchanged) {
+    if (explicitPaths.length > 0) {
+      skipReason = "explicit_paths_not_skippable";
+    } else {
+      const previousManifest = await readPreviousMaterializeManifest(tempDir, manifestKey);
+      previousManifestSummary = previousManifest
+        ? {
+            schemaVersion: previousManifest.schemaVersion ?? null,
+            bundleHash: previousManifest.bundleHash ?? null,
+            generatedAt: previousManifest.generatedAt ?? null,
+            itemCount: previousManifest.itemCount ?? null
+          }
+        : null;
+      if (
+        previousManifest?.schemaVersion === materializeManifestSchemaVersion &&
+        previousManifest?.bundleHash === bundleHash
+      ) {
+        materializeSkipped = true;
+        skipReason = "bundle_hash_match";
+        events.push({
+          command: `skip r2 put ${bundleEntries.length} objects manifest=${manifestKey}`,
+          exitCode: 0,
+          durationMs: 0,
+          bundleHash
+        });
+      } else {
+        skipReason = previousManifest ? "bundle_hash_changed" : "previous_manifest_unavailable";
+      }
+    }
+  }
+
+  if (execute && !materializeSkipped) {
     const uploadStartedAt = Date.now();
     await runPool(rendered, concurrency, async (item) => {
       await runR2PutWithRetry([
@@ -443,7 +597,7 @@ try {
         "--content-type",
         "text/html",
         "--cache-control",
-        "no-store",
+        uploadCacheControl,
         "--force"
       ], item.key);
     });
@@ -465,10 +619,34 @@ try {
         "--content-type",
         item.contentType,
         "--cache-control",
-        "no-store",
+        uploadCacheControl,
         "--force"
       ], item.key);
     }
+
+    if (explicitPaths.length === 0) {
+      manifestUpload = await tryUploadMaterializeManifest(tempDir, manifestKey, {
+        schemaVersion: materializeManifestSchemaVersion,
+        generatedAt: new Date().toISOString(),
+        targetEnv,
+        scope,
+        bucket,
+        bundleHash,
+        itemCount: bundleEntries.length,
+        renderedCount: rendered.length,
+        renderedStaticCount: renderedStatic.length,
+        items: bundleEntries
+      });
+    } else {
+      manifestUpload = {
+        ok: true,
+        key: manifestKey,
+        skipped: true,
+        reason: "explicit_paths_not_manifested"
+      };
+    }
+  } else if (materializeSkipped) {
+    manifestUpload = { ok: true, key: manifestKey, skipped: true, reason: "unchanged_bundle" };
   }
 } finally {
   await app.close();
@@ -478,13 +656,21 @@ try {
 const result = {
   ok: true,
   mode: execute ? "execute" : "dry-run",
-  r2WritesExecuted: execute,
+  r2WritesRequested: execute,
+  r2WritesExecuted: execute && !materializeSkipped,
   bucket,
   targetEnv,
   scope,
   concurrency,
-  rendered: rendered.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
-  renderedStatic: renderedStatic.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
+  skipIfUnchanged,
+  manifestKey,
+  bundleHash,
+  materializeSkipped,
+  skipReason,
+  previousManifest: previousManifestSummary,
+  manifestUpload,
+  rendered: rendered.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),
+  renderedStatic: renderedStatic.map(({ pathname, key, bytes, sha256 }) => ({ pathname, key, bytes, sha256 })),
   events
 };
 
