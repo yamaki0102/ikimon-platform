@@ -192,7 +192,7 @@ jobs:
         working-directory: platform_v2/cloudflare_shadow
         run: |
           set -euo pipefail
-          npm run materialize:original-ui -- --output materialize-original-ui.json
+          npm run materialize:original-ui -- --skip-if-unchanged --output materialize-original-ui.json
 
       - name: Write Cloudflare deploy summary
         working-directory: platform_v2/cloudflare_shadow
@@ -205,12 +205,24 @@ jobs:
           console.log("- Worker: `ikimon-life-cloudflare-prod`");
           console.log("- R2 bucket: `ikimon-prod-media`");
           console.log(`- Original UI scope: \`${json.scope}\``);
+          console.log(`- Original UI materialization: \`${json.materializeSkipped ? "skipped: bundle hash unchanged" : "uploaded"}\``);
+          console.log(`- Original UI bundle hash: \`${json.bundleHash}\``);
+          console.log(`- Original UI manifest key: \`${json.manifestKey}\``);
           console.log("- VPS SSH/deploy: `not used`");
           console.log("- Preflight artifact: `cloudflare-production-preflight`");
           console.log("");
           console.log("### Materialized UI");
-          for (const item of json.rendered) {
-            console.log(`- \`${item.pathname}\` -> \`${item.key}\` (${item.bytes} bytes)`);
+          if (json.materializeSkipped) {
+            console.log(`- R2 writes skipped because \`${json.skipReason}\`.`);
+          } else {
+            for (const item of json.rendered) {
+              console.log(`- \`${item.pathname}\` -> \`${item.key}\` (${item.bytes} bytes)`);
+            }
+            console.log("");
+            console.log("### Materialized Static Assets");
+            for (const item of json.renderedStatic) {
+              console.log(`- \`${item.pathname}\` -> \`${item.key}\` (${item.bytes} bytes)`);
+            }
           }
           NODE
 

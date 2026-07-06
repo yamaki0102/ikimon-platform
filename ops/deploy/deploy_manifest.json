@@ -39,10 +39,10 @@
   "notes": [
     "Production deploy is triggered only by merge to main and GitHub Actions.",
     "The production public entrypoint is Cloudflare Worker ikimon-life-cloudflare-prod, not the legacy VPS blue/green lane.",
-    "The production workflow deploys the Worker with the guarded Cloudflare script and materializes the core original UI HTML, including /record and /ja/record app shells, plus original-ui/static/app-sw.js into R2.",
+    "The production workflow deploys the Worker with the guarded Cloudflare script and materializes the core original UI HTML, including /record and /ja/record app shells, plus original-ui/static/app-sw.js into R2. The R2 materializer records a whole-bundle manifest and skips R2 writes when the generated bundle hash is unchanged.",
     "The production Worker must not own staging.ikimon.life routes; Cloudflare staging owns staging.ikimon.life/* through ikimon-life-cloudflare-staging.",
     "Routine production deploy must not use VPS SSH, deploy_platform_v2_blue_green.sh, or VPS_SSH_KEY.",
     "Routine production deploy must not change DNS, custom domains, D1 data, secrets, billing, provider settings, or VPS state.",
-    "R2 writes in routine deploy are limited to original-ui/html core materialized HTML app shells and original-ui/static/app-sw.js generated from the same commit."
+    "R2 writes in routine deploy are limited to original-ui/html core materialized HTML app shells, original-ui/static/app-sw.js generated from the same commit, and original-ui/materialize-manifest/* optimization metadata."
   ]
 }
