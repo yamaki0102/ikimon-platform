@@ -92,6 +92,7 @@ Assert-Equal ([bool]($productionWorkflow -match '(?m)^\s{2}workflow_dispatch:'))
 
 $autopilot = Get-Content -Raw (Join-Path $repoRoot "scripts/release_autopilot.ps1")
 Assert-Equal ([bool]($autopilot -match '\$nativeExitCode = \$LASTEXITCODE')) $true "Autopilot native commands must decide from exit codes instead of stderr records"
+Assert-Equal ([bool]($autopilot -match 'Write-Host "\$Workflow pending:')) $true "Workflow progress must not pollute the run object returned to final JSON"
 Assert-Equal ([bool]($autopilot -match 'headRefOid,statusCheckRollup,url')) $true "Required-check polling must observe the current PR head SHA"
 Assert-Equal ([bool]($autopilot -match 'PR head changed while waiting for checks')) $true "Required-check polling must fail when the PR head changes"
 Assert-Equal ([bool]($autopilot -match '"--match-head-commit", \$headSha')) $true "Auto-merge must be conditional on the staged head SHA"
