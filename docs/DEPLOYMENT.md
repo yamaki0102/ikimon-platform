@@ -9,15 +9,11 @@ ikimon.life の本番 deploy は `main` マージ起点の GitHub Actions に一
 2. lint / test / deploy guardrail を通す
 3. PR を作る
 4. `main` にマージする
-5. GitHub Actions が VPS の deploy script を実行する
+5. GitHub Actions が Cloudflare Worker / D1 / R2 を deploy する
 
-本番 deploy は legacy PHP だけでは完了ではない。`deploy.sh` の git reset 後に
-`platform_v2` を blue/green の inactive runtime へ配置し、内部 health/readiness と
-runner からの candidate smoke が通った場合だけ nginx を promote する。UI / route /
-runtime surface の変更は full browser smoke、deploy / import / docs だけの変更は targeted
-smoke を通す。legacy PHP / `upload_package` 変更がない deploy は、重い legacy deploy
-script を skip し、runtime data/config を保持したまま production repo を対象 SHA へ同期してから
-`platform_v2` candidate prepare へ進む。
+現行本番は `ikimon-life-cloudflare-prod` を正本とし、VPS SSH や blue/green runtime は
+通常の release 経路で使わない。旧VPS deploy 資産は互換調査・退役作業の参照実装として
+保持し、Cloudflare production workflow の代替にしない。
 
 ## Source of Truth
 
@@ -27,9 +23,11 @@ script を skip し、runtime data/config を保持したまま production repo 
 - production platform blue/green deploy script: `ops/deploy/deploy_platform_v2_blue_green.sh`
 - production platform systemd units: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`
 - staging manifest: `ops/deploy/staging_manifest.json`
+- release candidate guard: `scripts/check_release_candidate.ps1`
 - staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
 - production workflow: `.github/workflows/deploy.yml`
-- staging workflow: `.github/workflows/deploy-staging.yml`
+- staging workflow: `.github/workflows/deploy-cloudflare-staging.yml`
+- legacy VPS staging workflow: `.github/workflows/deploy-staging.yml`
 - production deploy timing: `docs/PRODUCTION_DEPLOY_TIMING.md`
 - branch hygiene audit workflow: `.github/workflows/branch-hygiene-audit.yml`
 - CI guardrail: `scripts/check_deploy_guardrails.ps1`
@@ -37,6 +35,8 @@ script を skip し、runtime data/config を保持したまま production repo 
 - manifest/workflow sync check: `scripts/check_deploy_manifest_sync.ps1`
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
+- fresh release worktree: `scripts/new_release_worktree.ps1`
+- resumable release autopilot: `scripts/release_autopilot.ps1`
 - deploy timing summary: `scripts/summarize_deploy_timing.ps1`
 - VPS prepare timing summary: `scripts/summarize_prepare_timing.ps1`
 - branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
@@ -60,6 +60,15 @@ VPS 側 deploy script では、上記のうち runtime に存在する `data/` �
 ## Local Commands
 
 ```powershell
+# 作業開始: 最新 main から task 専用レーンを作る
+powershell -ExecutionPolicy Bypass -File .\scripts\new_release_worktree.ps1 -TaskName <task-name>
+
+# release: 明示パスだけを commit/push し、PR・staging・required checks まで進める
+powershell -ExecutionPolicy Bypass -File .\scripts\release_autopilot.ps1 -Paths <file1>,<file2> -CommitMessage "<message>" -Title "<PR title>"
+
+# 本番反映が依頼に含まれる場合だけ、同じコマンドへ明示的に追加する
+powershell -ExecutionPolicy Bypass -File .\scripts\release_autopilot.ps1 -PromoteProduction
+
 powershell -ExecutionPolicy Bypass -File .\scripts\local_deploy_preflight.ps1 -RequireCodexBranch -RequireUpstreamSync
 powershell -ExecutionPolicy Bypass -File .\scripts\check_worktree_clean.ps1
 php tools/lint.php
@@ -81,22 +90,31 @@ deploy 判断前に止めるための入口。`platform_v2/db/migrations/`,
 `ops/deploy/`, guardrail scripts, persistent data/config boundary が dirty な場合は
 high-risk path として表示する。
 
+`release_autopilot.ps1` は clean gate を弱めない。dirty な長期作業ツリーを見つけた場合は
+明示された `-Paths` だけを扱い、範囲外の変更が1件でもあれば専用 worktree の利用を要求する。
+GitHub CLI と Git Credential Manager は非対話モードで使い、認証が切れている場合は変更前に
+失敗する。Cloudflare staging が必要な差分は full staging と required checks が成功するまで
+merge せず、`-PromoteProduction` がある場合だけ auto-merge と production workflow 監視へ進む。
+
 ## Staging First
 
 改装や大きい UI 変更は、production へ直接入れない。  
 必ず次の順にする。
 
-1. production state snapshot をローカルへ取得
-2. lightweight staging を production data で初期化
-3. staging deploy
-4. `verify_level=full` で release rehearsal を通す
-5. review
-6. production deploy
+1. 最新 `origin/main` から task 専用 worktree を作る
+2. scoped commit / push / PR を作る
+3. required checks 3件を対象SHAで通す
+4. 同じSHAを Cloudflare staging へ full deploy し、D1 migration、Worker、R2 materialize、browser smokeを通す
+5. squash auto-merge で `main` へ昇格する
+6. `main` push起点の Cloudflare production workflow と production smoke を完了まで確認する
 
-`verify_level=full` では `public_map_snapshot_alert_lifecycle` gate として、
-`public_map_snapshots.generated_at` を staging 上で一時的に古くし、stale alert 発火、
-`/ops/public-map-snapshot`、refresh 後の自動 resolve まで確認する。
-この smoke は staging DB を意図的に変更するため、production host には向けない。
+Cloudflare staging は `ikimon-life-cloudflare-staging` と非productionのD1/R2/Queueを使う。
+通常のpromotionでVPS SSH、`/var/www/ikimon.life-staging`、`VPS_SSH_KEY`は使わない。
+workflowはfeature branchのpushから起動せず、`main`上のtrusted release controlから
+検証済みPR head SHAをcheckoutする。同じSHAの実行中runがあれば再開時に再利用する。
+旧VPS stagingは互換integrationの調査・退役作業だけに限定する。
+旧VPS full smoke の互換契約には `public_map_snapshot_alert_lifecycle` が残るが、
+これは Cloudflare staging / production の promotion gate ではない。
 
 staging の詳細は `docs/STAGING_RUNBOOK.md` を参照。
 
@@ -104,18 +122,24 @@ staging の詳細は `docs/STAGING_RUNBOOK.md` を参照。
 
 GitHub repository setting `delete_branch_on_merge` must stay enabled. If it is disabled,
 merged PR branches accumulate and the repo quickly returns to stale branch triage.
+GitHub repository setting `allow_auto_merge` must also stay enabled so a verified release
+can finish after the initiating local session exits.
 
 Merge policy is squash-only:
 
+- `allow_auto_merge=true`
 - `allow_squash_merge=true`
 - `allow_merge_commit=false`
 - `allow_rebase_merge=false`
 - `main` branch protection requires linear history
 
-Operational long-lived branches are limited to:
+Active release branches are limited to:
 
 - `main` — production source. Protected; never push directly from Codex.
-- `staging` — staging deploy source. Keep it main-following; do not use it as a feature queue.
+
+Cloudflare staging deploys the verified PR commit SHA directly and does not use the legacy
+`staging` branch. That branch remains only for separately approved history maintenance;
+normal release automation must not force-update or delete it.
 
 All feature/rescue work uses short-lived branches, normally `codex/<task-name>`, then PR to
 `main`. After merge, GitHub deletes the merged branch automatically. If a branch must remain

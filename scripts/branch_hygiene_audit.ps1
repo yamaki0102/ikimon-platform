@@ -90,7 +90,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 
 $repoSettings = Invoke-GhJson -GhArgs @(
     "api", "repos/$Repository",
-    "--jq", "{delete_branch_on_merge, default_branch, allow_squash_merge, allow_merge_commit, allow_rebase_merge}"
+    "--jq", "{delete_branch_on_merge, default_branch, allow_auto_merge, allow_squash_merge, allow_merge_commit, allow_rebase_merge}"
 )
 
 $defaultBranch = [string]$repoSettings.default_branch
@@ -208,7 +208,12 @@ elseif ($stagingBranch.AheadDefault -gt 0 -or $stagingBranch.BehindDefault -gt 0
 
 $defaultBranchInfo = @($branches | Where-Object { $_.Name -eq $defaultBranch } | Select-Object -First 1)
 $stagingRecoveryBranches = @()
-if ($stagingDriftMessages.Count -gt 0 -and $stagingBranch -and -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha)) {
+$stagingHasUniqueCommits = (
+    $stagingBranch.Count -gt 0 -and
+    $null -ne $stagingBranch.AheadDefault -and
+    $stagingBranch.AheadDefault -gt 0
+)
+if ($stagingDriftMessages.Count -gt 0 -and $stagingHasUniqueCommits -and -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha)) {
     $containingRefs = Invoke-Git -GitArgs @("branch", "--remotes", "--contains", $stagingBranch.FullSha)
     $stagingRecoveryBranches = @(
         foreach ($line in $containingRefs) {
@@ -250,6 +255,7 @@ Add-Line $lines ""
 Add-Line $lines "- Repository: $Repository"
 Add-Line $lines "- Default branch: $defaultBranch"
 Add-Line $lines "- Delete branch on merge: $(Format-NullableBool $repoSettings.delete_branch_on_merge)"
+Add-Line $lines "- Auto-merge: $(Format-NullableBool $repoSettings.allow_auto_merge)"
 Add-Line $lines "- Squash merge: $(Format-NullableBool $repoSettings.allow_squash_merge)"
 Add-Line $lines "- Merge commit: $(Format-NullableBool $repoSettings.allow_merge_commit)"
 Add-Line $lines "- Rebase merge: $(Format-NullableBool $repoSettings.allow_rebase_merge)"
@@ -267,6 +273,14 @@ if ($repoSettings.delete_branch_on_merge -eq $false) {
     Add-Line $lines "> WARNING: GitHub delete_branch_on_merge is disabled. Enable it to prevent merged branch buildup."
     if ($env:GITHUB_ACTIONS -eq "true") {
         Write-Output "::warning::GitHub delete_branch_on_merge is disabled for $Repository."
+    }
+    Add-Line $lines ""
+}
+
+if ($repoSettings.allow_auto_merge -eq $false) {
+    Add-Line $lines "> WARNING: GitHub auto-merge is disabled. Enable it so verified releases can finish without a live operator session."
+    if ($env:GITHUB_ACTIONS -eq "true") {
+        Write-Output "::warning::GitHub auto-merge is disabled for $Repository."
     }
     Add-Line $lines ""
 }
@@ -330,13 +344,17 @@ if ($stagingDriftMessages.Count -gt 0) {
     if ($defaultBranchInfo -and -not [string]::IsNullOrWhiteSpace([string]$defaultBranchInfo.FullSha)) {
         Add-Line $lines "- Target $defaultBranch head: $($defaultBranchInfo.FullSha) $($defaultBranchInfo.Subject)"
     }
-    Add-Line $lines "- Preserved staging commits:"
-    if ($stagingRecoveryBranches.Count -gt 0) {
+    if (-not $stagingHasUniqueCommits) {
+        Add-Line $lines "- Unique staging commits: none; no safety branch is required before separate history maintenance."
+    }
+    elseif ($stagingRecoveryBranches.Count -gt 0) {
+        Add-Line $lines "- Branches preserving the current staging head:"
         foreach ($branchName in $stagingRecoveryBranches) {
             Add-Line $lines "  - $branchName"
         }
     }
     else {
+        Add-Line $lines "- Branches preserving the current staging head: none"
         Add-Line $lines "  - no non-operational branch currently contains the staging head; create a safety branch before aligning staging."
         if ($stagingBranch -and -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha)) {
             $archiveBranchName = "codex/archive-staging-$($now.ToString("yyyyMMdd-HHmmss"))"
@@ -350,14 +368,13 @@ if ($stagingDriftMessages.Count -gt 0) {
     if ($stagingBranch -and $defaultBranchInfo -and
         -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha) -and
         -not [string]::IsNullOrWhiteSpace([string]$defaultBranchInfo.FullSha)) {
-        Add-Line $lines "- Align staging with ${defaultBranch}:"
-        Add-Line $lines "  ``````bash"
-        Add-Line $lines "  git push --force-with-lease=refs/heads/staging:$($stagingBranch.FullSha) origin $($defaultBranchInfo.FullSha):refs/heads/staging"
+        Add-Line $lines "- The staging branch is a legacy selector. Do not force-update it as part of a normal Cloudflare release."
+        Add-Line $lines "- Start the next release from current ${defaultBranch}, then let the autopilot pin the verified PR SHA:"
+        Add-Line $lines "  ``````powershell"
+        Add-Line $lines "  powershell -ExecutionPolicy Bypass -File .\scripts\new_release_worktree.ps1 -TaskName <task-name>"
+        Add-Line $lines "  powershell -ExecutionPolicy Bypass -File .\scripts\release_autopilot.ps1 -Paths <paths> -CommitMessage '<message>' -Title '<title>'"
         Add-Line $lines "  ``````"
-        Add-Line $lines "- Deploy Cloudflare staging from the aligned branch:"
-        Add-Line $lines "  ``````bash"
-        Add-Line $lines "  gh workflow run deploy-cloudflare-staging.yml --ref staging -f branch=staging -f deploy_staging=true -f test_profile=quick"
-        Add-Line $lines "  ``````"
+        Add-Line $lines "- Aligning or deleting the legacy staging branch is separate history maintenance and requires explicit approval."
     }
     Add-Line $lines ""
 }

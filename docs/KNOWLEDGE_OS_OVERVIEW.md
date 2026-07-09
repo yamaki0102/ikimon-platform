@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-05-11
+更新日: 2026-07-10
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -332,13 +332,19 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 12. 現時点の注意点（2026-04-30）
+## 12. 現時点の注意点（2026-07-10）
 
 - staging の正式 URL は `https://staging.ikimon.life/`
-- staging の `/` は v2、`/legacy/` は PHP rollback lane
+- production / staging の現行公開面は Cloudflare Worker。通常releaseでVPS SSHや旧blue/green runtimeを使わない
+- staging は `ikimon-life-cloudflare-staging` と非productionのD1/R2/Queueを使い、`ops/deploy/staging_manifest.json` を正本にする
+- 実装開始は `scripts/new_release_worktree.ps1` で最新 `origin/main` からtask専用worktreeを作る
+- releaseは `scripts/release_autopilot.ps1` で明示pathだけを扱い、required checks済みの同一commit SHAをCloudflare stagingへ配置する。PR head変更時は停止し、mergeも対象SHA一致を要求する
+- Cloudflare staging実deployは`main`上のtrusted workflow/controlから起動し、全branch横断で直列化する。再開時は全体の最新runを確認し、同一SHAの実行中runは再利用、別SHAに上書き済みなら再配置する
+- release control自体の初回導入は、runtime差分と分けたbootstrap PRをrequired checks後に先行mergeし、次のPRから通常のstaging promotionを使う
+- production deployは`main` push起点だけ。feature branchの`workflow_dispatch`や直接SSHをproduction入口にしない
 - v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する。`near_ready` は rollback safety と audio archive がどちらも成立した時だけ許可する
-- cutover 判定では `parityVerified` / `deltaSyncHealthy` / `driftReportHealthy` / `compatibilityWriteWorking` / `audioArchiveReady` / `rollbackSafetyWindowReady` を必ず見る
-- rollback 再発防止のため、`trackPoints > 0` と `audioArchiveReady=true` は cutover 前の必須条件にする。`private_uploads` は deploy prepare で `www-data` 所有の永続ディレクトリとして作成する
+- 旧VPS cutoverを調査する場合だけ `parityVerified` / `deltaSyncHealthy` / `driftReportHealthy` / `compatibilityWriteWorking` / `audioArchiveReady` / `rollbackSafetyWindowReady` を見る
+- 旧VPS rollbackを調査する場合だけ `trackPoints > 0`、`audioArchiveReady=true`、`private_uploads`の永続化契約を確認する
 - v2 write lane には security gate が入っている
   - 一般 write: cookie session の本人のみ
   - specialist: session + specialist role
