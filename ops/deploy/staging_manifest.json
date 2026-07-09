@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "strategy": "github_actions_cloudflare_worker_staging",
   "platform": "cloudflare_worker",
   "workerName": "ikimon-life-cloudflare-staging",
@@ -13,6 +13,21 @@
   "stagingBaseUrl": "https://staging.ikimon.life/",
   "workerDevUrl": "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/",
   "materializedOriginalUiScope": "core",
+  "promotion": {
+    "sourceBranchPattern": "codex/*",
+    "baseBranch": "main",
+    "requireOpenNonDraftPullRequest": true,
+    "pinCommitSha": true,
+    "serializeAllDeploys": true,
+    "workflowDispatchRef": "main",
+    "trustedReleaseControls": true,
+    "allowPushTrigger": false,
+    "requiredStatusContexts": [
+      "Quality Gate",
+      "Record Funnel Browser QA",
+      "Ai Review Gate"
+    ]
+  },
   "healthChecks": [
     "https://staging.ikimon.life/healthz",
     "https://staging.ikimon.life/readyz",

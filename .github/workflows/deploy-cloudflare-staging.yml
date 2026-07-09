@@ -1,18 +1,23 @@
 name: Deploy Cloudflare Staging
-run-name: Cloudflare staging · ${{ github.event.inputs.branch || github.ref_name }}
+run-name: Cloudflare staging | branch=${{ inputs.branch }} | target=${{ inputs.commit_sha }}
 
 on:
   workflow_dispatch:
     inputs:
       branch:
         description: "Branch to deploy to Cloudflare staging"
-        required: false
+        required: true
         default: "main"
+        type: string
+      commit_sha:
+        description: "Exact verified commit SHA to deploy (required when deploy_staging=true)"
+        required: false
+        default: ""
         type: string
       deploy_staging:
         description: "Deploy staging Worker and materialize staging R2"
         required: true
-        default: "true"
+        default: "false"
         type: choice
         options:
           - "true"
@@ -25,22 +30,15 @@ on:
         options:
           - quick
           - full
-  push:
-    branches:
-      - "codex/**"
-    paths:
-      - ".github/workflows/deploy-cloudflare-staging.yml"
-      - ".github/actions/setup-platform-browser/**"
-      - "platform_v2/cloudflare_shadow/**"
-      - "platform_v2/e2e/**"
-      - "platform_v2/playwright.staging.config.ts"
-      - "platform_v2/src/**"
-      - "platform_v2/package.json"
-      - "platform_v2/package-lock.json"
-
 concurrency:
-  group: cloudflare-staging-${{ github.event.inputs.branch || github.ref_name }}
-  cancel-in-progress: true
+  group: cloudflare-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  checks: read
+  statuses: read
+  pull-requests: read
 
 env:
   IKIMON_CF_STAGING_DEPLOY_APPROVAL: APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY
@@ -59,14 +57,54 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH='${{ github.event.inputs.branch || github.ref_name }}'
+          TARGET_SHA='${{ github.event.inputs.commit_sha || github.sha }}'
           if ! printf '%s' "$BRANCH" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
             echo "Invalid branch name: $BRANCH"
             exit 1
           fi
+          if ! printf '%s' "$TARGET_SHA" | grep -qE '^[0-9a-fA-F]{40}$'; then
+            echo "Invalid commit SHA: $TARGET_SHA"
+            exit 1
+          fi
+          if [ "${DEPLOY_STAGING}" = "true" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${{ github.event.inputs.commit_sha }}" ]; then
+            echo "commit_sha is required when deploy_staging=true"
+            exit 1
+          fi
+          if [ "${DEPLOY_STAGING}" = "true" ] && [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "A staging deploy must dispatch the trusted workflow from main; ref=$GITHUB_REF"
+            exit 1
+          fi
+          echo "TARGET_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          echo "TARGET_SHA=$TARGET_SHA" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
+          ref: ${{ github.event.inputs.commit_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify checked-out commit is immutable
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [ "$ACTUAL_SHA" != "$TARGET_SHA" ]; then
+            echo "Checkout SHA drifted: expected=$TARGET_SHA actual=$ACTUAL_SHA"
+            exit 1
+          fi
+
+      - name: Checkout trusted release controls
+        if: env.DEPLOY_STAGING == 'true'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: .release-control
+          fetch-depth: 1
+
+      - name: Require verified release candidate
+        if: env.DEPLOY_STAGING == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./.release-control/scripts/check_release_candidate.ps1 -Repository '${{ github.repository }}' -Branch "$env:TARGET_BRANCH" -Sha "$env:TARGET_SHA"
 
       - name: Setup Node
         uses: actions/setup-node@v5

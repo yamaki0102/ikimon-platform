@@ -42,6 +42,47 @@ if ($manifest.platform -eq "cloudflare_worker") {
         }
     }
 
+    foreach ($requiredText in @(
+        "group: cloudflare-staging",
+        "cancel-in-progress: false",
+        "commit_sha:",
+        "github.event.inputs.commit_sha",
+        ".release-control/scripts/check_release_candidate.ps1",
+        'ref: ${{ github.sha }}',
+        "refs/heads/main",
+        "Require verified release candidate"
+    )) {
+        if ($workflowText -notmatch [regex]::Escape($requiredText)) {
+            $issues.Add("deploy-cloudflare-staging.yml is missing release promotion guard: $requiredText")
+        }
+    }
+
+    if (-not $manifest.promotion.pinCommitSha -or -not $manifest.promotion.serializeAllDeploys -or -not $manifest.promotion.requireOpenNonDraftPullRequest -or -not $manifest.promotion.trustedReleaseControls) {
+        $issues.Add("staging manifest promotion must require SHA pinning, trusted release controls, global serialization, and an open non-draft PR")
+    }
+    if ($manifest.promotion.workflowDispatchRef -ne "main" -or $manifest.promotion.allowPushTrigger) {
+        $issues.Add("staging promotion must dispatch its trusted workflow from main and must not accept a push trigger")
+    }
+    if ($workflowText -match '(?m)^\s{2}push:') {
+        $issues.Add("deploy-cloudflare-staging.yml must not expose the staging environment to feature-branch push workflows")
+    }
+
+    $candidateCheckPath = Join-Path $repoRoot "scripts/check_release_candidate.ps1"
+    if (-not (Test-Path $candidateCheckPath)) {
+        $issues.Add("Release candidate guard script is missing: scripts/check_release_candidate.ps1")
+    }
+    else {
+        $candidateCheckText = Get-Content -Raw -Path $candidateCheckPath
+        foreach ($context in @($manifest.promotion.requiredStatusContexts)) {
+            if ([string]::IsNullOrWhiteSpace($context)) {
+                $issues.Add("staging manifest promotion contains an empty required status context")
+            }
+        }
+        if ($candidateCheckText -notmatch "requiredStatusContexts") {
+            $issues.Add("check_release_candidate.ps1 must read promotion.requiredStatusContexts from the staging manifest")
+        }
+    }
+
     foreach ($url in $manifest.healthChecks) {
         if ($workflowText -notmatch [regex]::Escape($url)) {
             $issues.Add("deploy-cloudflare-staging.yml verify step is missing health check URL: $url")

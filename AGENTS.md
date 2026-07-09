@@ -106,6 +106,11 @@ php tools/lint.php
 **Codex は main に直接 push できない（Protected Branch）。**
 以下のフローに従うこと：
 
+通常の入口は、最新 `origin/main` から専用レーンを作る
+`scripts/new_release_worktree.ps1 -TaskName <task-name>` と、明示パスだけを扱う
+`scripts/release_autopilot.ps1`。GitHub CLI / Git Credential Manager は非対話利用し、
+認証切れは変更前に検出する。`-PromoteProduction` は本番反映が現依頼に含まれる場合だけ使う。
+
 ```
 0. deploy 判断前に必ず `powershell -ExecutionPolicy Bypass -File .\scripts\local_deploy_preflight.ps1 -RequireCodexBranch -RequireUpstreamSync` を実行し、ローカル未コミットが残っていないことを確認
 1. codex/<task-name> ブランチで作業・コミット
@@ -140,10 +145,12 @@ php tools/lint.php
 ### Branch Hygiene
 
 - GitHub repository setting `delete_branch_on_merge` must stay enabled.
+- GitHub repository setting `allow_auto_merge` must stay enabled. Autopilot may request auto-merge only after staging and required checks pass.
 - Merge policy is squash-only: squash merge enabled, merge commit disabled, rebase merge disabled.
 - `main` branch protection requires linear history.
-- Long-lived branches are limited to `main` and `staging`.
-- `staging` is the staging deploy selector, not a feature queue. Keep it main-following.
+- `main` is the only active long-lived release branch.
+- Cloudflare staging deploys the verified PR commit SHA directly; it does not read from the legacy `staging` branch.
+- The legacy `staging` branch is retained only until separately approved history maintenance. Do not force-update or delete it during a normal release.
 - Feature/rescue work uses short-lived `codex/<task-name>` branches and PRs to `main`.
 - Weekly stale branch / open PR / deploy status audit runs via `.github/workflows/branch-hygiene-audit.yml`.
 

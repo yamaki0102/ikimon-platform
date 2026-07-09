@@ -1,55 +1,54 @@
 # Staging Runbook
 
-ikimon.life の改装は **staging 先行** に切り替える。  
-本番を直接触らず、まず `軽い public staging` で本番状態を再現する。
+ikimon.life は **Cloudflare staging先行** で昇格する。
+現行公開面のstaging正本はCloudflare Workerであり、VPS stagingはlegacy integration専用。
 
 ## 目的
 
 - 本番データを消さない
-- 改装前に本番状態をローカルへ snapshot する
-- 本番とほぼ同じデータ・設定で staging を確認する
+- production DB/R2を変更せず、非productionのD1/R2/Queueで確認する
+- required checks済みの同一commit SHAをstagingへ配置する
 - 本番 deploy 前に `staging -> review -> production` の順に固定する
 
-## 構成
+## Current Cloudflare Staging
 
 ### Production
 
-- app root: `/var/www/ikimon.life`
+- Worker: `ikimon-life-cloudflare-prod`
 - public URL: `https://ikimon.life/`
 
 ### Staging
 
-- app root: `/var/www/ikimon.life-staging`
-- internal PHP lane: `127.0.0.1:8081`
-- internal platform lane: `127.0.0.1:3200`
-- canonical platform runtime: `systemd` service `ikimon-v2-staging.service`
-- canonical platform env file: `/etc/ikimon/staging-v2.env`
-- canonical platform OS user: `ikimon-staging`
-- formal public access: `https://staging.ikimon.life/`
-- fallback review URL: `https://staging.162-43-44-131.sslip.io/`
-- protection: `noindex + basic auth`
-- local resolution: formal staging は DNS 運用、`sslip.io` は fallback
+- Worker: `ikimon-life-cloudflare-staging`
+- public URL: `https://staging.ikimon.life/`
+- D1: `ikimon_shadow_core`, `ikimon_shadow_observations_2026_06`
+- R2: `ikimon-shadow-media`
+- Queue: `ikimon-staging-media-jobs`
+- workflow: `.github/workflows/deploy-cloudflare-staging.yml`
+- manifest: `ops/deploy/staging_manifest.json`
 
-基本アクセス:
+通常入口:
 
-```text
-https://staging.ikimon.life/
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\release_autopilot.ps1 -Paths <paths> -CommitMessage "<message>" -Title "<title>"
 ```
 
-認証情報は `_archive/staging_access/staging_access_latest.txt` に保存する。
+手動dispatchが必要な場合もbranch名だけでdeployしない。PR headの40文字SHAを固定する。
 
-## Source of Truth
+```powershell
+gh workflow run deploy-cloudflare-staging.yml --ref main -f branch=<codex-branch> -f commit_sha=<40-char-sha> -f deploy_staging=true -f test_profile=full
+```
 
-- staging manifest: `ops/deploy/staging_manifest.json`
-- staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
-- staging nginx reference: `ops/deploy/staging_nginx_local_reference.conf`
-- staging nginx tls reference: `ops/deploy/staging_nginx_tls_reference.conf`
-- staging workflow: `.github/workflows/deploy-staging.yml`
-- staging systemd reference: `ops/deploy/ikimon_v2_staging.service`
-- production snapshot pull: `scripts/pull_production_state_snapshot.ps1`
-- staging provision: `scripts/provision_staging_from_production.ps1`
+実deployは対象SHAのopen・non-draft PRと `Quality Gate`、`Record Funnel Browser QA`、
+`Ai Review Gate` の成功を、`main` からcheckoutしたrelease controlでworkflow内でも再確認する。
+feature branchのpushではこのworkflowを起動しない。staging全体で1本ずつ実行し、途中cancelしない。
 
-## 実行順
+## Legacy VPS Staging Lane
+
+以下は旧PHP/PostgreSQL integrationの調査・退役作業だけに使う。通常のCloudflare promotionでは
+実行せず、VPS SSH、production secret複製、`/var/www/ikimon.life-staging`を要求しない。
+
+## Legacy VPS 実行順
 
 ### 1. 本番 snapshot をローカルへ取得
 
@@ -94,7 +93,7 @@ ssh ikimon-vps "STAGING_BRANCH=staging /var/www/ikimon.life-staging/deploy.sh"
 - workflow: `Deploy to Staging`
 - branch input: 既定は `staging`。review 用に別ブランチを出したいときだけ上書きする
 
-## Guardrails
+## Legacy VPS Guardrails
 
 - production data は repo 変更フローに混ぜない
 - `staging` branch は staging deploy の入口として残すが、feature queue にしない
@@ -108,7 +107,7 @@ ssh ikimon-vps "STAGING_BRANCH=staging /var/www/ikimon.life-staging/deploy.sh"
 - `upload_package/data/library/` は staging の未追跡/生成物置き場として `git reset --hard` 後もその場に残す。deploy runtime backup では複製しない
 - 本番 deploy 前に staging で UI / data / health check を通す
 
-## Branch Policy
+## Legacy VPS Branch Policy
 
 `staging` は長期作業を貯めるブランチではなく、production-like review を行うための
 deploy selector。通常の作業は `codex/<task-name>` から `main` へ PR し、必要なときだけ
@@ -118,14 +117,14 @@ GitHub Actions の `Deploy to Staging` で review branch を指定する。
 乖離させない。staging 固有の修正が必要な場合は、原因を PR に書き、main へ取り込むか
 破棄するかを review 後に決める。
 
-## GitHub staging secrets
+## Legacy VPS staging secrets
 
 - `V2_STAGING_DATABASE_URL` — `postgresql://<app-role>:<password>@127.0.0.1:5432/ikimon_v2_staging`
 - `STAGING_BASIC_AUTH_USER` — Playwright verify-e2e 用
 - `STAGING_BASIC_AUTH_PASS` — Playwright verify-e2e 用
 - `V2_PRIVILEGED_WRITE_API_KEY` — authority gate と browser E2E fixture 用
 
-## Canonical verify
+## Legacy VPS verify
 
 staging platform の正常系確認は以下を canonical とする。
 
@@ -160,7 +159,7 @@ runuser -u ikimon-staging -- env \
 この smoke は staging DB を意図的に変更する。`--confirm=public-map-snapshot-staging-smoke`
 と `--allow-local` は外さない。production host には向けない。
 
-## 固定IPバイパス
+## Legacy VPS 固定IPバイパス
 
 固定回線からだけ `401` を外したい場合は、Basic Auth 自体は残したまま allowlist で迂回する。
 
@@ -190,7 +189,7 @@ sudo systemctl reload nginx
 - allowlist に入っていないアクセスは従来どおり Basic Auth を要求する
 - 動的IP回線は不向き。固定IPか CIDR が確定している回線だけ入れる
 
-## 既知の注意点
+## Legacy VPS 既知の注意点
 
 - staging は production の secret を複製するため、OAuth や外部 API は production と同じ資格情報を使う
 - そのため staging では `通知送信`, `外部共有`, `実ユーザーへの招待` を乱発しない
@@ -198,7 +197,7 @@ sudo systemctl reload nginx
 - 一部の PHP ページは `HEAD` で `500` を返すため、health check は `curl -s -o /dev/null -w "%{http_code}" <url>` のような `GET` ベースで確認する
 - staging では `Google Analytics` と `service worker` を止める。レビュー流入の汚染と PWA キャッシュ混線を避けるため
 
-## Debugging reminders
+## Legacy VPS debugging reminders
 
 - `https://staging.ikimon.life/` 配下は `platform_v2` (`127.0.0.1:3200`) が primary。`https://staging.ikimon.life/legacy/` 配下が PHP lane (`127.0.0.1:8081`)。
 - `/v2/` は旧構成の名残。現行 staging では root が v2 なので、`/v2` 前提で原因を追うと見当違いになりやすい。
