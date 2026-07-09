@@ -159,7 +159,7 @@ function Wait-WorkflowRun {
                 }
                 return $run
             }
-            Write-Output "$Workflow pending: $($run.status) $($run.url)"
+            Write-Host "$Workflow pending: $($run.status) $($run.url)"
         }
         Start-Sleep -Seconds $PollSeconds
     }

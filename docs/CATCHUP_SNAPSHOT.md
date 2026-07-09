@@ -26,12 +26,12 @@ Refresh policy: structure change = True, review cadence = every 6 months
 - .github/ : 18 files
 - .vscode/ : 3 files
 - dev_tools/ : 11 files
-- docs/ : 255 files
+- docs/ : 256 files
 - mobile/ : 70 files
 - ops/ : 40 files
 - platform_v2/ : 1145 files
 - readme/ : 22 files
-- scripts/ : 36 files
+- scripts/ : 41 files
 - tests/ : 30 files
 - tmp/ : 11 files
 - tools/ : 10 files

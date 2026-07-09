@@ -20,7 +20,7 @@
 
 ## 検証基準
 
-- [x] `powershell -ExecutionPolicy Bypass -File .\scripts\tests\release_automation.tests.ps1` -> 41 assertions pass
+- [x] `powershell -ExecutionPolicy Bypass -File .\scripts\tests\release_automation.tests.ps1` -> 42 assertions pass
 - [x] PowerShell parser -> changed `.ps1` files have zero syntax errors
 - [x] invalid task name contract test -> rejected without filesystem changes
 - [x] `powershell -ExecutionPolicy Bypass -File .\scripts\release_autopilot.ps1 -DryRun -Paths <files>` -> no commit, push, PR, deploy, or merge executed
