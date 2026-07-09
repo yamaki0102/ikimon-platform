@@ -23,6 +23,9 @@ test("observation writes support unlocated note saves without downstream locatio
   assert.match(source, /function normalizeObservationCoordinates/);
   assert.match(source, /latitude and longitude must be provided together/);
   assert.match(source, /throw new Error\("invalid_location"\)/);
+  assert.match(source, /function isGlobalPhotoTrayDirectPost/);
+  assert.match(source, /sourcePayload\?\.source === "global_photo_tray"/);
+  assert.match(source, /!coordinates\.hasLocation && isGlobalPhotoTrayDirectPost\(input\)[\s\S]*throw new Error\("missing_location"\)/);
   assert.match(source, /place:unlocated:\$\{visitId\}/);
   assert.match(source, /const spatialMesh = hasLocation[\s\S]*encodeJisMeshCodes/);
   assert.match(source, /if \(hasLocation\) \{[\s\S]*upsertPlaceMemoryForVisit/);

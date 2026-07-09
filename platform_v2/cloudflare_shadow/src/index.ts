@@ -2457,6 +2457,14 @@ export const worker = {
       const referenceLibraryResponse = await handleReferenceLibraryRuntime(request, url, env);
       if (referenceLibraryResponse) return referenceLibraryResponse;
 
+      if ((request.method === "GET" || request.method === "HEAD") && isAppServiceWorkerPath(url.pathname)) {
+        return getAppServiceWorkerScript(request);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && isLegacyServiceWorkerCleanupPath(url.pathname)) {
+        return getLegacyServiceWorkerCleanupScript(request);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiStaticAssetPath(url.pathname)) {
         return getOriginalUiStaticAsset(request, url, env);
       }
@@ -20378,6 +20386,177 @@ function cacheControlForOriginalUiStaticAsset(pathname: string): string {
   return "public, max-age=31536000, immutable";
 }
 
+const APP_SERVICE_WORKER_SCRIPT = `const VERSION = 'ikimon-app-v9';
+const SHELL_CACHE = VERSION + ':shell';
+const STATIC_CACHE = VERSION + ':static';
+const OFFLINE_URL = '/offline.html';
+const OFFLINE_URLS = {
+  ja: '/offline.html?lang=ja',
+  en: '/offline.html?lang=en',
+  es: '/offline.html?lang=es',
+  'pt-br': '/offline.html?lang=pt-BR'
+};
+const STATIC_ASSETS = [
+  OFFLINE_URL,
+  OFFLINE_URLS.ja,
+  OFFLINE_URLS.en,
+  OFFLINE_URLS.es,
+  OFFLINE_URLS['pt-br'],
+  '/assets/brand/app-icon-192.png',
+  '/assets/brand/app-icon-192-maskable.png',
+  '/assets/brand/app-icon-512.png',
+  '/assets/brand/favicon-32.png'
+];
+const APP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|guide\\/?$|record\\/?$|map\\/?$)/;
+const RECORD_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?record\\/?$/;
+const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
+const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$)/;
+const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:records\\/?$|map\\/?$|home\\/?$|profile\\/?$)/;
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key.startsWith('ikimon-app-') && !key.startsWith(VERSION)).map((key) => caches.delete(key)));
+    await self.clients.claim();
+    const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(clientsList.map((client) => {
+      try {
+        const url = new URL(client.url);
+        if (url.origin === location.origin && REFRESH_NAV_RE.test(url.pathname) && url.searchParams.get('sw') !== VERSION) {
+          url.searchParams.set('sw', VERSION);
+          return client.navigate(url.toString());
+        }
+      } catch (_) {
+        return undefined;
+      }
+      return undefined;
+    }));
+  })());
+});
+
+async function networkFirstNavigation(request) {
+  const cache = await caches.open(SHELL_CACHE);
+  const path = new URL(request.url).pathname;
+  const isRecordShell = RECORD_NAV_RE.test(path);
+  const isMapShell = MAP_NAV_RE.test(path);
+  const isPersonalShell = PERSONAL_NAV_RE.test(path);
+  try {
+    const response = await fetch(request, (isRecordShell || isMapShell || isPersonalShell) ? { cache: 'no-store' } : undefined);
+    if (response && response.ok && APP_NAV_RE.test(path) && !isRecordShell && !isMapShell && !isPersonalShell) {
+      cache.put(request, response.clone()).catch(() => undefined);
+    }
+    return response;
+  } catch (_) {
+    if (isRecordShell || isMapShell || isPersonalShell) {
+      const match = path.match(/^\\/(ja|en|es|pt-br)(?:\\/|$)/);
+      const offlineUrl = match && OFFLINE_URLS[match[1]] ? OFFLINE_URLS[match[1]] : OFFLINE_URLS.ja;
+      return (await caches.match(offlineUrl))
+        || (await caches.match(OFFLINE_URL))
+        || new Response('offline', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    const match = path.match(/^\\/(ja|en|es|pt-br)(?:\\/|$)/);
+    const offlineUrl = match && OFFLINE_URLS[match[1]] ? OFFLINE_URLS[match[1]] : OFFLINE_URLS.ja;
+    return (await caches.match(offlineUrl))
+      || (await caches.match(OFFLINE_URL))
+      || new Response('offline', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  }
+}
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== location.origin) return;
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstNavigation(request));
+    return;
+  }
+  if (url.pathname.startsWith('/assets/img/')) {
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+      if (response && response.ok) caches.open(STATIC_CACHE).then((cache) => cache.put(request, response.clone())).catch(() => undefined);
+      return response;
+    })));
+  }
+});
+
+async function notifyOutboxSyncClients(reason) {
+  const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  await Promise.all(clientsList.map((client) => client.postMessage({
+    type: 'ikimon:app-outbox-sync',
+    reason: reason || 'background-sync'
+  })));
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag !== 'ikimon-app-outbox-sync') return;
+  event.waitUntil(notifyOutboxSyncClients('background-sync'));
+});
+`;
+
+function isAppServiceWorkerPath(pathname: string): boolean {
+  return pathname === "/app-sw.js";
+}
+
+function getAppServiceWorkerScript(request: Request): Response {
+  return new Response(request.method === "HEAD" ? null : APP_SERVICE_WORKER_SCRIPT, {
+    headers: {
+      "content-type": "application/javascript; charset=utf-8",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "service-worker-allowed": "/",
+      "x-ikimon-cloudflare-native": "app-service-worker"
+    }
+  });
+}
+
+const LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT = `// ikimon.life no longer uses the legacy Service Worker URLs.
+// Returning this script from /sw.js and /sw.php lets browsers replace the old
+// worker, clear app-shell caches, and unregister the legacy registration.
+const LEGACY_CACHE_PREFIXES = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-', 'ikimon-app-'];
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    if ('caches' in self) {
+      const keys = await caches.keys();
+      await Promise.all(keys
+        .filter((key) => LEGACY_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)))
+        .map((key) => caches.delete(key)));
+    }
+    await self.clients.claim();
+    await self.registration.unregister();
+  })());
+});
+
+self.addEventListener('fetch', () => {
+  // No respondWith: every request falls through to the network.
+});
+`;
+
+function isLegacyServiceWorkerCleanupPath(pathname: string): boolean {
+  return pathname === "/sw.js" || pathname === "/sw.php";
+}
+
+function getLegacyServiceWorkerCleanupScript(request: Request): Response {
+  return new Response(request.method === "HEAD" ? null : LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT, {
+    headers: {
+      "content-type": "application/javascript; charset=utf-8",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "service-worker-allowed": "/",
+      "x-ikimon-cloudflare-native": "legacy-service-worker-cleanup"
+    }
+  });
+}
+
 async function getOriginalUiThumb(request: Request, url: URL, env: Env): Promise<Response> {
   const object = await env.ASSET_BUCKET.get(originalUiThumbKey(url.pathname));
   if (object?.body) {
@@ -20616,6 +20795,14 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       saved: "記録を保存しました",
       photoSaved: "写真1枚を同じ記録に保存しました。",
       videoSaved: "動画は保存済みです。",
+      savedRedirect: "記録一覧へ移動します。",
+      recordCreatedCheck: "記録の作成までは終わっています。記録一覧で確認できます。",
+      checkRecords: "記録一覧を確認する",
+      recentAttempt: "直前の投稿結果を確認できます。",
+      draftAvailable: "前回選んだ写真・動画を復元できます。",
+      restoreDraft: "復元する",
+      clearDraft: "破棄",
+      draftRestored: "前回選んだメディアを復元しました。座標を確認して保存してください。",
       missingMedia: "写真または動画を選択してください。",
       failed: "保存に失敗しました。時間をおいてもう一度試してください。"
     }
@@ -20633,6 +20820,14 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       saved: "Record saved",
       photoSaved: "Saved one photo to the same record.",
       videoSaved: "Video saved.",
+      savedRedirect: "Opening your records.",
+      recordCreatedCheck: "The record body was created. Check your records to confirm the media.",
+      checkRecords: "Check records",
+      recentAttempt: "You can check the last posting attempt.",
+      draftAvailable: "You can restore the media selected last time.",
+      restoreDraft: "Restore",
+      clearDraft: "Discard",
+      draftRestored: "Restored the previous media. Check the coordinates and save.",
       missingMedia: "Choose a photo or video.",
       failed: "Save failed. Try again later."
     };
@@ -20669,6 +20864,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
     .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--teal),var(--leaf));color:#fff;font-weight:900;font-size:16px}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
+    .cf-record-status a,.cf-record-recovery a{color:var(--teal);font-weight:900;text-decoration:underline;text-underline-offset:3px}
+    .cf-record-recovery{margin:0 0 12px;padding:10px 12px;border:1px solid #bfe6d5;border-radius:12px;background:#f2fbf6;color:var(--ink);font-size:13px;font-weight:800}
+    .cf-record-recovery button{margin-left:8px;border:0;border-radius:999px;background:#d8f4e8;color:var(--ink);font:inherit;font-weight:900;padding:5px 10px}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:54%;font-size:12px}}
   </style>
 </head>
@@ -20682,6 +20880,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       <h1>${escapeHtml(title)}</h1>
       <p>${escapeHtml(mediaCopy.prompt)}</p>
     </section>
+    <div id="record-recovery" class="cf-record-recovery" hidden></div>
     <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
       <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>image/jpeg, image/png</span><input id="record-media-photo" type="file" accept="image/*"></label>
       <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>video/mp4</span><input id="record-media-video" type="file" accept="video/*"></label>
@@ -20702,20 +20901,292 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(mediaCopy)};
+    const recordsHref = ${JSON.stringify(`${prefix}/records?view=mine`)};
+    const recentAttemptKey = "ikimon.record.recentAttempt.v1";
+    const recentAttemptMaxAgeMs = 24 * 60 * 60 * 1000;
+    const recordDraftDbName = "ikimon-record-draft";
+    const recordDraftStoreName = "drafts";
+    const recordDraftKey = "latest";
+    const recordDraftMaxAgeMs = 12 * 60 * 60 * 1000;
+    const recordDraftMaxBytes = 25 * 1024 * 1024;
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
+    const recovery = document.getElementById("record-recovery");
     const submitPanel = document.getElementById("record-submit-panel");
+    const coordinatesDetails = document.querySelector(".cf-record-coordinates");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
-    function setStatus(message, error) {
+    let restoredDraftFile = null;
+    let restoredDraftKind = "";
+    function destinationForRecord(visitId) {
+      const target = new URL(recordsHref, window.location.href);
+      target.searchParams.set("saved", "1");
+      if (visitId) target.searchParams.set("highlight", visitId);
+      return target.pathname + target.search;
+    }
+    function setLinkedMessage(target, message, href) {
+      if (!target) return;
+      target.textContent = "";
+      target.append(document.createTextNode(message));
+      if (href) {
+        target.append(document.createTextNode(" "));
+        const link = document.createElement("a");
+        link.href = href;
+        link.textContent = copy.checkRecords;
+        target.append(link);
+      }
+    }
+    function setStatus(message, error, href) {
       if (!status) return;
-      status.textContent = message;
+      setLinkedMessage(status, message, href);
       status.style.color = error ? "#b42318" : "";
     }
+    function sendRecordEvent(eventName, actionKey, metadata) {
+      try {
+        const payload = {
+          eventName,
+          pagePath: window.location.pathname + window.location.search,
+          routeKey: "cloudflare_record_session_form",
+          actionKey,
+          metadata: Object.assign({
+            funnel: "cloudflare_record_session_form",
+            lang: document.documentElement.lang || "ja",
+            ts: new Date().toISOString()
+          }, metadata || {})
+        };
+        const body = JSON.stringify(payload);
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon("/api/v1/ui-kpi/events", blob)) return;
+        }
+        fetch("/api/v1/ui-kpi/events", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body,
+          keepalive: true
+        }).catch(() => undefined);
+      } catch {
+        // Metrics must never block record submission.
+      }
+    }
+    function sendRecordStep(actionKey, metadata) {
+      sendRecordEvent("funnel_step", actionKey, metadata);
+    }
+    function sendRecordError(actionKey, error, metadata) {
+      sendRecordEvent("funnel_error", actionKey, Object.assign({
+        error: String(error || "unknown_error").slice(0, 160)
+      }, metadata || {}));
+    }
+    function appendLinkedMessage(target, message, href) {
+      if (!target) return null;
+      const row = document.createElement("div");
+      setLinkedMessage(row, message, href);
+      target.append(row);
+      target.hidden = false;
+      return row;
+    }
+    function rememberAttempt(state, visitId) {
+      try {
+        localStorage.setItem(recentAttemptKey, JSON.stringify({
+          state,
+          visitId: visitId || "",
+          updatedAt: Date.now()
+        }));
+      } catch {
+        // localStorage may be unavailable in private browsing or constrained webviews.
+      }
+    }
+    function showRecentAttempt() {
+      if (!recovery) return;
+      try {
+        const raw = localStorage.getItem(recentAttemptKey);
+        if (!raw) return;
+        const attempt = JSON.parse(raw);
+        if (!attempt || typeof attempt.updatedAt !== "number") return;
+        if (Date.now() - attempt.updatedAt > recentAttemptMaxAgeMs) return;
+        const visitId = typeof attempt.visitId === "string" ? attempt.visitId : "";
+        const href = visitId ? destinationForRecord(visitId) : recordsHref;
+        appendLinkedMessage(recovery, copy.recentAttempt, href);
+      } catch {
+        // Ignore malformed recovery data; the form must remain usable.
+      }
+    }
+    showRecentAttempt();
+    function runDraftStore(mode, action) {
+      if (!("indexedDB" in window)) return Promise.resolve(null);
+      return new Promise((resolve, reject) => {
+        const openRequest = indexedDB.open(recordDraftDbName, 1);
+        let db = null;
+        openRequest.onupgradeneeded = () => {
+          const upgradeDb = openRequest.result;
+          if (!upgradeDb.objectStoreNames.contains(recordDraftStoreName)) {
+            upgradeDb.createObjectStore(recordDraftStoreName);
+          }
+        };
+        openRequest.onerror = () => reject(openRequest.error || new Error("draft_db_open_failed"));
+        openRequest.onsuccess = () => {
+          db = openRequest.result;
+          const transaction = db.transaction(recordDraftStoreName, mode);
+          const store = transaction.objectStore(recordDraftStoreName);
+          let request = null;
+          let requestResolved = false;
+          transaction.oncomplete = () => {
+            if (db) db.close();
+            if (!request || !requestResolved) resolve(null);
+          };
+          transaction.onerror = () => {
+            if (db) db.close();
+            reject(transaction.error || new Error("draft_db_transaction_failed"));
+          };
+          try {
+            request = action(store);
+          } catch (error) {
+            if (db) db.close();
+            reject(error);
+            return;
+          }
+          if (request && "onsuccess" in request) {
+            request.onsuccess = () => {
+              requestResolved = true;
+              resolve(request.result ?? null);
+            };
+            request.onerror = () => reject(request.error || new Error("draft_db_request_failed"));
+          }
+        };
+      });
+    }
+    function fileSizeBucket(file) {
+      const size = file && typeof file.size === "number" ? file.size : 0;
+      if (size <= 0) return "unknown";
+      if (size < 1024 * 1024) return "lt_1mb";
+      if (size < 5 * 1024 * 1024) return "1_5mb";
+      if (size < 15 * 1024 * 1024) return "5_15mb";
+      if (size < 25 * 1024 * 1024) return "15_25mb";
+      return "gte_25mb";
+    }
+    async function saveDraft(file, kind) {
+      if (!file || typeof file.size !== "number" || file.size <= 0 || file.size > recordDraftMaxBytes) return;
+      try {
+        await runDraftStore("readwrite", (store) => store.put({
+          updatedAt: Date.now(),
+          mediaKind: kind,
+          name: file.name || (kind === "video" ? "record-video.mp4" : "record-photo.jpg"),
+          type: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
+          size: file.size,
+          file
+        }, recordDraftKey));
+      } catch {
+        // Draft persistence is best-effort; submit must still work without it.
+      }
+    }
+    async function loadDraft() {
+      const draft = await runDraftStore("readonly", (store) => store.get(recordDraftKey));
+      const normalized = normalizeDraftRecord(draft);
+      if (!normalized) return null;
+      if (Date.now() - normalized.updatedAt > recordDraftMaxAgeMs) {
+        await clearDraft();
+        return null;
+      }
+      return normalized;
+    }
+    async function clearDraft() {
+      try {
+        await runDraftStore("readwrite", (store) => store.delete(recordDraftKey));
+      } catch {
+        // Ignore unavailable storage.
+      }
+    }
+    function normalizeDraftRecord(draft) {
+      if (!draft || typeof draft !== "object") return null;
+      const files = Array.isArray(draft.files) ? draft.files : [];
+      const file = draft.file || files.find((candidate) => candidate && typeof candidate === "object") || null;
+      if (!file || (typeof Blob === "function" && !(file instanceof Blob))) return null;
+      const rawKind = String(draft.mediaKind || draft.kind || "").toLowerCase();
+      const type = String(draft.type || file.type || "");
+      const normalizedKind = rawKind === "video" || type.indexOf("video/") === 0 ? "video" : "photo";
+      const updatedAt = Number(draft.updatedAt || draft.savedAt || 0);
+      if (!Number.isFinite(updatedAt) || updatedAt <= 0) return null;
+      return {
+        updatedAt,
+        mediaKind: normalizedKind,
+        name: draft.name || file.name || (normalizedKind === "video" ? "record-video.mp4" : "record-photo.jpg"),
+        type: type || (normalizedKind === "video" ? "video/mp4" : "image/jpeg"),
+        size: Number(draft.size || file.size || 0),
+        metadata: draft.metadata && typeof draft.metadata === "object" ? draft.metadata : {},
+        file
+      };
+    }
+    function draftFileFromRecord(draft) {
+      if (!draft || !draft.file) return null;
+      const file = draft.file;
+      if (typeof File === "function" && !(file instanceof File)) {
+        return new File([file], draft.name || (draft.mediaKind === "video" ? "record-video.mp4" : "record-photo.jpg"), {
+          type: draft.type || file.type || ""
+        });
+      }
+      return file;
+    }
+    function applyDraftCoordinates(draft) {
+      const location = draft && draft.metadata && typeof draft.metadata === "object" ? draft.metadata.location : null;
+      if (!location || typeof location !== "object") return false;
+      const latitude = Number(location.latitude);
+      const longitude = Number(location.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+      const latitudeInput = form && form.elements ? form.elements.namedItem("latitude") : null;
+      const longitudeInput = form && form.elements ? form.elements.namedItem("longitude") : null;
+      if (latitudeInput && "value" in latitudeInput) latitudeInput.value = latitude.toFixed(6);
+      if (longitudeInput && "value" in longitudeInput) longitudeInput.value = longitude.toFixed(6);
+      return true;
+    }
+    function restoreDraftRecord(draft) {
+      const file = draftFileFromRecord(draft);
+      if (!file) return false;
+      restoredDraftFile = file;
+      restoredDraftKind = draft.mediaKind;
+      reveal(draft.mediaKind);
+      const appliedLocation = applyDraftCoordinates(draft);
+      if (!appliedLocation && coordinatesDetails) coordinatesDetails.open = true;
+      setStatus(copy.draftRestored, false);
+      sendRecordStep("record:draft_restored", {
+        mediaKind: draft.mediaKind,
+        fileSizeBucket: fileSizeBucket(file)
+      });
+      return true;
+    }
+    function showDraftRecovery(draft) {
+      if (!recovery || !draft) return;
+      const row = appendLinkedMessage(recovery, copy.draftAvailable, "");
+      if (!row) return;
+      const restore = document.createElement("button");
+      restore.type = "button";
+      restore.textContent = copy.restoreDraft;
+      restore.addEventListener("click", () => {
+        restoreDraftRecord(draft);
+      });
+      const discard = document.createElement("button");
+      discard.type = "button";
+      discard.textContent = copy.clearDraft;
+      discard.addEventListener("click", () => {
+        restoredDraftFile = null;
+        restoredDraftKind = "";
+        row.remove();
+        void clearDraft();
+        if (recovery && !recovery.textContent.trim()) recovery.hidden = true;
+      });
+      row.append(restore, discard);
+    }
+    const shouldAutoRestoreDraft = new URLSearchParams(window.location.search).get("draft") === "1";
+    void loadDraft().then((draft) => {
+      if (!draft) return;
+      if (shouldAutoRestoreDraft && restoreDraftRecord(draft)) return;
+      showDraftRecovery(draft);
+    }).catch(() => undefined);
     function selectedFile() {
       const input = mediaKind === "video" ? videoInput : photoInput;
-      return input && input.files && input.files[0] ? input.files[0] : null;
+      if (input && input.files && input.files[0]) return input.files[0];
+      return restoredDraftFile && restoredDraftKind === mediaKind ? restoredDraftFile : null;
     }
     function reveal(kind) {
       mediaKind = kind;
@@ -20723,8 +21194,20 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       if (submitPanel) submitPanel.hidden = false;
       setStatus(copy.statusReady, false);
     }
-    photoInput?.addEventListener("change", () => reveal("photo"));
-    videoInput?.addEventListener("change", () => reveal("video"));
+    function handleMediaChange(kind) {
+      restoredDraftFile = null;
+      restoredDraftKind = "";
+      reveal(kind);
+      const file = selectedFile();
+      void saveDraft(file, kind);
+      sendRecordStep("record:media_selected", {
+        mediaKind: kind,
+        fileSizeBucket: fileSizeBucket(file),
+        mimeType: file && file.type ? file.type : ""
+      });
+    }
+    photoInput?.addEventListener("change", () => handleMediaChange("photo"));
+    videoInput?.addEventListener("change", () => handleMediaChange("video"));
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -20760,7 +21243,14 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       const longitude = Number(longitudeText);
       const userId = form.dataset.userId || "";
       const observationId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      let visitId = "";
       setStatus(copy.saving, false);
+      rememberAttempt("saving", observationId);
+      sendRecordStep("record:submit_attempt", {
+        mediaKind,
+        fileSizeBucket: fileSizeBucket(file),
+        mimeType: file && file.type ? file.type : ""
+      });
       try {
         if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           throw new Error("invalid_coordinates");
@@ -20777,7 +21267,9 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           taxon: { vernacularName: "未同定", rank: "unknown" },
           sourcePayload: { source: "cloudflare_record_session_form", mediaKind }
         });
-        const visitId = String(observation.visitId || observation.observationId || observationId);
+        visitId = String(observation.visitId || observation.observationId || observationId);
+        rememberAttempt("upserted", visitId);
+        sendRecordStep("record:upsert_succeeded", { mediaKind, visitId });
         if (mediaKind === "photo") {
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             filename: file.name || "record-photo.jpg",
@@ -20786,7 +21278,12 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
             mediaRole: "primary",
             facePrivacy: "no_faces"
           });
-          setStatus(copy.saved + " " + copy.photoSaved, false);
+          const destination = destinationForRecord(visitId);
+          rememberAttempt("saved", visitId);
+          void clearDraft();
+          sendRecordStep("record:upload_succeeded", { mediaKind, visitId });
+          setStatus(copy.saved + " " + copy.photoSaved + " " + copy.savedRedirect, false, destination);
+          window.setTimeout(() => window.location.assign(destination), 650);
           return;
         }
         const direct = await postJson("/api/v1/videos/direct-upload", {
@@ -20810,10 +21307,25 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
           durationMs: 1000,
           readyToStream: true
         });
-        setStatus(copy.saved + " " + copy.videoSaved, false);
+        const destination = destinationForRecord(visitId);
+        rememberAttempt("saved", visitId);
+        void clearDraft();
+        sendRecordStep("record:upload_succeeded", { mediaKind, visitId });
+        setStatus(copy.saved + " " + copy.videoSaved + " " + copy.savedRedirect, false, destination);
+        window.setTimeout(() => window.location.assign(destination), 650);
       } catch (error) {
         console.error(error);
-        setStatus(copy.failed, true);
+        sendRecordError("record:submit_failed", error && error.message ? error.message : "record_submit_failed", {
+          mediaKind,
+          phase: visitId ? "media_upload" : "observation_upsert",
+          visitId
+        });
+        if (visitId) {
+          rememberAttempt("upserted", visitId);
+          setStatus(copy.recordCreatedCheck, true, destinationForRecord(visitId));
+        } else {
+          setStatus(copy.failed, true);
+        }
       }
     });
   })();
@@ -23682,6 +24194,43 @@ async function recordUiKpiEventShim(request: Request): Promise<Response> {
   ].includes(eventName)) {
     return json({ ok: false, error: "invalid_event_name" }, 400, { "cache-control": "no-store" });
   }
+  const metadata = input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+    ? input.metadata as Record<string, unknown>
+    : {};
+  const safeMetadataKeys = [
+    "funnel",
+    "metricName",
+    "durationMs",
+    "kind",
+    "mediaKind",
+    "photoCount",
+    "fileCount",
+    "fileSizeBucket",
+    "status",
+    "ok",
+    "phase",
+    "succeeded",
+    "failed",
+    "concurrency",
+    "index",
+    "error"
+  ];
+  const safeMetadata = Object.fromEntries(
+    safeMetadataKeys
+      .filter((key) => metadata[key] !== undefined)
+      .map((key) => {
+        const value = metadata[key];
+        return [key, typeof value === "string" ? value.slice(0, 160) : value];
+      })
+  );
+  console.log(JSON.stringify({
+    message: "ui_kpi_event",
+    eventName,
+    pagePath: (normalizeOptionalText(input.pagePath) ?? "").slice(0, 160),
+    routeKey: (normalizeOptionalText(input.routeKey) ?? "").slice(0, 120),
+    actionKey: (normalizeOptionalText(input.actionKey) ?? "").slice(0, 120),
+    metadata: safeMetadata
+  }));
   return json({
     ok: true,
     eventId: `cf-ui-kpi-${crypto.randomUUID()}`,
@@ -24793,7 +25342,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     assertNonEmpty(input.userId, "userId");
   }
   if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
-    throw new HttpError(400, "missing_location");
+    return json({ ok: false, error: "missing_location" }, 400, { "cache-control": "no-store" });
   }
   assertNonEmpty(input.observedAt, "observedAt");
 

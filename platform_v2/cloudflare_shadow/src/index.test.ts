@@ -9131,6 +9131,28 @@ test("v1 observation upsert returns the current Fastify-compatible ok contract",
   assert.equal(obs.civicObservationContexts.size, 0);
 });
 
+test("v1 observation upsert rejects global camera direct posts without coordinates", async () => {
+  const { env, obs } = createEnv();
+  const response = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      observationId: "global-camera-missing-location",
+      clientSubmissionId: "global-camera-missing-location-1",
+      userId: "global-camera-user",
+      observedAt: "2026-07-04T08:30:00.000Z",
+      taxon: { vernacularName: "カメラ投稿テスト", rank: "species" },
+      sourcePayload: { source: "global_photo_tray", media_count: 1 },
+    }),
+  }), env);
+  const payload = await response.json() as { ok?: boolean; error?: string };
+
+  assert.equal(response.status, 400, JSON.stringify(payload));
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "missing_location");
+  assert.equal(obs.observations.has("global-camera-missing-location"), false);
+});
+
 test("v1 observation upsert honors private visibility before public readmodel refresh", async () => {
   const { env, obs } = createEnv();
   const response = await post("/api/v1/observations/upsert", env, {
@@ -17964,13 +17986,6 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(sitemap.headers.get("content-type"), "application/xml; charset=utf-8");
     assert.equal(sitemap.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
-    const appSw = await worker.fetch(new Request("https://ikimon.life/app-sw.js"), productionEnv);
-    assert.equal(appSw.status, 200);
-    assert.equal(await appSw.text(), "const VERSION = 'ikimon-app-v2';");
-    assert.equal(appSw.headers.get("content-type"), "application/javascript; charset=utf-8");
-    assert.equal(appSw.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
-    assert.equal(appSw.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
-
     const offline = await worker.fetch(new Request("https://ikimon.life/offline.html"), productionEnv);
     assert.equal(offline.status, 200);
     assert.equal(await offline.text(), "<!doctype html><title>offline</title>");
@@ -17990,6 +18005,90 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(invasive.headers.get("content-type"), "image/webp");
     assert.equal(invasive.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production app Service Worker is Worker-native and does not cache record navigation", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/static/app-sw.js", "const VERSION = 'ikimon-app-v2';", {
+    httpMetadata: { contentType: "application/javascript; charset=utf-8" }
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/app-sw.js"), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "application/javascript; charset=utf-8");
+    assert.equal(response.headers.get("cache-control"), "no-cache, no-store, must-revalidate");
+    assert.equal(response.headers.get("service-worker-allowed"), "/");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "app-service-worker");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), null);
+    assert.match(body, /ikimon-app-v9/);
+    assert.match(body, /RECORD_NAV_RE/);
+    assert.doesNotMatch(body, /REFRESH_NAV_RE[\s\S]*record\\\/\?\$/);
+    assert.doesNotMatch(body, /REFRESH_NAV_RE[\s\S]*settings/);
+    assert.match(body, /REFRESH_NAV_RE[\s\S]*records/);
+    assert.match(body, /isRecordShell \|\| isMapShell \|\| isPersonalShell/);
+    assert.match(body, /&& !isRecordShell && !isMapShell && !isPersonalShell/);
+    const refreshNavMatch = body.match(/const REFRESH_NAV_RE = (\/.+\/);/);
+    assert.ok(refreshNavMatch, "REFRESH_NAV_RE literal should be present");
+    const refreshNavRe = Function(`return ${refreshNavMatch[1]}`)() as RegExp;
+    assert.equal(refreshNavRe.test("/record"), false);
+    assert.equal(refreshNavRe.test("/ja/record"), false);
+    assert.equal(refreshNavRe.test("/settings"), false);
+    assert.equal(refreshNavRe.test("/ja/profile/settings"), false);
+    assert.equal(refreshNavRe.test("/records"), true);
+    assert.equal(refreshNavRe.test("/ja/map"), true);
+    assert.doesNotMatch(body, /ikimon-app-v2/);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production legacy Service Worker aliases serve cleanup script without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    for (const path of ["/sw.js", "/sw.php"]) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+      const body = await response.text();
+      assert.equal(response.status, 200, path);
+      assert.equal(response.headers.get("content-type"), "application/javascript; charset=utf-8", path);
+      assert.equal(response.headers.get("cache-control"), "no-cache, no-store, must-revalidate", path);
+      assert.equal(response.headers.get("service-worker-allowed"), "/", path);
+      assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "legacy-service-worker-cleanup", path);
+      assert.match(body, /LEGACY_CACHE_PREFIXES/, path);
+      assert.match(body, /self\.registration\.unregister\(\)/, path);
+      assert.match(body, /No respondWith/, path);
+    }
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
@@ -20185,12 +20284,58 @@ test("production record shell renders signed-in Cloudflare form for valid sessio
   assert.match(body, /id="record-media-video"/);
   assert.match(body, /id="record-submit-panel"/);
   assert.match(body, /id="record-status"/);
+  assert.match(body, /id="record-recovery"/);
   assert.match(body, /name="latitude"/);
   assert.match(body, /name="longitude"/);
   assert.match(body, /\/api\/v1\/observations\/upsert/);
   assert.match(body, /\/api\/v1\/videos\/direct-upload/);
   assert.match(body, /visibility: "private"/);
+  assert.match(body, /ikimon\.record\.recentAttempt\.v1/);
+  assert.match(body, /destinationForRecord/);
+  assert.match(body, /\/ja\/records\?view=mine/);
+  assert.match(body, /window\.location\.assign\(destination\)/);
+  assert.match(body, /記録の作成までは終わっています/);
   assert.doesNotMatch(body, /materialized record/);
+});
+
+test("production record draft route restores global camera drafts in the signed-in Cloudflare form", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/ja/record.html",
+    "<!doctype html><main data-record-original>materialized record draft consumer</main>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
+  const issueResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "record-draft-user", displayName: "Record Draft", ttlHours: 1 })
+  }), env);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/record?start=photo&draft=1", {
+    headers: { cookie }
+  }), productionEnv);
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session");
+  assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+  assert.match(body, /id="record-form"[^>]*hidden/);
+  assert.match(body, /ikimon-record-draft/);
+  assert.match(body, /normalizeDraftRecord/);
+  assert.match(body, /draft\.files/);
+  assert.match(body, /draft\.savedAt/);
+  assert.match(body, /shouldAutoRestoreDraft/);
+  assert.match(body, /restoreDraftRecord\(draft\)/);
+  assert.match(body, /coordinatesDetails\.open = true/);
+  assert.match(body, /const appliedLocation = applyDraftCoordinates\(draft\)/);
+  assert.doesNotMatch(body, /materialized record draft consumer/);
 });
 
 test("production profile shell renders signed-in Cloudflare page for valid session cookies", async () => {

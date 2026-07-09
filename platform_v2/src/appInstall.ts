@@ -152,7 +152,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
 }
 
 export function buildAppServiceWorker(): string {
-  return `const VERSION = 'ikimon-app-v6';
+  return `const VERSION = 'ikimon-app-v9';
 const SHELL_CACHE = VERSION + ':shell';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
@@ -174,9 +174,10 @@ const STATIC_ASSETS = [
   '${BRAND_ASSETS.favicon32}'
 ];
 const APP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|guide\\/?$|record\\/?$|map\\/?$)/;
+const RECORD_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?record\\/?$/;
 const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
 const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$)/;
-const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$)/;
+const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:records\\/?$|map\\/?$|home\\/?$|profile\\/?$)/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => undefined));
@@ -207,16 +208,17 @@ self.addEventListener('activate', (event) => {
 async function networkFirstNavigation(request) {
   const cache = await caches.open(SHELL_CACHE);
   const path = new URL(request.url).pathname;
+  const isRecordShell = RECORD_NAV_RE.test(path);
   const isMapShell = MAP_NAV_RE.test(path);
   const isPersonalShell = PERSONAL_NAV_RE.test(path);
   try {
-    const response = await fetch(request, (isMapShell || isPersonalShell) ? { cache: 'no-store' } : undefined);
-    if (response && response.ok && APP_NAV_RE.test(path) && !isMapShell && !isPersonalShell) {
+    const response = await fetch(request, (isRecordShell || isMapShell || isPersonalShell) ? { cache: 'no-store' } : undefined);
+    if (response && response.ok && APP_NAV_RE.test(path) && !isRecordShell && !isMapShell && !isPersonalShell) {
       cache.put(request, response.clone()).catch(() => undefined);
     }
     return response;
   } catch (_) {
-    if (isMapShell || isPersonalShell) {
+    if (isRecordShell || isMapShell || isPersonalShell) {
       const match = path.match(/^\\/(ja|en|es|pt-br)(?:\\/|$)/);
       const offlineUrl = match && OFFLINE_URLS[match[1]] ? OFFLINE_URLS[match[1]] : OFFLINE_URLS.ja;
       return (await caches.match(offlineUrl))
