@@ -120,6 +120,21 @@ if ($persistentChanged.Count -gt 0) {
     $issues.Add("Persistent production paths must not be modified here: " + ($persistentChanged -join ", "))
 }
 
+$deprecatedActionPatterns = @(
+    "actions/cache@v4",
+    "actions/download-artifact@v6"
+)
+$githubRoot = Join-Path $repoRoot ".github"
+foreach ($workflowFile in @(Get-ChildItem -Path $githubRoot -Recurse -File | Where-Object { $_.Extension -in @(".yml", ".yaml") })) {
+    $workflowText = Get-Content -Raw -LiteralPath $workflowFile.FullName
+    foreach ($deprecatedAction in $deprecatedActionPatterns) {
+        if ($workflowText -match [regex]::Escape($deprecatedAction)) {
+            $relativePath = $workflowFile.FullName.Substring($repoRoot.Length).TrimStart("\", "/")
+            $issues.Add("Deprecated Node 20 action runtime remains in ${relativePath}: $deprecatedAction")
+        }
+    }
+}
+
 $deployJsonPath = Join-Path $repoRoot "deploy.json"
 if (Test-Path $deployJsonPath) {
     $deployJson = Get-Content -Raw -Path $deployJsonPath | ConvertFrom-Json

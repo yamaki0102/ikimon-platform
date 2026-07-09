@@ -159,7 +159,7 @@ jobs:
         run: npm ci
 
       - name: Download Cloudflare quick preflight artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: cloudflare-production-preflight
           path: platform_v2/cloudflare_shadow/.deploy
