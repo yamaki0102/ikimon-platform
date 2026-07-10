@@ -2177,6 +2177,37 @@ export const worker = {
       const canonicalRedirect = canonicalPublicHostRedirect(request, url, env);
       if (canonicalRedirect) return canonicalRedirect;
 
+      if (nativePathname === "/logout") {
+        if (request.method !== "POST") {
+          return json({ ok: false, error: "method_not_allowed" }, 405, { "allow": "POST", "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const logout = await logoutCompatibleSession(request, env);
+        const lang = publicLangFromPath(url.pathname);
+        return new Response(null, {
+          status: 303,
+          headers: {
+            location: lang ? `/${lang}/` : "/",
+            "set-cookie": logout.headers.get("set-cookie") ?? buildClearedSessionCookie(env),
+            "cache-control": "no-store",
+            "x-ikimon-cloudflare-native": "auth-logout"
+          }
+        });
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/learn/invasive-species") {
+        const lang = langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: `/${lang}/learn/invasive-species`,
+            "cache-control": "no-store",
+            "x-ikimon-cloudflare-native": "localized-entry-redirect"
+          }
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/health") {
         return json({ ok: true, environment: env.ENVIRONMENT });
       }
@@ -2842,6 +2873,14 @@ export const worker = {
         return cleanupStagingRecordFeedbackLoopSmoke(request, env);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/internal/production-smoke/cleanup") {
+        return cleanupProductionSmokeFixtures(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/internal/production-smoke/runs") {
+        return startProductionSmokeRun(request, env);
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/auth/session/issue") {
         return issueCompatibleSession(request, env);
       }
@@ -2989,6 +3028,7 @@ export const worker = {
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(deleteExpiredAuthSessions(env));
     ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
     ctx.waitUntil(runScheduledObservationEventQuests(env));
     ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
@@ -3008,6 +3048,18 @@ export const worker = {
     }
   }
 };
+
+async function deleteExpiredAuthSessions(env: Env): Promise<void> {
+  await env.CORE_DB.prepare(
+    `DELETE FROM auth_sessions
+      WHERE datetime(
+        CASE
+          WHEN expires_at GLOB '*[+-][0-9][0-9]' THEN expires_at || ':00'
+          ELSE expires_at
+        END
+      ) <= datetime('now')`
+  ).run();
+}
 
 function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Response | null {
   if (env.ENVIRONMENT !== "production" || url.hostname !== "www.ikimon.life") {
@@ -4075,6 +4127,7 @@ async function getObservationEventCapsule(request: Request, env: Env, sessionId:
     return json({ error: "capsule not public" }, 403, { "cache-control": "no-store" });
   }
   return json({
+    visibility: "public",
     capsule: {
       sessionId: capsule.sessionId,
       publicStoryDraft: capsule.publicStoryDraft,
@@ -9734,6 +9787,7 @@ async function updateOwnProfileNative(request: Request, env: Env): Promise<Respo
   const avatar = await storeProfileAvatarIfPresent(env, session.userId, input.avatar);
   await env.CORE_DB.batch([
     env.CORE_DB.prepare("UPDATE auth_users SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(displayName, session.userId),
+    env.CORE_DB.prepare("UPDATE auth_sessions SET display_name = ? WHERE user_id = ?").bind(displayName, session.userId),
     env.CORE_DB.prepare(
       `INSERT INTO user_profiles
          (user_id, display_name, profile_bio, expertise, avatar_object_key, avatar_mime, avatar_bytes, avatar_sha256, updated_at)
@@ -12875,6 +12929,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 }
 
 function getNativeNotFoundPage(request: Request): Response {
+  const cspNonce = createHtmlCspNonce();
   const body = `<!doctype html>
 <html lang="ja">
 <head>
@@ -12907,6 +12962,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
   return new Response(request.method === "HEAD" ? null : body, {
     status: 404,
     headers: {
+      ...browserSecurityHeaders(cspNonce, true),
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=60",
       "x-ikimon-cloudflare-native": "not-found"
@@ -17835,6 +17891,19 @@ async function getPlaceMemoryPreferencesNative(env: Env, userId: string): Promis
   };
 }
 
+async function placeMemoryViewerHasCellAccessNative(env: Env, userId: string, cellId: string): Promise<boolean> {
+  const row = await env.OBS_DB.prepare(
+    `SELECT EXISTS(
+       SELECT 1
+         FROM place_memory_entries
+        WHERE user_id = ?
+          AND cell_id = ?
+          AND deleted_at IS NULL
+     ) AS has_access`
+  ).bind(userId, cellId).first<{ has_access: number | boolean }>();
+  return row?.has_access === 1 || row?.has_access === true;
+}
+
 async function upsertPlaceMemoryForObservationNative(
   env: Env,
   input: LegacyObservationUpsertInput,
@@ -17957,6 +18026,9 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
   if (pathname === "/api/v1/place-memory" && request.method === "GET") {
     const cellId = normalizeOptionalText(url.searchParams.get("cellId"));
     if (!cellId) return json({ ok: false, error: "cellId_required" }, 400, { "cache-control": "no-store" });
+    if (!(await placeMemoryViewerHasCellAccessNative(env, session.userId, cellId))) {
+      return json({ ok: true, cellId, unlocked: false, items: [] }, 200, { "cache-control": "no-store" });
+    }
     const limit = Math.min(24, Math.max(1, integerOrNull(url.searchParams.get("limit")) ?? 12));
     const rows = (await env.OBS_DB.prepare(
       `SELECT pme.entry_id, pme.visit_id, pme.occurrence_id, pme.user_id, pme.cell_id,
@@ -17977,7 +18049,7 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
         ORDER BY pme.updated_at DESC
         LIMIT ?`
     ).bind(session.userId, session.userId, cellId, session.userId, limit).all<PlaceMemoryEntryRow>()).results;
-    return json({ ok: true, items: rows.map((row) => placeMemoryPayload(row, session.userId)) }, 200, { "cache-control": "no-store" });
+    return json({ ok: true, cellId, unlocked: true, items: rows.map((row) => placeMemoryPayload(row, session.userId)) }, 200, { "cache-control": "no-store" });
   }
 
   const actionMatch = pathname.match(/^\/api\/v1\/place-memory\/([^/]+)\/(like|hide|report|photo-review)$/);
@@ -17994,8 +18066,14 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
         LIMIT 1`
     ).bind(entryId).first<PlaceMemoryEntryRow>();
     if (!entry) return json({ ok: false, error: "place_memory_not_found" }, 404, { "cache-control": "no-store" });
+    if (!(await placeMemoryViewerHasCellAccessNative(env, session.userId, entry.cell_id))) {
+      return json({ ok: false, error: "place_memory_not_found" }, 404, { "cache-control": "no-store" });
+    }
 
     if (action === "like") {
+      if (entry.user_id === session.userId) {
+        return json({ ok: false, error: "place_memory_own_like_not_allowed" }, 403, { "cache-control": "no-store" });
+      }
       const existing = await env.OBS_DB.prepare(
         "SELECT entry_id FROM place_memory_likes WHERE entry_id = ? AND user_id = ? LIMIT 1"
       ).bind(entryId, session.userId).first<{ entry_id: string }>();
@@ -18030,6 +18108,16 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
     }
 
     const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+    const existingReport = await env.OBS_DB.prepare(
+      "SELECT report_id FROM place_memory_reports WHERE entry_id = ? AND user_id = ? LIMIT 1"
+    ).bind(entryId, session.userId).first<{ report_id: string }>();
+    if (existingReport) {
+      const count = await env.OBS_DB.prepare(
+        "SELECT COUNT(DISTINCT user_id) AS count FROM place_memory_reports WHERE entry_id = ?"
+      ).bind(entryId).first<{ count: number }>();
+      const reportCount = Math.max(0, Number(count?.count ?? 0));
+      return json({ ok: true, duplicate: true, hiddenForMe: true, moderationStatus: reportCount >= 3 ? "hidden_by_reports" : entry.moderation_status }, 200, { "cache-control": "no-store" });
+    }
     const reportId = newId("place_memory_report");
     await env.OBS_DB.prepare(
       `INSERT INTO place_memory_reports (report_id, entry_id, user_id, reason_code, reason_note, created_at)
@@ -18042,7 +18130,7 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
       cleanPlaceMemoryText(body.reasonNote ?? body.reason_note, 400)
     ).run();
     const count = await env.OBS_DB.prepare(
-      "SELECT COUNT(*) AS count FROM place_memory_reports WHERE entry_id = ?"
+      "SELECT COUNT(DISTINCT user_id) AS count FROM place_memory_reports WHERE entry_id = ?"
     ).bind(entryId).first<{ count: number }>();
     const reportCount = Math.max(0, Number(count?.count ?? 0));
     if (reportCount >= 3) {
@@ -20334,11 +20422,13 @@ function publicFieldLocationLabel(row: FieldDetailReadmodelRow): string {
 
 async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): Promise<Response> {
   const object = await env.ASSET_BUCKET.get(originalUiStaticAssetKey(url.pathname));
+  const isServiceWorker = url.pathname === "/app-sw.js" || url.pathname === "/sw.js";
   if (object?.body) {
     return new Response(request.method === "HEAD" ? null : object.body, {
       headers: {
         "content-type": object.httpMetadata?.contentType ?? contentTypeForOriginalUiStaticAsset(url.pathname),
         "cache-control": cacheControlForOriginalUiStaticAsset(url.pathname),
+        ...(isServiceWorker ? { "service-worker-allowed": "/" } : {}),
         "x-ikimon-cloudflare-materialized": "original-ui-static-asset"
       }
     });
@@ -20347,7 +20437,8 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
 }
 
 function isOriginalUiStaticAssetPath(pathname: string): boolean {
-  if (pathname === "/offline.html" || pathname === "/robots.txt" || pathname === "/app-sw.js") return true;
+  if (pathname === "/offline.html" || pathname === "/robots.txt" || pathname === "/app-sw.js" || pathname === "/sw.js") return true;
+  if (pathname === "/llms.txt" || pathname === "/llms-full.txt") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico" || pathname === "/manifest.webmanifest") return true;
   if (/^\/assets\/brand\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
@@ -20356,6 +20447,7 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
 }
 
 function originalUiStaticAssetKey(pathname: string): string {
+  if (pathname === "/sw.js") return "original-ui/static/app-sw.js";
   return `original-ui/static/${pathname.replace(/^\/+/, "")}`;
 }
 
@@ -20373,7 +20465,7 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
 }
 
 function cacheControlForOriginalUiStaticAsset(pathname: string): string {
-  if (pathname === "/app-sw.js" || pathname === "/offline.html") return "no-cache, no-store, must-revalidate";
+  if (pathname === "/app-sw.js" || pathname === "/sw.js" || pathname === "/offline.html") return "no-cache, no-store, must-revalidate";
   if (pathname === "/manifest.webmanifest") return "public, max-age=300";
   return "public, max-age=31536000, immutable";
 }
@@ -20832,15 +20924,20 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
   const ownerRecords = request.method === "HEAD" || settings
     ? []
     : await ownerHomeRecordCards(session.userId, env, 8).catch(() => []);
+  const profile = settings ? await getProfileSettingsNative(env, session.userId).catch(() => null) : null;
+  const cspNonce = createHtmlCspNonce();
   const body = request.method === "HEAD"
     ? null
     : renderCloudflareProfileHtml(session, {
       lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
-      settings
+      settings,
+      profile,
+      cspNonce
     }, ownerRecords);
 
   return new Response(body, {
     headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
       "vary": "cookie, authorization",
@@ -20849,14 +20946,24 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
   });
 }
 
+async function getProfileSettingsNative(env: Env, userId: string): Promise<{ displayName: string; profileBio: string; expertise: string } | null> {
+  const row = await env.CORE_DB.prepare(
+    `SELECT user_id, display_name, profile_bio, expertise
+       FROM user_profiles
+      WHERE user_id = ?
+      LIMIT 1`
+  ).bind(userId).first<{ user_id: string; display_name: string; profile_bio: string; expertise: string }>();
+  return row ? { displayName: row.display_name, profileBio: row.profile_bio, expertise: row.expertise } : null;
+}
+
 function renderCloudflareProfileHtml(
   session: SessionSnapshot,
-  options: { lang: string; settings: boolean },
+  options: { lang: string; settings: boolean; profile: { displayName: string; profileBio: string; expertise: string } | null; cspNonce: string },
   ownerRecords: Array<ReturnType<typeof publicMapObservationItem>> = []
 ): string {
   const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const copy = lang === "ja"
+  const baseCopy = lang === "ja"
     ? {
       title: options.settings ? "プロフィール設定" : "マイページ",
       eyebrow: "マイページ",
@@ -20881,7 +20988,13 @@ function renderCloudflareProfileHtml(
       flowMap: "場所で見る",
       flowPublic: "公開面へ",
       back: "マイページへ",
-      displayName: "表示名"
+      displayName: "表示名",
+      profileBio: "プロフィール",
+      expertise: "得意分野",
+      save: "保存する",
+      saved: "保存しました",
+      failed: "保存できませんでした",
+      logout: "ログアウト"
     }
     : {
       title: options.settings ? "Profile Settings" : "My Page",
@@ -20907,10 +21020,49 @@ function renderCloudflareProfileHtml(
       flowMap: "Map",
       flowPublic: "Publish",
       back: "Back to profile",
-      displayName: "Display name"
+      displayName: "Display name",
+      profileBio: "Profile",
+      expertise: "Expertise",
+      save: "Save",
+      saved: "Saved",
+      failed: "Could not save",
+      logout: "Log out"
     };
+  const copy = lang === "es"
+    ? {
+      ...baseCopy,
+      title: options.settings ? "Configuración del perfil" : "Mi página",
+      eyebrow: "Mi página",
+      settings: "Configuración del perfil",
+      settingsLead: "Edita tu nombre visible y los datos de tu perfil",
+      back: "Volver al perfil",
+      displayName: "Nombre visible",
+      profileBio: "Perfil",
+      expertise: "Especialidad",
+      save: "Guardar",
+      saved: "Guardado",
+      failed: "No se pudo guardar",
+      logout: "Cerrar sesión"
+    }
+    : lang === "pt-br"
+      ? {
+        ...baseCopy,
+        title: options.settings ? "Configurações do perfil" : "Minha página",
+        eyebrow: "Minha página",
+        settings: "Configurações do perfil",
+        settingsLead: "Edite seu nome de exibição e os dados do perfil",
+        back: "Voltar ao perfil",
+        displayName: "Nome de exibição",
+        profileBio: "Perfil",
+        expertise: "Especialidade",
+        save: "Salvar",
+        saved: "Salvo",
+        failed: "Não foi possível salvar",
+        logout: "Sair"
+      }
+      : baseCopy;
   const title = escapeHtml(copy.title);
-  const displayName = escapeHtml(session.displayName || session.userId);
+  const displayName = escapeHtml(options.profile?.displayName || session.displayName || session.userId);
   const recordCards = ownerRecords.length > 0
     ? ownerRecords.slice(0, 6).map((item) => renderCloudflareProfileRecordCard(item, copy, lang)).join("")
     : `<div class="cf-profile-empty"><strong>${escapeHtml(copy.latestEmpty)}</strong><p>${escapeHtml(copy.latestEmptyBody)}</p><a href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a></div>`;
@@ -20918,16 +21070,35 @@ function renderCloudflareProfileHtml(
     ? `<section class="cf-profile-settings" data-testid="profile-settings">
         <div>
           <span>${escapeHtml(copy.eyebrow)}</span>
-          <h2>${escapeHtml(copy.settings)}</h2>
+          <h1>${escapeHtml(copy.settings)}</h1>
           <p>${escapeHtml(copy.settingsLead)}</p>
         </div>
-        <dl>
-          <div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div>
-          <div><dt>${escapeHtml(copy.records)}</dt><dd><a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.recordsLead)}</a></dd></div>
-          <div><dt>${escapeHtml(copy.publicProfile)}</dt><dd><a href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.publicProfileLead)}</a></dd></div>
-        </dl>
+        <form class="cf-profile-settings-form" data-profile-settings-form aria-label="${escapeHtml(copy.settings)}">
+          <label><span>${escapeHtml(copy.displayName)}</span><input name="displayName" maxlength="120" required value="${displayName}"></label>
+          <label><span>${escapeHtml(copy.profileBio)}</span><textarea name="profileBio" maxlength="500">${escapeHtml(options.profile?.profileBio ?? "")}</textarea></label>
+          <label><span>${escapeHtml(copy.expertise)}</span><input name="expertise" maxlength="120" value="${escapeHtml(options.profile?.expertise ?? "")}"></label>
+          <button type="submit">${escapeHtml(copy.save)}</button>
+          <p data-profile-settings-status role="status" aria-live="polite"></p>
+        </form>
+        <div class="cf-profile-settings-links"><a href="${escapeHtml(`${prefix}/records?view=mine`)}">${escapeHtml(copy.records)}</a><a href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.publicProfile)}</a><form method="post" action="${escapeHtml(`${prefix}/logout`)}"><button type="submit">${escapeHtml(copy.logout)}</button></form></div>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
-      </section>`
+      </section>
+      <script nonce="${escapeHtml(options.cspNonce)}">(() => {
+        const form = document.querySelector("[data-profile-settings-form]");
+        const status = document.querySelector("[data-profile-settings-status]");
+        form?.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const data = new FormData(form);
+          const response = await fetch("/api/v1/profile/me", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ displayName: String(data.get("displayName") || ""), profileBio: String(data.get("profileBio") || ""), expertise: String(data.get("expertise") || "") })
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (status) status.textContent = response.ok && payload.ok !== false ? ${JSON.stringify(copy.saved)} : ${JSON.stringify(copy.failed)};
+        });
+      })();</script>`
     : `<section class="cf-profile-dashboard" data-testid="profile-home">
         <div class="cf-profile-hero">
           <div class="cf-profile-hero-copy">
@@ -21019,7 +21190,7 @@ function renderCloudflareProfileHtml(
     .cf-profile-action.is-primary span{color:#d1fae5}
     .cf-profile-latest,.cf-profile-settings,.cf-profile-flow{padding:18px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 14px 32px rgba(15,23,42,.06)}
     .cf-profile-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
-    .cf-profile-section-head h2,.cf-profile-settings h2{margin:3px 0 0;font-size:22px;line-height:1.25;letter-spacing:0}
+    .cf-profile-section-head h2,.cf-profile-settings h1{margin:3px 0 0;font-size:22px;line-height:1.25;letter-spacing:0}
     .cf-profile-record-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
     .cf-profile-record{min-width:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;padding:10px;border:1px solid rgba(15,23,42,.08);border-radius:14px;background:var(--soft);color:var(--ink);text-decoration:none}
     .cf-profile-record-media{width:96px;aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,var(--mint),var(--sky));display:grid;place-items:center;overflow:hidden;color:var(--teal);font-size:13px;font-weight:950}
@@ -21037,6 +21208,12 @@ function renderCloudflareProfileHtml(
     .cf-profile-flow a::before{content:counter(profile-flow);width:26px;height:26px;display:grid;place-items:center;flex:0 0 auto;border-radius:999px;background:#10251a;color:#fff;font-size:12px;font-weight:950}
     .cf-profile-settings{display:grid;gap:16px}
     .cf-profile-settings p{margin:6px 0 0;color:var(--muted);font-weight:700}
+    .cf-profile-settings-form{display:grid;gap:12px}
+    .cf-profile-settings-form label{display:grid;gap:6px;font-weight:900}
+    .cf-profile-settings-form input,.cf-profile-settings-form textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font:inherit}
+    .cf-profile-settings-form textarea{min-height:120px;resize:vertical}
+    .cf-profile-settings-form button{min-height:46px;border:0;border-radius:10px;background:var(--teal);color:#fff;font:inherit;font-weight:950;cursor:pointer}
+    .cf-profile-settings-links{display:flex;gap:12px;flex-wrap:wrap}.cf-profile-settings-links form{display:contents}
     .cf-profile-settings dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
     .cf-profile-settings dl div{min-width:0;padding:13px;border-radius:13px;background:var(--soft)}
     .cf-profile-settings dt{color:var(--muted);font-size:13px;font-weight:850}
@@ -21748,6 +21925,7 @@ function personalizeAuthRedirectHtml(html: string, redirect: string): string {
 
 function isOriginalUiHtmlPath(pathname: string): boolean {
   if (ORIGINAL_UI_HTML_STATIC_PATHS.has(pathname)) return true;
+  if (/^\/(?:ja|en|es|pt-br)\/learn\/invasive-species$/.test(pathname)) return true;
   if (pathname === "/admin/municipal-walk-maps") return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/community\/fields\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(pathname)) return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}\/snapshot$/.test(pathname)) return true;
@@ -23130,8 +23308,8 @@ async function registerWithPasswordNative(request: Request, env: Env): Promise<R
       env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId),
       env.CORE_DB.prepare(
         `INSERT INTO auth_users
-         (user_id, email, password_hash, display_name, role_name, rank_label, banned)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+         (user_id, email, password_hash, display_name, role_name, rank_label, banned, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       ).bind(
         user.user_id,
         user.email,
@@ -23836,7 +24014,8 @@ async function createCompatibleVideoDirectUpload(request: Request, env: Env): Pr
   const uid = newId("stream");
   const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? `${uid}.mp4`);
   const maxDurationSeconds = clampVideoDuration(input.maxDurationSeconds);
-  const objectKey = `original/v1-compat-video/${uid}/${filename}`;
+  const observationKeySegment = normalizeOptionalId(input.observationId) ?? "unbound";
+  const objectKey = `original/v1-compat-video/${observationKeySegment}/${uid}/${filename}`;
   const uploadUrl = `${new URL(request.url).origin}/api/v1/videos/${encodeURIComponent(uid)}/body`;
 
   await env.OBS_DB.prepare(
@@ -23869,9 +24048,12 @@ async function createCompatibleVideoDirectUpload(request: Request, env: Env): Pr
 async function putCompatibleVideoBody(uid: string, request: Request, env: Env): Promise<Response> {
   assertNonEmpty(uid, "uid");
   const row = await env.OBS_DB.prepare(
-    "SELECT object_key FROM video_upload_requests WHERE stream_uid = ?"
-  ).bind(uid).first<{ object_key: string }>();
+    "SELECT object_key, upload_status FROM video_upload_requests WHERE stream_uid = ?"
+  ).bind(uid).first<{ object_key: string; upload_status: string }>();
   if (!row) return json({ ok: false, error: "video_upload_not_found" }, 404);
+  if (row.upload_status !== "waiting_upload") {
+    return json({ ok: false, error: "video_upload_already_received" }, 409, { "cache-control": "no-store" });
+  }
 
   const body = await request.arrayBuffer();
   if (body.byteLength === 0) {
@@ -23880,9 +24062,14 @@ async function putCompatibleVideoBody(uid: string, request: Request, env: Env): 
   await env.ASSET_BUCKET.put(row.object_key, body, {
     httpMetadata: { contentType: normalizeOptionalText(request.headers.get("content-type")) ?? "video/mp4" }
   });
-  await env.OBS_DB.prepare(
-    "UPDATE video_upload_requests SET upload_status = 'uploaded', bytes = ?, uploaded_at = CURRENT_TIMESTAMP WHERE stream_uid = ?"
-  ).bind(body.byteLength, uid).run();
+  try {
+    await env.OBS_DB.prepare(
+      "UPDATE video_upload_requests SET upload_status = 'uploaded', bytes = ?, uploaded_at = CURRENT_TIMESTAMP WHERE stream_uid = ?"
+    ).bind(body.byteLength, uid).run();
+  } catch (error) {
+    await env.ASSET_BUCKET.delete(row.object_key);
+    throw error;
+  }
   return json({ ok: true, uid, bytes: body.byteLength });
 }
 
@@ -24797,6 +24984,16 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   }
   assertNonEmpty(input.observedAt, "observedAt");
 
+  const requestedObservationId = normalizeOptionalId(input.observationId);
+  if (requestedObservationId) {
+    const existingObservation = await env.OBS_DB.prepare(
+      "SELECT owner_user_id FROM observations WHERE observation_id = ?"
+    ).bind(requestedObservationId).first<{ owner_user_id: string }>();
+    if (existingObservation && existingObservation.owner_user_id !== input.userId) {
+      return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+    }
+  }
+
   const clientSubmissionId = normalizeCompatibleClientSubmissionId(input.clientSubmissionId);
   const idempotencyFingerprint = clientSubmissionId
     ? await legacyObservationRequestFingerprint(input)
@@ -24859,7 +25056,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   }
 
   const draftId = newId("draft");
-  const visitId = normalizeOptionalId(input.observationId) ?? newId("obs");
+  const visitId = requestedObservationId ?? newId("obs");
   const partition = resolveObservationPartition(input.observedAt, env);
   const occurrenceIds = resolveLegacyOccurrenceIds(visitId, input);
   const occurrenceId = occurrenceIds[0] ?? `occ:${visitId}:0`;
@@ -25699,7 +25896,8 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const facePrivacy = normalizeFacePrivacy(input.facePrivacy);
 
   await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
-  await env.OBS_DB.batch([
+  try {
+    await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       `INSERT INTO asset_ledger
        (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state, uploaded_at, partition_month)
@@ -25740,8 +25938,12 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
         facePrivacy
       },
       replaySql: postgresAssetReplaySql(assetId, observationId, observation.owner_user_id, objectKey, sha256, mimeType, body.byteLength, "private")
-    })
-  ]);
+      })
+    ]);
+  } catch (error) {
+    await env.ASSET_BUCKET.delete(objectKey);
+    throw error;
+  }
 
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
@@ -25824,7 +26026,8 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
   const relativePath = objectKey;
   const occurrenceId = `occ:${observationId}:0`;
   await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
-  await env.OBS_DB.batch([
+  try {
+    await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       `INSERT INTO asset_ledger
        (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state, uploaded_at, partition_month)
@@ -25868,8 +26071,12 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
         privacyReason: privacyDecision.reason
       },
       replaySql: postgresAssetReplaySql(assetId, observationId, observation.owner_user_id, objectKey, sha256, mimeType, body.byteLength, "private")
-    })
-  ]);
+      })
+    ]);
+  } catch (error) {
+    await env.ASSET_BUCKET.delete(objectKey);
+    throw error;
+  }
 
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
@@ -26549,6 +26756,398 @@ async function cleanupStagingRecordFeedbackLoopSmoke(request: Request, env: Env)
   };
 
   return json({ ok: true, fixturePrefix, deleted }, 200, { "cache-control": "no-store" });
+}
+
+function isProductionSmokeFixturePrefix(value: string | null): value is string {
+  return Boolean(value && /^smoke-ui-[a-z0-9]{8,12}-[a-f0-9]{16}$/u.test(value));
+}
+
+async function startProductionSmokeRun(request: Request, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "production" && env.ENVIRONMENT !== "staging") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<{ fixturePrefix?: unknown }>(request);
+  const fixturePrefix = normalizeOptionalText(body.fixturePrefix);
+  if (!isProductionSmokeFixturePrefix(fixturePrefix)) {
+    return json({ ok: false, error: "invalid_fixture_prefix" }, 400, { "cache-control": "no-store" });
+  }
+  const existingRun = await env.CORE_DB.prepare(
+    `SELECT audit_id FROM operation_audit
+      WHERE operation_type = 'production_smoke_run_started' AND target_id = ?
+      LIMIT 1`
+  ).bind(fixturePrefix).first<{ audit_id: string }>();
+  if (existingRun) {
+    return json({ ok: false, error: "fixture_prefix_already_used" }, 409, { "cache-control": "no-store" });
+  }
+  const cleanupToken = `${crypto.randomUUID().replaceAll("-", "")}${crypto.randomUUID().replaceAll("-", "")}`;
+  const tokenHash = await sha256Hex(textToArrayBuffer(cleanupToken));
+  const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+  await env.CORE_DB.prepare(
+    `INSERT INTO operation_audit (audit_id, operation_type, target_id, payload_json)
+     VALUES (?, 'production_smoke_run_started', ?, ?)`
+  ).bind(newId("production_smoke_run"), fixturePrefix, JSON.stringify({ tokenHash, expiresAt })).run();
+  return json({ ok: true, fixturePrefix, cleanupToken, expiresAt }, 201, { "cache-control": "no-store" });
+}
+
+async function cleanupProductionSmokeFixtures(request: Request, env: Env): Promise<Response> {
+  if (env.ENVIRONMENT !== "production" && env.ENVIRONMENT !== "staging") {
+    return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
+  }
+  const auth = assertPrivilegedWriteAccessNative(request, env);
+  if (auth instanceof Response) return auth;
+  const body = await readJson<{ fixturePrefix?: unknown; cleanupToken?: unknown }>(request);
+  const fixturePrefix = normalizeOptionalText(body.fixturePrefix);
+  if (!isProductionSmokeFixturePrefix(fixturePrefix)) {
+    return json({ ok: false, error: "invalid_fixture_prefix" }, 400, { "cache-control": "no-store" });
+  }
+  const cleanupToken = normalizeOptionalText(body.cleanupToken);
+  const run = await env.CORE_DB.prepare(
+    `SELECT payload_json, created_at FROM operation_audit
+      WHERE operation_type = 'production_smoke_run_started' AND target_id = ?
+      ORDER BY created_at DESC LIMIT 1`
+  ).bind(fixturePrefix).first<{ payload_json: string; created_at: string }>();
+  let runPayload: { tokenHash?: unknown; expiresAt?: unknown } = {};
+  try { runPayload = run ? JSON.parse(run.payload_json) as typeof runPayload : {}; } catch { runPayload = {}; }
+  const presentedTokenHash = cleanupToken ? await sha256Hex(textToArrayBuffer(cleanupToken)) : "";
+  if (!run || typeof runPayload.tokenHash !== "string" || presentedTokenHash !== runPayload.tokenHash
+    || typeof runPayload.expiresAt !== "string" || Date.parse(runPayload.expiresAt) <= Date.now()) {
+    return json({ ok: false, error: "invalid_cleanup_manifest" }, 403, { "cache-control": "no-store" });
+  }
+
+  const observationLike = `${fixturePrefix}%`;
+  const userLike = `${fixturePrefix}%`;
+  const emailLike = `${fixturePrefix}%@example.invalid`;
+  const occurrenceLike = `occ:${fixturePrefix}%`;
+  const payloadLike = `%${fixturePrefix}%`;
+  const authUsers = (await env.CORE_DB.prepare(
+    "SELECT user_id FROM auth_users WHERE email LIKE ? OR user_id LIKE ?"
+  ).bind(emailLike, userLike).all<{ user_id: string }>()).results;
+  const userIds = Array.from(new Set(authUsers.map((row) => row.user_id).filter(Boolean)));
+  const placeMemoryEntryIds = new Set<string>();
+  const eventSessionIds = new Set<string>();
+  const referenceSourceIds = new Set<string>();
+  const guideRecordIds = new Set<string>();
+  for (const userPattern of [userLike, ...userIds]) {
+    const placeRows = (await env.OBS_DB.prepare(
+      `SELECT entry_id FROM place_memory_entries
+        WHERE visit_id LIKE ? OR user_id LIKE ? OR source_payload_json LIKE ?`
+    ).bind(observationLike, userPattern, payloadLike).all<{ entry_id: string }>()).results;
+    for (const row of placeRows) placeMemoryEntryIds.add(row.entry_id);
+    const eventRows = (await env.OBS_DB.prepare(
+      `SELECT session_id FROM observation_event_sessions
+        WHERE organizer_user_id LIKE ? OR event_code LIKE ? OR title LIKE ? OR config_json LIKE ?`
+    ).bind(userPattern, observationLike, observationLike, payloadLike).all<{ session_id: string }>()).results;
+    for (const row of eventRows) eventSessionIds.add(row.session_id);
+    const referenceRows = (await env.OBS_DB.prepare(
+      "SELECT source_id FROM reference_sources WHERE created_by_user_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(userPattern, payloadLike).all<{ source_id: string }>()).results;
+    for (const row of referenceRows) referenceSourceIds.add(row.source_id);
+    const guideRows = (await env.OBS_DB.prepare(
+      "SELECT guide_record_id FROM guide_records WHERE session_id LIKE ? OR user_id LIKE ?"
+    ).bind(observationLike, userPattern).all<{ guide_record_id: string }>()).results;
+    for (const row of guideRows) guideRecordIds.add(row.guide_record_id);
+  }
+
+  const assetRows = new Map<string, { object_key: string | null; public_derivative_key: string | null }>();
+  for (const ownerPattern of [userLike, ...userIds]) {
+    const rows = (await env.OBS_DB.prepare(
+      `SELECT asset_id, object_key, public_derivative_key
+         FROM asset_ledger
+        WHERE observation_id LIKE ? OR owner_user_id LIKE ?`
+    ).bind(observationLike, ownerPattern).all<{ asset_id: string; object_key: string | null; public_derivative_key: string | null }>()).results;
+    for (const row of rows) assetRows.set(row.asset_id, row);
+  }
+  const videoRows = new Map<string, { object_key: string | null }>();
+  for (const actorPattern of [userLike, ...userIds]) {
+    const rows = (await env.OBS_DB.prepare(
+      `SELECT stream_uid, object_key
+         FROM video_upload_requests
+        WHERE observation_id LIKE ? OR actor_id LIKE ?`
+    ).bind(observationLike, actorPattern).all<{ stream_uid: string; object_key: string | null }>()).results;
+    for (const row of rows) videoRows.set(row.stream_uid, row);
+  }
+  const discoveredR2ObjectKeys = Array.from(new Set([
+    ...Array.from(assetRows.values()).flatMap((row) => [row.object_key, row.public_derivative_key]),
+    ...Array.from(videoRows.values()).map((row) => row.object_key)
+  ].filter((key): key is string => Boolean(key))));
+  const unsafeR2ObjectKeys = discoveredR2ObjectKeys.filter((key) => !isStrictProductionSmokeR2Key(key, fixturePrefix));
+  if (unsafeR2ObjectKeys.length > 0) {
+    return json({ ok: false, cleanupZero: false, error: "unsafe_fixture_r2_key", unsafeR2ObjectKeys }, 500, { "cache-control": "no-store" });
+  }
+  const r2ObjectKeys = discoveredR2ObjectKeys;
+  const r2Objects = await deleteR2Objects(env.ASSET_BUCKET, r2ObjectKeys);
+
+  let placeMemoryRows = 0;
+  for (const entryId of placeMemoryEntryIds) {
+    placeMemoryRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM place_memory_reports WHERE entry_id = ?").bind(entryId));
+    placeMemoryRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM place_memory_hidden_entries WHERE entry_id = ?").bind(entryId));
+    placeMemoryRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM place_memory_likes WHERE entry_id = ?").bind(entryId));
+    placeMemoryRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM place_memory_entries WHERE entry_id = ?").bind(entryId));
+  }
+  let eventRows = 0;
+  for (const sessionId of eventSessionIds) {
+    for (const table of [
+      "observation_event_quests", "observation_event_recap_views", "observation_impact_records",
+      "observation_event_capsules", "observation_event_live_events", "observation_event_absences",
+      "observation_event_mesh_cells", "observation_event_participants", "observation_event_teams",
+      "observation_rally_submissions"
+    ]) {
+      eventRows += await runD1DeleteCount(env.OBS_DB.prepare(`DELETE FROM ${table} WHERE session_id = ?`).bind(sessionId));
+    }
+    eventRows += await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_rally_revisions WHERE course_id IN (SELECT course_id FROM observation_rally_courses WHERE session_id = ?)"
+    ).bind(sessionId));
+    eventRows += await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_rally_progress WHERE course_id IN (SELECT course_id FROM observation_rally_courses WHERE session_id = ?)"
+    ).bind(sessionId));
+    eventRows += await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_rally_missions WHERE course_id IN (SELECT course_id FROM observation_rally_courses WHERE session_id = ?)"
+    ).bind(sessionId));
+    eventRows += await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_rally_stations WHERE course_id IN (SELECT course_id FROM observation_rally_courses WHERE session_id = ?)"
+    ).bind(sessionId));
+    eventRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM observation_rally_courses WHERE session_id = ?").bind(sessionId));
+    eventRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM observation_event_sessions WHERE session_id = ?").bind(sessionId));
+  }
+  let referenceRows = 0;
+  for (const userId of userIds) {
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM reference_identification_selections WHERE selected_by_user_id = ?"
+    ).bind(userId));
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM reference_access_proofs WHERE user_id = ?"
+    ).bind(userId));
+  }
+  for (const sourceId of referenceSourceIds) {
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM reference_duplicate_merges WHERE canonical_source_id = ? OR duplicate_source_id = ?").bind(sourceId, sourceId));
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM reference_corrections WHERE source_id = ?").bind(sourceId));
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM reference_identification_selections WHERE source_id = ?").bind(sourceId));
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM reference_capture_items WHERE source_id = ?").bind(sourceId));
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM reference_access_proofs WHERE source_id = ?").bind(sourceId));
+    referenceRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM reference_sources WHERE source_id = ?").bind(sourceId));
+  }
+  let guideRows = 0;
+  for (const guideRecordId of guideRecordIds) {
+    guideRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM guide_record_latency_states WHERE guide_record_id = ?").bind(guideRecordId));
+    guideRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM mobile_field_scene_receipts WHERE guide_record_id = ?").bind(guideRecordId));
+    guideRows += await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM guide_records WHERE guide_record_id = ?").bind(guideRecordId));
+  }
+
+  const deleted: Record<string, number> = {
+    alerts: await runD1DeleteCount(env.CORE_DB.prepare(
+      "DELETE FROM alert_deliveries WHERE user_id LIKE ? OR occurrence_id LIKE ? OR payload_json LIKE ?"
+    ).bind(userLike, occurrenceLike, payloadLike)),
+    recordReadingCards: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM record_reading_cards WHERE visit_id LIKE ?"
+    ).bind(observationLike)),
+    publicMapRows: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM public_map_snapshot_records_v1 WHERE visit_id LIKE ? OR occurrence_id LIKE ?"
+    ).bind(observationLike, occurrenceLike)),
+    publicReadmodelRows: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM readmodel_public_observations WHERE observation_id LIKE ?"
+    ).bind(observationLike)),
+    assets: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM asset_ledger WHERE observation_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userLike)),
+    videos: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM video_upload_requests WHERE observation_id LIKE ? OR actor_id LIKE ?"
+    ).bind(observationLike, userLike)),
+    outbox: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM outbox WHERE target_id LIKE ? OR payload_json LIKE ?"
+    ).bind(observationLike, payloadLike)),
+    rollbackLedger: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM rollback_write_ledger WHERE target_id LIKE ? OR payload_json LIKE ?"
+    ).bind(observationLike, payloadLike)),
+    dataRights: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_data_rights WHERE visit_id LIKE ? OR occurrence_id LIKE ?"
+    ).bind(observationLike, occurrenceLike)),
+    idempotency: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_write_idempotency WHERE user_id LIKE ? OR visit_id LIKE ? OR occurrence_id LIKE ? OR source_payload LIKE ?"
+    ).bind(userLike, observationLike, occurrenceLike, payloadLike)),
+    reactions: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_reactions WHERE occurrence_id LIKE ? OR user_id LIKE ?"
+    ).bind(occurrenceLike, userLike)),
+    identifications: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_identifications WHERE occurrence_id LIKE ? OR actor_user_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(occurrenceLike, userLike, payloadLike)),
+    identificationDisputes: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_identification_disputes WHERE occurrence_id LIKE ? OR actor_user_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(occurrenceLike, userLike, payloadLike)),
+    civicContexts: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM civic_observation_contexts WHERE visit_id LIKE ? OR occurrence_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(observationLike, occurrenceLike, payloadLike)),
+    observations: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observations WHERE observation_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userLike)),
+    drafts: await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM draft_observations WHERE draft_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userLike)),
+    r2Objects,
+    placeMemoryRows,
+    eventRows,
+    referenceRows,
+    guideRows
+  };
+
+  for (const userId of userIds) {
+    deleted.placeMemoryRows = (deleted.placeMemoryRows ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM place_memory_reports WHERE user_id = ?"
+    ).bind(userId));
+    deleted.placeMemoryRows = (deleted.placeMemoryRows ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM place_memory_hidden_entries WHERE user_id = ?"
+    ).bind(userId));
+    deleted.placeMemoryRows = (deleted.placeMemoryRows ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM place_memory_likes WHERE user_id = ?"
+    ).bind(userId));
+    deleted.assets = (deleted.assets ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM asset_ledger WHERE observation_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userId));
+    deleted.videos = (deleted.videos ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM video_upload_requests WHERE observation_id LIKE ? OR actor_id LIKE ?"
+    ).bind(observationLike, userId));
+    deleted.idempotency = (deleted.idempotency ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_write_idempotency WHERE user_id LIKE ? OR visit_id LIKE ? OR occurrence_id LIKE ? OR source_payload LIKE ?"
+    ).bind(userId, observationLike, occurrenceLike, payloadLike));
+    deleted.reactions = (deleted.reactions ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_reactions WHERE occurrence_id LIKE ? OR user_id LIKE ?"
+    ).bind(occurrenceLike, userId));
+    deleted.identifications = (deleted.identifications ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_identifications WHERE occurrence_id LIKE ? OR actor_user_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(occurrenceLike, userId, payloadLike));
+    deleted.identificationDisputes = (deleted.identificationDisputes ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observation_identification_disputes WHERE occurrence_id LIKE ? OR actor_user_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(occurrenceLike, userId, payloadLike));
+    deleted.observations = (deleted.observations ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM observations WHERE observation_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userId));
+    deleted.drafts = (deleted.drafts ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare(
+      "DELETE FROM draft_observations WHERE draft_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userId));
+    deleted.sessions = (deleted.sessions ?? 0) + await runD1DeleteCount(env.CORE_DB.prepare(
+      "DELETE FROM auth_sessions WHERE user_id LIKE ?"
+    ).bind(userId));
+    deleted.alerts = (deleted.alerts ?? 0) + await runD1DeleteCount(env.CORE_DB.prepare(
+      "DELETE FROM alert_deliveries WHERE user_id LIKE ? OR occurrence_id LIKE ? OR payload_json LIKE ?"
+    ).bind(userId, occurrenceLike, payloadLike));
+    deleted.profiles = (deleted.profiles ?? 0) + await runD1DeleteCount(env.CORE_DB.prepare(
+      "DELETE FROM user_profiles WHERE user_id LIKE ?"
+    ).bind(userId));
+    deleted.oauth = (deleted.oauth ?? 0) + await runD1DeleteCount(env.CORE_DB.prepare("DELETE FROM oauth_accounts WHERE user_id LIKE ?").bind(userId));
+    deleted.profileAudit = (deleted.profileAudit ?? 0) + await runD1DeleteCount(env.CORE_DB.prepare("DELETE FROM profile_write_audit WHERE user_id LIKE ?").bind(userId));
+    deleted.rememberTokens = (deleted.rememberTokens ?? 0) + await runD1DeleteCount(env.CORE_DB.prepare("DELETE FROM remember_tokens WHERE user_id LIKE ?").bind(userId));
+    deleted.referenceBatches = (deleted.referenceBatches ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM reference_capture_batches WHERE user_id LIKE ? OR source_payload_json LIKE ?").bind(userId, payloadLike));
+    deleted.guideRoutes = (deleted.guideRoutes ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM guide_route_points WHERE session_id LIKE ? OR user_id LIKE ?").bind(observationLike, userId));
+    deleted.guideSummaries = (deleted.guideSummaries ?? 0) + await runD1DeleteCount(env.OBS_DB.prepare("DELETE FROM guide_session_public_summary WHERE session_id LIKE ? OR user_id LIKE ?").bind(observationLike, userId));
+  }
+  deleted.authUsers = await runD1DeleteCount(env.CORE_DB.prepare(
+    "DELETE FROM auth_users WHERE email LIKE ? OR user_id LIKE ?"
+  ).bind(emailLike, userLike));
+  for (const userId of userIds) {
+    deleted.users = (deleted.users ?? 0) + await runD1DeleteCount(env.CORE_DB.prepare(
+      "DELETE FROM users WHERE user_id LIKE ?"
+    ).bind(userId));
+  }
+
+  const remaining: Record<string, number> = {
+    authUsers: Number((await env.CORE_DB.prepare(
+      "SELECT COUNT(*) AS count FROM auth_users WHERE email LIKE ? OR user_id LIKE ?"
+    ).bind(emailLike, userLike).first<{ count: number }>())?.count ?? 0),
+    observations: Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM observations WHERE observation_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userLike).first<{ count: number }>())?.count ?? 0),
+    assets: Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM asset_ledger WHERE observation_id LIKE ? OR owner_user_id LIKE ?"
+    ).bind(observationLike, userLike).first<{ count: number }>())?.count ?? 0),
+    videos: Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM video_upload_requests WHERE observation_id LIKE ? OR actor_id LIKE ?"
+    ).bind(observationLike, userLike).first<{ count: number }>())?.count ?? 0),
+    placeMemory: 0,
+    events: 0,
+    references: 0,
+    guides: 0,
+    actorRows: 0,
+    coreRows: 0,
+    r2Objects: 0
+  };
+  for (const [name, query, values] of [
+    ["rights", "SELECT COUNT(*) AS count FROM observation_data_rights WHERE visit_id LIKE ? OR occurrence_id LIKE ?", [observationLike, occurrenceLike]],
+    ["outbox", "SELECT COUNT(*) AS count FROM outbox WHERE target_id LIKE ? OR payload_json LIKE ?", [observationLike, payloadLike]],
+    ["rollback", "SELECT COUNT(*) AS count FROM rollback_write_ledger WHERE target_id LIKE ? OR payload_json LIKE ?", [observationLike, payloadLike]],
+    ["idempotency", "SELECT COUNT(*) AS count FROM observation_write_idempotency WHERE visit_id LIKE ? OR occurrence_id LIKE ? OR source_payload LIKE ?", [observationLike, occurrenceLike, payloadLike]],
+    ["readmodel", "SELECT COUNT(*) AS count FROM readmodel_public_observations WHERE observation_id LIKE ?", [observationLike]],
+    ["map", "SELECT COUNT(*) AS count FROM public_map_snapshot_records_v1 WHERE visit_id LIKE ? OR occurrence_id LIKE ?", [observationLike, occurrenceLike]],
+    ["readingCards", "SELECT COUNT(*) AS count FROM record_reading_cards WHERE visit_id LIKE ?", [observationLike]],
+    ["civicContexts", "SELECT COUNT(*) AS count FROM civic_observation_contexts WHERE visit_id LIKE ? OR occurrence_id LIKE ? OR source_payload_json LIKE ?", [observationLike, occurrenceLike, payloadLike]]
+  ] as Array<[string, string, D1Value[]]>) {
+    remaining[name] = Number((await env.OBS_DB.prepare(query).bind(...values).first<{ count: number }>())?.count ?? 0);
+  }
+  for (const userId of userIds) {
+    remaining.observations = (remaining.observations ?? 0) + Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM observations WHERE owner_user_id = ?"
+    ).bind(userId).first<{ count: number }>())?.count ?? 0);
+    remaining.assets = (remaining.assets ?? 0) + Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM asset_ledger WHERE owner_user_id = ?"
+    ).bind(userId).first<{ count: number }>())?.count ?? 0);
+    remaining.videos = (remaining.videos ?? 0) + Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM video_upload_requests WHERE actor_id = ?"
+    ).bind(userId).first<{ count: number }>())?.count ?? 0);
+    remaining.actorRows = (remaining.actorRows ?? 0) + Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM observation_reactions WHERE user_id = ?"
+    ).bind(userId).first<{ count: number }>())?.count ?? 0);
+    remaining.actorRows = (remaining.actorRows ?? 0) + Number((await env.OBS_DB.prepare(
+      "SELECT COUNT(*) AS count FROM observation_identifications WHERE actor_user_id = ?"
+    ).bind(userId).first<{ count: number }>())?.count ?? 0);
+    for (const query of [
+      "SELECT COUNT(*) AS count FROM place_memory_likes WHERE user_id = ?",
+      "SELECT COUNT(*) AS count FROM place_memory_hidden_entries WHERE user_id = ?",
+      "SELECT COUNT(*) AS count FROM place_memory_reports WHERE user_id = ?",
+      "SELECT COUNT(*) AS count FROM reference_access_proofs WHERE user_id = ?",
+      "SELECT COUNT(*) AS count FROM reference_identification_selections WHERE selected_by_user_id = ?"
+    ]) {
+      remaining.actorRows = (remaining.actorRows ?? 0) + Number((await env.OBS_DB.prepare(query)
+        .bind(userId).first<{ count: number }>())?.count ?? 0);
+    }
+    for (const table of ["auth_sessions", "user_profiles", "oauth_accounts", "users"] as const) {
+      remaining.coreRows = (remaining.coreRows ?? 0) + Number((await env.CORE_DB.prepare(
+        `SELECT COUNT(*) AS count FROM ${table} WHERE user_id = ?`
+      ).bind(userId).first<{ count: number }>())?.count ?? 0);
+    }
+    remaining.coreRows = (remaining.coreRows ?? 0) + Number((await env.CORE_DB.prepare(
+      "SELECT COUNT(*) AS count FROM alert_deliveries WHERE user_id = ?"
+    ).bind(userId).first<{ count: number }>())?.count ?? 0);
+  }
+  const remainingR2Keys = new Set<string>();
+  for (const key of r2ObjectKeys) if (await env.ASSET_BUCKET.get(key)) remainingR2Keys.add(key);
+  remaining.r2Objects = remainingR2Keys.size;
+  for (const userPattern of [userLike, ...userIds]) {
+    remaining.placeMemory = (remaining.placeMemory ?? 0) + (await env.OBS_DB.prepare(
+      "SELECT entry_id FROM place_memory_entries WHERE visit_id LIKE ? OR user_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(observationLike, userPattern, payloadLike).all<{ entry_id: string }>()).results.length;
+    remaining.events = (remaining.events ?? 0) + (await env.OBS_DB.prepare(
+      "SELECT session_id FROM observation_event_sessions WHERE organizer_user_id LIKE ? OR event_code LIKE ? OR title LIKE ? OR config_json LIKE ?"
+    ).bind(userPattern, observationLike, observationLike, payloadLike).all<{ session_id: string }>()).results.length;
+    remaining.references = (remaining.references ?? 0) + (await env.OBS_DB.prepare(
+      "SELECT source_id FROM reference_sources WHERE created_by_user_id LIKE ? OR source_payload_json LIKE ?"
+    ).bind(userPattern, payloadLike).all<{ source_id: string }>()).results.length;
+    remaining.guides = (remaining.guides ?? 0) + (await env.OBS_DB.prepare(
+      "SELECT guide_record_id FROM guide_records WHERE session_id LIKE ? OR user_id LIKE ?"
+    ).bind(observationLike, userPattern).all<{ guide_record_id: string }>()).results.length;
+  }
+  const cleanupZero = Object.values(remaining).every((count) => count === 0);
+  await env.CORE_DB.prepare(
+    `INSERT INTO operation_audit (audit_id, operation_type, target_id, payload_json)
+     VALUES (?, 'production_smoke_run_completed', ?, ?)`
+  ).bind(newId("production_smoke_run"), fixturePrefix, JSON.stringify({ cleanupZero, deleted, remaining })).run();
+  return json({ ok: cleanupZero, cleanupZero, fixturePrefix, deleted, remaining }, cleanupZero ? 200 : 500, { "cache-control": "no-store" });
+}
+
+function isStrictProductionSmokeR2Key(value: string, fixturePrefix: string): boolean {
+  return /^(?:original|derived)\/[A-Za-z0-9._/-]+$/u.test(value)
+    && !value.includes("..")
+    && !value.includes("\\")
+    && value.includes(fixturePrefix);
 }
 
 async function listStagingRecordFeedbackLoopObjectKeys(env: Env, visitLike: string, userLike: string): Promise<string[]> {

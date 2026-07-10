@@ -152,8 +152,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
 }
 
 export function buildAppServiceWorker(): string {
-  return `const VERSION = 'ikimon-app-v6';
-const SHELL_CACHE = VERSION + ':shell';
+  return `const VERSION = 'ikimon-app-v7';
 const STATIC_CACHE = VERSION + ':static';
 const OFFLINE_URL = '/offline.html';
 const OFFLINE_URLS = {
@@ -173,7 +172,6 @@ const STATIC_ASSETS = [
   '${BRAND_ASSETS.mark512}',
   '${BRAND_ASSETS.favicon32}'
 ];
-const APP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|guide\\/?$|record\\/?$|map\\/?$)/;
 const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
 const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$)/;
 const REFRESH_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:map\\/?$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$)/;
@@ -205,15 +203,11 @@ self.addEventListener('activate', (event) => {
 });
 
 async function networkFirstNavigation(request) {
-  const cache = await caches.open(SHELL_CACHE);
   const path = new URL(request.url).pathname;
   const isMapShell = MAP_NAV_RE.test(path);
   const isPersonalShell = PERSONAL_NAV_RE.test(path);
   try {
     const response = await fetch(request, (isMapShell || isPersonalShell) ? { cache: 'no-store' } : undefined);
-    if (response && response.ok && APP_NAV_RE.test(path) && !isMapShell && !isPersonalShell) {
-      cache.put(request, response.clone()).catch(() => undefined);
-    }
     return response;
   } catch (_) {
     if (isMapShell || isPersonalShell) {
@@ -223,8 +217,6 @@ async function networkFirstNavigation(request) {
         || (await caches.match(OFFLINE_URL))
         || new Response('offline', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
     }
-    const cached = await cache.match(request);
-    if (cached) return cached;
     const match = path.match(/^\\/(ja|en|es|pt-br)(?:\\/|$)/);
     const offlineUrl = match && OFFLINE_URLS[match[1]] ? OFFLINE_URLS[match[1]] : OFFLINE_URLS.ja;
     return (await caches.match(offlineUrl))

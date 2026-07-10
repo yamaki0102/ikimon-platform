@@ -9892,8 +9892,9 @@ const PROFILE_HUB_STYLES = `
   .profile-account-utilities { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.72); }
   .profile-account-utilities p { margin: 4px 0 0; color: #64748b; font-size: 13px; line-height: 1.65; font-weight: 720; }
   .profile-account-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-  .profile-account-links a { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #334155; font-size: 12px; line-height: 1.2; font-weight: 900; text-decoration: none; white-space: normal; }
-  .profile-account-links a.is-danger { border-color: rgba(185,28,28,.18); color: #991b1b; background: #fffafa; }
+  .profile-account-links form { display: contents; }
+  .profile-account-links a, .profile-account-links button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: #fff; color: #334155; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 900; text-decoration: none; white-space: normal; cursor: pointer; }
+  .profile-account-links .is-danger { border-color: rgba(185,28,28,.18); color: #991b1b; background: #fffafa; }
   .profile-life-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .profile-life-card { min-width: 0; display: grid; grid-template-rows: auto 1fr; min-height: 210px; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); }
   .profile-life-media { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #e2e8f0; }
@@ -9941,7 +9942,7 @@ const PROFILE_HUB_STYLES = `
     .profile-intro-heading { align-items: flex-start; gap: 12px; }
     .profile-intro-empty, .profile-account-utilities { display: grid; }
     .profile-account-links { justify-content: stretch; }
-    .profile-account-links a { width: 100%; border-radius: 14px; }
+    .profile-account-links a, .profile-account-links button { width: 100%; border-radius: 14px; }
     .profile-settings-card { padding: 18px; border-radius: 8px; }
     .profile-settings-avatar { align-items: flex-start; }
   }
@@ -10765,7 +10766,7 @@ function renderProfileAccountUtilities(basePath: string): string {
       </div>
       <div class="profile-account-links">
         <a href="${escapeHtml(withBasePath(basePath, "/profile/settings"))}">プロフィール設定</a>
-        <a class="is-danger" href="${escapeHtml(withBasePath(basePath, "/logout"))}">ログアウト</a>
+        <form method="post" action="${escapeHtml(withBasePath(basePath, "/logout"))}"><button class="is-danger" type="submit">ログアウト</button></form>
       </div>
     </div>
   </section>`;
@@ -11283,7 +11284,8 @@ function renderNotesLibraryControls(lang: SiteLang, initialSearch = ""): string 
   return `<section class="notes-library-controls" aria-label="${escapeHtml(copy.controls.aria)}">
     <div class="notes-library-search">
       <span aria-hidden="true">⌕</span>
-      <input type="search" placeholder="${escapeHtml(copy.controls.searchPlaceholder)}" value="${escapeHtml(initialSearch)}" data-library-search />
+      <label class="sr-only" for="records-library-search">${escapeHtml(copy.controls.searchPlaceholder)}</label>
+      <input id="records-library-search" type="search" placeholder="${escapeHtml(copy.controls.searchPlaceholder)}" value="${escapeHtml(initialSearch)}" data-library-search />
     </div>
     <input class="notes-library-filter-toggle" type="checkbox" id="notes-library-filter-toggle" aria-label="${escapeHtml(copy.controls.filterAria)}" />
     <label class="notes-library-filter-label" for="notes-library-filter-toggle">${escapeHtml(filterToggleLabel)}</label>
@@ -11891,6 +11893,7 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-stats em { display: block; margin-top: 7px; color: #64748b; font-size: 12px; font-style: normal; font-weight: 850; }
   .notes-library-controls { position: sticky; top: 68px; z-index: 5; display: grid; grid-template-columns: minmax(220px, .34fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px; border-radius: 8px; background: rgba(255,255,255,.9); border: 1px solid rgba(16,185,129,.14); box-shadow: 0 12px 30px rgba(15,23,42,.055); backdrop-filter: blur(16px); }
   .notes-library-search { min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+  .notes-library-search:focus-within { border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2,132,199,.2); }
   .notes-library-search span { color: #047857; font-weight: 950; }
   .notes-library-search input { width: 100%; border: 0; outline: 0; background: transparent; color: #0f172a; font: inherit; font-weight: 750; }
   .notes-library-filter-toggle, .notes-library-filter-label { display: none; }
@@ -14115,7 +14118,7 @@ function renderIdentificationSummary(
         <a class="is-primary" href="${escapeHtml(workbenchHref)}">${escapeHtml(copy.continueAction)}</a>
       </div>
     </header>
-    <main class="identification-summary-main">
+    <div class="identification-summary-main">
       <section class="identification-summary-hero">
         <div>
           <span>${escapeHtml(copy.activeNav)}</span>
@@ -14159,7 +14162,7 @@ function renderIdentificationSummary(
         ${renderIdentificationSummaryRecentDecisions(lang, ownEntries, copy)}
         ${renderIdentificationSummaryTeamStatus(copy, cards.length, doneToday)}
       </section>
-    </main>
+    </div>
   </div>`;
 }
 
@@ -14272,7 +14275,7 @@ function renderRecordsWorkbench(
         <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="${escapeHtml(observationIndexCopy(lang).recordActionAria)}">${escapeHtml(copy.recordLabel)}</a>
       </div>
     </header>
-    <main class="records-main${isIdentifyView ? " is-identify" : ""}">
+    <div class="records-main${isIdentifyView ? " is-identify" : ""}">
       ${view === "mine" ? renderRecordsMyPlacesLane(basePath, lang, snapshot, ownEntries) : ""}
       <section class="records-grid-panel" ${isIdentifyView ? `id="records-identify-list"` : ""} data-notes-library${canLazyLoad ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${isIdentifyView ? renderRecordsIdentifyIntro(basePath, lang, entries, canWriteIdentification) : ""}
@@ -14286,7 +14289,7 @@ function renderRecordsWorkbench(
         ${canLazyLoad ? renderRecordsLazyFooter(lang, lazyNextCursor) : ""}
       </section>
       ${isIdentifyView ? renderRecordsIdentifyPanel(basePath, lang, entries, { locationMode, canWrite: canWriteIdentification, civicContexts, fallbackEntries: publicEntries }) : ""}
-    </main>
+    </div>
     ${renderNotesLibraryScript(lang)}
     ${canLazyLoad ? renderRecordsLazyScript(lang) : ""}
     ${isIdentifyView ? renderRecordsIdentifyPanelScript(lang) : ""}
