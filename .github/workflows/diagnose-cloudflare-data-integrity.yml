@@ -1,0 +1,62 @@
+name: Diagnose Cloudflare Data Integrity
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/qa-data-integrity'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Install Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+      - name: Capture check and quick-test output
+        id: tests
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set +e
+          {
+            echo '=== npm run check ==='
+            npm run check
+            check_status=$?
+            echo "check_status=$check_status"
+            echo '=== npm run test:quick ==='
+            npm run test:quick
+            test_status=$?
+            echo "test_status=$test_status"
+            echo '=== npm run wrangler:check ==='
+            npm run wrangler:check
+            wrangler_status=$?
+            echo "wrangler_status=$wrangler_status"
+            if [ "$check_status" -ne 0 ] || [ "$test_status" -ne 0 ] || [ "$wrangler_status" -ne 0 ]; then
+              final_status=1
+            else
+              final_status=0
+            fi
+            echo "final_status=$final_status"
+            echo "exit_code=$final_status" >> "$GITHUB_OUTPUT"
+          } > cloudflare-data-integrity-diagnostic.log 2>&1
+          tail -n 160 cloudflare-data-integrity-diagnostic.log || true
+          exit 0
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-data-integrity-diagnostic
+          path: platform_v2/cloudflare_shadow/cloudflare-data-integrity-diagnostic.log
+          if-no-files-found: error
+      - name: Preserve failing status
+        if: steps.tests.outputs.exit_code != '0'
+        run: exit 1
