@@ -201,7 +201,7 @@ function authPageCopy(lang: SiteLang): AuthPageCopy {
       profileNoteLead: "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。",
       recordNoteLead: "記録、写真アップロード、同定参加は ikimon のログイン状態で扱います。",
       safetyCookie: "cookie は HttpOnly / SameSite=Lax / production Secure",
-      safetyFailure: "メール有無が分からない失敗表示",
+      safetyFailure: "登録済みのメールアドレスはログインへ案内",
       safetyOrigin: "外部 origin からの書き込みを拒否",
       switchToRegister: "新しく登録する",
       switchToLogin: "既存アカウントでログイン",
@@ -256,7 +256,7 @@ function authPageCopy(lang: SiteLang): AuthPageCopy {
       profileNoteLead: "My page keeps your places, recent observations, Life List, and next actions in one place.",
       recordNoteLead: "Records, photo uploads, and identification participation use your ikimon login state.",
       safetyCookie: "Cookies are HttpOnly / SameSite=Lax / Secure in production",
-      safetyFailure: "Failure messages do not reveal whether an email exists",
+      safetyFailure: "Registered email addresses are directed to login",
       safetyOrigin: "Writes from external origins are rejected",
       switchToRegister: "Create a new account",
       switchToLogin: "Log in with an existing account",
@@ -311,7 +311,7 @@ function authPageCopy(lang: SiteLang): AuthPageCopy {
       profileNoteLead: "Mi pagina mantiene tus lugares, observaciones recientes, Life List y proximas acciones en un solo lugar.",
       recordNoteLead: "Registros, subidas de fotos e identificaciones usan tu sesion de ikimon.",
       safetyCookie: "Las cookies son HttpOnly / SameSite=Lax / Secure en produccion",
-      safetyFailure: "Los errores no revelan si existe un correo",
+      safetyFailure: "Los correos registrados se dirigen al inicio de sesion",
       safetyOrigin: "Se rechazan escrituras desde origenes externos",
       switchToRegister: "Crear una cuenta nueva",
       switchToLogin: "Iniciar sesion con una cuenta existente",
@@ -366,7 +366,7 @@ function authPageCopy(lang: SiteLang): AuthPageCopy {
       profileNoteLead: "Minha pagina mantem seus locais, observacoes recentes, Life List e proximas acoes em um so lugar.",
       recordNoteLead: "Registros, uploads de fotos e identificacoes usam seu login do ikimon.",
       safetyCookie: "Cookies sao HttpOnly / SameSite=Lax / Secure em producao",
-      safetyFailure: "Mensagens de erro nao revelam se um e-mail existe",
+      safetyFailure: "E-mails cadastrados sao direcionados para o login",
       safetyOrigin: "Escritas de origens externas sao rejeitadas",
       switchToRegister: "Criar uma nova conta",
       switchToLogin: "Entrar com uma conta existente",
@@ -583,6 +583,15 @@ async function handleOAuthCallback(
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+  if (!app.hasContentTypeParser("application/x-www-form-urlencoded")) {
+    app.addContentTypeParser(
+      "application/x-www-form-urlencoded",
+      { parseAs: "string" },
+      (_request, body, done) => {
+        done(null, Object.fromEntries(new URLSearchParams(String(body))));
+      },
+    );
+  }
   app.get("/login", async (request, reply) => {
     const basePath = requestBasePath(request);
     const url = new URL(requestUrl(request), "https://ikimon.local");
@@ -609,7 +618,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     return renderAuthPage({ mode: "register", basePath, lang, redirect });
   });
 
-  app.get("/logout", async (request, reply) => {
+  app.post("/logout", async (request, reply) => {
+    assertSameOriginRequest(request);
     const result = await revokeSession(readSessionTokenFromCookie(request.headers.cookie));
     reply.header("set-cookie", result.clearedCookie);
     reply.code(303).redirect(withBasePath(requestBasePath(request), "/"));

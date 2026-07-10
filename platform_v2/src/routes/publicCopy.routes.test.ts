@@ -309,8 +309,12 @@ test("records workbench unifies personal library and public observations", async
     assert.match(response.body, /メディア/);
     assert.match(response.body, /場所/);
     assert.match(response.body, /data-library-search/);
+    assert.match(response.body, /<label class="sr-only" for="records-library-search">[^<]+<\/label>/);
+    assert.match(response.body, /<input id="records-library-search" type="search"[^>]*data-library-search/);
+    assert.match(response.body, /\.notes-library-search:focus-within\s*\{[^}]*box-shadow:\s*0 0 0 3px/);
     assert.match(response.body, /records-view-tabs/);
     assert.match(response.body, /records-post-grid/);
+    assert.equal((response.body.match(/<main\b/g) ?? []).length, 1);
     assert.doesNotMatch(response.body, /data-testid="observations-index"/);
   } finally {
     await app.close();
@@ -347,6 +351,7 @@ test("records workbench renders the identification summary launcher", async () =
     assert.match(response.body, /追加写真が必要/);
     assert.match(response.body, /作業台で開く/);
     assert.match(response.body, /href="\/ja\/records\?view=needs_id"/);
+    assert.equal((response.body.match(/<main\b/g) ?? []).length, 1);
     assert.doesNotMatch(response.body, /class="global-record-launcher"/);
     assert.doesNotMatch(response.body, /この候補でよさそう/);
   } finally {

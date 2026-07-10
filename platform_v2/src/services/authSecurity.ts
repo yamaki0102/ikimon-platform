@@ -5,6 +5,8 @@ type RateBucket = {
   resetAt: number;
 };
 
+type HttpError = Error & { statusCode: number };
+
 const buckets = new Map<string, RateBucket>();
 
 function headerFirst(value: string | string[] | undefined): string {
@@ -19,6 +21,12 @@ function expectedOrigin(request: FastifyRequest): string | null {
   }
   const proto = headerFirst(request.headers["x-forwarded-proto"]) || (request.protocol || "http");
   return `${proto}://${host}`;
+}
+
+function sameOriginError(): HttpError {
+  const error = new Error("same_origin_required") as HttpError;
+  error.statusCode = 403;
+  return error;
 }
 
 export function normalizeEmail(value: unknown): string {
@@ -47,7 +55,7 @@ export function safeRedirectPath(value: unknown, fallback = "/record"): string {
 export function assertSameOriginRequest(request: FastifyRequest): void {
   const secFetchSite = headerFirst(request.headers["sec-fetch-site"]).toLowerCase();
   if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
-    throw new Error("same_origin_required");
+    throw sameOriginError();
   }
 
   const origin = headerFirst(request.headers.origin);
@@ -57,7 +65,7 @@ export function assertSameOriginRequest(request: FastifyRequest): void {
 
   const expected = expectedOrigin(request);
   if (!expected) {
-    throw new Error("same_origin_required");
+    throw sameOriginError();
   }
 
   let incoming: URL;
@@ -66,11 +74,11 @@ export function assertSameOriginRequest(request: FastifyRequest): void {
     incoming = new URL(origin);
     expectedUrl = new URL(expected);
   } catch {
-    throw new Error("same_origin_required");
+    throw sameOriginError();
   }
 
   if (incoming.protocol !== expectedUrl.protocol || incoming.host !== expectedUrl.host) {
-    throw new Error("same_origin_required");
+    throw sameOriginError();
   }
 }
 
