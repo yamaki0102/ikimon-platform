@@ -11,12 +11,15 @@ const migrationSource = readFileSync(
   "utf8",
 );
 
-test("Worker auto-matches only active station-bound rally missions after observation save", () => {
+test("Worker auto-matches only active station-bound rally missions for eligible participants", () => {
   assert.match(workerSource, /async function autoMatchObservationToActiveRalliesNative/);
   assert.match(workerSource, /course\.status = 'live'/);
   assert.match(workerSource, /mission\.status = 'published'/);
   assert.match(workerSource, /station\.status = 'open'/);
   assert.match(workerSource, /mission\.location_binding IN \('station_required', 'any_registered_station'\)/);
+  assert.match(workerSource, /event_session\.organizer_user_id = \?/);
+  assert.match(workerSource, /FROM observation_event_participants participant/);
+  assert.match(workerSource, /participant\.status IN \('registered', 'checked_in'\)/);
   assert.match(workerSource, /\[observation-rally-auto-match\] native post-save match failed/);
   assert.match(workerSource, /await autoMatchObservationToActiveRalliesNative[\s\S]*await hookLegacyObservationToEventNative/);
 });
