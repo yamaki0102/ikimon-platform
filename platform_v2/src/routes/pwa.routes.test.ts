@@ -35,20 +35,20 @@ test("manifest is app-first and localized from device or query language", async 
   }
 });
 
-test("app service worker is separate from legacy cleanup worker and caches app shells only as fallback", async () => {
+test("app service worker keeps authenticated navigation out of shared caches", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/app-sw.js" });
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/javascript/);
     assert.equal(response.headers["service-worker-allowed"], "/");
-    assert.match(response.body, /ikimon-app-v6/);
+    assert.match(response.body, /ikimon-app-v7/);
     assert.match(response.body, /networkFirstNavigation/);
+    assert.doesNotMatch(response.body, /APP_NAV_RE|SHELL_CACHE/);
     assert.match(response.body, /OFFLINE_URLS/);
     assert.match(response.body, /offline\.html\?lang=en/);
     assert.match(response.body, /\/assets\/brand\/app-icon-192\.png/);
     assert.match(response.body, /\/assets\/brand\/favicon-32\.png/);
-    assert.match(response.body, /APP_NAV_RE/);
     assert.match(response.body, /MAP_NAV_RE/);
     assert.match(response.body, /PERSONAL_NAV_RE/);
     assert.match(response.body, /REFRESH_NAV_RE/);
@@ -57,7 +57,7 @@ test("app service worker is separate from legacy cleanup worker and caches app s
     assert.match(response.body, /clients\.matchAll/);
     assert.match(response.body, /client\.navigate/);
     assert.match(response.body, /searchParams\.set\('sw', VERSION\)/);
-    assert.match(response.body, /&& !isMapShell && !isPersonalShell/);
+    assert.match(response.body, /request\.mode === 'navigate'/);
     assert.match(response.body, /ikimon-app-outbox-sync/);
     assert.match(response.body, /self\.addEventListener\('sync'/);
     assert.doesNotMatch(response.body, /registration\.unregister/);

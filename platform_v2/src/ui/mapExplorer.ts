@@ -13508,6 +13508,9 @@ export const MAP_EXPLORER_STYLES = `
       right: 10px;
       bottom: max(8px, env(safe-area-inset-bottom));
     }
+    .me-map .maplibregl-ctrl-bottom-right {
+      bottom: calc(var(--me-mobile-action-space) + 4px);
+    }
     .me-rain-mode .site-shell.is-map-surface .global-record-launcher {
       display: none;
     }
