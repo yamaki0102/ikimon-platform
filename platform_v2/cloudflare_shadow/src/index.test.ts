@@ -7992,6 +7992,32 @@ test("v1 observation upsert honors private visibility before public readmodel re
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
 });
 
+test("v1 observation upsert can save private photo-first records without coordinates", async () => {
+  const { env, obs } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "private-no-location-record",
+    userId: "private-no-location-user",
+    observedAt: "2026-06-25T00:00:00.000Z",
+    latitude: null,
+    longitude: null,
+    visibility: "private",
+    sourcePayload: {
+      source: "global_photo_tray",
+      location_state: "not_available"
+    }
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.visitId, "private-no-location-record");
+  const observation = obs.observations.get("private-no-location-record");
+  assert.equal(observation?.exact_lat, null);
+  assert.equal(observation?.exact_lng, null);
+  assert.equal(observation?.public_cell, "unknown");
+  assert.equal(observation?.visibility, "private");
+  assert.equal(obs.readmodel.has("private-no-location-record"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-no-location-record"), false);
+});
+
 test("v1 observation upsert materializes only safe coarse public area labels", async () => {
   const { env, obs, queue } = createEnv();
   const response = await post("/api/v1/observations/upsert", env, {

@@ -146,8 +146,8 @@ interface LegacyObservationUpsertInput {
   clientSubmissionId?: string | null;
   userId: string;
   observedAt: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   locationAccuracyM?: number | null;
   note?: string | null;
   siteId?: string | null;
@@ -21706,10 +21706,13 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   } else {
     assertNonEmpty(input.userId, "userId");
   }
-  if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
-    throw new HttpError(400, "missing_location");
-  }
   assertNonEmpty(input.observedAt, "observedAt");
+  const latitude = input.latitude == null ? null : normalizeCompatibleLatitude(input.latitude);
+  const longitude = input.longitude == null ? null : normalizeCompatibleLongitude(input.longitude);
+  const hasLocation = latitude !== null && longitude !== null;
+  if ((latitude === null) !== (longitude === null)) {
+    throw new HttpError(400, "invalid_location_pair");
+  }
 
   const clientSubmissionId = normalizeCompatibleClientSubmissionId(input.clientSubmissionId);
   const idempotencyFingerprint = clientSubmissionId
@@ -21737,7 +21740,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
                 updated_at = CURRENT_TIMESTAMP
           WHERE client_submission_id = ?`
       ).bind(clientSubmissionId).run();
-      const placeId = normalizeOptionalId(existing.place_id) ?? `place:${blurLocation(input.latitude, input.longitude)}`;
+      const placeId = normalizeOptionalId(existing.place_id) ?? `place:${hasLocation ? blurLocation(latitude, longitude) : "unknown"}`;
       const placeName = normalizeOptionalText(input.siteName)
         ?? normalizeOptionalText(input.municipality)
         ?? normalizeOptionalText(input.prefecture)
@@ -21777,7 +21780,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const partition = resolveObservationPartition(input.observedAt, env);
   const occurrenceIds = resolveLegacyOccurrenceIds(visitId, input);
   const occurrenceId = occurrenceIds[0] ?? `occ:${visitId}:0`;
-  const publicCell = blurLocation(input.latitude, input.longitude);
+  const publicCell = hasLocation ? blurLocation(latitude, longitude) : "unknown";
   const taxonLabel = resolveLegacyTaxonLabel(input);
   const placeName = normalizeOptionalText(input.siteName)
     ?? normalizeOptionalText(input.municipality)
@@ -21844,8 +21847,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       draftId,
       input.userId,
       input.observedAt,
-      input.latitude,
-      input.longitude,
+      latitude,
+      longitude,
       numberOrNull(input.locationAccuracyM),
       publicCell,
       visibility,
@@ -21878,8 +21881,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       input.observedAt,
       taxonLabel,
       input.note ?? null,
-      input.latitude,
-      input.longitude,
+      latitude,
+      longitude,
       numberOrNull(input.locationAccuracyM),
       publicCell,
       visibility,
@@ -21942,8 +21945,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         observedAt: input.observedAt,
         taxonLabel,
         note: input.note ?? null,
-        exactLat: input.latitude,
-        exactLng: input.longitude,
+        exactLat: latitude,
+        exactLng: longitude,
         locationAccuracyM: numberOrNull(input.locationAccuracyM),
         publicCell,
         visibility,
@@ -21957,8 +21960,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         input.observedAt,
         taxonLabel,
         input.note ?? null,
-        input.latitude,
-        input.longitude,
+        latitude,
+        longitude,
         numberOrNull(input.locationAccuracyM),
         publicCell,
         visibility
@@ -21966,20 +21969,22 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     })
   ]);
 
-  await insertCompatibleAutoEnvironmentRecordIfPresent({
-    occurrenceId: visitId,
-    actorUserId: input.userId,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    draft: input.environmentRecordDraft ?? input.sourcePayload?.environment_record_draft,
-    sourceMethod: "record_photo_feedback_v1"
-  }, env).catch((error) => {
-    console.warn(JSON.stringify({
-      message: "compatible_auto_environment_record_skipped",
-      visitId,
-      error: error instanceof Error ? error.message : String(error)
-    }));
-  });
+  if (hasLocation) {
+    await insertCompatibleAutoEnvironmentRecordIfPresent({
+      occurrenceId: visitId,
+      actorUserId: input.userId,
+      latitude,
+      longitude,
+      draft: input.environmentRecordDraft ?? input.sourcePayload?.environment_record_draft,
+      sourceMethod: "record_photo_feedback_v1"
+    }, env).catch((error) => {
+      console.warn(JSON.stringify({
+        message: "compatible_auto_environment_record_skipped",
+        visitId,
+        error: error instanceof Error ? error.message : String(error)
+      }));
+    });
+  }
 
   await upsertCompatibleWaterRecordIfPresent(env, input.waterRecord, {
     visitId,
@@ -22143,6 +22148,9 @@ async function hookLegacyObservationToEventNative(
   if (!isOrganizer && requestedTeamId && participant?.team_id !== requestedTeamId) return;
   const teamId = requestedTeamId ?? participant?.team_id ?? null;
   const eventType = input.fieldScan && typeof input.fieldScan === "object" ? "field_scan_added" : "observation_added";
+  const latitude = input.latitude == null ? null : normalizeCompatibleLatitude(input.latitude);
+  const longitude = input.longitude == null ? null : normalizeCompatibleLongitude(input.longitude);
+  const hasLocation = latitude !== null && longitude !== null;
   try {
     await appendObservationEventLive(env, {
       sessionId: session.sessionId,
@@ -22156,8 +22164,8 @@ async function hookLegacyObservationToEventNative(
         occurrence_ids: result.occurrenceIds,
         observation_id: result.visitId,
         taxon_name: result.taxonLabel,
-        public_lat: roundPublicEventCoordinate(input.latitude),
-        public_lng: roundPublicEventCoordinate(input.longitude),
+        public_lat: hasLocation ? roundPublicEventCoordinate(latitude) : null,
+        public_lng: hasLocation ? roundPublicEventCoordinate(longitude) : null,
         observed_at: input.observedAt,
         source_type: eventType === "field_scan_added" ? "field_scan" : "record",
         participant_role: normalizeOptionalText(input.participantRole)
@@ -22170,16 +22178,18 @@ async function hookLegacyObservationToEventNative(
   } catch (err) {
     console.error("[observation-event-dual-write] native live event failed", err);
   }
-  try {
-    await recordObservationEventMeshVisit(env, {
-      sessionId: session.sessionId,
-      lat: roundPublicEventCoordinate(input.latitude),
-      lng: roundPublicEventCoordinate(input.longitude),
-      observationDelta: 1,
-      teamId
-    });
-  } catch (err) {
-    console.error("[observation-event-dual-write] native mesh upsert failed", err);
+  if (hasLocation) {
+    try {
+      await recordObservationEventMeshVisit(env, {
+        sessionId: session.sessionId,
+        lat: roundPublicEventCoordinate(latitude),
+        lng: roundPublicEventCoordinate(longitude),
+        observationDelta: 1,
+        teamId
+      });
+    } catch (err) {
+      console.error("[observation-event-dual-write] native mesh upsert failed", err);
+    }
   }
   if (result.taxonLabel) {
     await offerNativeObservationEventQuestForNewTaxon(env, session.sessionId, result.taxonLabel, teamId).catch((err) => {

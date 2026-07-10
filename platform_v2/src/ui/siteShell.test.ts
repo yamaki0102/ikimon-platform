@@ -375,7 +375,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
   assert.doesNotMatch(html, /fillCaptureLocationLater/);
   assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
-  assert.match(html, /地点を確認してから記録します。記録画面で場所を選べます。/);
+  assert.match(html, /latitude: hasLocation \? Number\(location\.latitude\) : null/);
+  assert.match(html, /longitude: hasLocation \? Number\(location\.longitude\) : null/);
+  assert.match(html, /location_state: hasLocation \? 'captured' : 'not_available'/);
   assert.match(html, /global_record_capture_latency/);
   assert.match(html, /capture_to_review_ms/);
   assert.doesNotMatch(html, /gps_wait_ms/);
