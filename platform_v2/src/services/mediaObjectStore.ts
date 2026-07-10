@@ -21,19 +21,18 @@ export type ReadMediaObjectInput = {
   storagePath: string;
 };
 
-export type ExistsMediaObjectInput = {
+export type ReferenceMediaObjectInput = {
   visibility: MediaObjectVisibility;
   storagePath: string;
 };
 
-export type DeleteMediaObjectInput = {
-  visibility: MediaObjectVisibility;
-  storagePath: string;
-};
+export type ExistsMediaObjectInput = ReferenceMediaObjectInput;
+export type DeleteMediaObjectInput = ReferenceMediaObjectInput;
 
 export type MediaObjectStore = {
   write(input: WriteMediaObjectInput): Promise<StoredMediaObject>;
   read(input: ReadMediaObjectInput): Promise<Buffer>;
+  reference(input: ReferenceMediaObjectInput): StoredMediaObject;
   exists(input: ExistsMediaObjectInput): Promise<boolean>;
   delete(input: DeleteMediaObjectInput): Promise<void>;
 };
@@ -71,16 +70,20 @@ export class LocalMediaObjectStore implements MediaObjectStore {
     return absolutePath;
   }
 
-  async write(input: WriteMediaObjectInput): Promise<StoredMediaObject> {
-    const absolutePath = this.absolutePathFor(input.visibility, input.storagePath);
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, input.buffer);
-
+  reference(input: ReferenceMediaObjectInput): StoredMediaObject {
+    this.absolutePathFor(input.visibility, input.storagePath);
     return {
       storageBackend: this.storageBackendForVisibility(input.visibility),
       storagePath: input.storagePath,
       publicUrl: publicUrlForVisibility(input.visibility, input.storagePath),
     };
+  }
+
+  async write(input: WriteMediaObjectInput): Promise<StoredMediaObject> {
+    const absolutePath = this.absolutePathFor(input.visibility, input.storagePath);
+    await mkdir(path.dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, input.buffer);
+    return this.reference(input);
   }
 
   async read(input: ReadMediaObjectInput): Promise<Buffer> {
