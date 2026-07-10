@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { assertProductionExecuteStateUnchanged, assertProductionExecuteWorktreeClean } from "./production-deploy-clean-gate.mjs";
 
 const requiredApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const productionWorkerUrl = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
@@ -63,10 +64,12 @@ const events = [];
 function run(command, commandArgs, options = {}) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
-    const commandLine = [command, ...commandArgs].join(" ");
+    const actualCommandLine = [command, ...commandArgs].join(" ");
+    const eventCommandLine = options.eventCommandLine ?? actualCommandLine;
     const echo = options.echo !== false;
     const spawnOptions = { ...options };
     delete spawnOptions.echo;
+    delete spawnOptions.eventCommandLine;
     const executable = process.platform === "win32" ? "cmd.exe" : command;
     const args = process.platform === "win32"
       ? ["/d", "/s", "/c", [command, ...commandArgs].map(quoteCmdArg).join(" ")]
@@ -88,7 +91,7 @@ function run(command, commandArgs, options = {}) {
     });
     child.on("close", (code) => {
       const event = {
-        command: commandLine,
+        command: eventCommandLine,
         exitCode: code,
         durationMs: Date.now() - startedAt
       };
@@ -111,7 +114,7 @@ function quoteCmdArg(value) {
   return `"${value.replaceAll('"', '\\"')}"`;
 }
 
-async function smoke(baseUrl) {
+async function smoke(baseUrl, expectedGitSha) {
   for (const path of ["/healthz", "/readyz", "/api/v1/runtime/version", "/qa/reflection-loop.json"]) {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
       redirect: "manual",
@@ -138,6 +141,7 @@ async function smoke(baseUrl) {
           && payload.service === "ikimon.life"
           && payload.runtime === "cloudflare-worker"
           && payload.schemaVersion === "cloudflare_worker_runtime/v1"
+          && payload.gitSha === expectedGitSha
           && payload.publicSafe === true
       : response.ok
         && typeof payload === "object"
@@ -243,6 +247,7 @@ async function gitText(args) {
 async function currentDeployState() {
   const gitHead = await gitText(["rev-parse", "HEAD"]);
   const gitStatus = await gitText(["status", "--porcelain", "--", "src", "scripts/deploy-production-guard.mjs", "wrangler.jsonc", "package.json", "package-lock.json", "tsconfig.json"]);
+  const worktreeGitStatus = await gitText(["status", "--porcelain"]);
   const deployInputSha256 = await hashDeployInputs();
   const packageLockSha256 = await hashFiles(["package.json", "package-lock.json"]);
   const productionConfig = await readProductionConfigSummary();
@@ -250,6 +255,8 @@ async function currentDeployState() {
     gitHead,
     gitStatus,
     clean: gitStatus.length === 0,
+    worktreeGitStatus,
+    worktreeClean: worktreeGitStatus.length === 0,
     deployInputSha256,
     packageLockSha256,
     productionConfig
@@ -312,7 +319,7 @@ function assertFreshPreflightReport(report, state) {
   if (report.deployInputSha256 !== state.deployInputSha256) {
     throw new Error("Fast deploy refused: deploy input hash changed after preflight.");
   }
-  if (!report.clean || !state.clean) {
+  if (execute && (!report.clean || !state.clean)) {
     throw new Error("Fast deploy refused: deploy inputs must be clean in git before and during fast deploy.");
   }
   const ageMinutes = (Date.now() - Date.parse(report.checkedAt)) / 60000;
@@ -320,13 +327,9 @@ function assertFreshPreflightReport(report, state) {
     throw new Error(`Fast deploy refused: preflight report is stale (${Math.round(ageMinutes)} minutes).`);
   }
   const profile = typeof report.testProfile === "string" ? report.testProfile : "full";
-  const requiredCommands = ["npm run check", testCommandForProfile(profile).commandLine];
-  const commands = (report.events ?? []).map((event) => event.command);
-  const commandSet = new Set(commands);
+  const requiredCommands = ["npm run check", testCommandForProfile(profile).commandLine, "npx wrangler deploy --env production --dry-run"];
+  const commandSet = new Set((report.events ?? []).map((event) => event.command));
   const missingCommands = requiredCommands.filter((command) => !commandSet.has(command));
-  if (!commands.some((command) => command.startsWith("npx wrangler deploy --env production --dry-run"))) {
-    missingCommands.push("npx wrangler deploy --env production --dry-run [...release vars]");
-  }
   if (missingCommands.length) {
     throw new Error(`Fast deploy refused: preflight report missing ${missingCommands.join(", ")}.`);
   }
@@ -354,8 +357,9 @@ async function writePreflightReport(path, state) {
       "wrangler_dry_run",
       "production_config_guard",
       "hardcoded_secret_scan",
-      "post_deploy_health_ready_smoke"
+      ...(execute ? ["post_deploy_health_ready_smoke"] : [])
     ],
+    deferredSafetyGates: execute ? [] : ["post_deploy_health_ready_smoke"],
     events
   };
   await mkdir(dirname(resolve(path)), { recursive: true });
@@ -407,6 +411,7 @@ async function runWranglerVersionGate(state) {
 }
 
 const initialState = await currentDeployState();
+assertProductionExecuteWorktreeClean({ execute, state: initialState, phase: "start" });
 await assertNoHardcodedSecrets();
 if (fast) {
   const report = await readPreflightReport(preflightReportPath);
@@ -424,20 +429,38 @@ if (fast) {
   await run(testCommand.command, testCommand.args);
 }
 await runWranglerVersionGate(initialState);
-function wranglerDeployArgs(dryRun = false) {
+function resolvedReleaseVars(state) {
+  return {
+    ...releaseVars,
+    IKIMON_GIT_SHA: releaseVars.IKIMON_GIT_SHA.trim() || state.gitHead
+  };
+}
+
+function wranglerDeployArgs(state, dryRun = false) {
   const args = ["wrangler", "deploy", "--env", "production"];
   if (dryRun) args.push("--dry-run");
-  for (const [key, value] of Object.entries(releaseVars)) {
+  for (const [key, value] of Object.entries(resolvedReleaseVars(state))) {
     if (value.trim()) args.push("--var", `${key}:${value.trim()}`);
   }
   return args;
 }
 
-await run("npx", wranglerDeployArgs(true));
+const intendedReleaseVars = resolvedReleaseVars(initialState);
+if (intendedReleaseVars.IKIMON_GIT_SHA !== initialState.gitHead) {
+  throw new Error(`production_release_git_sha_mismatch:${intendedReleaseVars.IKIMON_GIT_SHA}:${initialState.gitHead}`);
+}
+await run("npx", wranglerDeployArgs(initialState, true), {
+  eventCommandLine: "npx wrangler deploy --env production --dry-run"
+});
 
 if (execute) {
+  const preDeployState = await currentDeployState();
+  assertProductionExecuteWorktreeClean({ execute, state: preDeployState, phase: "pre-deploy" });
+  assertProductionExecuteStateUnchanged({ execute, before: initialState, after: preDeployState, phase: "pre-deploy" });
   try {
-    await run("npx", wranglerDeployArgs());
+    await run("npx", wranglerDeployArgs(initialState), {
+      eventCommandLine: "npx wrangler deploy --env production"
+    });
   } catch (error) {
     if (!isTolerableWranglerRouteUpdateFailure(error)) throw error;
     events.push({
@@ -447,8 +470,8 @@ if (execute) {
       warning: "Wrangler uploaded the production Worker, then failed while reapplying existing routes with the current token. Production smoke remains mandatory."
     });
   }
-  await smoke(productionWorkerUrl);
-  await smoke(productionPublicUrl);
+  await smoke(productionWorkerUrl, intendedReleaseVars.IKIMON_GIT_SHA);
+  await smoke(productionPublicUrl, intendedReleaseVars.IKIMON_GIT_SHA);
 }
 
 if (!fast && writePreflightReportPath) {
