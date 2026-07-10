@@ -8,7 +8,11 @@ import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupportPg.js
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
 import { enqueueMediaProcessingJobsStandalone } from "./mediaProcessingJobs.js";
-import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
+import {
+  createLegacyMediaObjectStore,
+  type MediaObjectStore,
+  type MediaObjectVisibility,
+} from "./mediaObjectStore.js";
 
 export type ObservationPhotoUploadInput = {
   observationId: string;
@@ -39,6 +43,11 @@ export type ObservationPhotoUploadResult = {
     error?: string;
   };
   facePrivacy: FacePrivacySummary | null;
+};
+
+type CreatedMediaObject = {
+  visibility: MediaObjectVisibility;
+  storagePath: string;
 };
 
 export function observationPhotoUploadTargetIds(observationId: string): string[] {
@@ -160,6 +169,23 @@ async function normalizeObservationImage(buffer: Buffer, mimeType: string): Prom
   }
 }
 
+async function cleanupCreatedObservationMedia(
+  mediaObjectStore: MediaObjectStore,
+  createdObjects: CreatedMediaObject[],
+): Promise<void> {
+  const failures: unknown[] = [];
+  for (const object of [...createdObjects].reverse()) {
+    try {
+      await mediaObjectStore.delete(object);
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length > 0) {
+    throw new AggregateError(failures, "observation_photo_compensation_failed");
+  }
+}
+
 export async function uploadObservationPhoto(input: ObservationPhotoUploadInput): Promise<ObservationPhotoUploadResult> {
   assertInput(input);
 
@@ -194,6 +220,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   let occurrenceId = "";
   let relativePath = "";
   let originalRelativePath = "";
+  const createdMediaObjects: CreatedMediaObject[] = [];
 
   try {
     await client.query("begin");
@@ -230,16 +257,39 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     occurrenceId = target.occurrence_id;
     relativePath = path.posix.join("uploads", "v2-observations", visitId, fileName);
     originalRelativePath = path.posix.join("photo-originals", "v2-observations", visitId, fileName);
+
+    // Serialise identical observation/hash uploads. The lock remains held until
+    // commit/rollback, so cleanup cannot race a successful retry of the same file.
+    await client.query(
+      "select pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [`observation-photo:${visitId}:${sha256}`],
+    );
+
+    const originalExisted = await mediaObjectStore.exists({
+      visibility: "private",
+      storagePath: originalRelativePath,
+    });
     const originalObject = await mediaObjectStore.write({
       visibility: "private",
       storagePath: originalRelativePath,
       buffer,
+    });
+    if (!originalExisted) {
+      createdMediaObjects.push({ visibility: "private", storagePath: originalRelativePath });
+    }
+
+    const publicExisted = await mediaObjectStore.exists({
+      visibility: "public",
+      storagePath: relativePath,
     });
     const publicObject = await mediaObjectStore.write({
       visibility: "public",
       storagePath: relativePath,
       buffer,
     });
+    if (!publicExisted) {
+      createdMediaObjects.push({ visibility: "public", storagePath: relativePath });
+    }
 
     const originalBlobId = await upsertAssetBlob(client, {
       storageBackend: originalObject.storageBackend,
@@ -439,7 +489,20 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
 
     await client.query("commit");
   } catch (error) {
-    await client.query("rollback");
+    // Delete only files created by this transaction while the advisory lock is
+    // still held. Existing valid files are never part of the compensation set.
+    try {
+      await cleanupCreatedObservationMedia(mediaObjectStore, createdMediaObjects);
+    } catch (cleanupError) {
+      // eslint-disable-next-line no-console
+      console.error("[observation-photo-upload] compensation cleanup failed", cleanupError);
+    }
+    try {
+      await client.query("rollback");
+    } catch (rollbackError) {
+      // eslint-disable-next-line no-console
+      console.error("[observation-photo-upload] rollback failed", rollbackError);
+    }
     throw error;
   } finally {
     client.release();
