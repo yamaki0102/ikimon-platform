@@ -65,7 +65,6 @@ CREATE TABLE IF NOT EXISTS readmodel_public_observations (
   observed_at TEXT NOT NULL,
   taxon_label TEXT,
   asset_count INTEGER NOT NULL DEFAULT 0,
-  public_area_label TEXT,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
