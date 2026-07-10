@@ -131,6 +131,10 @@ export type ReferenceCandidate = {
   owned: boolean;
   verificationStatus: string;
   linkType: string;
+  commandKind: string;
+  commandLabel: string;
+  maxSupportedRank: string;
+  locatorPolicy: string;
   usedCount: number;
   reason: string;
 };
@@ -182,6 +186,21 @@ export type KnowledgeSourceCorrectionInput = {
 };
 
 const VERIFIED_PROOF_STATUSES = new Set(["ai_verified", "user_confirmed", "reviewer_confirmed"]);
+const REFERENCE_SCOPE_RANKS = new Set([
+  "group",
+  "kingdom",
+  "phylum",
+  "class",
+  "order",
+  "family",
+  "subfamily",
+  "tribe",
+  "genus",
+  "subgenus",
+  "species_group",
+  "species",
+  "subspecies",
+]);
 
 function asRecord(value: unknown): JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value as JsonRecord : {};
@@ -508,6 +527,33 @@ function addTaxonLink(
   }
 }
 
+function maxSupportedRankFromTaxonRank(taxonRank: string): string {
+  const rank = taxonRank.trim();
+  return REFERENCE_SCOPE_RANKS.has(rank) ? rank : "";
+}
+
+function commandKindForTaxonLink(linkType: ReferenceTaxonLink["linkType"]): string {
+  return linkType === "reviewer_confirmed" || linkType === "user_confirmed"
+    ? "support_identification"
+    : "reference_check";
+}
+
+function coverageBasisForTaxonLink(linkType: ReferenceTaxonLink["linkType"]): string {
+  if (linkType === "reviewer_confirmed") return "reviewer_curation";
+  if (linkType === "user_confirmed") return "owner_statement";
+  return "ai_inferred";
+}
+
+function locatorPolicyForTaxonLink(linkType: ReferenceTaxonLink["linkType"]): string {
+  return linkType === "ai_inferred" ? "optional" : "recommended";
+}
+
+function commandLabelForKind(commandKind: string): string {
+  if (commandKind === "exclude_candidate") return "この資料で比較";
+  if (commandKind === "reading_suggestion") return "この資料を見る";
+  return "この資料で確認";
+}
+
 export function inferReferenceTaxonLinks(input: Pick<ReferenceAiExtraction, "title" | "taxonHints" | "sourceKind">): ReferenceTaxonLink[] {
   const text = [input.title, ...input.taxonHints].join(" ").toLowerCase();
   const links = new Map<string, ReferenceTaxonLink>();
@@ -752,6 +798,35 @@ async function upsertTaxonLinks(
         link.confidence,
         input.userId,
         JSON.stringify({ source: "reference_capture_ai_classification" }),
+      ],
+    );
+    await client.query(
+      `insert into reference_identification_scopes (
+          source_id, scope_taxon_name, scope_taxon_rank, scope_taxon_key,
+          command_kind, max_supported_rank, locator_policy, coverage_basis,
+          verification_status, confidence, created_by_user_id, source_payload,
+          created_at, updated_at
+       ) values (
+          $1::uuid, $2, $3, '', $4, $5, $6, $7,
+          case when $8::numeric < 0.550 then 'needs_review' else 'active' end,
+          $8, $9, $10::jsonb, now(), now()
+       )
+       on conflict do nothing`,
+      [
+        input.sourceId,
+        link.taxonName,
+        link.taxonRank,
+        commandKindForTaxonLink(link.linkType),
+        maxSupportedRankFromTaxonRank(link.taxonRank),
+        locatorPolicyForTaxonLink(link.linkType),
+        coverageBasisForTaxonLink(link.linkType),
+        link.confidence,
+        input.userId,
+        JSON.stringify({
+          source: "reference_capture_taxon_link",
+          legacy_link_type: link.linkType,
+          copyright_policy: "metadata_only_no_page_text",
+        }),
       ],
     );
   }
@@ -1594,72 +1669,149 @@ export async function listReferenceCandidatesForIdentification(input: {
     owned: boolean;
     verification_status: string | null;
     link_type: string;
+    command_kind: string;
+    command_label: string;
+    max_supported_rank: string;
+    locator_policy: string;
     used_count: string;
     reason: string;
   }>(
     `with term(term) as (
         select lower(btrim(x)) from unnest($2::text[]) as x
       ),
-      matched as (
-        select kt.source_id,
-               min(case
-                 when lower(btrim(kt.taxon_name)) in (select term from term) then 0
-                 when kt.link_type = 'reviewer_confirmed' then 1
-                 when kt.link_type = 'user_confirmed' then 2
-                 else 3
-               end) as match_rank,
-               (array_agg(kt.link_type order by kt.confidence desc))[1] as link_type
+      scope_candidates as (
+        select distinct on (ris.source_id)
+               ris.source_id,
+               case
+                 when lower(btrim(ris.scope_taxon_name)) in (select term from term) then 0
+                 else 1
+               end as match_rank,
+               ris.coverage_basis as link_type,
+               ris.command_kind,
+               case ris.command_kind
+                 when 'support_identification' then 'この資料で確認'
+                 when 'exclude_candidate' then 'この資料で比較'
+                 when 'reading_suggestion' then 'この資料を見る'
+                 else 'この資料で確認'
+               end as command_label,
+               ris.max_supported_rank,
+               ris.locator_policy,
+               ris.confidence
+          from reference_identification_scopes ris
+          left join reference_identification_scope_aliases risa
+            on risa.scope_id = ris.scope_id
+           and risa.verification_status = 'active'
+         where ris.verification_status = 'active'
+           and (
+             lower(btrim(ris.scope_taxon_name)) in (select term from term)
+             or lower(btrim(risa.alias_name)) in (select term from term)
+           )
+         order by ris.source_id,
+                  match_rank asc,
+                  case ris.command_kind when 'support_identification' then 0 when 'reference_check' then 1 else 2 end,
+                  ris.confidence desc,
+                  ris.updated_at desc
+      ),
+      legacy_candidates as (
+        select distinct on (kt.source_id)
+               kt.source_id,
+               3 as match_rank,
+               kt.link_type,
+               case
+                 when kt.link_type in ('user_confirmed', 'reviewer_confirmed') then 'support_identification'
+                 else 'reference_check'
+               end as command_kind,
+               'この資料で確認' as command_label,
+               case
+                 when kt.taxon_rank in (
+                   'group', 'kingdom', 'phylum', 'class', 'order', 'family', 'subfamily',
+                   'tribe', 'genus', 'subgenus', 'species_group', 'species', 'subspecies'
+                 ) then kt.taxon_rank
+                 else ''
+               end as max_supported_rank,
+               case
+                 when kt.link_type = 'ai_inferred' then 'optional'
+                 else 'recommended'
+               end as locator_policy,
+               kt.confidence
           from knowledge_source_taxon_links kt
          where lower(btrim(kt.taxon_name)) in (select term from term)
-         group by kt.source_id
+           and not exists (
+             select 1
+               from reference_identification_scopes ris
+              where ris.source_id = kt.source_id
+                and ris.verification_status = 'active'
+                and lower(btrim(ris.scope_taxon_name)) = lower(btrim(kt.taxon_name))
+           )
+         order by kt.source_id,
+                  case when kt.link_type = 'reviewer_confirmed' then 0 when kt.link_type = 'user_confirmed' then 1 else 2 end,
+                  kt.confidence desc
+      ),
+      matched as (
+        select distinct on (source_id) *
+          from (
+            select * from scope_candidates
+            union all
+            select * from legacy_candidates
+          ) m
+         order by source_id,
+                  match_rank asc,
+                  case command_kind when 'support_identification' then 0 when 'reference_check' then 1 else 2 end,
+                  confidence desc
       )
-       select ks.source_id::text,
-              ks.title,
-              coalesce(krm.author_text, '') as author_text,
-              ks.publisher,
-              ks.publication_year,
-              krm.isbn,
-              coalesce(taxa.labels, '[]'::jsonb) as taxa,
-              coalesce(owned.owned, false) as owned,
+      select ks.source_id::text,
+             ks.title,
+             coalesce(krm.author_text, '') as author_text,
+             ks.publisher,
+             ks.publication_year,
+             krm.isbn,
+             coalesce(taxa.labels, '[]'::jsonb) as taxa,
+             coalesce(owned.owned, false) as owned,
              owned.verification_status,
              matched.link_type,
+             matched.command_kind,
+             matched.command_label,
+             matched.max_supported_rank,
+             matched.locator_policy,
              coalesce(used.n, 0)::text as used_count,
              case
-               when coalesce(owned.owned, false) then '自分の所有確認済み資料'
-               when matched.match_rank = 0 then '共有カタログで分類群一致'
+               when coalesce(owned.owned, false) then 'この資料で確認できます'
+               when matched.command_kind = 'support_identification' then '共有カタログで確認範囲一致'
+               when matched.match_rank = 1 then '表記ゆれ候補'
                when matched.link_type = 'ai_inferred' then 'AI推定の参照候補'
-               else '上位分類群一致'
+               else '分類群の参照候補'
               end as reason
-         from matched
-         join knowledge_sources ks on ks.source_id = matched.source_id
-         left join knowledge_source_reference_metadata krm on krm.source_id = ks.source_id
-         left join lateral (
-           select true as owned, p.verification_status
-            from user_reference_access_proofs p
-           where p.source_id = ks.source_id
-             and p.user_id = $1
-             and p.verification_status in ('ai_verified', 'user_confirmed', 'reviewer_confirmed')
-           order by p.created_at desc
-           limit 1
-        ) owned on true
+        from matched
+        join knowledge_sources ks on ks.source_id = matched.source_id
+        left join knowledge_source_reference_metadata krm on krm.source_id = ks.source_id
         left join lateral (
-          select count(*)::int as n
-            from identification_references ir
-           where ir.source_id = ks.source_id
-             and ir.selected_by_user_id = $1
-        ) used on true
-        left join lateral (
-          select jsonb_agg(distinct kt.taxon_name order by kt.taxon_name) as labels
-            from knowledge_source_taxon_links kt
-           where kt.source_id = ks.source_id
-        ) taxa on true
-       where coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')
-       order by
-         case when coalesce(owned.owned, false) then 0 else 1 end,
-         matched.match_rank asc,
-         coalesce(used.n, 0) desc,
-         ks.updated_at desc
-       limit $3`,
+          select true as owned, p.verification_status
+           from user_reference_access_proofs p
+          where p.source_id = ks.source_id
+            and p.user_id = $1
+            and p.verification_status in ('ai_verified', 'user_confirmed', 'reviewer_confirmed')
+          order by p.created_at desc
+          limit 1
+       ) owned on true
+       left join lateral (
+         select count(*)::int as n
+           from identification_references ir
+          where ir.source_id = ks.source_id
+            and ir.selected_by_user_id = $1
+       ) used on true
+       left join lateral (
+         select jsonb_agg(distinct kt.taxon_name order by kt.taxon_name) as labels
+           from knowledge_source_taxon_links kt
+          where kt.source_id = ks.source_id
+       ) taxa on true
+      where coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')
+      order by
+        case when coalesce(owned.owned, false) then 0 else 1 end,
+        matched.match_rank asc,
+        case matched.command_kind when 'support_identification' then 0 when 'reference_check' then 1 else 2 end,
+        coalesce(used.n, 0) desc,
+        ks.updated_at desc
+      limit $3`,
     [input.userId, terms, limit],
   );
 
@@ -1674,6 +1826,10 @@ export async function listReferenceCandidatesForIdentification(input: {
     owned: candidate.owned,
     verificationStatus: candidate.verification_status ?? "not_owned",
     linkType: candidate.link_type,
+    commandKind: candidate.command_kind,
+    commandLabel: candidate.command_label || commandLabelForKind(candidate.command_kind),
+    maxSupportedRank: candidate.max_supported_rank,
+    locatorPolicy: candidate.locator_policy,
     usedCount: Number(candidate.used_count),
     reason: candidate.reason,
   }));

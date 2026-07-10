@@ -6882,8 +6882,10 @@ function renderIdentificationParticipation(options: {
                 <span>
                   ${escapeHtml(candidate.title)}
                   <small>${escapeHtml([
-                    candidate.reason,
+                    candidate.commandLabel || candidate.reason,
+                    candidate.reason && candidate.reason !== candidate.commandLabel ? candidate.reason : "",
                     candidate.owned ? "所有確認済み" : "共有カタログ",
+                    candidate.locatorPolicy === "required" ? "ページ必須" : "",
                     candidate.taxonLabels.slice(0, 3).join(" / "),
                     candidate.usedCount > 0 ? `過去に${candidate.usedCount}回使用` : "",
                   ].filter(Boolean).join(" · "))}</small>
@@ -11013,8 +11015,10 @@ function renderRecordsIdentifyPanelScript(lang: SiteLang): string {
       strong.textContent = String(candidate.title || '');
       var small = document.createElement('small');
       small.textContent = [
-        candidate.reason,
+        candidate.commandLabel || candidate.reason,
+        candidate.reason && candidate.reason !== candidate.commandLabel ? candidate.reason : '',
         candidate.owned ? '所有確認済み' : '共有カタログ',
+        candidate.locatorPolicy === 'required' ? 'ページ必須' : '',
         Array.isArray(candidate.taxonLabels) ? candidate.taxonLabels.slice(0, 3).join(' / ') : '',
         Number(candidate.usedCount || 0) > 0 ? '過去に' + String(candidate.usedCount) + '回使用' : ''
       ].filter(Boolean).join(' · ');

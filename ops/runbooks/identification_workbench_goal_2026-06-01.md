@@ -111,3 +111,25 @@ production deploy 後の汎用 smoke だけでは、同定ワークベンチの�
 - `npm run build`
 - `npx playwright test -c playwright.production-smoke.config.ts --list`
 - `git diff --check`
+
+## 2026-06-01 reference capability model
+
+資料ライブラリを「所有資料一覧」ではなく、「この資料で、この分類群を、どの粒度まで確認できるか」を返す同定コマンドDBとして固定する。
+
+正本:
+
+- `docs/spec/reference_identification_capability_model_2026-06-01.md`
+- `platform_v2/db/migrations/0119_reference_identification_capabilities.sql`
+
+追加した運用モデル:
+
+- `reference_identification_scopes`: 資料ごとの分類群スコープ、使えるコマンド、支えられる rank、ページ/図版番号 policy、確認状態を持つ。
+- `reference_identification_scope_aliases`: 和名、シノニム、旧学名、誤字などを scope に寄せる。
+- `user_reference_identification_commands`: 所有証跡と active scope を結合し、UI/API が `この資料で確認` として出せる read model。
+
+既存互換:
+
+- `knowledge_source_taxon_links` は候補検索・AI初期推定として残す。
+- migration で既存 taxon link を scope に backfill する。
+- 新規資料登録時も taxon link と同時に scope を作る。
+- 参照候補APIは scope を優先し、未移行sourceだけ legacy taxon link に fallback する。

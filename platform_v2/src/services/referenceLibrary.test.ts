@@ -64,3 +64,25 @@ test("reference library schema enforces private proofs, official corrections, an
   assert.match(writeRoutes, /\/api\/v1\/references\/:sourceId\/corrections/);
   assert.match(app, /registerReferenceRoutes/);
 });
+
+test("reference capability model fixes guide ownership into identification commands", async () => {
+  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0119_reference_identification_capabilities.sql"), "utf8");
+  const service = await readFile(path.join(process.cwd(), "src", "services", "referenceLibrary.ts"), "utf8");
+  const readRoutes = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const spec = await readFile(path.join(process.cwd(), "..", "docs", "spec", "reference_identification_capability_model_2026-06-01.md"), "utf8");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS reference_identification_scopes/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS reference_identification_scope_aliases/);
+  assert.match(migration, /CREATE OR REPLACE VIEW user_reference_identification_commands/);
+  assert.match(migration, /knowledge_source_taxon_links_backfill/);
+  assert.match(migration, /copyright_policy.*metadata_only_no_page_text/s);
+  assert.doesNotMatch(migration, /ocr_full_text/i);
+
+  assert.match(service, /insert into reference_identification_scopes/);
+  assert.match(service, /from reference_identification_scopes ris/);
+  assert.match(service, /commandLabel: candidate\.command_label/);
+  assert.match(readRoutes, /candidate\.commandLabel \|\| candidate\.reason/);
+
+  assert.match(spec, /この資料で確認/);
+  assert.match(spec, /所有証跡と active scope を結合/);
+});
