@@ -52,11 +52,11 @@ test("cross-site logout is rejected without clearing the cookie", async () => {
   }
 });
 
-test("GET logout no longer revokes a session", async () => {
+test("GET logout stays unavailable and cannot revoke a session", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/logout" });
-    assert.notEqual(response.statusCode, 303);
+    assert.equal(response.statusCode, 404);
     assert.equal(response.headers["set-cookie"], undefined);
   } finally {
     await app.close();
