@@ -15,6 +15,7 @@ import { registerLlmoRoutes } from "./routes/llmo.js";
 import { registerInvasiveSpeciesRoutes } from "./routes/invasiveSpecies.js";
 import { registerMapApiRoutes } from "./routes/mapApi.js";
 import { registerMarketingRoutes } from "./routes/marketing.js";
+import { registerMunicipalWalkMapRoutes } from "./routes/municipalWalkMaps.js";
 import { registerOpsRoutes } from "./routes/ops.js";
 import { registerPlotMonitoringApiRoutes } from "./routes/plotMonitoringApi.js";
 import { registerReadRoutes } from "./routes/read.js";
@@ -768,6 +769,7 @@ export function buildApp() {
   void registerInvasiveSpeciesRoutes(app);
   void registerMapApiRoutes(app);
   void registerMarketingRoutes(app);
+  void registerMunicipalWalkMapRoutes(app);
   void registerSampleReportRoute(app);
   void registerMonitoringBusinessRoutes(app);
   void registerMonitoringWorkspaceApiRoutes(app);
