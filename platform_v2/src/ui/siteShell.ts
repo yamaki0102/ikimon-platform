@@ -611,7 +611,6 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     ...(mode === "mobile" ? [{ key: "profile", href: "/profile", match: ["/profile", "/home"] }] : []),
     ...(mode === "mobile" ? [{ key: "notes", href: "/records?view=mine", match: ["/records?view=mine"] }] : []),
     { key: "home", href: "/", match: ["/"] },
-    { key: "record", href: "/record", match: ["/record"] },
     { key: "observations", href: "/records", match: ["/records", "/observations"] },
     { key: "map", href: "/map", match: ["/map"] },
     { key: "guide", href: "/guide", match: ["/guide"] },
@@ -759,7 +758,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile", currentPath);
   const desktopLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-desktop");
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
-  const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
+  const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang));
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
   const profileHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/profile"), lang));
   const myRecordsHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang));
@@ -789,11 +788,11 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
       </div>
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
-        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <a class="btn btn-solid site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
-        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <a class="btn btn-solid site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
       </div>
     </div>
@@ -822,11 +821,11 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
       ${desktopSearch}
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
-        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <nav class="site-account-icons" aria-label="${escapeHtml(accountCopy.accountNav)}">${profileIcon}${notificationIcon}${settingsIcon}</nav>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
-        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <a class="btn btn-solid site-record-link" href="${recordHref}" data-global-record-trigger="photo" data-record-target="${recordHref}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
         <details class="site-mobile-menu">
           <summary class="site-mobile-menu-toggle" aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}">
             <span class="site-mobile-menu-icon" aria-hidden="true"></span>
@@ -1268,6 +1267,8 @@ function globalRecordEntryScript(basePath: string): string {
   let recordingStartedAt = 0;
   let recordingTimer = null;
   let directPostInFlight = false;
+  let latestCaptureLocation = null;
+  let captureLocationRequest = null;
   let photoDraftRetryDetailId = '';
   let photoDraftRetryVisitId = '';
   let photoDraftRetryHasUploadedPhoto = false;
@@ -1396,6 +1397,30 @@ function globalRecordEntryScript(basePath: string): string {
   const apiPath = (path) => BASE_PATH + path;
   const nowMs = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
   const durationSince = (startedAt) => Math.max(0, Math.round(nowMs() - Number(startedAt || 0)));
+  const requestCaptureLocation = () => {
+    if (latestCaptureLocation) return Promise.resolve(latestCaptureLocation);
+    if (captureLocationRequest) return captureLocationRequest;
+    if (!(navigator.geolocation && typeof navigator.geolocation.getCurrentPosition === 'function')) {
+      return Promise.resolve(null);
+    }
+    captureLocationRequest = new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const latitude = Number(position && position.coords && position.coords.latitude);
+          const longitude = Number(position && position.coords && position.coords.longitude);
+          latestCaptureLocation = Number.isFinite(latitude) && Number.isFinite(longitude)
+            ? { latitude, longitude, accuracy: Number(position.coords.accuracy) || null }
+            : null;
+          resolve(latestCaptureLocation);
+        },
+        () => resolve(null),
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+      );
+    }).finally(() => {
+      captureLocationRequest = null;
+    });
+    return captureLocationRequest;
+  };
   const sendGlobalRecordKpi = (metricName, durationMs, metadata) => {
     try {
       const payload = {
@@ -2190,7 +2215,15 @@ function globalRecordEntryScript(basePath: string): string {
     if (startButton) startButton.disabled = true;
     const metadata = capturedReviewMeta || {};
     if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
-      setStatus('地点を確認してから記録します。記録画面で場所を選べます。');
+      setStatus('撮影地点を確認しています...');
+      const resolvedLocation = metadata.location || await requestCaptureLocation();
+      if (resolvedLocation) {
+        metadata.location = resolvedLocation;
+        metadata.locationPending = false;
+      }
+    }
+    if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
+      setStatus('位置情報を取得できなかったため、写真を保持して記録画面へ移動します。');
       await navigateWithDraft(files, 'photo', metadata);
       return;
     }
@@ -2468,6 +2501,7 @@ function globalRecordEntryScript(basePath: string): string {
     document.documentElement.classList.add('global-record-camera-open');
     syncVisualViewportVars();
     setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから記録へ進めます。' : 'カメラを起動しています...');
+    if (kind === 'photo') void requestCaptureLocation();
     if (!(options && options.reviewOnly)) void startCamera();
   };
   const startCamera = async () => {
@@ -2555,8 +2589,8 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const buildCaptureMetadata = () => ({
     capturedAt: new Date().toISOString(),
-    location: null,
-    locationPending: true,
+    location: latestCaptureLocation,
+    locationPending: !latestCaptureLocation,
   });
   const prepareSheetVideoTrim = (file) => {
     resetSheetVideoTrim();
@@ -2853,8 +2887,11 @@ function globalRecordEntryScript(basePath: string): string {
       } catch (error) {
         if (captureButton) captureButton.disabled = false;
         const message = error && error.message ? String(error.message) : '';
-        if (message === 'session_required') setStatus('記録するにはログインが必要です。ログイン後にもう一度試してください。');
-        else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
+        if (message === 'session_required') {
+          setStatus('ログイン後に続けられるよう、写真を下書きに保存しています...');
+          await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {});
+          return;
+        } else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
         else if (photoDraftRetryDetailId) setStatus('記録本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります。もう一度押すと同じ記録に再送します。');
         else setStatus(formatRecordSaveFailureReason(message));
@@ -2888,7 +2925,8 @@ function globalRecordEntryScript(basePath: string): string {
     capturePhoto();
   };
   document.querySelectorAll('[data-global-record-trigger]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
       const kind = button.getAttribute('data-global-record-trigger') || 'gallery';
       if (kind === 'gallery') clickFallbackInput(kind);
       else openSheet(kind);

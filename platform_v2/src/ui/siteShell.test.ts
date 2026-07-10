@@ -87,6 +87,12 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /html\[data-auth="signed-in"\] \.desktop-side-nav-section--guest/);
   assert.match(html, /\.site-mobile-menu-section\.desktop-side-nav-section--signed-in \{[^}]*display: none;/);
   assert.match(html, /window\.ikimonAppOutbox/);
+  assert.match(html, /class="btn btn-solid site-record-link" href="\/ja\/record\?start=photo" data-global-record-trigger="photo" data-record-target="\/ja\/record\?start=photo"/);
+  assert.doesNotMatch(html, /class="desktop-side-nav-link[^"]*" href="\/ja\/record(?:\?|")/);
+  assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
+  assert.match(html, /location: latestCaptureLocation,/);
+  assert.match(html, /const resolvedLocation = metadata\.location \|\| await requestCaptureLocation\(\);/);
+  assert.match(html, /button\.addEventListener\('click', \(event\) => \{\s+event\.preventDefault\(\);/);
   assert.match(html, /ikimon-app-outbox-v1/);
   assert.match(html, /window\.ikimonRequestAppOutboxSync/);
   assert.match(html, /registration\.sync\.register\('ikimon-app-outbox-sync'\)/);
@@ -284,7 +290,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /class="global-record-launcher"/);
   assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 4);
   assert.equal(html.match(/data-global-record-input="(?:photo|video|gallery)"/g)?.length, 3);
-  assert.equal(html.match(/data-global-record-trigger="(?:photo|video|gallery)"/g)?.length, 3);
+  assert.equal(html.match(/data-global-record-trigger="(?:photo|video|gallery)"/g)?.length, 5);
   assert.match(html, /accept="image\/\*" capture="environment" multiple/);
   assert.match(html, /accept="video\/\*" capture="environment"/);
   assert.match(html, /accept="image\/\*,video\/\*" multiple/);
@@ -373,11 +379,12 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /applyCameraZoom\(cameraZoomMax\)/);
   assert.match(html, /cameraPinchDistance/);
   assert.match(html, /window\.visualViewport\.addEventListener\('resize', syncVisualViewportVars\)/);
-  assert.doesNotMatch(html, /navigator\.geolocation\.getCurrentPosition/);
+  assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
   assert.doesNotMatch(html, /fillCaptureLocationLater/);
   assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
-  assert.match(html, /地点を確認してから記録します。記録画面で場所を選べます。/);
+  assert.match(html, /撮影地点を確認しています/);
+  assert.match(html, /位置情報を取得できなかったため、写真を保持して記録画面へ移動します。/);
   assert.match(html, /global_record_capture_latency/);
   assert.match(html, /capture_to_review_ms/);
   assert.doesNotMatch(html, /gps_wait_ms/);
@@ -459,7 +466,7 @@ test("site shell minimal chrome keeps guest top visually quiet", () => {
   assert.match(html, /site-shell[^"]*is-minimal-chrome/);
   assert.match(html, /class="site-header site-header-minimal"/);
   assert.match(html, /class="btn btn-solid site-login-link" href="\/ja\/login\?redirect=%2Fprofile">ログイン<\/a>/);
-  assert.match(html, /class="btn btn-solid site-record-link" href="\/ja\/record">記録する<\/a>/);
+  assert.match(html, /class="btn btn-solid site-record-link" href="\/ja\/record\?start=photo" data-global-record-trigger="photo" data-record-target="\/ja\/record\?start=photo" data-kpi-action="header_record_photo">記録する<\/a>/);
   assert.doesNotMatch(html, /<nav class="desktop-side-nav-inner"/);
   assert.doesNotMatch(html, /<form class="site-search site-search-desktop"/);
   assert.doesNotMatch(html, /<div class="site-mobile-menu-panel"/);
