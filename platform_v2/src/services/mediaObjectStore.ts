@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export type MediaObjectVisibility = "public" | "private";
@@ -21,6 +21,11 @@ export type ReadMediaObjectInput = {
   storagePath: string;
 };
 
+export type ExistsMediaObjectInput = {
+  visibility: MediaObjectVisibility;
+  storagePath: string;
+};
+
 export type DeleteMediaObjectInput = {
   visibility: MediaObjectVisibility;
   storagePath: string;
@@ -29,6 +34,7 @@ export type DeleteMediaObjectInput = {
 export type MediaObjectStore = {
   write(input: WriteMediaObjectInput): Promise<StoredMediaObject>;
   read(input: ReadMediaObjectInput): Promise<Buffer>;
+  exists(input: ExistsMediaObjectInput): Promise<boolean>;
   delete(input: DeleteMediaObjectInput): Promise<void>;
 };
 
@@ -79,6 +85,17 @@ export class LocalMediaObjectStore implements MediaObjectStore {
 
   async read(input: ReadMediaObjectInput): Promise<Buffer> {
     return readFile(this.absolutePathFor(input.visibility, input.storagePath));
+  }
+
+  async exists(input: ExistsMediaObjectInput): Promise<boolean> {
+    try {
+      await access(this.absolutePathFor(input.visibility, input.storagePath));
+      return true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOENT") return false;
+      throw error;
+    }
   }
 
   async delete(input: DeleteMediaObjectInput): Promise<void> {
