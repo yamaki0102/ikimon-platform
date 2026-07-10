@@ -1,0 +1,42 @@
+name: Patch Logout Parser Type
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/logout-csrf-confirmation' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/logout-csrf-confirmation
+          fetch-depth: 0
+      - name: Stabilize parser body type and remove workflow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('platform_v2/src/routes/auth.ts')
+          source = path.read_text(encoding='utf-8')
+          old = 'done(null, Object.fromEntries(new URLSearchParams(body)));'
+          new = 'done(null, Object.fromEntries(new URLSearchParams(String(body))));'
+          if old not in source:
+              raise SystemExit('parser marker not found')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/patch-logout-parser-type.yml
+      - name: Commit scoped patch
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add platform_v2/src/routes/auth.ts .github/workflows/patch-logout-parser-type.yml
+          git diff --cached --check
+          git commit -m "fix: stabilize logout parser body type"
+          git push origin HEAD:agent/logout-csrf-confirmation
