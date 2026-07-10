@@ -12,15 +12,24 @@ test("local media store writes public and private objects with compatibility met
       publicRoot: path.join(root, "public"),
       privateRoot: path.join(root, "private"),
     });
+    const publicTarget = {
+      visibility: "public" as const,
+      storagePath: "uploads/v2-observations/record-1/photo.jpg",
+    };
+    const privateTarget = {
+      visibility: "private" as const,
+      storagePath: "photo-originals/v2-observations/record-1/photo.jpg",
+    };
+
+    assert.equal(await store.exists(publicTarget), false);
+    assert.equal(await store.exists(privateTarget), false);
 
     const publicObject = await store.write({
-      visibility: "public",
-      storagePath: "uploads/v2-observations/record-1/photo.jpg",
+      ...publicTarget,
       buffer: Buffer.from("public-bytes"),
     });
     const privateObject = await store.write({
-      visibility: "private",
-      storagePath: "photo-originals/v2-observations/record-1/photo.jpg",
+      ...privateTarget,
       buffer: Buffer.from("private-bytes"),
     });
 
@@ -34,6 +43,10 @@ test("local media store writes public and private objects with compatibility met
       storagePath: "photo-originals/v2-observations/record-1/photo.jpg",
       publicUrl: null,
     });
+    assert.equal(await store.exists(publicTarget), true);
+    assert.equal(await store.exists(privateTarget), true);
+    assert.deepEqual(store.reference(publicTarget), publicObject);
+    assert.deepEqual(store.reference(privateTarget), privateObject);
     assert.equal(
       await readFile(path.join(root, "public", "uploads", "v2-observations", "record-1", "photo.jpg"), "utf8"),
       "public-bytes",
@@ -44,20 +57,19 @@ test("local media store writes public and private objects with compatibility met
     );
 
     assert.equal(
-      await store.read({
-        visibility: "private",
-        storagePath: "photo-originals/v2-observations/record-1/photo.jpg",
-      }).then((buffer) => buffer.toString("utf8")),
+      await store.read(privateTarget).then((buffer) => buffer.toString("utf8")),
       "private-bytes",
     );
-    await store.delete({
-      visibility: "private",
-      storagePath: "photo-originals/v2-observations/record-1/photo.jpg",
-    });
-    await store.delete({
-      visibility: "private",
-      storagePath: "photo-originals/v2-observations/record-1/photo.jpg",
-    });
+    await store.delete(privateTarget);
+    assert.equal(await store.exists(privateTarget), false);
+    await store.delete(privateTarget);
+    assert.throws(
+      () => store.reference({
+        visibility: "private",
+        storagePath: "../escape.jpg",
+      }),
+      /media_object_path_escape/,
+    );
     await assert.rejects(
       () => store.write({
         visibility: "private",
