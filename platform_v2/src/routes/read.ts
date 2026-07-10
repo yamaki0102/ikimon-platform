@@ -1259,8 +1259,8 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-reading-media { order: 3; }
     .obs-reading-panel .obs-record-insight-desktop { order: 5; display: grid; }
     .obs-reading-panel .obs-scene-overview { order: 6; display: none !important; }
-    .obs-reading-panel .obs-local-switch-guide { order: 7; display: none !important; }
-    .obs-reading-panel > .obs-visible-records { order: 8; display: none !important; }
+    .obs-reading-panel .obs-local-switch-guide { order: 8; display: grid; }
+    .obs-reading-panel > .obs-visible-records { order: 9; display: grid; }
     .obs-hero-video .obs-record-insight { order: 3; }
     .obs-hero-video > .obs-record-insight:not(.obs-record-insight-desktop) { display: none; }
     .obs-reading-panel [data-obs-switch-ai-readout] { order: 5; }
@@ -2142,7 +2142,7 @@ function mediaSceneFrom(context: ObservationMediaCopyContext): string {
 
 function mediaVisibleSurfaceLabel(context: ObservationMediaCopyContext): string {
   if (context.hasVideos && context.hasPhotos) return "この写真・動画に写っているもの";
-  if (context.hasVideos) return "この映像に写っているもの";
+  if (context.hasVideos) return "この記録に写っているもの";
   return "この写真に写っているもの";
 }
 
@@ -2397,8 +2397,8 @@ function renderLocalSwitchGuide(items: VisibleRecordItem[]): string {
     ? `<a class="obs-local-lane-item is-env" href="${escapeHtml(row.href)}" data-subject-switch="1" data-subject-id="${escapeHtml(row.occurrenceId)}"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></a>`
     : `<div class="obs-local-lane-item is-env"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></div>`).join("");
   return `<div class="obs-local-switch-guide" data-local-switch-guide="1">
-    <strong>この映像で読む対象を切り替える</strong>
-    <p>名前・分類の候補と、場面としての環境要素を別レーンで扱います。カワラヒワの同定判断と、草地・足元・裸地の記録を混ぜません。</p>
+    <strong>この記録で読む対象</strong>
+    <p>名前・分類の候補と、場面としての環境要素を別レーンで扱います。同定判断と、草地・足元・裸地の記録を混ぜません。</p>
     <div class="obs-local-subject-lanes">
       <div class="obs-local-subject-lane is-name"><div class="obs-local-lane-head">名前・分類候補<span>同定で確かめる</span></div><div class="obs-local-lane-list">${nameLane}</div></div>
       <div class="obs-local-subject-lane is-environment"><div class="obs-local-lane-head">環境要素<span>場面として残す</span></div><div class="obs-local-lane-list">${envLane}</div></div>
@@ -6754,10 +6754,11 @@ function renderIdentificationParticipation(options: {
         <p>見るだけならこのまま使えます。</p>
        </div>`;
 
-  void currentConsensus;
-  void neededList;
-  void proposalTrustBlock;
-  void aiReviewBlock;
+  const consensusBlock = `<div class="obs-local-name-note">
+    <strong>現在の見方</strong>
+    <p>${escapeHtml(currentConsensus)}</p>
+    <ul class="obs-hint-tags is-muted">${neededList.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+  </div>`;
   const newRecordHref = appendLangToHref(withBasePath(basePath, "/record"), options.lang);
   const candidateStatus = snapshot.identifications.length > 0 ? "確認あり" : "確認待ち";
   const hasOnlyWeakCandidateName = isWeakIdentificationCandidateName(targetLabel);
@@ -6812,6 +6813,9 @@ function renderIdentificationParticipation(options: {
       targetLabel,
       candidateStatus,
     })}
+    ${proposalTrustBlock}
+    ${aiReviewBlock}
+    ${consensusBlock}
     ${activityBlock}
     <div class="obs-ai-actions" aria-label="${escapeHtml(`${targetLabel}候補への判断`)}">
       <div class="obs-ai-actions-label">候補への操作</div>
@@ -16303,8 +16307,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     </details>`;
 
     const focusRailBlock = renderVisibleRecordItemsPanel(visibleRecordItems, mediaContext);
-    // 写真上の対象切替UIは、場面読みより目立つ割に情報量が薄いため表示しない。
-    // 画像内の枠クリックや下部の記録カードへの連動は残す。
+    const switchGuideBlock = renderLocalSwitchGuide(visibleRecordItems);
+    // 写真上の注視枠クリックと、下部の記録カードへの連動は残す。
     const mediaDiscoveryBlock = "";
 
     const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
@@ -16385,8 +16389,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       observedAt: snapshot.observedAt,
       placeLabel: heroPlaceLabel,
       badges,
-      switchGuideBlock: "",
-      focusRailBlock: "",
+      switchGuideBlock,
+      focusRailBlock,
       mediaDiscoveryBlock,
       mediaLedgerBlock: renderObservationMediaLedger(snapshot, heavy?.nearby.length ?? 0),
       recordInsightBlock: renderObservationRecordInsight(recordInsightText, "obs-record-insight-desktop", recordReadingInsightOptions),

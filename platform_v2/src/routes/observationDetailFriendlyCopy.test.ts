@@ -86,7 +86,12 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "別レコードを追加",
     "OBSERVATION QUALITY",
     "観察レコードとして育てる",
-    "この映像で読む対象を切り替える",
+    "この記録で読む対象",
+    "自動で作った候補",
+    "現在の見方",
+    "提案・コメントの履歴",
+    "環境レコードの下書き",
+    "編集履歴",
     "かなり近そう",
     "分類候補",
     "Chloris sinica",
@@ -197,7 +202,7 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.doesNotMatch(heroSource, /obs-reading-title">\$\{escapeHtml\(options\.displayName\)\}/);
   assert.match(visibleItemsSource, /mediaVisibleSurfaceLabel/);
   assert.match(visibleItemsSource, /obs-focus-title">写っているもの/);
-  assert.match(visibleItemsSource, /この映像で読む対象を切り替える/);
+  assert.match(visibleItemsSource, /この記録で読む対象/);
   assert.match(visibleItemsSource, /sceneReadTextForVisibleItems/);
   assert.match(visibleItemsSource, /参考候補/);
   assert.match(visibleCardSource, /観測レコードにする/);
@@ -228,8 +233,8 @@ test("observation detail visible order stays aligned with the canonical snapshot
   assert.match(styleSource, /\.obs-frame-candidate-meter \{ display: none !important; \}/);
   assert.match(styleSource, /\.obs-reading-media \.obs-video-evidence-frame \{ flex: 0 0 clamp\(86px, 15\.2vw, 104px\) !important;/);
   assert.match(styleSource, /#place\.obs-area-records \{ width: auto !important; max-width: none !important; justify-self: stretch !important; margin-left: 0 !important; \}/);
-  assert.match(registrationSource, /switchGuideBlock: ""/);
-  assert.match(registrationSource, /focusRailBlock: ""/);
+  assert.match(registrationSource, /const switchGuideBlock = renderLocalSwitchGuide\(visibleRecordItems\);/);
+  assert.match(registrationSource, /switchGuideBlock,\s+focusRailBlock,/);
   assert.match(registrationSource, /useStatusBlock: ""/);
   assert.match(registrationSource, /summaryStrip: ""/);
   assert.match(registrationSource, /sceneOverviewBlock: ""/);
@@ -725,7 +730,7 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   assert.match(ownerHtml, /観測レコードにする/);
 
   const videoHtml = renderVisibleRecordItemsPanel(anonymousItems, { hasPhotos: false, hasVideos: true });
-  assert.match(videoHtml, /この映像に写っているもの/);
+  assert.match(videoHtml, /この記録に写っているもの/);
   assert.match(videoHtml, /写っているもの/);
   assert.match(videoHtml, /この場所でのふるまい/);
 });
