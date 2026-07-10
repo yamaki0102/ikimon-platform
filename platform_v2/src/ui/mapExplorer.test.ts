@@ -115,3 +115,20 @@ test("map explorer exposes visited place shortcuts and a clickable side collapse
   assert.match(script, /setSideRailMode\(false\);/);
   assert.match(script, /行った場所へ/);
 });
+
+test("collapsed side rail uses a nonnumeric area signal", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /class="me-side-rail-mark"/);
+  assert.match(html, /class="me-side-rail-signal" id="me-side-rail-count" data-signal="neutral"/);
+  assert.doesNotMatch(html, /<span>📋<\/span>/);
+  assert.doesNotMatch(html, /id="me-side-rail-count"[^>]*>\s*\d+\s*</);
+  assert.doesNotMatch(html, /id="me-side-rail-count"[^>]*>\s*—\s*</);
+
+  assert.match(script, /SIDE_RAIL_SIGNAL_MIN_RECORDS = 6/);
+  assert.match(script, /SIDE_RAIL_SIGNAL_MAX_ZOOM = 14/);
+  assert.match(script, /function updateSideRailSignal\(records\)/);
+  assert.match(script, /data-signal', active \? 'broad-activity' : 'neutral'/);
+  assert.doesNotMatch(script, /sideRailCountEl\.textContent/);
+});
