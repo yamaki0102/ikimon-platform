@@ -23,3 +23,7 @@
 ## 再発防止
 
 航空・衛星画像から境界を座標化する場合は、単一の概算中心点をアンカーにしない。最低でも道路・建物など複数地物による画像登録を行い、修正前後の相関値と移動量を証拠として残す。
+
+## Staging D1スキーマドリフト
+
+staging初回配備では、共有shadow/staging D1で`0015`が適用済み記録なのに`production_import_area_polygon_readmodel`が欠落していた。`0062`に同一スキーマの`CREATE TABLE/INDEX IF NOT EXISTS`を追加し、既存環境を変えず欠落環境だけ自己修復するようにした。

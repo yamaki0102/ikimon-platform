@@ -15,6 +15,7 @@ const migrationPath = path.resolve(
 
 test("Aikan Lenri D1 migration publishes the verified irregular boundary", async () => {
   const sql = await readFile(migrationPath, "utf8");
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS production_import_area_polygon_readmodel/);
   assert.match(sql, /production_import_area_polygon_readmodel/);
   assert.match(sql, /7cb246a5-388b-4acb-b701-2bfd698fac13/);
   assert.match(sql, /ikimon:aikan:renri-no-ki/);
