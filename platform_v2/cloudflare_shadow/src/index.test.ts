@@ -9162,6 +9162,32 @@ test("v1 observation upsert honors private visibility before public readmodel re
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
 });
 
+test("v1 observation upsert can save private photo-first records without coordinates", async () => {
+  const { env, obs } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "private-no-location-record",
+    userId: "private-no-location-user",
+    observedAt: "2026-06-25T00:00:00.000Z",
+    latitude: null,
+    longitude: null,
+    visibility: "private",
+    sourcePayload: {
+      source: "global_photo_tray",
+      location_state: "not_available"
+    }
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.visitId, "private-no-location-record");
+  const observation = obs.observations.get("private-no-location-record");
+  assert.equal(observation?.exact_lat, null);
+  assert.equal(observation?.exact_lng, null);
+  assert.equal(observation?.public_cell, "unknown");
+  assert.equal(observation?.visibility, "private");
+  assert.equal(obs.readmodel.has("private-no-location-record"), false);
+  assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-no-location-record"), false);
+});
+
 test("v1 observation upsert materializes only safe coarse public area labels", async () => {
   const { env, obs, queue } = createEnv();
   const response = await post("/api/v1/observations/upsert", env, {
@@ -21210,13 +21236,13 @@ test("production public health endpoints are served by Cloudflare instead of ori
     const healthPayload = await health.json() as any;
     assert.equal(healthPayload.ok, true);
     assert.equal(healthPayload.service, "ikimon-life-cloudflare-worker");
-    assert.equal(healthPayload.buildMarker, "one-month-sprint-evidence-gate-20260705");
+    assert.equal(healthPayload.buildMarker, "photo-direct-post-no-location-20260707");
 
     const ready = await worker.fetch(new Request("https://ikimon.life/readyz"), productionEnv);
     assert.equal(ready.status, 200);
     const readyPayload = await ready.json() as any;
     assert.equal(readyPayload.ok, true);
-    assert.equal(readyPayload.buildMarker, "one-month-sprint-evidence-gate-20260705");
+    assert.equal(readyPayload.buildMarker, "photo-direct-post-no-location-20260707");
     assert.equal(readyPayload.coreDb, "ok");
     assert.equal(readyPayload.observationDb, "ok");
 
@@ -21227,7 +21253,7 @@ test("production public health endpoints are served by Cloudflare instead of ori
     assert.equal(runtimePayload.schemaVersion, "cloudflare_worker_runtime/v1");
     assert.equal(runtimePayload.runtime, "cloudflare-worker");
     assert.equal(runtimePayload.environment, "production");
-    assert.equal(runtimePayload.buildMarker, "one-month-sprint-evidence-gate-20260705");
+    assert.equal(runtimePayload.buildMarker, "photo-direct-post-no-location-20260707");
     assert.equal(runtimePayload.publicSafe, true);
     assert.equal(runtimePayload.featureFlags.publicRuntimeVersionEndpoint, true);
 

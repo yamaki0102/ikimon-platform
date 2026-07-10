@@ -8,7 +8,7 @@ const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
 const productionBucket = "ikimon-prod-media";
 const stagingBucket = "ikimon-shadow-media";
-const allowedArgs = new Set(["--execute", "--approval", "--target-env", "--scope", "--path", "--bucket", "--output", "--concurrency"]);
+const allowedArgs = new Set(["--execute", "--approval", "--target-env", "--scope", "--path", "--bucket", "--output", "--concurrency", "--html-only"]);
 const args = new Map();
 const explicitPaths = [];
 
@@ -37,6 +37,7 @@ const scope = args.get("--scope") ?? "core";
 const bucket = args.get("--bucket") ?? (targetEnv === "staging" ? stagingBucket : productionBucket);
 const outputPath = args.get("--output") ?? "";
 const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
+const htmlOnly = args.get("--html-only") === "true";
 
 if (!["production", "staging"].includes(targetEnv)) {
   throw new Error("--target-env must be one of: production, staging.");
@@ -399,7 +400,7 @@ try {
     rendered.push({ pathname, key, bytes: Buffer.byteLength(response.body), filePath });
   }
 
-  for (const pathname of staticAssetPaths) {
+  if (!htmlOnly) for (const pathname of staticAssetPaths) {
     const expectedContentType = staticContentType(pathname);
     const response = await app.inject({
       method: "GET",
@@ -483,6 +484,7 @@ const result = {
   targetEnv,
   scope,
   concurrency,
+  htmlOnly,
   rendered: rendered.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
   renderedStatic: renderedStatic.map(({ pathname, key, bytes }) => ({ pathname, key, bytes })),
   events

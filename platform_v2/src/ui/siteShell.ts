@@ -2189,11 +2189,6 @@ function globalRecordEntryScript(basePath: string): string {
     }
     if (startButton) startButton.disabled = true;
     const metadata = capturedReviewMeta || {};
-    if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
-      setStatus('地点を確認してから記録します。記録画面で場所を選べます。');
-      await navigateWithDraft(files, 'photo', metadata);
-      return;
-    }
     try {
       setStatus('写真を記録用に整えています...');
       let preparedCount = 0;
@@ -2226,16 +2221,14 @@ function globalRecordEntryScript(basePath: string): string {
       let photoUploadTargetId = photoDraftRetryVisitId || photoDraftRetryDetailId;
       if (!detailId) {
         const location = metadata.location || null;
-        if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
-          throw new Error('location_required');
-        }
+        const hasLocation = Boolean(location && Number.isFinite(Number(location.latitude)) && Number.isFinite(Number(location.longitude)));
         const userId = await getCurrentSessionUserId();
         const observedAt = String(metadata.capturedAt || new Date().toISOString());
         const submissionSeed = [
           userId,
           observedAt,
-          Number(location.latitude).toFixed(6),
-          Number(location.longitude).toFixed(6),
+          hasLocation ? Number(location.latitude).toFixed(6) : 'unknown-lat',
+          hasLocation ? Number(location.longitude).toFixed(6) : 'unknown-lng',
           uploadHashes.join(','),
         ].join('|');
         const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
@@ -2252,8 +2245,8 @@ function globalRecordEntryScript(basePath: string): string {
             clientSubmissionId,
             userId,
             observedAt,
-            latitude: Number(location.latitude),
-            longitude: Number(location.longitude),
+            latitude: hasLocation ? Number(location.latitude) : null,
+            longitude: hasLocation ? Number(location.longitude) : null,
             prefecture: '',
             municipality: '',
             localityNote: '',
@@ -2266,6 +2259,7 @@ function globalRecordEntryScript(basePath: string): string {
               quick_capture_state: 'present',
               media_count: files.length,
               subject_inference: 'ai',
+              location_state: hasLocation ? 'captured' : 'not_available',
               client_submission_id: clientSubmissionId,
               client_photo_sha256s: uploadHashes,
             },
