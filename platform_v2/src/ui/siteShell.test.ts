@@ -91,7 +91,10 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.doesNotMatch(html, /class="desktop-side-nav-link[^"]*" href="\/ja\/record(?:\?|")/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /location: latestCaptureLocation,/);
-  assert.match(html, /const resolvedLocation = metadata\.location \|\| await requestCaptureLocation\(\);/);
+  assert.match(html, /const resolvedLocation = await requestCaptureLocation\(true\) \|\| metadata\.location;/);
+  assert.match(html, /let latestCaptureLocationAt = 0;/);
+  assert.match(html, /maximumAge: forceFresh \? 0 : 15000/);
+  assert.match(html, /latestCaptureLocation = null;\s+latestCaptureLocationAt = 0;\s+void requestCaptureLocation\(true\);/);
   assert.match(html, /button\.addEventListener\('click', \(event\) => \{\s+event\.preventDefault\(\);/);
   assert.match(html, /ikimon-app-outbox-v1/);
   assert.match(html, /window\.ikimonRequestAppOutboxSync/);
