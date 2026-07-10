@@ -1518,6 +1518,15 @@ export const worker = {
         );
       }
 
+      const referenceCandidatesMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/reference-candidates$/);
+      if (request.method === "GET" && referenceCandidatesMatch?.[1]) {
+        return listObservationReferenceCandidates(
+          decodeURIComponent(referenceCandidatesMatch[1]),
+          request,
+          env
+        );
+      }
+
       if (shouldFallbackObservationApiToOrigin(request, url, env)) {
         return fetchOriginFallback(request, url, env, "legacy_observation_api_origin_fallback");
       }
@@ -2931,7 +2940,6 @@ function isLegacyObservationOriginFallbackPath(request: Request, url: URL): bool
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/candidates\/[^/]+\/(?:propose|adopt)$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/identifications$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/disputes$/.test(pathname)) return true;
-  if (request.method === "GET" && /^\/api\/v1\/observations\/[^/]+\/reference-candidates$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reassess-from-video$/.test(pathname)) return true;
   if (request.method === "POST" && /^\/api\/v1\/observations\/[^/]+\/reading-cards$/.test(pathname)) return true;
@@ -2999,6 +3007,31 @@ async function observationReactionTargetExists(occurrenceId: string, env: Env): 
 function isD1UniqueConstraintError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /unique constraint|constraint failed/i.test(message);
+}
+
+async function listObservationReferenceCandidates(occurrenceId: string, request: Request, env: Env): Promise<Response> {
+  const normalizedOccurrenceId = normalizeOptionalId(occurrenceId);
+  if (!normalizedOccurrenceId || normalizedOccurrenceId.length > 160) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+
+  let session: SessionSnapshot | null = null;
+  try {
+    session = await readCompatibleSession(request, env);
+  } catch {
+    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  if (!session || session.banned) {
+    return json({ ok: false, error: "session_required" }, 401, { "cache-control": "no-store" });
+  }
+
+  return json({
+    ok: true,
+    candidates: [],
+    compatibility: {
+      source: "cloudflare_d1_native_empty"
+    }
+  }, 200, { "cache-control": "no-store" });
 }
 
 function shouldFallbackMapAreaPolygonsToOrigin(request: Request, url: URL, env: Env): boolean {

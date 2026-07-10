@@ -4745,6 +4745,89 @@ test("production runtime rejects invalid observation reactions before origin fal
   assert.equal(obs.observationReactions.size, 0);
 });
 
+test("production runtime serves observation reference candidates natively without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const issueResponse = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "reference-user", ttlHours: 1 })
+  }), productionEnv);
+  const cookie = issueResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reference-candidates?limit=6&proposedName=Test", {
+      method: "GET",
+      headers: { cookie, accept: "application/json" }
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200, JSON.stringify(payload));
+    assert.equal(payload.ok, true);
+    assert.deepEqual(payload.candidates, []);
+    assert.equal(payload.compatibility.source, "cloudflare_d1_native_empty");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(core.operationAudit.length, 0);
+});
+
+test("production runtime rejects guest and malformed reference-candidates before origin fallback", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const guest = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/occ-1/reference-candidates", {
+      method: "GET",
+      headers: { accept: "application/json" }
+    }), productionEnv);
+    const guestPayload = await guest.json() as any;
+    assert.equal(guest.status, 401);
+    assert.equal(guestPayload.error, "session_required");
+
+    const malformed = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/bad%20id/reference-candidates", {
+      method: "GET",
+      headers: { accept: "application/json" }
+    }), productionEnv);
+    const malformedPayload = await malformed.json() as any;
+    assert.equal(malformed.status, 404);
+    assert.equal(malformedPayload.error, "not_found");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(fetchCalls, 0);
+});
+
 test("production runtime returns 404 for unknown observation API paths without origin fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
