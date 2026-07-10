@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
+import * as bcrypt from "bcryptjs";
 import { worker } from "./index";
 
 type D1Value = string | number | null;
@@ -107,6 +109,14 @@ interface AuthSessionRow {
   last_used_at: string | null;
 }
 
+interface OperationAuditRow {
+  audit_id: string;
+  operation_type: string;
+  target_id: string;
+  payload_json: string;
+  created_at: string;
+}
+
 interface VideoUploadRow {
   stream_uid: string;
   actor_id: string;
@@ -161,8 +171,85 @@ interface ProductionImportEvidenceAssetRow {
   asset_id: string;
 }
 
+interface AuthUserRow {
+  user_id: string;
+  email: string;
+  password_hash: string | null;
+  display_name: string;
+  role_name: string | null;
+  rank_label: string | null;
+  banned: number;
+  last_login_at: string | null;
+}
+
+interface OAuthAccountRow {
+  user_id: string;
+  provider: string;
+  provider_user_id: string;
+  provider_email: string | null;
+  display_name: string;
+  role_name: string | null;
+  rank_label: string | null;
+  banned: number;
+  profile_json: string;
+  linked_at: string | null;
+}
+
+interface AreaSubscriptionRow {
+  subscription_id: string;
+  user_id: string;
+  target_type: string;
+  target_id: string;
+  label: string;
+  href: string;
+  is_active: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+interface AreaSubscriptionStatsRow {
+  user_id: string;
+  target_type: string;
+  target_id: string;
+  observation_count: number;
+  needs_id_count: number;
+}
+
+interface AlertDeliveryRow {
+  delivery_id: string;
+  occurrence_id: string;
+  user_id: string | null;
+  trigger_kind: string;
+  channel: string;
+  delivered_at: string | null;
+  delivery_status: string;
+  payload_json: string;
+  acknowledged_at: string | null;
+  created_at: string | null;
+}
+
+interface TaxonAlertSubscriptionRow {
+  subscription_id: string;
+  user_id: string;
+  scientific_name: string | null;
+  taxon_rank: string | null;
+  match_field: string;
+  trigger_invasive_only: number;
+  trigger_rare_only: number;
+  channel: string;
+  label: string;
+  is_active: number;
+  created_at: string | null;
+}
+
 class FakeD1 {
   users = new Set<string>();
+  authUsers = new Map<string, AuthUserRow>();
+  oauthAccounts = new Map<string, OAuthAccountRow>();
+  areaSubscriptions = new Map<string, AreaSubscriptionRow>();
+  areaSubscriptionStats = new Map<string, AreaSubscriptionStatsRow>();
+  alertDeliveries = new Map<string, AlertDeliveryRow>();
+  taxonAlertSubscriptions = new Map<string, TaxonAlertSubscriptionRow>();
   drafts = new Map<string, DraftRow>();
   observations = new Map<string, ObservationRow>();
   assets = new Map<string, AssetRow>();
@@ -171,6 +258,7 @@ class FakeD1 {
   readmodel = new Map<string, { observation_id: string; public_cell: string; observed_at: string; taxon_label: string | null; asset_count: number; partition_month: string | null }>();
   parityRuns = new Map<string, ParityRunRow>();
   parityMetrics: ParityMetricRow[] = [];
+  operationAudit: OperationAuditRow[] = [];
   authSessions = new Map<string, AuthSessionRow>();
   videoUploads = new Map<string, VideoUploadRow>();
   legacyAssetImports: LegacyAssetImportRow[] = [];
@@ -208,6 +296,56 @@ class FakeStatement {
 
     if (normalized.startsWith("INSERT OR IGNORE INTO users")) {
       this.db.users.add(string(v[0]));
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO auth_users")) {
+      const row = {
+        user_id: string(v[0]),
+        email: string(v[1]).toLowerCase(),
+        password_hash: nullableString(v[2]),
+        display_name: string(v[3]),
+        role_name: nullableString(v[4]),
+        rank_label: nullableString(v[5]),
+        banned: number(v[6]),
+        last_login_at: null
+      };
+      this.db.authUsers.set(row.email, row);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE auth_users SET last_login_at")) {
+      const userId = string(v[0]);
+      const row = [...this.db.authUsers.values()].find((candidate) => candidate.user_id === userId);
+      if (row) row.last_login_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO oauth_accounts")) {
+      const key = `${string(v[1])}:${string(v[2])}`;
+      this.db.oauthAccounts.set(key, {
+        user_id: string(v[0]),
+        provider: string(v[1]),
+        provider_user_id: string(v[2]),
+        provider_email: nullableString(v[3]),
+        display_name: string(v[4]),
+        role_name: nullableString(v[5]),
+        rank_label: nullableString(v[6]),
+        banned: number(v[7]),
+        profile_json: string(v[8]),
+        linked_at: new Date().toISOString()
+      });
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO operation_audit")) {
+      this.db.operationAudit.push({
+        audit_id: string(v[0]),
+        operation_type: "origin_fallback",
+        target_id: string(v[1]),
+        payload_json: string(v[2]),
+        created_at: new Date(Date.now() + this.db.operationAudit.length).toISOString()
+      });
       return {};
     }
 
@@ -481,14 +619,15 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("INSERT INTO auth_sessions")) {
+      const hasExplicitBanned = normalized.includes("origin-session-lazy-import");
       this.db.authSessions.set(string(v[0]), {
         token_hash: string(v[0]),
         user_id: string(v[1]),
         display_name: string(v[2]),
         role_name: string(v[3]),
         rank_label: nullableString(v[4]),
-        banned: 0,
-        expires_at: string(v[5]),
+        banned: hasExplicitBanned ? number(v[5]) : 0,
+        expires_at: hasExplicitBanned ? string(v[6]) : string(v[5]),
         last_used_at: null
       });
       return {};
@@ -505,16 +644,75 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("INSERT INTO user_area_subscriptions")) {
+      const proposedId = string(v[0]);
+      const userId = string(v[1]);
+      const targetType = string(v[2]);
+      const targetId = string(v[3]);
+      const existing = [...this.db.areaSubscriptions.values()]
+        .find((row) => row.user_id === userId && row.target_type === targetType && row.target_id === targetId);
+      const row = existing ?? {
+        subscription_id: proposedId,
+        user_id: userId,
+        target_type: targetType,
+        target_id: targetId,
+        label: "",
+        href: "",
+        is_active: 1,
+        created_at: "2026-06-16T00:00:00.000Z",
+        updated_at: null
+      };
+      row.label = string(v[4]);
+      row.href = string(v[5]);
+      row.is_active = 1;
+      row.updated_at = new Date().toISOString();
+      this.db.areaSubscriptions.set(row.subscription_id, row);
+      return {};
+    }
+
+    if (normalized.startsWith("DELETE FROM user_area_subscriptions")) {
+      const subscriptionId = string(v[0]);
+      const row = this.db.areaSubscriptions.get(subscriptionId);
+      if (row?.user_id === string(v[1])) this.db.areaSubscriptions.delete(subscriptionId);
+      return {};
+    }
+
+    if (normalized.startsWith("UPDATE alert_deliveries")) {
+      const now = string(v[0]);
+      const userId = string(v[1]);
+      const ids = v.slice(2).map((value) => string(value));
+      for (const row of this.db.alertDeliveries.values()) {
+        if (row.user_id !== userId) continue;
+        if (ids.length > 0 && !ids.includes(row.delivery_id)) continue;
+        if (ids.length === 0 && row.acknowledged_at) continue;
+        row.acknowledged_at = row.acknowledged_at ?? now;
+        if (row.delivery_status === "sent") row.delivery_status = "acknowledged";
+      }
+      return {};
+    }
+
     throw new Error(`Unhandled SQL run: ${this.query}`);
   }
 
   async first<T>(): Promise<T | null> {
     const normalized = normalize(this.query);
+    if (normalized === "SELECT 1 AS ok") {
+      return ({ ok: 1 } as T);
+    }
+
     const v = this.values;
 
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned FROM auth_users")) {
+      return (this.db.authUsers.get(string(v[0]).toLowerCase()) as T | undefined) ?? null;
+    }
+
+    if (normalized.startsWith("SELECT user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned FROM oauth_accounts")) {
+      return (this.db.oauthAccounts.get(`${string(v[0])}:${string(v[1])}`) as T | undefined) ?? null;
     }
 
     if (normalized.startsWith("SELECT * FROM draft_observations")) {
@@ -809,6 +1007,28 @@ class FakeStatement {
       return ({ count } as T);
     }
 
+    if (normalized.startsWith("SELECT subscription_id FROM user_area_subscriptions WHERE user_id = ? AND target_type = ? AND target_id = ?")) {
+      const row = [...this.db.areaSubscriptions.values()]
+        .find((candidate) =>
+          candidate.user_id === string(v[0]) &&
+          candidate.target_type === string(v[1]) &&
+          candidate.target_id === string(v[2])
+        );
+      return row ? ({ subscription_id: row.subscription_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT subscription_id FROM user_area_subscriptions WHERE subscription_id = ? AND user_id = ?")) {
+      const row = this.db.areaSubscriptions.get(string(v[0]));
+      return row?.user_id === string(v[1]) ? ({ subscription_id: row.subscription_id } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT COUNT(*) AS unread_count FROM alert_deliveries")) {
+      const count = [...this.db.alertDeliveries.values()]
+        .filter((row) => row.user_id === string(v[0]) && row.acknowledged_at === null)
+        .length;
+      return ({ unread_count: count } as T);
+    }
+
     throw new Error(`Unhandled SQL first: ${this.query}`);
   }
 
@@ -852,6 +1072,15 @@ class FakeStatement {
       const rows = this.db.parityMetrics
         .filter((row) => row.run_id === string(this.values[0]))
         .sort((a, b) => `${a.metric_type}:${a.metric_key}`.localeCompare(`${b.metric_type}:${b.metric_key}`));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT payload_json, created_at FROM operation_audit")) {
+      const limit = number(this.values[0]);
+      const rows = this.db.operationAudit
+        .filter((row) => row.operation_type === "origin_fallback")
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, limit)
+        .map(({ payload_json, created_at }) => ({ payload_json, created_at }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
@@ -927,6 +1156,55 @@ class FakeStatement {
         .slice(0, limit);
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT subscription_id, target_type, target_id, label, href, is_active, created_at, updated_at FROM user_area_subscriptions")) {
+      const rows = [...this.db.areaSubscriptions.values()]
+        .filter((row) => row.user_id === string(this.values[0]))
+        .sort((a, b) => b.is_active - a.is_active || (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))
+        .slice(0, 100);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT s.subscription_id, s.target_type, s.target_id, s.label, s.href, s.is_active")) {
+      const rows = [...this.db.areaSubscriptions.values()]
+        .filter((row) => row.user_id === string(this.values[0]) && row.is_active === 1)
+        .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))
+        .slice(0, 8)
+        .map((row) => {
+          const stats = this.db.areaSubscriptionStats.get(`${row.user_id}:${row.target_type}:${row.target_id}`);
+          return {
+            ...row,
+            observation_count: stats?.observation_count ?? 0,
+            needs_id_count: stats?.needs_id_count ?? 0
+          };
+        });
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT label, scientific_name, taxon_rank FROM taxon_alert_subscriptions")) {
+      const rows = [...this.db.taxonAlertSubscriptions.values()]
+        .filter((row) => row.user_id === string(this.values[0]) && row.is_active === 1)
+        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+        .slice(0, 8);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT delivery_id, occurrence_id, trigger_kind, delivery_status, delivered_at, acknowledged_at, created_at, payload_json")) {
+      const rows = [...this.db.alertDeliveries.values()]
+        .filter((row) => row.user_id === string(this.values[0]))
+        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+        .slice(0, 100);
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT delivery_id FROM alert_deliveries WHERE user_id = ? AND delivery_id IN")) {
+      const ids = this.values.slice(1).map((value) => string(value));
+      const rows = [...this.db.alertDeliveries.values()]
+        .filter((row) => row.user_id === string(this.values[0]) && ids.includes(row.delivery_id))
+        .map((row) => ({ delivery_id: row.delivery_id }));
+      return { results: rows as T[] };
+    }
+    if (normalized.startsWith("SELECT delivery_id FROM alert_deliveries WHERE user_id = ? AND acknowledged_at IS NULL")) {
+      const rows = [...this.db.alertDeliveries.values()]
+        .filter((row) => row.user_id === string(this.values[0]) && row.acknowledged_at === null)
+        .map((row) => ({ delivery_id: row.delivery_id }));
+      return { results: rows as T[] };
+    }
     throw new Error(`Unhandled SQL all: ${this.query}`);
   }
 }
@@ -999,7 +1277,8 @@ function createEnv(queue = new FakeQueue()) {
       PUBLIC_LOCATION_CELL_PRECISION: "geohash6",
       INTERNAL_AUTH_TOKEN,
       OBSERVATION_DB_NAME: "ikimon_shadow_observations_2026_06",
-      OBSERVATION_ARCHIVE_TARGET: "r2_sql_export_by_partition_month"
+      OBSERVATION_ARCHIVE_TARGET: "r2_sql_export_by_partition_month",
+      PUBLIC_WRITE_MODE: "origin_fallback"
     },
     core,
     obs,
@@ -1088,7 +1367,7 @@ test("synthetic 10k daily profile creates one durable observation and three medi
 });
 
 test("internal endpoints require an explicit bearer token in shadow", async () => {
-  const { env } = createEnv();
+  const { env, core } = createEnv();
 
   const missingHeader = await worker.fetch(new Request("https://shadow.test/internal/r2-inventory"), env);
   assert.equal(missingHeader.status, 401);
@@ -1100,6 +1379,25 @@ test("internal endpoints require an explicit bearer token in shadow", async () =
   });
   assert.equal(missingSecret.status, 403);
   assert.deepEqual(await missingSecret.json(), { error: "internal_auth_not_configured" });
+
+  core.operationAudit.push({
+    audit_id: "audit-1",
+    operation_type: "origin_fallback",
+    target_id: "unit",
+    payload_json: JSON.stringify({
+      reason: "unit_reason",
+      method: "GET",
+      host: "ikimon.life",
+      routePattern: "/unit",
+      publicWriteMode: "cloudflare_native",
+      environment: "production"
+    }),
+    created_at: "2026-06-16T00:00:00.000Z"
+  });
+  const telemetry = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), env);
+  const telemetryPayload = await telemetry.json() as any;
+  assert.equal(telemetry.ok, true, JSON.stringify(telemetryPayload));
+  assert.equal(telemetryPayload.byReason.unit_reason, 1);
 });
 
 test("r2 inventory is limited to shadow environment and bounded prefixes", async () => {
@@ -1249,6 +1547,41 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const myPlacesResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/my-places"), env);
   assert.equal(myPlacesResponse.ok, true);
   assert.deepEqual(await myPlacesResponse.json(), { signedIn: false, items: [] });
+
+  for (const path of [
+    "/api/v1/map/traces?limit=200",
+    "/api/v1/map/frontier?bbox=137.70%2C34.70%2C137.82%2C34.72",
+    "/api/v1/map/area-polygons?bbox=137.70%2C34.70%2C137.82%2C34.72",
+    "/api/v1/map/guide-spots"
+  ]) {
+    const response = await worker.fetch(new Request(`https://shadow.test${path}`), env);
+    const payload = await response.json() as any;
+    assert.equal(response.ok, true, path);
+    assert.equal(payload.type, "FeatureCollection");
+    assert.deepEqual(payload.features, []);
+    assert.doesNotMatch(JSON.stringify(payload), /34\.71234|137\.81234/);
+  }
+
+  const effortResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/effort-summary?bbox=137.70%2C34.70%2C137.82%2C34.72"), env);
+  const effortPayload = await effortResponse.json() as any;
+  assert.equal(effortResponse.ok, true);
+  assert.equal(effortPayload.actorLens.actorClass, "community");
+  assert.equal(effortPayload.frontierRemaining.blankCount, 0);
+
+  const siteBriefResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/site-brief?lat=34.71&lng=137.81&lang=ja"), env);
+  const siteBriefPayload = await siteBriefResponse.json() as any;
+  assert.equal(siteBriefResponse.ok, true);
+  assert.equal(siteBriefPayload.hypothesis.label, "記録不足の場所");
+  assert.doesNotMatch(JSON.stringify(siteBriefPayload), /34\.71|137\.81/);
+
+  const kpiResponse = await worker.fetch(new Request("https://shadow.test/api/v1/ui-kpi/events", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ eventName: "section_view", pagePath: "/map" })
+  }), env);
+  const kpiPayload = await kpiResponse.json() as any;
+  assert.equal(kpiResponse.ok, true);
+  assert.equal(kpiPayload.ok, true);
 });
 
 test("shadow takedown proof removes public surfaces while preserving canonical evidence", async () => {
@@ -2155,17 +2488,336 @@ test("v1 auth session keeps current optional guest and cookie session contract",
   assert.match(logoutResponse.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
 });
 
+test("v1 auth login keeps original form contract with Cloudflare-native sessions", async () => {
+  const { env, core } = createEnv();
+  const passwordHash = await bcrypt.hash("correct-password", 10);
+  await env.CORE_DB.prepare(
+    `INSERT INTO auth_users
+     (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    "login-user",
+    "user@example.test",
+    passwordHash,
+    "Login User",
+    "Observer",
+    "Tester",
+    0
+  ).run();
+
+  const loginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({
+      email: " USER@example.test ",
+      password: "correct-password",
+      redirect: "/record?draft=1"
+    })
+  }), env);
+  const loginPayload = await loginResponse.json() as any;
+  assert.equal(loginResponse.ok, true, JSON.stringify(loginPayload));
+  assert.equal(loginPayload.ok, true);
+  assert.equal(loginPayload.redirect, "/record?draft=1");
+  assert.equal(loginPayload.session.userId, "login-user");
+  assert.equal(loginPayload.session.displayName, "Login User");
+  assert.equal(loginPayload.session.roleName, "Observer");
+  assert.equal(loginPayload.session.rankLabel, "Tester");
+  assert.equal(core.authSessions.size, 1);
+  assert.equal(core.authUsers.get("user@example.test")?.last_login_at !== null, true);
+  const cookie = loginResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /^ikimon_v2_session=/);
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /SameSite=Lax/);
+
+  const sessionResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session", {
+    headers: { cookie }
+  }), env);
+  const sessionPayload = await sessionResponse.json() as any;
+  assert.equal(sessionResponse.ok, true, JSON.stringify(sessionPayload));
+  assert.equal(sessionPayload.ok, true);
+  assert.equal(sessionPayload.session.userId, "login-user");
+  assert.equal(sessionPayload.session.tokenHash, loginPayload.session.tokenHash);
+
+  const invalidResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test"
+    },
+    body: JSON.stringify({
+      email: "user@example.test",
+      password: "wrong-password"
+    })
+  }), env);
+  assert.equal(invalidResponse.status, 401);
+  assert.deepEqual(await invalidResponse.json(), { ok: false, error: "invalid_credentials" });
+
+  const crossOriginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://evil.example",
+      "sec-fetch-site": "cross-site"
+    },
+    body: JSON.stringify({
+      email: "user@example.test",
+      password: "correct-password"
+    })
+  }), env);
+  assert.equal(crossOriginResponse.status, 403);
+  assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
+test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
+  const { env } = createEnv();
+  const passwordHash = (await bcrypt.hash("legacy-password", 10)).replace("$2b$", "$2y$");
+  await env.CORE_DB.prepare(
+    `INSERT INTO auth_users
+     (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    "legacy-user",
+    "legacy@example.test",
+    passwordHash,
+    "Legacy User",
+    "Observer",
+    null,
+    0
+  ).run();
+
+  const loginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test"
+    },
+    body: JSON.stringify({
+      email: "legacy@example.test",
+      password: "legacy-password",
+      redirect: "https://evil.example/"
+    })
+  }), env);
+  const loginPayload = await loginResponse.json() as any;
+  assert.equal(loginResponse.ok, true, JSON.stringify(loginPayload));
+  assert.equal(loginPayload.ok, true);
+  assert.equal(loginPayload.redirect, "/record");
+  assert.equal(loginPayload.session.userId, "legacy-user");
+  assert.equal(loginPayload.session.rankLabel, "観察者");
+});
+
+test("production auth login falls back to origin until auth users are fully imported", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; method?: string; resolveOverride?: string; body?: string; reason?: string | null } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.method = init?.method;
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    const headers = new Headers(init?.headers);
+    seen.reason = headers.get("x-ikimon-cloudflare-fallback-reason");
+    seen.body = init?.body ? await new Response(init.body).text() : undefined;
+    return new Response(JSON.stringify({ ok: true, redirect: "/record", originFallback: true }), {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+        "set-cookie": "ikimon_v2_session=origin-token; Path=/; HttpOnly; SameSite=Lax"
+      }
+    });
+  }) as typeof fetch;
+  try {
+    const body = {
+      email: "not-yet-imported@example.test",
+      password: "origin-password",
+      redirect: "/record"
+    };
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://ikimon.life",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify(body)
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.ok, true, JSON.stringify(payload));
+    assert.equal(payload.originFallback, true);
+    assert.equal(response.headers.get("set-cookie"), "ikimon_v2_session=origin-token; Path=/; HttpOnly; SameSite=Lax");
+    assert.equal(seen.url, "https://ikimon.life/api/v1/auth/login");
+    assert.equal(seen.method, "POST");
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.reason, "auth_d1_miss_or_mismatch");
+    assert.equal(seen.body, JSON.stringify(body));
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "auth_d1_miss_or_mismatch");
+    assert.equal(telemetry.routePattern, "/api/v1/auth/login");
+    assert.equal(JSON.stringify(telemetry).includes("not-yet-imported@example.test"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production personal runtime returns native guest auth boundary without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const checks: Array<{ path: string; init?: RequestInit }> = [
+      { path: "/api/v1/me/alerts" },
+      { path: "/api/v1/me/alerts/read", init: { method: "POST", headers: { "content-type": "application/json" }, body: "{}" } },
+      { path: "/api/v1/me/area-subscriptions" },
+      { path: "/api/v1/me/personalized-menu?limit=8" }
+    ];
+    for (const check of checks) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${check.path}`, check.init), productionEnv);
+      const payload = await response.json() as any;
+      assert.equal(response.status, 401, check.path);
+      assert.deepEqual(payload, { ok: false, error: "auth_required" }, check.path);
+    }
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+
+    const observationsBase = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/"), productionEnv);
+    assert.equal(observationsBase.status, 404);
+    assert.deepEqual(await observationsBase.json(), { ok: false, error: "not_found" });
+    assert.equal(fallbackCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production personal runtime serves signed-in data from Cloudflare D1 without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawToken = "signed-in-cloudflare-token";
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "personal-user",
+    display_name: "Personal User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  core.areaSubscriptions.set("area-sub-1", {
+    subscription_id: "area-sub-1",
+    user_id: "personal-user",
+    target_type: "field",
+    target_id: "field-1",
+    label: "東金の観察地",
+    href: "/map?field=field-1",
+    is_active: 1,
+    created_at: "2026-06-15T00:00:00.000Z",
+    updated_at: "2026-06-16T00:00:00.000Z"
+  });
+  core.areaSubscriptionStats.set("personal-user:field:field-1", {
+    user_id: "personal-user",
+    target_type: "field",
+    target_id: "field-1",
+    observation_count: 12,
+    needs_id_count: 3
+  });
+  core.alertDeliveries.set("alert-1", {
+    delivery_id: "alert-1",
+    occurrence_id: "occ-1",
+    user_id: "personal-user",
+    trigger_kind: "area_watch",
+    channel: "none",
+    delivered_at: null,
+    delivery_status: "sent",
+    payload_json: JSON.stringify({ title: "新しい記録", href: "/observations/occ-1" }),
+    acknowledged_at: null,
+    created_at: "2026-06-16T00:00:00.000Z"
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.ok, true, JSON.stringify(payload));
+    assert.equal(payload.alerts[0].deliveryId, "alert-1");
+    assert.equal(payload.alerts[0].payload.title, "新しい記録");
+
+    const menuResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/personalized-menu?limit=8", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const menuPayload = await menuResponse.json() as any;
+    assert.equal(menuResponse.ok, true, JSON.stringify(menuPayload));
+    assert.equal(menuPayload.items[0].label, "東金の観察地");
+    assert.equal(menuPayload.items[0].stats.observationCount, 12);
+    assert.equal(menuPayload.summary.unreadAlertCount, 1);
+
+    const areaResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/area-subscriptions", {
+      headers: { cookie: `ikimon_v2_session=${rawToken}` }
+    }), productionEnv);
+    const areaPayload = await areaResponse.json() as any;
+    assert.equal(areaResponse.ok, true, JSON.stringify(areaPayload));
+    assert.equal(areaPayload.subscriptions[0].subscriptionId, "area-sub-1");
+
+    const readResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/me/alerts/read", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawToken}` },
+      body: JSON.stringify({ ids: ["alert-1"] })
+    }), productionEnv);
+    assert.equal(readResponse.ok, true, await readResponse.text());
+    assert.equal(core.alertDeliveries.get("alert-1")?.delivery_status, "acknowledged");
+    assert.equal(core.alertDeliveries.get("alert-1")?.acknowledged_at !== null, true);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production runtime enables app-compatible write routes while keeping shadow smoke routes closed", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production"
   };
+  const workerOrigin = "https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev";
 
   const smokeResponse = await worker.fetch(new Request("https://ikimon.life/shadow-smoke/route-change-rehearsal-proof"), productionEnv);
   assert.equal(smokeResponse.status, 404);
 
-  const issueResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+  const issueResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/auth/session/issue`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -2181,7 +2833,10 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.match(issueResponse.headers.get("set-cookie") ?? "", /Secure/);
   const cookie = issueResponse.headers.get("set-cookie") ?? "";
 
-  const upsertPayload = await post("/api/v1/observations/upsert", productionEnv, {
+  const upsertResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/upsert`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
     observationId: "production-runtime-observation",
     userId: "production-user",
     observedAt: "2026-06-16T00:00:00.000Z",
@@ -2190,10 +2845,13 @@ test("production runtime enables app-compatible write routes while keeping shado
     locationAccuracyM: 12,
     note: "production runtime route compatibility",
     taxon: { vernacularName: "production runtime plant", rank: "species" }
-  });
+    })
+  }), productionEnv);
+  const upsertPayload = await upsertResponse.json() as any;
+  assert.equal(upsertResponse.ok, true, JSON.stringify(upsertPayload));
   assert.equal(upsertPayload.ok, true);
 
-  const photoResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/production-runtime-observation/photos/upload", {
+  const photoResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/production-runtime-observation/photos/upload`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
@@ -2207,7 +2865,7 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.equal(photoResponse.ok, true, JSON.stringify(photoPayload));
   assert.equal(photoPayload.ok, true);
 
-  const directResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/videos/direct-upload", {
+  const directResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/videos/direct-upload`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
@@ -2223,14 +2881,14 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.equal(directPayload.ok, true);
 
   const uid = String(directPayload.uid);
-  const bodyResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/videos/${encodeURIComponent(uid)}/body`, {
+  const bodyResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/videos/${encodeURIComponent(uid)}/body`, {
     method: "PUT",
     headers: { "content-type": "video/mp4", cookie },
     body: "production-video-bytes"
   }), productionEnv);
   assert.equal(bodyResponse.ok, true, await bodyResponse.text());
 
-  const finalizeResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/videos/${encodeURIComponent(uid)}/finalize`, {
+  const finalizeResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/videos/${encodeURIComponent(uid)}/finalize`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
@@ -2244,7 +2902,7 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.equal(finalizeResponse.ok, true, JSON.stringify(finalizePayload));
   assert.equal(finalizePayload.ok, true);
 
-  const hideResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/production-runtime-observation/hide", {
+  const hideResponse = await worker.fetch(new Request(`${workerOrigin}/api/v1/observations/production-runtime-observation/hide`, {
     method: "POST",
     headers: { cookie }
   }), productionEnv);
@@ -2253,6 +2911,933 @@ test("production runtime enables app-compatible write routes while keeping shado
   assert.equal(hidePayload.ok, true);
   assert.equal(obs.observations.get("production-runtime-observation")?.emergency_hidden, 1);
   assert.equal(obs.rollbackLedger.size, 4);
+});
+
+test("production runtime proxies unsupported observation API paths to the configured origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; method?: string; cookie?: string; marker?: string; reason?: string | null; body?: string; resolveOverride?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.method = init?.method;
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    const headers = new Headers(init?.headers);
+    seen.cookie = headers.get("cookie") ?? undefined;
+    seen.marker = headers.get("x-ikimon-cloudflare-fallback") ?? undefined;
+    seen.reason = headers.get("x-ikimon-cloudflare-fallback-reason");
+    seen.body = init?.body ? await new Response(init.body).text() : undefined;
+    return new Response(JSON.stringify({ ok: true, originFallback: true }), {
+      status: 202,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/example/reactions/like?keep=1", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: "ikimon_v2_session=test"
+      },
+      body: JSON.stringify({ source: "unit" })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 202);
+    assert.equal(payload.originFallback, true);
+    assert.equal(seen.url, "https://ikimon.life/api/v1/observations/example/reactions/like?keep=1");
+    assert.equal(seen.method, "POST");
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.cookie, "ikimon_v2_session=test");
+    assert.equal(seen.marker, "origin");
+    assert.equal(seen.reason, "unsupported_observation_api");
+    assert.equal(seen.body, JSON.stringify({ source: "unit" }));
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "unsupported_observation_api");
+    assert.equal(telemetry.routePattern, "/api/v1/observations/:id/*");
+    assert.equal(JSON.stringify(telemetry).includes("example"), false);
+    assert.equal(JSON.stringify(telemetry).includes("keep=1"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  const summaryEnv = {
+    ...env,
+    CORE_DB: core
+  };
+  const summaryResponse = await worker.fetch(internalRequest("/internal/origin-fallback-telemetry"), summaryEnv);
+  const summary = await summaryResponse.json() as any;
+  assert.equal(summaryResponse.ok, true, JSON.stringify(summary));
+  assert.equal(summary.count, 1);
+  assert.equal(summary.byReason.unsupported_observation_api, 1);
+  assert.equal(summary.byRoutePattern["/api/v1/observations/:id/*"], 1);
+});
+
+test("production origin fallback protects observation write paths when broad public-detail routing is enabled", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; method?: string; resolveOverride?: string; body?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.method = init?.method;
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    seen.body = init?.body ? await new Response(init.body).text() : undefined;
+    return new Response(JSON.stringify({ ok: false, error: "origin_write_auth_required" }), {
+      status: 401,
+      headers: { "content-type": "application/json" }
+    });
+  }) as typeof fetch;
+  try {
+    const body = {
+      observationId: "must-not-write-cloudflare",
+      userId: "user",
+      observedAt: "2026-06-16T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234
+    };
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    }), productionEnv);
+    assert.equal(response.status, 401);
+    assert.equal(seen.url, "https://ikimon.life/api/v1/observations/upsert");
+    assert.equal(seen.method, "POST");
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.body, JSON.stringify(body));
+    assert.equal(obs.observations.has("must-not-write-cloudflare"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public write-disabled mode blocks mutating app writes without touching origin or D1", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "write_disabled"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        observationId: "write-disabled-must-not-write",
+        userId: "user",
+        observedAt: "2026-06-16T00:00:00.000Z",
+        latitude: 34.71234,
+        longitude: 137.81234
+      })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 503);
+    assert.equal(payload.error, "write_temporarily_disabled");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-write-mode"), "write_disabled");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(obs.observations.has("write-disabled-must-not-write"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public cloudflare-native mode allows explicit custom-domain app writes", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawOriginToken = "origin-compatible-raw-token";
+  const tokenHash = createHash("sha256").update(rawOriginToken).digest("hex");
+  core.authSessions.set(tokenHash, {
+    token_hash: tokenHash,
+    user_id: "native-public-user",
+    display_name: "Native Public User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2999-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawOriginToken}` },
+      body: JSON.stringify({
+        observationId: "native-public-observation",
+        userId: "native-public-user",
+        observedAt: "2026-06-16T00:00:00.000Z",
+        latitude: 34.71234,
+        longitude: 137.81234,
+        locationAccuracyM: 12,
+        note: "native public write gate",
+        taxon: { vernacularName: "native public plant", rank: "species" }
+      })
+    }), productionEnv);
+    const upsertPayload = await upsertResponse.json() as any;
+    assert.equal(upsertResponse.status, 201);
+    assert.equal(upsertPayload.ok, true);
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.users.has("native-public-user"), true);
+    assert.equal(obs.observations.get("native-public-observation")?.owner_user_id, "native-public-user");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public cloudflare-native mode rejects unauthenticated upserts before validating payload shape", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}"
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 401);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, "session_required");
+  assert.equal(obs.observations.size, 0);
+});
+
+test("production public cloudflare-native mode lazily imports valid origin sessions", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawOriginToken = "origin-login-raw-token";
+  const tokenHash = createHash("sha256").update(rawOriginToken).digest("hex");
+  const originalFetch = globalThis.fetch;
+  const seen: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const request = input instanceof Request ? input : new Request(input);
+    seen.push(new URL(request.url).pathname + new URL(request.url).search);
+    return Response.json({
+      ok: true,
+      session: {
+        userId: "lazy-origin-user",
+        displayName: "Lazy Origin User",
+        roleName: "Observer",
+        rankLabel: null,
+        banned: false,
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        tokenHash
+      }
+    });
+  }) as typeof fetch;
+  try {
+    const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawOriginToken}` },
+      body: JSON.stringify({
+        observationId: "lazy-origin-session-observation",
+        userId: "lazy-origin-user",
+        observedAt: "2026-06-16T00:00:00.000Z",
+        latitude: 34.71234,
+        longitude: 137.81234,
+        taxon: { vernacularName: "lazy origin plant", rank: "species" }
+      })
+    }), productionEnv);
+    const payload = await upsertResponse.json() as any;
+    assert.equal(upsertResponse.status, 201);
+    assert.equal(payload.ok, true);
+    assert.deepEqual(seen, ["/api/v1/auth/session?optional=1"]);
+    assert.equal(core.authSessions.get(tokenHash)?.user_id, "lazy-origin-user");
+    assert.equal(obs.observations.get("lazy-origin-session-observation")?.owner_user_id, "lazy-origin-user");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public cloudflare-native mode rejects mismatched origin session hashes", async () => {
+  const { env, core, obs } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const rawOriginToken = "origin-login-mismatch-token";
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => Response.json({
+    ok: true,
+    session: {
+      userId: "mismatch-origin-user",
+      displayName: "Mismatch Origin User",
+      roleName: "Observer",
+      rankLabel: null,
+      banned: false,
+      expiresAt: "2999-01-01T00:00:00.000Z",
+      tokenHash: "not-the-cookie-token-hash"
+    }
+  })) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `ikimon_v2_session=${rawOriginToken}` },
+      body: JSON.stringify({
+        observationId: "mismatch-origin-session-observation",
+        userId: "mismatch-origin-user",
+        observedAt: "2026-06-16T00:00:00.000Z",
+        latitude: 34.71234,
+        longitude: 137.81234
+      })
+    }), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 401);
+    assert.equal(payload.error, "session_required");
+    assert.equal(core.authSessions.size, 0);
+    assert.equal(obs.observations.has("mismatch-origin-session-observation"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public cloudflare-native mode rejects custom-domain session issue", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+
+  const response = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: "must-not-issue-public-session",
+      ttlHours: 1
+    })
+  }), productionEnv);
+  const payload = await response.json() as any;
+  assert.equal(response.status, 404);
+  assert.equal(payload.error, "not_available");
+});
+
+test("production oauth start keeps original provider redirect contracts without changing public UI", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    GOOGLE_CLIENT_ID: "google-client",
+    GOOGLE_CLIENT_SECRET: "google-secret",
+    TWITTER_CLIENT_ID: "twitter-client",
+    TWITTER_CLIENT_SECRET: "twitter-secret",
+    V2_OAUTH_STATE_SECRET: "state-secret"
+  };
+
+  const google = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=/record"), productionEnv);
+  assert.equal(google.status, 303);
+  assert.match(google.headers.get("set-cookie") ?? "", /^ikimon_oauth_state=/);
+  const googleLocation = new URL(google.headers.get("location") ?? "");
+  assert.equal(googleLocation.origin + googleLocation.pathname, "https://accounts.google.com/o/oauth2/v2/auth");
+  assert.equal(googleLocation.searchParams.get("client_id"), "google-client");
+  assert.equal(googleLocation.searchParams.get("redirect_uri"), "https://ikimon.life/oauth_callback.php?provider=google");
+  assert.equal(googleLocation.searchParams.get("scope"), "openid email profile");
+  assert.equal(googleLocation.searchParams.get("prompt"), "select_account");
+
+  const twitter = await worker.fetch(new Request("https://ikimon.life/auth/oauth/twitter/start?redirect=/map"), productionEnv);
+  assert.equal(twitter.status, 303);
+  assert.match(twitter.headers.get("set-cookie") ?? "", /^ikimon_oauth_state=/);
+  const twitterLocation = new URL(twitter.headers.get("location") ?? "");
+  assert.equal(twitterLocation.origin + twitterLocation.pathname, "https://twitter.com/i/oauth2/authorize");
+  assert.equal(twitterLocation.searchParams.get("client_id"), "twitter-client");
+  assert.equal(twitterLocation.searchParams.get("redirect_uri"), "https://ikimon.life/auth/oauth/twitter/callback");
+  assert.equal(twitterLocation.searchParams.get("scope"), "tweet.read users.read offline.access");
+  assert.equal(twitterLocation.searchParams.get("code_challenge_method"), "S256");
+  assert.ok(twitterLocation.searchParams.get("code_challenge"));
+});
+
+test("production oauth callback creates Cloudflare-native session from provider profile", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native",
+    GOOGLE_CLIENT_ID: "google-client",
+    GOOGLE_CLIENT_SECRET: "google-secret",
+    V2_OAUTH_STATE_SECRET: "state-secret"
+  };
+
+  const start = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=/record"), productionEnv);
+  const stateCookie = start.headers.get("set-cookie") ?? "";
+  const state = new URL(start.headers.get("location") ?? "").searchParams.get("state");
+  assert.ok(state);
+
+  const originalFetch = globalThis.fetch;
+  const seen: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    seen.push(url);
+    if (url === "https://oauth2.googleapis.com/token") {
+      assert.equal(init?.method, "POST");
+      const body = String(init?.body ?? "");
+      assert.match(body, /client_id=google-client/);
+      assert.match(body, /client_secret=google-secret/);
+      assert.match(body, /redirect_uri=https%3A%2F%2Fikimon.life%2Foauth_callback.php%3Fprovider%3Dgoogle/);
+      return Response.json({ access_token: "google-access-token" });
+    }
+    if (url === "https://www.googleapis.com/oauth2/v2/userinfo") {
+      assert.equal(new Headers(init?.headers).get("authorization"), "Bearer google-access-token");
+      return Response.json({
+        id: "google-user-1",
+        name: "Google User",
+        email: "google-user@example.test",
+        picture: "https://example.test/avatar.png"
+      });
+    }
+    return new Response("unexpected fetch", { status: 599 });
+  }) as typeof fetch;
+
+  try {
+    const callback = await worker.fetch(new Request(`https://ikimon.life/oauth_callback.php?provider=google&state=${encodeURIComponent(state)}&code=oauth-code`, {
+      headers: { cookie: stateCookie }
+    }), productionEnv);
+    assert.equal(callback.status, 303);
+    assert.equal(callback.headers.get("location"), "/record");
+    const callbackCookie = callback.headers.get("set-cookie") ?? "";
+    assert.match(callbackCookie, /ikimon_v2_session=/);
+    assert.match(callbackCookie, /ikimon_oauth_state=;/);
+    assert.deepEqual(seen, ["https://oauth2.googleapis.com/token", "https://www.googleapis.com/oauth2/v2/userinfo"]);
+    const oauthAccount = core.oauthAccounts.get("google:google-user-1");
+    assert.ok(oauthAccount?.user_id);
+    assert.equal(core.users.has(oauthAccount.user_id), true);
+    assert.equal(oauthAccount?.display_name, "Google User");
+    assert.equal(oauthAccount?.provider_email, "google-user@example.test");
+    assert.equal(core.authSessions.size, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production oauth start falls back to origin until provider secrets are configured", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    return new Response(null, { status: 303, headers: { location: "https://accounts.google.com/o/oauth2/v2/auth?origin=1" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start?redirect=/record"), productionEnv);
+    assert.equal(response.status, 303);
+    assert.equal(response.headers.get("location"), "https://accounts.google.com/o/oauth2/v2/auth?origin=1");
+    assert.equal(seen.url, "https://ikimon.life/auth/oauth/google/start?redirect=/record");
+    assert.equal(seen.reason, "oauth_provider_not_configured");
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production full-domain fallback preserves original public UI routes without exposing internal routes", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test",
+    PUBLIC_WRITE_MODE: "cloudflare_native"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: Array<{ url: string; method?: string; resolveOverride?: string; reason?: string | null }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.push({
+      url: String(input),
+      method: init?.method,
+      resolveOverride: (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride,
+      reason: new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason")
+    });
+    return new Response("<!doctype html><title>origin UI</title><meta name=\"x-origin-ui\" content=\"1\">", {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+  }) as typeof fetch;
+  try {
+    const publicUiRoutes = [
+      "/",
+      "/record",
+      "/map",
+      "/login",
+      "/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5",
+      "/places/hamamatsu"
+    ];
+    const expectedFallbackReasons = new Map([
+      ["/", "html_materialized_miss"],
+      ["/record", "html_materialized_miss"],
+      ["/map", "html_materialized_miss"],
+      ["/login", "html_materialized_miss"],
+      ["/community/fields/535cccb1-c3d1-4a35-ab9f-2ed811f5abb5", "html_materialized_miss"],
+      ["/places/hamamatsu", "public_custom_domain_path"]
+    ]);
+
+    for (const path of publicUiRoutes) {
+      const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+      const body = await response.text();
+      assert.equal(response.status, 200, path);
+      assert.equal(body, "<!doctype html><title>origin UI</title><meta name=\"x-origin-ui\" content=\"1\">", path);
+      assert.equal(body.includes("data-cloudflare-public-shell"), false, path);
+      assert.equal(seen.at(-1)?.url, `https://ikimon.life${path}`);
+      assert.equal(seen.at(-1)?.method, "GET", path);
+      assert.equal(seen.at(-1)?.resolveOverride, "origin.ikimon.test", path);
+      assert.equal(seen.at(-1)?.reason, expectedFallbackReasons.get(path), path);
+    }
+
+    const latestTelemetry = JSON.parse(core.operationAudit.at(-1)?.payload_json ?? "{}");
+    assert.equal(latestTelemetry.routePattern, "/places/hamamatsu");
+    assert.equal(JSON.stringify(latestTelemetry).includes("535cccb1"), false);
+
+    const internal = await worker.fetch(new Request("https://ikimon.life/internal/production-import-summary"), productionEnv);
+    assert.equal(internal.status, 404);
+    assert.equal(seen.length, publicUiRoutes.length);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production area snapshot serves materialized original UI payloads from R2 without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put(`original-ui/area-snapshots/${fieldId}.json`, JSON.stringify({
+    snapshot: {
+      field: { fieldId, name: "千葉県 東金市" },
+      observationSummary: { totalObservations: 0 },
+      areaWatch: { schemaVersion: "area_watch/v0", score: 1 }
+    }
+  }), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot`), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200);
+    assert.equal(payload.snapshot.field.fieldId, fieldId);
+    assert.equal(payload.snapshot.areaWatch.schemaVersion, "area_watch/v0");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-area-snapshot");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production area snapshot falls back to origin when not materialized and records redacted telemetry", async () => {
+  const { env, core } = createEnv();
+  const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    return Response.json({ snapshot: { field: { fieldId }, source: "origin" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot?viewer=1`), productionEnv);
+    const payload = await response.json() as any;
+    assert.equal(response.status, 200);
+    assert.equal(payload.snapshot.source, "origin");
+    assert.equal(seen.url, `https://ikimon.life/api/v1/fields/${fieldId}/area-snapshot?viewer=1`);
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.reason, "area_snapshot_materialized_miss");
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "area_snapshot_materialized_miss");
+    assert.equal(telemetry.routePattern, "/api/v1/fields/:id/area-snapshot");
+    assert.equal(JSON.stringify(telemetry).includes(fieldId), false);
+    assert.equal(JSON.stringify(telemetry).includes("viewer=1"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI static assets serve materialized bytes from R2 without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/static/assets/brand/app-icon-192.png", "png-bytes", {
+    httpMetadata: { contentType: "image/png" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/assets/brand/app-icon-192.png"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "png-bytes");
+    assert.equal(response.headers.get("content-type"), "image/png");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI static asset misses fall back to origin with redacted telemetry", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    return new Response("origin-png", { headers: { "content-type": "image/png" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/assets/brand/missing-icon.png?v=1"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "origin-png");
+    assert.equal(seen.url, "https://ikimon.life/assets/brand/missing-icon.png?v=1");
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.reason, "static_asset_materialized_miss");
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "static_asset_materialized_miss");
+    assert.equal(telemetry.routePattern, "/assets/brand/:asset");
+    assert.equal(JSON.stringify(telemetry).includes("missing-icon"), false);
+    assert.equal(JSON.stringify(telemetry).includes("v=1"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI thumbnails serve materialized bytes from R2 without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/thumb/md/v2-observations/record-1/photo.jpg", "jpg-bytes", {
+    httpMetadata: { contentType: "image/jpeg" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/record-1/photo.jpg"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "jpg-bytes");
+    assert.equal(response.headers.get("content-type"), "image/jpeg");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-thumb");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI thumbnail misses fall back to origin with redacted telemetry", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    return new Response("origin-jpg", { headers: { "content-type": "image/jpeg" } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/record-secret/photo-secret.jpg?size=md"), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "origin-jpg");
+    assert.equal(seen.url, "https://ikimon.life/thumb/md/v2-observations/record-secret/photo-secret.jpg?size=md");
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.reason, "thumb_materialized_miss");
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "thumb_materialized_miss");
+    assert.equal(telemetry.routePattern, "/thumb/:size/v2-observations/:record/:asset");
+    assert.equal(JSON.stringify(telemetry).includes("record-secret"), false);
+    assert.equal(JSON.stringify(telemetry).includes("photo-secret"), false);
+    assert.equal(JSON.stringify(telemetry).includes("size=md"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI html serves materialized anonymous pages from R2 without origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>ikimon / 生きものを手がかりに、この場所の今を残す</title><script>ikimon-app-outbox-v1</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/"), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal(body.includes("ikimon-app-outbox-v1"), true);
+    assert.equal(body.includes("data-cloudflare-public-shell"), false);
+    assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("vary"), "cookie, authorization");
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI html serves whitelisted public reading routes from R2", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/ja/learn/glossary.html", "<!doctype html><title>用語集 / ikimon</title><script>ikimon-app-outbox-v1</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/en/map.html", "<!doctype html><title>Map / ikimon</title><script>ikimon-app-outbox-v1</script>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const glossary = await worker.fetch(new Request("https://ikimon.life/ja/learn/glossary"), productionEnv);
+    assert.equal(glossary.status, 200);
+    assert.equal(await glossary.text(), "<!doctype html><title>用語集 / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    assert.equal(glossary.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    const englishMap = await worker.fetch(new Request("https://ikimon.life/en/map"), productionEnv);
+    assert.equal(englishMap.status, 200);
+    assert.equal(await englishMap.text(), "<!doctype html><title>Map / ikimon</title><script>ikimon-app-outbox-v1</script>");
+    assert.equal(englishMap.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+
+    assert.equal(fallbackCalls, 0);
+    assert.equal(core.operationAudit.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI html keeps personalized requests on origin fallback", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  await env.ASSET_BUCKET.put("original-ui/html/map.html", "<!doctype html><title>materialized map</title>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    return new Response("<!doctype html><title>personalized origin map</title>", {
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request("https://ikimon.life/map", {
+      headers: { cookie: "ikimon_v2_session=secret" }
+    }), productionEnv);
+    const body = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal(body.includes("personalized origin map"), true);
+    assert.equal(seen.url, "https://ikimon.life/map");
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.reason, "html_personalized_request");
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "html_personalized_request");
+    assert.equal(telemetry.routePattern, "/map");
+    assert.equal(JSON.stringify(telemetry).includes("secret"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production original UI html misses fall back to origin with redacted telemetry", async () => {
+  const { env, core } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const fieldId = "535cccb1-c3d1-4a35-ab9f-2ed811f5abb5";
+  const originalFetch = globalThis.fetch;
+  const seen: { url?: string; reason?: string | null; resolveOverride?: string } = {};
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    seen.url = String(input);
+    seen.resolveOverride = (init as RequestInit & { cf?: { resolveOverride?: string } } | undefined)?.cf?.resolveOverride;
+    seen.reason = new Headers(init?.headers).get("x-ikimon-cloudflare-fallback-reason");
+    return new Response("<!doctype html><title>origin field</title>", {
+      headers: { "content-type": "text/html; charset=utf-8" }
+    });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request(`https://ikimon.life/ja/community/fields/${fieldId}?viewer=1`), productionEnv);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "<!doctype html><title>origin field</title>");
+    assert.equal(seen.url, `https://ikimon.life/ja/community/fields/${fieldId}?viewer=1`);
+    assert.equal(seen.resolveOverride, "origin.ikimon.test");
+    assert.equal(seen.reason, "html_materialized_miss");
+    assert.equal(core.operationAudit.length, 1);
+    const telemetry = JSON.parse(core.operationAudit[0]?.payload_json ?? "{}");
+    assert.equal(telemetry.reason, "html_materialized_miss");
+    assert.equal(telemetry.routePattern, "/ja/community/fields/:id");
+    assert.equal(JSON.stringify(telemetry).includes(fieldId), false);
+    assert.equal(JSON.stringify(telemetry).includes("viewer=1"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {
+  const { env } = createEnv();
+  const productionEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
+    ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
+  };
+  const originalFetch = globalThis.fetch;
+  let fallbackCalls = 0;
+  globalThis.fetch = (async () => {
+    fallbackCalls += 1;
+    return new Response("fallback should not be called", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const health = await worker.fetch(new Request("https://ikimon.life/healthz"), productionEnv);
+    assert.equal(health.status, 200);
+    const healthPayload = await health.json() as any;
+    assert.equal(healthPayload.ok, true);
+    assert.equal(healthPayload.service, "ikimon-life-cloudflare-worker");
+
+    const ready = await worker.fetch(new Request("https://ikimon.life/readyz"), productionEnv);
+    assert.equal(ready.status, 200);
+    const readyPayload = await ready.json() as any;
+    assert.equal(readyPayload.ok, true);
+    assert.equal(readyPayload.coreDb, "ok");
+    assert.equal(readyPayload.observationDb, "ok");
+    assert.equal(fallbackCalls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown): Promise<any> {
