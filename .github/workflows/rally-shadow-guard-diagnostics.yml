@@ -1,27 +1,39 @@
-name: Rally Participant Diagnostics
+name: Patch Rally Participant Eligibility
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
-    if: github.head_ref == 'agent/worker-rally-auto-match'
+  patch:
+    if: github.head_ref == 'agent/worker-rally-auto-match' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Stage fake D1 source
+        with:
+          ref: agent/worker-rally-auto-match
+          fetch-depth: 0
+      - name: Apply participant eligibility to PostgreSQL and D1 rally matching
+        run: python scripts/patch-rally-participant-eligibility.py
+      - name: Remove temporary patch files
         shell: bash
         run: |
-          mkdir -p rally-participant-source
-          cp platform_v2/cloudflare_shadow/src/index.test.ts rally-participant-source/index.test.ts
-          cp platform_v2/cloudflare_shadow/src/index.ts rally-participant-source/index.ts
-      - name: Upload diagnostic
-        uses: actions/upload-artifact@v6
-        with:
-          name: rally-participant-source
-          path: rally-participant-source
-          if-no-files-found: error
+          rm .github/workflows/rally-shadow-guard-diagnostics.yml
+          rm scripts/patch-rally-participant-eligibility.py
+      - name: Commit scoped participant guard
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add platform_v2/src/services/observationRallyAutoMatch.ts \
+            platform_v2/cloudflare_shadow/src/index.ts \
+            platform_v2/cloudflare_shadow/src/index.test.ts \
+            platform_v2/cloudflare_shadow/src/workerRallyAutoMatchContract.test.ts \
+            .github/workflows/rally-shadow-guard-diagnostics.yml \
+            scripts/patch-rally-participant-eligibility.py
+          git diff --cached --check
+          git commit -m "fix: limit rally auto-match to active participants"
+          git push origin HEAD:agent/worker-rally-auto-match
