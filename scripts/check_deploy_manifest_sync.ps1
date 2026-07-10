@@ -53,6 +53,10 @@ if ($manifest.platform -eq "cloudflare_worker") {
         $issues.Add("deploy.yml is missing deploy guardrail check step")
     }
 
+    if ($workflowText -match '(?m)^\s{2}workflow_dispatch:') {
+        $issues.Add("deploy.yml must not expose workflow_dispatch; production deploy is main-push only")
+    }
+
     if ($issues.Count -gt 0) {
         foreach ($issue in $issues) {
             Write-Error $issue

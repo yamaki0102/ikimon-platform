@@ -69,7 +69,7 @@ jobs:
           if matches '^(upload_package/|tests/|tools/(lint|check_marketing_copy)\.php|composer\.(json|lock)|phpunit\.xml)'; then PHP_CHANGED=true; fi
           if matches '^platform_v2/'; then PLATFORM_CHANGED=true; fi
           if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
-          if matches '^(\.github/workflows/|\.github/actions/|ops/deploy/|scripts/check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
+          if matches '^(\.github/workflows/|\.github/actions/|ops/deploy/|scripts/check_(deploy_guardrails|deploy_manifest_sync|platform_migration_guardrails|staging_manifest_sync|release_candidate)\.ps1)'; then DEPLOY_CHANGED=true; fi
 
           RUN_PHP_LINT=false
           RUN_PHP_TESTS=false
@@ -139,6 +139,10 @@ jobs:
       - name: Audit catch-up asset sync
         shell: pwsh
         run: ./scripts/check_catchup_sync.ps1 -WarningOnly
+
+      - name: Test release automation
+        shell: pwsh
+        run: ./scripts/tests/release_automation.tests.ps1
 
       - name: Check deploy guardrails
         shell: pwsh
