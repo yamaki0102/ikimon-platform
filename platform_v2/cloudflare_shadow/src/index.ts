@@ -17839,6 +17839,19 @@ async function getPlaceMemoryPreferencesNative(env: Env, userId: string): Promis
   };
 }
 
+async function placeMemoryViewerHasCellAccessNative(env: Env, userId: string, cellId: string): Promise<boolean> {
+  const row = await env.OBS_DB.prepare(
+    `SELECT EXISTS(
+       SELECT 1
+         FROM place_memory_entries
+        WHERE user_id = ?
+          AND cell_id = ?
+          AND deleted_at IS NULL
+     ) AS has_access`
+  ).bind(userId, cellId).first<{ has_access: number | boolean }>();
+  return row?.has_access === 1 || row?.has_access === true;
+}
+
 async function upsertPlaceMemoryForObservationNative(
   env: Env,
   input: LegacyObservationUpsertInput,
@@ -17961,6 +17974,9 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
   if (pathname === "/api/v1/place-memory" && request.method === "GET") {
     const cellId = normalizeOptionalText(url.searchParams.get("cellId"));
     if (!cellId) return json({ ok: false, error: "cellId_required" }, 400, { "cache-control": "no-store" });
+    if (!(await placeMemoryViewerHasCellAccessNative(env, session.userId, cellId))) {
+      return json({ ok: true, cellId, unlocked: false, items: [] }, 200, { "cache-control": "no-store" });
+    }
     const limit = Math.min(24, Math.max(1, integerOrNull(url.searchParams.get("limit")) ?? 12));
     const rows = (await env.OBS_DB.prepare(
       `SELECT pme.entry_id, pme.visit_id, pme.occurrence_id, pme.user_id, pme.cell_id,
@@ -17981,7 +17997,7 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
         ORDER BY pme.updated_at DESC
         LIMIT ?`
     ).bind(session.userId, session.userId, cellId, session.userId, limit).all<PlaceMemoryEntryRow>()).results;
-    return json({ ok: true, items: rows.map((row) => placeMemoryPayload(row, session.userId)) }, 200, { "cache-control": "no-store" });
+    return json({ ok: true, cellId, unlocked: true, items: rows.map((row) => placeMemoryPayload(row, session.userId)) }, 200, { "cache-control": "no-store" });
   }
 
   const actionMatch = pathname.match(/^\/api\/v1\/place-memory\/([^/]+)\/(like|hide|report|photo-review)$/);
@@ -17998,8 +18014,14 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
         LIMIT 1`
     ).bind(entryId).first<PlaceMemoryEntryRow>();
     if (!entry) return json({ ok: false, error: "place_memory_not_found" }, 404, { "cache-control": "no-store" });
+    if (!(await placeMemoryViewerHasCellAccessNative(env, session.userId, entry.cell_id))) {
+      return json({ ok: false, error: "place_memory_not_found" }, 404, { "cache-control": "no-store" });
+    }
 
     if (action === "like") {
+      if (entry.user_id === session.userId) {
+        return json({ ok: false, error: "place_memory_own_like_not_allowed" }, 403, { "cache-control": "no-store" });
+      }
       const existing = await env.OBS_DB.prepare(
         "SELECT entry_id FROM place_memory_likes WHERE entry_id = ? AND user_id = ? LIMIT 1"
       ).bind(entryId, session.userId).first<{ entry_id: string }>();
@@ -18034,6 +18056,16 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
     }
 
     const body: Record<string, unknown> = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+    const existingReport = await env.OBS_DB.prepare(
+      "SELECT report_id FROM place_memory_reports WHERE entry_id = ? AND user_id = ? LIMIT 1"
+    ).bind(entryId, session.userId).first<{ report_id: string }>();
+    if (existingReport) {
+      const count = await env.OBS_DB.prepare(
+        "SELECT COUNT(DISTINCT user_id) AS count FROM place_memory_reports WHERE entry_id = ?"
+      ).bind(entryId).first<{ count: number }>();
+      const reportCount = Math.max(0, Number(count?.count ?? 0));
+      return json({ ok: true, duplicate: true, hiddenForMe: true, moderationStatus: reportCount >= 3 ? "hidden_by_reports" : entry.moderation_status }, 200, { "cache-control": "no-store" });
+    }
     const reportId = newId("place_memory_report");
     await env.OBS_DB.prepare(
       `INSERT INTO place_memory_reports (report_id, entry_id, user_id, reason_code, reason_note, created_at)
@@ -18046,7 +18078,7 @@ async function handlePlaceMemoryRuntime(request: Request, url: URL, env: Env): P
       cleanPlaceMemoryText(body.reasonNote ?? body.reason_note, 400)
     ).run();
     const count = await env.OBS_DB.prepare(
-      "SELECT COUNT(*) AS count FROM place_memory_reports WHERE entry_id = ?"
+      "SELECT COUNT(DISTINCT user_id) AS count FROM place_memory_reports WHERE entry_id = ?"
     ).bind(entryId).first<{ count: number }>();
     const reportCount = Math.max(0, Number(count?.count ?? 0));
     if (reportCount >= 3) {
@@ -24815,6 +24847,16 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     throw new HttpError(400, "missing_location");
   }
   assertNonEmpty(input.observedAt, "observedAt");
+
+  const requestedObservationId = normalizeOptionalId(input.observationId);
+  if (requestedObservationId) {
+    const existingObservation = await env.OBS_DB.prepare(
+      "SELECT owner_user_id FROM observations WHERE observation_id = ?"
+    ).bind(requestedObservationId).first<{ owner_user_id: string }>();
+    if (existingObservation && existingObservation.owner_user_id !== input.userId) {
+      return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+    }
+  }
 
   const clientSubmissionId = normalizeCompatibleClientSubmissionId(input.clientSubmissionId);
   const idempotencyFingerprint = clientSubmissionId
