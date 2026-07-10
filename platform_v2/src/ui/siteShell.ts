@@ -1268,6 +1268,7 @@ function globalRecordEntryScript(basePath: string): string {
   let recordingTimer = null;
   let directPostInFlight = false;
   let latestCaptureLocation = null;
+  let latestCaptureLocationAt = 0;
   let captureLocationRequest = null;
   let photoDraftRetryDetailId = '';
   let photoDraftRetryVisitId = '';
@@ -1397,9 +1398,12 @@ function globalRecordEntryScript(basePath: string): string {
   const apiPath = (path) => BASE_PATH + path;
   const nowMs = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
   const durationSince = (startedAt) => Math.max(0, Math.round(nowMs() - Number(startedAt || 0)));
-  const requestCaptureLocation = () => {
-    if (latestCaptureLocation) return Promise.resolve(latestCaptureLocation);
+  const requestCaptureLocation = (forceFresh = false) => {
     if (captureLocationRequest) return captureLocationRequest;
+    const cacheAgeMs = Date.now() - Number(latestCaptureLocationAt || 0);
+    if (!forceFresh && latestCaptureLocation && cacheAgeMs >= 0 && cacheAgeMs <= 15000) {
+      return Promise.resolve(latestCaptureLocation);
+    }
     if (!(navigator.geolocation && typeof navigator.geolocation.getCurrentPosition === 'function')) {
       return Promise.resolve(null);
     }
@@ -1411,10 +1415,11 @@ function globalRecordEntryScript(basePath: string): string {
           latestCaptureLocation = Number.isFinite(latitude) && Number.isFinite(longitude)
             ? { latitude, longitude, accuracy: Number(position.coords.accuracy) || null }
             : null;
+          latestCaptureLocationAt = latestCaptureLocation ? Date.now() : 0;
           resolve(latestCaptureLocation);
         },
         () => resolve(null),
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: forceFresh ? 0 : 15000 },
       );
     }).finally(() => {
       captureLocationRequest = null;
@@ -2216,7 +2221,7 @@ function globalRecordEntryScript(basePath: string): string {
     const metadata = capturedReviewMeta || {};
     if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
       setStatus('撮影地点を確認しています...');
-      const resolvedLocation = metadata.location || await requestCaptureLocation();
+      const resolvedLocation = await requestCaptureLocation(true) || metadata.location;
       if (resolvedLocation) {
         metadata.location = resolvedLocation;
         metadata.locationPending = false;
@@ -2501,7 +2506,11 @@ function globalRecordEntryScript(basePath: string): string {
     document.documentElement.classList.add('global-record-camera-open');
     syncVisualViewportVars();
     setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから記録へ進めます。' : 'カメラを起動しています...');
-    if (kind === 'photo') void requestCaptureLocation();
+    if (kind === 'photo') {
+      latestCaptureLocation = null;
+      latestCaptureLocationAt = 0;
+      void requestCaptureLocation(true);
+    }
     if (!(options && options.reviewOnly)) void startCamera();
   };
   const startCamera = async () => {
