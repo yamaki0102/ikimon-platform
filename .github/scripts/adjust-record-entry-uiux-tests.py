@@ -14,6 +14,16 @@ replacements = [
         '  assert.match(html, /class="btn btn-solid site-record-link" href="\\/ja\\/record\\?start=photo" data-global-record-trigger="photo" data-record-target="\\/ja\\/record\\?start=photo" data-kpi-action="header_record_photo">記録する<\\/a>/);',
         "minimal chrome record launcher",
     ),
+    (
+        '  assert.doesNotMatch(html, /navigator\\.geolocation\\.getCurrentPosition/);',
+        '  assert.match(html, /navigator\\.geolocation\\.getCurrentPosition/);',
+        "quick record geolocation expectation",
+    ),
+    (
+        '  assert.match(html, /地点を確認してから記録します。記録画面で場所を選べます。/);',
+        '  assert.match(html, /撮影地点を確認しています/);\n  assert.match(html, /位置情報を取得できなかったため、写真を保持して記録画面へ移動します。/);',
+        "quick record location fallback copy",
+    ),
 ]
 
 for old, new, label in replacements:
