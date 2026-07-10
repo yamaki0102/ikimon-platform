@@ -169,7 +169,8 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     <form id="field-db-search" action="/community/fields" method="get" style="display:flex; gap:8px;">
       ${filter.source ? `<input type="hidden" name="source" value="${escapeHtml(filter.source)}" />` : ""}
       ${filter.prefecture ? `<input type="hidden" name="prefecture" value="${escapeHtml(filter.prefecture)}" />` : ""}
-      <input type="search" name="q" value="${escapeHtml(filter.query ?? "")}"
+      <label class="sr-only" for="field-db-search-query">フィールドを検索</label>
+      <input id="field-db-search-query" type="search" name="q" value="${escapeHtml(filter.query ?? "")}"
              placeholder="名前・市町村・都道府県で検索"
              style="flex:1; min-height:48px; min-width:0; padding:10px 14px; border-radius:14px; border:1px solid var(--evt-line);" />
       <button type="submit" class="evt-btn evt-btn-primary">検索</button>
