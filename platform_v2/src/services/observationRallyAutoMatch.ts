@@ -122,6 +122,16 @@ export async function autoMatchObservationToActiveRallies(
        AND station.lng IS NOT NULL
        AND station.radius_m IS NOT NULL
        AND station.radius_m > 0
+       AND station.lat BETWEEN
+         $1::double precision - (station.radius_m / 110574.0)
+         AND $1::double precision + (station.radius_m / 110574.0)
+       AND station.lng BETWEEN
+         $2::double precision - (
+           station.radius_m / (111320.0 * GREATEST(ABS(COS(RADIANS($1::double precision))), 0.1))
+         )
+         AND $2::double precision + (
+           station.radius_m / (111320.0 * GREATEST(ABS(COS(RADIANS($1::double precision))), 0.1))
+         )
        AND event_session.started_at <= $3::timestamptz
        AND (event_session.ended_at IS NULL OR event_session.ended_at >= $3::timestamptz)
        AND (mission.starts_at IS NULL OR mission.starts_at <= $3::timestamptz)
