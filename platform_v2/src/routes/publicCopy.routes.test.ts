@@ -230,6 +230,25 @@ test("records workbench localizes the unified chrome in English", async () => {
   }
 });
 
+test("records workbench renders the identification summary launcher", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/records?view=identification_summary&lang=ja", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /data-testid="identification-summary"/);
+    assert.match(response.body, /同定まとめ/);
+    assert.match(response.body, /確認待ち/);
+    assert.match(response.body, /資料候補あり/);
+    assert.match(response.body, /追加写真が必要/);
+    assert.match(response.body, /作業台で開く/);
+    assert.match(response.body, /href="\/ja\/records\?view=needs_id"/);
+    assert.doesNotMatch(response.body, /class="global-record-launcher"/);
+    assert.doesNotMatch(response.body, /この候補でよさそう/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("legacy list surfaces redirect into records while preserving intent", async () => {
   const app = buildApp();
   try {

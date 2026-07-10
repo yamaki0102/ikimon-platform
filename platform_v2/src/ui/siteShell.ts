@@ -50,6 +50,8 @@ export type SiteShellOptions = {
   noindex?: boolean;
   structuredDataHtml?: string;
   shellClassName?: string;
+  /** Suppress the fixed quick-record launcher on surfaces that already have dense task controls. */
+  hideGlobalRecordLauncher?: boolean;
   /** Skip the global site footer. Immersive surfaces also suppress it
    *  automatically so primary circulation stays in the header/side menu. */
   hideFooter?: boolean;
@@ -3239,7 +3241,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const robotsMeta = options.noindex || lang !== "ja" ? `\n  <meta name="robots" content="noindex,follow" />` : "";
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;
-  const globalRecordNav = globalRecordEntry(options.basePath, lang, currentPath);
+  const globalRecordNav = options.hideGlobalRecordLauncher ? "" : globalRecordEntry(options.basePath, lang, currentPath);
   const installCopy = appInstallCopy[lang];
   const manifestHref = `/manifest.webmanifest?lang=${encodeURIComponent(lang)}`;
   const installPromptHtml = `<div class="app-install-prompt" data-app-install-prompt hidden>
