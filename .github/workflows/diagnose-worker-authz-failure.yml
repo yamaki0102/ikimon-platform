@@ -1,0 +1,65 @@
+name: Diagnose Worker Authz Failure
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/worker-place-memory-authz'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Install Worker dependencies
+        working-directory: platform_v2/cloudflare_shadow
+        run: npm ci
+      - name: Capture Worker checks
+        id: checks
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set +e
+          {
+            echo '=== npm run check ==='
+            npm run check
+            check_status=$?
+            echo "check_status=$check_status"
+            echo '=== npm run test:quick ==='
+            npm run test:quick
+            quick_status=$?
+            echo "quick_status=$quick_status"
+            echo '=== npm run test ==='
+            npm run test
+            full_status=$?
+            echo "full_status=$full_status"
+            echo '=== npm run wrangler:check ==='
+            npm run wrangler:check
+            wrangler_status=$?
+            echo "wrangler_status=$wrangler_status"
+            if [ "$check_status" -ne 0 ] || [ "$quick_status" -ne 0 ] || [ "$full_status" -ne 0 ] || [ "$wrangler_status" -ne 0 ]; then
+              final_status=1
+            else
+              final_status=0
+            fi
+            echo "exit_code=$final_status" >> "$GITHUB_OUTPUT"
+          } > worker-authz-failure.log 2>&1
+          tail -n 200 worker-authz-failure.log || true
+          exit 0
+      - name: Upload Worker diagnostic
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: worker-authz-failure
+          path: platform_v2/cloudflare_shadow/worker-authz-failure.log
+          if-no-files-found: error
+      - name: Preserve failing status
+        if: steps.checks.outputs.exit_code != '0'
+        run: exit 1
