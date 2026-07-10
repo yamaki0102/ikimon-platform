@@ -169,6 +169,12 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /地域図鑑マップ/);
+  assert.match(html, /data-testid="map-start-panel"/);
+  assert.match(html, /近くでできること/);
+  assert.match(html, /みんなの写真/);
+  assert.match(html, /現地ガイド/);
+  assert.match(html, /散策の手がかり/);
+  assert.match(html, /記録する/);
   assert.match(html, /id="me-purpose-hint"/);
   assert.match(html, /残したい風景を探す/);
   assert.match(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
@@ -192,14 +198,29 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers"/);
   assert.doesNotMatch(styles, /\.me-map-momentum/);
   assert.match(script, /tab: 'places'/);
+  assert.match(script, /var DEFAULT_MAP_CENTER = \[138\.383, 34\.975\];/);
+  assert.match(script, /var DEFAULT_MAP_ZOOM = 12\.8;/);
+  assert.match(script, /var STARTUP_LOCATION_ZOOM = 14\.2;/);
+  assert.match(script, /function readLastStartupLocation\(\)/);
+  assert.match(script, /function requestStartupCurrentLocation\(\)/);
+  assert.match(script, /navigator\.geolocation\.getCurrentPosition\(applyPosition, fail/);
+  assert.doesNotMatch(script, /center: state\._restoredCenter \|\| \[138\.38, 35\.34\]/);
+  assert.doesNotMatch(script, /zoom: state\._restoredZoom != null \? state\._restoredZoom : 5\.2/);
   assert.match(script, /PURPOSE_HINT_STORAGE_KEY = 'ikimon-map-purpose-hint-v1'/);
+  assert.match(script, /function dismissStartPanel\(\)/);
+  assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
   assert.match(script, /function canShowPurposeHint\(\)/);
+  assert.match(script, /if \(startPanelEl && !startPanelEl\.hidden\) return false;/);
   assert.match(script, /if \(state\.tab === 'rain'\) return false;/);
   assert.match(script, /if \(isBottomSheetOpen\(\)\) return false;/);
   assert.match(script, /state\.map\.on\('dragstart', dismissPurposeHint\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\s*\{/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel-grid\s*\{/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-purpose-hint\[hidden\],\s+\.me-rain-mode \.me-purpose-hint,\s+\.me-sheet-open \.me-purpose-hint \{[\s\S]*display: none;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-rain-mode \.me-start-panel,\s+\.me-sheet-open \.me-start-panel \{[\s\S]*display: none;/);
   assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-purpose-hint \{[\s\S]*width: min\(260px, calc\(100% - 116px\)\);/);
+  assert.match(MAP_EXPLORER_STYLES, /@media \(max-width: 900px\)[\s\S]*\.me-start-panel \{[\s\S]*width: min\(330px, calc\(100% - 78px\)\);/);
 });
 
 test("map explorer overlays signed-in owner observations separately from public cells", () => {
@@ -953,7 +974,7 @@ test("map initial data load stays light and defers secondary panels", () => {
   assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
 });
 
-test("map waits for explicit location action instead of auto-locating on open", () => {
+test("map uses nearby startup location while keeping record page location explicit", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
   assert.match(script, /function applyRestoredParams\(params, options\)/);
@@ -961,6 +982,11 @@ test("map waits for explicit location action instead of auto-locating on open", 
   assert.match(script, /params = parseStateString\(localStorage\.getItem\(STATE_STORAGE_KEY\) \|\| ''\);[\s\S]*restoreViewport = false;/);
   assert.match(script, /applyRestoredParams\(params, \{ restoreViewport: restoreViewport \}\);/);
   assert.match(script, /if \(restoreViewport && params\.lng && params\.lat && params\.z\)/);
+  assert.match(script, /function initialStartupViewport\(\)/);
+  assert.match(script, /readLastStartupLocation\(\)/);
+  assert.match(script, /requestStartupCurrentLocation\(\);/);
+  assert.match(script, /LAST_LOCATION_MAX_AGE_MS = 1000 \* 60 \* 60 \* 24 \* 30/);
+  assert.match(script, /rememberLastStartupLocation\(lng, lat/);
   assert.doesNotMatch(script, /maybeAutoLocateOnFirstOpen/);
   assert.match(script, /locateFab\.addEventListener\('click'[\s\S]*navigator\.geolocation\.getCurrentPosition/);
 });

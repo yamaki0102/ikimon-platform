@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("map and record do not request geolocation on initial render", async ({ browser }) => {
+test("map starts near current location while record keeps explicit location action", async ({ browser }) => {
   const baseURL = process.env.STAGING_BASE_URL || "http://127.0.0.1:4322";
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -41,8 +41,9 @@ test("map and record do not request geolocation on initial render", async ({ bro
 
   const page = await context.newPage();
   await page.goto(`${baseURL}/map?lang=ja`, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1200);
-  expect(await page.evaluate(() => window.__geoCalls)).toEqual([]);
+  await page.waitForFunction(() => Array.isArray(window.__geoCalls) && window.__geoCalls.some((call) => call.type === "getCurrentPosition"));
+  const mapCalls = await page.evaluate(() => window.__geoCalls);
+  expect(mapCalls.map((call) => call.type)).toContain("getCurrentPosition");
 
   const recordPage = await context.newPage();
   await recordPage.goto(`${baseURL}/record?userId=staging-user&lang=ja`, { waitUntil: "domcontentloaded" });
