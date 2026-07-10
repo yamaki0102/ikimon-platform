@@ -195,7 +195,6 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     privateRoot: config.legacyDataRoot,
   });
   const pool = getPool();
-  const client = await pool.connect();
   const normalizedBase64 = normalizeBase64(input.base64Data);
   const originalBuffer = Buffer.from(normalizedBase64, "base64");
   if (originalBuffer.byteLength === 0) {
@@ -221,6 +220,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   let relativePath = "";
   let originalRelativePath = "";
   const createdMediaObjects: CreatedMediaObject[] = [];
+  const client = await pool.connect();
 
   try {
     await client.query("begin");
@@ -265,30 +265,30 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       [`observation-photo:${visitId}:${sha256}`],
     );
 
-    const originalExisted = await mediaObjectStore.exists({
-      visibility: "private",
+    const originalInput = {
+      visibility: "private" as const,
       storagePath: originalRelativePath,
-    });
-    const originalObject = await mediaObjectStore.write({
-      visibility: "private",
-      storagePath: originalRelativePath,
-      buffer,
-    });
-    if (!originalExisted) {
-      createdMediaObjects.push({ visibility: "private", storagePath: originalRelativePath });
+    };
+    const originalExisted = await mediaObjectStore.exists(originalInput);
+    let originalObject;
+    if (originalExisted) {
+      originalObject = mediaObjectStore.reference(originalInput);
+    } else {
+      createdMediaObjects.push(originalInput);
+      originalObject = await mediaObjectStore.write({ ...originalInput, buffer });
     }
 
-    const publicExisted = await mediaObjectStore.exists({
-      visibility: "public",
+    const publicInput = {
+      visibility: "public" as const,
       storagePath: relativePath,
-    });
-    const publicObject = await mediaObjectStore.write({
-      visibility: "public",
-      storagePath: relativePath,
-      buffer,
-    });
-    if (!publicExisted) {
-      createdMediaObjects.push({ visibility: "public", storagePath: relativePath });
+    };
+    const publicExisted = await mediaObjectStore.exists(publicInput);
+    let publicObject;
+    if (publicExisted) {
+      publicObject = mediaObjectStore.reference(publicInput);
+    } else {
+      createdMediaObjects.push(publicInput);
+      publicObject = await mediaObjectStore.write({ ...publicInput, buffer });
     }
 
     const originalBlobId = await upsertAssetBlob(client, {
