@@ -226,7 +226,7 @@ const DOC_TERM_DEFINITIONS: DocTerm[] = [
   { label: "ネイチャーポジティブ", href: "/learn/terms/nature-positive", hint: "自然の損失を止め、回復へ向ける考え方。" },
   { label: "30by30", href: "/learn/terms/30by30", hint: "2030年までに陸と海の30%以上を保全する国際目標。" },
   { label: "自然共生サイト", href: "/learn/terms/nature-symbiosis-site", hint: "民間や地域の保全管理地を国が認定する制度。" },
-  { label: "OECM", href: "/learn/terms/oecm", hint: "保護区以外で生物多様性保全に貢献している地域を評価する考え方。" },
+  { label: "OECM", href: "/learn/terms/oecm", hint: "保護区以外で生物多様性保全に効果がある地域を評価する考え方。" },
   { label: "TNFD", href: "/learn/terms/tnfd", hint: "自然関連のリスクや機会を企業が開示するための国際的な枠組み。" },
   { label: "自然資本", href: "/learn/terms/natural-capital", hint: "自然を社会や経済を支える資本として見る考え方。" },
   { label: "生物多様性クレジット", href: "/learn/terms/biodiversity-credits", hint: "自然の保全や回復を資金化する仕組みとして議論される考え方。" },
@@ -358,7 +358,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
       },
       {
         title: "記録を活かす",
-        body: "一人の発見を、地域や研究で読み返せる材料へ近づける。",
+        body: "一人の発見を、地域や研究で確認できる材料へ近づける。",
         paths: ["/learn/citizen-science", "/learn/methodology", "/learn/biomonweek"],
       },
       {
@@ -1032,7 +1032,7 @@ const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     tags: ["feature", "improvement", "fix"],
     items: [
       { label: "ダッシュボードを全面リニューアル", body: "ランクカード・デイリークエスト・カテゴリ探索を搭載した新デザインに。" },
-      { label: "バッジ・スコアシステムが本格稼働", body: "記録数・同定貢献・連続投稿などでバッジが取得できます。" },
+      { label: "バッジ・スコアシステムが本格稼働", body: "記録数・同定記録・連続投稿などでバッジが取得できます。" },
       { label: "Google・Xログイン対応", body: "ソーシャルログインでかんたんにアカウントを作れます。" },
       { label: "地域達成度をマイルストーン制に", body: "遠すぎる目標をやめ、次の一歩が手の届く距離に見えるようになりました。" },
       { label: "ヒートマップ・フィルターのバグ修正", body: "探索フィルターと地図表示の問題を修正しました。" },

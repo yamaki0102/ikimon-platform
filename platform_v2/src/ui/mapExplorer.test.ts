@@ -170,8 +170,9 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
 
   assert.match(html, /地域図鑑マップ/);
   assert.match(html, /id="me-purpose-hint"/);
-  assert.match(html, /残したい風景を探す/);
-  assert.match(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
+  assert.match(html, /写真・ガイド・散策/);
+  assert.doesNotMatch(html, /残したい風景を探す/);
+  assert.doesNotMatch(html, /気になる場所を選ぶと、記録と季節の手がかりが見えます。/);
   assert.match(html, /この範囲の記録/);
   assert.match(html, /data-testid="map-personal-pulse-panel"/);
   assert.match(html, /自分の記録へすぐ戻る/);
@@ -181,10 +182,11 @@ test("map home opens as a regional encyclopedia instead of a raw point finder", 
   assert.doesNotMatch(html, /記録が地域の図鑑を育てています/);
   assert.doesNotMatch(html, /投稿が増えるほど、地図に季節や場所の手がかりが重なります。/);
   assert.doesNotMatch(html, /data-kpi-action="map:momentum_/);
-  assert.match(html, /ここは、これから育つ場所です/);
-  assert.match(html, /記録は地域単位で集計しています/);
+  assert.match(html, /近くを探索中/);
+  assert.doesNotMatch(html, new RegExp("ここは、これから" + "育つ場所です"));
+  assert.doesNotMatch(html, /記録は地域単位で集計しています/);
   assert.doesNotMatch(html, /余白 = これから育つ場所/);
-  assert.doesNotMatch(html, /色 = 季節と記録の厚み/);
+  assert.doesNotMatch(html, /色 = 季節と記録数/);
   assert.doesNotMatch(html, /面 = 場所ページ・エリア図鑑/);
   assert.doesNotMatch(html, /class="me-map-cues"/);
   assert.match(html, /class="me-tab is-active" role="tab" aria-selected="true" data-tab="places"/);
@@ -456,11 +458,11 @@ test("area sheet includes contribution feedback surface", () => {
   assert.match(script, /communityPerspective/);
   assert.match(script, /overlapInsight/);
   assert.match(script, /あなたの視点/);
-  assert.match(script, /あなたのおかげで/);
+  assert.match(script, /あなたの記録から/);
   assert.match(script, /みんなの視点/);
   assert.match(script, /重なると見えること/);
   assert.match(script, /記録の手応え/);
-  assert.match(script, /自分の記録を見返す/);
+  assert.match(script, /自分の記録を確認する/);
 });
 
 test("map UX interactions emit area open and selected-place CTA KPI events", () => {

@@ -209,7 +209,7 @@ function authPageCopy(lang: SiteLang): AuthPageCopy {
       profileHeroRegister: "新しく登録してマイページへ",
       recordHeroLogin: "ログインして記録する",
       recordHeroRegister: "新しく登録して記録する",
-      profileHeroLead: "自分の場所、記録、Life List を見返すための入口です。",
+      profileHeroLead: "自分の場所、記録、Life List を確認するための入口です。",
       recordHeroLead: "足もとの発見を、自分の記録として残すための入口です。",
       footerNote: "認証後は記録導線へ戻ります。",
       statusChecking: "確認中...",

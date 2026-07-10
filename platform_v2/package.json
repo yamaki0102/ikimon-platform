@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npm run check:prompt-schema-leakage && npm run check:observation-copy && npm run check:area-encyclopedia-copy && npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
+    "build": "npm run check:prompt-schema-leakage && npm run check:public-terms && npm run check:observation-copy && npm run check:area-encyclopedia-copy && npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
     "build:server": "npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",

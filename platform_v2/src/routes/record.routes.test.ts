@@ -44,10 +44,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         });
 
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /あとで見返すためのメモ/);
+        assert.match(response.body, /あとで確認するためのメモ/);
         assert.match(response.body, /まだ分からないまま残す/);
         assert.match(response.body, /今日は見なかったメモを記録として残す/);
-        assert.match(response.body, /次に見返す手がかり/);
+        assert.match(response.body, /次に確認する手がかり/);
         assert.match(response.body, /今見えた変化/);
         assert.match(response.body, /当てはまるものを押すと、手がかりに入ります。自宅・学校名は入れないでください。/);
         assert.match(response.body, /data-season-clue="花・実"/);
@@ -84,7 +84,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /最短で残す/);
         assert.match(response.body, /写真かメモを選ぶ/);
         assert.match(response.body, /気づきを1つ入れる/);
-        assert.match(response.body, /保存して見返す/);
+        assert.match(response.body, /保存して確認する/);
         assert.match(response.body, /\.record-has-media \.record-first-success/);
         assert.match(response.body, /buildRecordFeedbackSentence/);
         assert.match(response.body, /requestVisualRecordFeedback/);
@@ -288,7 +288,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /許可すると、この記録の地点入力に使います。/);
         assert.match(response.body, /現在地は許可した時に、この記録の地点入力に使います。/);
         assert.doesNotMatch(response.body, /写真に場所も入れる/);
-        assert.doesNotMatch(response.body, /現在地を入れると、あとで同じ場所を見返しやすくなります。/);
+        assert.doesNotMatch(response.body, /現在地を入れると、あとで同じ場所を確認しやすくなります。/);
         assert.match(response.body, /id="record-location-privacy"/);
         assert.match(response.body, /id="record-public-state"/);
         assert.match(response.body, /id="record-prepublish-checklist"/);
@@ -307,7 +307,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /recordSuccessObservationHrefPrefix = "\/ja\/observations\/"/);
         assert.match(response.body, /successProfileCta: "マイページへ"/);
         assert.match(response.body, /successRecordsCta: "自分の記録を見る"/);
-        assert.match(response.body, /保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも見返せます/);
+        assert.match(response.body, /保存した1件をすぐ開けます。あとから自分の記録一覧やマイページでも確認できます/);
         assert.match(response.body, /successSavedCardEyebrow: "保存済みの1件"/);
         assert.match(response.body, /successSavedCardFallbackTitle: "対象を整理中の記録"/);
         assert.match(response.body, /buildPublicStateSuccessHtml/);
@@ -659,7 +659,7 @@ test("profile route gives unauthenticated visitors a mypage start guide", async 
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /ログインすると、自分の記録史を読み返せます/);
+    assert.match(response.body, /ログインすると、自分の記録史を確認できます/);
     assert.match(response.body, /記録一覧を起点に/);
     assert.match(response.body, /ログインしてマイページへ/);
     assert.match(response.body, /\/ja\/login\?redirect=%2Fprofile/);

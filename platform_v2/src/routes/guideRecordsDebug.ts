@@ -81,7 +81,7 @@ function loginGate(nextPath = "/me/guide-records"): string {
 <div class="grd-wrap">
   <section class="grd-empty">
     <h1>ガイド成果を見るにはログインが必要です</h1>
-    <p>歩いて見つけたことを、あとで見返せる自分の成果としてまとめます。</p>
+    <p>歩いて見つけたことを、あとで開ける自分の成果としてまとめます。</p>
     <div class="grd-actions">
       <a class="grd-primary-link" href="/login?redirect=${encodeURIComponent(nextPath)}">ログインして確認する</a>
       <a class="grd-secondary-link" href="/guide">ライブガイドへ</a>
@@ -778,7 +778,7 @@ function renderSimpleOutcomeHero(rows: GuideRecordDebugRow[], bundles: GuideReco
       <div class="grd-simple-main">
         <span class="grd-simple-eyebrow">まだ成果はありません</span>
         <h2>まず1回、ガイドを使って歩けばOKです。</h2>
-        <p>名前が分からなくても大丈夫。場所・時間・気づきが残れば、次に見返せる入口になります。</p>
+        <p>名前が分からなくても大丈夫。場所・時間・気づきが残れば、次に確認できる入口になります。</p>
       </div>
       <a class="grd-primary-link" href="/guide">ガイドを開始する</a>
     </section>`;
@@ -786,7 +786,7 @@ function renderSimpleOutcomeHero(rows: GuideRecordDebugRow[], bundles: GuideReco
   return `<section class="grd-panel grd-simple-outcome" data-testid="guide-outcomes-simple">
     <div class="grd-simple-main">
       <span class="grd-simple-eyebrow">今日できていること</span>
-      <h2>${bundles.length}個の発見が、見返せる形になりました。</h2>
+      <h2>${bundles.length}個の発見が、確認できる形になりました。</h2>
       <p>${sessions.size}回のガイドで、${hintTotal}個の手がかりが残っています。完璧な同定より、次に確かめる材料ができたことを見ます。</p>
     </div>
     <div class="grd-simple-metrics" aria-label="ガイド成果の要約">
@@ -875,7 +875,7 @@ function renderSimpleOutcomeCards(bundles: GuideRecordBundle[]): string {
   const more = bundles.length > 6
     ? `<p class="grd-simple-more">残り${bundles.length - 6}件は、詳しい記録画面で確認できます。</p>`
     : "";
-  return `<section class="grd-simple-list"><h2>見返す発見</h2><div class="grd-simple-grid">${cards}</div>${more}</section>`;
+  return `<section class="grd-simple-list"><h2>確認する発見</h2><div class="grd-simple-grid">${cards}</div>${more}</section>`;
 }
 
 const STYLES = `
@@ -1382,7 +1382,7 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
     nextPath: "/guide/outcomes",
     title: "ガイド成果 — ikimon.life",
     heading: "ガイド成果",
-    lead: "ライブガイドで見つけたことを、今日できたことと次の一歩だけに絞って見返します。",
+    lead: "ライブガイドで見つけたことを、今日できたことと次の一歩だけに絞って確認します。",
     simpleOutcomes: true,
   }));
   app.get("/guide/results", async (_request, reply) => reply.redirect("/guide/outcomes", 308));

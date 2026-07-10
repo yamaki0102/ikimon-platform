@@ -115,7 +115,7 @@ export function fallbackRecordPhotoFeedbackSentence(
   if (priority === "already_good") return firstSignal
     ? `${firstSignal}が見えています。次は気になった特徴を短くメモすると、あとで見分け直しやすくなります。`
     : "主役の特徴は見えています。次は気になった特徴を短くメモすると、あとで見分け直しやすくなります。";
-  return "周囲の文脈が少し弱いので、次は対象と生えている場所・とまっている場所が一緒に分かる1枚を足すと見返しやすくなります。";
+  return "周囲の文脈が少し弱いので、次は対象と生えている場所・とまっている場所が一緒に分かる1枚を足すと確認しやすくなります。";
 }
 
 function buildRecordPhotoFeedbackPrompt(context: RecordPhotoFeedbackContext): string {

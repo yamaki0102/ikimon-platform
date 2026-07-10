@@ -47,8 +47,8 @@ type MainCopy = {
 const mainCopy: Record<SiteLang, MainCopy> = {
   ja: {
     eyebrow: "あなたの記録",
-    heading: "見つけたことを、あとで見返せる",
-    lead: "歩いて見つけたことを記録として残します。読み返すたび、同じ道が少し違って見えてきます。",
+    heading: "見つけたことを、あとで開ける",
+    lead: "歩いて見つけたことを記録として残します。確認するたび、同じ道が少し違って見えてきます。",
     myNotebookLabel: "最近の記録",
     myNotebookEmpty: "まだ何も残っていません。最初の記録を残すと、ここから積み上がります。",
     myPlacesLabel: "よく歩く場所",

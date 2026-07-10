@@ -6,7 +6,7 @@ import { getSessionById, type ObservationEventSessionRow } from "./observationEv
  * 事後振り返り(Post-Event Recap)集計。
  *
  * 既存 observation_event_live_events テーブルがそのまま時系列再生のデータソースになる。
- * 公開版(誰でも閲覧)/参加者版(自分の貢献詳細)/班版/マップ再生用 を 1 ロード可能にする。
+ * 公開版(誰でも閲覧)/参加者版(自分の記録詳細)/班版/マップ再生用 を 1 ロード可能にする。
  */
 
 export interface RecapHighlights {

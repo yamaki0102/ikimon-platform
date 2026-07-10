@@ -41,7 +41,7 @@ test("guide session public summary states achievements without researcher-orient
   assert.match(`${summary.headline}${summary.body}`, /草地と樹木|樹木と草地/);
   assert.match(summary.body, /記録として残しました|見える記録/);
   assert.match(summary.evidenceLine, /位置と時刻が揃っています/);
-  assert.doesNotMatch(`${summary.headline}${summary.body}${summary.evidenceLine}${summary.motivationLine}`, /見返|あとから比べ/);
+  assert.doesNotMatch(`${summary.headline}${summary.body}${summary.evidenceLine}${summary.motivationLine}`, /確認|あとから比べ/);
   assert.doesNotMatch(`${summary.headline}${summary.body}${summary.evidenceLine}`, /同じ流れ|時刻と場所つきのまとまり|までです|これしか/);
   assert.doesNotMatch(`${summary.headline}${summary.body}${summary.evidenceLine}`, /確認できたもの|見つからなかったもの|分けています/);
 });

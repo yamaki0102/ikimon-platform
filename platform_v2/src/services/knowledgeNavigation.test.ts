@@ -175,7 +175,7 @@ test("fallback keeps ready knowledge_claim retrieval behavior when no navigation
         rows: [{
           claim_id: "claim-ready-1",
           claim_type: "retake_guidance",
-          claim_text: "葉と花を同時に撮ると次の確認に役立つ。",
+          claim_text: "葉と花を同時に撮ると次の確認に使える。",
           taxon_name: "セイヨウタンポポ",
           scientific_name: "Taraxacum officinale",
           taxon_group: "plant",

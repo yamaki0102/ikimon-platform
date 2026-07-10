@@ -315,7 +315,7 @@ function normalizeShotSuggestionRationale(options: {
     return "周りの草、水辺、日当たりなどが残ると、その場所でどう現れていたかを季節や別地点の記録と比べやすくなります。";
   }
   if (role.includes("substrate") || combined.includes("土") || combined.includes("石") || combined.includes("樹皮")) {
-    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から読み返せます。";
+    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から確認できます。";
   }
   if (role.includes("scale") || combined.includes("大きさ")) {
     return "大きさの手がかりがあると、写真だけでは迷いやすいサイズ感を後から確認できます。";
@@ -335,7 +335,7 @@ function normalizeShotSuggestionRationale(options: {
     }
     return "細部が残ると、後から見直したときに何が写っていて何が足りないかを判断しやすくなります。";
   }
-  return "その場の見え方がもう少し残ると、あとで読み返したときに場面や変化を思い出しやすくなります。";
+  return "その場の見え方がもう少し残ると、あとで確認したときに場面や変化を思い出しやすくなります。";
 }
 
 function normalizeAreaCandidate(raw: unknown): NormalizedAreaCandidate | null {

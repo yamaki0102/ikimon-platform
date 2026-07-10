@@ -448,11 +448,11 @@ function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
       mineTitle: "自分の記録",
       communityEyebrow: "PLACE MEMORY",
       communityTitle: "場所の今を残す記録",
-      minePulse: "投稿した記録をここから見返せます。",
+      minePulse: "投稿した記録をここから確認できます。",
       communityPulse: "今日も写真・動画つきの記録が届いています。",
       emptyPulse: "まだ少ない場所ほど、次に見に行く楽しみがあります。",
       emptyTitle: "この場所の余白を見つける",
-      emptyBody: "記録がないことも、季節や場所を見返す手がかりです。気になったら、写真1枚や短いメモから残せます。",
+      emptyBody: "記録がないことも、季節や場所を確認する手がかりです。気になったら、写真1枚や短いメモから残せます。",
       mineEmptyTitle: "自分の場所の記録はまだありません",
       communityEmptyTitle: "この場所の余白を見つける",
       emptyCta: "近くを見る",
@@ -824,9 +824,9 @@ function nearbyGrowthInsight(field: Pick<LandingSnapshot["nearbyFields"][number]
   const signature = normalizeDisplaySubject(field.signatureDisplayName || field.latestDisplayName || "");
   if (species >= 8 && observers >= 2) return "次の調査で増減を比べる基準が育っています";
   if (species >= 3) return "確認済みの種を基準に、次回の変化を見られます";
-  if (signature && observations >= 3) return `${signature}を同じ場所で見返せます`;
+  if (signature && observations >= 3) return `${signature}を同じ場所で確認できます`;
   if (species >= 2) return "同じエリアの確認種として束ねられています";
-  if (observers >= 2) return "複数人の記録を同じ場所で見返せます";
+  if (observers >= 2) return "複数人の記録を同じ場所で確認できます";
   return "次の記録が比較の起点になります";
 }
 
@@ -915,7 +915,7 @@ function buildLandingNearbyCards(snapshot: LandingSnapshot, basePath: string, la
         label: "場所",
         imageUrl: null,
         insight: place.latestDisplayName
-          ? `${compactNearbyLabel(place.latestDisplayName)}を見返せる場所`
+          ? `${compactNearbyLabel(place.latestDisplayName)}を確認できる場所`
           : "次の記録で変化を比べられる場所",
       }))
     : [];
@@ -1463,7 +1463,7 @@ function landingShelfEmptyCopy(lang: SiteLang, kind: LandingTopShelfKind): { tit
   const localized: Record<SiteLang, Record<LandingTopShelfKind, { title: string; body: string; href: string }>> = {
     ja: {
       today: { title: "最初の発見を残す", body: "名前が分からなくても、写真や動画から始められます。", href: "/record" },
-      photo: { title: "写真や動画で始める", body: "形、動き、声をあとから見返せる記録にします。", href: "/record?start=gallery" },
+      photo: { title: "写真や動画で始める", body: "形、動き、声をあとから確認できる記録にします。", href: "/record?start=gallery" },
       video: { title: "動きや声を残す", body: "短い動画なら、動き・鳴き声・周りの様子まで残せます。", href: "/record?start=video" },
       guide: { title: "ガイドから歩く", body: "季節と場所の見どころから、次に見るものを選べます。", href: "/guide" },
       scan: { title: "現地の手がかりを束ねる", body: "写真、音、場所の情報をまとめて残せます。", href: "/lens" },
@@ -1682,7 +1682,7 @@ function renderSoundIntelligenceSection(basePath: string, lang: SiteLang): strin
     {
       label: "Sort",
       title: "似た音を束ねて仕訳する",
-      body: "音声 segment は bundle と cluster にまとまり、鳥・虫・水音・未知音のように、素人にも見返しやすい棚へ寄せます。",
+      body: "音声 segment は bundle と cluster にまとまり、鳥・虫・水音・未知音のように、素人にも確認しやすい棚へ寄せます。",
     },
     {
       label: "Review",
@@ -1763,7 +1763,7 @@ function renderMapSection(options: LandingTopRenderOptions): string {
       <div class="prototype-map-points">
         <a href="${escapeHtml(landingHref(basePath, lang, "/map"))}" data-kpi-action="landing:map:open"><i>RT</i><span><strong>また同じ場所へ行く</strong><small>季節や個体数の変化を残す</small></span></a>
         <a href="${escapeHtml(landingHref(basePath, lang, "/records?view=places"))}"><i>LY</i><span><strong>場所ごとの発見を重ねる</strong><small>水辺、林、街路樹を比較できる</small></span></a>
-        <a href="${escapeHtml(landingHref(basePath, lang, "/record"))}"><i>NX</i><span><strong>次の観察地点を見つける</strong><small>多い場所と少ない場所を見返せる</small></span></a>
+        <a href="${escapeHtml(landingHref(basePath, lang, "/record"))}"><i>NX</i><span><strong>次の観察地点を見つける</strong><small>多い場所と少ない場所を確認できる</small></span></a>
       </div>
     </div>
     <div class="prototype-map-board">
@@ -1826,7 +1826,7 @@ function renderCommunitySection(basePath: string, lang: SiteLang): string {
       </div>
     </div>
     <div class="prototype-use-grid">
-      <article><strong>個人の図鑑</strong><span>自分が見つけた生きものを、場所と季節で見返す。</span></article>
+      <article><strong>個人の図鑑</strong><span>自分が見つけた生きものを、場所と季節で確認する。</span></article>
       <article><strong>学校の観察</strong><span>校区や遠足先で見つけた自然を、授業後も残す。</span></article>
       <article><strong>研究の入口</strong><span>市民の記録を、地域調査の手がかりにする。</span></article>
       <article><strong>企業・地域の活動</strong><span>観察データを、レポートや次のアクションへつなげる。</span></article>

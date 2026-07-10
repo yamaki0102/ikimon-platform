@@ -427,7 +427,7 @@ function buildFallbackPublicStory(input: BuildCapsuleInput, clusters: CapsuleSou
       {
         heading: "場所の状態",
         body: counts.fieldScans > 0
-          ? "センサースキャンにより、同じ場所を次回見返すための状態記録が残りました。"
+          ? "センサースキャンにより、同じ場所を次回確認するための状態記録が残りました。"
           : "次回は定点写真や周辺スキャンを足すと、季節変化を比べやすくなります。",
         sourceRefs: scanRefs,
       },

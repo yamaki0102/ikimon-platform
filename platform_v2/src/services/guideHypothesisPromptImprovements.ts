@@ -121,7 +121,7 @@ function helpfulPattern(claimType: string, items: GuideHypothesisEvalItem[]): Gu
     label: "helpful",
     claimType,
     trigger: "helpful_feedback_cluster",
-    recommendation: `${claimType} の次回観察指示では、現地手がかりを残したまま不足データを具体的な行動に変換する表現が役立っている。`,
+    recommendation: `${claimType} の次回観察指示では、現地手がかりを残したまま不足データを具体的な行動に変換する表現が形になっている。`,
     promptPatch: [
       `When claim_type is ${claimType}, preserve concrete next-sampling steps that name time, place scope, target taxa scope, and non-detection recording.`,
       "Keep the tone as a hypothesis. Do not convert helpful feedback into ecological evidence.",

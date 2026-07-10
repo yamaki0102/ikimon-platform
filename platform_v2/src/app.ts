@@ -459,7 +459,7 @@ function buildMapHomeHtml(
   return renderSiteDocument({
     basePath: options.basePath,
     title: mapPageCopy.title,
-    description: "地域の自然・風景・水・土・農・季節・活動を、場所ごとに見返す地域図鑑マップです。",
+    description: "地域の自然・風景・水・土・農・季節・活動を、場所ごとに確認する地域図鑑マップです。",
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,

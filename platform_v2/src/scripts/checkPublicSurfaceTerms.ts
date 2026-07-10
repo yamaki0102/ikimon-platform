@@ -10,6 +10,96 @@ type ForbiddenTerm = {
 
 const FORBIDDEN_TERMS: ForbiddenTerm[] = [
   {
+    term: "見返",
+    reason: "light-user copy rule: retrospective wording feels heavy; use 開く, 確認する, 比べる, or 次を見る by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "読み返",
+    reason: "light-user copy rule: retrospective wording feels heavy; use 開く or 確認する by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "厚く",
+    reason: "light-user copy rule: vague metaphor; use 記録が増える, 記録量, or 手がかり by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "厚み",
+    reason: "light-user copy rule: vague metaphor; use 記録量, 手がかり, or 比較材料 by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "分厚",
+    reason: "light-user copy rule: vague metaphor; use 記録が増える or 比較材料 by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "貢献",
+    reason: "light-user copy rule: too duty-heavy for public copy; use 記録, 残す, 関わる, or 地域に残る形 by context",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "役立",
+    reason: "light-user copy rule: avoid utility/impact claims; state the visible result instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "おかげ",
+    reason: "light-user copy rule: avoid praise/guilt framing; use neutral record state changes",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "順番通り",
+    reason: "route copy rule: routes are optional hints, not strict instructions",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "ルート通り",
+    reason: "route copy rule: routes are optional hints, not strict instructions",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "ここは、これから育つ場所",
+    reason: "map empty-state rule: avoid abstract growth framing; show nearby photos, guides, or places instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "また行く理由が育っている",
+    reason: "map area-status rule: avoid service-authored motivation; describe visible seasonal comparison instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "first clue",
+    reason: "light-user copy rule: avoid first-discoverer framing; use photo/place cues instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "This is room for the guide to grow",
+    reason: "map empty-state rule: avoid abstract growth framing; show nearby photos, guides, or places instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "Everyone's records grow this area",
+    reason: "light-user copy rule: avoid growth/contribution framing; describe what appears in the area instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "Reading how this area is growing",
+    reason: "light-user copy rule: avoid growth/contribution framing; describe loading area records instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "callejón sin salida",
+    reason: "map empty-state rule: avoid explaining emptiness; show nearby photos, guides, or places instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
+    term: "beco sem saída",
+    reason: "map empty-state rule: avoid explaining emptiness; show nearby photos, guides, or places instead",
+    allowedFiles: [/\.test\.ts$/],
+  },
+  {
     term: "フィールドガイド",
     reason: "canonical pack §5.2: rename to ライブガイド (for /guide) or その場で調べる (for /lens)",
   },

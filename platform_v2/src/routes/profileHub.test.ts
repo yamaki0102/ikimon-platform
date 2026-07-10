@@ -35,7 +35,7 @@ function regionalStory(overrides: Partial<RegionalStoryCue> = {}): RegionalStory
     surface: "profile",
     angleKey: "history",
     angleLabel: "昔の道から見る",
-    placeHook: "同じ場所を見返すなら、道の端を残す。",
+    placeHook: "同じ場所を確認するなら、道の端を残す。",
     whyHere: "古い道や水路の位置が、今日見えたものの背景になります。",
     nextObservationAngle: "道の端と水辺を一緒に撮る。",
     collectiveNote: "季節を変えて比べると条件が見えます。",
@@ -158,14 +158,14 @@ test("self profile channel uses real fallback labels instead of English placehol
 test("self profile hub deduplicates repeated regional story cards before rendering", () => {
   const duplicate = regionalStory();
   const distinct = regionalStory({
-    placeHook: "別の場所を見返すなら、草地の境目を残す。",
+    placeHook: "別の場所を確認するなら、草地の境目を残す。",
     whyHere: "草地と舗装の境目が、見えた生きものの条件になります。",
   });
   const html = renderSelfProfileHub("", "ja", profileSnapshot(), null, [duplicate, regionalStory(), distinct]);
 
   assert.equal((html.match(/data-testid="regional-story"/g) ?? []).length, 2);
-  assert.equal((html.match(/同じ場所を見返すなら、道の端を残す。/g) ?? []).length, 1);
-  assert.equal((html.match(/別の場所を見返すなら、草地の境目を残す。/g) ?? []).length, 1);
+  assert.equal((html.match(/同じ場所を確認するなら、道の端を残す。/g) ?? []).length, 1);
+  assert.equal((html.match(/別の場所を確認するなら、草地の境目を残す。/g) ?? []).length, 1);
 });
 
 test("profile regional story input carries the latest place subject and date", () => {

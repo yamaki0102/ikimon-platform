@@ -16,7 +16,7 @@ test("profile note digest DeepSeek budget fits 10k posts under 1000 JPY", () => 
 });
 
 test("profile note digest token estimate is conservative for Japanese text", () => {
-  assert.ok(estimateProfileDigestTokenCount("地域のノートが少し厚くなった") >= 5);
+  assert.ok(estimateProfileDigestTokenCount("地域のノートに手がかりが増えた") >= 5);
   assert.ok(estimateProfileDigestTokenCount("a".repeat(6000)) <= 2000);
 });
 

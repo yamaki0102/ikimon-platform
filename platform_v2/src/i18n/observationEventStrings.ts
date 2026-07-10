@@ -81,7 +81,7 @@ const ja: ObservationEventStrings = {
   recapTopTaxa: "よく見つかった種",
   recapStats: "セッションの数字",
   recapTeamsHeader: "班ごとの達成",
-  recapMeFallback: "参加者 URL でアクセスすると、あなたの貢献が見られます。",
+  recapMeFallback: "参加者 URL でアクセスすると、あなたの記録が見られます。",
   recapImpactEmpty: "月次バッチで、観察会の記録が地域の自然理解、活動報告、TNFD ブリーフにどう使われたかをこの欄に追記します。",
 };
 

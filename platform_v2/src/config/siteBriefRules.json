@@ -23,7 +23,7 @@
     },
     "reasons_ja": ["樹林と水辺が近接", "低地の可能性"],
     "reasons_en": ["Tree cover adjacent to water", "Low elevation hint"],
-    "checks_ja": ["ぬかるみの有無", "常緑低木の混じり方", "落葉層の厚み"],
+    "checks_ja": ["ぬかるみの有無", "常緑低木の混じり方", "落葉層の量"],
     "checks_en": ["Muddy ground", "Evergreen shrubs mixed in", "Leaf litter depth"],
     "captures_ja": ["地表を1枚", "水際からの距離を分かるアングルで1枚"],
     "captures_en": ["One shot of the ground", "One shot showing distance to water"]
