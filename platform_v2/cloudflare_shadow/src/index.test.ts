@@ -9603,6 +9603,34 @@ test("v1 photo upload stores base64 media in R2 and returns the shared ok contra
   assert.equal(queue.messages.length, 2);
 });
 
+test("v1 photo upload compensates the R2 object when the authoritative D1 batch fails", async () => {
+  const { env, obs } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "visit-photo-d1-failure",
+    userId: "user-photo",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.8
+  });
+  const originalBatch = obs.batch.bind(obs);
+  obs.batch = async () => { throw new Error("simulated_d1_failure"); };
+  try {
+    await assert.rejects(worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-photo-d1-failure/photos/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        filename: "field-photo.jpg",
+        mimeType: "image/jpeg",
+        base64Data: Buffer.from("image-bytes").toString("base64")
+      })
+    }), env), /simulated_d1_failure/);
+    assert.equal(obs.assets.size, 0);
+    assert.equal((env.ASSET_BUCKET as unknown as FakeBucket).objects.size, 0);
+  } finally {
+    obs.batch = originalBatch;
+  }
+});
+
 test("v1 video direct upload and finalize keep the current Cloudflare Stream-compatible contract", async () => {
   const { env, obs, queue } = createEnv();
   const guestResponse = await worker.fetch(new Request("https://shadow.test/api/v1/videos/direct-upload", {

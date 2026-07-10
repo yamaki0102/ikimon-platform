@@ -20622,7 +20622,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       photoSaved: "写真1枚を同じ記録に保存しました。",
       videoSaved: "動画は保存済みです。",
       missingMedia: "写真または動画を選択してください。",
-      failed: "保存に失敗しました。時間をおいてもう一度試してください。"
+      failed: "写真はまだ保存されていません。選択したまま、もう一度保存してください。"
     }
     : {
       photo: "Photo",
@@ -20639,7 +20639,7 @@ function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, cspNonce
       photoSaved: "Saved one photo to the same record.",
       videoSaved: "Video saved.",
       missingMedia: "Choose a photo or video.",
-      failed: "Save failed. Try again later."
+      failed: "The photo is not saved yet. Keep it selected and try saving again."
     };
   const startMode = url.searchParams.get("start") === "video" ? "video" : "photo";
   return `<!doctype html>
@@ -21048,7 +21048,7 @@ function renderCloudflareProfileHtml(
     .cf-profile-settings dd{margin:4px 0 0;font-weight:950;overflow-wrap:anywhere}
     .cf-profile-settings a{color:var(--blue);font-weight:950}
     @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}.cf-profile-hero{grid-template-columns:1fr}.cf-profile-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-profile-settings dl{grid-template-columns:1fr}}
-    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:16px auto 28px}.cf-profile-hero-copy{padding:20px;border-radius:16px}.cf-profile-hero-copy h1{font-size:28px}.cf-profile-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.cf-profile-action{min-height:78px;padding:12px}.cf-profile-record-grid{grid-template-columns:1fr}.cf-profile-record{grid-template-columns:82px minmax(0,1fr)}.cf-profile-record-media{width:82px}.cf-profile-flow ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 20px);margin:16px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy{padding:20px;border-radius:16px}.cf-profile-hero-copy h1{font-size:28px}.cf-profile-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.cf-profile-action{min-height:78px;padding:12px}.cf-profile-record-grid{grid-template-columns:1fr;gap:9px}.cf-profile-record{grid-template-columns:124px minmax(0,1fr);min-height:128px;padding:8px;gap:12px}.cf-profile-record-media{width:124px;height:112px;border-radius:11px}.cf-profile-record>span:last-child{min-width:0}.cf-profile-record>span:last-child strong{font-size:15px;line-height:1.35}.cf-profile-record>span:last-child span{font-size:13px;line-height:1.45}.cf-profile-flow ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body data-cloudflare-profile="signed-in">
@@ -25704,7 +25704,8 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const facePrivacy = normalizeFacePrivacy(input.facePrivacy);
 
   await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
-  await env.OBS_DB.batch([
+  try {
+    await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       `INSERT INTO asset_ledger
        (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state, uploaded_at, partition_month)
@@ -25746,7 +25747,15 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
       },
       replaySql: postgresAssetReplaySql(assetId, observationId, observation.owner_user_id, objectKey, sha256, mimeType, body.byteLength, "private")
     })
-  ]);
+    ]);
+  } catch (error) {
+    // R2 and D1 cannot share a transaction. A metadata failure must not leave
+    // an orphaned object that could later be mistaken for a completed upload.
+    await env.ASSET_BUCKET.delete(objectKey).catch((cleanupError) => {
+      console.error("[photo-upload] R2 compensation failed after D1 failure", cleanupError);
+    });
+    throw error;
+  }
 
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
