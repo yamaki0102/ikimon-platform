@@ -146,7 +146,12 @@ test("place memory report migration deduplicates only the same reporter signal",
   `);
   db.exec(sql);
 
-  const rows = db.prepare("SELECT report_id, entry_id, user_id FROM place_memory_reports ORDER BY report_id").all();
+  const rows = db.prepare("SELECT report_id, entry_id, user_id FROM place_memory_reports ORDER BY report_id").all()
+    .map((row) => ({
+      report_id: String(row.report_id),
+      entry_id: String(row.entry_id),
+      user_id: String(row.user_id),
+    }));
   assert.deepEqual(rows, [
     { report_id: "report-1", entry_id: "entry-1", user_id: "user-1" },
     { report_id: "report-3", entry_id: "entry-1", user_id: "user-2" },
