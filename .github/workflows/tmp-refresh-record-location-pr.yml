@@ -1,0 +1,57 @@
+name: Temporary fresh record location patch
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  patch-and-test:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/refresh-record-location-20260710'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Apply fresh-location fix
+        run: python3 .github/scripts/apply-refresh-record-location.py
+
+      - name: Install dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: platform_v2
+        run: npm run typecheck
+
+      - name: Run focused shell tests
+        working-directory: platform_v2
+        run: npx tsx --test src/ui/siteShell.test.ts
+
+      - name: Commit patch and remove temporary files
+        shell: bash
+        env:
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "ikimon-ui-patch-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/tmp-refresh-record-location-pr.yml .github/scripts/apply-refresh-record-location.py
+          git add platform_v2/src/ui/siteShell.ts platform_v2/src/ui/siteShell.test.ts
+          git commit -m "fix(record): refresh location for each photo post"
+          git push origin "HEAD:${HEAD_BRANCH}"
