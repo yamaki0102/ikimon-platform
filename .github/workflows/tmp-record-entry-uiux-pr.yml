@@ -41,10 +41,22 @@ jobs:
         run: npm run typecheck
 
       - name: Run focused shell tests
+        id: focused-tests
+        continue-on-error: true
         working-directory: platform_v2
-        run: npx tsx --test src/ui/siteShell.test.ts
+        run: npx tsx --test src/ui/siteShell.test.ts > ../siteShell-test.log 2>&1
+
+      - name: Upload focused test log
+        if: steps.focused-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: siteShell-test-log
+          path: siteShell-test.log
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Commit patch and remove temporary files
+        if: steps.focused-tests.outcome == 'success'
         shell: bash
         env:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
@@ -55,3 +67,7 @@ jobs:
           git add platform_v2/src/ui/siteShell.ts platform_v2/src/ui/siteShell.test.ts
           git commit -m "fix(ui): keep mobile photo posts in the quick record flow"
           git push origin "HEAD:${HEAD_BRANCH}"
+
+      - name: Fail on focused test failure
+        if: steps.focused-tests.outcome == 'failure'
+        run: exit 1
