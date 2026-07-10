@@ -18781,7 +18781,7 @@ test("production home collapses materialized header actions into a hamburger men
   assert.match(body, /data-cloudflare-header-menu/);
   assert.match(body, /aria-label="メニュー"/);
   assert.match(body, /site-header-actions-desktop,.site-header \.site-header-actions-mobile\{display:none!important\}/);
-  assert.match(body, /href="\/ja\/record"/);
+  assert.match(body, /href="\/ja\/record\?start=photo" data-global-record-trigger="photo"/);
   assert.match(body, /href="\/ja\/login\?redirect=%2Fprofile"/);
   assert.match(body, /href="\/ja\/records"/);
   assert.match(body, /href="\/ja\/map"/);
@@ -18829,6 +18829,7 @@ test("production materialized app shells collapse header actions and respect sig
   assert.match(recordsBody, /site-header-actions-desktop,.site-header \.site-header-actions-mobile\{display:none!important\}/);
   assert.match(recordsBody, /href="\/ja\/profile"/);
   assert.match(recordsBody, /href="\/ja\/profile\/settings"/);
+  assert.match(recordsBody, /href="\/ja\/record\?start=photo" data-global-record-trigger="photo" data-record-target="\/ja\/record\?start=photo" data-kpi-action="header_record_photo"/);
   assert.match(recordsBody, />マイページ</);
   assert.match(recordsBody, />設定</);
   assert.match(recordsBody, /data-cloudflare-records-live/);
@@ -21586,6 +21587,11 @@ test("production public health endpoints are served by Cloudflare instead of ori
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
+    IKIMON_GIT_SHA: "36ed24295a55b228e62c14dab963d9c406ff0bca",
+    IKIMON_WORKER_VERSION: "github-run-29071226066-1",
+    IKIMON_UI_BUNDLE_HASH: "bundle-hash",
+    IKIMON_UI_MANIFEST_HASH: "manifest-hash",
+    IKIMON_DEPLOYED_AT: "2026-07-10T05:29:27Z",
     ORIGIN_FALLBACK_BASE_URL: "https://ikimon.life",
     ORIGIN_FALLBACK_RESOLVE_OVERRIDE: "origin.ikimon.test"
   };
@@ -21619,6 +21625,14 @@ test("production public health endpoints are served by Cloudflare instead of ori
     assert.equal(runtimePayload.runtime, "cloudflare-worker");
     assert.equal(runtimePayload.environment, "production");
     assert.equal(runtimePayload.buildMarker, "one-month-sprint-evidence-gate-20260705");
+    assert.equal(runtimePayload.gitSha, productionEnv.IKIMON_GIT_SHA);
+    assert.equal(runtimePayload.workerVersion, productionEnv.IKIMON_WORKER_VERSION);
+    assert.equal(runtimePayload.uiBundleHash, productionEnv.IKIMON_UI_BUNDLE_HASH);
+    assert.equal(runtimePayload.originalUiManifestHash, productionEnv.IKIMON_UI_MANIFEST_HASH);
+    assert.equal(runtimePayload.deployedAt, productionEnv.IKIMON_DEPLOYED_AT);
+    assert.equal(runtime.headers.get("x-ikimon-deploy-sha"), productionEnv.IKIMON_GIT_SHA);
+    assert.equal(runtime.headers.get("x-ikimon-ui-bundle"), productionEnv.IKIMON_UI_BUNDLE_HASH);
+    assert.equal(runtime.headers.get("x-ikimon-worker-version"), productionEnv.IKIMON_WORKER_VERSION);
     assert.equal(runtimePayload.publicSafe, true);
     assert.equal(runtimePayload.featureFlags.publicRuntimeVersionEndpoint, true);
 

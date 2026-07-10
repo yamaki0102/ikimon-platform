@@ -109,6 +109,10 @@ interface Env {
   OVERPASS_API_URL?: string;
   IKIMON_GIT_SHA?: string;
   GITHUB_SHA?: string;
+  IKIMON_WORKER_VERSION?: string;
+  IKIMON_UI_BUNDLE_HASH?: string;
+  IKIMON_UI_MANIFEST_HASH?: string;
+  IKIMON_DEPLOYED_AT?: string;
 }
 
 function isAppRuntime(env: Env): boolean {
@@ -20484,7 +20488,8 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
         "pragma": "no-cache",
         "expires": "0",
         "vary": "cookie, authorization",
-        "x-ikimon-cloudflare-materialized": "original-ui-html"
+        "x-ikimon-cloudflare-materialized": "original-ui-html",
+        ...releaseIdentityHeaders(env)
       }
     });
   }
@@ -21479,7 +21484,7 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
   const menu = `<details class="cf-header-menu" data-cloudflare-header-menu>
         <summary aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
         <div class="cf-header-menu-panel" role="menu">
-          <a class="cf-header-menu-item is-primary" role="menuitem" href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.record)}</a>
+          <a class="cf-header-menu-item is-primary" role="menuitem" href="${escapeHtml(`${prefix}/record?start=photo`)}" data-global-record-trigger="photo" data-record-target="${escapeHtml(`${prefix}/record?start=photo`)}" data-kpi-action="header_record_photo">${escapeHtml(copy.record)}</a>
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(accountHref)}">${escapeHtml(copy.account)}</a>
           ${isSignedInShell ? `<a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(settingsHref)}">${escapeHtml(copy.settings)}</a>` : ""}
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/records`)}">${escapeHtml(copy.records)}</a>
@@ -30643,6 +30648,14 @@ function json(body: unknown, status = 200, headers?: Record<string, string>): Re
   });
 }
 
+function releaseIdentityHeaders(env: Env): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (env.IKIMON_GIT_SHA?.trim()) headers["x-ikimon-deploy-sha"] = env.IKIMON_GIT_SHA.trim();
+  if (env.IKIMON_UI_BUNDLE_HASH?.trim()) headers["x-ikimon-ui-bundle"] = env.IKIMON_UI_BUNDLE_HASH.trim();
+  if (env.IKIMON_WORKER_VERSION?.trim()) headers["x-ikimon-worker-version"] = env.IKIMON_WORKER_VERSION.trim();
+  return headers;
+}
+
 function getRuntimeVersion(url: URL, env: Env): Response {
   const gitSha = env.IKIMON_GIT_SHA?.trim() || env.GITHUB_SHA?.trim() || null;
   return json({
@@ -30654,6 +30667,10 @@ function getRuntimeVersion(url: URL, env: Env): Response {
     origin: url.origin,
     buildMarker: WORKER_BUILD_MARKER,
     gitSha,
+    workerVersion: env.IKIMON_WORKER_VERSION?.trim() || null,
+    uiBundleHash: env.IKIMON_UI_BUNDLE_HASH?.trim() || null,
+    originalUiManifestHash: env.IKIMON_UI_MANIFEST_HASH?.trim() || null,
+    deployedAt: env.IKIMON_DEPLOYED_AT?.trim() || null,
     source: {
       worker: "platform_v2/cloudflare_shadow/src/index.ts",
       endpoint: RUNTIME_VERSION_PATH,
@@ -30666,7 +30683,7 @@ function getRuntimeVersion(url: URL, env: Env): Response {
       originalUiMaterializedHtml: true
     },
     publicSafe: true
-  }, 200, { "cache-control": "no-store" });
+  }, 200, { "cache-control": "no-store", ...releaseIdentityHeaders(env) });
 }
 
 function getReflectionLoopManifest(url: URL, env: Env): Response {
