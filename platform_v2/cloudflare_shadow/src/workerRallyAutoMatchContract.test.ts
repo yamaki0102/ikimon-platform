@@ -56,13 +56,14 @@ test("D1 rally submission migration removes only duplicate retry identities", ()
       ('first', 'mission-1', 'observation_auto_match', 'visit-1', 'user-1', NULL, '2026-07-10T00:00:00Z'),
       ('retry', 'mission-1', 'observation_auto_match', 'visit-1', 'user-1', NULL, '2026-07-10T00:01:00Z'),
       ('other-user', 'mission-1', 'observation_auto_match', 'visit-1', 'user-2', NULL, '2026-07-10T00:02:00Z'),
+      ('guest', 'mission-1', 'observation_auto_match', 'visit-1', NULL, 'guest-1', '2026-07-10T00:02:30Z'),
       ('manual', 'mission-1', 'manual_rally', NULL, 'user-1', NULL, '2026-07-10T00:03:00Z');
   `);
   db.exec(migrationSource);
 
   const remaining = db.prepare("SELECT submission_id FROM observation_rally_submissions ORDER BY submission_id").all()
     .map((row) => String(row.submission_id));
-  assert.deepEqual(remaining, ["first", "manual", "other-user"]);
+  assert.deepEqual(remaining, ["first", "guest", "manual", "other-user"]);
   assert.throws(
     () => db.exec("INSERT INTO observation_rally_submissions VALUES ('retry-2', 'mission-1', 'observation_auto_match', 'visit-1', 'user-1', NULL, '2026-07-10T00:04:00Z')"),
     /UNIQUE constraint failed/i,
