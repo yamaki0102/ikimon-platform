@@ -135,7 +135,7 @@ function renderFieldHeroSignals(snapshot: PlaceSnapshot | null | undefined): str
     .filter((item) => item.isCurrentSeason)
     .map((item) => item.displayName || "見つけたもの")
     .filter(Boolean);
-  const uniqueNames = Array.from(new Set(names)).slice(0, 6);
+  const uniqueNames = Array.from(new Set(names)).slice(0, 4);
   if (uniqueNames.length === 0) return "";
   return `<div class="field-map-signals" aria-label="今の季節に見えるもの">
     <span>今見えるもの</span>
@@ -358,7 +358,7 @@ export function fieldDetailScript(): string {
     return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: {} };
   }
 
-  (async () => {
+  const startMap = async () => {
     if (!mapEl) return;
     const ml = await ensureMaplibre();
     if (!ml) return;
@@ -405,9 +405,15 @@ export function fieldDetailScript(): string {
         coords.forEach(collect);
       };
       collect(polyFeature.geometry.coordinates);
-      if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 56, maxZoom: 16, duration: 0 });
+      const compact = mapEl.getBoundingClientRect().width < 720;
+      if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: compact ? 28 : 56, maxZoom: compact ? 15 : 16, duration: 0 });
     });
-  })();
+  };
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(startMap, { timeout: 800 });
+  } else {
+    window.setTimeout(startMap, 120);
+  }
 })();
 `;
 }
@@ -464,6 +470,7 @@ ${RECORD_CARD_SIZING_TOKENS}
   background: #ffffff;
 }
 .field-map-hero-copy {
+  box-sizing: border-box;
   position: relative;
   z-index: 1;
   display: grid;
@@ -747,7 +754,7 @@ ${RECORD_CARD_SIZING_TOKENS}
     max-width: 1080px;
   }
   .field-map-hero {
-    min-height: 620px;
+    min-height: clamp(420px, 58vw, 500px);
   }
   .field-map-hero-copy {
     width: calc(100% - 24px);
@@ -780,15 +787,47 @@ ${RECORD_CARD_SIZING_TOKENS}
 }
 @media (max-width: 720px) {
   .field-map-hero {
-    min-height: 680px;
+    min-height: 0;
+    grid-template-rows: clamp(156px, 42vw, 208px) auto;
+    align-items: stretch;
     border-radius: 18px;
   }
+  .field-map-hero-map {
+    position: relative;
+    inset: auto;
+    min-height: clamp(156px, 42vw, 208px);
+  }
+  .field-map-hero-map::after {
+    background: linear-gradient(180deg, rgba(15,23,42,.02) 0%, rgba(15,23,42,.10) 100%);
+  }
   .field-map-hero-copy {
+    width: 100%;
+    margin: 0;
     padding: 18px;
-    border-radius: 16px;
+    border-radius: 0;
+    background: #064e3b;
+    box-shadow: none;
+    backdrop-filter: none;
   }
   .field-map-hero-copy h2 {
-    font-size: 28px;
+    font-size: clamp(24px, 7.5vw, 31px);
+  }
+  .field-map-hero-copy p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .field-map-signals {
+    max-height: 64px;
+    overflow: hidden;
+  }
+  .field-map-hero-copy .field-detail-actions .evt-btn {
+    flex: 1 1 150px;
+    min-height: 44px;
+    padding: 8px 12px;
   }
   .field-album-grid,
   .field-album-grid-compact {
