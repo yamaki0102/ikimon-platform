@@ -588,7 +588,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       "application/x-www-form-urlencoded",
       { parseAs: "string" },
       (_request, body, done) => {
-        done(null, Object.fromEntries(new URLSearchParams(body)));
+        done(null, Object.fromEntries(new URLSearchParams(String(body))));
       },
     );
   }
