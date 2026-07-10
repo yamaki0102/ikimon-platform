@@ -64,3 +64,24 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(wranglerConfig, /"binding": "MEDIA_QUEUE"/);
   assert.match(wranglerConfig, /"queue": "ikimon-prod-media-jobs"/);
 });
+
+test("photo upload compensates only transaction-created files under a retry lock", () => {
+  const source = readFileSync(path.join(process.cwd(), "src/services/observationPhotoUpload.ts"), "utf8");
+
+  assert.match(source, /pg_advisory_xact_lock\(hashtextextended\(\$1, 0\)\)/);
+  assert.match(source, /mediaObjectStore\.exists\(originalInput\)/);
+  assert.match(source, /mediaObjectStore\.exists\(publicInput\)/);
+  assert.match(source, /originalExisted[\s\S]*mediaObjectStore\.reference\(originalInput\)/);
+  assert.match(source, /publicExisted[\s\S]*mediaObjectStore\.reference\(publicInput\)/);
+  assert.match(source, /createdMediaObjects\.push\(originalInput\);\s*originalObject = await mediaObjectStore\.write/);
+  assert.match(source, /createdMediaObjects\.push\(publicInput\);\s*publicObject = await mediaObjectStore\.write/);
+  assert.match(source, /cleanupCreatedObservationMedia\(mediaObjectStore, createdMediaObjects\)[\s\S]*client\.query\("rollback"\)/);
+
+  const normalizationIndex = source.indexOf("await normalizeObservationImage");
+  const connectionIndex = source.indexOf("const client = await pool.connect()");
+  assert.ok(normalizationIndex >= 0 && connectionIndex > normalizationIndex, "connect only after input normalization");
+
+  const cleanupIndex = source.indexOf("await cleanupCreatedObservationMedia");
+  const rollbackIndex = source.indexOf('await client.query("rollback")');
+  assert.ok(cleanupIndex >= 0 && rollbackIndex > cleanupIndex, "cleanup runs while the transaction lock is held");
+});
