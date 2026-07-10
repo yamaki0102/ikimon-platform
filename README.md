@@ -15,6 +15,11 @@
 | DB migration | `platform_v2/db/migrations/` |
 | E2E / browser QA | `platform_v2/e2e/` |
 
+## 開発判断の正本
+
+- 現在の優先度・投稿体験・ラリー思想: `docs/strategy/ikimon_life_development_priorities_2026-07-10.md`
+- 固定原則: 既存投稿を壊さない、投稿は常に自由、ラリーは投稿後判定、PC・スマートフォンの両方で完了確認する
+
 ## 技術スタック
 
 | レイヤー | 技術 |
@@ -39,6 +44,7 @@ npm --prefix platform_v2 run dev
 ## エージェント導線
 
 - 最初に読む: `AGENTS.md`
+- 開発優先度: `docs/strategy/ikimon_life_development_priorities_2026-07-10.md`
 - 通常 catch-up: `docs/CATCHUP_GUIDE.md`
 - 入口定義の正本: `docs/catchup_manifest.json`
 - 生成された俯瞰: `docs/CATCHUP_SNAPSHOT.md`
