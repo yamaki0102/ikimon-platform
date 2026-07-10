@@ -1,6 +1,8 @@
 -- A saved observation may be retried by the application side-effect pipeline.
 -- Keep one rally submission per mission, source observation and participant.
 -- Existing duplicate rows are collapsed deterministically before the invariant is added.
+-- destructive-ok: remove only duplicate retry rows while retaining the earliest semantic submission; duplicates cannot be meaningfully restored.
+-- owner-sensitive-ok: the deployment migration role owns this table; rollback drops idx_obs_rally_submission_source_once without changing retained rows.
 
 WITH ranked AS (
   SELECT
