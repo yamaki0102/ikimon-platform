@@ -13,19 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Capture participant structure
+      - name: Stage fake D1 source
         shell: bash
         run: |
-          {
-            echo '=== participant interfaces and maps ==='
-            rg -n -C 5 "ObservationEventParticipant|observationEventParticipants" platform_v2/cloudflare_shadow/src/index.test.ts || true
-            echo '=== active participant SQL handlers ==='
-            rg -n -C 8 "observation_event_participants|participant_id" platform_v2/cloudflare_shadow/src/index.test.ts | head -n 240 || true
-          } > rally-participant-structure.log
-          cat rally-participant-structure.log
+          mkdir -p rally-participant-source
+          cp platform_v2/cloudflare_shadow/src/index.test.ts rally-participant-source/index.test.ts
+          cp platform_v2/cloudflare_shadow/src/index.ts rally-participant-source/index.ts
       - name: Upload diagnostic
         uses: actions/upload-artifact@v6
         with:
-          name: rally-participant-structure
-          path: rally-participant-structure.log
+          name: rally-participant-source
+          path: rally-participant-source
           if-no-files-found: error
