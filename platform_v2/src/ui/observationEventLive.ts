@@ -10,6 +10,18 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean) : [];
+}
+
 const MODE_LABEL: Record<string, string> = {
   discovery: "発見",
   effort_maximize: "努力量",
@@ -29,6 +41,11 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
   const { session, isOrganizer, guestToken } = args;
   const meter = MODE_METERS[session.primaryMode] ?? MODE_METERS.discovery;
   const modeBadgeClass = `evt-badge evt-mode-${session.primaryMode === "effort_maximize" ? "effort" : session.primaryMode === "absence_confirm" ? "absence" : session.primaryMode === "ai_quest" ? "quest" : session.primaryMode}`;
+  const config = asRecord(session.config);
+  const placeEvent = asRecord(config.place_event);
+  const profile = asRecord(config.event_profile);
+  const meetingPoint = stringValue(placeEvent.meeting_point);
+  const bringItems = stringList(profile.bring_items);
 
   const modeSwitcher = EVENT_MODES.map((mode) => {
     const cls = mode === session.primaryMode ? "evt-mode-pill is-active" : "evt-mode-pill";
@@ -47,6 +64,7 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
   <header class="evt-live-topbar">
     <div>
       <span class="evt-eyebrow">${escapeHtml(MODE_LABEL[session.primaryMode] ?? "発見")} モード</span>
+      <strong data-evt-live-title>${escapeHtml(session.title || "観察会")}</strong>
       <div class="evt-live-topbar-time" data-evt-clock>--:--</div>
     </div>
     <div class="evt-live-topbar-progress">
@@ -63,6 +81,14 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
   </header>
 
   <main class="evt-live-main">
+    <section class="evt-live-brief" aria-label="今日やること">
+      <div>
+        <span class="evt-eyebrow">今日やること</span>
+        <strong>見つける・記録する・班に共有する</strong>
+      </div>
+      <p>${meetingPoint ? `集合: ${escapeHtml(meetingPoint)}。` : ""}目標: ${targets}。${bringItems.length ? `持ち物: ${bringItems.map(escapeHtml).join("、")}。` : ""}</p>
+    </section>
+
     <section class="evt-live-map" aria-label="ライブマップ">
       <div class="evt-live-map-canvas" data-evt-map
            data-center-lat="${escapeHtml(String(session.locationLat ?? 35.0))}"

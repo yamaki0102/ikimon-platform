@@ -146,6 +146,7 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
     <button class="evt-recap-tab" data-tab="capsule" type="button">地点ストーリー</button>
     <button class="evt-recap-tab" data-tab="timeline" type="button">タイムライン</button>
     <button class="evt-recap-tab" data-tab="impact" type="button">科学的影響</button>
+    <button class="evt-recap-tab" data-tab="public-output" type="button">成果物</button>
   </div>
 
   <section class="evt-recap-section" data-tab-panel="overview">
@@ -195,6 +196,32 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
   <section class="evt-recap-section" data-tab-panel="impact" style="display:none;">
     <h2 class="evt-heading">この観察会のその後</h2>
     ${impactSection}
+  </section>
+
+  <section class="evt-recap-section" data-tab-panel="public-output" style="display:none;">
+    <h2 class="evt-heading">共有とPublic成果物</h2>
+    <p class="evt-lead">無料利用では概要を共有できます。Public では正式な種リストとPDFレポート、提出前レビューを使えます。</p>
+    <div class="evt-public-output-grid">
+      <article class="evt-card">
+        <span class="evt-eyebrow">Free</span>
+        <h3>概要共有</h3>
+        <p class="evt-lead">参加人数、観察数、よく見つかった種をURLで共有します。</p>
+      </article>
+      <article class="evt-card">
+        <span class="evt-eyebrow">Public</span>
+        <h3>正式レポート</h3>
+        <p class="evt-lead">PDFレポート、種リストCSV、提出用サマリーをまとめます。</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+          <button type="button" class="evt-btn evt-btn-ghost" ${permissions.canManage ? "" : "disabled"}>PDFレポート</button>
+          <button type="button" class="evt-btn evt-btn-ghost" ${permissions.canManage ? "" : "disabled"}>種リストCSV</button>
+        </div>
+      </article>
+      <article class="evt-card">
+        <span class="evt-eyebrow">Review</span>
+        <h3>希少種に配慮</h3>
+        <p class="evt-lead">希少種、未成年、私有地、正確な位置情報を公開前に確認します。</p>
+      </article>
+    </div>
   </section>
 </section>
 `;

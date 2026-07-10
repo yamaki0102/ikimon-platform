@@ -25,6 +25,9 @@ const MODE_BADGE_CLS: Record<string, string> = {
 
 export function renderOrganizerConsoleBody(session: ObservationEventSessionRow): string {
   const meter = MODE_METERS[session.primaryMode] ?? MODE_METERS.discovery;
+  const joinHref = session.eventCode
+    ? `/community/events/${encodeURIComponent(session.eventCode)}/join`
+    : `../join`;
 
   const modeButtons = EVENT_MODES.map((mode) => {
     const cls = mode === session.primaryMode ? "evt-mode-pill is-active" : "evt-mode-pill";
@@ -64,7 +67,14 @@ export function renderOrganizerConsoleBody(session: ObservationEventSessionRow):
     <div>
       <span class="evt-eyebrow">参加リンク</span>
       <p class="evt-lead" style="margin:6px 0;">参加コード: <b style="font-family:'Roboto Mono',monospace; font-size:18px;">${escapeHtml(session.eventCode ?? "—")}</b></p>
-      <p class="evt-lead">QR は <code>/community/events/${escapeHtml(session.eventCode ?? "")}/join</code> を読み込ませる。</p>
+      <p class="evt-lead">QR は <code>${escapeHtml(joinHref)}</code> を読み込ませる。</p>
+      <button type="button" class="evt-btn evt-btn-ghost" data-copy-join-url data-join-url="${escapeHtml(joinHref)}">参加URLをコピー</button>
+    </div>
+
+    <div class="evt-public-output-mini">
+      <span class="evt-eyebrow">Public outputs</span>
+      <p class="evt-lead" style="margin:6px 0;">正式レポート、種リスト、提出前レビューは終了後の振り返りで確認します。</p>
+      <a class="evt-btn evt-btn-ghost" href="./recap">正式レポートへ</a>
     </div>
 
     <div style="display:grid; gap:8px;">
@@ -247,6 +257,17 @@ export function organizerConsoleScript(): string {
   const root = document.querySelector(".evt-console-shell");
   if (!root) return;
   const sessionId = root.dataset.sessionId;
+  root.querySelector("[data-copy-join-url]")?.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    const path = btn?.getAttribute("data-join-url") || "";
+    const url = path.startsWith("http") ? path : window.location.origin + path;
+    try {
+      await navigator.clipboard.writeText(url);
+      if (window.evtFanfare) window.evtFanfare("参加URLをコピー");
+    } catch (_) {
+      alert(url);
+    }
+  });
 
   const stats = { obs: 0, species: new Set(), absence: 0, quests: 0, participants: 0 };
   const obsEl = root.querySelector('[data-evt-stat="obs"]');

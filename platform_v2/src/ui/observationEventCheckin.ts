@@ -6,6 +6,18 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => stringValue(item)).filter(Boolean) : [];
+}
+
 const MODE_LABEL: Record<string, string> = {
   discovery: "発見",
   effort_maximize: "努力量",
@@ -30,6 +42,14 @@ export interface RenderCheckinArgs {
 export function renderCheckinBody(args: RenderCheckinArgs): string {
   const { session, teams, isAuthenticated } = args;
   const targets = (session.targetSpecies ?? []).slice(0, 8).map(escapeHtml).join("、") || "未設定";
+  const config = asRecord(session.config);
+  const placeEvent = asRecord(config.place_event);
+  const profile = asRecord(config.event_profile);
+  const meetingPoint = stringValue(placeEvent.meeting_point) || "主催者の案内を確認してください";
+  const placeLabel = stringValue(placeEvent.place_label);
+  const bringItems = stringList(profile.bring_items);
+  const loanItems = stringList(profile.loan_items);
+  const targetAge = stringValue(profile.target_age_label);
 
   const teamCards = teams.length === 0
     ? `<div class="evt-card">
@@ -53,6 +73,30 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
     <h1 class="evt-heading" style="margin-top:6px; font-size:clamp(22px, 4vw, 30px);">${escapeHtml(session.title || "観察会に参加")}</h1>
     <p class="evt-lead">「${escapeHtml(MODE_LABEL[session.primaryMode] ?? "発見")}」モードで進行中。目標: ${targets}</p>
   </header>
+
+  <section class="evt-readiness-grid" aria-label="参加前の確認">
+    <article class="evt-readiness-card">
+      <span class="evt-eyebrow">今日の集合場所</span>
+      <strong>${escapeHtml(meetingPoint)}</strong>
+      ${placeLabel ? `<p class="evt-lead">${escapeHtml(placeLabel)}</p>` : ""}
+    </article>
+    <article class="evt-readiness-card">
+      <span class="evt-eyebrow">持ち物</span>
+      <p class="evt-lead">${bringItems.length ? bringItems.map(escapeHtml).join("、") : "飲み物、歩きやすい靴、スマートフォン"}</p>
+    </article>
+    <article class="evt-readiness-card">
+      <span class="evt-eyebrow">貸出</span>
+      <p class="evt-lead">${loanItems.length ? loanItems.map(escapeHtml).join("、") : "必要な場合は主催者に確認"}</p>
+    </article>
+    <article class="evt-readiness-card">
+      <span class="evt-eyebrow">公開範囲と位置情報</span>
+      <p class="evt-lead">現在地共有は開催中だけ。公開時は希少種や未成年に配慮して位置を調整します。</p>
+    </article>
+    <article class="evt-readiness-card">
+      <span class="evt-eyebrow">役割宣言</span>
+      <p class="evt-lead">チェックイン後、撮影・識別・地図・記録などの役割を選べます。${targetAge ? `対象: ${escapeHtml(targetAge)}。` : ""}</p>
+    </article>
+  </section>
 
   <form class="evt-checkin-form" data-evt-checkin-form>
     <label>表示名(チームに表示されます)

@@ -8,6 +8,43 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function numberValue(value: unknown): number | null {
+  const n = typeof value === "number" ? value : (typeof value === "string" && value.trim() ? Number(value) : NaN);
+  return Number.isFinite(n) ? n : null;
+}
+
+function categoryLabel(value: unknown): string {
+  switch (stringValue(value)) {
+    case "family": return "親子向け";
+    case "school": return "学校向け";
+    case "beginner": return "初心者歓迎";
+    case "corporate": return "企業・自治体向け";
+    default: return "";
+  }
+}
+
+function difficultyLabel(value: unknown): string {
+  switch (stringValue(value)) {
+    case "easy": return "初心者歓迎";
+    case "moderate": return "少し歩く";
+    case "hard": return "健脚向け";
+    default: return "";
+  }
+}
+
+function formatKm(value: number | null): string {
+  if (value === null) return "";
+  return `${Number(value.toFixed(1))}km`;
+}
+
 const MODE_BADGE: Record<string, string> = {
   discovery: "discovery",
   effort_maximize: "effort",
@@ -39,6 +76,23 @@ export function renderEventListBody(sessions: ObservationEventSessionRow[], stri
 
   const renderCard = (s: ObservationEventSessionRow): string => {
     const isLive = s.endedAt === null;
+    const config = asRecord(s.config);
+    const profile = asRecord(config.event_profile);
+    const placeEvent = asRecord(config.place_event);
+    const meetingPoint = stringValue(placeEvent.meeting_point);
+    const placeLabel = stringValue(placeEvent.place_label);
+    const targetAge = stringValue(profile.target_age_label);
+    const difficulty = difficultyLabel(profile.difficulty);
+    const category = categoryLabel(profile.category);
+    const distance = formatKm(numberValue(profile.walking_distance_km));
+    const capacity = numberValue(profile.capacity);
+    const tags = [category, difficulty].filter(Boolean);
+    const meta = [
+      meetingPoint,
+      targetAge,
+      distance,
+      capacity !== null ? `定員 ${capacity}名` : "",
+    ].filter(Boolean);
     const badgeCls = `evt-badge evt-mode-${MODE_BADGE[s.primaryMode] ?? "discovery"}${isLive ? " is-live" : ""}`;
     const detailHref = isLive
       ? (s.eventCode ? `/community/events/${encodeURIComponent(s.eventCode)}/join` : `/events/${s.sessionId}/live`)
@@ -52,7 +106,10 @@ export function renderEventListBody(sessions: ObservationEventSessionRow[], stri
         </header>
         <h3 class="evt-heading" style="margin:0; font-size:18px;">${escapeHtml(s.title || "")}</h3>
         <p class="evt-lead">${(s.targetSpecies ?? []).slice(0, 4).map(escapeHtml).join("、") || "—"}</p>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        ${placeLabel ? `<p class="evt-lead" style="font-size:13px;">${escapeHtml(placeLabel)}</p>` : ""}
+        ${tags.length ? `<div class="evt-event-card-tags">${tags.map((tag) => `<span class="evt-badge evt-mode-discovery">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+        ${meta.length ? `<div class="evt-event-card-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
+        <div class="evt-event-card-actions">
           <a class="evt-btn evt-btn-${isLive ? "primary" : "ghost"}" href="${detailHref}">
             ${isLive ? strings.joinCta : strings.recapCta}
           </a>
@@ -73,6 +130,14 @@ export function renderEventListBody(sessions: ObservationEventSessionRow[], stri
       <a class="evt-btn evt-btn-on-dark" href="/community">${escapeHtml(strings.listBackToCommunity)}</a>
     </div>
   </article>
+
+  <nav class="evt-wire-filterbar" aria-label="観察会を探す">
+    <button type="button" class="evt-wire-chip is-active" data-event-filter="live">開催中</button>
+    <button type="button" class="evt-wire-chip" data-event-filter="beginner">初心者歓迎</button>
+    <button type="button" class="evt-wire-chip" data-event-filter="family">親子向け</button>
+    <button type="button" class="evt-wire-chip" data-event-filter="public">Public</button>
+    <a class="evt-wire-chip" href="/community/fields">フィールドから探す</a>
+  </nav>
 
   <section>
     <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">

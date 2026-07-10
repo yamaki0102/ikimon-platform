@@ -43,40 +43,110 @@ export function renderEventCreateBody(args: {
   </article>
 
   <form class="evt-checkin-form" data-evt-create-form>
-    <label>タイトル
-      <input name="title" required maxlength="80" placeholder="例: 春の里山観察会" />
-    </label>
+    <section class="evt-form-section" id="evt-create-basic">
+      <div class="evt-form-section-head">
+        <span class="evt-eyebrow">1 / 基本</span>
+        <h2>何を、どの入口で開くか</h2>
+      </div>
+      <div class="evt-form-grid">
+        <label>タイトル
+          <input name="title" required maxlength="80" placeholder="例: 春の里山観察会" />
+        </label>
+        <label>カテゴリ
+          <select name="category">
+            <option value="family">親子向け</option>
+            <option value="beginner">初心者歓迎</option>
+            <option value="school">学校向け</option>
+            <option value="corporate">企業・自治体向け</option>
+          </select>
+        </label>
+        <label>開始モード
+          <select name="primary_mode" required>
+            ${modeOptions}
+          </select>
+        </label>
+        <label>目標種(カンマ区切り、最大 12 種)
+          <input name="target_species" placeholder="例: ヤマセミ, エナガ, シジュウカラ" />
+        </label>
+      </div>
+    </section>
 
-    <label>場所ラベル
-      <input name="place_label" maxlength="80" placeholder="例: 連理の木の下" />
-    </label>
+    <section class="evt-form-section" id="evt-create-place">
+      <div class="evt-form-section-head">
+        <span class="evt-eyebrow">2 / 場所</span>
+        <h2>参加者が迷わない集合情報</h2>
+      </div>
+      <div class="evt-form-grid">
+        <label>場所ラベル
+          <input name="place_label" maxlength="80" placeholder="例: 連理の木の下" />
+        </label>
+        <label>集合場所
+          <input name="meeting_point" maxlength="120" placeholder="例: 正門前ベンチ集合" />
+        </label>
+      </div>
+    </section>
 
-    <label>集合場所
-      <input name="meeting_point" maxlength="120" placeholder="例: 正門前ベンチ集合" />
-    </label>
+    <section class="evt-form-section" id="evt-create-participation">
+      <div class="evt-form-section-head">
+        <span class="evt-eyebrow">3 / 参加条件</span>
+        <h2>参加前に判断できる条件</h2>
+      </div>
+      <div class="evt-form-grid">
+        <label>定員
+          <input name="capacity" type="number" min="1" max="300" placeholder="24" />
+        </label>
+        <label>申込締切
+          <input name="registration_deadline" type="datetime-local" />
+        </label>
+        <label>対象年齢
+          <input name="target_age_label" maxlength="40" placeholder="例: 小学生以上" />
+        </label>
+        <label>難易度
+          <select name="difficulty">
+            <option value="easy">初心者歓迎</option>
+            <option value="moderate">少し歩く</option>
+            <option value="hard">健脚向け</option>
+          </select>
+        </label>
+        <label>歩行距離(km)
+          <input name="walking_distance_km" type="number" min="0" max="30" step="0.1" placeholder="1.2" />
+        </label>
+      </div>
+    </section>
 
-    <label>開始日時
-      <input name="started_at" required type="datetime-local" />
-    </label>
+    <section class="evt-form-section" id="evt-create-day">
+      <div class="evt-form-section-head">
+        <span class="evt-eyebrow">4 / 当日準備</span>
+        <h2>集合前に確認してほしいこと</h2>
+      </div>
+      <div class="evt-form-grid">
+        <label>開始日時
+          <input name="started_at" required type="datetime-local" />
+        </label>
+        <label>終了日時
+          <input name="ended_at" type="datetime-local" />
+        </label>
+        <label>雨天判断
+          <input name="rain_decision_at" type="datetime-local" />
+        </label>
+        <label>持ち物(カンマ区切り)
+          <input name="bring_items" placeholder="例: 飲み物, 帽子, 歩きやすい靴" />
+        </label>
+        <label>貸出(カンマ区切り)
+          <input name="loan_items" placeholder="例: 双眼鏡, ルーペ" />
+        </label>
+      </div>
+    </section>
 
-    <label>終了日時
-      <input name="ended_at" type="datetime-local" />
-    </label>
-
-    <label>参加コード(6 文字英数大文字、空欄なら自動生成)
-      <input name="event_code" maxlength="8" pattern="[A-Z0-9]*" placeholder="例: HAMA26"
-             style="font-family:'Roboto Mono',monospace; text-transform:uppercase; letter-spacing:.12em;" />
-    </label>
-
-    <label>開始モード
-      <select name="primary_mode" required>
-        ${modeOptions}
-      </select>
-    </label>
-
-    <label>目標種(カンマ区切り、最大 12 種)
-      <input name="target_species" placeholder="例: ヤマセミ, エナガ, シジュウカラ" />
-    </label>
+    <section class="evt-form-section" id="evt-create-flow">
+      <div class="evt-form-section-head">
+        <span class="evt-eyebrow">5 / 当日の流れ</span>
+        <h2>参加コードと記録入口</h2>
+      </div>
+      <label>参加コード(6 文字英数大文字、空欄なら自動生成)
+        <input name="event_code" maxlength="8" pattern="[A-Z0-9]*" placeholder="例: HAMA26"
+               style="font-family:'Roboto Mono',monospace; text-transform:uppercase; letter-spacing:.12em;" />
+      </label>
 
     <fieldset style="border:1px solid var(--evt-line); border-radius:12px; padding:12px; display:grid; gap:8px;">
       <legend class="evt-eyebrow">当日の入口</legend>
@@ -86,6 +156,7 @@ export function renderEventCreateBody(args: {
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="public_story_enabled" checked /> 公開用ストーリー下書きを作る</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="ai_recap_enabled" checked /> Gemini Flash-Lite paid/Vertex 前提でAI下書き対象にする</label>
     </fieldset>
+    </section>
 
     <fieldset class="evt-area-planner">
       <legend>開催エリア</legend>
@@ -243,6 +314,10 @@ export function renderEventCreateBody(args: {
         <option value="public">Public(法人・自治体提出対応)</option>
       </select>
     </label>
+    <section class="evt-plan-boundary" id="evt-create-result">
+      <span class="evt-eyebrow">6 / 成果物</span>
+      <p><b>無料利用では概要を共有できます。</b> Public では正式な種リストとPDFレポート、自治体・企業提出向けの確認導線を使えます。</p>
+    </section>
 
     <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
       <a class="evt-btn evt-btn-ghost" href="/community/events">キャンセル</a>
@@ -1424,6 +1499,18 @@ export function eventCreateScript(): string {
     const eventCode = String(fd.get("event_code") || "").toUpperCase().replace(/[^A-Z0-9]/g, "") || genEventCode();
     const targetSpecies = String(fd.get("target_species") || "")
       .split(/[,、]/).map(s => s.trim()).filter(Boolean).slice(0, 12);
+    const splitList = (value) => String(value || "")
+      .split(/[,、\n]/).map(s => s.trim()).filter(Boolean).slice(0, 24);
+    const numberOrNull = (value) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    };
+    const localDateToIsoOrNull = (value) => {
+      const raw = String(value || "");
+      if (!raw) return null;
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? null : d.toISOString();
+    };
     const lat = fd.get("location_lat") ? Number(fd.get("location_lat")) : null;
     const lng = fd.get("location_lng") ? Number(fd.get("location_lng")) : null;
     const radius = fd.get("location_radius_m") ? Number(fd.get("location_radius_m")) : 1000;
@@ -1462,6 +1549,18 @@ export function eventCreateScript(): string {
         field_resolution_action: fieldResolution.action,
         announcement_text: announcementText,
         announcement_generated: announcementText === areaState.announcementAutoDraft,
+        event_profile: {
+          category: String(fd.get("category") || "family"),
+          capacity: numberOrNull(fd.get("capacity")),
+          registration_deadline: localDateToIsoOrNull(fd.get("registration_deadline")),
+          target_age_label: String(fd.get("target_age_label") || "").trim() || null,
+          difficulty: String(fd.get("difficulty") || "easy"),
+          walking_distance_km: numberOrNull(fd.get("walking_distance_km")),
+          bring_items: splitList(fd.get("bring_items")),
+          loan_items: splitList(fd.get("loan_items")),
+          rain_decision_at: localDateToIsoOrNull(fd.get("rain_decision_at")),
+          result_boundary: fd.get("plan") === "public" ? "official_species_list_pdf" : "shareable_summary",
+        },
         place_event: {
           place_label: String(fd.get("place_label") || "").trim() || null,
           meeting_point: String(fd.get("meeting_point") || "").trim() || null,
